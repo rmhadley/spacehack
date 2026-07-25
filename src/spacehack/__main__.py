@@ -837,7 +837,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
                     ctx.context.present(console)
                     _responsive_sleep(0.04)
-                    _encounter = _detect_combat_encounter(player_entity.pos, ctx.game_map, solar_system_module.current_system())
+                    _encounter = _detect_combat_encounter(ctx, player_entity.pos, solar_system_module.current_system())
                     if _encounter is not None:
                         ctx.log.add('Auto-nav interrupted - enemies detected!')
                         return (GotoOutcome.COMBAT, _encounter)
@@ -1979,7 +1979,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if current_mode == 'space' and _is_g_press(event):
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-                    _handle_combat_encounter(console, context, player_owned_ship, player, game_map, log, _goto_combat)
+                    _handle_combat_encounter(ctx, _goto_combat)
                 continue
             delta = _vim_action(event)
             if delta is None:
@@ -1987,9 +1987,9 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             dx, dy = delta
             code, blocker = world.try_move(player, game_map, dx, dy)
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
-                _encounter = _detect_combat_encounter(player.pos, game_map, solar_system_module.current_system())
+                _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                 if _encounter is not None:
-                    _handle_combat_encounter(console, context, player_owned_ship, player, game_map, log, _encounter)
+                    _handle_combat_encounter(ctx, _encounter)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
@@ -2014,8 +2014,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     continue
                                 player_owned_ship.fuel -= ship_module.JUMP_FUEL_COST
                                 log.add(f'Jump drive engaged. Fuel: {player_owned_ship.fuel} / {ship_record_for_fuel.max_fuel}.')
-                                _animate_jump(context, console, game_map, player, character_info, stats, log, active_mission_text=active_mission_text or '')
-                                new_game_map, player = _jump_to_system(jp=jp, player_owned_ship=player_owned_ship, log=log, target_system_id=target_system_id, target_jp_id=target_jp_id)
+                                _animate_jump(ctx, console, ctx.player, active_mission_text=active_mission_text or '')
+                                new_game_map, player = _jump_to_system(ctx=ctx, jp=jp, target_system_id=target_system_id, target_jp_id=target_jp_id)
                                 game_map = new_game_map
                                 ctx.game_map = game_map
                                 ctx.player = player
