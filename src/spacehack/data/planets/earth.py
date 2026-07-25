@@ -1,0 +1,56 @@
+"""Earth: the player's home planetary city.
+
+Static data only - all behaviour lives in
+:func:`spacehack.data.planets.load_planet`. New planets follow the
+same shape: a :class:`PlanetSpec` literal at the module scope.
+
+Earth keeps all four globally-cataloged NPCs unchanged so the
+mission-by-giver-npc-id flow continues to work today (a mission
+tagged for ``barkeep`` still resolves to Bartender on Earth).
+"""
+from __future__ import annotations
+
+from ... import world
+from . import PlanetSpec
+
+
+SPEC = PlanetSpec(
+    id="earth",
+    name="Earth",
+    char="o",
+    fg=(130, 195, 230),
+    description="Your home - blue oceans, green continents, one moon.",
+    width=60,
+    height=40,
+    hangar_anchor=world.Position(13, 17),
+    buildings=(
+        world.CityBuilding(
+            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
+            door_x=13, npc_id="",
+        ),
+        world.CityBuilding(
+            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
+            door_x=37, npc_id="barkeep",
+        ),
+        world.CityBuilding(
+            label="bounties",  x_lo=43, x_hi=57, y_lo=5,  y_hi=15,
+            door_x=50, npc_id="bounty_master",
+        ),
+        world.CityBuilding(
+            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
+            door_x=14, npc_id="guild_master",
+            door_north=True,
+        ),
+        world.CityBuilding(
+            label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35,
+            door_x=47, npc_id="militia_captain",
+            door_north=True,
+        ),
+    ),
+    showroom_ships=(
+        ("scout",   3,  2),
+        ("hauler",  7,  2),
+        ("cruiser", 11, 4),
+    ),
+    npc_overrides=(),    # Earth uses every global NPCS entry verbatim.
+)
