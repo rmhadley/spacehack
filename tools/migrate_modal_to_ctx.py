@@ -41,6 +41,13 @@ replaces ``context``) rather than byte-exact formatting.
 * DOES NOT add ``ctx.X = X`` mutation mirrors in :func:`_run_game`;
   those are P3.6.2 (added BEFORE the actual modal migration so
   rewrites land on an already-mirror-redundant code base).
+* DOES NOT inject ``from .game_context import GameContext`` into
+  the rewritten file. The transformer synthesizes ``ctx:
+  GameContext`` annotations on every ``render_X`` signature, so
+  the target file MUST already have that import resolvable at
+  module load. Add the import line before applying the transformer,
+  or inject it programmatically in the P3.6.1 commit body (~1 line
+  before the first render_X).
 """
 from __future__ import annotations
 
@@ -205,18 +212,44 @@ class ContextTransformer(ast.NodeTransformer):
           ``ctx: GameContext`` as the second positional arg
           (right after ``console``).
         """
-        # Positional args.
-        new_pos_args: list[ast.arg] = []
-        for arg in node.args.args:
+        # Positional args + their defaults filtered in lockstep so
+        # defaults stay trailing-aligned. Vanilla Python rule:
+        # ``defaults[j]`` applies to ``args[len(args)-len(defaults)+j]``.
+        # If we drop a trailing-defaulted arg (the arg that owns the
+        # default), we must drop the matching default; otherwise the
+        # default silently slides onto the wrong arg.
+        old_args_list = list(node.args.args)
+        old_defaults_list = list(node.args.defaults)
+        new_pos_args_list: list[ast.arg] = []
+        kept_indices: list[int] = []
+        for i, arg in enumerate(old_args_list):
             if arg.arg == "context":
                 arg.arg = "ctx"
                 arg.annotation = None
-                new_pos_args.append(arg)
+                new_pos_args_list.append(arg)
+                kept_indices.append(i)
             elif arg.arg in PARAM_MAPPING:
                 self.dropped_params.add(arg.arg)
+                # do NOT keep; defaults for this arg (if any) will be
+                # filtered out below.
             else:
-                new_pos_args.append(arg)
-        node.args.args = new_pos_args
+                new_pos_args_list.append(arg)
+                kept_indices.append(i)
+
+        # Rebuild defaults in lockstep with filtered args: a default
+        # at position j applies to the arg at old index
+        # (len(old_args) - len(old_defaults) + j). If that arg was
+        # dropped, the default is dangling -- drop it.
+        new_defaults_list: list[ast.expr | None] = []
+        if old_defaults_list:
+            default_zone_start = len(old_args_list) - len(old_defaults_list)
+            for j, default in enumerate(old_defaults_list):
+                owner_index = default_zone_start + j
+                if owner_index in kept_indices:
+                    new_defaults_list.append(default)
+                # else: dangling default; drop it
+        node.args.args = new_pos_args_list
+        node.args.defaults = new_defaults_list
 
         # render_X functions: if ``ctx`` is not in the (renamed) args,
         # it never had ``context`` to rename, so we add it now as
@@ -224,7 +257,7 @@ class ContextTransformer(ast.NodeTransformer):
         # in the (post-rename) positional list is named ``ctx``;
         # if not, this is a render_X and we synthesize the param.
         is_render = node.name.startswith("render_")
-        has_ctx = any(a.arg == "ctx" for a in new_pos_args)
+        has_ctx = any(a.arg == "ctx" for a in new_pos_args_list)
         if is_render and not has_ctx:
             ctx_arg = ast.arg(
                 arg="ctx",
@@ -232,12 +265,28 @@ class ContextTransformer(ast.NodeTransformer):
             )
             # Insert right after ``console`` (which is always the
             # first positional arg of every render_X).
-            insert_at = 1 if (new_pos_args and new_pos_args[0].arg == "console") else 0
+            insert_at = 1 if (new_pos_args_list and new_pos_args_list[0].arg == "console") else 0
             node.args.args = (
-                new_pos_args[:insert_at]
+                new_pos_args_list[:insert_at]
                 + [ctx_arg]
-                + new_pos_args[insert_at:]
+                + new_pos_args_list[insert_at:]
             )
+            # Defaults array stays valid: we only INSERTED a new
+            # required arg (``ctx: GameContext``) at index 1 (or 0),
+            # shifting positional defaults farther from the tail by
+            # one slot. The trailing-defaults invariant (``defaults[j]``
+            # applies to the last ``len(defaults)`` args) is not
+            # broken by an INSERTION because we inserted a NO-default
+            # required arg before the default zone -- except this
+            # changes the alignment. Concretely: if old was
+            # ``(a, b, c=None)`` and we insert ``ctx`` after ``a``,
+            # the new layout is ``(a, ctx, b, c=None)`` -- still
+            # valid (c is still trailing-defaulted). If old was
+            # ``(a=None,)`` and we insert after ``a``, new is
+            # ``(a, ctx=None)`` which silently gives ``ctx`` a
+            # default. No current render_X has a positional default,
+            # so this is a known limitation flagged for future
+            # contributors.
 
         # Keyword-only args (incl. their defaulted-position table).
         new_kwonly: list[ast.arg] = []
@@ -250,13 +299,6 @@ class ContextTransformer(ast.NodeTransformer):
                 new_kw_defaults.append(default)
         node.args.kwonlyargs = new_kwonly
         node.args.kw_defaults = new_kw_defaults
-
-        # Positional defaults: emit unchanged. The current modal
-        # set has no positional defaults on dropped params, so a
-        # length mismatch can't occur. If a future modal adds one,
-        # a contributor can rebuild ``defaults`` by re-indexing
-        # with the filtered positional args list (TODO: not
-        # implemented -- flagged for the next modal that needs it).
 
     # ----------------------------------------------------------------
     # Body reference rewriting
@@ -346,8 +388,19 @@ class ContextTransformer(ast.NodeTransformer):
             )
 
         # ---- Cross-modal call-site rewrite ----
-        callee_name = getattr(node.func, "id", None)
-        if callee_name is None or callee_name not in TARGET_FUNCTIONS:
+        # Resolve callee name robustly: ``Name`` for bare-name calls
+        # (``_run_X(...)``), ``Attribute`` for method-style calls
+        # (``self._run_X(...)`` or ``ui._run_X(...)``). Both styles
+        # are valid Python; the second matters if any future refactor
+        # in ``__main__.py`` introduces method-style modal invocation,
+        # which would otherwise silently skip the rewrite.
+        if isinstance(node.func, ast.Name):
+            callee_name = node.func.id
+        elif isinstance(node.func, ast.Attribute):
+            callee_name = node.func.attr
+        else:
+            return node
+        if callee_name not in TARGET_FUNCTIONS:
             return node
         new_args: list[ast.expr] = []
         for arg in node.args:
@@ -457,6 +510,63 @@ def _run_game(
 ) -> None:
     outcome = _run_navigation(context, player.pos)
     buy = _run_ship_buy(context, ship, stats=stats, log=log)
+
+
+def _run_quest_log(
+    context: tcod.context.Context,
+    active,
+) -> QuestLogOutcome:
+    """Show the quest log modal."""
+    console = make_console()
+    def _render() -> None:
+        render_quest_log(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+    log.add(f"Active: {active.title}")
+    return ui.Modal(context, console).run(_render, update_quest_log)
+
+
+def render_planet_menu(console, planet_obj, *, character_info, stats, screen_width, screen_height):
+    """Render the planet menu."""
+    console.clear()
+    log.add(f"You visit {planet_obj.name}.")
+
+
+def _run_planet_menu(
+    context: tcod.context.Context,
+    planet_obj,
+    *,
+    character_info,
+    stats,
+    log,
+) -> PlanetMenuOutcome:
+    """Show the planet menu modal."""
+    console = make_console()
+    def _render() -> None:
+        render_planet_menu(console, planet_obj, character_info=character_info, stats=stats, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+    return ui.Modal(context, console).run(_render, update_planet_menu)
+
+
+def _run_jump_menu(
+    context: tcod.context.Context,
+    jp,
+    target_system_id,
+    owned_ship=None,
+) -> JumpMenuOutcome:
+    """Show the jump menu modal."""
+    console = make_console()
+    def _render() -> None:
+        label = f"{jp.label} to {target_system_id}"
+        if owned_ship is None:
+            log.add("No owned ship.")
+        else:
+            log.add(f"You jump {label}.")
+    return ui.Modal(context, console).run(_render, update_jump_menu)
+
+
+def _run_ship_menu(
+    context: tcod.context.Context,
+) -> ShipMenuOutcome:
+    """Show ship menu (delegates to ship view)."""
+    return _run_ship_view(context, ship)
 '''
 
 
@@ -617,6 +727,96 @@ def smoke_test() -> None:
                 f"_run_ship_buy call site should have NO loose kwargs; "
                 f"got {kws}"
             )
+
+    # (8) _run_quest_log: alias ``active`` -> ``player_active_mission``.
+    quest_log = _find_func(tree, "_run_quest_log")
+    ql_args = [a.arg for a in quest_log.args.args]
+    assert ql_args == ["ctx"], (
+        f"_run_quest_log should have only ctx after `active` dropped; "
+        f"got {ql_args}"
+    )
+    has_alias_access = any(
+        isinstance(n, ast.Attribute)
+        and isinstance(n.value, ast.Name)
+        and n.value.id == "ctx"
+        and n.attr == "player_active_mission"
+        for n in ast.walk(quest_log)
+    )
+    assert has_alias_access, (
+        "_run_quest_log body should contain ``ctx.player_active_mission``"
+    )
+
+    # (9) _run_planet_menu: kw-only ``character_info, stats, log`` dropped.
+    planet_menu = _find_func(tree, "_run_planet_menu")
+    pm_args = [a.arg for a in planet_menu.args.args]
+    assert pm_args == ["ctx", "planet_obj"], (
+        f"_run_planet_menu should drop kw-only + strip `context`; "
+        f"got {pm_args}"
+    )
+    pm_kwonly = [a.arg for a in planet_menu.args.kwonlyargs]
+    assert pm_kwonly == [], (
+        f"_run_planet_menu should have NO kw-only args after drop; "
+        f"got {pm_kwonly}"
+    )
+
+    # (9b) render_planet_menu: kw-only dropped, ctx inserted after console.
+    render_planet_menu_node = _find_func(tree, "render_planet_menu")
+    rpm_args = [a.arg for a in render_planet_menu_node.args.args]
+    rpm_kwonly = [a.arg for a in render_planet_menu_node.args.kwonlyargs]
+    assert rpm_args == ["console", "ctx", "planet_obj"], (
+        f"render_planet_menu should be [console, ctx, planet_obj]; "
+        f"got pos={rpm_args}, kwonly={_args_of(render_planet_menu_node)}"
+    )
+    assert rpm_kwonly == ["screen_width", "screen_height"], (
+        f"render_planet_menu should keep non-loose kw-only; "
+        f"got {rpm_kwonly}"
+    )
+
+    # (10) _run_jump_menu: positional ``log`` + positional-with-default
+    # ``owned_ship=None`` dropped; verifies defaults alignment logic.
+    jump_menu = _find_func(tree, "_run_jump_menu")
+    jm_args = [a.arg for a in jump_menu.args.args]
+    assert jm_args == ["ctx", "jp", "target_system_id"], (
+        f"_run_jump_menu should drop log + owned_ship; got {jm_args}"
+    )
+    assert len(jump_menu.args.defaults) == 0, (
+        f"_run_jump_menu should have NO positional defaults after drop; "
+        f"got {[ast.dump(d) for d in jump_menu.args.defaults]}"
+    )
+    has_owned_ship_attr = any(
+        isinstance(n, ast.Attribute)
+        and isinstance(n.value, ast.Name)
+        and n.value.id == "ctx"
+        and n.attr == "player_owned_ship"
+        for n in ast.walk(jump_menu)
+    )
+    assert has_owned_ship_attr, (
+        "_run_jump_menu body should contain ``ctx.player_owned_ship``"
+    )
+
+    # (11) Cross-modal call: ``_run_ship_menu`` -> ``_run_ship_view``.
+    ship_menu = _find_func(tree, "_run_ship_menu")
+    sm_args = [a.arg for a in ship_menu.args.args]
+    assert sm_args == ["ctx"], (
+        f"_run_ship_menu should have only ctx after migration; "
+        f"got {sm_args}"
+    )
+    sm_calls = [
+        c for c in _calls_in_body(tree, "_run_ship_menu")
+        if isinstance(c.func, ast.Name) and c.func.id in TARGET_FUNCTIONS
+    ]
+    assert len(sm_calls) == 1, (
+        f"_run_ship_menu should call exactly 1 other modal; "
+        f"got {[ast.dump(c.func) for c in sm_calls]}"
+    )
+    assert sm_calls[0].func.id == "_run_ship_view", (
+        f"_run_ship_menu should call _run_ship_view; "
+        f"got {sm_calls[0].func.id}"
+    )
+    assert isinstance(sm_calls[0].args[0], ast.Name) and sm_calls[0].args[0].id == "ctx", (
+        f"cross-modal call site should rename context -> ctx; "
+        f"got {ast.dump(sm_calls[0].args[0])}"
+    )
 
 
 if __name__ == "__main__":
