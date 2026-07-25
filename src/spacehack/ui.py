@@ -10,12 +10,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Callable, TypeVar
 
 import tcod.console
 import tcod.event
 
 from .data.species import list_species
 from .data.classes import list_classes
+
+# Generic modal outcome type. Each modal defines its own enum subclass
+# with terminal outcomes plus an IGNORE member (which signals "this
+# event wasn't relevant, keep polling"). The Modal helper duck-types
+# the IGNORE check via ``outcome.name == "IGNORE"`` so each modal
+# doesn't need to import a shared base (Python enums can't subclass
+# if the base defines members, so a shared base is impossible).
+T = TypeVar("T", bound=Enum)
 
 # Vivid sci-fi palette tuned for the default DejaVu 16x16 tileset.
 # Each role gets a thematic hue (cyan for titles, gold for highlights,
@@ -298,3 +307,74 @@ def update_confirm(event: tcod.event.Event) -> MenuAction:
         if sym in _ESCAPE_SYMS:
             return MenuAction.BACK
     return MenuAction.NONE
+
+
+# ---------------------------------------------------------------------------
+# Modal helper
+# ---------------------------------------------------------------------------
+# Centralizes the standard "render frame -> present -> poll input ->
+# update -> return on non-IGNORE" loop that ~13 _run_X functions in
+# ``__main__`` were duplicating. Each modal defines its own render and
+# update callbacks plus an enum subclass with an IGNORE member + its
+# terminal outcomes; ``Modal.run`` keeps polling until the update
+# returns anything whose ``.name != "IGNORE"``, then returns that
+# outcome. Modals with mutable state (selection index, fuel info, etc.)
+# capture it via closures; modals that need a payload (e.g. the
+# picked menu id) read it from the closure after run() returns.
+
+
+class Modal:
+    """Helper to run a render/update event loop.
+
+    Wraps the standard modal pattern so individual ``_run_X`` functions
+    in :mod:`spacehack.__main__` don't re-implement it. The console
+    is passed at construction time so it can be cleared once per loop
+    iteration; ``context`` is held for ``present()`` calls. ``run()``
+    blocks until ``update`` returns something that is NOT named
+    ``"IGNORE"`` - which is the convention every existing modal enum
+    (``NavigationOutcome``, ``ShipMenuAction``, ``PlanetMenuOutcome``,
+    etc.) already follows.
+    """
+
+    def __init__(
+        self,
+        context: tcod.context.Context,
+        console: tcod.console.Console,
+    ) -> None:
+        self.context = context
+        self.console = console
+
+    def run(
+        self,
+        render: Callable[[], None],
+        update: Callable[[tcod.event.Event], T],
+        *,
+        ignore: T | None = None,
+    ) -> T:
+        """Block until ``update`` returns a terminal outcome.
+
+        ``render`` paints the frame; ``update`` maps a single event
+        to an outcome. ``ignore`` (optional) names the enum member
+        that signals "keep polling" - by default the helper
+        duck-types via ``outcome.name == "IGNORE"`` so existing
+        modals (NavigationOutcome, ShipMenuAction, etc.) work
+        without per-call plumbing. A future modal that names its
+        keep-polling member differently can pass it explicitly
+        rather than rely on the name convention.
+
+        Returns whatever ``update`` produced on the terminating
+        iteration. ``T`` is bound to ``Enum`` but the helper itself
+        does not constrain the runtime type - callers pass through
+        whatever enum / payload they want.
+        """
+        while True:
+            render()
+            self.context.present(self.console)
+            for event in tcod.event.wait():
+                outcome = update(event)
+                if ignore is not None:
+                    if outcome is ignore:
+                        continue
+                elif outcome is not None and getattr(outcome, "name", None) == "IGNORE":
+                    continue
+                return outcome

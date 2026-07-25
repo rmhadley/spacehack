@@ -63,7 +63,15 @@ NAV_SHIP_FG: tuple[int, int, int] = (255, 255, 100)
 
 
 class Outcome(Enum):
-    """What happened at the end of a per-creation-screen loop iteration."""
+    """What happened at the end of a per-creation-screen loop iteration.
+
+    ``IGNORE`` is the standard "keep polling" signal consumed by
+    :meth:`spacehack.ui.Modal.run` -- an update function returns
+    :attr:`IGNORE` for events it doesn't act on, and Modal keeps
+    rendering + polling. Every other member terminates the modal
+    loop and propagates back to the caller.
+    """
+    IGNORE = auto()   # event wasn't relevant; keep polling
     QUIT = auto()
     BACK = auto()
     CONFIRM = auto()
@@ -203,17 +211,21 @@ def _run_pick(
     menu: ui.MenuScreen,
 ) -> tuple[Outcome, str | None]:
     console = make_console()
-    while True:
+    def _render() -> None:
         ui.render_menu(console, menu, SCREEN_WIDTH, SCREEN_HEIGHT)
-        context.present(console)
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.Quit):
-                return Outcome.QUIT, None
-            action = ui.update_menu(menu, event)
-            if action is ui.MenuAction.CONFIRM:
-                return Outcome.CONFIRM, menu.selected_id
-            if action is ui.MenuAction.BACK:
-                return Outcome.BACK, None
+    def _update(event) -> Outcome:
+        if isinstance(event, tcod.event.Quit):
+            return Outcome.QUIT
+        action = ui.update_menu(menu, event)
+        if action is ui.MenuAction.CONFIRM:
+            return Outcome.CONFIRM
+        if action is ui.MenuAction.BACK:
+            return Outcome.BACK
+        return Outcome.IGNORE
+    outcome = ui.Modal(context, console).run(_render, _update)
+    if outcome is Outcome.CONFIRM:
+        return outcome, menu.selected_id
+    return outcome, None
 
 
 def _run_confirm(
@@ -224,17 +236,18 @@ def _run_confirm(
     species = find_species(species_id)
     klass = find_class(class_id)
     console = make_console()
-    while True:
+    def _render() -> None:
         ui.render_confirm(console, species, klass, SCREEN_WIDTH, SCREEN_HEIGHT)
-        context.present(console)
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.Quit):
-                return Outcome.QUIT
-            action = ui.update_confirm(event)
-            if action is ui.MenuAction.CONFIRM:
-                return Outcome.CONFIRM
-            if action is ui.MenuAction.BACK:
-                return Outcome.BACK
+    def _update(event) -> Outcome:
+        if isinstance(event, tcod.event.Quit):
+            return Outcome.QUIT
+        action = ui.update_confirm(event)
+        if action is ui.MenuAction.CONFIRM:
+            return Outcome.CONFIRM
+        if action is ui.MenuAction.BACK:
+            return Outcome.BACK
+        return Outcome.IGNORE
+    return ui.Modal(context, console).run(_render, _update)
 
 
 # ---------------------------------------------------------------------------
@@ -630,19 +643,14 @@ def _run_navigation(
     this function returns - we don't cache or restore state.
     """
     console = make_console()
-    while True:
+    def _render() -> None:
         render_navigation(
             console,
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             ship_pos=ship_pos,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            outcome = update_navigation(event)
-            if outcome is NavigationOutcome.IGNORE:
-                continue
-            return outcome
+    return ui.Modal(context, console).run(_render, update_navigation)
 
 
 def _handle_combat_encounter(
@@ -763,6 +771,15 @@ def _run_goto(
     """Open a GO TO modal listing interactable space bodies, then
     auto-navigate the player's ship to a cell adjacent to the chosen
     target using BFS pathfinding + step-by-step animation.
+
+    TODO(P3): intentionally NOT migrated to :class:`spacehack.ui.Modal`.
+    The body mixes the menu-pick phase with a Bresenham/A* animation
+    phase that calls :func:`_responsive_sleep` between steps + checks
+    for combat breakout mid-animation. The Modal helper assumes
+    render-wait-return semantics; multi-phase animation doesn't fit.
+    Leave as-is until we either generalize Modal to support a
+    custom in-loop body or extract the animation into its own
+    helper that the post-pick dispatcher calls.
 
     Returns ``(outcome, combat_data)``:
     * ``(GotoOutcome.COMPLETED, None)`` — the ship reached the
@@ -1309,7 +1326,7 @@ def _run_jump_menu(
         ship_rec = ship_module.find_ship(owned_ship.ship_id)
         _fuel = owned_ship.fuel
         _max_fuel = ship_rec.max_fuel
-    while True:
+    def _render() -> None:
         render_jump_menu(
             console,
             jp,
@@ -1321,11 +1338,10 @@ def _run_jump_menu(
             max_fuel=_max_fuel,
             jump_fuel_cost=ship_module.JUMP_FUEL_COST,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            context.convert_event(event)
-            outcome = update_jump_menu(event)
-            if outcome is not JumpMenuOutcome.IGNORE:                return outcome
+    def _update(event) -> JumpMenuOutcome:
+        context.convert_event(event)
+        return update_jump_menu(event)
+    return ui.Modal(context, console).run(_render, _update)
 
 
 def _responsive_sleep(seconds: float) -> None:
@@ -1683,18 +1699,15 @@ def _run_ship_buy(
     ``blocker`` from ``game_map.entities``, logging).
     """
     console = make_console()
-    while True:
+    def _render() -> None:
         render_ship_buy(
             console, ship, stats, log=log,
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            result = update_ship_buy(event, ship, stats)
-            if result is ShipBuyOutcome.IGNORE:
-                continue
-            return result
+    def _update(event) -> ShipBuyOutcome:
+        return update_ship_buy(event, ship, stats)
+    return ui.Modal(context, console).run(_render, _update)
 
 
 # ---------------------------------------------------------------------------
@@ -1895,7 +1908,7 @@ def _run_npc_talk(
     console = make_console()
     selected = 0
     n_options = 1 + (1 if deliver_mission is not None else 0)
-    while True:
+    def _render() -> None:
         render_npc_talk(
             console, npc, log=log,
             screen_width=SCREEN_WIDTH,
@@ -1903,32 +1916,31 @@ def _run_npc_talk(
             deliver_mission=deliver_mission,
             selected=selected,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            # Navigation FIRST so UP/DOWN / j/k adjust the
-            # highlight before any other key press fires an
-            # outcome. Mirrors _run_mission_offerings so the
-            # dispatcher shapes line up across all NPC modals.
-            new = _npc_talk_navigate(event, selected, n_options)
-            if new is not None:
-                selected = new
-                continue
-            result = update_npc_talk(event)
-            if result is TalkOutcome.IGNORE:
-                continue
-            if result is TalkOutcome.QUIT:
-                return TalkOutcome.QUIT, None
-            if result is TalkOutcome.BACK:
-                return TalkOutcome.BACK, None
-            # ``result is TalkOutcome.WORK`` (Enter on the
-            # highlighted row). The selected index decides
-            # whether that "confirm" fires DELIVER (row 0 when
-            # a delivery target is in scope) or opens the
-            # offerings modal (row 1, or row 0 when no DELIVER
-            # is in scope).
-            if deliver_mission is not None and selected == 0:
-                return TalkOutcome.DELIVER, deliver_mission
-            return TalkOutcome.WORK, None
+    def _update(event) -> TalkOutcome:
+        nonlocal selected
+        # Navigation FIRST so UP/DOWN / j/k adjust the highlight
+        # before any other key press fires an outcome. Mirrors
+        # _run_mission_offerings so the dispatcher shapes line up.
+        new = _npc_talk_navigate(event, selected, n_options)
+        if new is not None:
+            selected = new
+            return TalkOutcome.IGNORE
+        result = update_npc_talk(event)
+        if result is TalkOutcome.IGNORE:
+            return TalkOutcome.IGNORE
+        if result is TalkOutcome.QUIT:
+            return TalkOutcome.QUIT
+        if result is TalkOutcome.BACK:
+            return TalkOutcome.BACK
+        # WORK/DELIVER: the highlighted row decides DELIVER (row 0
+        # when a delivery target is in scope) vs WORK (open the
+        # offerings modal — row 1, or row 0 when no DELIVER).
+        return TalkOutcome.DELIVER if (deliver_mission is not None and selected == 0) else TalkOutcome.WORK
+    outcome = ui.Modal(context, console).run(_render, _update)
+    # Derive payload from outcome (Modal returns just the enum).
+    if outcome is TalkOutcome.DELIVER:
+        return outcome, deliver_mission
+    return outcome, None
 
 
 # ---------------------------------------------------------------------------
@@ -2130,23 +2142,23 @@ def _run_mission_offerings(
     """
     console = make_console()
     selected = 0
-    while True:
+    def _render() -> None:
         render_mission_offerings(
             console, npc, offerings, selected, log=log,
             screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            new = _mission_navigate(event, selected, len(offerings))
-            if new is not None:
-                selected = new
-                continue
-            outcome = update_mission_offerings(event)
-            if outcome is MissionOutcome.IGNORE:
-                continue
-            if outcome is MissionOutcome.ACCEPT:
-                return MissionOutcome.ACCEPT, offerings[selected % len(offerings)]
-            return outcome, None
+    def _update(event) -> MissionOutcome:
+        nonlocal selected
+        new = _mission_navigate(event, selected, len(offerings))
+        if new is not None:
+            selected = new
+            return MissionOutcome.IGNORE
+        return update_mission_offerings(event)
+    outcome = ui.Modal(context, console).run(_render, _update)
+    # Derive payload from outcome (Modal returns just the enum).
+    if outcome is MissionOutcome.ACCEPT:
+        return outcome, offerings[selected % len(offerings)]
+    return outcome, None
 
 
 def render_quest_log(
@@ -2292,26 +2304,25 @@ def _run_quest_log(
     """
     console = make_console()
     confirm_abandon = False
-    while True:
+    def _render() -> None:
         render_quest_log(
             console, active, log=log,
             confirm_abandon=confirm_abandon,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
+            screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            outcome = update_quest_log(event, confirm_abandon=confirm_abandon)
-            if outcome is QuestLogOutcome.IGNORE:
-                continue
-            if outcome is QuestLogOutcome.ABANDONED:
-                if confirm_abandon:
-                    return QuestLogOutcome.ABANDONED, None
-                # First A press: flip into confirm state and re-render.
-                confirm_abandon = True
-                continue
-            # BACK or QUIT regardless of confirm state.
-            return outcome, active
+    def _update(event) -> QuestLogOutcome:
+        nonlocal confirm_abandon
+        result = update_quest_log(event, confirm_abandon=confirm_abandon)
+        if result is QuestLogOutcome.ABANDONED and not confirm_abandon:
+            # First A press: flip into confirm state and re-render.
+            confirm_abandon = True
+            return QuestLogOutcome.IGNORE
+        return result
+    outcome = ui.Modal(context, console).run(_render, _update)
+    # Derive payload from outcome.
+    if outcome is QuestLogOutcome.ABANDONED:
+        return outcome, None
+    return outcome, active
 
 
 # ---------------------------------------------------------------------------
@@ -2593,51 +2604,43 @@ def _run_ship_menu(
     """
     console = make_console()
     selected = 0
-    while True:
+    def _render() -> None:
         render_ship_menu(
             console, ship, owned, log=log, selected=selected,
             screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            new = _ship_menu_navigate(event, selected)
-            if new is not None:
-                selected = new
+    def _update(event) -> ShipMenuAction:
+        nonlocal selected
+        new = _ship_menu_navigate(event, selected)
+        if new is not None:
+            selected = new
+            return ShipMenuAction.IGNORE
+        return update_ship_menu(event, selected)
+    while True:
+        action = ui.Modal(context, console).run(_render, _update)
+        if action is ShipMenuAction.VIEW:
+            _run_ship_view(context, ship, owned, log)
+            continue
+        if action is ShipMenuAction.REFUEL:
+            ship_record = ship_module.find_ship(owned.ship_id)
+            buyable = ship_record.max_fuel - owned.fuel
+            if buyable <= 0:
+                log.add("The fuel tank is already full.")
                 continue
-            action = update_ship_menu(event, selected)
-            if action is ShipMenuAction.IGNORE:
+            affordable = stats.gold // ship_module.FUEL_COST_PER_UNIT
+            if affordable <= 0:
+                log.add("You don't have enough gold to buy fuel.")
                 continue
-            if action is ShipMenuAction.VIEW:
-                _run_ship_view(context, ship, owned, log)
-                # After the sub-modal closes, fall back to the main
-                # menu loop so the player can pick Refuel / Sell / Launch.
-                continue
-            if action is ShipMenuAction.REFUEL:
-                ship_record = ship_module.find_ship(owned.ship_id)
-                buyable = ship_record.max_fuel - owned.fuel
-                if buyable <= 0:
-                    log.add("The fuel tank is already full.")
-                    continue
-                affordable = stats.gold // ship_module.FUEL_COST_PER_UNIT
-                if affordable <= 0:
-                    log.add("You don't have enough gold to buy fuel.")
-                    continue
-                units = min(buyable, affordable)
-                cost = units * ship_module.FUEL_COST_PER_UNIT
-                stats.gold -= cost
-                owned.fuel += units
-                log.add(
-                    f"Refueled {units} units for {cost}g. "
-                    f"Fuel: {owned.fuel} / {ship_record.max_fuel}."
-                )
-                continue
-            if action is ShipMenuAction.SELL:
-                log.add(f"Selling the {ship.name} is coming soon.")
-                return ShipMenuAction.SELL
-            if action is ShipMenuAction.LAUNCH:
-                log.add(f"Launching the {ship.name} is coming soon.")
-                return ShipMenuAction.LAUNCH
-            return action
+            units = min(buyable, affordable)
+            cost = units * ship_module.FUEL_COST_PER_UNIT
+            stats.gold -= cost
+            owned.fuel += units
+            log.add(
+                f"Refueled {units} units for {cost}g. "
+                f"Fuel: {owned.fuel} / {ship_record.max_fuel}."
+            )
+            continue
+        return action  # BACK, SELL, LAUNCH, QUIT
 
 
 def _run_ship_view(
@@ -2654,20 +2657,20 @@ def _run_ship_view(
     closes faster via a direct BACK return.
     """
     console = make_console()
-    while True:
+    def _render() -> None:
         render_ship_view(
             console, ship, owned, log=log,
             screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
         )
-        context.present(console)
-        for event in tcod.event.wait():
-            result = update_ship_view(event)
-            if result is ShipViewOutcome.IGNORE:
-                # Any non-Quit / non-ESC key closes the panel.
-                if isinstance(event, tcod.event.KeyDown):
-                    return
-                continue
-            return
+    def _update(event) -> ShipViewOutcome:
+        # Any KeyDown closes the panel (mirrors the original "any
+        # key closes" semantic that drove this loop). update_ship_view
+        # itself returns QUIT for Quit events and BACK for ESC, so
+        # those flow through Modal unchanged.
+        if isinstance(event, tcod.event.KeyDown):
+            return ShipViewOutcome.BACK
+        return update_ship_view(event)
+    ui.Modal(context, console).run(_render, _update)
 
 
 # ---------------------------------------------------------------------------
@@ -2843,15 +2846,12 @@ def _run_planet_menu(
     """
     from .data.planets import has_landable_port
     has_port = has_landable_port(planet_obj.id)
-    while True:
-        console = make_console()
+    console = make_console()
+    def _render() -> None:
         render_planet_menu(console, planet_obj, log=log, has_port=has_port)
-        context.present(console)
-        for event in tcod.event.wait():
-            outcome = update_planet_menu(event, has_port=has_port)
-            if outcome is PlanetMenuOutcome.IGNORE:
-                continue
-            return outcome
+    def _update(event) -> PlanetMenuOutcome:
+        return update_planet_menu(event, has_port=has_port)
+    return ui.Modal(context, console).run(_render, _update)
 
 
 def _animate_ship_to_y(
