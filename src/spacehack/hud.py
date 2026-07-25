@@ -57,6 +57,7 @@ COLOR_VALUE_DIM: tuple[int, int, int] = (150, 150, 150)           # neutral silv
 COLOR_LABEL: tuple[int, int, int] = (155, 180, 215)               # muted ice-blue
 COLOR_HP_GOOD: tuple[int, int, int] = (100, 235, 115)             # bright grass-green
 COLOR_HP_LOW: tuple[int, int, int] = (255, 95, 95)                # bright crimson
+COLOR_EVADE: tuple[int, int, int] = (120, 220, 140)               # soft green positive-buff accent
 COLOR_DIVIDER: tuple[int, int, int] = (90, 90, 90)                # flat neutral grey (stops the divider from echoing ROAD hue)
 
 # Space-mode HUD palette — cooler, more technical feel.
@@ -325,6 +326,7 @@ def render_combat_hud(
     weapon_list: tuple[str, ...] = (),
     flee_chance: int | None = None,
     hit_chance: int | None = None,       # hit % for current weapon vs target
+    evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 
@@ -395,6 +397,21 @@ def render_combat_hud(
     ap_line = f"AP: {pap}/{pap_total}"
     console.print(x=hud_x, y=y, string=ap_line, fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED)
     y += 1
+    # Player's current evade bonus: increases by +5% per cell moved
+    # (capped) plus a half-rate contribution from pilot piloting.
+    # Color signals when movement has actually paid off — gray when 0
+    # so the player reads "no dodge stacked yet", positive green
+    # accent when any bonus is in play.
+    if evade_bonus is not None:
+        # No colon so the row aligns with the bar-style Hull/Shd
+        # rows above it ("Hull ...", "Shd  ..."). Color flips
+        # positive-on-positive so the player sees movement paying
+        # off — the +X% value climbs with each move so the impact
+        # of spending AP on repositioning is visible at a glance.
+        evade_color = COLOR_EVADE if evade_bonus > 0 else COLOR_VALUE_DIM
+        evade_line = f"Evade +{evade_bonus}%"
+        console.print(x=hud_x, y=y, string=evade_line, fg=evade_color)
+        y += 1
     pow_line = f"Pow: {ppow}/{ppow_max}"
     console.print(x=hud_x, y=y, string=pow_line, fg=COLOR_POWER)
     y += 2

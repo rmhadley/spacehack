@@ -898,6 +898,14 @@ def run_combat(
 
             # ---- Compute hit chance for current target ----
             _hit_chance: int | None = None
+                # Player's current evade bonus: +5% per cell moved this turn
+                # (capped at 30%) plus half-rate pilot piloting (soft cap 60%).
+                # Surfaced in the combat HUD so the player sees the impact
+                # of spending AP on movement while in combat.
+                _evade_bonus = _calc_dodge_bonus(
+                    player_state.get("cells_moved_this_turn", 0),
+                    int(player_state.get("piloting", 0) * 0.5),
+                )
             if weapons_list and target_idx < len(enemy_insts):
                 _target = enemy_insts[target_idx]
                 _wid = weapons_list[selected_weapon_idx] if selected_weapon_idx < len(weapons_list) else weapons_list[0]
@@ -953,6 +961,7 @@ def run_combat(
                     flee_attempts,
                 ),
                 hit_chance=_hit_chance,
+                evade_bonus=_evade_bonus,
             )
             from . import message_log as _ml
             _ml.render_message_log(
