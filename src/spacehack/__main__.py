@@ -558,7 +558,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             _espec = _fe(_spawn.enemy_id)
         except KeyError:
             continue
-        _enemy_alive = any((_e for _e in game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _spawn.pos.x and (_e.pos.y == _spawn.pos.y)))
+        _enemy_alive = any((_e for _e in ctx.game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _spawn.pos.x and (_e.pos.y == _spawn.pos.y)))
         if not _enemy_alive:
             continue
         _alive_spawns.append((_spawn, _espec))
