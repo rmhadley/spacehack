@@ -1018,83 +1018,112 @@ def run_combat(
                         _edist = _distance(
                             player_state["pos"], _ei.pos,
                         )
+                        _moved = False
                         if _edist > _esp.ai.preferred_range:
-                            # Move toward player
+                            # Attempt to move one cell toward the
+                            # player. The target cell must be both
+                            # walkable AND unoccupied — the burn-full
+                            # AP refactor exposed overlap because
+                            # pirates now move up to 4 cells per
+                            # turn instead of 1, so two enemies
+                            # converging on the player would happily
+                            # step onto each other (or onto the
+                            # player). Reject collisions with the
+                            # player, another enemy that already
+                            # moved earlier in this same for-loop
+                            # iteration, or any solar-body entity.
                             _dx = 1 if _ei.pos.x < player_state["pos"].x else -1
                             _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
-                            _ei.pos = world.Position(
-                                _ei.pos.x + _dx,
-                                _ei.pos.y + _dy,
-                            )
-                            _ei.cells_moved_this_turn += 1
-                            _ei.ap_remaining -= 1
-                            # Sync enemy entity position AFTER AI movement
-                            if _e_idx >= 0 and _e_idx in _enemy_ents:
-                                _enemy_ents[_e_idx].pos = _ei.pos
-                        elif _ei.weapons:
-                            # Enemy fires
-                            _wid = _ei.weapons[0]
-                            _dist = _distance(
-                                player_state["pos"], _ei.pos,
-                            )
-                            _dodge = _calc_dodge_bonus(
-                                player_state.get("cells_moved_this_turn", 0),
-                                int(player_state.get("piloting", 0) * 0.5),
-                            )
-                            _chance = calc_hit_chance(
-                                _wid, _ei.pilot_gunnery, _dist, _dodge,
-                            )
-                            # Single roll decides both animation AND damage
-                            _e_hit = RNG.randint(1, 100) <= _chance
-                            _ecx, _ecy = _calc_cam()
-                            _animate_laser_shot(
-                                console, context, game_map,
-                                _ei.pos, player_state["pos"],
-                                is_hit=_e_hit,
-                                cam_x=_ecx, cam_y=_ecy,
-                                view_w=view_w, view_h=view_h,
-                                player_state=player_state,
-                                enemies=enemy_insts,
-                                target_idx=target_idx,
-                                log=log,
-                            )
-                            if _e_hit:
-                                _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                                    _wid, player_state["hull"],
-                                    player_state["shields"],
-                                    target_pilot_piloting=player_state.get("piloting", 0),
+                            _nx = _ei.pos.x + _dx
+                            _ny = _ei.pos.y + _dy
+                            if (
+                                game_map.is_walkable(_nx, _ny)
+                                and game_map.entity_at(
+                                    _nx, _ny, exclude=_ei,
+                                ) is None
+                            ):
+                                _ei.pos = world.Position(_nx, _ny)
+                                _ei.cells_moved_this_turn += 1
+                                _ei.ap_remaining -= 1
+                                # Sync enemy entity position AFTER AI movement
+                                if _e_idx >= 0 and _e_idx in _enemy_ents:
+                                    _enemy_ents[_e_idx].pos = _ei.pos
+                                _moved = True
+                        if not _moved:
+                            # Either in preferred range (no move
+                            # attempted) OR move was blocked. Pivot
+                            # to fire if armed — mirrors the player-
+                            # side rule of "if you can't move, shoot"
+                            # so the AP isn't wasted. If move was
+                            # blocked AND the enemy is unarmed, idle
+                            # for the rest of the turn rather than
+                            # spinning.
+                            if _ei.weapons:
+                                # Enemy fires
+                                _wid = _ei.weapons[0]
+                                _dist = _distance(
+                                    player_state["pos"], _ei.pos,
                                 )
-                                player_state["shields"] = max(0, player_state["shields"] - _sdmg)
-                                player_state["hull"] = _fh
-                                _verb = "glancing hit" if _is_glancing else "hits"
-                                _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!")
-                                if _fh <= 0:
-                                    _e_log("Your ship has been destroyed!")
-                                    # Explosion at player position
-                                    _ecx, _ecy = _calc_cam()
-                                    _animate_explosion(
-                                        console, context, game_map,
-                                        player_state["pos"],
-                                        cam_x=_ecx, cam_y=_ecy,
-                                        view_w=view_w, view_h=view_h,
-                                        player_state=player_state,
-                                        enemies=enemy_insts,
-                                        target_idx=target_idx,
-                                        log=log,
+                                _dodge = _calc_dodge_bonus(
+                                    player_state.get("cells_moved_this_turn", 0),
+                                    int(player_state.get("piloting", 0) * 0.5),
+                                )
+                                _chance = calc_hit_chance(
+                                    _wid, _ei.pilot_gunnery, _dist, _dodge,
+                                )
+                                # Single roll decides both animation AND damage
+                                _e_hit = RNG.randint(1, 100) <= _chance
+                                _ecx, _ecy = _calc_cam()
+                                _animate_laser_shot(
+                                    console, context, game_map,
+                                    _ei.pos, player_state["pos"],
+                                    is_hit=_e_hit,
+                                    cam_x=_ecx, cam_y=_ecy,
+                                    view_w=view_w, view_h=view_h,
+                                    player_state=player_state,
+                                    enemies=enemy_insts,
+                                    target_idx=target_idx,
+                                    log=log,
+                                )
+                                if _e_hit:
+                                    _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
+                                        _wid, player_state["hull"],
+                                        player_state["shields"],
+                                        target_pilot_piloting=player_state.get("piloting", 0),
                                     )
-                                    _result = "DEFEAT"
-                                    break  # exits while
+                                    player_state["shields"] = max(0, player_state["shields"] - _sdmg)
+                                    player_state["hull"] = _fh
+                                    _verb = "glancing hit" if _is_glancing else "hits"
+                                    _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!")
+                                    if _fh <= 0:
+                                        _e_log("Your ship has been destroyed!")
+                                        # Explosion at player position
+                                        _ecx, _ecy = _calc_cam()
+                                        _animate_explosion(
+                                            console, context, game_map,
+                                            player_state["pos"],
+                                            cam_x=_ecx, cam_y=_ecy,
+                                            view_w=view_w, view_h=view_h,
+                                            player_state=player_state,
+                                            enemies=enemy_insts,
+                                            target_idx=target_idx,
+                                            log=log,
+                                        )
+                                        _result = "DEFEAT"
+                                        break  # exits while
+                                else:
+                                    _e_log(f"{_ei.name} misses!")
+                                # Fire costs 1 AP — mirrors the
+                                # player rule (a shot committed is
+                                # a shot paid for) and guarantees
+                                # the while loop terminates when
+                                # ap_remaining hits 0.
+                                _ei.ap_remaining -= 1
                             else:
-                                _e_log(f"{_ei.name} misses!")
-                            # Fire costs 1 AP — mirrors the player
-                            # rule (a shot committed is a shot paid
-                            # for) and guarantees the while loop
-                            # terminates when ap_remaining hits 0.
-                            _ei.ap_remaining -= 1
-                        else:
-                            # Already in preferred range and unarmed
-                            # — idle for the remainder of the turn.
-                            break
+                                # In preferred range and unarmed, OR
+                                # blocked move and unarmed — idle
+                                # for the rest of the turn.
+                                break
                     # Cascade DEFEAT out of the for-loop so the
                     # remaining enemies don't get their turns after
                     # the player is already destroyed. Without this
