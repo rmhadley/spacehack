@@ -1,26 +1,24 @@
-"""Missions: contract-style jobs the player picks up from city NPCs.
+"""Mission runtime layer: lifecycle state + accept/deliver/complete/abort.
 
-Missions live in two places:
+Missions live in two layers:
 
-  * Here (``Mission`` + ``MISSIONS``) - static catalog entries describing
-    the work. Each entry binds a :class:`spacehack.data.npcs.NPC` via
-    ``giver_npc_id``; the NPC's flavor text mentions the work and the
-    offering modal lists it.
-  * :mod:`spacehack.__main__` - an :class:`ActiveMission` instance
-    tracks the player's currently accepted mission (single slot,
-    matches the single-ship-slot design from :mod:`spacehack.ship`).
+  * :mod:`spacehack.data.missions` - the static catalog (the
+    :class:`Mission` dataclass + per-faction ``MISSIONS`` tuples
+    + :func:`find_mission` / :func:`missions_offered_by` lookup
+    helpers). Adding a new mission is a one-file edit there.
+  * Here (:class:`ActiveMission` + the four runtime functions
+    below) - the BUSINESS LOGIC that operates on a :class:`Mission`
+    instance the player has accepted. Splits the "data shape"
+    concern (in data/) from the "what happens when the player
+    accepts / delivers / aborts / completes" concern (here).
 
-Categories and class hints are SOFT - we never hard-block a class from
-any mission, but a ``recommended_class_id`` lets the UI print a "best
-suited for {class}" hint without locking the player out. The reward
-numbers are placeholder values; once mission outcomes are wired in
-they'll move from ``None`` to ``(gold, xp)`` deltas in
-:mod:`spacehack.__main__`.
-
-Mission contents are deliberately placeholder-grade titles / blurbs
-because the user explicitly said "we don't have to worry about the
-mission details yet" - what matters this iteration is the SHAPE of
-the data and the FLOW through the dispatcher.
+This module re-exports :class:`Mission`, :func:`find_mission`,
+and :func:`missions_offered_by` from :mod:`spacehack.data.missions`
+so the dispatcher's ``mission_module.Mission`` / ``mission_module.
+find_mission`` / ``mission_module.missions_offered_by`` references
+keep working without forcing a second import line on every caller.
+The runtime functions take a :class:`Mission` as their first arg
+so the data dependency is explicit at the call boundary.
 """
 from __future__ import annotations
 
@@ -28,212 +26,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from . import ship
-
-
-@dataclass(frozen=True)
-class Mission:
-    """A static contract entry in the city's mission catalog.
-
-    ``title`` and ``description`` are placeholder strings for this
-    iteration. ``giver_npc_id`` matches a :class:`spacehack.data.npcs.NPC`
-    id - the dispatch in :mod:`spacehack.__main__` uses it to know
-    which NPC offers the work. ``reward_gold`` + ``reward_xp`` are
-    placeholders (positive ints; gameplay wiring lands in a later
-    iteration). ``recommended_class_id`` is optional and is shown
-    as a flavor hint rather than a hard gate.
-    """
-
-    id: str
-    title: str
-    description: str
-    giver_npc_id: str
-    reward_gold: int
-    reward_xp: int
-    recommended_class_id: str | None = None
-    recommended_ship_min_cargo: int = 0
-    # How much cargo this mission loads onto the player's hull when
-    # accepted (subtracted again at delivery). Zero for missions
-    # that don't actually move goods around — combat / diplomacy /
-    # scouting jobs. The dispatcher in :mod:`spacehack.__main__`
-    # uses this for the cargo-cap check on ACCEPT and the
-    # cargo-drop on COMPLETE/DELIVER. Kept distinct from
-    # :attr:`recommended_ship_min_cargo` which is only a soft hint
-    # about the recommended hull capacity.
-    required_cargo_size: int = 0
-    # Where this mission's cargo must be hand-delivered to finish
-    # it. Both ids are optional — a mission that has no delivery
-    # target simply never raises the "Deliver <title>" NPC-talk
-    # option anywhere, even if the player tries to complete it
-    # early. A delivery mission sets BOTH to a matching pair
-    # (e.g. research_officer on ac_station) so the deliver
-    # predicate in :func:`is_deliverable_at` can verify the
-    # current NPC AND the current planet together, preventing
-    # the bug where the cargo-release fires when the player
-    # bumps the wrong NPC on the wrong planet.
-    delivery_target_npc_id: str | None = None
-    delivery_target_planet_id: str | None = None
-
-
-# Eight placeholder missions (two per quest-giver NPC). The titles
-# are deliberately generic so future iterations can swap in real
-# prose without touching the data model or dispatcher. Class hints
-# are informational only - a soft "best suited for X" line in the
-# UI, never a hard filter.
-#
-# NPC bindings:
-#   barkeep         (bar / city rumours)        - any class
-#   guild_master    (merchants guild / trade)     - best for merchant
-#   militia_captain (militia / law-and-order)     - best for bounty_hunter
-#   bounty_master   (bhguild / chases)            - best for bounty_hunter
-MISSIONS: tuple[Mission, ...] = (
-    # ----- barkeep (bar) ----------------------------------------------
-    Mission(
-        id="bar_routine_delivery",
-        title="A routine delivery",
-        description=(
-            "A small but time-sensitive cargo drop across the next "
-            "system. No escort, no danger - just don't be late."
-        ),
-        giver_npc_id="barkeep",
-        reward_gold=60,
-        reward_xp=10,
-        recommended_class_id=None,
-        recommended_ship_min_cargo=20,
-    ),
-    Mission(
-        id="bar_back_alley_dispute",
-        title="A back-alley dispute",
-        description=(
-            "Two regulars are arguing over a debt. Talk to both, "
-            "settle it quietly, keep it out of the militia's ears."
-        ),
-        giver_npc_id="barkeep",
-        reward_gold=40,
-        reward_xp=15,
-        recommended_class_id=None,
-    ),
-    # ----- guild_master (merchants) ----------------------------------
-    Mission(
-        id="merchants_supply_run_alpha_centauri",
-        title="Supply run to Alpha Centauri",
-        description=(
-            "The research station orbiting Proxima Centauri is low "
-            "on resealable research supplies. Ten units of cargo - "
-            "calibration gear, biologics, the boring essentials. "
-            "Hand them to the Research Officer on arrival."
-        ),
-        giver_npc_id="guild_master",
-        reward_gold=150,
-        reward_xp=30,
-        recommended_class_id="merchant",
-        recommended_ship_min_cargo=10,
-        required_cargo_size=10,
-        delivery_target_npc_id="research_officer",
-        delivery_target_planet_id="ac_station",
-    ),
-    Mission(
-        id="merchants_bulk_trade",
-        title="Bulk trade run",
-        description=(
-            "A convoy-style trade route with room for high-margin "
-            "cargo. Bring a ship with capacity to spare."
-        ),
-        giver_npc_id="guild_master",
-        reward_gold=140,
-        reward_xp=20,
-        recommended_class_id="merchant",
-        recommended_ship_min_cargo=80,
-    ),
-    Mission(
-        id="merchants_tariff_dispute",
-        title="Tariff dispute mediation",
-        description=(
-            "Two guild branches disagree on who owes what. Talk it "
-            "through, broker the deal, take a small cut."
-        ),
-        giver_npc_id="guild_master",
-        reward_gold=80,
-        reward_xp=25,
-        recommended_class_id="merchant",
-    ),
-    # ----- militia_captain (militia) ----------------------------------
-    Mission(
-        id="militia_beat_patrol",
-        title="Beat patrol",
-        description=(
-            "Walk a route through the lower wards, log anything "
-            "unusual, report back. Pays quietly and on time."
-        ),
-        giver_npc_id="militia_captain",
-        reward_gold=50,
-        reward_xp=15,
-        recommended_class_id="bounty_hunter",
-    ),
-    Mission(
-        id="militia_lost_property",
-        title="Lost property retrieval",
-        description=(
-            "A crate of supplies vanished en route to a militia "
-            "outpost. Find it. Return it. No questions asked."
-        ),
-        giver_npc_id="militia_captain",
-        reward_gold=70,
-        reward_xp=20,
-        recommended_class_id="bounty_hunter",
-    ),
-    # ----- bounty_master (bounties) -----------------------------------
-    Mission(
-        id="bounty_smuggler_at_large",
-        title="Bounty: a smuggler at large",
-        description=(
-            "A repeat offender is using the outer belt to dodge "
-            "duties. Bring them in. Alive preferred, not required."
-        ),
-        giver_npc_id="bounty_master",
-        reward_gold=180,
-        reward_xp=30,
-        recommended_class_id="bounty_hunter",
-    ),
-    Mission(
-        id="bounty_deserter",
-        title="Bounty: locate the deserter",
-        description=(
-            "A former crewmember skipped on a debt. Find them. "
-            "Recover the mark or the money - whichever is cleaner."
-        ),
-        giver_npc_id="bounty_master",
-        reward_gold=120,
-        reward_xp=35,
-        recommended_class_id="bounty_hunter",
-    ),
-)
-
-
-_BY_ID: dict[str, Mission] = {m.id: m for m in MISSIONS}
-
-
-def find_mission(mission_id: str) -> Mission:
-    """Look up a :class:`Mission` catalog entry by id.
-
-    Raises :class:`KeyError` on an unknown id so callers in
-    :mod:`spacehack.__main__` get the same
-    look-up-by-id contract used by every other catalog module.
-    """
-    try:
-        return _BY_ID[mission_id]
-    except KeyError:
-        raise KeyError(f"unknown mission id: {mission_id!r}") from None
-
-
-def missions_offered_by(npc_id: str) -> tuple[Mission, ...]:
-    """All :class:`Mission` catalog entries whose ``giver_npc_id``
-    matches ``npc_id``.
-
-    Returns an empty tuple on a no-match (an NPC that hasn't been
-    wired with missions yet) so callers don't have to special-case
-    KeyError - the offering modal just shows "no work available".
-    """
-    return tuple(m for m in MISSIONS if m.giver_npc_id == npc_id)
+from .data.missions import Mission, find_mission, missions_offered_by
 
 
 class MissionStatus(Enum):
@@ -431,3 +224,35 @@ def complete_mission(
         f"Delivered: {mission.title}. +{mission.reward_gold}g "
         f"+{mission.reward_xp}xp. ({cargo_after} cargo.)"
     )
+
+
+# Re-exports so consumers (e.g. ``spacehack.__main__``) can keep
+# using ``mission_module.Mission`` / ``mission_module.find_mission`` /
+# ``mission_module.missions_offered_by`` without a second import
+# line. The data lives in :mod:`spacehack.data.missions`; this
+# module is the runtime layer that operates on it.
+#
+# Two import paths are equivalent and both supported:
+#   from spacehack import mission as mission_module        # runtime + data facade
+#   from spacehack.data.missions import Mission, ...        # data-only
+# The facade keeps ``mission_module.X`` working so existing call
+# sites in ``__main__`` (~16 references) don't churn. New code can
+# import directly from data.missions for clarity; old code keeps
+# working.
+#
+# IDENTITY GUARANTEE: ``mission_module.Mission is Mission`` (and
+# ditto for the helpers). Smoke-verified at the registry build site
+# so a future refactor that accidentally drops the re-exports (or
+# wraps the symbol in a proxy) breaks the identity check rather
+# than silently changing consumer semantics.
+__all__ = [
+    "ActiveMission",
+    "Mission",
+    "MissionStatus",
+    "abort_mission",
+    "complete_mission",
+    "find_mission",
+    "is_deliverable_at",
+    "missions_offered_by",
+    "try_accept_mission",
+]
