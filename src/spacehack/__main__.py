@@ -1857,6 +1857,11 @@ def _animate_ship_to_y(context: tcod.context.Context, console: tcod.console.Cons
         context.present(console)
         _responsive_sleep(frame_seconds)
 
+# TODO(P3.6.2): NOT migrated to ctx -- body still takes raw tcod context
+#   + loose game-state args. Deferred from P3.6.2 scope because the 80+-line
+#   body (launch animation + label rect + render) is more complex than the
+#   4 helpers that DID migrate (_handle_combat_encounter, _jump_to_system,
+#   _detect_combat_encounter, _animate_jump). Will tackle in P3.7.
 def _launch_to_space(context: tcod.context.Context, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None) -> tuple[world.GameMap, world.Entity]:
     """Animate ``hangar_ship_ent`` off the top of the city viewport and
     return ``(space_game_map, space_player_entity)``.
@@ -1886,6 +1891,9 @@ def _launch_to_space(context: tcod.context.Context, console: tcod.console.Consol
     space_map.entities.append(space_player)
     return (space_map, space_player)
 
+# TODO(P3.6.2): NOT migrated to ctx -- mirrors _launch_to_space above.
+#   Both would migrate cleanly as a pair; left deferred so P3.6.2 lands
+#   first without overcrowding the audit.
 def _return_to_city(context: tcod.context.Context, console: tcod.console.Console, hangar_ship_ent: world.Entity, city_game_map: world.GameMap, city_player_ent: world.Entity, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None) -> tuple[world.GameMap, world.Entity]:
     """Animate the same ``hangar_ship_ent`` down to :data:`world.HANGAR_ANCHOR`
     and return ``(city_game_map, city_player_entity)``.
