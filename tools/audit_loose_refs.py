@@ -55,19 +55,16 @@ LOOSE = frozenset({
     "player_active_mission",
 })
 
-# Audit scope: only helpers that have been FULLY migrated to ctx-based
-# field access (P3.6.2.x chain). ``_launch_to_space`` and
-# ``_return_to_city`` are pragma-deferred from P3.6.2.2 (deliberately
-# still loose -- bodies take ``log``/``stats``/``character_info``/
-# ``game_map`` etc. as parameters today). Once their migration lands,
-# add them here so partial regression on the new shape gets caught.
+# Audit scope: every helper that has landed the P3.6.2.x ctx migration.
+# P3.6.2.5 added ``_animate_ship_to_y`` + ``_launch_to_space`` +
+# ``_return_to_city`` (previously pragma-deferred from P3.6.2.2). When a
+# future helper lands its migration, append it to SCAN.
 SCAN = (
     "_handle_combat_encounter",
     "_jump_to_system",
     "_detect_combat_encounter",
     "_animate_jump",
-)
-DEFERRED = (
+    "_animate_ship_to_y",
     "_launch_to_space",
     "_return_to_city",
 )
@@ -105,6 +102,27 @@ def _flatten_targets(target):
         yield from _flatten_targets(target.value)
     elif isinstance(target, ast.Name):
         yield target
+
+
+def _param_set(func_node):
+    """Return the set of param names declared on ``func_node``.
+
+    Includes positional, keyword-only, ``*args``, and ``**kwargs``.
+    Used by :func:`audit` to skip legitimate references to a function
+    parameter (e.g. ``_animate_ship_to_y`` keeps ``game_map`` as a
+    parameter for the per-call local map; bare ``game_map`` inside its
+    body refers to that parameter, not a missing ``ctx.game_map``).
+    """
+    params = set()
+    for arg in func_node.args.args:
+        params.add(arg.arg)
+    for arg in func_node.args.kwonlyargs:
+        params.add(arg.arg)
+    if func_node.args.vararg is not None:
+        params.add(func_node.args.vararg.arg)
+    if func_node.args.kwarg is not None:
+        params.add(func_node.args.kwarg.arg)
+    return params
 
 
 def _is_skippable_name(name_node, parent_of):
@@ -158,8 +176,18 @@ def audit(target_path=Path("src/spacehack/__main__.py")) -> int:
     for func in ast.walk(tree):
         if not isinstance(func, ast.FunctionDef) or func.name not in SCAN:
             continue
+        params = _param_set(func)
         for sub in ast.walk(func):
             if isinstance(sub, ast.Name) and sub.id in LOOSE:
+                # Skip names that are also function parameters --
+                # their bare use inside the function body is the
+                # local-value-passing-through idiom, NOT a missing
+                # ctx.X reference. ``_animate_ship_to_y`` keeps
+                # ``game_map`` as a parameter for the per-call local
+                # map, for example; bare ``game_map`` inside its body
+                # refers to that parameter, which is correct.
+                if sub.id in params:
+                    continue
                 if _is_skippable_name(sub, parent_of):
                     continue
                 bugs.append((func.name, sub.lineno, sub.id))

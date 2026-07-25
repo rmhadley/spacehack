@@ -1834,7 +1834,7 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet, *, active_miss
         return update_planet_menu(event, has_port=has_port)
     return ui.Modal(ctx.context, console).run(_render, _update)
 
-def _animate_ship_to_y(context: tcod.context.Context, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None, target_y: int, frame_seconds: float=0.08) -> None:
+def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = 0.08) -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the
@@ -1852,17 +1852,13 @@ def _animate_ship_to_y(context: tcod.context.Context, console: tcod.console.Cons
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         console.clear()
         world.render_world(console, game_map, region_x=0, region_y=0, region_w=solar_system_module.SOL_VIEW_W, region_h=solar_system_module.SOL_VIEW_H)
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=character_info, stats=stats, active_mission=active_mission_text)
-        message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        context.present(console)
+        _active_mission_text = ctx.player_active_mission.title if ctx.player_active_mission else None
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text)
+        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        ctx.context.present(console)
         _responsive_sleep(frame_seconds)
 
-# TODO(P3.6.2): NOT migrated to ctx -- body still takes raw tcod context
-#   + loose game-state args. Deferred from P3.6.2 scope because the 80+-line
-#   body (launch animation + label rect + render) is more complex than the
-#   4 helpers that DID migrate (_handle_combat_encounter, _jump_to_system,
-#   _detect_combat_encounter, _animate_jump). Will tackle in P3.7.
-def _launch_to_space(context: tcod.context.Context, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None) -> tuple[world.GameMap, world.Entity]:
+def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
     """Animate ``hangar_ship_ent`` off the top of the city viewport and
     return ``(space_game_map, space_player_entity)``.
 
@@ -1883,18 +1879,15 @@ def _launch_to_space(context: tcod.context.Context, console: tcod.console.Consol
         city_game_map.entities.remove(city_player)
     offscreen_y = -(solar_system_module.SOL_VIEW_H // 2) - 1
     if hangar_ship_ent.pos.y > offscreen_y:
-        _animate_ship_to_y(context, console, hangar_ship_ent, city_game_map, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text, target_y=offscreen_y)
-        log.add(f'You launch the {ship_obj.name} into space.')
+        _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y)
+        ctx.log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
     origin_planet = solar_system_module.find_planet(current_city_id)
     space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
     space_map.entities.append(space_player)
     return (space_map, space_player)
 
-# TODO(P3.6.2): NOT migrated to ctx -- mirrors _launch_to_space above.
-#   Both would migrate cleanly as a pair; left deferred so P3.6.2 lands
-#   first without overcrowding the audit.
-def _return_to_city(context: tcod.context.Context, console: tcod.console.Console, hangar_ship_ent: world.Entity, city_game_map: world.GameMap, city_player_ent: world.Entity, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None) -> tuple[world.GameMap, world.Entity]:
+def _return_to_city(ctx, console: tcod.console.Console, hangar_ship_ent: world.Entity, city_game_map: world.GameMap, city_player_ent: world.Entity) -> tuple[world.GameMap, world.Entity]:
     """Animate the same ``hangar_ship_ent`` down to :data:`world.HANGAR_ANCHOR`
     and return ``(city_game_map, city_player_entity)``.
 
@@ -1902,10 +1895,10 @@ def _return_to_city(context: tcod.context.Context, console: tcod.console.Console
     instance that was animated offscreen during launch, so no
     entity-list swap is needed on the city map.
     """
-    _animate_ship_to_y(context, console, hangar_ship_ent, city_game_map, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text, target_y=world.HANGAR_ANCHOR.y)
+    _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=world.HANGAR_ANCHOR.y)
     if city_player_ent not in city_game_map.entities:
         city_game_map.entities.append(city_player_ent)
-    log.add('You return to Earth and dock at your hangar.')
+    ctx.log.add('You return to Earth and dock at your hangar.')
     return (city_game_map, city_player_ent)
 
 def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> None:
@@ -2035,7 +2028,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             if outcome is PlanetMenuOutcome.LAND and pid == current_city_id:
                                 hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
                                 if hangar_ship is not None:
-                                    game_map, player = _return_to_city(context, console, hangar_ship, city_game_map, city_player, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text)
+                                    game_map, player = _return_to_city(ctx, console, hangar_ship, city_game_map, city_player)
                                     current_mode = 'city'
                             elif outcome is PlanetMenuOutcome.LAND:
                                 from .data.planets import load_planet as planets_load_planet, hangar_anchor as planet_hangar_anchor, has_landable_port as planets_has_landable_port
@@ -2052,7 +2045,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                         city_game_map.entities.remove(hangar_ship)
                                     hangar_ship.pos = world.Position(new_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1)
                                     new_city_map.entities.append(hangar_ship)
-                                    _animate_ship_to_y(context, console, hangar_ship, new_city_map, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text, target_y=new_anchor.y)
+                                    _animate_ship_to_y(ctx, console, hangar_ship, new_city_map, target_y=new_anchor.y)
                                     log.add(f'You touch down on {planet_obj.name}.')
                                     if city_player not in new_city_map.entities:
                                         new_city_map.entities.append(city_player)
@@ -2076,7 +2069,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         if result is ShipMenuAction.LAUNCH and player_owned_ship is not None:
                             hangar_ship = next((e for e in city_game_map.entities if e.owned and e.ship_id == player_owned_ship.ship_id), None)
                             if hangar_ship is not None:
-                                space_game_map, space_player_entity = _launch_to_space(context, console, city_game_map, hangar_ship, ship, current_city_id=current_city_id, city_player=city_player, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text)
+                                space_game_map, space_player_entity = _launch_to_space(ctx, console, city_game_map, hangar_ship, ship, current_city_id=current_city_id, city_player=city_player)
                                 game_map = space_game_map
                                 player = space_player_entity
                                 ctx.game_map = game_map
