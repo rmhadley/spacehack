@@ -53,6 +53,7 @@ LOOSE = frozenset({
     "character_info",
     "player_owned_ship",
     "player_active_mission",
+    "context",
 })
 
 # Audit scope: every helper that has landed the P3.6.2.x ctx migration.
