@@ -82,7 +82,7 @@ TARGET_FUNCTIONS: frozenset[str] = frozenset({
     # Per-creation-screen modals.
     "_run_pick", "_run_confirm",
     # Space-mode modals.
-    "_run_navigation", "_run_jump_menu", "_run_planet_menu",
+    "_run_navigation", "_run_goto", "_run_jump_menu", "_run_planet_menu",
     "_run_ship_buy", "_run_npc_talk",
     "_run_mission_offerings", "_run_quest_log",
     "_run_ship_menu", "_run_ship_view",
