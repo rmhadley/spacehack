@@ -1852,7 +1852,10 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         console.clear()
         world.render_world(console, game_map, region_x=0, region_y=0, region_w=solar_system_module.SOL_VIEW_W, region_h=solar_system_module.SOL_VIEW_H)
-        _active_mission_text = ctx.player_active_mission.title if ctx.player_active_mission else None
+        _am = ctx.player_active_mission
+        _active_mission_text = (
+            mission_module.find_mission(_am.mission_id).title if _am is not None else ''
+        )
         hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text)
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
