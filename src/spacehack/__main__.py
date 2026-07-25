@@ -984,7 +984,7 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         _cam_y = max(0, min(cy - _view_h // 2, _sys.height - _view_h))
         world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=_view_w, region_h=_view_h, camera_x=_cam_x, camera_y=_cam_y)
         if void:
-            context.present(console)
+            ctx.context.present(console)
             _responsive_sleep(frame_s)
             return
         if not flash_white:
@@ -1959,7 +1959,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             _location = current_city_id.replace('_', ' ').title()
         hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat)
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        context.present(console)
+        ctx.context.present(console)
         for event in tcod.event.wait():
             if should_quit(event):
                 return
