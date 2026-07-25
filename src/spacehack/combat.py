@@ -1242,7 +1242,12 @@ def run_combat(
                                     pass
                     else:
                         _p_log(f"Missed {_target.name}!")
-                        player_state["ap_remaining"] -= 1
+                        # Charge the weapon's full AP on miss too —
+                        # the action was committed regardless of
+                        # whether it landed. Matches the HIT branch
+                        # so heavy missile (ap_cost=2) and any
+                        # future >1 AP weapons charge consistently.
+                        player_state["ap_remaining"] -= (_ws.ap_cost if _ws else 1)
                     break
 
                 # [1]-[9] -> Select weapon. tcod's KeySym reports the
