@@ -15,7 +15,7 @@ same shape so the player isn't disoriented):
     the player's owned-shp hangar anchor just south of it.
   * ``lab`` building, NE corner, with a ``research_officer`` NPC
     — the science flavour + future mission giver for research
-    quests. New NPC id lives in :data:`spacehack.npc.NPCS`.
+    quests. New NPC id lives in :data:`spacehack.data.npcs.NPCS`.
 
 The station is intentionally compact (vs. Earth/Mars which carry
 four civic buildings each) — sci-port shouldn't feel like a small

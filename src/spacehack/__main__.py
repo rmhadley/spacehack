@@ -32,11 +32,13 @@ from . import character
 from . import hud
 from . import message_log
 from . import mission as mission_module
-from . import npc as npc_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
 from . import ui
 from .data import solar_systems as solar_systems_module
+from .data.species import find_species
+from .data.classes import find_class
+from .data import npcs as npc_module
 from . import world
 from .engine import (
     HUD_WIDTH,
@@ -219,8 +221,8 @@ def _run_confirm(
     species_id: str,
     class_id: str,
 ) -> Outcome:
-    species = character.find_species(species_id)
-    klass = character.find_class(class_id)
+    species = find_species(species_id)
+    klass = find_class(class_id)
     console = make_console()
     while True:
         ui.render_confirm(console, species, klass, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -2053,7 +2055,7 @@ def render_mission_offerings(
             f"Reward: {picked.reward_gold}gp + {picked.reward_xp}xp"
         )
         if picked.recommended_class_id:
-            klass = character.find_class(picked.recommended_class_id)
+            klass = find_class(picked.recommended_class_id)
             hint_lines.append(f"Best suited for: {klass.name}")
         if picked.recommended_ship_min_cargo > 0:
             hint_lines.append(
@@ -3021,8 +3023,8 @@ def _run_game(
     a ship (at the space port) opens the ship-buy modal; walking
     into a guild NPC opens the flavor-talk modal.
     """
-    species = character.find_species(species_id)
-    klass = character.find_class(class_id)
+    species = find_species(species_id)
+    klass = find_class(class_id)
 
     CITY_WIDTH, CITY_HEIGHT = 60, 40
     game_map = world.make_city(width=CITY_WIDTH, height=CITY_HEIGHT)

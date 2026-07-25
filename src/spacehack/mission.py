@@ -3,7 +3,7 @@
 Missions live in two places:
 
   * Here (``Mission`` + ``MISSIONS``) - static catalog entries describing
-    the work. Each entry binds a :class:`spacehack.npc.NPC` via
+    the work. Each entry binds a :class:`spacehack.data.npcs.NPC` via
     ``giver_npc_id``; the NPC's flavor text mentions the work and the
     offering modal lists it.
   * :mod:`spacehack.__main__` - an :class:`ActiveMission` instance
@@ -35,7 +35,7 @@ class Mission:
     """A static contract entry in the city's mission catalog.
 
     ``title`` and ``description`` are placeholder strings for this
-    iteration. ``giver_npc_id`` matches a :class:`spacehack.npc.NPC`
+    iteration. ``giver_npc_id`` matches a :class:`spacehack.data.npcs.NPC`
     id - the dispatch in :mod:`spacehack.__main__` uses it to know
     which NPC offers the work. ``reward_gold`` + ``reward_xp`` are
     placeholders (positive ints; gameplay wiring lands in a later

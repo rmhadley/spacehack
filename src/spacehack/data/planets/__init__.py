@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ... import world
-from ... import npc as npc_module
+from ...data import npcs as npc_module
 
 
 @dataclass(frozen=True)
@@ -42,14 +42,14 @@ class PlanetSpec:
       buildings:         tuple of :class:`spacehack.world.CityBuilding`.
                           ``npc_id`` per building refers to either the
                           planet-local override map or the global
-                          :class:`spacehack.npc.NPCS` catalog.
+                          :class:`spacehack.data.npcs.NPCS` catalog.
       showroom_ships:    ``(ship_id, offset_x, offset_y)`` triples
                           placed inside the FIRST building (the
                           spaceport) using the same offsets Earth uses.
       npc_overrides:     ``(npc_id, NPC)`` pairs that REPLACE the
                           global NPC entry on this planet only.
                           Missing ids fall through to the global
-                          :data:`spacehack.npc.NPCS` catalog.
+                          :data:`spacehack.data.npcs.NPCS` catalog.
     """
     id: str
     name: str

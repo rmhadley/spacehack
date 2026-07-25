@@ -7,7 +7,7 @@ Three buildings the player can visit on the first iteration:
                     id). Char + flavor are Mars-flavoured so the
                     same ``barkeep`` npc_id reads differently here
                     than on Earth without touching the global
-                    :class:`spacehack.npc.NPCS` catalog.
+                    :class:`spacehack.data.npcs.NPCS` catalog.
   * ``militia``   - the Mars Patrol (override of the global
                     ``militia_captain`` id). Same pattern as the
                     bar override.
@@ -22,7 +22,7 @@ just adds the data layer so adding new planets is one module away.
 from __future__ import annotations
 
 from ... import world
-from ... import npc as npc_module
+from ...data import npcs as npc_module
 from . import PlanetSpec
 
 

@@ -1,87 +1,32 @@
-"""Character data model: species and class catalogs for character creation.
+"""Character helpers: formulas that combine the player-picked species
+and class into runtime values for the HUD and combat init.
 
-For now all species and classes are **cosmetic** - they affect the menu the
-player sees at the start of a new game but carry no stat or ability bonus
-yet. The data model below is shaped so that gameplay effects (starting
-stats, abilities, equipment) can be added to ``Species`` / ``GameClass``
-later without breaking the menus that consume them.
+The data catalogs (species + class tuples, gameplay numbers) live in
+:mod:`spacehack.data.species` and :mod:`spacehack.data.classes`. This
+module is a thin layer above those catalogs that performs the
+SPECIES + CLASS math (skill bonuses, HP, gold) and exposes
+``starting_pilot_skills`` / ``starting_stats`` / ``format_combo``.
+
+New species or classes only need edits in their data modules — the
+formulas below read straight off the resolved spec dataclasses, so
+the five scattered lookup dicts (``SPECIES_SKILL_BONUSES``,
+``CLASS_SKILL_BONUSES``, ``_SPECIES_HP_BONUS``, ``_CLASS_HP_BASE``,
+``_CLASS_GOLD``) are gone.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-
-@dataclass(frozen=True)
-class Species:
-    """A playable species."""
-    id: str
-    name: str
-    description: str
+from .data.species import find_species, list_species
+from .data.classes import find_class, list_classes
 
 
-@dataclass(frozen=True)
-class GameClass:
-    """A playable class."""
-    id: str
-    name: str
-    description: str
-
-
-# The two starting species. Frozen tuples so callers can't accidentally
-# mutate the catalog at runtime; iteration order is the menu order.
-SPECIES: tuple[Species, ...] = (
-    Species(
-        id="human",
-        name="Human",
-        description="Native to Earth. Versatile and adaptable.",
-    ),
-    Species(
-        id="martian",
-        name="Martian",
-        description="Native to Mars. Hardy in extremes, adapted to low-gravity.",
-    ),
-)
-
-
-# The three starting classes.
-CLASSES: tuple[GameClass, ...] = (
-    GameClass(
-        id="pirate",
-        name="Pirate",
-        description="Lives beyond the law. Plunders and pillages.",
-    ),
-    GameClass(
-        id="merchant",
-        name="Merchant",
-        description="Trades goods across the systems.",
-    ),
-    GameClass(
-        id="bounty_hunter",
-        name="Bounty Hunter",
-        description="Hunts the wanted. Paid in credits.",
-    ),
-)
-
-
-def find_species(species_id: str) -> Species:
-    """Look up a ``Species`` by id. Raises :class:`KeyError` if unknown."""
-    for sp in SPECIES:
-        if sp.id == species_id:
-            return sp
-    raise KeyError(f"unknown species id: {species_id!r}")
-
-
-def find_class(class_id: str) -> GameClass:
-    """Look up a ``GameClass`` by id. Raises :class:`KeyError` if unknown."""
-    for cls in CLASSES:
-        if cls.id == class_id:
-            return cls
-    raise KeyError(f"unknown class id: {class_id!r}")
-
-
-# ---------------------------------------------------------------------------
-# Pilot skills (used in space combat)
-# ---------------------------------------------------------------------------
+# Base pilot-skill rating before species or class bonuses are added.
+# Kept at module level (not on a dataclass field) so changing it
+# retroactively re-tunes every existing pilot without touching data
+# files. Mirrors the convention elsewhere in the project where
+# tunable defaults live close to the formula.
+PILOT_SKILL_BASE = 30
 
 
 @dataclass
@@ -92,81 +37,90 @@ class PilotSkills:
     ``piloting`` affects AP per turn and dodge bonus.
     ``engineering`` affects power efficiency and shield recharge.
     """
-    gunnery: int = 30
-    piloting: int = 30
-    engineering: int = 30
-
-
-SPECIES_SKILL_BONUSES: dict[str, dict[str, int]] = {
-    "human":   {"gunnery": 5,  "piloting": 0,  "engineering": 5},
-    "martian": {"gunnery": 5,  "piloting": 10, "engineering": 5},
-}
-
-
-CLASS_SKILL_BONUSES: dict[str, dict[str, int]] = {
-    "pirate":        {"gunnery": 15, "piloting": 10, "engineering": 0},
-    "merchant":      {"gunnery": 0,  "piloting": 5,  "engineering": 15},
-    "bounty_hunter": {"gunnery": 10, "piloting": 10, "engineering": 5},
-}
+    gunnery: int = PILOT_SKILL_BASE
+    piloting: int = PILOT_SKILL_BASE
+    engineering: int = PILOT_SKILL_BASE
 
 
 def starting_pilot_skills(species_id: str, class_id: str) -> PilotSkills:
-    """Compute starting PilotSkills for a (species, class) combo."""
-    sp_bonus = SPECIES_SKILL_BONUSES.get(species_id, {})
-    cl_bonus = CLASS_SKILL_BONUSES.get(class_id, {})
+    """Starting :class:`PilotSkills` for a (species, class) combo.
+
+    Reads skill bonuses straight off the resolved spec dataclasses
+    (see :attr:`spacehack.data.species.Species.skill_bonus` and
+    :attr:`spacehack.data.classes.GameClass.skill_bonus`). Unknown
+    ids fall through to the base pilot only — future iterations
+    that hit an unrecognised species/class id (e.g. a stale save
+    file) won't crash the formula.
+    """
+    # Resolved specs, with safe-empty fallbacks for stale ids.
+    sp = _safe_lookup_species(species_id)
+    cl = _safe_lookup_class(class_id)
+    sp_bonus = sp.skill_bonus if sp is not None else {}
+    cl_bonus = cl.skill_bonus if cl is not None else {}
     return PilotSkills(
-        gunnery=30 + sp_bonus.get("gunnery", 0) + cl_bonus.get("gunnery", 0),
-        piloting=30 + sp_bonus.get("piloting", 0) + cl_bonus.get("piloting", 0),
-        engineering=30 + sp_bonus.get("engineering", 0) + cl_bonus.get("engineering", 0),
+        gunnery=PILOT_SKILL_BASE + sp_bonus.get("gunnery", 0) + cl_bonus.get("gunnery", 0),
+        piloting=PILOT_SKILL_BASE + sp_bonus.get("piloting", 0) + cl_bonus.get("piloting", 0),
+        engineering=PILOT_SKILL_BASE + sp_bonus.get("engineering", 0) + cl_bonus.get("engineering", 0),
     )
 
 
-def format_combo(species: Species, klass: GameClass) -> str:
-    """Render the picked combo as a single human-readable string."""
-    return f"{species.name} {klass.name}"
-
-
-# ---------------------------------------------------------------------------
-# Cosmetic starting stats
-# ---------------------------------------------------------------------------
-#
-# These tables tie the species + class the player picked through character
-# creation to the numbers the HUD shows on the city screen. They are
-# cosmetic only - they don't affect gameplay yet. Martian gets a small
-# HP bonus; combat classes (pirate + bounty hunter) start tougher; the
-# merchant starts weaker but richer. Unknown ids fall through to safe
-# defaults so future save/load code never crashes on a stale id.
-
-_SPECIES_HP_BONUS: dict[str, int] = {
-    "human": 0,
-    "martian": 1,
-}
-
-_CLASS_HP_BASE: dict[str, int] = {
-    "pirate": 9,
-    "merchant": 7,
-    "bounty_hunter": 10,
-}
-
-_CLASS_GOLD: dict[str, int] = {
-    "pirate": 100,
-    "merchant": 180,
-    "bounty_hunter": 70,
-}
-
-
 def starting_stats(species_id: str, class_id: str):
-    """Compute the starting :class:`spacehack.hud.HudStats` for a
-    (species, class) combination.
+    """Starting :class:`spacehack.hud.HudStats` for a (species, class).
 
-    Cosmetic differentiation only - nothing on the HUD actually
-    affects gameplay yet. The :class:`spacehack.hud.HudStats` returned
-    has ``hp == max_hp`` so the bar reads as full health.
+    HP = ``class.hp_base + species.hp_bonus`` (cosmetic — read by
+    HUD only, doesn't gate gameplay yet). Gold comes straight off
+    the class spec. Unknown ids fall through to safe defaults so
+    a future save/load path that emits an unrecognised species or
+    class id can't crash the HUD init.
     """
     # Local import avoids any chance of a module-load circular dep if
     # hud.py ever starts importing back from character.
     from .hud import HudStats
-    hp = (_CLASS_HP_BASE.get(class_id, 10)
-          + _SPECIES_HP_BONUS.get(species_id, 0))
-    gold = _CLASS_GOLD.get(class_id, 100)
-    return HudStats(hp=hp, max_hp=hp, gold=gold)
+    sp = _safe_lookup_species(species_id)
+    cl = _safe_lookup_class(class_id)
+    hp_base = cl.hp_base if cl is not None else 10
+    gold = cl.gold if cl is not None else 100
+    hp_bonus = sp.hp_bonus if sp is not None else 0
+    return HudStats(hp=hp_base + hp_bonus, max_hp=hp_base + hp_bonus, gold=gold)
+
+
+def format_combo(species, klass) -> str:
+    """Render the picked combo as a single human-readable string."""
+    return f"{species.name} {klass.name}"
+
+
+def _safe_lookup_species(species_id: str):
+    """Resolve a species id without raising. Returns ``None`` on miss.
+
+    The character's HUD / combat-init formulas are best-effort —
+    a stale save file from a removed species shouldn't crash the
+    game. Production callers (the picker UI) only emit ids that
+    resolve successfully, so ``None`` is a defensive fallback for
+    save-load / future-content paths.
+    """
+    try:
+        return find_species(species_id)
+    except KeyError:
+        return None
+
+
+def _safe_lookup_class(class_id: str):
+    """Resolve a class id without raising. Returns ``None`` on miss.
+
+    See :func:`_safe_lookup_species` for the rationale.
+    """
+    try:
+        return find_class(class_id)
+    except KeyError:
+        return None
+
+
+__all__ = [
+    "PILOT_SKILL_BASE",
+    "PilotSkills",
+    "list_species",
+    "list_classes",
+    "starting_pilot_skills",
+    "starting_stats",
+    "format_combo",
+]

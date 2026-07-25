@@ -14,7 +14,8 @@ from enum import Enum, auto
 import tcod.console
 import tcod.event
 
-from . import character
+from .data.species import list_species
+from .data.classes import list_classes
 
 # Vivid sci-fi palette tuned for the default DejaVu 16x16 tileset.
 # Each role gets a thematic hue (cyan for titles, gold for highlights,
@@ -66,8 +67,8 @@ def species_menu() -> MenuScreen:
     return MenuScreen(
         title="Choose Your Species",
         instruction="ARROW KEYS navigate - ENTER select - ESC start over",
-        options=tuple((s.id, s.name) for s in character.SPECIES),
-        descriptions={s.id: s.description for s in character.SPECIES},
+        options=tuple((s.id, s.name) for s in list_species()),
+        descriptions={s.id: s.description for s in list_species()},
         selected=0,
     )
 
@@ -77,8 +78,8 @@ def class_menu() -> MenuScreen:
     return MenuScreen(
         title="Choose Your Class",
         instruction="ARROW KEYS navigate - ENTER select - ESC go back",
-        options=tuple((c.id, c.name) for c in character.CLASSES),
-        descriptions={c.id: c.description for c in character.CLASSES},
+        options=tuple((c.id, c.name) for c in list_classes()),
+        descriptions={c.id: c.description for c in list_classes()},
         selected=0,
     )
 
