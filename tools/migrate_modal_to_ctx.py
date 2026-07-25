@@ -73,6 +73,29 @@ PARAM_MAPPING: dict[str, str] = {
 # ship, menu, species_id, class_id, deliver_mission, missions,
 # active_mission_text) -- those stay in the signature.
 
+# Derived set for cross-modal call-site rewriting: an arg is treated
+# as ``a loose param that the target modal will already access via
+# ctx`` if its NAME is EITHER a PARAM_MAPPING key (e.g. ``log``,
+# ``stats``, ``active``, ``owned_ship``, ``owned``) OR a value
+# (e.g. ``player_active_mission`` -- the renamed alias of ``active``;
+# ``player_owned_ship`` -- renamed alias of ``owned_ship``). The
+# visual playtest surfaced both shapes leaking past the previous
+# ``arg.id in PARAM_MAPPING`` check; the value shape is exactly
+# what P3.6.1b's Hand-Fixes 15-17 patched by hand. This derived set
+# closes the gap at the transformer source so those hand-fixes
+# become obsolete.
+LOOSE_ARG_NAMES: frozenset[str] = frozenset(PARAM_MAPPING) | frozenset(PARAM_MAPPING.values())
+
+# Attribute access from ``ctx`` whose .attr name is one of the
+# droppable loose-arg VALUES. We treat ``ctx.player_active_mission``,
+# ``ctx.player_owned_ship``, ``ctx.log``, ``ctx.stats``,
+# ``ctx.character_info``, ``ctx.game_map`` at a call site as a
+# redundant pass-through -- the target modal already takes ``ctx``
+# and reads it internally. The previous migrator only handled
+# ``ast.Name`` nodes; ``ast.Attribute`` nodes passed through
+# unchanged, surfacing Hand-Fix 17 in P3.6.1b for ``_run_ship_view``.
+CTX_LOOSE_ATTR_DROP: frozenset[str] = frozenset(PARAM_MAPPING.values())
+
 # Functions whose SIGNATURE + BODY are rewritten. Strict positive
 # allowlist; everything else (helpers like _jump_to_system, the
 # creation-screen choose_species dispatchers not named below, etc.)
@@ -408,17 +431,36 @@ class ContextTransformer(ast.NodeTransformer):
                 if arg.id == "context":
                     arg.id = "ctx"  # rename at call site
                     new_args.append(arg)
-                elif arg.id in PARAM_MAPPING:
-                    continue  # drop positional loose-arg
+                elif arg.id in LOOSE_ARG_NAMES:
+                    continue  # drop positional loose-arg (key OR value form)
                 else:
                     new_args.append(arg)
+            elif (
+                isinstance(arg, ast.Attribute)
+                and isinstance(arg.value, ast.Name)
+                and arg.value.id == "ctx"
+                and arg.attr in CTX_LOOSE_ATTR_DROP
+            ):
+                # Drop redundant ``ctx.<loose-arg-value>`` pass-through
+                # at cross-modal call sites. The target modal already
+                # takes ``ctx`` and reads the field via the same name.
+                continue
             else:
                 new_args.append(arg)
         node.args = new_args
         new_kwargs: list[ast.keyword] = []
         for kw in node.keywords:
-            if kw.arg in PARAM_MAPPING:
-                continue  # drop kwarg loose-arg
+            # Drop loose-arg kwargs BY EITHER KEY (e.g. ``log=log``)
+            # OR VALUE form (e.g. ``player_owned_ship=ctx.player_owned_ship``).
+            # The positional branch already widens to :data:`LOOSE_ARG_NAMES`;
+            # mirror that here so ``_run_X(..., player_owned_ship=ctx.player_owned_ship)``
+            # at the call site doesn't leak an orphan kwarg into a signature
+            # that has dropped the field. ``kw.arg`` is always a Name string
+            # (kwarg keys are syntactically identifiers, not Attribute nodes),
+            # so the Attribute-handling logic in the positional loop doesn't
+            # apply here.
+            if kw.arg is not None and kw.arg in LOOSE_ARG_NAMES:
+                continue  # drop kwarg loose-arg (key OR value form)
             new_kwargs.append(kw)
         node.keywords = new_kwargs
         return node
