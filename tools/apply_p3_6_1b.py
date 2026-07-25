@@ -4,7 +4,7 @@ Reads the AST-transformer dry-run output at ``/tmp/migrated_main.py``,
 applies 14 BLOCKER hand-fixes the dry-run couldn't handle, then
 copies the result over ``spacehack/src/spacehack/__main__.py``.
 
-**14 BLOCKER hand-fixes** (in apply order):
+**17 BLOCKER hand-fixes** (in apply order):
 
 1. ``ctx.present(console)`` -> ``ctx.context.present(console)``
    in modal bodies that bypass ``ui.Modal`` (currently just
@@ -94,6 +94,25 @@ copies the result over ``spacehack/src/spacehack/__main__.py``.
 14. ``render_planet_menu(console, planet_obj, has_port=has_port)`` ->
     ``render_planet_menu(console, ctx, planet_obj, has_port=has_port)``.
     Just insert ``ctx``.
+
+15. ``_run_quest_log(ctx, player_active_mission)`` ->
+    ``_run_quest_log(ctx,)``. The ``player_active_mission`` positional
+    is dropped because the new ``_run_quest_log`` signature is just
+    ``(ctx)`` (the ``active`` arg was renamed to ``ctx.player_active_mission``
+    inside the body). The AST transformer doesn't drop args at
+    non-TARGET call sites whose ids are PARAM_MAPPING *values* (rather
+    than keys) -- THIS is the gap that surfaces here.
+
+16. ``_run_ship_menu(ctx, ship, player_owned_ship)`` ->
+    ``_run_ship_menu(ctx, ship)``. Same gap: ``player_owned_ship``
+    is a PARAM_MAPPING value (from ``owned_ship`` or ``owned`` key),
+    not a key, so the call-site ``visit_Call`` doesn't drop it.
+
+17. ``_run_ship_view(ctx, ship, ctx.player_owned_ship, ctx.log)`` ->
+    ``_run_ship_view(ctx, ship)``. Same gap PLUS a second-order
+    issue: ``ctx.player_owned_ship`` and ``ctx.log`` are
+    ``ast.Attribute`` nodes (not ``ast.Name``), and the call-site
+    drop check is key-only, so neither gets dropped.
 
 **Known NOT-handled**:
 
@@ -261,6 +280,48 @@ def apply_hand_fixes(text: str) -> str:
     text = text.replace(
         "render_planet_menu(console, planet_obj, has_port=has_port)",
         "render_planet_menu(console, ctx, planet_obj, has_port=has_port)",
+    )
+
+    # Fixes 15-17: _run_X call sites passing orphan positional args
+    # the migration didn't drop. Root cause in the AST transformer:
+    # ``visit_Call`` only drops args whose id is in
+    # :data:`PARAM_MAPPING` *keys* (``log``, ``stats``, ``owned_ship``,
+    # ``owned``, ``active``, ``character_info``, ``game_map``). It
+    # does NOT drop args whose id is a *value* of PARAM_MAPPING
+    # (``player_owned_ship``, ``player_active_mission``) -- the
+    # transformation only renames these in TARGET bodies, not at
+    # cross-modal call sites in CALL_SITE_CONTAINER bodies like
+    # :func:`_run_game`. And it does NOT drop ``ast.Attribute``
+    # nodes like ``ctx.player_owned_ship`` at all (those passed
+    # through unchanged thanks to P3.6.1 manual refactors which
+    # already pre-converted some loose-arg references in
+    # :func:`_run_game` body to ``ctx.X`` access).
+    #
+    # All 3 anchors verified unique: each matches exactly 1 call
+    # site in src/spacehack/__main__.py.
+
+    # Fix 15: _run_quest_log -- DROP orphan player_active_mission.
+    text = text.replace(
+        "_run_quest_log(ctx, player_active_mission)",
+        "_run_quest_log(ctx,)",
+    )
+
+    # Fix 16: _run_ship_menu -- DROP orphan player_owned_ship.
+    text = text.replace(
+        "_run_ship_menu(ctx, ship, player_owned_ship)",
+        "_run_ship_menu(ctx, ship)",
+    )
+
+    # Fix 17: _run_ship_view -- DROP both orphan ctx.player_owned_ship
+    # AND ctx.log. (The dry-run text shows ``ctx.player_owned_ship``
+    # because :func:`_run_ship_view` is invoked twice -- once with
+    # the freshly-built cross-modal ``ctx`` and once from the
+    # in-body call where ``ctx`` is already in scope. Either path
+    # lands here as ``ctx.X`` Attribute args that visit_Call didn't
+    # drop.)
+    text = text.replace(
+        "_run_ship_view(ctx, ship, ctx.player_owned_ship, ctx.log)",
+        "_run_ship_view(ctx, ship)",
     )
 
     return text

@@ -1683,7 +1683,7 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     while True:
         action = ui.Modal(ctx.context, console).run(_render, _update)
         if action is ShipMenuAction.VIEW:
-            _run_ship_view(ctx, ship, ctx.player_owned_ship, ctx.log)
+            _run_ship_view(ctx, ship)
             continue
         if action is ShipMenuAction.REFUEL:
             ship_record = ship_module.find_ship(ctx.player_owned_ship.ship_id)
@@ -1958,7 +1958,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if should_quit(event):
                 return
             if _is_q_press(event):
-                outcome, new_active = _run_quest_log(ctx, player_active_mission)
+                outcome, new_active = _run_quest_log(ctx,)
                 if outcome is QuestLogOutcome.QUIT:
                     return
                 if outcome is QuestLogOutcome.ABANDONED:
@@ -2060,7 +2060,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 if blocker.ship_id:
                     ship = ship_module.find_ship(blocker.ship_id)
                     if blocker.owned:
-                        result = _run_ship_menu(ctx, ship, player_owned_ship)
+                        result = _run_ship_menu(ctx, ship)
                         if result is ShipMenuAction.QUIT:
                             return
                         if result is ShipMenuAction.LAUNCH and player_owned_ship is not None:
