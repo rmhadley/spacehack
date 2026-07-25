@@ -18,16 +18,12 @@ onto a tile holding another entity opens a context dialog:
     * anything else -> "You bump into X" log line
 """
 from __future__ import annotations
-
 import time
 import math
-
 from enum import Enum, auto
-
 import tcod.console
 import tcod.context
 import tcod.event
-
 from . import character
 from . import hud
 from . import message_log
@@ -41,27 +37,8 @@ from .data.species import find_species
 from .data.classes import find_class
 from .data import npcs as npc_module
 from . import world
-from .engine import (
-    HUD_WIDTH,
-    MSG_LOG_HEIGHT,
-    SCREEN_HEIGHT,
-    SCREEN_WIDTH,
-    WINDOW_TITLE,
-    load_tileset,
-    make_console,
-    open_terminal,
-    seed_rng,
-    should_quit,
-)
-
-
-# Bright yellow ship marker used by the navigation overlay. Lives
-# here (rather than ui.COLOR_*) because this is the only consumer
-# of a yellow-specific marker; if a future iteration adds another
-# yellow-on-dark glyph (e.g. ship trail or course line) promote it
-# to ui.COLOR_NAV_SHIP.
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
 NAV_SHIP_FG: tuple[int, int, int] = (255, 255, 100)
-
 
 class Outcome(Enum):
     """What happened at the end of a per-creation-screen loop iteration.
@@ -72,11 +49,10 @@ class Outcome(Enum):
     rendering + polling. Every other member terminates the modal
     loop and propagates back to the caller.
     """
-    IGNORE = auto()   # event wasn't relevant; keep polling
+    IGNORE = auto()
     QUIT = auto()
     BACK = auto()
     CONFIRM = auto()
-
 
 class ShipBuyOutcome(Enum):
     """What happened during a single ship-buy dialog iteration.
@@ -85,12 +61,11 @@ class ShipBuyOutcome(Enum):
     (caller should log "you cannot afford this"). The BUY outcome
     implies the player can afford the ship.
     """
-    IGNORE = auto()         # event doesn't drive a state transition
-    BUY = auto()            # Enter pressed AND player can afford
-    BACK = auto()           # ESC pressed - silent back
-    TOO_EXPENSIVE = auto()  # Enter pressed but player cannot afford
-    QUIT = auto()           # window-close
-
+    IGNORE = auto()
+    BUY = auto()
+    BACK = auto()
+    TOO_EXPENSIVE = auto()
+    QUIT = auto()
 
 class TalkOutcome(Enum):
     """What happened during a single NPC-talk dialog iteration.
@@ -111,17 +86,15 @@ class TalkOutcome(Enum):
     DELIVER = auto()
     QUIT = auto()
 
-
 class ShipMenuAction(Enum):
     """Which sub-modal of the hangar menu the player triggers."""
-    IGNORE = auto()         # key is not relevant (mid-options nav)
-    VIEW = auto()           # Enter on the "View" option
-    REFUEL = auto()         # Enter on "Refuel" (buy fuel)
-    SELL = auto()           # Enter on "Sell" (placeholder)
-    LAUNCH = auto()         # Enter on "Launch"
-    BACK = auto()           # ESC - returns to the city
-    QUIT = auto()           # window-close
-
+    IGNORE = auto()
+    VIEW = auto()
+    REFUEL = auto()
+    SELL = auto()
+    LAUNCH = auto()
+    BACK = auto()
+    QUIT = auto()
 
 class ShipViewOutcome(Enum):
     """Result of the ship-stats sub-modal (View option).
@@ -131,9 +104,8 @@ class ShipViewOutcome(Enum):
     so the menu dispatcher stays focused on its 3-option list.
     """
     IGNORE = auto()
-    BACK = auto()           # ESC inside the panel -> menu
+    BACK = auto()
     QUIT = auto()
-
 
 class PlanetMenuOutcome(Enum):
     """Result of the planet-bump dialog (single 'Land' option).
@@ -147,7 +119,6 @@ class PlanetMenuOutcome(Enum):
     LAND = auto()
     BACK = auto()
     QUIT = auto()
-
 
 class JumpMenuOutcome(Enum):
     """Result of the jump-point-bump dialog (single 'Jump' option).
@@ -167,7 +138,6 @@ class JumpMenuOutcome(Enum):
     JUMP = auto()
     BACK = auto()
     QUIT = auto()
-
 
 class GotoOutcome(Enum):
     """Result of the auto-nav (G-key) modal.
@@ -201,19 +171,12 @@ class GotoOutcome(Enum):
     COMPLETED = auto()
     COMBAT = auto()
 
-
-# ---------------------------------------------------------------------------
-# Per-creation-screen loops
-# ---------------------------------------------------------------------------
-
-
-def _run_pick(
-    context: tcod.context.Context,
-    menu: ui.MenuScreen,
-) -> tuple[Outcome, str | None]:
+def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
     console = make_console()
+
     def _render() -> None:
         ui.render_menu(console, menu, SCREEN_WIDTH, SCREEN_HEIGHT)
+
     def _update(event) -> Outcome:
         if isinstance(event, tcod.event.Quit):
             return Outcome.QUIT
@@ -225,20 +188,17 @@ def _run_pick(
         return Outcome.IGNORE
     outcome = ui.Modal(context, console).run(_render, _update)
     if outcome is Outcome.CONFIRM:
-        return outcome, menu.selected_id
-    return outcome, None
+        return (outcome, menu.selected_id)
+    return (outcome, None)
 
-
-def _run_confirm(
-    context: tcod.context.Context,
-    species_id: str,
-    class_id: str,
-) -> Outcome:
+def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) -> Outcome:
     species = find_species(species_id)
     klass = find_class(class_id)
     console = make_console()
+
     def _render() -> None:
         ui.render_confirm(console, species, klass, SCREEN_WIDTH, SCREEN_HEIGHT)
+
     def _update(event) -> Outcome:
         if isinstance(event, tcod.event.Quit):
             return Outcome.QUIT
@@ -249,12 +209,6 @@ def _run_confirm(
             return Outcome.BACK
         return Outcome.IGNORE
     return ui.Modal(context, console).run(_render, _update)
-
-
-# ---------------------------------------------------------------------------
-# Movement dispatch
-# ---------------------------------------------------------------------------
-
 
 def _vim_action(event: tcod.event.Event) -> tuple[int, int] | None:
     """If ``event`` is a vim-movement KeyDown, return (dx, dy); else None.
@@ -273,9 +227,8 @@ def _vim_action(event: tcod.event.Event) -> tuple[int, int] | None:
     """
     if not isinstance(event, tcod.event.KeyDown):
         return None
-    sym_name: str = getattr(event.sym, "name", "").lower()
+    sym_name: str = getattr(event.sym, 'name', '').lower()
     return world.VIM_DELTAS.get(sym_name)
-
 
 def _is_q_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``Q`` key.
@@ -289,8 +242,7 @@ def _is_q_press(event: tcod.event.Event) -> bool:
     """
     if not isinstance(event, tcod.event.KeyDown):
         return False
-    return getattr(event.sym, "name", "") == "Q"
-
+    return getattr(event.sym, 'name', '') == 'Q'
 
 def _is_m_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``M`` key (or its
@@ -313,9 +265,8 @@ def _is_m_press(event: tcod.event.Event) -> bool:
     """
     if not isinstance(event, tcod.event.KeyDown):
         return False
-    sym_name: str = getattr(event.sym, "name", "")
-    return sym_name in ("M", "m")
-
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('M', 'm')
 
 def _is_g_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``G`` key (or its
@@ -334,33 +285,10 @@ def _is_g_press(event: tcod.event.Event) -> bool:
     """
     if not isinstance(event, tcod.event.KeyDown):
         return False
-    sym_name: str = getattr(event.sym, "name", "")
-    return sym_name in ("G", "g")
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('G', 'g')
 
-
-# ---------------------------------------------------------------------------
-# Navigation overlay (N key in space mode)
-# ---------------------------------------------------------------------------
-#
-# When the player presses ``N`` (or ``n``) while in space mode, this
-# overlay replaces the regular per-frame space render and shows the
-# ENTIRE solar system at once - the 200x140 ``SOL_W``/``SOL_H`` map
-# scaled down to fit the ~80x54 viewport with the player's ship
-# position overlay drawn on top. Read-only: any unknown key is
-# IGNORE, ESC is BACK (silent close), window-close is QUIT.
-
-
-
-def _render_aoi_panel(
-    console,
-    system,
-    ship_pos,
-    *,
-    x: int,
-    y: int,
-    width: int,
-    height: int,
-) -> None:
+def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, height: int) -> None:
     """Right-side Areas-of-Interest panel for the Map/NAVIGATION overlay.
 
     Renders a categorised list of Stars / Planets / Jump Points /
@@ -369,13 +297,11 @@ def _render_aoi_panel(
     ship (1 dp, units = big-map cells). Sorted by distance
     within each category for predictable visual order.
     """
-    COLOR_STAR = ui.COLOR_TITLE                       # warm gold for stars / sun.
-    COLOR_PLANET = ui.COLOR_VALUE_WHITE               # white for planets.
-    COLOR_JUMP = ui.COLOR_OPTION_HIGHLIGHT            # gold for jump gates.
-    COLOR_STATION = ui.COLOR_OPTION_HIGHLIGHT2        # steel-cyan for stations.
-
+    COLOR_STAR = ui.COLOR_TITLE
+    COLOR_PLANET = ui.COLOR_VALUE_WHITE
+    COLOR_JUMP = ui.COLOR_OPTION_HIGHLIGHT
+    COLOR_STATION = ui.COLOR_OPTION_HIGHLIGHT2
     inner_w = max(0, width - 4)
-
     SUFFIX_W = 10
     name_w = max(4, inner_w - SUFFIX_W)
 
@@ -387,16 +313,15 @@ def _render_aoi_panel(
     def _clamp_label(label: str) -> str:
         if len(label) <= name_w:
             return label
-        return label[: name_w - 1] + chr(0x2026)
+        return label[:name_w - 1] + chr(8230)
 
     def _row(label, dist=None):
         if dist is None:
             return fit(label)
-        return fit(f"{_clamp_label(label)} - {dist}u")
+        return fit(f'{_clamp_label(label)} - {dist}u')
 
     def fit(line):
-        return line if len(line) <= inner_w else line[: inner_w - 1] + chr(0x2026)
-
+        return line if len(line) <= inner_w else line[:inner_w - 1] + chr(8230)
     rows = []
     rows.append(('AREAS OF INTEREST', ui.COLOR_TITLE))
     rows.append(('', ui.COLOR_VALUE_DIM))
@@ -426,14 +351,12 @@ def _render_aoi_panel(
     reachable_counts = solar_systems_module.reachable_system_ids(system.id)
     if reachable_counts:
         rows.append(('Reachable Systems', COLOR_JUMP))
-        for sys_id, hops in sorted(
-            reachable_counts.items(), key=lambda kv: (kv[1], kv[0]),
-        ):
+        for sys_id, hops in sorted(reachable_counts.items(), key=lambda kv: (kv[1], kv[0])):
             dest_sys = solar_systems_module.find_solar_system(sys_id)
-            row_text = f"{dest_sys.name:<{name_w}} - {hops} hop{'s' if hops > 1 else ''}"
+            row_text = f"{dest_sys.name:<{name_w}} - {hops} hop{('s' if hops > 1 else '')}"
             rows.append((fit(row_text), COLOR_JUMP))
         rows.append(('', COLOR_JUMP))
-    cx, cy = x + 2, y + 1
+    cx, cy = (x + 2, y + 1)
     for label, fg in rows:
         if cy >= y + height - 2:
             break
@@ -444,8 +367,6 @@ def _render_aoi_panel(
         cy += 1
     rect = (x + 1, y + 1, max(0, width - 2), max(0, height - 2))
     ui.paint_rect_border(console, rect, fg=ui.COLOR_VALUE_DIM)
-
-
 
 class NavigationOutcome(Enum):
     """Result of the system-map (N) overlay.
@@ -459,15 +380,7 @@ class NavigationOutcome(Enum):
     BACK = auto()
     QUIT = auto()
 
-
-def render_navigation(
-    console: tcod.console.Console,
-    *,
-    screen_width: int,
-    screen_height: int,
-    ship_pos: world.Position,
-    system=None,
-) -> None:
+def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen_width: int, screen_height: int, ship_pos: world.Position, system=None) -> None:
     """Paint the current-solar-system navigation overlay.
 
     Multi-system iteration: the player is in ONE solar system at a
@@ -500,117 +413,62 @@ def render_navigation(
       * A footer line shows ``You are at (X, Y).`` + an ESC hint.
     """
     console.clear()
-
     if system is None:
         system = solar_system_module.current_system()
-
-    title = f"NAVIGATION - {system.name.upper()} SYSTEM"
-    console.print(
-        x=ui.centered_x(title, screen_width),
-        y=2,
-        string=title,
-        fg=ui.COLOR_TITLE,
-    )
-
+    title = f'NAVIGATION - {system.name.upper()} SYSTEM'
+    console.print(x=ui.centered_x(title, screen_width), y=2, string=title, fg=ui.COLOR_TITLE)
     inner_view_w = screen_width - HUD_WIDTH
     inner_view_h = screen_height - MSG_LOG_HEIGHT
     nav_map_w = 40
     nav_map_h = 30
     map_off_x = (inner_view_w - nav_map_w) // 2
-    map_off_y = 4  # below the title at y=2
-
+    map_off_y = 4
     sample_x = system.width / nav_map_w
     sample_y = system.height / nav_map_h
-
     bodies_for_overlay = list(system.planets) + list(system.jump_points)
-
     cell_step_x = max(1, int(sample_x))
     cell_step_y = max(1, int(sample_y))
     for mini_y in range(nav_map_h):
         by_lo = int(mini_y * sample_y)
-        by_hi = (
-            int((mini_y + 1) * sample_y)
-            if mini_y + 1 < nav_map_h
-            else system.height
-        )
+        by_hi = int((mini_y + 1) * sample_y) if mini_y + 1 < nav_map_h else system.height
         for mini_x in range(nav_map_w):
             bx_lo = mini_x * cell_step_x
             bx_hi = bx_lo + cell_step_x
-
             planet_here = None
             y = by_lo
             while y < by_hi and planet_here is None:
                 x = bx_lo
                 while x < bx_hi and planet_here is None:
-                    if (
-                        0 <= x < system.width
-                        and 0 <= y < system.height
-                    ):
+                    if 0 <= x < system.width and 0 <= y < system.height:
                         for body in bodies_for_overlay:
-                            if (
-                                body.pos.x <= x < body.pos.x + body.width
-                                and body.pos.y <= y < body.pos.y + body.height
-                            ):
+                            if body.pos.x <= x < body.pos.x + body.width and body.pos.y <= y < body.pos.y + body.height:
                                 planet_here = body
                                 break
                     x += 1
                 y += 1
-
             if planet_here is not None:
-                console.print(
-                    x=map_off_x + mini_x,
-                    y=map_off_y + mini_y,
-                    string=planet_here.char,
-                    fg=planet_here.fg,
-                )
+                console.print(x=map_off_x + mini_x, y=map_off_y + mini_y, string=planet_here.char, fg=planet_here.fg)
             else:
-                console.print(
-                    x=map_off_x + mini_x,
-                    y=map_off_y + mini_y,
-                    string=".",
-                    fg=(80, 80, 110),
-                )
-
+                console.print(x=map_off_x + mini_x, y=map_off_y + mini_y, string='.', fg=(80, 80, 110))
     ship_mini_x = int(ship_pos.x / sample_x)
     ship_mini_y = int(ship_pos.y / sample_y)
     if 0 <= ship_mini_x < nav_map_w and 0 <= ship_mini_y < nav_map_h:
-        console.print(
-            x=map_off_x + ship_mini_x,
-            y=map_off_y + ship_mini_y,
-            string="@",
-            fg=NAV_SHIP_FG,
-        )
-
+        console.print(x=map_off_x + ship_mini_x, y=map_off_y + ship_mini_y, string='@', fg=NAV_SHIP_FG)
     if hasattr(system, 'stations'):
         aoi_w = 28
         aoi_x = screen_width - aoi_w - 2
         aoi_y = 4
         aoi_h = max(8, screen_height - 12)
         aoi_x = max(0, min(aoi_x, screen_width - aoi_w - 1))
-        _render_aoi_panel(
-            console, system, ship_pos,
-            x=aoi_x, y=aoi_y, width=aoi_w, height=aoi_h,
-        )
-
+        _render_aoi_panel(console, system, ship_pos, x=aoi_x, y=aoi_y, width=aoi_w, height=aoi_h)
     foot_y = map_off_y + nav_map_h + 1
-    coord_line = f"You are at ({ship_pos.x}, {ship_pos.y})."
+    coord_line = f'You are at ({ship_pos.x}, {ship_pos.y}).'
     max_w = screen_width - HUD_WIDTH - 2
     if len(coord_line) > max_w:
-        coord_line = coord_line[: max_w - 1] + "…"
-    console.print(
-        x=ui.centered_x(coord_line, screen_width),
-        y=foot_y,
-        string=coord_line,
-        fg=ui.COLOR_VALUE_WHITE,
-    )
-    hint = "Press ESC to close."
-    console.print(
-        x=ui.centered_x(hint, screen_width),
-        y=foot_y + 2,
-        string=hint,
-        fg=ui.COLOR_INSTRUCTION,
-    )
-
+        coord_line = coord_line[:max_w - 1] + '…'
+    console.print(x=ui.centered_x(coord_line, screen_width), y=foot_y, string=coord_line, fg=ui.COLOR_VALUE_WHITE)
+    hint = 'Press ESC to close.'
+    console.print(x=ui.centered_x(hint, screen_width), y=foot_y + 2, string=hint, fg=ui.COLOR_INSTRUCTION)
 
 def update_navigation(event: tcod.event.Event) -> NavigationOutcome:
     """Map a single event for the navigation overlay.
@@ -629,11 +487,7 @@ def update_navigation(event: tcod.event.Event) -> NavigationOutcome:
         return NavigationOutcome.BACK
     return NavigationOutcome.IGNORE
 
-
-def _run_navigation(
-    context: tcod.context.Context,
-    ship_pos: world.Position,
-) -> NavigationOutcome:
+def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     """Show the system-map overlay and return the outcome.
 
     The overlay clears ``console`` first, so the regular space-mode
@@ -644,25 +498,12 @@ def _run_navigation(
     this function returns - we don't cache or restore state.
     """
     console = make_console()
+
     def _render() -> None:
-        render_navigation(
-            console,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-            ship_pos=ship_pos,
-        )
-    return ui.Modal(context, console).run(_render, update_navigation)
+        render_navigation(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
+    return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
-
-def _handle_combat_encounter(
-    console,
-    context,
-    player_owned_ship: "ship_module.OwnedShip",
-    player: world.Entity,
-    game_map: world.GameMap,
-    log: message_log.MessageLog,
-    encounter: tuple[list, list[world.Position]],
-) -> str:
+def _handle_combat_encounter(console, context, player_owned_ship: 'ship_module.OwnedShip', player: world.Entity, game_map: world.GameMap, log: message_log.MessageLog, encounter: tuple[list, list[world.Position]]) -> str:
     """Invoke combat for a triggered encounter and handle VICTORY/DEFEAT.
 
     Both the post-move dispatcher and the auto-nav (G-key) interrupt
@@ -682,28 +523,16 @@ def _handle_combat_encounter(
     from . import combat as _combat
     _nearby_specs, _nearby_positions = encounter
     _ship_cat = ship_module.find_ship(player_owned_ship.ship_id)
-    _pilot_skills = {
-        "gunnery": 30, "piloting": 30, "engineering": 30,
-    }
-    _result = _combat.run_combat(
-        console, context, _ship_cat,
-        player_owned_ship, player.pos,
-        _pilot_skills, _nearby_specs, _nearby_positions,
-        game_map, log,
-    )
-    if _result == "VICTORY":
-        _names = ", ".join(_sp.name for _sp in _nearby_specs)
-        log.add(f"You defeated {_names}!")
-    elif _result == "DEFEAT":
-        log.add("Your ship is destroyed!")
+    _pilot_skills = {'gunnery': 30, 'piloting': 30, 'engineering': 30}
+    _result = _combat.run_combat(console, context, _ship_cat, player_owned_ship, player.pos, _pilot_skills, _nearby_specs, _nearby_positions, game_map, log)
+    if _result == 'VICTORY':
+        _names = ', '.join((_sp.name for _sp in _nearby_specs))
+        log.add(f'You defeated {_names}!')
+    elif _result == 'DEFEAT':
+        log.add('Your ship is destroyed!')
     return _result
 
-
-def _detect_combat_encounter(
-    player_pos: world.Position,
-    game_map: world.GameMap,
-    system: object,
-) -> tuple[list, list[world.Position]] | None:
+def _detect_combat_encounter(player_pos: world.Position, game_map: world.GameMap, system: object) -> tuple[list, list[world.Position]] | None:
     """Run the squad-aware enemy scan and return combat payload, or ``None``.
 
     Extracted from the post-move dispatcher block so both the normal
@@ -727,26 +556,16 @@ def _detect_combat_encounter(
             _espec = _fe(_spawn.enemy_id)
         except KeyError:
             continue
-        _enemy_alive = any(
-            _e for _e in game_map.entities
-            if not getattr(_e, 'owned', False)
-            and _e.pos.x == _spawn.pos.x
-            and _e.pos.y == _spawn.pos.y
-        )
+        _enemy_alive = any((_e for _e in game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _spawn.pos.x and (_e.pos.y == _spawn.pos.y)))
         if not _enemy_alive:
             continue
         _alive_spawns.append((_spawn, _espec))
-        _dist = math.hypot(
-            player_pos.x - _spawn.pos.x,
-            player_pos.y - _spawn.pos.y,
-        )
+        _dist = math.hypot(player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y)
         if _dist <= _espec.detect_radius:
             if _spawn.squad_id is not None:
                 _triggered_squad_ids.add(_spawn.squad_id)
             else:
-                _triggered_solo_positions.add(
-                    (_spawn.pos.x, _spawn.pos.y)
-                )
+                _triggered_solo_positions.add((_spawn.pos.x, _spawn.pos.y))
     _nearby_specs: list = []
     _nearby_positions: list = []
     for _spawn, _espec in _alive_spawns:
@@ -754,21 +573,14 @@ def _detect_combat_encounter(
             if _spawn.squad_id in _triggered_squad_ids:
                 _nearby_specs.append(_espec)
                 _nearby_positions.append(_spawn.pos)
-        else:
-            if (_spawn.pos.x, _spawn.pos.y) in _triggered_solo_positions:
-                _nearby_specs.append(_espec)
-                _nearby_positions.append(_spawn.pos)
+        elif (_spawn.pos.x, _spawn.pos.y) in _triggered_solo_positions:
+            _nearby_specs.append(_espec)
+            _nearby_positions.append(_spawn.pos)
     if _nearby_specs:
-        return _nearby_specs, _nearby_positions
+        return (_nearby_specs, _nearby_positions)
     return None
 
-
-def _run_goto(
-    context: tcod.context.Context,
-    game_map: world.GameMap,
-    player_entity: world.Entity,
-    log: message_log.MessageLog,
-) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
+def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
     """Open a GO TO modal listing interactable space bodies, then
     auto-navigate the player's ship to a cell adjacent to the chosen
     target using BFS pathfinding + step-by-step animation.
@@ -806,161 +618,87 @@ def _run_goto(
     ESC if they wish before any further step is animated.
     """
     import heapq
-
     system = solar_system_module.current_system()
-
-    # Build interactable list: (label, body) tuples from the
-    # current system. Planets (including suns if present via the
-    # 'sun' attr), jump points, and stations are all fair game.
     destinations: list[tuple[str, object]] = []
     for p in system.planets:
         label = p.name
         if getattr(p, 'sun', False):
-            label = f"[Star] {label}"
+            label = f'[Star] {label}'
         destinations.append((label, p))
     for jp in system.jump_points:
-        destinations.append((f"[Gate] {jp.name}", jp))
+        destinations.append((f'[Gate] {jp.name}', jp))
     for st in getattr(system, 'stations', ()) or ():
-        destinations.append((f"[Station] {st.name}", st))
-
+        destinations.append((f'[Station] {st.name}', st))
     if not destinations:
-        log.add("There is nothing to navigate to in this system.")
+        ctx.log.add('There is nothing to navigate to in this system.')
         return (GotoOutcome.CANCELLED, None)
-
     n = len(destinations)
     selected = 0
     console = make_console()
-
     while True:
-        # Render menu
         console.clear()
-        title = "GO TO"
-        console.print(
-            x=ui.centered_x(title, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 4,
-            string=title,
-            fg=ui.COLOR_TITLE,
-        )
+        title = 'GO TO'
+        console.print(x=ui.centered_x(title, SCREEN_WIDTH), y=SCREEN_HEIGHT // 4, string=title, fg=ui.COLOR_TITLE)
         list_top = SCREEN_HEIGHT // 4 + 2
         for i, (label, _body) in enumerate(destinations):
             row = list_top + i * 2
-            is_selected = (i == selected)
-            marker_open = "> " if is_selected else "  "
-            marker_close = " <" if is_selected else "  "
-            text = f"{marker_open}{label}{marker_close}"
+            is_selected = i == selected
+            marker_open = '> ' if is_selected else '  '
+            marker_close = ' <' if is_selected else '  '
+            text = f'{marker_open}{label}{marker_close}'
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION
-            console.print(
-                x=ui.centered_x(text, SCREEN_WIDTH),
-                y=row,
-                string=text,
-                fg=fg,
-            )
-        hint = "ARROW KEYS / j,k navigate - ENTER go - ESC cancel"
-        console.print(
-            x=ui.centered_x(hint, SCREEN_WIDTH),
-            y=list_top + n * 2 + 1,
-            string=hint,
-            fg=ui.COLOR_INSTRUCTION,
-        )
-        message_log.render_message_log(
-            console, log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
-        context.present(console)
-
+            console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=row, string=text, fg=fg)
+        hint = 'ARROW KEYS / j,k navigate - ENTER go - ESC cancel'
+        console.print(x=ui.centered_x(hint, SCREEN_WIDTH), y=list_top + n * 2 + 1, string=hint, fg=ui.COLOR_INSTRUCTION)
+        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        ctx.context.present(console)
         for event in tcod.event.wait():
             if isinstance(event, tcod.event.Quit):
                 return (GotoOutcome.CANCELLED, None)
             if not isinstance(event, tcod.event.KeyDown):
                 continue
             sym = event.sym
-            sym_name: str = getattr(sym, "name", "").lower()
-            # Navigate
-            if sym in ui._UP_SYMS or sym_name == "k":
+            sym_name: str = getattr(sym, 'name', '').lower()
+            if sym in ui._UP_SYMS or sym_name == 'k':
                 selected = (selected - 1) % n
                 break
-            if sym in ui._DOWN_SYMS or sym_name == "j":
+            if sym in ui._DOWN_SYMS or sym_name == 'j':
                 selected = (selected + 1) % n
                 break
-            # ESC -> cancel
             if sym in ui._ESCAPE_SYMS:
                 return (GotoOutcome.CANCELLED, None)
-            # ENTER -> go!
             if sym in ui._ENTER_SYMS:
                 chosen_body = destinations[selected][1]
-                log.add(
-                    f"Auto-nav engaged. Plotting course to "
-                    f"{getattr(chosen_body, 'name', 'target')}..."
-                )
-
-                # ---- BFS pathfinding ----
-                # Compute all cells adjacent (8-dir) to the body
-                # footprint that are walkable + unoccupied.
-                dirs_8 = [
-                    (-1, -1), (0, -1), (1, -1),
-                    (-1,  0),          (1,  0),
-                    (-1,  1), (0,  1), (1,  1),
-                ]
+                ctx.log.add(f"Auto-nav engaged. Plotting course to {getattr(chosen_body, 'name', 'target')}...")
+                dirs_8 = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
                 target_cells: set[tuple[int, int]] = set()
                 for bx in range(chosen_body.pos.x, chosen_body.pos.x + chosen_body.width):
-                    for by in range(
-                        chosen_body.pos.y,
-                        chosen_body.pos.y + chosen_body.height,
-                    ):
+                    for by in range(chosen_body.pos.y, chosen_body.pos.y + chosen_body.height):
                         for dx, dy in dirs_8:
-                            nx, ny = bx + dx, by + dy
-                            # Skip cells still inside the body
-                            if (
-                                chosen_body.pos.x <= nx
-                                < chosen_body.pos.x + chosen_body.width
-                                and chosen_body.pos.y <= ny
-                                < chosen_body.pos.y + chosen_body.height
-                            ):
+                            nx, ny = (bx + dx, by + dy)
+                            if chosen_body.pos.x <= nx < chosen_body.pos.x + chosen_body.width and chosen_body.pos.y <= ny < chosen_body.pos.y + chosen_body.height:
                                 continue
-                            if not game_map.in_bounds(nx, ny):
+                            if not ctx.game_map.in_bounds(nx, ny):
                                 continue
-                            if not game_map.is_walkable(nx, ny):
+                            if not ctx.game_map.is_walkable(nx, ny):
                                 continue
-                            # Exclude cells that are inside another
-                            # body's footprint (but allow the chosen
-                            # body's own adjacent cells through).
                             blocked_by_other = False
                             for other in destinations:
                                 ob = other[1]
                                 if ob is chosen_body:
                                     continue
-                                if (
-                                    ob.pos.x <= nx < ob.pos.x + ob.width
-                                    and ob.pos.y <= ny < ob.pos.y + ob.height
-                                ):
+                                if ob.pos.x <= nx < ob.pos.x + ob.width and ob.pos.y <= ny < ob.pos.y + ob.height:
                                     blocked_by_other = True
                                     break
                             if blocked_by_other:
                                 continue
                             target_cells.add((nx, ny))
-
                 if not target_cells:
-                    log.add("Cannot reach that destination - no adjacent landing zone.")
+                    ctx.log.add('Cannot reach that destination - no adjacent landing zone.')
                     return (GotoOutcome.CANCELLED, None)
-
-                # ---- Bresenham line (first attempt) ----
-                # Draw a straight line from the player's position
-                # toward the closest walkable cell adjacent to the
-                # target body. If the entire line is clear (no
-                # obstacles), use it directly - much more
-                # natural-looking than BFS stair-steps.
                 start = (player_entity.pos.x, player_entity.pos.y)
                 sx, sy = start
-                # Pick the target_cell closest to start so the line
-                # terminates at a walkable cell (NOT inside the
-                # body's unwalkable footprint).
-                target_cx, target_cy = min(
-                    target_cells,
-                    key=lambda tc: max(
-                        abs(tc[0] - sx), abs(tc[1] - sy),
-                    ),
-                )
+                target_cx, target_cy = min(target_cells, key=lambda tc: max(abs(tc[0] - sx), abs(tc[1] - sy)))
 
                 def _bresenham_line(x0, y0, x1, y1):
                     """Yield cells on a line from (x0,y0) to (x1,y1),
@@ -970,7 +708,7 @@ def _run_goto(
                     sig_x = 1 if x0 < x1 else -1
                     sig_y = 1 if y0 < y1 else -1
                     err = dx + dy
-                    cx, cy = x0, y0
+                    cx, cy = (x0, y0)
                     while (cx, cy) != (x1, y1):
                         e2 = 2 * err
                         if e2 >= dy:
@@ -985,21 +723,17 @@ def _run_goto(
                     """True if (x,y) is walkable and not inside
                     another body's footprint (excluding the chosen
                     body)."""
-                    if not game_map.in_bounds(x, y):
+                    if not ctx.game_map.in_bounds(x, y):
                         return False
-                    if not game_map.is_walkable(x, y):
+                    if not ctx.game_map.is_walkable(x, y):
                         return False
                     for other in destinations:
                         ob = other[1]
                         if ob is chosen_body:
                             continue
-                        if (
-                            ob.pos.x <= x < ob.pos.x + ob.width
-                            and ob.pos.y <= y < ob.pos.y + ob.height
-                        ):
+                        if ob.pos.x <= x < ob.pos.x + ob.width and ob.pos.y <= y < ob.pos.y + ob.height:
                             return False
                     return True
-
                 line_clear = True
                 line_path: list[tuple[int, int]] = []
                 for lx, ly in _bresenham_line(sx, sy, target_cx, target_cy):
@@ -1010,21 +744,14 @@ def _run_goto(
                         line_clear = False
                         break
                     line_path.append((lx, ly))
-                    # Safety: stop if we've gone past the target area
                     if len(line_path) > 500:
                         line_clear = False
                         break
-
                 if line_clear and line_path:
-                    # Bresenham path succeeded - natural straight line!
-                    # The generator excludes the final target cell, so
-                    # append it to complete the path.
                     line_path.append((target_cx, target_cy))
                     steps = line_path
                 else:
-                    # ---- A* fallback (when line is blocked) ----
-                    # Uses Chebyshev heuristic to produce direct,
-                    # natural-looking paths around obstacles.
+
                     def _heuristic(a, b):
                         return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
 
@@ -1039,24 +766,19 @@ def _run_goto(
                                 best_d = d
                                 best = tc
                         return best
-
                     astar_target = _pick_target()
                     if astar_target is None:
-                        log.add("Cannot reach that destination - no access.")
+                        ctx.log.add('Cannot reach that destination - no access.')
                         return (GotoOutcome.CANCELLED, None)
-
-                    # A* with Chebyshev heuristic (8-dir movement)
                     counter = 0
                     open_set = [(0, counter, start)]
                     came_from: dict[tuple[int, int], tuple[int, int] | None] = {}
                     g_score: dict[tuple[int, int], float] = {start: 0}
                     visited: set[tuple[int, int]] = set()
-
                     found = False
                     target_reached = None
                     max_steps = 50000
-
-                    while open_set and not found:
+                    while open_set and (not found):
                         _, _, curr = heapq.heappop(open_set)
                         if curr in visited:
                             continue
@@ -1069,16 +791,14 @@ def _run_goto(
                             break
                         cx, cy = curr
                         for dx, dy in dirs_8:
-                            nx, ny = cx + dx, cy + dy
+                            nx, ny = (cx + dx, cy + dy)
                             npos = (nx, ny)
-                            if not game_map.in_bounds(nx, ny):
+                            if not ctx.game_map.in_bounds(nx, ny):
                                 continue
                             if npos not in target_cells:
-                                if not game_map.is_walkable(nx, ny):
+                                if not ctx.game_map.is_walkable(nx, ny):
                                     continue
-                                blocker = game_map.entity_at(
-                                    nx, ny, exclude=player_entity,
-                                )
+                                blocker = ctx.game_map.entity_at(nx, ny, exclude=player_entity)
                                 if blocker is not None:
                                     continue
                             tentative_g = g_score.get(curr, 0) + 1
@@ -1088,12 +808,9 @@ def _run_goto(
                                 f = tentative_g + _heuristic(npos, astar_target)
                                 counter += 1
                                 heapq.heappush(open_set, (f, counter, npos))
-
                     if not found:
-                        log.add("Could not find a path to that destination.")
+                        ctx.log.add('Could not find a path to that destination.')
                         return (GotoOutcome.CANCELLED, None)
-
-                    # Reconstruct A* path
                     path: list[tuple[int, int]] = []
                     cur = target_reached
                     while cur is not None:
@@ -1101,91 +818,32 @@ def _run_goto(
                         cur = came_from.get(cur)
                     path.reverse()
                     steps = path[1:]
-
                 if not steps:
-                    log.add("You are already at the destination.")
+                    ctx.log.add('You are already at the destination.')
                     return (GotoOutcome.COMPLETED, None)
-
-                # ---- Animate movement ----
-                # Move one cell per frame with a short delay so the
-                # player sees the ship glide toward the target.
                 for sx, sy in steps:
-                    # Update player entity position. Position is a
-                    # frozen dataclass so we must replace the entire
-                    # Position object rather than assigning fields.
                     player_entity.pos = world.Position(sx, sy)
-
-                    # Re-draw the space view with camera centred on
-                    # the new position. Reuse the same camera logic
-                    # as the main space-mode render in _run_game.
                     sys_now = solar_system_module.current_system()
                     sol_w = sys_now.width
                     sol_h = sys_now.height
                     view_w = solar_system_module.SOL_VIEW_W
                     view_h = solar_system_module.SOL_VIEW_H
-                    cam_x = max(
-                        0,
-                        min(sx - view_w // 2, sol_w - view_w),
-                    )
-                    cam_y = max(
-                        0,
-                        min(sy - view_h // 2, sol_h - view_h),
-                    )
+                    cam_x = max(0, min(sx - view_w // 2, sol_w - view_w))
+                    cam_y = max(0, min(sy - view_h // 2, sol_h - view_h))
                     console.clear()
-                    world.render_world_view(
-                        console, game_map,
-                        region_x=0, region_y=0,
-                        region_w=view_w, region_h=view_h,
-                        camera_x=cam_x, camera_y=cam_y,
-                    )
-                    # Skip HUD render during the brief animation —
-                    # the next full frame in _run_game repaints it
-                    # correctly with the real character/stats data.
-                    # Only paint the message log so feedback like
-                    # "Auto-nav engaged..." is visible.
-                    message_log.render_message_log(
-                        console, log,
-                        screen_width=SCREEN_WIDTH,
-                        screen_height=SCREEN_HEIGHT,
-                    )
-                    context.present(console)
+                    world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
+                    message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+                    ctx.context.present(console)
                     _responsive_sleep(0.04)
-
-                    # Combat interrupt: after each step, scan for
-                    # nearby enemies. If an enemy is within its
-                    # detect_radius, break the animation loop and
-                    # surface (GotoOutcome.COMBAT, payload) so the
-                    # dispatcher can invoke run_combat from the
-                    # ship's CURRENT position. This is the fix for
-                    # the bug where the ship silently walked
-                    # through a pirate patrol without triggering
-                    # combat.
-                    _encounter = _detect_combat_encounter(
-                        player_entity.pos, game_map,
-                        solar_system_module.current_system(),
-                    )
+                    _encounter = _detect_combat_encounter(player_entity.pos, ctx.game_map, solar_system_module.current_system())
                     if _encounter is not None:
-                        log.add("Auto-nav interrupted - enemies detected!")
+                        ctx.log.add('Auto-nav interrupted - enemies detected!')
                         return (GotoOutcome.COMBAT, _encounter)
-
-                log.add("Auto-nav complete.")
+                ctx.log.add('Auto-nav complete.')
                 return (GotoOutcome.COMPLETED, None)
-
-            # Any other key -> ignore
             continue
 
-def render_jump_menu(
-    console: tcod.console.Console,
-    jp,
-    target_system_id: str,
-    log: message_log.MessageLog,
-    *,
-    screen_width: int,
-    screen_height: int,
-    current_fuel: int | None = None,
-    max_fuel: int | None = None,
-    jump_fuel_cost: int = 10,
-) -> None:
+def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target_system_id: str, *, screen_width: int, screen_height: int, current_fuel: int | None=None, max_fuel: int | None=None, jump_fuel_cost: int=10) -> None:
     """Paint the jump-point-bump dialog.
 
     Centered title (gate name + arrow), fuel info line (when
@@ -1206,91 +864,33 @@ def render_jump_menu(
     """
     target_system = solar_systems_module.find_solar_system(target_system_id)
     console.clear()
-
-    title = f"JUMP  -  {jp.name}  ->  {target_system.name}"
-    title_y = (screen_height // 2) - 4
-    console.print(
-        x=ui.centered_x(title, screen_width),
-        y=title_y,
-        string=title,
-        fg=ui.COLOR_TITLE,
-    )
-
-    desc_lines = ui.wrap_text(jp.description or "", max_width=screen_width - 8)
+    title = f'JUMP  -  {jp.name}  ->  {target_system.name}'
+    title_y = screen_height // 2 - 4
+    console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
+    desc_lines = ui.wrap_text(jp.description or '', max_width=screen_width - 8)
     for i, line in enumerate(desc_lines[:3]):
-        console.print(
-            x=ui.centered_x(line, screen_width),
-            y=title_y + 2 + i,
-            string=line,
-            fg=ui.COLOR_DESCRIPTION,
-        )
-
-    option_text = f"> Jump to {target_system.name} <"
-    option_y = (screen_height // 2) + 1
-
-    # Fuel line (when ``current_fuel`` is not None). Shown
-    # between the description and the jump option so the player
-    # sees their fuel status at a glance before committing.
+        console.print(x=ui.centered_x(line, screen_width), y=title_y + 2 + i, string=line, fg=ui.COLOR_DESCRIPTION)
+    option_text = f'> Jump to {target_system.name} <'
+    option_y = screen_height // 2 + 1
     fuel_line_y = option_y - 2
     if current_fuel is not None and max_fuel is not None:
-        fuel_str = f"Fuel: {current_fuel} / {max_fuel}  |  Jump cost: {jump_fuel_cost}"
-        fuel_color = (
-            ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost
-            else ui.COLOR_VALUE_DIM
-        )
-        console.print(
-            x=ui.centered_x(fuel_str, screen_width),
-            y=fuel_line_y,
-            string=fuel_str,
-            fg=fuel_color,
-        )
+        fuel_str = f'Fuel: {current_fuel} / {max_fuel}  |  Jump cost: {jump_fuel_cost}'
+        fuel_color = ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost else ui.COLOR_VALUE_DIM
+        console.print(x=ui.centered_x(fuel_str, screen_width), y=fuel_line_y, string=fuel_str, fg=fuel_color)
+    console.print(x=ui.centered_x(option_text, screen_width), y=option_y, string=option_text, fg=ui.COLOR_OPTION_HIGHLIGHT)
+    hint = 'ENTER to jump - ESC to fly past'
+    console.print(x=ui.centered_x(hint, screen_width), y=option_y + 2, string=hint, fg=ui.COLOR_INSTRUCTION)
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
-    console.print(
-        x=ui.centered_x(option_text, screen_width),
-        y=option_y,
-        string=option_text,
-        fg=ui.COLOR_OPTION_HIGHLIGHT,
-    )
-    hint = "ENTER to jump - ESC to fly past"
-    console.print(
-        x=ui.centered_x(hint, screen_width),
-        y=option_y + 2,
-        string=hint,
-        fg=ui.COLOR_INSTRUCTION,
-    )
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
-
-
-def update_jump_menu(
-    event: tcod.event.Event,
-) -> JumpMenuOutcome:
+def update_jump_menu(event: tcod.event.Event) -> JumpMenuOutcome:
     """Translate a key into a :class:`JumpMenuOutcome`.
 
     Mirror of :func:`update_planet_menu`. ESC -> BACK, ENTER
     -> JUMP, Q/WINDOW_CLOSE -> QUIT, everything else -> IGNORE.
     """
-    # Use the canonical tcod pattern: event.type == "QUIT" fires
-    # only on the window-close event, separate from ESC (which the
-    # _ESCAPE_SYMS block below routes to BACK). Mirrors how the
-    # engine's should_quit detects the Quit event, but scoped
-    # narrowly so ESC doesn't also count as quit here.
-    # Use the canonical tcod pattern: ``isinstance`` against
-    # ``tcod.event.Quit`` + ``tcod.event.KeyDown`` replaces the
-    # now-deprecated ``event.type == "QUIT"/"KEYDOWN"`` strings.
-    # Mirrors update_planet_menu. The narrow type checks also
-    # keep ESC from being misread as a Quit (engine.should_quit
-    # is broader — we want the narrow pattern).
     if isinstance(event, tcod.event.Quit):
         return JumpMenuOutcome.QUIT
     if isinstance(event, tcod.event.KeyDown):
-        # ``ui._ESCAPE_SYMS`` / ``ui._ENTER_SYMS`` are KeySym enum
-        # tuples (not name strings), so comparing the NAME string
-        # would always miss. Mirror update_planet_menu: read the
-        # enum member directly and compare against the same enum.
         sym = event.sym
         if sym in ui._ESCAPE_SYMS:
             return JumpMenuOutcome.BACK
@@ -1298,14 +898,7 @@ def update_jump_menu(
             return JumpMenuOutcome.JUMP
     return JumpMenuOutcome.IGNORE
 
-
-def _run_jump_menu(
-    context: tcod.context.Context,
-    jp,
-    target_system_id: str,
-    log: message_log.MessageLog,
-    owned_ship: ship_module.OwnedShip | None = None,
-) -> JumpMenuOutcome:
+def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
     """Modal loop for the jump-point-bump dialog.
 
     Renders the frame, polls events through
@@ -1320,30 +913,20 @@ def _run_jump_menu(
     """
     from . import engine
     console = engine.make_console()
-    # Resolve fuel info for the dialog if the player has a ship.
     _fuel: int | None = None
     _max_fuel: int | None = None
-    if owned_ship is not None:
-        ship_rec = ship_module.find_ship(owned_ship.ship_id)
-        _fuel = owned_ship.fuel
+    if ctx.player_owned_ship is not None:
+        ship_rec = ship_module.find_ship(ctx.player_owned_ship.ship_id)
+        _fuel = ctx.player_owned_ship.fuel
         _max_fuel = ship_rec.max_fuel
+
     def _render() -> None:
-        render_jump_menu(
-            console,
-            jp,
-            target_system_id,
-            log=log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-            current_fuel=_fuel,
-            max_fuel=_max_fuel,
-            jump_fuel_cost=ship_module.JUMP_FUEL_COST,
-        )
+        render_jump_menu(console, jp, target_system_id, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, current_fuel=_fuel, max_fuel=_max_fuel, jump_fuel_cost=ship_module.JUMP_FUEL_COST)
+
     def _update(event) -> JumpMenuOutcome:
-        context.convert_event(event)
+        ctx.context.convert_event(event)
         return update_jump_menu(event)
     return ui.Modal(context, console).run(_render, _update)
-
 
 def _responsive_sleep(seconds: float) -> None:
     """Sleep for ``seconds`` while polling SDL events.
@@ -1360,44 +943,15 @@ def _responsive_sleep(seconds: float) -> None:
     """
     end = time.monotonic() + seconds
     while time.monotonic() < end:
-        # Drain pending SDL events to keep the window / OS
-        # responsive during the animation. Events are silently
-        # discarded so they don't burst-fire after the animation
-        # ends (better UX than delayed input spikes).
         for _ in tcod.event.get():
             pass
         remaining = end - time.monotonic()
         if remaining > 0:
             time.sleep(min(remaining, 0.01))
-
-
-# JUMP_FRAME_S controls per-frame delay. Smaller = faster
-# expansion. Fine-tune in 0.02 increments.
 _JUMP_FRAME_S: float = 0.06
+_JUMP_RING_CHARS: tuple[tuple[str, tuple[int, int, int]], ...] = (('*', (255, 200, 100)), ('+', (255, 255, 150)), ('o', (255, 255, 200)), ('O', (200, 200, 255)), ('#', (180, 180, 255)))
 
-# Explosion glyphs from interior to exterior. Each frame step
-# paints ONE more ring outward so the effect reads as a growing
-# bright flash rather than a static starburst.
-_JUMP_RING_CHARS: tuple[tuple[str, tuple[int, int, int]], ...] = (
-    ("*", (255, 200, 100)),   # inner core - warm gold
-    ("+", (255, 255, 150)),   # ring 1      - bright yellow
-    ("o", (255, 255, 200)),   # ring 2      - white-yellow
-    ("O", (200, 200, 255)),   # ring 3      - pale blue-white
-    ("#", (180, 180, 255)),   # ring 4      - dimmer edge
-)
-
-
-def _animate_jump(
-    context: tcod.context.Context,
-    console: tcod.console.Console,
-    game_map: world.GameMap,
-    player_entity: world.Entity,
-    character_info,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-    *,
-    active_mission_text: str = "",
-) -> None:
+def _animate_jump(context: tcod.context.Context, console: tcod.console.Console, game_map: world.GameMap, player_entity: world.Entity, character_info, stats: hud.HudStats, log: message_log.MessageLog, *, active_mission_text: str='') -> None:
     """Render a brief "jump drive" animation before the system swap.
 
     Draws the current space view with an expanding bright explosion
@@ -1418,49 +972,23 @@ def _animate_jump(
     ship_char = player_entity.char
     ship_fg = player_entity.fg
 
-    def _render_frame(
-        rings: int,
-        flash_white: bool = False,
-        void: bool = False,
-    ) -> None:
+    def _render_frame(rings: int, flash_white: bool=False, void: bool=False) -> None:
         """Render one frame of the animation."""
         console.clear()
-        # Draw the solar system map behind the explosion.
-        # Use render_world_view (not render_world) because the
-        # solar system map (200x140) is larger than the viewport
-        # (80x54). Camera coords centre the view on the ship.
         _view_w = solar_system_module.SOL_VIEW_W
         _view_h = solar_system_module.SOL_VIEW_H
         _sys = solar_system_module.current_system()
-        _cam_x = max(
-            0, min(cx - _view_w // 2, _sys.width - _view_w),
-        )
-        _cam_y = max(
-            0, min(cy - _view_h // 2, _sys.height - _view_h),
-        )
-        world.render_world_view(
-            console,
-            game_map,
-            region_x=0,
-            region_y=0,
-            region_w=_view_w,
-            region_h=_view_h,
-            camera_x=_cam_x,
-            camera_y=_cam_y,
-        )
+        _cam_x = max(0, min(cx - _view_w // 2, _sys.width - _view_w))
+        _cam_y = max(0, min(cy - _view_h // 2, _sys.height - _view_h))
+        world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=_view_w, region_h=_view_h, camera_x=_cam_x, camera_y=_cam_y)
         if void:
-            # Pure black - skip everything.
             context.present(console)
             _responsive_sleep(frame_s)
             return
         if not flash_white:
-            # Draw explosion rings. Map coords must be converted to
-            # viewport-relative coords via ``_cam_x`` / ``_cam_y``
-            # (render_world_view already shifted the map). Rings
-            # use manhattan distance from ship centre.
             for ring_idx in range(min(rings + 1, len(_JUMP_RING_CHARS))):
                 r_char, r_fg = _JUMP_RING_CHARS[ring_idx]
-                dist = ring_idx + 1  # 1-indexed manhattan radius
+                dist = ring_idx + 1
                 for dy in range(-dist, dist + 1):
                     for dx in range(-dist, dist + 1):
                         if abs(dx) + abs(dy) != dist:
@@ -1469,71 +997,24 @@ def _animate_jump(
                         sy = cy + dy - _cam_y
                         if 0 <= sx < _view_w and 0 <= sy < _view_h:
                             console.print(x=sx, y=sy, string=r_char, fg=r_fg)
-            # Always paint the ship char at its current brightness
-            # on top of the explosion core so the ship "pulses".
-            # Convert map coords to viewport-relative coords same
-            # as the rings above.
-            bright_fg = (
-                min(255, ship_fg[0] + rings * 30),
-                min(255, ship_fg[1] + rings * 30),
-                min(255, ship_fg[2] + rings * 30),
-            )
+            bright_fg = (min(255, ship_fg[0] + rings * 30), min(255, ship_fg[1] + rings * 30), min(255, ship_fg[2] + rings * 30))
             sx = cx - _cam_x
             sy = cy - _cam_y
             if 0 <= sx < _view_w and 0 <= sy < _view_h:
                 console.print(x=sx, y=sy, string=ship_char, fg=bright_fg)
         else:
-            # Full white flash - paint every cell visible
-            # on the viewport as bright white.
             for fy in range(solar_system_module.SOL_VIEW_H):
-                console.print(
-                    x=0, y=fy,
-                    string=" " * solar_system_module.SOL_VIEW_W,
-                    fg=(255, 255, 255),
-                    bg=(255, 255, 255),
-                )
-        # HUD + log on top so the player sees stats throughout.
-        hud.render_hud(
-            console,
-            screen_width=SCREEN_WIDTH,
-            hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
-            character=character_info,
-            stats=stats,
-            active_mission=active_mission_text or None,
-        )
-        message_log.render_message_log(
-            console,
-            log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
+                console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=character_info, stats=stats, active_mission=active_mission_text or None)
+        message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         context.present(console)
         _responsive_sleep(frame_s)
-
-    # Phase 1+2: Expanding explosion rings (5 frames). Each frame
-    # adds one more ring outward so the effect reads as a growing
-    # bright flash centred on the ship. The first frame shows just
-    # the ship with 1 small ring (*), scaling up to 5 rings.
-    # Phase 1's original ship-pulsation loop was removed because
-    # it drew at map coordinates (not viewport-relative) and the
-    # double-present pattern was confusing. The rings provide the
-    # same "build up" feel more cleanly.
     for rings in range(len(_JUMP_RING_CHARS)):
         _render_frame(rings=rings, flash_white=False)
-
-    # Phase 3: Full white flash + black void
     _render_frame(rings=0, flash_white=True)
     _render_frame(rings=0, void=True)
 
-
-def _jump_to_system(
-    *,
-    jp,
-    player_owned_ship,
-    log,
-    target_system_id: str,
-    target_jp_id: str,
-) -> tuple:
+def _jump_to_system(*, jp, player_owned_ship, log, target_system_id: str, target_jp_id: str) -> tuple:
     """Jump the player ship from ``jp`` (current gate) to
     ``target_jp_id`` (in :attr:`target_system_id`).
 
@@ -1562,113 +1043,49 @@ def _jump_to_system(
     entity and ``player.pos`` mirrors the ship-on-map.
     """
     from . import ship as ship_module_for_jump
-    log.add("Your ship engages the jump drive. Reality blurs.")
+    log.add('Your ship engages the jump drive. Reality blurs.')
     target_system = solar_system_module.set_current_solar_system(target_system_id)
-
     new_map = solar_system_module.make_solar_system()
-
-    dest_jp = solar_system_module.find_jump_point(
-        target_jp_id, system=target_system,
-    )
-    # ``OwnedShip`` exposes the catalogue key as ``ship_id`` (NOT
-    # ``id`` — that name is reserved for the in-game ``Entity.id``
-    # used by ``place_docked_ship`` and friends). Looking up
-    # ``player_owned_ship.id`` raised AttributeError on the first
-    # jump; fix is to thread the correct catalogue key.
+    dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
     ship_record = ship_module_for_jump.find_ship(player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
-
-    # Append the ship entity to the new map so it RENDERS in
-    # space. Without this, ``make_solar_system()`` returns a map
-    # with an empty entities list (only stars + planets + jump
-    # points); the player would still be able to move (position
-    # is updated) but would see no character at their ship-on-map.
-    # Mirrors the launch flow in :func:`_launch_to_space` which
-    # builds a ``space_player`` entity from the same catalog
-    # record + records ``owned=True`` so renderer / collision
-    # code paths correctly classify the player's ship.
-    new_ship_ent = world.Entity(
-        char=ship_record.char,
-        fg=ship_record.fg,
-        pos=new_pos,
-        name=f"Your Ship: {ship_record.name}",
-        ship_id=ship_record.id,
-        width=ship_record.width,
-        height=ship_record.height,
-        owned=True,
-    )
+    new_ship_ent = world.Entity(char=ship_record.char, fg=ship_record.fg, pos=new_pos, name=f'Your Ship: {ship_record.name}', ship_id=ship_record.id, width=ship_record.width, height=ship_record.height, owned=True)
     new_map.entities.append(new_ship_ent)
-    log.add(f"You emerge near {target_system.name}.")
+    log.add(f'You emerge near {target_system.name}.')
+    return (new_map, new_ship_ent)
 
-    return new_map, new_ship_ent
-
-
-# ---------------------------------------------------------------------------
-# Ship-buy dialog
-# ---------------------------------------------------------------------------
-
-
-
-def render_ship_buy(
-    console: tcod.console.Console,
-    ship: ship_module.Ship,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-    *,
-    screen_width: int,
-    screen_height: int,
-) -> None:
+def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int) -> None:
     """Paint the centered ship-buy dialog into ``console``.
 
     Clears first so the dialog fully replaces the city view; the
     caller re-paints city + HUD + msg log once the dialog exits.
     """
     console.clear()
-
-    title = f"A {ship.name.upper()} sits on the showroom floor."
+    title = f'A {ship.name.upper()} sits on the showroom floor.'
     body = ship.description
-    price_line = f"Cost: {ship.price} gold    You have: {stats.gold} gold"
-    if stats.gold >= ship.price:
-        afford = "Press ENTER to buy it."
+    price_line = f'Cost: {ship.price} gold    You have: {ctx.stats.gold} gold'
+    if ctx.stats.gold >= ship.price:
+        afford = 'Press ENTER to buy it.'
     else:
-        short = ship.price - stats.gold
-        afford = f"You cannot afford it. ({short}g short)"
-    back = "Press ESC to walk away."
-
-    # City viewport is screen_width - HUD_WIDTH wide; we use that for
-    # any line-length truncation so a long description never paints
-    # over the HUD.
+        short = ship.price - ctx.stats.gold
+        afford = f'You cannot afford it. ({short}g short)'
+    back = 'Press ESC to walk away.'
     max_w = screen_width - HUD_WIDTH - 2
 
     def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[: max_w - 1] + "…"
+        return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=fg,
-        )
-
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
     paint(center_y - 4, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y - 1, fit(body), fg=ui.COLOR_DESCRIPTION)
-    paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if stats.gold >= ship.price else ui.COLOR_VALUE_DIM)
-    paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if stats.gold >= ship.price else ui.COLOR_VALUE_DIM)
+    paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if ctx.stats.gold >= ship.price else ui.COLOR_VALUE_DIM)
+    paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.gold >= ship.price else ui.COLOR_VALUE_DIM)
     paint(center_y + 7, fit(back), fg=ui.COLOR_INSTRUCTION)
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
-
-def update_ship_buy(
-    event: tcod.event.Event,
-    ship: ship_module.Ship,
-    stats: hud.HudStats,
-) -> ShipBuyOutcome:
+def update_ship_buy(event: tcod.event.Event, ship: ship_module.Ship, stats: hud.HudStats) -> ShipBuyOutcome:
     """Map a single event for the ship-buy dialog."""
     if isinstance(event, tcod.event.Quit):
         return ShipBuyOutcome.QUIT
@@ -1678,54 +1095,25 @@ def update_ship_buy(
     if sym in ui._ESCAPE_SYMS:
         return ShipBuyOutcome.BACK
     if sym in ui._ENTER_SYMS:
-        return (
-            ShipBuyOutcome.BUY
-            if stats.gold >= ship.price
-            else ShipBuyOutcome.TOO_EXPENSIVE
-        )
+        return ShipBuyOutcome.BUY if stats.gold >= ship.price else ShipBuyOutcome.TOO_EXPENSIVE
     return ShipBuyOutcome.IGNORE
 
-
-def _run_ship_buy(
-    context: tcod.context.Context,
-    blocker: world.Entity,
-    ship: ship_module.Ship,
-    stats: hud.HudStats,
-    game_map: world.GameMap,
-    log: message_log.MessageLog,
-) -> ShipBuyOutcome:
+def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuyOutcome:
     """Show the ship-buy modal for ``ship`` (the entity standing in
     the player's way is ``blocker``). Returns the dialog outcome;
     callers handle the actual purchase (mutating ``stats``, removing
     ``blocker`` from ``game_map.entities``, logging).
     """
     console = make_console()
+
     def _render() -> None:
-        render_ship_buy(
-            console, ship, stats, log=log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
+        render_ship_buy(console, ship, ctx.stats, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
     def _update(event) -> ShipBuyOutcome:
-        return update_ship_buy(event, ship, stats)
+        return update_ship_buy(event, ship, ctx.stats)
     return ui.Modal(context, console).run(_render, _update)
 
-
-# ---------------------------------------------------------------------------
-# NPC-talk dialog (flavor-only stub)
-# ---------------------------------------------------------------------------
-
-
-def render_npc_talk(
-    console: tcod.console.Console,
-    npc: npc_module.NPC,
-    log: message_log.MessageLog,
-    *,
-    screen_width: int,
-    screen_height: int,
-    deliver_mission: mission_module.Mission | None = None,
-    selected: int = 0,
-) -> None:
+def render_npc_talk(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, *, screen_width: int, screen_height: int, deliver_mission: mission_module.Mission | None=None, selected: int=0) -> None:
     """Paint the centered NPC-talk dialog into ``console``.
 
     Layout mirrors :func:`render_ship_buy`: NPC name + guild on
@@ -1750,76 +1138,41 @@ def render_npc_talk(
     Clear-first so the modal fully replaces the city view.
     """
     console.clear()
-
-    title = f"{npc.name} ({npc.guild})"
+    title = f'{npc.name} ({npc.guild})'
     body = f'"{npc.flavor_text}"'
-
     max_w = screen_width - HUD_WIDTH - 2
 
     def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[: max_w - 1] + "…"
+        return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=fg,
-        )
-
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
     paint(center_y - 2, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y + 1, fit(body), fg=ui.COLOR_DESCRIPTION)
-
-    # Build the menu dynamically. The on-screen order is
-    # "Deliver <title>" FIRST (when in scope) so the highlighted
-    # row at startup is the obvious action — "common sense"
-    # Enter completes the mission without arrow-keying. When
-    # there is no delivery target, "View available work" is the
-    # sole menu row and Enter opens the offerings modal as
-    # before. Both rows stay selectable so the player can arrow
-    # down to "View available work" even when DELIVER is on top.
     options: list[tuple[str, bool]] = []
     if deliver_mission is not None:
-        options.append(("Deliver " + deliver_mission.title, True))
-    options.append(("View available work", False))
-
+        options.append(('Deliver ' + deliver_mission.title, True))
+    options.append(('View available work', False))
     n = len(options)
     sel = selected % n
     list_top = center_y + 3
     for i, (label, is_deliver) in enumerate(options):
         row = list_top + i * 2
-        is_selected = (i == sel)
-        marker_open = "> " if is_selected else "  "
-        marker_close = " <" if is_selected else "  "
-        text = f"{marker_open}{fit(label)}{marker_close}"
-        # Selected row uses the option's own accent - steel-cyan
-        # for DELIVER (matches the in-space highlight), pure
-        # white for View work. Dim rows get the muted lavender
-        # (COLOR_OPTION) so the highlight pop still reads.
+        is_selected = i == sel
+        marker_open = '> ' if is_selected else '  '
+        marker_close = ' <' if is_selected else '  '
+        text = f'{marker_open}{fit(label)}{marker_close}'
         if is_selected:
             fg = ui.COLOR_OPTION_HIGHLIGHT2 if is_deliver else ui.COLOR_OPTION_HIGHLIGHT
         else:
             fg = ui.COLOR_OPTION
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=fg,
-        )
-
-    # ESC hint lives below the menu rows so its position adapts
-    # automatically to whether the dialog has 1 or 2 options.
-    hint = "ARROW KEYS / j,k navigate - ENTER select - ESC walk away."
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
+    hint = 'ARROW KEYS / j,k navigate - ENTER select - ESC walk away.'
     hint_row = list_top + n * 2
     if hint_row + 1 <= screen_height - MSG_LOG_HEIGHT:
         paint(hint_row, fit(hint), fg=ui.COLOR_INSTRUCTION)
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
-
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 def update_npc_talk(event: tcod.event.Event) -> TalkOutcome:
     """Map a single event for the NPC-talk dialog.
@@ -1848,12 +1201,7 @@ def update_npc_talk(event: tcod.event.Event) -> TalkOutcome:
         return TalkOutcome.BACK
     return TalkOutcome.IGNORE
 
-
-def _npc_talk_navigate(
-    event: tcod.event.Event,
-    selected: int,
-    n: int,
-) -> int | None:
+def _npc_talk_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
     """If ``event`` drives NPC-talk menu nav, return the new
     ``selected`` index (modulo ``n`` options); otherwise ``None``.
 
@@ -1869,21 +1217,14 @@ def _npc_talk_navigate(
     if not isinstance(event, tcod.event.KeyDown):
         return None
     sym = event.sym
-    sym_name: str = getattr(sym, "name", "").lower()
-    if sym in ui._UP_SYMS or sym_name == "k":
+    sym_name: str = getattr(sym, 'name', '').lower()
+    if sym in ui._UP_SYMS or sym_name == 'k':
         return (selected - 1) % n
-    if sym in ui._DOWN_SYMS or sym_name == "j":
+    if sym in ui._DOWN_SYMS or sym_name == 'j':
         return (selected + 1) % n
     return None
 
-
-def _run_npc_talk(
-    context: tcod.context.Context,
-    npc: npc_module.NPC,
-    log: message_log.MessageLog,
-    *,
-    deliver_mission: mission_module.Mission | None = None,
-) -> tuple[TalkOutcome, mission_module.Mission | None]:
+def _run_npc_talk(ctx, npc: npc_module.NPC, *, deliver_mission: mission_module.Mission | None=None) -> tuple[TalkOutcome, mission_module.Mission | None]:
     """Show the talk modal for ``npc`` and return the chosen outcome.
 
     Dialog is a vertically-navigable menu with 1-2 selectable
@@ -1905,23 +1246,16 @@ def _run_npc_talk(
     outcome so callers don't have to discriminate on the
     outcome enum.
     """
-    log.add(f"You chat briefly with {npc.name}.")
+    ctx.log.add(f'You chat briefly with {npc.name}.')
     console = make_console()
     selected = 0
     n_options = 1 + (1 if deliver_mission is not None else 0)
+
     def _render() -> None:
-        render_npc_talk(
-            console, npc, log=log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-            deliver_mission=deliver_mission,
-            selected=selected,
-        )
+        render_npc_talk(console, npc, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, deliver_mission=deliver_mission, selected=selected)
+
     def _update(event) -> TalkOutcome:
         nonlocal selected
-        # Navigation FIRST so UP/DOWN / j/k adjust the highlight
-        # before any other key press fires an outcome. Mirrors
-        # _run_mission_offerings so the dispatcher shapes line up.
         new = _npc_talk_navigate(event, selected, n_options)
         if new is not None:
             selected = new
@@ -1933,26 +1267,11 @@ def _run_npc_talk(
             return TalkOutcome.QUIT
         if result is TalkOutcome.BACK:
             return TalkOutcome.BACK
-        # WORK/DELIVER: the highlighted row decides DELIVER (row 0
-        # when a delivery target is in scope) vs WORK (open the
-        # offerings modal — row 1, or row 0 when no DELIVER).
-        return TalkOutcome.DELIVER if (deliver_mission is not None and selected == 0) else TalkOutcome.WORK
-    outcome = ui.Modal(context, console).run(_render, _update)
-    # Derive payload from outcome (Modal returns just the enum).
+        return TalkOutcome.DELIVER if deliver_mission is not None and selected == 0 else TalkOutcome.WORK
+    outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if outcome is TalkOutcome.DELIVER:
-        return outcome, deliver_mission
-    return outcome, None
-
-
-# ---------------------------------------------------------------------------
-# Mission offerings + quest log (active-mission view with abandon)
-# ---------------------------------------------------------------------------
-#
-# Two separate modals live here so the per-NPC interaction path
-# (open offerings -> accept) and the city-wide quest log path
-# (open with Q -> view details -> abandon with confirm) don't tangle.
-# The mission catalog lives in :mod:`spacehack.mission`; these
-# functions are pure UI + dispatcher.
+        return (outcome, deliver_mission)
+    return (outcome, None)
 
 class MissionOutcome(Enum):
     """What the player chose in an NPC's mission offering modal.
@@ -1964,7 +1283,6 @@ class MissionOutcome(Enum):
     IGNORE = auto()
     ACCEPT = auto()
     BACK = auto()
-
 
 class QuestLogOutcome(Enum):
     """What the player chose in the city quest log.
@@ -1979,11 +1297,7 @@ class QuestLogOutcome(Enum):
     ABANDONED = auto()
     QUIT = auto()
 
-
-def _offerings_to_menu(
-    npc: npc_module.NPC,
-    offerings: tuple[mission_module.Mission, ...],
-) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
+def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Mission, ...]) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
     """Build an :class:`spacehack.ui.MenuScreen` payload from an
     NPC-mission-list so we can reuse the shared menu primitives.
 
@@ -1991,24 +1305,11 @@ def _offerings_to_menu(
     ``"{title} ({reward}gp)"`` so the player sees the reward in
     the listing. ``descriptions`` is the mission body blurb.
     """
-    available_options = tuple(
-        (str(i), f"{m.title} ({m.reward_gold}gp)")
-        for i, m in enumerate(offerings)
-    )
+    available_options = tuple(((str(i), f'{m.title} ({m.reward_gold}gp)') for i, m in enumerate(offerings)))
     descriptions = {str(i): m.description for i, m in enumerate(offerings)}
-    return f"{npc.name} - available work", available_options, descriptions
+    return (f'{npc.name} - available work', available_options, descriptions)
 
-
-def render_mission_offerings(
-    console: tcod.console.Console,
-    npc: npc_module.NPC,
-    offerings: tuple[mission_module.Mission, ...],
-    selected: int,
-    log: message_log.MessageLog,
-    *,
-    screen_width: int,
-    screen_height: int,
-) -> None:
+def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, offerings: tuple[mission_module.Mission, ...], selected: int, *, screen_width: int, screen_height: int) -> None:
     """Paint the NPC's available missions as a centered menu.
 
     ``selected`` is the index of the highlighted option (clamped
@@ -2016,71 +1317,42 @@ def render_mission_offerings(
     of missions themselves lives in :mod:`spacehack.mission`.
     """
     console.clear()
-
     title, options, descriptions = _offerings_to_menu(npc, offerings)
     n = len(options)
-
     max_w = screen_width - HUD_WIDTH - 2
+
     def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[: max_w - 1] + "…"
+        return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=fg,
-        )
-
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
     paint(center_y - 6, fit(title), fg=ui.COLOR_TITLE)
-
     sel = selected % n if n else 0
     list_top = center_y - 4
     for i, (_, label) in enumerate(options):
         row = list_top + i * 2
-        is_selected = (i == sel)
-        marker = "> " if is_selected else "  "
-        end_marker = " <" if is_selected else "  "
-        text = f"{marker}{fit(label)}{end_marker}"
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION,
-        )
-
-    desc = descriptions.get(str(sel), "") if descriptions else ""
+        is_selected = i == sel
+        marker = '> ' if is_selected else '  '
+        end_marker = ' <' if is_selected else '  '
+        text = f'{marker}{fit(label)}{end_marker}'
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION)
+    desc = descriptions.get(str(sel), '') if descriptions else ''
     desc_rows = ui.wrap_text(desc, max_w)
     desc_start_row = list_top + n * 2 + 1
     for j, line in enumerate(desc_rows):
         paint(desc_start_row + j, line, fg=ui.COLOR_DESCRIPTION)
-
-    # Refresh the bottom hint each render - the selected mission's
-    # reward gold/xp and the recommended-class hint both belong here
-    # so the player sees context before committing with Enter.
-    hint_lines: list[str] = [
-        "ARROW KEYS / j,k navigate - ENTER accept - ESC walk away."
-    ]
+    hint_lines: list[str] = ['ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.']
     if offerings:
         picked = offerings[sel]
-        hint_lines.append(
-            f"Reward: {picked.reward_gold}gp + {picked.reward_xp}xp"
-        )
+        hint_lines.append(f'Reward: {picked.reward_gold}gp + {picked.reward_xp}xp')
         if picked.recommended_class_id:
             klass = find_class(picked.recommended_class_id)
-            hint_lines.append(f"Best suited for: {klass.name}")
+            hint_lines.append(f'Best suited for: {klass.name}')
         if picked.recommended_ship_min_cargo > 0:
-            hint_lines.append(
-                f"Ship cargo recommended: {picked.recommended_ship_min_cargo}+"
-            )
+            hint_lines.append(f'Ship cargo recommended: {picked.recommended_ship_min_cargo}+')
     for i, line in enumerate(hint_lines):
-        paint(
-            desc_start_row + max(len(desc_rows), 1) + 1 + i,
-            fit(line),
-            fg=ui.COLOR_INSTRUCTION,
-        )
-
+        paint(desc_start_row + max(len(desc_rows), 1) + 1 + i, fit(line), fg=ui.COLOR_INSTRUCTION)
 
 def update_mission_offerings(event: tcod.event.Event) -> MissionOutcome:
     """Map a single event for the offerings modal.
@@ -2102,12 +1374,7 @@ def update_mission_offerings(event: tcod.event.Event) -> MissionOutcome:
         return MissionOutcome.ACCEPT
     return MissionOutcome.IGNORE
 
-
-def _mission_navigate(
-    event: tcod.event.Event,
-    selected: int,
-    n: int,
-) -> int | None:
+def _mission_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
     """If ``event`` drives offerings-menu nav, return the new
     ``selected`` index (modulo ``n`` options). Returns ``None``
     for non-nav events so the caller routes through
@@ -2120,20 +1387,14 @@ def _mission_navigate(
     if not isinstance(event, tcod.event.KeyDown):
         return None
     sym = event.sym
-    sym_name: str = getattr(sym, "name", "").lower()
-    if sym in ui._UP_SYMS or sym_name == "k":
+    sym_name: str = getattr(sym, 'name', '').lower()
+    if sym in ui._UP_SYMS or sym_name == 'k':
         return (selected - 1) % n
-    if sym in ui._DOWN_SYMS or sym_name == "j":
+    if sym in ui._DOWN_SYMS or sym_name == 'j':
         return (selected + 1) % n
     return None
 
-
-def _run_mission_offerings(
-    context: tcod.context.Context,
-    npc: npc_module.NPC,
-    offerings: tuple[mission_module.Mission, ...],
-    log: message_log.MessageLog,
-) -> tuple[MissionOutcome, mission_module.Mission | None]:
+def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_module.Mission, ...]) -> tuple[MissionOutcome, mission_module.Mission | None]:
     """Show the NPC's offerings modal and return the choice.
 
     Returns ``(MissionOutcome, picked_mission)``: ``picked`` is
@@ -2143,11 +1404,10 @@ def _run_mission_offerings(
     """
     console = make_console()
     selected = 0
+
     def _render() -> None:
-        render_mission_offerings(
-            console, npc, offerings, selected, log=log,
-            screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-        )
+        render_mission_offerings(console, npc, offerings, selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
     def _update(event) -> MissionOutcome:
         nonlocal selected
         new = _mission_navigate(event, selected, len(offerings))
@@ -2155,22 +1415,12 @@ def _run_mission_offerings(
             selected = new
             return MissionOutcome.IGNORE
         return update_mission_offerings(event)
-    outcome = ui.Modal(context, console).run(_render, _update)
-    # Derive payload from outcome (Modal returns just the enum).
+    outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if outcome is MissionOutcome.ACCEPT:
-        return outcome, offerings[selected % len(offerings)]
-    return outcome, None
+        return (outcome, offerings[selected % len(offerings)])
+    return (outcome, None)
 
-
-def render_quest_log(
-    console: tcod.console.Console,
-    active: mission_module.ActiveMission | None,
-    log: message_log.MessageLog,
-    *,
-    confirm_abandon: bool = False,
-    screen_width: int,
-    screen_height: int,
-) -> None:
+def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, confirm_abandon: bool=False, screen_width: int, screen_height: int) -> None:
     """Paint the city quest-log overlay.
 
     Two visual states:
@@ -2186,81 +1436,39 @@ def render_quest_log(
     hint and the abandon confirmation is irrelevant.
     """
     console.clear()
-
     max_w = screen_width - HUD_WIDTH - 2
+
     def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[: max_w - 1] + "…"
+        return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=fg,
-        )
-
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-
-    if active is None:
-        paint(center_y - 2, fit("QUEST LOG"), fg=ui.COLOR_TITLE)
-        paint(center_y + 1, fit("(no active mission)"), fg=ui.COLOR_DESCRIPTION)
-        paint(center_y + 5, fit("Press ESC to close."), fg=ui.COLOR_INSTRUCTION)
-        message_log.render_message_log(
-            console, log,
-            screen_width=screen_width,
-            screen_height=screen_height,
-        )
+    if ctx.player_active_mission is None:
+        paint(center_y - 2, fit('QUEST LOG'), fg=ui.COLOR_TITLE)
+        paint(center_y + 1, fit('(no active mission)'), fg=ui.COLOR_DESCRIPTION)
+        paint(center_y + 5, fit('Press ESC to close.'), fg=ui.COLOR_INSTRUCTION)
+        message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
         return
-
-    mission = mission_module.find_mission(active.mission_id)
+    mission = mission_module.find_mission(ctx.player_active_mission.mission_id)
     giver = npc_module.find_npc(mission.giver_npc_id)
-
-    paint(center_y - 6, fit("QUEST LOG"), fg=ui.COLOR_TITLE)
+    paint(center_y - 6, fit('QUEST LOG'), fg=ui.COLOR_TITLE)
     paint(center_y - 3, fit(mission.title.upper()), fg=ui.COLOR_TITLE)
-    paint(center_y - 1, fit(f"From: {giver.name} ({giver.guild})"), fg=ui.COLOR_DESCRIPTION)
-
-    # Wrap mission.description onto multiple rows instead of
-    # ellipsis-clipping it (the relation between screen_height and
-    # the description text drove the user-visible bug). Reward +
-    # abandon button anchor relative to the description's last row
-    # so the layout scales with text length.
+    paint(center_y - 1, fit(f'From: {giver.name} ({giver.guild})'), fg=ui.COLOR_DESCRIPTION)
     desc_rows = ui.wrap_text(mission.description, max_w)
     desc_start_row = center_y + 2
     for j, line in enumerate(desc_rows):
         paint(desc_start_row + j, line, fg=ui.COLOR_VALUE_WHITE)
-
     reward_row = desc_start_row + len(desc_rows) + 1
-    paint(
-        reward_row,
-        fit(f"Reward: {mission.reward_gold}gp + {mission.reward_xp}xp"),
-        fg=ui.COLOR_VALUE_WHITE,
-    )
-
+    paint(reward_row, fit(f'Reward: {mission.reward_gold}gp + {mission.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
     button_row = reward_row + 3
     if confirm_abandon:
-        paint(
-            button_row,
-            fit("Press ENTER to abandon. ESC cancels."),
-            fg=ui.COLOR_OPTION_HIGHLIGHT,
-        )
+        paint(button_row, fit('Press ENTER to abandon. ESC cancels.'), fg=ui.COLOR_OPTION_HIGHLIGHT)
     else:
-        paint(
-            button_row,
-            fit("Press A to abandon. ESC to close."),
-            fg=ui.COLOR_INSTRUCTION,
-        )
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
+        paint(button_row, fit('Press A to abandon. ESC to close.'), fg=ui.COLOR_INSTRUCTION)
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
-
-def update_quest_log(
-    event: tcod.event.Event,
-    *,
-    confirm_abandon: bool,
-) -> QuestLogOutcome:
+def update_quest_log(event: tcod.event.Event, *, confirm_abandon: bool) -> QuestLogOutcome:
     """Map a single event for the quest-log overlay.
 
     Two states - when ``confirm_abandon`` is False, only ESC and A
@@ -2278,22 +1486,18 @@ def update_quest_log(
     if not isinstance(event, tcod.event.KeyDown):
         return QuestLogOutcome.IGNORE
     sym = event.sym
-    sym_name: str = getattr(sym, "name", "").lower()
+    sym_name: str = getattr(sym, 'name', '').lower()
     if sym in ui._ESCAPE_SYMS:
         return QuestLogOutcome.BACK
     if confirm_abandon:
         if sym in ui._ENTER_SYMS:
             return QuestLogOutcome.ABANDONED
         return QuestLogOutcome.IGNORE
-    if sym_name == "a":
+    if sym_name == 'a':
         return QuestLogOutcome.ABANDONED
     return QuestLogOutcome.IGNORE
 
-
-def _run_quest_log(
-    context: tcod.context.Context,
-    active: mission_module.ActiveMission | None,
-) -> tuple[QuestLogOutcome, mission_module.ActiveMission | None]:
+def _run_quest_log(ctx) -> tuple[QuestLogOutcome, mission_module.ActiveMission | None]:
     """Show the city quest-log overlay and apply any state changes.
 
     Returns ``(outcome, maybe_new_active)``: ``maybe_new_active`` is
@@ -2305,60 +1509,25 @@ def _run_quest_log(
     """
     console = make_console()
     confirm_abandon = False
+
     def _render() -> None:
-        render_quest_log(
-            console, active, log=log,
-            confirm_abandon=confirm_abandon,
-            screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-        )
+        render_quest_log(console, ctx.player_active_mission, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
     def _update(event) -> QuestLogOutcome:
         nonlocal confirm_abandon
         result = update_quest_log(event, confirm_abandon=confirm_abandon)
-        if result is QuestLogOutcome.ABANDONED and not confirm_abandon:
-            # First A press: flip into confirm state and re-render.
+        if result is QuestLogOutcome.ABANDONED and (not confirm_abandon):
             confirm_abandon = True
             return QuestLogOutcome.IGNORE
         return result
-    outcome = ui.Modal(context, console).run(_render, _update)
-    # Derive payload from outcome.
+    outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if outcome is QuestLogOutcome.ABANDONED:
-        return outcome, None
-    return outcome, active
+        return (outcome, None)
+    return (outcome, ctx.player_active_mission)
+SHIP_MENU_OPTIONS: tuple[str, ...] = ('View', 'Refuel', 'Sell', 'Launch')
+PLANET_MENU_OPTIONS: tuple[str, ...] = ('Land',)
 
-
-# ---------------------------------------------------------------------------
-# Ship-hangar menu (View / Sell / Launch) + View sub-modal
-# ---------------------------------------------------------------------------
-#
-# The 3-option menu lives in the same centered-modal style as the
-# ship-buy and NPC-talk dialogs. ``Sell`` and ``Launch`` are
-# placeholders for this iteration (they just log ``"Coming soon."``
-# and return BACK) so the wiring matches the future design without
-# needing more game logic yet. ``View`` opens a sub-modal that
-# reports per-ship stats (cargo, weapons, modules, hull).
-#
-# The player may or may not own a ship - callers must check before
-# opening the modal; if ``owned_ship`` is ``None`` we still draw the
-# menu but show a hint instead of stats.
-
-SHIP_MENU_OPTIONS: tuple[str, ...] = ("View", "Refuel", "Sell", "Launch")
-
-
-# Planet-bump dialog: single "Land" option. ESC closes the modal
-# without acting on the planet (the player can keep flying past).
-PLANET_MENU_OPTIONS: tuple[str, ...] = ("Land",)
-
-
-def render_ship_menu(
-    console: tcod.console.Console,
-    ship: ship_module.Ship,
-    owned: ship_module.OwnedShip,
-    log: message_log.MessageLog,
-    selected: int = 0,
-    *,
-    screen_width: int,
-    screen_height: int,
-) -> None:
+def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int=0, *, screen_width: int, screen_height: int) -> None:
     """Paint the centered 3-option hangar menu into ``console``.
 
     ``selected`` is the index of the highlighted option (clamped by
@@ -2371,82 +1540,30 @@ def render_ship_menu(
     only learns one highlight idiom).
     """
     console.clear()
-
-    # Title row: the ship name + its catalogue description.
-    title = f"Your {ship.name.upper()}"
+    title = f'Your {ship.name.upper()}'
     sub = ship.description
-    if owned is None:
-        sub = "(no ship owned yet)"
-
+    if ctx.player_owned_ship is None:
+        sub = '(no ship owned yet)'
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    console.print(
-        x=ui.centered_x(title, screen_width),
-        y=center_y - 5,
-        string=title,
-        fg=ui.COLOR_TITLE,
-    )
-    console.print(
-        x=ui.centered_x(sub, screen_width),
-        y=center_y - 3,
-        string=sub,
-        fg=ui.COLOR_DESCRIPTION,
-    )
-
-    # Fuel status line (when ship is owned). Painted after the
-    # description so the player sees current fuel / max fuel and
-    # the refuel cost per unit at a glance before scrolling the
-    # menu. Omitted when ``owned`` is None (no ship yet).
-    if owned is not None:
-        fuel_str = (
-            f"Fuel: {owned.fuel} / {ship.max_fuel}  "
-            f"[Refuel: {ship_module.FUEL_COST_PER_UNIT}g/u]"
-        )
-        console.print(
-            x=ui.centered_x(fuel_str, screen_width),
-            y=center_y - 1,
-            string=fuel_str,
-            fg=ui.COLOR_VALUE_WHITE,
-        )
-
-    # Vertical spaced option list. The highlight color and the
-    # ``>`` / ``<`` markers track ``selected`` so a "wrapped"
-    # selection (e.g. selected=-1 mod 3 == 2) lands on Launch and
-    # not off-screen.
-    list_top = center_y + 1 if owned is not None else center_y - 1
+    console.print(x=ui.centered_x(title, screen_width), y=center_y - 5, string=title, fg=ui.COLOR_TITLE)
+    console.print(x=ui.centered_x(sub, screen_width), y=center_y - 3, string=sub, fg=ui.COLOR_DESCRIPTION)
+    if ctx.player_owned_ship is not None:
+        fuel_str = f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}  [Refuel: {ship_module.FUEL_COST_PER_UNIT}g/u]'
+        console.print(x=ui.centered_x(fuel_str, screen_width), y=center_y - 1, string=fuel_str, fg=ui.COLOR_VALUE_WHITE)
+    list_top = center_y + 1 if ctx.player_owned_ship is not None else center_y - 1
     n = len(SHIP_MENU_OPTIONS)
     sel = selected % n
     for i, label in enumerate(SHIP_MENU_OPTIONS):
         row = list_top + i * 2
-        is_selected = (i == sel)
-        marker = "> " if is_selected else "  "
-        end_marker = " <" if is_selected else "  "
-        # Append fuel info to the Refuel label so the
-        # player sees quantity + price without needing
-        # the message bar (hidden while menu is open).
-        if label == "Refuel" and owned is not None:
-            label = f"{label} [{owned.fuel}/{ship.max_fuel}]"
-        text = f"{marker}{label}{end_marker}"
-        console.print(
-            x=ui.centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION,
-        )
-
-    # Bottom hint row mirrors the other modals.
-    console.print(
-        x=ui.centered_x("ARROW KEYS / j,k navigate - ENTER select - ESC walk away.",
-                        screen_width),
-        y=center_y + len(SHIP_MENU_OPTIONS) * 2 + 1,
-        string="ARROW KEYS / j,k navigate - ENTER select - ESC walk away.",
-        fg=ui.COLOR_INSTRUCTION,
-    )
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
-
+        is_selected = i == sel
+        marker = '> ' if is_selected else '  '
+        end_marker = ' <' if is_selected else '  '
+        if label == 'Refuel' and ctx.player_owned_ship is not None:
+            label = f'{label} [{ctx.player_owned_ship.fuel}/{ship.max_fuel}]'
+        text = f'{marker}{label}{end_marker}'
+        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION)
+    console.print(x=ui.centered_x('ARROW KEYS / j,k navigate - ENTER select - ESC walk away.', screen_width), y=center_y + len(SHIP_MENU_OPTIONS) * 2 + 1, string='ARROW KEYS / j,k navigate - ENTER select - ESC walk away.', fg=ui.COLOR_INSTRUCTION)
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 def _ship_menu_navigate(event: tcod.event.Event, selected: int) -> int | None:
     """If ``event`` drives hangar-menu nav, return the new
@@ -2465,18 +1582,14 @@ def _ship_menu_navigate(event: tcod.event.Event, selected: int) -> int | None:
     if not isinstance(event, tcod.event.KeyDown):
         return None
     sym = event.sym
-    sym_name: str = getattr(sym, "name", "").lower()
-    if sym in ui._UP_SYMS or sym_name == "k":
+    sym_name: str = getattr(sym, 'name', '').lower()
+    if sym in ui._UP_SYMS or sym_name == 'k':
         return (selected - 1) % len(SHIP_MENU_OPTIONS)
-    if sym in ui._DOWN_SYMS or sym_name == "j":
+    if sym in ui._DOWN_SYMS or sym_name == 'j':
         return (selected + 1) % len(SHIP_MENU_OPTIONS)
     return None
 
-
-def update_ship_menu(
-    event: tcod.event.Event,
-    selected: int,
-) -> ShipMenuAction:
+def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
     """Map a single event for the hangar menu.
 
     Pure dispatcher: UP/DOWN navigation is handled by the caller
@@ -2493,27 +1606,10 @@ def update_ship_menu(
     if sym in ui._ESCAPE_SYMS:
         return ShipMenuAction.BACK
     if sym in ui._ENTER_SYMS:
-        return (
-            ShipMenuAction.VIEW
-            if selected == 0
-            else ShipMenuAction.REFUEL
-            if selected == 1
-            else ShipMenuAction.SELL
-            if selected == 2
-            else ShipMenuAction.LAUNCH
-        )
+        return ShipMenuAction.VIEW if selected == 0 else ShipMenuAction.REFUEL if selected == 1 else ShipMenuAction.SELL if selected == 2 else ShipMenuAction.LAUNCH
     return ShipMenuAction.IGNORE
 
-
-def render_ship_view(
-    console: tcod.console.Console,
-    ship: ship_module.Ship,
-    owned: ship_module.OwnedShip,
-    log: message_log.MessageLog,
-    *,
-    screen_width: int,
-    screen_height: int,
-) -> None:
+def render_ship_view(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int) -> None:
     """Paint the read-only ship-stats panel.
 
     Reports cargo (used / max), weapons (attached / slots), modules
@@ -2522,49 +1618,24 @@ def render_ship_view(
     useless - it shows the catalogue entry instead.
     """
     console.clear()
-
-    title = f"{ship.name.upper()} - DETAILS"
+    title = f'{ship.name.upper()} - DETAILS'
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    console.print(
-        x=ui.centered_x(title, screen_width),
-        y=center_y - 6,
-        string=title,
-        fg=ui.COLOR_TITLE,
-    )
-
-    cargo_used = owned.cargo_used if owned is not None else 0
-    weapons_n = len(owned.weapons) if owned is not None else 0
-    modules_n = len(owned.modules) if owned is not None else 0
-    hull_pct = owned.hull_damage_pct if owned is not None else 0
-
-    cargo_line = f"Cargo: {cargo_used} / {ship.max_cargo}"
-    weapons_line = f"Weapons attached: {weapons_n} / {ship.weapon_slots}"
-    modules_line = f"Modules installed: {modules_n} / {ship.module_slots}"
-    hull_line = f"Hull damage: {hull_pct}%"
-    fuel_line = f"Fuel: {owned.fuel} / {ship.max_fuel}"
-
+    console.print(x=ui.centered_x(title, screen_width), y=center_y - 6, string=title, fg=ui.COLOR_TITLE)
+    cargo_used = ctx.player_owned_ship.cargo_used if ctx.player_owned_ship is not None else 0
+    weapons_n = len(ctx.player_owned_ship.weapons) if ctx.player_owned_ship is not None else 0
+    modules_n = len(ctx.player_owned_ship.modules) if ctx.player_owned_ship is not None else 0
+    hull_pct = ctx.player_owned_ship.hull_damage_pct if ctx.player_owned_ship is not None else 0
+    cargo_line = f'Cargo: {cargo_used} / {ship.max_cargo}'
+    weapons_line = f'Weapons attached: {weapons_n} / {ship.weapon_slots}'
+    modules_line = f'Modules installed: {modules_n} / {ship.module_slots}'
+    hull_line = f'Hull damage: {hull_pct}%'
+    fuel_line = f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}'
     lines = (cargo_line, weapons_line, modules_line, hull_line, fuel_line)
     for i, line in enumerate(lines):
         row = center_y - 3 + i * 2
-        console.print(
-            x=ui.centered_x(line, screen_width),
-            y=row,
-            string=line,
-            fg=ui.COLOR_VALUE_WHITE if owned is not None else ui.COLOR_VALUE_DIM,
-        )
-
-    console.print(
-        x=ui.centered_x("Press any key to return.", screen_width),
-        y=center_y + len(lines) * 2 + 1,
-        string="Press any key to return.",
-        fg=ui.COLOR_INSTRUCTION,
-    )
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
-
+        console.print(x=ui.centered_x(line, screen_width), y=row, string=line, fg=ui.COLOR_VALUE_WHITE if ctx.player_owned_ship is not None else ui.COLOR_VALUE_DIM)
+    console.print(x=ui.centered_x('Press any key to return.', screen_width), y=center_y + len(lines) * 2 + 1, string='Press any key to return.', fg=ui.COLOR_INSTRUCTION)
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 def update_ship_view(event: tcod.event.Event) -> ShipViewOutcome:
     """Map a single event for the ship-stats sub-modal.
@@ -2581,14 +1652,7 @@ def update_ship_view(event: tcod.event.Event) -> ShipViewOutcome:
         return ShipViewOutcome.BACK
     return ShipViewOutcome.IGNORE
 
-
-def _run_ship_menu(
-    context: tcod.context.Context,
-    ship: ship_module.Ship,
-    owned: ship_module.OwnedShip,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-) -> ShipMenuAction:
+def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the hub-menu modal for ``ship``; return the chosen action.
 
     The menu has 4 options arranged vertically; the highlighted
@@ -2605,11 +1669,10 @@ def _run_ship_menu(
     """
     console = make_console()
     selected = 0
+
     def _render() -> None:
-        render_ship_menu(
-            console, ship, owned, log=log, selected=selected,
-            screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-        )
+        render_ship_menu(console, ship, ctx.player_owned_ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
     def _update(event) -> ShipMenuAction:
         nonlocal selected
         new = _ship_menu_navigate(event, selected)
@@ -2618,38 +1681,29 @@ def _run_ship_menu(
             return ShipMenuAction.IGNORE
         return update_ship_menu(event, selected)
     while True:
-        action = ui.Modal(context, console).run(_render, _update)
+        action = ui.Modal(ctx.context, console).run(_render, _update)
         if action is ShipMenuAction.VIEW:
-            _run_ship_view(context, ship, owned, log)
+            _run_ship_view(ctx, ship, ctx.player_owned_ship, ctx.log)
             continue
         if action is ShipMenuAction.REFUEL:
-            ship_record = ship_module.find_ship(owned.ship_id)
-            buyable = ship_record.max_fuel - owned.fuel
+            ship_record = ship_module.find_ship(ctx.player_owned_ship.ship_id)
+            buyable = ship_record.max_fuel - ctx.player_owned_ship.fuel
             if buyable <= 0:
-                log.add("The fuel tank is already full.")
+                ctx.log.add('The fuel tank is already full.')
                 continue
-            affordable = stats.gold // ship_module.FUEL_COST_PER_UNIT
+            affordable = ctx.stats.gold // ship_module.FUEL_COST_PER_UNIT
             if affordable <= 0:
-                log.add("You don't have enough gold to buy fuel.")
+                ctx.log.add("You don't have enough gold to buy fuel.")
                 continue
             units = min(buyable, affordable)
             cost = units * ship_module.FUEL_COST_PER_UNIT
-            stats.gold -= cost
-            owned.fuel += units
-            log.add(
-                f"Refueled {units} units for {cost}g. "
-                f"Fuel: {owned.fuel} / {ship_record.max_fuel}."
-            )
+            ctx.stats.gold -= cost
+            ctx.player_owned_ship.fuel += units
+            ctx.log.add(f'Refueled {units} units for {cost}g. Fuel: {ctx.player_owned_ship.fuel} / {ship_record.max_fuel}.')
             continue
-        return action  # BACK, SELL, LAUNCH, QUIT
+        return action
 
-
-def _run_ship_view(
-    context: tcod.context.Context,
-    ship: ship_module.Ship,
-    owned: ship_module.OwnedShip,
-    log: message_log.MessageLog,
-) -> None:
+def _run_ship_view(ctx, ship: ship_module.Ship) -> None:
     """Show the read-only stats panel for ``ship``.
 
     Stays inside its own loop until the player presses any key
@@ -2658,31 +1712,17 @@ def _run_ship_view(
     closes faster via a direct BACK return.
     """
     console = make_console()
+
     def _render() -> None:
-        render_ship_view(
-            console, ship, owned, log=log,
-            screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-        )
+        render_ship_view(console, ship, ctx.player_owned_ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
     def _update(event) -> ShipViewOutcome:
-        # Any KeyDown closes the panel (mirrors the original "any
-        # key closes" semantic that drove this loop). update_ship_view
-        # itself returns QUIT for Quit events and BACK for ESC, so
-        # those flow through Modal unchanged.
         if isinstance(event, tcod.event.KeyDown):
             return ShipViewOutcome.BACK
         return update_ship_view(event)
-    ui.Modal(context, console).run(_render, _update)
+    ui.Modal(ctx.context, console).run(_render, _update)
 
-
-# ---------------------------------------------------------------------------
-# Space-scene helpers (launch + return animations, scene swap)
-# ---------------------------------------------------------------------------
-
-
-def _find_hangar_ship(
-    city_game_map: world.GameMap,
-    player_owned_ship: ship_module.OwnedShip | None,
-) -> world.Entity | None:
+def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_module.OwnedShip | None) -> world.Entity | None:
     """Return the player's owned hangar ship entity in ``city_game_map``.
 
     Used by the launch-and-land dispatcher branches to drive the
@@ -2695,22 +1735,9 @@ def _find_hangar_ship(
     """
     if player_owned_ship is None:
         return None
-    return next(
-        (e for e in city_game_map.entities
-         if e.owned and e.ship_id == player_owned_ship.ship_id),
-        None,
-    )
+    return next((e for e in city_game_map.entities if e.owned and e.ship_id == player_owned_ship.ship_id), None)
 
-
-def render_planet_menu(
-    console: tcod.console.Console,
-    planet_obj: solar_system_module.Planet,
-    log: message_log.MessageLog,
-    *,
-    screen_width: int = SCREEN_WIDTH,
-    screen_height: int = SCREEN_HEIGHT,
-    has_port: bool = True,
-) -> None:
+def render_planet_menu(console: tcod.console.Console, ctx: GameContext, planet_obj: solar_system_module.Planet, *, screen_width: int=SCREEN_WIDTH, screen_height: int=SCREEN_HEIGHT, has_port: bool=True) -> None:
     """Paint the planet-bump dialog.
 
     Layout: planet name centered near the top of the viewport,
@@ -2729,67 +1756,29 @@ def render_planet_menu(
     so the caller's LAND dispatch can't fire.
     """
     console.clear()
-
-    # Title row (planet name)
     title_y = screen_height // 4
-    console.print(
-        x=ui.centered_x(planet_obj.name, screen_width),
-        y=title_y,
-        string=planet_obj.name,
-        fg=ui.COLOR_TITLE,
-    )
-
-    # Body row(s): planet description, wrapped if longer than viewport
+    console.print(x=ui.centered_x(planet_obj.name, screen_width), y=title_y, string=planet_obj.name, fg=ui.COLOR_TITLE)
     desc_y = title_y + 2
     desc_rows = ui.wrap_text(planet_obj.description, screen_width - 4)
     for i, row in enumerate(desc_rows):
-        console.print(
-            x=ui.centered_x(row, screen_width),
-            y=desc_y + i,
-            string=row,
-            fg=ui.COLOR_DESCRIPTION,
-        )
-
-    # Option row: a single highlighted "Land" cell IF the planet
-    # has a landable port; otherwise a lighter "No port on this
-    # world." info-line (ENTER still occupies the slot but acts as
-    # a closer in update_planet_menu).
-    option_y = (screen_height // 2) + 2
+        console.print(x=ui.centered_x(row, screen_width), y=desc_y + i, string=row, fg=ui.COLOR_DESCRIPTION)
+    option_y = screen_height // 2 + 2
     if has_port:
-        option_text = "> Land <"
-        hint = "ENTER to land - ESC to fly away"
+        option_text = '> Land <'
+        hint = 'ENTER to land - ESC to fly away'
         option_fg = ui.COLOR_OPTION_HIGHLIGHT
         hint_fg = ui.COLOR_INSTRUCTION
     else:
-        option_text = "No port on this world."
-        hint = "ENTER or ESC to fly past."
+        option_text = 'No port on this world.'
+        hint = 'ENTER or ESC to fly past.'
         option_fg = ui.COLOR_DESCRIPTION
         hint_fg = ui.COLOR_INSTRUCTION
-    console.print(
-        x=ui.centered_x(option_text, screen_width),
-        y=option_y,
-        string=option_text,
-        fg=option_fg,
-    )
+    console.print(x=ui.centered_x(option_text, screen_width), y=option_y, string=option_text, fg=option_fg)
     hint_y = option_y + 2
-    console.print(
-        x=ui.centered_x(hint, screen_width),
-        y=hint_y,
-        string=hint,
-        fg=hint_fg,
-    )
-    message_log.render_message_log(
-        console, log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
+    console.print(x=ui.centered_x(hint, screen_width), y=hint_y, string=hint, fg=hint_fg)
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
-
-def update_planet_menu(
-    event: tcod.event.Event,
-    *,
-    has_port: bool = True,
-) -> PlanetMenuOutcome:
+def update_planet_menu(event: tcod.event.Event, *, has_port: bool=True) -> PlanetMenuOutcome:
     """Map a single key event for the planet-bump dialog.
 
     ENTER -> :attr:`PlanetMenuOutcome.LAND` if ``has_port`` else
@@ -2809,23 +1798,10 @@ def update_planet_menu(
     if sym in ui._ESCAPE_SYMS:
         return PlanetMenuOutcome.BACK
     if sym in ui._ENTER_SYMS:
-        return (
-            PlanetMenuOutcome.LAND
-            if has_port
-            else PlanetMenuOutcome.BACK
-        )
+        return PlanetMenuOutcome.LAND if has_port else PlanetMenuOutcome.BACK
     return PlanetMenuOutcome.IGNORE
 
-
-def _run_planet_menu(
-    context: tcod.context.Context,
-    planet_obj: solar_system_module.Planet,
-    *,
-    character_info: dict,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-    active_mission_text: str | None,
-) -> PlanetMenuOutcome:
+def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet, *, active_mission_text: str | None) -> PlanetMenuOutcome:
     """Show the planet-bump modal for ``planet_obj``; return the chosen outcome.
 
     The ``Land`` option only appears if the planet has a registered
@@ -2848,26 +1824,15 @@ def _run_planet_menu(
     from .data.planets import has_landable_port
     has_port = has_landable_port(planet_obj.id)
     console = make_console()
+
     def _render() -> None:
-        render_planet_menu(console, planet_obj, log=log, has_port=has_port)
+        render_planet_menu(console, planet_obj, has_port=has_port)
+
     def _update(event) -> PlanetMenuOutcome:
         return update_planet_menu(event, has_port=has_port)
     return ui.Modal(context, console).run(_render, _update)
 
-
-def _animate_ship_to_y(
-    context: tcod.context.Context,
-    console: tcod.console.Console,
-    ship_ent: world.Entity,
-    game_map: world.GameMap,
-    *,
-    character_info: dict,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-    active_mission_text: str | None,
-    target_y: int,
-    frame_seconds: float = 0.08,
-) -> None:
+def _animate_ship_to_y(context: tcod.context.Context, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None, target_y: int, frame_seconds: float=0.08) -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the
@@ -2882,50 +1847,15 @@ def _animate_ship_to_y(
     """
     direction = -1 if ship_ent.pos.y > target_y else 1
     while ship_ent.pos.y != target_y:
-        # Position is frozen; rebind ship_ent.pos to a fresh Position
-        # rather than mutate pos.y in place (would raise FrozenInstanceError).
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         console.clear()
-        world.render_world(
-            console,
-            game_map,
-            region_x=0,
-            region_y=0,
-            region_w=solar_system_module.SOL_VIEW_W,
-            region_h=solar_system_module.SOL_VIEW_H,
-        )
-        hud.render_hud(
-            console,
-            screen_width=SCREEN_WIDTH,
-            hud_view_height=solar_system_module.SOL_VIEW_H,
-            character=character_info,
-            stats=stats,
-            active_mission=active_mission_text,
-        )
-        message_log.render_message_log(
-            console,
-            log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
+        world.render_world(console, game_map, region_x=0, region_y=0, region_w=solar_system_module.SOL_VIEW_W, region_h=solar_system_module.SOL_VIEW_H)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=character_info, stats=stats, active_mission=active_mission_text)
+        message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         context.present(console)
         _responsive_sleep(frame_seconds)
 
-
-def _launch_to_space(
-    context: tcod.context.Context,
-    console: tcod.console.Console,
-    city_game_map: world.GameMap,
-    hangar_ship_ent: world.Entity,
-    ship_obj: ship_module.Ship,
-    current_city_id: str,
-    city_player: world.Entity,
-    *,
-    character_info: dict,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-    active_mission_text: str | None,
-) -> tuple[world.GameMap, world.Entity]:
+def _launch_to_space(context: tcod.context.Context, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None) -> tuple[world.GameMap, world.Entity]:
     """Animate ``hangar_ship_ent`` off the top of the city viewport and
     return ``(space_game_map, space_player_entity)``.
 
@@ -2942,47 +1872,19 @@ def _launch_to_space(
     argument was hardcoded to ``"earth"`` which sent Mars-launched
     players into Earth orbit instead of Mars.
     """
-    # Hide the on-foot @ during the launch animation - the
-    # player has stepped aboard the ship and is no longer standing
-    # on the city surface. Splice the entity out of the city's
-    # entity list so ``world.render_world`` doesn't paint two
-    # bodies at once. The @ stays spliced out while the player is
-    # in space, and gets reattached on land (see :func:`_return_to_city`
-    # and the cross-planet LAND branch in :func:`_run_game`).
     if city_player in city_game_map.entities:
         city_game_map.entities.remove(city_player)
     offscreen_y = -(solar_system_module.SOL_VIEW_H // 2) - 1
     if hangar_ship_ent.pos.y > offscreen_y:
-        _animate_ship_to_y(
-            context, console, hangar_ship_ent, city_game_map,
-            character_info=character_info,
-            stats=stats,
-            log=log,
-            active_mission_text=active_mission_text,
-            target_y=offscreen_y,
-        )
-        log.add(f"You launch the {ship_obj.name} into space.")
+        _animate_ship_to_y(context, console, hangar_ship_ent, city_game_map, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text, target_y=offscreen_y)
+        log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
     origin_planet = solar_system_module.find_planet(current_city_id)
-    space_player = solar_system_module.place_docked_ship(
-        ship_obj, origin_planet,
-    )
+    space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
     space_map.entities.append(space_player)
-    return space_map, space_player
+    return (space_map, space_player)
 
-
-def _return_to_city(
-    context: tcod.context.Context,
-    console: tcod.console.Console,
-    hangar_ship_ent: world.Entity,
-    city_game_map: world.GameMap,
-    city_player_ent: world.Entity,
-    *,
-    character_info: dict,
-    stats: hud.HudStats,
-    log: message_log.MessageLog,
-    active_mission_text: str | None,
-) -> tuple[world.GameMap, world.Entity]:
+def _return_to_city(context: tcod.context.Context, console: tcod.console.Console, hangar_ship_ent: world.Entity, city_game_map: world.GameMap, city_player_ent: world.Entity, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None) -> tuple[world.GameMap, world.Entity]:
     """Animate the same ``hangar_ship_ent`` down to :data:`world.HANGAR_ANCHOR`
     and return ``(city_game_map, city_player_entity)``.
 
@@ -2990,33 +1892,13 @@ def _return_to_city(
     instance that was animated offscreen during launch, so no
     entity-list swap is needed on the city map.
     """
-    _animate_ship_to_y(
-        context, console, hangar_ship_ent, city_game_map,
-        character_info=character_info,
-        stats=stats,
-        log=log,
-        active_mission_text=active_mission_text,
-        target_y=world.HANGAR_ANCHOR.y,
-    )
-    # The ship has docked - the player has stepped off and is
-    # standing on the city surface again. Reattach the @ entity
-    # so :func:`world.render_world` paints it on the next frame.
+    _animate_ship_to_y(context, console, hangar_ship_ent, city_game_map, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text, target_y=world.HANGAR_ANCHOR.y)
     if city_player_ent not in city_game_map.entities:
         city_game_map.entities.append(city_player_ent)
-    log.add("You return to Earth and dock at your hangar.")
-    return city_game_map, city_player_ent
+    log.add('You return to Earth and dock at your hangar.')
+    return (city_game_map, city_player_ent)
 
-
-# ---------------------------------------------------------------------------
-# Game (city) loop
-# ---------------------------------------------------------------------------
-
-
-def _run_game(
-    context: tcod.context.Context,
-    species_id: str,
-    class_id: str,
-) -> None:
+def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> None:
     """Render the small city + HUD + msg log and handle vim movement.
 
     Walking into a wall logs a short message. Walking into a
@@ -3026,785 +1908,248 @@ def _run_game(
     """
     species = find_species(species_id)
     klass = find_class(class_id)
-
-    CITY_WIDTH, CITY_HEIGHT = 60, 40
+    CITY_WIDTH, CITY_HEIGHT = (60, 40)
     game_map = world.make_city(width=CITY_WIDTH, height=CITY_HEIGHT)
-    player = world.Entity(
-        char="@",
-        fg=(255, 255, 255),
-        pos=world.Position(x=CITY_WIDTH // 2, y=CITY_HEIGHT // 2),
-        name="Player",
-    )
+    player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(x=CITY_WIDTH // 2, y=CITY_HEIGHT // 2), name='Player')
     game_map.entities.append(player)
-
     stats = character.starting_stats(species_id, class_id)
-
     log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
-    log.add(f"You arrive in a quiet Earth city as a {species.name} {klass.name}.")
+    log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
     log.add("The cobblestones are damp from last night's rain.")
-    log.add("Walk with h / j / k / l; diagonals y / u / b / n.")
-    log.add("Buildings: North-West space port, South-West merchant guild,")
-    log.add("Bar in the plaza, militia + bounty guild on the South-East.")
-    log.add("Visit the space port to buy a ship; the guild halls offer work later.")
-
-    # Player-owned ship. None until they buy one at the port.
-    # Multiple ships at once are intentionally not supported: the
-    # Sell / Launch options of the hangar menu are stubs so we don't
-    # need a fleet state yet. When the menu is implemented, this
-    # single slot becomes the player's only-active-ship selection.
+    log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
+    log.add('Buildings: North-West space port, South-West merchant guild,')
+    log.add('Bar in the plaza, militia + bounty guild on the South-East.')
+    log.add('Visit the space port to buy a ship; the guild halls offer work later.')
     player_owned_ship: ship_module.OwnedShip | None = None
-
-    # Player-active mission. None until they accept one at an NPC.
-    # Single slot mirrors the single-ship design - the player can
-    # only juggle one mission at a time, with the rule "abandon
-    # before picking up another" enforced in the dispatcher.
-    # Completion / failure outcomes land in a later iteration.
     player_active_mission: mission_module.ActiveMission | None = None
-
-    character_info = {
-        "species_name": species.name,
-        "class_name": klass.name,
-    }
-
-    ctx = GameContext(
-        context=context,
-        character_info=character_info,
-        log=log,
-        game_map=game_map,
-        player=player,
-        stats=stats,
-        player_owned_ship=player_owned_ship,
-        player_active_mission=player_active_mission,
-    )
-
+    character_info = {'species_name': species.name, 'class_name': klass.name}
+    ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_mission=player_active_mission)
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
     console = make_console()
-
-    # Scene-mode state. ``current_mode`` toggles between "city" and
-    # "space" when the player launches from the city hangar. The
-    # render block below uses the current ``game_map`` / ``player``
-    # regardless of mode (same render pipeline), and the dispatch
-    # block branches on ``current_mode`` for vim movement + ESC
-    # behaviour. ``city_game_map`` / ``city_player`` aliases preserve
-    # the city scene so the return-from-space branch can swap back
-    # cleanly. ``space_game_map`` / ``space_player_entity`` are
-    # created lazily on launch (rebuilt fresh each time - cheap
-    # enough at ~4320 tiles that caching isn't worth the extra
-    # state to manage).
     city_game_map = game_map
     city_player = player
-    current_mode: str = "city"
-    # The planet id whose game_map / hangar_anchor is active in
-    # city mode. Starts as Earth and flips to Mars (or back) when
-    # the player lands on a non-Earth planet tile. Drives per-planet
-    # routing in the planet-bump dispatch.
-    current_city_id: str = "earth"
-
+    current_mode: str = 'city'
+    current_city_id: str = 'earth'
     while True:
         console.clear()
-        # Mode-aware render. City mode centers the small city map
-        # inside the viewport (unchanged from the pre-multicell
-        # iteration). Space mode is much larger than the viewport
-        # (~2.5x wider, ~2.6x taller) so we scroll: camera centers
-        # on the ship so the scout stays at the screen-center while
-        # planets scroll past, and clamping keeps the viewport on
-        # the map (no "you can see past the edge" glitch when the
-        # ship nears the map border).
-        if current_mode == "space":
-            # Multi-system iteration: SOL_W/SOL_H no longer live
-            # as module-level constants (they vary per system now
-            # and live on each ``SolarSystem.width``/``.height``).
-            # Cache ``current_system()`` once so the rebuild-cache
-            # path doesn't get re-triggered inside the render call.
+        if current_mode == 'space':
             sys_now = solar_system_module.current_system()
             sol_w = sys_now.width
             sol_h = sys_now.height
             view_w = solar_system_module.SOL_VIEW_W
             view_h = solar_system_module.SOL_VIEW_H
-            cam_x = max(
-                0, min(player.pos.x - view_w // 2, sol_w - view_w),
-            )
-            cam_y = max(
-                0, min(player.pos.y - view_h // 2, sol_h - view_h),
-            )
-            world.render_world_view(
-                console, game_map,
-                region_x=0, region_y=0,
-                region_w=view_w, region_h=view_h,
-                camera_x=cam_x, camera_y=cam_y,
-            )
+            cam_x = max(0, min(player.pos.x - view_w // 2, sol_w - view_w))
+            cam_y = max(0, min(player.pos.y - view_h // 2, sol_h - view_h))
+            world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
         else:
-            world.render_world(
-                console,
-                game_map,
-                region_x=0,
-                region_y=0,
-                region_w=map_w,
-                region_h=map_h,
-            )
-        # Pre-resolve the active-mission label once per frame so the
-        # HUD doesn't have to know about the mission catalog.
-        active_mission_text = (
-            mission_module.find_mission(player_active_mission.mission_id).title
-            if player_active_mission is not None
-            else None
-        )
-        # Resolve ship catalog entry for the space-mode HUD.
-        _show_ship_hud = current_mode == "space" and player_owned_ship is not None
-        _ship_cat = (
-            ship_module.find_ship(player_owned_ship.ship_id)
-            if _show_ship_hud else None
-        )
-        # Location string: planet name in city, system name in space.
-        if current_mode == "space":
+            world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
+        active_mission_text = mission_module.find_mission(player_active_mission.mission_id).title if player_active_mission is not None else None
+        _show_ship_hud = current_mode == 'space' and player_owned_ship is not None
+        _ship_cat = ship_module.find_ship(player_owned_ship.ship_id) if _show_ship_hud else None
+        if current_mode == 'space':
             _location = solar_system_module.current_system().name
         else:
-            _location = current_city_id.replace("_", " ").title()
-        hud.render_hud(
-            console,
-            screen_width=SCREEN_WIDTH,
-            hud_view_height=map_h,
-            character=character_info,
-            stats=stats,
-            active_mission=active_mission_text,
-            location=_location,
-            owned_ship=player_owned_ship if _show_ship_hud else None,
-            ship_catalog=_ship_cat,
-        )
-        message_log.render_message_log(
-            console,
-            log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
+            _location = current_city_id.replace('_', ' ').title()
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat)
+        message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         context.present(console)
         for event in tcod.event.wait():
-            # ESC exits the game from BOTH city and space modes —
-            # the user explicitly asked for ESC to remain the
-            # canonical quit key. Returning to the city from space
-            # is done by the planet-bump dialog on Earth (Land
-            # option), not by ESC. Window-close Quit events still
-            # exit cleanly from both modes via ``should_quit``.
             if should_quit(event):
                 return
-            # Q opens the city quest-log overlay (active-mission
-            # view + the only path to abandon). Routed BEFORE the
-            # vim dispatch so the key's intent is unambiguous even
-            # though 'q' isn't a movement letter today.
             if _is_q_press(event):
-                outcome, new_active = _run_quest_log(
-                    context, player_active_mission,
-                )
+                outcome, new_active = _run_quest_log(ctx, player_active_mission)
                 if outcome is QuestLogOutcome.QUIT:
                     return
                 if outcome is QuestLogOutcome.ABANDONED:
                     if player_active_mission is not None:
-                        abandoned = mission_module.find_mission(
-                            player_active_mission.mission_id,
-                        )
-                        log.add(f"You abandoned: {abandoned.title}.")
-                        # Release the cargo the mission was holding
-                        # back to the hull so abandoning actually
-                        # returns the ship to its free capacity.
-                        # ``abort_mission`` is a no-op for missions
-                        # that didn't load any cargo (most combat /
-                        # diplomacy jobs), so the log line stays
-                        # short for the common case.
-                        mission_module.abort_mission(
-                            abandoned, player_owned_ship, log,
-                        )
+                        abandoned = mission_module.find_mission(player_active_mission.mission_id)
+                        log.add(f'You abandoned: {abandoned.title}.')
+                        mission_module.abort_mission(abandoned, player_owned_ship, log)
                     player_active_mission = new_active
                     ctx.player_active_mission = new_active
-                # BACK: silent (player just closed the overlay).
                 continue
-            # M opens the system-map navigation overlay (whole Sol
-            # + the player's ship position). Only active in space
-            # mode - in city mode M has no defined effect today so
-            # we route it through the no-op path. Routed BEFORE the
-            # vim dispatch so the key's intent is unambiguous. (M
-            # was chosen over N because N is mapped by
-            # ``world.VIM_DELTAS`` as the south-east diagonal, so
-            # N for nav inadvertently shadowed vim movement in
-            # city mode.)
-            if current_mode == "space" and _is_m_press(event):
-                outcome = _run_navigation(context, player.pos)
+            if current_mode == 'space' and _is_m_press(event):
+                outcome = _run_navigation(ctx, player.pos)
                 if outcome is NavigationOutcome.QUIT:
                     return
-                # BACK / IGNORE fall through; we just painted the
-                # overlay one frame and resume the space render.
                 continue
-
-            # G key opens the Go To modal (auto-nav) - only in space
-            # mode since city mode has no big map to navigate.
-            if current_mode == "space" and _is_g_press(event):
-                _goto_outcome, _goto_combat = _run_goto(
-                    context, game_map, player, log,
-                )
-                # COMBAT is the new auto-nav interrupt: the
-                # animation loop broke early because a step
-                # crossed into an enemy detect_radius. Route
-                # through the same _handle_combat_encounter
-                # helper the post-move dispatcher uses so the
-                # two paths can't drift apart (VICTORY/DEFEAT
-                # handling, log lines, etc.).
-                if (_goto_outcome is GotoOutcome.COMBAT
-                        and _goto_combat is not None):
-                    _handle_combat_encounter(
-                        console, context, player_owned_ship, player,
-                        game_map, log, _goto_combat,
-                    )
-                # After auto-nav we always re-render on the next
-                # iteration of the main loop. The ship position was
-                # updated in-place on the GameMap so the next frame
-                # shows the new location.
+            if current_mode == 'space' and _is_g_press(event):
+                _goto_outcome, _goto_combat = _run_goto(ctx, player)
+                if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
+                    _handle_combat_encounter(console, context, player_owned_ship, player, game_map, log, _goto_combat)
                 continue
             delta = _vim_action(event)
             if delta is None:
                 continue
             dx, dy = delta
             code, blocker = world.try_move(player, game_map, dx, dy)
-            # Combat detection: after any move in space, check for nearby enemies.
-            # Squad-aware: spawns sharing a non-empty ``squad_id`` form
-            # a logical squad, so when ANY alive squad member is within
-            # detect_radius of the **player**, ALL alive members of that
-            # squad join the encounter (even if some wander beyond the
-            # player's radius). Standalone spawns (squad_id=None) still
-            # engage by player-proximity only, preserving v1 behaviour.
-            # Two passes so pass 2 sees every alive spawn when deciding
-            # whether its squad was triggered (was: a single pass that
-            # only added spawns within the player's detect_radius, so a
-            # patrol whose second scout sat just outside radius only
-            # engaged the closer one — see sol_pirate_patrol_1).
-            # NOTE: the alive filter below is position-strict against
-            # ``_spawn.pos``. That's fine while enemies don't patrol;
-            # once patrol movement is added the alive check should
-            # pivot to an entity-id or reference match instead.
-            if code == "moved" and current_mode == "space" and player_owned_ship is not None:
-                # The two-pass squad-aware scan moved to
-                # :func:`_detect_combat_encounter` so the auto-nav
-                # animation loop can call the same logic each step.
-                # The original Python lives in the helper verbatim.
-                _encounter = _detect_combat_encounter(
-                    player.pos, game_map, solar_system_module.current_system(),
-                )
+            if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
+                _encounter = _detect_combat_encounter(player.pos, game_map, solar_system_module.current_system())
                 if _encounter is not None:
-                    _handle_combat_encounter(
-                        console, context, player_owned_ship, player,
-                        game_map, log, _encounter,
-                    )
-            if code == "wall":
-                if current_mode == "space":
-                    # In space the "wall" is a planet (sun is too
-                    # far to bump into given our ship speeds and the
-                    # 80x54 layout). Open the planet dialog so the
-                    # player can Land (Earth) or read the stub
-                    # message (other planets).
+                    _handle_combat_encounter(console, context, player_owned_ship, player, game_map, log, _encounter)
+            if code == 'wall':
+                if current_mode == 'space':
                     target_x = player.pos.x + dx
                     target_y = player.pos.y + dy
                     if game_map.in_bounds(target_x, target_y):
-                        # Multi-system iteration: jump points look
-                        # like planets at the bump site (both are
-                        # walkable=False cell occupants). We check
-                        # for jumps FIRST so a gate-bump gets the
-                        # jump menu and not the planet menu. The
-                        # planet check below still fires for actual
-                        # planet-bumps on cells that don't overlap a
-                        # gate.
-                        # Stations paint LAST in make_solar_system so
-                        # they visually overlap any underlying planet
-                        # or jump-point cell. Resolve station-bumps
-                        # FIRST so a station that visually covers a
-                        # planet or gate resolves to the station menu.
-                        # Stations route their LAND button to their
-                        # city_planet_id (see StationSpec); then the
-                        # existing planet elif branch handles
-                        # _run_planet_menu + LAND outcome + scene-
-                        # swap + hangar-dock unchanged.
-                        station_id = solar_system_module.station_id_at(
-                            target_x, target_y,
-                        )
+                        station_id = solar_system_module.station_id_at(target_x, target_y)
                         if station_id is None:
-                            jp = solar_system_module.jump_point_at(
-                                target_x, target_y,
-                            )
-                            pid = solar_system_module.planet_id_at(
-                                target_x, target_y,
-                            )
+                            jp = solar_system_module.jump_point_at(target_x, target_y)
+                            pid = solar_system_module.planet_id_at(target_x, target_y)
                         else:
-                            # Station wins - route via planet branch
-                            # without bespoke dispatch. The existing
-                            # elif pid is not None branch + the
-                            # LAND handler run on pid below.
                             station_for_bump = solar_system_module.find_station(station_id)
                             jp = None
                             pid = station_for_bump.city_planet_id
                         if jp is not None and jp.connects_to:
-                            # v1: each gate has exactly one
-                            # connects_to entry. Multi-hop hubs in
-                            # future iterations would render a list
-                            # in the jump menu.
                             target_system_id, target_jp_id = jp.connects_to[0]
-                            log.add(f"You approach {jp.name}.")
-                            outcome = _run_jump_menu(
-                                context, jp, target_system_id, log,
-                                owned_ship=player_owned_ship,
-                            )
+                            log.add(f'You approach {jp.name}.')
+                            outcome = _run_jump_menu(ctx, jp, target_system_id)
                             if outcome is JumpMenuOutcome.JUMP:
-                                # Fuel gate: check the ship has enough
-                                # fuel BEFORE jumping. If not, log the
-                                # refusal and stay in the current system
-                                # without consuming any fuel.
-                                ship_record_for_fuel = ship_module.find_ship(
-                                    player_owned_ship.ship_id,
-                                )
+                                ship_record_for_fuel = ship_module.find_ship(player_owned_ship.ship_id)
                                 if player_owned_ship.fuel < ship_module.JUMP_FUEL_COST:
-                                    log.add(
-                                        f"Not enough fuel! The jump requires "
-                                        f"{ship_module.JUMP_FUEL_COST} units; "
-                                        f"you have {player_owned_ship.fuel}."
-                                    )
+                                    log.add(f'Not enough fuel! The jump requires {ship_module.JUMP_FUEL_COST} units; you have {player_owned_ship.fuel}.')
                                     continue
                                 player_owned_ship.fuel -= ship_module.JUMP_FUEL_COST
-                                log.add(
-                                    f"Jump drive engaged. Fuel: "
-                                    f"{player_owned_ship.fuel} / "
-                                    f"{ship_record_for_fuel.max_fuel}."
-                                )
-                                # Animate the jump drive sequence
-                                # before swapping systems. The
-                                # animation renders the current
-                                # space view with an expanding
-                                # explosion at the ship position.
-                                _animate_jump(
-                                    context, console, game_map,
-                                    player, character_info,
-                                    stats, log,
-                                    active_mission_text=active_mission_text or "",
-                                )
-                                # ``_jump_to_system`` returns
-                                # ``(new_game_map, new_player)`` — the
-                                # BUILT space map + the ship entity the
-                                # dispatcher should rebind ``player``
-                                # to. Mirrors ``_launch_to_space``'s
-                                # ``(space_map, space_player)`` shape
-                                # so we can rebind both refs in one
-                                # line. Critically: ``player`` must be
-                                # the ship entity (NOT just have
-                                # ``player.pos`` updated) so that
-                                # ``try_move(player, ...)`` advances
-                                # the visible ship glyph on the map.
-                                new_game_map, player = _jump_to_system(
-                                    jp=jp,
-                                    player_owned_ship=player_owned_ship,
-                                    log=log,
-                                    target_system_id=target_system_id,
-                                    target_jp_id=target_jp_id,
-                                )
+                                log.add(f'Jump drive engaged. Fuel: {player_owned_ship.fuel} / {ship_record_for_fuel.max_fuel}.')
+                                _animate_jump(context, console, game_map, player, character_info, stats, log, active_mission_text=active_mission_text or '')
+                                new_game_map, player = _jump_to_system(jp=jp, player_owned_ship=player_owned_ship, log=log, target_system_id=target_system_id, target_jp_id=target_jp_id)
                                 game_map = new_game_map
                                 ctx.game_map = game_map
                                 ctx.player = player
                                 continue
-                            # BACK / IGNORE: fall through to the
-                            # planet check below. (If neither jp nor
-                            # pid matched we just exit the bump
-                            # branch — no-op cell.)
                         elif pid is not None:
                             planet_obj = solar_system_module.find_planet(pid)
-                            log.add(f"You approach {planet_obj.name}.")
-                            outcome = _run_planet_menu(
-                                context, planet_obj,
-                                character_info=character_info,
-                                stats=stats, log=log,
-                                active_mission_text=active_mission_text,
-                            )
+                            log.add(f'You approach {planet_obj.name}.')
+                            outcome = _run_planet_menu(ctx, planet_obj, active_mission_text=active_mission_text)
                             if outcome is PlanetMenuOutcome.LAND and pid == current_city_id:
-                                # Already standing on this planet's
-                                # surface - no scene swap needed. Just
-                                # drive the same return-to-city animation
-                                # so the ship appears to dock.
-                                hangar_ship = _find_hangar_ship(
-                                    city_game_map, player_owned_ship,
-                                )
+                                hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
                                 if hangar_ship is not None:
-                                    game_map, player = _return_to_city(
-                                        context, console,
-                                        hangar_ship,
-                                        city_game_map, city_player,
-                                        character_info=character_info,
-                                        stats=stats, log=log,
-                                        active_mission_text=active_mission_text,
-                                    )
-                                    current_mode = "city"
+                                    game_map, player = _return_to_city(context, console, hangar_ship, city_game_map, city_player, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text)
+                                    current_mode = 'city'
                             elif outcome is PlanetMenuOutcome.LAND:
-                                # LAND on a DIFFERENT planet - swap
-                                # the city game_map, animate the
-                                # ship INTO the new planet's hangar,
-                                # and reattach the @ so the player
-                                # is visible on the new surface.
-                                # Symmetric to the Earth launch flow:
-                                # the @ is spliced out before any
-                                # animation and spliced back once the
-                                # ship has docked on the new planet.
-                                from .data.planets import (
-                                    load_planet as planets_load_planet,
-                                    hangar_anchor as planet_hangar_anchor,
-                                    has_landable_port as planets_has_landable_port,
-                                )
-                                # Defensive: ``update_planet_menu``
-                                # routes ENTER -> BACK for no-port
-                                # planets so this branch is reached
-                                # only for landable bodies today, but
-                                # a future code path (mod menu,
-                                # tutorial skip) could emit LAND
-                                # against an unlanded planet. The
-                                # helper catches the KeyError so we
-                                # log + skip instead of crashing on
-                                # an unknown planet id.
+                                from .data.planets import load_planet as planets_load_planet, hangar_anchor as planet_hangar_anchor, has_landable_port as planets_has_landable_port
                                 if not planets_has_landable_port(pid):
-                                    log.add(
-                                        f"You see no port on {planet_obj.name}."
-                                    )
+                                    log.add(f'You see no port on {planet_obj.name}.')
                                     continue
                                 if city_player in city_game_map.entities:
                                     city_game_map.entities.remove(city_player)
                                 new_city_map = planets_load_planet(pid)
                                 new_anchor = planet_hangar_anchor(pid)
-                                hangar_ship = _find_hangar_ship(
-                                    city_game_map, player_owned_ship,
-                                )
+                                hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
                                 if hangar_ship is not None:
-                                    # Splice the ship OUT of the OLD
-                                    # planet's entities list and INTO
-                                    # the NEW planet's entities at the
-                                    # offscreen position BEFORE the
-                                    # descent animation runs. The
-                                    # _animate_ship_to_y loop renders
-                                    # new_city_map each frame, so the
-                                    # ship must be a member of
-                                    # new_city_map.entities for the
-                                    # descent path to actually paint
-                                    # visibly. If the splice happens
-                                    # only AFTER the animation returns
-                                    # the player sees an instant scene
-                                    # swap with no descent animation.
-                                    # Defensive splice-OUT: the OLD
-                                    # map is orphaned two lines below
-                                    # by ``city_game_map = new_city_map``
-                                    # so the strip has no visual effect,
-                                    # but preserves the read-time
-                                    # invariant that the player's owned
-                                    # ship lives on whichever
-                                    # city_game_map is currently active.
                                     if hangar_ship in city_game_map.entities:
-                                        city_game_map.entities.remove(
-                                            hangar_ship,
-                                        )
-                                    hangar_ship.pos = world.Position(
-                                        new_anchor.x,
-                                        -(solar_system_module.SOL_VIEW_H // 2) - 1,
-                                    )
-                                    new_city_map.entities.append(
-                                        hangar_ship,
-                                    )
-                                    _animate_ship_to_y(
-                                        context, console,
-                                        hangar_ship, new_city_map,
-                                        character_info=character_info,
-                                        stats=stats, log=log,
-                                        active_mission_text=active_mission_text,
-                                        target_y=new_anchor.y,
-                                    )
-                                    log.add(
-                                        f"You touch down on {planet_obj.name}."
-                                    )
+                                        city_game_map.entities.remove(hangar_ship)
+                                    hangar_ship.pos = world.Position(new_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1)
+                                    new_city_map.entities.append(hangar_ship)
+                                    _animate_ship_to_y(context, console, hangar_ship, new_city_map, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text, target_y=new_anchor.y)
+                                    log.add(f'You touch down on {planet_obj.name}.')
                                     if city_player not in new_city_map.entities:
                                         new_city_map.entities.append(city_player)
-                                    # Step the @ off the docked ship at
-                                    # the new planet's hangar area, one
-                                    # cell south of the ship's anchor
-                                    # (matches Earth's "outside the
-                                    # spaceport, below the door" landing
-                                    # convention). Previously the player
-                                    # was reset to the map centroid
-                                    # which felt like a teleport-spawn
-                                    # rather than stepping off a docked
-                                    # ship.
-                                    city_player.pos = world.Position(
-                                        new_anchor.x,
-                                        new_anchor.y + 1,
-                                    )
+                                    city_player.pos = world.Position(new_anchor.x, new_anchor.y + 1)
                                     city_game_map = new_city_map
                                     game_map = new_city_map
                                     player = city_player
                                     ctx.game_map = game_map
                                     ctx.player = player
                                     current_city_id = pid
-                                    current_mode = "city"
-                            # BACK / QUIT fall through to next event.
+                                    current_mode = 'city'
                             continue
-                log.add("A wall blocks your path.")
-            elif code == "occupied":
+                log.add('A wall blocks your path.')
+            elif code == 'occupied':
                 if blocker.ship_id:
                     ship = ship_module.find_ship(blocker.ship_id)
                     if blocker.owned:
-                        # Player's hangar ship - open the menu.
-                        result = _run_ship_menu(
-                            context, ship, player_owned_ship, stats, log,
-                        )
-                        # Sell / Launch are stubs this iteration and
-                        # return the same enum value the caller
-                        # maps to "back to city". View loops inside
-                        # _run_ship_menu and never returns.
+                        result = _run_ship_menu(ctx, ship, player_owned_ship)
                         if result is ShipMenuAction.QUIT:
                             return
-                        if (
-                            result is ShipMenuAction.LAUNCH
-                            and player_owned_ship is not None
-                        ):
-                            # Drive the launch animation and swap
-                            # the active scene to the Sol system.
-                            # The hangar ship entity is what we
-                            # animate up off-screen; it stays in
-                            # ``city_game_map.entities`` so a future
-                            # ESC-in-space return can walk the SAME
-                            # entity back down.
-                            hangar_ship = next(
-                                (e for e in city_game_map.entities
-                                 if e.owned
-                                 and e.ship_id == player_owned_ship.ship_id),
-                                None,
-                            )
+                        if result is ShipMenuAction.LAUNCH and player_owned_ship is not None:
+                            hangar_ship = next((e for e in city_game_map.entities if e.owned and e.ship_id == player_owned_ship.ship_id), None)
                             if hangar_ship is not None:
-                                space_game_map, space_player_entity = (
-                                    _launch_to_space(
-                                        context, console,
-                                        city_game_map, hangar_ship, ship,
-                                        current_city_id=current_city_id,
-                                        city_player=city_player,
-                                        character_info=character_info,
-                                        stats=stats, log=log,
-                                        active_mission_text=active_mission_text,
-                                    )
-                                )
+                                space_game_map, space_player_entity = _launch_to_space(context, console, city_game_map, hangar_ship, ship, current_city_id=current_city_id, city_player=city_player, character_info=character_info, stats=stats, log=log, active_mission_text=active_mission_text)
                                 game_map = space_game_map
                                 player = space_player_entity
                                 ctx.game_map = game_map
                                 ctx.player = player
-                                current_mode = "space"
+                                current_mode = 'space'
                             continue
-                        # VIEW/SELL/BACK return to the city
-                        # (the message log already shows what
-                        # happened for SELL).
                     elif player_owned_ship is not None:
-                        # Player already owns a ship - don't open the
-                        # buy modal; the catalog is essentially sold
-                        # out. Bumping the showroom ship logs a
-                        # single line so the player can move on.
-                        log.add(
-                            "You already have a ship docked in your hangar."
-                        )
+                        log.add('You already have a ship docked in your hangar.')
                     else:
-                        # Showroom ship - open the buy modal.
-                        result = _run_ship_buy(
-                            context, blocker, ship, stats, game_map, log,
-                        )
+                        result = _run_ship_buy(ctx, blocker, ship)
                         if result is ShipBuyOutcome.QUIT:
                             return
                         if result is ShipBuyOutcome.BUY:
                             stats.gold -= ship.price
-                            # Repurpose the showroom entity into the
-                            # player's hangar ship instead of
-                            # allocating a fresh one - keeps the
-                            # ship_id + catalog char/fg link
-                            # automatically and matches the user's
-                            # mental model of ``the ship on the
-                            # tarmac is now theirs``.
                             blocker.pos = world.HANGAR_ANCHOR
                             blocker.owned = True
-                            blocker.name = f"Your Ship: {ship.name}"
-                            player_owned_ship = ship_module.OwnedShip(
-                                ship_id=ship.id,
-                                weapons=(
-                                    "light_laser",
-                                    "heavy_laser",
-                                    "plasma_cannon",
-                                    "light_missile",
-                                    "heavy_missile",
-                                    "emp_missile",
-                                ),
-                                modules=("compact_reactor",),
-                                fuel=ship.max_fuel,
-                                # cargo_used is intentionally NOT
-                                # passed here: OwnedShip.__post_init__
-                                # derives it from self.weapons so the
-                                # cargo HUD and the actual ammo count
-                                # can never drift. Passing cargo_used
-                                # would raise TypeError now that the
-                                # field is init=False.
-                            )
+                            blocker.name = f'Your Ship: {ship.name}'
+                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=('light_laser', 'heavy_laser', 'plasma_cannon', 'light_missile', 'heavy_missile', 'emp_missile'), modules=('compact_reactor',), fuel=ship.max_fuel)
                             ctx.player_owned_ship = player_owned_ship
-                            log.add(
-                                f"You bought the {ship.name} for "
-                                f"{ship.price}g and parked it in "
-                                "your hangar."
-                            )
+                            log.add(f'You bought the {ship.name} for {ship.price}g and parked it in your hangar.')
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
                             short = ship.price - stats.gold
-                            log.add(
-                                f"You cannot afford the {ship.name} "
-                                f"({short}g short)."
-                            )
-                        # BACK: silent.
+                            log.add(f'You cannot afford the {ship.name} ({short}g short).')
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
-                    # The npc_talk dialog gains a "Deliver <title>"
-                    # option whenever the player's active mission
-                    # is one that actually moves goods (i.e. has a
-                    # non-zero ``required_cargo_size``). The current
-                    # roster has exactly one such mission —
-                    # merchants_supply_run_alpha_centauri — whose
-                    # delivery target is the Research Officer at
-                    # ac_station. The cargo-cap check on accept is
-                    # done inside :func:`mission.try_accept_mission`;
-                    # the DELIVER path uses
-                    # :func:`mission.complete_mission` to drop the
-                    # cargo + grant gold in one place.
                     deliver_mission: mission_module.Mission | None = None
                     if player_active_mission is not None:
-                        active_mission_obj = mission_module.find_mission(
-                            player_active_mission.mission_id,
-                        )
-                        # Use is_deliverable_at (NOT just
-                        # required_cargo_size > 0) so the Deliver
-                        # option only appears at the EXACT NPC on
-                        # the EXACT planet this mission targets.
-                        # Wrong-planet delivery would silently fire
-                        # complete_mission and the player would
-                        # lose the cargo without being on the
-                        # station they were sent to.
-                        if mission_module.is_deliverable_at(
-                            active_mission_obj,
-                            npc_obj.id,
-                            current_city_id,
-                        ):
+                        active_mission_obj = mission_module.find_mission(player_active_mission.mission_id)
+                        if mission_module.is_deliverable_at(active_mission_obj, npc_obj.id, current_city_id):
                             deliver_mission = active_mission_obj
-                    result, deliver_in_progress = _run_npc_talk(
-                        context, npc_obj, log,
-                        deliver_mission=deliver_mission,
-                    )
+                    result, deliver_in_progress = _run_npc_talk(ctx, npc_obj, deliver_mission=deliver_mission)
                     if result is TalkOutcome.QUIT:
                         return
                     if result is TalkOutcome.DELIVER:
                         if deliver_in_progress is not None:
-                            mission_module.complete_mission(
-                                deliver_in_progress,
-                                player_owned_ship, stats, log,
-                            )
-                        # DELIVER is terminal here: the active
-                        # mission slot must clear AFTER the complete
-                        # call so the completion log line lands in
-                        # the message log before the HUD re-renders
-                        # without an active mission on the next
-                        # loop iteration.
+                            mission_module.complete_mission(deliver_in_progress, player_owned_ship, stats, log)
                         player_active_mission = None
                         ctx.player_active_mission = None
                     if result is TalkOutcome.WORK:
-                        # Single-mission-slot UX: the player must
-                        # abandon before they can pick up a new
-                        # contract. The dispatcher surfaces a single
-                        # hint so they know the path is Q (quest
-                        # log) instead of leaving them stuck.
                         if player_active_mission is not None:
-                            current = mission_module.find_mission(
-                                player_active_mission.mission_id,
-                            )
+                            current = mission_module.find_mission(player_active_mission.mission_id)
                             giver = npc_module.find_npc(current.giver_npc_id)
-                            log.add(
-                                f"You already have work from {giver.name}. "
-                                "Press Q to view or abandon it."
-                            )
+                            log.add(f'You already have work from {giver.name}. Press Q to view or abandon it.')
                         else:
-                            offerings = mission_module.missions_offered_by(
-                                npc_obj.id,
-                            )
+                            offerings = mission_module.missions_offered_by(npc_obj.id)
                             if not offerings:
-                                log.add(
-                                    f"{npc_obj.name} has no work for you "
-                                    "right now."
-                                )
+                                log.add(f'{npc_obj.name} has no work for you right now.')
                             else:
-                                outcome, picked = _run_mission_offerings(
-                                    context, npc_obj, offerings, log,
-                                )
-                                if (
-                                    outcome is MissionOutcome.ACCEPT
-                                    and picked is not None
-                                ):
-                                    # Cargo-cap check lives in
-                                    # mission.try_accept_mission so the
-                                    # dispatcher stays focused on
-                                    # state transitions. On success
-                                    # the helper logs the accept line
-                                    # + cargo update; on failure it
-                                    # logs the refusal reason and the
-                                    # dispatcher leaves
-                                    # ``player_active_mission``
-                                    # untouched (single-slot UX).
-                                    if mission_module.try_accept_mission(
-                                        picked, player_owned_ship, log,
-                                    ):
-                                        player_active_mission = (
-                                            mission_module.ActiveMission(
-                                                mission_id=picked.id,
-                                            )
-                                        )
+                                outcome, picked = _run_mission_offerings(ctx, npc_obj, offerings)
+                                if outcome is MissionOutcome.ACCEPT and picked is not None:
+                                    if mission_module.try_accept_mission(picked, player_owned_ship, log):
+                                        player_active_mission = mission_module.ActiveMission(mission_id=picked.id)
                                         ctx.player_active_mission = player_active_mission
-                    # BACK: silent.
                 else:
-                    log.add(f"You bump into {blocker.name}.")
-
-
-# ---------------------------------------------------------------------------
-# Top-level flow
-# ---------------------------------------------------------------------------
-
+                    log.add(f'You bump into {blocker.name}.')
 
 def run(context: tcod.context.Context) -> None:
     """Drive the 3 creation screens, then drop into the city game."""
-    # Seed the shared game RNG so combat outcomes are reproducible.
-    # A future iteration will let the player supply this seed.
     import os
     import struct
-    _seed = struct.unpack("I", os.urandom(4))[0]
+    _seed = struct.unpack('I', os.urandom(4))[0]
     seed_rng(_seed)
     while True:
-        outcome, species_id = _run_pick(context, ui.species_menu())
+        outcome, species_id = _run_pick(ctx, ui.species_menu())
         if outcome in (Outcome.QUIT, Outcome.BACK):
             return
-
-        outcome, class_id = _run_pick(context, ui.class_menu())
+        outcome, class_id = _run_pick(ctx, ui.class_menu())
         if outcome is Outcome.QUIT:
             return
         if outcome is Outcome.BACK:
             continue
-
-        outcome = _run_confirm(context, species_id, class_id)
+        outcome = _run_confirm(ctx, species_id, class_id)
         if outcome is Outcome.QUIT:
             return
         if outcome is Outcome.BACK:
             continue
-
         _run_game(context, species_id, class_id)
         return
-
 
 def main() -> None:
     """Top-level entry: load assets, open window, then run the flow."""
     tileset = load_tileset()
     with open_terminal(tileset) as context:
         run(context)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
