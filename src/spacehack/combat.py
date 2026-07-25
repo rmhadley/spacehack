@@ -971,6 +971,117 @@ def run_combat(
             )
             context.present(console)
 
+            # ---- Auto-end-turn guard (outside ``for event``) ----
+            # If ``ap_remaining`` hit 0 from the previous action
+            # (move, fire, target switch), or the player pressed
+            # ``w``, or a flee attempt failed, run the enemy turn
+            # IMMEDIATELY — don't block on the next keypress. The
+            # three paths in the event loop below drive this guard
+            # by setting ``combat_mode = "WAIT"`` (or zeroing AP)
+            # and breaking out of the event loop. Putting this
+            # outside ``for event in tcod.event.wait()`` is the
+            # fix for the bug where the loop blocked on input
+            # after AP reached 0 and the player had to press any
+            # key to advance.
+            if player_state["ap_remaining"] <= 0 or combat_mode == "WAIT":
+                combat_mode = "WAIT"
+                # Execute enemy turn for ALL alive enemies
+                for _ei in enemy_insts:
+                    if not _ei.alive:
+                        continue
+                    start_enemy_turn(_ei)
+                    # Simple enemy AI: try to move closer and fire
+                    _edist = _distance(player_state["pos"], _ei.pos)
+                    # Find matching spec for this enemy via spec_id
+                    _esp = next(
+                        (_sp for _sp in enemy_specs if getattr(_sp, 'id', None) == _ei.spec_id),
+                        enemy_specs[0] if enemy_specs else None,
+                    )
+                    if _esp is None:
+                        continue
+                    if _edist > _esp.ai.preferred_range:
+                        # Move toward player
+                        _dx = 1 if _ei.pos.x < player_state["pos"].x else -1
+                        _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
+                        _ei.pos = world.Position(
+                            _ei.pos.x + _dx,
+                            _ei.pos.y + _dy,
+                        )
+                        _ei.cells_moved_this_turn += 1
+                        _ei.ap_remaining -= 1
+                    # Enemy fires
+                    if _ei.weapons:
+                        _wid = _ei.weapons[0]
+                        _dist = _distance(player_state["pos"], _ei.pos)
+                        _dodge = _calc_dodge_bonus(
+                            player_state.get("cells_moved_this_turn", 0),
+                            int(player_state.get("piloting", 0) * 0.5),
+                        )
+                        _chance = calc_hit_chance(
+                            _wid, _ei.pilot_gunnery, _dist, _dodge,
+                        )
+                        # Sync enemy entity position AFTER AI movement
+                        _e_idx = next(
+                            (_j for _j, _je in enumerate(enemy_insts) if _je is _ei),
+                            -1,
+                        )
+                        if _e_idx >= 0 and _e_idx in _enemy_ents:
+                            _enemy_ents[_e_idx].pos = _ei.pos
+                        # Single roll decides both animation AND damage
+                        _e_hit = RNG.randint(1, 100) <= _chance
+                        _ecx, _ecy = _calc_cam()
+                        _animate_laser_shot(
+                            console, context, game_map,
+                            _ei.pos, player_state["pos"],
+                            is_hit=_e_hit,
+                            cam_x=_ecx, cam_y=_ecy,
+                            view_w=view_w, view_h=view_h,
+                            player_state=player_state,
+                            enemies=enemy_insts,
+                            target_idx=target_idx,
+                            log=log,
+                        )
+                        if _e_hit:
+                            _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
+                                _wid, player_state["hull"],
+                                player_state["shields"],
+                                target_pilot_piloting=player_state.get("piloting", 0),
+                            )
+                            player_state["shields"] = max(0, player_state["shields"] - _sdmg)
+                            player_state["hull"] = _fh
+                            _verb = "glancing hit" if _is_glancing else "hits"
+                            _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!")
+                            if _fh <= 0:
+                                _e_log("Your ship has been destroyed!")
+                                # Explosion at player position
+                                _ecx, _ecy = _calc_cam()
+                                _animate_explosion(
+                                    console, context, game_map,
+                                    player_state["pos"],
+                                    cam_x=_ecx, cam_y=_ecy,
+                                    view_w=view_w, view_h=view_h,
+                                    player_state=player_state,
+                                    enemies=enemy_insts,
+                                    target_idx=target_idx,
+                                    log=log,
+                                )
+                                _result = "DEFEAT"
+                                break
+                        else:
+                            _e_log(f"{_ei.name} misses!")
+                # If DEFEAT happened during the enemy turn, exit
+                # combat now (don't re-render a fresh player turn).
+                if _result is not None:
+                    break
+                # New player turn: reset AP, increment counter,
+                # drop out of WAIT, then ``continue`` so the
+                # top-of-loop render block paints the fresh
+                # player turn BEFORE we block on input again.
+                combat_mode = "DEFAULT"
+                turn += 1
+                start_player_turn(player_state)
+                continue
+
             # ---- Wait for input ----
             for event in tcod.event.wait():
                 if isinstance(event, tcod.event.Quit):
@@ -981,100 +1092,16 @@ def run_combat(
                 sym_name: str = getattr(event.sym, "name", "").lower()
                 sym = event.sym
 
-                # Check if player is out of AP -> auto-end turn
-                if player_state["ap_remaining"] <= 0 or combat_mode == "WAIT":
-                    combat_mode = "WAIT"
-                    # Execute enemy turn for ALL alive enemies
-                    for _ei in enemy_insts:
-                        if not _ei.alive:
-                            continue
-                        start_enemy_turn(_ei)
-                        # Simple enemy AI: try to move closer and fire
-                        _edist = _distance(player_state["pos"], _ei.pos)
-                        # Find matching spec for this enemy via spec_id
-                        _esp = next(
-                            (_sp for _sp in enemy_specs if getattr(_sp, 'id', None) == _ei.spec_id),
-                            enemy_specs[0] if enemy_specs else None,
-                        )
-                        if _esp is None:
-                            continue
-                        if _edist > _esp.ai.preferred_range:
-                            # Move toward player
-                            _dx = 1 if _ei.pos.x < player_state["pos"].x else -1
-                            _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
-                            _ei.pos = world.Position(
-                                _ei.pos.x + _dx,
-                                _ei.pos.y + _dy,
-                            )
-                            _ei.cells_moved_this_turn += 1
-                            _ei.ap_remaining -= 1
-                        # Enemy fires
-                        if _ei.weapons:
-                            _wid = _ei.weapons[0]
-                            _dist = _distance(player_state["pos"], _ei.pos)
-                            _dodge = _calc_dodge_bonus(
-                                player_state.get("cells_moved_this_turn", 0),
-                                int(player_state.get("piloting", 0) * 0.5),
-                            )
-                            _chance = calc_hit_chance(
-                                _wid, _ei.pilot_gunnery, _dist, _dodge,
-                            )
-                            # Sync enemy entity position AFTER AI movement
-                            _e_idx = next(
-                                (_j for _j, _je in enumerate(enemy_insts) if _je is _ei),
-                                -1,
-                            )
-                            if _e_idx >= 0 and _e_idx in _enemy_ents:
-                                _enemy_ents[_e_idx].pos = _ei.pos
-                            # Single roll decides both animation AND damage
-                            _e_hit = RNG.randint(1, 100) <= _chance
-                            _ecx, _ecy = _calc_cam()
-                            _animate_laser_shot(
-                                console, context, game_map,
-                                _ei.pos, player_state["pos"],
-                                is_hit=_e_hit,
-                                cam_x=_ecx, cam_y=_ecy,
-                                view_w=view_w, view_h=view_h,
-                                player_state=player_state,
-                                enemies=enemy_insts,
-                                target_idx=target_idx,
-                                log=log,
-                            )
-                            if _e_hit:
-                                _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                                    _wid, player_state["hull"],
-                                    player_state["shields"],
-                                    target_pilot_piloting=player_state.get("piloting", 0),
-                                )
-                                player_state["shields"] = max(0, player_state["shields"] - _sdmg)
-                                player_state["hull"] = _fh
-                                _verb = "glancing hit" if _is_glancing else "hits"
-                                _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!")
-                                if _fh <= 0:
-                                    _e_log("Your ship has been destroyed!")
-                                    # Explosion at player position
-                                    _ecx, _ecy = _calc_cam()
-                                    _animate_explosion(
-                                        console, context, game_map,
-                                        player_state["pos"],
-                                        cam_x=_ecx, cam_y=_ecy,
-                                        view_w=view_w, view_h=view_h,
-                                        player_state=player_state,
-                                        enemies=enemy_insts,
-                                        target_idx=target_idx,
-                                        log=log,
-                                    )
-                                    _result = "DEFEAT"
-                                    break
-                            else:
-                                _e_log(f"{_ei.name} misses!")
-                    # Start new player turn
-                    if _result is not None:
-                        break
-                    combat_mode = "DEFAULT"
-                    turn += 1
-                    start_player_turn(player_state)
-                    break
+                # End-of-turn logic was hoisted OUT of this event
+                # loop into a top-of-while guard above (right
+                # after ``context.present(console)``). This is the
+                # fix for the bug where the game blocked on a
+                # keypress after AP hit 0. The three triggers —
+                # ``w`` key, ESC flee failure, and AP==0 — all set
+                # ``combat_mode = "WAIT"`` (or zero out
+                # ``ap_remaining``) and ``break`` out of this event
+                # loop; the outer guard then runs the enemy turn
+                # and re-renders the new player turn.
 
                 # [Tab] / [Left] / [Right] -> Cycle target
                 if sym_name in ("tab", "left", "right") and len(enemy_insts) > 1:
