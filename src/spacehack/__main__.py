@@ -503,18 +503,20 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
         render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
     return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
-def _handle_combat_encounter(console, context, player_owned_ship: 'ship_module.OwnedShip', player: world.Entity, game_map: world.GameMap, log: message_log.MessageLog, encounter: tuple[list, list[world.Position]]) -> str:
+def _handle_combat_encounter(ctx, encounter: tuple[list, list[world.Position]]) -> str:
     """Invoke combat for a triggered encounter and handle VICTORY/DEFEAT.
 
     Both the post-move dispatcher and the auto-nav (G-key) interrupt
     route their triggered encounters through this helper so the two
     paths can't drift apart. The helper unpacks
-    ``(specs, positions)`` from the encounter payload, calls
-    :func:`_combat.run_combat` with the same hard-coded base pilot
-    skills (30/30/30) the post-move dispatcher used, and logs the
-    VICTORY/DEFEAT outcome identically so the player sees the same
-    log lines whether they walked into pirates or flew into them
-    via auto-nav.
+    ``(specs, positions)`` from the encounter payload, pulls the
+    player's ship + position from ``ctx.player_owned_ship`` /
+    ``ctx.player`` and the game-map / message-log from ``ctx.game_map``
+    / ``ctx.log``, calls :func:`_combat.run_combat` with the same
+    hard-coded base pilot skills (30/30/30) the post-move dispatcher
+    used, and logs the VICTORY/DEFEAT outcome identically so the player
+    sees the same log lines whether they walked into pirates or flew
+    into them via auto-nav.
 
     Returns the combat result string (``"VICTORY"``, ``"DEFEAT"``,
     ``"FLEE"``) so the caller can decide whether to continue the
@@ -524,15 +526,15 @@ def _handle_combat_encounter(console, context, player_owned_ship: 'ship_module.O
     _nearby_specs, _nearby_positions = encounter
     _ship_cat = ship_module.find_ship(player_owned_ship.ship_id)
     _pilot_skills = {'gunnery': 30, 'piloting': 30, 'engineering': 30}
-    _result = _combat.run_combat(console, context, _ship_cat, player_owned_ship, player.pos, _pilot_skills, _nearby_specs, _nearby_positions, game_map, log)
+    _result = _combat.run_combat(console, ctx.context, _ship_cat, ctx.player_owned_ship, ctx.player.pos, _pilot_skills, _nearby_specs, _nearby_positions, ctx.game_map, ctx.log)
     if _result == 'VICTORY':
         _names = ', '.join((_sp.name for _sp in _nearby_specs))
         log.add(f'You defeated {_names}!')
     elif _result == 'DEFEAT':
-        log.add('Your ship is destroyed!')
+        ctx.log.add('Your ship is destroyed!')
     return _result
 
-def _detect_combat_encounter(player_pos: world.Position, game_map: world.GameMap, system: object) -> tuple[list, list[world.Position]] | None:
+def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) -> tuple[list, list[world.Position]] | None:
     """Run the squad-aware enemy scan and return combat payload, or ``None``.
 
     Extracted from the post-move dispatcher block so both the normal
@@ -951,7 +953,7 @@ def _responsive_sleep(seconds: float) -> None:
 _JUMP_FRAME_S: float = 0.06
 _JUMP_RING_CHARS: tuple[tuple[str, tuple[int, int, int]], ...] = (('*', (255, 200, 100)), ('+', (255, 255, 150)), ('o', (255, 255, 200)), ('O', (200, 200, 255)), ('#', (180, 180, 255)))
 
-def _animate_jump(context: tcod.context.Context, console: tcod.console.Console, game_map: world.GameMap, player_entity: world.Entity, character_info, stats: hud.HudStats, log: message_log.MessageLog, *, active_mission_text: str='') -> None:
+def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entity, *, active_mission_text: str = '') -> None:
     """Render a brief "jump drive" animation before the system swap.
 
     Draws the current space view with an expanding bright explosion
@@ -980,7 +982,7 @@ def _animate_jump(context: tcod.context.Context, console: tcod.console.Console, 
         _sys = solar_system_module.current_system()
         _cam_x = max(0, min(cx - _view_w // 2, _sys.width - _view_w))
         _cam_y = max(0, min(cy - _view_h // 2, _sys.height - _view_h))
-        world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=_view_w, region_h=_view_h, camera_x=_cam_x, camera_y=_cam_y)
+        world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=_view_w, region_h=_view_h, camera_x=_cam_x, camera_y=_cam_y)
         if void:
             context.present(console)
             _responsive_sleep(frame_s)
@@ -1005,16 +1007,16 @@ def _animate_jump(context: tcod.context.Context, console: tcod.console.Console, 
         else:
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=character_info, stats=stats, active_mission=active_mission_text or None)
-        message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        context.present(console)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, active_mission=active_mission_text or None)
+        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        ctx.context.present(console)
         _responsive_sleep(frame_s)
     for rings in range(len(_JUMP_RING_CHARS)):
         _render_frame(rings=rings, flash_white=False)
     _render_frame(rings=0, flash_white=True)
     _render_frame(rings=0, void=True)
 
-def _jump_to_system(*, jp, player_owned_ship, log, target_system_id: str, target_jp_id: str) -> tuple:
+def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tuple:
     """Jump the player ship from ``jp`` (current gate) to
     ``target_jp_id`` (in :attr:`target_system_id`).
 
@@ -1043,15 +1045,15 @@ def _jump_to_system(*, jp, player_owned_ship, log, target_system_id: str, target
     entity and ``player.pos`` mirrors the ship-on-map.
     """
     from . import ship as ship_module_for_jump
-    log.add('Your ship engages the jump drive. Reality blurs.')
+    ctx.log.add('Your ship engages the jump drive. Reality blurs.')
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
-    ship_record = ship_module_for_jump.find_ship(player_owned_ship.ship_id)
+    ship_record = ship_module_for_jump.find_ship(ctx.player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
     new_ship_ent = world.Entity(char=ship_record.char, fg=ship_record.fg, pos=new_pos, name=f'Your Ship: {ship_record.name}', ship_id=ship_record.id, width=ship_record.width, height=ship_record.height, owned=True)
     new_map.entities.append(new_ship_ent)
-    log.add(f'You emerge near {target_system.name}.')
+    ctx.log.add(f'You emerge near {target_system.name}.')
     return (new_map, new_ship_ent)
 
 def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int) -> None:
@@ -1958,7 +1960,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if should_quit(event):
                 return
             if _is_q_press(event):
-                outcome, new_active = _run_quest_log(ctx,)
+                outcome, new_active = _run_quest_log(ctx)
                 if outcome is QuestLogOutcome.QUIT:
                     return
                 if outcome is QuestLogOutcome.ABANDONED:
