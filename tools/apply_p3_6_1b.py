@@ -101,10 +101,38 @@ def apply_hand_fixes(text: str) -> str:
         "outcome = ui.Modal(context, console).run(_render, _update)\n    if outcome is Outcome.CONFIRM:",
     )
 
-    # Fix 3d: revert the ui.Modal call inside _run_confirm.
+    # Fix 3d: revert the ui.Modal call inside _run_confirm ONLY.
+    # Original anchor `return ui.Modal(ctx.context, console).run(_render, _update)`
+    # was too broad -- matched every modal whose update callback is named
+    # `_update` (not a domain-prefixed name like ``update_navigation``).
+    # The over-applied sites: ``_run_goto`` (uses raw SDL, no
+    # ``ui.Modal`` -- wait, ``_run_goto`` does NOT use ``ui.Modal`` at all;
+    # it uses ``context.present(console)`` directly. So FIXED 1 catches
+    # that. The actually-broken over-applications: ``_run_ship_buy``,
+    # ``_run_ship_view``, ``_run_ship_menu``, ``_run_quest_log`` -- all
+    # keep ``ctx`` in their signatures.
+    #
+    # Tighten the anchor by including the unique ``action = ui.update_confirm(event)``
+    # pattern ONLY in ``_run_confirm``'s ``_update`` body (every modal
+    # uses its OWN ``update_<modal>`` helper, not ``update_confirm``).
+    # Plus the closing ``return Outcome.IGNORE\n    return ui.Modal(...)``
+    # adjacency -- ``_run_pick`` has a blank line between them (then
+    # ``outcome = ui.Modal(...)``), so the anchor is unambiguous.
     text = text.replace(
-        "return ui.Modal(ctx.context, console).run(_render, _update)",
-        "return ui.Modal(context, console).run(_render, _update)",
+        "action = ui.update_confirm(event)\n"
+        "        if action is ui.MenuAction.CONFIRM:\n"
+        "            return Outcome.CONFIRM\n"
+        "        if action is ui.MenuAction.BACK:\n"
+        "            return Outcome.BACK\n"
+        "        return Outcome.IGNORE\n"
+        "    return ui.Modal(ctx.context, console).run(_render, _update)",
+        "action = ui.update_confirm(event)\n"
+        "        if action is ui.MenuAction.CONFIRM:\n"
+        "            return Outcome.CONFIRM\n"
+        "        if action is ui.MenuAction.BACK:\n"
+        "            return Outcome.BACK\n"
+        "        return Outcome.IGNORE\n"
+        "    return ui.Modal(context, console).run(_render, _update)",
     )
 
     # Fix 4: ``_animate_jump`` is called from inside ``_run_jump_menu``'s

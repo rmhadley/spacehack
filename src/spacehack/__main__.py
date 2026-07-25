@@ -926,7 +926,7 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
     def _update(event) -> JumpMenuOutcome:
         ctx.context.convert_event(event)
         return update_jump_menu(event)
-    return ui.Modal(context, console).run(_render, _update)
+    return ui.Modal(ctx.context, console).run(_render, _update)
 
 def _responsive_sleep(seconds: float) -> None:
     """Sleep for ``seconds`` while polling SDL events.
@@ -1111,7 +1111,7 @@ def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuy
 
     def _update(event) -> ShipBuyOutcome:
         return update_ship_buy(event, ship, ctx.stats)
-    return ui.Modal(context, console).run(_render, _update)
+    return ui.Modal(ctx.context, console).run(_render, _update)
 
 def render_npc_talk(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, *, screen_width: int, screen_height: int, deliver_mission: mission_module.Mission | None=None, selected: int=0) -> None:
     """Paint the centered NPC-talk dialog into ``console``.
@@ -1830,7 +1830,7 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet, *, active_miss
 
     def _update(event) -> PlanetMenuOutcome:
         return update_planet_menu(event, has_port=has_port)
-    return ui.Modal(context, console).run(_render, _update)
+    return ui.Modal(ctx.context, console).run(_render, _update)
 
 def _animate_ship_to_y(context: tcod.context.Context, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, character_info: dict, stats: hud.HudStats, log: message_log.MessageLog, active_mission_text: str | None, target_y: int, frame_seconds: float=0.08) -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
