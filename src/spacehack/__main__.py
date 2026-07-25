@@ -503,7 +503,7 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
         render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
     return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
-def _handle_combat_encounter(ctx, encounter: tuple[list, list[world.Position]]) -> str:
+def _handle_combat_encounter(ctx, console: tcod.console.Console, encounter: tuple[list, list[world.Position]]) -> str:
     """Invoke combat for a triggered encounter and handle VICTORY/DEFEAT.
 
     Both the post-move dispatcher and the auto-nav (G-key) interrupt
@@ -524,12 +524,12 @@ def _handle_combat_encounter(ctx, encounter: tuple[list, list[world.Position]]) 
     """
     from . import combat as _combat
     _nearby_specs, _nearby_positions = encounter
-    _ship_cat = ship_module.find_ship(player_owned_ship.ship_id)
+    _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id)
     _pilot_skills = {'gunnery': 30, 'piloting': 30, 'engineering': 30}
     _result = _combat.run_combat(console, ctx.context, _ship_cat, ctx.player_owned_ship, ctx.player.pos, _pilot_skills, _nearby_specs, _nearby_positions, ctx.game_map, ctx.log)
     if _result == 'VICTORY':
         _names = ', '.join((_sp.name for _sp in _nearby_specs))
-        log.add(f'You defeated {_names}!')
+        ctx.log.add(f'You defeated {_names}!')
     elif _result == 'DEFEAT':
         ctx.log.add('Your ship is destroyed!')
     return _result
@@ -1956,7 +1956,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
         active_mission_text = mission_module.find_mission(player_active_mission.mission_id).title if player_active_mission is not None else None
         _show_ship_hud = current_mode == 'space' and player_owned_ship is not None
-        _ship_cat = ship_module.find_ship(player_owned_ship.ship_id) if _show_ship_hud else None
+        _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if _show_ship_hud else None
         if current_mode == 'space':
             _location = solar_system_module.current_system().name
         else:
@@ -1987,7 +1987,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if current_mode == 'space' and _is_g_press(event):
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-                    _handle_combat_encounter(ctx, _goto_combat)
+                    _handle_combat_encounter(ctx, console, _goto_combat)
                 continue
             delta = _vim_action(event)
             if delta is None:
@@ -1997,7 +1997,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
                 _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                 if _encounter is not None:
-                    _handle_combat_encounter(ctx, _encounter)
+                    _handle_combat_encounter(ctx, console, _encounter)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
