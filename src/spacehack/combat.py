@@ -1244,6 +1244,11 @@ def run_combat(
                         log=log,
                     )
                     # Resolve the shot
+                    _ws = None
+                    try:
+                        _ws = find_weapon(_wid)
+                    except KeyError:
+                        pass
                     if _is_hit:
                         _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
                             _wid, _target.hull, _target.shields,
@@ -1251,11 +1256,6 @@ def run_combat(
                         )
                         _target.shields = max(0, _target.shields - _sdmg)
                         _target.hull = _fh
-                        _ws = None
-                        try:
-                            _ws = find_weapon(_wid)
-                        except KeyError:
-                            pass
                         _dmg_str = f"{_dmg} damage"
                         if _sdmg > 0:
                             _dmg_str += f" ({_sdmg} absorbed by shields)"
