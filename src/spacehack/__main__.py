@@ -35,6 +35,7 @@ from . import mission as mission_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
 from . import ui
+from .game_context import GameContext
 from .data import solar_systems as solar_systems_module
 from .data.species import find_species
 from .data.classes import find_class
@@ -3065,6 +3066,17 @@ def _run_game(
         "class_name": klass.name,
     }
 
+    ctx = GameContext(
+        context=context,
+        character_info=character_info,
+        log=log,
+        game_map=game_map,
+        player=player,
+        stats=stats,
+        player_owned_ship=player_owned_ship,
+        player_active_mission=player_active_mission,
+    )
+
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
     console = make_console()
@@ -3203,6 +3215,7 @@ def _run_game(
                             abandoned, player_owned_ship, log,
                         )
                     player_active_mission = new_active
+                    ctx.player_active_mission = new_active
                 # BACK: silent (player just closed the overlay).
                 continue
             # M opens the system-map navigation overlay (whole Sol
@@ -3389,6 +3402,8 @@ def _run_game(
                                     target_jp_id=target_jp_id,
                                 )
                                 game_map = new_game_map
+                                ctx.game_map = game_map
+                                ctx.player = player
                                 continue
                             # BACK / IGNORE: fall through to the
                             # planet check below. (If neither jp nor
@@ -3522,6 +3537,8 @@ def _run_game(
                                     city_game_map = new_city_map
                                     game_map = new_city_map
                                     player = city_player
+                                    ctx.game_map = game_map
+                                    ctx.player = player
                                     current_city_id = pid
                                     current_mode = "city"
                             # BACK / QUIT fall through to next event.
@@ -3572,6 +3589,8 @@ def _run_game(
                                 )
                                 game_map = space_game_map
                                 player = space_player_entity
+                                ctx.game_map = game_map
+                                ctx.player = player
                                 current_mode = "space"
                             continue
                         # VIEW/SELL/BACK return to the city
@@ -3624,6 +3643,7 @@ def _run_game(
                                 # would raise TypeError now that the
                                 # field is init=False.
                             )
+                            ctx.player_owned_ship = player_owned_ship
                             log.add(
                                 f"You bought the {ship.name} for "
                                 f"{ship.price}g and parked it in "
@@ -3688,6 +3708,7 @@ def _run_game(
                         # without an active mission on the next
                         # loop iteration.
                         player_active_mission = None
+                        ctx.player_active_mission = None
                     if result is TalkOutcome.WORK:
                         # Single-mission-slot UX: the player must
                         # abandon before they can pick up a new
@@ -3738,6 +3759,7 @@ def _run_game(
                                                 mission_id=picked.id,
                                             )
                                         )
+                                        ctx.player_active_mission = player_active_mission
                     # BACK: silent.
                 else:
                     log.add(f"You bump into {blocker.name}.")
