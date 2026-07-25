@@ -500,7 +500,7 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     console = make_console()
 
     def _render() -> None:
-        render_navigation(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
+        render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
     return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
 def _handle_combat_encounter(console, context, player_owned_ship: 'ship_module.OwnedShip', player: world.Entity, game_map: world.GameMap, log: message_log.MessageLog, encounter: tuple[list, list[world.Position]]) -> str:
@@ -921,7 +921,7 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
         _max_fuel = ship_rec.max_fuel
 
     def _render() -> None:
-        render_jump_menu(console, jp, target_system_id, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, current_fuel=_fuel, max_fuel=_max_fuel, jump_fuel_cost=ship_module.JUMP_FUEL_COST)
+        render_jump_menu(console, ctx, jp, target_system_id, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, current_fuel=_fuel, max_fuel=_max_fuel, jump_fuel_cost=ship_module.JUMP_FUEL_COST)
 
     def _update(event) -> JumpMenuOutcome:
         ctx.context.convert_event(event)
@@ -1107,7 +1107,7 @@ def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuy
     console = make_console()
 
     def _render() -> None:
-        render_ship_buy(console, ship, ctx.stats, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_ship_buy(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> ShipBuyOutcome:
         return update_ship_buy(event, ship, ctx.stats)
@@ -1252,7 +1252,7 @@ def _run_npc_talk(ctx, npc: npc_module.NPC, *, deliver_mission: mission_module.M
     n_options = 1 + (1 if deliver_mission is not None else 0)
 
     def _render() -> None:
-        render_npc_talk(console, npc, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, deliver_mission=deliver_mission, selected=selected)
+        render_npc_talk(console, ctx, npc, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, deliver_mission=deliver_mission, selected=selected)
 
     def _update(event) -> TalkOutcome:
         nonlocal selected
@@ -1406,7 +1406,7 @@ def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_mo
     selected = 0
 
     def _render() -> None:
-        render_mission_offerings(console, npc, offerings, selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_mission_offerings(console, ctx, npc, offerings, selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> MissionOutcome:
         nonlocal selected
@@ -1511,7 +1511,7 @@ def _run_quest_log(ctx) -> tuple[QuestLogOutcome, mission_module.ActiveMission |
     confirm_abandon = False
 
     def _render() -> None:
-        render_quest_log(console, ctx.player_active_mission, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_quest_log(console, ctx, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> QuestLogOutcome:
         nonlocal confirm_abandon
@@ -1671,7 +1671,7 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     selected = 0
 
     def _render() -> None:
-        render_ship_menu(console, ship, ctx.player_owned_ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_ship_menu(console, ctx, ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> ShipMenuAction:
         nonlocal selected
@@ -1714,7 +1714,7 @@ def _run_ship_view(ctx, ship: ship_module.Ship) -> None:
     console = make_console()
 
     def _render() -> None:
-        render_ship_view(console, ship, ctx.player_owned_ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_ship_view(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> ShipViewOutcome:
         if isinstance(event, tcod.event.KeyDown):
@@ -1826,7 +1826,7 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet, *, active_miss
     console = make_console()
 
     def _render() -> None:
-        render_planet_menu(console, planet_obj, has_port=has_port)
+        render_planet_menu(console, ctx, planet_obj, has_port=has_port)
 
     def _update(event) -> PlanetMenuOutcome:
         return update_planet_menu(event, has_port=has_port)

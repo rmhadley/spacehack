@@ -1,10 +1,10 @@
 """One-shot script for P3.6.1b application.
 
 Reads the AST-transformer dry-run output at ``/tmp/migrated_main.py``,
-applies 8 BLOCKER hand-fixes the dry-run couldn't handle, then
+applies 14 BLOCKER hand-fixes the dry-run couldn't handle, then
 copies the result over ``spacehack/src/spacehack/__main__.py``.
 
-**8 BLOCKER hand-fixes** (in apply order):
+**14 BLOCKER hand-fixes** (in apply order):
 
 1. ``ctx.present(console)`` -> ``ctx.context.present(console)``
    in modal bodies that bypass ``ui.Modal`` (currently just
@@ -42,7 +42,7 @@ copies the result over ``spacehack/src/spacehack/__main__.py``.
    renamed to ``ctx`` -- but ``_animate_jump``'s signature is
    unchanged. Re-pair the call site.
 
-5. (NEW) ``_run_pick(ctx, ...)`` and ``_run_confirm(ctx, ...)``
+5. ``_run_pick(ctx, ...)`` and ``_run_confirm(ctx, ...)``
    call-sites in :func:`run` reverted to ``(context, ...)`` so
    they match the reverted signatures from 3a+3b. The AST
    transformer's cross-modal call-site rewrite fires UNCONDITIONALLY
@@ -51,6 +51,49 @@ copies the result over ``spacehack/src/spacehack/__main__.py``.
    rename. THIS was the bug the user hit on first launch:
    ``NameError: name 'ctx' is not defined`` at the first
    ``_run_pick(ctx, ui.species_menu())`` call.
+
+6. ``render_navigation(console, ...)`` -> ``render_navigation(console, ctx, ...)``.
+   ``render_navigation``'s signature was rewritten to
+   ``(console, ctx, *, screen_width, screen_height, ship_pos, ...)``
+   but the call site inside ``_run_navigation``'s ``_render``
+   closure was only dropped of loose args -- ``ctx`` was NOT
+   inserted. Insert it.
+
+7. ``render_jump_menu(console, ...)`` -> ``render_jump_menu(console, ctx, ...)``.
+   Same problem as 6 for ``render_jump_menu``. The new sig is
+   ``(console, ctx, jp, target_system_id, *, ...)``.
+
+8. ``render_ship_buy(console, ship, ctx.stats, ...)`` ->
+   ``render_ship_buy(console, ctx, ship, ...)``.
+   Two-part fix:
+   a) Insert ``ctx`` (new sig is ``(console, ctx, ship, *, ...)``).
+   b) Remove the now-orphan ``ctx.stats`` positional -- the new
+      body reads ``ctx.stats`` internally instead of receiving it
+      as an arg.
+
+9. ``render_npc_talk(console, ...)`` -> ``render_npc_talk(console, ctx, ...)``.
+   Same problem as 6 for ``render_npc_talk``.
+
+10. ``render_mission_offerings(console, ...)`` ->
+    ``render_mission_offerings(console, ctx, ...)``. Same as 6.
+
+11. ``render_quest_log(console, ctx.player_active_mission, ...)`` ->
+    ``render_quest_log(console, ctx, ...)``. Insert ``ctx`` AND
+    drop the orphan ``ctx.player_active_mission`` positional --
+    the new body reads ``ctx.player_active_mission`` internally.
+
+12. ``render_ship_menu(console, ship, ctx.player_owned_ship, ...)`` ->
+    ``render_ship_menu(console, ctx, ship, ...)``. Insert ``ctx``
+    AND drop orphan ``ctx.player_owned_ship`` -- new body reads
+    it via ``ctx``.
+
+13. ``render_ship_view(console, ship, ctx.player_owned_ship, ...)`` ->
+    ``render_ship_view(console, ctx, ship, ...)``. Same dual fix
+    as 12.
+
+14. ``render_planet_menu(console, planet_obj, has_port=has_port)`` ->
+    ``render_planet_menu(console, ctx, planet_obj, has_port=has_port)``.
+    Just insert ``ctx``.
 
 **Known NOT-handled**:
 
@@ -61,6 +104,14 @@ copies the result over ``spacehack/src/spacehack/__main__.py``.
 - ``update_X`` callback migration -- deferred; their signatures
   stay loose-parameter and the call sites still close over
   ``ctx.X`` from the outer modal scope.
+
+**External render_X calls NOT touched**:
+``message_log.render_message_log``, ``world.render_world_view``,
+``world.render_world``, ``hud.render_hud`` -- their signatures
+live in external modules that are NOT in TARGET_FUNCTIONS, so
+they were not migrated. Calls that pass ``ctx.log`` /
+``ctx.game_map`` bind correctly to those unchanged external
+sig slots (just changing the source of the value).
 """
 from __future__ import annotations
 
@@ -72,7 +123,7 @@ TARGET_PATH = Path("src/spacehack/__main__.py")
 
 
 def apply_hand_fixes(text: str) -> str:
-    """Apply the 3 BLOCKER hand-fixes to the dry-run output."""
+    """Apply the 14 BLOCKER hand-fixes to the dry-run output."""
     # Fix 1 + 2: ctx.present / ctx.convert_event -> ctx.context.X
     # Apply globally; these patterns only appear in modal bodies
     # that use raw Context APIs (NOT through ui.Modal).
@@ -102,22 +153,12 @@ def apply_hand_fixes(text: str) -> str:
     )
 
     # Fix 3d: revert the ui.Modal call inside _run_confirm ONLY.
-    # Original anchor `return ui.Modal(ctx.context, console).run(_render, _update)`
-    # was too broad -- matched every modal whose update callback is named
-    # `_update` (not a domain-prefixed name like ``update_navigation``).
-    # The over-applied sites: ``_run_goto`` (uses raw SDL, no
-    # ``ui.Modal`` -- wait, ``_run_goto`` does NOT use ``ui.Modal`` at all;
-    # it uses ``context.present(console)`` directly. So FIXED 1 catches
-    # that. The actually-broken over-applications: ``_run_ship_buy``,
-    # ``_run_ship_view``, ``_run_ship_menu``, ``_run_quest_log`` -- all
-    # keep ``ctx`` in their signatures.
-    #
-    # Tighten the anchor by including the unique ``action = ui.update_confirm(event)``
-    # pattern ONLY in ``_run_confirm``'s ``_update`` body (every modal
-    # uses its OWN ``update_<modal>`` helper, not ``update_confirm``).
-    # Plus the closing ``return Outcome.IGNORE\n    return ui.Modal(...)``
-    # adjacency -- ``_run_pick`` has a blank line between them (then
-    # ``outcome = ui.Modal(...)``), so the anchor is unambiguous.
+    # Tightened to a multi-line anchor that includes _run_confirm's
+    # unique ``action = ui.update_confirm(event)`` (no other modal
+    # uses that helper), the closing ``return Outcome.IGNORE`` line,
+    # and the adjacent ``return ui.Modal(...)`` call (no blank line
+    # between them, vs _run_pick which has a blank line + ``outcome =
+    # ui.Modal(...)``).
     text = text.replace(
         "action = ui.update_confirm(event)\n"
         "        if action is ui.MenuAction.CONFIRM:\n"
@@ -150,13 +191,77 @@ def apply_hand_fixes(text: str) -> str:
     # regardless of which function is the caller's body -- because
     # ``visit_Call`` fires for any ``_XXX`` whose name is in
     # ``TARGET_FUNCTIONS``, even from ``run()`` (NOT in TARGETS).
-    #
-    # So every caller in ``run()`` now passes ``ctx`` which is NOT
-    # in scope there (only ``context`` is). Fix: revert the call
-    # site first arg from ``ctx`` to ``context`` so it matches the
-    # reverted signature.
     text = text.replace("_run_pick(ctx, ", "_run_pick(context, ")
     text = text.replace("_run_confirm(ctx, ", "_run_confirm(context, ")
+
+    # Fixes 6-14: render_X call-site ctx insertion.
+    # The AST transformer rewrote 9 __main__-internal render_X
+    # function signatures to insert ``ctx: GameContext`` as 2nd
+    # positional, but at every call site (inside ``_render``
+    # closures) it ONLY dropped loose-param args (renaming
+    # ``stats`` -> ``ctx.stats``, etc.) -- it did NOT insert the
+    # new ``ctx`` positional. Result: arguments slide rightward
+    # by one slot, so ``ctx.stats`` lands as a stray positional
+    # arg and crashes with "missing positional" /
+    # "got multiple values" / "HudStats has no attribute 'name'"
+    # (the HudStats.name crash surfaced at the ship-buy modal).
+
+    # Fix 6: render_navigation -- INSERT ctx after console.
+    text = text.replace(
+        "render_navigation(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)",
+        "render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)",
+    )
+
+    # Fix 7: render_jump_menu -- INSERT ctx after console.
+    text = text.replace(
+        "render_jump_menu(console, jp, target_system_id",
+        "render_jump_menu(console, ctx, jp, target_system_id",
+    )
+
+    # Fix 8: render_ship_buy -- INSERT ctx + REMOVE ctx.stats
+    # (the new sig drops `stats`; body reads ctx.stats internally).
+    text = text.replace(
+        "render_ship_buy(console, ship, ctx.stats, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+        "render_ship_buy(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+    )
+
+    # Fix 9: render_npc_talk -- INSERT ctx after console.
+    text = text.replace(
+        "render_npc_talk(console, npc, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, deliver_mission=deliver_mission, selected=selected)",
+        "render_npc_talk(console, ctx, npc, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, deliver_mission=deliver_mission, selected=selected)",
+    )
+
+    # Fix 10: render_mission_offerings -- INSERT ctx after console.
+    text = text.replace(
+        "render_mission_offerings(console, npc, offerings, selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+        "render_mission_offerings(console, ctx, npc, offerings, selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+    )
+
+    # Fix 11: render_quest_log -- INSERT ctx + REMOVE ctx.player_active_mission
+    # (new sig drops that positional; body reads ctx.player_active_mission).
+    text = text.replace(
+        "render_quest_log(console, ctx.player_active_mission, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+        "render_quest_log(console, ctx, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+    )
+
+    # Fix 12: render_ship_menu -- INSERT ctx + REMOVE ctx.player_owned_ship
+    # (new sig drops that positional; body reads ctx.player_owned_ship).
+    text = text.replace(
+        "render_ship_menu(console, ship, ctx.player_owned_ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+        "render_ship_menu(console, ctx, ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+    )
+
+    # Fix 13: render_ship_view -- INSERT ctx + REMOVE ctx.player_owned_ship.
+    text = text.replace(
+        "render_ship_view(console, ship, ctx.player_owned_ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+        "render_ship_view(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)",
+    )
+
+    # Fix 14: render_planet_menu -- INSERT ctx after console.
+    text = text.replace(
+        "render_planet_menu(console, planet_obj, has_port=has_port)",
+        "render_planet_menu(console, ctx, planet_obj, has_port=has_port)",
+    )
 
     return text
 
