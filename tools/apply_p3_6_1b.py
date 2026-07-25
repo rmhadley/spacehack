@@ -1,10 +1,10 @@
 """One-shot script for P3.6.1b application.
 
 Reads the AST-transformer dry-run output at ``/tmp/migrated_main.py``,
-applies 3 BLOCKER hand-fixes the dry-run couldn't handle, then
+applies 8 BLOCKER hand-fixes the dry-run couldn't handle, then
 copies the result over ``spacehack/src/spacehack/__main__.py``.
 
-**3 BLOCKER hand-fixes**:
+**8 BLOCKER hand-fixes** (in apply order):
 
 1. ``ctx.present(console)`` -> ``ctx.context.present(console)``
    in modal bodies that bypass ``ui.Modal`` (currently just
@@ -22,16 +22,35 @@ copies the result over ``spacehack/src/spacehack/__main__.py``.
    migration the call becomes ``ctx.convert_event(event)`` --
    prefix with ``ctx.context.``.
 
-3. ``_run_pick`` and ``_run_confirm`` reverted to take raw
+3a. ``_run_pick`` reverted to take raw
    ``context: tcod.context.Context`` instead of ``ctx:
-   GameContext``. Their call sites are in the character-creation
-   loop (``_run`` dispatcher) which fires BEFORE :func:`_run_game`
-   constructs the main ``ctx`` -- so a ``ctx`` argument would be
-   None. Easiest fix is to carve these two functions out of
-   transformation: revert their signatures back to ``(context,
-   menu)`` and ``(context, species_id, class_id)`` and update
-   their internal ``ui.Modal(ctx.context, console)`` calls to
-   ``ui.Modal(context, console)``.
+   GameContext``. Its caller (:func:`run`) is the character-creation
+   dispatcher which fires BEFORE :func:`_run_game` constructs the
+   main ``ctx`` -- so a ``ctx`` argument would be None.
+
+3b. Same as 3a for ``_run_confirm``.
+
+3c. Revert ``_run_pick``'s internal ``ui.Modal(ctx.context, console)``
+   call back to ``ui.Modal(context, console)`` -- since its
+   parameter is now named ``context`` again.
+
+3d. Same as 3c for ``_run_confirm``.
+
+4. ``_animate_jump(ctx, ...)`` -> ``_animate_jump(ctx.context, ...)``.
+   ``_animate_jump`` is called from inside ``_run_jump_menu``'s
+   body (TARGET_FUNCTIONS), so its call-site ``context`` arg got
+   renamed to ``ctx`` -- but ``_animate_jump``'s signature is
+   unchanged. Re-pair the call site.
+
+5. (NEW) ``_run_pick(ctx, ...)`` and ``_run_confirm(ctx, ...)``
+   call-sites in :func:`run` reverted to ``(context, ...)`` so
+   they match the reverted signatures from 3a+3b. The AST
+   transformer's cross-modal call-site rewrite fires UNCONDITIONALLY
+   for any ``_XXX`` whose name is in ``TARGET_FUNCTIONS``, so
+   even call-sites in non-TARGET bodies like :func:`run` got the
+   rename. THIS was the bug the user hit on first launch:
+   ``NameError: name 'ctx' is not defined`` at the first
+   ``_run_pick(ctx, ui.species_menu())`` call.
 
 **Known NOT-handled**:
 
@@ -95,6 +114,21 @@ def apply_hand_fixes(text: str) -> str:
     # and still takes raw ``context: tcod.context.Context`` -- so we
     # need to prefix with ``ctx.context.`` on every call site:
     text = text.replace("_animate_jump(ctx, ", "_animate_jump(ctx.context, ")
+
+    # Fix 5: ``_run_pick`` + ``_run_confirm`` were reverted to take raw
+    # ``context`` in their signatures (Fixes 3a + 3b), but the AST
+    # transformer's cross-modal call-site rewrite also renamed every
+    # CALLER's ``_run_pick(context, ...)`` to ``_run_pick(ctx, ...)``
+    # regardless of which function is the caller's body -- because
+    # ``visit_Call`` fires for any ``_XXX`` whose name is in
+    # ``TARGET_FUNCTIONS``, even from ``run()`` (NOT in TARGETS).
+    #
+    # So every caller in ``run()`` now passes ``ctx`` which is NOT
+    # in scope there (only ``context`` is). Fix: revert the call
+    # site first arg from ``ctx`` to ``context`` so it matches the
+    # reverted signature.
+    text = text.replace("_run_pick(ctx, ", "_run_pick(context, ")
+    text = text.replace("_run_confirm(ctx, ", "_run_confirm(context, ")
 
     return text
 

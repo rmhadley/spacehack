@@ -2130,15 +2130,15 @@ def run(context: tcod.context.Context) -> None:
     _seed = struct.unpack('I', os.urandom(4))[0]
     seed_rng(_seed)
     while True:
-        outcome, species_id = _run_pick(ctx, ui.species_menu())
+        outcome, species_id = _run_pick(context, ui.species_menu())
         if outcome in (Outcome.QUIT, Outcome.BACK):
             return
-        outcome, class_id = _run_pick(ctx, ui.class_menu())
+        outcome, class_id = _run_pick(context, ui.class_menu())
         if outcome is Outcome.QUIT:
             return
         if outcome is Outcome.BACK:
             continue
-        outcome = _run_confirm(ctx, species_id, class_id)
+        outcome = _run_confirm(context, species_id, class_id)
         if outcome is Outcome.QUIT:
             return
         if outcome is Outcome.BACK:
