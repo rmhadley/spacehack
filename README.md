@@ -124,7 +124,7 @@ Add new SCAN'd helpers to the `SCAN` tuple in `tools/audit_loose_refs.py` once t
 * **Atomic commits.** Each commit is one self-contained change (one refactor step, one feature, or one bug fix) with a descriptive message. Non-trivial work lands as a sequence of atomic commits, not one mega-commit.
 * **Idempotent tooling.** Migration and audit scripts are safe to re-run without double-inserting. Anchors on unique substrings; asserts on count==1; early-exits if the new content is already present.
 * **Gates beat playtests.** Catch a regression class by extending the audit's `SCAN` list and `LOOSE` set, not by waiting for someone to hit it in-game.
-* **Terseness over verbosity.** Internal helpers, documentation, and review notes lean terse. Future readers should be able to land in the codebase quickly after a context wipe.
+* **Terse, code-shape documentation.** Internal helpers, docs, and review notes assume a skim-don't-read reader. Optimize for the future-after-context-wipe reader, not the present-expert.
 
 ## Tweaking
 
