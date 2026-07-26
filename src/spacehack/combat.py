@@ -1379,6 +1379,11 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     try:
         _ship_cat = _ship_module.find_ship(ctx.player_owned_ship.ship_id)
     except (KeyError, AttributeError):
+        # Corrupted ship_id is a save-file or programmer bug; surface
+        # it in the message log so a player who triggered it sees why
+        # combat silently fled, rather than the encounter vanishing
+        # with no explanation.
+        ctx.log.add("Warning: ship catalog lookup failed; fleeing combat.")
         return "FLEE"
     _result = run_combat(
         console,
