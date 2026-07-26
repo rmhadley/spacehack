@@ -363,7 +363,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             price = _unit_price(ctx, planet_id, gid)
             stock = _stocks.get(gid, 0)
             price_label = f"{price:>5}$"
-            suffix = f"({stock})"
+            suffix = f"({stock:>3})"
             is_sel = _focus == 0 and i == _sel
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
             paint(2, cy + i, _trade_line(good.name, price_label, suffix, is_sel), fg=fg)
@@ -379,7 +379,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             good = find_trade_good(gid)
             sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
             price_label = f"{sell_price:>5}$"
-            suffix = f"({qty})"
+            suffix = f"({qty:>3})"
             col_x = max_w // 2 + 2
             is_sel = _focus == 1 and i == _sel
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
