@@ -775,15 +775,44 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
         _gx, _gy = _target
         _dx = 1 if _gx > _cx else -1 if _gx < _cx else 0
         _dy = 1 if _gy > _cy else -1 if _gy < _cy else 0
-        # Prefer cardinal direction that reduces the larger gap
-        if abs(_dx) >= abs(_dy):
-            _try_first = [(_dx, 0), (0, _dy), (_dx, _dy)]
+        # Build ordered direction list with slip-around fallbacks.
+        # Priority: primary → cardinals toward target → perpendicular
+        # slip diagonals → lateral cardinals → reverse.
+        _to_try: list[tuple[int, int]] = []
+        _seen: set[tuple[int, int]] = set()
+        def _add_dir(tdx: int, tdy: int) -> None:
+            if tdx == 0 and tdy == 0:
+                return
+            if (tdx, tdy) not in _seen:
+                _seen.add((tdx, tdy))
+                _to_try.append((tdx, tdy))
+        if _dx != 0 and _dy != 0:
+            # Diagonal target: diagonal → cardinals → slip diagonals → laterals.
+            _add_dir(_dx, _dy)
+            if abs(_dx) >= abs(_dy):
+                _add_dir(_dx, 0)
+                _add_dir(0, _dy)
+            else:
+                _add_dir(0, _dy)
+                _add_dir(_dx, 0)
+            # Perpendicular slip diagonals (slide around obstacles).
+            _add_dir(_dx, -_dy)
+            _add_dir(-_dx, _dy)
+            # Lateral cardinals not yet covered.
+            for _tx, _ty in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                _add_dir(_tx, _ty)
         else:
-            _try_first = [(0, _dy), (_dx, 0), (_dx, _dy)]
+            # Cardinal target: primary → slip diagonals → laterals → reverse.
+            if _dx != 0:
+                for _tdx, _tdy in [(_dx, 0), (_dx, 1), (_dx, -1),
+                                   (0, 1), (0, -1), (-_dx, 0)]:
+                    _add_dir(_tdx, _tdy)
+            else:  # _dy != 0
+                for _tdx, _tdy in [(0, _dy), (1, _dy), (-1, _dy),
+                                   (1, 0), (-1, 0), (0, -_dy)]:
+                    _add_dir(_tdx, _tdy)
         _chosen_dx = _chosen_dy = 0
-        for _tdx, _tdy in _try_first:
-            if _tdx == 0 and _tdy == 0:
-                continue
+        for _tdx, _tdy in _to_try:
             _can_move = True
             for _m in _members:
                 _nx = _m.pos.x + _tdx
@@ -796,8 +825,8 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
                 _chosen_dx, _chosen_dy = _tdx, _tdy
                 break
         if _chosen_dx == 0 and _chosen_dy == 0:
-            # All directions blocked (e.g. against the sun). Clear target
-            # so next tick picks a fresh patrol destination.
+            # All directions blocked (e.g. against the sun or another squad).
+            # Clear target so next tick picks a fresh patrol destination.
             ctx.pirate_targets[_sid] = None
             continue
         # Move all members in the chosen direction
