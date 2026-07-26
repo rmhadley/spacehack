@@ -251,6 +251,18 @@ def _is_m_press(event: tcod.event.Event) -> bool:
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('M', 'm')
 
+def _is_period_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``.`` key (period).
+
+    Period = wait one turn. In space mode this triggers the same
+    post-move tick logic (combat detection, pirate movement, shield
+    regen) without actually moving the player ship.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    return getattr(event.sym, 'name', '') == 'PERIOD'
+
+
 def _is_g_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``G`` key (or its
     lowercase alias).
@@ -2184,6 +2196,17 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     # auto-complete) but the local copy is stale.
                     player_active_mission = ctx.player_active_mission
                 continue
+            # Period = wait one turn (space mode: pirates move, shields regen).
+            if _is_period_press(event):
+                if current_mode == 'space' and (player_owned_ship is not None):
+                    _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
+                    if _encounter is not None:
+                        combat._handle_combat_encounter(ctx, console, _encounter)
+                        player_active_mission = ctx.player_active_mission
+                    _move_pirates(ctx, game_map)
+                ctx.log.add('You wait.')
+                continue
+
             delta = _vim_action(event)
             if delta is None:
                 continue
