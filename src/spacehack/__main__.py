@@ -560,7 +560,7 @@ def _add_bounty_spawns_to_map(
         ))
         if _system is not None:
             _landmark = _nearest_body_name(_bs.pos, _system)
-            ctx.log.add(f"Sensor ping: bounty target detected near {_landmark}.")
+            ctx.log.add_colored(f"Sensor ping: bounty target detected near {_landmark}.", message_log.COLOR_IMPORTANT_EVENT)
 
 
 def _spawn_procedural_pirates(
@@ -687,8 +687,9 @@ def _spawn_procedural_pirates(
             )
             for pos, sid in _all_procedural
         ]
-        ctx.log.add(
-            f"Sensor ping: {_total_spawned} unknown contact{('s' if _total_spawned != 1 else '')} detected in the area."
+        ctx.log.add_colored(
+            f"Sensor ping: {_total_spawned} unknown contact{('s' if _total_spawned != 1 else '')} detected in the area.",
+            message_log.COLOR_IMPORTANT_EVENT,
         )
 
 
@@ -1352,7 +1353,7 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     _total_fine = 0
     for gid, qty, fine in _confiscated:
         good = _ftg(gid)
-        ctx.log.add(f"Contraband {good.name} x{qty} confiscated by militia!")
+        ctx.log.add_colored(f"Contraband {good.name} x{qty} confiscated by militia!", message_log.COLOR_IMPORTANT_EVENT)
         _total_fine += fine
         remaining = owned.inventory.get(gid, 0) - qty
         if remaining <= 0:
@@ -1362,7 +1363,7 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
             owned.inventory[gid] = remaining
 
     ctx.stats.credits = max(0, ctx.stats.credits - _total_fine)
-    ctx.log.add(f"Militia levies a fine of {_total_fine}$ for contraband.")
+    ctx.log.add_colored(f"Militia levies a fine of {_total_fine}$ for contraband.", message_log.COLOR_IMPORTANT_EVENT)
 
 
 def _responsive_sleep(seconds: float) -> None:

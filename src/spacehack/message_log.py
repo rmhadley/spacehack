@@ -23,6 +23,9 @@ COLOR_PLAYER_ACTION: tuple[int, int, int] = (100, 235, 115)       # bright green
 COLOR_ENEMY_ACTION: tuple[int, int, int] = (255, 95, 95)          # bright red for enemy actions
 COLOR_COMBAT_EVENT: tuple[int, int, int] = (255, 200, 80)         # gold for system events (combat start, victory, etc.)
 
+# Alert / important-event color
+COLOR_IMPORTANT_EVENT: tuple[int, int, int] = (255, 70, 70)       # bright red for non-combat alerts (sensor contacts, militia scans)
+
 
 @dataclass
 class MessageEntry:
