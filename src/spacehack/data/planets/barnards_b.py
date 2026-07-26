@@ -74,5 +74,6 @@ SPEC = PlanetSpec(
         ("food_rations", 15),
         ("machine_parts", 10),
         ("fuel_cells", 12),
+        ("weapons_blackmarket", 8),
     ),
 )

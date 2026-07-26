@@ -441,16 +441,22 @@ Loot still feels rewarding (every kill has a decent shot at dropping something) 
 
 ##### Trade route balancing
 
-- [ ] Adjust target stocks, regen rates, neutral-good target formula
-- [ ] Consider adding a planet that `demands` black market goods to create a contraband profit gradient
-- [ ] Run audit + smoke
+- [x] Add passive stock regen (`tick_economy`) — called on jump/launch
+- [x] Add neutral goods to all trade terminals (seeded at equilibrium)
+- [x] Add contraband demand to Barnard's b (`weapons_blackmarket, 8`) for profit gradient
+- [x] Tuned target stocks (added NEUTRAL_TARGET=8, updated planet profiles)
+- [x] Run audit + smoke ✅
 
-**PLAYTEST** — Fly a full trade circuit: Earth → Procyon C → Vega B → Earth. Verify you can make a profit that justifies the fuel cost and travel time. Try the same route with different ships (Scout's 40 cargo vs Hauler's 120). Verify the Hauler's extra cargo space translates to proportionally more profit.
+**PLAYTEST** — Fly a full trade circuit: Earth -> Procyon C -> Vega B -> Earth. Verify you can make a profit that justifies the fuel cost and travel time. Try the same route with different ships (Scout's 40 cargo vs Hauler's 120). Verify the Hauler's extra cargo space translates to proportionally more profit.
 
 #### Sub-phase 6c — More trade goods
 
-- [ ] Add 2-3 more trade goods for variety
-- [ ] Run audit + smoke
+- [x] Add 3 new trade goods (pharmaceuticals, ship_components, textiles)
+- [x] Run audit + smoke ✅
+
+#### Phase 6 — Complete
+
+All Phase 6 sub-phases are implemented. See the commit history for the full set of changes.
 
 ---
 

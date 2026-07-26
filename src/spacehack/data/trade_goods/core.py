@@ -1,4 +1,4 @@
-"""Trade goods catalog: the 10 initial goods for v1.
+"""Trade goods catalog: the 13 initial goods for v1.
 
 Each entry is a :class:`TradeGood` frozen dataclass. Goods are grouped
 by category: biological, industrial, raw_material, luxury, tech, contraband.
@@ -27,6 +27,15 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         volume=1,
         rarity=0.4,
     ),
+    TradeGood(
+        id="pharmaceuticals",
+        name="Pharmaceuticals",
+        description="Advanced gene-tailored therapeutics and performance enhancers.",
+        base_price=90,
+        category="biological",
+        volume=1,
+        rarity=0.3,
+    ),
     # --- Industrial ---
     TradeGood(
         id="electronics",
@@ -45,6 +54,24 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         category="industrial",
         volume=2,
         rarity=0.5,
+    ),
+    TradeGood(
+        id="ship_components",
+        name="Ship Components",
+        description="Structural panels, conduits, and drive-assembly spares.",
+        base_price=110,
+        category="industrial",
+        volume=2,
+        rarity=0.4,
+    ),
+    TradeGood(
+        id="textiles",
+        name="Textiles",
+        description="Bolts of synthetic fabric and weatherproof weaves.",
+        base_price=35,
+        category="industrial",
+        volume=2,
+        rarity=0.6,
     ),
     # --- Raw Materials ---
     TradeGood(
