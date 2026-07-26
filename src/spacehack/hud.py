@@ -416,10 +416,6 @@ def render_combat_hud(
                         bg=(255, 255, 255),
                     )
         y += 1
-        regen_line = f"Regen {_regen_rate}/10"
-        regen_color = COLOR_SHIELD_BAR if _regen_rate > 0 else COLOR_VALUE_DIM
-        console.print(x=hud_x, y=y, string=regen_line, fg=regen_color)
-        y += 1
 
     # Hull bar
     hull_line = f"Hull {_bar_str(phull, pmax_hull)} {hull_pct_display}%"
@@ -507,17 +503,17 @@ def render_combat_hud(
             # to base weapon accuracy when no target is selected.
             _w_hc = hit_chances.get(wid) if hit_chances else None
             if _w_hc is not None:
-                stats_line = f"     DMG {ws.damage}  HIT {_w_hc}%"
+                stats_line = f"     DMG {ws.damage} HIT {_w_hc}%"
             else:
-                stats_line = f"     DMG {ws.damage}  ACC {ws.accuracy}%"
+                stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%"
             console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
             y += 1
 
             if ws.slot_type == "energy":
-                cost_line = f"     POW {ws.power_cost}  AP {ws.ap_cost}"
+                cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
             else:
                 ammo_str = f"{wammo}" if wammo >= 0 else "∞"
-                cost_line = f"     AMMO {ammo_str}  AP {ws.ap_cost}"
+                cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
             console.print(x=hud_x, y=y, string=cost_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
             y += 1
 
