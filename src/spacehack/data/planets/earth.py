@@ -12,9 +12,11 @@ from __future__ import annotations
 
 from ... import world
 from . import PlanetSpec
+from .themes import EARTH
 
 
 SPEC = PlanetSpec(
+    theme=EARTH,
     id="earth",
     name="Earth",
     char="o",

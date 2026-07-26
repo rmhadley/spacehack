@@ -34,21 +34,11 @@ from __future__ import annotations
 
 from ... import world
 from . import PlanetSpec
-
-
-# Station colour palette: sterile cool steel, polished metal deck,
-# clinical white-grey — reads as an orbital research outpost rather
-# than a planetary surface city.
-AC_STATION_THEME = world.PlanetTheme(
-    floor=world.Tile(
-        kind="floor", char="\u2591", walkable=True,
-        fg=(180, 210, 240), bg=(65, 85, 105),
-    ),
-)
+from .themes import STATION
 
 
 SPEC = PlanetSpec(
-    theme=AC_STATION_THEME,
+    theme=STATION,
     id="ac_station",
     name="Science Port",
     char="#",

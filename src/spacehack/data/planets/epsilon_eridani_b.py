@@ -17,63 +17,11 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-
-
-# Rugged settlement palette: warm earth tones, dry browns, pioneer amber.
-ERI_B_THEME = world.PlanetTheme(
-    floor=world.Tile(
-        kind="floor", char="\u2591", walkable=True,
-        fg=(170, 140, 100), bg=(65, 50, 35),
-    ),
-    grass=world.Tile(
-        kind="grass", char="\u2588", walkable=True,
-        fg=(150, 110, 60), bg=(55, 38, 22),
-    ),
-    grass_accent=world.Tile(
-        kind="grass", char=",", walkable=True,
-        fg=(130, 90, 50), bg=(55, 38, 22),
-    ),
-    plaza=world.Tile(
-        kind="plaza", char="\u2591", walkable=True,
-        fg=(200, 170, 130), bg=(145, 115, 80),
-    ),
-    sidewalk=world.Tile(
-        kind="sidewalk", char="\u2592", walkable=True,
-        fg=(120, 90, 60), bg=(50, 38, 25),
-    ),
-    road_surface=world.Tile(
-        kind="road", char=".", walkable=True,
-        fg=(105, 80, 55), bg=(40, 30, 20),
-    ),
-    road_ns=world.Tile(
-        kind="road", char=":", walkable=True,
-        fg=(85, 65, 45), bg=(32, 24, 16),
-    ),
-    road_ew=world.Tile(
-        kind="road", char="-", walkable=True,
-        fg=(85, 65, 45), bg=(32, 24, 16),
-    ),
-    landing_pad=world.Tile(
-        kind="landing_pad", char="O", walkable=True,
-        fg=(210, 160, 80), bg=(45, 32, 18),
-    ),
-    neon=world.Tile(
-        kind="neon", char="*", walkable=True,
-        fg=(255, 180, 80), bg=(35, 22, 12),
-    ),
-    tree=world.Tile(
-        kind="tree", char="\u2663", walkable=True,
-        fg=(160, 110, 50), bg=(55, 38, 22),
-    ),
-    decor=world.Tile(
-        kind="plaza", char="\u2666", walkable=True,
-        fg=(255, 150, 60), bg=(145, 115, 80),
-    ),
-)
+from .themes import WARM_EARTH
 
 
 SPEC = PlanetSpec(
-    theme=ERI_B_THEME,
+    theme=WARM_EARTH,
     id="eri_b",
     name="ε Eri b",
     char="p",

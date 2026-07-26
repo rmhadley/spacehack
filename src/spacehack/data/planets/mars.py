@@ -24,27 +24,11 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-
-
-# Mars colour palette: red dust, rusty dirt, warm orange accents —
-# the frontier feel of a young colony.
-MARS_THEME = world.PlanetTheme(
-    grass=world.Tile(kind="grass", char="\u2588", walkable=True, fg=(180, 80, 50), bg=(60, 30, 20)),
-    grass_accent=world.Tile(kind="grass", char=",", walkable=True, fg=(140, 60, 35), bg=(60, 30, 20)),
-    plaza=world.Tile(kind="plaza", char="\u2591", walkable=True, fg=(200, 150, 100), bg=(140, 100, 65)),
-    sidewalk=world.Tile(kind="sidewalk", char="\u2592", walkable=True, fg=(120, 70, 50), bg=(55, 35, 22)),
-    road_surface=world.Tile(kind="road", char=".", walkable=True, fg=(110, 70, 50), bg=(42, 28, 20)),
-    road_ns=world.Tile(kind="road", char=":", walkable=True, fg=(90, 55, 40), bg=(35, 22, 18)),
-    road_ew=world.Tile(kind="road", char="-", walkable=True, fg=(90, 55, 40), bg=(35, 22, 18)),
-    landing_pad=world.Tile(kind="landing_pad", char="O", walkable=True, fg=(200, 130, 50), bg=(50, 30, 15)),
-    neon=world.Tile(kind="neon", char="*", walkable=True, fg=(255, 180, 60), bg=(50, 25, 10)),
-    tree=world.Tile(kind="tree", char="\u2663", walkable=True, fg=(160, 100, 50), bg=(50, 30, 15)),
-    decor=world.Tile(kind="plaza", char="\u2666", walkable=True, fg=(255, 120, 60), bg=(140, 100, 65)),
-)
+from .themes import MARS
 
 
 SPEC = PlanetSpec(
-    theme=MARS_THEME,
+    theme=MARS,
     id="mars",
     name="Mars",
     char="M",

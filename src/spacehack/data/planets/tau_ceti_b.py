@@ -18,63 +18,11 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-
-
-# New Earth palette: lush greens, warm golds, optimistic brights.
-TAU_CETI_B_THEME = world.PlanetTheme(
-    floor=world.Tile(
-        kind="floor", char="\u2591", walkable=True,
-        fg=(200, 180, 140), bg=(80, 70, 50),
-    ),
-    grass=world.Tile(
-        kind="grass", char="\u2588", walkable=True,
-        fg=(90, 180, 70), bg=(35, 75, 30),
-    ),
-    grass_accent=world.Tile(
-        kind="grass", char=",", walkable=True,
-        fg=(70, 150, 55), bg=(35, 75, 30),
-    ),
-    plaza=world.Tile(
-        kind="plaza", char="\u2591", walkable=True,
-        fg=(220, 200, 170), bg=(160, 140, 110),
-    ),
-    sidewalk=world.Tile(
-        kind="sidewalk", char="\u2592", walkable=True,
-        fg=(140, 120, 90), bg=(65, 55, 40),
-    ),
-    road_surface=world.Tile(
-        kind="road", char=".", walkable=True,
-        fg=(120, 110, 90), bg=(50, 45, 35),
-    ),
-    road_ns=world.Tile(
-        kind="road", char=":", walkable=True,
-        fg=(100, 90, 70), bg=(40, 35, 25),
-    ),
-    road_ew=world.Tile(
-        kind="road", char="-", walkable=True,
-        fg=(100, 90, 70), bg=(40, 35, 25),
-    ),
-    landing_pad=world.Tile(
-        kind="landing_pad", char="O", walkable=True,
-        fg=(220, 200, 120), bg=(55, 50, 30),
-    ),
-    neon=world.Tile(
-        kind="neon", char="*", walkable=True,
-        fg=(180, 240, 120), bg=(30, 60, 25),
-    ),
-    tree=world.Tile(
-        kind="tree", char="\u2663", walkable=True,
-        fg=(60, 200, 50), bg=(35, 75, 30),
-    ),
-    decor=world.Tile(
-        kind="plaza", char="\u2666", walkable=True,
-        fg=(255, 200, 80), bg=(160, 140, 110),
-    ),
-)
+from .themes import LUSH
 
 
 SPEC = PlanetSpec(
-    theme=TAU_CETI_B_THEME,
+    theme=LUSH,
     id="tc_b",
     name="τ Cet b",
     char="p",

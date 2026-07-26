@@ -18,63 +18,11 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-
-
-# Cloud city palette: cool blues, silver, pale whites.
-VEGA_B_THEME = world.PlanetTheme(
-    floor=world.Tile(
-        kind="floor", char="\u2591", walkable=True,
-        fg=(180, 200, 230), bg=(60, 75, 95),
-    ),
-    grass=world.Tile(
-        kind="grass", char="\u2588", walkable=True,
-        fg=(140, 190, 220), bg=(50, 65, 85),
-    ),
-    grass_accent=world.Tile(
-        kind="grass", char=",", walkable=True,
-        fg=(120, 170, 200), bg=(50, 65, 85),
-    ),
-    plaza=world.Tile(
-        kind="plaza", char="\u2591", walkable=True,
-        fg=(210, 225, 245), bg=(155, 175, 200),
-    ),
-    sidewalk=world.Tile(
-        kind="sidewalk", char="\u2592", walkable=True,
-        fg=(130, 155, 180), bg=(55, 70, 85),
-    ),
-    road_surface=world.Tile(
-        kind="road", char=".", walkable=True,
-        fg=(110, 130, 155), bg=(42, 55, 70),
-    ),
-    road_ns=world.Tile(
-        kind="road", char=":", walkable=True,
-        fg=(90, 110, 135), bg=(35, 45, 60),
-    ),
-    road_ew=world.Tile(
-        kind="road", char="-", walkable=True,
-        fg=(90, 110, 135), bg=(35, 45, 60),
-    ),
-    landing_pad=world.Tile(
-        kind="landing_pad", char="O", walkable=True,
-        fg=(200, 230, 255), bg=(45, 60, 75),
-    ),
-    neon=world.Tile(
-        kind="neon", char="*", walkable=True,
-        fg=(160, 220, 255), bg=(30, 45, 60),
-    ),
-    tree=world.Tile(
-        kind="tree", char="\u2663", walkable=True,
-        fg=(120, 200, 230), bg=(50, 65, 85),
-    ),
-    decor=world.Tile(
-        kind="plaza", char="\u2666", walkable=True,
-        fg=(200, 240, 255), bg=(155, 175, 200),
-    ),
-)
+from .themes import CLOUD_CITY
 
 
 SPEC = PlanetSpec(
-    theme=VEGA_B_THEME,
+    theme=CLOUD_CITY,
     id="vega_b",
     name="Vega b",
     char="P",

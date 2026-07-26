@@ -19,63 +19,11 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-
-
-# Mining outpost palette: deep reds, dusty oranges, scorched browns.
-BARNARDS_B_THEME = world.PlanetTheme(
-    floor=world.Tile(
-        kind="floor", char="\u2591", walkable=True,
-        fg=(150, 80, 50), bg=(55, 35, 20),
-    ),
-    grass=world.Tile(
-        kind="grass", char="\u2588", walkable=True,
-        fg=(140, 60, 40), bg=(50, 25, 15),
-    ),
-    grass_accent=world.Tile(
-        kind="grass", char=",", walkable=True,
-        fg=(110, 45, 30), bg=(50, 25, 15),
-    ),
-    plaza=world.Tile(
-        kind="plaza", char="\u2591", walkable=True,
-        fg=(170, 110, 70), bg=(120, 75, 50),
-    ),
-    sidewalk=world.Tile(
-        kind="sidewalk", char="\u2592", walkable=True,
-        fg=(100, 55, 35), bg=(45, 25, 15),
-    ),
-    road_surface=world.Tile(
-        kind="road", char=".", walkable=True,
-        fg=(90, 55, 40), bg=(35, 22, 15),
-    ),
-    road_ns=world.Tile(
-        kind="road", char=":", walkable=True,
-        fg=(75, 45, 30), bg=(30, 18, 12),
-    ),
-    road_ew=world.Tile(
-        kind="road", char="-", walkable=True,
-        fg=(75, 45, 30), bg=(30, 18, 12),
-    ),
-    landing_pad=world.Tile(
-        kind="landing_pad", char="O", walkable=True,
-        fg=(200, 120, 50), bg=(40, 22, 10),
-    ),
-    neon=world.Tile(
-        kind="neon", char="*", walkable=True,
-        fg=(255, 150, 60), bg=(40, 20, 8),
-    ),
-    tree=world.Tile(
-        kind="tree", char="\u2663", walkable=True,
-        fg=(130, 80, 40), bg=(40, 22, 10),
-    ),
-    decor=world.Tile(
-        kind="plaza", char="\u2666", walkable=True,
-        fg=(255, 100, 40), bg=(120, 75, 50),
-    ),
-)
+from .themes import DESERT
 
 
 SPEC = PlanetSpec(
-    theme=BARNARDS_B_THEME,
+    theme=DESERT,
     id="barnards_b",
     name="Barnard b",
     char="p",

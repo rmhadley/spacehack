@@ -18,63 +18,11 @@ from __future__ import annotations
 
 from ... import world
 from . import PlanetSpec
-
-
-# Ice station palette: cold blues, icy whites, frost.
-PROCYON_C_THEME = world.PlanetTheme(
-    floor=world.Tile(
-        kind="floor", char="\u2591", walkable=True,
-        fg=(180, 210, 240), bg=(60, 80, 110),
-    ),
-    grass=world.Tile(
-        kind="grass", char="\u2588", walkable=True,
-        fg=(200, 220, 245), bg=(70, 90, 120),
-    ),
-    grass_accent=world.Tile(
-        kind="grass", char=",", walkable=True,
-        fg=(180, 200, 230), bg=(70, 90, 120),
-    ),
-    plaza=world.Tile(
-        kind="plaza", char="\u2591", walkable=True,
-        fg=(210, 230, 250), bg=(150, 175, 205),
-    ),
-    sidewalk=world.Tile(
-        kind="sidewalk", char="\u2592", walkable=True,
-        fg=(130, 160, 195), bg=(55, 75, 100),
-    ),
-    road_surface=world.Tile(
-        kind="road", char=".", walkable=True,
-        fg=(110, 140, 175), bg=(40, 60, 85),
-    ),
-    road_ns=world.Tile(
-        kind="road", char=":", walkable=True,
-        fg=(90, 120, 155), bg=(35, 50, 70),
-    ),
-    road_ew=world.Tile(
-        kind="road", char="-", walkable=True,
-        fg=(90, 120, 155), bg=(35, 50, 70),
-    ),
-    landing_pad=world.Tile(
-        kind="landing_pad", char="O", walkable=True,
-        fg=(220, 240, 255), bg=(50, 70, 95),
-    ),
-    neon=world.Tile(
-        kind="neon", char="*", walkable=True,
-        fg=(150, 230, 255), bg=(35, 55, 80),
-    ),
-    tree=world.Tile(
-        kind="tree", char="\u2663", walkable=True,
-        fg=(140, 210, 240), bg=(70, 90, 120),
-    ),
-    decor=world.Tile(
-        kind="plaza", char="\u2666", walkable=True,
-        fg=(200, 240, 255), bg=(150, 175, 205),
-    ),
-)
+from .themes import ICE
 
 
 SPEC = PlanetSpec(
-    theme=PROCYON_C_THEME,
+    theme=ICE,
     id="proc_planet_2",
     name="Procyon c",
     char="P",
