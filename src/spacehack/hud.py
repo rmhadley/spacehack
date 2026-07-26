@@ -310,8 +310,8 @@ _BAR_CHAR_FULL: str = "#"   # full marker
 _BAR_CHAR_EMPTY: str = "."   # empty marker
 
 
-def _bar_str(value: int, max_value: int, width: int = 8) -> str:
-    """Return an 8-char bar string like '████░░░░'."""
+def _bar_str(value: int, max_value: int, width: int = 10) -> str:
+    """Return a 10-char bar string like '██████░░░░'."""
     if max_value <= 0:
         return _BAR_CHAR_EMPTY * width
     full = max(0, min(width, value * width // max_value))
@@ -400,16 +400,15 @@ def render_combat_hud(
     # Shield bar + regen rate (above hull, when shields exist)
     if pmax_shields > 0:
         shields_pct = pshields / max(pmax_shields, 1)
-        _bar_8 = _bar_str(pshields, pmax_shields)
-        shield_line = f"Shd  {_bar_8} {int(shields_pct * 100)}%"
+        _bar = _bar_str(pshields, pmax_shields)
+        shield_line = f"Shd  {_bar} {int(shields_pct * 100)}%"
         console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
-        # Regen rate fill: N leftmost # cells get a white bg for visual
-        # feedback of the current regen rate (0-8 cells, capped at 8).
+        # Regen rate fill: N leftmost # cells get a white bg (0-10 cells).
         _regen_rate = player_state.get("shield_regen_rate", 0)
         if _regen_rate > 0:
-            _fill = min(_regen_rate, 8)
+            _fill = _regen_rate
             for _i in range(_fill):
-                if _bar_8[_i] == _BAR_CHAR_FULL:
+                if _bar[_i] == _BAR_CHAR_FULL:
                     console.print(
                         x=hud_x + 5 + _i, y=y,
                         string=_BAR_CHAR_FULL,
