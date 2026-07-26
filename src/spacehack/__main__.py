@@ -671,8 +671,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     _nearby_specs: list = []
     _nearby_positions: list = []
     for _spawn, _espec in _alive_spawns:
-        if _spawn.squad_id is not None:
-            if _spawn.squad_id in _triggered_squad_ids:
+        _sq = getattr(_spawn, 'squad_id', None)
+        if _sq is not None:
+            if _sq in _triggered_squad_ids:
                 _nearby_specs.append(_espec)
                 _nearby_positions.append(_spawn.pos)
         elif (_spawn.pos.x, _spawn.pos.y) in _triggered_solo_positions:
