@@ -191,12 +191,13 @@ def _free_cargo(owned) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Quantity prompt (simple number input)
+# Quantity prompt (arrow-key adjustment)
 # ---------------------------------------------------------------------------
 
-_QTY_OUTCOME_IGNORE = object()
-_QTY_OUTCOME_BACK = object()
-_QTY_OUTCOME_CONFIRM = object()
+class _QOut(Enum):
+    IGNORE = auto()
+    BACK = auto()
+    CONFIRM = auto()
 
 
 def _run_quantity_prompt(
@@ -207,18 +208,18 @@ def _run_quantity_prompt(
 ) -> int | None:
     """Show a centred quantity-input modal.
 
-    The player types a number and presses Enter to confirm, or ESC
-    to cancel.  Returns the chosen quantity (>=1) or ``None`` on
+    Arrow keys / +/- adjust the quantity, Enter confirms, ESC
+    cancels.  Returns the chosen quantity (>=1) or ``None`` on
     cancel.
     """
     console = make_console()
-    buf = ""
+    qty = 1
 
     def _render() -> None:
         console.clear()
-        prompt = f"{label}  ({price_per}g each)"
-        qty_text = f"Quantity: {buf or '_'}"
-        hint = "ENTER confirm  ESC cancel"
+        prompt = f"{label}  ({price_per}cr each)"
+        qty_text = f"Quantity: [{qty}]"
+        hint = "UP/+ increase  DOWN/- decrease  ENTER confirm  ESC cancel"
 
         def paint(row: int, text: str, *, fg) -> None:
             console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=row, string=text, fg=fg)
@@ -228,61 +229,36 @@ def _run_quantity_prompt(
         paint(cy + 1, qty_text, fg=ui.COLOR_VALUE_WHITE)
         paint(cy + 3, hint, fg=ui.COLOR_INSTRUCTION)
 
-    def _update(event: tcod.event.Event):
-        nonlocal buf
+    def _update(event: tcod.event.Event) -> _QOut:
+        nonlocal qty
+
         if isinstance(event, tcod.event.Quit):
-            return _QTY_OUTCOME_BACK
+            return _QOut.BACK
         if not isinstance(event, tcod.event.KeyDown):
-            return _QTY_OUTCOME_IGNORE
+            return _QOut.IGNORE
+
         sym = event.sym
         sym_name = getattr(sym, "name", "").lower()
+
         if sym in ui._ESCAPE_SYMS:
-            return _QTY_OUTCOME_BACK
-        if sym in ui._ENTER_SYMS:
-            qty = 1
-            if buf:
-                try:
-                    qty = max(1, min(max_qty, int(buf)))
-                except ValueError:
-                    qty = 1
-            return _QTY_OUTCOME_CONFIRM
-        # Numeric input.
-        if sym_name in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"):
-            if len(buf) < 4:
-                buf += sym_name
-            return _QTY_OUTCOME_IGNORE
-        if sym_name == "backspace" and buf:
-            buf = buf[:-1]
-            return _QTY_OUTCOME_IGNORE
-        return _QTY_OUTCOME_IGNORE
-
-    # Since Modal.run relies on the enum-name convention, we need a
-    # real Enum for the outcome.  Use a local one.
-    from enum import Enum, auto
-
-    class _QOut(Enum):
-        IGNORE = auto()
-        BACK = auto()
-        CONFIRM = auto()
-
-    def _wrapped_update(event):
-        r = _update(event)
-        if r is _QTY_OUTCOME_IGNORE:
-            return _QOut.IGNORE
-        if r is _QTY_OUTCOME_BACK:
             return _QOut.BACK
-        return _QOut.CONFIRM
+        if sym in ui._ENTER_SYMS:
+            return _QOut.CONFIRM
 
-    outcome = ui.Modal(ctx.context, console).run(_render, _wrapped_update)
-    if outcome is _QOut.BACK:
-        return None
-    qty = 1
-    if buf:
-        try:
-            qty = max(1, min(max_qty, int(buf)))
-        except ValueError:
-            qty = 1
-    return qty
+        # Increase (UP, +, =) or decrease (DOWN, -).
+        is_up = sym in ui._UP_SYMS or sym_name in ("k", "plus", "equals")
+        is_down = sym in ui._DOWN_SYMS or sym_name in ("j", "-", "minus")
+        if is_up:
+            qty = min(max_qty, qty + 1)
+            return _QOut.IGNORE
+        if is_down:
+            qty = max(1, qty - 1)
+            return _QOut.IGNORE
+
+        return _QOut.IGNORE
+
+    outcome = ui.Modal(ctx.context, console).run(_render, _update)
+    return qty if outcome is _QOut.CONFIRM else None
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +298,10 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
     if not _station_goods:
         ctx.log.add("This terminal has nothing to trade.")
+        return
+
+    if ctx.player_owned_ship is None:
+        ctx.log.add("You need a ship with cargo space to use this terminal.")
         return
 
     _focus: int = 0        # 0 = station panel, 1 = player panel
@@ -366,7 +346,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
             # Pad the name so prices align.
             name_str = good.name[:col_w - 8].ljust(col_w - 8)
-            price_str = f"{price:>4}g"
+            price_str = f"{price:>4}cr"
             stock_str = f"({stock})"
             line = f"{name_str} {price_str} {stock_str}"
 
@@ -386,7 +366,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             good = find_trade_good(gid)
             sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
             name_str = good.name[:col_w - 8].ljust(col_w - 8)
-            price_str = f"{sell_price:>4}g"
+            price_str = f"{sell_price:>4}cr"
             qty_str = f"({qty})"
             line = f"{name_str} {price_str} {qty_str}"
 
@@ -396,16 +376,16 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
             paint(col_x, cy + i, f"{marker}{line}", fg=fg)
 
-        # Footer — cargo + gold bar.
+        # Footer — cargo + credits bar.
         foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
         if owned is not None:
             from . import ship as ship_module
             ship_spec = ship_module.find_ship(owned.ship_id)
             cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
-            gold_str = f"Gold: {ctx.stats.gold}"
+            gold_str = f"Credits: {ctx.stats.gold}"
         else:
             cargo_str = "Cargo: N/A"
-            gold_str = f"Gold: {ctx.stats.gold}"
+            gold_str = f"Credits: {ctx.stats.gold}"
         paint(2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
         paint(SCREEN_WIDTH - HUD_WIDTH - len(gold_str) - 2, foot_y, gold_str, fg=ui.COLOR_VALUE_WHITE)
 
