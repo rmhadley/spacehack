@@ -25,6 +25,7 @@ from spacehack import world
 __all__ = [
     "EnemySpawn", "JumpPoint", "SolarSystem", "StationSpec",
     "find_solar_system", "list_solar_systems",
+    "make_stars", "station_near", "validate_gate_graph",
 ]
 
 
@@ -200,33 +201,20 @@ _BY_ID: dict[str, SolarSystem] | None = None
 def _build_registry() -> dict[str, SolarSystem]:
     """Build the system-id -> SolarSystem mapping.
 
-    Import every per-system module and index its ``SYSTEM``
-    module-level instance. Mirrors :func:`spacehack.data.planets.
-    _build_registry` so the two catalog namespaces share the same
-    shape — easier to grep + reason about.
+    Auto-discovers every per-system module under this package that
+    exports a ``SYSTEM`` attribute — no manual import list needed
+    when adding a new system. Just drop a new ``.py`` file in
+    ``data/solar_systems/``, export ``SYSTEM``, and it's registered.
     """
-    from . import sol as sol_module
-    from . import alpha_centauri as ac_module
-    from . import barnards_star as barnards_module
-    from . import sirius as sirius_module
-    from . import vega as vega_module
-    from . import epsilon_eridani as ee_module
-    from . import procyon as procyon_module
-    from . import tau_ceti as tc_module
-    from . import wolf_359 as wolf_module
-    from . import luyten_star as ls_module
-    return {
-        sol_module.SYSTEM.id: sol_module.SYSTEM,
-        ac_module.SYSTEM.id: ac_module.SYSTEM,
-        barnards_module.SYSTEM.id: barnards_module.SYSTEM,
-        sirius_module.SYSTEM.id: sirius_module.SYSTEM,
-        vega_module.SYSTEM.id: vega_module.SYSTEM,
-        ee_module.SYSTEM.id: ee_module.SYSTEM,
-        procyon_module.SYSTEM.id: procyon_module.SYSTEM,
-        tc_module.SYSTEM.id: tc_module.SYSTEM,
-        wolf_module.SYSTEM.id: wolf_module.SYSTEM,
-        ls_module.SYSTEM.id: ls_module.SYSTEM,
-    }
+    import importlib, pkgutil
+    sys_map: dict[str, SolarSystem] = {}
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"{__name__}.{name}")
+        if hasattr(mod, "SYSTEM"):
+            sys_map[mod.SYSTEM.id] = mod.SYSTEM
+    return sys_map
 
 
 def _registry() -> dict[str, SolarSystem]:
@@ -309,3 +297,103 @@ def reachable_system_ids(
                     queue.append((target_sys_id, new_hops))
     seen.pop(from_id, None)
     return seen
+
+
+def validate_gate_graph() -> tuple[str, ...]:
+    """Check every gate's ``connects_to`` targets exist and are
+    bidirectional.
+
+    Iterates all registered systems and their jump points,
+    verifying:
+      1. The target system id exists in the registry.
+      2. The target gate id exists in the target system.
+      3. The target gate's own ``connects_to`` includes a pair
+         that points BACK to the originating gate (bidirectional).
+
+    Returns a tuple of error message strings (empty = all good).
+    Call this from the smoke test or audit tool to catch
+    misconfigured gate links at load time.
+    """
+    systems = _registry()
+    errors: list[str] = []
+    for sys_id, system in systems.items():
+        for jp in system.jump_points:
+            for target_sys_id, target_jp_id in jp.connects_to:
+                if target_sys_id not in systems:
+                    errors.append(
+                        f"Gate {jp.id!r} in {sys_id!r} -> unknown "
+                        f"system {target_sys_id!r}"
+                    )
+                    continue
+                target_sys = systems[target_sys_id]
+                target_jp: JumpPoint | None = None
+                for tjp in target_sys.jump_points:
+                    if tjp.id == target_jp_id:
+                        target_jp = tjp
+                        break
+                if target_jp is None:
+                    errors.append(
+                        f"Gate {jp.id!r} in {sys_id!r} -> unknown "
+                        f"gate {target_jp_id!r} in {target_sys_id!r}"
+                    )
+                    continue
+                # Check bidirectional: does target gate point back?
+                back_conn = any(
+                    back_sys == sys_id and back_jp == jp.id
+                    for back_sys, back_jp in target_jp.connects_to
+                )
+                if not back_conn:
+                    errors.append(
+                        f"Gate {jp.id!r} in {sys_id!r} -> "
+                        f"{target_jp_id!r} in {target_sys_id!r} is "
+                        f"NOT bidirectional. {target_jp_id!r} connects "
+                        f"to {target_jp.connects_to}, not back to {jp.id!r}"
+                    )
+    return tuple(errors)
+
+
+def station_near(
+    planet: solar_module.Planet,
+    *,
+    station_id: str = "",
+    name: str = "Station",
+    char: str = "#",
+    fg: tuple[int, int, int] = (200, 200, 180),
+    east: int = 5,
+    north: int = 0,
+    width: int = 3,
+    height: int = 3,
+    city_planet_id: str = "depot",
+    description: str = "",
+) -> StationSpec:
+    """Build a :class:`StationSpec` positioned near ``planet``.
+
+    ``east`` cells to the right of the planet's right edge,
+    ``north`` cells up from the planet's top edge (positive =
+    upward, negative = downward).
+
+    If ``station_id`` is empty, auto-generates from the planet id.
+    Default ``city_planet_id`` is ``"depot"`` (the refueling depot
+    spec). Example usage in a system module::
+
+        depot = station_near(
+            eri_c, east=9,
+            name="\u03b5 Eri Refueling Depot",
+            description="A refueling outpost in high orbit...",
+        )
+    """
+    _pid = station_id or f"{planet.id}_station"
+    return StationSpec(
+        id=_pid,
+        name=name,
+        char=char,
+        fg=fg,
+        pos=world.Position(
+            planet.pos.x + planet.width + east,
+            planet.pos.y - north,
+        ),
+        width=width,
+        height=height,
+        city_planet_id=city_planet_id,
+        description=description,
+    )

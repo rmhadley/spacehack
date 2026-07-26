@@ -142,44 +142,10 @@ _jump_points: tuple[JumpPoint, ...] = (
 )
 
 
-# Static star sprinkle positions for Sol.  Same set as the
-# historical in-line ``STARS`` so we preserve the look the player
-# is used to. New rows added near the eastern Jump Point so the
-# gate isn't sitting in pure void.
-_stars: tuple[tuple[int, int], ...] = (
-    # North edge
-    (5, 5), (15, 8), (25, 3), (35, 9), (45, 2), (55, 7), (65, 4), (75, 9),
-    # South edge
-    (8, 45), (18, 50), (32, 41), (38, 47), (52, 39), (58, 44), (68, 49), (78, 41),
-    # Side gutters
-    (2, 15), (2, 32), (72, 15), (72, 38), (78, 22),
-    # Scattered middle
-    (10, 11), (24, 49), (54, 49), (60, 11),
-    (7, 23), (73, 23), (7, 35), (73, 35),
-    (45, 42), (35, 51), (45, 51),
-    (20, 25), (60, 25), (10, 5), (50, 7),
-    (38, 14), (42, 38), (22, 14), (55, 16),
-    # Far edges on the wider 200x140 regions (the map
-    # grew ~2.5x larger when planets went multi-cell). The original
-    # still fit; this block fills the new far-east / far-west /
-    # far-south bands so the void doesn't read as empty away from
-    # the launch planet. Planet cells overwrite any accidental
-    # overlap in :func:`make_solar_system`.
-    (85, 4), (95, 9), (110, 3), (122, 8), (138, 4), (152, 7),
-    (175, 3), (188, 8), (195, 9),
-    (5, 60), (12, 75), (24, 88), (38, 110), (52, 128), (66, 132),
-    (74, 138), (88, 125), (102, 130), (118, 122), (134, 138),
-    (150, 130), (165, 132), (180, 125), (192, 135),
-    (90, 65), (105, 78), (88, 88), (102, 95), (118, 108),
-    (122, 65), (138, 85), (155, 88), (148, 110), (175, 115),
-    (180, 80), (190, 60), (195, 95), (188, 30), (192, 50),
-    (8, 18), (8, 28), (188, 18), (188, 28),
-    (50, 70), (75, 70), (95, 115), (165, 50), (40, 60),
-    (110, 50), (130, 60), (50, 18), (80, 85),
-    # A few sparkle stars near the Jump Point so the gate isn't in
-    # a black void.
-    (188, 65), (188, 78), (195, 73), (193, 60), (193, 80),
-)
+# Star field generated procedurally — unique per system id so
+# every system looks distinct. Density is tuned per-system (Sol
+# is standard at 0.003).
+_stars = solar_module.make_stars(200, 140, seed="sol")
 
 
 SYSTEM: SolarSystem = SolarSystem(

@@ -82,6 +82,19 @@ def smoke_test() -> int:
             print(f"FAIL: {mod.__name__}.{attr} is missing.", file=sys.stderr)
             return 1
 
+    # Validate the jump-gate graph: every gate's connects_to
+    # target must exist and be bidirectional.
+    from src.spacehack.data.solar_systems import validate_gate_graph
+    gate_errors = validate_gate_graph()
+    if gate_errors:
+        for err in gate_errors:
+            print(f"GATE ERROR: {err}", file=sys.stderr)
+        print(
+            f"FAIL: {len(gate_errors)} gate graph error(s).",
+            file=sys.stderr,
+        )
+        return 1
+
     print("PASS: Smoke tests OK.")
     return 0
 

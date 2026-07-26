@@ -18,7 +18,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import JumpPoint, SolarSystem, StationSpec
+from . import JumpPoint, SolarSystem, station_near
 
 
 _planets: tuple[solar_module.Planet, ...] = (
@@ -51,24 +51,17 @@ _planets: tuple[solar_module.Planet, ...] = (
 )
 
 
-# Refueling Depot — station at ε Eri c. The player lands here
-# for fuel + basic supplies before heading deeper. Uses the
-# generic "depot" PlanetSpec (see data/planets/depot.py).
-_stations: tuple[StationSpec, ...] = (
-    StationSpec(
-        id="eri_depot",
-        name="ε Eri Refueling Depot",
-        char="#",
-        fg=(200, 200, 180),        # warm grey — reads as industrial/utility.
-        pos=world.Position(168, 92),  # just east of ε Eri c (155, 95), 4x4 footprint.
-        width=3, height=3,
-        city_planet_id="depot",
-        description=(
-            "A refueling outpost in high orbit around ε Eri c — "
-            "the last gas stop before the deep chain."
-        ),
+# Refueling Depot at ε Eri c — built with the station_near()
+# helper so the position is computed from the planet's footprint.
+_eri_c = [p for p in _planets if p.id == "eri_c"][0]
+_stations = (station_near(
+    _eri_c, east=9, north=3, station_id="eri_depot",
+    name="ε Eri Refueling Depot",
+    description=(
+        "A refueling outpost in high orbit around ε Eri c — "
+        "the last gas stop before the deep chain."
     ),
-)
+),)
 
 
 _jump_points: tuple[JumpPoint, ...] = (
@@ -99,26 +92,7 @@ _jump_points: tuple[JumpPoint, ...] = (
 )
 
 
-_stars: tuple[tuple[int, int], ...] = (
-    # North edge
-    (10, 5), (25, 12), (40, 6), (55, 11), (70, 4), (90, 9),
-    (110, 5), (130, 7), (155, 10), (175, 7), (190, 12),
-    # South edge
-    (15, 130), (35, 125), (55, 135), (80, 132), (100, 138),
-    (125, 130), (150, 134), (175, 128),
-    # Side gutters
-    (5, 30), (5, 50), (5, 90), (5, 110),
-    (190, 30), (190, 50), (190, 90), (190, 110),
-    # Mid-system
-    (45, 25), (85, 25), (160, 25),
-    (45, 100), (105, 100), (160, 100), (185, 115),
-    (95, 50), (105, 60), (75, 75), (135, 95),
-    # Stars near gates
-    (8, 65), (8, 78), (4, 73), (15, 60), (15, 80),
-    (188, 65), (188, 78), (195, 73), (193, 60), (193, 80),
-    # Station vicinity
-    (172, 88), (172, 98), (165, 86), (165, 100),
-)
+_stars = solar_module.make_stars(200, 140, seed="epsilon_eridani")
 
 
 SYSTEM: SolarSystem = SolarSystem(

@@ -93,27 +93,7 @@ _enemies: tuple[EnemySpawn, ...] = (
 )
 
 
-_stars: tuple[tuple[int, int], ...] = (
-    # Sparser stars than inner systems — Wolf 359 is a dim
-    # star in a dim neighbourhood. Fewer stars make it feel
-    # isolated and dangerous.
-    # North edge
-    (15, 8), (35, 12), (55, 6), (75, 11),
-    (110, 5), (135, 7), (160, 10), (185, 12),
-    # South edge
-    (20, 130), (45, 125), (70, 135), (95, 132),
-    (120, 138), (150, 130), (175, 128),
-    # Side gutters
-    (5, 35), (5, 55), (5, 95), (5, 110),
-    (190, 35), (190, 55), (190, 95), (190, 110),
-    # Sparse mid-system
-    (25, 40), (85, 25), (155, 30),
-    (35, 105), (95, 105), (155, 100),
-    (50, 80), (120, 45), (165, 80),
-    # Gate vicinity
-    (8, 65), (8, 78), (4, 73), (15, 60), (15, 80),
-    (188, 65), (188, 78), (195, 73), (193, 60), (193, 80),
-)
+_stars = solar_module.make_stars(200, 140, seed="wolf_359")
 
 
 SYSTEM: SolarSystem = SolarSystem(

@@ -43,7 +43,7 @@ __all__ = [
     "set_current_solar_system",
     "find_planet", "find_jump_point", "find_station",
     "planet_id_at", "jump_point_at", "station_id_at",
-    "make_solar_system", "place_docked_ship",
+    "make_stars", "make_solar_system", "place_docked_ship",
     "SOL_VIEW_W", "SOL_VIEW_H",
 ]
 
@@ -397,6 +397,37 @@ def station_id_at(
 # :class:`SolarSystem` record — viewport is system-agnostic.
 SOL_VIEW_W: int = 80
 SOL_VIEW_H: int = 54
+
+
+def make_stars(
+    width: int, height: int,
+    *,
+    density: float = 0.003,
+    seed: int | str = 0,
+) -> tuple[tuple[int, int], ...]:
+    """Generate a deterministic star field for a system map.
+
+    Uses the system id as the seed so the same system always
+    produces the same star pattern. Default density (0.003)
+    scatters ~84 stars on a 200x140 map, matching the hand-
+    typed density typical of pre-refactor system modules.
+
+    Pass a lower density (e.g. 0.002) for isolated / frontier
+    systems, or a higher density for nebula-rich regions.
+    """
+    import hashlib
+    import random as _random
+    if isinstance(seed, str):
+        seed = int(hashlib.md5(seed.encode()).hexdigest()[:8], 16)
+    rng = _random.Random(seed)
+    coords = [
+        (x, y)
+        for x in range(width)
+        for y in range(height)
+        if rng.random() < density
+    ]
+    rng.shuffle(coords)
+    return tuple(coords)
 
 
 def make_solar_system(

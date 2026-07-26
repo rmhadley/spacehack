@@ -69,18 +69,22 @@ _BY_ID: dict[str, PlanetSpec] | None = None
 
 
 def _build_registry() -> dict[str, PlanetSpec]:
-    from . import earth as earth_module
-    from . import mars as mars_module
-    from . import ac_station as ac_station_module
-    from . import depot as depot_module
-    from . import blockade as blockade_module
-    return {
-        earth_module.SPEC.id: earth_module.SPEC,
-        mars_module.SPEC.id: mars_module.SPEC,
-        ac_station_module.SPEC.id: ac_station_module.SPEC,
-        depot_module.SPEC.id: depot_module.SPEC,
-        blockade_module.SPEC.id: blockade_module.SPEC,
-    }
+    """Build the planet-spec id -> PlanetSpec mapping.
+
+    Auto-discovers every module under this package that exports
+    a ``SPEC`` attribute — no manual import list needed when
+    adding a new planet. Just drop a new ``.py`` file in
+    ``data/planets/``, export ``SPEC``, and it's registered.
+    """
+    import importlib, pkgutil
+    spec_map: dict[str, PlanetSpec] = {}
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"{__name__}.{name}")
+        if hasattr(mod, "SPEC"):
+            spec_map[mod.SPEC.id] = mod.SPEC
+    return spec_map
 
 
 def _registry() -> dict[str, PlanetSpec]:

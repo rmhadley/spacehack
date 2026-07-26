@@ -98,23 +98,7 @@ _jump_points: tuple[JumpPoint, ...] = (
 # Sparse star sprinkle around the perimeter + a few across the
 # map. Same density as the historical one-system set so the
 # void read isn't different per-system.
-_stars: tuple[tuple[int, int], ...] = (
-    # North edge
-    (10, 5), (25, 12), (40, 6), (55, 11), (70, 4), (90, 9),
-    (110, 5), (130, 7), (155, 10), (175, 7), (190, 12),
-    # South edge
-    (15, 130), (35, 125), (55, 135), (80, 132), (100, 138),
-    (125, 130), (150, 134), (175, 128),
-    # Side gutters
-    (5, 30), (5, 50), (5, 90), (5, 110),
-    (190, 30), (190, 50), (190, 90), (190, 110),
-    # Mid-system flavour
-    (45, 25), (85, 25), (160, 25),
-    (45, 100), (105, 100), (160, 100),
-    # Stars near each gate so they're not in empty void.
-    (8, 65), (8, 78), (4, 73), (15, 60), (15, 80),
-    (188, 65), (188, 78), (195, 73), (193, 60), (193, 80),
-)
+_stars = solar_module.make_stars(200, 140, seed="barnards_star")
 
 
 SYSTEM: SolarSystem = SolarSystem(

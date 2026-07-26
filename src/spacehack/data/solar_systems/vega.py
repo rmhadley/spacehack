@@ -111,24 +111,7 @@ _jump_points: tuple[JumpPoint, ...] = (
 )
 
 
-_stars: tuple[tuple[int, int], ...] = (
-    # North edge (around the Barnard's gate)
-    (10, 5), (25, 12), (40, 6), (55, 11), (70, 4),
-    # South edge (around the Sol gate)
-    (175, 100), (185, 110), (188, 95),
-    (10, 130), (35, 125), (55, 135), (80, 132), (100, 138),
-    (125, 130), (150, 134),
-    # Side gutters
-    (5, 50), (5, 70), (5, 110),
-    (190, 30), (190, 70), (190, 110),
-    # Mid-system flavour
-    (45, 25), (85, 25), (160, 25), (190, 35),
-    (45, 100), (105, 125), (160, 100),
-    # Sparkle near each gate so they don't sit in pure void.
-    (8, 35), (8, 48), (4, 43), (15, 25), (15, 45),
-    (8, 95), (8, 108), (4, 103), (15, 85), (15, 105),
-    (188, 35), (188, 48), (195, 43), (193, 25), (193, 45),
-)
+_stars = solar_module.make_stars(200, 140, seed="vega")
 
 
 SYSTEM: SolarSystem = SolarSystem(
