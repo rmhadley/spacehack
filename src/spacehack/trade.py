@@ -398,7 +398,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         paint(2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
         paint(SCREEN_WIDTH - HUD_WIDTH - len(gold_str) - 2, foot_y, gold_str, fg=ui.COLOR_VALUE_WHITE)
 
-        hint = "UP/DOWN navigate  ENTER buy  SHIFT+ENTER sell  TAB switch panel  ESC back"
+        hint = "UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back"
         paint(2, foot_y + 2, hint, fg=ui.COLOR_INSTRUCTION)
 
     def _update(event: tcod.event.Event) -> _TradeOutcome:
@@ -443,49 +443,45 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
                 _sel = (_sel + 1) % max(1, n)
             return _TradeOutcome.IGNORE
 
-        # Shift+Enter = sell (Shift modifier → sym.name has shift variant).
-        is_shift_enter = (sym_name in ("return", "enter") and
-                          (event.mod & (tcod.event.Modifier.LSHIFT | tcod.event.Modifier.RSHIFT)))
-        if is_shift_enter and _focus == 1:
-            owned = ctx.player_owned_ship
-            if owned is not None:
-                inv_items = list(owned.inventory.items())
-                if 0 <= _sel < len(inv_items):
-                    gid, qty = inv_items[_sel]
-                    max_qty = min(qty, 9999)
+        # Enter = buy on station panel, sell on hold panel.
+        if sym in ui._ENTER_SYMS:
+            if _focus == 0:
+                # Buy from station.
+                if 0 <= _sel < len(_station_goods):
+                    gid = _station_goods[_sel]
+                    good = find_trade_good(gid)
                     price = _unit_price(ctx, planet_id, gid)
-                    sell_p = max(1, price * 3 // 4)
-                    q = _run_quantity_prompt(ctx, f"Sell {find_trade_good(gid).name}", max_qty, sell_p)
-                    if q is not None:
-                        _sell_good(ctx, planet_id, gid, q)
-            return _TradeOutcome.IGNORE
-
-        # Enter = buy (when focused on station panel).
-        if sym in ui._ENTER_SYMS and _focus == 0:
-            if 0 <= _sel < len(_station_goods):
-                gid = _station_goods[_sel]
-                good = find_trade_good(gid)
-                price = _unit_price(ctx, planet_id, gid)
+                    owned = ctx.player_owned_ship
+                    max_qty = 1
+                    if owned is not None:
+                        free = _free_cargo(owned)
+                        stock = _stocks.get(gid, 0)
+                        max_qty = min(
+                            free // good.volume if good.volume > 0 else 999,
+                            stock,
+                            999,
+                        )
+                        can_afford = ctx.stats.gold // price if price > 0 else 999
+                        max_qty = min(max_qty, can_afford)
+                    if max_qty >= 1:
+                        q = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price)
+                        if q is not None:
+                            _buy_good(ctx, planet_id, gid, q)
+                    else:
+                        ctx.log.add(f"Cannot afford or store {good.name}.")
+            else:
+                # Sell from hold.
                 owned = ctx.player_owned_ship
-                max_qty = 1
                 if owned is not None:
-                    free = _free_cargo(owned)
-                    stock = _stocks.get(gid, 0)
-                    max_qty = min(
-                        free // good.volume if good.volume > 0 else 999,
-                        stock,
-                        999,
-                    )
-                    can_afford = ctx.stats.gold // price if price > 0 else 999
-                    max_qty = min(max_qty, can_afford)
-                if max_qty >= 1:
-                    q = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price)
-                    if q is not None:
-                        _buy_good(ctx, planet_id, gid, q)
-                else:
-                    ctx.log.add(f"Cannot afford or store {good.name}.")
+                    inv_items = list(owned.inventory.items())
+                    if 0 <= _sel < len(inv_items):
+                        gid, qty = inv_items[_sel]
+                        max_qty = min(qty, 9999)
+                        price = _unit_price(ctx, planet_id, gid)
+                        sell_p = max(1, price * 3 // 4)
+                        q = _run_quantity_prompt(ctx, f"Sell {find_trade_good(gid).name}", max_qty, sell_p)
+                        if q is not None:
+                            _sell_good(ctx, planet_id, gid, q)
             return _TradeOutcome.IGNORE
-
-        return _TradeOutcome.IGNORE
 
     ui.Modal(ctx.context, console).run(_render, _update)
