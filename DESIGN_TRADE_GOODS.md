@@ -291,7 +291,7 @@ Checkboxes are updated as each sub-step lands.
 - [x] Wire cargo scan into landing flow — called before city load on planetary landings
 - [x] Run audit + smoke ✅
 
-**PLAYTEST** — Buy black market weapons at Luyten Blockade. Fly to Earth with them. Land → 40% scan chance. If caught: goods confiscated, fine deducted. If not: try selling at Earth terminal → "No one here deals in Black Market Weapons — contraband." Fly back to Blockade → sell successfully at the black market.
+**PLAYTEST** ✅ — Cargo scan fires on Earth landing (~40% chance). Contraband confiscated + fined when caught. Contraband blocked at normal terminals. Blockade sells and buys contraband correctly.
 
 > **Note**: Contraband profit margins depend on Blockade's stock level. Currently `weapons_blackmarket` is only in Blockade's `produces` (starts at full stock → cheap to buy, low sell price). For proper contraband profit, a future planet should `demand` black market goods, creating a price gradient. This is Phase 6 balance work.
 
