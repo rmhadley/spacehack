@@ -665,14 +665,31 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
     # Build goal list from the current system's bodies.
     _system = solar_system_module.current_system()
     _goals: list[tuple[int, int]] = []
+    # Helper: return a walkable cell adjacent to the right of a body.
+    # Body tiles are walkable=False, so we can't use the centre as a
+    # goal — the pirate would never reach within 2 cells and would
+    # never re-target. Use a cell just outside the body's right edge
+    # (starfield, walkable=True) instead.
+    def _body_goal(body) -> tuple[int, int] | None:
+        _gx = body.pos.x + body.width + 1
+        _gy = body.pos.y + body.height // 2
+        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
+            return (_gx, _gy)
+        return None
     for _p in _system.planets:
         if getattr(_p, 'sun', False):
-            continue  # suns are unwalkable — skip them
-        _goals.append((_p.pos.x + _p.width // 2, _p.pos.y + _p.height // 2))
+            continue
+        _g = _body_goal(_p)
+        if _g is not None:
+            _goals.append(_g)
     for _jp in _system.jump_points:
-        _goals.append((_jp.pos.x + _jp.width // 2, _jp.pos.y + _jp.height // 2))
+        _g = _body_goal(_jp)
+        if _g is not None:
+            _goals.append(_g)
     for _st in getattr(_system, 'stations', ()) or ():
-        _goals.append((_st.pos.x + _st.width // 2, _st.pos.y + _st.height // 2))
+        _g = _body_goal(_st)
+        if _g is not None:
+            _goals.append(_g)
     if not _goals:
         return
     _pirate_ents = [_e for _e in game_map.entities
