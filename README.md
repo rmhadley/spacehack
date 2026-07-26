@@ -96,8 +96,6 @@ class Laser:
 def find_weapon(weapon_id: str) -> Laser: ...
 ```
 
-`find_<thing>(id)` raises `KeyError` on unknown ids so call sites can render a friendly error.
-
 * **Add a weapon** -- add a frozen dataclass entry to the relevant file in `src/spacehack/data/weapons/` (e.g. `lasers.py`, `missiles.py`) and slot it into any ship loadout.
 * **Add a ship module** (engine or system) -- add to `src/spacehack/data/modules/`.
 * **Add an enemy ship spec** -- add to `src/spacehack/data/enemies/` (e.g. `pirates.py`).
@@ -155,6 +153,16 @@ player_owned_ship, player_active_mission, context
 If you hit the audit, your function is reading one of these tokens as a bare local instead of via `ctx.<token>` (e.g. `game_map.entities` instead of `ctx.game_map.entities`). Fix the call, not the audit.
 
 Add new SCAN'd helpers to the `SCAN` tuple in `tools/audit_loose_refs.py` once they finish their context-bundle migration.
+
+## Smoke testing
+
+After refactoring signatures (especially in `combat.py` or other domain modules), verify entry points survived with the smoke tool rather than ad-hoc `python3 -c` imports. The tool auto-mounts `.venv/bin/python3` so a bare-`python3` invocation still resolves `tcod` (which lives only in the project venv):
+
+```bash
+python3 tools/smoke.py
+```
+
+Pass: `PASS: Smoke tests OK.` and exit 0. Fail: `FAIL: <reason>` to stderr, exit 1. The tool checks `combat._handle_combat_encounter`, `combat.run_combat`, `game_context.GameContext`, `world.GameMap`, and `ui.Modal` are present.
 
 ## Refactor philosophy
 
