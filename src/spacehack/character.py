@@ -69,9 +69,11 @@ def starting_stats(species_id: str, class_id: str):
 
     HP = ``class.hp_base + species.hp_bonus`` (cosmetic — read by
     HUD only, doesn't gate gameplay yet). Gold comes straight off
-    the class spec. Unknown ids fall through to safe defaults so
-    a future save/load path that emits an unrecognised species or
-    class id can't crash the HUD init.
+    the class spec. Pilot skills (gunnery, piloting, engineering)
+    are computed from species + class bonuses applied on top of
+    :data:`PILOT_SKILL_BASE`. Unknown ids fall through to safe
+    defaults so a future save/load path that emits an unrecognised
+    species or class id can't crash the HUD init.
     """
     # Local import avoids any chance of a module-load circular dep if
     # hud.py ever starts importing back from character.
@@ -81,7 +83,15 @@ def starting_stats(species_id: str, class_id: str):
     hp_base = cl.hp_base if cl is not None else 10
     gold = cl.gold if cl is not None else 100
     hp_bonus = sp.hp_bonus if sp is not None else 0
-    return HudStats(hp=hp_base + hp_bonus, max_hp=hp_base + hp_bonus, gold=gold)
+    
+    # Compute pilot skills — reuse starting_pilot_skills internally
+    # so the three skill values stay in sync with the combat init.
+    skills = starting_pilot_skills(species_id, class_id)
+    return HudStats(
+        hp=hp_base + hp_bonus, max_hp=hp_base + hp_bonus, gold=gold,
+        gunnery=skills.gunnery, piloting=skills.piloting,
+        engineering=skills.engineering,
+    )
 
 
 def format_combo(species, klass) -> str:

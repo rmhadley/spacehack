@@ -76,6 +76,9 @@ class HudStats:
     hp: int
     max_hp: int
     gold: int
+    gunnery: int = 0
+    piloting: int = 0
+    engineering: int = 0
 
 
 def render_hud(
@@ -172,6 +175,11 @@ def render_hud(
         console.print(x=hud_x + 5, y=y, string=f"{modules_n}/{module_slots}", fg=COLOR_SHIP_VALUE)
         y += 1
 
+        # Pilot skills (compact one-liner)
+        y += 1
+        skill_line = f"G:{stats.gunnery} P:{stats.piloting} E:{stats.engineering}"
+        console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
+
         # Active mission (inline, no extra divider)
         if active_mission:
             y += 1
@@ -263,6 +271,11 @@ def render_hud(
             string=str(stats.gold),
             fg=COLOR_VALUE_WHITE,
         )
+
+        # Pilot skills (compact one-liner, below gold)
+        y += 1
+        skill_line = f"G:{stats.gunnery} P:{stats.piloting} E:{stats.engineering}"
+        console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
 
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
