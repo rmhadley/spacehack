@@ -271,7 +271,7 @@ def init_combat_state(
         "max_shields": max_shield,
         "shields_charged": False,
         "power_pool": pwr_gen,
-        "max_power": max(10, pwr_gen * 2),
+        "max_power": max(10, pwr_gen * 2) + engineering // 5,
         "ap_remaining": ap,
         "ap_total": ap,
         "pos": player_pos,
@@ -317,7 +317,7 @@ def init_combat_state(
         pilot_piloting=e_pilot.piloting + enemy_spec.ai.dodge_bonus,
         pilot_engineering=e_pilot.engineering,
         power_gen=enemy_spec.min_power_gen,
-        max_power=max(10, enemy_spec.min_power_gen * 2),
+        max_power=max(10, enemy_spec.min_power_gen * 2) + e_pilot.engineering // 5,
     )
 
     return player_state, enemy
@@ -408,11 +408,12 @@ def start_player_turn(player_state: dict) -> None:
         player_state["max_power"],
         player_state["power_pool"] + player_state["power_gen"],
     )
-    # Shield regen: rate 0-10, costs rate power, restores rate shields per turn
+    # Shield regen: rate 0-10, costs power discounted by engineering
     rate = player_state.get("shield_regen_rate", 0)
     max_sh = player_state["max_shields"]
     if rate > 0 and max_sh > 0 and player_state["shields"] < max_sh:
-        cost = rate
+        eng = player_state.get("engineering", 0)
+        cost = max(1, rate - eng // 10)
         if player_state["power_pool"] >= cost:
             player_state["power_pool"] -= cost
             player_state["shields"] = min(max_sh, player_state["shields"] + rate)
@@ -425,7 +426,7 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
     rate = enemy.shield_regen_rate
     if rate > 0 and enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
-        cost = rate
+        cost = max(1, rate - enemy.pilot_engineering // 10)
         if enemy.power_pool >= cost:
             enemy.power_pool -= cost
             enemy.shields = min(enemy.max_shields, enemy.shields + rate)
@@ -1235,7 +1236,9 @@ def run_combat(
                         cur = player_state.get("shield_regen_rate", 0)
                         next_rate = (cur + 1) % 11
                         player_state["shield_regen_rate"] = next_rate
-                        _p_log(f"Shield regen set to {next_rate}/10 (costs {next_rate} power per turn)")
+                        eng = player_state.get("engineering", 0)
+                        actual_cost = max(1, next_rate - eng // 10)
+                        _p_log(f"Shield regen set to {next_rate}/10 (costs {actual_cost} power per turn)")
                     break
 
                 # [w] -> Wait / end turn
