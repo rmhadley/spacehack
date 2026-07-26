@@ -1222,30 +1222,6 @@ def run_combat(
                 # combat now (don't re-render a fresh player turn).
                 if _result is not None:
                     break
-                # Post-turn dedup: push apart any enemies that ended up
-                # on the same cell (e.g. due to multi-turn convergence).
-                _post_occupied: set[tuple[int, int]] = set()
-                for _de in enemy_insts:
-                    if not _de.alive:
-                        continue
-                    _dp = (_de.pos.x, _de.pos.y)
-                    if _dp in _post_occupied:
-                        # Find a free cell nearby (same offsets as init dedup).
-                        for _odx, _ody in [(-1,0),(1,0),(0,-1),(0,1)]:
-                            _nk = (_de.pos.x + _odx, _de.pos.y + _ody)
-                            if (_nk not in _post_occupied
-                                    and game_map.in_bounds(*_nk)
-                                    and game_map.is_walkable(*_nk)):
-                                _de.pos = world.Position(*_nk)
-                                _post_occupied.add(_nk)
-                                break
-                        else:
-                            # Fallback: push south by 3 (no further
-                            # checks; unlikely on open combat maps).
-                            _de.pos = world.Position(_de.pos.x, _de.pos.y + 3)
-                            _post_occupied.add((_de.pos.x, _de.pos.y))
-                    else:
-                        _post_occupied.add(_dp)
                 # New player turn: reset AP, increment counter,
                 # drop out of WAIT, then ``continue`` so the
                 # top-of-loop render block paints the fresh
