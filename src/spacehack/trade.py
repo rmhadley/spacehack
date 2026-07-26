@@ -331,6 +331,13 @@ class _TradeOutcome(Enum):
     QUIT = auto()
 
 
+class _LootOutcome(Enum):
+    IGNORE = auto()
+    TAKE = auto()
+    LEAVE = auto()
+    QUIT = auto()
+
+
 def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open a simple modal to pick up loot from a destroyed ship.
 
@@ -390,42 +397,29 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
             string=hint, fg=ui.COLOR_INSTRUCTION,
         )
 
-    def _update(event) -> bool:
-        """Return True to take loot, False to leave, None to keep polling."""
+    def _update(event) -> _LootOutcome:
         if isinstance(event, tcod.event.Quit):
-            return False
+            return _LootOutcome.QUIT
         if not isinstance(event, tcod.event.KeyDown):
-            return None
+            return _LootOutcome.IGNORE
         if event.sym in ui._ESCAPE_SYMS:
-            return False
+            return _LootOutcome.LEAVE
         if event.sym in ui._ENTER_SYMS:
-            return True
-        return None
+            return _LootOutcome.TAKE
+        return _LootOutcome.IGNORE
 
-    # Manual modal loop (simpler than ui.Modal for a one-shot decision).
-    _taken = False
-    while _taken is False:
-        _render()
-        ctx.context.present(console)
-        for _event in tcod.event.wait():
-            ctx.context.convert_event(_event)
-            _result = _update(_event)
-            if _result is True:
-                # Take the loot.
-                owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-                ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
-                # Remove the loot entity from the map.
-                if loot_entity in ctx.game_map.entities:
-                    try:
-                        ctx.game_map.entities.remove(loot_entity)
-                    except ValueError:
-                        pass
-                _taken = True
-                break
-            elif _result is False:
-                ctx.log.add("Left the cargo debris in space.")
-                _taken = True
-                break
+    _outcome = ui.Modal(ctx.context, console).run(_render, _update)
+    if _outcome is _LootOutcome.TAKE:
+        owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+        ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
+        if loot_entity in ctx.game_map.entities:
+            try:
+                ctx.game_map.entities.remove(loot_entity)
+            except ValueError:
+                pass
+    elif _outcome is _LootOutcome.LEAVE or _outcome is _LootOutcome.QUIT:
+        ctx.log.add("Left the cargo debris in space.")
+        return
 
 
 def open_trade(ctx: GameContext, planet_id: str) -> None:

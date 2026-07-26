@@ -80,14 +80,14 @@ class BountySpawn:
 
 @dataclasses.dataclass(frozen=True)
 class ProceduralSpawn:
-    """A procedurally-generated enemy spawn created on jump / launch.
+    """A procedurally-generated NPC spawn created on jump / launch.
 
-    Rolled against the system's ``pirate_chance`` each time the
+    Rolled against the system's ``npc_spawn_chance`` each time the
     player enters a system. Persists for the current visit only;
     fresh spawns are rolled on the next jump / launch. ``squad_id``
-    groups multiple pirates into a single combat encounter.
+    groups multiple NPCs into a single combat encounter.
     """
-    enemy_id: str
+    npc_id: str                      # references NpcShipSpec.id
     pos: world.Position
     squad_id: str | None = None
 
@@ -166,7 +166,7 @@ class GameContext:
     player_active_mission: mission_module.ActiveMission | None = None
     bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
-    pirate_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
-    pirate_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)
+    npc_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
+    npc_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)
     economy_state: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
     # economy_state[planet_id][good_id] = current_stock; seeded on first visit

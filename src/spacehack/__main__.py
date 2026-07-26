@@ -552,14 +552,14 @@ def _add_bounty_spawns_to_map(
     landmark so the player knows where to look. No-op when the system
     has no active bounty spawns.
     """
-    from .data.enemies import find_enemy as _fe
+    from .data.npc_ships import find_npc_ship as _fns
     _spawns = ctx.bounty_spawns.get(system_id, [])
     if not _spawns:
         return
     _system = getattr(solar_system_module, 'current_system', lambda: None)()
     for _bs in _spawns:
         try:
-            _espec = _fe(_bs.enemy_id)
+            _espec = _fns(_bs.enemy_id)
         except (KeyError, ImportError):
             continue
         game_map.entities.append(world.Entity(
@@ -568,298 +568,17 @@ def _add_bounty_spawns_to_map(
             pos=_bs.pos,
             name=_espec.name,
             width=1, height=1,
+            npc_ship_id=_bs.enemy_id,
         ))
         if _system is not None:
             _landmark = _nearest_body_name(_bs.pos, _system)
             ctx.log.add_colored(f"Sensor ping: bounty target detected near {_landmark}.", message_log.COLOR_IMPORTANT_EVENT)
 
 
-def _spawn_procedural_pirates(
-    ctx, game_map: world.GameMap, system_id: str,
-) -> None:
-    """Roll for procedural pirate encounters in ``system_id``.
-
-    Each jump / launch consumes a fresh roll from the game's seeded
-    RNG (:data:`spacehack.engine.RNG`). If the system's
-    ``pirate_chance`` hits, multiple independent groups may spawn --
-    each with its own position, squad id (when >1 member), and
-    movement id. This produces a mix of squads and solos scattered
-    across the system rather than one monolithic squad.
-    """
-    from . import engine as _engine
-    from .data.enemies import find_enemy as _fe
-    from .data.solar_systems import find_solar_system as _fss
-    try:
-        _system = _fss(system_id)
-    except KeyError:
-        return
-    if _system.pirate_chance <= 0.0 or _system.pirate_density <= 0:
-        return
-    if _engine.RNG.random() >= _system.pirate_chance:
-        return
-    try:
-        _espec = _fe("pirate_scout")
-    except (KeyError, ImportError):
-        return
-    # Build a set of blocked cells (planets, gates, stations, existing entities).
-    _blocked: set[tuple[int, int]] = set()
-    for _p in _system.planets:
-        for _dy in range(_p.height):
-            for _dx in range(_p.width):
-                _blocked.add((_p.pos.x + _dx, _p.pos.y + _dy))
-    for _jp in _system.jump_points:
-        for _dy in range(_jp.height):
-            for _dx in range(_jp.width):
-                _blocked.add((_jp.pos.x + _dx, _jp.pos.y + _dy))
-    for _st in getattr(_system, 'stations', ()) or ():
-        for _dy in range(_st.height):
-            for _dx in range(_st.width):
-                _blocked.add((_st.pos.x + _dx, _st.pos.y + _dy))
-    for _e in game_map.entities:
-        for _dy in range(_e.height):
-            for _dx in range(_e.width):
-                _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
-
-    # Pick a free cell on the map (shared helper for all groups).
-    def _pick_centre() -> tuple[int, int] | None:
-        for _attempt in range(200):
-            _cx = _engine.RNG.randint(10, _system.width - 10)
-            _cy = _engine.RNG.randint(10, _system.height - 10)
-            if (_cx, _cy) not in _blocked:
-                return (_cx, _cy)
-        return None
-
-    # Determine how many independent groups spawn this visit.
-    # More dangerous systems spawn more groups.
-    # Use density-1 so even density 3 systems get 2 groups max.
-    _max_groups = max(1, _system.pirate_density - 1)
-    _num_groups = _engine.RNG.randint(1, _max_groups)
-    # Distribute the total pirate budget across groups.
-    # Each group gets at least 1, leftover rounds down.
-    _total_budget = _system.pirate_density
-    _group_sizes: list[int] = []
-    for _g in range(_num_groups):
-        _remaining_groups = _num_groups - _g
-        _max_for_this = _total_budget - _remaining_groups + 1  # leave at least 1 for each remaining
-        if _max_for_this <= 0:
-            break
-        _size = _engine.RNG.randint(1, min(5, _max_for_this))
-        _group_sizes.append(_size)
-        _total_budget -= _size
-    if not _group_sizes:
-        _group_sizes = [1]
-
-    _total_spawned = 0
-    _all_spawns: list = []
-    _all_procedural: list = []
-
-    for _g_idx, _g_size in enumerate(_group_sizes):
-        _centre = _pick_centre()
-        if _centre is None:
-            continue
-        _gcx, _gcy = _centre
-        # Squad id only for groups > 1.
-        _squad_id: str | None = (
-            f"proc_pirates_{system_id}_{_g_idx}_{_engine.RNG.randint(0, 99999)}"
-            if _g_size > 1 else None
-        )
-        # Movement id always non-empty.
-        _movement_id: str = _squad_id or f"proc_solo_{system_id}_{_g_idx}_{_engine.RNG.randint(0, 99999)}"
-
-        _group_entities = 0
-        for _i in range(_g_size):
-            _x = _y = -1
-            for _attempt in range(50):
-                _x = _gcx + _engine.RNG.randint(-4, 4)
-                _y = _gcy + _engine.RNG.randint(-4, 4)
-                if (_x, _y) not in _blocked and 0 <= _x < _system.width and 0 <= _y < _system.height:
-                    break
-            else:
-                continue
-            _pos = world.Position(_x, _y)
-            _blocked.add((_x, _y))
-            game_map.entities.append(world.Entity(
-                char=_espec.char, fg=_espec.fg, pos=_pos,
-                name=_espec.name, width=1, height=1,
-                procedural_squad_id=_movement_id,
-            ))
-            _all_spawns.append(_pos)
-            _all_procedural.append((_pos, _squad_id))
-            _group_entities += 1
-        _total_spawned += _group_entities
-
-    if _all_spawns:
-        from .game_context import ProceduralSpawn as _PS
-        ctx.procedural_spawns[system_id] = [
-            _PS(
-                enemy_id="pirate_scout",
-                pos=pos,
-                squad_id=sid,
-            )
-            for pos, sid in _all_procedural
-        ]
-        ctx.log.add_colored(
-            f"Sensor ping: {_total_spawned} unknown contact{('s' if _total_spawned != 1 else '')} detected in the area.",
-            message_log.COLOR_IMPORTANT_EVENT,
-        )
 
 
-def _move_pirates(ctx, game_map: world.GameMap) -> None:
-    """Patrol procedural pirate entities toward planets/gates/stations.
 
-    Called after the player moves in space mode. Each pirate
-    squad (or solo) picks a planet, gate, or station and
-    commits to moving toward it until within 2 cells, then
-    picks a new target. Squad members use the A* path
-    computed for the squad leader. Members who can move in
-    the squad direction do so (stay in formation). Members
-    who are blocked try perpendicular slips to navigate
-    around obstacles individually (break formation). Cohesion
-    pull-back reels stragglers back toward the squad centre.
-    """
-    from . import engine as _engine
-    # Build goal list from the current system's bodies.
-    _system = solar_system_module.current_system()
-    _goals: list[tuple[int, int]] = []
-    def _body_goal(body) -> tuple[int, int] | None:
-        _gx = body.pos.x + body.width + 1
-        _gy = body.pos.y + body.height // 2
-        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
-            return (_gx, _gy)
-        return None
-    for _p in _system.planets:
-        if getattr(_p, 'sun', False):
-            continue
-        _g = _body_goal(_p)
-        if _g is not None:
-            _goals.append(_g)
-    for _jp in _system.jump_points:
-        _g = _body_goal(_jp)
-        if _g is not None:
-            _goals.append(_g)
-    for _st in getattr(_system, 'stations', ()) or ():
-        _g = _body_goal(_st)
-        if _g is not None:
-            _goals.append(_g)
-    if not _goals:
-        _any_pirates = any(getattr(_e, 'procedural_squad_id', '') != ''
-                           for _e in game_map.entities)
-        if _any_pirates:
-            ctx.log.add('Sensor: pirates have no navigation targets nearby.')
-        return
-    _pirate_ents = [_e for _e in game_map.entities
-                    if not getattr(_e, 'owned', False)
-                    and getattr(_e, 'procedural_squad_id', '') != '']
-    _squad_map: dict[str, list] = {}
-    for _e in _pirate_ents:
-        _squad_map.setdefault(_e.procedural_squad_id, []).append(_e)
-    for _sid, _members in _squad_map.items():
-        if len(_members) == 0:
-            continue
-        _is_squad = len(_members) > 1
-        _leader = _members[0]
-        _target = ctx.pirate_targets.get(_sid)
-        _lx, _ly = _leader.pos.x, _leader.pos.y
-        _dist_to_target = (
-            max(abs(_lx - _target[0]), abs(_ly - _target[1]))
-            if _target is not None else 999
-        )
-        # Refresh target when None or within 2 cells.
-        if _target is None or _dist_to_target <= 2:
-            _candidates = [g for g in _goals if g != _target]
-            if not _candidates:
-                _candidates = _goals
-            _target = _engine.RNG.choice(_candidates)
-            ctx.pirate_targets[_sid] = _target
-            # Compute A* path from squad leader to the new target cell.
-            _end_set: set[tuple[int, int]] = {_target}
-            _path = world.find_path(
-                (_lx, _ly), _end_set, game_map,
-                exclude_entity=_leader,
-            )
-            ctx.pirate_paths[_sid] = _path or []
-        # Move most ticks for consistent progress (80% chance).
-        if _engine.RNG.random() >= 0.8:
-            continue
-        _path = ctx.pirate_paths.get(_sid)
-        if not _path:
-            # A* returned no path (goal unreachable) or the path was
-            # fully consumed. Force a target refresh on the next tick
-            # instead of retrying the same empty path forever.
-            ctx.pirate_targets.pop(_sid, None)
-            continue
-        _next = _path[0]
-        _dx = _next[0] - _lx
-        _dy = _next[1] - _ly
-        # Sanity check: path step must be adjacent.
-        if abs(_dx) > 1 or abs(_dy) > 1:
-            ctx.pirate_paths[_sid] = []
-            continue
-        # Try the squad direction for each member. Members who can move
-        # in the squad direction do so (stay in formation). Members who
-        # are blocked try perpendicular slip-around directions to navigate
-        # around obstacles individually (break formation). Cohesion
-        # pull-back later reels them in.
-        _leader_moved = False
-        for _m in _members:
-            _nx = _m.pos.x + _dx
-            _ny = _m.pos.y + _dy
-            if (game_map.is_walkable(_nx, _ny)
-                    and game_map.entity_at(_nx, _ny, exclude=_m) is None):
-                _m.pos = world.Position(_nx, _ny)
-                if _m is _leader:
-                    _leader_moved = True
-            else:
-                # Blocked in squad direction — try perpendicular offsets.
-                _slipped = False
-                if _dx != 0 and _dy != 0:
-                    for _sdx, _sdy in [(_dx, 0), (0, _dy)]:
-                        _snx = _m.pos.x + _sdx
-                        _sny = _m.pos.y + _sdy
-                        if (game_map.is_walkable(_snx, _sny)
-                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
-                            _m.pos = world.Position(_snx, _sny)
-                            _slipped = True
-                            break
-                elif _dx != 0:
-                    for _sdx, _sdy in [(_dx, 1), (_dx, -1)]:
-                        _snx = _m.pos.x + _sdx
-                        _sny = _m.pos.y + _sdy
-                        if (game_map.is_walkable(_snx, _sny)
-                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
-                            _m.pos = world.Position(_snx, _sny)
-                            _slipped = True
-                            break
-                else:  # _dy != 0
-                    for _sdx, _sdy in [(1, _dy), (-1, _dy)]:
-                        _snx = _m.pos.x + _sdx
-                        _sny = _m.pos.y + _sdy
-                        if (game_map.is_walkable(_snx, _sny)
-                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
-                            _m.pos = world.Position(_snx, _sny)
-                            _slipped = True
-                            break
-                # If no slip direction works member stays put (furthest break).
-        if _leader_moved:
-            ctx.pirate_paths[_sid].pop(0)
-        else:
-            # Leader stuck (blocked cell + no slip direction works).
-            # Clear path and target so next tick picks a fresh target
-            # and computes a new path, rather than retrying the same
-            # blocked cell forever.
-            ctx.pirate_paths.pop(_sid, None)
-            ctx.pirate_targets.pop(_sid, None)
-        # Squad cohesion: pull stragglers toward centre
-        if _is_squad:
-            _cx = sum(m.pos.x for m in _members) // len(_members)
-            _cy = sum(m.pos.y for m in _members) // len(_members)
-            for _m in _members:
-                if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4:
-                    _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
-                    _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
-                    if (game_map.is_walkable(_pull_x, _pull_y)
-                        and game_map.entity_at(_pull_x, _pull_y, exclude=_m) is None):
-                        _m.pos = world.Position(_pull_x, _pull_y)
+
 
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
@@ -939,10 +658,10 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     Also checks :attr:`ctx.bounty_spawns` so dynamically-placed
     bounty targets trigger combat the same way as static enemies.
 
-    Function-level ``from .data.enemies import ...`` import avoids a
+    Function-level ``from .data.npc_ships import ...`` import avoids a
     top-level circular import on the data module.
     """
-    from .data.enemies import find_enemy as _fe
+    from .data.npc_ships import find_npc_ship as _fns
     _enemy_spawns = getattr(system, 'enemies', ()) or ()
     _alive_spawns: list = []
     _triggered_squad_ids: set = set()
@@ -950,7 +669,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     # Check static system spawns.
     for _spawn in _enemy_spawns:
         try:
-            _espec = _fe(_spawn.enemy_id)
+            _espec = _fns(_spawn.enemy_id)
         except KeyError:
             continue
         _enemy_alive = any((_e for _e in ctx.game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _spawn.pos.x and (_e.pos.y == _spawn.pos.y)))
@@ -968,7 +687,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     _bounty_spawns = ctx.bounty_spawns.get(_system_id, [])
     for _bs in _bounty_spawns:
         try:
-            _espec = _fe(_bs.enemy_id)
+            _espec = _fns(_bs.enemy_id)
         except KeyError:
             continue
         _enemy_alive = any((_e for _e in ctx.game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _bs.pos.x and (_e.pos.y == _bs.pos.y)))
@@ -979,9 +698,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         if _dist <= _espec.detect_radius:
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
-    # Also check procedural pirates by current entity positions.
+    # Also check procedural NPCs by current entity positions.
     # Don't use ctx.procedural_spawns — those store the original
-    # spawn positions. Pirates move, so those positions are stale
+    # spawn positions. NPCs move, so those positions are stale
     # and combat detection would fail entirely. Instead scan the
     # game_map for unowned entities with a procedural_squad_id tag.
     _procedural_entities = [
@@ -990,14 +709,15 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         and getattr(_e, 'procedural_squad_id', '') != ''
     ]
     for _pe in _procedural_entities:
+        _pid = getattr(_pe, 'npc_ship_id', '') or "pirate_scout"
         try:
-            _espec = _fe("pirate_scout")
+            _espec = _fns(_pid)
         except (KeyError, ImportError):
             continue
         _alive_spawns.append((_pe, _espec))
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
         if _dist <= _espec.detect_radius:
-            # All procedural pirates share their movement squad ID
+            # All procedural NPCs share their movement squad ID
             # (unique per solo, shared per squad). Use it for squad
             # grouping in combat.
             _triggered_squad_ids.add(_pe.procedural_squad_id)
@@ -1231,8 +951,8 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     if _encounter is not None:
                         ctx.log.add('Auto-nav interrupted - enemies detected!')
                         return (GotoOutcome.COMBAT, _encounter)
-                    # Move pirates one step per auto-nav tick.
-                    _move_pirates(ctx, ctx.game_map)
+                    from .npc_ships import move_npcs as _mn
+                    _mn(ctx, ctx.game_map)
                 ctx.log.add('Auto-nav complete.')
                 return (GotoOutcome.COMPLETED, None)
             continue
@@ -1513,7 +1233,8 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
-    _spawn_procedural_pirates(ctx, new_map, target_system_id)
+    from .npc_ships import spawn_npcs as _sn
+    _sn(ctx, new_map, target_system_id)
     dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
     ship_record = ship_module_for_jump.find_ship(ctx.player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
@@ -2135,7 +1856,8 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
-    _spawn_procedural_pirates(ctx, space_map, solar_system_module.current_solar_system_id)
+    from .npc_ships import spawn_npcs as _sn
+    _sn(ctx, space_map, solar_system_module.current_solar_system_id)
     origin_planet = solar_system_module.find_planet(current_city_id)
     space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
     space_map.entities.append(space_player)
@@ -2259,7 +1981,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     if _encounter is not None:
                         combat._handle_combat_encounter(ctx, console, _encounter)
                         player_active_mission = ctx.player_active_mission
-                    _move_pirates(ctx, game_map)
+                    from .npc_ships import move_npcs as _mn
+                    _mn(ctx, game_map)
                 ctx.log.add('You wait.')
                 continue
 
@@ -2274,8 +1997,9 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     combat._handle_combat_encounter(ctx, console, _encounter)
                     # Sync local mission state after combat.
                     player_active_mission = ctx.player_active_mission
-                # Move procedural pirates after the player moves.
-                _move_pirates(ctx, game_map)
+                # Move procedural NPCs after the player moves.
+                from .npc_ships import move_npcs as _mn
+                _mn(ctx, game_map)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx

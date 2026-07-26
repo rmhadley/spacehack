@@ -123,6 +123,7 @@ SYSTEM: SolarSystem = SolarSystem(
     jump_points=_jump_points,
     stations=(),              # no stations in Vega this iteration.
     stars=_stars,
-    pirate_chance=0.35,
-    pirate_density=3,
+    npc_spawn_chance=0.35,
+    npc_spawn_table=(("pirate_scout", 0.7), ("pirate_raider", 0.4), ("merchant_hauler", 0.5)),
+    npc_density=3,
 )

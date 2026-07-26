@@ -285,8 +285,7 @@ def init_combat_state(
     }
 
     # Enemy instance — uses ship_id to get actual hull value
-    e_pilot = enemy_spec.pilot_skills
-    e_ap = _calc_ap(e_pilot.piloting)
+    e_ap = _calc_ap(enemy_spec.pilot_piloting)
     e_ammo: dict[str, int] = {}
     for wid in enemy_spec.weapons:
         try:
@@ -313,11 +312,11 @@ def init_combat_state(
         weapons=enemy_spec.weapons,
         modules=enemy_spec.modules,
         weapon_ammo=e_ammo,
-        pilot_gunnery=e_pilot.gunnery + enemy_spec.ai.accuracy_bonus,
-        pilot_piloting=e_pilot.piloting + enemy_spec.ai.dodge_bonus,
-        pilot_engineering=e_pilot.engineering,
+        pilot_gunnery=enemy_spec.pilot_gunnery + enemy_spec.ai_accuracy_bonus,
+        pilot_piloting=enemy_spec.pilot_piloting + enemy_spec.ai_dodge_bonus,
+        pilot_engineering=enemy_spec.pilot_engineering,
         power_gen=enemy_spec.min_power_gen,
-        max_power=max(10, enemy_spec.min_power_gen * 2) + e_pilot.engineering // 5,
+        max_power=max(10, enemy_spec.min_power_gen * 2) + enemy_spec.pilot_engineering // 5,
     )
 
     return player_state, enemy
@@ -901,7 +900,7 @@ def run_combat(
             _occupied.add(_key)
 
     from .message_log import COLOR_PLAYER_ACTION, COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
-    from .data.trade_goods.core import TRADE_GOODS as _TRADE_GOODS
+    from .data.trade_goods import find_trade_good as _ftg
 
     weapons_list = list(getattr(player_owned_ship, 'weapons', ()) or ())
     selected_weapon_idx = 0
@@ -1096,7 +1095,7 @@ def run_combat(
                             player_state["pos"], _ei.pos,
                         )
                         _moved = False
-                        if _edist > _esp.ai.preferred_range:
+                        if _edist > _esp.ai_preferred_range:
                             # Attempt to move one cell toward the
                             # player. The target cell must be both
                             # walkable AND unoccupied — the burn-full
@@ -1404,14 +1403,26 @@ def run_combat(
                                 except ValueError:
                                     pass
                             # Spawn loot entities at or near the wreck.
-                            # Phase 6b: cap items per kill to 1-2 random
-                            # rolls (was: iterate all TRADE_GOODS) and
-                            # reduce crates-per-good from 1-3 to 1-2.
+                            # Uses the NPC's cargo_goods from NpcShipSpec
+                            # so each ship type drops appropriate loot.
                             _wreck = _target.pos
                             _loot_count = RNG.randint(1, 2)
-                            _loot_pool = list(_TRADE_GOODS)
+                            _esp_for_loot = next(
+                                (_sp for _sp in enemy_specs
+                                 if getattr(_sp, 'id', None) == _target.spec_id),
+                                None,
+                            )
+                            _cargo_pool = getattr(
+                                _esp_for_loot, 'cargo_goods', ()
+                            ) if _esp_for_loot else ()
                             for _ in range(_loot_count):
-                                _tg = RNG.choice(_loot_pool)
+                                if not _cargo_pool:
+                                    break
+                                _loot_good_id = RNG.choice(_cargo_pool)
+                                try:
+                                    _tg = _ftg(_loot_good_id)
+                                except KeyError:
+                                    continue
                                 if RNG.random() >= _tg.rarity:
                                     continue
                                 _qty = RNG.randint(1, 2)
@@ -1427,11 +1438,22 @@ def run_combat(
                                 ))
                     else:
                         _p_log(f"Missed {_target.name}! (rolled {_roll}, needed <={_chance})")
-                        # Charge the weapon's full AP on miss too —
-                        # the action was committed regardless of
-                        # whether it landed. Matches the HIT branch
-                        # so heavy missile (ap_cost=2) and any
-                        # future >1 AP weapons charge consistently.
+                        # Charge power/ammo + AP on miss too — the
+                        # action was committed regardless of whether
+                        # it landed. Energy weapons discharge whether
+                        # they hit or not; missiles expend a round.
+                        if _ws and _ws.slot_type == "energy":
+                            player_state["power_pool"] -= _ws.power_cost
+                        elif _ws and _ws.slot_type == "missile":
+                            _ammo = player_state["weapon_ammo"].get(_wid, 0)
+                            if _ammo > 0:
+                                player_state["weapon_ammo"][_wid] = _ammo - _ws.ammo_per_shot
+                                if player_owned_ship is not None:
+                                    player_owned_ship.cargo_ammo = max(
+                                        0,
+                                        player_owned_ship.cargo_ammo
+                                        - _ws.ammo_per_shot * _ws.cargo_per_round,
+                                    )
                         player_state["ap_remaining"] -= (_ws.ap_cost if _ws else 1)
                     break
 
