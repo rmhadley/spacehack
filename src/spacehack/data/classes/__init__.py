@@ -32,7 +32,7 @@ class GameClass:
     name: str
     description: str
     hp_base: int = 10
-    gold: int = 100
+    gold: int = 1000
     skill_bonus: PilotSkills = PilotSkills()
 
 
