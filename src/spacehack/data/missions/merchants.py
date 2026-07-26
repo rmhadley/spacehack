@@ -26,7 +26,7 @@ MISSIONS: tuple[Mission, ...] = (
     #   - is_deliverable_at    gates the Deliver NPC-talk option so
     #                           it only appears when the player is on
     #                           ac_station AND bumps research_officer
-    #   - complete_mission     drops cargo + grants reward_gold
+    #   - complete_mission     drops cargo + grants reward_credits
     #   - abort_mission        releases cargo without granting reward
     #
     # Field-by-field contract (this is the template to copy):
@@ -38,7 +38,7 @@ MISSIONS: tuple[Mission, ...] = (
     #   description                1-3 sentence blurb in the modal
     #   giver_npc_id               NPC id who offers this work
     #                              (must exist in data/npcs/)
-    #   reward_gold                payout on complete (added to stats.gold)
+    #   reward_credits             payout on complete (added to stats.credits)
     #   reward_xp                  payout on complete (logged only)
     #   recommended_class_id       optional \"best suited for X\" hint;
     #                              soft hint only, never a hard filter
@@ -66,7 +66,7 @@ MISSIONS: tuple[Mission, ...] = (
             "Hand them to the Research Officer on arrival."
         ),
         giver_npc_id="guild_master",
-        reward_gold=150,
+        reward_credits=150,
         reward_xp=30,
         recommended_class_id="merchant",
         recommended_ship_min_cargo=10,
@@ -101,7 +101,7 @@ MISSIONS: tuple[Mission, ...] = (
             "seals. Three jumps out, so fuel up before you go."
         ),
         giver_npc_id="guild_master",
-        reward_gold=400,
+        reward_credits=400,
         reward_xp=80,
         recommended_class_id="merchant",
         recommended_ship_min_cargo=15,

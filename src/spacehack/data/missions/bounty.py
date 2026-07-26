@@ -20,7 +20,7 @@ MISSIONS: tuple[Mission, ...] = (
             "on kill."
         ),
         giver_npc_id="bounty_master",
-        reward_gold=200,
+        reward_credits=200,
         reward_xp=40,
         recommended_class_id="bounty_hunter",
         target_enemy_id="pirate_scout",

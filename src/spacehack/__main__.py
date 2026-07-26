@@ -1361,7 +1361,7 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
         else:
             owned.inventory[gid] = remaining
 
-    ctx.stats.gold = max(0, ctx.stats.gold - _total_fine)
+    ctx.stats.credits = max(0, ctx.stats.credits - _total_fine)
     ctx.log.add(f"Militia levies a fine of {_total_fine}$ for contraband.")
 
 
@@ -1506,12 +1506,12 @@ def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_
     console.clear()
     title = f'A {ship.name.upper()} sits on the showroom floor.'
     body = ship.description
-    price_line = f'Cost: {ship.price} gold    You have: {ctx.stats.gold} gold'
-    if ctx.stats.gold >= ship.price:
+    price_line = f'Cost: {ship.price}$    You have: {ctx.stats.credits}$'
+    if ctx.stats.credits >= ship.price:
         afford = 'Press ENTER to buy it.'
     else:
-        short = ship.price - ctx.stats.gold
-        afford = f'You cannot afford it. ({short}g short)'
+        short = ship.price - ctx.stats.credits
+        afford = f'You cannot afford it. ({short}$ short)'
     back = 'Press ESC to walk away.'
     max_w = screen_width - HUD_WIDTH - 2
 
@@ -1523,8 +1523,8 @@ def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
     paint(center_y - 4, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y - 1, fit(body), fg=ui.COLOR_DESCRIPTION)
-    paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if ctx.stats.gold >= ship.price else ui.COLOR_VALUE_DIM)
-    paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.gold >= ship.price else ui.COLOR_VALUE_DIM)
+    paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if ctx.stats.credits >= ship.price else ui.COLOR_VALUE_DIM)
+    paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.credits >= ship.price else ui.COLOR_VALUE_DIM)
     paint(center_y + 7, fit(back), fg=ui.COLOR_INSTRUCTION)
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
@@ -1538,7 +1538,7 @@ def update_ship_buy(event: tcod.event.Event, ship: ship_module.Ship, stats: hud.
     if sym in ui._ESCAPE_SYMS:
         return ShipBuyOutcome.BACK
     if sym in ui._ENTER_SYMS:
-        return ShipBuyOutcome.BUY if stats.gold >= ship.price else ShipBuyOutcome.TOO_EXPENSIVE
+        return ShipBuyOutcome.BUY if stats.credits >= ship.price else ShipBuyOutcome.TOO_EXPENSIVE
     return ShipBuyOutcome.IGNORE
 
 def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuyOutcome:
@@ -1589,7 +1589,7 @@ def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Miss
     ``"{title} ({reward}gp)"`` so the player sees the reward in
     the listing. ``descriptions`` is the mission body blurb.
     """
-    available_options = tuple(((str(i), f'{m.title} ({m.reward_gold}gp)') for i, m in enumerate(offerings)))
+    available_options = tuple(((str(i), f'{m.title} ({m.reward_credits}$)') for i, m in enumerate(offerings)))
     descriptions = {str(i): m.description for i, m in enumerate(offerings)}
     return (f'{npc.name} - available work', available_options, descriptions)
 
@@ -1629,7 +1629,7 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
     hint_lines: list[str] = ['ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.']
     if offerings:
         picked = offerings[sel]
-        hint_lines.append(f'Reward: {picked.reward_gold}gp + {picked.reward_xp}xp')
+        hint_lines.append(f'Reward: {picked.reward_credits}$ + {picked.reward_xp}xp')
         if picked.recommended_class_id:
             klass = find_class(picked.recommended_class_id)
             hint_lines.append(f'Best suited for: {klass.name}')
@@ -1744,7 +1744,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, confirm
     for j, line in enumerate(desc_rows):
         paint(desc_start_row + j, line, fg=ui.COLOR_VALUE_WHITE)
     reward_row = desc_start_row + len(desc_rows) + 1
-    paint(reward_row, fit(f'Reward: {mission.reward_gold}gp + {mission.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
+    paint(reward_row, fit(f'Reward: {mission.reward_credits}$ + {mission.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
     button_row = reward_row + 3
     if confirm_abandon:
         paint(button_row, fit('Press ENTER to abandon. ESC cancels.'), fg=ui.COLOR_OPTION_HIGHLIGHT)
@@ -1832,7 +1832,7 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     console.print(x=ui.centered_x(title, screen_width), y=center_y - 5, string=title, fg=ui.COLOR_TITLE)
     console.print(x=ui.centered_x(sub, screen_width), y=center_y - 3, string=sub, fg=ui.COLOR_DESCRIPTION)
     if ctx.player_owned_ship is not None:
-        fuel_str = f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}  [Refuel: {ship_module.FUEL_COST_PER_UNIT}g/u]'
+        fuel_str = f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}  [Refuel: {ship_module.FUEL_COST_PER_UNIT}$/u]'
         console.print(x=ui.centered_x(fuel_str, screen_width), y=center_y - 1, string=fuel_str, fg=ui.COLOR_VALUE_WHITE)
     list_top = center_y + 1 if ctx.player_owned_ship is not None else center_y - 1
     n = len(SHIP_MENU_OPTIONS)
@@ -1975,15 +1975,15 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
             if buyable <= 0:
                 ctx.log.add('The fuel tank is already full.')
                 continue
-            affordable = ctx.stats.gold // ship_module.FUEL_COST_PER_UNIT
+            affordable = ctx.stats.credits // ship_module.FUEL_COST_PER_UNIT
             if affordable <= 0:
-                ctx.log.add("You don't have enough gold to buy fuel.")
+                ctx.log.add("You don't have enough credits to buy fuel.")
                 continue
             units = min(buyable, affordable)
             cost = units * ship_module.FUEL_COST_PER_UNIT
-            ctx.stats.gold -= cost
+            ctx.stats.credits -= cost
             ctx.player_owned_ship.fuel += units
-            ctx.log.add(f'Refueled {units} units for {cost}g. Fuel: {ctx.player_owned_ship.fuel} / {ship_record.max_fuel}.')
+            ctx.log.add(f'Refueled {units} units for {cost}$. Fuel: {ctx.player_owned_ship.fuel} / {ship_record.max_fuel}.')
             continue
         return action
 
@@ -2398,16 +2398,16 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         if result is ShipBuyOutcome.QUIT:
                             return
                         if result is ShipBuyOutcome.BUY:
-                            stats.gold -= ship.price
+                            stats.credits -= ship.price
                             blocker.pos = world.HANGAR_ANCHOR
                             blocker.owned = True
                             blocker.name = f'Your Ship: {ship.name}'
                             player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=('light_laser', 'heavy_laser', 'plasma_cannon', 'light_missile', 'heavy_missile', 'emp_missile'), modules=('compact_reactor', 'shield_mk1'), fuel=ship.max_fuel)
                             ctx.player_owned_ship = player_owned_ship
-                            log.add(f'You bought the {ship.name} for {ship.price}g and parked it in your hangar.')
+                            log.add(f'You bought the {ship.name} for {ship.price}$ and parked it in your hangar.')
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
-                            short = ship.price - stats.gold
-                            log.add(f'You cannot afford the {ship.name} ({short}g short).')
+                            short = ship.price - stats.credits
+                            log.add(f'You cannot afford the {ship.name} ({short}$ short).')
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)

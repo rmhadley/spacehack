@@ -4,7 +4,7 @@ Gameplay numbers (base HP, starting gold, pilot-skill bonuses) live
 ON the spec rather than in a separate lookup table so adding a
 class becomes a one-file change. The cosmetic HUD read-outs and
 combat-init formulas in :mod:`spacehack.character` pull
-:attr:`GameClass.hp_base`, :attr:`GameClass.gold` and
+:attr:`GameClass.hp_base`, :attr:`GameClass.credits` and
 :attr:`GameClass.skill_bonus` directly.
 """
 from . import GameClass
@@ -20,7 +20,7 @@ CLASSES: tuple[GameClass, ...] = (
         name="Pirate",
         description="Lives beyond the law. Plunders and pillages.",
         hp_base=9,
-        gold=200,
+        credits=1000,
         skill_bonus=PilotSkills(gunnery=15, piloting=10, engineering=0),
     ),
     GameClass(
@@ -28,7 +28,7 @@ CLASSES: tuple[GameClass, ...] = (
         name="Merchant",
         description="Trades goods across the systems.",
         hp_base=7,
-        gold=200,
+        credits=1000,
         skill_bonus=PilotSkills(gunnery=0, piloting=5, engineering=15),
     ),
     GameClass(
@@ -36,7 +36,7 @@ CLASSES: tuple[GameClass, ...] = (
         name="Bounty Hunter",
         description="Hunts the wanted. Paid in credits.",
         hp_base=10,
-        gold=200,
+        credits=1000,
         skill_bonus=PilotSkills(gunnery=10, piloting=10, engineering=5),
     ),
 )

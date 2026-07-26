@@ -73,7 +73,7 @@ def _buy_good(
     Mutates:
       - ``economy_state[planet_id][good_id]`` (decrement)
       - ``owned_ship.inventory``           (increment)
-      - ``stats.gold``                     (decrement)
+      - ``stats.credits``                   (decrement)
 
     Logs failure reasons when the transaction can't complete.
     """
@@ -86,7 +86,7 @@ def _buy_good(
     volume = good.volume * quantity
     cost = _unit_price(ctx, planet_id, good_id) * quantity
 
-    if ctx.stats.gold < cost:
+    if ctx.stats.credits < cost:
         ctx.log.add(f"Not enough credits to buy {quantity}x {good.name} ({cost}$ needed).")
         return False
 
@@ -105,7 +105,7 @@ def _buy_good(
 
     # Complete the transaction.
     owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-    ctx.stats.gold -= cost
+    ctx.stats.credits -= cost
     ctx.log.add(f"Bought {quantity}x {good.name} for {cost}$.")
     return True
 
@@ -144,7 +144,7 @@ def _sell_good(
     Mutates:
       - ``owned_ship.inventory``           (decrement, removing key at 0)
       - ``economy_state[planet_id][good_id]`` (increment)
-      - ``stats.gold``                     (increment)
+      - ``stats.credits``                   (increment)
     """
     owned = ctx.player_owned_ship
     if owned is None:
@@ -178,7 +178,7 @@ def _sell_good(
     else:
         owned.inventory[good_id] = remaining
 
-    ctx.stats.gold += revenue
+    ctx.stats.credits += revenue
     ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}$.")
     return True
 
@@ -423,10 +423,10 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             from . import ship as ship_module
             ship_spec = ship_module.find_ship(owned.ship_id)
             cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
-            gold_str = f"Credits: {ctx.stats.gold}"
+            gold_str = f"Credits: {ctx.stats.credits}"
         else:
             cargo_str = "Cargo: N/A"
-            gold_str = f"Credits: {ctx.stats.gold}"
+            gold_str = f"Credits: {ctx.stats.credits}"
         paint(2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
         paint(SCREEN_WIDTH - HUD_WIDTH - len(gold_str) - 2, foot_y, gold_str, fg=ui.COLOR_VALUE_WHITE)
 
@@ -493,7 +493,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
                             stock,
                             999,
                         )
-                        can_afford = ctx.stats.gold // price if price > 0 else 999
+                        can_afford = ctx.stats.credits // price if price > 0 else 999
                         max_qty = min(max_qty, can_afford)
                     if max_qty >= 1:
                         q = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price)

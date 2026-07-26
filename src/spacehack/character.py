@@ -81,15 +81,18 @@ def starting_stats(species_id: str, class_id: str):
     sp = _safe_lookup_species(species_id)
     cl = _safe_lookup_class(class_id)
     hp_base = cl.hp_base if cl is not None else 10
-    gold = cl.gold if cl is not None else 100
+    credits = cl.credits if cl is not None else 1000
     hp_bonus = sp.hp_bonus if sp is not None else 0
     
     # Compute pilot skills — reuse starting_pilot_skills internally
     # so the three skill values stay in sync with the combat init.
     skills = starting_pilot_skills(species_id, class_id)
     return HudStats(
-        hp=hp_base + hp_bonus, max_hp=hp_base + hp_bonus, gold=gold,
-        gunnery=skills.gunnery, piloting=skills.piloting,
+        hp=hp_base + hp_bonus,
+        max_hp=hp_base + hp_bonus,
+        credits=credits,
+        gunnery=skills.gunnery,
+        piloting=skills.piloting,
         engineering=skills.engineering,
     )
 

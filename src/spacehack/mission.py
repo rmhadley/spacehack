@@ -215,8 +215,8 @@ def complete_mission(
         owned_ship.mission_reserved = max(
             0, owned_ship.mission_reserved - mission.required_cargo_size,
         )
-    if hasattr(stats, "gold"):
-        stats.gold = stats.gold + mission.reward_gold
+    if hasattr(stats, "credits"):
+        stats.credits = stats.credits + mission.reward_credits
     ship_obj = (
         ship.find_ship(owned_ship.ship_id)
         if owned_ship is not None
@@ -228,7 +228,7 @@ def complete_mission(
         else "no ship"
     )
     log.add(
-        f"Delivered: {mission.title}. +{mission.reward_gold}g "
+        f"Delivered: {mission.title}. +{mission.reward_credits}$ "
         f"+{mission.reward_xp}xp. ({cargo_after} cargo.)"
     )
 

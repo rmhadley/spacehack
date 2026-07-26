@@ -60,7 +60,7 @@ class Mission:
         description: 1-3 sentence blurb shown in the offering modal.
         giver_npc_id: NPC id (matches :class:`spacehack.data.npcs.NPC.id`)
             who offers this work in their talk modal.
-        reward_gold: payout on completion (added to ``stats.gold``).
+        reward_credits: payout on completion (added to ``stats.credits``).
         reward_xp: payout on completion (logged only - xp stat not
             yet persisted on :class:`spacehack.hud.HudStats`).
         recommended_class_id: optional class id for the \"best suited
@@ -84,7 +84,7 @@ class Mission:
     title: str
     description: str
     giver_npc_id: str
-    reward_gold: int
+    reward_credits: int
     reward_xp: int
     recommended_class_id: str | None = None
     recommended_ship_min_cargo: int = 0

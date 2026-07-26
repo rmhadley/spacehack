@@ -24,7 +24,7 @@ class GameClass:
         description: one-line flavour line under the name.
         hp_base: starting HP that this class sets before the picked
             species adds its :attr:`spacehack.data.species.Species.hp_bonus`.
-        gold: starting gold this class grants on a new game.
+        credits: starting credits this class grants on a new game.
         skill_bonus: per-skill additive bonuses added at character
             creation (see :func:`spacehack.character.starting_pilot_skills`).
     """
@@ -32,7 +32,7 @@ class GameClass:
     name: str
     description: str
     hp_base: int = 10
-    gold: int = 1000
+    credits: int = 1000
     skill_bonus: PilotSkills = PilotSkills()
 
 

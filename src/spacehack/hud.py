@@ -75,7 +75,7 @@ class HudStats:
     """The stats shown in the HUD right now."""
     hp: int
     max_hp: int
-    gold: int
+    credits: int
     gunnery: int = 0
     piloting: int = 0
     engineering: int = 0
@@ -268,7 +268,7 @@ def render_hud(
         console.print(
             x=hud_x + 2,
             y=y,
-            string=str(stats.gold),
+            string=str(stats.credits),
             fg=COLOR_VALUE_WHITE,
         )
 
