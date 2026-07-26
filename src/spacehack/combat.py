@@ -839,6 +839,50 @@ def run_combat(
     except Exception:
         return ("FLEE", [])  # Graceful fallback on init failure
 
+    # -------- Build enemy-entity mapping (before dedup, so positions align) --------
+    # Maps enemy_insts index -> world.Entity for position syncing and
+    # entity exclusion in AI movement checks. Matched by position
+    # before dedup shifts any instances. Uses id()-based _matched set
+    # so two overlapping enemy_insts at the same pre-dedup cell don't
+    # both claim the same world.Entity from game_map.entities.
+    _enemy_ents: dict[int, Any] = {}
+    _matched: set[int] = set()
+    for _i, _inst in enumerate(enemy_insts):
+        for _e in game_map.entities:
+            if _e is _player_ent or getattr(_e, 'owned', False):
+                continue
+            if id(_e) in _matched:
+                continue
+            if _e.pos.x == _inst.pos.x and _e.pos.y == _inst.pos.y:
+                _enemy_ents[_i] = _e
+                _matched.add(id(_e))
+                break
+
+    # -------- Deduplicate overlapping positions --------
+    # If two or more enemies share the same cell (possible after
+    # extended pirate movement on the space map), Tab targeting
+    # appears to skip one (the reticle doesn't visually move) and
+    # entity-index maps alias. Push overlapping instances apart.
+    _occupied: set[tuple[int, int]] = set()
+    for _inst in enemy_insts:
+        _key = (_inst.pos.x, _inst.pos.y)
+        if _key in _occupied:
+            # Try 4 cardinal offsets to find a free cell nearby.
+            _placed = False
+            for _odx, _ody in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,-1),(-1,1),(1,1)]:
+                _nk = (_inst.pos.x + _odx, _inst.pos.y + _ody)
+                if _nk not in _occupied and game_map.in_bounds(*_nk) and game_map.is_walkable(*_nk):
+                    _inst.pos = world.Position(*_nk)
+                    _occupied.add(_nk)
+                    _placed = True
+                    break
+            if not _placed:
+                # Last resort: push east by index offset.
+                _inst.pos = world.Position(_inst.pos.x + 2, _inst.pos.y)
+                _occupied.add((_inst.pos.x, _inst.pos.y))
+        else:
+            _occupied.add(_key)
+
     from .message_log import COLOR_PLAYER_ACTION, COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
 
     weapons_list = list(getattr(player_owned_ship, 'weapons', ()) or ())
@@ -867,17 +911,12 @@ def run_combat(
     _defeated_spec_ids: list[str] = []
     start_player_turn(player_state)
 
-    # Find player + enemy entities on the game_map so we can sync
-    # their positions for rendering. Map enemy index -> game_map entity
-    # by initial spawn position.
+    # Find the player's entity on the game_map for position syncing.
     _player_ent = None
-    _enemy_ents: dict[int, Any] = {}
-    for _i, _epos in enumerate(enemy_positions):
-        for _e in game_map.entities:
-            if getattr(_e, 'owned', False):
-                _player_ent = _e
-            if not getattr(_e, 'owned', False) and _e.pos.x == _epos.x and _e.pos.y == _epos.y:
-                _enemy_ents[_i] = _e
+    for _e in game_map.entities:
+        if getattr(_e, 'owned', False):
+            _player_ent = _e
+            break
 
     view_w = 80
     view_h = 54
@@ -1063,10 +1102,11 @@ def run_combat(
                             _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
                             _nx = _ei.pos.x + _dx
                             _ny = _ei.pos.y + _dy
+                            _excl_ent = _enemy_ents.get(_e_idx) if _e_idx >= 0 else None
                             if (
                                 game_map.is_walkable(_nx, _ny)
                                 and game_map.entity_at(
-                                    _nx, _ny, exclude=_ei,
+                                    _nx, _ny, exclude=_excl_ent,
                                 ) is None
                             ):
                                 _ei.pos = world.Position(_nx, _ny)
