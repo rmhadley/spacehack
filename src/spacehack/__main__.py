@@ -35,7 +35,8 @@ from .game_context import GameContext
 from .data import solar_systems as solar_systems_module
 from .data.species import find_species
 from .data.classes import find_class
-from .data import npcs as npc_module
+from . import npc as npc_module
+from .npc import TalkOutcome, _run_npc_talk
 from . import world
 from . import combat
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
@@ -66,25 +67,6 @@ class ShipBuyOutcome(Enum):
     BUY = auto()
     BACK = auto()
     TOO_EXPENSIVE = auto()
-    QUIT = auto()
-
-class TalkOutcome(Enum):
-    """What happened during a single NPC-talk dialog iteration.
-
-    ESC walks away (BACK); Enter opens the NPC's mission offerings
-    (WORK); when the player has an active delivery mission that
-    this NPC can fulfil (:data:`Mission.required_cargo_size` > 0
-    and giver matches), Enter drives :attr:`DELIVER` instead and
-    the dialog paints an extra "> Deliver <title> <" row. Quit
-    closes the window; anything else is IGNORE. Mirrors
-    ``ShipBuyOutcome`` so a future iteration can grow the dialog
-    with more branches (e.g. ``WORK`` -> goods for sale, ``REST``)
-    without churning the call site.
-    """
-    IGNORE = auto()
-    BACK = auto()
-    WORK = auto()
-    DELIVER = auto()
     QUIT = auto()
 
 class ShipMenuAction(Enum):
@@ -1086,165 +1068,6 @@ def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuy
         return update_ship_buy(event, ship, ctx.stats)
     return ui.Modal(ctx.context, console).run(_render, _update)
 
-def render_npc_talk(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, *, screen_width: int, screen_height: int, deliver_mission: mission_module.Mission | None=None, selected: int=0) -> None:
-    """Paint the centered NPC-talk dialog into ``console``.
-
-    Layout mirrors :func:`render_ship_buy`: NPC name + guild on
-    the top line, flavor text in the middle, a vertically-stacked
-    MENU of selectable actions below it (NOT a static "Press
-    ENTER..." hint any more), and an ESC hint at the bottom.
-
-    The menu has 1-2 rows depending on ``deliver_mission``:
-
-      * Always: ``"View available work"`` (opens the offerings
-        modal at :func:`_run_npc_talk`).
-      * When a delivery-mission is in scope: ``"Deliver <title>"``
-        as the FIRST row, highlighted by default so Enter on the
-        default highlight completes the mission ("common sense"
-        behaviour the user explicitly requested).
-
-    ``selected`` is the highlighted index (clamped modulo the
-    number of rows by :func:`_run_npc_talk`). ``> ... <`` markers
-    match the species / class / mission-offerings / ship-menu
-    styles so the player only learns one highlight idiom.
-
-    Clear-first so the modal fully replaces the city view.
-    """
-    console.clear()
-    title = f'{npc.name} ({npc.guild})'
-    body = f'"{npc.flavor_text}"'
-    max_w = screen_width - HUD_WIDTH - 2
-
-    def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[:max_w - 1] + '…'
-
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
-    center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    paint(center_y - 2, fit(title), fg=ui.COLOR_TITLE)
-    paint(center_y + 1, fit(body), fg=ui.COLOR_DESCRIPTION)
-    options: list[tuple[str, bool]] = []
-    if deliver_mission is not None:
-        options.append(('Deliver ' + deliver_mission.title, True))
-    options.append(('View available work', False))
-    n = len(options)
-    sel = selected % n
-    list_top = center_y + 3
-    for i, (label, is_deliver) in enumerate(options):
-        row = list_top + i * 2
-        is_selected = i == sel
-        marker_open = '> ' if is_selected else '  '
-        marker_close = ' <' if is_selected else '  '
-        text = f'{marker_open}{fit(label)}{marker_close}'
-        if is_selected:
-            fg = ui.COLOR_OPTION_HIGHLIGHT2 if is_deliver else ui.COLOR_OPTION_HIGHLIGHT
-        else:
-            fg = ui.COLOR_OPTION
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
-    hint = 'ARROW KEYS / j,k navigate - ENTER select - ESC walk away.'
-    hint_row = list_top + n * 2
-    if hint_row + 1 <= screen_height - MSG_LOG_HEIGHT:
-        paint(hint_row, fit(hint), fg=ui.COLOR_INSTRUCTION)
-    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
-
-def update_npc_talk(event: tcod.event.Event) -> TalkOutcome:
-    """Map a single event for the NPC-talk dialog.
-
-    Returns a NAV-AGNOSTIC outcome: ESC -> BACK, Enter -> WORK,
-    window-close -> QUIT, anything else -> IGNORE. UP/DOWN /
-    j/k nav is handled by :func:`_npc_talk_navigate` (a sibling
-    helper used by :func:`_run_npc_talk`) so this function's
-    job is purely the dialog-level outcomes.
-
-    Note that ``TalkOutcome.WORK`` is the Enter default here; the
-    caller (:func:`_run_npc_talk`) re-maps WORK to
-    :attr:`TalkOutcome.DELIVER` when the highlighted option
-    happens to be the "Deliver <title>" row. Keeping Enter here
-    as a generic "confirm" marker lets the caller own the index-
-    to-outcome mapping without the dispatcher hardcoding which
-    option is deliverable.
-    """
-    if isinstance(event, tcod.event.Quit):
-        return TalkOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return TalkOutcome.IGNORE
-    if event.sym in ui._ENTER_SYMS:
-        return TalkOutcome.WORK
-    if event.sym in ui._ESCAPE_SYMS:
-        return TalkOutcome.BACK
-    return TalkOutcome.IGNORE
-
-def _npc_talk_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
-    """If ``event`` drives NPC-talk menu nav, return the new
-    ``selected`` index (modulo ``n`` options); otherwise ``None``.
-
-    Recognises both the standard arrow keys (UP / DOWN; also KP_8
-    / KP_2 via :data:`ui._UP_SYMS` / :data:`ui._DOWN_SYMS`) and
-    the vertical vim keys (`j` down, `k` up). Mirrors
-    :func:`_mission_navigate` and :func:`_ship_menu_navigate`
-    so all three NPC-facing modals share the same nav idiom -
-    one shape the smoke harness can regression-guard.
-    """
-    if n <= 0:
-        return None
-    if not isinstance(event, tcod.event.KeyDown):
-        return None
-    sym = event.sym
-    sym_name: str = getattr(sym, 'name', '').lower()
-    if sym in ui._UP_SYMS or sym_name == 'k':
-        return (selected - 1) % n
-    if sym in ui._DOWN_SYMS or sym_name == 'j':
-        return (selected + 1) % n
-    return None
-
-def _run_npc_talk(ctx, npc: npc_module.NPC, *, deliver_mission: mission_module.Mission | None=None) -> tuple[TalkOutcome, mission_module.Mission | None]:
-    """Show the talk modal for ``npc`` and return the chosen outcome.
-
-    Dialog is a vertically-navigable menu with 1-2 selectable
-    rows (``Deliver <title>`` first when in scope, then
-    ``View available work`` always). The on-screen order has
-    DELIVER at index 0 when present so Enter on the default
-    highlight completes the mission at the target NPC — "common
-    sense" behaviour the user explicitly asked for. Players who
-    want to check other missions arrow down to ``View available
-    work`` before pressing Enter.
-
-    Logs ``"You chat briefly with X."`` the first time the
-    dialog opens so the player has feedback that something
-    happened.
-
-    Returns ``(outcome, deliver_mission)``: ``deliver_mission``
-    is the same value that was passed in whenever the outcome
-    is :attr:`TalkOutcome.DELIVER`, and ``None`` for every other
-    outcome so callers don't have to discriminate on the
-    outcome enum.
-    """
-    ctx.log.add(f'You chat briefly with {npc.name}.')
-    console = make_console()
-    selected = 0
-    n_options = 1 + (1 if deliver_mission is not None else 0)
-
-    def _render() -> None:
-        render_npc_talk(console, ctx, npc, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, deliver_mission=deliver_mission, selected=selected)
-
-    def _update(event) -> TalkOutcome:
-        nonlocal selected
-        new = _npc_talk_navigate(event, selected, n_options)
-        if new is not None:
-            selected = new
-            return TalkOutcome.IGNORE
-        result = update_npc_talk(event)
-        if result is TalkOutcome.IGNORE:
-            return TalkOutcome.IGNORE
-        if result is TalkOutcome.QUIT:
-            return TalkOutcome.QUIT
-        if result is TalkOutcome.BACK:
-            return TalkOutcome.BACK
-        return TalkOutcome.DELIVER if deliver_mission is not None and selected == 0 else TalkOutcome.WORK
-    outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if outcome is TalkOutcome.DELIVER:
-        return (outcome, deliver_mission)
-    return (outcome, None)
 
 class MissionOutcome(Enum):
     """What the player chose in an NPC's mission offering modal.
