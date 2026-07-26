@@ -486,7 +486,12 @@ def render_combat_hud(
             console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_w)
             y += 1
 
-            stats_line = f"     DMG {ws.damage}  ACC {ws.accuracy}%"
+            # Show effective hit chance (includes gunnery + distance) for the
+            # selected weapon; show base weapon accuracy for other weapons.
+            if i == selected_weapon_idx and hit_chance is not None:
+                stats_line = f"     DMG {ws.damage}  HIT {hit_chance}%"
+            else:
+                stats_line = f"     DMG {ws.damage}  ACC {ws.accuracy}%"
             console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
             y += 1
 
