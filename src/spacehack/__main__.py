@@ -775,23 +775,53 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
         if abs(_dx) > 1 or abs(_dy) > 1:
             ctx.pirate_paths[_sid] = []
             continue
-        # Try to move all members in the A* direction.
-        _can_move = True
+        # Try the squad direction for each member. Members who can move
+        # in the squad direction do so (stay in formation). Members who
+        # are blocked try perpendicular slip-around directions to navigate
+        # around obstacles individually (break formation). Cohesion
+        # pull-back later reels them in.
+        _leader_moved = False
         for _m in _members:
             _nx = _m.pos.x + _dx
             _ny = _m.pos.y + _dy
-            if not (game_map.is_walkable(_nx, _ny)
+            if (game_map.is_walkable(_nx, _ny)
                     and game_map.entity_at(_nx, _ny, exclude=_m) is None):
-                _can_move = False
-                break
-        if not _can_move:
-            # A member is blocked — likely another entity. Skip tick;
-            # the blocking entity will move next tick and the path
-            # remains valid.
-            continue
-        for _m in _members:
-            _m.pos = world.Position(_m.pos.x + _dx, _m.pos.y + _dy)
-        ctx.pirate_paths[_sid].pop(0)
+                _m.pos = world.Position(_nx, _ny)
+                if _m is _leader:
+                    _leader_moved = True
+            else:
+                # Blocked in squad direction — try perpendicular offsets.
+                _slipped = False
+                if _dx != 0 and _dy != 0:
+                    for _sdx, _sdy in [(_dx, 0), (0, _dy)]:
+                        _snx = _m.pos.x + _sdx
+                        _sny = _m.pos.y + _sdy
+                        if (game_map.is_walkable(_snx, _sny)
+                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
+                            _m.pos = world.Position(_snx, _sny)
+                            _slipped = True
+                            break
+                elif _dx != 0:
+                    for _sdx, _sdy in [(_dx, 1), (_dx, -1)]:
+                        _snx = _m.pos.x + _sdx
+                        _sny = _m.pos.y + _sdy
+                        if (game_map.is_walkable(_snx, _sny)
+                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
+                            _m.pos = world.Position(_snx, _sny)
+                            _slipped = True
+                            break
+                else:  # _dy != 0
+                    for _sdx, _sdy in [(1, _dy), (-1, _dy)]:
+                        _snx = _m.pos.x + _sdx
+                        _sny = _m.pos.y + _sdy
+                        if (game_map.is_walkable(_snx, _sny)
+                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
+                            _m.pos = world.Position(_snx, _sny)
+                            _slipped = True
+                            break
+                # If no slip direction works member stays put (furthest break).
+        if _leader_moved:
+            ctx.pirate_paths[_sid].pop(0)
         # Squad cohesion: pull stragglers toward centre
         if _is_squad:
             _cx = sum(m.pos.x for m in _members) // len(_members)
