@@ -781,18 +781,10 @@ def open_cargo(ctx: GameContext) -> None:
         # Rebuild for current state.
         _items = _rebuild_trade_items()
 
-        # Up/Down navigation.
-        is_up = sym in ui._UP_SYMS or sym_name == "k"
-        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
-        if is_up:
-            _sel = (_sel - 1) % max(1, len(_items))
-            return _COut.IGNORE
-        if is_down:
-            _sel = (_sel + 1) % max(1, len(_items))
-            return _COut.IGNORE
-
-        # J = jettison selected good.
-        if sym_name == "j" and _items and 0 <= _sel < len(_items):
+        # Uppercase J = jettison selected good (checked BEFORE navigation
+        # so lowercase ``j`` still navigates down but Shift+J fires the
+        # jettison prompt).
+        if getattr(sym, "name", "") == 'J' and _items and 0 <= _sel < len(_items):
             gid, qty, _ = _items[_sel]
             try:
                 good = find_trade_good(gid)
@@ -813,6 +805,16 @@ def open_cargo(ctx: GameContext) -> None:
                 _new_items = _rebuild_trade_items()
                 if _sel >= len(_new_items):
                     _sel = max(0, len(_new_items) - 1)
+            return _COut.IGNORE
+
+        # Up/Down navigation (lowercase j = down, k = up).
+        is_up = sym in ui._UP_SYMS or sym_name == "k"
+        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
+        if is_up:
+            _sel = (_sel - 1) % max(1, len(_items))
+            return _COut.IGNORE
+        if is_down:
+            _sel = (_sel + 1) % max(1, len(_items))
             return _COut.IGNORE
 
         return _COut.IGNORE
