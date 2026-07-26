@@ -87,7 +87,7 @@ def _buy_good(
     cost = _unit_price(ctx, planet_id, good_id) * quantity
 
     if ctx.stats.gold < cost:
-        ctx.log.add(f"Not enough credits to buy {quantity}x {good.name} ({cost}¤ needed).")
+        ctx.log.add(f"Not enough credits to buy {quantity}x {good.name} ({cost}$ needed).")
         return False
 
     free_cargo = _free_cargo(owned)
@@ -106,7 +106,7 @@ def _buy_good(
     # Complete the transaction.
     owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
     ctx.stats.gold -= cost
-    ctx.log.add(f"Bought {quantity}x {good.name} for {cost}¤.")
+    ctx.log.add(f"Bought {quantity}x {good.name} for {cost}$.")
     return True
 
 
@@ -152,7 +152,7 @@ def _sell_good(
         owned.inventory[good_id] = remaining
 
     ctx.stats.gold += revenue
-    ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}¤.")
+    ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}$.")
     return True
 
 
@@ -217,7 +217,7 @@ def _run_quantity_prompt(
 
     def _render() -> None:
         console.clear()
-        prompt = f"{label}  ({price_per}¤ each)"
+        prompt = f"{label}  ({price_per}$ each)"
         qty_text = f"Quantity: [{qty}]"
         hint = "UP/+ increase  DOWN/- decrease  ENTER confirm  ESC cancel"
 
@@ -346,7 +346,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             """Format a trade row that fits exactly in ``col_w`` columns.
 
             ``name`` is truncated and padded to leave room for the
-            ``price_label`` (e.g. " 14\u00a4") and ``suffix`` (e.g. "(30)").
+            ``price_label`` (e.g. " 14$") and ``suffix`` (e.g. "(30)").
             Marker ``"> "`` or ``"  "`` is included in the width calculation.
             """
             marker = "> " if selected else "  "
@@ -362,7 +362,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             good = find_trade_good(gid)
             price = _unit_price(ctx, planet_id, gid)
             stock = _stocks.get(gid, 0)
-            price_label = f"{price:>5}\u00a4"
+            price_label = f"{price:>5}$"
             suffix = f"({stock})"
             is_sel = _focus == 0 and i == _sel
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
@@ -378,7 +378,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
                 break
             good = find_trade_good(gid)
             sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
-            price_label = f"{sell_price:>5}\u00a4"
+            price_label = f"{sell_price:>5}$"
             suffix = f"({qty})"
             col_x = max_w // 2 + 2
             is_sel = _focus == 1 and i == _sel

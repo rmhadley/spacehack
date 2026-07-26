@@ -2350,7 +2350,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         active_mission_obj = mission_module.find_mission(player_active_mission.mission_id)
                         if mission_module.is_deliverable_at(active_mission_obj, npc_obj.id, current_city_id):
                             deliver_mission = active_mission_obj
-                    result, deliver_in_progress = _run_npc_talk(ctx, npc_obj, planet_id=current_city_id, deliver_mission=deliver_mission)
+                    result, deliver_in_progress = _run_npc_talk(ctx, npc_obj, deliver_mission=deliver_mission)
                     if result is TalkOutcome.QUIT:
                         return
                     if result is TalkOutcome.DELIVER:

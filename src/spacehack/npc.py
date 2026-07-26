@@ -27,7 +27,6 @@ import tcod.event
 from . import message_log
 from . import ui
 from .data.npcs import NPC, find_npc, list_npcs
-from .data.planets import find_planet_spec
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from .game_context import GameContext
 
@@ -64,7 +63,6 @@ def render_npc_talk(
     screen_width: int,
     screen_height: int,
     deliver_mission: Mission | None = None,
-    npc_trades: bool = False,
     selected: int = 0,
 ) -> None:
     """Paint the centered NPC-talk dialog into ``console``.
@@ -79,13 +77,12 @@ def render_npc_talk(
 
       * Always: ``"View available work"`` (opens the offerings
         modal at :func:`_run_npc_talk`).
+      * Always: ``"View available work"`` (opens the offerings
+        modal at :func:`_run_npc_talk`).
       * When a delivery-mission is in scope: ``"Deliver <title>"``
         as the FIRST row, highlighted by default so Enter on the
         default highlight completes the mission ("common sense"
         behaviour the user explicitly requested).
-      * When the planet's economy profile identifies this NPC as
-        its trader (``trade_npc_id`` matches), a ``"Trade goods"``
-        row is added to open the trade modal.
 
     ``selected`` is the highlighted index (clamped modulo the
     number of rows by :func:`_run_npc_talk`). ``> ... <`` markers
@@ -111,8 +108,6 @@ def render_npc_talk(
     options: list[tuple[str, bool]] = []
     if deliver_mission is not None:
         options.append(("Deliver " + deliver_mission.title, True))
-    if npc_trades:
-        options.append(("Trade goods", False))
     options.append(("View available work", False))
     n = len(options)
     sel = selected % n
@@ -192,24 +187,18 @@ def _run_npc_talk(
     ctx: GameContext,
     npc: NPC,
     *,
-    planet_id: str = "",
     deliver_mission: Mission | None = None,
 ) -> tuple[TalkOutcome, Mission | None]:
     """Show the talk modal for ``npc`` and return the chosen outcome.
 
-    Dialog is a vertically-navigable menu with 1-3 selectable
+    Dialog is a vertically-navigable menu with 1-2 selectable
     rows (``Deliver <title>`` first when in scope, then
-    ``Trade goods`` when the planet's economy profile identifies
-    this NPC as its trader, then ``View available work`` always).
-    The on-screen order has DELIVER at index 0 when present so
-    Enter on the default highlight completes the mission at the
-    target NPC — "common sense" behaviour the user explicitly
-    asked for.
-
-    When ``planet_id`` is provided and the planet's
-    ``trade_npc_id`` matches the NPC's id, the "Trade goods"
-    option appears.  Selecting it opens :func:`spacehack.trade.open_trade`
-    and then returns to the talk dialog.
+    ``View available work`` always). The on-screen order has
+    DELIVER at index 0 when present so Enter on the default
+    highlight completes the mission at the target NPC — "common
+    sense" behaviour the user explicitly asked for. Players who
+    want to check other missions arrow down to ``View available
+    work`` before pressing Enter.
 
     Logs ``"You chat briefly with X."`` the first time the
     dialog opens so the player has feedback that something
@@ -223,33 +212,8 @@ def _run_npc_talk(
     """
     ctx.log.add(f"You chat briefly with {npc.name}.")
     console = make_console()
-
-    # Determine if this NPC can trade on this planet.
-    _npc_trades = False
-    if planet_id:
-        try:
-            _spec = find_planet_spec(planet_id)
-            _npc_trades = _spec.trade_npc_id == npc.id
-        except KeyError:
-            pass
-
     selected = 0
-    n_options = 1 + (1 if deliver_mission is not None else 0) + (1 if _npc_trades else 0)
-
-    # Track which index maps to which action for dispatch.
-    _deliver_idx = 0
-    _trade_idx: int | None = None
-    _work_idx: int = 0
-    _idx = 0
-    if deliver_mission is not None:
-        _deliver_idx = _idx
-        _idx += 1
-    else:
-        _deliver_idx = -1
-    if _npc_trades:
-        _trade_idx = _idx
-        _idx += 1
-    _work_idx = _idx
+    n_options = 1 + (1 if deliver_mission is not None else 0)
 
     def _render() -> None:
         render_npc_talk(
@@ -259,7 +223,6 @@ def _run_npc_talk(
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             deliver_mission=deliver_mission,
-            npc_trades=_npc_trades,
             selected=selected,
         )
 
@@ -276,15 +239,7 @@ def _run_npc_talk(
             return TalkOutcome.QUIT
         if result is TalkOutcome.BACK:
             return TalkOutcome.BACK
-        # ENTER pressed — map selected index to action.
-        if _npc_trades and _trade_idx is not None and selected == _trade_idx:
-            # Open trade modal, then return to talk.
-            from .trade import open_trade as _open_trade
-            _open_trade(ctx, planet_id)
-            return TalkOutcome.IGNORE
-        if _deliver_idx >= 0 and selected == _deliver_idx:
-            return TalkOutcome.DELIVER
-        return TalkOutcome.WORK
+        return TalkOutcome.DELIVER if deliver_mission is not None and selected == 0 else TalkOutcome.WORK
 
     outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if outcome is TalkOutcome.DELIVER:
