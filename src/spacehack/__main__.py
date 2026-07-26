@@ -698,8 +698,12 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
     Called after the player moves in space mode. Each pirate
     squad (or solo) picks a planet, gate, or station and
     commits to moving toward it until within 2 cells, then
-    picks a new target. Squad members all move toward the same
-    goal using the A* path computed for the squad leader.
+    picks a new target. Squad members use the A* path
+    computed for the squad leader. Members who can move in
+    the squad direction do so (stay in formation). Members
+    who are blocked try perpendicular slips to navigate
+    around obstacles individually (break formation). Cohesion
+    pull-back reels stragglers back toward the squad centre.
     """
     from . import engine as _engine
     # Build goal list from the current system's bodies.
@@ -1026,7 +1030,6 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
     destination so the player can override the encounter with
     ESC if they wish before any further step is animated.
     """
-    import heapq
     system = solar_system_module.current_system()
     destinations: list[tuple[str, object]] = []
     for p in system.planets:
@@ -1160,73 +1163,13 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     line_path.append((target_cx, target_cy))
                     steps = line_path
                 else:
-
-                    def _heuristic(a, b):
-                        return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
-
-                    def _pick_target():
-                        """Return the target_cell closest to start by
-                        Chebyshev distance so A* heads the right way."""
-                        best = None
-                        best_d = 999999
-                        for tc in target_cells:
-                            d = _heuristic(start, tc)
-                            if d < best_d:
-                                best_d = d
-                                best = tc
-                        return best
-                    astar_target = _pick_target()
-                    if astar_target is None:
-                        ctx.log.add('Cannot reach that destination - no access.')
-                        return (GotoOutcome.CANCELLED, None)
-                    counter = 0
-                    open_set = [(0, counter, start)]
-                    came_from: dict[tuple[int, int], tuple[int, int] | None] = {}
-                    g_score: dict[tuple[int, int], float] = {start: 0}
-                    visited: set[tuple[int, int]] = set()
-                    found = False
-                    target_reached = None
-                    max_steps = 50000
-                    while open_set and (not found):
-                        _, _, curr = heapq.heappop(open_set)
-                        if curr in visited:
-                            continue
-                        visited.add(curr)
-                        if len(visited) > max_steps:
-                            break
-                        if curr in target_cells:
-                            found = True
-                            target_reached = curr
-                            break
-                        cx, cy = curr
-                        for dx, dy in dirs_8:
-                            nx, ny = (cx + dx, cy + dy)
-                            npos = (nx, ny)
-                            if not ctx.game_map.in_bounds(nx, ny):
-                                continue
-                            if npos not in target_cells:
-                                if not ctx.game_map.is_walkable(nx, ny):
-                                    continue
-                                blocker = ctx.game_map.entity_at(nx, ny, exclude=player_entity)
-                                if blocker is not None:
-                                    continue
-                            tentative_g = g_score.get(curr, 0) + 1
-                            if tentative_g < g_score.get(npos, 999999):
-                                came_from[npos] = curr
-                                g_score[npos] = tentative_g
-                                f = tentative_g + _heuristic(npos, astar_target)
-                                counter += 1
-                                heapq.heappush(open_set, (f, counter, npos))
-                    if not found:
+                    steps = world.find_path(
+                        start, target_cells, ctx.game_map,
+                        exclude_entity=player_entity,
+                    )
+                    if steps is None:
                         ctx.log.add('Could not find a path to that destination.')
                         return (GotoOutcome.CANCELLED, None)
-                    path: list[tuple[int, int]] = []
-                    cur = target_reached
-                    while cur is not None:
-                        path.append(cur)
-                        cur = came_from.get(cur)
-                    path.reverse()
-                    steps = path[1:]
                 if not steps:
                     ctx.log.add('You are already at the destination.')
                     return (GotoOutcome.COMPLETED, None)
