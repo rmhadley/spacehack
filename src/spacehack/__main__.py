@@ -272,6 +272,28 @@ def _is_g_press(event: tcod.event.Event) -> bool:
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('G', 'g')
 
+
+def _is_c_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``C`` key (or its
+    lowercase alias).
+
+    Routes C (cargo menu) through a module-level helper so the
+    smoke test can regression-guard the KeySym name lookup,
+    mirroring :func:`_is_m_press` exactly. Lowercase ``c`` and
+    uppercase ``C`` both open the cargo-overlay modal; anything
+    else returns False so the dispatcher can route through
+    movement + planet-bump handlers.
+
+    ``C``/``c`` is unused by vim movement so it's a clean pick.
+    ``getattr(..., "name", "")`` belt-and-suspenders against a
+    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('C', 'c')
+
+
 def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, height: int) -> None:
     """Right-side Areas-of-Interest panel for the Map/NAVIGATION overlay.
 
