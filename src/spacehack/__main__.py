@@ -732,6 +732,11 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
         if _g is not None:
             _goals.append(_g)
     if not _goals:
+        # Only log if we actually have pirates to move but no targets.
+        _any_pirates = any(getattr(_e, 'procedural_squad_id', '') != ''
+                           for _e in game_map.entities)
+        if _any_pirates:
+            ctx.log.add('Sensor: pirates have no navigation targets nearby.')
         return
     _pirate_ents = [_e for _e in game_map.entities
                     if not getattr(_e, 'owned', False)
