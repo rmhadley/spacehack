@@ -400,10 +400,13 @@ def render_combat_hud(
     # Shield bar + regen rate (above hull, when shields exist)
     if pmax_shields > 0:
         shields_pct = pshields / max(pmax_shields, 1)
+        shield_line = f"Shd  {_bar_str(pshields, pmax_shields)} {int(shields_pct * 100)}%"
+        console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
+        y += 1
         _regen_rate = player_state.get("shield_regen_rate", 0)
-        regen_suffix = f" R{_regen_rate}" if _regen_rate > 0 else ""
-        shield_line = f"Shd  {_bar_str(pshields, pmax_shields)} {int(shields_pct * 100)}%{regen_suffix}"
-        console.print(x=hud_x, y=y, string=shield_line[:HUD_WIDTH], fg=COLOR_SHIELD_BAR)
+        regen_line = f"Regen {_regen_rate}/10"
+        regen_color = COLOR_SHIELD_BAR if _regen_rate > 0 else COLOR_VALUE_DIM
+        console.print(x=hud_x, y=y, string=regen_line, fg=regen_color)
         y += 1
 
     # Hull bar
