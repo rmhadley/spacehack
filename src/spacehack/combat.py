@@ -1383,7 +1383,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         # it in the message log so a player who triggered it sees why
         # combat silently fled, rather than the encounter vanishing
         # with no explanation.
-        ctx.log.add("Warning: ship catalog lookup failed; fleeing combat.")
+        ctx.log.add("Ship catalog mismatch — fleeing combat.")
         return "FLEE"
     _result = run_combat(
         console,
