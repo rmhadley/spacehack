@@ -161,45 +161,48 @@ def _is_skippable_name(name_node, parent_of):
     return False
 
 
-def audit(target_path=Path("src/spacehack/__main__.py")) -> int:
-    """Run audit on ``target_path``. Returns 0 on clean, 1 on bugs."""
-    if not target_path.exists():
-        print(f"FAIL: {target_path} does not exist", file=sys.stderr)
-        return 2
-    try:
-        text = target_path.read_text()
-        tree = ast.parse(text, filename=str(target_path))
-    except (SyntaxError, OSError) as exc:
-        print(f"FAIL: cannot parse {target_path}: {exc}", file=sys.stderr)
+DEFAULT_AUDITED_PATHS = (
+    Path("src/spacehack/__main__.py"),
+    Path("src/spacehack/combat.py"),
+)
+
+
+def audit(target_paths=DEFAULT_AUDITED_PATHS) -> int:
+    """Run audit across all in target_paths (Path or iterable of Path)."""
+    if isinstance(target_paths, Path):
+        target_paths = (target_paths,)
+    for tp in target_paths:
+        if not tp.exists():
+            print(f"FAIL: {tp} does not exist", file=sys.stderr)
+            return 2
+    all_bugs = []
+    audited_names = []
+    for tp in target_paths:
+        try:
+            text = tp.read_text()
+            tree = ast.parse(text, filename=str(tp))
+        except (SyntaxError, OSError) as exc:
+            print(f"FAIL: cannot parse {tp}: {exc}", file=sys.stderr)
+            return 1
+        parent_of = _parent_map(tree)
+        audited_names.append(tp.name)
+        for func in ast.walk(tree):
+            if not isinstance(func, ast.FunctionDef) or func.name not in SCAN:
+                continue
+            params = _param_set(func)
+            for sub in ast.walk(func):
+                if isinstance(sub, ast.Name) and sub.id in LOOSE:
+                    if sub.id in params:
+                        continue
+                    if _is_skippable_name(sub, parent_of):
+                        continue
+                    all_bugs.append((func.name, sub.lineno, sub.id, str(tp)))
+    if all_bugs:
+        print(f"FAIL: {len(all_bugs)} bare loose ref(s) across {', '.join(audited_names)}:")
+        for name, lineno, tok, tp in all_bugs:
+            print(f"  {tp}::{name} L{lineno}: bare `{tok}`")
         return 1
-    parent_of = _parent_map(tree)
-    bugs = []
-    for func in ast.walk(tree):
-        if not isinstance(func, ast.FunctionDef) or func.name not in SCAN:
-            continue
-        params = _param_set(func)
-        for sub in ast.walk(func):
-            if isinstance(sub, ast.Name) and sub.id in LOOSE:
-                # Skip names that are also function parameters --
-                # their bare use inside the function body is the
-                # local-value-passing-through idiom, NOT a missing
-                # ctx.X reference. ``_animate_ship_to_y`` keeps
-                # ``game_map`` as a parameter for the per-call local
-                # map, for example; bare ``game_map`` inside its body
-                # refers to that parameter, which is correct.
-                if sub.id in params:
-                    continue
-                if _is_skippable_name(sub, parent_of):
-                    continue
-                bugs.append((func.name, sub.lineno, sub.id))
-    if bugs:
-        print(f"FAIL: {len(bugs)} bare loose ref(s) in {target_path}:")
-        for name, lineno, tok in bugs:
-            print(f"  {name} L{lineno}: bare `{tok}`")
-        return 1
-    print(f"OK: zero bare loose refs in {', '.join(SCAN)}")
+    print(f"OK: zero bare loose refs in {', '.join(SCAN)} (audited: {', '.join(audited_names)})")
     return 0
-
-
 if __name__ == "__main__":
     sys.exit(audit())

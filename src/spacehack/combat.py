@@ -26,6 +26,11 @@ from .data.weapons import find_weapon
 from .data.modules import find_module as find_module_spec
 from .engine import RNG
 
+from . import ship as _ship_module
+
+_DEFAULT_PILOT_SKILLS: dict[str, int] = {"gunnery": 30, "piloting": 30, "engineering": 30}
+
+
 
 class CombatPhase(Enum):
     PLAYER_TURN = auto()
@@ -1343,3 +1348,52 @@ def run_combat(
         _sync_back_hull(player_state, player_owned_ship)
 
     return _result
+
+
+def _handle_combat_encounter(ctx, console, encounter) -> str:
+    """Resolve a triggered combat encounter and return VICTORY / DEFEAT / FLEE.
+
+    Was inlined in __main__._handle_combat_encounter pre-N1; promoted
+    to combat.py so the dispatcher stays combat-unaware. The
+    encounter payload ((_nearby_specs, _nearby_positions))
+    matches the contract of :func:'s
+    GotoOutcome.COMBAT branch (__main__._run_goto -> auto-nav
+    -> dispatcher -> here).
+
+    On VICTORY a single You defeated ...! entry is added to
+    ctx.log so the player sees a clear payoff; DEFEAT / FLEE
+    stay silent here because run_combat already emitted per-shot
+    logs (incl. the explosion / destruction line).
+    """
+    # Encounter None / malformed -> silent FLEE (matches _run_goto's
+    # contract that combat is only triggered on detected encounters;
+    # a None here is a programmer bug we should not crash on).
+    if not isinstance(encounter, tuple) or len(encounter) != 2:
+        return "FLEE"
+    _nearby_specs, _nearby_positions = encounter
+    if not _nearby_specs:
+        return "FLEE"
+    # Mirror _calc_hull_for_enemy's KeyError pattern: find_ship
+    # raises on unknown id; degrade gracefully so a corrupted
+    # saved ship does not AttributeError out of the tcod context.
+    try:
+        _ship_cat = _ship_module.find_ship(ctx.player_owned_ship.ship_id)
+    except (KeyError, AttributeError):
+        return "FLEE"
+    _result = run_combat(
+        console,
+        ctx.context,
+        _ship_cat,
+        ctx.player_owned_ship,
+        ctx.player.pos,
+        _DEFAULT_PILOT_SKILLS,
+        _nearby_specs,
+        _nearby_positions,
+        ctx.game_map,
+        ctx.log,
+    )
+    if _result == "VICTORY":
+        _names = ", ".join(getattr(s, "name", "enemy") for s in _nearby_specs)
+        ctx.log.add(f"You defeated {_names}!")
+    return _result
+

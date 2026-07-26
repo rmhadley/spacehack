@@ -503,36 +503,6 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
         render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
     return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
-def _handle_combat_encounter(ctx, console: tcod.console.Console, encounter: tuple[list, list[world.Position]]) -> str:
-    """Invoke combat for a triggered encounter and handle VICTORY/DEFEAT.
-
-    Both the post-move dispatcher and the auto-nav (G-key) interrupt
-    route their triggered encounters through this helper so the two
-    paths can't drift apart. The helper unpacks
-    ``(specs, positions)`` from the encounter payload, pulls the
-    player's ship + position from ``ctx.player_owned_ship`` /
-    ``ctx.player`` and the game-map / message-log from ``ctx.game_map``
-    / ``ctx.log``, calls :func:`_combat.run_combat` with the same
-    hard-coded base pilot skills (30/30/30) the post-move dispatcher
-    used, and logs the VICTORY/DEFEAT outcome identically so the player
-    sees the same log lines whether they walked into pirates or flew
-    into them via auto-nav.
-
-    Returns the combat result string (``"VICTORY"``, ``"DEFEAT"``,
-    ``"FLEE"``) so the caller can decide whether to continue the
-    dispatch loop (``VICTORY``/``FLEE``) or terminate (``DEFEAT``).
-    """
-    from . import combat as _combat
-    _nearby_specs, _nearby_positions = encounter
-    _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id)
-    _pilot_skills = {'gunnery': 30, 'piloting': 30, 'engineering': 30}
-    _result = _combat.run_combat(console, ctx.context, _ship_cat, ctx.player_owned_ship, ctx.player.pos, _pilot_skills, _nearby_specs, _nearby_positions, ctx.game_map, ctx.log)
-    if _result == 'VICTORY':
-        _names = ', '.join((_sp.name for _sp in _nearby_specs))
-        ctx.log.add(f'You defeated {_names}!')
-    elif _result == 'DEFEAT':
-        ctx.log.add('Your ship is destroyed!')
-    return _result
 
 def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) -> tuple[list, list[world.Position]] | None:
     """Run the squad-aware enemy scan and return combat payload, or ``None``.
@@ -1983,7 +1953,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if current_mode == 'space' and _is_g_press(event):
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-                    _handle_combat_encounter(ctx, console, _goto_combat)
+                    _combat._handle_combat_encounter(ctx, console, _goto_combat)
                 continue
             delta = _vim_action(event)
             if delta is None:
@@ -1993,7 +1963,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
                 _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                 if _encounter is not None:
-                    _handle_combat_encounter(ctx, console, _encounter)
+                    _combat._handle_combat_encounter(ctx, console, _encounter)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
