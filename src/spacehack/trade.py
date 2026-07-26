@@ -110,6 +110,27 @@ def _buy_good(
     return True
 
 
+def _can_sell_here(planet_id: str, good_id: str) -> bool:
+    """True if ``good_id`` can be sold at ``planet_id``'s market.
+
+    Contraband goods can only be sold at planets that list them in
+    their ``produces`` or ``demands`` (e.g. Blockade Station sells
+    black-market weapons openly).  All other goods are always
+    accepted.
+    """
+    good = find_trade_good(good_id)
+    if good.category != "contraband":
+        return True
+    spec = find_planet_spec(planet_id)
+    for gid, _target in spec.produces:
+        if gid == good_id:
+            return True
+    for gid, _target in spec.demands:
+        if gid == good_id:
+            return True
+    return False
+
+
 def _sell_good(
     ctx: GameContext,
     planet_id: str,
@@ -130,6 +151,12 @@ def _sell_good(
         return False
 
     good = find_trade_good(good_id)
+
+    # Reject contraband at non-black-market planets.
+    if not _can_sell_here(planet_id, good_id):
+        ctx.log.add(f"No one here deals in {good.name} \u2014 contraband.")
+        return False
+
     held = owned.inventory.get(good_id, 0)
     if held < quantity:
         ctx.log.add(f"You only have {held} crates of {good.name}.")
@@ -379,10 +406,15 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             good = find_trade_good(gid)
             sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
             price_label = f"{sell_price:>5}$"
+            _contra = good.category == "contraband" and not _can_sell_here(planet_id, gid)
+            if _contra:
+                price_label = f"  ---$"
             suffix = f"({qty:>3})"
             col_x = max_w // 2 + 2
             is_sel = _focus == 1 and i == _sel
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
+            if _contra:
+                fg = ui.COLOR_VALUE_DIM
             paint(col_x, cy + i, _trade_line(good.name, price_label, suffix, is_sel), fg=fg)
 
         # Footer — cargo + credits bar.

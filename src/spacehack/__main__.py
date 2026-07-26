@@ -1299,6 +1299,72 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
         return update_jump_menu(event)
     return ui.Modal(ctx.context, console).run(_render, _update)
 
+def _run_cargo_scan(ctx, planet_id: str) -> None:
+    """Check the player's cargo for contraband when landing on a
+    planet with a militia presence.
+
+    If the planet has a building labeled ``"militia"`` there is a
+    40% chance the militia runs a scan.  When contraband is
+    found every contraband crate is confiscated and a fine equal
+    to 50% of the goods' total base value is deducted from
+    the player's credits.
+
+    Logs the outcome either way so the player understands what
+    happened (or didn't happen).
+    """
+    from .data.trade_goods import find_trade_good as _ftg
+    from . import engine as _engine
+
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return
+
+    # Does this planet have a militia building?
+    from .data.planets import find_planet_spec
+    try:
+        spec = find_planet_spec(planet_id)
+    except KeyError:
+        return
+    _has_militia = any(b.label == "militia" for b in spec.buildings)
+    if not _has_militia:
+        return
+
+    # Roll against the 40% scan probability.
+    if _engine.RNG.random() >= 0.4:
+        return
+
+    # Find contraband in cargo.
+    _confiscated: list[tuple[str, int, int]] = []  # (good_id, qty, value)
+    for gid, qty in list(owned.inventory.items()):
+        try:
+            good = _ftg(gid)
+        except KeyError:
+            continue
+        if good.category == "contraband":
+            _fine = good.base_price * qty // 2
+            _confiscated.append((gid, qty, _fine))
+
+    if not _confiscated:
+        ctx.log.add("Militia scans your cargo \u2014 clean.")
+        return
+
+    # Confiscate: remove goods and deduct fine.
+    _total_fine = 0
+    for gid, qty, fine in _confiscated:
+        good = _ftg(gid)
+        ctx.log.add(f"Contraband {good.name} x{qty} confiscated by militia!")
+        _total_fine += fine
+        remaining = owned.inventory.get(gid, 0) - qty
+        if remaining <= 0:
+            if gid in owned.inventory:
+                del owned.inventory[gid]
+        else:
+            owned.inventory[gid] = remaining
+
+    ctx.stats.gold = max(0, ctx.stats.gold - _total_fine)
+    ctx.log.add(f"Militia levies a fine of {_total_fine}$ for contraband.")
+
+
 def _responsive_sleep(seconds: float) -> None:
     """Sleep for ``seconds`` while polling SDL events.
 
@@ -2282,6 +2348,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                 if not planets_has_landable_port(pid):
                                     log.add(f'You see no port on {planet_obj.name}.')
                                     continue
+                                # Cargo scan: militia check + contraband confiscation.
+                                _run_cargo_scan(ctx, pid)
                                 if city_player in city_game_map.entities:
                                     city_game_map.entities.remove(city_player)
                                 new_city_map = planets_load_planet(pid)
