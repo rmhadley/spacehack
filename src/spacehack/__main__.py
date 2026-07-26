@@ -2341,7 +2341,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             short = ship.price - stats.gold
                             log.add(f'You cannot afford the {ship.name} ({short}g short).')
                 elif blocker.trade_terminal:
-                    log.add("You tap the Trade Terminal interface. It flickers to life with a soft hum, displaying current market rates for the station's goods.")
+                    from .trade import open_trade as _open_trade
+                    _open_trade(ctx, current_city_id)
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
                     deliver_mission: mission_module.Mission | None = None
@@ -2349,7 +2350,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         active_mission_obj = mission_module.find_mission(player_active_mission.mission_id)
                         if mission_module.is_deliverable_at(active_mission_obj, npc_obj.id, current_city_id):
                             deliver_mission = active_mission_obj
-                    result, deliver_in_progress = _run_npc_talk(ctx, npc_obj, deliver_mission=deliver_mission)
+                    result, deliver_in_progress = _run_npc_talk(ctx, npc_obj, planet_id=current_city_id, deliver_mission=deliver_mission)
                     if result is TalkOutcome.QUIT:
                         return
                     if result is TalkOutcome.DELIVER:
