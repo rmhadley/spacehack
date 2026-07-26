@@ -577,7 +577,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
       animation crossed into an enemy patrol's ``detect_radius``
       mid-flight and broke early so the dispatcher can invoke
       combat from the ship's CURRENT position. ``combat_data`` is
-      suitable for direct hand-off to ``_combat.run_combat``.
+      suitable for direct hand-off to ``_combat._handle_combat_encounter`` (see combat.py).
 
     The combat break is the v1-of-fix for the bug where the
     animated ship walked right through a pirate patrol without
