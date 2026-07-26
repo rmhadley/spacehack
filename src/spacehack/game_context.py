@@ -39,7 +39,7 @@ from . import world
 
 
 class CharacterInfo(TypedDict):
-    """The small ``{species_name, class_name}`` map stored on :class:`GameContext`.
+    """The ``{species_id, species_name, class_id, class_name}`` map stored on :class:`GameContext`.
 
     TypedDict (rather than a plain ``dict[str, str]``) so future
     contributors get a type error if they typo the key, omit a
@@ -47,8 +47,20 @@ class CharacterInfo(TypedDict):
     :class:`GameContext` because it IS the value of
     ``GameContext.character_info``; splitting it into its own
     module would force a circular import.
+
+    ``species_id`` / ``class_id`` were added alongside the
+    ``species_name`` / ``class_name`` display strings so combat
+    paths (notably :func:`spacehack.combat._handle_combat_encounter`)
+    can resolve the player's actual pilot skills via
+    :func:`spacehack.character.starting_pilot_skills` without
+    having to reverse-lookup by name (which would be slower and
+    would break the moment two species shared a localised name).
+    ``species_name`` / ``class_name`` are kept so HUD render code
+    that only needs the display string keeps the same call site.
     """
+    species_id: str
     species_name: str
+    class_id: str
     class_name: str
 
 

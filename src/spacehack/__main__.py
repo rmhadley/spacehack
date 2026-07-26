@@ -1899,7 +1899,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
     log.add('Visit the space port to buy a ship; the guild halls offer work later.')
     player_owned_ship: ship_module.OwnedShip | None = None
     player_active_mission: mission_module.ActiveMission | None = None
-    character_info = {'species_name': species.name, 'class_name': klass.name}
+    character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
     ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_mission=player_active_mission)
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT

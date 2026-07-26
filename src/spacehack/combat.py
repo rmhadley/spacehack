@@ -20,6 +20,7 @@ import tcod.console
 import tcod.context
 import tcod.event
 
+from . import character
 from . import world
 from . import ui
 from .data.weapons import find_weapon
@@ -27,8 +28,6 @@ from .data.modules import find_module as find_module_spec
 from .engine import RNG
 
 from . import ship as _ship_module
-
-_DEFAULT_PILOT_SKILLS: dict[str, int] = {"gunnery": 30, "piloting": 30, "engineering": 30}
 
 
 
@@ -1385,13 +1384,30 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         # with no explanation.
         ctx.log.add("Ship catalog mismatch -- cannot start combat.")
         return "FLEE"
+    # Resolve the player's ACTUAL pilot skills from their (species,
+    # class) combo rather than the previous 30/30/30 placeholder.
+    # Without this, the crew-and-class math in
+    # :mod:`spacehack.character` was for the HUD only and bumping
+    # any class's ``skill_bonus`` had zero effect on combat — see
+    # the rationale block on :attr:`game_context.CharacterInfo`.
+    # Falls back to the base pilot (PILOT_SKILL_BASE) if either id
+    # is missing/unrecognised, matching ``starting_pilot_skills``'s
+    # safe-lookup behaviour for stale save files.
+    _species_id = ctx.character_info.get("species_id") or ""
+    _class_id = ctx.character_info.get("class_id") or ""
+    _pilot = character.starting_pilot_skills(_species_id, _class_id)
+    _player_pilot_skills = {
+        "gunnery": _pilot.gunnery,
+        "piloting": _pilot.piloting,
+        "engineering": _pilot.engineering,
+    }
     _result = run_combat(
         console,
         ctx.context,
         _ship_cat,
         ctx.player_owned_ship,
         ctx.player.pos,
-        _DEFAULT_PILOT_SKILLS,
+        _player_pilot_skills,
         _nearby_specs,
         _nearby_positions,
         ctx.game_map,
