@@ -785,6 +785,100 @@ def make_city(width: int = 60, height: int = 40) -> GameMap:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# A* pathfinding
+# ---------------------------------------------------------------------------
+
+
+def find_path(
+    start: tuple[int, int],
+    end_candidates: set[tuple[int, int]],
+    game_map: GameMap,
+    *,
+    exclude_entity: Entity | None = None,
+    max_steps: int = 50000,
+) -> list[tuple[int, int]] | None:
+    """A* shortest path from ``start`` to any cell in ``end_candidates``.
+
+    Performs 8-directional Chebyshev-weighted A* exploration up to
+    ``max_steps`` total visited cells. Returns the path as a list of
+    ``(x, y)`` tuples (INCLUDING the start, EXCLUDING the end cell)
+    so the caller can pop steps one at a time, or ``None`` if no path
+    exists.
+
+    ``exclude_entity`` is excluded from collision checks (e.g. the
+    entity doing the pathfinding), so the path won't be blocked by
+    itself. Other entities still block.
+
+    The returned path is start-to-next-step so the caller can take
+    ``path[0]`` as the immediate next cell to move into, and
+    ``path[-1]`` is always an end candidate (the goal).
+
+    ``end_candidates`` cells are always considered passable
+    regardless of walkability or entity occupancy (the goal is to
+    reach that cell).
+    """
+    import heapq
+    dirs_8 = [(0, -1), (-1, 0), (1, 0), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
+
+    def _heuristic(a, b):
+        return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+
+    # Pick the closest end candidate as A* target for heuristic guidance.
+    best_target = min(end_candidates, key=lambda tc: _heuristic(start, tc))
+
+    counter = 0
+    open_set = [(0, counter, start)]
+    came_from: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
+    g_score: dict[tuple[int, int], float] = {start: 0}
+    visited: set[tuple[int, int]] = set()
+    found = False
+    target_reached = None
+
+    while open_set and not found:
+        _, _, curr = heapq.heappop(open_set)
+        if curr in visited:
+            continue
+        visited.add(curr)
+        if len(visited) > max_steps:
+            break
+        if curr in end_candidates:
+            found = True
+            target_reached = curr
+            break
+        cx, cy = curr
+        for dx, dy in dirs_8:
+            nx, ny = (cx + dx, cy + dy)
+            npos = (nx, ny)
+            if not game_map.in_bounds(nx, ny):
+                continue
+            if npos not in end_candidates:
+                if not game_map.is_walkable(nx, ny):
+                    continue
+                blocker = game_map.entity_at(nx, ny, exclude=exclude_entity)
+                if blocker is not None:
+                    continue
+            tentative_g = g_score.get(curr, 0) + 1
+            if tentative_g < g_score.get(npos, 999999):
+                came_from[npos] = curr
+                g_score[npos] = tentative_g
+                f = tentative_g + _heuristic(npos, best_target)
+                counter += 1
+                heapq.heappush(open_set, (f, counter, npos))
+
+    if not found:
+        return None
+
+    path: list[tuple[int, int]] = []
+    cur = target_reached
+    while cur is not None:
+        path.append(cur)
+        cur = came_from.get(cur)
+    path.reverse()
+    # Exclude the start cell from the path (the caller is already there).
+    return path[1:]
+
+
 def render_world(
     console: tcod.console.Console,
     game_map: GameMap,

@@ -699,18 +699,12 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
     squad (or solo) picks a planet, gate, or station and
     commits to moving toward it until within 2 cells, then
     picks a new target. Squad members all move toward the same
-    goal in the same cardinal direction, with cohesion pull-back
-    to keep the squad tight.
+    goal using the A* path computed for the squad leader.
     """
     from . import engine as _engine
     # Build goal list from the current system's bodies.
     _system = solar_system_module.current_system()
     _goals: list[tuple[int, int]] = []
-    # Helper: return a walkable cell adjacent to the right of a body.
-    # Body tiles are walkable=False, so we can't use the centre as a
-    # goal — the pirate would never reach within 2 cells and would
-    # never re-target. Use a cell just outside the body's right edge
-    # (starfield, walkable=True) instead.
     def _body_goal(body) -> tuple[int, int] | None:
         _gx = body.pos.x + body.width + 1
         _gy = body.pos.y + body.height // 2
@@ -732,7 +726,6 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
         if _g is not None:
             _goals.append(_g)
     if not _goals:
-        # Only log if we actually have pirates to move but no targets.
         _any_pirates = any(getattr(_e, 'procedural_squad_id', '') != ''
                            for _e in game_map.entities)
         if _any_pirates:
@@ -741,7 +734,6 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
     _pirate_ents = [_e for _e in game_map.entities
                     if not getattr(_e, 'owned', False)
                     and getattr(_e, 'procedural_squad_id', '') != '']
-    # Group by squad id
     _squad_map: dict[str, list] = {}
     for _e in _pirate_ents:
         _squad_map.setdefault(_e.procedural_squad_id, []).append(_e)
@@ -749,111 +741,57 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
         if len(_members) == 0:
             continue
         _is_squad = len(_members) > 1
-        # Pick/refresh patrol target.
-        # Commit to a target until within 2 cells, then pick a new one.
-        # No random abandonment — pirates follow through.
+        _leader = _members[0]
         _target = ctx.pirate_targets.get(_sid)
-        _sx = _members[0].pos.x if _members else 0
-        _sy = _members[0].pos.y if _members else 0
+        _lx, _ly = _leader.pos.x, _leader.pos.y
         _dist_to_target = (
-            max(abs(_sx - _target[0]), abs(_sy - _target[1]))
+            max(abs(_lx - _target[0]), abs(_ly - _target[1]))
             if _target is not None else 999
         )
+        # Refresh target when None or within 2 cells.
         if _target is None or _dist_to_target <= 2:
-            # Enforce minimum travel from last re-target origin to prevent
-            # oscillation between nearby goals. The squad must travel at
-            # least 4 cells before re-targeting, creating a natural patrol
-            # arc (arrive at goal → continue past → turn around) instead
-            # of ping-pong.
-            _can_retarget = True
-            if _target is not None:
-                _origin = ctx.pirate_target_origin.get(_sid)
-                if _origin is not None:
-                    _travel_dist = max(
-                        abs(_sx - _origin[0]), abs(_sy - _origin[1])
-                    )
-                    if _travel_dist < 4:
-                        _can_retarget = False
-            if _can_retarget:
-                _candidates = [g for g in _goals if g != _target]
-                if not _candidates:
-                    _candidates = _goals
-                _target = _engine.RNG.choice(_candidates)
-                ctx.pirate_targets[_sid] = _target
-                ctx.pirate_target_origin[_sid] = (_sx, _sy)
+            _candidates = [g for g in _goals if g != _target]
+            if not _candidates:
+                _candidates = _goals
+            _target = _engine.RNG.choice(_candidates)
+            ctx.pirate_targets[_sid] = _target
+            # Compute A* path from squad leader to the new target cell.
+            _end_set: set[tuple[int, int]] = {_target}
+            _path = world.find_path(
+                (_lx, _ly), _end_set, game_map,
+                exclude_entity=_leader,
+            )
+            ctx.pirate_paths[_sid] = _path or []
         # Move most ticks for consistent progress (80% chance).
         if _engine.RNG.random() >= 0.8:
             continue
-        # Compute direction from squad centre toward target
-        _cx = sum(m.pos.x for m in _members) // len(_members)
-        _cy = sum(m.pos.y for m in _members) // len(_members)
-        _gx, _gy = _target
-        _dx = 1 if _gx > _cx else -1 if _gx < _cx else 0
-        _dy = 1 if _gy > _cy else -1 if _gy < _cy else 0
-        # Build ordered direction list with slip-around fallbacks.
-        # Priority: primary → cardinals toward target → perpendicular
-        # slip diagonals → lateral cardinals → reverse.
-        _to_try: list[tuple[int, int]] = []
-        _seen: set[tuple[int, int]] = set()
-        def _add_dir(tdx: int, tdy: int) -> None:
-            if tdx == 0 and tdy == 0:
-                return
-            if (tdx, tdy) not in _seen:
-                _seen.add((tdx, tdy))
-                _to_try.append((tdx, tdy))
-        if _dx != 0 and _dy != 0:
-            # Diagonal target: diagonal → cardinals → slip diagonals → laterals.
-            _add_dir(_dx, _dy)
-            if abs(_dx) >= abs(_dy):
-                _add_dir(_dx, 0)
-                _add_dir(0, _dy)
-            else:
-                _add_dir(0, _dy)
-                _add_dir(_dx, 0)
-            # Perpendicular slip diagonals (slide around obstacles).
-            _add_dir(_dx, -_dy)
-            _add_dir(-_dx, _dy)
-            # Lateral cardinals not yet covered.
-            for _tx, _ty in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                _add_dir(_tx, _ty)
-        else:
-            # Cardinal target: primary → slip diagonals → laterals → reverse.
-            if _dx != 0:
-                for _tdx, _tdy in [(_dx, 0), (_dx, 1), (_dx, -1),
-                                   (0, 1), (0, -1), (-_dx, 0)]:
-                    _add_dir(_tdx, _tdy)
-            else:  # _dy != 0
-                for _tdx, _tdy in [(0, _dy), (1, _dy), (-1, _dy),
-                                   (1, 0), (-1, 0), (0, -_dy)]:
-                    _add_dir(_tdx, _tdy)
-        _chosen_dx = _chosen_dy = 0
-        for _tdx, _tdy in _to_try:
-            _can_move = True
-            for _m in _members:
-                _nx = _m.pos.x + _tdx
-                _ny = _m.pos.y + _tdy
-                if not (game_map.is_walkable(_nx, _ny)
-                        and game_map.entity_at(_nx, _ny, exclude=_m) is None):
-                    _can_move = False
-                    break
-            if _can_move:
-                _chosen_dx, _chosen_dy = _tdx, _tdy
-                break
-        if _chosen_dx == 0 and _chosen_dy == 0:
-            # All directions blocked (e.g. against the sun or another squad).
-            # Clear target so next tick picks a fresh patrol destination.
-            ctx.pirate_targets[_sid] = None
+        _path = ctx.pirate_paths.get(_sid)
+        if not _path:
             continue
-        # Retreat detection: if the ONLY open direction was the exact
-        # reverse of the target direction, the squad is pinned against
-        # an obstacle (e.g. one member in the sun's collision footprint).
-        # Clear target so next tick picks a heading that avoids the
-        # obstacle instead of immediately rushing back into it.
-        if _chosen_dx == -_dx and _chosen_dy == -_dy:
-            ctx.pirate_targets[_sid] = None
-        # Move all members in the chosen direction
+        _next = _path[0]
+        _dx = _next[0] - _lx
+        _dy = _next[1] - _ly
+        # Sanity check: path step must be adjacent.
+        if abs(_dx) > 1 or abs(_dy) > 1:
+            ctx.pirate_paths[_sid] = []
+            continue
+        # Try to move all members in the A* direction.
+        _can_move = True
         for _m in _members:
-            _m.pos = world.Position(_m.pos.x + _chosen_dx, _m.pos.y + _chosen_dy)
+            _nx = _m.pos.x + _dx
+            _ny = _m.pos.y + _dy
+            if not (game_map.is_walkable(_nx, _ny)
+                    and game_map.entity_at(_nx, _ny, exclude=_m) is None):
+                _can_move = False
+                break
+        if not _can_move:
+            # A member is blocked — likely another entity. Skip tick;
+            # the blocking entity will move next tick and the path
+            # remains valid.
+            continue
+        for _m in _members:
+            _m.pos = world.Position(_m.pos.x + _dx, _m.pos.y + _dy)
+        ctx.pirate_paths[_sid].pop(0)
         # Squad cohesion: pull stragglers toward centre
         if _is_squad:
             _cx = sum(m.pos.x for m in _members) // len(_members)
