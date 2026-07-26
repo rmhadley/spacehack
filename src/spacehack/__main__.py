@@ -773,7 +773,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
             if sym in ui._ENTER_SYMS:
                 chosen_body = destinations[selected][1]
                 ctx.log.add(f"Auto-nav engaged. Plotting course to {getattr(chosen_body, 'name', 'target')}...")
-                dirs_8 = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+                dirs_8 = [(0, -1), (-1, 0), (1, 0), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
                 target_cells: set[tuple[int, int]] = set()
                 for bx in range(chosen_body.pos.x, chosen_body.pos.x + chosen_body.width):
                     for by in range(chosen_body.pos.y, chosen_body.pos.y + chosen_body.height):
