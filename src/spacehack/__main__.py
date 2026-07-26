@@ -1209,6 +1209,8 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     if _encounter is not None:
                         ctx.log.add('Auto-nav interrupted - enemies detected!')
                         return (GotoOutcome.COMBAT, _encounter)
+                    # Move pirates one step per auto-nav tick.
+                    _move_pirates(ctx, ctx.game_map)
                 ctx.log.add('Auto-nav complete.')
                 return (GotoOutcome.COMPLETED, None)
             continue
