@@ -406,6 +406,11 @@ def render_combat_hud(
         shield_line = f"Shd  {_bar_str(pshields, pmax_shields)} {int(shield_pct * 100)}%"
         console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
         y += 1
+        _regen_rate = player_state.get("shield_regen_rate", 0)
+        regen_line = f"Regen {_regen_rate}/10"
+        regen_color = COLOR_SHIELD_BAR if _regen_rate > 0 else COLOR_VALUE_DIM
+        console.print(x=hud_x, y=y, string=regen_line, fg=regen_color)
+        y += 1
 
     ap_line = f"AP: {pap}/{pap_total}"
     console.print(x=hud_x, y=y, string=ap_line, fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED)
@@ -511,6 +516,7 @@ def render_combat_hud(
         ("[Tab]", "Target"),
         ("[m]", "Move"),
         ("[f]", "Fire"),
+        ("[s]", "Shields"),
         ("[w]", "Wait"),
         ("[ESC]", "Flee"),
     ]

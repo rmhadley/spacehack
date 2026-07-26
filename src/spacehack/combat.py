@@ -71,6 +71,7 @@ class EnemyInstance:
     power_gen: int = 3
     max_power: int = 10
     cells_moved_this_turn: int = 0
+    shield_regen_rate: int = 0
     alive: bool = True
 
 
@@ -279,6 +280,7 @@ def init_combat_state(
         "engineering": engineering,
         "power_gen": pwr_gen,
         "cells_moved_this_turn": 0,
+        "shield_regen_rate": 0,
         "weapon_ammo": w_ammo,
     }
 
@@ -400,18 +402,33 @@ def resolve_damage(
 
 
 def start_player_turn(player_state: dict) -> None:
-    """Reset per-turn resources for the player."""
+    """Reset per-turn resources for the player and apply shield regen."""
+    # Power generation first
     player_state["power_pool"] = min(
         player_state["max_power"],
         player_state["power_pool"] + player_state["power_gen"],
     )
+    # Shield regen: rate 0-10, costs rate power, restores rate shields per turn
+    rate = player_state.get("shield_regen_rate", 0)
+    max_sh = player_state["max_shields"]
+    if rate > 0 and max_sh > 0 and player_state["shields"] < max_sh:
+        cost = rate
+        if player_state["power_pool"] >= cost:
+            player_state["power_pool"] -= cost
+            player_state["shields"] = min(max_sh, player_state["shields"] + rate)
     player_state["ap_remaining"] = player_state["ap_total"]
     player_state["cells_moved_this_turn"] = 0
 
 
 def start_enemy_turn(enemy: EnemyInstance) -> None:
-    """Reset per-turn resources for an enemy."""
+    """Reset per-turn resources for an enemy and apply shield regen."""
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
+    rate = enemy.shield_regen_rate
+    if rate > 0 and enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
+        cost = rate
+        if enemy.power_pool >= cost:
+            enemy.power_pool -= cost
+            enemy.shields = min(enemy.max_shields, enemy.shields + rate)
     enemy.ap_remaining = enemy.ap_total
     enemy.cells_moved_this_turn = 0
 
@@ -1209,6 +1226,16 @@ def run_combat(
                         _e_log(f"Flee failed! ({_chance}% chance)")
                         player_state["ap_remaining"] = 0
                         combat_mode = "WAIT"
+                    break
+
+                # [s] -> Cycle shield regen rate 0-10
+                if sym_name == "s":
+                    max_sh = player_state.get("max_shields", 0)
+                    if max_sh > 0:
+                        cur = player_state.get("shield_regen_rate", 0)
+                        next_rate = (cur + 1) % 11
+                        player_state["shield_regen_rate"] = next_rate
+                        _p_log(f"Shield regen set to {next_rate}/10 (costs {next_rate} power per turn)")
                     break
 
                 # [w] -> Wait / end turn
