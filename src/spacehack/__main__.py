@@ -772,6 +772,10 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
             continue
         _path = ctx.pirate_paths.get(_sid)
         if not _path:
+            # A* returned no path (goal unreachable) or the path was
+            # fully consumed. Force a target refresh on the next tick
+            # instead of retrying the same empty path forever.
+            ctx.pirate_targets.pop(_sid, None)
             continue
         _next = _path[0]
         _dx = _next[0] - _lx
