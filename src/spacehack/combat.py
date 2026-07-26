@@ -1237,7 +1237,7 @@ def run_combat(
                         next_rate = (cur + 1) % 11
                         player_state["shield_regen_rate"] = next_rate
                         eng = player_state.get("engineering", 0)
-                        actual_cost = max(1, next_rate - eng // 20)
+                        actual_cost = 0 if next_rate == 0 else max(1, next_rate - eng // 20)
                         _p_log(f"Shield regen set to {next_rate}/10 (costs {actual_cost} power per turn)")
                     break
 
