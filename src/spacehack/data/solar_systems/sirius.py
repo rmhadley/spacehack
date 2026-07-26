@@ -12,8 +12,9 @@ future iteration may add a gate to a deep-space exploration
 sector (or sneak-peak a hub system), but for v1 Sirius is a
 dead-end reachable only through Vega.
 
-A :class:`spacehack.data.planets.PlanetSpec` is NOT registered
-for either Sirius body, so neither is landable. Map dims
+A Binary Research Station (:class:`spacehack.data.planets.sirius_station`)
+orbits between the two stars, giving the system a single landable port.
+Map dims
 deliberately MATCH the other 200x140 systems so the navigation
 UX stays consistent across the universe.
 """
@@ -22,7 +23,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import JumpPoint, SolarSystem
+from . import JumpPoint, SolarSystem, StationSpec
 
 
 _planets: tuple[solar_module.Planet, ...] = (
@@ -73,7 +74,24 @@ SYSTEM: SolarSystem = SolarSystem(
     height=140,
     planets=_planets,
     jump_points=_jump_points,
-    stations=(),              # no stations in Sirius this iteration.
+    stations=(
+        # Binary Research Station — between Sirius A (100,70, 15x15)
+        # and Sirius B (35,35, 3x3). Positioned at the midpoint gap
+        # so it reads as 'between the two stars' on the system map.
+        StationSpec(
+            id="sirius_binary_station",
+            name="Binary Station",
+            char="#",
+            fg=(180, 210, 240),              # cool steel-blue
+            pos=world.Position(65, 50),
+            width=3, height=3,
+            city_planet_id="sirius_station",
+            description=(
+                "A solar research station suspended between the "
+                "binary pair — studying the dance of two stars."
+            ),
+        ),
+    ),
     stars=_stars,
     pirate_chance=0.15,
     pirate_density=2,
