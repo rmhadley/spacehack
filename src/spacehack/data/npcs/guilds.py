@@ -77,4 +77,33 @@ NPCS: tuple[NPC, ...] = (
             "the pay gets interesting."
         ),
     ),
+    # Depot attendant — generic refueling-station NPC found at deep-space
+    # depots (Epsilon Eridani, Tau Ceti). Warm grey palette so the depot
+    # reads as 'maintenance / utility' rather than a guild hall.
+    NPC(
+        id="depot_attendant",
+        name="Attendant",
+        guild="depot",
+        char="A",
+        fg=(200, 200, 180),                         # warm grey
+        flavor_text=(
+            "Fuel pumps are online. The deep-space run is long — "
+            "make sure your tanks are topped before you push further out."
+        ),
+    ),
+    # Militia blockade officer — stationed at Luyten's Star, the edge
+    # of charted space. Reuses the "depot" city layout (so the player
+    # lands at the same interior) but the NPC override on Luyten's
+    # Star replaces the standard attendant with this militia face.
+    NPC(
+        id="blockade_officer",
+        name="Blockade Officer",
+        guild="militia",
+        char="K",
+        fg=(130, 230, 220),                         # teal (militia colour)
+        flavor_text=(
+            "This is the line. Past Luyten's Star is uncharted space — "
+            "no patrols, no beacons, no backup. Turn back while you still can."
+        ),
+    ),
 )

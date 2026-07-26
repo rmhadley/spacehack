@@ -254,6 +254,8 @@ BUILDING_LABEL_COLORS: dict[str, tuple[int, int, int]] = {
     "bounties":  (255, 130, 200),        # vivid magenta - danger / reward
     "merchants": (140, 240, 140),        # soft green - wealth / trade
     "militia":   (130, 230, 220),        # teal - order / defence
+    "depot":     (200, 200, 160),        # warm grey - utility / refueling
+    "lab":       (150, 220, 200),        # teal-cyan - research / science
 }
 
 

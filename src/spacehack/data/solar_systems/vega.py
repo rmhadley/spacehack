@@ -94,6 +94,20 @@ _jump_points: tuple[JumpPoint, ...] = (
         connects_to=(("sirius", "jump_vega"),),
         description="A humming FTL gate facing Sirius.",
     ),
+    # SOUTH-EAST gate -> Procyon. Warm white (Procyon A's
+    # F-type palette hint). Positioned at (193, 100) so it
+    # sits below the Sirius gate on the east edge, matching
+    # the vertical-stack pattern on Sol's east edge.
+    JumpPoint(
+        id="jump_procyon",
+        name="Procyon Gate",
+        char="<",
+        fg=(200, 220, 255),                        # cool white (Procyon palette)
+        pos=world.Position(193, 100),
+        width=2, height=2,
+        connects_to=(("procyon", "jump_vega"),),
+        description="A humming FTL gate facing Procyon — the deep-space shortcut.",
+    ),
 )
 
 

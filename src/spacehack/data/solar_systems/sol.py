@@ -122,6 +122,23 @@ _jump_points: tuple[JumpPoint, ...] = (
         connects_to=(("vega", "jump_sol"),),
         description="A humming FTL gate facing Vega's hub system.",
     ),
+    # Epsilon Eridani Gate: a THIRD gate from Sol, at the far
+    # south-east (193, 128), sitting below Neptune's southern
+    # footprint at y=113. Greenish-gold fg contrasts with the
+    # AC/Vega gates' warm gold so the player sees a different
+    # colour for a different route. This gate opens the deep-
+    # space chain (Epsilon Eridani -> Procyon -> Tau Ceti ->
+    # Wolf 359 -> Luyten's Star).
+    JumpPoint(
+        id="jump_epsilon_eridani",
+        name="Epsilon Eridani Gate",
+        char="<",
+        fg=(180, 230, 180),                         # pale greenish — new route
+        pos=world.Position(193, 128),
+        width=2, height=2,
+        connects_to=(("epsilon_eridani", "jump_sol"),),
+        description="A humming FTL gate facing Epsilon Eridani — the deep-space corridor.",
+    ),
 )
 
 

@@ -72,10 +72,14 @@ def _build_registry() -> dict[str, PlanetSpec]:
     from . import earth as earth_module
     from . import mars as mars_module
     from . import ac_station as ac_station_module
+    from . import depot as depot_module
+    from . import blockade as blockade_module
     return {
         earth_module.SPEC.id: earth_module.SPEC,
         mars_module.SPEC.id: mars_module.SPEC,
         ac_station_module.SPEC.id: ac_station_module.SPEC,
+        depot_module.SPEC.id: depot_module.SPEC,
+        blockade_module.SPEC.id: blockade_module.SPEC,
     }
 
 

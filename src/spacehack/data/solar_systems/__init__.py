@@ -210,12 +210,22 @@ def _build_registry() -> dict[str, SolarSystem]:
     from . import barnards_star as barnards_module
     from . import sirius as sirius_module
     from . import vega as vega_module
+    from . import epsilon_eridani as ee_module
+    from . import procyon as procyon_module
+    from . import tau_ceti as tc_module
+    from . import wolf_359 as wolf_module
+    from . import luyten_star as ls_module
     return {
         sol_module.SYSTEM.id: sol_module.SYSTEM,
         ac_module.SYSTEM.id: ac_module.SYSTEM,
         barnards_module.SYSTEM.id: barnards_module.SYSTEM,
         sirius_module.SYSTEM.id: sirius_module.SYSTEM,
         vega_module.SYSTEM.id: vega_module.SYSTEM,
+        ee_module.SYSTEM.id: ee_module.SYSTEM,
+        procyon_module.SYSTEM.id: procyon_module.SYSTEM,
+        tc_module.SYSTEM.id: tc_module.SYSTEM,
+        wolf_module.SYSTEM.id: wolf_module.SYSTEM,
+        ls_module.SYSTEM.id: ls_module.SYSTEM,
     }
 
 

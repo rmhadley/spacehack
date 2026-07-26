@@ -74,4 +74,39 @@ MISSIONS: tuple[Mission, ...] = (
         delivery_target_npc_id="research_officer",
         delivery_target_planet_id="ac_station",
     ),
+    # =============================================================
+    # LONG-RANGE DELIVERY EXEMPLAR — Tau Ceti, 3 hops from Sol
+    # =============================================================
+    # The player accepts cargo on Earth, then travels through
+    # Epsilon Eridani and Procyon to reach Tau Ceti's refueling
+    # depot — a 3-jump trip one-way (6 jumps round-trip). The
+    # Cruiser's 60 fuel max makes this a tight squeeze without
+    # refueling; the Scout (100 fuel) and Hauler (80 fuel) have
+    # more breathing room. The reward is higher to compensate
+    # for the multi-hop distance.
+    #
+    # The depot_attendant NPC at Tau Ceti's depot is the delivery
+    # target. The NPC exists in the global guilds catalog (see
+    # data/npcs/guilds.py) and the Tau Ceti depot station routes
+    # to the generic "depot" PlanetSpec which has the depot
+    # building with npc_id="depot_attendant".
+    # =============================================================
+    Mission(
+        id="merchants_supply_run_tau_ceti",
+        title="Long-haul supply run to Tau Ceti",
+        description=(
+            "The refueling depot at Tau Ceti is running low on "
+            "replacement parts for their fuel processors. Fifteen "
+            "units of industrial spares — filters, gaskets, pump "
+            "seals. Three jumps out, so fuel up before you go."
+        ),
+        giver_npc_id="guild_master",
+        reward_gold=400,
+        reward_xp=80,
+        recommended_class_id="merchant",
+        recommended_ship_min_cargo=15,
+        required_cargo_size=15,
+        delivery_target_npc_id="depot_attendant",
+        delivery_target_planet_id="depot",
+    ),
 )
