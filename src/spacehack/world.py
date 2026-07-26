@@ -182,6 +182,7 @@ class Entity:
     width: int = 1
     height: int = 1
     owned: bool = False
+    procedural_squad_id: str = ""
 
 
 # Anchor where the player's bought ship is parked outside the

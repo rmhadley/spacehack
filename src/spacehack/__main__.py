@@ -608,6 +608,12 @@ def _spawn_procedural_pirates(
         f"proc_pirates_{system_id}_{_engine.RNG.randint(0, 99999)}"
         if _count > 1 else None
     )
+    # Movement ID — always non-empty so the movement system finds
+    # every pirate entity. Solo pirates get a unique per-pirate ID
+    # so each wanders independently; squad members share an ID so
+    # they move together.
+    _movement_prefix = f"proc_move_{system_id}_{_engine.RNG.randint(0, 99999)}"
+    _movement_id: str = _squad_id or _movement_prefix
     _spawns: list = []
     try:
         _espec = _fe("pirate_scout")
@@ -616,8 +622,9 @@ def _spawn_procedural_pirates(
     for _i in range(_count):
         _x = _y = -1
         for _attempt in range(50):
-            _x = _cx + _engine.RNG.randint(-20, 20)
-            _y = _cy + _engine.RNG.randint(-20, 20)
+            # Tight ±4 spread so squad members spawn near each other.
+            _x = _cx + _engine.RNG.randint(-4, 4)
+            _y = _cy + _engine.RNG.randint(-4, 4)
             if (_x, _y) not in _blocked and 0 <= _x < _system.width and 0 <= _y < _system.height:
                 break
         else:
@@ -626,6 +633,7 @@ def _spawn_procedural_pirates(
         game_map.entities.append(world.Entity(
             char=_espec.char, fg=_espec.fg, pos=_pos,
             name=_espec.name, width=1, height=1,
+            procedural_squad_id=_movement_id,
         ))
         _spawns.append(_pos)
     if _spawns:
@@ -641,6 +649,63 @@ def _spawn_procedural_pirates(
         ctx.log.add(
             f"Sensor ping: {_count} unknown contact{('s' if _count > 1 else '')} detected in the area."
         )
+
+
+def _move_pirates(ctx, game_map: world.GameMap) -> None:
+    """Wander procedural pirate entities on ``game_map``.
+
+    Called after the player moves in space mode. Each pirate has a
+    ~40% chance to move one cell in a random cardinal direction.
+    Squad members (same ``procedural_squad_id``) move in the SAME
+    direction together, keeping the squad tight. If a squad member
+    drifts >5 cells from the squad centre, it gets pulled back.
+    """
+    from . import engine as _engine
+    _cardinals = [(0, -1), (-1, 0), (1, 0), (0, 1)]
+    _pirate_ents = [_e for _e in game_map.entities
+                    if not getattr(_e, 'owned', False)
+                    and getattr(_e, 'procedural_squad_id', '') != '']
+    # Group by squad id
+    _squad_map: dict[str, list] = {}
+    for _e in _pirate_ents:
+        _sid = _e.procedural_squad_id
+        _squad_map.setdefault(_sid, []).append(_e)
+    for _sid, _members in _squad_map.items():
+        if len(_members) <= 1:
+            continue  # solo pirates handled below
+        # Squad movement: pick one direction for the whole squad.
+        if _engine.RNG.random() >= 0.4:
+            continue
+        _dx, _dy = _engine.RNG.choice(_cardinals)
+        for _m in _members:
+            _nx = _m.pos.x + _dx
+            _ny = _m.pos.y + _dy
+            if (game_map.is_walkable(_nx, _ny)
+                and game_map.entity_at(_nx, _ny, exclude=_m) is None):
+                _m.pos = world.Position(_nx, _ny)
+        # Squad cohesion: if any member is >5 cells from centre, pull back.
+        _cx = sum(m.pos.x for m in _members) // len(_members)
+        _cy = sum(m.pos.y for m in _members) // len(_members)
+        for _m in _members:
+            if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 5:
+                _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
+                _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
+                if (game_map.is_walkable(_pull_x, _pull_y)
+                    and game_map.entity_at(_pull_x, _pull_y, exclude=_m) is None):
+                    _m.pos = world.Position(_pull_x, _pull_y)
+    # Solo pirates: wander independently.
+    for _e in _pirate_ents:
+        if _e.procedural_squad_id != '':
+            if len(_squad_map.get(_e.procedural_squad_id, [])) > 1:
+                continue  # handled in squad block
+        if _engine.RNG.random() >= 0.4:
+            continue
+        _dx, _dy = _engine.RNG.choice(_cardinals)
+        _nx = _e.pos.x + _dx
+        _ny = _e.pos.y + _dy
+        if (game_map.is_walkable(_nx, _ny)
+            and game_map.entity_at(_nx, _ny, exclude=_e) is None):
+            _e.pos = world.Position(_nx, _ny)
 
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
@@ -2066,6 +2131,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     combat._handle_combat_encounter(ctx, console, _encounter)
                     # Sync local mission state after combat.
                     player_active_mission = ctx.player_active_mission
+                # Move procedural pirates after the player moves.
+                _move_pirates(ctx, game_map)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
