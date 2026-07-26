@@ -37,7 +37,7 @@ from .data.species import find_species
 from .data.classes import find_class
 from .data import npcs as npc_module
 from . import world
-from . import combat as _combat
+from . import combat
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
 NAV_SHIP_FG: tuple[int, int, int] = (255, 255, 100)
 
@@ -577,7 +577,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
       animation crossed into an enemy patrol's ``detect_radius``
       mid-flight and broke early so the dispatcher can invoke
       combat from the ship's CURRENT position. ``combat_data`` is
-      suitable for direct hand-off to ``_combat._handle_combat_encounter`` (see combat.py).
+      suitable for direct hand-off to ``combat._handle_combat_encounter`` (see combat.py).
 
     The combat break is the v1-of-fix for the bug where the
     animated ship walked right through a pirate patrol without
@@ -1954,7 +1954,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if current_mode == 'space' and _is_g_press(event):
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-                    _combat._handle_combat_encounter(ctx, console, _goto_combat)
+                    combat._handle_combat_encounter(ctx, console, _goto_combat)
                 continue
             delta = _vim_action(event)
             if delta is None:
@@ -1964,7 +1964,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
                 _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                 if _encounter is not None:
-                    _combat._handle_combat_encounter(ctx, console, _encounter)
+                    combat._handle_combat_encounter(ctx, console, _encounter)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
