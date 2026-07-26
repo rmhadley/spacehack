@@ -2338,32 +2338,33 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             planet_obj = solar_system_module.find_planet(pid)
                             log.add(f'You approach {planet_obj.name}.')
                             outcome = _run_planet_menu(ctx, planet_obj, active_mission_text=active_mission_text)
-                            if outcome is PlanetMenuOutcome.LAND and pid == current_city_id:
-                                # Cargo scan for return-to-home-city too.
+                            if outcome is PlanetMenuOutcome.LAND:
+                                # Shared: runs on ANY landing.
                                 _run_cargo_scan(ctx, pid)
                                 hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
-                                if hangar_ship is not None:
-                                    game_map, player = _return_to_city(ctx, console, hangar_ship, city_game_map, city_player)
-                                    current_mode = 'city'
-                            elif outcome is PlanetMenuOutcome.LAND:
-                                from .data.planets import load_planet as planets_load_planet, hangar_anchor as planet_hangar_anchor, has_landable_port as planets_has_landable_port
-                                if not planets_has_landable_port(pid):
-                                    log.add(f'You see no port on {planet_obj.name}.')
-                                    continue
-                                # Cargo scan: militia check + contraband confiscation.
-                                _run_cargo_scan(ctx, pid)
-                                if city_player in city_game_map.entities:
-                                    city_game_map.entities.remove(city_player)
-                                new_city_map = planets_load_planet(pid)
-                                new_anchor = planet_hangar_anchor(pid)
-                                hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
-                                if hangar_ship is not None:
-                                    if hangar_ship in city_game_map.entities:
-                                        city_game_map.entities.remove(hangar_ship)
-                                    hangar_ship.pos = world.Position(new_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1)
-                                    new_city_map.entities.append(hangar_ship)
-                                    _animate_ship_to_y(ctx, console, hangar_ship, new_city_map, target_y=new_anchor.y)
-                                    log.add(f'You touch down on {planet_obj.name}.')
+
+                                if pid == current_city_id:
+                                    # Returning to current city — map is cached, just animate ship down.
+                                    if hangar_ship is not None:
+                                        game_map, player = _return_to_city(ctx, console, hangar_ship, city_game_map, city_player)
+                                        current_mode = 'city'
+                                else:
+                                    # Landing on a new planet — load fresh map.
+                                    from .data.planets import load_planet as planets_load_planet, hangar_anchor as planet_hangar_anchor, has_landable_port as planets_has_landable_port
+                                    if not planets_has_landable_port(pid):
+                                        log.add(f'You see no port on {planet_obj.name}.')
+                                        continue
+                                    if city_player in city_game_map.entities:
+                                        city_game_map.entities.remove(city_player)
+                                    new_city_map = planets_load_planet(pid)
+                                    new_anchor = planet_hangar_anchor(pid)
+                                    if hangar_ship is not None:
+                                        if hangar_ship in city_game_map.entities:
+                                            city_game_map.entities.remove(hangar_ship)
+                                        hangar_ship.pos = world.Position(new_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1)
+                                        new_city_map.entities.append(hangar_ship)
+                                        _animate_ship_to_y(ctx, console, hangar_ship, new_city_map, target_y=new_anchor.y)
+                                        log.add(f'You touch down on {planet_obj.name}.')
                                     if city_player not in new_city_map.entities:
                                         new_city_map.entities.append(city_player)
                                     city_player.pos = world.Position(new_anchor.x, new_anchor.y + 1)
