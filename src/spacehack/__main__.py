@@ -570,10 +570,10 @@ def _spawn_procedural_pirates(
 
     Each jump / launch consumes a fresh roll from the game's seeded
     RNG (:data:`spacehack.engine.RNG`). If the system's
-    ``pirate_chance`` hits, ``1..pirate_density`` pirate scouts spawn
-    near a random squad centre. The spawns are tracked in
-    ``ctx.procedural_spawns`` so :func:`_detect_combat_encounter` can
-    find them.
+    ``pirate_chance`` hits, multiple independent groups may spawn --
+    each with its own position, squad id (when >1 member), and
+    movement id. This produces a mix of squads and solos scattered
+    across the system rather than one monolithic squad.
     """
     from . import engine as _engine
     from .data.enemies import find_enemy as _fe
@@ -586,9 +586,11 @@ def _spawn_procedural_pirates(
         return
     if _engine.RNG.random() >= _system.pirate_chance:
         return
-    # Determine how many pirates spawn this visit.
-    _count = _engine.RNG.randint(1, _system.pirate_density)
-    # Build a set of blocked cells (planets, gates, stations).
+    try:
+        _espec = _fe("pirate_scout")
+    except (KeyError, ImportError):
+        return
+    # Build a set of blocked cells (planets, gates, stations, existing entities).
     _blocked: set[tuple[int, int]] = set()
     for _p in _system.planets:
         for _dy in range(_p.height):
@@ -606,60 +608,87 @@ def _spawn_procedural_pirates(
         for _dy in range(_e.height):
             for _dx in range(_e.width):
                 _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
-    # Pick a squad centre on the map.
-    _cx = _cy = -1
-    for _attempt in range(200):
-        _cx = _engine.RNG.randint(10, _system.width - 10)
-        _cy = _engine.RNG.randint(10, _system.height - 10)
-        if (_cx, _cy) not in _blocked:
+
+    # Pick a free cell on the map (shared helper for all groups).
+    def _pick_centre() -> tuple[int, int] | None:
+        for _attempt in range(200):
+            _cx = _engine.RNG.randint(10, _system.width - 10)
+            _cy = _engine.RNG.randint(10, _system.height - 10)
+            if (_cx, _cy) not in _blocked:
+                return (_cx, _cy)
+        return None
+
+    # Determine how many independent groups spawn this visit.
+    # More dangerous systems spawn more groups.
+    # Use density-1 so even density 3 systems get 2 groups max.
+    _max_groups = max(1, _system.pirate_density - 1)
+    _num_groups = _engine.RNG.randint(1, _max_groups)
+    # Distribute the total pirate budget across groups.
+    # Each group gets at least 1, leftover rounds down.
+    _total_budget = _system.pirate_density
+    _group_sizes: list[int] = []
+    for _g in range(_num_groups):
+        _remaining_groups = _num_groups - _g
+        _max_for_this = _total_budget - _remaining_groups + 1  # leave at least 1 for each remaining
+        if _max_for_this <= 0:
             break
-    else:
-        return  # couldn't find a valid centre
-    # Generate a shared squad id when multiple pirates spawn.
-    _squad_id: str | None = (
-        f"proc_pirates_{system_id}_{_engine.RNG.randint(0, 99999)}"
-        if _count > 1 else None
-    )
-    # Movement ID — always non-empty so the movement system finds
-    # every pirate entity. Solo pirates get a unique per-pirate ID
-    # so each wanders independently; squad members share an ID so
-    # they move together.
-    _movement_prefix = f"proc_move_{system_id}_{_engine.RNG.randint(0, 99999)}"
-    _movement_id: str = _squad_id or _movement_prefix
-    _spawns: list = []
-    try:
-        _espec = _fe("pirate_scout")
-    except (KeyError, ImportError):
-        return
-    for _i in range(_count):
-        _x = _y = -1
-        for _attempt in range(50):
-            # Tight ±4 spread so squad members spawn near each other.
-            _x = _cx + _engine.RNG.randint(-4, 4)
-            _y = _cy + _engine.RNG.randint(-4, 4)
-            if (_x, _y) not in _blocked and 0 <= _x < _system.width and 0 <= _y < _system.height:
-                break
-        else:
+        _size = _engine.RNG.randint(1, min(5, _max_for_this))
+        _group_sizes.append(_size)
+        _total_budget -= _size
+    if not _group_sizes:
+        _group_sizes = [1]
+
+    _total_spawned = 0
+    _all_spawns: list = []
+    _all_procedural: list = []
+
+    for _g_idx, _g_size in enumerate(_group_sizes):
+        _centre = _pick_centre()
+        if _centre is None:
             continue
-        _pos = world.Position(_x, _y)
-        game_map.entities.append(world.Entity(
-            char=_espec.char, fg=_espec.fg, pos=_pos,
-            name=_espec.name, width=1, height=1,
-            procedural_squad_id=_movement_id,
-        ))
-        _spawns.append(_pos)
-    if _spawns:
+        _gcx, _gcy = _centre
+        # Squad id only for groups > 1.
+        _squad_id: str | None = (
+            f"proc_pirates_{system_id}_{_g_idx}_{_engine.RNG.randint(0, 99999)}"
+            if _g_size > 1 else None
+        )
+        # Movement id always non-empty.
+        _movement_id: str = _squad_id or f"proc_solo_{system_id}_{_g_idx}_{_engine.RNG.randint(0, 99999)}"
+
+        _group_entities = 0
+        for _i in range(_g_size):
+            _x = _y = -1
+            for _attempt in range(50):
+                _x = _gcx + _engine.RNG.randint(-4, 4)
+                _y = _gcy + _engine.RNG.randint(-4, 4)
+                if (_x, _y) not in _blocked and 0 <= _x < _system.width and 0 <= _y < _system.height:
+                    break
+            else:
+                continue
+            _pos = world.Position(_x, _y)
+            _blocked.add((_x, _y))
+            game_map.entities.append(world.Entity(
+                char=_espec.char, fg=_espec.fg, pos=_pos,
+                name=_espec.name, width=1, height=1,
+                procedural_squad_id=_movement_id,
+            ))
+            _all_spawns.append(_pos)
+            _all_procedural.append((_pos, _squad_id))
+            _group_entities += 1
+        _total_spawned += _group_entities
+
+    if _all_spawns:
         from .game_context import ProceduralSpawn as _PS
         ctx.procedural_spawns[system_id] = [
             _PS(
                 enemy_id="pirate_scout",
-                pos=_spawns[i],
-                squad_id=_squad_id,
+                pos=pos,
+                squad_id=sid,
             )
-            for i in range(len(_spawns))
+            for pos, sid in _all_procedural
         ]
         ctx.log.add(
-            f"Sensor ping: {_count} unknown contact{('s' if _count > 1 else '')} detected in the area."
+            f"Sensor ping: {_total_spawned} unknown contact{('s' if _total_spawned != 1 else '')} detected in the area."
         )
 
 
