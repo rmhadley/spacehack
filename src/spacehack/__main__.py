@@ -844,6 +844,13 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
             # Clear target so next tick picks a fresh patrol destination.
             ctx.pirate_targets[_sid] = None
             continue
+        # Retreat detection: if the ONLY open direction was the exact
+        # reverse of the target direction, the squad is pinned against
+        # an obstacle (e.g. one member in the sun's collision footprint).
+        # Clear target so next tick picks a heading that avoids the
+        # obstacle instead of immediately rushing back into it.
+        if _chosen_dx == -_dx and _chosen_dy == -_dy:
+            ctx.pirate_targets[_sid] = None
         # Move all members in the chosen direction
         for _m in _members:
             _m.pos = world.Position(_m.pos.x + _chosen_dx, _m.pos.y + _chosen_dy)
