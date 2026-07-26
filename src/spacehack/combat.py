@@ -874,7 +874,7 @@ def run_combat(
     for _inst in enemy_insts:
         _key = (_inst.pos.x, _inst.pos.y)
         if _key in _occupied:
-            # Try 4 cardinal offsets to find a free cell nearby.
+            # Try 8 directions to find a free cell nearby.
             _placed = False
             for _odx, _ody in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,-1),(-1,1),(1,1)]:
                 _nk = (_inst.pos.x + _odx, _inst.pos.y + _ody)
@@ -884,8 +884,18 @@ def run_combat(
                     _placed = True
                     break
             if not _placed:
-                # Last resort: push east by index offset.
+                # Last resort: slide east cell-by-cell until a free
+                # cell is found or the map boundary is reached, so
+                # enemies pushed from the same origin end up at
+                # distinct positions.
                 _inst.pos = world.Position(_inst.pos.x + 2, _inst.pos.y)
+                _attempts = 0
+                while (_inst.pos.x, _inst.pos.y) in _occupied and _attempts < 20:
+                    _nx = _inst.pos.x + 1
+                    if not game_map.in_bounds(_nx, _inst.pos.y):
+                        break
+                    _inst.pos = world.Position(_nx, _inst.pos.y)
+                    _attempts += 1
                 _occupied.add((_inst.pos.x, _inst.pos.y))
         else:
             _occupied.add(_key)
@@ -1212,6 +1222,30 @@ def run_combat(
                 # combat now (don't re-render a fresh player turn).
                 if _result is not None:
                     break
+                # Post-turn dedup: push apart any enemies that ended up
+                # on the same cell (e.g. due to multi-turn convergence).
+                _post_occupied: set[tuple[int, int]] = set()
+                for _de in enemy_insts:
+                    if not _de.alive:
+                        continue
+                    _dp = (_de.pos.x, _de.pos.y)
+                    if _dp in _post_occupied:
+                        # Find a free cell nearby (same offsets as init dedup).
+                        for _odx, _ody in [(-1,0),(1,0),(0,-1),(0,1)]:
+                            _nk = (_de.pos.x + _odx, _de.pos.y + _ody)
+                            if (_nk not in _post_occupied
+                                    and game_map.in_bounds(*_nk)
+                                    and game_map.is_walkable(*_nk)):
+                                _de.pos = world.Position(*_nk)
+                                _post_occupied.add(_nk)
+                                break
+                        else:
+                            # Fallback: push south by 3 (no further
+                            # checks; unlikely on open combat maps).
+                            _de.pos = world.Position(_de.pos.x, _de.pos.y + 3)
+                            _post_occupied.add((_de.pos.x, _de.pos.y))
+                    else:
+                        _post_occupied.add(_dp)
                 # New player turn: reset AP, increment counter,
                 # drop out of WAIT, then ``continue`` so the
                 # top-of-loop render block paints the fresh
