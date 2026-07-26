@@ -2340,6 +2340,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
                             short = ship.price - stats.gold
                             log.add(f'You cannot afford the {ship.name} ({short}g short).')
+                elif blocker.trade_terminal:
+                    log.add("You tap the Trade Terminal interface. It flickers to life with a soft hum, displaying current market rates for the station's goods.")
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
                     deliver_mission: mission_module.Mission | None = None

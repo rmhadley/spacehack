@@ -81,4 +81,14 @@ SPEC = PlanetSpec(
             ),
         ),
     ),
+    produces=(
+        ("food_rations", 25),
+        ("ore_processed", 20),
+    ),
+    demands=(
+        ("electronics", 12),
+        ("machine_parts", 10),
+        ("luxury_goods", 8),
+    ),
+    trade_npc_id="guild_master",
 )

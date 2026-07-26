@@ -59,4 +59,10 @@ SPEC = PlanetSpec(
             ),
         ),
     ),
+    produces=(),
+    demands=(
+        ("food_rations", 12),
+        ("fuel_cells", 10),
+        ("medical_supplies", 8),
+    ),
 )

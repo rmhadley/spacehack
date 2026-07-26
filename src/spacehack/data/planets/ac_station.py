@@ -71,4 +71,13 @@ SPEC = PlanetSpec(
         ("hauler", 7, 4),
     ),
     npc_overrides=(),        # reuse the global NPCS catalog for research_officer.
+    produces=(
+        ("research_data", 20),
+    ),
+    demands=(
+        ("food_rations", 15),
+        ("medical_supplies", 10),
+        ("electronics", 10),
+    ),
+    trade_npc_id="research_officer",
 )

@@ -63,6 +63,46 @@ class PlanetSpec:
     showroom_ships: tuple[tuple[str, int, int], ...]
     theme: world.PlanetTheme | None = None
     npc_overrides: tuple[tuple[str, npc_module.NPC], ...] = ()
+    produces: tuple[tuple[str, int], ...] = ()
+    demands: tuple[tuple[str, int], ...] = ()
+    trade_npc_id: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Economy helpers
+# ---------------------------------------------------------------------------
+
+
+def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
+    """Calculate the buy/sell price given current vs target stock levels.
+
+    Uses a linear curve:
+      Stock ratio = 0%   (shortage)  → 2.0\u00d7 base price
+      Stock ratio = 50%  (equilibrium) → 1.0\u00d7 base price
+      Stock ratio = 100% (surplus)    → 0.6\u00d7 base price
+
+    This is the SINGLE pricing function for both the terminal and
+    the NPC trader — no separate markup constants. The NPC trader
+    simply offers access to a different stock pool (better prices
+    because the stock levels are different).
+
+    Args:
+        base_price:  The :attr:`TradeGood.base_price` value.
+        current_stock: How many units the planet currently holds.
+        target_stock:  The equilibrium stock level (``target``
+                       in the ``produces`` / ``demands`` tuple).
+
+    Returns:
+        Integer gold price for one unit.
+    """
+    target = max(1, target_stock)
+    ratio = current_stock / target
+    if ratio < 0.5:
+        # Shortage zone: 2.0\u00d7 linearly down to 1.0\u00d7 at 50%.
+        return int(base_price * (2.0 - ratio * 2.0))
+    else:
+        # Surplus zone: 1.0\u00d7 linearly down to 0.6\u00d7 at 100%.
+        return int(base_price * (1.0 - (ratio - 0.5) * 0.8))
 
 
 _BY_ID: dict[str, PlanetSpec] | None = None
@@ -199,6 +239,19 @@ def load_planet(planet_id: str) -> world.GameMap:
                 width=ship_obj.width,
                 height=ship_obj.height,
             ))
+        # Trade terminal: auto-placed inside the spaceport just above the
+        # south-wall door so the player sees it right when entering.
+        if spec.produces or spec.demands:
+            _term_x = port.door_x
+            _term_y = port.y_hi - 1  # one row above the south-wall door
+            entities.append(world.Entity(
+                char="=",
+                fg=(100, 220, 255),
+                pos=world.Position(x=_term_x, y=_term_y),
+                name="Trade Terminal",
+                width=1, height=1,
+                trade_terminal=True,
+            ))
 
     # Shared decoration: roads, plaza, sidewalks, grass patch.
     world._layout_outside(tiles, width, height, spec.buildings, theme=theme)
@@ -248,4 +301,4 @@ def _resolve_ship(ship_id: str):
     return ship_module.find_ship(ship_id)
 
 
-__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor"]
+__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor", "trade_price"]

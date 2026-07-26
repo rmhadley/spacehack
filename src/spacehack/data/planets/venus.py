@@ -58,4 +58,12 @@ SPEC = PlanetSpec(
             ),
         ),
     ),
+    produces=(
+        ("luxury_goods", 15),
+        ("food_rations", 10),
+    ),
+    demands=(
+        ("electronics", 10),
+        ("machine_parts", 8),
+    ),
 )

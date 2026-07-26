@@ -55,4 +55,15 @@ SPEC = PlanetSpec(
         ("cruiser", 11, 4),
     ),
     npc_overrides=(),    # Earth uses every global NPCS entry verbatim.
+    produces=(
+        ("electronics", 20),
+        ("food_rations", 30),
+        ("luxury_goods", 10),
+    ),
+    demands=(
+        ("ore_processed", 25),
+        ("machine_parts", 15),
+        ("fuel_cells", 20),
+    ),
+    trade_npc_id="guild_master",
 )

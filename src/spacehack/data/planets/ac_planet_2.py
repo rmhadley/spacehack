@@ -44,4 +44,11 @@ SPEC = PlanetSpec(
         ("hauler", 7, 4),
     ),
     npc_overrides=(),
+    produces=(
+        ("research_data", 10),
+    ),
+    demands=(
+        ("food_rations", 10),
+        ("fuel_cells", 12),
+    ),
 )

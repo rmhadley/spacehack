@@ -67,4 +67,12 @@ SPEC = PlanetSpec(
             ),
         ),
     ),
+    produces=(
+        ("ore_processed", 35),
+    ),
+    demands=(
+        ("food_rations", 15),
+        ("machine_parts", 10),
+        ("fuel_cells", 12),
+    ),
 )

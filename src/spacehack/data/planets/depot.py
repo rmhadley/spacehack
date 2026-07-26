@@ -51,4 +51,13 @@ SPEC = PlanetSpec(
         ("hauler", 7, 4),
     ),
     npc_overrides=(),
+    produces=(
+        ("fuel_cells", 25),
+        ("machine_parts", 15),
+    ),
+    demands=(
+        ("food_rations", 10),
+        ("electronics", 8),
+    ),
+    trade_npc_id="depot_attendant",
 )

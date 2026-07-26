@@ -46,4 +46,13 @@ SPEC = PlanetSpec(
         ("hauler", 7, 2),
     ),
     npc_overrides=(),
+    produces=(
+        ("weapons_blackmarket", 5),
+    ),
+    demands=(
+        ("food_rations", 10),
+        ("electronics", 8),
+        ("fuel_cells", 12),
+    ),
+    trade_npc_id="blockade_officer",
 )

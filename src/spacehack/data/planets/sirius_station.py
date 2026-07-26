@@ -61,4 +61,13 @@ SPEC = PlanetSpec(
             ),
         ),
     ),
+    produces=(
+        ("research_data", 15),
+    ),
+    demands=(
+        ("food_rations", 10),
+        ("medical_supplies", 8),
+        ("electronics", 10),
+    ),
+    trade_npc_id="research_officer",
 )
