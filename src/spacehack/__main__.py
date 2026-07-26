@@ -2412,6 +2412,9 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
                             short = ship.price - stats.credits
                             log.add(f'You cannot afford the {ship.name} ({short}$ short).')
+                elif blocker.loot_data:
+                    from .trade import open_loot_pickup as _open_loot
+                    _open_loot(ctx, blocker)
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)

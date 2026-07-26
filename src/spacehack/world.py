@@ -184,6 +184,7 @@ class Entity:
     owned: bool = False
     procedural_squad_id: str = ""
     trade_terminal: bool = False
+    loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
 
 
 # Anchor where the player's bought ship is parked outside the

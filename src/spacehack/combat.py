@@ -884,6 +884,7 @@ def run_combat(
             _occupied.add(_key)
 
     from .message_log import COLOR_PLAYER_ACTION, COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
+    from .data.trade_goods.core import TRADE_GOODS as _TRADE_GOODS
 
     weapons_list = list(getattr(player_owned_ship, 'weapons', ()) or ())
     selected_weapon_idx = 0
@@ -1382,6 +1383,23 @@ def run_combat(
                                     game_map.entities.remove(_enemy_ents[target_idx])
                                 except ValueError:
                                     pass
+                            # Spawn loot entities at or near the wreck.
+                            _wreck = _target.pos
+                            for _tg in _TRADE_GOODS:
+                                _loot_rarity = _tg.rarity
+                                if RNG.random() >= _loot_rarity:
+                                    continue
+                                _qty = RNG.randint(1, 3)
+                                _lox = _wreck.x + RNG.randint(-2, 2)
+                                _loy = _wreck.y + RNG.randint(-2, 2)
+                                if not game_map.is_walkable(_lox, _loy):
+                                    continue
+                                game_map.entities.append(world.Entity(
+                                    char="*", fg=(255, 220, 80),
+                                    pos=world.Position(_lox, _loy),
+                                    name=f"Cargo: {_tg.name}",
+                                    loot_data={"good_id": _tg.id, "quantity": _qty},
+                                ))
                     else:
                         _p_log(f"Missed {_target.name}! (rolled {_roll}, needed <={_chance})")
                         # Charge the weapon's full AP on miss too —

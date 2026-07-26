@@ -299,6 +299,103 @@ class _TradeOutcome(Enum):
     QUIT = auto()
 
 
+def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
+    """Open a simple modal to pick up loot from a destroyed ship.
+
+    Shows what's available and lets the player take it (or leave it).
+    If cargo space is insufficient, logs the shortfall and stays in
+    space so the player can decide what to jettison.
+    """
+    good_id = loot_entity.loot_data.get("good_id", "")
+    quantity = loot_entity.loot_data.get("quantity", 1)
+    if not good_id:
+        return
+    try:
+        good = find_trade_good(good_id)
+    except KeyError:
+        ctx.log.add("Unknown cargo debris.")
+        return
+
+    owned = ctx.player_owned_ship
+    if owned is None:
+        ctx.log.add("You need a ship with cargo space to pick up cargo.")
+        return
+
+    volume = good.volume * quantity
+    free_cargo = _free_cargo(owned)
+
+    if free_cargo < volume:
+        ctx.log.add(
+            f"Not enough cargo space to take {good.name} x{quantity} "
+            f"(need {volume}, have {free_cargo} free)."
+        )
+        return
+
+    console = make_console()
+
+    def _render() -> None:
+        console.clear()
+        title = "CARGO DEBRIS"
+        line1 = f"You found {good.name} x{quantity}"
+        line2 = f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
+        hint = "ENTER to take  |  ESC to leave"
+
+        cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
+        console.print(
+            x=ui.centered_x(title, SCREEN_WIDTH), y=cy,
+            string=title, fg=ui.COLOR_TITLE,
+        )
+        console.print(
+            x=ui.centered_x(line1, SCREEN_WIDTH), y=cy + 2,
+            string=line1, fg=ui.COLOR_VALUE_WHITE,
+        )
+        console.print(
+            x=ui.centered_x(line2, SCREEN_WIDTH), y=cy + 3,
+            string=line2, fg=ui.COLOR_VALUE_DIM,
+        )
+        console.print(
+            x=ui.centered_x(hint, SCREEN_WIDTH), y=cy + 5,
+            string=hint, fg=ui.COLOR_INSTRUCTION,
+        )
+
+    def _update(event) -> bool:
+        """Return True to take loot, False to leave, None to keep polling."""
+        if isinstance(event, tcod.event.Quit):
+            return False
+        if not isinstance(event, tcod.event.KeyDown):
+            return None
+        if event.sym in ui._ESCAPE_SYMS:
+            return False
+        if event.sym in ui._ENTER_SYMS:
+            return True
+        return None
+
+    # Manual modal loop (simpler than ui.Modal for a one-shot decision).
+    _taken = False
+    while True:
+        _render()
+        ctx.context.present(console)
+        for _event in tcod.event.wait():
+            ctx.context.convert_event(_event)
+            _result = _update(_event)
+            if _result is True:
+                # Take the loot.
+                owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+                ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
+                # Remove the loot entity from the map.
+                if loot_entity in ctx.game_map.entities:
+                    try:
+                        ctx.game_map.entities.remove(loot_entity)
+                    except ValueError:
+                        pass
+                _taken = True
+                break
+            elif _result is False:
+                ctx.log.add("Left the cargo debris in space.")
+                break
+        break  # exit while after first outcome
+
+
 def open_trade(ctx: GameContext, planet_id: str) -> None:
     """Open the trade modal for ``planet_id``.
 
