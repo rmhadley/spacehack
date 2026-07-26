@@ -1103,11 +1103,21 @@ def run_combat(
                             _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
                             _nx = _ei.pos.x + _dx
                             _ny = _ei.pos.y + _dy
-                            _excl_ent = _enemy_ents.get(_e_idx) if _e_idx >= 0 else None
-                            if (
+                            # Check direct instance-position collision first:
+                            # no other alive enemy may occupy the target cell.
+                            # Entity-at checks can miss unmapped enemies whose
+                            # game_map entity positions are stale, so skip the
+                            # entity mapping entirely and check EnemyInstance
+                            # positions directly.
+                            _blocked_by_other = any(
+                                _oe is not _ei and _oe.alive
+                                and _oe.pos.x == _nx and _oe.pos.y == _ny
+                                for _oe in enemy_insts
+                            )
+                            if not _blocked_by_other and (
                                 game_map.is_walkable(_nx, _ny)
                                 and game_map.entity_at(
-                                    _nx, _ny, exclude=_excl_ent,
+                                    _nx, _ny, exclude=None,
                                 ) is None
                             ):
                                 _ei.pos = world.Position(_nx, _ny)
