@@ -901,8 +901,8 @@ def run_combat(
                 key=lambda _e: _distance(player_state["pos"], _e.pos),
             )
 
-            # ---- Compute hit chance for current target ----
-            _hit_chance: int | None = None
+            # ---- Compute hit chance for ALL weapons against current target ----
+            _weapon_hit_chances: dict[str, int] = {}
             # Player's current evade bonus: +5% per cell moved this turn
             # (capped at 30%) plus half-rate pilot piloting (soft cap 60%).
             # Surfaced in the combat HUD so the player sees the impact
@@ -913,18 +913,18 @@ def run_combat(
             )
             if weapons_list and target_idx < len(enemy_insts):
                 _target = enemy_insts[target_idx]
-                _wid = weapons_list[selected_weapon_idx] if selected_weapon_idx < len(weapons_list) else weapons_list[0]
-                try:
-                    _hit_chance = calc_hit_chance(
-                        _wid, player_state["gunnery"],
-                        _distance(player_state["pos"], _target.pos),
-                        _calc_dodge_bonus(
-                            _target.cells_moved_this_turn,
-                            int(_target.pilot_piloting * 0.5),
-                        ),
-                    )
-                except KeyError:
-                    pass
+                _dist = _distance(player_state["pos"], _target.pos)
+                _dodge = _calc_dodge_bonus(
+                    _target.cells_moved_this_turn,
+                    int(_target.pilot_piloting * 0.5),
+                )
+                for _wid in weapons_list:
+                    try:
+                        _weapon_hit_chances[_wid] = calc_hit_chance(
+                            _wid, player_state["gunnery"], _dist, _dodge,
+                        )
+                    except KeyError:
+                        pass
 
             # ---- Render ----
             console.clear()
@@ -965,7 +965,7 @@ def run_combat(
                     _distance(player_state["pos"], _closest_enemy.pos),
                     flee_attempts,
                 ),
-                hit_chance=_hit_chance,
+                hit_chances=_weapon_hit_chances,
                 evade_bonus=_evade_bonus,
             )
             from . import message_log as _ml

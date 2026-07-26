@@ -338,7 +338,7 @@ def render_combat_hud(
     selected_weapon_idx: int = 0,
     weapon_list: tuple[str, ...] = (),
     flee_chance: int | None = None,
-    hit_chance: int | None = None,       # hit % for current weapon vs target
+    hit_chances: dict[str, int] | None = None,  # per-weapon hit % vs current target
     evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
@@ -480,16 +480,15 @@ def render_combat_hud(
             fg_w = COLOR_COMBAT_WEAPON if can_fire else COLOR_COMBAT_WEAPON_DIM
             sel_mark = "> " if i == selected_weapon_idx else "  "
             name_str = f"{sel_mark}[{i+1}] {ws.name}"
-            # Append hit chance for selected weapon on selected target
-            if i == selected_weapon_idx and hit_chance is not None:
-                name_str += f" {hit_chance}%"
             console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_w)
             y += 1
 
-            # Show effective hit chance (includes gunnery + distance) for the
-            # selected weapon; show base weapon accuracy for other weapons.
-            if i == selected_weapon_idx and hit_chance is not None:
-                stats_line = f"     DMG {ws.damage}  HIT {hit_chance}%"
+            # Show effective hit chance (includes gunnery + distance + target
+            # dodge) for every weapon against the current target. Falls back
+            # to base weapon accuracy when no target is selected.
+            _w_hc = hit_chances.get(wid) if hit_chances else None
+            if _w_hc is not None:
+                stats_line = f"     DMG {ws.damage}  HIT {_w_hc}%"
             else:
                 stats_line = f"     DMG {ws.damage}  ACC {ws.accuracy}%"
             console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
