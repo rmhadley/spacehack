@@ -76,6 +76,6 @@ SYSTEM: SolarSystem = SolarSystem(
     jump_points=_jump_points,
     stations=(),
     stars=_stars,
-    pirate_chance=0.5,
-    pirate_density=4,
+    pirate_chance=0.8,
+    pirate_density=6,
 )
