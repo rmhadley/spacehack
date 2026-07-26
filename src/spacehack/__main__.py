@@ -796,7 +796,10 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
                 _chosen_dx, _chosen_dy = _tdx, _tdy
                 break
         if _chosen_dx == 0 and _chosen_dy == 0:
-            continue  # all directions blocked
+            # All directions blocked (e.g. against the sun). Clear target
+            # so next tick picks a fresh patrol destination.
+            ctx.pirate_targets[_sid] = None
+            continue
         # Move all members in the chosen direction
         for _m in _members:
             _m.pos = world.Position(_m.pos.x + _chosen_dx, _m.pos.y + _chosen_dy)
