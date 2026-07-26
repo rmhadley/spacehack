@@ -168,3 +168,5 @@ class GameContext:
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     pirate_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     pirate_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)
+    economy_state: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
+    # economy_state[planet_id][good_id] = current_stock; seeded on first visit

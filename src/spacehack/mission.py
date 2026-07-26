@@ -79,8 +79,9 @@ def try_accept_mission(
     log: object,
 ) -> bool:
     """Accept ``mission`` if the player's owned ship has the cargo
-    capacity for it. Mutates :attr:`OwnedShip.cargo_used` on
-    success. Returns ``True`` if the mission was accepted,
+    capacity for it. Mutates :attr:`OwnedShip.mission_reserved` on
+    success (which feeds into ``.cargo_used``). Returns ``True`` if
+    the mission was accepted,
     ``False`` if the cargo cap was exceeded.
 
     ``owned_ship`` is duck-typed (``cargo_used`` / ``ship_id``)
@@ -112,7 +113,7 @@ def try_accept_mission(
             f"/{ship_obj.max_cargo})."
         )
         return False
-    owned_ship.cargo_used = new_used
+    owned_ship.mission_reserved += mission.required_cargo_size
     log.add(
         f"You accept: {mission.title}. "
         f"Cargo now {owned_ship.cargo_used}/{ship_obj.max_cargo}."
@@ -177,8 +178,8 @@ def abort_mission(
     """
     if mission.required_cargo_size <= 0 or owned_ship is None:
         return
-    owned_ship.cargo_used = max(
-        0, owned_ship.cargo_used - mission.required_cargo_size,
+    owned_ship.mission_reserved = max(
+        0, owned_ship.mission_reserved - mission.required_cargo_size,
     )
     ship_obj = ship.find_ship(owned_ship.ship_id)
     log.add(
@@ -211,8 +212,8 @@ def complete_mission(
     message log even though we don't persist xp.
     """
     if mission.required_cargo_size > 0 and owned_ship is not None:
-        owned_ship.cargo_used = max(
-            0, owned_ship.cargo_used - mission.required_cargo_size,
+        owned_ship.mission_reserved = max(
+            0, owned_ship.mission_reserved - mission.required_cargo_size,
         )
     if hasattr(stats, "gold"):
         stats.gold = stats.gold + mission.reward_gold

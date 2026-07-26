@@ -1313,9 +1313,9 @@ def run_combat(
                                 # player's cargo_used readout tracks
                                 # the loadout exactly.
                                 if player_owned_ship is not None:
-                                    player_owned_ship.cargo_used = max(
+                                    player_owned_ship.cargo_ammo = max(
                                         0,
-                                        player_owned_ship.cargo_used
+                                        player_owned_ship.cargo_ammo
                                         - _ws.ammo_per_shot * _ws.cargo_per_round,
                                     )
                         player_state["ap_remaining"] -= (_ws.ap_cost if _ws else 1)

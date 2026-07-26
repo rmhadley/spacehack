@@ -156,6 +156,11 @@ class OwnedShip:
     ships start with no equipment attached but a full tank (set by the
     buy-ship flow at the space port).
 
+    ``cargo_used`` is a computed :func:`property` that sums
+    ``cargo_ammo`` + ``mission_reserved`` + trade inventory volume,
+    so callers read it the same way as before but can no longer
+    assign to it directly — assign to the sub-fields instead.
+
     The dataclass is non-frozen so the player's stats (cargo, hull,
     weapons, modules, fuel) can mutate over time without needing a
     wrapper type or ``dataclasses.replace`` everywhere.
@@ -165,29 +170,22 @@ class OwnedShip:
     weapons: tuple[str, ...] = field(default_factory=tuple)
     modules: tuple[str, ...] = field(default_factory=tuple)
     fuel: int = 0  # current fuel; reset to ship.max_fuel by the buy-ship flow
-    cargo_used: int = field(default=0, init=False)
-    # ``cargo_used`` is a *derived* attribute: every construction
-    # path reruns :func:`total_ammo_cargo` over ``self.weapons`` so
-    # the cargo HUD readout and the actual missile count can never
-    # drift. ``init=False`` prevents callers from passing it (the
-    # buy-ship flow used to do this redundantly) at construction
-    # time. The cargo value is MUTATED at runtime by:
-    #   * :func:`spacehack.mission.try_accept_mission` — adds
-    #     ``mission.required_cargo_size``
-    #   * :func:`spacehack.mission.abort_mission` — subtracts
-    #     ``mission.required_cargo_size``
-    #   * :func:`spacehack.mission.complete_mission` — subtracts
-    #     ``mission.required_cargo_size``
-    #   * the player fire handler in :mod:`spacehack.combat` —
-    #     decrements by ``ammo_per_shot * cargo_per_round`` on each
-    #     missile shot
-    # so the construction-time value is only the starting point.
-    # Module-level ``total_ammo_cargo`` is forward-referenced inside
-    # the body and does its own deferred import, so the ordering is
-    # safe regardless of how :class:`OwnedShip` is built.
+    cargo_ammo: int = 0           # cargo consumed by missile ammo (mutated by combat)
+    mission_reserved: int = 0     # cargo reserved by active delivery missions
+    inventory: dict[str, int] = field(default_factory=dict)  # trade_good_id -> crate count
+
+    @property
+    def cargo_used(self) -> int:
+        """Total cargo used = ammo + mission reservations + trade goods."""
+        from .data.trade_goods import find_trade_good as _ftg
+        trade = sum(
+            qty * _ftg(gid).volume
+            for gid, qty in self.inventory.items()
+        )
+        return self.cargo_ammo + self.mission_reserved + trade
 
     def __post_init__(self) -> None:
-        self.cargo_used = total_ammo_cargo(self.weapons)
+        self.cargo_ammo = total_ammo_cargo(self.weapons)
 
 
 # Fuel economics constants. JUMP_FUEL_COST is consumed by the
