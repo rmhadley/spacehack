@@ -78,6 +78,20 @@ class BountySpawn:
     pos: world.Position
 
 
+@dataclasses.dataclass(frozen=True)
+class ProceduralSpawn:
+    """A procedurally-generated enemy spawn created on jump / launch.
+
+    Rolled against the system's ``pirate_chance`` each time the
+    player enters a system. Persists for the current visit only;
+    fresh spawns are rolled on the next jump / launch. ``squad_id``
+    groups multiple pirates into a single combat encounter.
+    """
+    enemy_id: str
+    pos: world.Position
+    squad_id: str | None = None
+
+
 @dataclasses.dataclass
 class GameContext:
     """Bundles the universally-shared game state for modals + render functions.
@@ -151,3 +165,4 @@ class GameContext:
     player_owned_ship: ship_module.OwnedShip | None = None
     player_active_mission: mission_module.ActiveMission | None = None
     bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)
+    procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)

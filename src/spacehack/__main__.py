@@ -551,6 +551,98 @@ def _add_bounty_spawns_to_map(
             ctx.log.add(f"Sensor ping: bounty target detected near {_landmark}.")
 
 
+def _spawn_procedural_pirates(
+    ctx, game_map: world.GameMap, system_id: str,
+) -> None:
+    """Roll for procedural pirate encounters in ``system_id``.
+
+    Each jump / launch consumes a fresh roll from the game's seeded
+    RNG (:data:`spacehack.engine.RNG`). If the system's
+    ``pirate_chance`` hits, ``1..pirate_density`` pirate scouts spawn
+    near a random squad centre. The spawns are tracked in
+    ``ctx.procedural_spawns`` so :func:`_detect_combat_encounter` can
+    find them.
+    """
+    from . import engine as _engine
+    from .data.enemies import find_enemy as _fe
+    from .data.solar_systems import find_solar_system as _fss
+    try:
+        _system = _fss(system_id)
+    except KeyError:
+        return
+    if _system.pirate_chance <= 0.0 or _system.pirate_density <= 0:
+        return
+    if _engine.RNG.random() >= _system.pirate_chance:
+        return
+    # Determine how many pirates spawn this visit.
+    _count = _engine.RNG.randint(1, _system.pirate_density)
+    # Build a set of blocked cells (planets, gates, stations).
+    _blocked: set[tuple[int, int]] = set()
+    for _p in _system.planets:
+        for _dy in range(_p.height):
+            for _dx in range(_p.width):
+                _blocked.add((_p.pos.x + _dx, _p.pos.y + _dy))
+    for _jp in _system.jump_points:
+        for _dy in range(_jp.height):
+            for _dx in range(_jp.width):
+                _blocked.add((_jp.pos.x + _dx, _jp.pos.y + _dy))
+    for _st in getattr(_system, 'stations', ()) or ():
+        for _dy in range(_st.height):
+            for _dx in range(_st.width):
+                _blocked.add((_st.pos.x + _dx, _st.pos.y + _dy))
+    for _e in game_map.entities:
+        for _dy in range(_e.height):
+            for _dx in range(_e.width):
+                _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
+    # Pick a squad centre on the map.
+    _cx = _cy = -1
+    for _attempt in range(200):
+        _cx = _engine.RNG.randint(10, _system.width - 10)
+        _cy = _engine.RNG.randint(10, _system.height - 10)
+        if (_cx, _cy) not in _blocked:
+            break
+    else:
+        return  # couldn't find a valid centre
+    # Generate a shared squad id when multiple pirates spawn.
+    _squad_id: str | None = (
+        f"proc_pirates_{system_id}_{_engine.RNG.randint(0, 99999)}"
+        if _count > 1 else None
+    )
+    _spawns: list = []
+    try:
+        _espec = _fe("pirate_scout")
+    except (KeyError, ImportError):
+        return
+    for _i in range(_count):
+        _x = _y = -1
+        for _attempt in range(50):
+            _x = _cx + _engine.RNG.randint(-20, 20)
+            _y = _cy + _engine.RNG.randint(-20, 20)
+            if (_x, _y) not in _blocked and 0 <= _x < _system.width and 0 <= _y < _system.height:
+                break
+        else:
+            continue
+        _pos = world.Position(_x, _y)
+        game_map.entities.append(world.Entity(
+            char=_espec.char, fg=_espec.fg, pos=_pos,
+            name=_espec.name, width=1, height=1,
+        ))
+        _spawns.append(_pos)
+    if _spawns:
+        from .game_context import ProceduralSpawn as _PS
+        ctx.procedural_spawns[system_id] = [
+            _PS(
+                enemy_id="pirate_scout",
+                pos=_spawns[i],
+                squad_id=_squad_id,
+            )
+            for i in range(len(_spawns))
+        ]
+        ctx.log.add(
+            f"Sensor ping: {_count} unknown contact{('s' if _count > 1 else '')} detected in the area."
+        )
+
+
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
     target enemy. Prefers a cell near the first non-sun planet, falling
@@ -668,6 +760,23 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         if _dist <= _espec.detect_radius:
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
+    # Also check procedural spawns (random pirates per jump/launch).
+    _procedural_spawns = ctx.procedural_spawns.get(_system_id, [])
+    for _ps in _procedural_spawns:
+        try:
+            _espec = _fe(_ps.enemy_id)
+        except KeyError:
+            continue
+        _enemy_alive = any((_e for _e in ctx.game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _ps.pos.x and (_e.pos.y == _ps.pos.y)))
+        if not _enemy_alive:
+            continue
+        _alive_spawns.append((_ps, _espec))
+        _dist = math.hypot(player_pos.x - _ps.pos.x, player_pos.y - _ps.pos.y)
+        if _dist <= _espec.detect_radius:
+            if _ps.squad_id is not None:
+                _triggered_squad_ids.add(_ps.squad_id)
+            else:
+                _triggered_solo_positions.add((_ps.pos.x, _ps.pos.y))
     _nearby_specs: list = []
     _nearby_positions: list = []
     for _spawn, _espec in _alive_spawns:
@@ -1154,6 +1263,7 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
+    _spawn_procedural_pirates(ctx, new_map, target_system_id)
     dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
     ship_record = ship_module_for_jump.find_ship(ctx.player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
@@ -1833,6 +1943,7 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
+    _spawn_procedural_pirates(ctx, space_map, solar_system_module.current_solar_system_id)
     origin_planet = solar_system_module.find_planet(current_city_id)
     space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
     space_map.entities.append(space_player)

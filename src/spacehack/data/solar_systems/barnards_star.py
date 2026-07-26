@@ -110,4 +110,6 @@ SYSTEM: SolarSystem = SolarSystem(
     jump_points=_jump_points,
     stations=(),              # no stations in Barnard's Star this iteration.
     stars=_stars,
+    pirate_chance=0.2,
+    pirate_density=2,
 )

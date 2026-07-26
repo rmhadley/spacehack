@@ -193,6 +193,8 @@ class SolarSystem:
     stars: tuple[tuple[int, int], ...]
     stations: tuple[StationSpec, ...] = ()
     enemies: tuple[EnemySpawn, ...] = ()
+    pirate_chance: float = 0.0
+    pirate_density: int = 0
 
 
 _BY_ID: dict[str, SolarSystem] | None = None
