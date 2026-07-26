@@ -652,60 +652,100 @@ def _spawn_procedural_pirates(
 
 
 def _move_pirates(ctx, game_map: world.GameMap) -> None:
-    """Wander procedural pirate entities on ``game_map``.
+    """Patrol procedural pirate entities toward planets/gates/stations.
 
-    Called after the player moves in space mode. Each pirate has a
-    ~40% chance to move one cell in a random cardinal direction.
-    Squad members (same ``procedural_squad_id``) move in the SAME
-    direction together, keeping the squad tight. If a squad member
-    drifts >5 cells from the squad centre, it gets pulled back.
+    Called after the player moves in space mode. Each pirate
+    squad (or solo) picks a planet, gate, or station and
+    commits to moving toward it until within 2 cells, then
+    picks a new target. Squad members all move toward the same
+    goal in the same cardinal direction, with cohesion pull-back
+    to keep the squad tight.
     """
     from . import engine as _engine
-    _cardinals = [(0, -1), (-1, 0), (1, 0), (0, 1)]
+    # Build goal list from the current system's bodies.
+    _system = solar_system_module.current_system()
+    _goals: list[tuple[int, int]] = []
+    for _p in _system.planets:
+        _goals.append((_p.pos.x + _p.width // 2, _p.pos.y + _p.height // 2))
+    for _jp in _system.jump_points:
+        _goals.append((_jp.pos.x + _jp.width // 2, _jp.pos.y + _jp.height // 2))
+    for _st in getattr(_system, 'stations', ()) or ():
+        _goals.append((_st.pos.x + _st.width // 2, _st.pos.y + _st.height // 2))
+    if not _goals:
+        return
     _pirate_ents = [_e for _e in game_map.entities
                     if not getattr(_e, 'owned', False)
                     and getattr(_e, 'procedural_squad_id', '') != '']
     # Group by squad id
     _squad_map: dict[str, list] = {}
     for _e in _pirate_ents:
-        _sid = _e.procedural_squad_id
-        _squad_map.setdefault(_sid, []).append(_e)
+        _squad_map.setdefault(_e.procedural_squad_id, []).append(_e)
     for _sid, _members in _squad_map.items():
-        if len(_members) <= 1:
-            continue  # solo pirates handled below
-        # Squad movement: pick one direction for the whole squad.
-        if _engine.RNG.random() >= 0.4:
+        if len(_members) == 0:
             continue
-        _dx, _dy = _engine.RNG.choice(_cardinals)
-        for _m in _members:
-            _nx = _m.pos.x + _dx
-            _ny = _m.pos.y + _dy
-            if (game_map.is_walkable(_nx, _ny)
-                and game_map.entity_at(_nx, _ny, exclude=_m) is None):
-                _m.pos = world.Position(_nx, _ny)
-        # Squad cohesion: if any member is >5 cells from centre, pull back.
+        _is_squad = len(_members) > 1
+        # Pick/refresh patrol target.
+        # Commit to a target until within 2 cells, then pick a new one.
+        # No random abandonment — pirates follow through.
+        _target = ctx.pirate_targets.get(_sid)
+        _sx = _members[0].pos.x if _members else 0
+        _sy = _members[0].pos.y if _members else 0
+        _dist_to_target = (
+            max(abs(_sx - _target[0]), abs(_sy - _target[1]))
+            if _target is not None else 999
+        )
+        if _target is None or _dist_to_target <= 2:
+            # Pick a different target than the one we just reached.
+            _candidates = [g for g in _goals if g != _target]
+            if not _candidates:
+                _candidates = _goals
+            _target = _engine.RNG.choice(_candidates)
+            ctx.pirate_targets[_sid] = _target
+        # Move most ticks for consistent progress (80% chance).
+        if _engine.RNG.random() >= 0.8:
+            continue
+        # Compute direction from squad centre toward target
         _cx = sum(m.pos.x for m in _members) // len(_members)
         _cy = sum(m.pos.y for m in _members) // len(_members)
+        _gx, _gy = _target
+        _dx = 1 if _gx > _cx else -1 if _gx < _cx else 0
+        _dy = 1 if _gy > _cy else -1 if _gy < _cy else 0
+        # Prefer cardinal direction that reduces the larger gap
+        if abs(_dx) >= abs(_dy):
+            _try_first = [(_dx, 0), (0, _dy), (_dx, _dy)]
+        else:
+            _try_first = [(0, _dy), (_dx, 0), (_dx, _dy)]
+        _chosen_dx = _chosen_dy = 0
+        for _tdx, _tdy in _try_first:
+            if _tdx == 0 and _tdy == 0:
+                continue
+            _can_move = True
+            for _m in _members:
+                _nx = _m.pos.x + _tdx
+                _ny = _m.pos.y + _tdy
+                if not (game_map.is_walkable(_nx, _ny)
+                        and game_map.entity_at(_nx, _ny, exclude=_m) is None):
+                    _can_move = False
+                    break
+            if _can_move:
+                _chosen_dx, _chosen_dy = _tdx, _tdy
+                break
+        if _chosen_dx == 0 and _chosen_dy == 0:
+            continue  # all directions blocked
+        # Move all members in the chosen direction
         for _m in _members:
-            if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 5:
-                _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
-                _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
-                if (game_map.is_walkable(_pull_x, _pull_y)
-                    and game_map.entity_at(_pull_x, _pull_y, exclude=_m) is None):
-                    _m.pos = world.Position(_pull_x, _pull_y)
-    # Solo pirates: wander independently.
-    for _e in _pirate_ents:
-        if _e.procedural_squad_id != '':
-            if len(_squad_map.get(_e.procedural_squad_id, [])) > 1:
-                continue  # handled in squad block
-        if _engine.RNG.random() >= 0.4:
-            continue
-        _dx, _dy = _engine.RNG.choice(_cardinals)
-        _nx = _e.pos.x + _dx
-        _ny = _e.pos.y + _dy
-        if (game_map.is_walkable(_nx, _ny)
-            and game_map.entity_at(_nx, _ny, exclude=_e) is None):
-            _e.pos = world.Position(_nx, _ny)
+            _m.pos = world.Position(_m.pos.x + _chosen_dx, _m.pos.y + _chosen_dy)
+        # Squad cohesion: pull stragglers toward centre
+        if _is_squad:
+            _cx = sum(m.pos.x for m in _members) // len(_members)
+            _cy = sum(m.pos.y for m in _members) // len(_members)
+            for _m in _members:
+                if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4:
+                    _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
+                    _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
+                    if (game_map.is_walkable(_pull_x, _pull_y)
+                        and game_map.entity_at(_pull_x, _pull_y, exclude=_m) is None):
+                        _m.pos = world.Position(_pull_x, _pull_y)
 
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
