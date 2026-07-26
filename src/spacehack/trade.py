@@ -341,6 +341,20 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
         cy += 1
 
+        # Helper: build a line that fits within ``col_w`` chars (incl. marker).
+        def _trade_line(name: str, price_label: str, suffix: str, selected: bool) -> str:
+            """Format a trade row that fits exactly in ``col_w`` columns.
+
+            ``name`` is truncated and padded to leave room for the
+            ``price_label`` (e.g. " 14\u00a4") and ``suffix`` (e.g. "(30)").
+            Marker ``"> "`` or ``"  "`` is included in the width calculation.
+            """
+            marker = "> " if selected else "  "
+            fixed = len(marker) + 1 + len(price_label) + 1  # marker + spaces around price
+            name_w = max(4, col_w - fixed - len(suffix))
+            trimmed = name[:name_w].ljust(name_w)
+            return f"{marker}{trimmed} {price_label} {suffix}"
+
         # Station goods (left panel).
         for i, gid in enumerate(_station_goods):
             if i >= SCREEN_HEIGHT - 12:
@@ -348,17 +362,11 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             good = find_trade_good(gid)
             price = _unit_price(ctx, planet_id, gid)
             stock = _stocks.get(gid, 0)
-
-            # Pad the name so prices align.
-            name_str = good.name[:col_w - 8].ljust(col_w - 8)
-            price_str = f"{price:>5}\u00a4"
-            stock_str = f"({stock})"
-            line = f"{name_str} {price_str} {stock_str}"
-
+            price_label = f"{price:>5}\u00a4"
+            suffix = f"({stock})"
             is_sel = _focus == 0 and i == _sel
-            marker = "> " if is_sel else "  "
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-            paint(2, cy + i, f"{marker}{line}", fg=fg)
+            paint(2, cy + i, _trade_line(good.name, price_label, suffix, is_sel), fg=fg)
 
         # Player goods (right panel).
         if owned is not None:
@@ -370,16 +378,12 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
                 break
             good = find_trade_good(gid)
             sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
-            name_str = good.name[:col_w - 8].ljust(col_w - 8)
-            price_str = f"{sell_price:>5}\u00a4"
-            qty_str = f"({qty})"
-            line = f"{name_str} {price_str} {qty_str}"
-
+            price_label = f"{sell_price:>5}\u00a4"
+            suffix = f"({qty})"
             col_x = max_w // 2 + 2
             is_sel = _focus == 1 and i == _sel
-            marker = "> " if is_sel else "  "
             fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-            paint(col_x, cy + i, f"{marker}{line}", fg=fg)
+            paint(col_x, cy + i, _trade_line(good.name, price_label, suffix, is_sel), fg=fg)
 
         # Footer — cargo + credits bar.
         foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
