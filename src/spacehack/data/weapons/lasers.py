@@ -19,7 +19,7 @@ WEAPONS: tuple[WeaponSpec, ...] = (
     ),
     WeaponSpec(
         id="plasma_cannon", name="Plasma Cannon", slot_type="energy",
-        damage=12, accuracy=55, ap_cost=2, power_cost=10,
+        damage=15, accuracy=70, ap_cost=2, power_cost=7,
         min_range=1, max_range=6,
     ),
 )
