@@ -37,6 +37,7 @@ from .data.species import find_species
 from .data.classes import find_class
 from .data import npcs as npc_module
 from . import world
+from . import combat as _combat
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
 NAV_SHIP_FG: tuple[int, int, int] = (255, 255, 100)
 
