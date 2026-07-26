@@ -196,6 +196,7 @@ def render_hud(
         help_lines: list[tuple[str, str, tuple[int, int, int]]] = [
             ("G", "Go To",  COLOR_HELP_KEY),
             ("M", "Map",    COLOR_HELP_KEY),
+            ("C", "Cargo",  COLOR_HELP_KEY),
             ("h/j/k/l", "Move",    COLOR_HELP_KEY),
             ("y/u/b/n", "Diag",    COLOR_HELP_KEY),
         ]

@@ -80,11 +80,11 @@ def trade_price(base_price, current_stock, target_stock):
 
 | Stock level | Price | Situation |
 |---|---|---|
-| 0% (empty) | 2.0× base | Shortage — desperate demand |
-| 25% (low) | 1.5× base | Tight supply — good to sell |
-| 50% (mid) | 1.0× base | Equilibrium — fair price |
-| 75% (high) | 0.8× base | Surplus — good to buy |
-| 100% (full) | 0.6× base | Oversupply — firesale |
+| 0% (empty) | 2.0x base | Shortage — desperate demand |
+| 25% (low) | 1.5x base | Tight supply — good to sell |
+| 50% (mid) | 1.0x base | Equilibrium — fair price |
+| 75% (high) | 0.8x base | Surplus — good to buy |
+| 100% (full) | 0.6x base | Oversupply — firesale |
 
 ### Stock evolution
 
@@ -304,16 +304,153 @@ Checkboxes are updated as each sub-step lands.
 - [x] Wire bump + loot entity → open loot pickup
 - [x] Run audit + smoke
 
-**PLAYTEST** ✅ — Engage a pirate squad in combat. Destroy a ship. Verify gold `*` entities appear in space near the wreck. Bump one → loot modal opens. Take items → they appear in cargo. Verify cargo capacity check works (can't take more than free space).
+**PLAYTEST** ✅ — Engage a pirate squad in combat. Destroy a ship. Verify gold `*` entities appear in space near the wreck. Bump one → loot modal opens. Take items → they appear in cargo. Verify cargo capacity check works (can't take more than free space). Combat stacking fix playtested: enemies no longer occupy the same tile (post-turn dedup removed, per-move collision prevention verified).
 
 ### Phase 6 — Polish
 
-- [ ] Update HUD cargo line to show breakdown (trade / mission / ammo)
-- [ ] Balance trade route profits (adjust target stocks, regen rates, neutral-good target formula)
-- [ ] Add 2-3 more trade goods for variety
+#### Sub-phase 6a — Cargo Menu
+
+A full-screen modal to view and manage the player's cargo inventory. Replaces the basic `Cargo: X/Y` stats line in the current View panel with an interactive cargo viewer that also supports jettisoning items.
+
+##### Entry points
+
+- **On a planet** (hangar): The existing `View` option in the ship-menu now opens the **Cargo Menu** instead of the bare stats panel. Ship stats (hull, weapons, modules) are still shown but as a header — the focus is the cargo breakdown.
+- **In space**: Press `C` while in space mode to open the Cargo Menu. `C` is unused by vim movement so no key conflict. The cargo menu is an overlay modal that pauses the space game loop while open (same pattern as `M` for navigation overlay).
+
+##### Layout (mockup)
+
+```
+ ┌──────────────────────────────────────────────┐
+ │  CARGO — SCOUT (10/40)                       │
+ │  Hull: 12% damage  |  Wpn: 2/2  |  Mod: 1/2 │
+ │──────────────────────────────────────────────│
+ │                                              │
+ │  TRADE GOODS:                                │
+ │  > Food Rations            20 crates (20u)   │
+ │    Electronics              5 crates ( 5u)   │
+ │    Luxury Goods             3 crates ( 3u)   │
+ │                                              │
+ │  MISSION CARGO (reserved):  8 units          │
+ │    Active: Deliver Electronics to Vega B     │
+ │                                              │
+ │  AMMO:                       2 units          │
+ │                                              │
+ │  FREE:                       2 units          │
+ │                                              │
+ │  [J] jettison selected  [C] close             │
+ └──────────────────────────────────────────────┘
+ ```
+
+##### Jettison flow
+
+- UP/DOWN to navigate the list of trade goods in cargo
+- Press `J` on a selected good → quantity prompt (like trade's arrow-key adjustment, max = held qty)
+- Confirm → goods are **destroyed** (no profit, no log message about selling — they're gone)
+- If mission cargo or ammo slot is selected, jettison is **not available** (dimmed text) — those have dedicated management flows
+- Jettisoning frees cargo space immediately
+
+##### Breakdown display
+
+The cargo menu shows a clear breakdown of what's taking up space:
+
+| Section | Content |
+|---------|---------|
+| **Header** | Ship name, `cargo_used / max_cargo`, hull damage pct, weapon/module slots |
+| **Trade Goods** | Itemized list with good name, quantity, and volume used. Selected item highlighted with `>`. |
+| **Mission Cargo** | (If active mission) Reserved space + mission title. Read-only. |
+| **Ammo** | Computed ammo cargo total from installed weapons. Read-only. |
+| **Free** | Remaining available cargo space. Highlighted green if >0, red if 0. |
+
+##### Key bindings
+
+| Key | Action |
+|-----|--------|
+| UP/DOWN or j/k | Navigate trade goods list |
+| J | Jettison selected good (quantity prompt) |
+| C or ESC | Close cargo menu |
+| Any other key | Close cargo menu (same as ESC — read convenience) |
+
+##### Implementation notes
+
+- `open_cargo(ctx)` lives in `trade.py` alongside the trade modal — it's a cargo-domain UI function
+- Reuses `_run_quantity_prompt()` from trade.py for the jettison quantity input
+- On jettison: calls `del owned.inventory[good_id]` or decrements, logs to message log
+- The space mode dispatcher in `__main__.py` gets a `_is_c_press()` helper (mirrors `_is_m_press`)
+- The planet hangar `View` option's sub-modal is replaced: instead of `render_ship_view`, call `open_cargo()`
+- The old `render_ship_view` function can be removed or kept for reference — the cargo menu's header serves the same purpose
+
+##### Checklist
+
+- [x] Implement `open_cargo(ctx)` in `trade.py` with full layout + jettison
+- [x] Add `_is_c_press()` helper in `__main__.py` for space-mode entry
+- [x] Wire `C` key in space dispatcher → `open_cargo()`
+- [x] Replace View sub-modal in `_run_ship_menu` → `open_cargo()`
+- [x] Added `C` - Cargo to HUD help lines in space mode
+- [x] Removed dead code (`_run_ship_view`, `render_ship_view`, `update_ship_view`, `ShipViewOutcome`)
+- [x] Run audit + smoke ✅
+
+**PLAYTEST** ✅ — Load up with various goods from trade terminals + loot. Open cargo menu on a planet (View option) and in space (C key). Jettison some goods. Cargo count updates immediately, free space recalcs correctly.
+
+#### Sub-phase 6b — Balance trade route profits + combat loot
+
+##### Combat loot balancing (priority)
+
+**Problem**: Pirates drop ~4.2 goods per kill on average (10 goods × 0.1-0.7 rarity), each 1-3 crates. A single pirate can drop 10+ crates worth hundreds of credits. Players get rich too fast.
+
+**Changes to current loot logic** (in `combat.py`):
+
+1. **Cap items per kill**: Only roll for 1-2 random goods per destroyed ship instead of iterating all 10.
+   ```python
+   # Instead of:
+   for _tg in _TRADE_GOODS:
+       if RNG.random() >= _tg.rarity: continue
+       # spawn 1-3 crates...
+   
+   # Do:
+   _loot_count = RNG.randint(1, 2)
+   _loot_pool = list(_TRADE_GOODS)
+   for _ in range(_loot_count):
+       _tg = RNG.choice(_loot_pool)
+       if RNG.random() >= _tg.rarity:
+           continue
+       _qty = RNG.randint(1, 2)  # reduced from 1-3
+       # spawn loot...
+   ```
+
+2. **Reduce quantity**: Change `RNG.randint(1, 3)` → `RNG.randint(1, 2)` — crates per good.
+
+3. **Drop rich loot less often**: Rare/high-value goods (`weapons_blackmarket` 250$, `rare_earth_metals` 200$, `luxury_goods` 150$) already have low rarity (0.1-0.3), so their spawn chance is naturally lower. With the per-kill cap they'll appear in roughly 1 in 10 kills instead of every other kill.
+
+4. **Future: enemy loot tables** (not in this phase): Different enemy types could have different drop pools (pirates drop weapons/contraband, militia drops basic supplies, merchants drop luxury goods). Postponed to avoid over-engineering.
+
+**Expected results**:
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Avg items per kill | ~4.2 | ~0.6-1.2 |
+| Avg crates per kill | ~8.4 | ~0.9-2.4 |
+| Avg value per kill | ~400-600$ | ~30-100$ |
+| Kills to fill Scout (40 cargo) | ~5 | ~20-40 |
+
+Loot still feels rewarding (every kill has a decent shot at dropping something) but players need to work for a full cargo hold rather than filling up from one squad engagement.
+
+- [ ] Adjust combat loot: cap items per kill to 1-2, reduce crate quantity to 1-2
+- [ ] Run audit + smoke
+
+**PLAYTEST** — Engage a pirate squad. Verify loot drops are 1-4 crates total (not 10+). Fly 3 consecutive combat encounters. Verify cargo doesn't fill up immediately. Verify the kill-to-profit ratio feels rewarding but not OP.
+
+##### Trade route balancing
+
+- [ ] Adjust target stocks, regen rates, neutral-good target formula
+- [ ] Consider adding a planet that `demands` black market goods to create a contraband profit gradient
 - [ ] Run audit + smoke
 
 **PLAYTEST** — Fly a full trade circuit: Earth → Procyon C → Vega B → Earth. Verify you can make a profit that justifies the fuel cost and travel time. Try the same route with different ships (Scout's 40 cargo vs Hauler's 120). Verify the Hauler's extra cargo space translates to proportionally more profit.
+
+#### Sub-phase 6c — More trade goods
+
+- [ ] Add 2-3 more trade goods for variety
+- [ ] Run audit + smoke
 
 ---
 

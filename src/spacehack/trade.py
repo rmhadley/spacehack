@@ -614,3 +614,207 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             return _TradeOutcome.IGNORE
 
     ui.Modal(ctx.context, console).run(_render, _update)
+
+
+# ---------------------------------------------------------------------------
+# Cargo management modal
+# ---------------------------------------------------------------------------
+
+
+class _COut(Enum):
+    IGNORE = auto()
+    BACK = auto()
+    QUIT = auto()
+
+
+def open_cargo(ctx: GameContext) -> None:
+    """Open the cargo management modal.
+
+    Full-screen breakdown of cargo: trade goods (itemized with
+    quantity + volume), mission reserved space, ammo, and free
+    capacity. The player can navigate trade goods with UP/DOWN
+    and press J to jettison (destroy) selected goods — like the
+    sell interface but without profit.
+
+    Callable from both planet hangar (View option) and space mode
+    (C key).
+    """
+    owned = ctx.player_owned_ship
+    if owned is None:
+        ctx.log.add("You have no ship to inspect cargo on.")
+        return
+
+    from . import ship as ship_module
+    from . import mission as mission_module
+    ship_spec = ship_module.find_ship(owned.ship_id)
+
+    # Cache static ship stats.
+    ship_name = ship_spec.name
+    max_cargo = ship_spec.max_cargo
+    hull_damage = owned.hull_damage_pct
+    weapons_n = len(owned.weapons)
+    weapon_slots = ship_spec.weapon_slots
+    modules_n = len(owned.modules)
+    module_slots = ship_spec.module_slots
+
+    # Active mission title (for display).
+    mission_title = ""
+    active_mission = ctx.player_active_mission
+    if active_mission is not None:
+        try:
+            m = mission_module.find_mission(active_mission.mission_id)
+            mission_title = m.title
+        except KeyError:
+            pass
+
+    console = make_console()
+    _sel: int = 0
+
+    def _rebuild_trade_items() -> list[tuple[str, int, int]]:
+        """Return [(good_id, qty, volume), ...] from current inventory."""
+        items: list[tuple[str, int, int]] = []
+        for gid, qty in owned.inventory.items():
+            try:
+                good = find_trade_good(gid)
+                items.append((gid, qty, good.volume * qty))
+            except KeyError:
+                items.append((gid, qty, 0))
+        return items
+
+    def _render() -> None:
+        nonlocal _sel
+        console.clear()
+
+        _items = _rebuild_trade_items()
+        _cargo_used = owned.cargo_used
+        _free = max_cargo - _cargo_used
+        _ammo = owned.cargo_ammo
+        _mission_res = owned.mission_reserved
+
+        def paint(x: int, y: int, text: str, *, fg):
+            for i, ch in enumerate(text):
+                if x + i < SCREEN_WIDTH - HUD_WIDTH:
+                    console.print(x=x + i, y=y, string=ch, fg=fg)
+
+        cy = 2
+        # Title
+        title = f"CARGO \u2014 {ship_name.upper()} ({_cargo_used}/{max_cargo})"
+        paint(ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
+        cy += 2
+
+        # Ship stats header
+        header = f"Hull: {hull_damage}% damage  |  Wpn: {weapons_n}/{weapon_slots}  |  Mod: {modules_n}/{module_slots}"
+        paint(2, cy, header, fg=ui.COLOR_VALUE_DIM)
+        cy += 2
+
+        # Divider
+        paint(2, cy, "-" * (SCREEN_WIDTH - HUD_WIDTH - 2), fg=(90, 90, 90))
+        cy += 1
+
+        # Trade goods section
+        paint(2, cy, "TRADE GOODS:", fg=ui.COLOR_TITLE)
+        cy += 1
+        if _items:
+            for i, (gid, qty, vol) in enumerate(_items):
+                if i > 25:
+                    break
+                try:
+                    good = find_trade_good(gid)
+                    name = good.name
+                except KeyError:
+                    name = gid
+                is_sel = i == _sel
+                marker = "> " if is_sel else "  "
+                line = f"{marker}{name:<20} {qty:>3} crates ({vol:>3}u)"
+                fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
+                paint(4, cy, line, fg=fg)
+                cy += 1
+        else:
+            paint(4, cy, "(empty)", fg=ui.COLOR_VALUE_DIM)
+            cy += 1
+        cy += 1
+
+        # Mission cargo (read-only)
+        paint(2, cy, "MISSION CARGO:", fg=ui.COLOR_TITLE)
+        cy += 1
+        if active_mission is not None:
+            paint(4, cy, f"{_mission_res} unit{'' if _mission_res == 1 else 's'} reserved \u2014 {mission_title}", fg=ui.COLOR_VALUE_WHITE)
+        else:
+            paint(4, cy, "0 units (no active mission)", fg=ui.COLOR_VALUE_DIM)
+        cy += 2
+
+        # Ammo (read-only)
+        paint(2, cy, "AMMO:", fg=ui.COLOR_TITLE)
+        cy += 1
+        paint(4, cy, f"{_ammo} unit{'' if _ammo == 1 else 's'}", fg=ui.COLOR_VALUE_WHITE)
+        cy += 2
+
+        # Free space
+        paint(2, cy, "FREE:", fg=ui.COLOR_TITLE)
+        cy += 1
+        free_fg = ui.COLOR_VALUE_WHITE if _free > 0 else (255, 80, 80)
+        paint(4, cy, f"{_free} unit{'' if _free == 1 else 's'}", fg=free_fg)
+        cy += 2
+
+        # Jettison hint (only when there are trade goods to jettison)
+        if _items:
+            hint = "[J] jettison selected  [C/ESC] close"
+        else:
+            hint = "[C/ESC] close"
+        paint(2, cy, hint, fg=ui.COLOR_INSTRUCTION)
+
+    def _update(event: tcod.event.Event) -> _COut:
+        nonlocal _sel
+
+        if isinstance(event, tcod.event.Quit):
+            return _COut.QUIT
+        if not isinstance(event, tcod.event.KeyDown):
+            return _COut.IGNORE
+
+        sym = event.sym
+        sym_name = getattr(sym, "name", "").lower()
+
+        # ESC or C = close
+        if sym in ui._ESCAPE_SYMS or sym_name == "c":
+            return _COut.BACK
+
+        # Rebuild for current state.
+        _items = _rebuild_trade_items()
+
+        # Up/Down navigation.
+        is_up = sym in ui._UP_SYMS or sym_name == "k"
+        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
+        if is_up:
+            _sel = (_sel - 1) % max(1, len(_items))
+            return _COut.IGNORE
+        if is_down:
+            _sel = (_sel + 1) % max(1, len(_items))
+            return _COut.IGNORE
+
+        # J = jettison selected good.
+        if sym_name == "j" and _items and 0 <= _sel < len(_items):
+            gid, qty, _ = _items[_sel]
+            try:
+                good = find_trade_good(gid)
+            except KeyError:
+                return _COut.IGNORE
+            max_q = min(qty, 9999)
+            q = _run_quantity_prompt(
+                ctx, f"Jettison {good.name}", max_q, 0,
+            )
+            if q is not None and q > 0:
+                remaining = qty - q
+                if remaining <= 0:
+                    del owned.inventory[gid]
+                else:
+                    owned.inventory[gid] = remaining
+                ctx.log.add(f"Jettisoned {q}x {good.name} into space.")
+                # Rebuild items to update _sel in case last item was removed.
+                _new_items = _rebuild_trade_items()
+                if _sel >= len(_new_items):
+                    _sel = max(0, len(_new_items) - 1)
+            return _COut.IGNORE
+
+        return _COut.IGNORE
+
+    ui.Modal(ctx.context, console).run(_render, _update)

@@ -79,17 +79,6 @@ class ShipMenuAction(Enum):
     BACK = auto()
     QUIT = auto()
 
-class ShipViewOutcome(Enum):
-    """Result of the ship-stats sub-modal (View option).
-
-    The stats panel is read-only: any key returns to the menu, ESC
-    closes the panel directly. Held separately from ShipMenuAction
-    so the menu dispatcher stays focused on its 3-option list.
-    """
-    IGNORE = auto()
-    BACK = auto()
-    QUIT = auto()
-
 class PlanetMenuOutcome(Enum):
     """Result of the planet-bump dialog (single 'Land' option).
 
@@ -1905,48 +1894,6 @@ def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
         return ShipMenuAction.VIEW if selected == 0 else ShipMenuAction.REFUEL if selected == 1 else ShipMenuAction.SELL if selected == 2 else ShipMenuAction.LAUNCH
     return ShipMenuAction.IGNORE
 
-def render_ship_view(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int) -> None:
-    """Paint the read-only ship-stats panel.
-
-    Reports cargo (used / max), weapons (attached / slots), modules
-    (installed / slots), and current hull damage. If ``owned`` is
-    ``None`` we still draw the panel so the View option is never
-    useless - it shows the catalogue entry instead.
-    """
-    console.clear()
-    title = f'{ship.name.upper()} - DETAILS'
-    center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    console.print(x=ui.centered_x(title, screen_width), y=center_y - 6, string=title, fg=ui.COLOR_TITLE)
-    cargo_used = ctx.player_owned_ship.cargo_used if ctx.player_owned_ship is not None else 0
-    weapons_n = len(ctx.player_owned_ship.weapons) if ctx.player_owned_ship is not None else 0
-    modules_n = len(ctx.player_owned_ship.modules) if ctx.player_owned_ship is not None else 0
-    hull_pct = ctx.player_owned_ship.hull_damage_pct if ctx.player_owned_ship is not None else 0
-    cargo_line = f'Cargo: {cargo_used} / {ship.max_cargo}'
-    weapons_line = f'Weapons attached: {weapons_n} / {ship.weapon_slots}'
-    modules_line = f'Modules installed: {modules_n} / {ship.module_slots}'
-    hull_line = f'Hull damage: {hull_pct}%'
-    fuel_line = f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}'
-    lines = (cargo_line, weapons_line, modules_line, hull_line, fuel_line)
-    for i, line in enumerate(lines):
-        row = center_y - 3 + i * 2
-        console.print(x=ui.centered_x(line, screen_width), y=row, string=line, fg=ui.COLOR_VALUE_WHITE if ctx.player_owned_ship is not None else ui.COLOR_VALUE_DIM)
-    console.print(x=ui.centered_x('Press any key to return.', screen_width), y=center_y + len(lines) * 2 + 1, string='Press any key to return.', fg=ui.COLOR_INSTRUCTION)
-    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
-
-def update_ship_view(event: tcod.event.Event) -> ShipViewOutcome:
-    """Map a single event for the ship-stats sub-modal.
-
-    Any key closes the panel: ESC and Quit exit early so the caller
-    can react, every other event returns ``IGNORE`` and the caller's
-    loop drains the same way.
-    """
-    if isinstance(event, tcod.event.Quit):
-        return ShipViewOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return ShipViewOutcome.IGNORE
-    if event.sym in ui._ESCAPE_SYMS:
-        return ShipViewOutcome.BACK
-    return ShipViewOutcome.IGNORE
 
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the hub-menu modal for ``ship``; return the chosen action.
@@ -1979,7 +1926,8 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     while True:
         action = ui.Modal(ctx.context, console).run(_render, _update)
         if action is ShipMenuAction.VIEW:
-            _run_ship_view(ctx, ship)
+            from .trade import open_cargo as _open_cargo
+            _open_cargo(ctx)
             continue
         if action is ShipMenuAction.REFUEL:
             ship_record = ship_module.find_ship(ctx.player_owned_ship.ship_id)
@@ -1998,25 +1946,6 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
             ctx.log.add(f'Refueled {units} units for {cost}$. Fuel: {ctx.player_owned_ship.fuel} / {ship_record.max_fuel}.')
             continue
         return action
-
-def _run_ship_view(ctx, ship: ship_module.Ship) -> None:
-    """Show the read-only stats panel for ``ship``.
-
-    Stays inside its own loop until the player presses any key
-    (so the player has time to read the stats before returning to
-    the menu). On Quit the panel closes and returns; on ESC it
-    closes faster via a direct BACK return.
-    """
-    console = make_console()
-
-    def _render() -> None:
-        render_ship_view(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
-    def _update(event) -> ShipViewOutcome:
-        if isinstance(event, tcod.event.KeyDown):
-            return ShipViewOutcome.BACK
-        return update_ship_view(event)
-    ui.Modal(ctx.context, console).run(_render, _update)
 
 def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_module.OwnedShip | None) -> world.Entity | None:
     """Return the player's owned hangar ship entity in ``city_game_map``.
@@ -2291,6 +2220,11 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     # may have cleared ctx.player_active_mission (bounty
                     # auto-complete) but the local copy is stale.
                     player_active_mission = ctx.player_active_mission
+                continue
+            # C = open cargo menu (space mode).
+            if current_mode == 'space' and _is_c_press(event):
+                from .trade import open_cargo as _open_cargo
+                _open_cargo(ctx)
                 continue
             # Period = wait one turn (space mode: pirates move, shields regen).
             if _is_period_press(event):
