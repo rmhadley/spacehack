@@ -74,32 +74,4 @@ MISSIONS: tuple[Mission, ...] = (
         delivery_target_npc_id="research_officer",
         delivery_target_planet_id="ac_station",
     ),
-    # ----- Flavor: a bulk-trade convoy (cargo hint only, no actual
-    #          cargo load - mirrors bar_routine_delivery's shape).
-    Mission(
-        id="merchants_bulk_trade",
-        title="Bulk trade run",
-        description=(
-            "A convoy-style trade route with room for high-margin "
-            "cargo. Bring a ship with capacity to spare."
-        ),
-        giver_npc_id="guild_master",
-        reward_gold=140,
-        reward_xp=20,
-        recommended_class_id="merchant",
-        recommended_ship_min_cargo=80,
-    ),
-    # ----- Flavor: a tariff-mediation dialogue (no cargo, no travel).
-    Mission(
-        id="merchants_tariff_dispute",
-        title="Tariff dispute mediation",
-        description=(
-            "Two guild branches disagree on who owes what. Talk it "
-            "through, broker the deal, take a small cut."
-        ),
-        giver_npc_id="guild_master",
-        reward_gold=80,
-        reward_xp=25,
-        recommended_class_id="merchant",
-    ),
 )
