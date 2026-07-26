@@ -666,6 +666,8 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
     _system = solar_system_module.current_system()
     _goals: list[tuple[int, int]] = []
     for _p in _system.planets:
+        if getattr(_p, 'sun', False):
+            continue  # suns are unwalkable — skip them
         _goals.append((_p.pos.x + _p.width // 2, _p.pos.y + _p.height // 2))
     for _jp in _system.jump_points:
         _goals.append((_jp.pos.x + _jp.width // 2, _jp.pos.y + _jp.height // 2))
@@ -865,27 +867,32 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         if _dist <= _espec.detect_radius:
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
-    # Also check procedural spawns (random pirates per jump/launch).
-    _procedural_spawns = ctx.procedural_spawns.get(_system_id, [])
-    for _ps in _procedural_spawns:
+    # Also check procedural pirates by current entity positions.
+    # Don't use ctx.procedural_spawns — those store the original
+    # spawn positions. Pirates move, so those positions are stale
+    # and combat detection would fail entirely. Instead scan the
+    # game_map for unowned entities with a procedural_squad_id tag.
+    _procedural_entities = [
+        _e for _e in ctx.game_map.entities
+        if not getattr(_e, 'owned', False)
+        and getattr(_e, 'procedural_squad_id', '') != ''
+    ]
+    for _pe in _procedural_entities:
         try:
-            _espec = _fe(_ps.enemy_id)
-        except KeyError:
+            _espec = _fe("pirate_scout")
+        except (KeyError, ImportError):
             continue
-        _enemy_alive = any((_e for _e in ctx.game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _ps.pos.x and (_e.pos.y == _ps.pos.y)))
-        if not _enemy_alive:
-            continue
-        _alive_spawns.append((_ps, _espec))
-        _dist = math.hypot(player_pos.x - _ps.pos.x, player_pos.y - _ps.pos.y)
+        _alive_spawns.append((_pe, _espec))
+        _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
         if _dist <= _espec.detect_radius:
-            if _ps.squad_id is not None:
-                _triggered_squad_ids.add(_ps.squad_id)
-            else:
-                _triggered_solo_positions.add((_ps.pos.x, _ps.pos.y))
+            # All procedural pirates share their movement squad ID
+            # (unique per solo, shared per squad). Use it for squad
+            # grouping in combat.
+            _triggered_squad_ids.add(_pe.procedural_squad_id)
     _nearby_specs: list = []
     _nearby_positions: list = []
     for _spawn, _espec in _alive_spawns:
-        _sq = getattr(_spawn, 'squad_id', None)
+        _sq = getattr(_spawn, 'squad_id', None) or getattr(_spawn, 'procedural_squad_id', None)
         if _sq is not None:
             if _sq in _triggered_squad_ids:
                 _nearby_specs.append(_espec)
