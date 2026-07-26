@@ -28,11 +28,21 @@ from .data.planets import find_planet_spec, trade_price
 from .data.trade_goods import find_trade_good
 
 
-# Default target stock for neutral goods (not produced or demanded).
-# Used in price calculation and regen drift. 8 units = equilibrium at
-# stock=4, so neutral goods start at a mild shortage (slightly elevated
-# prices) on first visit and drift toward equilibrium over time.
 NEUTRAL_TARGET: int = 8
+
+# ---------------------------------------------------------------------------
+# Neutral-goods helper (shared between seeding + trade-listing)
+# ---------------------------------------------------------------------------
+
+
+def _neutral_goods(spec) -> list[str]:
+    """Return non-contraband goods in the full catalog that aren't
+    in this planet's produces or demands.  Contraband is excluded so
+    it only appears at black-market terminals (Blockade, Barnard's b)
+    where it's explicitly listed in ``demands``."""
+    from .data.trade_goods.core import TRADE_GOODS as _TG
+    _seen = set(gid for gid, _ in spec.produces) | set(gid for gid, _ in spec.demands)
+    return [_g.id for _g in _TG if _g.id not in _seen and _g.category != "contraband"]
 
 
 # ---------------------------------------------------------------------------
@@ -41,30 +51,20 @@ NEUTRAL_TARGET: int = 8
 
 
 def _seed_economy(ctx: GameContext, planet_id: str) -> None:
-    """Initialise ``ctx.economy_state[planet_id]`` on first visit.
-
-    Produced goods start at their target stock (surplus -> cheap to
-    buy).  Demanded goods start at 0 (shortage -> expensive to buy,
-    good to sell).  Neutral goods (neither produced nor demanded)
-    start at NEUTRAL_TARGET // 2 (equilibrium -> base price).
-    """
+    """Seed ``ctx.economy_state[planet_id]`` on first visit.
+    Produced = full stock (surplus).  Demanded = 0 (shortage).
+    Neutral = NEUTRAL_TARGET // 2 (equilibrium)."""
     if planet_id in ctx.economy_state:
         return
     spec = find_planet_spec(planet_id)
     stocks: dict[str, int] = {}
     for good_id, target in spec.produces:
-        stocks[good_id] = target          # start at full stock (surplus)
+        stocks[good_id] = target
     for good_id, target in spec.demands:
-        # If a good is both produced AND demanded (rare), keep the
-        # produce-side stock level — the demand tuple fills the gap.
         if good_id not in stocks:
-            stocks[good_id] = 0            # start at 0 (shortage)
-    # Seed neutral goods at equilibrium (half target so price = base).
-    from .data.trade_goods.core import TRADE_GOODS as _TG
-    _seen = set(sid for sid, _ in spec.produces) | set(sid for sid, _ in spec.demands)
-    for _g in _TG:
-        if _g.id not in _seen and _g.id not in stocks:
-            stocks[_g.id] = NEUTRAL_TARGET // 2
+            stocks[good_id] = 0
+    for gid in _neutral_goods(spec):
+        stocks[gid] = NEUTRAL_TARGET // 2
     ctx.economy_state[planet_id] = stocks
 
 
@@ -74,11 +74,8 @@ def _seed_economy(ctx: GameContext, planet_id: str) -> None:
 
 
 def _target_stock_for(planet_id: str, good_id: str) -> int:
-    """Return the equilibrium target stock for ``good_id`` on ``planet_id``.
-
-    Checks produces first, then demands, then falls back to
-    NEUTRAL_TARGET for neutral goods.
-    """
+    """Equilibrium target for ``good_id`` on ``planet_id``.
+    Checks produces, then demands, then NEUTRAL_TARGET."""
     spec = find_planet_spec(planet_id)
     for gid, t in spec.produces:
         if gid == good_id:
@@ -90,16 +87,8 @@ def _target_stock_for(planet_id: str, good_id: str) -> int:
 
 
 def tick_economy(ctx: GameContext) -> None:
-    """Drift every stock in every seeded planet economy toward its
-    target by 1 unit per tick.
-
-    Called on jump / launch so markets slowly recover from player
-    trading.  Neutral goods (no ``produces`` / ``demands`` entry)
-    use :data:`NEUTRAL_TARGET` as their equilibrium level.
-
-    Idempotent: non-seeded planets are silently skipped (they'll
-    be seeded on first visit).
-    """
+    """Drift all stocked economies toward target by 1/tick.
+    Called on jump / launch.  Idempotent (skips non-seeded planets)."""
     for planet_id, stocks in ctx.economy_state.items():
         for good_id in list(stocks.keys()):
             target = _target_stock_for(planet_id, good_id)
@@ -464,12 +453,11 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         if gid not in seen:
             _station_goods.append(gid)
             seen.add(gid)
-    # Neutral goods: everything in the catalog not already listed.
-    from .data.trade_goods.core import TRADE_GOODS as _TG
-    for _g in _TG:
-        if _g.id not in seen:
-            _station_goods.append(_g.id)
-            seen.add(_g.id)
+    # Neutral goods (non-contraband, not in produces/demands).
+    for gid in _neutral_goods(spec):
+        if gid not in seen:
+            _station_goods.append(gid)
+            seen.add(gid)
 
     if not _station_goods:
         ctx.log.add("This terminal has nothing to trade.")
