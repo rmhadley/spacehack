@@ -990,7 +990,12 @@ def render_world_view(
                     bg=tile.bg,
                 )
 
-    for e in game_map.entities:
+    # Draw loot entities first (cargo debris), then ships/entities
+    # on top. Loot has loot_data set; sorting with key=lambda e:
+    # e.loot_data is None puts loot (False=0) before ships (True=1)
+    # while preserving insertion order for same-key entities.
+    for e in sorted(game_map.entities,
+                     key=lambda _e: _e.loot_data is None):
         for dx in range(e.width):
             for dy in range(e.height):
                 ex = e.pos.x + dx
