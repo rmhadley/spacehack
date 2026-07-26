@@ -487,6 +487,98 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
 
+def _add_bounty_spawns_to_map(
+    ctx, game_map: world.GameMap, system_id: str,
+) -> None:
+    """Add bounty-target enemy entities from ``ctx.bounty_spawns`` to
+    ``game_map.entities`` for system ``system_id``.
+
+    Called after :func:`solar_system_module.make_solar_system` so
+    dynamically-spawned bounty targets appear on the map alongside
+    the system's static enemies. No-op when the system has no
+    active bounty spawns.
+    """
+    from .data.enemies import find_enemy as _fe
+    _spawns = ctx.bounty_spawns.get(system_id, [])
+    if not _spawns:
+        return
+    for _bs in _spawns:
+        try:
+            _espec = _fe(_bs.enemy_id)
+        except (KeyError, ImportError):
+            continue
+        game_map.entities.append(world.Entity(
+            char=_espec.char,
+            fg=_espec.fg,
+            pos=_bs.pos,
+            name=_espec.name,
+            width=1, height=1,
+        ))
+
+
+def _pick_bounty_spawn_pos(system) -> world.Position | None:
+    """Return a free-space position in ``system`` for placing a bounty
+    target enemy. Prefers a cell near the first non-sun planet, falling
+    back to the first jump gate or a centre-of-map position.
+
+    Returns ``None`` if the system has no bodies (shouldn't happen
+    with the current data).
+    """
+    # Try first non-sun planet: offset by (planet.width + 3, 0) cells
+    # so the bounty sits east of the planet in clear space.
+    for p in system.planets:
+        if getattr(p, 'sun', False):
+            continue
+        sx = p.pos.x + p.width + 3
+        sy = p.pos.y + p.height // 2
+        if 0 <= sx < system.width and 0 <= sy < system.height:
+            return world.Position(sx, sy)
+    # Fallback: first jump gate
+    for jp in system.jump_points:
+        sx = jp.pos.x + jp.width + 6
+        sy = jp.pos.y + jp.height // 2
+        if 0 <= sx < system.width and 0 <= sy < system.height:
+            return world.Position(sx, sy)
+    # Last resort: centre-ish of the map
+    return world.Position(system.width // 2, system.height // 2)
+
+
+def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
+    """Remove the bounty spawn with ``spawn_id`` from
+    ``ctx.bounty_spawns[system_id]``, and from the current
+    ``ctx.game_map.entities`` if the player is in that system.
+
+    No-op if the spawn doesn't exist (e.g. was already removed).
+    """
+    if system_id is None or system_id not in ctx.bounty_spawns:
+        return
+    # Snapshot the spawn's position before filtering it out.
+    _pos_to_remove = None
+    for _bs in ctx.bounty_spawns[system_id]:
+        if _bs.spawn_id == spawn_id:
+            _pos_to_remove = _bs.pos
+            break
+    ctx.bounty_spawns[system_id] = [
+        _bs for _bs in ctx.bounty_spawns[system_id]
+        if _bs.spawn_id != spawn_id
+    ]
+    if _pos_to_remove is not None:
+        # Also remove the matching entity from the game_map if the
+        # player is currently in the spawn's system.
+        _cur_sys = getattr(solar_system_module.current_system(), 'id', None)
+        if _cur_sys == system_id and ctx.game_map is not None:
+            _target_entity = None
+            for _e in ctx.game_map.entities:
+                if not getattr(_e, 'owned', False) and _e.pos == _pos_to_remove:
+                    _target_entity = _e
+                    break
+            if _target_entity is not None:
+                try:
+                    ctx.game_map.entities.remove(_target_entity)
+                except ValueError:
+                    pass
+
+
 def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) -> tuple[list, list[world.Position]] | None:
     """Run the squad-aware enemy scan and return combat payload, or ``None``.
 
@@ -498,6 +590,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     OR whose own position was triggered as a solo. Returns
     ``(specs, positions)`` if any spawn was triggered, else ``None``.
 
+    Also checks :attr:`ctx.bounty_spawns` so dynamically-placed
+    bounty targets trigger combat the same way as static enemies.
+
     Function-level ``from .data.enemies import ...`` import avoids a
     top-level circular import on the data module.
     """
@@ -506,6 +601,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     _alive_spawns: list = []
     _triggered_squad_ids: set = set()
     _triggered_solo_positions: set = set()
+    # Check static system spawns.
     for _spawn in _enemy_spawns:
         try:
             _espec = _fe(_spawn.enemy_id)
@@ -521,6 +617,22 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
                 _triggered_squad_ids.add(_spawn.squad_id)
             else:
                 _triggered_solo_positions.add((_spawn.pos.x, _spawn.pos.y))
+    # Also check bounty spawns (dynamic targets placed on accept).
+    _system_id = getattr(system, 'id', '')
+    _bounty_spawns = ctx.bounty_spawns.get(_system_id, [])
+    for _bs in _bounty_spawns:
+        try:
+            _espec = _fe(_bs.enemy_id)
+        except KeyError:
+            continue
+        _enemy_alive = any((_e for _e in ctx.game_map.entities if not getattr(_e, 'owned', False) and _e.pos.x == _bs.pos.x and (_e.pos.y == _bs.pos.y)))
+        if not _enemy_alive:
+            continue
+        # Treat bounty spawns as solo (no squad support).
+        _alive_spawns.append((_bs, _espec))
+        _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
+        if _dist <= _espec.detect_radius:
+            _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
     _nearby_specs: list = []
     _nearby_positions: list = []
     for _spawn, _espec in _alive_spawns:
@@ -983,6 +1095,10 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     :func:`solar_system_module.place_jumped_ship`), and log
     "You emerge near <destination system>.".
 
+    Also injects any active bounty spawn entities for the target
+    system via :func:`_add_bounty_spawns_to_map` so bounty targets
+    that were accepted in a different system appear on arrival.
+
     Returns ``(new_map, new_ship_ent)`` — the freshly built
     :class:`world.GameMap` plus the ship :class:`world.Entity` the
     dispatcher should rebind to as the new ``player``. Mirrors
@@ -1001,6 +1117,7 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
+    _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
     dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
     ship_record = ship_module_for_jump.find_ship(ctx.player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
@@ -1679,6 +1796,7 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
         _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y)
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
+    _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
     origin_planet = solar_system_module.find_planet(current_city_id)
     space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
     space_map.entities.append(space_player)
@@ -1766,6 +1884,13 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         abandoned = mission_module.find_mission(player_active_mission.mission_id)
                         log.add(f'You abandoned: {abandoned.title}.')
                         mission_module.abort_mission(abandoned, player_owned_ship, log)
+                        # Remove any bounty spawn associated with this mission.
+                        if player_active_mission.bounty_spawn_id is not None:
+                            _remove_bounty_spawn(
+                                ctx,
+                                player_active_mission.bounty_spawn_id,
+                                abandoned.target_system_id,
+                            )
                     player_active_mission = new_active
                     ctx.player_active_mission = new_active
                 continue
@@ -1917,9 +2042,36 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             else:
                                 outcome, picked = _run_mission_offerings(ctx, npc_obj, offerings)
                                 if outcome is MissionOutcome.ACCEPT and picked is not None:
-                                    if mission_module.try_accept_mission(picked, player_owned_ship, log):
-                                        player_active_mission = mission_module.ActiveMission(mission_id=picked.id)
-                                        ctx.player_active_mission = player_active_mission
+                                        if mission_module.try_accept_mission(picked, player_owned_ship, log):
+                                            _bounty_spawn_id: str | None = None
+                                            if picked.target_enemy_id is not None and picked.target_system_id is not None:
+                                                # Generate a unique spawn id for this bounty target.
+                                                _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
+                                                try:
+                                                    _target_sys = solar_systems_module.find_solar_system(picked.target_system_id)
+                                                    _spawn_pos = _pick_bounty_spawn_pos(_target_sys)
+                                                    if _spawn_pos is not None:
+                                                        from .game_context import BountySpawn
+                                                        _bs = BountySpawn(
+                                                            spawn_id=_bounty_spawn_id,
+                                                            enemy_id=picked.target_enemy_id,
+                                                            pos=_spawn_pos,
+                                                        )
+                                                        if picked.target_system_id not in ctx.bounty_spawns:
+                                                            ctx.bounty_spawns[picked.target_system_id] = []
+                                                        ctx.bounty_spawns[picked.target_system_id].append(_bs)
+                                                        # If player is already in the target system, add the
+                                                        # entity to the current game_map immediately.
+                                                        if solar_system_module.current_solar_system_id == picked.target_system_id:
+                                                            _add_bounty_spawns_to_map(ctx, ctx.game_map, picked.target_system_id)
+                                                        log.add(f"Bounty target marked in {_target_sys.name}.")
+                                                except KeyError:
+                                                    pass
+                                            player_active_mission = mission_module.ActiveMission(
+                                                mission_id=picked.id,
+                                                bounty_spawn_id=_bounty_spawn_id,
+                                            )
+                                            ctx.player_active_mission = player_active_mission
                 else:
                     log.add(f'You bump into {blocker.name}.')
 

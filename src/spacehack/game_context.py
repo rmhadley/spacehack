@@ -64,6 +64,20 @@ class CharacterInfo(TypedDict):
     class_name: str
 
 
+@dataclasses.dataclass(frozen=True)
+class BountySpawn:
+    """A dynamically-placed bounty target enemy spawn.
+
+    Created when the player accepts a bounty mission and stored on
+    :attr:`GameContext.bounty_spawns` so the target persists across
+    system transitions. The ``spawn_id`` is a unique key that links
+    back to :attr:`mission_module.ActiveMission.bounty_spawn_id`.
+    """
+    spawn_id: str
+    enemy_id: str
+    pos: world.Position
+
+
 @dataclasses.dataclass
 class GameContext:
     """Bundles the universally-shared game state for modals + render functions.
@@ -85,6 +99,10 @@ class GameContext:
       player buys their first ship, then mutated on refuel / sell-cargo.
     * :attr:`player_active_mission` - ``ActiveMission | None``; ``None``
       until the player accepts, then ``None`` again on abandon / complete.
+    * :attr:`bounty_spawns` - mutable registry of dynamic bounty-target
+      spawns, keyed by system id. Populated on mission accept, consumed
+      by :func:`spacehack.solar_system.make_solar_system` and
+      :func:`spacehack.__main__._detect_combat_encounter`.
 
     **Read/write contract**: two kinds of mutation exist, and
     they're independent:
@@ -132,3 +150,4 @@ class GameContext:
     stats: hud.HudStats
     player_owned_ship: ship_module.OwnedShip | None = None
     player_active_mission: mission_module.ActiveMission | None = None
+    bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)

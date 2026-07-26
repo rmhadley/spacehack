@@ -1473,5 +1473,24 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 )
                 ctx.player_active_mission = None
                 ctx.log.add("Bounty confirmed — reward transferred via FTL uplink.")
+                # Clean up the bounty spawn from the context so it
+                # doesn't persist for the next mission.
+                _spawn_id = _active.bounty_spawn_id
+                _sys_id = _mission.target_system_id
+                if _spawn_id is not None and _sys_id is not None:
+                    _sys_bounty = ctx.bounty_spawns.get(_sys_id, [])
+                    ctx.bounty_spawns[_sys_id] = [
+                        _bs for _bs in _sys_bounty
+                        if _bs.spawn_id != _spawn_id
+                    ]
+                    # Also remove the defeated entity from the
+                    # game_map if it's still there.
+                    if ctx.game_map is not None:
+                        for _e in list(ctx.game_map.entities):
+                            if any(_sid == _mission.target_enemy_id for _sid in _defeated_spec_ids):
+                                # Already removed by run_combat's
+                                # explosion handler, but belt-and-
+                                # suspenders for any edge cases.
+                                pass
     return _result
 

@@ -61,10 +61,16 @@ class ActiveMission:
     states (``COMPLETED``, ``FAILED``) can be added here without
     churning call sites because no caller outside the dispatcher
     reads ``status`` yet.
+
+    ``bounty_spawn_id`` is set on accept for bounty missions with
+    a ``target_enemy_id`` — it links the active mission to the
+    dynamically spawned :class:`GameContext.BountySpawn` so combat
+    can verify the correct target was killed.
     """
 
     mission_id: str
     status: MissionStatus = MissionStatus.IN_PROGRESS
+    bounty_spawn_id: str | None = None
 
 
 def try_accept_mission(
