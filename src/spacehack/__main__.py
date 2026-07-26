@@ -2339,6 +2339,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             log.add(f'You approach {planet_obj.name}.')
                             outcome = _run_planet_menu(ctx, planet_obj, active_mission_text=active_mission_text)
                             if outcome is PlanetMenuOutcome.LAND and pid == current_city_id:
+                                # Cargo scan for return-to-home-city too.
+                                _run_cargo_scan(ctx, pid)
                                 hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
                                 if hangar_ship is not None:
                                     game_map, player = _return_to_city(ctx, console, hangar_ship, city_game_map, city_player)
