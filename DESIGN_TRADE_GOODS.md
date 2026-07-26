@@ -434,8 +434,8 @@ The cargo menu shows a clear breakdown of what's taking up space:
 
 Loot still feels rewarding (every kill has a decent shot at dropping something) but players need to work for a full cargo hold rather than filling up from one squad engagement.
 
-- [ ] Adjust combat loot: cap items per kill to 1-2, reduce crate quantity to 1-2
-- [ ] Run audit + smoke
+- [x] Adjust combat loot: cap items per kill to 1-2, reduce crate quantity to 1-2
+- [x] Run audit + smoke ✅
 
 **PLAYTEST** — Engage a pirate squad. Verify loot drops are 1-4 crates total (not 10+). Fly 3 consecutive combat encounters. Verify cargo doesn't fill up immediately. Verify the kill-to-profit ratio feels rewarding but not OP.
 

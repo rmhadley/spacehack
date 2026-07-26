@@ -1404,12 +1404,17 @@ def run_combat(
                                 except ValueError:
                                     pass
                             # Spawn loot entities at or near the wreck.
+                            # Phase 6b: cap items per kill to 1-2 random
+                            # rolls (was: iterate all TRADE_GOODS) and
+                            # reduce crates-per-good from 1-3 to 1-2.
                             _wreck = _target.pos
-                            for _tg in _TRADE_GOODS:
-                                _loot_rarity = _tg.rarity
-                                if RNG.random() >= _loot_rarity:
+                            _loot_count = RNG.randint(1, 2)
+                            _loot_pool = list(_TRADE_GOODS)
+                            for _ in range(_loot_count):
+                                _tg = RNG.choice(_loot_pool)
+                                if RNG.random() >= _tg.rarity:
                                     continue
-                                _qty = RNG.randint(1, 3)
+                                _qty = RNG.randint(1, 2)
                                 _lox = _wreck.x + RNG.randint(-2, 2)
                                 _loy = _wreck.y + RNG.randint(-2, 2)
                                 if not game_map.is_walkable(_lox, _loy):
