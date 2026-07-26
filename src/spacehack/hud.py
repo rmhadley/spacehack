@@ -396,21 +396,25 @@ def render_combat_hud(
     hull_pct = phull / max(pmax_hull, 1)
     hull_color = _hull_bar_color(hull_pct)
     hull_pct_display = int(hull_pct * 100)
-    # _bar_str(current_hp, max_hp) shows ████████ at full and ░░░░░░░░ at 0
-    hull_line = f"Hull {_bar_str(phull, pmax_hull)} {hull_pct_display}%"
+    # Hull bar with shield background overlay: blue bg on bar cells
+    # proportional to shield %. When both are full, the bar shows green #
+    # on blue. When only shields remain, blue . cells show through.
+    _bar_str_8 = _bar_str(phull, pmax_hull)
+    _regen_rate = player_state.get("shield_regen_rate", 0)
+    regen_suffix = f" R{_regen_rate}" if (pmax_shields > 0 and _regen_rate > 0) else ""
+    hull_line = f"Hull {_bar_str_8} {hull_pct_display}%{regen_suffix}"
     console.print(x=hud_x, y=y, string=hull_line, fg=hull_color)
-    y += 1
-
     if pmax_shields > 0:
-        shield_pct = pshields / max(pmax_shields, 1)
-        shield_line = f"Shd  {_bar_str(pshields, pmax_shields)} {int(shield_pct * 100)}%"
-        console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
-        y += 1
-        _regen_rate = player_state.get("shield_regen_rate", 0)
-        regen_line = f"Regen {_regen_rate}/10"
-        regen_color = COLOR_SHIELD_BAR if _regen_rate > 0 else COLOR_VALUE_DIM
-        console.print(x=hud_x, y=y, string=regen_line, fg=regen_color)
-        y += 1
+        shield_bar = _bar_str(pshields, pmax_shields)
+        for _i in range(8):
+            if shield_bar[_i] == _BAR_CHAR_FULL:
+                console.print(
+                    x=hud_x + 5 + _i, y=y,
+                    string=_bar_str_8[_i],
+                    fg=hull_color,
+                    bg=COLOR_SHIELD_BAR,
+                )
+    y += 1
 
     ap_line = f"AP: {pap}/{pap_total}"
     console.print(x=hud_x, y=y, string=ap_line, fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED)
