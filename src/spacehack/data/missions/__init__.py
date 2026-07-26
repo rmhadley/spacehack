@@ -91,6 +91,8 @@ class Mission:
     required_cargo_size: int = 0
     delivery_target_npc_id: str | None = None
     delivery_target_planet_id: str | None = None
+    target_enemy_id: str | None = None    # bounty: which enemy spec to kill
+    target_system_id: str | None = None   # bounty: which system to find them in
 
 
 # Per-faction mission tuples - append an import + line in

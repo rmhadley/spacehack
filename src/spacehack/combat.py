@@ -798,12 +798,14 @@ def run_combat(
     enemy_specs: list,
     enemy_positions: list[world.Position],
     game_map: world.GameMap,
-    log,
-) -> str:
+    log,    ) -> tuple[str, list[str]]:
     """Drive the combat turn loop using tcod events.
 
     Accepts lists of enemy specs and positions for multi-enemy combat.
-    Returns "VICTORY", "DEFEAT", or "FLEE".
+    Returns ``(result, defeated_spec_ids)`` where ``result`` is
+    ``"VICTORY"``, ``"DEFEAT"``, or ``"FLEE"`` and
+    ``defeated_spec_ids`` lists the ``spec_id`` of each enemy
+    destroyed during combat (empty for non-VICTORY outcomes).
 
     The player cycles targets with Tab. On VICTORY all dead enemy
     entities are removed from ``game_map.entities``. The player's
@@ -814,7 +816,7 @@ def run_combat(
     from .engine import SCREEN_WIDTH, SCREEN_HEIGHT, MSG_LOG_HEIGHT, HUD_WIDTH
 
     if not enemy_specs or not enemy_positions:
-        return "FLEE"
+        return ("FLEE", [])
 
     # Build initial combat state(s)
     try:
@@ -835,7 +837,7 @@ def run_combat(
                 )
             enemy_insts.append(_ei)
     except Exception:
-        return "FLEE"  # Graceful fallback on init failure
+        return ("FLEE", [])  # Graceful fallback on init failure
 
     from .message_log import COLOR_PLAYER_ACTION, COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
 
@@ -861,6 +863,8 @@ def run_combat(
 
     _c_log(f"Combat starts! {len(enemy_insts)} enemy ship(s): "
            + ", ".join(e.name for e in enemy_insts))
+    # Track which enemy spec IDs were defeated (for bounty completion).
+    _defeated_spec_ids: list[str] = []
     start_player_turn(player_state)
 
     # Find player + enemy entities on the game_map so we can sync
@@ -1317,6 +1321,7 @@ def run_combat(
                         player_state["ap_remaining"] -= (_ws.ap_cost if _ws else 1)
                         if _fh <= 0:
                             _c_log(f"{_target.name} destroyed!")
+                            _defeated_spec_ids.append(_target.spec_id)
                             # Explosion animation
                             _cam_x, _cam_y = _calc_cam()
                             _animate_explosion(
@@ -1378,7 +1383,7 @@ def run_combat(
         # Always sync hull damage back to player's persistent state
         _sync_back_hull(player_state, player_owned_ship)
 
-    return _result
+    return (_result, _defeated_spec_ids)
 
 
 def _handle_combat_encounter(ctx, console, encounter) -> str:
@@ -1395,6 +1400,10 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     ctx.log so the player sees a clear payoff; DEFEAT / FLEE
     stay silent here because run_combat already emitted per-shot
     logs (incl. the explosion / destruction line).
+
+    If the player has an active bounty mission and the defeated
+    enemies include the bounty target, auto-completes the mission
+    (instant reward — no turn-in needed).
     """
     # Encounter None / malformed -> silent FLEE (matches _run_goto's
     # contract that combat is only triggered on detected encounters;
@@ -1428,7 +1437,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     _species_id = ctx.character_info.get("species_id") or ""
     _class_id = ctx.character_info.get("class_id") or ""
     _pilot = character.starting_pilot_skills(_species_id, _class_id)
-    _result = run_combat(
+    _result, _defeated_spec_ids = run_combat(
         console,
         ctx.context,
         _ship_cat,
@@ -1443,5 +1452,26 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     if _result == "VICTORY":
         _names = ", ".join(getattr(s, "name", "enemy") for s in _nearby_specs)
         ctx.log.add(f"You defeated {_names}!")
+        # Check if an active bounty mission was just completed.
+        _active = ctx.player_active_mission
+        if _active is not None:
+            from . import mission as _mission_mod
+            try:
+                _mission = _mission_mod.find_mission(_active.mission_id)
+            except KeyError:
+                _mission = None
+            if (
+                _mission is not None
+                and _mission.target_enemy_id is not None
+                and any(_sid == _mission.target_enemy_id for _sid in _defeated_spec_ids)
+            ):
+                _mission_mod.complete_mission(
+                    _mission,
+                    ctx.player_owned_ship,
+                    ctx.stats,
+                    ctx.log,
+                )
+                ctx.player_active_mission = None
+                ctx.log.add("Bounty confirmed — reward transferred via FTL uplink.")
     return _result
 

@@ -36,4 +36,21 @@ MISSIONS: tuple[Mission, ...] = (
         reward_xp=35,
         recommended_class_id="bounty_hunter",
     ),
+    # ----- Functional bounty: pirate scout at Barnard's Star.
+    # Instantly completes on combat VICTORY — no turn-in needed.
+    Mission(
+        id="bounty_pirate_scout",
+        title="Bounty: pirate scout at Barnard's Star",
+        description=(
+            "A pirate scout is harassing shipping near Barnard's "
+            "Star. Neutralize them. FTL bounty transfer confirmed "
+            "on kill."
+        ),
+        giver_npc_id="bounty_master",
+        reward_gold=200,
+        reward_xp=40,
+        recommended_class_id="bounty_hunter",
+        target_enemy_id="pirate_scout",
+        target_system_id="barnards_star",
+    ),
 )
