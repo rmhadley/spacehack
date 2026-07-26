@@ -839,6 +839,13 @@ def run_combat(
     except Exception:
         return ("FLEE", [])  # Graceful fallback on init failure
 
+    # -------- Find player entity on map --------
+    _player_ent = None
+    for _e in game_map.entities:
+        if getattr(_e, 'owned', False):
+            _player_ent = _e
+            break
+
     # -------- Build enemy-entity mapping (before dedup, so positions align) --------
     # Maps enemy_insts index -> world.Entity for position syncing and
     # entity exclusion in AI movement checks. Matched by position
@@ -911,13 +918,6 @@ def run_combat(
     # Track which enemy spec IDs were defeated (for bounty completion).
     _defeated_spec_ids: list[str] = []
     start_player_turn(player_state)
-
-    # Find the player's entity on the game_map for position syncing.
-    _player_ent = None
-    for _e in game_map.entities:
-        if getattr(_e, 'owned', False):
-            _player_ent = _e
-            break
 
     view_w = 80
     view_h = 54
