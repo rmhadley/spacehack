@@ -1430,8 +1430,6 @@ def run_combat(
                                     _tg = _ftg(_loot_good_id)
                                 except KeyError:
                                     continue
-                                if RNG.random() >= _tg.rarity:
-                                    continue
                                 _qty = RNG.randint(1, 2)
                                 _lox = _wreck.x + RNG.randint(-2, 2)
                                 _loy = _wreck.y + RNG.randint(-2, 2)
