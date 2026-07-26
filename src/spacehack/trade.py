@@ -87,7 +87,7 @@ def _buy_good(
     cost = _unit_price(ctx, planet_id, good_id) * quantity
 
     if ctx.stats.gold < cost:
-        ctx.log.add(f"Not enough gold to buy {quantity}x {good.name} ({cost}g needed).")
+        ctx.log.add(f"Not enough credits to buy {quantity}x {good.name} ({cost}¤ needed).")
         return False
 
     free_cargo = _free_cargo(owned)
@@ -106,7 +106,7 @@ def _buy_good(
     # Complete the transaction.
     owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
     ctx.stats.gold -= cost
-    ctx.log.add(f"Bought {quantity}x {good.name} for {cost}g.")
+    ctx.log.add(f"Bought {quantity}x {good.name} for {cost}¤.")
     return True
 
 
@@ -152,7 +152,7 @@ def _sell_good(
         owned.inventory[good_id] = remaining
 
     ctx.stats.gold += revenue
-    ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}g.")
+    ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}¤.")
     return True
 
 
@@ -217,7 +217,7 @@ def _run_quantity_prompt(
 
     def _render() -> None:
         console.clear()
-        prompt = f"{label}  ({price_per}cr each)"
+        prompt = f"{label}  ({price_per}¤ each)"
         qty_text = f"Quantity: [{qty}]"
         hint = "UP/+ increase  DOWN/- decrease  ENTER confirm  ESC cancel"
 
@@ -329,11 +329,16 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         paint(ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
         cy += 2
 
-        # Column headers.
-        left_label = "> Station Inventory <" if _focus == 0 else "  Station Inventory  "
-        right_label = "> Your Hold <" if _focus == 1 else "  Your Hold  "
-        paint(2, cy, left_label, fg=ui.COLOR_OPTION_HIGHLIGHT if _focus == 0 else ui.COLOR_OPTION)
-        paint(max_w // 2 + 2, cy, right_label, fg=ui.COLOR_OPTION_HIGHLIGHT if _focus == 1 else ui.COLOR_OPTION)
+        # Column headers — focused panel gets a bright cyan header
+        # that's visually distinct from the "> " selection markers below.
+        left_label = "\u2502 Station Inventory" if _focus == 0 else "  Station Inventory "
+        right_label = "\u2502 Your Hold" if _focus == 1 else "  Your Hold "
+        paint(2, cy, left_label, fg=ui.COLOR_TITLE if _focus == 0 else ui.COLOR_OPTION)
+        paint(max_w // 2 + 2, cy, right_label, fg=ui.COLOR_TITLE if _focus == 1 else ui.COLOR_OPTION)
+        # Separator between the two panels.
+        sep_x = max_w // 2
+        for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
+            console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
         cy += 1
 
         # Station goods (left panel).
@@ -346,7 +351,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
             # Pad the name so prices align.
             name_str = good.name[:col_w - 8].ljust(col_w - 8)
-            price_str = f"{price:>4}cr"
+            price_str = f"{price:>5}\u00a4"
             stock_str = f"({stock})"
             line = f"{name_str} {price_str} {stock_str}"
 
@@ -366,7 +371,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             good = find_trade_good(gid)
             sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
             name_str = good.name[:col_w - 8].ljust(col_w - 8)
-            price_str = f"{sell_price:>4}cr"
+            price_str = f"{sell_price:>5}\u00a4"
             qty_str = f"({qty})"
             line = f"{name_str} {price_str} {qty_str}"
 
