@@ -1939,6 +1939,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
+                    # Sync local mission state — _handle_combat_encounter
+                    # may have cleared ctx.player_active_mission (bounty
+                    # auto-complete) but the local copy is stale.
+                    player_active_mission = ctx.player_active_mission
                 continue
             delta = _vim_action(event)
             if delta is None:
@@ -1949,6 +1953,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                 if _encounter is not None:
                     combat._handle_combat_encounter(ctx, console, _encounter)
+                    # Sync local mission state after combat.
+                    player_active_mission = ctx.player_active_mission
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
