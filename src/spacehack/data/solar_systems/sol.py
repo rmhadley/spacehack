@@ -21,7 +21,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import EnemySpawn, JumpPoint, SolarSystem
+from . import JumpPoint, SolarSystem
 
 
 # Anchor positions for Sol + the eight planets on the 200x140 map.
@@ -157,25 +157,4 @@ SYSTEM: SolarSystem = SolarSystem(
     jump_points=_jump_points,
     stations=(),                  # no stations near Sol yet (future: Earth Orbital Station)
     stars=_stars,
-    # Two pirate ships between Earth (140, 39) and Mars (60, 99)
-    # grouped as a single squad via ``squad_id`` so the player
-    # faces both in a single combat encounter whenever either is
-    # detected (the squad is a logical unit, not a per-spawn
-    # proximity check). Without the shared ``squad_id`` only
-    # whichever scout is within detect_radius on the trigger
-    # frame would engage, leaving the other stranded.
-    enemies=(
-        EnemySpawn(
-            enemy_id="pirate_scout",
-            pos=world.Position(100, 69),
-            patrol_radius=4,
-            squad_id="sol_pirate_patrol_1",
-        ),
-        EnemySpawn(
-            enemy_id="pirate_scout",
-            pos=world.Position(105, 66),
-            patrol_radius=4,
-            squad_id="sol_pirate_patrol_1",
-        ),
-    ),
 )

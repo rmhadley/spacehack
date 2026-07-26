@@ -1,16 +1,13 @@
 """Wolf 359 — a dim red dwarf system on the frontier of charted
-space. Dangerous. Pirates patrol the dark between the sparse
-planets. The last gate before Luyten's Star.
+space. Quiet, empty, the last gate before the edge.
 
 Wolf 359 is one of the faintest stars in Earth's night sky at
-~7.8 ly distance. In this universe it marks the boundary between
-the relative safety of the inner federation systems and the
-uncharted deep beyond Luyten's Star.
+~7.8 ly distance. The star is a small dim red dwarf (7x7
+footprint). Only a single barren rocky world orbits here.
 
-The star is a small dim red dwarf (7x7 footprint). Only a few
-barren rocky worlds orbit here. The system's main feature is its
-pirate presence — a well-armed squad patrols near the jump gates,
-ambushing traders on the Tau Ceti / Luyten's Star run.
+Despite its grim reputation, no pirates patrol these empty
+reaches — the real danger lies beyond Luyten's Star, in the
+uncharted void past the militia blockade.
 
 Map dims match the other 200x140 systems.
 """
@@ -19,7 +16,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import EnemySpawn, JumpPoint, SolarSystem
+from . import JumpPoint, SolarSystem
 
 
 _planets: tuple[solar_module.Planet, ...] = (
@@ -67,32 +64,6 @@ _jump_points: tuple[JumpPoint, ...] = (
 )
 
 
-# Pirate presence — two raider ships patrolling the corridor
-# between the gates, so the player can't simply hug one gate
-# to avoid detection entirely. A third scout roams near the
-# Luyten's Star gate.
-_enemies: tuple[EnemySpawn, ...] = (
-    EnemySpawn(
-        enemy_id="pirate_scout",
-        pos=world.Position(60, 55),                  # near the rocky planet
-        patrol_radius=8,
-        squad_id="wolf_pirate_patrol_1",
-    ),
-    EnemySpawn(
-        enemy_id="pirate_scout",
-        pos=world.Position(140, 85),                 # mid-point between gates
-        patrol_radius=8,
-        squad_id="wolf_pirate_patrol_1",
-    ),
-    EnemySpawn(
-        enemy_id="pirate_scout",
-        pos=world.Position(175, 60),                 # near Luyten's gate
-        patrol_radius=6,
-        squad_id="wolf_pirate_patrol_2",
-    ),
-)
-
-
 _stars = solar_module.make_stars(200, 140, seed="wolf_359")
 
 
@@ -105,5 +76,4 @@ SYSTEM: SolarSystem = SolarSystem(
     jump_points=_jump_points,
     stations=(),
     stars=_stars,
-    enemies=_enemies,
 )
