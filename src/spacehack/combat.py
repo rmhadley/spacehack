@@ -1235,7 +1235,8 @@ def run_combat(
                         _wid, player_state["gunnery"], _dist, _dodge,
                     )
                     # Single roll decides both animation AND damage
-                    _is_hit = RNG.randint(1, 100) <= _chance
+                    _roll = RNG.randint(1, 100)
+                    _is_hit = _roll <= _chance
                     _cam_x, _cam_y = _calc_cam()
                     _animate_laser_shot(
                         console, context, game_map,
@@ -1265,7 +1266,7 @@ def run_combat(
                         if _sdmg > 0:
                             _dmg_str += f" ({_sdmg} absorbed by shields)"
                         _verb = "Glancing hit" if _is_glancing else "Hit"
-                        _p_log(f"{_verb} {_target.name}! {_ws.name if _ws else _wid} for {_dmg_str}")
+                        _p_log(f"{_verb} {_target.name}! {_ws.name if _ws else _wid} for {_dmg_str} (rolled {_roll}, needed <={_chance})")
                         # Consume ammo/power
                         if _ws and _ws.slot_type == "energy":
                             player_state["power_pool"] -= _ws.power_cost
@@ -1307,7 +1308,7 @@ def run_combat(
                                 except ValueError:
                                     pass
                     else:
-                        _p_log(f"Missed {_target.name}!")
+                        _p_log(f"Missed {_target.name}! (rolled {_roll}, needed <={_chance})")
                         # Charge the weapon's full AP on miss too —
                         # the action was committed regardless of
                         # whether it landed. Matches the HIT branch
