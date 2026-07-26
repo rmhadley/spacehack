@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..pilot_skills import PilotSkills
+
 
 @dataclass(frozen=True)
 class Species:
@@ -22,19 +24,14 @@ class Species:
         description: one-line flavour line under the name.
         hp_bonus: additive HP bonus granted by this species on top
             of the class's :attr:`spacehack.data.classes.GameClass.hp_base`.
-        skill_bonus: ``{gunnery, piloting, engineering}`` additive
-            bonuses added at character creation (see
-            :func:`spacehack.character.starting_pilot_skills`).
+        skill_bonus: per-skill additive bonuses added at character
+            creation (see :func:`spacehack.character.starting_pilot_skills`).
     """
     id: str
     name: str
     description: str
     hp_bonus: int = 0
-    skill_bonus: dict[str, int] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self.skill_bonus is None:
-            object.__setattr__(self, "skill_bonus", {})
+    skill_bonus: PilotSkills = PilotSkills()
 
 
 # Per-file species tuples — append an import + line in

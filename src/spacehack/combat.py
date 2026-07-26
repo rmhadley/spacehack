@@ -23,6 +23,7 @@ import tcod.event
 from . import character
 from . import world
 from . import ui
+from .data.pilot_skills import PilotSkills
 from .data.weapons import find_weapon
 from .data.modules import find_module as find_module_spec
 from .engine import RNG
@@ -225,7 +226,7 @@ def init_combat_state(
     player_ship_catalog: Any,
     player_owned_ship: Any,
     player_pos: world.Position,
-    player_pilot_skills: dict[str, int],
+    player_pilot_skills: PilotSkills,
     enemy_spec: Any,
     enemy_pos: world.Position,
 ) -> tuple[dict, EnemyInstance]:
@@ -233,9 +234,9 @@ def init_combat_state(
 
     Returns (player_state, enemy_instance).
     """
-    gunnery = player_pilot_skills.get("gunnery", 30)
-    piloting = player_pilot_skills.get("piloting", 30)
-    engineering = player_pilot_skills.get("engineering", 30)
+    gunnery = player_pilot_skills.gunnery
+    piloting = player_pilot_skills.piloting
+    engineering = player_pilot_skills.engineering
 
     # Module bonuses
     for mod_id in getattr(player_owned_ship, 'modules', ()) or ():
@@ -282,8 +283,8 @@ def init_combat_state(
     }
 
     # Enemy instance — uses ship_id to get actual hull value
-    e_pilot = enemy_spec.pilot_skills or {}
-    e_ap = _calc_ap(e_pilot.get("piloting", 20))
+    e_pilot = enemy_spec.pilot_skills
+    e_ap = _calc_ap(e_pilot.piloting)
     e_ammo: dict[str, int] = {}
     for wid in enemy_spec.weapons:
         try:
@@ -310,9 +311,9 @@ def init_combat_state(
         weapons=enemy_spec.weapons,
         modules=enemy_spec.modules,
         weapon_ammo=e_ammo,
-        pilot_gunnery=e_pilot.get("gunnery", 20) + enemy_spec.ai.accuracy_bonus,
-        pilot_piloting=e_pilot.get("piloting", 20) + enemy_spec.ai.dodge_bonus,
-        pilot_engineering=e_pilot.get("engineering", 10),
+        pilot_gunnery=e_pilot.gunnery + enemy_spec.ai.accuracy_bonus,
+        pilot_piloting=e_pilot.piloting + enemy_spec.ai.dodge_bonus,
+        pilot_engineering=e_pilot.engineering,
         power_gen=enemy_spec.min_power_gen,
         max_power=max(10, enemy_spec.min_power_gen * 2),
     )
@@ -775,7 +776,7 @@ def run_combat(
     player_ship_catalog,
     player_owned_ship,
     player_pos: world.Position,
-    player_pilot_skills: dict[str, int],
+    player_pilot_skills: PilotSkills,
     enemy_specs: list,
     enemy_positions: list[world.Position],
     game_map: world.GameMap,
@@ -1396,18 +1397,13 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     _species_id = ctx.character_info.get("species_id") or ""
     _class_id = ctx.character_info.get("class_id") or ""
     _pilot = character.starting_pilot_skills(_species_id, _class_id)
-    _player_pilot_skills = {
-        "gunnery": _pilot.gunnery,
-        "piloting": _pilot.piloting,
-        "engineering": _pilot.engineering,
-    }
     _result = run_combat(
         console,
         ctx.context,
         _ship_cat,
         ctx.player_owned_ship,
         ctx.player.pos,
-        _player_pilot_skills,
+        _pilot,
         _nearby_specs,
         _nearby_positions,
         ctx.game_map,

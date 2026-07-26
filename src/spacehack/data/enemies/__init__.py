@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..pilot_skills import PilotSkills
+
 
 @dataclass(frozen=True)
 class AIProfile:
@@ -42,7 +44,7 @@ class EnemySpec:
         ai: AIProfile driving behaviour.
         detect_radius: cells before combat triggers.
         min_power_gen: base power generated per turn.
-        pilot_skills: dict, e.g. {"gunnery": 20, "piloting": 25, "engineering": 10}.
+        pilot_skills: per-skill bonuses (gunner/piloting/engineering).
     """
     id: str
     name: str
@@ -54,12 +56,7 @@ class EnemySpec:
     ai: AIProfile = AIProfile()
     detect_radius: int = 8
     min_power_gen: int = 3
-    pilot_skills: dict[str, int] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self.pilot_skills is None:
-            object.__setattr__(self, "pilot_skills",
-                               {"gunnery": 20, "piloting": 20, "engineering": 10})
+    pilot_skills: PilotSkills = PilotSkills(gunnery=20, piloting=20, engineering=10)
 
 
 _BY_ID: dict[str, EnemySpec] | None = None

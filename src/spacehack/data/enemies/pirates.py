@@ -1,6 +1,7 @@
 """Pirate faction enemy ships — hostile NPCs that patrol solar systems.
 """
 
+from ..pilot_skills import PilotSkills
 from . import AIProfile, EnemySpec
 
 ENEMIES: tuple[EnemySpec, ...] = (
@@ -27,7 +28,7 @@ ENEMIES: tuple[EnemySpec, ...] = (
         ),
         detect_radius=8,
         min_power_gen=3,
-        pilot_skills={"gunnery": 15, "piloting": 20, "engineering": 10},
+        pilot_skills=PilotSkills(gunnery=15, piloting=20, engineering=10),
     ),
     EnemySpec(
         id="pirate_raider",
@@ -52,6 +53,6 @@ ENEMIES: tuple[EnemySpec, ...] = (
         ),
         detect_radius=10,
         min_power_gen=4,
-        pilot_skills={"gunnery": 25, "piloting": 18, "engineering": 15},
+        pilot_skills=PilotSkills(gunnery=25, piloting=18, engineering=15),
     ),
 )

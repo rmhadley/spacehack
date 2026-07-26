@@ -8,6 +8,7 @@ combat-init formulas in :mod:`spacehack.character` pull
 :attr:`GameClass.skill_bonus` directly.
 """
 from . import GameClass
+from ..pilot_skills import PilotSkills
 
 
 # Frozen tuples so callers can't accidentally mutate the catalog at
@@ -20,7 +21,7 @@ CLASSES: tuple[GameClass, ...] = (
         description="Lives beyond the law. Plunders and pillages.",
         hp_base=9,
         gold=100,
-        skill_bonus={"gunnery": 15, "piloting": 10, "engineering": 0},
+        skill_bonus=PilotSkills(gunnery=15, piloting=10, engineering=0),
     ),
     GameClass(
         id="merchant",
@@ -28,7 +29,7 @@ CLASSES: tuple[GameClass, ...] = (
         description="Trades goods across the systems.",
         hp_base=7,
         gold=180,
-        skill_bonus={"gunnery": 0, "piloting": 5, "engineering": 15},
+        skill_bonus=PilotSkills(gunnery=0, piloting=5, engineering=15),
     ),
     GameClass(
         id="bounty_hunter",
@@ -36,6 +37,6 @@ CLASSES: tuple[GameClass, ...] = (
         description="Hunts the wanted. Paid in credits.",
         hp_base=10,
         gold=70,
-        skill_bonus={"gunnery": 10, "piloting": 10, "engineering": 5},
+        skill_bonus=PilotSkills(gunnery=10, piloting=10, engineering=5),
     ),
 )

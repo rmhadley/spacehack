@@ -55,12 +55,12 @@ def starting_pilot_skills(species_id: str, class_id: str) -> PilotSkills:
     # Resolved specs, with safe-empty fallbacks for stale ids.
     sp = _safe_lookup_species(species_id)
     cl = _safe_lookup_class(class_id)
-    sp_bonus = sp.skill_bonus if sp is not None else {}
-    cl_bonus = cl.skill_bonus if cl is not None else {}
+    sp_skills = sp.skill_bonus if sp is not None else PilotSkills()
+    cl_skills = cl.skill_bonus if cl is not None else PilotSkills()
     return PilotSkills(
-        gunnery=PILOT_SKILL_BASE + sp_bonus.get("gunnery", 0) + cl_bonus.get("gunnery", 0),
-        piloting=PILOT_SKILL_BASE + sp_bonus.get("piloting", 0) + cl_bonus.get("piloting", 0),
-        engineering=PILOT_SKILL_BASE + sp_bonus.get("engineering", 0) + cl_bonus.get("engineering", 0),
+        gunnery=PILOT_SKILL_BASE + sp_skills.gunnery + cl_skills.gunnery,
+        piloting=PILOT_SKILL_BASE + sp_skills.piloting + cl_skills.piloting,
+        engineering=PILOT_SKILL_BASE + sp_skills.engineering + cl_skills.engineering,
     )
 
 
