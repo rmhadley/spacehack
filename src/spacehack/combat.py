@@ -267,7 +267,7 @@ def init_combat_state(
     player_state = {
         "hull": hull,
         "max_hull": max_hull,
-        "shields": 0,
+        "shields": max_shield,
         "max_shields": max_shield,
         "shields_charged": False,
         "power_pool": pwr_gen,
@@ -304,7 +304,7 @@ def init_combat_state(
         fg=enemy_spec.fg,
         hull=enemy_max_hull,
         max_hull=enemy_max_hull,
-        shields=0,
+        shields=_calc_max_shields(enemy_spec, enemy_spec),
         max_shields=_calc_max_shields(enemy_spec, enemy_spec),
         power_pool=enemy_spec.min_power_gen,
         ap_remaining=e_ap,
