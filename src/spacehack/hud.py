@@ -403,22 +403,18 @@ def render_combat_hud(
         _bar_8 = _bar_str(pshields, pmax_shields)
         shield_line = f"Shd  {_bar_8} {int(shields_pct * 100)}%"
         console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
-        # Regen rate heat on bar Bg: blue (0) → white (10)
+        # Regen rate fill: N leftmost # cells get a white bg for visual
+        # feedback of the current regen rate (0-8 cells, capped at 8).
         _regen_rate = player_state.get("shield_regen_rate", 0)
         if _regen_rate > 0:
-            _t = _regen_rate / 10.0
-            _bg = (
-                int(100 + (255 - 100) * _t),
-                int(200 + (255 - 200) * _t),
-                int(255 + (255 - 255) * _t),  # blue channel stays 255
-            )
-            for _i in range(8):
+            _fill = min(_regen_rate, 8)
+            for _i in range(_fill):
                 if _bar_8[_i] == _BAR_CHAR_FULL:
                     console.print(
                         x=hud_x + 5 + _i, y=y,
                         string=_BAR_CHAR_FULL,
                         fg=COLOR_SHIELD_BAR,
-                        bg=_bg,
+                        bg=(255, 255, 255),
                     )
         y += 1
         regen_line = f"Regen {_regen_rate}/10"
