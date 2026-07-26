@@ -781,10 +781,15 @@ def open_cargo(ctx: GameContext) -> None:
         # Rebuild for current state.
         _items = _rebuild_trade_items()
 
-        # Uppercase J = jettison selected good (checked BEFORE navigation
-        # so lowercase ``j`` still navigates down but Shift+J fires the
-        # jettison prompt).
-        if getattr(sym, "name", "") == 'J' and _items and 0 <= _sel < len(_items):
+        # Shift+J = jettison selected good (checked BEFORE navigation
+        # so plain ``j`` still navigates down but Shift+J fires the
+        # jettison prompt). SDL/tcod reports the same sym.name for
+        # both upper and lowercase letters, so we must check the
+        # shift modifier directly rather than relying on the name.
+        _shift_held = bool(
+            event.mod & (tcod.event.Modifier.LSHIFT | tcod.event.Modifier.RSHIFT)
+        ) if hasattr(tcod.event, 'Modifier') else False
+        if _shift_held and sym_name == "j" and _items and 0 <= _sel < len(_items):
             gid, qty, _ = _items[_sel]
             try:
                 good = find_trade_good(gid)
