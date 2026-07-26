@@ -239,10 +239,10 @@ def load_planet(planet_id: str) -> world.GameMap:
                 width=ship_obj.width,
                 height=ship_obj.height,
             ))
-        # Trade terminal: auto-placed outside the spaceport next to the
-        # door so the player sees it right when walking up to the building.
+        # Trade terminal: auto-placed outside the spaceport, two tiles
+        # to the right of the door so it's visible but not blocking entry.
         if spec.produces or spec.demands:
-            _term_x = port.door_x
+            _term_x = port.door_x + 2
             _term_y = port.y_hi + 1  # just outside the south-wall door
             entities.append(world.Entity(
                 char="=",
