@@ -170,6 +170,7 @@ Pass: `PASS: Smoke tests OK.` and exit 0. Fail: `FAIL: <reason>` to stderr, exit
 * **Cross-cutting state goes through `ctx`.** Functions that touch `game_map`, `log`, `stats`, character info, the owned ship, or the active mission read them off `ctx`. This eliminates bare-Name regressions and stabilizes signatures.
 * **Domains own their flow.** Each domain module owns its setup, execution, and post-state mutation. The dispatcher is domain-unaware and hands off with one call.
 * **Atomic commits.** Each commit is one self-contained change (one refactor step, one feature, or one bug fix) with a descriptive message. Non-trivial work lands as a sequence of atomic commits, not one mega-commit.
+* **Git anchors every AI-assisted step.** Each new request starts with no memory of the last turn, so orient with `git status` / `git diff --stat`, commit one logical change per AI-assisted step (same atomicity as the rule above), and run the audit + smoke gates before each commit. The next session opens from the diff, not from prose recall -- the working tree, not the chat log, is the source of truth.
 * **Idempotent tooling.** Migration and audit scripts are safe to re-run without double-inserting. Anchors on unique substrings; asserts on count==1; early-exits if the new content is already present.
 * **Gates beat playtests.** Catch a regression class by extending the audit's `SCAN` list and `LOOSE` set, not by waiting for someone to hit it in-game.
 * **Terse code-shaped docs.** Optimize for the skim-don't-read mode; assume a future-after-context-wipe reader.
