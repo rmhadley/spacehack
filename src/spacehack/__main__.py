@@ -760,12 +760,27 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
             if _target is not None else 999
         )
         if _target is None or _dist_to_target <= 2:
-            # Pick a different target than the one we just reached.
-            _candidates = [g for g in _goals if g != _target]
-            if not _candidates:
-                _candidates = _goals
-            _target = _engine.RNG.choice(_candidates)
-            ctx.pirate_targets[_sid] = _target
+            # Enforce minimum travel from last re-target origin to prevent
+            # oscillation between nearby goals. The squad must travel at
+            # least 4 cells before re-targeting, creating a natural patrol
+            # arc (arrive at goal → continue past → turn around) instead
+            # of ping-pong.
+            _can_retarget = True
+            if _target is not None:
+                _origin = ctx.pirate_target_origin.get(_sid)
+                if _origin is not None:
+                    _travel_dist = max(
+                        abs(_sx - _origin[0]), abs(_sy - _origin[1])
+                    )
+                    if _travel_dist < 4:
+                        _can_retarget = False
+            if _can_retarget:
+                _candidates = [g for g in _goals if g != _target]
+                if not _candidates:
+                    _candidates = _goals
+                _target = _engine.RNG.choice(_candidates)
+                ctx.pirate_targets[_sid] = _target
+                ctx.pirate_target_origin[_sid] = (_sx, _sy)
         # Move most ticks for consistent progress (80% chance).
         if _engine.RNG.random() >= 0.8:
             continue

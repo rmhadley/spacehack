@@ -167,3 +167,4 @@ class GameContext:
     bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     pirate_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
+    pirate_target_origin: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
