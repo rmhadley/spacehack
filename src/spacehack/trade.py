@@ -372,7 +372,7 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
 
     # Manual modal loop (simpler than ui.Modal for a one-shot decision).
     _taken = False
-    while True:
+    while _taken is False:
         _render()
         ctx.context.present(console)
         for _event in tcod.event.wait():
@@ -392,8 +392,8 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
                 break
             elif _result is False:
                 ctx.log.add("Left the cargo debris in space.")
+                _taken = True
                 break
-        break  # exit while after first outcome
 
 
 def open_trade(ctx: GameContext, planet_id: str) -> None:
