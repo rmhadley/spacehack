@@ -953,11 +953,18 @@ def run_combat(
                 _result = "VICTORY"
                 break
             if not enemy_insts[target_idx].alive:
-                # Move target to next alive enemy
-                target_idx = next(
-                    (_i for _i, _e in enumerate(enemy_insts) if _e.alive),
-                    0,
-                )
+                # Move target to next alive enemy (search forward from
+                # current index so we don't snap back to the first alive
+                # enemy, which would make enemies past a dead one
+                # unreachable via Tab).
+                _n = len(enemy_insts)
+                for _offset in range(1, _n + 1):
+                    _candidate = (target_idx + _offset) % _n
+                    if enemy_insts[_candidate].alive:
+                        target_idx = _candidate
+                        break
+                else:
+                    target_idx = 0
 
             # ---- Sync entity positions to game_map so rendering works ----
             if _player_ent is not None:
