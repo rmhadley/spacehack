@@ -75,7 +75,28 @@ spacehack/
 
 ## Adding content
 
-All content is data-driven. Adding a new item is one file edit, no runtime code touched. Every catalog has an `__init__.py` with a `find_<thing>(id)` helper so call sites stay agnostic.
+All content is data-driven. The shape is the same across every catalog:
+
+*(Fields below are illustrative; check the actual data file for the canonical field set.)*
+
+```python
+# src/spacehack/data/weapons/lasers.py
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Laser:
+    id: str                          # match weapons/__init__:find_weapon key
+    name: str
+    damage: int
+    ap_cost: int
+    ammo_capacity: int
+    # ...whatever fields the game needs
+
+# src/spacehack/data/weapons/__init__.py
+def find_weapon(weapon_id: str) -> Laser: ...
+```
+
+`find_<thing>(id)` raises `KeyError` on unknown ids so call sites can render a friendly error.
 
 * **Add a weapon** -- add a frozen dataclass entry to the relevant file in `src/spacehack/data/weapons/` (e.g. `lasers.py`, `missiles.py`) and slot it into any ship loadout.
 * **Add a ship module** (engine or system) -- add to `src/spacehack/data/modules/`.
@@ -95,7 +116,26 @@ The dispatcher in `__main__._run_game` calls each domain by name. To add a new d
 2. Make the entry point take `ctx` (and any pure positional args) and access cross-cutting state through `ctx` (e.g. `ctx.log`, `ctx.player_owned_ship`), never as bare names.
 3. From `__main__`, hand off with one call: `<domain>.<entry_point>(ctx, ...)`. No helper indirection; the dispatcher should be domain-unaware.
 
+If the domain is modal-driven (cancelable, keypress-driven UI like ship-buy / jump-menu / NPC-talk), use the existing loop rather than rolling your own:
+
+```python
+ui.Modal(ctx.context, console).run(render_fn, update_fn)
+```
+
 If the domain needs new cross-cutting state, add it as a field on `GameContext` rather than threading it through every signature.
+
+**GameContext fields** -- everything available via `ctx.<field>`:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `species_name`, `class_name` | `str` | character identity |
+| `context` | `tcod.context.Context` | the SDL window; pass to `ui.Modal` etc. |
+| `character_info`, `player` | dataclasses | character + entity state |
+| `log` | `MessageLog` | in-game log + colour helpers |
+| `game_map` | `world.GameMap` | world / entity container |
+| `stats` | `HudStats` | aggregate HUD-facing values |
+| `player_owned_ship` | `` `OwnedShip | None` `` | equipped ship (optional mid-save) |
+| `player_active_mission` | `` `ActiveMission | None` `` | current mission (optional idle) |
 
 ## The audit gate
 
@@ -124,7 +164,7 @@ Add new SCAN'd helpers to the `SCAN` tuple in `tools/audit_loose_refs.py` once t
 * **Atomic commits.** Each commit is one self-contained change (one refactor step, one feature, or one bug fix) with a descriptive message. Non-trivial work lands as a sequence of atomic commits, not one mega-commit.
 * **Idempotent tooling.** Migration and audit scripts are safe to re-run without double-inserting. Anchors on unique substrings; asserts on count==1; early-exits if the new content is already present.
 * **Gates beat playtests.** Catch a regression class by extending the audit's `SCAN` list and `LOOSE` set, not by waiting for someone to hit it in-game.
-* **Terse, code-shape documentation.** Internal helpers, docs, and review notes assume a skim-don't-read reader. Optimize for the future-after-context-wipe reader, not the present-expert.
+* **Terse code-shaped docs.** Optimize for the skim-don't-read mode; assume a future-after-context-wipe reader.
 
 ## Tweaking
 
