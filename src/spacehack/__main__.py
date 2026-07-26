@@ -827,6 +827,13 @@ def _move_pirates(ctx, game_map: world.GameMap) -> None:
                 # If no slip direction works member stays put (furthest break).
         if _leader_moved:
             ctx.pirate_paths[_sid].pop(0)
+        else:
+            # Leader stuck (blocked cell + no slip direction works).
+            # Clear path and target so next tick picks a fresh target
+            # and computes a new path, rather than retrying the same
+            # blocked cell forever.
+            ctx.pirate_paths.pop(_sid, None)
+            ctx.pirate_targets.pop(_sid, None)
         # Squad cohesion: pull stragglers toward centre
         if _is_squad:
             _cx = sum(m.pos.x for m in _members) // len(_members)
