@@ -445,7 +445,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
         # Shift+Enter = sell (Shift modifier → sym.name has shift variant).
         is_shift_enter = (sym_name in ("return", "enter") and
-                          (event.mod & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT)))
+                          (event.mod & (tcod.event.Modifier.LSHIFT | tcod.event.Modifier.RSHIFT)))
         if is_shift_enter and _focus == 1:
             owned = ctx.player_owned_ship
             if owned is not None:
