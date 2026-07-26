@@ -295,16 +295,16 @@ Checkboxes are updated as each sub-step lands.
 
 > **Note**: Contraband profit margins depend on Blockade's stock level. Currently `weapons_blackmarket` is only in Blockade's `produces` (starts at full stock → cheap to buy, low sell price). For proper contraband profit, a future planet should `demand` black market goods, creating a price gradient. This is Phase 6 balance work.
 
-### Phase 5 — Combat loot
+### Phase 5 ✅ — Combat loot
 
-- [ ] Add `loot_data` field to `world.Entity`
-- [ ] Generate loot entities on ship destruction in `combat.py`
-- [ ] Render loot entities on space map (gold `*`)
-- [ ] Implement `open_loot_pickup(ctx, entity)` modal
-- [ ] Wire bump + loot entity → open loot pickup
-- [ ] Run audit + smoke
+- [x] Add `loot_data` field to `world.Entity`
+- [x] Generate loot entities on ship destruction in `combat.py`
+- [x] Render loot entities on space map (gold `*`)
+- [x] Implement `open_loot_pickup(ctx, entity)` modal
+- [x] Wire bump + loot entity → open loot pickup
+- [x] Run audit + smoke
 
-**PLAYTEST** — Engage a pirate squad in combat. Destroy a ship. Verify gold `*` entities appear in space near the wreck. Bump one → loot modal opens. Select items → they appear in cargo. Verify cargo capacity check works (can't take more than free space).
+**PLAYTEST** ✅ — Engage a pirate squad in combat. Destroy a ship. Verify gold `*` entities appear in space near the wreck. Bump one → loot modal opens. Take items → they appear in cargo. Verify cargo capacity check works (can't take more than free space).
 
 ### Phase 6 — Polish
 
