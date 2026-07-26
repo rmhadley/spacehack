@@ -1187,7 +1187,24 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
                     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
                     ctx.context.present(console)
-                    _responsive_sleep(0.04)
+                    # Sleep with event polling: movement/period keys abort auto-nav.
+                    _aborted = False
+                    _end = time.monotonic() + 0.04
+                    while time.monotonic() < _end:
+                        for _ev in tcod.event.get():
+                            if isinstance(_ev, tcod.event.KeyDown):
+                                _name = getattr(_ev.sym, 'name', '').lower()
+                                if _name in world.VIM_DELTAS or _name == 'period':
+                                    _aborted = True
+                                    break
+                        if _aborted:
+                            break
+                        _remaining = _end - time.monotonic()
+                        if _remaining > 0:
+                            time.sleep(min(_remaining, 0.01))
+                    if _aborted:
+                        ctx.log.add('Auto-nav cancelled.')
+                        return (GotoOutcome.CANCELLED, None)
                     _encounter = _detect_combat_encounter(ctx, player_entity.pos, solar_system_module.current_system())
                     if _encounter is not None:
                         ctx.log.add('Auto-nav interrupted - enemies detected!')
