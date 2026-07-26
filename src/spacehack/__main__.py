@@ -487,6 +487,36 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     return ui.Modal(ctx.context, console).run(_render, update_navigation)
 
 
+def _nearest_body_name(pos: world.Position, system) -> str:
+    """Return the name of the nearest named body (planet, gate, or
+    station) to ``pos`` in ``system``. Fallbacks to "unknown location".
+    """
+    best_name = "unknown location"
+    best_dist = 999999
+    for p in system.planets:
+        cx = p.pos.x + p.width // 2
+        cy = p.pos.y + p.height // 2
+        d = max(abs(pos.x - cx), abs(pos.y - cy))
+        if d < best_dist:
+            best_dist = d
+            best_name = p.name
+    for jp in system.jump_points:
+        cx = jp.pos.x + jp.width // 2
+        cy = jp.pos.y + jp.height // 2
+        d = max(abs(pos.x - cx), abs(pos.y - cy))
+        if d < best_dist:
+            best_dist = d
+            best_name = jp.name
+    for st in getattr(system, 'stations', ()) or ():
+        cx = st.pos.x + st.width // 2
+        cy = st.pos.y + st.height // 2
+        d = max(abs(pos.x - cx), abs(pos.y - cy))
+        if d < best_dist:
+            best_dist = d
+            best_name = st.name
+    return best_name
+
+
 def _add_bounty_spawns_to_map(
     ctx, game_map: world.GameMap, system_id: str,
 ) -> None:
@@ -495,13 +525,15 @@ def _add_bounty_spawns_to_map(
 
     Called after :func:`solar_system_module.make_solar_system` so
     dynamically-spawned bounty targets appear on the map alongside
-    the system's static enemies. No-op when the system has no
-    active bounty spawns.
+    the system's static enemies. Logs a sensor ping with the nearest
+    landmark so the player knows where to look. No-op when the system
+    has no active bounty spawns.
     """
     from .data.enemies import find_enemy as _fe
     _spawns = ctx.bounty_spawns.get(system_id, [])
     if not _spawns:
         return
+    _system = getattr(solar_system_module, 'current_system', lambda: None)()
     for _bs in _spawns:
         try:
             _espec = _fe(_bs.enemy_id)
@@ -514,6 +546,9 @@ def _add_bounty_spawns_to_map(
             name=_espec.name,
             width=1, height=1,
         ))
+        if _system is not None:
+            _landmark = _nearest_body_name(_bs.pos, _system)
+            ctx.log.add(f"Sensor ping: bounty target detected near {_landmark}.")
 
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
