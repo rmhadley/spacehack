@@ -98,11 +98,8 @@ def _scan_contacts(
 # ---------------------------------------------------------------------------
 
 _CONTACTS_TITLE_COLOR: tuple[int, int, int] = (130, 220, 255)      # cyan
-_CONTACTS_HOSTILE_TAG: tuple[int, int, int] = (255, 80, 80)        # red hostile tag
-_CONTACTS_SELECTED: tuple[int, int, int] = (255, 255, 255)         # white selected
-_CONTACTS_NORMAL: tuple[int, int, int] = (200, 200, 220)           # pale lavender
-_CONTACTS_DIM: tuple[int, int, int] = (150, 150, 150)              # silver dim
 _CONTACTS_FLAVOR: tuple[int, int, int] = (175, 170, 210)           # muted lavender
+_CONTACTS_DIM: tuple[int, int, int] = (150, 150, 150)              # silver dim
 
 _INTERACTION_TITLE: tuple[int, int, int] = (130, 220, 255)         # cyan title
 _INTERACTION_FLAVOR: tuple[int, int, int] = (175, 170, 210)        # flavor text
@@ -117,59 +114,40 @@ def _render_comms_panel(
     selected: int,
     ctx,
 ) -> None:
-    """Paint the comms contact-list panel.
+    """Paint the comms contact-list panel via :func:`ui.render_selectable_list`.
 
-    Uses a fixed left-aligned column (rather than per-line centering)
-    so scrolling never shifts the text horizontally. Selection markers
-    have consistent width so all contact lines occupy the same space.
+    Attitude suffix (``(hostile)``) is baked into the contact name so
+    the standard list renderer works without per-row color overrides.
     ``ctx`` is needed for faction reputation lookups.
     """
     console.clear()
     n = len(contacts)
     title = f"COMMS — {n} contact{('' if n == 1 else 's')} in range"
-    console.print(
-        x=ui.centered_x(title, SCREEN_WIDTH),
-        y=SCREEN_HEIGHT // 4,
-        string=title,
-        fg=_CONTACTS_TITLE_COLOR,
-    )
 
-    # Fixed left column for all contact rows — left of centre so there's
-    # room for long names + the (hostile) tag without wrapping.
-    _COL_X = SCREEN_WIDTH // 4
-    _INDENT = 2
-    list_top = SCREEN_HEIGHT // 4 + 2
-    for i, (name, spec, entity) in enumerate(contacts):
-        row = list_top + i * 3
-        is_selected = i == selected
+    # Build items with suffix baked in, flavor text as description.
+    _items: list[tuple[str, str]] = []
+    for name, spec, _entity in contacts:
         _rep = ctx.faction_reputation.get(spec.faction, 0)
         _attitude = _get_attitude(_rep)
+        _display_name = f"{name} (hostile)" if _attitude == 'hostile' else name
+        _flavor = spec.comms_lines[0] if spec.comms_lines else "..."
+        _items.append((_display_name, _flavor))
 
-        # Consistent-width markers: both selected and unselected markers
-        # are 4 chars total (2 open + 2 close) so the name never shifts.
-        marker_open = '> ' if is_selected else '  '
-        marker_close = ' <' if is_selected else '  '
-        hostile_tag = ' (hostile)' if _attitude == 'hostile' else ''
-        name_fg = _CONTACTS_SELECTED if is_selected else (
-            _CONTACTS_HOSTILE_TAG if _attitude == 'hostile' else _CONTACTS_NORMAL
-        )
-        text = f"{marker_open}{name}{hostile_tag}{marker_close}"
-        console.print(x=_COL_X, y=row, string=text, fg=name_fg)
-
-        # Flavor text, indented from the column.
-        flavor = spec.comms_lines[0] if spec.comms_lines else "..."
-        console.print(
-            x=_COL_X + _INDENT, y=row + 1,
-            string=f'"{flavor}"',
-            fg=_CONTACTS_FLAVOR if is_selected else _CONTACTS_DIM,
-        )
-
-    hint = "UP/DOWN / j,k navigate - ENTER hail - ESC close"
-    console.print(
-        x=ui.centered_x(hint, SCREEN_WIDTH),
-        y=list_top + n * 3 + 1,
-        string=hint,
-        fg=_INTERACTION_INSTRUCTION,
+    ui.render_selectable_list(
+        console, SCREEN_WIDTH, SCREEN_HEIGHT,
+        title=title,
+        items=_items,
+        selected=selected,
+        col_x=SCREEN_WIDTH // 4,
+        title_y=SCREEN_HEIGHT // 4,
+        title_fg=_CONTACTS_TITLE_COLOR,
+        row_spacing=3,
+        item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
+        item_fg_normal=ui.COLOR_OPTION,
+        desc_fg_selected=_CONTACTS_FLAVOR,
+        desc_fg_normal=_CONTACTS_DIM,
+        hint="UP/DOWN / j,k navigate - ENTER hail - ESC close",
+        hint_fg=_INTERACTION_INSTRUCTION,
     )
 
 
