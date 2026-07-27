@@ -880,7 +880,8 @@ def run_combat(
     enemy_specs: list,
     enemy_positions: list[world.Position],
     game_map: world.GameMap,
-    log,    ) -> tuple[str, list[str]]:
+    log,
+    ctx = None,    ) -> tuple[str, list[str]]:
     """Drive the combat turn loop using tcod events.
 
     Accepts lists of enemy specs and positions for multi-enemy combat.
@@ -895,6 +896,7 @@ def run_combat(
     any exit path.
     """
     from . import hud as _hud
+    from . import message_log as _ml
     from .engine import SCREEN_WIDTH, SCREEN_HEIGHT, MSG_LOG_HEIGHT, HUD_WIDTH
 
     if not enemy_specs or not enemy_positions:
@@ -1239,6 +1241,50 @@ def run_combat(
                                 if _e_idx >= 0 and _e_idx in _enemy_ents:
                                     _enemy_ents[_e_idx].pos = _ei.pos
                                 _moved = True
+                                # Render a frame so the player sees the enemy move
+                                # (prevents the "teleport" feel of multi-AP movement).
+                                _cam_x, _cam_y = _calc_cam()
+                                console.clear()
+                                world.render_world_view(
+                                    console, game_map,
+                                    region_x=0, region_y=0,
+                                    region_w=view_w, region_h=view_h,
+                                    camera_x=_cam_x, camera_y=_cam_y,
+                                )
+                                _tgt = _resolve_target(enemy_insts, target_idx)
+                                if _tgt is not None:
+                                    _paint_target_highlight(
+                                        console, _cam_x, _cam_y,
+                                        view_w, view_h, 0, 0, _tgt,
+                                    )
+                                _flee_now = calc_flee_chance(
+                                    player_state["piloting"],
+                                    _closest_enemy.pilot_piloting,
+                                    player_state["hull"] / max(player_state["max_hull"], 1),
+                                    _distance(player_state["pos"], _closest_enemy.pos),
+                                    flee_attempts,
+                                )
+                                _hud.render_combat_hud(
+                                    console,
+                                    screen_width=SCREEN_WIDTH,
+                                    screen_height=SCREEN_HEIGHT,
+                                    player_state=player_state,
+                                    enemies=enemy_insts,
+                                    target_idx=target_idx,
+                                    player_mode=combat_mode,
+                                    selected_weapon_idx=selected_weapon_idx,
+                                    weapon_list=tuple(weapons_list),
+                                    evade_bonus=_evade_bonus,
+                                    hit_chances=_weapon_hit_chances,
+                                    flee_chance=_flee_now,
+                                )
+                                _ml.render_message_log(
+                                    console, log,
+                                    screen_width=SCREEN_WIDTH,
+                                    screen_height=SCREEN_HEIGHT,
+                                )
+                                context.present(console)
+                                _responsive_sleep(0.05)
                         if not _moved:
                             # Either in preferred range (no move
                             # attempted) OR move was blocked. Pivot
@@ -1346,6 +1392,11 @@ def run_combat(
                 # combat now (don't re-render a fresh player turn).
                 if _result is not None:
                     break
+                # Tick NPCs on the space map between combat rounds
+                # so the rest of the universe doesn't freeze.
+                if ctx is not None:
+                    from .npc_ships import move_npcs as _tick_npcs
+                    _tick_npcs(ctx, game_map)
                 # New player turn: reset AP, increment counter,
                 # drop out of WAIT, then ``continue`` so the
                 # top-of-loop render block paints the fresh
@@ -1698,6 +1749,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         _nearby_positions,
         ctx.game_map,
         ctx.log,
+        ctx=ctx,
     )
     if _result == "VICTORY":
         _names = ", ".join(getattr(s, "name", "enemy") for s in _nearby_specs)
