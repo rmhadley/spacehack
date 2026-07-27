@@ -147,7 +147,7 @@ def render_hud(
         y += 1
         if location:
             console.print(x=hud_x, y=y, string=location.upper(), fg=COLOR_VALUE_DIM)
-        y += 1
+        y += 2
 
         # Fuel
         console.print(x=hud_x, y=y, string="Fuel", fg=COLOR_SHIP_LABEL)
@@ -175,7 +175,7 @@ def render_hud(
         # Modules
         console.print(x=hud_x, y=y, string="Mod", fg=COLOR_SHIP_LABEL)
         console.print(x=hud_x + 5, y=y, string=f"{modules_n}/{module_slots}", fg=COLOR_SHIP_VALUE)
-        y += 1
+        y += 2
 
         # Pilot skills (compact one-liner)
         y += 1
@@ -190,9 +190,12 @@ def render_hud(
             console.print(x=hud_x, y=y, string=mission_line, fg=COLOR_HUD_TITLE)
 
         # Divider
-        y += 2
+        y += 1
         console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
         y += 2
+
+        # Blank line before keybinding help.
+        y += 1
 
         # Keybinding help
         help_lines: list[tuple[str, str, tuple[int, int, int]]] = [
@@ -231,6 +234,9 @@ def render_hud(
             console.print(x=hud_x, y=y, string=location, fg=COLOR_VALUE_DIM)
         y += 1
 
+        # Blank line between identity and mission/divider.
+        y += 1
+
         # Active mission (between class/location and divider)
         if active_mission:
             mission_room = max(0, HUD_WIDTH - len("MISSION: ") - 1)
@@ -242,6 +248,9 @@ def render_hud(
                 fg=COLOR_HUD_TITLE,
             )
             y += 1
+
+        # Blank line before divider.
+        y += 1
 
         # Divider
         y += 1
@@ -276,10 +285,16 @@ def render_hud(
             fg=COLOR_VALUE_WHITE,
         )
 
+        # Blank line between credits and skills.
+        y += 1
+
         # Pilot skills (compact one-liner, below gold)
         y += 1
         skill_line = f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"
         console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
+
+        # Blank line before terminal indicators.
+        y += 1
 
         # Terminal indicators (each on its own line, between skills and footer).
         y += 1
