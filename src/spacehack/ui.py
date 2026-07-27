@@ -13,6 +13,7 @@ from enum import Enum, auto
 from typing import Callable, TypeVar
 
 import tcod.console
+import tcod.context
 import tcod.event
 
 from .data.species import list_species
@@ -303,6 +304,144 @@ def render_confirm(
             string=line,
             fg=fg,
         )
+
+
+# ---------------------------------------------------------------------------
+# Title splash screen
+# ---------------------------------------------------------------------------
+
+# SPACEHACK in 7-wide × 5-tall block letters using CP437 full-block (█).
+# Each row is 71 characters (9 letters × 7 + 8 inter-letter gaps).
+_TITLE_ART: tuple[str, ...] = (
+    "███████ ███████  █████   █████  ███████ ██   ██  █████   █████  ██   ██",
+    "██      ██   ██ ██   ██ ██   ██ ██      ██   ██ ██   ██ ██   ██ ██  ██ ",
+    "███████ ███████ ███████ ██      █████   ███████ ███████ ██      █████  ",
+    "     ██ ██   ██ ██   ██ ██   ██ ██      ██   ██ ██   ██ ██   ██ ██  ██ ",
+    "███████ ██   ██ ██   ██  █████  ███████ ██   ██ ██   ██  █████  ██   ██",
+)
+
+# Simple ASCII rocket ship, 7 wide × 8 tall.
+_SHIP_ART: tuple[str, ...] = (
+    "   /\\",
+    "  /  \\",
+    " / |> \\",
+    "/______\\",
+    "   ||",
+    "   ||",
+    "  /  \\",
+    " /    \\",
+)
+
+
+def render_title_splash(context: tcod.context.Context) -> None:
+    """Render the title splash screen and wait for any key.
+
+    Draws a double-line CP437 border, scattered starfield, "SPACEHACK"
+    in large block letters, an ASCII rocket, a short flavor paragraph,
+    and a "Press any key to continue" prompt. Blocks until the player
+    presses any key (or closes the window).
+    """
+    from .engine import SCREEN_WIDTH as W, SCREEN_HEIGHT as H, make_console
+    import random
+
+    _console = make_console()
+    _console.clear()
+
+    # ── Double-line border (CP437 box-drawing) ──
+    _TL = "╔"  # ┌ in some encodings but ╔ = 201 in CP437 ✓
+    _TR = "╗"
+    _BL = "╚"
+    _BR = "╝"
+    _H  = "═"  # horizontal
+    _V  = "║"  # vertical
+    _console.print(x=0,  y=0,   string=_TL + _H * (W - 2) + _TR, fg=(100, 110, 160))
+    _console.print(x=0,  y=H-1, string=_BL + _H * (W - 2) + _BR, fg=(100, 110, 160))
+    for _y in range(1, H - 1):
+        _console.print(x=0,   y=_y, string=_V, fg=(100, 110, 160))
+        _console.print(x=W-1, y=_y, string=_V, fg=(100, 110, 160))
+
+    # ── Starfield (dots scattered away from the title area) ──
+    _title_top = H // 2 - 9
+    _title_bot = H // 2 + 3
+    for _ in range(80):
+        _sx = random.randint(2, W - 3)
+        _sy = random.randint(2, H - 3)
+        # Keep stars away from title block, ship, and prompt areas.
+        if _title_top <= _sy <= _title_bot:
+            continue
+        if H - 10 <= _sy <= H - 2:
+            continue
+        if H // 2 - 3 <= _sy <= H // 2 + 8 and W // 2 - 10 <= _sx <= W // 2 + 10:
+            continue
+        _ch = random.choice([".", ".", "*", "."])
+        _br = random.randint(100, 200)
+        _console.print(x=_sx, y=_sy, string=_ch, fg=(_br, _br, _br))
+
+    # ── Title: "SPACEHACK" ──
+    _title_y = H // 2 - 8
+    for _i, _line in enumerate(_TITLE_ART):
+        _x = (W - len(_line)) // 2
+        _console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
+
+    # ── Rocket ship ──
+    _ship_x = W - 26
+    _ship_y = H // 2 - 6
+    _ship_colors = [(180, 180, 200), (200, 200, 220), (220, 220, 240),
+                    (160, 160, 180), (150, 150, 170), (150, 150, 170),
+                    (180, 180, 200), (200, 200, 220)]
+    for _i, _line in enumerate(_SHIP_ART):
+        _console.print(x=_ship_x, y=_ship_y + _i, string=_line, fg=_ship_colors[_i])
+
+    # ── Flavor text ──
+    _lines = [
+        "The year is 2156. Humankind has spread across a dozen star systems,",
+        "linked by jump gates of unknown origin. You are a freelance pilot",
+        "making a living on the frontier — trading, bounty hunting, and",
+        "surviving where the law is what you make of it.",
+    ]
+    _flavor_y = H // 2 + 6
+    for _i, _line in enumerate(_lines):
+        _console.print(
+            x=centered_x(_line, W), y=_flavor_y + _i,
+            string=_line, fg=(160, 175, 210),
+        )
+
+    # ── Prompt ──
+    _prompt = "Press any key to begin"
+    _console.print(
+        x=centered_x(_prompt, W), y=H - 4,
+        string=_prompt, fg=(120, 140, 190),
+    )
+    # Decorative line above prompt.
+    _console.print(
+        x=centered_x("───────", W), y=H - 5,
+        string="───────", fg=(100, 110, 160),
+    )
+
+    # ── Planet in the bottom-left corner ──
+    _planet_art = [
+        "  ┌────┐",
+        " ─│    │─",
+        "──│    │──",
+        " ─│    │─",
+        "  └────┘",
+    ]
+    _planet_x = 4
+    _planet_y = H - 12
+    _planet_fg = (90, 130, 160)
+    for _i, _line in enumerate(_planet_art):
+        _console.print(x=_planet_x, y=_planet_y + _i, string=_line, fg=_planet_fg)
+    _console.print(x=_planet_x + 2, y=_planet_y + 2, string="◄", fg=(130, 170, 200))
+
+    # ── Present and wait ──
+    context.present(_console)
+
+    while True:
+        for event in tcod.event.wait():
+            if isinstance(event, tcod.event.KeyDown):
+                return
+            if isinstance(event, tcod.event.Quit):
+                return
 
 
 # ---------------------------------------------------------------------------

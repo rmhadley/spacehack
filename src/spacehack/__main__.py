@@ -484,6 +484,8 @@ def run(context: tcod.context.Context) -> None:
     import struct
     _seed = struct.unpack('I', os.urandom(4))[0]
     seed_rng(_seed)
+    # Show the title splash screen before the character-creation flow.
+    ui.render_title_splash(context)
     while True:
         outcome, species_id = _run_pick(context, ui.species_menu())
         if outcome in (Outcome.QUIT, Outcome.BACK):
