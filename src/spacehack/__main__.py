@@ -34,6 +34,8 @@ from . import ui
 from .game_context import GameContext
 from .data import solar_systems as solar_systems_module
 from . import npc as npc_module
+from .data.species import find_species
+from .data.classes import find_class
 from .npc import TalkOutcome, _run_npc_talk
 from . import world
 from . import combat
