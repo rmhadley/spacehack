@@ -1,7 +1,0 @@
-[x] When auto-nav is engaged, the ship hud doesn't render
-[x] When in combat and firing a weapon, while the weapon annimation happens, the combat hud changes and doesn't list the weapons. then the animation ends and the weapons list pops back in. this is distracting
-[x] When engaging two separate squads, the squads should be merged in to one. Currently you have to kill 1 squad before you can interact with the other engaged squad.
-[x] The ship landing zone can be hard to see. having a dedicated high contrast landing pad on all planets would be an improvement
-[x] When enemy ships move, they appear to teleport in combat. I don't think it's rendering each individual movement. So if they spend 3 AP moving it just jumps them 3 spaces. I could be wrong, but that's how it is feeling, teleporting enemies in combat.
-[x] While combat plays out, the rest of the universe freezes. Throws off the feel. Can ships not in combat still move? Maybe give them ticks between each combat round?
-[x] Auto-Nav bumping a merchant causes combat with the merchant. That's not correct. Remove that behaviour. What we want is an attack option in comms for merchants. We can play this game as a pirate after all!
