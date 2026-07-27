@@ -277,6 +277,15 @@ def _paint_text(
             console.print(x=x + i, y=y, string=ch, fg=fg)
 
 
+def _paint_centered(
+    console,
+    y: int, text: str, *,
+    fg,
+) -> None:
+    """Print ``text`` centered at row ``y``."""
+    console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=y, string=text, fg=fg)
+
+
 def _format_trade_line(
     name: str, price_label: str, suffix: str,
     selected: bool, col_w: int,
@@ -292,6 +301,67 @@ def _format_trade_line(
     name_w = max(4, col_w - fixed - len(suffix))
     trimmed = name[:name_w].ljust(name_w)
     return f"{marker}{trimmed} {price_label} {suffix}"
+
+
+# ---------------------------------------------------------------------------
+# Shared split-screen trade frame renderer
+# ---------------------------------------------------------------------------
+
+
+def _render_trade_frame(
+    console,
+    *,
+    title: str,
+    left_label: str,
+    right_label: str,
+    focus: int,
+    sel: int,
+    left_rows: list[tuple[str, str, str, tuple]],
+    right_rows: list[tuple[str, str, str, tuple]],
+    cargo_str: str,
+    credits_str: str,
+    hint: str,
+) -> None:
+    """Render the split-screen trade frame.
+
+    ``left_rows`` / ``right_rows`` are pre-computed
+    ``(name, price_label, suffix, fg)`` tuples.
+    ``focus`` (0 = left, 1 = right) and ``sel`` drive the per-row
+    selection highlight.
+    """
+    console.clear()
+    max_w = SCREEN_WIDTH - HUD_WIDTH - 2
+    col_w = max_w // 2 - 2
+    cy = 2
+    _paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
+    cy += 2
+    left_fg = ui.COLOR_TITLE if focus == 0 else ui.COLOR_OPTION
+    right_fg = ui.COLOR_TITLE if focus == 1 else ui.COLOR_OPTION
+    _paint_text(console, 2, cy, left_label, fg=left_fg)
+    _paint_text(console, max_w // 2 + 2, cy, right_label, fg=right_fg)
+    sep_x = max_w // 2
+    for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
+        console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
+    cy += 1
+    for i, (name, price_label, suffix, fg) in enumerate(left_rows):
+        is_sel = focus == 0 and i == sel
+        _paint_text(
+            console, 2, cy + i,
+            _format_trade_line(name, price_label, suffix, is_sel, col_w),
+            fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else fg,
+        )
+    for i, (name, price_label, suffix, fg) in enumerate(right_rows):
+        is_sel = focus == 1 and i == sel
+        col_x = max_w // 2 + 2
+        _paint_text(
+            console, col_x, cy + i,
+            _format_trade_line(name, price_label, suffix, is_sel, col_w),
+            fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else fg,
+        )
+    foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
+    _paint_text(console, 2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
+    _paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(credits_str) - 2, foot_y, credits_str, fg=ui.COLOR_VALUE_WHITE)
+    _paint_text(console, 2, foot_y + 2, hint, fg=ui.COLOR_INSTRUCTION)
 
 
 # ---------------------------------------------------------------------------
@@ -325,13 +395,10 @@ def _run_quantity_prompt(
         qty_text = f"Quantity: [{qty}]"
         hint = "UP/+ increase  DOWN/- decrease  ENTER confirm  ESC cancel"
 
-        def paint(row: int, text: str, *, fg) -> None:
-            console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=row, string=text, fg=fg)
-
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2
-        paint(cy - 2, prompt, fg=ui.COLOR_TITLE)
-        paint(cy + 1, qty_text, fg=ui.COLOR_VALUE_WHITE)
-        paint(cy + 3, hint, fg=ui.COLOR_INSTRUCTION)
+        _paint_centered(console, cy - 2, prompt, fg=ui.COLOR_TITLE)
+        _paint_centered(console, cy + 1, qty_text, fg=ui.COLOR_VALUE_WHITE)
+        _paint_centered(console, cy + 3, hint, fg=ui.COLOR_INSTRUCTION)
 
     def _update(event: tcod.event.Event) -> _QOut:
         nonlocal qty
@@ -425,22 +492,10 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         hint = "ENTER to take  |  ESC to leave"
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
-        console.print(
-            x=ui.centered_x(title, SCREEN_WIDTH), y=cy,
-            string=title, fg=ui.COLOR_TITLE,
-        )
-        console.print(
-            x=ui.centered_x(line1, SCREEN_WIDTH), y=cy + 2,
-            string=line1, fg=ui.COLOR_VALUE_WHITE,
-        )
-        console.print(
-            x=ui.centered_x(line2, SCREEN_WIDTH), y=cy + 3,
-            string=line2, fg=ui.COLOR_VALUE_DIM,
-        )
-        console.print(
-            x=ui.centered_x(hint, SCREEN_WIDTH), y=cy + 5,
-            string=hint, fg=ui.COLOR_INSTRUCTION,
-        )
+        _paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
+        _paint_centered(console, cy + 2, line1, fg=ui.COLOR_VALUE_WHITE)
+        _paint_centered(console, cy + 3, line2, fg=ui.COLOR_VALUE_DIM)
+        _paint_centered(console, cy + 5, hint, fg=ui.COLOR_INSTRUCTION)
 
     def _update(event) -> _LootOutcome:
         if isinstance(event, tcod.event.Quit):
@@ -520,27 +575,9 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
 
     def _render() -> None:
         nonlocal _sel
-        console.clear()
 
-        max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-        col_w = max_w // 2 - 2
-
-        cy = 2
-        title = f"TRADE \u2014 {npc_spec.name.upper()}"
-        _paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
-        cy += 2
-
-        # Column headers.
-        left_label = f"\u2502 {npc_spec.name}" if _focus == 0 else f"  {npc_spec.name} "
-        right_label = "\u2502 Your Hold" if _focus == 1 else "  Your Hold "
-        _paint_text(console, 2, cy, left_label, fg=ui.COLOR_TITLE if _focus == 0 else ui.COLOR_OPTION)
-        _paint_text(console, max_w // 2 + 2, cy, right_label, fg=ui.COLOR_TITLE if _focus == 1 else ui.COLOR_OPTION)
-        sep_x = max_w // 2
-        for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
-            console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
-        cy += 1
-
-        # NPC goods (left panel).
+        # Pre-compute left panel rows (NPC goods).
+        _left_rows: list[tuple[str, str, str, tuple]] = []
         for i, gid in enumerate(_npc_goods):
             if i >= SCREEN_HEIGHT - 12:
                 break
@@ -549,11 +586,10 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
             price = int(good.base_price * _BUY_MULT)
             price_label = f"{price:>5}$"
             suffix = f"({stock:>3})"
-            is_sel = _focus == 0 and i == _sel
-            fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-            _paint_text(console, 2, cy + i, _format_trade_line(good.name, price_label, suffix, is_sel, col_w), fg=fg)
+            _left_rows.append((good.name, price_label, suffix, ui.COLOR_OPTION))
 
-        # Player goods (right panel).
+        # Pre-compute right panel rows (player goods).
+        _right_rows: list[tuple[str, str, str, tuple]] = []
         inv_items = list(owned.inventory.items())
         for i, (gid, qty) in enumerate(inv_items):
             if i >= SCREEN_HEIGHT - 12:
@@ -562,22 +598,27 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
             sell_price = int(good.base_price * _SELL_MULT)
             price_label = f"{sell_price:>5}$"
             suffix = f"({qty:>3})"
-            col_x = max_w // 2 + 2
-            is_sel = _focus == 1 and i == _sel
-            fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-            _paint_text(console, col_x, cy + i, _format_trade_line(good.name, price_label, suffix, is_sel, col_w), fg=fg)
+            _right_rows.append((good.name, price_label, suffix, ui.COLOR_OPTION))
 
-        # Footer.
-        foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
+        # Footer strings.
         from . import ship as ship_module
         ship_spec = ship_module.find_ship(owned.ship_id)
         cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
-        gold_str = f"Credits: {ctx.stats.credits}"
-        _paint_text(console, 2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
-        _paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(gold_str) - 2, foot_y, gold_str, fg=ui.COLOR_VALUE_WHITE)
+        credits_str = f"Credits: {ctx.stats.credits}"
 
-        hint = "UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back"
-        _paint_text(console, 2, foot_y + 2, hint, fg=ui.COLOR_INSTRUCTION)
+        _render_trade_frame(
+            console,
+            title=f"TRADE \u2014 {npc_spec.name.upper()}",
+            left_label=f"\u2502 {npc_spec.name}" if _focus == 0 else f"  {npc_spec.name} ",
+            right_label="\u2502 Your Hold" if _focus == 1 else "  Your Hold ",
+            focus=_focus,
+            sel=_sel,
+            left_rows=_left_rows,
+            right_rows=_right_rows,
+            cargo_str=cargo_str,
+            credits_str=credits_str,
+            hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
+        )
 
     def _update(event: tcod.event.Event) -> _NpcTradeOutcome:
         nonlocal _focus, _sel
@@ -709,31 +750,10 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
     def _render() -> None:
         nonlocal _sel
-        console.clear()
-
         owned = ctx.player_owned_ship
-        max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-        col_w = max_w // 2 - 2
 
-        cy = 2
-        # Title bar.
-        title = f"TRADE — {spec.name.upper()}"
-        _paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
-        cy += 2
-
-        # Column headers — focused panel gets a bright cyan header
-        # that's visually distinct from the "> " selection markers below.
-        left_label = "\u2502 Station Inventory" if _focus == 0 else "  Station Inventory "
-        right_label = "\u2502 Your Hold" if _focus == 1 else "  Your Hold "
-        _paint_text(console, 2, cy, left_label, fg=ui.COLOR_TITLE if _focus == 0 else ui.COLOR_OPTION)
-        _paint_text(console, max_w // 2 + 2, cy, right_label, fg=ui.COLOR_TITLE if _focus == 1 else ui.COLOR_OPTION)
-        # Separator between the two panels.
-        sep_x = max_w // 2
-        for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
-            console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
-        cy += 1
-
-        # Station goods (left panel).
+        # Pre-compute left panel rows (station goods).
+        _left_rows: list[tuple[str, str, str, tuple]] = []
         for i, gid in enumerate(_station_goods):
             if i >= SCREEN_HEIGHT - 12:
                 break
@@ -742,11 +762,10 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             stock = _stocks.get(gid, 0)
             price_label = f"{price:>5}$"
             suffix = f"({stock:>3})"
-            is_sel = _focus == 0 and i == _sel
-            fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-            _paint_text(console, 2, cy + i, _format_trade_line(good.name, price_label, suffix, is_sel, col_w), fg=fg)
+            _left_rows.append((good.name, price_label, suffix, ui.COLOR_OPTION))
 
-        # Player goods (right panel).
+        # Pre-compute right panel rows (player goods).
+        _right_rows: list[tuple[str, str, str, tuple]] = []
         if owned is not None:
             inv_items = list(owned.inventory.items())
         else:
@@ -761,28 +780,31 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             if _contra:
                 price_label = f"  ---$"
             suffix = f"({qty:>3})"
-            col_x = max_w // 2 + 2
-            is_sel = _focus == 1 and i == _sel
-            fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-            if _contra:
-                fg = ui.COLOR_VALUE_DIM
-            _paint_text(console, col_x, cy + i, _format_trade_line(good.name, price_label, suffix, is_sel, col_w), fg=fg)
+            fg = ui.COLOR_VALUE_DIM if _contra else ui.COLOR_OPTION
+            _right_rows.append((good.name, price_label, suffix, fg))
 
-        # Footer — cargo + credits bar.
-        foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
+        # Footer strings.
         if owned is not None:
             from . import ship as ship_module
             ship_spec = ship_module.find_ship(owned.ship_id)
             cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
-            gold_str = f"Credits: {ctx.stats.credits}"
         else:
             cargo_str = "Cargo: N/A"
-            gold_str = f"Credits: {ctx.stats.credits}"
-        _paint_text(console, 2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
-        _paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(gold_str) - 2, foot_y, gold_str, fg=ui.COLOR_VALUE_WHITE)
+        credits_str = f"Credits: {ctx.stats.credits}"
 
-        hint = "UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back"
-        _paint_text(console, 2, foot_y + 2, hint, fg=ui.COLOR_INSTRUCTION)
+        _render_trade_frame(
+            console,
+            title=f"TRADE — {spec.name.upper()}",
+            left_label="\u2502 Station Inventory" if _focus == 0 else "  Station Inventory ",
+            right_label="\u2502 Your Hold" if _focus == 1 else "  Your Hold ",
+            focus=_focus,
+            sel=_sel,
+            left_rows=_left_rows,
+            right_rows=_right_rows,
+            cargo_str=cargo_str,
+            credits_str=credits_str,
+            hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
+        )
 
     def _update(event: tcod.event.Event) -> _TradeOutcome:
         nonlocal _focus, _sel
