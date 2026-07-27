@@ -185,6 +185,7 @@ class Entity:
     npc_ship_id: str = ""           # references NpcShipSpec.id for NPC ships
     procedural_squad_id: str = ""
     trade_terminal: bool = False
+    mech_terminal: bool = False
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
 
 
