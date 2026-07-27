@@ -7,7 +7,8 @@ and merchants from the single :class:`data.npc_ships.NpcShipSpec`
 catalog.
 """
 
-from __future__ import annotations    import math
+from __future__ import annotations
+import math
 from typing import Any
 
 import tcod.console
