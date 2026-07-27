@@ -321,17 +321,21 @@ _TITLE_ART: tuple[str, ...] = (
     "####### ##   ## ##   ##  #####  ####### ##   ## ##   ##  #####  ##   ##",
 )
 
-# Spaceship in CP437 box-drawing characters, 7 wide × 8 tall.
-# Uses the same tile-set-safe characters as the planet art (┌┐└┘│─◄).
+# Spaceship in CP437 box-drawing characters, 7 wide × 11 tall (8 hull + 3 flame).
+# Hull uses tile-set-safe characters from the planet art (┌┐└┘│─◄).
+# Flame uses plain ASCII (#:') with orange/yellow/white color per row.
 _SHIP_ART: tuple[str, ...] = (
-    " ┌───┐ ",
-    "┌┘   └┐",
-    "│  ◄  │",
-    "│     │",
-    "└┐   ┌┘",
-    " │   │ ",
-    "┌┘   └┐",
-    "└─────┘",
+    " ┌───┐ ",    # 0  nose cone
+    "┌┘   └┐",    # 1  forward hull
+    "│  ◄  │",    # 2  cockpit
+    "│     │",    # 3  body
+    "└┐   ┌┘",    # 4  engine nacelles
+    " │   │ ",    # 5  narrow section
+    "┌┘   └┐",    # 6  thrusters
+    "└─────┘",    # 7  exhaust port
+    "  ###  ",    # 8  main flame (orange-red)
+    "  :::  ",    # 9  outer flame (yellow-orange)
+    "   '   ",    # 10 white-hot tip
 )
 
 
@@ -339,9 +343,10 @@ def render_title_splash(context: tcod.context.Context) -> None:
     """Render the title splash screen and wait for any key.
 
     Draws a double-line CP437 border, scattered starfield, "SPACEHACK"
-    in large block letters, an ASCII rocket, a short flavor paragraph,
-    and a "Press any key to continue" prompt. Blocks until the player
-    presses any key (or closes the window).
+    in large block letters, a CP437 spaceship with exhaust flame,
+    a short flavor paragraph, and a "Press any key to continue"
+    prompt. Blocks until the player presses any key (or closes the
+    window).
     """
     from .engine import SCREEN_WIDTH as W, SCREEN_HEIGHT as H, make_console
     import random
@@ -385,12 +390,22 @@ def render_title_splash(context: tcod.context.Context) -> None:
         _x = (W - len(_line)) // 2
         _console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
 
-    # ── Rocket ship (below title, beside flavor text) ──
-    _ship_x = W - 26
+    # ── Spaceship (below title, toward right edge) ──
+    _ship_x = W - 16
     _ship_y = _title_y + len(_TITLE_ART) + 1  # one blank row after title bottom
-    _ship_colors = [(180, 180, 200), (200, 200, 220), (220, 220, 240),
-                    (160, 160, 180), (150, 150, 170), (150, 150, 170),
-                    (180, 180, 200), (200, 200, 220)]
+    _ship_colors = [
+        (180, 180, 200),  # 0 nose cone
+        (200, 200, 220),  # 1 forward hull
+        (220, 220, 240),  # 2 cockpit (brightest)
+        (200, 200, 220),  # 3 body
+        (180, 180, 210),  # 4 engine nacelles
+        (150, 150, 180),  # 5 narrow section
+        (180, 180, 210),  # 6 thrusters
+        (160, 160, 190),  # 7 exhaust port
+        (255, 100,  50),  # 8 main flame (orange-red)
+        (255, 180,  50),  # 9 outer flame (yellow-orange)
+        (255, 255, 200),  # 10 white-hot tip
+    ]
     for _i, _line in enumerate(_SHIP_ART):
         _console.print(x=_ship_x, y=_ship_y + _i, string=_line, fg=_ship_colors[_i])
 
