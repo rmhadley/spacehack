@@ -321,16 +321,17 @@ _TITLE_ART: tuple[str, ...] = (
     "####### ##   ## ##   ##  #####  ####### ##   ## ##   ##  #####  ##   ##",
 )
 
-# Simple ASCII rocket ship, 7 wide × 8 tall.
+# Spaceship in CP437 box-drawing characters, 7 wide × 8 tall.
+# Uses the same tile-set-safe characters as the planet art (┌┐└┘│─◄).
 _SHIP_ART: tuple[str, ...] = (
-    "   /\\",
-    "  /  \\",
-    " / |> \\",
-    "/______\\",
-    "   ||",
-    "   ||",
-    "  /  \\",
-    " /    \\",
+    " ┌───┐ ",
+    "┌┘   └┐",
+    "│  ◄  │",
+    "│     │",
+    "└┐   ┌┘",
+    " │   │ ",
+    "┌┘   └┐",
+    "└─────┘",
 )
 
 
