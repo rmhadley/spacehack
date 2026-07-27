@@ -179,7 +179,7 @@ def render_hud(
 
         # Pilot skills (compact one-liner)
         y += 1
-        skill_line = f"G:{stats.gunnery} P:{stats.piloting} E:{stats.engineering}"
+        skill_line = f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"
         console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
 
         # Active mission (inline, no extra divider)
@@ -278,7 +278,7 @@ def render_hud(
 
         # Pilot skills (compact one-liner, below gold)
         y += 1
-        skill_line = f"G:{stats.gunnery} P:{stats.piloting} E:{stats.engineering}"
+        skill_line = f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"
         console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
 
         # Terminal indicators (each on its own line, between skills and footer).
