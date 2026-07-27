@@ -384,9 +384,9 @@ def render_title_splash(context: tcod.context.Context) -> None:
         _x = (W - len(_line)) // 2
         _console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
 
-    # ── Rocket ship ──
+    # ── Rocket ship (below title, beside flavor text) ──
     _ship_x = W - 26
-    _ship_y = H // 2 - 6
+    _ship_y = _title_y + len(_TITLE_ART) + 1  # one blank row after title bottom
     _ship_colors = [(180, 180, 200), (200, 200, 220), (220, 220, 240),
                     (160, 160, 180), (150, 150, 170), (150, 150, 170),
                     (180, 180, 200), (200, 200, 220)]
