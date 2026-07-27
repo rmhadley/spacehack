@@ -67,10 +67,10 @@ class NpcShipSpec:
     detect_radius: int = 0
 
     # Comms / interaction
-    # comms_range: cells within which the player can hail. The
-    # viewport is ~80x54 cells, so 60 covers nearly everything visible
-    # on screen. If it's on screen, it should be reachable.
-    comms_range: int = 60
+    # comms_range: cells within which the player can hail. Set high
+    # enough to cover the entire map (~200x200 cells, diagonal ~283)
+    # so anything visible on screen is reachable.
+    comms_range: int = 999
     comms_lines: tuple[str, ...] = ("Greetings, pilot.",)
     base_speed: int = 1
 
