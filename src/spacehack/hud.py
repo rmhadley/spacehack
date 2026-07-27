@@ -284,10 +284,10 @@ def render_hud(
         # Terminal indicators (each on its own line, between skills and footer).
         y += 1
         if has_mech_terminal:
-            console.print(x=hud_x, y=y, string="% Mech", fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="% Mechanic Terminal", fg=COLOR_LABEL)
             y += 1
         if has_trade_terminal:
-            console.print(x=hud_x, y=y, string="= Trade", fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="= Trade Terminal", fg=COLOR_LABEL)
 
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
