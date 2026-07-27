@@ -401,34 +401,54 @@ def resolve_damage(
 
 
 def start_player_turn(player_state: dict) -> None:
-    """Reset per-turn resources for the player and apply shield regen."""
+    """Reset per-turn resources for the player and apply shield regen.
+
+    Shield regen is **proportional** — consumes power for exactly what it
+    regens instead of all-or-nothing.  A near-cap discount means you only
+    pay for the shield points you actually gain (room < rate).
+    """
     # Power generation first
     player_state["power_pool"] = min(
         player_state["max_power"],
         player_state["power_pool"] + player_state["power_gen"],
     )
-    # Shield regen: rate 0-10, costs power discounted by engineering (half-rate)
+    # Shield regen: proportional, with engineering discount + near-cap discount
     rate = player_state.get("shield_regen_rate", 0)
     max_sh = player_state["max_shields"]
     if rate > 0 and max_sh > 0 and player_state["shields"] < max_sh:
         eng = player_state.get("engineering", 0)
-        cost = max(1, rate - eng // 20)
-        if player_state["power_pool"] >= cost:
-            player_state["power_pool"] -= cost
-            player_state["shields"] = min(max_sh, player_state["shields"] + rate)
+        room = max_sh - player_state["shields"]
+        full_cost = max(1, rate - eng // 20)
+        # How many points can we actually regen?  Bounded by rate, room,
+        # and what we can afford proportionally.
+        actual_regen = min(rate, room, player_state["power_pool"] * rate // full_cost)
+        if actual_regen > 0:
+            # Proportional cost: ceil(actual * full_cost / rate)
+            actual_cost = (actual_regen * full_cost + rate - 1) // rate
+            actual_cost = min(actual_cost, player_state["power_pool"])
+            player_state["power_pool"] -= actual_cost
+            player_state["shields"] += actual_regen
     player_state["ap_remaining"] = player_state["ap_total"]
     player_state["cells_moved_this_turn"] = 0
 
 
 def start_enemy_turn(enemy: EnemyInstance) -> None:
-    """Reset per-turn resources for an enemy and apply shield regen."""
+    """Reset per-turn resources for an enemy and apply shield regen.
+
+    Mirrors :func:`start_player_turn` — proportional regen with
+    engineering discount and near-cap discount.
+    """
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
     rate = enemy.shield_regen_rate
     if rate > 0 and enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
-        cost = max(1, rate - enemy.pilot_engineering // 20)
-        if enemy.power_pool >= cost:
-            enemy.power_pool -= cost
-            enemy.shields = min(enemy.max_shields, enemy.shields + rate)
+        room = enemy.max_shields - enemy.shields
+        full_cost = max(1, rate - enemy.pilot_engineering // 20)
+        actual_regen = min(rate, room, enemy.power_pool * rate // full_cost)
+        if actual_regen > 0:
+            actual_cost = (actual_regen * full_cost + rate - 1) // rate
+            actual_cost = min(actual_cost, enemy.power_pool)
+            enemy.power_pool -= actual_cost
+            enemy.shields += actual_regen
     enemy.ap_remaining = enemy.ap_total
     enemy.cells_moved_this_turn = 0
 
