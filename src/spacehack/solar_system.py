@@ -510,6 +510,7 @@ def make_solar_system(
             name=_espec.name,
             width=1,
             height=1,
+            npc_ship_id=_spawn.enemy_id,
         ))
 
     return world.GameMap(

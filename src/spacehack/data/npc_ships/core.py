@@ -84,7 +84,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_piloting=25,
         pilot_engineering=25,
         min_power_gen=5,
-        detect_radius=12,                        # wide detection — they're on patrol
+        detect_radius=7,                         # narrower than comms_warning_range so warning fires first
+        comms_warning_range=18,                   # auto-hail at longer range — player can turn back
         comms_lines=(
             "You are entering restricted space. Halt your vessel immediately.",
             "This sector is under federation blockade. Turn back now.",

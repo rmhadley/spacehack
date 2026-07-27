@@ -437,6 +437,63 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 
 
 # ---------------------------------------------------------------------------
+# NPC auto-comms warning (before combat triggers)
+# ---------------------------------------------------------------------------
+
+def _check_auto_comms_warning(ctx, player_pos, system) -> bool:
+    """Check if any NPC with ``comms_warning_range > 0`` is within range.
+
+    If a qualifying NPC is found and the player has NOT already been
+    warned in this system, logs the NPC's first comms line as an
+    auto-hail and marks the system as warned. Returns ``True`` if a
+    warning was issued (so callers can skip duplicate checks this
+    tick), ``False`` otherwise.
+
+    Warning range must be larger than ``detect_radius`` on the same
+    NPC spec so the player gets a chance to turn back before combat
+    triggers.
+    """
+    _sys_id = getattr(system, 'id', '')
+    if not _sys_id:
+        return False
+    if _sys_id in ctx.militia_warned_systems:
+        return False
+
+    for _e in ctx.game_map.entities:
+        if getattr(_e, 'owned', False):
+            continue
+        _pid = getattr(_e, 'npc_ship_id', '')
+        if not _pid:
+            continue
+        try:
+            _spec = find_npc_ship(_pid)
+        except (KeyError, ImportError):
+            continue
+        _warn_range = getattr(_spec, 'comms_warning_range', 0)
+        if _warn_range <= 0:
+            continue
+        _dist = math.hypot(
+            player_pos.x - _e.pos.x,
+            player_pos.y - _e.pos.y,
+        )
+        if 0 < _dist <= _warn_range:
+            ctx.militia_warned_systems.add(_sys_id)
+            _lines = getattr(_spec, 'comms_lines', ())
+            if _lines:
+                ctx.log.add_colored(
+                    f"{_spec.name} hails you: \"{_lines[0]}\"",
+                    message_log.COLOR_IMPORTANT_EVENT,
+                )
+            else:
+                ctx.log.add_colored(
+                    f"{_spec.name} signals your vessel.",
+                    message_log.COLOR_IMPORTANT_EVENT,
+                )
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # GO TO (auto-nav)
 # ---------------------------------------------------------------------------
 
@@ -628,6 +685,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     if _aborted:
                         ctx.log.add('Auto-nav cancelled.')
                         return (GotoOutcome.CANCELLED, None)
+                    _check_auto_comms_warning(ctx, player_entity.pos, solar_system_module.current_system())
                     _encounter = _detect_combat_encounter(ctx, player_entity.pos, solar_system_module.current_system())
                     if _encounter is not None:
                         ctx.log.add('Auto-nav interrupted - enemies detected!')
@@ -856,6 +914,11 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     from .trade import tick_economy as _tick_economy
     _tick_economy(ctx)
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
+    # Reset any NPC auto-comms warning for the outgoing system so the
+    # player gets a fresh warning on their next visit.
+    _src_id = getattr(solar_system_module.current_system(), 'id', '')
+    if _src_id:
+        ctx.militia_warned_systems.discard(_src_id)
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)

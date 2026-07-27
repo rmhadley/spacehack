@@ -178,3 +178,6 @@ class GameContext:
             "militia": 50,
         }
     )
+    # Systems where the player has already received an NPC auto-comms
+    # warning. Reset on map change (jump / launch).
+    militia_warned_systems: set[str] = dataclasses.field(default_factory=set)

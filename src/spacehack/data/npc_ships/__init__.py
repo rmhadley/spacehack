@@ -71,6 +71,11 @@ class NpcShipSpec:
     # interaction (future use). The comms system itself now uses
     # viewport-visibility rather than this range.
     comms_range: int = 15
+    comms_warning_range: int = 0   # auto-hail distance (0 = disabled).
+    # When > 0, NPCs within this range auto-hail the player with
+    # their first comms line. Only fires once per system visit.
+    # Must be larger than detect_radius to give the player a
+    # chance to turn back before combat triggers.
     comms_lines: tuple[str, ...] = ("Greetings, pilot.",)
     base_speed: int = 1
 
