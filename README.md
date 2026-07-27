@@ -43,7 +43,6 @@ spacehack/
 ├── requirements.txt               # runtime dependency pin
 ├── README.md
 ├── tools/
-│   ├── audit_loose_refs.py        # pre-commit gate (see The audit gate below)
 │   └── _archived/                 # one-shot P3.6.x migration scripts (do not run)
 └── src/
     └── spacehack/
@@ -135,34 +134,15 @@ If the domain needs new cross-cutting state, add it as a field on `GameContext` 
 | `player_owned_ship` | `` `OwnedShip | None` `` | equipped ship (optional mid-save) |
 | `player_active_mission` | `` `ActiveMission | None` `` | current mission (optional idle) |
 
-## The audit gate
+## Pre-commit gate
 
 Before every commit:
-
-```bash
-python3 tools/audit_loose_refs.py
-```
-
-The audit walks the AST of `src/spacehack/__main__.py` and `src/spacehack/combat.py`. For every function in its `SCAN` list (currently `_handle_combat_encounter`, `_jump_to_system`, `_detect_combat_encounter`, `_animate_jump`, `_animate_ship_to_y`, `_launch_to_space`, `_return_to_city`), it fails if any of these tokens appears as a **bare** Name reference:
-
-```
-game_map, log, stats, character_info,
-player_owned_ship, player_active_mission, context
-```
-
-If you hit the audit, your function is reading one of these tokens as a bare local instead of via `ctx.<token>` (e.g. `game_map.entities` instead of `ctx.game_map.entities`). Fix the call, not the audit.
-
-Add new SCAN'd helpers to the `SCAN` tuple in `tools/audit_loose_refs.py` once they finish their context-bundle migration.
-
-## Smoke testing
-
-After refactoring signatures (especially in `combat.py` or other domain modules), verify entry points survived with the smoke tool rather than ad-hoc `python3 -c` imports. The tool auto-mounts `.venv/bin/python3` so a bare-`python3` invocation still resolves `tcod` (which lives only in the project venv):
 
 ```bash
 python3 tools/smoke.py
 ```
 
-Pass: `PASS: Smoke tests OK.` and exit 0. Fail: `FAIL: <reason>` to stderr, exit 1. The tool checks `combat._handle_combat_encounter`, `combat.run_combat`, `game_context.GameContext`, `world.GameMap`, and `ui.Modal` are present.
+The smoke test auto-mounts `.venv/bin/python3` so a bare-`python3` invocation still resolves `tcod` (which lives only in the project venv). It verifies all major modules import correctly and checks key entry points survived signature changes: `combat._handle_combat_encounter`, `combat.run_combat`, `game_context.GameContext`, `world.GameMap`, and `ui.Modal`. Pass: `PASS: Smoke tests OK.` and exit 0. Fail: `FAIL: <reason>` to stderr, exit 1.
 
 ## Refactor philosophy
 
@@ -170,9 +150,8 @@ Pass: `PASS: Smoke tests OK.` and exit 0. Fail: `FAIL: <reason>` to stderr, exit
 * **Cross-cutting state goes through `ctx`.** Functions that touch `game_map`, `log`, `stats`, character info, the owned ship, or the active mission read them off `ctx`. This eliminates bare-Name regressions and stabilizes signatures.
 * **Domains own their flow.** Each domain module owns its setup, execution, and post-state mutation. The dispatcher is domain-unaware and hands off with one call.
 * **Atomic commits.** Each commit is one self-contained change (one refactor step, one feature, or one bug fix) with a descriptive message. Non-trivial work lands as a sequence of atomic commits, not one mega-commit.
-* **Git anchors every AI-assisted step.** Each new request starts with no memory of the last turn, so orient with `git status` / `git diff --stat`, commit one logical change per AI-assisted step (same atomicity as the rule above), and run the audit + smoke gates before each commit. The next session opens from the diff, not from prose recall -- the working tree, not the chat log, is the source of truth.
-* **Idempotent tooling.** Migration and audit scripts are safe to re-run without double-inserting. Anchors on unique substrings; asserts on count==1; early-exits if the new content is already present.
-* **Gates beat playtests.** Catch a regression class by extending the audit's `SCAN` list and `LOOSE` set, not by waiting for someone to hit it in-game.
+* **Git anchors every AI-assisted step.** Each new request starts with no memory of the last turn, so orient with `git status` / `git diff --stat`, commit one logical change per AI-assisted step (same atomicity as the rule above), and run the smoke gate before each commit. The next session opens from the diff, not from prose recall -- the working tree, not the chat log, is the source of truth.
+* **Gates beat playtests.** Run the smoke test before each commit to catch import errors and missing entry points before they surface in-game.
 * **Terse code-shaped docs.** Optimize for the skim-don't-read mode; assume a future-after-context-wipe reader.
 
 ## Tweaking

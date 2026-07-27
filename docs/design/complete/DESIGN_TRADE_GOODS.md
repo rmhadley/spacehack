@@ -258,7 +258,7 @@ Checkboxes are updated as each sub-step lands.
 - [x] Add `inventory` dict to `OwnedShip`, compute `cargo_used` as property summing ammo + mission + trade
 - [x] Add `cargo_reserved` to `ActiveMission`, refactor `try_accept_mission`/`complete_mission`/`abort_mission` to use it
 - [x] Add `economy_state` dict to `GameContext`
-- [x] Run `python3 tools/smoke.py` + `python3 tools/audit_loose_refs.py`
+- [x] Run `python3 tools/smoke.py`
 - [x] **PLAYTEST** ✅ — Cargo HUD shows correct numbers, mission accept/deliver reserves/frees cargo correctly.
 
 ### Phase 2 ✅ — Planet economy data

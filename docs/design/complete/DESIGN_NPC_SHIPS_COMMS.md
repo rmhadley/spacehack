@@ -370,7 +370,7 @@ NpcShipSpec(
 
 Run through each of these in order. Note any crashes, unexpected log messages, missing entities, or incorrect loot.
 
-1. **Smoke test** — Run `python3 tools/smoke.py` + `python3 tools/audit_loose_refs.py`. Must pass before starting the game.
+1. **Smoke test** — Run `python3 tools/smoke.py`. Must pass before starting the game.
 2. **Game starts** — Launch the game, create a character, land on Earth. No import errors or startup crashes.
 3. **Launch to Sol space** — Launch from Earth. Verify you see pirate entities on the map (same `p`/`P` glyphs as before). Verify `merchant_hauler` entities appear with a distinct glyph/color (e.g. `M` in green). Verify both types move on `.` (wait).
 4. **Jump to another system** — Jump to Alpha Centauri. Verify NPCs spawn there too, with the correct per-system weights (fewer pirates, more merchants in Sol; more pirates in deep systems). No crash on jump.

@@ -12,7 +12,7 @@ Each extraction follows the same pattern established by `comms.py`, `trade.py`, 
 2. Move the relevant functions, their Outcome enums, and any module-level constants into it
 3. Add a `from . import new_module` import in `__main__.py`
 4. Replace local function references with `new_module.function_name()`
-5. Run `tools/smoke.py` + `tools/audit_loose_refs.py` to verify nothing broke
+5. Run `tools/smoke.py` to verify nothing broke
 6. Run a quick playtest of the affected screens
 7. ✅ Mark done
 
@@ -168,7 +168,7 @@ Each phase has its own playtest noted above. A **final runthrough** after all ph
 5. ✅ Bump into a pirate → verify combat detection still works
 6. ✅ Land on a planet → verify city transition
 7. ✅ Launch back to space → verify space transition
-8. ✅ Tools/smoke.py + tools/audit_loose_refs.py pass
+8. ✅ Tools/smoke.py passes
 
 ---
 

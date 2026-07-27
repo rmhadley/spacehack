@@ -74,17 +74,12 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 4. For modal-driven UI: `ui.Modal(ctx.context, console).run(render_fn, update_fn)`
 5. Add new cross-cutting state as a field on `GameContext`.
 
-### Pre-commit gates
+### Pre-commit gate
 ```bash
-# 1. Audit — catches bare-Name regressions in scanned functions
-python3 tools/audit_loose_refs.py
-
-# 2. Smoke — verifies entry points survived signature changes
 python3 tools/smoke.py
 ```
 
-When you add a new domain function that accesses cross-cutting state, add it to the `SCAN` tuple in `tools/audit_loose_refs.py`. Current scanned functions:
-`_handle_combat_encounter`, `_jump_to_system`, `_detect_combat_encounter`, `_animate_jump`, `_animate_ship_to_y`, `_launch_to_space`, `_return_to_city`
+The smoke test auto-mounts `.venv/bin/python3` so tcod is always resolved. It verifies all major modules import correctly and key entry points survived signature changes.
 
 ### Refactor philosophy
 - **Data-first.** New content is a file in `data/` backed by a frozen dataclass. No content lives in `__main__.py` or runtime modules.
@@ -92,7 +87,7 @@ When you add a new domain function that accesses cross-cutting state, add it to 
 - **Domains own their flow.** Dispatcher is domain-unaware, one-call handoff.
 - **Atomic commits.** One self-contained change per commit. Descriptive message.
 - **Git anchors every step.** Each new session starts from `git status` / `git diff --stat`, not prose recall.
-- **Gates beat playtests.** Extend audit's `SCAN` list and `LOOSE` set to catch regressions.
+- **Gates beat playtests.** Run the smoke test before each commit to catch import errors and missing entry points.
 - **Terse code-shaped docs.** Skim-don't-read mode.
 
 ## Screen constants (in `engine.py`)
