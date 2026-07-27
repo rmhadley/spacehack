@@ -115,7 +115,12 @@ def _render_comms_panel(
     contacts: list[tuple[str, object, object]],
     selected: int,
 ) -> None:
-    """Paint the comms contact-list panel."""
+    """Paint the comms contact-list panel.
+
+    Uses a fixed left-aligned column (rather than per-line centering)
+    so scrolling never shifts the text horizontally. Selection markers
+    have consistent width so all contact lines occupy the same space.
+    """
     console.clear()
     n = len(contacts)
     title = f"COMMS — {n} contact{('' if n == 1 else 's')} in range"
@@ -126,36 +131,32 @@ def _render_comms_panel(
         fg=_CONTACTS_TITLE_COLOR,
     )
 
+    # Fixed left column for all contact rows — left of centre so there's
+    # room for long names + the (hostile) tag without wrapping.
+    _COL_X = SCREEN_WIDTH // 4
+    _INDENT = 2
     list_top = SCREEN_HEIGHT // 4 + 2
     for i, (name, spec, entity) in enumerate(contacts):
         row = list_top + i * 3
         is_selected = i == selected
         is_hostile = spec.faction == 'pirate'
 
-        # Name line with optional (hostile) tag
+        # Consistent-width markers: both selected and unselected markers
+        # are 4 chars total (2 open + 2 close) so the name never shifts.
         marker_open = '> ' if is_selected else '  '
-        marker_close = ' <' if is_selected else ''
-        hostile_tag = ''
-        name_fg = _CONTACTS_SELECTED if is_selected else _CONTACTS_NORMAL
-        if is_hostile and not is_selected:
-            hostile_tag = ' (hostile)'
-            name_fg = _CONTACTS_HOSTILE_TAG
-        elif is_hostile and is_selected:
-            hostile_tag = ' (hostile)'
-        text = f"{marker_open}{name}{hostile_tag}{marker_close}"
-        console.print(
-            x=ui.centered_x(text, SCREEN_WIDTH),
-            y=row,
-            string=text,
-            fg=name_fg,
+        marker_close = ' <' if is_selected else '  '
+        hostile_tag = ' (hostile)' if is_hostile else ''
+        name_fg = _CONTACTS_SELECTED if is_selected else (
+            _CONTACTS_HOSTILE_TAG if is_hostile else _CONTACTS_NORMAL
         )
+        text = f"{marker_open}{name}{hostile_tag}{marker_close}"
+        console.print(x=_COL_X, y=row, string=text, fg=name_fg)
 
-        # Flavor text line (indented)
+        # Flavor text, indented from the column.
         flavor = spec.comms_lines[0] if spec.comms_lines else "..."
         console.print(
-            x=ui.centered_x(f'  "{flavor}"', SCREEN_WIDTH),
-            y=row + 1,
-            string=f'  "{flavor}"',
+            x=_COL_X + _INDENT, y=row + 1,
+            string=f'"{flavor}"',
             fg=_CONTACTS_FLAVOR if is_selected else _CONTACTS_DIM,
         )
 
@@ -175,7 +176,12 @@ def _render_interaction_modal(
     options: list[str],
     selected: int,
 ) -> None:
-    """Paint the per-contact interaction sub-modal."""
+    """Paint the per-contact interaction sub-modal.
+
+    Uses the same fixed-column layout as the contact list for visual
+    consistency — title is centred, content is left-aligned from a
+    fixed column, and markers have consistent width.
+    """
     console.clear()
     title = f"{contact_name} — Hailing"
     console.print(
@@ -185,31 +191,30 @@ def _render_interaction_modal(
         fg=_INTERACTION_TITLE,
     )
 
-    # Flavor text
+    # Flavor text — left-aligned from the same column.
+    _COL_X = SCREEN_WIDTH // 4
     flavor_y = SCREEN_HEIGHT // 4 + 2
     for line in spec.comms_lines:
-        wrapped = ui.wrap_text(line, max_width=SCREEN_WIDTH - 16)
+        wrapped = ui.wrap_text(line, max_width=SCREEN_WIDTH - _COL_X * 2)
         for wl in wrapped:
             console.print(
-                x=ui.centered_x(wl, SCREEN_WIDTH),
-                y=flavor_y,
+                x=_COL_X, y=flavor_y,
                 string=wl,
                 fg=_INTERACTION_FLAVOR,
             )
             flavor_y += 1
 
-    # Options
+    # Options — left-aligned from the same column with consistent markers.
     opt_top = flavor_y + 2
     for i, opt in enumerate(options):
         row = opt_top + i * 2
         is_selected = i == selected
         marker_open = '> ' if is_selected else '  '
-        marker_close = ' <' if is_selected else ''
+        marker_close = ' <' if is_selected else '  '
         text = f"{marker_open}{opt}{marker_close}"
         fg = _INTERACTION_HIGHLIGHT if is_selected else _INTERACTION_OPTION
         console.print(
-            x=ui.centered_x(text, SCREEN_WIDTH),
-            y=row,
+            x=_COL_X, y=row,
             string=text,
             fg=fg,
         )
