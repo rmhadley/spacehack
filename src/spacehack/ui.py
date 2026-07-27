@@ -341,15 +341,16 @@ _ESCAPE_SYMS = _safe_syms("ESCAPE")
 def update_menu(menu: MenuScreen, event: tcod.event.Event) -> MenuAction:
     """Apply ``event`` to ``menu`` and return the resulting action.
 
-    Mutates ``menu.selected`` on UP/DOWN-style navigation. Other
-    events yield ``NONE``.
+    Mutates ``menu.selected`` on UP/DOWN-style navigation (arrow keys
+    and vim ``k``/``j``). Other events yield ``NONE``.
     """
     if isinstance(event, tcod.event.KeyDown):
         sym = event.sym
-        if sym in _UP_SYMS:
+        sym_name: str = getattr(sym, 'name', '').lower()
+        if sym in _UP_SYMS or sym_name == 'k':
             menu.selected = (menu.selected - 1) % len(menu.options)
             return MenuAction.NONE
-        if sym in _DOWN_SYMS:
+        if sym in _DOWN_SYMS or sym_name == 'j':
             menu.selected = (menu.selected + 1) % len(menu.options)
             return MenuAction.NONE
         if sym in _ENTER_SYMS:
