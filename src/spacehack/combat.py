@@ -1397,6 +1397,47 @@ def run_combat(
                 if ctx is not None:
                     from .npc_ships import move_npcs as _tick_npcs
                     _tick_npcs(ctx, game_map)
+                    # Re-check for NEW enemies that moved within detection
+                    # range during the NPC tick. If found, merge them in.
+                    # Use entity-ID matching to avoid duplicating enemies
+                    # already in combat (whose positions may have shifted
+                    # due to move_npcs).
+                    from .navigation import _detect_combat_encounter as _re_detect
+                    from . import solar_system as _ss_module
+                    _new_encounter = _re_detect(ctx, player_state["pos"], _ss_module.current_system())
+                    if _new_encounter is not None:
+                        _new_specs, _new_positions = _new_encounter
+                        _existing_entity_ids = {id(_e) for _e in _enemy_ents.values()}
+                        for _ni, (_ns, _np) in enumerate(zip(_new_specs, _new_positions)):
+                            # Find the world entity at this position.
+                            _found_entity = None
+                            for _ge in game_map.entities:
+                                if getattr(_ge, 'owned', False):
+                                    continue
+                                if _ge.pos.x == _np.x and _ge.pos.y == _np.y:
+                                    _found_entity = _ge
+                                    break
+                            # Skip if this entity is already in combat.
+                            if _found_entity is not None and id(_found_entity) in _existing_entity_ids:
+                                continue
+                            # Also skip if already in enemy_insts by position
+                            # (belt-and-suspenders).
+                            _already = any(
+                                _ei.pos.x == _np.x and _ei.pos.y == _np.y
+                                for _ei in enemy_insts
+                            )
+                            if _already:
+                                continue
+                            # Create EnemyInstance for the new joiner.
+                            _ps_dummy, _new_ei = init_combat_state(
+                                player_ship_catalog, player_owned_ship,
+                                player_state["pos"], player_pilot_skills,
+                                _ns, _np,
+                            )
+                            enemy_insts.append(_new_ei)
+                            if _found_entity is not None:
+                                _enemy_ents[len(enemy_insts) - 1] = _found_entity
+                            _c_log(f"{_ns.name} joins the fight!")
                 # New player turn: reset AP, increment counter,
                 # drop out of WAIT, then ``continue`` so the
                 # top-of-loop render block paints the fresh
