@@ -11,8 +11,7 @@
 #   ├── spacehack-<version>-py3-none-any.whl
 #   ├── run.py                      # cross-platform launcher
 #   ├── run_spacehack.bat           # Windows: double-click
-#   ├── run_spacehack.command       # macOS:   double-click
-#   └── run_spacehack               # Linux:   chmod +x then launch
+#   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
 .PHONY: dist zip clean
 
@@ -30,7 +29,7 @@ VERSION := $(shell $(PYTHON) -c \
 # dist  — default target, builds dist/ package
 # ──────────────────────────────────────────────
 dist: dist/spacehack/run.py dist/spacehack/run_spacehack.bat \
-      dist/spacehack/run_spacehack.command dist/spacehack/run_spacehack \
+      dist/spacehack/run_spacehack \
       dist/spacehack/spacehack-$(VERSION)-py3-none-any.whl
 	@echo "─── Package ready in dist/spacehack/ ───"
 	@ls -1 dist/spacehack/
@@ -50,10 +49,6 @@ dist/spacehack/run.py: run.py
 dist/spacehack/run_spacehack.bat: run_spacehack.bat
 	@mkdir -p dist/spacehack
 	cp run_spacehack.bat dist/spacehack/
-
-dist/spacehack/run_spacehack.command: run_spacehack.command
-	@mkdir -p dist/spacehack
-	cp run_spacehack.command dist/spacehack/
 
 dist/spacehack/run_spacehack: run_spacehack
 	@mkdir -p dist/spacehack
