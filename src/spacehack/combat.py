@@ -646,6 +646,9 @@ def _render_anim_frame(
     enemies: list[EnemyInstance],
     target_idx: int,
     log,
+    *,
+    weapon_list: tuple = (),
+    selected_weapon_idx: int = 0,
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
     from .engine import SCREEN_WIDTH, SCREEN_HEIGHT

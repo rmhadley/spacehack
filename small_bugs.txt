@@ -1,0 +1,4 @@
+[x] When auto-nav is engaged, the ship hud doesn't render
+[x] When in combat and firing a weapon, while the weapon annimation happens, the combat hud changes and doesn't list the weapons. then the animation ends and the weapons list pops back in. this is distracting
+[ ] When engaging two separate squads, the squads should be merged in to one. Currently you have to kill 1 squad before you can interact with the other engaged squad.
+[x] The ship landing zone can be hard to see. having a dedicated high contrast landing pad on all planets would be an improvement

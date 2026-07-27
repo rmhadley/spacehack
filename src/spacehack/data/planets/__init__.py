@@ -266,6 +266,22 @@ def load_planet(planet_id: str) -> world.GameMap:
     # Shared decoration: roads, plaza, sidewalks, grass patch.
     world._layout_outside(tiles, width, height, spec.buildings, theme=theme)
 
+    # Landing-pad tiles: painted south of the spaceport for ALL planets.
+    # Standard 60x40 planets already get this from _layout_outside above,
+    # but smaller planets (ac_station, future stations) skip that function
+    # entirely, so we always paint a pad here for every planet that has a
+    # spaceport building.
+    if spec.buildings and spec.buildings[0].label == world.SPACEPORT_LABEL:
+        port = spec.buildings[0]
+        anchor = spec.hangar_anchor
+        pad_x_lo = max(1, anchor.x - 3)
+        pad_x_hi = min(width - 2, anchor.x + 3)
+        pad_y_lo = port.y_hi + 1
+        pad_y_hi = min(height - 2, anchor.y + 1)
+        for py in range(pad_y_lo, pad_y_hi + 1):
+            for px in range(pad_x_lo, pad_x_hi + 1):
+                tiles[py][px] = theme.landing_pad if theme else world.LANDING_PAD
+
     return world.GameMap(
         width=width, height=height,
         tiles=tiles, entities=entities,
