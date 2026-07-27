@@ -259,19 +259,12 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
 
                     _tick_pos: world.Position | None = None
                     _tick_initial_target: tuple[int, int] | None = None
-                    if _tick_is_merchant and len(_tick_body_goals) >= 2:
+                    if len(_tick_body_goals) >= 1:
                         _origin = _engine.RNG.choice(_tick_body_goals)
-                        _dest = _engine.RNG.choice([g for g in _tick_body_goals if (g[0], g[1]) != (_origin[0], _origin[1])])
                         _tick_pos = world.Position(_origin[0], _origin[1])
-                        _tick_initial_target = (_dest[0], _dest[1])
-                    else:
-                        # Pirate: try random spot, with fewer attempts.
-                        for _attempt in range(50):
-                            _rx = _engine.RNG.randint(10, _system.width - 10)
-                            _ry = _engine.RNG.randint(10, _system.height - 10)
-                            if game_map.is_walkable(_rx, _ry) and game_map.entity_at(_rx, _ry) is None:
-                                _tick_pos = world.Position(_rx, _ry)
-                                break
+                        if _tick_is_merchant and len(_tick_body_goals) >= 2:
+                            _dest = _engine.RNG.choice([g for g in _tick_body_goals if (g[0], g[1]) != (_origin[0], _origin[1])])
+                            _tick_initial_target = (_dest[0], _dest[1])
 
                     if _tick_pos is not None:
                         game_map.entities.append(world.Entity(
