@@ -287,6 +287,10 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                                 (_tick_pos.x, _tick_pos.y), _end_set, game_map,
                             )
                             ctx.npc_paths[_tick_mid] = _path or []
+                        ctx.log.add_colored(
+                            f"Sensor ping: 1 signal detected in the area ({_tick_spec.name}).",
+                            _ml.COLOR_IMPORTANT_EVENT,
+                        )
 
     # --- Build goal list with body type + name ---
     _goals: list[tuple[int, int, str, str]] = []  # (x, y, type, name)
