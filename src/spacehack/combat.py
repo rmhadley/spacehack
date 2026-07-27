@@ -569,6 +569,72 @@ def _paint_target_highlight(
             )
 
 
+def _paint_range_line(
+    console,
+    player_pos: world.Position,
+    target_pos: world.Position,
+    weapon_id: str,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Draw a range-accuracy line from player to target, colored by weapon range bands.
+
+    Each cell along a Bresenham line is colored based on its distance
+    from the player and the selected weapon's range profile:
+
+      * **Green** — within ``max_range // 2`` (close-bonus zone)
+      * **Yellow** — within ``max_range`` (normal range)
+      * **Orange** — within ``min_range`` (too-close penalty, if min_range > 0)
+      * **Red** — beyond ``max_range`` (dist penalty active)
+
+    The line updates immediately when the player switches weapons.
+    Uses ``\u00b7`` (middle dot) as the line character so it's
+    visible but doesn't fully obscure glyphs underneath.
+    """
+    try:
+        ws = find_weapon(weapon_id)
+    except KeyError:
+        return
+
+    half_range = ws.max_range // 2
+    has_min_range = ws.min_range > 0
+
+    _GREEN = (100, 235, 115)
+    _YELLOW = (255, 220, 80)
+    _ORANGE = (255, 160, 60)
+    _RED = (255, 80, 80)
+
+    for bx, by in _bresenham_line(
+        player_pos.x, player_pos.y,
+        target_pos.x, target_pos.y,
+    ):
+        sx = bx - cam_x
+        sy = by - cam_y
+        if not (0 <= sx < view_w and 0 <= sy < view_h):
+            continue
+
+        dist = math.hypot(bx - player_pos.x, by - player_pos.y)
+
+        if dist <= half_range:
+            color = _GREEN
+        elif dist <= ws.max_range:
+            color = _YELLOW
+        elif has_min_range and dist <= ws.min_range:
+            color = _ORANGE
+        else:
+            color = _RED
+
+        console.print(
+            x=region_x + sx, y=region_y + sy,
+            string="\u00b7",
+            fg=color,
+        )
+
+
 def _render_anim_frame(
     console,
     context,
@@ -593,11 +659,8 @@ def _render_anim_frame(
         region_w=view_w, region_h=view_h,
         camera_x=cam_x, camera_y=cam_y,
     )
-    # Highlight the currentlytargetted enemy on the map. Painted AFTER
-    # the world view so the reticle marks sit on top of the enemy
-    # entity's own char/fg without clobbering it. Lives outside the
-    # HUD so the right-panel readout and the on-map marker tell the
-    # same story without depending on each other.
+    # Targeted-enemy reticle — painted AFTER the world view so the
+    # gold recolor sits on top of the enemy char.
     _tgt = _resolve_target(enemies, target_idx)
     if _tgt is not None:
         _paint_target_highlight(
@@ -989,15 +1052,28 @@ def run_combat(
                     region_w=view_w, region_h=view_h,
                     camera_x=_cam_x, camera_y=_cam_y,
                 )
-                # Targeted-enemy reticle — drawn AFTER the world view
-                # so the gold brackets sit on top of the marker sprite
-                # without clobbering its fg. External symbol keeps
-                # the call-site cheap.
+                # Range-accuracy line — drawn AFTER the world view so it
+            # sits on top of the space background but BEFORE the target
+            # highlight so the gold recolor takes visual priority over
+            # the line.
+            if weapons_list and 0 <= selected_weapon_idx < len(weapons_list):
+                _wid = weapons_list[selected_weapon_idx]
                 _tgt = _resolve_target(enemy_insts, target_idx)
                 if _tgt is not None:
-                    _paint_target_highlight(
-                        console, _cam_x, _cam_y, view_w, view_h, 0, 0, _tgt,
+                    _paint_range_line(
+                        console,
+                        player_state["pos"], _tgt.pos,
+                        _wid,
+                        _cam_x, _cam_y, view_w, view_h, 0, 0,
                     )
+
+            # Targeted-enemy reticle — drawn AFTER the range line
+            # so the gold recolor sits on top of the line marker.
+            _tgt = _resolve_target(enemy_insts, target_idx)
+            if _tgt is not None:
+                _paint_target_highlight(
+                    console, _cam_x, _cam_y, view_w, view_h, 0, 0, _tgt,
+                )
 
             _hud.render_combat_hud(
                 console,
