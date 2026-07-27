@@ -209,3 +209,23 @@ def _is_t_press(event: tcod.event.Event) -> bool:
         return False
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('T', 't')
+
+
+def _is_question_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``?`` key
+    (``KeySym.QUESTION``).
+
+    Routes ? (game guide) through a module-level helper so the
+    smoke test can regression-guard the KeySym name lookup,
+    mirroring :func:`_is_q_press` exactly. The ``?`` key in SDL
+    maps to ``KeySym.QUESTION`` on US-layout keyboards (shift+``/``).
+    Only ``QUESTION`` is checked — unshifted ``/`` (``KeySym.SLASH``)
+    is a separate key and should not open the guide.
+
+    ``getattr(..., "name", "")`` belt-and-suspenders against a
+    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name == 'QUESTION'
