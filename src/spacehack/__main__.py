@@ -1730,22 +1730,30 @@ def _run_mech_menu(ctx) -> None:
     def _render() -> None:
         nonlocal selected
         console.clear()
-        _items = [(opt, "") for opt in _MECH_OPTIONS]
-        _stat_lines: list[tuple[str, str]] = [
-            (f"Ship: {ship_rec.name}", ""),
-            (f"Fuel: {owned.fuel} / {ship_rec.max_fuel}  |  Hull: {owned.hull_damage_pct}% damage", ""),
-            (f"Credits: {ctx.stats.credits}$", ""),
+        title_y = SCREEN_HEIGHT // 6
+        console.print(x=ui.centered_x("MECHANIC TERMINAL", SCREEN_WIDTH), y=title_y, string="MECHANIC TERMINAL", fg=ui.COLOR_TITLE)
+        # Render ship stats directly above the options.
+        stat_y = title_y + 2
+        _stat_lines = [
+            f"Ship: {ship_rec.name}",
+            f"Fuel: {owned.fuel} / {ship_rec.max_fuel}  |  Hull: {owned.hull_damage_pct}% damage",
+            f"Credits: {ctx.stats.credits}$",
         ]
+        for i, _line in enumerate(_stat_lines):
+            console.print(x=ui.centered_x(_line, SCREEN_WIDTH), y=stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
+        # Options below stats.
+        _opt_items = [(opt, "") for opt in _MECH_OPTIONS]
+        _list_title_y = stat_y + len(_stat_lines) + 1
         ui.render_selectable_list(
             console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="MECHANIC TERMINAL",
-            items=_stat_lines + _items,
+            title="",
+            items=_opt_items,
             selected=selected,
             col_x=SCREEN_WIDTH // 4,
-            title_y=SCREEN_HEIGHT // 6,
-            row_spacing=1,
-            item_fg_selected=ui.COLOR_VALUE_WHITE,
-            item_fg_normal=ui.COLOR_VALUE_DIM,
+            title_y=_list_title_y,
+            row_spacing=2,
+            item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
+            item_fg_normal=ui.COLOR_OPTION,
             hint="UP/DOWN / j,k navigate - ENTER select - ESC back",
         )
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
