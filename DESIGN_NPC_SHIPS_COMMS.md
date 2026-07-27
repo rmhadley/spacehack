@@ -404,16 +404,16 @@ Run through each of these in order. Note any crashes, unexpected log messages, m
 > **Living document**: Update this section during implementation if new edge cases, behaviors, or failure modes emerge that aren't covered below. The playtest should reflect what actually needs testing, not just what we anticipated.
 
 - [x] **Smoke + audit** — Must pass before starting the game.
-- [ ] **Comms key** — In space mode, press `T` with no NPCs nearby. Verify the log says "No ships in comms range."
-- [ ] **Comms panel opens** — Fly within 15 cells of a merchant. Press `T`. Verify a comms panel modal opens listing the merchant with its comms flavor text.
-- [ ] **Comms panel navigation** — Verify UP/DOWN or j/k navigate between contacts. Verify ENTER selects a contact. Verify ESC closes the panel.
-- [ ] **Hail a merchant** — Select a merchant, press ENTER. Verify an interaction sub-modal opens showing "Open Trade" and "End Transmission" options.
-- [ ] **End Transmission** — Select "End Transmission." Verify the modal closes, you return to space mode, no crash.
-- [ ] **Hail a pirate** — Fly within range of a pirate. Press T. Verify the pirate shows `(hostile)` tag in the comms list. Select it. Verify the interaction sub-modal shows "Attack" instead of "Open Trade."
-- [ ] **Attack via comms** — Select "Attack" on a pirate. Verify the comms modal closes and combat triggers immediately. Verify combat works normally.
-- [ ] **HUD update** — Verify `T - Comms` appears in the space-mode HUD help lines.
-- [ ] **Multiple contacts** — Position yourself between a merchant and a pirate. Press T. Verify both appear in the list. Verify the pirate has `(hostile)` tag and the merchant does not.
-- [ ] **Edge case: no NPCs** — Jump to an empty system. Press T. Verify "No ships in comms range."
+- [x] **Comms key** — In space mode, press `T` with no NPCs nearby. Verify the log says "No ships in comms range."
+- [x] **Comms panel opens** — Fly within 15 cells of a merchant. Press `T`. Verify a comms panel modal opens listing the merchant with its comms flavor text.
+- [x] **Comms panel navigation** — Verify UP/DOWN or j/k navigate between contacts. Verify ENTER selects a contact. Verify ESC closes the panel.
+- [x] **Hail a merchant** — Select a merchant, press ENTER. Verify an interaction sub-modal opens showing "Open Trade" and "End Transmission" options.
+- [x] **End Transmission** — Select "End Transmission." Verify the modal closes, you return to space mode, no crash.
+- [x] **Hail a pirate** — Fly within range of a pirate. Press T. Verify the pirate shows `(hostile)` tag in the comms list. Select it. Verify the interaction sub-modal shows "Attack" instead of "Open Trade."
+- [x] **Attack via comms** — Select "Attack" on a pirate. Verify the comms modal closes and combat triggers immediately. Verify combat works normally.
+- [x] **HUD update** — Verify `T - Comms` appears in the space-mode HUD help lines.
+- [x] **Multiple contacts** — Position yourself between a merchant and a pirate. Press T. Verify both appear in the list. Verify the pirate has `(hostile)` tag and the merchant does not.
+- [x] **Edge case: no NPCs** — Jump to an empty system. Press T. Verify "No ships in comms range."
 
 **PLAYTEST — Phase 4**
 
