@@ -74,7 +74,7 @@ GRASS_ACCENT = Tile(kind="grass", char=",", walkable=True, fg=(90, 175, 75), bg=
 
 # Landing pad — tarmac with a cool sci-fi blue glow (replaces generic
 # sidewalk south of the spaceport with a dedicated ship-parking area).
-LANDING_PAD = Tile(kind="landing_pad", char="O", walkable=True, fg=(100, 210, 255), bg=(25, 45, 70))
+LANDING_PAD = Tile(kind="landing_pad", char="▓", walkable=True, fg=(100, 210, 255), bg=(25, 45, 70))
 
 # Neon accent — decorative glowing marker outside the spaceport
 # entrance and at plaza edges. Using `*` char (classic sparkle / star)

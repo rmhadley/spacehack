@@ -676,6 +676,8 @@ def _render_anim_frame(
         enemies=enemies,
         target_idx=target_idx,
         player_mode="FIRING",
+        selected_weapon_idx=selected_weapon_idx,
+        weapon_list=weapon_list,
     )
     _ml.render_message_log(
         console, log,
@@ -700,6 +702,9 @@ def _animate_laser_shot(
     enemies: list[EnemyInstance],
     target_idx: int,
     log,
+    *,
+    weapon_list: tuple = (),
+    selected_weapon_idx: int = 0,
 ) -> None:
     """Animate a laser beam from shooter to target over 4 frames.
 
@@ -721,6 +726,8 @@ def _animate_laser_shot(
             console, context, game_map,
             cam_x, cam_y, view_w, view_h,
             player_state, enemies, target_idx, log,
+            weapon_list=weapon_list,
+            selected_weapon_idx=selected_weapon_idx,
         )
         # Draw beam on top
         brightness = min(255, 130 + frame * 30)
@@ -747,6 +754,8 @@ def _animate_laser_shot(
                 console, context, game_map,
                 cam_x, cam_y, view_w, view_h,
                 player_state, enemies, target_idx, log,
+                weapon_list=weapon_list,
+                selected_weapon_idx=selected_weapon_idx,
             )
             tx = target_pos.x - cam_x
             ty = target_pos.y - cam_y
@@ -770,6 +779,9 @@ def _animate_explosion(
     enemies: list[EnemyInstance],
     target_idx: int,
     log,
+    *,
+    weapon_list: tuple = (),
+    selected_weapon_idx: int = 0,
 ) -> None:
     """Animate an expanding explosion at ``center_pos`` (5 rings).
 
@@ -781,6 +793,8 @@ def _animate_explosion(
             console, context, game_map,
             cam_x, cam_y, view_w, view_h,
             player_state, enemies, target_idx, log,
+            weapon_list=weapon_list,
+            selected_weapon_idx=selected_weapon_idx,
         )
         # Draw explosion rings (manhattan distance)
         for ring_idx in range(min(rings + 1, len(_COMBAT_EXPLOSION_RINGS))):
@@ -802,6 +816,8 @@ def _animate_explosion(
         console, context, game_map,
         cam_x, cam_y, view_w, view_h,
         player_state, enemies, target_idx, log,
+        weapon_list=weapon_list,
+        selected_weapon_idx=selected_weapon_idx,
     )
     cx = center_pos.x - cam_x
     cy = center_pos.y - cam_y
@@ -821,6 +837,8 @@ def _animate_explosion(
         console, context, game_map,
         cam_x, cam_y, view_w, view_h,
         player_state, enemies, target_idx, log,
+        weapon_list=weapon_list,
+        selected_weapon_idx=selected_weapon_idx,
     )
     _responsive_sleep(0.04)
 
@@ -1229,6 +1247,8 @@ def run_combat(
                                     enemies=enemy_insts,
                                     target_idx=target_idx,
                                     log=log,
+                                    weapon_list=tuple(weapons_list),
+                                    selected_weapon_idx=selected_weapon_idx,
                                 )
                                 if _e_hit:
                                     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
@@ -1253,6 +1273,8 @@ def run_combat(
                                             enemies=enemy_insts,
                                             target_idx=target_idx,
                                             log=log,
+                                            weapon_list=tuple(weapons_list),
+                                            selected_weapon_idx=selected_weapon_idx,
                                         )
                                         _result = "DEFEAT"
                                         break  # exits while
@@ -1400,6 +1422,8 @@ def run_combat(
                         enemies=enemy_insts,
                         target_idx=target_idx,
                         log=log,
+                        weapon_list=tuple(weapons_list),
+                        selected_weapon_idx=selected_weapon_idx,
                     )
                     # Resolve the shot
                     _ws = None
@@ -1451,6 +1475,8 @@ def run_combat(
                                 enemies=enemy_insts,
                                 target_idx=target_idx,
                                 log=log,
+                                weapon_list=tuple(weapons_list),
+                                selected_weapon_idx=selected_weapon_idx,
                             )
                             # Mark dead; will be pruned from list next loop
                             _target.alive = False
