@@ -19,10 +19,66 @@ from . import world
 from .data.npc_ships import find_npc_ship as _find_npc_ship
 from .game_context import GameContext, ProceduralSpawn
 
-# Movement state keys stored on GameContext.
-_NPC_TARGETS: str = "npc_targets"       # dict[str, tuple[int, int]]
-_NPC_PATHS: str = "npc_paths"           # dict[str, list[tuple[int, int]]]
 
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _build_body_goals(system) -> list[tuple[int, int, str, str]]:
+    """Build navigable goal positions for all bodies in *system*.
+
+    Returns ``[(x, y, kind, name), ...]`` where *kind* is
+    ``"planet"`` / ``"gate"`` / ``"station"`` so callers can
+    dispatch behaviour (despawn, dock, …) per body type.
+    """
+    _goals: list[tuple[int, int, str, str]] = []
+    for _p in system.planets:
+        if getattr(_p, 'sun', False):
+            continue
+        _gx = _p.pos.x + _p.width + 1
+        _gy = _p.pos.y + _p.height // 2
+        if 0 <= _gx < system.width and 0 <= _gy < system.height:
+            _goals.append((_gx, _gy, "planet", _p.name))
+    for _jp in system.jump_points:
+        _gx = _jp.pos.x + _jp.width + 1
+        _gy = _jp.pos.y + _jp.height // 2
+        if 0 <= _gx < system.width and 0 <= _gy < system.height:
+            _goals.append((_gx, _gy, "gate", _jp.name))
+    for _st in getattr(system, 'stations', ()) or ():
+        _gx = _st.pos.x + _st.width + 1
+        _gy = _st.pos.y + _st.height // 2
+        if 0 <= _gx < system.width and 0 <= _gy < system.height:
+            _goals.append((_gx, _gy, "station", _st.name))
+    return _goals
+
+
+def _make_npc_entity(spec, pos: world.Position, movement_id: str) -> world.Entity:
+    """Create a single NPC ship :class:`world.Entity` from its spec."""
+    return world.Entity(
+        char=spec.char, fg=spec.fg, pos=pos,
+        name=spec.name, width=1, height=1,
+        npc_ship_id=spec.id,
+        procedural_squad_id=movement_id,
+    )
+
+
+def _set_npc_path(
+    ctx: GameContext,
+    movement_id: str,
+    pos: world.Position,
+    target: tuple[int, int],
+    game_map: world.GameMap,
+) -> None:
+    """Compute and store an A* path from *pos* to *target*."""
+    ctx.npc_targets[movement_id] = target
+    _end_set: set[tuple[int, int]] = {target}
+    _path = world.find_path((pos.x, pos.y), _end_set, game_map)
+    ctx.npc_paths[movement_id] = _path or []
+
+
+# ---------------------------------------------------------------------------
+# Initial spawn (on jump / launch)
+# ---------------------------------------------------------------------------
 
 def spawn_npcs(
     ctx: GameContext,
@@ -37,6 +93,10 @@ def spawn_npcs(
     ``npc_density``.  Each NPC ship gets a ``npc_ship_id`` on the
     Entity (referencing :class:`data.npc_ships.NpcShipSpec`) so
     combat detection and loot generation can read per-type data.
+
+    All NPC types spawn from a planet / gate / station position
+    (arriving from the body) rather than appearing at a random point
+    in empty space.
 
     Uses ``ctx.procedural_spawns`` (keyed by system id) so combat
     detection can locate them.
@@ -70,38 +130,16 @@ def spawn_npcs(
             for _dx in range(_e.width):
                 _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
 
-    def _pick_centre() -> tuple[int, int] | None:
-        for _attempt in range(200):
-            _cx = _engine.RNG.randint(10, _system.width - 10)
-            _cy = _engine.RNG.randint(10, _system.height - 10)
-            if (_cx, _cy) not in _blocked:
-                return (_cx, _cy)
-        return None
+    # Build body goals once, shared by all active NPC types.
+    _body_goals = _build_body_goals(_system)
 
     # Roll which NPC types appear from the weighted table.
-    # Each entry (npc_id, weight) is independently rolled.
     _active_types: list[str] = []
     for _npc_id, _weight in _system.npc_spawn_table:
         if _engine.RNG.random() < _weight:
             _active_types.append(_npc_id)
     if not _active_types:
         _active_types = [_system.npc_spawn_table[0][0]]
-
-    # Build list of navigable body goals (x, y, type, name) for merchant spawns.
-    _body_goals: list[tuple[int, int, str, str]] = []
-    def _goal_for(body, kind: str, name: str) -> None:
-        _gx = body.pos.x + body.width + 1
-        _gy = body.pos.y + body.height // 2
-        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
-            _body_goals.append((_gx, _gy, kind, name))
-    for _p in _system.planets:
-        if getattr(_p, 'sun', False):
-            continue
-        _goal_for(_p, "planet", _p.name)
-    for _jp in _system.jump_points:
-        _goal_for(_jp, "gate", _jp.name)
-    for _st in getattr(_system, 'stations', ()) or ():
-        _goal_for(_st, "station", _st.name)
 
     _total_spawned = 0
     _all_procedural: list = []
@@ -116,20 +154,19 @@ def spawn_npcs(
 
         # Determine spawn centre and initial destination.
         _initial_target: tuple[int, int] | None = None
-        if _is_merchant and len(_body_goals) >= 2:
-            # Merchant: spawn at a body, en route to another.
+        if _body_goals:
+            # All NPC types spawn from a body (no more random scatter).
             _origin_goal = _engine.RNG.choice(_body_goals)
-            _dest_goal = _engine.RNG.choice([g for g in _body_goals if (g[0], g[1]) != (_origin_goal[0], _origin_goal[1])])
             _gcx, _gcy = _origin_goal[0], _origin_goal[1]
-            _initial_target = (_dest_goal[0], _dest_goal[1])
-            # Mark origin cell as blocked so we spawn near it, not on it.
             _blocked.add((_gcx, _gcy))
+            if _is_merchant and len(_body_goals) >= 2:
+                _dest_goal = _engine.RNG.choice(
+                    [g for g in _body_goals if (g[0], g[1]) != (_origin_goal[0], _origin_goal[1])]
+                )
+                _initial_target = (_dest_goal[0], _dest_goal[1])
         else:
-            # Pirate: random scatter.
-            _centre = _pick_centre()
-            if _centre is None:
-                continue
-            _gcx, _gcy = _centre
+            # No bodies in system — skip this NPC type.
+            continue
 
         # Squad id for groups > 1.
         _is_squad = _system.npc_density > 1 and _engine.RNG.random() < 0.5
@@ -155,12 +192,7 @@ def spawn_npcs(
                 continue
             _pos = world.Position(_x, _y)
             _blocked.add((_x, _y))
-            game_map.entities.append(world.Entity(
-                char=_spec.char, fg=_spec.fg, pos=_pos,
-                name=_spec.name, width=1, height=1,
-                npc_ship_id=_npc_id,
-                procedural_squad_id=_movement_id,
-            ))
+            game_map.entities.append(_make_npc_entity(_spec, _pos, _movement_id))
             _group_positions.append(_pos)
             _all_procedural.append((_pos, _squad_id, _npc_id))
             _group_entities += 1
@@ -168,13 +200,7 @@ def spawn_npcs(
 
         # Pre-set initial target + path for merchants.
         if _is_merchant and _initial_target is not None and _group_positions:
-            _leader_pos = _group_positions[0]
-            ctx.npc_targets[_movement_id] = _initial_target
-            _end_set: set[tuple[int, int]] = {_initial_target}
-            _path = world.find_path(
-                (_leader_pos.x, _leader_pos.y), _end_set, game_map,
-            )
-            ctx.npc_paths[_movement_id] = _path or []
+            _set_npc_path(ctx, _movement_id, _group_positions[0], _initial_target, game_map)
 
     if _all_procedural:
         ctx.procedural_spawns[system_id] = [
@@ -195,6 +221,10 @@ def spawn_npcs(
             _ml.COLOR_IMPORTANT_EVENT,
         )
 
+
+# ---------------------------------------------------------------------------
+# Per-tick movement (and occasional per-tick spawn)
+# ---------------------------------------------------------------------------
 
 def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
     """Patrol procedural NPC entities toward planets/gates/stations.
@@ -229,7 +259,6 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
     )
     if _current_npc_count < _system.npc_density * 3:
         if _engine.RNG.random() < _system.npc_spawn_chance * _PER_TICK_CHANCE_MULTIPLIER:
-            # Pick a random NPC type from the spawn table (simple random choice).
             _tick_types = [
                 _tid for _tid, _tw in _system.npc_spawn_table
                 if _engine.RNG.random() < _tw
@@ -243,70 +272,32 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                 else:
                     _tick_is_merchant = getattr(_tick_spec, 'faction', 'pirate') == 'merchant'
                     _tick_mid = f"tick_npc_{getattr(_system, 'id', '')}_{_tick_id}_{_engine.RNG.randint(0, 99999)}"
-                    _tick_body_goals: list[tuple[int, int, str, str]] = []
-                    def _tick_goal(body, kind: str, name: str) -> None:
-                        _gx = body.pos.x + body.width + 1
-                        _gy = body.pos.y + body.height // 2
-                        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
-                            _tick_body_goals.append((_gx, _gy, kind, name))
-                    for _p in _system.planets:
-                        if not getattr(_p, 'sun', False):
-                            _tick_goal(_p, "planet", _p.name)
-                    for _jp in _system.jump_points:
-                        _tick_goal(_jp, "gate", _jp.name)
-                    for _st in getattr(_system, 'stations', ()) or ():
-                        _tick_goal(_st, "station", _st.name)
+                    _tick_body_goals = _build_body_goals(_system)
 
                     _tick_pos: world.Position | None = None
                     _tick_initial_target: tuple[int, int] | None = None
-                    if len(_tick_body_goals) >= 1:
+                    if _tick_body_goals:
                         _origin = _engine.RNG.choice(_tick_body_goals)
                         _tick_pos = world.Position(_origin[0], _origin[1])
                         if _tick_is_merchant and len(_tick_body_goals) >= 2:
-                            _dest = _engine.RNG.choice([g for g in _tick_body_goals if (g[0], g[1]) != (_origin[0], _origin[1])])
+                            _dest = _engine.RNG.choice(
+                                [g for g in _tick_body_goals if (g[0], g[1]) != (_origin[0], _origin[1])]
+                            )
                             _tick_initial_target = (_dest[0], _dest[1])
 
                     if _tick_pos is not None:
-                        game_map.entities.append(world.Entity(
-                            char=_tick_spec.char, fg=_tick_spec.fg, pos=_tick_pos,
-                            name=_tick_spec.name, width=1, height=1,
-                            npc_ship_id=_tick_id,
-                            procedural_squad_id=_tick_mid,
-                        ))
+                        game_map.entities.append(
+                            _make_npc_entity(_tick_spec, _tick_pos, _tick_mid)
+                        )
                         if _tick_initial_target is not None:
-                            ctx.npc_targets[_tick_mid] = _tick_initial_target
-                            _end_set: set[tuple[int, int]] = {_tick_initial_target}
-                            _path = world.find_path(
-                                (_tick_pos.x, _tick_pos.y), _end_set, game_map,
-                            )
-                            ctx.npc_paths[_tick_mid] = _path or []
+                            _set_npc_path(ctx, _tick_mid, _tick_pos, _tick_initial_target, game_map)
                         ctx.log.add_colored(
                             f"Sensor ping: 1 signal detected in the area ({_tick_spec.name}).",
                             _ml.COLOR_IMPORTANT_EVENT,
                         )
 
     # --- Build goal list with body type + name ---
-    _goals: list[tuple[int, int, str, str]] = []  # (x, y, type, name)
-    def _body_goal(body) -> tuple[int, int] | None:
-        _gx = body.pos.x + body.width + 1
-        _gy = body.pos.y + body.height // 2
-        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
-            return (_gx, _gy)
-        return None
-    for _p in _system.planets:
-        if getattr(_p, 'sun', False):
-            continue
-        _g = _body_goal(_p)
-        if _g is not None:
-            _goals.append((_g[0], _g[1], "planet", _p.name))
-    for _jp in _system.jump_points:
-        _g = _body_goal(_jp)
-        if _g is not None:
-            _goals.append((_g[0], _g[1], "gate", _jp.name))
-    for _st in getattr(_system, 'stations', ()) or ():
-        _g = _body_goal(_st)
-        if _g is not None:
-            _goals.append((_g[0], _g[1], "station", _st.name))
+    _goals = _build_body_goals(_system)
     if not _goals:
         _any_npcs = any(
             getattr(_e, 'procedural_squad_id', '') != ''
