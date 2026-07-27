@@ -152,6 +152,27 @@ At natural boundaries (between phases, after major refactors, at the user's prom
 
 6. **File size** — Check if any domain module exceeds ~1000 lines. If so, plan an extraction before moving to the next phase.
 
+### Code reviewer — what to look for
+
+The ``code-reviewer-deepseek-flash`` agent is spawned after every significant change. It MUST check for these specific things on every review:
+
+1. **DRY violations** — Scan the changed file(s) for duplicated patterns. Are there loops, formulas, or entity-construction blocks that appear more than once? Do NOT accept ``it was already duplicated`` as an excuse — flag it even if it is pre-existing. Examples of recent misses:
+   - Three inner functions doing the identical planet/gate/station iteration (``_goal_for``, ``_tick_goal``, ``_body_goal``)
+   - ``world.Entity(...)`` with the same field set constructed inline in two spawn paths
+   - Path-computation + target-storage block copy-pasted between initial and per-tick spawn
+
+2. **Inner functions that should be module-level** — If an inner function has no meaningful closure over the parent scope, it should be a module-level helper. Inner functions that duplicate another inner function's logic are always wrong.
+
+3. **Dead code** — Did the change leave behind unused imports, functions, or variables? Check for functions that were only called from the now-replaced code.
+
+4. **Signature mismatches** — Verify that all call sites match updated function signatures (new params, removed params, renamed fields).
+
+5. **Edge cases** — What happens when inputs are empty/None? Does a loop that used to have a fallback still have one? (E.g. the old pirate random-scatter was a fallback when body goals were missing — if that path was removed, is the new guard equivalent?)
+
+6. **Behavior preservation** — If a refactor claims to be purely structural (no behavior change), verify that claim. If behavior DID change (e.g. pirate spawn location standardisation), confirm that was intentional.
+
+If any of these are found, the reviewer MUST flag them as blocking before commit, even if the change ``works.``
+
 Document findings in the design doc's current phase section. Resolve before moving to the next phase.
 
 ### Moving docs through the lifecycle
