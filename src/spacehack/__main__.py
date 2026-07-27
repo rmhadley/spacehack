@@ -185,7 +185,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             _location = solar_system_module.current_system().name
         else:
             _location = current_city_id.replace('_', ' ').title()
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat)
+        # Detect available terminals on the current city map.
+        _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
+        _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech)
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         for event in tcod.event.wait():

@@ -92,6 +92,8 @@ def render_hud(
     location: str | None = None,
     owned_ship: Any = None,              # ship_module.OwnedShip when in space
     ship_catalog: Any = None,            # ship_module.Ship catalog entry
+    has_trade_terminal: bool = False,    # city mode: show = terminal hint
+    has_mech_terminal: bool = False,     # city mode: show % terminal hint
 ) -> None:
     """Paint the right-side HUD into the top ``hud_view_height`` rows.
 
@@ -278,6 +280,17 @@ def render_hud(
         y += 1
         skill_line = f"G:{stats.gunnery} P:{stats.piloting} E:{stats.engineering}"
         console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
+
+        # Terminal indicators (city mode, between skills and footer).
+        y += 1
+        _terminal_parts: list[str] = []
+        if has_mech_terminal:
+            _terminal_parts.append("% Mech")
+        if has_trade_terminal:
+            _terminal_parts.append("= Trade")
+        if _terminal_parts:
+            _terminal_line = "  ".join(_terminal_parts)
+            console.print(x=hud_x, y=y, string=_terminal_line[:HUD_WIDTH], fg=COLOR_LABEL)
 
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
