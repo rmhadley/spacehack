@@ -217,6 +217,77 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
     if _system is None:
         return
 
+    # --- Per-tick NPC spawn (continuous traffic) ---
+    # Roll a small chance each tick to spawn a new ship, scaled from
+    # the system's base spawn chance so busier systems stay busy.
+    # Capped at npc_density * 3 to avoid overcrowding.
+    _PER_TICK_CHANCE_MULTIPLIER = 0.05
+    _current_npc_count = sum(
+        1 for _e in game_map.entities
+        if not getattr(_e, 'owned', False)
+        and getattr(_e, 'procedural_squad_id', '') != ''
+    )
+    if _current_npc_count < _system.npc_density * 3:
+        if _engine.RNG.random() < _system.npc_spawn_chance * _PER_TICK_CHANCE_MULTIPLIER:
+            # Pick a random NPC type from the spawn table (simple random choice).
+            _tick_types = [
+                _tid for _tid, _tw in _system.npc_spawn_table
+                if _engine.RNG.random() < _tw
+            ]
+            if _tick_types:
+                _tick_id = _engine.RNG.choice(_tick_types)
+                try:
+                    _tick_spec = _find_npc_ship(_tick_id)
+                except KeyError:
+                    pass
+                else:
+                    _tick_is_merchant = getattr(_tick_spec, 'faction', 'pirate') == 'merchant'
+                    _tick_mid = f"tick_npc_{getattr(_system, 'id', '')}_{_tick_id}_{_engine.RNG.randint(0, 99999)}"
+                    _tick_body_goals: list[tuple[int, int, str, str]] = []
+                    def _tick_goal(body, kind: str, name: str) -> None:
+                        _gx = body.pos.x + body.width + 1
+                        _gy = body.pos.y + body.height // 2
+                        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
+                            _tick_body_goals.append((_gx, _gy, kind, name))
+                    for _p in _system.planets:
+                        if not getattr(_p, 'sun', False):
+                            _tick_goal(_p, "planet", _p.name)
+                    for _jp in _system.jump_points:
+                        _tick_goal(_jp, "gate", _jp.name)
+                    for _st in getattr(_system, 'stations', ()) or ():
+                        _tick_goal(_st, "station", _st.name)
+
+                    _tick_pos: world.Position | None = None
+                    _tick_initial_target: tuple[int, int] | None = None
+                    if _tick_is_merchant and len(_tick_body_goals) >= 2:
+                        _origin = _engine.RNG.choice(_tick_body_goals)
+                        _dest = _engine.RNG.choice([g for g in _tick_body_goals if (g[0], g[1]) != (_origin[0], _origin[1])])
+                        _tick_pos = world.Position(_origin[0], _origin[1])
+                        _tick_initial_target = (_dest[0], _dest[1])
+                    else:
+                        # Pirate: try random spot, with fewer attempts.
+                        for _attempt in range(50):
+                            _rx = _engine.RNG.randint(10, _system.width - 10)
+                            _ry = _engine.RNG.randint(10, _system.height - 10)
+                            if game_map.is_walkable(_rx, _ry) and game_map.entity_at(_rx, _ry) is None:
+                                _tick_pos = world.Position(_rx, _ry)
+                                break
+
+                    if _tick_pos is not None:
+                        game_map.entities.append(world.Entity(
+                            char=_tick_spec.char, fg=_tick_spec.fg, pos=_tick_pos,
+                            name=_tick_spec.name, width=1, height=1,
+                            npc_ship_id=_tick_id,
+                            procedural_squad_id=_tick_mid,
+                        ))
+                        if _tick_initial_target is not None:
+                            ctx.npc_targets[_tick_mid] = _tick_initial_target
+                            _end_set: set[tuple[int, int]] = {_tick_initial_target}
+                            _path = world.find_path(
+                                (_tick_pos.x, _tick_pos.y), _end_set, game_map,
+                            )
+                            ctx.npc_paths[_tick_mid] = _path or []
+
     # --- Build goal list with body type + name ---
     _goals: list[tuple[int, int, str, str]] = []  # (x, y, type, name)
     def _body_goal(body) -> tuple[int, int] | None:
