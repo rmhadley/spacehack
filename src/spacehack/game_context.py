@@ -64,6 +64,22 @@ class CharacterInfo(TypedDict):
     class_name: str
 
 
+@dataclasses.dataclass
+class NpcFlashEvent:
+    """A one-shot visual event on the space map (jump gate flash).
+
+    Pushed by :func:`spacehack.npc_ships.move_npcs` when a merchant
+    ship arrives at or departs from a jump gate. The render layer
+    draws expanding rings at ``pos`` for ``lifetime`` frames, then
+    discards it. Events outside the current viewport expire silently.
+
+    Not frozen because :attr:`lifetime` is mutated (decremented) by
+    :func:`spacehack.npc_ships.render_npc_flash_events` each frame.
+    """
+    pos: world.Position
+    lifetime: int = 4  # frames remaining; decremented each render
+
+
 @dataclasses.dataclass(frozen=True)
 class BountySpawn:
     """A dynamically-placed bounty target enemy spawn.
@@ -185,3 +201,7 @@ class GameContext:
     # Checked by _run_game to break out of the main loop and return
     # to the title screen for a fresh run.
     player_dead: bool = False
+    # One-shot visual events on the space map (jump gate flashes, etc.).
+    # Each entry is rendered by the space-mode render loop for its
+    # remaining lifetime, then removed. Empty by default.
+    npc_flash_events: list[NpcFlashEvent] = dataclasses.field(default_factory=list)

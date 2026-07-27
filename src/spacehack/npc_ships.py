@@ -7,17 +7,17 @@ and merchants from the single :class:`data.npc_ships.NpcShipSpec`
 catalog.
 """
 
-from __future__ import annotations
-
-import math
+from __future__ import annotations    import math
 from typing import Any
+
+import tcod.console
 
 from . import engine as _engine
 from . import message_log as _ml
 from . import solar_system as _solar_module
 from . import world
 from .data.npc_ships import find_npc_ship as _find_npc_ship
-from .game_context import GameContext, ProceduralSpawn
+from .game_context import GameContext, ProceduralSpawn, NpcFlashEvent
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +398,11 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                 _ship_name = getattr(_spec, 'name', 'Merchant') if _spec else 'Merchant'
                 if _body_type == 'gate':
                     ctx.log.add(f"{_ship_name} jumps through {_body_name}.")
+                    # Push a flash event at the despawn position for the
+                    # space-mode render loop. Only visible in the viewport.
+                    ctx.npc_flash_events.append(
+                        NpcFlashEvent(pos=world.Position(_lx, _ly), lifetime=4)
+                    )
                 else:
                     ctx.log.add(f"{_ship_name} docks at {_body_name}.")
                 # Remove all members from the map.
@@ -496,3 +501,71 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     if (game_map.is_walkable(_pull_x, _pull_y)
                         and game_map.entity_at(_pull_x, _pull_y, exclude=_m) is None):
                         _m.pos = world.Position(_pull_x, _pull_y)
+
+
+# ---------------------------------------------------------------------------
+# NPC flash events — one-shot ring animations on the space map
+# ---------------------------------------------------------------------------
+
+_NPC_FLASH_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (
+    ("*", (200, 220, 255)),   # inner — pale blue-white (jump energy)
+    ("+", (180, 200, 255)),   # ring 1 — blue-white
+    ("o", (150, 180, 255)),   # ring 2 — dimmer blue
+    ("#", (120, 150, 220)),   # ring 3 — faint blue edge
+)
+
+
+def render_npc_flash_events(
+    console: tcod.console.Console,
+    ctx: GameContext,
+    cam_x: int, cam_y: int,
+    view_w: int, view_h: int,
+) -> None:
+    """Paint expanding rings for active flash events in the viewport.
+
+    Called from the space-mode render loop after the world view is
+    drawn but before the HUD. Each event with a position inside
+    the current viewport gets its rings painted; events outside
+    the viewport decay silently. Expired events are removed.
+    """
+    if not ctx.npc_flash_events:
+        return
+
+    _active: list[NpcFlashEvent] = []
+    for _ev in ctx.npc_flash_events:
+        # Decrement lifetime every frame, regardless of viewport.
+        # Events outside the viewport decay silently and are not
+        # drawn — the continue below skips drawing but not the
+        # decrement above the check.
+        _ev.lifetime -= 1
+        if _ev.lifetime <= 0:
+            continue  # expired, discard
+
+        _sx = _ev.pos.x - cam_x
+        _sy = _ev.pos.y - cam_y
+
+        # Only draw rings when the event is inside the viewport.
+        # Events outside the viewport still decay naturally and
+        # become visible if the camera moves toward them.
+        if 0 <= _sx < view_w and 0 <= _sy < view_h:
+            # Draw expanding rings: lifetime counts DOWN (4 → 1),
+            # so the number of rings drawn INCREASES as lifetime
+            # decreases, creating an expanding-outward flash.
+            _rings_to_draw = len(_NPC_FLASH_RINGS) - _ev.lifetime + 1
+            for _ri in range(_rings_to_draw):
+                _r_char, _r_fg = _NPC_FLASH_RINGS[_ri]
+                _dist = _ri + 1
+                for _dy in range(-_dist, _dist + 1):
+                    for _dx in range(-_dist, _dist + 1):
+                        if abs(_dx) + abs(_dy) != _dist:
+                            continue
+                        _px = _sx + _dx
+                        _py = _sy + _dy
+                        if 0 <= _px < view_w and 0 <= _py < view_h:
+                            console.print(x=_px, y=_py, string=_r_char, fg=_r_fg)
+
+        # Keep alive (regardless of viewport) so the event decays
+        # naturally over its full lifetime.
+        _active.append(_ev)
+
+    ctx.npc_flash_events = _active

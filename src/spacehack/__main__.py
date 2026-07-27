@@ -178,6 +178,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             cam_x = max(0, min(player.pos.x - view_w // 2, sol_w - view_w))
             cam_y = max(0, min(player.pos.y - view_h // 2, sol_h - view_h))
             world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
+            # Paint NPC flash events (jump gate spawn/despawn rings).
+            if ctx.npc_flash_events:
+                from .npc_ships import render_npc_flash_events
+                render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
         active_mission_text = mission_module.find_mission(player_active_mission.mission_id).title if player_active_mission is not None else None
