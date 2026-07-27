@@ -251,7 +251,12 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             # Period = wait one turn (space mode: pirates move, shields regen).
             if _is_period_press(event):
                 if current_mode == 'space' and (player_owned_ship is not None):
-                    _check_auto_comms_warning(ctx, player.pos, solar_system_module.current_system())
+                    _auto_result = _check_auto_comms_warning(ctx, player.pos, solar_system_module.current_system())
+                    if _auto_result is not None:
+                        _, _attack_data = _auto_result
+                        if _attack_data is not None:
+                            combat._handle_combat_encounter(ctx, console, _attack_data)
+                            player_active_mission = ctx.player_active_mission
                     while True:
                         _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                         if _encounter is None:
@@ -271,7 +276,12 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             dx, dy = delta
             code, blocker = world.try_move(player, game_map, dx, dy)
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
-                _check_auto_comms_warning(ctx, player.pos, solar_system_module.current_system())
+                _auto_result = _check_auto_comms_warning(ctx, player.pos, solar_system_module.current_system())
+                if _auto_result is not None:
+                    _, _attack_data = _auto_result
+                    if _attack_data is not None:
+                        combat._handle_combat_encounter(ctx, console, _attack_data)
+                        player_active_mission = ctx.player_active_mission
                 while True:
                     _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                     if _encounter is None:

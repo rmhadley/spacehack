@@ -440,14 +440,19 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 # NPC auto-comms warning (before combat triggers)
 # ---------------------------------------------------------------------------
 
-def _check_auto_comms_warning(ctx, player_pos, system) -> bool:
+def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | None:
     """Check if any NPC with ``comms_warning_range > 0`` is within range.
 
     If a qualifying NPC is found and the player has NOT already been
-    warned in this system, logs the NPC's first comms line as an
-    auto-hail and marks the system as warned. Returns ``True`` if a
-    warning was issued (so callers can skip duplicate checks this
-    tick), ``False`` otherwise.
+    warned in this system, opens the comms panel and marks the system
+    as warned. Returns:
+
+      * ``(True, attack_data_or_None)`` -- warning was issued.
+        ``attack_data`` is ``(specs, positions)`` if the player
+        chose **Attack** from the comms, or ``None`` if they closed
+        the comms or chose another option.
+      * ``None`` -- no qualifying NPC within range (or already
+        warned). Callers should continue normally.
 
     Warning range must be larger than ``detect_radius`` on the same
     NPC spec so the player gets a chance to turn back before combat
@@ -455,9 +460,9 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> bool:
     """
     _sys_id = getattr(system, 'id', '')
     if not _sys_id:
-        return False
+        return None
     if _sys_id in ctx.militia_warned_systems:
-        return False
+        return None
 
     for _e in ctx.game_map.entities:
         if getattr(_e, 'owned', False):
@@ -478,19 +483,13 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> bool:
         )
         if 0 < _dist <= _warn_range:
             ctx.militia_warned_systems.add(_sys_id)
-            _lines = getattr(_spec, 'comms_lines', ())
-            if _lines:
-                ctx.log.add_colored(
-                    f"{_spec.name} hails you: \"{_lines[0]}\"",
-                    message_log.COLOR_IMPORTANT_EVENT,
-                )
-            else:
-                ctx.log.add_colored(
-                    f"{_spec.name} signals your vessel.",
-                    message_log.COLOR_IMPORTANT_EVENT,
-                )
-            return True
-    return False
+            # Open the existing comms panel so the player sees the
+            # hailing ship and can choose to turn back, attack, or
+            # interact further.
+            from .comms import open_comms as _open_comms
+            _attack_data = _open_comms(ctx, player_pos)
+            return (True, _attack_data)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -685,7 +684,13 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     if _aborted:
                         ctx.log.add('Auto-nav cancelled.')
                         return (GotoOutcome.CANCELLED, None)
-                    _check_auto_comms_warning(ctx, player_entity.pos, solar_system_module.current_system())
+                    _auto_result = _check_auto_comms_warning(ctx, player_entity.pos, solar_system_module.current_system())
+                    if _auto_result is not None:
+                        _warned, _attack_data = _auto_result
+                        ctx.log.add('Auto-nav interrupted - incoming transmission!')
+                        if _attack_data is not None:
+                            return (GotoOutcome.COMBAT, _attack_data)
+                        return (GotoOutcome.CANCELLED, None)
                     _encounter = _detect_combat_encounter(ctx, player_entity.pos, solar_system_module.current_system())
                     if _encounter is not None:
                         ctx.log.add('Auto-nav interrupted - enemies detected!')
