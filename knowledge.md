@@ -18,7 +18,7 @@ python -m spacehack           # run the game
 ### Commit discipline
 - **One commit = one self-contained change** (one refactor step, one feature, or one bug fix).
 - **Descriptive messages.** Start with a prefix tag: `feat:`, `fix:`, `refactor:`, `docs:`, `tools:`, `content:`. Example: `feat: add laser damage falloff at range`.
-- **Run gates before each commit.** Never commit without passing audit + smoke (see Pre-commit gates below).
+- **Run the smoke gate before each commit.** Never commit without a passing smoke test (see Pre-commit gate below).
 - **NO mega-commits.** Break large work into a sequence of atomic commits.
 
 ### Why
@@ -73,6 +73,7 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 3. From `__main__`, hand off: `<domain>.<entry_point>(ctx, ...)`. No indirection.
 4. For modal-driven UI: `ui.Modal(ctx.context, console).run(render_fn, update_fn)`
 5. Add new cross-cutting state as a field on `GameContext`.
+6. **Monitor file size** — If any existing `src/spacehack/*.py` approaches ~1000 lines during development, pause and evaluate whether the new code should live in its own module rather than inflating an existing file.
 
 ### Pre-commit gate
 ```bash
@@ -148,6 +149,8 @@ At natural boundaries (between phases, after major refactors, at the user's prom
 3. **Data-first** — Does new content belong in a `data/` catalog + frozen dataclass?
 4. **Live-by-side-effect** — Are domain functions mutating state directly or returning values for the caller to apply?
 5. **Unused code** — Did this phase leave dead imports, functions, or fields behind?
+
+6. **File size** — Check if any domain module exceeds ~1000 lines. If so, plan an extraction before moving to the next phase.
 
 Document findings in the design doc's current phase section. Resolve before moving to the next phase.
 

@@ -121,6 +121,21 @@ ui.Modal(ctx.context, console).run(render_fn, update_fn)
 
 If the domain needs new cross-cutting state, add it as a field on `GameContext` rather than threading it through every signature.
 
+### When to extract a new domain
+
+If you find yourself writing a substantial block inside an existing module, step back and ask:
+
+* **Single concern?** — Does this code handle one coherent responsibility
+  (combat, trade, navigation, comms, cargo, etc.)?
+* **Independent reasoning?** — Could this block be understood, tested, or
+  modified without knowing the rest of the file it lives in?
+* **File size trigger?** — Is the target file approaching ~1000 lines?
+
+If yes to any of these, the code belongs in its own domain module. Create
+a new `<domain>.py`, move the logic there, and hand off from the dispatcher
+with one call. This keeps the dispatcher thin and prevents any single file
+from becoming a monolith.
+
 **GameContext fields** -- everything available via `ctx.<field>`:
 
 | Field | Type | Purpose |
@@ -152,6 +167,7 @@ The smoke test auto-mounts `.venv/bin/python3` so a bare-`python3` invocation st
 * **Atomic commits.** Each commit is one self-contained change (one refactor step, one feature, or one bug fix) with a descriptive message. Non-trivial work lands as a sequence of atomic commits, not one mega-commit.
 * **Git anchors every AI-assisted step.** Each new request starts with no memory of the last turn, so orient with `git status` / `git diff --stat`, commit one logical change per AI-assisted step (same atomicity as the rule above), and run the smoke gate before each commit. The next session opens from the diff, not from prose recall -- the working tree, not the chat log, is the source of truth.
 * **Gates beat playtests.** Run the smoke test before each commit to catch import errors and missing entry points before they surface in-game.
+* **File size trigger.** No module should become a monolith by accident. When a production file approaches ~1000 lines, pause and evaluate whether it has grown beyond one coherent responsibility. The ~1000 line mark is not a rigid cap — but passing it should be a deliberate choice, not a surprise.
 * **Terse code-shaped docs.** Optimize for the skim-don't-read mode; assume a future-after-context-wipe reader.
 
 ## Tweaking
