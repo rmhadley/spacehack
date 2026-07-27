@@ -1767,6 +1767,12 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     enemies include the bounty target, auto-completes the mission
     (instant reward — no turn-in needed).
     """
+    # If the player is already dead, skip straight to DEFEAT to
+    # prevent re-showing the death screen via __main__'s combat
+    # while-loops (G-key, movement, period handlers).
+    if ctx.player_dead:
+        return "DEFEAT"
+
     # Encounter None / malformed -> silent FLEE (matches _run_goto's
     # contract that combat is only triggered on detected encounters;
     # a None here is a programmer bug we should not crash on).
@@ -1855,5 +1861,72 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                                 # explosion handler, but belt-and-
                                 # suspenders for any edge cases.
                                 pass
+    if _result == "DEFEAT":
+        ctx.player_dead = True
+        _render_death_screen(console, ctx.context, ctx.log)
     return _result
 
+
+# ---------------------------------------------------------------------------
+# Death screen
+# ---------------------------------------------------------------------------
+
+
+def _render_death_screen(console, context, log) -> None:
+    """Render a full-screen death overlay and wait for a keypress.
+
+    Paints a dramatic red-tinted death screen with the player's
+    ship destruction message, then blocks until any key is pressed
+    (or the window is closed). The caller is responsible for
+    setting ``ctx.player_dead`` and cleaning up after this returns.
+    """
+    from .engine import SCREEN_WIDTH, SCREEN_HEIGHT
+    from . import message_log as _ml
+
+    _death_lines = [
+        "",
+        "═" * 40,
+        " " * 12 + "YOUR SHIP HAS BEEN DESTROYED",
+        "═" * 40,
+        "",
+        "The cold void rushes in as your cockpit",
+        "shatters. Systems fail one by one.",
+        "Your story among the stars ends here.",
+        "",
+        "Maybe in another life, under another sun,",
+        "you'll get another chance.",
+        "",
+        "Press any key to return to the main menu...",
+    ]
+    _red = (255, 60, 60)
+    _white = (200, 200, 200)
+    _dark_bg = (20, 0, 0)
+
+    while True:
+        console.clear()
+        # Fill the entire console with dark red background.
+        for y in range(SCREEN_HEIGHT):
+            for x in range(SCREEN_WIDTH):
+                console.print(x=x, y=y, string=" ", fg=_dark_bg, bg=_dark_bg)
+
+        # Draw death lines centred.
+        _start_y = (SCREEN_HEIGHT - len(_death_lines)) // 2 - 4
+        for _i, _line in enumerate(_death_lines):
+            _color = _red if _i == 2 else _white
+            _x = (SCREEN_WIDTH - len(_line)) // 2
+            console.print(x=_x, y=_start_y + _i, string=_line, fg=_color)
+
+        # Also show the message log so the player can review what happened.
+        _ml.render_message_log(
+            console, log,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+        )
+
+        context.present(console)
+
+        for event in tcod.event.wait():
+            if isinstance(event, tcod.event.Quit):
+                raise SystemExit()
+            if isinstance(event, tcod.event.KeyDown):
+                return

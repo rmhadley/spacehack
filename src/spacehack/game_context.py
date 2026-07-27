@@ -181,3 +181,7 @@ class GameContext:
     # Systems where the player has already received an NPC auto-comms
     # warning. Reset on map change (jump / launch).
     militia_warned_systems: set[str] = dataclasses.field(default_factory=set)
+    # Set to True when the player's ship is destroyed in combat.
+    # Checked by _run_game to break out of the main loop and return
+    # to the title screen for a fresh run.
+    player_dead: bool = False

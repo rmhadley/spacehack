@@ -166,6 +166,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
     current_mode: str = 'city'
     current_city_id: str = 'earth'
     while True:
+        if ctx.player_dead:
+            return
         console.clear()
         if current_mode == 'space':
             sys_now = solar_system_module.current_system()
@@ -493,7 +495,9 @@ def run(context: tcod.context.Context) -> None:
         if outcome is Outcome.BACK:
             continue
         _run_game(context, species_id, class_id)
-        return
+        # After _run_game returns (death or completion), loop back to
+        # the main menu so the player can start a fresh run.
+        continue
 
 def main() -> None:
     """Top-level entry: load assets, open window, then run the flow."""
