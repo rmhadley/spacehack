@@ -331,7 +331,26 @@ def open_comms(
             f"You open fire on the {_contact_name}!",
             _ml.COLOR_IMPORTANT_EVENT,
         )
-        return ([_contact_spec], [_contact_entity.pos])
+        # Look up the contacted ship's squad and include ALL members.
+        _squad_id = getattr(_contact_entity, 'procedural_squad_id', '')
+        _attack_specs: list = [_contact_spec]
+        _attack_positions: list = [_contact_entity.pos]
+        if _squad_id:
+            for _e in ctx.game_map.entities:
+                if _e is _contact_entity:
+                    continue
+                if getattr(_e, 'procedural_squad_id', '') != _squad_id:
+                    continue
+                _pid = getattr(_e, 'npc_ship_id', '')
+                if not _pid:
+                    continue
+                try:
+                    _spec = _find_npc_ship(_pid)
+                except (KeyError, ImportError):
+                    continue
+                _attack_specs.append(_spec)
+                _attack_positions.append(_e.pos)
+        return (_attack_specs, _attack_positions)
 
     elif interaction_outcome is _InteractionOutcome.SCAN:
         _goods = getattr(_contact_spec, 'cargo_goods', ())
