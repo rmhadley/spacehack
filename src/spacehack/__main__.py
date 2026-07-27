@@ -1570,50 +1570,58 @@ def _run_quest_log(ctx) -> tuple[QuestLogOutcome, mission_module.ActiveMission |
     if outcome is QuestLogOutcome.ABANDONED:
         return (outcome, None)
     return (outcome, ctx.player_active_mission)
-SHIP_MENU_OPTIONS: tuple[str, ...] = ('View', 'Refuel', 'Sell', 'Launch')
+SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'Launch')
 PLANET_MENU_OPTIONS: tuple[str, ...] = ('Land',)
 
 def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int=0, *, screen_width: int, screen_height: int) -> None:
-    """Paint the centered 3-option hangar menu into ``console``.
+    """Paint the 2-option hangar ship menu via :func:`ui.render_selectable_list`.
 
-    ``selected`` is the index of the highlighted option (clamped by
-    :func:`_ship_menu_navigate`'s modulo wrap, so callers can pass
-    any int and the renderer will handle the wrap). Clears first
-    so the modal fully replaces the city view; the caller re-paints
-    city + HUD + msg log once the modal exits. Options are wrapped
-    in ``>`` / ``<`` markers so the selected option reads the same
-    way as the species / class menus (consistency so the player
-    only learns one highlight idiom).
+    Clears first so the modal fully replaces the city view; the
+    caller re-paints city + HUD + msg log once the modal exits.
+    Ship stats (description, fuel, hull, credits) are rendered
+    directly above the list so they don't interfere with option
+    selection markers.
     """
     console.clear()
     title = f'Your {ship.name.upper()}'
-    sub = ship.description
-    if ctx.player_owned_ship is None:
-        sub = '(no ship owned yet)'
-    center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    console.print(x=ui.centered_x(title, screen_width), y=center_y - 5, string=title, fg=ui.COLOR_TITLE)
-    console.print(x=ui.centered_x(sub, screen_width), y=center_y - 3, string=sub, fg=ui.COLOR_DESCRIPTION)
+    title_y = screen_height // 6
+    console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
+    # Render ship stats directly above the options.
+    _stat_y = title_y + 2
     if ctx.player_owned_ship is not None:
-        fuel_str = f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}  [Refuel: {ship_module.FUEL_COST_PER_UNIT}$/u]'
-        console.print(x=ui.centered_x(fuel_str, screen_width), y=center_y - 1, string=fuel_str, fg=ui.COLOR_VALUE_WHITE)
-    list_top = center_y + 1 if ctx.player_owned_ship is not None else center_y - 1
-    n = len(SHIP_MENU_OPTIONS)
-    sel = selected % n
-    for i, label in enumerate(SHIP_MENU_OPTIONS):
-        row = list_top + i * 2
-        is_selected = i == sel
-        marker = '> ' if is_selected else '  '
-        end_marker = ' <' if is_selected else '  '
-        if label == 'Refuel' and ctx.player_owned_ship is not None:
-            label = f'{label} [{ctx.player_owned_ship.fuel}/{ship.max_fuel}]'
-        text = f'{marker}{label}{end_marker}'
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION)
-    console.print(x=ui.centered_x('ARROW KEYS / j,k navigate - ENTER select - ESC walk away.', screen_width), y=center_y + len(SHIP_MENU_OPTIONS) * 2 + 1, string='ARROW KEYS / j,k navigate - ENTER select - ESC walk away.', fg=ui.COLOR_INSTRUCTION)
+        _lines = [
+            ship.description,
+            f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}',
+            f'Hull: {ctx.player_owned_ship.hull_damage_pct}% damage',
+            f'Credits: {ctx.stats.credits}$',
+        ]
+        for i, _line in enumerate(_lines):
+            console.print(x=ui.centered_x(_line, screen_width), y=_stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
+    else:
+        console.print(x=ui.centered_x(ship.description, screen_width), y=_stat_y, string=ship.description, fg=ui.COLOR_DESCRIPTION)
+    # Options use render_selectable_list with a specific start_y so they
+    # appear below the stats.
+    _stats_height = 5 if ctx.player_owned_ship is not None else 1
+    _list_title_y = _stat_y + _stats_height + 1
+    _opt_items = [(opt, "") for opt in SHIP_MENU_OPTIONS]
+    ui.render_selectable_list(
+        console, screen_width, screen_height,
+        title="",
+        items=_opt_items,
+        selected=selected,
+        col_x=screen_width // 3,
+        title_y=_list_title_y,
+        title_fg=ui.COLOR_TITLE,
+        row_spacing=2,
+        item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
+        item_fg_normal=ui.COLOR_OPTION,
+        hint='UP/DOWN / j,k navigate - ENTER select - ESC walk away',
+    )
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
-def _ship_menu_navigate(event: tcod.event.Event, selected: int) -> int | None:
+def _ship_menu_navigate(event: tcod.event.Event, selected: int, n: int = 2) -> int | None:
     """If ``event`` drives hangar-menu nav, return the new
-    ``selected`` index (modulo :data:`SHIP_MENU_OPTIONS` length).
+    ``selected`` index (modulo ``n`` options).
 
     Recognises both the standard arrow keys (UP / DOWN; also KP_8 /
     KP_2 via :data:`ui._UP_SYMS` and :data:`ui._DOWN_SYMS`) and
@@ -1625,14 +1633,16 @@ def _ship_menu_navigate(event: tcod.event.Event, selected: int) -> int | None:
     caller routes through :func:`update_ship_menu` for Enter / ESC
     / Quit handling.
     """
+    if n <= 0:
+        return None
     if not isinstance(event, tcod.event.KeyDown):
         return None
     sym = event.sym
     sym_name: str = getattr(sym, 'name', '').lower()
     if sym in ui._UP_SYMS or sym_name == 'k':
-        return (selected - 1) % len(SHIP_MENU_OPTIONS)
+        return (selected - 1) % n
     if sym in ui._DOWN_SYMS or sym_name == 'j':
-        return (selected + 1) % len(SHIP_MENU_OPTIONS)
+        return (selected + 1) % n
     return None
 
 def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
@@ -1652,34 +1662,32 @@ def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
     if sym in ui._ESCAPE_SYMS:
         return ShipMenuAction.BACK
     if sym in ui._ENTER_SYMS:
-        return ShipMenuAction.VIEW if selected == 0 else ShipMenuAction.REFUEL if selected == 1 else ShipMenuAction.SELL if selected == 2 else ShipMenuAction.LAUNCH
+        return ShipMenuAction.VIEW if selected == 0 else ShipMenuAction.LAUNCH
     return ShipMenuAction.IGNORE
 
 
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the hub-menu modal for ``ship``; return the chosen action.
 
-    The menu has 4 options arranged vertically; the highlighted
-    option (initially 0 = ``View``) is mutated by UP / DOWN arrows
+    The menu has 2 options (View Cargo, Launch); the highlighted
+    option (initially 0 = View Cargo) is mutated by UP / DOWN arrows
     AND vim ``j`` / ``k`` via :func:`_ship_menu_navigate`, and
     maps to a ShipMenuAction via :func:`update_ship_menu` on
-    Enter. ``View`` opens a sub-modal; ``Refuel`` buys fuel;
-    ``Sell`` and ``Launch`` log a stub message for this iteration.
+    Enter. ``View`` opens the cargo modal; ``Launch`` exits to
+    space mode.
     ESC returns ``BACK``; that's a no-op from the caller's point
     of view (the city is already being repainted by the main loop).
-
-    ``stats`` is the player's :class:`hud.HudStats` (gold is read
-    and mutated by the REFUEL handler).
     """
     console = make_console()
     selected = 0
+    n = len(SHIP_MENU_OPTIONS)
 
     def _render() -> None:
         render_ship_menu(console, ctx, ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> ShipMenuAction:
         nonlocal selected
-        new = _ship_menu_navigate(event, selected)
+        new = _ship_menu_navigate(event, selected, n)
         if new is not None:
             selected = new
             return ShipMenuAction.IGNORE
@@ -1690,11 +1698,84 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
             from .trade import open_cargo as _open_cargo
             _open_cargo(ctx)
             continue
-        if action is ShipMenuAction.REFUEL:
-            ship_record = ship_module.find_ship(ctx.player_owned_ship.ship_id)
-            buyable = ship_record.max_fuel - ctx.player_owned_ship.fuel
+        return action  # LAUNCH, BACK, or QUIT
+
+
+class _MechanicOutcome(Enum):
+    """Result of the mechanic-terminal menu."""
+    IGNORE = auto()
+    BACK = auto()
+    QUIT = auto()
+    REFUEL = auto()
+    REPAIR = auto()
+
+
+def _run_mech_menu(ctx) -> None:
+    """Show the mechanic-terminal menu with Refuel + Repair options.
+
+    Refuel buys fuel cells for the player's ship at the standard rate.
+    Repair restores hull integrity at a cost based on damage.
+    ESC / QUIT returns silently.
+    """
+    if ctx.player_owned_ship is None:
+        ctx.log.add("You need a ship to use the mechanic terminal.")
+        return
+
+    console = make_console()
+    selected = 0
+    owned = ctx.player_owned_ship
+    ship_rec = ship_module.find_ship(owned.ship_id)
+    _MECH_OPTIONS = ["Refuel", "Repair"]
+
+    def _render() -> None:
+        nonlocal selected
+        console.clear()
+        _items = [(opt, "") for opt in _MECH_OPTIONS]
+        _stat_lines: list[tuple[str, str]] = [
+            (f"Ship: {ship_rec.name}", ""),
+            (f"Fuel: {owned.fuel} / {ship_rec.max_fuel}  |  Hull: {owned.hull_damage_pct}% damage", ""),
+            (f"Credits: {ctx.stats.credits}$", ""),
+        ]
+        ui.render_selectable_list(
+            console, SCREEN_WIDTH, SCREEN_HEIGHT,
+            title="MECHANIC TERMINAL",
+            items=_stat_lines + _items,
+            selected=selected,
+            col_x=SCREEN_WIDTH // 4,
+            title_y=SCREEN_HEIGHT // 6,
+            row_spacing=1,
+            item_fg_selected=ui.COLOR_VALUE_WHITE,
+            item_fg_normal=ui.COLOR_VALUE_DIM,
+            hint="UP/DOWN / j,k navigate - ENTER select - ESC back",
+        )
+        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
+    def _update(event) -> _MechanicOutcome:
+        nonlocal selected
+        if isinstance(event, tcod.event.Quit):
+            return _MechanicOutcome.QUIT
+        if not isinstance(event, tcod.event.KeyDown):
+            return _MechanicOutcome.IGNORE
+        sym = event.sym
+        sym_name: str = getattr(sym, 'name', '').lower()
+        if sym in ui._UP_SYMS or sym_name == 'k':
+            selected = (selected - 1) % len(_MECH_OPTIONS)
+            return _MechanicOutcome.IGNORE
+        if sym in ui._DOWN_SYMS or sym_name == 'j':
+            selected = (selected + 1) % len(_MECH_OPTIONS)
+            return _MechanicOutcome.IGNORE
+        if sym in ui._ESCAPE_SYMS:
+            return _MechanicOutcome.BACK
+        if sym in ui._ENTER_SYMS:
+            return _MechanicOutcome.REFUEL if selected == 0 else _MechanicOutcome.REPAIR
+        return _MechanicOutcome.IGNORE
+
+    while True:
+        action = ui.Modal(ctx.context, console).run(_render, _update)
+        if action is _MechanicOutcome.REFUEL:
+            buyable = ship_rec.max_fuel - owned.fuel
             if buyable <= 0:
-                ctx.log.add('The fuel tank is already full.')
+                ctx.log.add("The fuel tank is already full.")
                 continue
             affordable = ctx.stats.credits // ship_module.FUEL_COST_PER_UNIT
             if affordable <= 0:
@@ -1703,11 +1784,23 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
             units = min(buyable, affordable)
             cost = units * ship_module.FUEL_COST_PER_UNIT
             ctx.stats.credits -= cost
-            ctx.player_owned_ship.fuel += units
-            ctx.log.add(f'Refueled {units} units for {cost}$. Fuel: {ctx.player_owned_ship.fuel} / {ship_record.max_fuel}.')
+            owned.fuel += units
+            ctx.log.add(f"Refueled {units} units for {cost}$. Fuel: {owned.fuel} / {ship_rec.max_fuel}.")
             continue
-        return action
-
+        if action is _MechanicOutcome.REPAIR:
+            dmg_pct = owned.hull_damage_pct
+            if dmg_pct <= 0:
+                ctx.log.add("No repairs needed -- hull integrity is 100%.")
+                continue
+            repair_cost = int(dmg_pct * ship_rec.price // 100)
+            if ctx.stats.credits < repair_cost:
+                ctx.log.add(f"Repair would cost {repair_cost}$, but you only have {ctx.stats.credits}$.")
+                continue
+            ctx.stats.credits -= repair_cost
+            owned.hull_damage_pct = 0
+            ctx.log.add(f"Repaired hull to 100% for {repair_cost}$.")
+            continue
+        return  # BACK or QUIT
 def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_module.OwnedShip | None) -> world.Entity | None:
     """Return the player's owned hangar ship entity in ``city_game_map``.
 
@@ -2137,6 +2230,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)
+                elif blocker.mech_terminal:
+                    _run_mech_menu(ctx)
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
                     deliver_mission: mission_module.Mission | None = None

@@ -251,6 +251,17 @@ def load_planet(planet_id: str) -> world.GameMap:
             width=1, height=1,
             trade_terminal=True,
         ))
+        # Mechanic terminal: placed on the opposite side of the door.
+        _mech_x = port.door_x - 2
+        _mech_y = port.y_hi + 1
+        entities.append(world.Entity(
+            char="%",
+            fg=(200, 220, 100),
+            pos=world.Position(x=_mech_x, y=_mech_y),
+            name="Mechanic Terminal",
+            width=1, height=1,
+            mech_terminal=True,
+        ))
 
     # Shared decoration: roads, plaza, sidewalks, grass patch.
     world._layout_outside(tiles, width, height, spec.buildings, theme=theme)

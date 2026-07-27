@@ -53,10 +53,20 @@ Survey needed, but at minimum:
 
 ## Acceptance criteria
 
-- [ ] Function exists in `ui.py` with a clear docstring
+- [x] Function exists in `ui.py` with a clear docstring
 - [ ] All existing list menus use it (or have a comment explaining why they don't)
-- [ ] Scrolling never shifts text horizontally
-- [ ] Smoke + audit pass
+- [x] Scrolling never shifts text horizontally (fixed-column by default)
+- [x] Smoke + audit pass
+
+### Wired so far
+
+- `render_menu()` in `ui.py` — delegates to `render_selectable_list` (covers character creation: species + class menus)
+- `_run_goto()` in `__main__.py` — the GO TO / auto-nav destination picker
+
+### Not yet wired (won't fit without API extension)
+
+- `render_ship_menu()` in `__main__.py` — has ship description + fuel line between title and options. Would need a pre-content callback or the ability to inject extra lines above the list.
+- `_render_interaction_modal()` in `comms.py` — has variable-height flavor text above the options. Same constraint.
 
 ## Estimated effort
 
