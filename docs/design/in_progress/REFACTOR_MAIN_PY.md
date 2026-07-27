@@ -175,7 +175,7 @@ Each phase has its own playtest noted above. A **final runthrough** after all ph
 ## Status
 
 - [x] Phase 1 — Input helpers (`input_helpers.py`)
-- [ ] Phase 2 — Planet-side menus (`menus.py`)
+- [x] Phase 2 — Planet-side menus (`menus.py`)
 - [ ] Phase 3 — Navigation & Jump (`navigation.py`)
 - [ ] Phase 4 — Bounty combat detection (`bounty.py`)
 - [ ] Phase 5 — City/space transitions (`city.py`)
