@@ -591,10 +591,9 @@ def _paint_range_line(
       * **Orange** — within ``min_range`` (too-close penalty, if min_range > 0)
       * **Red** — beyond ``max_range`` (dist penalty active)
 
-    The line updates immediately when the player switches weapons.
-    Uses ``\u00b7`` (middle dot) as the line character so it's
-    visible but doesn't fully obscure glyphs underneath.
-    """
+    The line updates immediately when the player switches weapons.    Uses ``~`` (tilde) as the line character so it's visible but
+    doesn't fully obscure glyphs underneath. Tilde is a safe
+    choice for CP437-based tilesets (``CHARMAP_TCOD``)."""
     try:
         ws = find_weapon(weapon_id)
     except KeyError:
@@ -630,7 +629,7 @@ def _paint_range_line(
 
         console.print(
             x=region_x + sx, y=region_y + sy,
-            string="\u00b7",
+            string="~",
             fg=color,
         )
 
