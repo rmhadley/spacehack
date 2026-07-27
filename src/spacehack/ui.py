@@ -164,53 +164,114 @@ def wrap_text(text: str, max_width: int) -> list[str]:
 # Rendering
 # ---------------------------------------------------------------------------
 
+
+def render_selectable_list(
+    console: tcod.console.Console,
+    screen_width: int,
+    screen_height: int,
+    title: str,
+    items: list[tuple[str, str]],
+    selected: int,
+    *,
+    col_x: int | None = None,
+    title_y: int | None = None,
+    row_spacing: int = 2,
+    title_fg: tuple[int, int, int] = COLOR_TITLE,
+    item_fg_selected: tuple[int, int, int] = COLOR_OPTION_HIGHLIGHT,
+    item_fg_normal: tuple[int, int, int] = COLOR_OPTION,
+    desc_fg_selected: tuple[int, int, int] = COLOR_DESCRIPTION,
+    desc_fg_normal: tuple[int, int, int] = COLOR_VALUE_DIM,
+    hint_fg: tuple[int, int, int] = COLOR_INSTRUCTION,
+    hint: str = "UP/DOWN navigate - ENTER select - ESC back",
+) -> None:
+    """Render a selectable list menu with a fixed-column layout.
+
+    ``items`` is ``[(name, description), ...]`` — name is the
+    selectable label, description is an optional second line shown
+    in dim text below each item (pass ``""`` for items with no
+    description).  Uses consistent-width markers (4 chars for both
+    selected and unselected) and a fixed left column so scrolling
+    never shifts the text horizontally.
+
+    The console is NOT cleared — callers may want to paint a
+    background or message log underneath.  Call ``console.clear()``
+    yourself before calling this if you want a clean slate.
+
+    Args:
+        console: Target console to draw on.
+        screen_width: Width of the console in character cells.
+        screen_height: Height of the console in character cells.
+        title: Title text (centered).
+        items: List of ``(name, description)`` tuples.
+        selected: Index of the currently selected item.
+        col_x: Left column for item names.  Defaults to ``screen_width // 4``.
+        title_y: Y position of the title.  Defaults to ``screen_height // 4``.
+        row_spacing: Lines between item rows (default 2: name + desc).
+        title_fg: Color for the title.
+        item_fg_selected: Color for the selected item name.
+        item_fg_normal: Color for unselected item names.
+        desc_fg_selected: Color for the selected item's description.
+        desc_fg_normal: Color for unselected items' descriptions.
+        hint_fg: Color for the hint at the bottom.
+        hint: Hint text shown below the list.  Empty string to skip.
+    """
+    _col_x = col_x if col_x is not None else screen_width // 4
+    _title_y = title_y if title_y is not None else screen_height // 4
+
+    # Title (centered).
+    console.print(
+        x=centered_x(title, screen_width), y=_title_y,
+        string=title, fg=title_fg,
+    )
+
+    # Items with consistent-width markers.
+    n = len(items)
+    list_top = _title_y + 2
+    for i, (name, desc) in enumerate(items):
+        row = list_top + i * row_spacing
+        is_selected = i == selected
+        marker_open = "> " if is_selected else "  "
+        marker_close = " <" if is_selected else "  "
+        text = f"{marker_open}{name}{marker_close}"
+        item_fg = item_fg_selected if is_selected else item_fg_normal
+        console.print(x=_col_x, y=row, string=text, fg=item_fg)
+
+        if desc:
+            desc_fg = desc_fg_selected if is_selected else desc_fg_normal
+            console.print(
+                x=_col_x + 2, y=row + 1,
+                string=desc, fg=desc_fg,
+            )
+
+    # Hint (centered).
+    if hint:
+        hint_y = list_top + n * row_spacing + 1
+        console.print(
+            x=centered_x(hint, screen_width), y=hint_y,
+            string=hint, fg=hint_fg,
+        )
+
+
 def render_menu(
     console: tcod.console.Console,
     menu: MenuScreen,
     screen_width: int,
     screen_height: int,
 ) -> None:
-    """Paint ``menu`` centered on ``console``. Idempotent (clears first)."""
+    """Paint ``menu`` centered on ``console``. Idempotent (clears first).
+
+    Delegates to :func:`render_selectable_list` with the menu's title
+    serving as the instruction line and its options as the item list.
+    """
     console.clear()
-
-    title_y = screen_height // 4
-    console.print(
-        x=centered_x(menu.title, screen_width),
-        y=title_y,
-        string=menu.title,
-        fg=COLOR_TITLE,
+    _items = [(label, menu.descriptions.get(id_, "")) for id_, label in menu.options]
+    render_selectable_list(
+        console, screen_width, screen_height,
+        title=menu.title,
+        items=_items,
+        selected=menu.selected,
+        hint=menu.instruction,
     )
-    console.print(
-        x=centered_x(menu.instruction, screen_width),
-        y=title_y + 2,
-        string=menu.instruction,
-        fg=COLOR_INSTRUCTION,
-    )
-
-    # Options centered vertically around the middle, spaced 2 rows apart.
-    list_top = (screen_height // 2) - len(menu.options)
-    for i, (_, label) in enumerate(menu.options):
-        row = list_top + i * 2
-        is_selected = (i == menu.selected)
-        marker = "> " if is_selected else "  "
-        end_marker = " <" if is_selected else "  "
-        text = f"{marker}{label}{end_marker}"
-        fg = COLOR_OPTION_HIGHLIGHT if is_selected else COLOR_OPTION
-        console.print(
-            x=centered_x(text, screen_width),
-            y=row,
-            string=text,
-            fg=fg,
-        )
-
-    desc = menu.descriptions.get(menu.selected_id, "")
-    if desc:
-        console.print(
-            x=centered_x(desc, screen_width),
-            y=list_top + len(menu.options) * 2 + 1,
-            string=desc,
-            fg=COLOR_DESCRIPTION,
-        )
 
 
 def render_confirm(

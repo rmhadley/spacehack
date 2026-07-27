@@ -813,19 +813,14 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
     console = make_console()
     while True:
         console.clear()
-        title = 'GO TO'
-        console.print(x=ui.centered_x(title, SCREEN_WIDTH), y=SCREEN_HEIGHT // 4, string=title, fg=ui.COLOR_TITLE)
-        list_top = SCREEN_HEIGHT // 4 + 2
-        for i, (label, _body) in enumerate(destinations):
-            row = list_top + i * 2
-            is_selected = i == selected
-            marker_open = '> ' if is_selected else '  '
-            marker_close = ' <' if is_selected else '  '
-            text = f'{marker_open}{label}{marker_close}'
-            fg = ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION
-            console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=row, string=text, fg=fg)
-        hint = 'ARROW KEYS / j,k navigate - ENTER go - ESC cancel'
-        console.print(x=ui.centered_x(hint, SCREEN_WIDTH), y=list_top + n * 2 + 1, string=hint, fg=ui.COLOR_INSTRUCTION)
+        _goto_items = [(label, "") for label, _body in destinations]
+        ui.render_selectable_list(
+            console, SCREEN_WIDTH, SCREEN_HEIGHT,
+            title="GO TO",
+            items=_goto_items,
+            selected=selected,
+            hint='ARROW KEYS / j,k navigate - ENTER go - ESC cancel',
+        )
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         for event in tcod.event.wait():
