@@ -4,7 +4,7 @@ and class into runtime values for the HUD and combat init.
 The data catalogs (species + class tuples, gameplay numbers) live in
 :mod:`spacehack.data.species` and :mod:`spacehack.data.classes`. This
 module is a thin layer above those catalogs that performs the
-SPECIES + CLASS math (skill bonuses, HP, gold) and exposes
+SPECIES + CLASS math (skill bonuses, HP, credits) and exposes
 ``starting_pilot_skills`` / ``starting_stats`` / ``format_combo``.
 
 New species or classes only need edits in their data modules — the
@@ -68,7 +68,7 @@ def starting_stats(species_id: str, class_id: str):
     """Starting :class:`spacehack.hud.HudStats` for a (species, class).
 
     HP = ``class.hp_base + species.hp_bonus`` (cosmetic — read by
-    HUD only, doesn't gate gameplay yet). Gold comes straight off
+    HUD only, doesn't gate gameplay yet). Credits come straight off
     the class spec. Pilot skills (gunnery, piloting, engineering)
     are computed from species + class bonuses applied on top of
     :data:`PILOT_SKILL_BASE`. Unknown ids fall through to safe

@@ -190,7 +190,7 @@ class OwnedShip:
 
 # Fuel economics constants. JUMP_FUEL_COST is consumed by the
 # gate-bump dispatcher before _jump_to_system fires. FUEL_COST_PER_UNIT
-# is the gold price per unit the player pays at the hangar-menu
+# is the credits price per unit the player pays at the hangar-menu
 # Refuel option. Both are intentionally easy to retune from one place.
 JUMP_FUEL_COST: int = 10
 FUEL_COST_PER_UNIT: int = 1

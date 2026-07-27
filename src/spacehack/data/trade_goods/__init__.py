@@ -22,7 +22,7 @@ class TradeGood:
         id:          registry key, e.g. ``"food_rations"``.
         name:        display name, e.g. ``"Food Rations"``.
         description: short flavour blurb for tooltips.
-        base_price:  reference price in gold before supply/demand modifiers.
+        base_price:  reference price in credits before supply/demand modifiers.
         category:    ``"industrial"`` | ``"biological"`` | ``"luxury"``
                      | ``"raw_material"`` | ``"tech"`` | ``"contraband"``.
         volume:      cargo units consumed per crate (1 typical, 2 for bulk).

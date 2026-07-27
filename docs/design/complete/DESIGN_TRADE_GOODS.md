@@ -25,7 +25,7 @@ class TradeGood:
     id: str
     name: str
     description: str
-    base_price: int             # reference price in gold
+    base_price: int             # reference price in credits
     category: str               # "industrial" | "biological" | "luxury" | "raw_material" | "tech" | "contraband"
     volume: int                 # cargo units per crate (1 typical, 2 for bulk)
     rarity: float = 0.5         # 0.0 = always available, 1.0 = very rare (loot spawn weight)
@@ -210,7 +210,7 @@ if spec.produces or spec.demands:
  │  │   Electronics     56g │ │    2 crates   │ │
  │  │   Machine Parts   35g │ │               │ │
  │  │   Medical Sup.    42g │ │ Cargo: 12/40  │ │
- │  │   Fuel Cells      28g │ │ Gold: 320     │ │
+ │  │   Fuel Cells      28g │ │ Credits: 320     │ │
  │  └───────────────────────┘ └───────────────┘ │
  │                                              │
  │  ENTER buy  SHIFT sell  TAB switch panel     │

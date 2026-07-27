@@ -162,7 +162,7 @@ def abort_mission(
     """Drop the mission's cargo from ``owned_ship`` and log the
     release. Symmetric to the ACCEPT-side cargo load — the only
     side-effect on the player's hull is undone without granting
-    any gold/xp (abandoning is not the same as completing).
+    any credits/xp (abandoning is not the same as completing).
 
     Used when the player abandons a mission through the quest
     log. Pure side-effects; the dispatcher is responsible for
@@ -195,7 +195,7 @@ def complete_mission(
     log: object,
 ) -> None:
     """Complete ``mission``: drop its cargo from the owned ship,
-    grant gold to ``stats``, and log the payout.
+    grant credits to ``stats``, and log the payout.
 
     Symmetric with :func:`try_accept_mission` -- the cargo delta
     is exactly :attr:`Mission.required_cargo_size` either way (so

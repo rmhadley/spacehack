@@ -127,7 +127,7 @@ class ModuleSpec:
     piloting_bonus: int = 0
     engineering_bonus: int = 0
     max_hull_bonus: int = 0
-    price: int = 0                       # gold cost to buy
+    price: int = 0                       # credits cost to buy
 
 MODULES: tuple[ModuleSpec, ...] = (...)
 _BY_ID: dict[str, ModuleSpec] = {m.id: m for m in MODULES}
@@ -603,7 +603,7 @@ def calc_flee_chance(
   ```
   VICTORY!
   ────────
-  Scrap recovered: 25 gold
+  Scrap recovered: 25 credits
   Cargo salvaged: 3 units
   ```
 - Player is returned to the solar system map at their current position

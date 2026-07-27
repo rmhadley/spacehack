@@ -1,6 +1,6 @@
 """Core playable classes: pirate, merchant, bounty_hunter.
 
-Gameplay numbers (base HP, starting gold, pilot-skill bonuses) live
+Gameplay numbers (base HP, starting credits, pilot-skill bonuses) live
 ON the spec rather than in a separate lookup table so adding a
 class becomes a one-file change. The cosmetic HUD read-outs and
 combat-init formulas in :mod:`spacehack.character` pull

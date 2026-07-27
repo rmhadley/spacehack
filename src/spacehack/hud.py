@@ -275,7 +275,7 @@ def render_hud(
             fg=hp_fg,
         )
 
-        # Gold
+        # Credits
         y += 1
         console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
         console.print(
@@ -288,7 +288,7 @@ def render_hud(
         # Blank line between credits and skills.
         y += 1
 
-        # Pilot skills (compact one-liner, below gold)
+        # Pilot skills (compact one-liner, below credits)
         y += 1
         skill_line = f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"
         console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)

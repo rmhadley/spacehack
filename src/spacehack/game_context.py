@@ -108,7 +108,7 @@ class GameContext:
     * :attr:`player` - current player entity (city ``@`` OR ship entity);
       reassigned on launch / land / jump.
     * :attr:`stats` - HUD stats (``HudStats`` dataclass); mutated as the
-      player gains gold, takes damage, etc.
+      player gains credits, takes damage, etc.
     * :attr:`player_owned_ship` - ``OwnedShip | None``; ``None`` until the
       player buys their first ship, then mutated on refuel / sell-cargo.
     * :attr:`player_active_mission` - ``ActiveMission | None``; ``None``

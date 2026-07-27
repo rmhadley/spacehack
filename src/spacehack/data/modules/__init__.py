@@ -27,7 +27,7 @@ class ModuleSpec:
         piloting_bonus: +dodge, +AP per turn.
         engineering_bonus: +power efficiency, +shield recharge rate.
         max_hull_bonus: additional hull HP.
-        price: gold cost to buy.
+        price: credits cost to buy.
     """
     id: str
     name: str

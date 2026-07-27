@@ -9,9 +9,9 @@ Owns:
     on first visit (produced goods start at target stock / surplus;
     demanded goods start at 0 / shortage).
   - :func:`_buy_good` / :func:`_sell_good` — mutate stock + inventory
-    + gold.
+    + credits.
   - :func:`open_trade` — split-screen modal with station / player hold
-    layout + per-good pricing + cargo / gold footer.
+    layout + per-good pricing + cargo / credits footer.
 """
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ def _buy_good(
     """Buy ``quantity`` units of ``good_id`` from the planet's market.
 
     Returns True iff the purchase succeeded (enough stock, enough
-    gold, enough cargo space).
+    credits, enough cargo space).
 
     Mutates:
       - ``economy_state[planet_id][good_id]`` (decrement)

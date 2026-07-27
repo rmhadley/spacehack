@@ -92,7 +92,7 @@ def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
                        in the ``produces`` / ``demands`` tuple).
 
     Returns:
-        Integer gold price for one unit.
+        Integer credits price for one unit.
     """
     target = max(1, target_stock)
     ratio = current_stock / target
