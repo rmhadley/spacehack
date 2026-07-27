@@ -349,20 +349,20 @@ NpcShipSpec(
 
 **Key change**: Loot drops come from `NpcShipSpec.cargo_goods` instead of iterating all `TRADE_GOODS` in combat.py. Each NPC spec defines what it may carry — pirates drop their `cargo_goods` on destruction, merchants carry theirs for trade. This replaces the hardcoded TRADE_GOODS iteration in combat.py with a per-spec loot table.
 
-- [ ] Create `data/npc_ships/` package (`__init__.py` + `core.py`) with `NpcShipSpec` absorbing `EnemySpec` + `AIProfile` + `PilotSkills`
-- [ ] Migrate `pirate_scout`, `pirate_raider` from `data/enemies/pirates.py` into `data/npc_ships/core.py` — set `cargo_goods` on each (see catalog table)
-- [ ] Delete `data/enemies/` directory
-- [ ] Update `combat.py`: `find_enemy()` → `find_npc_ship()`, flatten AIProfile/PilotSkills. **Replace `TRADE_GOODS`-iteration loot with `spec.cargo_goods`-based loot**
-- [ ] Update `__main__.py`: `_detect_combat_encounter` reads from `npc_ships`
-- [ ] Update `SolarSystem`: replace `pirate_chance`/`pirate_density` with `npc_spawn_chance`/`npc_density`/`npc_spawn_table`
-- [ ] Update all system data files (sol.py, sirius.py, etc.) — per-system weights: Sol = more merchants, fewer pirates; deep systems = more pirates
-- [ ] Update `game_context.py`: add `faction_reputation: dict[str, int]` (empty default), update `ProceduralSpawn`
-- [ ] Update `world.Entity`: add `npc_ship_id` field
-- [ ] Add `merchant_hauler` to catalog (1 new merchant spec for Phase 1)
-- [ ] Implement `spawn_npcs()` in `npc_ships.py` (unified spawn — replaces pirate-only)
-- [ ] Wire `spawn_npcs()` in `_jump_to_system` and `_launch_to_space`
-- [ ] Merge pirate movement into `move_npcs()` in `npc_ships.py`, call from dispatcher
-- [ ] Run smoke + audit
+- [x] Create `data/npc_ships/` package (`__init__.py` + `core.py`) with `NpcShipSpec` absorbing `EnemySpec` + `AIProfile` + `PilotSkills`
+- [x] Migrate `pirate_scout`, `pirate_raider` from `data/enemies/pirates.py` into `data/npc_ships/core.py` — set `cargo_goods` on each (see catalog table)
+- [x] Delete `data/enemies/` directory
+- [x] Update `combat.py`: `find_enemy()` → `find_npc_ship()`, flatten AIProfile/PilotSkills. **Replace `TRADE_GOODS`-iteration loot with `spec.cargo_goods`-based loot**
+- [x] Update `__main__.py`: `_detect_combat_encounter` reads from `npc_ships`
+- [x] Update `SolarSystem`: replace `pirate_chance`/`pirate_density` with `npc_spawn_chance`/`npc_density`/`npc_spawn_table`
+- [x] Update all system data files (sol.py, sirius.py, etc.) — per-system weights: Sol = more merchants, fewer pirates; deep systems = more pirates
+- [x] Update `game_context.py`: add `npc_targets`/`npc_paths`, update `ProceduralSpawn`
+- [x] Update `world.Entity`: add `npc_ship_id` field
+- [x] Add `merchant_hauler` to catalog (1 new merchant spec for Phase 1)
+- [x] Implement `spawn_npcs()` in `npc_ships.py` (unified spawn — replaces pirate-only)
+- [x] Wire `spawn_npcs()` in `_jump_to_system` and `_launch_to_space`
+- [x] Merge pirate movement into `move_npcs()` in `npc_ships.py`, call from dispatcher
+- [x] Run smoke + audit
 
 **PLAYTEST — Phase 1**
 
@@ -385,14 +385,14 @@ Run through each of these in order. Note any crashes, unexpected log messages, m
 
 > **Living document**: Update this section during implementation if new edge cases, behaviors, or failure modes emerge that aren't covered below. The playtest should reflect what actually needs testing, not just what we anticipated.
 
-1. **Smoke + audit** — Must pass before starting the game.
-2. **Merchant movement** — Launch into a system with merchants. Watch them for several turns. Verify they move toward a destination (planet or gate), not randomly.
-3. **Merchant reaches planet** — Follow a merchant headed for a planet. When it reaches the planet cell, verify it despawns and the log reads something like "Merchant Hauler docks at Earth port."
-4. **Merchant reaches gate** — Follow a merchant headed for a jump gate. When it reaches the gate, verify it despawns and the log reads something like "Merchant Hauler jumps to Vega."
-5. **Flee from pirates** — Position a merchant within detect range of a pirate. Verify the merchant moves away from the pirate (not toward its destination) for the next few turns.
-6. **New merchant specs appear** — Verify `merchant_scout` (fast, small, luxury goods) and `civilian_transport` (no cargo, moves toward planets only) both spawn and behave differently.
-7. **Merchant scout speed** — Verify the scout moves faster than the hauler (if `base_speed` differs).
-8. **Multiple systems** — Jump between 3 systems. Verify merchants despawn/respawn correctly on each visit (fresh spawns per jump).
+1. [ ] **Smoke + audit** — Must pass before starting the game.
+2. [ ] **Merchant movement** — Launch into a system with merchants. Watch them for several turns. Verify they move toward a destination (planet or gate), not randomly.
+3. [ ] **Merchant docks at planet** — Follow a merchant headed for a planet. When it reaches the adjacent cell, verify it despawns and the log reads like "Merchant Hauler docks at Earth."
+4. [ ] **Merchant jumps through gate** — Follow a merchant headed for a jump gate. When it reaches the adjacent cell, verify it despawns and the log reads "Merchant Hauler jumps through Sol Gate."
+5. [ ] **Flee from pirates** — Position a merchant within ~10 cells of a pirate. Verify the merchant moves away from the pirate for the next few turns.
+6. [ ] **HUD + no glitches** — Verify space-mode HUD renders correctly after merchants despawn. No console errors.
+7. [ ] **Multiple systems** — Jump between 3 systems. Verify merchants despawn/respawn correctly on each visit.
+8. [ ] **Edge case: empty system** — Jump to a system with no merchants. Verify no despawn messages appear.
 
 **PLAYTEST — Phase 3**
 

@@ -9,6 +9,9 @@ catalog.
 
 from __future__ import annotations
 
+import math
+from typing import Any
+
 from . import engine as _engine
 from . import message_log as _ml
 from . import solar_system as _solar_module
@@ -154,23 +157,26 @@ def spawn_npcs(
 def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
     """Patrol procedural NPC entities toward planets/gates/stations.
 
-    Called after the player moves in space mode. Each NPC squad
-    (or solo) picks a planet, gate, or station and commits to
-    moving toward it until within 2 cells, then picks a new
-    target. Squad members use the A* path computed for the squad
-    leader. Uses the same A*-based movement as the old pirate
-    mover, but handles all NPC types (pirates + merchants) via
-    ``npc_ship_id`` on the Entity.
+    Called after the player moves in space mode. Behaviour varies
+    by NPC faction (from NpcShipSpec):
 
-    Movement state is stored on ``ctx.npc_targets`` and
-    ``ctx.npc_paths`` (dicts keyed by ``procedural_squad_id``).
+      * **pirates** — patrol loop: pick a planet/gate/station,
+        move toward it, pick a new target on arrival.
+      * **merchants** — move toward a planet/gate/station.
+        When within 2 cells of a gate: despawn ("jumps to next
+        system").  When in range of a planet/station: despawn
+        ("docks at port").  Flee from nearby pirates.
+
+    ``_FLEE_RANGE`` controls how close a pirate must be before a
+    merchant attempts to flee (in cells).  Squad members use the
+    A* path computed for the squad leader.
     """
     _system = _solar_module.current_system()
     if _system is None:
         return
 
-    # Build goal list from the current system's bodies.
-    _goals: list[tuple[int, int]] = []
+    # --- Build goal list with body type + name ---
+    _goals: list[tuple[int, int, str, str]] = []  # (x, y, type, name)
     def _body_goal(body) -> tuple[int, int] | None:
         _gx = body.pos.x + body.width + 1
         _gy = body.pos.y + body.height // 2
@@ -182,15 +188,15 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
             continue
         _g = _body_goal(_p)
         if _g is not None:
-            _goals.append(_g)
+            _goals.append((_g[0], _g[1], "planet", _p.name))
     for _jp in _system.jump_points:
         _g = _body_goal(_jp)
         if _g is not None:
-            _goals.append(_g)
+            _goals.append((_g[0], _g[1], "gate", _jp.name))
     for _st in getattr(_system, 'stations', ()) or ():
         _g = _body_goal(_st)
         if _g is not None:
-            _goals.append(_g)
+            _goals.append((_g[0], _g[1], "station", _st.name))
     if not _goals:
         _any_npcs = any(
             getattr(_e, 'procedural_squad_id', '') != ''
@@ -199,6 +205,30 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         if _any_npcs:
             ctx.log.add("Sensor: NPC ships have no navigation targets nearby.")
         return
+
+    # Helpers: resolve NPC spec from entity, check faction
+    _MERCHANT_FLEE_RANGE = 10  # cells
+
+    def _npc_spec_of(_e) -> Any | None:
+        _pid = getattr(_e, 'npc_ship_id', '')
+        if not _pid:
+            return None
+        try:
+            return _find_npc_ship(_pid)
+        except (KeyError, ImportError):
+            return None
+
+    def _faction_of(_e) -> str:
+        _s = _npc_spec_of(_e)
+        return getattr(_s, 'faction', 'pirate') if _s else 'pirate'
+
+    # Cache pirate positions for flee detection (once per tick).
+    _pirate_positions: list[tuple[int, int, int]] = []  # (x, y, dist_penalty later)
+    for _e in game_map.entities:
+        if getattr(_e, 'owned', False) or getattr(_e, 'procedural_squad_id', '') == '':
+            continue
+        if _faction_of(_e) == 'pirate':
+            _pirate_positions.append((_e.pos.x, _e.pos.y))
 
     _npcs = [
         _e for _e in game_map.entities
@@ -209,30 +239,97 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
     for _e in _npcs:
         _squad_map.setdefault(_e.procedural_squad_id, []).append(_e)
 
-    for _sid, _members in _squad_map.items():
+    for _sid, _members in list(_squad_map.items()):
         if len(_members) == 0:
             continue
+        # Determine faction for this squad (read from the leader's spec).
+        _faction = _faction_of(_members[0])
+
         _is_squad = len(_members) > 1
         _leader = _members[0]
-        _target = ctx.npc_targets.get(_sid)
         _lx, _ly = _leader.pos.x, _leader.pos.y
-        _dist_to_target = (
-            max(abs(_lx - _target[0]), abs(_ly - _target[1]))
-            if _target is not None else 999
-        )
-        # Refresh target when None or within 2 cells.
+        _target = ctx.npc_targets.get(_sid)
+        _target_goal = None  # will hold the full (x, y, type, name) tuple
+
+        # --- Merchant flee check: detect nearby pirates ---
+        if _faction == 'merchant' and _pirate_positions:
+            _nearest_pirate_dist = min(
+                math.hypot(_lx - _px, _ly - _py)
+                for _px, _py in _pirate_positions
+            )
+            if _nearest_pirate_dist < _MERCHANT_FLEE_RANGE:
+                # Move away from the nearest pirate instead of toward dest.
+                _nearest_px, _nearest_py = min(
+                    _pirate_positions,
+                    key=lambda p: math.hypot(_lx - p[0], _ly - p[1]),
+                )
+                _flee_dx = _lx - _nearest_px
+                _flee_dy = _ly - _nearest_py
+                _flee_dx = max(-1, min(1, _flee_dx or _engine.RNG.randint(-1, 1)))
+                _flee_dy = max(-1, min(1, _flee_dy or _engine.RNG.randint(-1, 1)))
+                for _m in _members:
+                    _nx = _m.pos.x + _flee_dx
+                    _ny = _m.pos.y + _flee_dy
+                    if (game_map.is_walkable(_nx, _ny)
+                            and game_map.entity_at(_nx, _ny, exclude=_m) is None):
+                        _m.pos = world.Position(_nx, _ny)
+                # Skip normal movement for this tick after fleeing.
+                continue
+
+        # --- Check distance to current target ---
+        if _target is not None:
+            _tx, _ty = _target[0], _target[1]
+            _dist_to_target = max(abs(_lx - _tx), abs(_ly - _ty))
+            # Find the matching goal for the current target.
+            for _g in _goals:
+                if _g[0] == _tx and _g[1] == _ty:
+                    _target_goal = _g
+                    break
+        else:
+            _dist_to_target = 999
+
+        # --- Refresh target when None or within 2 cells (merchant: despawn) ---
         if _target is None or _dist_to_target <= 2:
-            _candidates = [g for g in _goals if g != _target]
+            if _faction == 'merchant' and _target_goal is not None:
+                # Merchant reached destination — despawn.
+                _body_type, _body_name = _target_goal[2], _target_goal[3]
+                _spec = _npc_spec_of(_leader)
+                _ship_name = getattr(_spec, 'name', 'Merchant') if _spec else 'Merchant'
+                if _body_type == 'gate':
+                    ctx.log.add(f"{_ship_name} jumps through {_body_name}.")
+                else:
+                    ctx.log.add(f"{_ship_name} docks at {_body_name}.")
+                # Remove all members from the map.
+                for _m in _members:
+                    try:
+                        game_map.entities.remove(_m)
+                    except ValueError:
+                        pass
+                ctx.npc_targets.pop(_sid, None)
+                ctx.npc_paths.pop(_sid, None)
+                # Clean up procedural_spawns for this squad.
+                _cur_sys_id = getattr(_system, 'id', '')
+                if _cur_sys_id in ctx.procedural_spawns:
+                    ctx.procedural_spawns[_cur_sys_id] = [
+                        _ps for _ps in ctx.procedural_spawns[_cur_sys_id]
+                        if _ps.squad_id != _sid
+                    ]
+                continue
+            # Normal (pirate) or merchant with no current target: pick new.
+            _candidates = [g for g in _goals if (g[0], g[1]) != _target]
             if not _candidates:
                 _candidates = _goals
-            _target = _engine.RNG.choice(_candidates)
+            _chosen = _engine.RNG.choice(_candidates)
+            _target = (_chosen[0], _chosen[1])
             ctx.npc_targets[_sid] = _target
+            _target_goal = _chosen
             _end_set: set[tuple[int, int]] = {_target}
             _path = world.find_path(
                 (_lx, _ly), _end_set, game_map,
                 exclude_entity=_leader,
             )
             ctx.npc_paths[_sid] = _path or []
+
         # Move most ticks for consistent progress (80% chance).
         if _engine.RNG.random() >= 0.8:
             continue
@@ -258,7 +355,6 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     _leader_moved = True
             else:
                 # Blocked — try perpendicular slip-around.
-                _slipped = False
                 if _dx != 0 and _dy != 0:
                     for _sdx, _sdy in [(_dx, 0), (0, _dy)]:
                         _snx = _m.pos.x + _sdx
@@ -266,7 +362,6 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         if (game_map.is_walkable(_snx, _sny)
                                 and game_map.entity_at(_snx, _sny, exclude=_m) is None):
                             _m.pos = world.Position(_snx, _sny)
-                            _slipped = True
                             break
                 elif _dx != 0:
                     for _sdx, _sdy in [(_dx, 1), (_dx, -1)]:
@@ -275,7 +370,6 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         if (game_map.is_walkable(_snx, _sny)
                                 and game_map.entity_at(_snx, _sny, exclude=_m) is None):
                             _m.pos = world.Position(_snx, _sny)
-                            _slipped = True
                             break
                 else:  # _dy != 0
                     for _sdx, _sdy in [(1, _dy), (-1, _dy)]:
@@ -284,7 +378,6 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         if (game_map.is_walkable(_snx, _sny)
                                 and game_map.entity_at(_snx, _sny, exclude=_m) is None):
                             _m.pos = world.Position(_snx, _sny)
-                            _slipped = True
                             break
         if _leader_moved:
             ctx.npc_paths[_sid].pop(0)
