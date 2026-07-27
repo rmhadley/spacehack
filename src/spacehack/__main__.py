@@ -39,6 +39,7 @@ from .data.classes import find_class
 from .npc import TalkOutcome, _run_npc_talk
 from . import world
 from . import combat
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
 from .input_helpers import Outcome, _run_pick, _run_confirm, _vim_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_c_press, _is_t_press
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
@@ -66,6 +67,7 @@ from .navigation import (
     _animate_jump,
     _jump_to_system,
 )
+from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
@@ -129,100 +131,6 @@ def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
                 except ValueError:
                     pass
 
-
-def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = 0.08) -> None:
-    """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
-
-    Each frame paints ``game_map`` (plus HUD + msg log) around the
-    moving ship and calls :meth:`tcod.context.Context.present`. Direction
-    is determined by the sign of ``target_y - ship_ent.pos.y``: negative
-    walks north (off-screen above), positive walks south. After this
-    returns, ``ship_ent.pos.y == target_y``.
-
-    Used by both launch (target offscreen above) and return-to-city
-    (target :data:`world.HANGAR_ANCHOR`). ``frame_seconds`` is the
-    per-frame sleep; 0.08 reads as a brisk but visible glide.
-    """
-    direction = -1 if ship_ent.pos.y > target_y else 1
-    while ship_ent.pos.y != target_y:
-        ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
-        console.clear()
-        world.render_world(console, game_map, region_x=0, region_y=0, region_w=solar_system_module.SOL_VIEW_W, region_h=solar_system_module.SOL_VIEW_H)
-        _am = ctx.player_active_mission
-        _active_mission_text = (
-            mission_module.find_mission(_am.mission_id).title if _am is not None else ''
-        )
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text)
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        ctx.context.present(console)
-        _responsive_sleep(frame_seconds)
-
-def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
-    """Animate ``hangar_ship_ent`` off the top of the city viewport and
-    return ``(space_game_map, space_player_entity)``.
-
-    The hangar ship is moved offscreen via :func:`_animate_ship_to_y`
-    but kept in ``city_game_map.entities`` so the future return
-    animation walks the SAME entity back to HANGAR_ANCHOR (no need
-    to splice a new entity into/out of the city's entity list).
-
-    The returned ``space_game_map`` is freshly built via
-    :func:`solar_system_module.make_solar_system` and has the
-    player-ship Entity docked at ``current_city_id`` (whatever
-    planet the player just launched from) via
-    :func:`solar_system_module.place_docked_ship`. Previously this
-    argument was hardcoded to ``"earth"`` which sent Mars-launched
-    players into Earth orbit instead of Mars.
-    """
-    if city_player in city_game_map.entities:
-        city_game_map.entities.remove(city_player)
-    from .trade import tick_economy as _tick_economy
-    _tick_economy(ctx)
-    offscreen_y = -(solar_system_module.SOL_VIEW_H // 2) - 1
-    if hangar_ship_ent.pos.y > offscreen_y:
-        _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y)
-        ctx.log.add(f'You launch the {ship_obj.name} into space.')
-    space_map = solar_system_module.make_solar_system()
-    _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
-    from .npc_ships import spawn_npcs as _sn
-    _sn(ctx, space_map, solar_system_module.current_solar_system_id)
-    origin_planet = solar_system_module.find_planet(current_city_id)
-    space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
-    space_map.entities.append(space_player)
-    return (space_map, space_player)
-
-def _return_to_city(ctx, console: tcod.console.Console, hangar_ship_ent: world.Entity, city_game_map: world.GameMap, city_player_ent: world.Entity) -> tuple[world.GameMap, world.Entity]:
-    """Animate the same ``hangar_ship_ent`` down to :data:`world.HANGAR_ANCHOR`
-    and return ``(city_game_map, city_player_entity)``.
-
-    Mirrors :func:`_launch_to_space`: the ship entity is the SAME
-    instance that was animated offscreen during launch, so no
-    entity-list swap is needed on the city map.
-    """
-    _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=world.HANGAR_ANCHOR.y)
-    if city_player_ent not in city_game_map.entities:
-        city_game_map.entities.append(city_player_ent)
-    ctx.log.add('You return to Earth and dock at your hangar.')
-    return (city_game_map, city_player_ent)
-
-def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> None:
-    """Render the small city + HUD + msg log and handle vim movement.
-
-    Walking into a wall logs a short message. Walking into a
-    non-interactable entity logs a "bump" message. Walking into
-    a ship (at the space port) opens the ship-buy modal; walking
-    into a guild NPC opens the flavor-talk modal.
-    """
-    species = find_species(species_id)
-    klass = find_class(class_id)
-    CITY_WIDTH, CITY_HEIGHT = (60, 40)
-    game_map = world.make_city(width=CITY_WIDTH, height=CITY_HEIGHT)
-    player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(x=CITY_WIDTH // 2, y=CITY_HEIGHT // 2), name='Player')
-    game_map.entities.append(player)
-    stats = character.starting_stats(species_id, class_id)
-    log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
-    log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
-    log.add("The cobblestones are damp from last night's rain.")
     log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
     log.add('Buildings: North-West space port, South-West merchant guild,')
     log.add('Bar in the plaza, militia + bounty guild on the South-East.')
