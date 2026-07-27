@@ -320,20 +320,21 @@ _TITLE_ART: tuple[str, ...] = (
 )
 
 # Detailed spaceship, 18 wide x 15 tall. Each row padded to exactly 18 chars.
-# Hull uses ASCII safe chars (/ \ | _). Flame/smoke uses '`.-;().
+# Hull uses CP437 box-drawing (\u2502\u2500) matching planet style.
+# Nose keeps ASCII /\ (no CP437 diagonal available). Flame/smoke uses '`.-;().
 _SHIP_ART: tuple[str, ...] = (
     "    /\\            ",   # 0  nose tip         (4+2+12=18)
     "   /  \\           ",   # 1  nose cone        (3+4+11=18)
-    "  |    |          ",   # 2  hull             (2+6+10=18)
-    "  |    |          ",   # 3  hull
-    "  |    |          ",   # 4  hull
-    "  |    |          ",   # 5  hull
-    "  |    |          ",   # 6  hull
-    " '      `        ",    # 7  engine mount     (1+8+9=18)
-    " |      |        ",    # 8  engine           (1+8+9=18)
-    " |      |        ",    # 9  engine
-    " |______|        ",    # 10 engine base
-    "  '-`'-`   .     ",    # 11 flame core       (2+10+6=18)
+    "  \u2502    \u2502          ",   # 2  hull             (2+6+10=18)
+    "  \u2502    \u2502          ",   # 3  hull
+    "  \u2502    \u2502          ",   # 4  hull
+    "  \u2502    \u2502          ",   # 5  hull
+    "  \u2502    \u2502          ",   # 6  hull
+    "\u250c'      '\u2510        ",   # 7  engine mount     (2+6+2+8=18)
+    " \u2502      \u2502        ",    # 8  engine           (1+8+9=18)
+    " \u2502      \u2502        ",    # 9  engine
+    " \u2502\u2500\u2500\u2500\u2500\u2500\u2500\u2502        ",    # 10 engine base      (1+8+9=18)
+    "  '\u2500`'\u2500`   .     ",    # 11 flame core       (2+10+6=18)
     "  / . \\'\\ . .'    ", # 12 flame             (2+12+4=18)
     " ''( .'\\'.' ' .;'  ", # 13 smoke             (1+15+2=18)
     "'.;.;' ;'.;' ..;;'",   # 14 smoke             (18, unpadded)
