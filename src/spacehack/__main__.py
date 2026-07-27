@@ -222,6 +222,17 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     # may have cleared ctx.player_active_mission (bounty
                     # auto-complete) but the local copy is stale.
                     player_active_mission = ctx.player_active_mission
+                    # After combat, loop: re-check for more nearby enemies
+                    # (e.g. a second squad that was just out of range
+                    # initially). Keeps fighting until no more are detected.
+                    while True:
+                        _next_encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
+                        if _next_encounter is None:
+                            break
+                        _result = combat._handle_combat_encounter(ctx, console, _next_encounter)
+                        player_active_mission = ctx.player_active_mission
+                        if _result != "VICTORY":
+                            break
                 continue
             # C = open cargo menu (space mode).
             if current_mode == 'space' and _is_c_press(event):
@@ -239,10 +250,14 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             # Period = wait one turn (space mode: pirates move, shields regen).
             if _is_period_press(event):
                 if current_mode == 'space' and (player_owned_ship is not None):
-                    _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
-                    if _encounter is not None:
-                        combat._handle_combat_encounter(ctx, console, _encounter)
+                    while True:
+                        _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
+                        if _encounter is None:
+                            break
+                        _result = combat._handle_combat_encounter(ctx, console, _encounter)
                         player_active_mission = ctx.player_active_mission
+                        if _result != "VICTORY":
+                            break
                     from .npc_ships import move_npcs as _mn
                     _mn(ctx, game_map)
                 ctx.log.add('You wait.')
@@ -254,11 +269,15 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             dx, dy = delta
             code, blocker = world.try_move(player, game_map, dx, dy)
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
-                _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
-                if _encounter is not None:
-                    combat._handle_combat_encounter(ctx, console, _encounter)
+                while True:
+                    _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
+                    if _encounter is None:
+                        break
+                    _result = combat._handle_combat_encounter(ctx, console, _encounter)
                     # Sync local mission state after combat.
                     player_active_mission = ctx.player_active_mission
+                    if _result != "VICTORY":
+                        break
                 # Move procedural NPCs after the player moves.
                 from .npc_ships import move_npcs as _mn
                 _mn(ctx, game_map)
