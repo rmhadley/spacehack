@@ -4,3 +4,4 @@
 [x] The ship landing zone can be hard to see. having a dedicated high contrast landing pad on all planets would be an improvement
 [ ] When enemy ships move, they appear to teleport in combat. I don't think it's rendering each individual movement. So if they spend 3 AP moving it just jumps them 3 spaces. I could be wrong, but that's how it is feeling, teleporting enemies in combat.
 [ ] While combat plays out, the rest of the universe freezes. Throws off the feel. Can ships not in combat still move? Maybe give them ticks between each combat round?
+[x] Auto-Nav bumping a merchant causes combat with the merchant. That's not correct. Remove that behaviour. What we want is an attack option in comms for merchants. We can play this game as a pirate after all!

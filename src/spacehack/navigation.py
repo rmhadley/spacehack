@@ -384,7 +384,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             continue
         _alive_spawns.append((_spawn, _espec))
         _dist = math.hypot(player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y)
-        if _dist <= _espec.detect_radius:
+        if _dist > 0 and _dist <= _espec.detect_radius:
             if _spawn.squad_id is not None:
                 _triggered_squad_ids.add(_spawn.squad_id)
             else:
@@ -402,7 +402,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             continue
         _alive_spawns.append((_bs, _espec))
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
-        if _dist <= _espec.detect_radius:
+        if _dist > 0 and _dist <= _espec.detect_radius:
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
     # Also check procedural NPCs by current entity positions.
     _procedural_entities = [
@@ -418,7 +418,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             continue
         _alive_spawns.append((_pe, _espec))
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
-        if _dist <= _espec.detect_radius:
+        if _dist > 0 and _dist <= _espec.detect_radius:
             _triggered_squad_ids.add(_pe.procedural_squad_id)
     _nearby_specs: list = []
     _nearby_positions: list = []

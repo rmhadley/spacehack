@@ -269,11 +269,12 @@ def open_comms(
     _contact_attitude = _get_attitude(_contact_rep)
 
     _options: list[str] = ["End Transmission"]
-    if _contact_attitude == 'hostile':
-        _options.insert(0, "Attack")
-    else:
-        _options.insert(0, "Open Trade")
-        _options.insert(1, "Scan Cargo")
+    # Attack is always available — players can choose to engage
+    # any ship (pirating, bounty hunting, etc.).
+    _options.insert(0, "Attack")
+    if _contact_attitude != 'hostile':
+        _options.insert(1, "Open Trade")
+        _options.insert(2, "Scan Cargo")
 
     _interaction_selected = 0
 
