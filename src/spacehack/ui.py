@@ -310,9 +310,7 @@ def render_confirm(
 # Title splash screen
 # ---------------------------------------------------------------------------
 
-# SPACEHACK in 7-wide × 5-tall block letters.
-# Uses # so it renders on any CP437 / ASCII tileset.
-# Each row is 71 characters (9 letters × 7 + 8 inter-letter gaps).
+# SPACEHACK in 7-wide x 5-tall block letters (71 chars per row).
 _TITLE_ART: tuple[str, ...] = (
     "####### #######  #####   #####  ####### ##   ##  #####   #####  ##   ##",
     "##      ##   ## ##   ## ##   ## ##      ##   ## ##   ## ##   ## ##  ## ",
@@ -321,21 +319,24 @@ _TITLE_ART: tuple[str, ...] = (
     "####### ##   ## ##   ##  #####  ####### ##   ## ##   ##  #####  ##   ##",
 )
 
-# Spaceship in CP437 box-drawing characters, 7 wide × 11 tall (8 hull + 3 flame).
-# Hull uses tile-set-safe characters from the planet art (┌┐└┘│─◄).
-# Flame uses plain ASCII (#:') with orange/yellow/white color per row.
+# Detailed spaceship, 18 wide x 15 tall. Each row padded to exactly 18 chars.
+# Hull uses ASCII safe chars (/ \ | _). Flame/smoke uses '`.-;().
 _SHIP_ART: tuple[str, ...] = (
-    " ┌───┐ ",    # 0  nose cone
-    "┌┘   └┐",    # 1  forward hull
-    "│  ◄  │",    # 2  cockpit
-    "│     │",    # 3  body
-    "└┐   ┌┘",    # 4  engine nacelles
-    " │   │ ",    # 5  narrow section
-    "┌┘   └┐",    # 6  thrusters
-    "└─────┘",    # 7  exhaust port
-    "  ###  ",    # 8  main flame (orange-red)
-    "  :::  ",    # 9  outer flame (yellow-orange)
-    "   '   ",    # 10 white-hot tip
+    "    /\\            ",   # 0  nose tip         (4+2+12=18)
+    "   /  \\           ",   # 1  nose cone        (3+4+11=18)
+    "  |    |          ",   # 2  hull             (2+6+10=18)
+    "  |    |          ",   # 3  hull
+    "  |    |          ",   # 4  hull
+    "  |    |          ",   # 5  hull
+    "  |    |          ",   # 6  hull
+    " '      `        ",    # 7  engine mount     (1+8+9=18)
+    " |      |        ",    # 8  engine           (1+8+9=18)
+    " |      |        ",    # 9  engine
+    " |______|        ",    # 10 engine base
+    "  '-`'-`   .     ",    # 11 flame core       (2+10+6=18)
+    "  / . \\'\\ . .'    ", # 12 flame             (2+12+4=18)
+    " ''( .'\\'.' ' .;'  ", # 13 smoke             (1+15+2=18)
+    "'.;.;' ;'.;' ..;;'",   # 14 smoke             (18, unpadded)
 )
 
 
@@ -343,8 +344,8 @@ def render_title_splash(context: tcod.context.Context) -> None:
     """Render the title splash screen and wait for any key.
 
     Draws a double-line CP437 border, scattered starfield, "SPACEHACK"
-    in large block letters, a CP437 spaceship with exhaust flame,
-    a short flavor paragraph, and a "Press any key to continue"
+    in large block letters, a detailed ASCII spaceship with exhaust
+    flame, a short flavor paragraph, and a "Press any key to continue"
     prompt. Blocks until the player presses any key (or closes the
     window).
     """
@@ -354,66 +355,30 @@ def render_title_splash(context: tcod.context.Context) -> None:
     _console = make_console()
     _console.clear()
 
-    # ── Double-line border (CP437 box-drawing) ──
-    _TL = "╔"  # ┌ in some encodings but ╔ = 201 in CP437 ✓
-    _TR = "╗"
-    _BL = "╚"
-    _BR = "╝"
-    _H  = "═"  # horizontal
-    _V  = "║"  # vertical
+    # Double-line border
+    _TL = "\u2554"  # ╔
+    _TR = "\u2557"  # ╗
+    _BL = "\u255a"  # ╚
+    _BR = "\u255d"  # ╝
+    _H  = "\u2550"  # ═
+    _V  = "\u2551"  # ║
     _console.print(x=0,  y=0,   string=_TL + _H * (W - 2) + _TR, fg=(100, 110, 160))
     _console.print(x=0,  y=H-1, string=_BL + _H * (W - 2) + _BR, fg=(100, 110, 160))
     for _y in range(1, H - 1):
         _console.print(x=0,   y=_y, string=_V, fg=(100, 110, 160))
         _console.print(x=W-1, y=_y, string=_V, fg=(100, 110, 160))
 
-    # ── Starfield (dots scattered away from the title area) ──
-    _title_top = H // 2 - 9
-    _title_bot = H // 2 + 3
-    for _ in range(80):
-        _sx = random.randint(2, W - 3)
-        _sy = random.randint(2, H - 3)
-        # Keep stars away from title block, ship, and prompt areas.
-        if _title_top <= _sy <= _title_bot:
-            continue
-        if H - 10 <= _sy <= H - 2:
-            continue
-        if H // 2 - 3 <= _sy <= H // 2 + 8 and W // 2 - 10 <= _sx <= W // 2 + 10:
-            continue
-        _ch = random.choice([".", ".", "*", "."])
-        _br = random.randint(100, 200)
-        _console.print(x=_sx, y=_sy, string=_ch, fg=(_br, _br, _br))
-
-    # ── Title: "SPACEHACK" ──
+    # Title
     _title_y = H // 2 - 8
     for _i, _line in enumerate(_TITLE_ART):
         _x = (W - len(_line)) // 2
         _console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
 
-    # ── Spaceship (below title, toward right edge) ──
-    _ship_x = W - 16
-    _ship_y = _title_y + len(_TITLE_ART) + 1  # one blank row after title bottom
-    _ship_colors = [
-        (180, 180, 200),  # 0 nose cone
-        (200, 200, 220),  # 1 forward hull
-        (220, 220, 240),  # 2 cockpit (brightest)
-        (200, 200, 220),  # 3 body
-        (180, 180, 210),  # 4 engine nacelles
-        (150, 150, 180),  # 5 narrow section
-        (180, 180, 210),  # 6 thrusters
-        (160, 160, 190),  # 7 exhaust port
-        (255, 100,  50),  # 8 main flame (orange-red)
-        (255, 180,  50),  # 9 outer flame (yellow-orange)
-        (255, 255, 200),  # 10 white-hot tip
-    ]
-    for _i, _line in enumerate(_SHIP_ART):
-        _console.print(x=_ship_x, y=_ship_y + _i, string=_line, fg=_ship_colors[_i])
-
-    # ── Flavor text ──
+    # Flavor text
     _lines = [
         "The year is 2156. Humankind has spread across a dozen star systems,",
         "linked by jump gates of unknown origin. You are a freelance pilot",
-        "making a living on the frontier — trading, bounty hunting, and",
+        "making a living on the frontier \u2014 trading, bounty hunting, and",
         "surviving where the law is what you make of it.",
     ]
     _flavor_y = H // 2 + 6
@@ -423,36 +388,71 @@ def render_title_splash(context: tcod.context.Context) -> None:
             string=_line, fg=(160, 175, 210),
         )
 
-    # ── Prompt ──
+    # Spaceship (below flavor text)
+    _ship_x = W - 20     # 18 wide, cols 80-97
+    _ship_y = _flavor_y + len(_lines)
+    _ship_colors = [
+        (180, 180, 210),  # 0  nose tip
+        (200, 200, 230),  # 1  nose cone
+        (220, 220, 245),  # 2  hull
+        (210, 210, 235),  # 3  hull
+        (210, 210, 235),  # 4  hull
+        (210, 210, 235),  # 5  hull
+        (200, 200, 225),  # 6  hull
+        (180, 170, 190),  # 7  engine mount
+        (190, 180, 200),  # 8  engine
+        (190, 180, 200),  # 9  engine
+        (170, 155, 180),  # 10 engine base
+        (255, 120,  60),  # 11 flame core
+        (255, 180,  50),  # 12 flame
+        (255, 210, 100),  # 13 smoke
+        (220, 200, 150),  # 14 smoke
+    ]
+    for _i, _line in enumerate(_SHIP_ART):
+        _console.print(x=_ship_x, y=_ship_y + _i, string=_line, fg=_ship_colors[_i])
+
+    # Starfield
+    for _ in range(80):
+        _sx = random.randint(2, W - 3)
+        _sy = random.randint(2, H - 3)
+        if _title_y - 2 <= _sy <= _title_y + len(_TITLE_ART) + 1:
+            continue
+        if _ship_x <= _sx <= _ship_x + len(_SHIP_ART[0]) - 1 and _ship_y <= _sy <= _ship_y + len(_SHIP_ART) - 1:
+            continue
+        if H - 10 <= _sy <= H - 2:
+            continue
+        _ch = random.choice([".", ".", "*", "."])
+        _br = random.randint(100, 200)
+        _console.print(x=_sx, y=_sy, string=_ch, fg=(_br, _br, _br))
+
+    # Prompt
     _prompt = "Press any key to begin"
     _console.print(
         x=centered_x(_prompt, W), y=H - 4,
         string=_prompt, fg=(120, 140, 190),
     )
-    # Decorative line above prompt.
     _console.print(
-        x=centered_x("───────", W), y=H - 5,
-        string="───────", fg=(100, 110, 160),
+        x=centered_x("\u2500\u2500\u2500\u2500\u2500\u2500\u2500", W), y=H - 5,
+        string="\u2500\u2500\u2500\u2500\u2500\u2500\u2500", fg=(100, 110, 160),
     )
 
-    # ── Planet in the bottom-left corner ──
+    # Planet
     _planet_art = [
-        "  ┌────┐",
-        " ─│    │─",
-        "──│    │──",
-        " ─│    │─",
-        "  └────┘",
+        "  \u250c\u2500\u2500\u2500\u2500\u2510",
+        " \u2500\u2502    \u2502\u2500",
+        "\u2500\u2500\u2502    \u2502\u2500\u2500",
+        " \u2500\u2502    \u2502\u2500",
+        "  \u2514\u2500\u2500\u2500\u2500\u2518",
     ]
     _planet_x = 4
     _planet_y = H - 12
     _planet_fg = (90, 130, 160)
     for _i, _line in enumerate(_planet_art):
         _console.print(x=_planet_x, y=_planet_y + _i, string=_line, fg=_planet_fg)
-    _console.print(x=_planet_x + 2, y=_planet_y + 2, string="◄", fg=(130, 170, 200))
+    _console.print(x=_planet_x + 2, y=_planet_y + 2, string="\u25c4", fg=(130, 170, 200))
 
-    # ── Present and wait ──
+    # Present and wait for key
     context.present(_console)
-
     while True:
         for event in tcod.event.wait():
             if isinstance(event, tcod.event.KeyDown):
@@ -486,8 +486,6 @@ def _safe_syms(*names: str) -> tuple:
     )
 
 
-# All four key groups go through ``_safe_syms`` so the module is
-# tolerant of tcod builds that drop or rename KeySym members.
 _ENTER_SYMS = _safe_syms("RETURN", "ENTER", "KP_ENTER", "KP_5")
 _UP_SYMS = _safe_syms("UP", "KP_8")
 _DOWN_SYMS = _safe_syms("DOWN", "KP_2")
@@ -495,11 +493,7 @@ _ESCAPE_SYMS = _safe_syms("ESCAPE")
 
 
 def update_menu(menu: MenuScreen, event: tcod.event.Event) -> MenuAction:
-    """Apply ``event`` to ``menu`` and return the resulting action.
-
-    Mutates ``menu.selected`` on UP/DOWN-style navigation (arrow keys
-    and vim ``k``/``j``). Other events yield ``NONE``.
-    """
+    """Apply ``event`` to ``menu`` and return the resulting action."""
     if isinstance(event, tcod.event.KeyDown):
         sym = event.sym
         sym_name: str = getattr(sym, 'name', '').lower()
@@ -530,15 +524,6 @@ def update_confirm(event: tcod.event.Event) -> MenuAction:
 # ---------------------------------------------------------------------------
 # Modal helper
 # ---------------------------------------------------------------------------
-# Centralizes the standard "render frame -> present -> poll input ->
-# update -> return on non-IGNORE" loop that ~13 _run_X functions in
-# ``__main__`` were duplicating. Each modal defines its own render and
-# update callbacks plus an enum subclass with an IGNORE member + its
-# terminal outcomes; ``Modal.run`` keeps polling until the update
-# returns anything whose ``.name != "IGNORE"``, then returns that
-# outcome. Modals with mutable state (selection index, fuel info, etc.)
-# capture it via closures; modals that need a payload (e.g. the
-# picked menu id) read it from the closure after run() returns.
 
 
 class Modal:
@@ -576,14 +561,10 @@ class Modal:
         that signals "keep polling" - by default the helper
         duck-types via ``outcome.name == "IGNORE"`` so existing
         modals (NavigationOutcome, ShipMenuAction, etc.) work
-        without per-call plumbing. A future modal that names its
-        keep-polling member differently can pass it explicitly
-        rather than rely on the name convention.
+        without per-call plumbing.
 
         Returns whatever ``update`` produced on the terminating
-        iteration. ``T`` is bound to ``Enum`` but the helper itself
-        does not constrain the runtime type - callers pass through
-        whatever enum / payload they want.
+        iteration.
         """
         while True:
             render()
