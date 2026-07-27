@@ -93,7 +93,7 @@ SYSTEM: SolarSystem = SolarSystem(
         ),
     ),
     stars=_stars,
-    npc_spawn_chance=0.15,
-    npc_spawn_table=(("pirate_scout", 0.5), ("pirate_raider", 0.2), ("merchant_hauler", 0.4)),
+    npc_spawn_chance=0.5,
+    npc_spawn_table=(("merchant_hauler", 0.6), ("pirate_scout", 0.4), ("pirate_raider", 0.2)),
     npc_density=2,
 )
