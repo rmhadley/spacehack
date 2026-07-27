@@ -489,13 +489,20 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         title = "CARGO DEBRIS"
         line1 = f"You found {good.name} x{quantity}"
         line2 = f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
-        hint = "ENTER to take  |  ESC to leave"
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
         _paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
         _paint_centered(console, cy + 2, line1, fg=ui.COLOR_VALUE_WHITE)
         _paint_centered(console, cy + 3, line2, fg=ui.COLOR_VALUE_DIM)
-        _paint_centered(console, cy + 5, hint, fg=ui.COLOR_INSTRUCTION)
+
+        ui.render_selectable_list(
+            console, SCREEN_WIDTH, SCREEN_HEIGHT,
+            title="",
+            items=[("Take", "")],
+            selected=0,
+            title_y=cy + 4,
+            hint="ENTER to take  |  ESC to leave",
+        )
 
     def _update(event) -> _LootOutcome:
         if isinstance(event, tcod.event.Quit):

@@ -976,21 +976,9 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
 def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target_system_id: str, *, screen_width: int, screen_height: int, current_fuel: int | None=None, max_fuel: int | None=None, jump_fuel_cost: int=10) -> None:
     """Paint the jump-point-bump dialog.
 
-    Centered title (gate name + arrow), fuel info line (when
-    ``current_fuel`` is provided), wrapped description, and a
-    single highlighted option ``> Jump to <target_system_name> <``
-    plus a hint. Mirror of :func:`render_planet_menu`'s shape so
-    the two dialogs read as the same UI family.
-
-    The dialog is read-only: there's nothing else to choose
-    between in v1 (each gate connects to a single system). A
-    future iteration with multi-hop gates would put a list here.
-
-    When ``current_fuel`` is not None the dialog paints a fuel
-    status line between the description and the option, e.g.
-    ``Fuel: 90 / 100 | Jump cost: 10``. The player can see at a
-    glance whether they have enough fuel to jump without having
-    to open the ship stats first.
+    Centered title + description + optional fuel line, then a
+    single ``Jump to <target>`` option via
+    :func:`ui.render_selectable_list`.
     """
     target_system = solar_systems_module.find_solar_system(target_system_id)
     console.clear()
@@ -998,18 +986,22 @@ def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target
     title_y = screen_height // 2 - 4
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
     desc_lines = ui.wrap_text(jp.description or '', max_width=screen_width - 8)
+    _content_bottom = title_y + 2 + len(desc_lines[:3])
     for i, line in enumerate(desc_lines[:3]):
         console.print(x=ui.centered_x(line, screen_width), y=title_y + 2 + i, string=line, fg=ui.COLOR_DESCRIPTION)
-    option_text = f'> Jump to {target_system.name} <'
-    option_y = screen_height // 2 + 1
-    fuel_line_y = option_y - 2
+    _list_y = _content_bottom + 1
     if current_fuel is not None and max_fuel is not None:
         fuel_str = f'Fuel: {current_fuel} / {max_fuel}  |  Jump cost: {jump_fuel_cost}'
-        fuel_color = ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost else ui.COLOR_VALUE_DIM
-        console.print(x=ui.centered_x(fuel_str, screen_width), y=fuel_line_y, string=fuel_str, fg=fuel_color)
-    console.print(x=ui.centered_x(option_text, screen_width), y=option_y, string=option_text, fg=ui.COLOR_OPTION_HIGHLIGHT)
-    hint = 'ENTER to jump - ESC to fly past'
-    console.print(x=ui.centered_x(hint, screen_width), y=option_y + 2, string=hint, fg=ui.COLOR_INSTRUCTION)
+        console.print(x=ui.centered_x(fuel_str, screen_width), y=_content_bottom + 1, string=fuel_str, fg=ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost else ui.COLOR_VALUE_DIM)
+        _list_y = _content_bottom + 3
+    ui.render_selectable_list(
+        console, screen_width, screen_height,
+        title="",
+        items=[(f"Jump to {target_system.name}", "")],
+        selected=0,
+        title_y=_list_y,
+        hint="ENTER to jump - ESC to fly past",
+    )
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 def update_jump_menu(event: tcod.event.Event) -> JumpMenuOutcome:
@@ -1827,20 +1819,9 @@ def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_modu
 def render_planet_menu(console: tcod.console.Console, ctx: GameContext, planet_obj: solar_system_module.Planet, *, screen_width: int=SCREEN_WIDTH, screen_height: int=SCREEN_HEIGHT, has_port: bool=True) -> None:
     """Paint the planet-bump dialog.
 
-    Layout: planet name centered near the top of the viewport,
-    planet description (wrapped if needed) below, then a single
-    option + hint row, then a control hint. Mimics the visual
-    language of :func:`render_ship_menu` so the player recognises
-    the modal pattern.
-
-    When ``has_port`` is True (the planet is in the data registry
-    AND its spec has a spaceport-labeled building) the option row
-    shows a single highlighted ``> Land <`` cell. Otherwise the
-    row shows an info-only ``No port on this world.`` cell in
-    :attr:`ui.COLOR_DESCRIPTION` and the hint reads
-    ``ENTER or ESC to fly past.`` -- :func:`update_planet_menu`
-    routes ENTER to :attr:`PlanetMenuOutcome.BACK` in that case
-    so the caller's LAND dispatch can't fire.
+    Centered title + description, then a single ``Land`` option
+    via :func:`ui.render_selectable_list` (or ``No port`` text
+    when ``has_port`` is False).
     """
     console.clear()
     title_y = screen_height // 4
@@ -1849,20 +1830,29 @@ def render_planet_menu(console: tcod.console.Console, ctx: GameContext, planet_o
     desc_rows = ui.wrap_text(planet_obj.description, screen_width - 4)
     for i, row in enumerate(desc_rows):
         console.print(x=ui.centered_x(row, screen_width), y=desc_y + i, string=row, fg=ui.COLOR_DESCRIPTION)
-    option_y = screen_height // 2 + 2
+    _content_bottom = desc_y + max(1, len(desc_rows))
     if has_port:
-        option_text = '> Land <'
-        hint = 'ENTER to land - ESC to fly away'
-        option_fg = ui.COLOR_OPTION_HIGHLIGHT
-        hint_fg = ui.COLOR_INSTRUCTION
+        ui.render_selectable_list(
+            console, screen_width, screen_height,
+            title="",
+            items=[("Land", "")],
+            selected=0,
+            title_y=_content_bottom + 1,
+            hint="ENTER to land - ESC to fly away",
+        )
     else:
-        option_text = 'No port on this world.'
-        hint = 'ENTER or ESC to fly past.'
-        option_fg = ui.COLOR_DESCRIPTION
-        hint_fg = ui.COLOR_INSTRUCTION
-    console.print(x=ui.centered_x(option_text, screen_width), y=option_y, string=option_text, fg=option_fg)
-    hint_y = option_y + 2
-    console.print(x=ui.centered_x(hint, screen_width), y=hint_y, string=hint, fg=hint_fg)
+        console.print(
+            x=ui.centered_x("No port on this world.", screen_width),
+            y=_content_bottom + 1,
+            string="No port on this world.",
+            fg=ui.COLOR_DESCRIPTION,
+        )
+        console.print(
+            x=ui.centered_x("ENTER or ESC to fly past.", screen_width),
+            y=_content_bottom + 3,
+            string="ENTER or ESC to fly past.",
+            fg=ui.COLOR_INSTRUCTION,
+        )
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 def update_planet_menu(event: tcod.event.Event, *, has_port: bool=True) -> PlanetMenuOutcome:
