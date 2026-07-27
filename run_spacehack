@@ -1,0 +1,11 @@
+#!/bin/sh
+# Linux launcher for spacehack.  Run from terminal or double-click
+# after making executable:
+#   chmod +x run_spacehack
+cd "$(dirname "$0")" || exit 1
+python3 run.py
+if [ $? -ne 0 ]; then
+    echo
+    echo "Failed to launch. Make sure Python 3.10+ is installed."
+    exit 1
+fi
