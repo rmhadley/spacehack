@@ -19,6 +19,13 @@ def _find_wheel() -> Path | None:
     return None
 
 
+def _pip_install(wheel: Path) -> None:
+    """Install wheel with ``--user`` (works everywhere, bypasses PEP 668)."""
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "--user", str(wheel)]
+    )
+
+
 def main() -> int:
     # If spacehack isn't installed yet, install from the local wheel.
     try:
@@ -33,9 +40,11 @@ def main() -> int:
             )
             return 1
         print(f"Installing spacehack from {wheel.name}...")
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", str(wheel)]
-        )
+        try:
+            _pip_install(wheel)
+        except subprocess.CalledProcessError as exc:
+            print(f"Installation failed: {exc}", file=sys.stderr)
+            return 1
 
     # Launch the game.
     from spacehack.__main__ import main as game_main
