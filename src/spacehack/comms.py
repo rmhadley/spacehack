@@ -318,6 +318,16 @@ def open_comms(
     # ---- Handle interaction outcome ----
     if interaction_outcome is _InteractionOutcome.ATTACK:
         ctx.log.add_colored(
+            f"You transmit a warning to the {_contact_name}.",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+        if _contact_spec.comms_lines:
+            _reply = _contact_spec.comms_lines[-1]
+            ctx.log.add_colored(
+                f"{_contact_name}: \"{_reply}\"",
+                _ml.COLOR_ENEMY_ACTION,
+            )
+        ctx.log.add_colored(
             f"You open fire on the {_contact_name}!",
             _ml.COLOR_IMPORTANT_EVENT,
         )
