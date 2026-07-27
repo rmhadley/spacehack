@@ -19,6 +19,7 @@ import tcod.console
 import tcod.event
 
 from . import ui
+from .faction import get_attitude as _get_attitude
 from .data.npc_ships import find_npc_ship as _find_npc_ship
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
@@ -114,12 +115,14 @@ def _render_comms_panel(
     console: tcod.console.Console,
     contacts: list[tuple[str, object, object]],
     selected: int,
+    ctx,
 ) -> None:
     """Paint the comms contact-list panel.
 
     Uses a fixed left-aligned column (rather than per-line centering)
     so scrolling never shifts the text horizontally. Selection markers
     have consistent width so all contact lines occupy the same space.
+    ``ctx`` is needed for faction reputation lookups.
     """
     console.clear()
     n = len(contacts)
@@ -139,15 +142,16 @@ def _render_comms_panel(
     for i, (name, spec, entity) in enumerate(contacts):
         row = list_top + i * 3
         is_selected = i == selected
-        is_hostile = spec.faction == 'pirate'
+        _rep = ctx.faction_reputation.get(spec.faction, 0)
+        _attitude = _get_attitude(_rep)
 
         # Consistent-width markers: both selected and unselected markers
         # are 4 chars total (2 open + 2 close) so the name never shifts.
         marker_open = '> ' if is_selected else '  '
         marker_close = ' <' if is_selected else '  '
-        hostile_tag = ' (hostile)' if is_hostile else ''
+        hostile_tag = ' (hostile)' if _attitude == 'hostile' else ''
         name_fg = _CONTACTS_SELECTED if is_selected else (
-            _CONTACTS_HOSTILE_TAG if is_hostile else _CONTACTS_NORMAL
+            _CONTACTS_HOSTILE_TAG if _attitude == 'hostile' else _CONTACTS_NORMAL
         )
         text = f"{marker_open}{name}{hostile_tag}{marker_close}"
         console.print(x=_COL_X, y=row, string=text, fg=name_fg)
@@ -254,7 +258,7 @@ def open_comms(
 
     # ---- Modal 1: contact list ----
     def _render_list() -> None:
-        _render_comms_panel(console, contacts, selected)
+        _render_comms_panel(console, contacts, selected, ctx)
 
     def _update_list(event) -> _CommsListOutcome:
         nonlocal selected
@@ -283,10 +287,11 @@ def open_comms(
 
     # ---- Modal 2: interaction with selected contact ----
     _contact_name, _contact_spec, _contact_entity = contacts[selected]
-    _is_hostile = getattr(_contact_spec, 'faction', '') == 'pirate'
+    _contact_rep = ctx.faction_reputation.get(getattr(_contact_spec, 'faction', ''), 0)
+    _contact_attitude = _get_attitude(_contact_rep)
 
     _options: list[str] = ["End Transmission"]
-    if _is_hostile:
+    if _contact_attitude == 'hostile':
         _options.insert(0, "Attack")
     else:
         _options.insert(0, "Open Trade")

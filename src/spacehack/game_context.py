@@ -170,3 +170,11 @@ class GameContext:
     npc_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)
     economy_state: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
     # economy_state[planet_id][good_id] = current_stock; seeded on first visit
+    faction_reputation: dict[str, int] = dataclasses.field(
+        default_factory=lambda: {
+            "pirate": -100,
+            "merchant": 0,
+            "civilian": 0,
+            "militia": 50,
+        }
+    )
