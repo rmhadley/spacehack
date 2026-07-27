@@ -14,7 +14,7 @@
 #   ├── run_spacehack.command       # macOS:   double-click
 #   └── run_spacehack               # Linux:   chmod +x then launch
 
-.PHONY: dist clean
+.PHONY: dist zip clean
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -59,6 +59,13 @@ dist/spacehack/run_spacehack: run_spacehack
 	@mkdir -p dist/spacehack
 	cp run_spacehack dist/spacehack/
 	chmod +x dist/spacehack/run_spacehack
+
+# ──────────────────────────────────────────────
+# zip  — bundle dist/spacehack/ into a single .zip for sharing
+# ──────────────────────────────────────────────
+zip: dist
+	@cd dist && zip -r spacehack-$(VERSION).zip spacehack/
+	@echo "─── Zip ready: dist/spacehack-$(VERSION).zip ───"
 
 # ──────────────────────────────────────────────
 # clean
