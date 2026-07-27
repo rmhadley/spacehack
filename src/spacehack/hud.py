@@ -281,16 +281,13 @@ def render_hud(
         skill_line = f"G:{stats.gunnery} P:{stats.piloting} E:{stats.engineering}"
         console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
 
-        # Terminal indicators (city mode, between skills and footer).
+        # Terminal indicators (each on its own line, between skills and footer).
         y += 1
-        _terminal_parts: list[str] = []
         if has_mech_terminal:
-            _terminal_parts.append("% Mech")
+            console.print(x=hud_x, y=y, string="% Mech", fg=COLOR_LABEL)
+            y += 1
         if has_trade_terminal:
-            _terminal_parts.append("= Trade")
-        if _terminal_parts:
-            _terminal_line = "  ".join(_terminal_parts)
-            console.print(x=hud_x, y=y, string=_terminal_line[:HUD_WIDTH], fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="= Trade", fg=COLOR_LABEL)
 
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
