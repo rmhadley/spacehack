@@ -176,7 +176,10 @@ Each phase has its own playtest noted above. A **final runthrough** after all ph
 
 - [x] Phase 1 — Input helpers (`input_helpers.py`)
 - [x] Phase 2 — Planet-side menus (`menus.py`)
-- [ ] Phase 3 — Navigation & Jump (`navigation.py`)
-- [ ] Phase 4 — Bounty combat detection (`bounty.py`)
+- [x] Phase 3 — Navigation & Jump (`navigation.py`)
+  - Note: `_add_bounty_spawns_to_map` + `_detect_combat_encounter` moved here
+  (Phase 3 needed them; Phase 4 no longer a separate file)
+- [ ] Phase 4 — Remaining bounty spawn helpers stay in `__main__`
+  (just `_pick_bounty_spawn_pos`, `_remove_bounty_spawn` — small enough to keep)
 - [ ] Phase 5 — City/space transitions (`city.py`)
 - [ ] Final runthrough + smoke ✅
