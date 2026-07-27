@@ -131,6 +131,24 @@ def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
                 except ValueError:
                     pass
 
+def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> None:
+    """Render the small city + HUD + msg log and handle vim movement.
+
+    Walking into a wall logs a short message. Walking into a
+    non-interactable entity logs a "bump" message. Walking into
+    a ship (at the space port) opens the ship-buy modal; walking
+    into a guild NPC opens the flavor-talk modal.
+    """
+    species = find_species(species_id)
+    klass = find_class(class_id)
+    CITY_WIDTH, CITY_HEIGHT = (60, 40)
+    game_map = world.make_city(width=CITY_WIDTH, height=CITY_HEIGHT)
+    player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(x=CITY_WIDTH // 2, y=CITY_HEIGHT // 2), name='Player')
+    game_map.entities.append(player)
+    stats = character.starting_stats(species_id, class_id)
+    log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
+    log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
+    log.add("The cobblestones are damp from last night's rain.")
     log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
     log.add('Buildings: North-West space port, South-West merchant guild,')
     log.add('Bar in the plaza, militia + bounty guild on the South-East.')
