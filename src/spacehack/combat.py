@@ -649,6 +649,9 @@ def _render_anim_frame(
     *,
     weapon_list: tuple = (),
     selected_weapon_idx: int = 0,
+    evade_bonus: int | None = None,
+    hit_chances: dict[str, int] | None = None,
+    flee_chance: int | None = None,
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
     from .engine import SCREEN_WIDTH, SCREEN_HEIGHT
@@ -678,6 +681,9 @@ def _render_anim_frame(
         player_mode="FIRING",
         selected_weapon_idx=selected_weapon_idx,
         weapon_list=weapon_list,
+        evade_bonus=evade_bonus,
+        hit_chances=hit_chances,
+        flee_chance=flee_chance,
     )
     _ml.render_message_log(
         console, log,
@@ -705,6 +711,9 @@ def _animate_laser_shot(
     *,
     weapon_list: tuple = (),
     selected_weapon_idx: int = 0,
+    evade_bonus: int | None = None,
+    hit_chances: dict[str, int] | None = None,
+    flee_chance: int | None = None,
 ) -> None:
     """Animate a laser beam from shooter to target over 4 frames.
 
@@ -728,6 +737,9 @@ def _animate_laser_shot(
             player_state, enemies, target_idx, log,
             weapon_list=weapon_list,
             selected_weapon_idx=selected_weapon_idx,
+            evade_bonus=evade_bonus,
+            hit_chances=hit_chances,
+            flee_chance=flee_chance,
         )
         # Draw beam on top
         brightness = min(255, 130 + frame * 30)
@@ -756,6 +768,9 @@ def _animate_laser_shot(
                 player_state, enemies, target_idx, log,
                 weapon_list=weapon_list,
                 selected_weapon_idx=selected_weapon_idx,
+                evade_bonus=evade_bonus,
+                hit_chances=hit_chances,
+                flee_chance=flee_chance,
             )
             tx = target_pos.x - cam_x
             ty = target_pos.y - cam_y
@@ -782,6 +797,9 @@ def _animate_explosion(
     *,
     weapon_list: tuple = (),
     selected_weapon_idx: int = 0,
+    evade_bonus: int | None = None,
+    hit_chances: dict[str, int] | None = None,
+    flee_chance: int | None = None,
 ) -> None:
     """Animate an expanding explosion at ``center_pos`` (5 rings).
 
@@ -795,6 +813,9 @@ def _animate_explosion(
             player_state, enemies, target_idx, log,
             weapon_list=weapon_list,
             selected_weapon_idx=selected_weapon_idx,
+            evade_bonus=evade_bonus,
+            hit_chances=hit_chances,
+            flee_chance=flee_chance,
         )
         # Draw explosion rings (manhattan distance)
         for ring_idx in range(min(rings + 1, len(_COMBAT_EXPLOSION_RINGS))):
@@ -818,6 +839,9 @@ def _animate_explosion(
         player_state, enemies, target_idx, log,
         weapon_list=weapon_list,
         selected_weapon_idx=selected_weapon_idx,
+        evade_bonus=evade_bonus,
+        hit_chances=hit_chances,
+        flee_chance=flee_chance,
     )
     cx = center_pos.x - cam_x
     cy = center_pos.y - cam_y
@@ -839,6 +863,9 @@ def _animate_explosion(
         player_state, enemies, target_idx, log,
         weapon_list=weapon_list,
         selected_weapon_idx=selected_weapon_idx,
+        evade_bonus=evade_bonus,
+        hit_chances=hit_chances,
+        flee_chance=flee_chance,
     )
     _responsive_sleep(0.04)
 
@@ -1249,6 +1276,15 @@ def run_combat(
                                     log=log,
                                     weapon_list=tuple(weapons_list),
                                     selected_weapon_idx=selected_weapon_idx,
+                                    evade_bonus=_evade_bonus,
+                                    hit_chances=_weapon_hit_chances,
+                                    flee_chance=calc_flee_chance(
+                                        player_state["piloting"],
+                                        _closest_enemy.pilot_piloting,
+                                        player_state["hull"] / max(player_state["max_hull"], 1),
+                                        _distance(player_state["pos"], _closest_enemy.pos),
+                                        flee_attempts,
+                                    ),
                                 )
                                 if _e_hit:
                                     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
@@ -1275,6 +1311,15 @@ def run_combat(
                                             log=log,
                                             weapon_list=tuple(weapons_list),
                                             selected_weapon_idx=selected_weapon_idx,
+                                            evade_bonus=_evade_bonus,
+                                            hit_chances=_weapon_hit_chances,
+                                            flee_chance=calc_flee_chance(
+                                                player_state["piloting"],
+                                                _closest_enemy.pilot_piloting,
+                                                player_state["hull"] / max(player_state["max_hull"], 1),
+                                                _distance(player_state["pos"], _closest_enemy.pos),
+                                                flee_attempts,
+                                            ),
                                         )
                                         _result = "DEFEAT"
                                         break  # exits while
@@ -1424,6 +1469,15 @@ def run_combat(
                         log=log,
                         weapon_list=tuple(weapons_list),
                         selected_weapon_idx=selected_weapon_idx,
+                        evade_bonus=_evade_bonus,
+                        hit_chances=_weapon_hit_chances,
+                        flee_chance=calc_flee_chance(
+                            player_state["piloting"],
+                            _closest_enemy.pilot_piloting,
+                            player_state["hull"] / max(player_state["max_hull"], 1),
+                            _distance(player_state["pos"], _closest_enemy.pos),
+                            flee_attempts,
+                        ),
                     )
                     # Resolve the shot
                     _ws = None
@@ -1477,6 +1531,15 @@ def run_combat(
                                 log=log,
                                 weapon_list=tuple(weapons_list),
                                 selected_weapon_idx=selected_weapon_idx,
+                                evade_bonus=_evade_bonus,
+                                hit_chances=_weapon_hit_chances,
+                                flee_chance=calc_flee_chance(
+                                    player_state["piloting"],
+                                    _closest_enemy.pilot_piloting,
+                                    player_state["hull"] / max(player_state["max_hull"], 1),
+                                    _distance(player_state["pos"], _closest_enemy.pos),
+                                    flee_attempts,
+                                ),
                             )
                             # Mark dead; will be pruned from list next loop
                             _target.alive = False
