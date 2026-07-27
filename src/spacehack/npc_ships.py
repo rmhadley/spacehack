@@ -514,6 +514,8 @@ _NPC_FLASH_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (
     ("o", (150, 180, 255)),   # ring 2 — dimmer blue
     ("#", (120, 150, 220)),   # ring 3 — faint blue edge
 )
+# The number of entries (4) must match NpcFlashEvent's default lifetime (4).
+# If you add or remove a ring, update NpcFlashEvent.pos lifetime default too.
 
 
 def render_npc_flash_events(

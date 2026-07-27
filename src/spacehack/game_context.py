@@ -77,7 +77,7 @@ class NpcFlashEvent:
     :func:`spacehack.npc_ships.render_npc_flash_events` each frame.
     """
     pos: world.Position
-    lifetime: int = 4  # frames remaining; decremented each render
+    lifetime: int = 4  # frames remaining; decremented each render. Must match _NPC_FLASH_RINGS entry count in npc_ships.py.
 
 
 @dataclasses.dataclass(frozen=True)
