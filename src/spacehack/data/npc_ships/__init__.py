@@ -67,10 +67,10 @@ class NpcShipSpec:
     detect_radius: int = 0
 
     # Comms / interaction
-    # comms_range: cells within which the player can hail. Set high
-    # enough to cover the entire map (~200x200 cells, diagonal ~283)
-    # so anything visible on screen is reachable.
-    comms_range: int = 999
+    # comms_range: maximum Euclidean distance for proximity-based
+    # interaction (future use). The comms system itself now uses
+    # viewport-visibility rather than this range.
+    comms_range: int = 15
     comms_lines: tuple[str, ...] = ("Greetings, pilot.",)
     base_speed: int = 1
 

@@ -51,12 +51,21 @@ def _scan_contacts(
     ctx: GameContext,
     player_pos,
 ) -> list[tuple[str, object, object]]:
-    """Return a list of ``(name, spec, entity)`` for NPCs in comms range.
+    """Return a list of ``(name, spec, entity)`` for NPCs visible on screen.
 
-    Scans ``ctx.game_map.entities`` for unowned entities with an
-    ``npc_ship_id`` tag, resolves the spec, and filters by
-    Euclidean distance <= spec.comms_range.
+    Computes the current camera viewport (80x54 centred on the player)
+    and returns any unowned entity with an ``npc_ship_id`` tag whose
+    world position falls within that viewport rectangle.
     """
+    from . import solar_system as _ss
+    _system = _ss.current_system()
+    if _system is None:
+        return []
+    _view_w = _ss.SOL_VIEW_W
+    _view_h = _ss.SOL_VIEW_H
+    _cam_x = max(0, min(player_pos.x - _view_w // 2, _system.width - _view_w))
+    _cam_y = max(0, min(player_pos.y - _view_h // 2, _system.height - _view_h))
+
     contacts: list[tuple[str, object, object]] = []
     for _e in ctx.game_map.entities:
         if getattr(_e, 'owned', False):
@@ -68,12 +77,11 @@ def _scan_contacts(
             _spec = _find_npc_ship(_pid)
         except (KeyError, ImportError):
             continue
-        _dist = math.hypot(
-            player_pos.x - _e.pos.x,
-            player_pos.y - _e.pos.y,
-        )
-        if _dist <= _spec.comms_range:
-            contacts.append((_spec.name, _spec, _e))
+        # Filter by viewport visibility (world-coord rectangle check).
+        if not (_cam_x <= _e.pos.x < _cam_x + _view_w
+                and _cam_y <= _e.pos.y < _cam_y + _view_h):
+            continue
+        contacts.append((_spec.name, _spec, _e))
     # Sort by distance (nearest first) for consistent ordering.
     contacts.sort(
         key=lambda c: math.hypot(
