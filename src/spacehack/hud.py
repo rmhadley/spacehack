@@ -405,18 +405,18 @@ def render_combat_hud(
         _bar = _bar_str(pshields, pmax_shields)
         shield_line = f"Shd  {_bar} {int(shields_pct * 100)}%"
         console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
-        # Regen rate fill: N leftmost # cells get a white bg (0-10 cells).
+        # Regen rate fill: N leftmost cells get a white bg (0-10 cells),
+        # regardless of whether the shield is currently full (#) or empty (.).
         _regen_rate = player_state.get("shield_regen_rate", 0)
         if _regen_rate > 0:
-            _fill = _regen_rate
+            _fill = min(_regen_rate, len(_bar))
             for _i in range(_fill):
-                if _bar[_i] == _BAR_CHAR_FULL:
-                    console.print(
-                        x=hud_x + 5 + _i, y=y,
-                        string=_BAR_CHAR_FULL,
-                        fg=COLOR_SHIELD_BAR,
-                        bg=(255, 255, 255),
-                    )
+                console.print(
+                    x=hud_x + 5 + _i, y=y,
+                    string=_bar[_i],
+                    fg=COLOR_SHIELD_BAR,
+                    bg=(255, 255, 255),
+                )
         y += 1
 
     # Hull bar
