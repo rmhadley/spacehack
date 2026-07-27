@@ -419,16 +419,16 @@ Run through each of these in order. Note any crashes, unexpected log messages, m
 
 > **Living document**: Update this section during implementation if new edge cases, behaviors, or failure modes emerge that aren't covered below. The playtest should reflect what actually needs testing, not just what we anticipated.
 
-1. **Smoke + audit** — Must pass before starting the game.
-2. **Open Trade from comms** — Hail a merchant. Select "Open Trade." Verify the trade modal opens showing the merchant's cargo inventory (its `cargo_goods` at stock levels derived from `cargo_count`).
-3. **Buy from merchant** — Buy a good from the merchant. Verify credits are deducted, cargo is added to your inventory, and the trade modal updates.
-4. **Sell to merchant** — Sell a good to the merchant. Verify credits are added, cargo is removed, and the trade modal updates.
-5. **Close trade** — ESC out of the trade modal. Verify you return to space mode (not back to the comms menu).
-6. **Hail a civilian** — Fly near a civilian transport. Hail it. Verify flavor text reads like a passenger ship (no trade option, no cargo).
-7. **Hail a milit ia patrol** — Fly near a militia patrol. Hail it. Verify flavor text reflects law enforcement. "Open Trade" may not be available (militia don't trade).
-8. **Flavor text per spec** — Hail 3 different NPC types. Verify each has distinct comms lines (read from `comms_lines` on the spec).
-9. **Edge case: merchant with no cargo** — If a merchant has been looted (e.g. you already bought everything), verify the trade modal shows 0 stock gracefully.
-10. **Edge case: no credits** — Try to buy from a merchant with 0 credits. Verify the trade modal blocks the purchase with a log message.
+- [ ] **Smoke + audit** — Must pass before starting the game.
+- [ ] **Open Trade from comms** — Hail a merchant. Select "Open Trade." Verify the trade modal opens showing the merchant's cargo inventory (its `cargo_goods` at stock levels derived from `cargo_count`).
+- [ ] **Buy from merchant** — Buy a good from the merchant. Verify credits are deducted, cargo is added to your inventory, and the trade modal updates.
+- [ ] **Sell to merchant** — Sell a good to the merchant. Verify credits are added, cargo is removed, and the trade modal updates.
+- [ ] **Close trade** — ESC out of the trade modal. Verify you return to space mode (not back to the comms menu).
+- [ ] **Hail a civilian** — Fly near a civilian transport. Hail it. Verify flavor text reads like a passenger ship (no trade option, no cargo).
+- [ ] **Hail a militia patrol** — Fly near a militia patrol. Hail it. Verify flavor text reflects law enforcement. "Open Trade" may not be available (militia don't trade).
+- [ ] **Flavor text per spec** — Hail 3 different NPC types. Verify each has distinct comms lines (read from `comms_lines` on the spec).
+- [ ] **Edge case: merchant with no cargo** — If a merchant has been looted (e.g. you already bought everything), verify the trade modal shows 0 stock gracefully.
+- [ ] **Edge case: no credits** — Try to buy from a merchant with 0 credits. Verify the trade modal blocks the purchase with a log message.
 
 ### Phase 5 — Faction reputation
 

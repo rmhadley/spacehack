@@ -247,7 +247,7 @@ def open_comms(
     (player chose End Transmission, Open Trade, Scan Cargo, or ESC).
 
     Scan Cargo logs the cargo manifest to the message log.
-    Open Trade logs a placeholder (actual trading is Phase 4).
+    Open Trade opens the NPC trade modal via ``trade.open_npc_trade()``.
     """
     contacts = _scan_contacts(ctx, player_pos)
     if not contacts:
@@ -360,10 +360,8 @@ def open_comms(
         return None
 
     elif interaction_outcome is _InteractionOutcome.TRADE:
-        ctx.log.add(
-            f"{_contact_name} opens their cargo hold for inspection. "
-            "(NPC trading coming in Phase 4.)"
-        )
+        from .trade import open_npc_trade as _open_npc_trade
+        _open_npc_trade(ctx, _contact_spec)
         return None
 
     else:  # BACK / QUIT / anything else

@@ -422,6 +422,214 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         return
 
 
+# ---------------------------------------------------------------------------
+# NPC trade modal (Phase 4 — merchant ships from comms)
+# ---------------------------------------------------------------------------
+
+
+class _NpcTradeOutcome(Enum):
+    IGNORE = auto()
+    BACK = auto()
+    QUIT = auto()
+
+
+def open_npc_trade(ctx: GameContext, npc_spec) -> None:
+    """Open a trade modal with an NPC ship.
+
+    Generated stock from ``npc_spec.cargo_goods`` using
+    ``npc_spec.cargo_count`` (picked randomly). The NPC's
+    stock is ephemeral — it is NOT stored in
+    ``ctx.economy_state`` and does not persist across turns.
+
+    Player buys from NPC at base_price plus 20% markup.
+    Player sells to NPC at base_price minus 50% discount.
+    """
+    owned = ctx.player_owned_ship
+    if owned is None:
+        ctx.log.add("You need a ship with cargo space to trade.")
+        return
+
+    import random
+    _cargo_list = list(npc_spec.cargo_goods)
+    if not _cargo_list:
+        ctx.log.add(f"{npc_spec.name} has nothing to trade.")
+        return
+
+    random.shuffle(_cargo_list)
+    _selected = _cargo_list[:npc_spec.cargo_count]
+    _npc_stock: dict[str, int] = {
+        gid: random.randint(3, 8) for gid in _selected
+    }
+
+    # Price multipliers.
+    _BUY_MULT = 1.2   # player buys from NPC at markup
+    _SELL_MULT = 0.5  # player sells to NPC at discount
+
+    _npc_goods: list[str] = list(_npc_stock.keys())
+    _focus: int = 0        # 0 = NPC panel, 1 = player panel
+    _sel: int = 0
+
+    ctx.log.add(f"You open a trade channel with {npc_spec.name}.")
+
+    console = make_console()
+
+    def _render() -> None:
+        nonlocal _sel
+        console.clear()
+
+        max_w = SCREEN_WIDTH - HUD_WIDTH - 2
+        col_w = max_w // 2 - 2
+
+        def paint(x: int, y: int, text: str, *, fg) -> None:
+            for i, ch in enumerate(text):
+                if x + i < SCREEN_WIDTH - HUD_WIDTH:
+                    console.print(x=x + i, y=y, string=ch, fg=fg)
+
+        cy = 2
+        title = f"TRADE \u2014 {npc_spec.name.upper()}"
+        paint(ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
+        cy += 2
+
+        # Column headers.
+        left_label = f"\u2502 {npc_spec.name}" if _focus == 0 else f"  {npc_spec.name} "
+        right_label = "\u2502 Your Hold" if _focus == 1 else "  Your Hold "
+        paint(2, cy, left_label, fg=ui.COLOR_TITLE if _focus == 0 else ui.COLOR_OPTION)
+        paint(max_w // 2 + 2, cy, right_label, fg=ui.COLOR_TITLE if _focus == 1 else ui.COLOR_OPTION)
+        sep_x = max_w // 2
+        for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
+            console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
+        cy += 1
+
+        # Helper: format a trade row that fits in col_w columns.
+        def _trade_line(name: str, price_label: str, suffix: str, selected: bool) -> str:
+            marker = "> " if selected else "  "
+            fixed = len(marker) + 1 + len(price_label) + 1
+            name_w = max(4, col_w - fixed - len(suffix))
+            trimmed = name[:name_w].ljust(name_w)
+            return f"{marker}{trimmed} {price_label} {suffix}"
+
+        # NPC goods (left panel).
+        for i, gid in enumerate(_npc_goods):
+            if i >= SCREEN_HEIGHT - 12:
+                break
+            good = find_trade_good(gid)
+            stock = _npc_stock.get(gid, 0)
+            price = int(good.base_price * _BUY_MULT)
+            price_label = f"{price:>5}$"
+            suffix = f"({stock:>3})"
+            is_sel = _focus == 0 and i == _sel
+            fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
+            paint(2, cy + i, _trade_line(good.name, price_label, suffix, is_sel), fg=fg)
+
+        # Player goods (right panel).
+        inv_items = list(owned.inventory.items())
+        for i, (gid, qty) in enumerate(inv_items):
+            if i >= SCREEN_HEIGHT - 12:
+                break
+            good = find_trade_good(gid)
+            sell_price = int(good.base_price * _SELL_MULT)
+            price_label = f"{sell_price:>5}$"
+            suffix = f"({qty:>3})"
+            col_x = max_w // 2 + 2
+            is_sel = _focus == 1 and i == _sel
+            fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
+            paint(col_x, cy + i, _trade_line(good.name, price_label, suffix, is_sel), fg=fg)
+
+        # Footer.
+        foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
+        from . import ship as ship_module
+        ship_spec = ship_module.find_ship(owned.ship_id)
+        cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
+        gold_str = f"Credits: {ctx.stats.credits}"
+        paint(2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
+        paint(SCREEN_WIDTH - HUD_WIDTH - len(gold_str) - 2, foot_y, gold_str, fg=ui.COLOR_VALUE_WHITE)
+
+        hint = "UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back"
+        paint(2, foot_y + 2, hint, fg=ui.COLOR_INSTRUCTION)
+
+    def _update(event: tcod.event.Event) -> _NpcTradeOutcome:
+        nonlocal _focus, _sel
+
+        if isinstance(event, tcod.event.Quit):
+            return _NpcTradeOutcome.QUIT
+        if not isinstance(event, tcod.event.KeyDown):
+            return _NpcTradeOutcome.IGNORE
+
+        sym = event.sym
+        sym_name = getattr(sym, "name", "").lower()
+
+        if sym in ui._ESCAPE_SYMS:
+            return _NpcTradeOutcome.BACK
+        if sym_name == "tab":
+            _focus = 1 - _focus
+            _sel = 0
+            return _NpcTradeOutcome.IGNORE
+
+        is_up = sym in ui._UP_SYMS or sym_name == "k"
+        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
+        if is_up:
+            if _focus == 0:
+                _sel = (_sel - 1) % max(1, len(_npc_goods))
+            else:
+                n = len(owned.inventory)
+                _sel = (_sel - 1) % max(1, n)
+            return _NpcTradeOutcome.IGNORE
+        if is_down:
+            if _focus == 0:
+                _sel = (_sel + 1) % max(1, len(_npc_goods))
+            else:
+                n = len(owned.inventory)
+                _sel = (_sel + 1) % max(1, n)
+            return _NpcTradeOutcome.IGNORE
+
+        if sym in ui._ENTER_SYMS:
+            if _focus == 0:
+                # Buy from NPC.
+                if 0 <= _sel < len(_npc_goods):
+                    gid = _npc_goods[_sel]
+                    good = find_trade_good(gid)
+                    price = int(good.base_price * _BUY_MULT)
+                    stock = _npc_stock.get(gid, 0)
+                    free = _free_cargo(owned)
+                    can_afford = ctx.stats.credits // price if price > 0 else 999
+                    max_qty = min(stock, free // max(1, good.volume), can_afford, 999)
+                    if max_qty >= 1:
+                        q = _run_quantity_prompt(ctx, f"Buy {good.name} from {npc_spec.name}", max_qty, price)
+                        if q is not None:
+                            cost = price * q
+                            owned.inventory[gid] = owned.inventory.get(gid, 0) + q
+                            _npc_stock[gid] = stock - q
+                            ctx.stats.credits -= cost
+                            ctx.log.add(f"Bought {q}x {good.name} from {npc_spec.name} for {cost}$.")
+                    else:
+                        ctx.log.add(f"{npc_spec.name} has insufficient stock or you cannot afford/store {good.name}.")
+            else:
+                # Sell to NPC.
+                inv_items = list(owned.inventory.items())
+                if 0 <= _sel < len(inv_items):
+                    gid, qty = inv_items[_sel]
+                    good = find_trade_good(gid)
+                    sell_price = int(good.base_price * _SELL_MULT)
+                    max_q = min(qty, 999)
+                    q = _run_quantity_prompt(ctx, f"Sell {good.name} to {npc_spec.name}", max_q, sell_price)
+                    if q is not None:
+                        revenue = sell_price * q
+                        remaining = qty - q
+                        if remaining <= 0:
+                            del owned.inventory[gid]
+                        else:
+                            owned.inventory[gid] = remaining
+                        # NPC adds to stock (just for bookkeeping, not persisted).
+                        _npc_stock[gid] = _npc_stock.get(gid, 0) + q
+                        ctx.stats.credits += revenue
+                        ctx.log.add(f"Sold {q}x {good.name} to {npc_spec.name} for {revenue}$.")
+            return _NpcTradeOutcome.IGNORE
+
+        return _NpcTradeOutcome.IGNORE
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
 def open_trade(ctx: GameContext, planet_id: str) -> None:
     """Open the trade modal for ``planet_id``.
 
