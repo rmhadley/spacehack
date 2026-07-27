@@ -43,8 +43,6 @@ from typing import Any
 import tcod.console
 
 from .engine import HUD_WIDTH
-from .data.weapons import find_weapon as _find_weapon
-import math as _math
 
 
 # Vivid HUD palette: gold title, bright near-white values, blue-tinted
@@ -66,7 +64,6 @@ COLOR_SHIP_VALUE: tuple[int, int, int] = (255, 255, 255)          # white stat v
 COLOR_SHIP_LABEL: tuple[int, int, int] = (140, 180, 215)          # muted ice-blue labels (slightly dimmer than COLOR_LABEL)
 COLOR_FUEL_OK: tuple[int, int, int] = (100, 235, 115)            # green when fuel is adequate
 COLOR_FUEL_LOW: tuple[int, int, int] = (255, 180, 60)            # amber when fuel is low (< jump cost)
-COLOR_HELP_KEY: tuple[int, int, int] = (255, 200, 80)            # gold for key names in help
 COLOR_HELP_DESC: tuple[int, int, int] = (180, 180, 180)          # silver for key descriptions
 
 
@@ -79,6 +76,65 @@ class HudStats:
     gunnery: int = 0
     piloting: int = 0
     engineering: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _render_divider(console: tcod.console.Console, hud_x: int, y: int) -> None:
+    """Print a full-width divider line at ``(hud_x, y)``.
+
+    Pure print — caller owns y advancement.
+    """
+    console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
+
+
+def _render_mission_line(
+    console: tcod.console.Console, hud_x: int, y: int, title: str,
+) -> None:
+    """Print the active mission title at ``(hud_x, y)`` with "M: " prefix.
+
+    Truncates to fit HUD_WIDTH. Pure print — caller owns y advancement.
+    """
+    room = max(0, HUD_WIDTH - len("M: ") - 1)
+    console.print(x=hud_x, y=y, string=f"M: {title[:room]}", fg=COLOR_HUD_TITLE)
+
+
+def _render_skill_line(
+    console: tcod.console.Console, hud_x: int, y: int, stats: HudStats,
+) -> None:
+    """Print the GUN/PIL/ENG skill line at ``(hud_x, y)``.
+
+    Pure print — caller owns y advancement.
+    """
+    console.print(
+        x=hud_x, y=y,
+        string=f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"[:HUD_WIDTH],
+        fg=COLOR_SHIP_LABEL,
+    )
+
+
+def _render_help_lines(
+    console: tcod.console.Console,
+    hud_x: int,
+    start_y: int,
+    help_lines: list[tuple[str, str]],
+) -> int:
+    """Render a list of ``(key_label, description)`` pairs into
+    ``console`` starting at column ``hud_x``, row ``start_y``.
+
+    Each line is formatted as ``{key:<9} {desc}`` with the whole
+    line in ``COLOR_HELP_DESC``. Returns the next available ``y``
+    row so the caller can continue painting below the block.
+    """
+    y = start_y
+    for key, desc in help_lines:
+        line = f"{key:<9} {desc}"
+        console.print(x=hud_x, y=y, string=line, fg=COLOR_HELP_DESC)
+        y += 1
+    return y
 
 
 def render_hud(
@@ -179,37 +235,30 @@ def render_hud(
 
         # Pilot skills (compact one-liner)
         y += 1
-        skill_line = f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"
-        console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
+        _render_skill_line(console, hud_x, y, stats)
 
         # Active mission (inline, no extra divider)
         if active_mission:
             y += 1
-            mission_room = max(0, HUD_WIDTH - len("M: ") - 1)
-            mission_line = f"M: {active_mission[:mission_room]}"
-            console.print(x=hud_x, y=y, string=mission_line, fg=COLOR_HUD_TITLE)
+            _render_mission_line(console, hud_x, y, active_mission)
 
         # Divider
         y += 1
-        console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
+        _render_divider(console, hud_x, y)
         y += 2
 
         # Blank line before keybinding help.
         y += 1
 
         # Keybinding help
-        help_lines: list[tuple[str, str, tuple[int, int, int]]] = [
-            ("G", "Go To",  COLOR_HELP_KEY),
-            ("M", "Map",    COLOR_HELP_KEY),
-            ("C", "Cargo",  COLOR_HELP_KEY),
-            ("T", "Comms",  COLOR_HELP_KEY),
-            ("h/j/k/l", "Move",    COLOR_HELP_KEY),
-            ("y/u/b/n", "Diag",    COLOR_HELP_KEY),
-        ]
-        for key, desc, key_color in help_lines:
-            line = f"{key:<9} {desc}"
-            console.print(x=hud_x, y=y, string=line, fg=COLOR_HELP_DESC)
-            y += 1
+        y = _render_help_lines(console, hud_x, y, [
+            ("G", "Go To"),
+            ("M", "Map"),
+            ("C", "Cargo"),
+            ("T", "Comms"),
+            ("h/j/k/l", "Move"),
+            ("y/u/b/n", "Diag"),
+        ])
 
         # Bottom hint — ESC behaviour varies by mode (quit in city,
         # dispatch menu in space); we show a generic hint here.
@@ -237,29 +286,16 @@ def render_hud(
         # Blank line between identity and mission/divider.
         y += 1
 
-        # Active mission (between class/location and divider)
+        # Active mission (between identity and first divider)
         if active_mission:
-            mission_room = max(0, HUD_WIDTH - len("MISSION: ") - 1)
-            mission_line = f"MISSION: {active_mission[:mission_room]}"
-            console.print(
-                x=hud_x,
-                y=y,
-                string=mission_line,
-                fg=COLOR_HUD_TITLE,
-            )
             y += 1
+            _render_mission_line(console, hud_x, y, active_mission)
 
-        # Blank line before divider.
+        # Blank line before divider (unconditional, matches original spacing)
         y += 1
-
-        # Divider
+        # Divider — separates identity from stats
         y += 1
-        console.print(
-            x=hud_x,
-            y=y,
-            string="-" * HUD_WIDTH,
-            fg=COLOR_DIVIDER,
-        )
+        _render_divider(console, hud_x, y)
 
         # HP (color depends on ratio)
         y += 2
@@ -268,50 +304,45 @@ def render_hud(
         max_hp = max(1, stats.max_hp)
         hp_str = f"{hp}/{max_hp}"
         hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
-        console.print(
-            x=hud_x + 3,
-            y=y,
-            string=hp_str,
-            fg=hp_fg,
-        )
+        console.print(x=hud_x + 3, y=y, string=hp_str, fg=hp_fg)
 
         # Credits
         y += 1
         console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
-        console.print(
-            x=hud_x + 2,
-            y=y,
-            string=str(stats.credits),
-            fg=COLOR_VALUE_WHITE,
-        )
+        console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
 
-        # Blank line between credits and skills.
-        y += 1
+        # Pilot skills (compact one-liner)
+        y += 2
+        _render_skill_line(console, hud_x, y, stats)
 
-        # Pilot skills (compact one-liner, below credits)
-        y += 1
-        skill_line = f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"
-        console.print(x=hud_x, y=y, string=skill_line[:HUD_WIDTH], fg=COLOR_SHIP_LABEL)
+        # Divider — separates stats from terminals
+        y += 2
+        _render_divider(console, hud_x, y)
 
-        # Blank line before terminal indicators.
-        y += 1
-
-        # Terminal indicators (each on its own line, between skills and footer).
+        # Terminal indicators (each on its own line)
         y += 1
         if has_mech_terminal:
-            console.print(x=hud_x, y=y, string="% Mechanic Terminal", fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="%  Mechanic Terminal", fg=COLOR_LABEL)
             y += 1
         if has_trade_terminal:
-            console.print(x=hud_x, y=y, string="= Trade Terminal", fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="=  Trade Terminal", fg=COLOR_LABEL)
+
+        # Divider — separates terminals from keybinding help
+        y += 1
+        _render_divider(console, hud_x, y)
+
+        # Movement key hints (below terminals, above footer)
+        y += 2
+        y = _render_help_lines(console, hud_x, y, [
+            ("Q", "Quest Log"),
+            ("h/j/k/l", "Move"),
+            ("y/u/b/n", "Diag"),
+        ])
 
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
-        console.print(
-            x=hud_x,
-            y=y,
-            string="ESC to quit",
-            fg=COLOR_VALUE_DIM,
-        )
+        console.print(x=hud_x, y=y, string="bump to interact", fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y + 1, string="ESC to quit", fg=COLOR_VALUE_DIM)
 
 
 # ---------------------------------------------------------------------------
