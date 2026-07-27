@@ -529,70 +529,43 @@ def _paint_target_highlight(
     region_y: int,
     enemy,
 ) -> None:
-    """Paint a gold cardinal crosshair reticle around ``enemy``'s footprint.
+    """Recolor the targeted enemy's own glyph to bright gold.
 
-    Reproduces a "weapons lock" cue after ``world.render_world_view``
-    has already drawn the enemy itself: four ASCII bracket marks —
-    ``>`` on the left, ``<`` on the right, ``^`` on top, ``v`` below
-    — sit one cell outside the footprint so the enemy's own char/fg
-    reads unchanged underneath.
+    Replaces the old bracket-marker reticle (``>`` / ``<`` / ``^`` / ``v``
+    printed one cell outside the footprint) which overwrote adjacent
+    enemy ship glyphs when enemies stood close together.
 
-    Footprint-aware: walks each cell along the relevant edge of a
-    ``width x height`` rectangle, so a 2x2 or larger ship gets a full
-    bracket frame instead of a 1-cell dot. Cells outside the
-    ``view_w`` x ``view_h`` viewport are silently skipped so a
-    target teleported to the camera edge never bleeds negative
-    coords into the console buffer (which would crash tcod).
+    The new approach paints the enemy's own ``char`` in bright gold
+    over a dark-gold background, directly on the enemy's footprint
+    tiles. This only touches the enemy's own cells — never overlaps
+    neighbors — and works for any ship size (1x1 scouts, 2x2+
+    larger ships). Cells outside the viewport are silently skipped
+    so camera-edge targets never crash tcod.
 
-    Color is gold ``(255, 200, 100)`` matching the existing HUD's
-    ``COLOR_COMBAT_WEAPON`` palette cue (selected/active items are
-    gold elsewhere in the UI), so the reticle reads as an existing
-    UI affordance rather than a fresh color the player has to learn.
-    The marks are intentionally NOT recoloring the enemy tile; if a
-    future iteration wants a recompute-and-recolor behavior, prefer
-    extending the helper rather than re-implementing per call site.
+    Color is gold ``(255, 220, 100)`` with a dark-gold background
+    ``(60, 45, 20)``, matching the existing HUD's gold/weapon
+    palette cue so the highlight reads as an existing UI affordance.
     """
-    color_gold = (255, 200, 100)
+    color_gold = (255, 220, 100)
+    bg_gold = (60, 45, 20)
     sx = enemy.pos.x - cam_x
     sy = enemy.pos.y - cam_y
     w = max(1, getattr(enemy, "width", 1))
     h = max(1, getattr(enemy, "height", 1))
 
-    # Left column of `>` and right column of `<` along every row of
-    # the footprint.
     for dy in range(h):
         cy = sy + dy
         if not (0 <= cy < view_h):
             continue
-        if 0 <= sx - 1 < view_w:
+        for dx in range(w):
+            cx = sx + dx
+            if not (0 <= cx < view_w):
+                continue
             console.print(
-                x=region_x + sx - 1, y=region_y + cy,
-                string=">", fg=color_gold,
-            )
-        if 0 <= sx + w < view_w:
-            console.print(
-                x=region_x + sx + w, y=region_y + cy,
-                string="<", fg=color_gold,
-            )
-
-    # Top row of `^` and bottom row of `v` along every column of
-    # the footprint. Edges already painted above are skipped by
-    # ``range(w)`` which matches column count rather than includes
-    # the corner-adjacent cells, so the four corners stay open
-    # rather than painted twice.
-    for dx in range(w):
-        cx = sx + dx
-        if not (0 <= cx < view_w):
-            continue
-        if 0 <= sy - 1 < view_h:
-            console.print(
-                x=region_x + cx, y=region_y + sy - 1,
-                string="^", fg=color_gold,
-            )
-        if 0 <= sy + h < view_h:
-            console.print(
-                x=region_x + cx, y=region_y + sy + h,
-                string="v", fg=color_gold,
+                x=region_x + cx, y=region_y + cy,
+                string=enemy.char,
+                fg=color_gold,
+                bg=bg_gold,
             )
 
 
