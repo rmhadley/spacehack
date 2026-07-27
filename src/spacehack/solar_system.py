@@ -493,12 +493,14 @@ def make_solar_system(
                 if 0 <= cx < width and 0 <= cy < height:
                     tiles[cy][cx] = tile
 
-    # Build entity list: ships spawned from system.enemies
+    # Build entity list: ships spawned from system.enemies.
+    # Uses the unified NpcShipSpec catalog (data/enemies/ was
+    # migrated into data/npc_ships/).
     entities: list[world.Entity] = []
     for _spawn in getattr(system, 'enemies', ()) or ():
         try:
-            from .data.enemies import find_enemy as _find_enemy
-            _espec = _find_enemy(_spawn.enemy_id)
+            from .data.npc_ships import find_npc_ship as _find_npc_ship
+            _espec = _find_npc_ship(_spawn.enemy_id)
         except (KeyError, ImportError):
             continue
         entities.append(world.Entity(
