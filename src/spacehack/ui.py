@@ -418,6 +418,8 @@ def render_title_splash(context: tcod.context.Context) -> None:
         _sy = random.randint(2, H - 3)
         if _title_y - 2 <= _sy <= _title_y + len(_TITLE_ART) + 1:
             continue
+        if _flavor_y <= _sy <= _flavor_y + len(_lines) - 1:
+            continue
         if _ship_x <= _sx <= _ship_x + len(_SHIP_ART[0]) - 1 and _ship_y <= _sy <= _ship_y + len(_SHIP_ART) - 1:
             continue
         if H - 10 <= _sy <= H - 2:
