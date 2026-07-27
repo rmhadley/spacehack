@@ -178,22 +178,22 @@ def _render_interaction_modal(
 ) -> None:
     """Paint the per-contact interaction sub-modal.
 
-    Uses the same fixed-column layout as the contact list for visual
-    consistency — title is centred, content is left-aligned from a
-    fixed column, and markers have consistent width.
+    Flavor text rendered directly; options delegated to
+    :func:`ui.render_selectable_list` for consistent markers.
     """
     console.clear()
     title = f"{contact_name} — Hailing"
+    title_y = SCREEN_HEIGHT // 4
     console.print(
         x=ui.centered_x(title, SCREEN_WIDTH),
-        y=SCREEN_HEIGHT // 4,
+        y=title_y,
         string=title,
         fg=_INTERACTION_TITLE,
     )
 
-    # Flavor text — left-aligned from the same column.
+    # Flavor text — left-aligned from a fixed column.
     _COL_X = SCREEN_WIDTH // 4
-    flavor_y = SCREEN_HEIGHT // 4 + 2
+    flavor_y = title_y + 2
     for line in spec.comms_lines:
         wrapped = ui.wrap_text(line, max_width=SCREEN_WIDTH - _COL_X * 2)
         for wl in wrapped:
@@ -204,27 +204,22 @@ def _render_interaction_modal(
             )
             flavor_y += 1
 
-    # Options — left-aligned from the same column with consistent markers.
-    opt_top = flavor_y + 2
-    for i, opt in enumerate(options):
-        row = opt_top + i * 2
-        is_selected = i == selected
-        marker_open = '> ' if is_selected else '  '
-        marker_close = ' <' if is_selected else '  '
-        text = f"{marker_open}{opt}{marker_close}"
-        fg = _INTERACTION_HIGHLIGHT if is_selected else _INTERACTION_OPTION
-        console.print(
-            x=_COL_X, y=row,
-            string=text,
-            fg=fg,
-        )
-
-    hint = "UP/DOWN navigate - ENTER select - ESC back"
-    console.print(
-        x=ui.centered_x(hint, SCREEN_WIDTH),
-        y=opt_top + len(options) * 2 + 1,
-        string=hint,
-        fg=_INTERACTION_INSTRUCTION,
+    # Options via reusable list renderer.
+    _opt_items = [(opt, "") for opt in options]
+    _list_title_y = flavor_y + 1
+    ui.render_selectable_list(
+        console, SCREEN_WIDTH, SCREEN_HEIGHT,
+        title="",
+        items=_opt_items,
+        selected=selected,
+        col_x=_COL_X,
+        title_y=_list_title_y,
+        title_fg=_INTERACTION_TITLE,
+        row_spacing=2,
+        item_fg_selected=_INTERACTION_HIGHLIGHT,
+        item_fg_normal=_INTERACTION_OPTION,
+        hint="UP/DOWN navigate - ENTER select - ESC back",
+        hint_fg=_INTERACTION_INSTRUCTION,
     )
 
 
