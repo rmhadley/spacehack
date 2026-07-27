@@ -385,30 +385,35 @@ Run through each of these in order. Note any crashes, unexpected log messages, m
 
 > **Living document**: Update this section during implementation if new edge cases, behaviors, or failure modes emerge that aren't covered below. The playtest should reflect what actually needs testing, not just what we anticipated.
 
-1. [ ] **Smoke + audit** — Must pass before starting the game.
-2. [ ] **Merchant movement** — Launch into a system with merchants. Watch them for several turns. Verify they move toward a destination (planet or gate), not randomly.
-3. [ ] **Merchant docks at planet** — Follow a merchant headed for a planet. When it reaches the adjacent cell, verify it despawns and the log reads like "Merchant Hauler docks at Earth."
-4. [ ] **Merchant jumps through gate** — Follow a merchant headed for a jump gate. When it reaches the adjacent cell, verify it despawns and the log reads "Merchant Hauler jumps through Sol Gate."
-5. [ ] **Flee from pirates** — Position a merchant within ~10 cells of a pirate. Verify the merchant moves away from the pirate for the next few turns.
-6. [ ] **HUD + no glitches** — Verify space-mode HUD renders correctly after merchants despawn. No console errors.
-7. [ ] **Multiple systems** — Jump between 3 systems. Verify merchants despawn/respawn correctly on each visit.
-8. [ ] **Edge case: empty system** — Jump to a system with no merchants. Verify no despawn messages appear.
+- [x] **Smoke + audit** — Must pass before starting the game.
+- [x] **Merchant movement** — Launch into a system with merchants. Watch them for several turns. Verify they move toward a destination (planet or gate), not randomly.
+- [x] **Merchant docks at planet** — Follow a merchant headed for a planet. When it reaches the adjacent cell, verify it despawns and the log reads like "Merchant Hauler docks at Earth."
+- [x] **Merchant jumps through gate** — Follow a merchant headed for a jump gate. When it reaches the adjacent cell, verify it despawns and the log reads "Merchant Hauler jumps through Sol Gate."
+- [x] **Flee from pirates** — Position a merchant within ~10 cells of a pirate. Verify the merchant moves away from the pirate for the next few turns.
+- [x] **HUD + no glitches** — Verify space-mode HUD renders correctly after merchants despawn. No console errors.
+- [x] **Multiple systems** — Jump between 3 systems. Verify merchants despawn/respawn correctly on each visit.
+- [x] **Empty system edge case** — Jump to a system with no merchants. Verify no despawn messages appear.
+- [x] **Merchant spawns at a body** — Merchants appear near a planet/gate, not random space.
+- [x] **Trade lanes** — Follow a merchant; it travels from one body to a *different* body.
+- [x] **Per-tick spawns** — Wait (`.`) several times and watch new ships trickle in with log announcements.
+- [x] **Per-tick spawns during auto-nav** — Press `G` to auto-nav, watch new ships appear mid-journey in the log.
+- [x] **Auto-nav + pirate movement** — During auto-nav, pirates should still move (can intercept mid-path).
 
 **PLAYTEST — Phase 3**
 
 > **Living document**: Update this section during implementation if new edge cases, behaviors, or failure modes emerge that aren't covered below. The playtest should reflect what actually needs testing, not just what we anticipated.
 
-1. **Smoke + audit** — Must pass before starting the game.
-2. **Comms key** — In space mode, press `T` with no NPCs nearby. Verify the log says "No ships in comms range."
-3. **Comms panel opens** — Fly within 15 cells of a merchant. Press `T`. Verify a comms panel modal opens listing the merchant with its comms flavor text.
-4. **Comms panel navigation** — Verify UP/DOWN or j/k navigate between contacts. Verify ENTER selects a contact. Verify ESC closes the panel.
-5. **Hail a merchant** — Select a merchant, press ENTER. Verify an interaction sub-modal opens showing "Open Trade" and "End Transmission" options.
-6. **End Transmission** — Select "End Transmission." Verify the modal closes, you return to space mode, no crash.
-7. **Hail a pirate** — Fly within range of a pirate. Press T. Verify the pirate shows `(hostile)` tag in the comms list. Select it. Verify the interaction sub-modal shows "Attack" instead of "Open Trade."
-8. **Attack via comms** — Select "Attack" on a pirate. Verify the comms modal closes and combat triggers immediately. Verify combat works normally.
-9. **HUD update** — Verify `T - Comms` appears in the space-mode HUD help lines.
-10. **Multiple contacts** — Position yourself between a merchant and a pirate. Press T. Verify both appear in the list. Verify the pirate has `(hostile)` tag and the merchant does not.
-11. **Edge case: no NPCs** — Jump to an empty system. Press T. Verify "No ships in comms range."
+- [x] **Smoke + audit** — Must pass before starting the game.
+- [ ] **Comms key** — In space mode, press `T` with no NPCs nearby. Verify the log says "No ships in comms range."
+- [ ] **Comms panel opens** — Fly within 15 cells of a merchant. Press `T`. Verify a comms panel modal opens listing the merchant with its comms flavor text.
+- [ ] **Comms panel navigation** — Verify UP/DOWN or j/k navigate between contacts. Verify ENTER selects a contact. Verify ESC closes the panel.
+- [ ] **Hail a merchant** — Select a merchant, press ENTER. Verify an interaction sub-modal opens showing "Open Trade" and "End Transmission" options.
+- [ ] **End Transmission** — Select "End Transmission." Verify the modal closes, you return to space mode, no crash.
+- [ ] **Hail a pirate** — Fly within range of a pirate. Press T. Verify the pirate shows `(hostile)` tag in the comms list. Select it. Verify the interaction sub-modal shows "Attack" instead of "Open Trade."
+- [ ] **Attack via comms** — Select "Attack" on a pirate. Verify the comms modal closes and combat triggers immediately. Verify combat works normally.
+- [ ] **HUD update** — Verify `T - Comms` appears in the space-mode HUD help lines.
+- [ ] **Multiple contacts** — Position yourself between a merchant and a pirate. Press T. Verify both appear in the list. Verify the pirate has `(hostile)` tag and the merchant does not.
+- [ ] **Edge case: no NPCs** — Jump to an empty system. Press T. Verify "No ships in comms range."
 
 **PLAYTEST — Phase 4**
 

@@ -294,6 +294,27 @@ def _is_c_press(event: tcod.event.Event) -> bool:
     return sym_name in ('C', 'c')
 
 
+def _is_t_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``T`` key (or its
+    lowercase alias).
+
+    Routes T (transmit / comms) through a module-level helper so the
+    smoke test can regression-guard the KeySym name lookup,
+    mirroring :func:`_is_c_press` exactly. Lowercase ``t`` and
+    uppercase ``T`` both open the comms panel; anything
+    else returns False so the dispatcher can route through
+    movement + planet-bump handlers.
+
+    ``T``/``t`` is unused by vim movement so it's a clean pick.
+    ``getattr(..., "name", "")`` belt-and-suspenders against a
+    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('T', 't')
+
+
 def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, height: int) -> None:
     """Right-side Areas-of-Interest panel for the Map/NAVIGATION overlay.
 
@@ -1973,6 +1994,14 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if current_mode == 'space' and _is_c_press(event):
                 from .trade import open_cargo as _open_cargo
                 _open_cargo(ctx)
+                continue
+            # T = open comms panel (space mode).
+            if current_mode == 'space' and _is_t_press(event):
+                from .comms import open_comms as _open_comms
+                _attack_data = _open_comms(ctx, player.pos)
+                if _attack_data is not None:
+                    combat._handle_combat_encounter(ctx, console, _attack_data)
+                    player_active_mission = ctx.player_active_mission
                 continue
             # Period = wait one turn (space mode: pirates move, shields regen).
             if _is_period_press(event):

@@ -197,6 +197,7 @@ def render_hud(
             ("G", "Go To",  COLOR_HELP_KEY),
             ("M", "Map",    COLOR_HELP_KEY),
             ("C", "Cargo",  COLOR_HELP_KEY),
+            ("T", "Comms",  COLOR_HELP_KEY),
             ("h/j/k/l", "Move",    COLOR_HELP_KEY),
             ("y/u/b/n", "Diag",    COLOR_HELP_KEY),
         ]
