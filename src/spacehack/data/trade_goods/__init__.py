@@ -64,4 +64,13 @@ def find_trade_good(good_id: str) -> TradeGood:
         raise KeyError(f"unknown trade good id: {good_id!r}") from None
 
 
-__all__ = ["TradeGood", "find_trade_good"]
+
+def neutral_goods(spec) -> list[str]:
+    """Return non-contraband goods in the full catalog that aren't
+    in this planet's produces or demands."""
+    from . import core as _core
+    _seen = set(gid for gid, _ in spec.produces) | set(gid for gid, _ in spec.demands)
+    return [_g.id for _g in _core.TRADE_GOODS if _g.id not in _seen and _g.category != "contraband"]
+
+
+__all__ = ["TradeGood", "find_trade_good", "neutral_goods"]

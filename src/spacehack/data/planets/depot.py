@@ -59,5 +59,4 @@ SPEC = PlanetSpec(
         ("food_rations", 10),
         ("electronics", 8),
     ),
-    trade_npc_id="depot_attendant",
 )

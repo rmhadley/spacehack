@@ -65,7 +65,6 @@ class PlanetSpec:
     npc_overrides: tuple[tuple[str, npc_module.NPC], ...] = ()
     produces: tuple[tuple[str, int], ...] = ()
     demands: tuple[tuple[str, int], ...] = ()
-    trade_npc_id: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -301,4 +300,4 @@ def _resolve_ship(ship_id: str):
     return ship_module.find_ship(ship_id)
 
 
-__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor", "trade_price"]
+__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor"]

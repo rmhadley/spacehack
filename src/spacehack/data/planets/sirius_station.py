@@ -69,5 +69,4 @@ SPEC = PlanetSpec(
         ("medical_supplies", 8),
         ("electronics", 10),
     ),
-    trade_npc_id="research_officer",
 )

@@ -54,5 +54,4 @@ SPEC = PlanetSpec(
         ("electronics", 8),
         ("fuel_cells", 12),
     ),
-    trade_npc_id="blockade_officer",
 )

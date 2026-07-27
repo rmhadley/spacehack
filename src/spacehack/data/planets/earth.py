@@ -65,5 +65,4 @@ SPEC = PlanetSpec(
         ("machine_parts", 15),
         ("fuel_cells", 20),
     ),
-    trade_npc_id="guild_master",
 )
