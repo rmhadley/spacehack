@@ -87,6 +87,22 @@ def spawn_npcs(
     if not _active_types:
         _active_types = [_system.npc_spawn_table[0][0]]
 
+    # Build list of navigable body goals (x, y, type, name) for merchant spawns.
+    _body_goals: list[tuple[int, int, str, str]] = []
+    def _goal_for(body, kind: str, name: str) -> None:
+        _gx = body.pos.x + body.width + 1
+        _gy = body.pos.y + body.height // 2
+        if 0 <= _gx < _system.width and 0 <= _gy < _system.height:
+            _body_goals.append((_gx, _gy, kind, name))
+    for _p in _system.planets:
+        if getattr(_p, 'sun', False):
+            continue
+        _goal_for(_p, "planet", _p.name)
+    for _jp in _system.jump_points:
+        _goal_for(_jp, "gate", _jp.name)
+    for _st in getattr(_system, 'stations', ()) or ():
+        _goal_for(_st, "station", _st.name)
+
     _total_spawned = 0
     _all_procedural: list = []
 
@@ -96,10 +112,24 @@ def spawn_npcs(
         except KeyError:
             continue
 
-        _centre = _pick_centre()
-        if _centre is None:
-            continue
-        _gcx, _gcy = _centre
+        _is_merchant = getattr(_spec, 'faction', 'pirate') == 'merchant'
+
+        # Determine spawn centre and initial destination.
+        _initial_target: tuple[int, int] | None = None
+        if _is_merchant and len(_body_goals) >= 2:
+            # Merchant: spawn at a body, en route to another.
+            _origin_goal = _engine.RNG.choice(_body_goals)
+            _dest_goal = _engine.RNG.choice([g for g in _body_goals if (g[0], g[1]) != (_origin_goal[0], _origin_goal[1])])
+            _gcx, _gcy = _origin_goal[0], _origin_goal[1]
+            _initial_target = (_dest_goal[0], _dest_goal[1])
+            # Mark origin cell as blocked so we spawn near it, not on it.
+            _blocked.add((_gcx, _gcy))
+        else:
+            # Pirate: random scatter.
+            _centre = _pick_centre()
+            if _centre is None:
+                continue
+            _gcx, _gcy = _centre
 
         # Squad id for groups > 1.
         _is_squad = _system.npc_density > 1 and _engine.RNG.random() < 0.5
@@ -113,6 +143,7 @@ def spawn_npcs(
         _g_size = _engine.RNG.randint(1, min(_system.npc_density, 4))
 
         _group_entities = 0
+        _group_positions: list[world.Position] = []
         for _i in range(_g_size):
             _x = _y = -1
             for _attempt in range(50):
@@ -130,9 +161,20 @@ def spawn_npcs(
                 npc_ship_id=_npc_id,
                 procedural_squad_id=_movement_id,
             ))
+            _group_positions.append(_pos)
             _all_procedural.append((_pos, _squad_id, _npc_id))
             _group_entities += 1
         _total_spawned += _group_entities
+
+        # Pre-set initial target + path for merchants.
+        if _is_merchant and _initial_target is not None and _group_positions:
+            _leader_pos = _group_positions[0]
+            ctx.npc_targets[_movement_id] = _initial_target
+            _end_set: set[tuple[int, int]] = {_initial_target}
+            _path = world.find_path(
+                (_leader_pos.x, _leader_pos.y), _end_set, game_map,
+            )
+            ctx.npc_paths[_movement_id] = _path or []
 
     if _all_procedural:
         ctx.procedural_spawns[system_id] = [
