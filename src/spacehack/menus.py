@@ -755,6 +755,7 @@ def _run_loadout_menu(ctx) -> None:
     # Helper: rebuild the right panel from current owned state.
     def _rebuild_right() -> None:
         _right_items.clear()
+        _right_items.append(("─── WEAPON SLOTS ───", "", "", ui.COLOR_VALUE_DIM, "divider", None))
         for _sid, _sidx in _sm._find_weapon_slots(owned, ship_spec):
             if _sid is not None:
                 try:
