@@ -26,7 +26,7 @@ from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
 from .input_helpers import _try_open_guide
-from .ui import paint_text, paint_centered, format_split_row, render_split_frame
+from .ui import paint_text, paint_centered, render_split_frame
 
 
 NEUTRAL_TARGET: int = 8

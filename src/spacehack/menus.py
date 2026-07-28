@@ -21,7 +21,7 @@ from .game_context import GameContext
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .data.classes import find_class
 from .input_helpers import _try_open_guide
-from .ui import paint_text, format_split_row, render_split_frame
+from .ui import format_split_row, render_split_frame
 
 
 # ---------------------------------------------------------------------------
