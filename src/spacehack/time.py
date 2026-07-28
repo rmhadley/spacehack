@@ -41,11 +41,29 @@ def advance_time(ctx: GameContext, days: int) -> None:
     from . import message_log as _mlog
     if ctx.time_month != old_month:
         ctx.log.add_colored("A new month begins.", _mlog.COLOR_IMPORTANT_EVENT)
+        _on_month_change(ctx)
     if ctx.time_year != old_year:
         ctx.log.add_colored(f"A new year begins \u2014 {ctx.time_year}.", _mlog.COLOR_IMPORTANT_EVENT)
 
     from .trade import tick_economy as _tick_economy
     _tick_economy(ctx)
+
+
+def _on_month_change(ctx: GameContext) -> None:
+    """Called by :func:`advance_time` when the month rolls over.
+
+    Resets shop visit counters so the next mechanic visit on each
+    planet gets fresh RNG inventory. Logs a restock message.
+
+    Module-level (not an inner function) per reviewer checklist —
+    it has no meaningful closure over ``advance_time``'s scope.
+    """
+    ctx.mech_visit_count.clear()
+    from . import message_log as _mlog
+    ctx.log.add_colored(
+        "Shops have restocked for the new month.",
+        _mlog.COLOR_IMPORTANT_EVENT,
+    )
 
 
 def tick_move(ctx: GameContext) -> None:

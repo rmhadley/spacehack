@@ -307,12 +307,12 @@ duplication and single-responsibility violations.*
 
 ### Phase 7: Shop refresh on month rollover
 
-- [ ] `advance_time()` calls `_on_month_change(ctx)` when month wraps
-- [ ] `_on_month_change(ctx)` resets `mech_visit_count` dict → next mechanic visit gets fresh RNG inventory
-- [ ] Logs "Shops have restocked for the new month."
-- [ ] Works because `resolve_mech_inventory` uses `visit_count` in its seeded RNG — resetting the counter re-rolls all RNG planet inventories on the player's next visit
-- [ ] Run smoke test
-- [ ] Commit
+- [x] Add `_on_month_change(ctx)` as a module-level function in `time.py`
+- [x] Reset `mech_visit_count` dict → next mechanic visit gets fresh RNG inventory
+- [x] Log "Shops have restocked for the new month."
+- [x] Wire `mech_visit_count` into `_loadout.py` — pass `visit_count` to `resolve_mech_inventory()` and increment each visit
+- [x] Run smoke test
+- [x] Commit
 
 **PLAYTEST — Phase 4:**
 
