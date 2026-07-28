@@ -98,6 +98,13 @@ def _run_enemy_turn(
             _alive,
             key=lambda _e: _distance(player_state["pos"], _e.pos),
         )
+        _flee_chance = calc_flee_chance(
+            player_state["piloting"],
+            _closest_enemy.pilot_piloting,
+            player_state["hull"] / max(player_state["max_hull"], 1),
+            _distance(player_state["pos"], _closest_enemy.pos),
+            flee_attempts,
+        )
 
         while _ei.ap_remaining > 0:
             _edist = _distance(
@@ -126,13 +133,6 @@ def _run_enemy_turn(
                     _moved = True
                     # Render a frame so the player sees the enemy move
                     _cam_x, _cam_y = _calc_cam()
-                    _flee_now = calc_flee_chance(
-                        player_state["piloting"],
-                        _closest_enemy.pilot_piloting,
-                        player_state["hull"] / max(player_state["max_hull"], 1),
-                        _distance(player_state["pos"], _closest_enemy.pos),
-                        flee_attempts,
-                    )
                     _render_anim_frame(
                         console, context, game_map,
                         _cam_x, _cam_y, view_w, view_h,
@@ -141,7 +141,7 @@ def _run_enemy_turn(
                         active_weapons=active_weapons,
                         evade_bonus=_evade_bonus,
                         hit_chances=_weapon_hit_chances,
-                        flee_chance=_flee_now,
+                        flee_chance=_flee_chance,
                         player_mode="WAIT",
                     )
                     _responsive_sleep(0.05)
@@ -172,14 +172,7 @@ def _run_enemy_turn(
                         weapon_list=tuple(weapons_list),
                         active_weapons=active_weapons,
                         evade_bonus=_evade_bonus,
-                        hit_chances=_weapon_hit_chances,
-                        flee_chance=calc_flee_chance(
-                            player_state["piloting"],
-                            _closest_enemy.pilot_piloting,
-                            player_state["hull"] / max(player_state["max_hull"], 1),
-                            _distance(player_state["pos"], _closest_enemy.pos),
-                            flee_attempts,
-                        ),
+                        flee_chance=_flee_chance,
                     )
                     if _e_hit:
                         _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
@@ -207,13 +200,7 @@ def _run_enemy_turn(
                                 active_weapons=active_weapons,
                                 evade_bonus=_evade_bonus,
                                 hit_chances=_weapon_hit_chances,
-                                flee_chance=calc_flee_chance(
-                                    player_state["piloting"],
-                                    _closest_enemy.pilot_piloting,
-                                    player_state["hull"] / max(player_state["max_hull"], 1),
-                                    _distance(player_state["pos"], _closest_enemy.pos),
-                                    flee_attempts,
-                                ),
+                                flee_chance=_flee_chance,
                             )
                             return "DEFEAT"
                     else:

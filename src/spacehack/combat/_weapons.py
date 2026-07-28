@@ -21,7 +21,6 @@ from ..message_log import COLOR_PLAYER_ACTION, COLOR_COMBAT_EVENT
 from ._types import EnemyInstance
 from ._stats import (
     calc_hit_chance,
-    calc_flee_chance,
     _calc_dodge_bonus,
     _distance,
 )
@@ -73,12 +72,12 @@ def _fire_weapons(
     active_weapons: list,
     _weapon_hit_chances: dict,
     _evade_bonus: int,
-    flee_attempts: int,
     view_w: int,
     view_h: int,
     _calc_cam,
     _defeated_spec_ids: list[str],
     _closest_enemy,
+    flee_chance: int,
 ) -> None:
     """Fire all active weapons at the current target.
 
@@ -158,13 +157,7 @@ def _fire_weapons(
             active_weapons=active_weapons,
             evade_bonus=_evade_bonus,
             hit_chances=_weapon_hit_chances,
-            flee_chance=calc_flee_chance(
-                player_state["piloting"],
-                _closest_enemy.pilot_piloting,
-                player_state["hull"] / max(player_state["max_hull"], 1),
-                _distance(player_state["pos"], _closest_enemy.pos),
-                flee_attempts,
-            ),
+            flee_chance=flee_chance,
         )
 
         if _is_hit:
@@ -200,13 +193,7 @@ def _fire_weapons(
                     active_weapons=active_weapons,
                     evade_bonus=_evade_bonus,
                     hit_chances=_weapon_hit_chances,
-                    flee_chance=calc_flee_chance(
-                        player_state["piloting"],
-                        _closest_enemy.pilot_piloting,
-                        player_state["hull"] / max(player_state["max_hull"], 1),
-                        _distance(player_state["pos"], _closest_enemy.pos),
-                        flee_attempts,
-                    ),
+                    flee_chance=flee_chance,
                 )
                 # Loot drop: find correct spec by matching spec_id
                 _correct_spec = next(

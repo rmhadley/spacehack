@@ -250,16 +250,77 @@ def run_combat(
 
     try:
         while True:
-            # ---- Check victory (don't prune list — indices must stay stable for _enemy_ents) ----
+            # ---- Check victory ----
             _alive_enemies = [e for e in enemy_insts if e.alive]
             if not _alive_enemies:
                 _result = "VICTORY"
                 break
+
+            # ---- Sync entity positions to game_map ----
+            if _player_ent is not None:
+                _player_ent.pos = player_state["pos"]
+            for _i, _inst in enumerate(enemy_insts):
+                if _i in _enemy_ents:
+                    _enemy_ents[_i].pos = _inst.pos
+
+            # ---- Auto-end-turn guard (BEFORE render — Q4) ----
+            # If AP hit 0 or the player pressed w / failed flee,
+            # run the enemy turn immediately instead of rendering
+            # a frame where the player can't act.
+            if player_state["ap_remaining"] <= 0 or combat_mode == "WAIT":
+                combat_mode = "WAIT"
+                _result = _run_enemy_turn(
+                    console, context, game_map,
+                    player_state, enemy_insts, enemy_specs,
+                    _enemy_ents, target_idx, log,
+                    weapons_list, active_weapons,
+                    _weapon_hit_chances, _evade_bonus,
+                    flee_attempts, view_w, view_h, _calc_cam,
+                )
+                if _result is not None:
+                    break
+                # Tick NPCs on the space map between combat rounds
+                if ctx is not None:
+                    from ..npc_ships import move_npcs as _tick_npcs
+                    _tick_npcs(ctx, game_map)
+                    from ..navigation import _detect_combat_encounter as _re_detect
+                    from .. import solar_system as _ss_module
+                    _new_encounter = _re_detect(ctx, player_state["pos"], _ss_module.current_system())
+                    if _new_encounter is not None:
+                        _new_specs, _new_positions = _new_encounter
+                        _existing_entity_ids = {id(_e) for _e in _enemy_ents.values()}
+                        for _ni, (_ns, _np) in enumerate(zip(_new_specs, _new_positions)):
+                            _found_entity = None
+                            for _ge in game_map.entities:
+                                if getattr(_ge, 'owned', False):
+                                    continue
+                                if _ge.pos.x == _np.x and _ge.pos.y == _np.y:
+                                    _found_entity = _ge
+                                    break
+                            if _found_entity is not None and id(_found_entity) in _existing_entity_ids:
+                                continue
+                            _already = any(
+                                _ei.pos.x == _np.x and _ei.pos.y == _np.y
+                                for _ei in enemy_insts
+                            )
+                            if _already:
+                                continue
+                            _ps_dummy, _new_ei = init_combat_state(
+                                player_ship_catalog, player_owned_ship,
+                                player_state["pos"], player_pilot_skills,
+                                _ns, _np,
+                            )
+                            enemy_insts.append(_new_ei)
+                            if _found_entity is not None:
+                                _enemy_ents[len(enemy_insts) - 1] = _found_entity
+                            _c_log(f"{_ns.name} joins the fight!")
+                combat_mode = "DEFAULT"
+                turn += 1
+                start_player_turn(player_state)
+                continue
+
+            # ---- Re-target if current target is dead ----
             if not enemy_insts[target_idx].alive:
-                # Move target to next alive enemy (search forward from
-                # current index so we don't snap back to the first alive
-                # enemy, which would make enemies past a dead one
-                # unreachable via Tab).
                 _n = len(enemy_insts)
                 for _offset in range(1, _n + 1):
                     _candidate = (target_idx + _offset) % _n
@@ -269,25 +330,23 @@ def run_combat(
                 else:
                     target_idx = 0
 
-            # ---- Sync entity positions to game_map so rendering works ----
-            if _player_ent is not None:
-                _player_ent.pos = player_state["pos"]
-            for _i, _inst in enumerate(enemy_insts):
-                if _i in _enemy_ents:
-                    _enemy_ents[_i].pos = _inst.pos
-
             # ---- Compute closest alive enemy for flee distance ----
             _closest_enemy = min(
                 _alive_enemies,
                 key=lambda _e: _distance(player_state["pos"], _e.pos),
             )
 
+            # ---- Compute flee chance once per frame (Q2) ----
+            _flee_chance = calc_flee_chance(
+                player_state["piloting"],
+                _closest_enemy.pilot_piloting,
+                player_state["hull"] / max(player_state["max_hull"], 1),
+                _distance(player_state["pos"], _closest_enemy.pos),
+                flee_attempts,
+            )
+
             # ---- Compute hit chance for ALL weapons against current target ----
             _weapon_hit_chances: dict[str, int] = {}
-            # Player's current evade bonus: +5% per cell moved this turn
-            # (capped at 30%) plus half-rate pilot piloting (soft cap 60%).
-            # Surfaced in the combat HUD so the player sees the impact
-            # of spending AP on movement while in combat.
             _evade_bonus = _calc_dodge_bonus(
                 player_state.get("cells_moved_this_turn", 0),
                 int(player_state.get("piloting", 0) * 0.5),
@@ -318,10 +377,6 @@ def run_combat(
                     region_w=view_w, region_h=view_h,
                     camera_x=_cam_x, camera_y=_cam_y,
                 )
-            # Range-accuracy line — drawn AFTER the world view so it
-            # sits on top of the space background but BEFORE the target
-            # highlight so the gold recolor takes visual priority over
-            # the line. Uses the first active weapon for range display.
             _range_wid = None
             if weapons_list:
                 _first_active = next((i for i, a in enumerate(active_weapons) if a), None)
@@ -336,15 +391,11 @@ def run_combat(
                         _range_wid,
                         _cam_x, _cam_y, view_w, view_h, 0, 0,
                     )
-
-            # Targeted-enemy reticle — drawn AFTER the range line
-            # so the gold recolor sits on top of the line marker.
             _tgt = _resolve_target(enemy_insts, target_idx)
             if _tgt is not None:
                 _paint_target_highlight(
                     console, _cam_x, _cam_y, view_w, view_h, 0, 0, _tgt,
                 )
-
             _hud.render_combat_hud(
                 console,
                 screen_width=SCREEN_WIDTH,
@@ -355,13 +406,7 @@ def run_combat(
                 player_mode=combat_mode,
                 active_weapons=active_weapons,
                 weapon_list=tuple(weapons_list),
-                flee_chance=calc_flee_chance(
-                    player_state["piloting"],
-                    _closest_enemy.pilot_piloting,
-                    player_state["hull"] / max(player_state["max_hull"], 1),
-                    _distance(player_state["pos"], _closest_enemy.pos),
-                    flee_attempts,
-                ),
+                flee_chance=_flee_chance,
                 hit_chances=_weapon_hit_chances,
                 evade_bonus=_evade_bonus,
             )
@@ -371,86 +416,6 @@ def run_combat(
                 screen_height=SCREEN_HEIGHT,
             )
             context.present(console)
-
-            # ---- Auto-end-turn guard (outside ``for event``) ----
-            # If ``ap_remaining`` hit 0 from the previous action
-            # (move, fire, target switch), or the player pressed
-            # ``w``, or a flee attempt failed, run the enemy turn
-            # IMMEDIATELY — don't block on the next keypress. The
-            # three paths in the event loop below drive this guard
-            # by setting ``combat_mode = \"WAIT\"`` (or zeroing AP)
-            # and breaking out of the event loop. Putting this
-            # outside ``for event in tcod.event.wait()`` is the
-            # fix for the bug where the game blocked on input
-            # after AP reached 0 and the player had to press any
-            # key to advance.
-            if player_state["ap_remaining"] <= 0 or combat_mode == "WAIT":
-                combat_mode = "WAIT"
-                # Delegate enemy AI to its own module.
-                _result = _run_enemy_turn(
-                    console, context, game_map,
-                    player_state, enemy_insts, enemy_specs,
-                    _enemy_ents, target_idx, log,
-                    weapons_list, active_weapons,
-                    _weapon_hit_chances, _evade_bonus,
-                    flee_attempts, view_w, view_h, _calc_cam,
-                )
-                if _result is not None:
-                    break
-                # Tick NPCs on the space map between combat rounds
-                # so the rest of the universe doesn't freeze.
-                if ctx is not None:
-                    from ..npc_ships import move_npcs as _tick_npcs
-                    _tick_npcs(ctx, game_map)
-                    # Re-check for NEW enemies that moved within detection
-                    # range during the NPC tick. If found, merge them in.
-                    # Use entity-ID matching to avoid duplicating enemies
-                    # already in combat (whose positions may have shifted
-                    # due to move_npcs).
-                    from ..navigation import _detect_combat_encounter as _re_detect
-                    from .. import solar_system as _ss_module
-                    _new_encounter = _re_detect(ctx, player_state["pos"], _ss_module.current_system())
-                    if _new_encounter is not None:
-                        _new_specs, _new_positions = _new_encounter
-                        _existing_entity_ids = {id(_e) for _e in _enemy_ents.values()}
-                        for _ni, (_ns, _np) in enumerate(zip(_new_specs, _new_positions)):
-                            # Find the world entity at this position.
-                            _found_entity = None
-                            for _ge in game_map.entities:
-                                if getattr(_ge, 'owned', False):
-                                    continue
-                                if _ge.pos.x == _np.x and _ge.pos.y == _np.y:
-                                    _found_entity = _ge
-                                    break
-                            # Skip if this entity is already in combat.
-                            if _found_entity is not None and id(_found_entity) in _existing_entity_ids:
-                                continue
-                            # Also skip if already in enemy_insts by position
-                            # (belt-and-suspenders).
-                            _already = any(
-                                _ei.pos.x == _np.x and _ei.pos.y == _np.y
-                                for _ei in enemy_insts
-                            )
-                            if _already:
-                                continue
-                            # Create EnemyInstance for the new joiner.
-                            _ps_dummy, _new_ei = init_combat_state(
-                                player_ship_catalog, player_owned_ship,
-                                player_state["pos"], player_pilot_skills,
-                                _ns, _np,
-                            )
-                            enemy_insts.append(_new_ei)
-                            if _found_entity is not None:
-                                _enemy_ents[len(enemy_insts) - 1] = _found_entity
-                            _c_log(f"{_ns.name} joins the fight!")
-                # New player turn: reset AP, increment counter,
-                # drop out of WAIT, then ``continue`` so the
-                # top-of-loop render block paints the fresh
-                # player turn BEFORE we block on input again.
-                combat_mode = "DEFAULT"
-                turn += 1
-                start_player_turn(player_state)
-                continue
 
             # ---- Wait for input ----
             for event in tcod.event.wait():
@@ -547,8 +512,9 @@ def run_combat(
                         _enemy_ents, target_idx, log,
                         weapons_list, active_weapons,
                         _weapon_hit_chances, _evade_bonus,
-                        flee_attempts, view_w, view_h, _calc_cam,
+                        view_w, view_h, _calc_cam,
                         _defeated_spec_ids, _closest_enemy,
+                        _flee_chance,
                     )
                     break
 
