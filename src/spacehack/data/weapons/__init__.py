@@ -27,6 +27,7 @@ class WeaponSpec:
         ammo_capacity: -1 = no ammo (energy weapon); >0 = max rounds.
         ammo_per_shot: rounds consumed per shot (missile weapons).
         cargo_per_round: cargo space consumed per round of ammo.
+        price: credits cost to buy from a mechanic.
         min_range: minimum cell distance to target.
         max_range: maximum cell distance to target.
     """
@@ -40,6 +41,7 @@ class WeaponSpec:
     ammo_capacity: int = -1            # -1 = energy weapon (no ammo)
     ammo_per_shot: int = 1
     cargo_per_round: int = 0
+    price: int = 0                    # credits cost to buy
     min_range: int = 1
     max_range: int = 5
 

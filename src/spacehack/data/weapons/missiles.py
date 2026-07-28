@@ -12,18 +12,18 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         id="light_missile", name="Light Missile", slot_type="missile",
         damage=10, accuracy=75, ap_cost=2, power_cost=0,
         ammo_capacity=5, ammo_per_shot=1, cargo_per_round=1,
-        min_range=1, max_range=6,
+        price=25, min_range=1, max_range=6,
     ),
     WeaponSpec(
         id="heavy_missile", name="Heavy Missile", slot_type="missile",
         damage=20, accuracy=60, ap_cost=2, power_cost=0,
         ammo_capacity=3, ammo_per_shot=1, cargo_per_round=2,
-        min_range=2, max_range=7,
+        price=50, min_range=2, max_range=7,
     ),
     WeaponSpec(
         id="emp_missile", name="EMP Missile", slot_type="missile",
         damage=0, accuracy=70, ap_cost=2, power_cost=0,
         ammo_capacity=2, ammo_per_shot=1, cargo_per_round=2,
-        min_range=1, max_range=5,
+        price=75, min_range=1, max_range=5,
     ),
 )
