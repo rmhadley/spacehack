@@ -692,7 +692,7 @@ def _render_anim_frame(
     log,
     *,
     weapon_list: tuple = (),
-    selected_weapon_idx: int = 0,
+    active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
@@ -723,7 +723,7 @@ def _render_anim_frame(
         enemies=enemies,
         target_idx=target_idx,
         player_mode="FIRING",
-        selected_weapon_idx=selected_weapon_idx,
+        active_weapons=active_weapons,
         weapon_list=weapon_list,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
@@ -754,7 +754,7 @@ def _animate_laser_shot(
     log,
     *,
     weapon_list: tuple = (),
-    selected_weapon_idx: int = 0,
+    active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
@@ -780,7 +780,7 @@ def _animate_laser_shot(
             cam_x, cam_y, view_w, view_h,
             player_state, enemies, target_idx, log,
             weapon_list=weapon_list,
-            selected_weapon_idx=selected_weapon_idx,
+            active_weapons=active_weapons,
             evade_bonus=evade_bonus,
             hit_chances=hit_chances,
             flee_chance=flee_chance,
@@ -811,7 +811,7 @@ def _animate_laser_shot(
                 cam_x, cam_y, view_w, view_h,
                 player_state, enemies, target_idx, log,
                 weapon_list=weapon_list,
-                selected_weapon_idx=selected_weapon_idx,
+                active_weapons=active_weapons,
                 evade_bonus=evade_bonus,
                 hit_chances=hit_chances,
                 flee_chance=flee_chance,
@@ -840,7 +840,7 @@ def _animate_explosion(
     log,
     *,
     weapon_list: tuple = (),
-    selected_weapon_idx: int = 0,
+    active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
@@ -856,7 +856,7 @@ def _animate_explosion(
             cam_x, cam_y, view_w, view_h,
             player_state, enemies, target_idx, log,
             weapon_list=weapon_list,
-            selected_weapon_idx=selected_weapon_idx,
+            active_weapons=active_weapons,
             evade_bonus=evade_bonus,
             hit_chances=hit_chances,
             flee_chance=flee_chance,
@@ -882,7 +882,7 @@ def _animate_explosion(
         cam_x, cam_y, view_w, view_h,
         player_state, enemies, target_idx, log,
         weapon_list=weapon_list,
-        selected_weapon_idx=selected_weapon_idx,
+        active_weapons=active_weapons,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
         flee_chance=flee_chance,
@@ -906,7 +906,7 @@ def _animate_explosion(
         cam_x, cam_y, view_w, view_h,
         player_state, enemies, target_idx, log,
         weapon_list=weapon_list,
-        selected_weapon_idx=selected_weapon_idx,
+        active_weapons=active_weapons,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
         flee_chance=flee_chance,
@@ -1032,7 +1032,7 @@ def run_combat(
     from .data.trade_goods import find_trade_good as _ftg
 
     weapons_list = list(getattr(player_owned_ship, 'weapons', ()) or ())
-    selected_weapon_idx = 0
+    active_weapons = [True] * max(1, len(weapons_list))
     target_idx = 0
     combat_mode = "DEFAULT"
     flee_attempts: int = 0
@@ -1148,15 +1148,19 @@ def run_combat(
                 # Range-accuracy line — drawn AFTER the world view so it
             # sits on top of the space background but BEFORE the target
             # highlight so the gold recolor takes visual priority over
-            # the line.
-            if weapons_list and 0 <= selected_weapon_idx < len(weapons_list):
-                _wid = weapons_list[selected_weapon_idx]
+            # the line. Uses the first active weapon for range display.
+            _range_wid = None
+            if weapons_list:
+                _first_active = next((i for i, a in enumerate(active_weapons) if a), None)
+                if _first_active is not None and _first_active < len(weapons_list):
+                    _range_wid = weapons_list[_first_active]
+            if _range_wid is not None:
                 _tgt = _resolve_target(enemy_insts, target_idx)
                 if _tgt is not None:
                     _paint_range_line(
                         console,
                         player_state["pos"], _tgt.pos,
-                        _wid,
+                        _range_wid,
                         _cam_x, _cam_y, view_w, view_h, 0, 0,
                     )
 
@@ -1176,7 +1180,7 @@ def run_combat(
                 enemies=enemy_insts,
                 target_idx=target_idx,
                 player_mode=combat_mode,
-                selected_weapon_idx=selected_weapon_idx,
+                active_weapons=active_weapons,
                 weapon_list=tuple(weapons_list),
                 flee_chance=calc_flee_chance(
                     player_state["piloting"],
@@ -1316,7 +1320,7 @@ def run_combat(
                                     enemies=enemy_insts,
                                     target_idx=target_idx,
                                     player_mode=combat_mode,
-                                    selected_weapon_idx=selected_weapon_idx,
+                                    active_weapons=active_weapons,
                                     weapon_list=tuple(weapons_list),
                                     evade_bonus=_evade_bonus,
                                     hit_chances=_weapon_hit_chances,
@@ -1365,7 +1369,7 @@ def run_combat(
                                     target_idx=target_idx,
                                     log=log,
                                     weapon_list=tuple(weapons_list),
-                                    selected_weapon_idx=selected_weapon_idx,
+                                    active_weapons=active_weapons,
                                     evade_bonus=_evade_bonus,
                                     hit_chances=_weapon_hit_chances,
                                     flee_chance=calc_flee_chance(
@@ -1400,7 +1404,7 @@ def run_combat(
                                             target_idx=target_idx,
                                             log=log,
                                             weapon_list=tuple(weapons_list),
-                                            selected_weapon_idx=selected_weapon_idx,
+                                            active_weapons=active_weapons,
                                             evade_bonus=_evade_bonus,
                                             hit_chances=_weapon_hit_chances,
                                             flee_chance=calc_flee_chance(
@@ -1577,192 +1581,165 @@ def run_combat(
                     combat_mode = "WAIT"
                     break
 
-                # [f] -> Fire mode: fire selected weapon at current target
+                # [f] -> Fire burst: all active weapons at current target
                 if sym_name == "f" and weapons_list and target_idx < len(enemy_insts):
-                    if selected_weapon_idx >= len(weapons_list):
-                        selected_weapon_idx = 0
-                    _wid = weapons_list[selected_weapon_idx]
-                    _ok, _reason = can_afford_action(player_state, _wid)
-                    if not _ok:
-                        _p_log(f"Cannot fire: {_reason}")
+                    _active_indices = [i for i, a in enumerate(active_weapons) if a]
+                    if not _active_indices:
+                        _p_log("No weapons selected. Press 1-6 to toggle.")
                         break
                     _target = enemy_insts[target_idx]
-                    _dist = _distance(player_state["pos"], _target.pos)
                     _dodge = _calc_dodge_bonus(
                         _target.cells_moved_this_turn,
                         int(_target.pilot_piloting * 0.5),
                     )
-                    _chance = calc_hit_chance(
-                        _wid, player_state["gunnery"], _dist, _dodge,
-                    )
-                    # Single roll decides both animation AND damage
-                    _roll = RNG.randint(1, 100)
-                    _is_hit = _roll <= _chance
-                    _cam_x, _cam_y = _calc_cam()
-                    _animate_laser_shot(
-                        console, context, game_map,
-                        player_state["pos"], _target.pos,
-                        is_hit=_is_hit,
-                        cam_x=_cam_x, cam_y=_cam_y,
-                        view_w=view_w, view_h=view_h,
-                        player_state=player_state,
-                        enemies=enemy_insts,
-                        target_idx=target_idx,
-                        log=log,
-                        weapon_list=tuple(weapons_list),
-                        selected_weapon_idx=selected_weapon_idx,
-                        evade_bonus=_evade_bonus,
-                        hit_chances=_weapon_hit_chances,
-                        flee_chance=calc_flee_chance(
-                            player_state["piloting"],
-                            _closest_enemy.pilot_piloting,
-                            player_state["hull"] / max(player_state["max_hull"], 1),
-                            _distance(player_state["pos"], _closest_enemy.pos),
-                            flee_attempts,
-                        ),
-                    )
-                    # Resolve the shot
-                    _ws = None
-                    try:
-                        _ws = find_weapon(_wid)
-                    except KeyError:
-                        pass
-                    if _is_hit:
-                        _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                            _wid, _target.hull, _target.shields,
-                            target_pilot_piloting=_target.pilot_piloting,
+                    # ---- Check combined affordability ----
+                    _total_ap = 0
+                    _total_power = 0
+                    _can_burst = True
+                    for _bi in _active_indices:
+                        _bwid = weapons_list[_bi]
+                        _bws = find_weapon(_bwid)
+                        _total_ap = max(_total_ap, _bws.ap_cost)
+                        if _bws.slot_type == "energy":
+                            _total_power += _bws.power_cost
+                        # Check ammo for missile weapons
+                        if _bws.slot_type == "missile":
+                            _ammo = player_state["weapon_ammo"].get(_bwid, 0)
+                            if _ammo < _bws.ammo_per_shot:
+                                _p_log(f"Not enough ammo for {_bws.name}.")
+                                _can_burst = False
+                                break
+                    if not _can_burst:
+                        break
+                    if player_state["ap_remaining"] < _total_ap:
+                        _p_log(f"Burst needs {_total_ap} AP (have {player_state['ap_remaining']}).")
+                        break
+                    if _total_power > player_state["power_pool"]:
+                        _p_log(f"Burst needs {_total_power} power (have {player_state['power_pool']}).")
+                        break
+                    # ---- Fire each active weapon ----
+                    for _bi in _active_indices:
+                        _bwid = weapons_list[_bi]
+                        _bws = find_weapon(_bwid)
+                        _dist = _distance(player_state["pos"], _target.pos)
+                        _chance = calc_hit_chance(
+                            _bwid, player_state["gunnery"], _dist, _dodge,
                         )
-                        _target.shields = max(0, _target.shields - _sdmg)
-                        _target.hull = _fh
-                        _dmg_str = f"{_dmg} damage"
-                        if _sdmg > 0:
-                            _dmg_str += f" ({_sdmg} absorbed by shields)"
-                        _verb = "Glancing hit" if _is_glancing else "Hit"
-                        _p_log(f"{_verb} {_target.name}! {_ws.name if _ws else _wid} for {_dmg_str} (rolled {_roll}, needed <={_chance})")
-                        # Consume ammo/power
-                        if _ws and _ws.slot_type == "energy":
-                            player_state["power_pool"] -= _ws.power_cost
-                        elif _ws and _ws.slot_type == "missile":
-                            _ammo = player_state["weapon_ammo"].get(_wid, 0)
+                        _hit = RNG.randint(1, 100) <= _chance
+                        _cam_x, _cam_y = _calc_cam()
+                        _animate_laser_shot(
+                            console, context, game_map,
+                            player_state["pos"], _target.pos,
+                            is_hit=_hit,
+                            cam_x=_cam_x, cam_y=_cam_y,
+                            view_w=view_w, view_h=view_h,
+                            player_state=player_state,
+                            enemies=enemy_insts,
+                            target_idx=target_idx,
+                            log=log,
+                            weapon_list=tuple(weapons_list),
+                            active_weapons=active_weapons,
+                            evade_bonus=_evade_bonus,
+                            hit_chances=_weapon_hit_chances,
+                            flee_chance=calc_flee_chance(
+                                player_state["piloting"],
+                                _closest_enemy.pilot_piloting,
+                                player_state["hull"] / max(player_state["max_hull"], 1),
+                                _distance(player_state["pos"], _closest_enemy.pos),
+                                flee_attempts,
+                            ),
+                        )
+                        if _hit:
+                            _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
+                                _bwid, _target.hull, _target.shields,
+                                target_pilot_piloting=_target.pilot_piloting,
+                            )
+                            _target.shields = max(0, _target.shields - _sdmg)
+                            _target.hull = _fh
+                            _sdmg
+                            _dmg
+                            _verb = "Glancing hit" if _is_glancing else "Hit"
+                            _p_log(f"{_verb} {_target.name}! {_bws.name} for {_dmg} hull")
+                            if _fh <= 0:
+                                _c_log(f"{_target.name} destroyed!")
+                                _defeated_spec_ids.append(_target.spec_id)
+                                _ecx2, _ecy2 = _calc_cam()
+                                _animate_explosion(
+                                    console, context, game_map,
+                                    _target.pos,
+                                    cam_x=_ecx2, cam_y=_ecy2,
+                                    view_w=view_w, view_h=view_h,
+                                    player_state=player_state,
+                                    enemies=enemy_insts,
+                                    target_idx=target_idx,
+                                    log=log,
+                                    weapon_list=tuple(weapons_list),
+                                    active_weapons=active_weapons,
+                                    evade_bonus=_evade_bonus,
+                                    hit_chances=_weapon_hit_chances,
+                                    flee_chance=calc_flee_chance(
+                                        player_state["piloting"],
+                                        _closest_enemy.pilot_piloting,
+                                        player_state["hull"] / max(player_state["max_hull"], 1),
+                                        _distance(player_state["pos"], _closest_enemy.pos),
+                                        flee_attempts,
+                                    ),
+                                )
+                                _target.alive = False
+                                if target_idx in _enemy_ents:
+                                    try:
+                                        game_map.entities.remove(_enemy_ents[target_idx])
+                                    except ValueError:
+                                        pass
+                                # Spawn loot
+                                _wreck = _target.pos
+                                _esp_for_loot = next(
+                                    (_sp for _sp in enemy_specs
+                                     if getattr(_sp, 'id', None) == _target.spec_id),
+                                    None,
+                                )
+                                _cargo_pool = getattr(
+                                    _esp_for_loot, 'cargo_goods', ()
+                                ) if _esp_for_loot else ()
+                                for _ in range(RNG.randint(1, 2)):
+                                    if not _cargo_pool:
+                                        break
+                                    _loot_good_id = RNG.choice(_cargo_pool)
+                                    try:
+                                        _tg = _ftg(_loot_good_id)
+                                    except KeyError:
+                                        continue
+                                    _pos = world.Position(
+                                        _wreck.x + RNG.randint(-1, 1),
+                                        _wreck.y + RNG.randint(-1, 1),
+                                    )
+                                    if not game_map.is_walkable(_pos.x, _pos.y):
+                                        _pos = _wreck
+                                    game_map.entities.append(world.Entity(
+                                        char="*", fg=_tg.color,
+                                        pos=_pos,
+                                        name=f"Loot: {_tg.name}",
+                                        width=1, height=1,
+                                        loot=True,
+                                        trade_good_id=_loot_good_id,
+                                    ))
+                        else:
+                            _p_log(f"{_bws.name} misses {_target.name}!")
+                        # Ammo deduction for missile weapons (regardless of hit)
+                        if _bws.slot_type == "missile":
+                            _ammo = player_state["weapon_ammo"].get(_bwid, 0)
                             if _ammo > 0:
-                                player_state["weapon_ammo"][_wid] = _ammo - _ws.ammo_per_shot
-                                # Each missile round occupies cargo;
-                                # firing frees that space so the
-                                # player's cargo_used readout tracks
-                                # the loadout exactly.
+                                player_state["weapon_ammo"][_bwid] = _ammo - _bws.ammo_per_shot
                                 if player_owned_ship is not None:
                                     player_owned_ship.cargo_ammo = max(
                                         0,
                                         player_owned_ship.cargo_ammo
-                                        - _ws.ammo_per_shot * _ws.cargo_per_round,
+                                        - _bws.ammo_per_shot * _bws.cargo_per_round,
                                     )
-                        player_state["ap_remaining"] -= (_ws.ap_cost if _ws else 1)
-                        if _fh <= 0:
-                            _c_log(f"{_target.name} destroyed!")
-                            _defeated_spec_ids.append(_target.spec_id)
-                            # Explosion animation
-                            _cam_x, _cam_y = _calc_cam()
-                            _animate_explosion(
-                                console, context, game_map,
-                                _target.pos,
-                                cam_x=_cam_x, cam_y=_cam_y,
-                                view_w=view_w, view_h=view_h,
-                                player_state=player_state,
-                                enemies=enemy_insts,
-                                target_idx=target_idx,
-                                log=log,
-                                weapon_list=tuple(weapons_list),
-                                selected_weapon_idx=selected_weapon_idx,
-                                evade_bonus=_evade_bonus,
-                                hit_chances=_weapon_hit_chances,
-                                flee_chance=calc_flee_chance(
-                                    player_state["piloting"],
-                                    _closest_enemy.pilot_piloting,
-                                    player_state["hull"] / max(player_state["max_hull"], 1),
-                                    _distance(player_state["pos"], _closest_enemy.pos),
-                                    flee_attempts,
-                                ),
-                            )
-                            # Mark dead; will be pruned from list next loop
-                            _target.alive = False
-                            # Remove entity from map
-                            if target_idx in _enemy_ents:
-                                try:
-                                    game_map.entities.remove(_enemy_ents[target_idx])
-                                except ValueError:
-                                    pass
-                            # Spawn loot entities at or near the wreck.
-                            # Uses the NPC's cargo_goods from NpcShipSpec
-                            # so each ship type drops appropriate loot.
-                            _wreck = _target.pos
-                            _loot_count = RNG.randint(1, 2)
-                            _esp_for_loot = next(
-                                (_sp for _sp in enemy_specs
-                                 if getattr(_sp, 'id', None) == _target.spec_id),
-                                None,
-                            )
-                            _cargo_pool = getattr(
-                                _esp_for_loot, 'cargo_goods', ()
-                            ) if _esp_for_loot else ()
-                            for _ in range(_loot_count):
-                                if not _cargo_pool:
-                                    break
-                                _loot_good_id = RNG.choice(_cargo_pool)
-                                try:
-                                    _tg = _ftg(_loot_good_id)
-                                except KeyError:
-                                    continue
-                                _qty = RNG.randint(1, 2)
-                                _lox = _wreck.x + RNG.randint(-2, 2)
-                                _loy = _wreck.y + RNG.randint(-2, 2)
-                                if not game_map.is_walkable(_lox, _loy):
-                                    continue
-                                game_map.entities.append(world.Entity(
-                                    char="*", fg=(255, 220, 80),
-                                    pos=world.Position(_lox, _loy),
-                                    name=f"Cargo: {_tg.name}",
-                                    loot_data={"good_id": _tg.id, "quantity": _qty},
-                                ))
-                    else:
-                        _p_log(f"Missed {_target.name}! (rolled {_roll}, needed <={_chance})")
-                        # Charge power/ammo + AP on miss too — the
-                        # action was committed regardless of whether
-                        # it landed. Energy weapons discharge whether
-                        # they hit or not; missiles expend a round.
-                        if _ws and _ws.slot_type == "energy":
-                            player_state["power_pool"] -= _ws.power_cost
-                        elif _ws and _ws.slot_type == "missile":
-                            _ammo = player_state["weapon_ammo"].get(_wid, 0)
-                            if _ammo > 0:
-                                player_state["weapon_ammo"][_wid] = _ammo - _ws.ammo_per_shot
-                                if player_owned_ship is not None:
-                                    player_owned_ship.cargo_ammo = max(
-                                        0,
-                                        player_owned_ship.cargo_ammo
-                                        - _ws.ammo_per_shot * _ws.cargo_per_round,
-                                    )
-                        player_state["ap_remaining"] -= (_ws.ap_cost if _ws else 1)
+                    # Deduct burst costs (max AP, sum power) after all weapons fire
+                    player_state["ap_remaining"] -= _total_ap
+                    player_state["power_pool"] -= _total_power
                     break
-
-                # [1]-[9] -> Select weapon. tcod's KeySym reports the
-                # top-row digit keys as N1..N9 (and numpad as
-                # KP_1..KP_9); the ``.lower()`` above turns those into
-                # "n1".."n9" / "kp_1".."kp_9". Plain "1".."9" never
-                # appear because they would require a tcod version that
-                # maps digit keys without the SDL prefix. Pressing a
-                # number with index >= len(weapons_list) silently no-ops
-                # so the player can't crash combat by mashing digits
-                # past their installed weapon count.
-                if sym_name in (
-                    "n1","n2","n3","n4","n5","n6","n7","n8","n9",
-                    "kp_1","kp_2","kp_3","kp_4","kp_5","kp_6",
-                    "kp_7","kp_8","kp_9",
-                ):
-                    _idx = int(sym_name[-1]) - 1
-                    if 0 <= _idx < len(weapons_list):
-                        selected_weapon_idx = _idx
-                    break
-
                 # Any other key: ignore
                 continue
 

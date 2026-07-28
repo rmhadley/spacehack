@@ -399,7 +399,7 @@ def render_combat_hud(
     enemies: list = (),                  # list[EnemyInstance]
     target_idx: int = 0,
     player_mode: str = "DEFAULT",       # "DEFAULT", "MOVING", "FIRING"
-    selected_weapon_idx: int = 0,
+    active_weapons: list[bool] | None = None,
     weapon_list: tuple[str, ...] = (),
     flee_chance: int | None = None,
     hit_chances: dict[str, int] | None = None,  # per-weapon hit % vs current target
@@ -557,9 +557,11 @@ def render_combat_hud(
             can_fire = has_ap and has_pow and has_ammo
 
             fg_w = COLOR_COMBAT_WEAPON if can_fire else COLOR_COMBAT_WEAPON_DIM
-            sel_mark = "> " if i == selected_weapon_idx else "  "
+            is_active = active_weapons[i] if active_weapons else True
+            sel_mark = "[x]" if is_active else "[ ]"
             name_str = f"{sel_mark}[{i+1}] {ws.name}"
-            console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_w)
+            fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
+            console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_wpn)
             y += 1
 
             # Show effective hit chance (includes gunnery + distance + target
@@ -603,7 +605,7 @@ def render_combat_hud(
     # between [f] Fire and [w] Wait so weapon actions group
     # visually.
     if len(weapon_list) > 1:
-        actions.insert(3, (f"[1-{len(weapon_list)}]", "Swap Wpn"))
+        actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
     for key, desc in actions:
         line = f"{key} {desc}"
         console.print(x=hud_x, y=y, string=line[:HUD_WIDTH-1], fg=COLOR_COMBAT_ACTION)
