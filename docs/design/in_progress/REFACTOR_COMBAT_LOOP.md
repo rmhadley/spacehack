@@ -120,14 +120,16 @@ The render block runs at the top of `while True`, *before* the guard that checks
 
 ## Phased Implementation Plan
 
-### Phase 1 — Fix bugs (no structural changes)
+### Phase 1 — Fix bugs (no structural changes) ✅ DONE
 
-- [ ] **B1**: Add total-power validation to burst fire pre-check. Check `player_state["power_pool"] >= _total_power` after summing — fail-fast with a log message if insufficient.
-- [ ] **B2**: Thread the correct `enemy_spec` (matched by `spec_id` from the killed enemy) into `_spawn_loot_drops`. The call sites have access to `target_idx` — match `enemy_insts[target_idx].spec_id` against `enemy_specs`.
-- [ ] **B3**: Fix enemy AI movement direction when player and enemy share an axis (`_dx` / `_dy` zero-check).
-- [ ] **Q1**: Remove the dead `_total_power` accumulation (or use it now that B1 is fixed).
+- [x] **B1**: Add total-power validation to burst fire pre-check. Check `player_state["power_pool"] >= _total_power` after summing — fail-fast with a log message if insufficient.
+- [x] **B2**: Thread the correct `enemy_spec` (matched by `spec_id` from the killed enemy) into `_spawn_loot_drops`. Call site now does `next(...)` matching and passes the correct spec.
+- [x] **B3**: Fix enemy AI movement direction when player and enemy share an axis (`_dx` / `_dy` zero-check).
+- [x] **Q1**: `_total_power` is now used by the B1 power check — no longer dead code.
+- [x] **Space/enter removed**: Single-fire fire path removed per player feedback. Toggle weapons with 1-9, fire with `f`.
 
-**Smoke test**: Verify game still runs and combat imports correctly.
+**Smoke test**: ✅ PASS
+**Commit**: `4edda76` (entity removal helper) + Phase 1 commit (B1/B2/B3/space-enter removal)
 
 ### Phase 2 — Extract enemy AI into `_ai.py`
 
@@ -167,8 +169,14 @@ The render block runs at the top of `while True`, *before* the guard that checks
 
 ---
 
-## Open questions
+## Resolved decisions
 
-1. **B1 power validation**: Should burst fire check total power before firing (fail-fast), or should it fire as many weapons as it can afford (partial burst)? Current design implies fail-fast.
-2. **B2 loot spec**: The `_spawn_loot_drops` call sites have access to `enemy_specs` (the full list). Should the function take the entire list and do the matching internally, or should the caller pass the correct single spec? Internal matching is more robust.
-3. **Q5 weapon selection**: Should single-fire (`space`) fire the selected weapon, or should we add a new key to "select next active weapon" for single-fire mode? This is a UX design question, not a bug fix.
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| B1 — Fail-fast or partial burst? | **Fail-fast**: check total power before firing, cancel whole burst if insufficient | Simplest. The player can toggle weapons off (1–9) to match their power budget. |
+| B2 — Internal loot spec matching or caller passes? | **Caller passes correct spec**: each fire site does the spec_id match and passes the single spec | Explicit, no hidden magic. `_spawn_loot_drops` takes a single spec rather than the full list. |
+| Q5 — Weapon selection for single-fire? | **Removed**: space/enter single-fire was never in scope | Fire a single weapon by toggling it on and pressing `f` (burst). Simplifies the loop considerably. |
+
+## Still open
+
+- None. All open questions have been resolved above.

@@ -71,10 +71,10 @@ def _remove_dead_entity(
 def _spawn_loot_drops(
     game_map: world.GameMap,
     target_pos: world.Position,
-    enemy_specs: list,
+    enemy_spec: Any,
 ) -> None:
     """Spawn 1-2 loot items near a destroyed enemy ship."""
-    _spec_loot = getattr(enemy_specs[0], 'cargo_goods', None) or ()
+    _spec_loot = getattr(enemy_spec, 'cargo_goods', None) or ()
     _loot_items = list(_spec_loot)
     if not _loot_items:
         _loot_items = ["scrap_metal"]
@@ -439,8 +439,8 @@ def run_combat(
                             # player, another enemy that already
                             # moved earlier in this same for-loop
                             # iteration, or any solar-body entity.
-                            _dx = 1 if _ei.pos.x < player_state["pos"].x else -1
-                            _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
+                            _dx = 0 if _ei.pos.x == player_state["pos"].x else (1 if _ei.pos.x < player_state["pos"].x else -1)
+                            _dy = 0 if _ei.pos.y == player_state["pos"].y else (1 if _ei.pos.y < player_state["pos"].y else -1)
                             _nx = _ei.pos.x + _dx
                             _ny = _ei.pos.y + _dy
                             # Check direct instance-position collision first:
@@ -738,118 +738,9 @@ def run_combat(
                     combat_mode = "WAIT"
                     break
 
-                # [space] / [enter] -> Fire at current target
-                if sym_name in ("space", "return"):
-                    # Choose first active weapon
-                    _weapon_to_fire = None
-                    for _wi, _wa in enumerate(active_weapons):
-                        if _wa and _wi < len(weapons_list):
-                            _weapon_to_fire = weapons_list[_wi]
-                            break
-                    if _weapon_to_fire is None:
-                        _p_log("No active weapon to fire.")
-                        break
-
-                    _ok, _reason = _check_fire_ready(
-                        player_state, _weapon_to_fire, target_idx, enemy_insts,
-                    )
-                    if not _ok:
-                        _p_log(_reason)
-                        break
-
-                    _target_enemy = enemy_insts[target_idx]
-                    _target_pos = _target_enemy.pos
-
-                    # Single roll decides both animation AND damage
-                    _player_dist = _distance(player_state["pos"], _target_pos)
-                    _target_dodge = _calc_dodge_bonus(
-                        _target_enemy.cells_moved_this_turn,
-                        int(_target_enemy.pilot_piloting * 0.5),
-                    )
-                    _hit_chance = calc_hit_chance(
-                        _weapon_to_fire, player_state["gunnery"],
-                        _player_dist, _target_dodge,
-                    )
-                    _is_hit = RNG.randint(1, 100) <= _hit_chance
-
-                    _cam_x, _cam_y = _calc_cam()
-                    _animate_laser_shot(
-                        console, context, game_map,
-                        player_state["pos"], _target_pos,
-                        is_hit=_is_hit,
-                        cam_x=_cam_x, cam_y=_cam_y,
-                        view_w=view_w, view_h=view_h,
-                        player_state=player_state,
-                        enemies=enemy_insts,
-                        target_idx=target_idx,
-                        log=log,
-                        weapon_list=tuple(weapons_list),
-                        active_weapons=active_weapons,
-                        evade_bonus=_evade_bonus,
-                        hit_chances=_weapon_hit_chances,
-                        flee_chance=calc_flee_chance(
-                            player_state["piloting"],
-                            _closest_enemy.pilot_piloting,
-                            player_state["hull"] / max(player_state["max_hull"], 1),
-                            _distance(player_state["pos"], _closest_enemy.pos),
-                            flee_attempts,
-                        ),
-                    )
-
-                    if _is_hit:
-                        _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                            _weapon_to_fire,
-                            _target_enemy.hull,
-                            _target_enemy.shields,
-                            target_pilot_piloting=_target_enemy.pilot_piloting,
-                        )
-                        _target_enemy.shields = max(0, _target_enemy.shields - _sdmg)
-                        _target_enemy.hull = _fh
-                        _verb = "glancing hit" if _is_glancing else "hits"
-                        _p_log(f"You {_verb} {_target_enemy.name} for {_dmg} hull damage!")
-                        if _fh <= 0:
-                            _target_enemy.alive = False
-                            _defeated_spec_ids.append(_target_enemy.spec_id)
-                            _c_log(f"{_target_enemy.name} destroyed!")
-                            _remove_dead_entity(game_map, _enemy_ents, target_idx)
-                            # Explosion at target position
-                            _cam_x, _cam_y = _calc_cam()
-                            _animate_explosion(
-                                console, context, game_map,
-                                _target_pos,
-                                cam_x=_cam_x, cam_y=_cam_y,
-                                view_w=view_w, view_h=view_h,
-                                player_state=player_state,
-                                enemies=enemy_insts,
-                                target_idx=target_idx,
-                                log=log,
-                                weapon_list=tuple(weapons_list),
-                                active_weapons=active_weapons,
-                                evade_bonus=_evade_bonus,
-                                hit_chances=_weapon_hit_chances,
-                                flee_chance=calc_flee_chance(
-                                    player_state["piloting"],
-                                    _closest_enemy.pilot_piloting,
-                                    player_state["hull"] / max(player_state["max_hull"], 1),
-                                    _distance(player_state["pos"], _closest_enemy.pos),
-                                    flee_attempts,
-                                ),
-                            )
-                            # Loot drop: spawn 1-2 items near the wreck
-                            _spawn_loot_drops(game_map, _target_pos, enemy_specs)
-                    else:
-                        _p_log(f"You miss {_target_enemy.name}!")
-                    # Deduct AP, power, ammo
-                    _ws = find_weapon(_weapon_to_fire)
-                    player_state["ap_remaining"] -= _ws.ap_cost
-                    if _ws.slot_type == "energy":
-                        player_state["power_pool"] -= _ws.power_cost
-                    elif _ws.slot_type == "missile":
-                        old = player_state["weapon_ammo"][_weapon_to_fire]
-                        player_state["weapon_ammo"][_weapon_to_fire] = old - _ws.ammo_per_shot
-                    break
-
-                # [f] -> Burst fire (fire ALL active weapons)
+                # [f] -> Fire ALL active weapons (the only fire mode)
+                # Single-fire via space/enter was removed by player feedback:
+                # toggle weapons on/off with 1-9 and fire with f.
                 if sym_name == "f":
                     # Collect all active weapon IDs
                     _fire_list = [
@@ -881,8 +772,12 @@ def run_combat(
                         _total_power += _fws.power_cost
                     if not _all_ok:
                         break
+                    # Fail-fast: check combined power cost before firing.
+                    if player_state["power_pool"] < _total_power:
+                        _p_log(f"Not enough power: need {_total_power}, have {player_state['power_pool']}.")
+                        break
 
-                    # Burst fire: iterate through each active weapon.
+                    # Fire each active weapon in sequence.
                     _target_enemy = enemy_insts[target_idx]
                     _target_pos = _target_enemy.pos
                     for _fwid in _fire_list:
@@ -963,8 +858,13 @@ def run_combat(
                                         flee_attempts,
                                     ),
                                 )
-                                # Loot drop
-                                _spawn_loot_drops(game_map, _target_pos, enemy_specs)
+                                # Loot drop: find correct spec by matching spec_id
+                                _correct_spec = next(
+                                    (_sp for _sp in enemy_specs if getattr(_sp, 'id', None) == _target_enemy.spec_id),
+                                    enemy_specs[0] if enemy_specs else None,
+                                )
+                                if _correct_spec is not None:
+                                    _spawn_loot_drops(game_map, _target_pos, _correct_spec)
                         else:
                             _p_log(f"{_fwid} misses {_target_enemy.name}!")
                         # Deduct per-weapon costs
@@ -1011,8 +911,8 @@ def _check_fire_ready(
 ) -> tuple[bool, str]:
     """Quick pre-flight check before firing.
 
-    Returns (ok, reason_message). Used by both single-fire (space)
-    and burst-fire (f) paths so the conditions can't drift apart.
+    Returns (ok, reason_message). Called by the fire (f) handler
+    for each weapon in the active list.
     """
     if not (0 <= target_idx < len(enemies) and enemies[target_idx].alive):
         return False, "No valid target."
