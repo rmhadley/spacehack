@@ -1716,7 +1716,7 @@ def run_combat(
                                     if not game_map.is_walkable(_pos.x, _pos.y):
                                         _pos = _wreck
                                     game_map.entities.append(world.Entity(
-                                        char="*", fg=_tg.color,
+                                        char="*", fg=(255, 200, 50),
                                         pos=_pos,
                                         name=f"Loot: {_tg.name}",
                                         width=1, height=1,
