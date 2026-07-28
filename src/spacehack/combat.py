@@ -1720,8 +1720,7 @@ def run_combat(
                                         pos=_pos,
                                         name=f"Loot: {_tg.name}",
                                         width=1, height=1,
-                                        loot=True,
-                                        trade_good_id=_loot_good_id,
+                                        loot_data={"good_id": _loot_good_id, "quantity": 1},
                                     ))
                         else:
                             _p_log(f"{_bws.name} misses {_target.name}!")
