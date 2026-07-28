@@ -542,19 +542,3 @@ def run_combat(
         _sync_back_hull(player_state, player_owned_ship)
 
     return _result, _defeated_spec_ids
-
-
-def _check_fire_ready(
-    player_state: dict,
-    weapon_id: str,
-    target_idx: int,
-    enemies: list[EnemyInstance],
-) -> tuple[bool, str]:
-    """Quick pre-flight check before firing.
-
-    Returns (ok, reason_message). Called by the fire (f) handler
-    for each weapon in the active list.
-    """
-    if not (0 <= target_idx < len(enemies) and enemies[target_idx].alive):
-        return False, "No valid target."
-    return can_afford_action(player_state, weapon_id)

@@ -42,5 +42,5 @@ from ._animations import (
     _animate_laser_shot,
     _animate_explosion,
 )
-from ._loop import run_combat, _check_fire_ready
+from ._loop import run_combat
 from ._encounter import _handle_combat_encounter, _render_death_screen
