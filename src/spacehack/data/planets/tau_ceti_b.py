@@ -24,7 +24,7 @@ from .themes import LUSH
 SPEC = PlanetSpec(
     theme=LUSH,
     id="tc_b",
-    name="τ Cet b",
+    name="Tau Cet b",
     char="p",
     fg=(140, 200, 180),
     description="A temperate rocky world in the habitable zone — a new frontier.",

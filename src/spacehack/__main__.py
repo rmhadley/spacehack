@@ -509,6 +509,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                 npc_obj.id,
                                 planet_tier=_planet_tier,
                                 completed_ids=frozenset(ctx.completed_mission_ids),
+                                active_ids=frozenset(
+                                    m.mission_id for m in player_active_missions
+                                ),
+                                planet_id=current_city_id,
                             )
                             if not offerings:
                                 log.add(f'{npc_obj.name} has no work for you right now.')

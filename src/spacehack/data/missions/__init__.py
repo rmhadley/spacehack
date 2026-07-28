@@ -147,24 +147,34 @@ def missions_offered_by(
     npc_id: str,
     planet_tier: int = 1,
     completed_ids: frozenset[str] | None = None,
+    active_ids: frozenset[str] | None = None,
+    planet_id: str | None = None,
 ) -> tuple[MissionSpec, ...]:
     """All :class:`MissionSpec` entries whose ``giver_npc_id``
-    matches ``npc_id``, filtered by planet tier and completion status.
+    matches ``npc_id``, filtered by planet tier, completion status,
+    active missions, and origin planet.
 
     Only returns missions where:
-      * ``m.tier <= planet_tier`` (planet can support this mission level)
-      * ``m.id`` is NOT in ``completed_ids`` (static missions don't repeat)
+      * ``m.tier <= planet_tier`` (planet can support this level)
+      * ``m.id`` NOT in ``completed_ids`` (don't repeat finished missions)
+      * ``m.id`` NOT in ``active_ids`` (don't re-offer accepted missions)
+      * ``m.origin_planet_id`` matches ``planet_id`` (or is None, or
+        ``planet_id`` is None — origin-gating is opt-in)
 
     Returns an empty tuple on a no-match so the offering modal
     just shows "no work available".
     """
     if completed_ids is None:
         completed_ids = frozenset()
+    if active_ids is None:
+        active_ids = frozenset()
     return tuple(
         m for m in list_missions()
         if m.giver_npc_id == npc_id
         and m.tier <= planet_tier
         and m.id not in completed_ids
+        and m.id not in active_ids
+        and (planet_id is None or m.origin_planet_id is None or m.origin_planet_id == planet_id)
     )
 
 

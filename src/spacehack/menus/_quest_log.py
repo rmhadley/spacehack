@@ -88,10 +88,11 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         if am.time_deadline is not None:
             _d, _m, _y = am.time_deadline
             _total_days = (_y - ctx.time_year) * 360 + (_m - ctx.time_month) * 30 + (_d - ctx.time_day)
+            _date_str = f'{_y}{_m:02d}{_d:02d}'
             if _total_days > 0:
-                paint(detail_top, fit(f'Due: Day {_d}, Month {_m}, Year {_y} ({_total_days} days)'), fg=ui.COLOR_OPTION_HIGHLIGHT)
+                paint(detail_top, fit(f'Due: {_date_str} ({_total_days} days)'), fg=ui.COLOR_OPTION_HIGHLIGHT)
             else:
-                paint(detail_top, fit(f'EXPIRED — Due: Day {_d}, Month {_m}, Year {_y}'), fg=(255, 80, 80))
+                paint(detail_top, fit(f'EXPIRED — Due: {_date_str}'), fg=(255, 80, 80))
             detail_top += 1
 
     button_row = max(list_top + len(missions) * 2 + 8, center_y + 10)
