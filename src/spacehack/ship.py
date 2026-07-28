@@ -89,6 +89,22 @@ class OwnedShip:
 # ---------------------------------------------------------------------------
 
 
+def effective_speed(ship_spec: Ship, owned: OwnedShip) -> int:
+    """Sum base ship speed + all module speed_bonuses.
+
+    This is the moves-per-day value used by tick_move() to
+    determine when to advance the game clock.
+    """
+    from .data.modules import find_module as _fm
+    total = ship_spec.speed
+    for mid in getattr(owned, 'modules', ()) or ():
+        try:
+            total += _fm(mid).speed_bonus
+        except KeyError:
+            pass
+    return max(1, total)
+
+
 def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
     """Sum base max cargo + all module cargo_bonuses."""
     from .data.modules import find_module as _fm

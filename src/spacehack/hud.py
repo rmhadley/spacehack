@@ -240,6 +240,12 @@ def render_hud(
         # Modules
         console.print(x=hud_x, y=y, string="Mod", fg=COLOR_SHIP_LABEL)
         console.print(x=hud_x + 5, y=y, string=f"{modules_n}/{module_slots}", fg=COLOR_SHIP_VALUE)
+        y += 1
+
+        # Speed (base + module bonuses)
+        _eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
+        console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
+        console.print(x=hud_x + 5, y=y, string=str(_eff_spd), fg=COLOR_SHIP_VALUE)
         y += 2
 
         # Pilot skills (compact one-liner)

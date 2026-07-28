@@ -52,17 +52,19 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
     _stat_y = title_y + 2
     if ctx.player_owned_ship is not None:
+        _eff_spd = ship_module.effective_speed(ship, ctx.player_owned_ship)
         _lines = [
             ship.description,
             f'Fuel: {ctx.player_owned_ship.fuel} / {ship.max_fuel}',
             f'Hull: {ctx.player_owned_ship.hull_damage_pct}% damage',
+            f'Speed: {_eff_spd}',
             f'Credits: {ctx.stats.credits}$',
         ]
         for i, _line in enumerate(_lines):
             console.print(x=ui.centered_x(_line, screen_width), y=_stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
     else:
         console.print(x=ui.centered_x(ship.description, screen_width), y=_stat_y, string=ship.description, fg=ui.COLOR_DESCRIPTION)
-    _stats_height = 5 if ctx.player_owned_ship is not None else 1
+    _stats_height = 6 if ctx.player_owned_ship is not None else 1
     _list_title_y = _stat_y + _stats_height + 1
     _opt_items = [(opt, "") for opt in SHIP_MENU_OPTIONS]
     ui.render_selectable_list(
@@ -189,12 +191,14 @@ def _run_loadout_view(ctx) -> None:
         cy += 2
 
         # Ship stats header — effective values with module bonuses.
+        eff_spd = ship_module.effective_speed(ship_spec, owned)
         header = (
             f"Fuel: {owned.fuel}/{ship_spec.max_fuel}  |  "
             f"Hull: {owned.hull_damage_pct}%  |  "
             f"Cargo: {owned.cargo_used}/{eff_cargo}  |  "
             f"Shields: {eff_shields}  |  "
-            f"Power: {eff_power}"
+            f"Power: {eff_power}  |  "
+            f"Speed: {eff_spd}"
         )
         paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
         cy += 2

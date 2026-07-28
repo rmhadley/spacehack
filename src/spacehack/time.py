@@ -70,20 +70,14 @@ def tick_move(ctx: GameContext) -> None:
     The counter accumulates across all space actions (jumps and
     landings do NOT reset it).
     """
-    from .ship import find_ship as _find_ship
+    from .ship import find_ship as _find_ship, effective_speed as _eff_spd
     speed = 10  # fallback if ship lookup fails
     if ctx.player_owned_ship is not None:
         try:
-            speed = _find_ship(ctx.player_owned_ship.ship_id).speed
+            ship_spec = _find_ship(ctx.player_owned_ship.ship_id)
+            speed = _eff_spd(ship_spec, ctx.player_owned_ship)
         except (KeyError, ImportError):
             pass
-        # Add speed bonuses from installed engine modules.
-        from .data.modules import find_module as _fm
-        for mid in ctx.player_owned_ship.modules:
-            try:
-                speed += _fm(mid).speed_bonus
-            except KeyError:
-                pass
 
     ctx.move_counter += 1
     if ctx.move_counter >= speed:
