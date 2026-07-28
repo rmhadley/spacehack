@@ -71,3 +71,8 @@ def find_module(module_id: str) -> ModuleSpec:
         return _registry()[module_id]
     except KeyError:
         raise KeyError(f"unknown module id: {module_id!r}") from None
+
+
+def list_modules() -> tuple[ModuleSpec, ...]:
+    """All registered modules, in undefined order."""
+    return tuple(_registry().values())
