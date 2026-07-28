@@ -2,17 +2,37 @@
 
 ## Overview
 
-This document captures the structural analysis of `src/spacehack/combat/_loop.py` (998 lines) — the main combat turn loop (`run_combat`). It identifies bugs, optimization opportunities, and a phased plan to refactor the loop into smaller, testable pieces.
+This document captures the structural analysis of `src/spacehack/combat/_loop.py` — the main combat turn loop (`run_combat`). It identifies bugs, optimization opportunities, and a phased plan to refactor the loop into smaller, testable pieces.
 
 ### History
 
 - **Before this session**: `run_combat` lived in the monolithic `combat.py` (1,951 lines).
-- **Earlier this session**: `combat.py` was split into a `combat/` package with 6 sub-modules. `run_combat` now lives in `combat/_loop.py`.
-- **Now**: A deep read found 3 bugs, several optimizations, and structural issues.
+- **Monolithic → Package split**: `combat.py` was split into a `combat/` package with 6 sub-modules. `run_combat` now lives in `combat/_loop.py`.
+- **Initial analysis (this doc)**: Deep read found 3 bugs, several optimizations, and structural issues.
+- **Bug-hunt session**: 7 additional bugs were found and fixed during playtesting. The 3 original design-doc bugs remain open.
+
+### Current file size
+
+`_loop.py` — **~940 lines** (down from 1,031 due to extracting `_spawn_loot_drops` and `_remove_dead_entity` helpers).
 
 ---
 
-## Bugs
+## Bugs Fixed During Bug Hunt
+
+These were discovered during playtesting after the initial analysis and have already been committed.
+
+| Bug | Symptom | Fix | Commit |
+|-----|---------|-----|--------|
+| Loot entity constructor crash | `TypeError: Entity.__init__() got unexpected keyword argument 'x'` | Changed `x=_lx, y=_ly` to `pos=world.Position(_lx, _ly)`, removed nonexistent `blocks_movement` field | `ca85894` |
+| Loot menu not opening | Bumping `%` did nothing | Changed `loot_data={_loot_id: qty}` to `loot_data={"good_id": _loot_id, "quantity": qty}` to match `trade.py` expected format | `ca85894` |
+| Weapon toggle keys 1–9 broken | Pressing number keys didn't toggle weapons | `tcod.KeySym.N1.name` returns `"N1"` (lowered `"n1"`), not `"1"` — fixed dict keys to `"n1"`–`"n9"` | `ca85894` |
+| Dead enemies not removed from map | Combat immediately re-triggered on same dead enemies | Victory cleanup used `getattr(_e, 'spec_id', None)` but `world.Entity` has `npc_ship_id`, not `spec_id` — always returned `None` so cleanup was a no-op | `c0c1f41` |
+| Dead enemy glyph lingers on screen | After death, enemy character stayed visible until combat ended | Added `_remove_dead_entity` helper that pops the entity from `_enemy_ents` and removes it from `game_map.entities` at death time (both fire paths) | `4edda76` |
+| Starter ship ignores ship data | Starter ship got hardcoded `('light_laser',)` and `()` instead of `starter_ship.start_weapons` / `start_modules` | Changed `__main__.py` to pass `starter_ship.start_weapons` and `starter_ship.start_modules` | `5d836df` |
+
+---
+
+## Bugs (Still Open)
 
 ### B1 — Burst fire total power never validated
 
@@ -21,11 +41,10 @@ This document captures the structural analysis of `src/spacehack/combat/_loop.py
 **Problem**: The pre-flight check computes `_total_power` but never checks it against `player_state["power_pool"]`. Each weapon's cost is checked individually via `_check_fire_ready`, but the **sum** of costs is not. Example: 10 power, two 6-power weapons → each passes individually, but after first fires (6 deducted from 10), the second deducts 6 from 4, sinking power below zero.
 
 ```python
-# Lines ~765-775 (approximate)
 _total_power += _fws.power_cost   # computed but NEVER USED
 ```
 
-**Fix**: ``_check_fire_ready`` currently does per-weapon validation. Add a pre-computed total power check for burst fire after the per-weapon loop, or fold it into `_check_fire_ready` with a ``cumulative`` mode.
+**Fix**: Add `if player_state["power_pool"] < _total_power:` check after the per-weapon sum loop, before firing. Also remove the dead `_total_power` accumulation (or use it now that the check exists).
 
 ### B2 — Loot drop uses wrong enemy spec
 
@@ -35,9 +54,9 @@ _total_power += _fws.power_cost   # computed but NEVER USED
 ```python
 _spec_loot = getattr(enemy_specs[0], 'cargo_goods', None) or ()
 ```
-If multiple enemy types exist and enemy #2 (index 1) is killed, it still drops loot from enemy #0's cargo table. This is a pre-existing bug that went unnoticed because all encounters currently use uniform enemy types.
+If multiple enemy types exist and enemy #2 (index 1) is killed, it still drops loot from enemy #0's cargo table. Currently harmless because all encounters use uniform enemy types, but this will bite when mixed squads are introduced.
 
-**Fix**: Pass the specific enemy spec or its `cargo_goods` to `_spawn_loot_drops`. Each call site has access to the target enemy — look up which `enemy_spec` corresponds to the killed enemy by matching `spec_id` against the dead enemy's `spec_id`.
+**Fix**: Match the dead enemy's `spec_id` against `enemy_specs` to find the correct spec, and pass either the correct spec or its `cargo_goods` to `_spawn_loot_drops`.
 
 ### B3 — Enemy AI moves away from player when aligned on an axis
 
@@ -50,7 +69,7 @@ _dy = 1 if _ei.pos.y < player_state["pos"].y else -1
 ```
 When `_ei.pos.x == player_state["pos"].x` (enemy and player have the same X coordinate), `_dx` becomes `-1`, moving the enemy **away** from the player on that axis instead of staying put. Same for Y.
 
-**Fix**: Add an equality guard:
+**Fix**:
 ```python
 _dx = 0 if _ei.pos.x == player_state["pos"].x else (1 if _ei.pos.x < player_state["pos"].x else -1)
 _dy = 0 if _ei.pos.y == player_state["pos"].y else (1 if _ei.pos.y < player_state["pos"].y else -1)
@@ -97,19 +116,15 @@ The render block runs at the top of `while True`, *before* the guard that checks
 
 `space`/`enter` selects the first active weapon via a linear scan of `active_weapons`. There is no key binding to fire a specific weapon in single-fire mode. The only way to fire non-first weapons is burst fire (`f`). Consider allowing number keys to select which weapon single-fire uses, or add a weapon-selection mode.
 
-### Q6 — Movement failure falls through to other handlers
-
-When `move_entity` returns `ok=False` (wall collision), the `break` is skipped but the handler *still breaks* because the `if sym_name in _vim_keys` block always executes `break` whether or not the move succeeded. Actually, looking at the code: `break` is after the `if ok:` block but outside of it, so it ALWAYS breaks after a movement key press, even if the move failed. So Q6 is a non-issue — the break is unconditional.
-
 ---
 
 ## Phased Implementation Plan
 
 ### Phase 1 — Fix bugs (no structural changes)
 
-- [ ] **B1**: Add total-power validation to burst fire pre-check. Either check `player_state["power_pool"] >= _total_power` after summing, or make `_check_fire_ready` support a cumulative mode.
-- [ ] **B2**: Thread the correct `enemy_spec` (matched by `spec_id` from the killed enemy) into `_spawn_loot_drops`.
-- [ ] **B3**: Fix enemy AI movement direction when player and enemy share an axis.
+- [ ] **B1**: Add total-power validation to burst fire pre-check. Check `player_state["power_pool"] >= _total_power` after summing — fail-fast with a log message if insufficient.
+- [ ] **B2**: Thread the correct `enemy_spec` (matched by `spec_id` from the killed enemy) into `_spawn_loot_drops`. The call sites have access to `target_idx` — match `enemy_insts[target_idx].spec_id` against `enemy_specs`.
+- [ ] **B3**: Fix enemy AI movement direction when player and enemy share an axis (`_dx` / `_dy` zero-check).
 - [ ] **Q1**: Remove the dead `_total_power` accumulation (or use it now that B1 is fixed).
 
 **Smoke test**: Verify game still runs and combat imports correctly.
@@ -133,7 +148,7 @@ When `move_entity` returns `ok=False` (wall collision), the `break` is skipped b
 
 ### Phase 4 — Optimizations
 
-- [ ] **Q2**: Cache `calc_flee_chance` result per turn iteration.
+- [ ] **Q2**: Cache `calc_flee_chance` result per turn iteration. Recalculate only when `flee_attempts` changes.
 - [ ] **Q3**: Maintain `_alive_enemies` incrementally instead of filtering every tick.
 - [ ] **Q4**: Move the auto-end-turn guard before the render block.
 
@@ -147,7 +162,7 @@ When `move_entity` returns `ok=False` (wall collision), the `break` is skipped b
 2. Loot drops from the correct enemy's cargo table.
 3. Enemy AI moves toward the player correctly, even when aligned on an axis.
 4. `calc_flee_chance` is computed once per turn, not 6×.
-5. `_loop.py` is under 500 lines after extractions.
+5. `_loop.py` is well under 500 lines after extractions.
 6. Smoke test passes after each phase.
 
 ---
@@ -157,4 +172,3 @@ When `move_entity` returns `ok=False` (wall collision), the `break` is skipped b
 1. **B1 power validation**: Should burst fire check total power before firing (fail-fast), or should it fire as many weapons as it can afford (partial burst)? Current design implies fail-fast.
 2. **B2 loot spec**: The `_spawn_loot_drops` call sites have access to `enemy_specs` (the full list). Should the function take the entire list and do the matching internally, or should the caller pass the correct single spec? Internal matching is more robust.
 3. **Q5 weapon selection**: Should single-fire (`space`) fire the selected weapon, or should we add a new key to "select next active weapon" for single-fire mode? This is a UX design question, not a bug fix.
-4. **Q2 flee caching**: The flee chance depends on `flee_attempts` which only increments on failed flee. Should the cache be invalidated on flee attempts only, or recalculated every frame? Recalculation is negligible cost vs. the 6-call duplication.
