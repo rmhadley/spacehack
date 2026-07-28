@@ -52,6 +52,22 @@ from ._animations import (
 
 
 
+def _remove_dead_entity(
+    game_map: world.GameMap,
+    enemy_ents: dict,
+    target_idx: int,
+) -> None:
+    """Remove a destroyed enemy's world entity from the game map.
+
+    Pops the entity from ``enemy_ents`` by index and removes it from
+    ``game_map.entities`` so its glyph doesn't linger on screen.
+    No-op if the index is not in the mapping.
+    """
+    _dead_ent = enemy_ents.pop(target_idx, None)
+    if _dead_ent is not None and _dead_ent in game_map.entities:
+        game_map.entities.remove(_dead_ent)
+
+
 def _spawn_loot_drops(
     game_map: world.GameMap,
     target_pos: world.Position,
@@ -795,6 +811,7 @@ def run_combat(
                             _target_enemy.alive = False
                             _defeated_spec_ids.append(_target_enemy.spec_id)
                             _c_log(f"{_target_enemy.name} destroyed!")
+                            _remove_dead_entity(game_map, _enemy_ents, target_idx)
                             # Explosion at target position
                             _cam_x, _cam_y = _calc_cam()
                             _animate_explosion(
@@ -923,6 +940,7 @@ def run_combat(
                                 _target_enemy.alive = False
                                 _defeated_spec_ids.append(_target_enemy.spec_id)
                                 _c_log(f"{_target_enemy.name} destroyed!")
+                                _remove_dead_entity(game_map, _enemy_ents, target_idx)
                                 _cam_x, _cam_y = _calc_cam()
                                 _animate_explosion(
                                     console, context, game_map,
