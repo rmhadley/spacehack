@@ -238,6 +238,17 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         abandoned = player_active_missions[abandoned_idx]
                         log.add(f'You abandoned: {abandoned.title}.')
                         mission_module.abort_mission(abandoned, player_owned_ship, log)
+                        # Return static mission to the giver's board if possible.
+                        if not abandoned.is_procedural:
+                            try:
+                                _spec = mission_module.find_mission(abandoned.mission_id)
+                                _board = ctx.mission_boards.get(_spec.giver_npc_id)
+                                if _board is not None:
+                                    mission_module.board_return_static(
+                                        _board, abandoned.mission_id,
+                                    )
+                            except KeyError:
+                                pass
                         if abandoned.bounty_spawn_id is not None:
                             _remove_bounty_spawn(
                                 ctx,
@@ -505,15 +516,26 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                 "Abandon one first (Q)."
                             )
                         else:
-                            offerings = mission_module.missions_offered_by(
-                                npc_obj.id,
-                                planet_tier=_planet_tier,
-                                completed_ids=frozenset(ctx.completed_mission_ids),
-                                active_ids=frozenset(
-                                    m.mission_id for m in player_active_missions
-                                ),
+                            # Ensure board exists for this NPC on this planet.
+                            _board = mission_module.ensure_board(
+                                ctx, npc_obj.id, max_slots=5,
                                 planet_id=current_city_id,
                             )
+                            # Fill empty slots on first visit or month rollover.
+                            _active_ids = frozenset(
+                                m.mission_id for m in player_active_missions
+                            )
+                            _completed_ids = frozenset(ctx.completed_mission_ids)
+                            if _board.last_refresh_month != ctx.time_month:
+                                mission_module.fill_empty_slots(
+                                    _board,
+                                    planet_tier=_planet_tier,
+                                    completed_ids=_completed_ids,
+                                    active_ids=_active_ids,
+                                    planet_id=current_city_id,
+                                )
+                                _board.last_refresh_month = ctx.time_month
+                            offerings = mission_module.board_offerings(_board)
                             if not offerings:
                                 log.add(f'{npc_obj.name} has no work for you right now.')
                             else:
@@ -523,6 +545,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                         picked, player_owned_ship, log,
                                         active_count=len(player_active_missions),
                                     ):
+                                        mission_module.board_remove(_board, picked.id)
                                         _bounty_spawn_id: str | None = None
                                         if picked.target_enemy_id is not None and picked.target_system_id is not None:
                                             _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"

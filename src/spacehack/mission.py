@@ -46,6 +46,7 @@ class MissionBoard:
     slots: list[str | None] = field(default_factory=list)
     max_slots: int = 5
     last_refresh_month: int = 0
+    planet_id: str = ""  # which planet this board belongs to (for refresh context)
 
 
 class MissionStatus(Enum):
@@ -310,6 +311,131 @@ def complete_mission(
     )
 
 
+def ensure_board(
+    ctx, npc_id: str, max_slots: int = 5, planet_id: str = "",
+) -> MissionBoard:
+    """Get or create a :class:`MissionBoard` for ``npc_id``.
+
+    If no board exists, creates one with ``max_slots`` empty slots
+    and stores it in ``ctx.mission_boards``. Returns the existing
+    board if one already exists.
+    """
+    if npc_id not in ctx.mission_boards:
+        board = MissionBoard(
+            npc_id=npc_id,
+            slots=[None] * max_slots,
+            max_slots=max_slots,
+            planet_id=planet_id,
+        )
+        ctx.mission_boards[npc_id] = board
+    return ctx.mission_boards[npc_id]
+
+
+def board_offerings(board: MissionBoard) -> tuple[MissionSpec, ...]:
+    """Return :class:`MissionSpec` objects for non-empty slots on
+    ``board``. Skips slots whose mission ID is no longer in the
+    catalog (e.g. procedural missions from a previous session).
+    """
+    result: list[MissionSpec] = []
+    for slot_id in board.slots:
+        if slot_id is not None:
+            try:
+                result.append(find_mission(slot_id))
+            except KeyError:
+                pass
+    return tuple(result)
+
+
+def fill_empty_slots(
+    board: MissionBoard,
+    planet_tier: int,
+    completed_ids: frozenset[str],
+    active_ids: frozenset[str],
+    planet_id: str,
+) -> None:
+    """Fill empty (None) slots on ``board`` with available missions.
+
+    First evicts any slot whose ID is in ``completed_ids`` or
+    ``active_ids`` (stale slots from completed/accepted missions).
+    Then fills the resulting empties with static missions first,
+    using :func:`missions_offered_by` for the pool.
+    """
+    # Evict completed/active missions from board slots.
+    for i in range(len(board.slots)):
+        _sid = board.slots[i]
+        if _sid is not None and (_sid in completed_ids or _sid in active_ids):
+            board.slots[i] = None
+
+    available = missions_offered_by(
+        board.npc_id,
+        planet_tier=planet_tier,
+        completed_ids=completed_ids,
+        active_ids=active_ids,
+        planet_id=planet_id,
+    )
+    available_ids = [m.id for m in available]
+    # Track which IDs are already on the board to avoid duplicates.
+    existing = set(s for s in board.slots if s is not None)
+    for i in range(len(board.slots)):
+        if board.slots[i] is None and available_ids:
+            for mid in available_ids:
+                if mid not in existing:
+                    board.slots[i] = mid
+                    existing.add(mid)
+                    break
+
+
+def board_remove(board: MissionBoard, mission_id: str) -> None:
+    """Remove ``mission_id`` from ``board.slots`` (set to None).
+    No-op if the ID isn't on the board.
+    """
+    for i in range(len(board.slots)):
+        if board.slots[i] == mission_id:
+            board.slots[i] = None
+            return
+
+
+def board_return_static(board: MissionBoard, mission_id: str) -> None:
+    """Return a static mission ID to the first empty slot on
+    ``board``. No-op if no empty slot exists.
+    """
+    for i in range(len(board.slots)):
+        if board.slots[i] is None:
+            board.slots[i] = mission_id
+            return
+
+
+def refresh_all_boards(ctx) -> None:
+    """Called on month rollover. Fills empty slots on all boards.
+
+    Uses each board's stored ``planet_id`` to compute tier filtering.
+    Skips boards whose ``last_refresh_month`` matches the current month
+    (already refreshed this month).
+    """
+    active_ids = frozenset(m.mission_id for m in ctx.player_active_missions)
+    completed_ids = frozenset(ctx.completed_mission_ids)
+
+    for board in ctx.mission_boards.values():
+        if board.last_refresh_month == ctx.time_month:
+            continue
+        # Resolve planet tier from stored planet_id.
+        _tier = 1
+        if board.planet_id:
+            try:
+                from .data.planets import find_planet_spec as _fps
+                _tier = _fps(board.planet_id).mission_tier
+            except KeyError:
+                pass
+        fill_empty_slots(
+            board,
+            planet_tier=_tier,
+            completed_ids=completed_ids,
+            active_ids=active_ids,
+            planet_id=board.planet_id,
+        )
+        board.last_refresh_month = ctx.time_month
+
+
 # Re-exports so consumers can keep using ``mission_module.MissionSpec``
 # etc. without a second import line.
 __all__ = [
@@ -328,4 +454,10 @@ __all__ = [
     "list_missions",
     "missions_offered_by",
     "try_accept_mission",
+    "ensure_board",
+    "board_offerings",
+    "fill_empty_slots",
+    "board_remove",
+    "board_return_static",
+    "refresh_all_boards",
 ]

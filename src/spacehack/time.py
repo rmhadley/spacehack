@@ -57,6 +57,8 @@ def _on_month_change(ctx: GameContext) -> None:
         "Shops have restocked for the new month.",
         _mlog.COLOR_IMPORTANT_EVENT,
     )
+    from .mission import refresh_all_boards as _refresh_boards
+    _refresh_boards(ctx)
 
 
 def tick_move(ctx: GameContext) -> None:
