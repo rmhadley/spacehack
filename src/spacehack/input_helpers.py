@@ -212,15 +212,17 @@ def _is_t_press(event: tcod.event.Event) -> bool:
 
 
 def _is_question_press(event: tcod.event.Event) -> bool:
-    """True iff ``event`` is a ``KeyDown`` for the ``?`` key
-    (``KeySym.QUESTION``).
+    """True iff ``event`` is a ``KeyDown`` for the ``?`` key.
 
-    Routes ? (game guide) through a module-level helper so the
-    smoke test can regression-guard the KeySym name lookup,
-    mirroring :func:`_is_q_press` exactly. The ``?`` key in SDL
-    maps to ``KeySym.QUESTION`` on US-layout keyboards (shift+``/``).
-    Only ``QUESTION`` is checked — unshifted ``/`` (``KeySym.SLASH``)
-    is a separate key and should not open the guide.
+    On most platforms SDL reports ``KeySym.SLASH`` (the physical
+    ``/`` key) *plus* a shift modifier, not ``KeySym.QUESTION``.
+    We check for both patterns:
+
+    * ``'QUESTION'`` — direct match (some platforms / tcod builds).
+    * ``'SLASH'`` + shift modifier (LSHIFT | RSHIFT) — universal.
+
+    Unshifted ``/`` (``KeySym.SLASH`` without a shift modifier)
+    returns False so plain-slash never opens the guide.
 
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
@@ -228,4 +230,25 @@ def _is_question_press(event: tcod.event.Event) -> bool:
     if not isinstance(event, tcod.event.KeyDown):
         return False
     sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name == 'QUESTION'
+    if sym_name == 'QUESTION':
+        return True
+    if sym_name == 'SLASH':
+        mod = getattr(event, 'mod', 0)
+        shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
+        return bool(mod & shift)
+    return False
+
+
+def _try_open_guide(event: tcod.event.Event, ctx) -> bool:
+    """Open the game guide if ``?`` was pressed.
+
+    Returns ``True`` if the guide was opened (caller should return its
+    modal's ``IGNORE`` outcome). Keeps the lazy import of
+    ``_run_help_guide`` in one place rather than repeating it at every
+    call site across the codebase.
+    """
+    if _is_question_press(event):
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return True
+    return False

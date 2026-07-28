@@ -135,29 +135,45 @@ def paint_rect_border(
 def wrap_text(text: str, max_width: int) -> list[str]:
     """Split ``text`` into wrapped lines fitting ``max_width`` chars.
 
-    Word-wrap is greedy: each line fits as many words as possible
-    without exceeding ``max_width``. A single word longer than
-    ``max_width`` goes on its own line rather than being split
+    Preserves intentional line breaks: ``\n`` creates a new line,
+    ``\n\n`` creates a blank line (paragraph break).  Within each
+    paragraph, word-wrap is greedy: each line fits as many words as
+    possible without exceeding ``max_width``. A single word longer
+    than ``max_width`` goes on its own line rather than being split
     mid-word (so a long quest title never loses a chunk of itself
-    to an overflow cut). Empty / whitespace-only input returns an
-    empty list so callers can use ``if wrap_text(...):`` to gate
-    painting cleanly without nil-conditional branching.
+    to an overflow cut).
+
+    Empty / whitespace-only input returns an empty list so callers
+    can use ``if wrap_text(...):`` to gate painting cleanly without
+    nil-conditional branching.
     """
     if max_width < 1 or not text or not text.strip():
         return []
-    words = text.split()
+    # Split into paragraphs first so intentional ``\n`` breaks are
+    # preserved (old behaviour collapsed ALL whitespace via split()).
+    paragraphs = text.split("\n")
     lines: list[str] = []
-    current = ""
-    for word in words:
-        candidate = word if not current else f"{current} {word}"
-        if len(candidate) <= max_width:
-            current = candidate
-        else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
+    for para in paragraphs:
+        if not para.strip():
+            # Empty paragraph = empty line (visual paragraph break).
+            lines.append("")
+            continue
+        words = para.split()
+        current = ""
+        for word in words:
+            candidate = word if not current else f"{current} {word}"
+            if len(candidate) <= max_width:
+                current = candidate
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+    # Strip trailing blank lines so a final ``\n`` doesn't add
+    # unwanted whitespace at the end of the wrapped output.
+    while lines and not lines[-1]:
+        lines.pop()
     return lines
 
 
