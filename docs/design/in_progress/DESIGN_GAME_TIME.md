@@ -88,13 +88,13 @@ the location and the first divider. Unobtrusive but always visible.
 
 ### Phase 1: Core time module + GameContext fields
 
-- [ ] Create `src/spacehack/time.py` with `advance_time()` and `format_date()`
-- [ ] Add `time_day`, `time_month`, `time_year` fields to `GameContext` (default: 1, 1, 2200)
-- [ ] Wire `advance_time()` call into `_jump_to_system` (navigation.py, jump gate travel)
-- [ ] Wire `advance_time()` call into planet landing path in `__main__.py` (PlanetMenuOutcome.LAND)
-- [ ] Add `format_date()` to both city and space HUD render paths in `hud.py`
-- [ ] Run smoke test
-- [ ] Commit
+- [x] Create `src/spacehack/time.py` with `advance_time()` and `format_date()`
+- [x] Add `time_day`, `time_month`, `time_year` fields to `GameContext` (default: 1, 1, 2200)
+- [x] Wire `advance_time()` call into `_jump_to_system` (navigation.py, jump gate travel)
+- [x] Wire `advance_time()` call into planet landing path in `__main__.py` (PlanetMenuOutcome.LAND)
+- [x] Add `format_date()` to both city and space HUD render paths in `hud.py`
+- [x] Run smoke test
+- [x] Commit
 
 **PLAYTEST — Phase 1:**
 
