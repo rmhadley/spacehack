@@ -70,11 +70,10 @@ def _spawn_loot_drops(
         if not game_map.is_walkable(_lx, _ly):
             _lx, _ly = target_pos.x, target_pos.y
         game_map.entities.append(world.Entity(
-            x=_lx, y=_ly, char="%",
-            fg=(255, 215, 0),
-            name="Loot",
-            blocks_movement=False,
-            loot_data={_loot_id: RNG.randint(1, 3)},
+            char="%", fg=(255, 215, 0),
+            pos=world.Position(_lx, _ly),
+            name="Loot", width=1, height=1,
+            loot_data={"good_id": _loot_id, "quantity": RNG.randint(1, 3)},
         ))
 
 
@@ -961,9 +960,13 @@ def run_combat(
                     break
 
                 # [1]–[9] -> Toggle weapon on/off
+                # tcod.KeySym.N1–N9 have .name returning "N1"–"N9" (lowered to "n1"–"n9").
+                # tcod.KeySym.KP_1–KP_9 have .name returning "KP_1"–"KP_9" (lowered to "kp_1"–"kp_9").
+                # Note: lowercase letters like "h", "f", "w" work because enum names
+                # are single uppercase letters ("H", "F", "W") matching after .lower().
                 _num_keys = {
-                    "1": 0, "2": 1, "3": 2, "4": 3, "5": 4,
-                    "6": 5, "7": 6, "8": 7, "9": 8,
+                    "n1": 0, "n2": 1, "n3": 2, "n4": 3, "n5": 4,
+                    "n6": 5, "n7": 6, "n8": 7, "n9": 8,
                     "kp_1": 0, "kp_2": 1, "kp_3": 2, "kp_4": 3, "kp_5": 4,
                     "kp_6": 5, "kp_7": 6, "kp_8": 7, "kp_9": 8,
                 }
