@@ -143,14 +143,17 @@ The render block runs at the top of `while True`, *before* the guard that checks
 **Commit**: `7c08550`
 **Note**: The 17-param function signature is a consequence of pure extraction. Phase 3 (weapons) is a natural point to consider a shared `CombatState` namespace to reduce parameter explosion.
 
-### Phase 3 — Extract weapon fire into `_weapons.py`
+### Phase 3 — Extract weapon fire into `_weapons.py` ✅ DONE
 
-- [ ] Move single-fire and burst-fire into a new `combat/_weapons.py` module.
-- [ ] New function: `_fire_single(player_state, target, weapon_id, ...)` → mutates player state, animates, returns hit result.
-- [ ] New function: `_fire_burst(player_state, target, weapon_list, ...)` → calls `_fire_single` per weapon, validates cumulative costs.
-- [ ] Also used by enemy AI fire path from `_ai.py`.
+- [x] Move fire logic (the `f` handler) into a new `combat/_weapons.py` module.
+- [x] New function: `_fire_weapons(...)` — 19 positional params, mutates state in place, returns `None`.
+- [x] Moved `_check_fire_ready` alongside the fire logic (was a module-level function in `_loop.py`).
+- [x] Single-fire (space/enter) was removed in Phase 1, so only burst-fire (`f`) was extracted.
+- [x] Removing dead imports from `_loop.py`: `resolve_damage`, `can_afford_action`, `calc_hit_chance`, `find_weapon`, `_animate_laser_shot`, `_animate_explosion`.
+- [x] `_loop.py` is now ~540 lines (was ~680).
 
-**Smoke test**: Verify all fire modes work identically.
+**Smoke test**: ✅ PASS
+**Commit**: `e703c97`
 
 ### Phase 4 — Optimizations
 
