@@ -53,8 +53,7 @@ SPEC = PlanetSpec(
         ),
     ),
     showroom_ships=(
-        ("scout",   3,  2),
-        ("hauler",  7,  2),
+        ("scout",   3, 2),
         ("cruiser", 11, 4),
     ),
     # Planet-local NPC overrides: re-skin the barkeep + militia

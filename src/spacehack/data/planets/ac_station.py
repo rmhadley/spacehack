@@ -65,8 +65,6 @@ SPEC = PlanetSpec(
         ),
     ),
     showroom_ships=(
-        # Two ships for science-vessel flavour (a Scout + the bigger Hauler
-        # for cargo runs between the lab and Proxima).
         ("scout",  3, 2),
         ("hauler", 7, 4),
     ),

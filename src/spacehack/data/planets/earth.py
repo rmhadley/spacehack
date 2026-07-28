@@ -50,9 +50,8 @@ SPEC = PlanetSpec(
         ),
     ),
     showroom_ships=(
-        ("scout",   3,  2),
-        ("hauler",  7,  2),
-        ("cruiser", 11, 4),
+        ("scout",  3, 2),
+        ("hauler", 7, 2),
     ),
     npc_overrides=(),    # Earth uses every global NPCS entry verbatim.
     produces=(

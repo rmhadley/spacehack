@@ -44,8 +44,8 @@ SPEC = PlanetSpec(
         ),
     ),
     showroom_ships=(
-        ("scout",  3, 2),
-        ("hauler", 7, 4),
+        ("scout",   3, 2),
+        ("cruiser", 11, 4),
     ),
     npc_overrides=(),
     produces=(
