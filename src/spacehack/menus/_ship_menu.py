@@ -136,85 +136,78 @@ def _run_loadout_view(ctx) -> None:
     console = make_console()
     max_w = SCREEN_WIDTH - HUD_WIDTH - 2
 
-    def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[:max_w - 1] + '…'
-
-    # Left margin for all content lines.
-    LEFT_X = 6
-
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=LEFT_X, y=row, string=text, fg=fg, bg=(0, 0, 0))
+    from ..ui import paint_text
 
     def _render() -> None:
         console.clear()
         from ..data.weapons import find_weapon as _fw
         from ..data.modules import find_module as _fm
 
-        cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 4
+        max_w = SCREEN_WIDTH - HUD_WIDTH - 2
+        div = "-" * max_w
 
+        cy = 2
         # Title (centered)
-        title_text = f"YOUR {ship_spec.name.upper()} — LOADOUT"
-        console.print(x=ui.centered_x(title_text, SCREEN_WIDTH), y=cy, string=title_text, fg=ui.COLOR_TITLE)
+        title_text = f"LOADOUT \u2014 {ship_spec.name.upper()}"
+        paint_text(console, ui.centered_x(title_text, SCREEN_WIDTH), cy, title_text, fg=ui.COLOR_TITLE)
         cy += 2
 
-        # Weapons
+        # Ship stats header
+        header = (
+            f"Fuel: {owned.fuel}/{ship_spec.max_fuel}  |  "
+            f"Hull: {owned.hull_damage_pct}%  |  "
+            f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}  |  "
+            f"Shields: {ship_spec.base_shield_max}  |  "
+            f"Power: {ship_spec.base_power_gen}"
+        )
+        paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
+        cy += 2
+
+        # Divider
+        paint_text(console, 2, cy, div, fg=(90, 90, 90))
+        cy += 1
+
+        # Weapons section
         wpn_count = len(owned.weapons)
-        wpn_slots = ship_spec.weapon_slots
-        paint(cy, f"Weapons ({wpn_count}/{wpn_slots}):", fg=ui.COLOR_VALUE_WHITE)
+        paint_text(console, 2, cy, f"WEAPONS  ({wpn_count}/{ship_spec.weapon_slots} slots)", fg=ui.COLOR_TITLE)
         cy += 1
         if wpn_count == 0:
-            paint(cy, "  (none installed)", fg=ui.COLOR_VALUE_DIM)
+            paint_text(console, 4, cy, "(none installed)", fg=ui.COLOR_VALUE_DIM)
             cy += 1
         else:
             for wid in owned.weapons:
                 try:
                     ws = _fw(wid)
-                    line = f"  {ws.name}  dmg:{ws.damage}  acc:{ws.accuracy}%  range:{ws.min_range}-{ws.max_range}"
+                    line = f"  {ws.name:<20} dmg:{ws.damage:>2}  acc:{ws.accuracy:>2}%  range:{ws.min_range}-{ws.max_range}"
                 except KeyError:
                     line = f"  {wid} (unknown)"
-                paint(cy, fit(line), fg=ui.COLOR_OPTION)
+                paint_text(console, 4, cy, line, fg=ui.COLOR_OPTION)
                 cy += 1
 
         cy += 1
 
-        # Modules
+        # Modules section
         mod_count = len(owned.modules)
-        mod_slots = ship_spec.module_slots
-        paint(cy, f"Modules ({mod_count}/{mod_slots}):", fg=ui.COLOR_VALUE_WHITE)
+        paint_text(console, 2, cy, f"MODULES  ({mod_count}/{ship_spec.module_slots} slots)", fg=ui.COLOR_TITLE)
         cy += 1
         if mod_count == 0:
-            paint(cy, "  (none installed)", fg=ui.COLOR_VALUE_DIM)
+            paint_text(console, 4, cy, "(none installed)", fg=ui.COLOR_VALUE_DIM)
             cy += 1
         else:
             for mid in owned.modules:
                 try:
                     ms = _fm(mid)
-                    paint(cy, f"  {ms.name}", fg=ui.COLOR_OPTION)
+                    paint_text(console, 4, cy, ms.name, fg=ui.COLOR_OPTION)
                     cy += 1
-                    paint(cy, f"    {ms.description}", fg=ui.COLOR_VALUE_DIM)
+                    paint_text(console, 6, cy, ms.description, fg=ui.COLOR_VALUE_DIM)
                     cy += 1
                 except KeyError:
-                    paint(cy, f"  {mid} (unknown)", fg=ui.COLOR_VALUE_DIM)
+                    paint_text(console, 4, cy, f"{mid} (unknown)", fg=ui.COLOR_VALUE_DIM)
                     cy += 1
 
-        cy += 1
-
-        # Stats
-        paint(cy, "Stats:", fg=ui.COLOR_VALUE_WHITE)
-        cy += 1
-        stats_lines = [
-            f"  Fuel: {owned.fuel} / {ship_spec.max_fuel}",
-            f"  Hull: {owned.hull_damage_pct}% damage",
-            f"  Cargo: {owned.cargo_used} / {ship_spec.max_cargo} used",
-            f"  Shields: {ship_spec.base_shield_max} max",
-            f"  Power Gen: {ship_spec.base_power_gen}",
-        ]
-        for line in stats_lines:
-            paint(cy, fit(line), fg=ui.COLOR_VALUE_WHITE)
-            cy += 1
-
-        cy += 1
-        paint(cy, "Press ESC to go back.", fg=ui.COLOR_INSTRUCTION)
+        # Hint
+        cy += 2
+        paint_text(console, 2, cy, "Press ESC to go back.", fg=ui.COLOR_INSTRUCTION)
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event: tcod.event.Event) -> ShipMenuAction | None:
