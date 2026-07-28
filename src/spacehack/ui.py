@@ -596,3 +596,108 @@ class Modal:
                 elif outcome is not None and getattr(outcome, "name", None) == "IGNORE":
                     continue
                 return outcome
+
+
+# ---------------------------------------------------------------------------
+# Shared split-screen primitives (used by trade.py and the loadout UI)
+# ---------------------------------------------------------------------------
+
+
+def paint_text(
+    console,
+    x: int, y: int, text: str, *,
+    fg,
+    max_x: int | None = None,
+) -> None:
+    """Print ``text`` character-by-character, optionally clipping at ``max_x``."""
+    for i, ch in enumerate(text):
+        if max_x is None or x + i < max_x:
+            console.print(x=x + i, y=y, string=ch, fg=fg)
+
+
+def paint_centered(
+    console,
+    y: int, text: str, *,
+    fg,
+) -> None:
+    """Print ``text`` centered at row ``y``.
+
+    Uses :func:`centered_x` for horizontal positioning.
+    """
+    from .engine import SCREEN_WIDTH
+    console.print(x=centered_x(text, SCREEN_WIDTH), y=y, string=text, fg=fg)
+
+
+def format_split_row(
+    name: str, label: str, suffix: str,
+    selected: bool, col_w: int,
+) -> str:
+    """Format a row that fits exactly in ``col_w`` columns.
+
+    ``name`` is truncated and padded to leave room for the
+    ``label`` (e.g. " 14$") and ``suffix`` (e.g. "(30)").
+    Marker ``"> "`` or ``"  "`` is included in the width calculation.
+    """
+    marker = "> " if selected else "  "
+    fixed = len(marker) + 1 + len(label) + 1
+    name_w = max(4, col_w - fixed - len(suffix))
+    trimmed = name[:name_w].ljust(name_w)
+    return f"{marker}{trimmed} {label} {suffix}"
+
+
+def render_split_frame(
+    console,
+    *,
+    title: str,
+    left_label: str,
+    right_label: str,
+    focus: int,
+    sel: int,
+    left_rows: list[tuple[str, str, str, tuple]],
+    right_rows: list[tuple[str, str, str, tuple]],
+    footer_left: str,
+    footer_right: str,
+    hint: str,
+) -> None:
+    """Render a split-screen two-panel frame.
+
+    ``left_rows`` / ``right_rows`` are pre-computed
+    ``(name, label, suffix, fg)`` tuples — the same format used
+    by :func:`format_split_row`.
+    ``focus`` (0 = left, 1 = right) and ``sel`` drive the per-row
+    selection highlight.
+    """
+    from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
+    console.clear()
+    max_w = SCREEN_WIDTH - HUD_WIDTH - 2
+    col_w = max_w // 2 - 2
+    cy = 2
+    paint_text(console, centered_x(title, SCREEN_WIDTH), cy, title, fg=COLOR_TITLE)
+    cy += 2
+    left_fg = COLOR_TITLE if focus == 0 else COLOR_OPTION
+    right_fg = COLOR_TITLE if focus == 1 else COLOR_OPTION
+    paint_text(console, 2, cy, left_label, fg=left_fg)
+    paint_text(console, max_w // 2 + 2, cy, right_label, fg=right_fg)
+    sep_x = max_w // 2
+    for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
+        console.print(x=sep_x, y=sep_y, string="\u2502", fg=COLOR_VALUE_DIM)
+    cy += 1
+    for i, (name, label, suffix, fg) in enumerate(left_rows):
+        is_sel = focus == 0 and i == sel
+        paint_text(
+            console, 2, cy + i,
+            format_split_row(name, label, suffix, is_sel, col_w),
+            fg=COLOR_OPTION_HIGHLIGHT if is_sel else fg,
+        )
+    for i, (name, label, suffix, fg) in enumerate(right_rows):
+        is_sel = focus == 1 and i == sel
+        col_x = max_w // 2 + 2
+        paint_text(
+            console, col_x, cy + i,
+            format_split_row(name, label, suffix, is_sel, col_w),
+            fg=COLOR_OPTION_HIGHLIGHT if is_sel else fg,
+        )
+    foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
+    paint_text(console, 2, foot_y, footer_left, fg=COLOR_VALUE_WHITE)
+    paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(footer_right) - 2, foot_y, footer_right, fg=COLOR_VALUE_WHITE)
+    paint_text(console, 2, foot_y + 2, hint, fg=COLOR_INSTRUCTION)

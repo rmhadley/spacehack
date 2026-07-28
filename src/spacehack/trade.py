@@ -26,6 +26,7 @@ from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
 from .input_helpers import _try_open_guide
+from .ui import paint_text, paint_centered, format_split_row, render_split_frame
 
 
 NEUTRAL_TARGET: int = 8
@@ -262,107 +263,10 @@ def _free_cargo(owned) -> int:
     return ship_spec.max_cargo - owned.cargo_used
 
 
-# ---------------------------------------------------------------------------
-# Shared render helpers
-# ---------------------------------------------------------------------------
-
-
-def _paint_text(
-    console,
-    x: int, y: int, text: str, *,
-    fg,
-) -> None:
-    """Print ``text`` character-by-character, clipping at the viewport edge."""
-    for i, ch in enumerate(text):
-        if x + i < SCREEN_WIDTH - HUD_WIDTH:
-            console.print(x=x + i, y=y, string=ch, fg=fg)
-
-
-def _paint_centered(
-    console,
-    y: int, text: str, *,
-    fg,
-) -> None:
-    """Print ``text`` centered at row ``y``."""
-    console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=y, string=text, fg=fg)
-
-
-def _format_trade_line(
-    name: str, price_label: str, suffix: str,
-    selected: bool, col_w: int,
-) -> str:
-    """Format a trade row that fits exactly in ``col_w`` columns.
-
-    ``name`` is truncated and padded to leave room for the
-    ``price_label`` (e.g. " 14$") and ``suffix`` (e.g. "(30)").
-    Marker ``"> "`` or ``"  "`` is included in the width calculation.
-    """
-    marker = "> " if selected else "  "
-    fixed = len(marker) + 1 + len(price_label) + 1
-    name_w = max(4, col_w - fixed - len(suffix))
-    trimmed = name[:name_w].ljust(name_w)
-    return f"{marker}{trimmed} {price_label} {suffix}"
-
-
-# ---------------------------------------------------------------------------
-# Shared split-screen trade frame renderer
-# ---------------------------------------------------------------------------
-
-
-def _render_trade_frame(
-    console,
-    *,
-    title: str,
-    left_label: str,
-    right_label: str,
-    focus: int,
-    sel: int,
-    left_rows: list[tuple[str, str, str, tuple]],
-    right_rows: list[tuple[str, str, str, tuple]],
-    cargo_str: str,
-    credits_str: str,
-    hint: str,
-) -> None:
-    """Render the split-screen trade frame.
-
-    ``left_rows`` / ``right_rows`` are pre-computed
-    ``(name, price_label, suffix, fg)`` tuples.
-    ``focus`` (0 = left, 1 = right) and ``sel`` drive the per-row
-    selection highlight.
-    """
-    console.clear()
-    max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-    col_w = max_w // 2 - 2
-    cy = 2
-    _paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
-    cy += 2
-    left_fg = ui.COLOR_TITLE if focus == 0 else ui.COLOR_OPTION
-    right_fg = ui.COLOR_TITLE if focus == 1 else ui.COLOR_OPTION
-    _paint_text(console, 2, cy, left_label, fg=left_fg)
-    _paint_text(console, max_w // 2 + 2, cy, right_label, fg=right_fg)
-    sep_x = max_w // 2
-    for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
-        console.print(x=sep_x, y=sep_y, string="\u2502", fg=ui.COLOR_VALUE_DIM)
-    cy += 1
-    for i, (name, price_label, suffix, fg) in enumerate(left_rows):
-        is_sel = focus == 0 and i == sel
-        _paint_text(
-            console, 2, cy + i,
-            _format_trade_line(name, price_label, suffix, is_sel, col_w),
-            fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else fg,
-        )
-    for i, (name, price_label, suffix, fg) in enumerate(right_rows):
-        is_sel = focus == 1 and i == sel
-        col_x = max_w // 2 + 2
-        _paint_text(
-            console, col_x, cy + i,
-            _format_trade_line(name, price_label, suffix, is_sel, col_w),
-            fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else fg,
-        )
-    foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
-    _paint_text(console, 2, foot_y, cargo_str, fg=ui.COLOR_VALUE_WHITE)
-    _paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(credits_str) - 2, foot_y, credits_str, fg=ui.COLOR_VALUE_WHITE)
-    _paint_text(console, 2, foot_y + 2, hint, fg=ui.COLOR_INSTRUCTION)
+# (Shared render helpers _paint_text, _paint_centered, _format_trade_line,
+# and _render_trade_frame were extracted to ui.py as paint_text,
+# paint_centered, format_split_row, render_split_frame.)
+# This module imports them from ui.py at the top of the file.
 
 
 # ---------------------------------------------------------------------------
@@ -397,9 +301,9 @@ def _run_quantity_prompt(
         hint = "UP/+ increase  DOWN/- decrease  ENTER confirm  ESC cancel"
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2
-        _paint_centered(console, cy - 2, prompt, fg=ui.COLOR_TITLE)
-        _paint_centered(console, cy + 1, qty_text, fg=ui.COLOR_VALUE_WHITE)
-        _paint_centered(console, cy + 3, hint, fg=ui.COLOR_INSTRUCTION)
+        paint_centered(console, cy - 2, prompt, fg=ui.COLOR_TITLE)
+        paint_centered(console, cy + 1, qty_text, fg=ui.COLOR_VALUE_WHITE)
+        paint_centered(console, cy + 3, hint, fg=ui.COLOR_INSTRUCTION)
 
     def _update(event: tcod.event.Event) -> _QOut:
         nonlocal qty
@@ -495,9 +399,9 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         line2 = f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
-        _paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
-        _paint_centered(console, cy + 2, line1, fg=ui.COLOR_VALUE_WHITE)
-        _paint_centered(console, cy + 3, line2, fg=ui.COLOR_VALUE_DIM)
+        paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
+        paint_centered(console, cy + 2, line1, fg=ui.COLOR_VALUE_WHITE)
+        paint_centered(console, cy + 3, line2, fg=ui.COLOR_VALUE_DIM)
 
         ui.render_selectable_list(
             console, SCREEN_WIDTH, SCREEN_HEIGHT,
@@ -619,7 +523,7 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
         cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
         credits_str = f"Credits: {ctx.stats.credits}"
 
-        _render_trade_frame(
+        render_split_frame(
             console,
             title=f"TRADE \u2014 {npc_spec.name.upper()}",
             left_label=f"\u2502 {npc_spec.name}" if _focus == 0 else f"  {npc_spec.name} ",
@@ -628,8 +532,8 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
             sel=_sel,
             left_rows=_left_rows,
             right_rows=_right_rows,
-            cargo_str=cargo_str,
-            credits_str=credits_str,
+            footer_left=cargo_str,
+            footer_right=credits_str,
             hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
         )
 
@@ -808,7 +712,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             cargo_str = "Cargo: N/A"
         credits_str = f"Credits: {ctx.stats.credits}"
 
-        _render_trade_frame(
+        render_split_frame(
             console,
             title=f"TRADE — {spec.name.upper()}",
             left_label="\u2502 Station Inventory" if _focus == 0 else "  Station Inventory ",
@@ -817,8 +721,8 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             sel=_sel,
             left_rows=_left_rows,
             right_rows=_right_rows,
-            cargo_str=cargo_str,
-            credits_str=credits_str,
+            footer_left=cargo_str,
+            footer_right=credits_str,
             hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
         )
 
@@ -989,20 +893,20 @@ def open_cargo(ctx: GameContext) -> None:
         cy = 2
         # Title
         title = f"CARGO \u2014 {ship_name.upper()} ({_cargo_used}/{max_cargo})"
-        _paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
+                paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
         cy += 2
 
         # Ship stats header
         header = f"Hull: {hull_damage}% damage  |  Wpn: {weapons_n}/{weapon_slots}  |  Mod: {modules_n}/{module_slots}"
-        _paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
+        paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
         cy += 2
 
         # Divider
-        _paint_text(console, 2, cy, "-" * (SCREEN_WIDTH - HUD_WIDTH - 2), fg=(90, 90, 90))
+        paint_text(console, 2, cy, "-" * (SCREEN_WIDTH - HUD_WIDTH - 2), fg=(90, 90, 90))
         cy += 1
 
         # Trade goods section
-        _paint_text(console, 2, cy, "TRADE GOODS:", fg=ui.COLOR_TITLE)
+        paint_text(console, 2, cy, "TRADE GOODS:", fg=ui.COLOR_TITLE)
         cy += 1
         if _items:
             for i, (gid, qty, vol) in enumerate(_items):
@@ -1017,33 +921,33 @@ def open_cargo(ctx: GameContext) -> None:
                 marker = "> " if is_sel else "  "
                 line = f"{marker}{name:<20} {qty:>3} crates ({vol:>3}u)"
                 fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-                _paint_text(console, 4, cy, line, fg=fg)
+                paint_text(console, 4, cy, line, fg=fg)
                 cy += 1
         else:
-            _paint_text(console, 4, cy, "(empty)", fg=ui.COLOR_VALUE_DIM)
+            paint_text(console, 4, cy, "(empty)", fg=ui.COLOR_VALUE_DIM)
             cy += 1
         cy += 1
 
         # Mission cargo (read-only)
-        _paint_text(console, 2, cy, "MISSION CARGO:", fg=ui.COLOR_TITLE)
+        paint_text(console, 2, cy, "MISSION CARGO:", fg=ui.COLOR_TITLE)
         cy += 1
         if active_mission is not None:
-            _paint_text(console, 4, cy, f"{_mission_res} unit{'' if _mission_res == 1 else 's'} reserved \u2014 {mission_title}", fg=ui.COLOR_VALUE_WHITE)
+            paint_text(console, 4, cy, f"{_mission_res} unit{'' if _mission_res == 1 else 's'} reserved \u2014 {mission_title}", fg=ui.COLOR_VALUE_WHITE)
         else:
-            _paint_text(console, 4, cy, "0 units (no active mission)", fg=ui.COLOR_VALUE_DIM)
+            paint_text(console, 4, cy, "0 units (no active mission)", fg=ui.COLOR_VALUE_DIM)
         cy += 2
 
         # Ammo (read-only)
-        _paint_text(console, 2, cy, "AMMO:", fg=ui.COLOR_TITLE)
+        paint_text(console, 2, cy, "AMMO:", fg=ui.COLOR_TITLE)
         cy += 1
-        _paint_text(console, 4, cy, f"{_ammo} unit{'' if _ammo == 1 else 's'}", fg=ui.COLOR_VALUE_WHITE)
+        paint_text(console, 4, cy, f"{_ammo} unit{'' if _ammo == 1 else 's'}", fg=ui.COLOR_VALUE_WHITE)
         cy += 2
 
         # Free space
-        _paint_text(console, 2, cy, "FREE:", fg=ui.COLOR_TITLE)
+        paint_text(console, 2, cy, "FREE:", fg=ui.COLOR_TITLE)
         cy += 1
         free_fg = ui.COLOR_VALUE_WHITE if _free > 0 else (255, 80, 80)
-        _paint_text(console, 4, cy, f"{_free} unit{'' if _free == 1 else 's'}", fg=free_fg)
+        paint_text(console, 4, cy, f"{_free} unit{'' if _free == 1 else 's'}", fg=free_fg)
         cy += 2
 
         # Jettison hint (only when there are trade goods to jettison)
@@ -1051,7 +955,7 @@ def open_cargo(ctx: GameContext) -> None:
             hint = "[J] jettison selected  [C/ESC] close"
         else:
             hint = "[C/ESC] close"
-        _paint_text(console, 2, cy, hint, fg=ui.COLOR_INSTRUCTION)
+        paint_text(console, 2, cy, hint, fg=ui.COLOR_INSTRUCTION)
 
     def _update(event: tcod.event.Event) -> _COut:
         nonlocal _sel
