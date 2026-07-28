@@ -9,7 +9,7 @@ MODULES: tuple[ModuleSpec, ...] = (
     ModuleSpec(
         id="shield_mk1", name="Shield Mk. 1",
         slot_type="system",
-        description="Basic deflector. Sets shield cap to 20. Toggle regen 0-10 in combat.",
+        description="Basic deflector. +20 max shields.",
         max_shield_bonus=20, price=60,
     ),
     ModuleSpec(
