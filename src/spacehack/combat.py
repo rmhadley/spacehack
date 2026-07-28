@@ -1740,6 +1740,17 @@ def run_combat(
                     player_state["ap_remaining"] -= _total_ap
                     player_state["power_pool"] -= _total_power
                     break
+                # [1-9] / [Num1-Num9] -> Toggle weapon on/off
+                if sym_name in (
+                    "n1","n2","n3","n4","n5","n6","n7","n8","n9",
+                    "kp_1","kp_2","kp_3","kp_4","kp_5","kp_6",
+                    "kp_7","kp_8","kp_9",
+                ):
+                    _idx = int(sym_name[-1]) - 1
+                    if 0 <= _idx < len(weapons_list):
+                        active_weapons[_idx] = not active_weapons[_idx]
+                    break
+
                 # Any other key: ignore
                 continue
 
