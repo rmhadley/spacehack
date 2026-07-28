@@ -146,21 +146,21 @@ the location and the first divider. Unobtrusive but always visible.
 duplication and single-responsibility violations.*
 
 **Checklist:**
-- [ ] `format_date()` is called in exactly ONE place per HUD mode — the `render_hud()`
+- [x] `format_date()` is called in exactly ONE place per HUD mode — the `render_hud()`
   function. No separate `format_date()` call duplicated in city vs space branches.
   Both modes should call the same `format_date(ctx)` and print it in the same spot.
-- [ ] `advance_time()` is the ONLY function that mutates `ctx.time_day`,
+- [x] `advance_time()` is the ONLY function that mutates `ctx.time_day`,
   `ctx.time_month`, or `ctx.time_year`. No file other than `time.py` does
   `ctx.time_day += 1` or equivalent.
-- [ ] The two tick call sites (`_jump_to_system` and the landing path) both call
+- [x] The two tick call sites (`_jump_to_system` and the landing path) both call
   `advance_time(ctx, 1)` — not `advance_time(ctx, 1)` in one place and manual
   field mutation in the other.
-- [ ] No dead imports: check that `time.py` imports are used, `__main__.py` and
+- [x] No dead imports: check that `time.py` imports are used, `__main__.py` and
   `navigation.py` don't have leftover unused imports from the wiring.
-- [ ] `GameContext` has exactly three new fields (`time_day`, `time_month`,
+- [x] `GameContext` has exactly three new fields (`time_day`, `time_month`,
   `time_year`) — no extra helper fields crept in that belong in `time.py` instead.
-- [ ] Run smoke test.
-- [ ] Fix any DRY issues found, then commit (separate commit from Phase 1).
+- [x] Run smoke test.
+- [x] Fix any DRY issues found, then commit (separate commit from Phase 1).
 
 ### Phase 3: Month/year rollover log messages
 
