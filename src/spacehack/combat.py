@@ -1722,6 +1722,8 @@ def run_combat(
                                         width=1, height=1,
                                         loot_data={"good_id": _loot_good_id, "quantity": 1},
                                     ))
+                                    # Don't fire remaining weapons — target already destroyed
+                                    break
                         else:
                             _p_log(f"{_bws.name} misses {_target.name}!")
                         # Ammo deduction for missile weapons (regardless of hit)
