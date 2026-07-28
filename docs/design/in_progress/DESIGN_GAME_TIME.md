@@ -2,10 +2,10 @@
 
 ## Overview
 
-Add a day/month/year clock to the game that advances when the player takes
-meaningful world-changing actions (jump gates, planet landings). The clock lives
-on `GameContext` so every subsystem can read it, and a single `advance_time()`
-helper centralizes the tick + future hook points.
+Add a day/month/year clock to the game that advances as the player flies
+through space. Every 10 space moves (manual + auto-nav) = 1 day. The clock
+lives on `GameContext` so every subsystem can read it, and a single
+`advance_time()` helper centralizes the tick + future hook points.
 
 ## Philosophy alignment
 
@@ -20,10 +20,11 @@ helper centralizes the tick + future hook points.
 ## Data model
 
 ```python
-# On GameContext (three new fields):
+# On GameContext (four new fields):
 time_day: int = 1       # 1–30
 time_month: int = 1     # 1–12
 time_year: int = 2200   # starting year
+move_counter: int = 0   # increments per space move; ticks a day at 10
 ```
 
 - 30 days per month, 12 months per year. Simple, predictable, no leap-year edge cases.
@@ -35,11 +36,15 @@ time_year: int = 2200   # starting year
 ```
 advance_time(ctx, days: int) -> None
     Advance the clock by `days`. Wraps months at 30, years at 12.
-    Detects month/year rollover and fires subscriber hooks:
-      - _on_month_change(ctx)  → reset shop visit counters, log messages
-      - _on_year_change(ctx)   → future: annual events, faction shifts
+    Detects month/year rollover and fires subscriber hooks.
     Also calls existing tick_economy(ctx) on every advance.
-    This is THE single function that mutates time — all call sites go through it.
+    This is THE single function that mutates time — all paths go through it.
+    (Now only called internally by tick_move; no external callers remain.)
+
+tick_move(ctx) -> None
+    Count a space movement. Every 10 calls = 1 day via advance_time.
+    Counter persists across jumps and landings (does NOT reset).
+    Called from manual space movement (__main__.py) and auto-nav (navigation.py).
 
 format_date(ctx) -> str
     Return "Date: YYYYMMDD" for HUD rendering (e.g. "Date: 22000115").
@@ -48,17 +53,25 @@ format_date(ctx) -> str
 
 ## Tick events (where time advances)
 
+Time advances through **movement**: every 10 space moves = 1 day. A "move"
+is one cell of travel in space mode — both manual (h/j/k/l/y/u/b/n) and
+auto-nav (G key) steps count. The counter persists across all actions
+(jumps/lands do NOT reset it).
+
 | Event | Days advanced | Rationale |
 |-------|--------------|-----------|
-| Jump gate travel | 1 day | Interstellar jump takes roughly a day |
-| Planet landing | 1 day | Landing, docking, disembarking takes time |
-| Launch to space | 0 days | Taking off is quick; no meaningful time passes |
+| 10 space moves (manual) | 1 day | Flying across a solar system takes time |
+| 10 auto-nav steps | 1 day | Same rate as manual — distance = time |
+| Jump gate travel | 0 days | Jump is instantaneous FTL |
+| Planet landing | 0 days | Docking is quick |
+| Launch to space | 0 days | Taking off is quick |
 | Wait (`.` in space) | 0 days | Waiting is minutes/hours, not days |
 | Walk (city mode) | 0 days | Walking around a city is minutes |
+| Combat moves | 0 days | Combat has its own movement system |
 
-Only **jump** and **land** advance the clock. This keeps the clock meaningful
-(not ticking every step) while still creating a sense of time passing as you
-travel the galaxy.
+This makes distance meaningful: Earth → Mars (~80 cells) = ~8 days,
+Earth → Alpha Centauri Gate (~55 cells) = ~5.5 days. The player feels
+the scale of the solar system through the clock ticking as they fly.
 
 ## HUD display
 
@@ -211,7 +224,51 @@ duplication and single-responsibility violations.*
    should advance time by 1 day AND tick the economy. Prices should
    gradually shift across multiple actions.
 
-### Phase 5: DRY evaluation — economy consolidation
+### Phase 5: Movement-based time (design pivot)
+
+*Replaced the old jump/land tick model with movement-based time.*
+
+- [x] Add `move_counter: int = 0` to `GameContext`
+- [x] Add `tick_move(ctx)` to `time.py` — every 10 calls advances time by 1 day
+- [x] Remove `advance_time(ctx, 1)` from `_jump_to_system` (navigation.py)
+- [x] Remove `advance_time(ctx, 1)` from landing path (`__main__.py`)
+- [x] Wire `tick_move(ctx)` into manual space movement (`__main__.py`)
+- [x] Wire `tick_move(ctx)` into auto-nav step loop (`_run_goto` in navigation.py)
+- [x] Smoke test + code review
+- [x] Commit
+
+**PLAYTEST — Phase 5:**
+
+*You'll verify: time advances through movement, not jump/land.*
+
+1. **Manual movement ticks the clock** — start a new game, launch to
+   space. Fly around with h/j/k/l. After exactly 10 moves, the HUD
+   date should advance by 1 day (from Day 1 to Day 2, Month 1, 2200).
+   After 20 more moves (30 total), you should be at Day 4.
+
+2. **Auto-nav ticks the clock** — press `G`, pick a destination like
+   Mercury. Watch the auto-nav animation. The date should advance
+   roughly every 10 steps. For a ~30-step auto-nav, you should see
+   ~3 days pass.
+
+3. **Jump does NOT tick the clock** — after auto-nav to a jump gate,
+   bump into it and jump. The date should NOT change. Jumping is
+   instantaneous FTL — no time passes.
+
+4. **Landing does NOT tick the clock** — after jumping to a new system,
+   fly to a planet and land. The date should NOT change from the
+   landing action itself. Only the flight to reach the planet costs time.
+
+5. **Counter persists across actions** — fly 7 steps in space (7/10
+   toward next day), then land on a planet. Launch back to space. Fly
+   3 more steps. The date should advance by 1 day (7 + 3 = 10).
+   The counter accumulated across the landing.
+
+6. **Combat does NOT tick** — if you encounter pirates mid-flight, the
+   combat moves should NOT count toward the 10-move counter. After
+   combat, your counter should be where it was before combat started.
+
+### Phase 6: DRY evaluation — economy consolidation
 
 *After Phase 4, verify the economy tick is truly single-sourced.*
 
@@ -228,7 +285,7 @@ duplication and single-responsibility violations.*
 - [ ] Run smoke test.
 - [ ] Fix any DRY issues found, then commit.
 
-### Phase 6: Shop refresh on month rollover
+### Phase 7: Shop refresh on month rollover
 
 - [ ] `advance_time()` calls `_on_month_change(ctx)` when month wraps
 - [ ] `_on_month_change(ctx)` resets `mech_visit_count` dict → next mechanic visit gets fresh RNG inventory
@@ -259,7 +316,7 @@ duplication and single-responsibility violations.*
    fixed inventory (it uses `mech_weapons` tuple directly, not RNG).
    This is correct — only RNG shops refresh.
 
-### Phase 7: DRY evaluation — month-change hook
+### Phase 8: DRY evaluation — month-change hook
 
 *After Phase 6, verify the month-change hook is cleanly structured.*
 
@@ -279,7 +336,7 @@ duplication and single-responsibility violations.*
 - [ ] Run smoke test.
 - [ ] Fix any DRY issues found, then commit.
 
-### Phase 8: Mission deadline support
+### Phase 9: Mission deadline support
 
 - [ ] Add `time_deadline: tuple[int, int, int] | None` to `ActiveMission`
 - [ ] Mission accept computes deadline = current date + N days from mission spec
@@ -290,13 +347,15 @@ duplication and single-responsibility violations.*
 ## Acceptance criteria
 
 1. Time displays correctly in both city and space HUDs
-2. Jump gate travel advances time by 1 day
-3. Planet landing advances time by 1 day
-4. Other actions (launch, wait, walk) do NOT advance time
-5. Month and year rollover work correctly (30-day months, 12-month years)
-6. Rollover log messages appear
-7. Economy ticks are consolidated into `advance_time()`
-8. Smoke test passes after every phase
+2. Every 10 manual space moves advances time by 1 day
+3. Every 10 auto-nav steps advances time by 1 day
+4. Move counter persists across jumps and landings (does NOT reset)
+5. Jumps, landings, launch, wait, and city walks do NOT advance time directly
+6. Combat moves do NOT count toward the move counter
+7. Month and year rollover work correctly (30-day months, 12-month years)
+8. Rollover log messages appear
+9. Economy ticks are consolidated into `advance_time()`
+10. Smoke test passes after every phase
 
 ## Planned future subscribers to `advance_time()`
 

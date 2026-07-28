@@ -1,8 +1,9 @@
 """Game time: day/month/year clock and tick helpers.
 
-Central choke-point for all time-advancing actions (jump gates,
-planet landings). Every subsystem that needs to react to time
-passing hooks in through :func:`advance_time`.
+Central choke-point for all time-advancing actions. Time passes
+through movement: every 10 space moves (manual + auto-nav) = 1 day.
+Every subsystem that needs to react to time passing hooks in
+through :func:`advance_time`.
 """
 
 from __future__ import annotations
@@ -45,6 +46,20 @@ def advance_time(ctx: GameContext, days: int) -> None:
 
     from .trade import tick_economy as _tick_economy
     _tick_economy(ctx)
+
+
+def tick_move(ctx: GameContext) -> None:
+    """Count a space movement and advance time every 10 moves.
+
+    Call this on every manual space move and auto-nav step.
+    Accumulates across all space actions (jumps and landings do
+    NOT reset the counter). Calls :func:`advance_time` when the
+    counter reaches 10.
+    """
+    ctx.move_counter += 1
+    if ctx.move_counter >= 10:
+        advance_time(ctx, 1)
+        ctx.move_counter = 0
 
 
 def format_date(ctx: GameContext) -> str:

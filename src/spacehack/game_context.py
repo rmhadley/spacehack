@@ -207,8 +207,9 @@ class GameContext:
     # Each entry is rendered by the space-mode render loop for its
     # remaining lifetime, then removed. Empty by default.
     npc_flash_events: list[NpcFlashEvent] = dataclasses.field(default_factory=list)
-    # Game time: day/month/year clock. Advanced by 1 day on jump gate
-    # travel and planet landing. Month wraps at 30, year wraps at 12.
+    # Game time: day/month/year clock. Advanced every 10 space moves
+    # (manual + auto-nav). Month wraps at 30, year wraps at 12.
     time_day: int = 1
     time_month: int = 1
     time_year: int = 2200
+    move_counter: int = 0  # increments per space move; ticks a day at 10

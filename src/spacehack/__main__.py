@@ -69,7 +69,7 @@ from .navigation import (
     _jump_to_system,
 )
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
-from .time import advance_time, format_date
+from .time import tick_move, format_date
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
@@ -322,6 +322,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 # Move procedural NPCs after the player moves.
                 from .npc_ships import move_npcs as _mn
                 _mn(ctx, game_map)
+                tick_move(ctx)
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
@@ -359,7 +360,6 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             if outcome is PlanetMenuOutcome.LAND:
                                 # Shared: runs on ANY landing.
                                 _run_cargo_scan(ctx, pid)
-                                advance_time(ctx, 1)
                                 hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
 
                                 if pid == current_city_id:

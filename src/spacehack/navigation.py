@@ -23,7 +23,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .data import solar_systems as solar_systems_module
 from .data.npc_ships import find_npc_ship
 from .input_helpers import _try_open_guide
-from .time import format_date
+from .time import tick_move, format_date
 
 
 # ---------------------------------------------------------------------------
@@ -707,6 +707,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         return (GotoOutcome.COMBAT, _encounter)
                     from .npc_ships import move_npcs as _mn
                     _mn(ctx, ctx.game_map)
+                    tick_move(ctx)
                 ctx.log.add('Auto-nav complete.')
                 return (GotoOutcome.COMPLETED, None)
             continue
@@ -928,8 +929,6 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     :class:`world.GameMap` plus the ship :class:`world.Entity` the
     dispatcher should rebind to as the new ``player``.
     """
-    from .time import advance_time
-    advance_time(ctx, 1)
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
     # Reset any NPC auto-comms warning for the outgoing system so the
     # player gets a fresh warning on their next visit.
