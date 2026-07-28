@@ -393,7 +393,7 @@ def render_title_splash(context: tcod.context.Context) -> None:
 
     # Flavor text
     _lines = [
-        "The year is 2156. Humankind has spread across a dozen star systems,",
+        "The year is 2200. Humankind has spread across a dozen star systems,",
         "linked by jump gates of unknown origin. You are a freelance pilot",
         "making a living on the frontier \u2014 trading, bounty hunting, and",
         "surviving where the law is what you make of it.",

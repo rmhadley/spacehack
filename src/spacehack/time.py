@@ -38,8 +38,9 @@ def advance_time(ctx: GameContext, days: int) -> None:
 
 
 def format_date(ctx: GameContext) -> str:
-    """Return a human-readable date string for HUD display.
+    """Return a compact date string for HUD display.
 
-    Example: ``"Day 15, Month 3, Year 2200"``.
+    Sci-fi YYYYMMDD format: ``"Date: 22000115"`` for Day 15, Month 1, Year 2200.
+    Fits comfortably within HUD_WIDTH (20 chars).
     """
-    return f"Day {ctx.time_day}, Month {ctx.time_month}, Year {ctx.time_year}"
+    return f"Date: {ctx.time_year}{ctx.time_month:02d}{ctx.time_day:02d}"

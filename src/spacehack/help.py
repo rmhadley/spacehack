@@ -61,7 +61,7 @@ class GuideOutcome(Enum):
 _GUIDE_GAME_OVERVIEW = GuideSection(
     title="Game Overview",
     body=(
-        "The year is 2156. Humankind has spread across a dozen star systems, "
+        "The year is 2200. Humankind has spread across a dozen star systems, "
         "linked by jump gates of unknown origin. You are a freelance pilot "
         "making a living on the frontier."
         "\n\n"

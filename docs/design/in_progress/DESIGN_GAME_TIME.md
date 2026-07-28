@@ -42,7 +42,8 @@ advance_time(ctx, days: int) -> None
     This is THE single function that mutates time — all call sites go through it.
 
 format_date(ctx) -> str
-    Return "Day D, Month M, Year YYYY" for HUD rendering.
+    Return "Date: YYYYMMDD" for HUD rendering (e.g. "Date: 22000115").
+    Sci-fi compact format, fits within HUD_WIDTH (20 chars).
 ```
 
 ## Tick events (where time advances)
@@ -314,5 +315,5 @@ the hook point design is validated before we commit to it:
 1. **Starting year?** 2200 feels right for a sci-fi roguelike. Alternatives: 2400, 3000. → Going with 2200.
 2. **Should launching to space cost time?** The user said "landing on planet, traveling through a jump gate" — launch was not mentioned. Starting with 0. Can revisit.
 3. **Should waiting (`.`) cost a fraction of a day?** Could add hours later (0–23 hour field). Out of scope for initial design — `.` costs 0 time.
-4. **Month names?** Using numeric ("Month 3") for simplicity. Could add names later ("March" or sci-fi names).
+4. **Month names?** Resolved — using compact YYYYMMDD sci-fi format (e.g. "Date: 22000115"). No month names needed.
 5. **Shop refresh granularity?** Per-month works well with the 30-day model — each month is 30 jump/land actions, giving enough time between refreshes to feel meaningful without being frustrating. Per-week (every 7 days) could be added later if monthly feels too slow.
