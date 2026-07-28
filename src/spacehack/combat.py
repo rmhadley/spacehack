@@ -273,7 +273,7 @@ def init_combat_state(
         "shields": max_shield,
         "max_shields": max_shield,
         "shields_charged": False,
-        "power_pool": pwr_gen,
+        "power_pool": max(10, pwr_gen * 2) + engineering // 5,
         "max_power": max(10, pwr_gen * 2) + engineering // 5,
         "ap_remaining": ap,
         "ap_total": ap,
