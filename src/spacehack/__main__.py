@@ -166,8 +166,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
     game_map.entities.append(starter_entity)
     player_owned_ship: ship_module.OwnedShip = ship_module.OwnedShip(
         ship_id=starter_ship.id,
-        weapons=('light_laser',),
-        modules=(),
+        weapons=starter_ship.start_weapons,
+        modules=starter_ship.start_modules,
         fuel=starter_ship.max_fuel,
     )
     player_active_mission: mission_module.ActiveMission | None = None
