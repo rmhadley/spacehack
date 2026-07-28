@@ -82,6 +82,11 @@ _GUIDE_GAME_OVERVIEW = GuideSection(
         "Death is permanent: when your ship is destroyed in combat,"
         "you start a fresh run from Earth."
         "\n\n"
+        "Game time advances as you fly through space — every 10 or so"
+        "moves (depending on your ship's speed) equals one day. Watch"
+        "the date in the HUD; months rolling over trigger shop restocks"
+        "and economy ticks."
+        "\n\n"
         "City mode: walk around the city with h/j/k/l. Walk into entities"
         "to interact — ships at the spaceport (buy/launch), NPCs in guild"
         "halls (talk/missions), terminals (trade/repair)."
@@ -256,8 +261,7 @@ _GUIDE_COMBAT = GuideSection(
         "\n"
         "- Actions panel: keybindings for Target, Move, Fire,"
         "Shields, Wait, Flee"
-        "\n
-"
+        "\n"
         "Weapon types:"
         "\n"
         "- Energy (lasers): cost power, unlimited ammo"
@@ -307,7 +311,7 @@ _GUIDE_TRADE = GuideSection(
 )
 
 _GUIDE_MISSIONS = GuideSection(
-    title="Missions & Bounties",
+    title=        "Missions & Bounties",
     body=(
         "Talk to NPCs in guild halls (walk into them) and ask for work."
         "You can only hold one active mission at a time."
@@ -320,6 +324,13 @@ _GUIDE_MISSIONS = GuideSection(
         "- Bounty: destroy a specific enemy ship in a target system."
         "The target is marked on the space map. Engage and destroy to"
         "complete automatically."
+        "\n\n"
+        "Deadlines:"
+        "\n"
+        "- Missions may have a time limit — check the quest log (Q)"
+        "for the due date and days remaining"
+        "\n"
+        "- Expired missions show in red in the quest log"
         "\n\n"
         "Managing missions:"
         "\n"
@@ -343,8 +354,21 @@ _GUIDE_SHIPS = GuideSection(
     title="Ships & Equipment",
     body=(
         "Buy a ship by walking into the ship entity at the spaceport."
-        "Each ship has: hull strength, fuel capacity, cargo capacity,"
-        "weapon slots, module slots, base shields, and power gen."
+        "Each ship has: speed (moves per day), hull strength, fuel capacity,"
+        "cargo capacity, weapon slots, module slots, base shields,"
+        "and power gen."
+        "\n\n"
+        "Ship speed affects travel time:"
+        "\n"
+        "- Scout (14): fastest — 14 moves per day"
+        "\n"
+        "- Starter (10): baseline pace"
+        "\n"
+        "- Hauler (7) / Freighter (6): slow but huge cargo"
+        "\n"
+        "- Cruiser (9) / Frigate (8): combat-focused, moderate speed"
+        "\n"
+        "- Speed determines how many space moves equal one game day"
         "\n\n"
         "Starting loadout:"
         "\n"
@@ -485,6 +509,8 @@ _GUIDE_NAVIGATION = GuideSection(
         "- Pick a planet or jump gate to auto-navigate there"
         "\n"
         "- Combat triggers automatically if enemies cross your path"
+        "\n"
+        "- Time advances with distance — longer trips take more days"
         "\n\n"
         "M (Map):"
         "\n"
