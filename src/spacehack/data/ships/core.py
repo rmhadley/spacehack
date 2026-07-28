@@ -38,6 +38,8 @@ SHIPS: tuple[Ship, ...] = (
         base_power_gen=2,
         base_shield_max=0,
         base_hull=15,
+        start_weapons=('light_laser',),
+        start_modules=(),
     ),
     # ------------------------------------------------------------------- #
     # Tier 2 — Scout (early combat upgrade)
@@ -60,6 +62,8 @@ SHIPS: tuple[Ship, ...] = (
         base_shield_max=5,
         base_shield_recharge=1,
         base_hull=25,
+        start_weapons=('light_laser', 'light_laser'),
+        start_modules=('compact_reactor',),
     ),
     # ------------------------------------------------------------------- #
     # Tier 3 — Hauler (cargo specialist)
@@ -82,6 +86,8 @@ SHIPS: tuple[Ship, ...] = (
         base_shield_max=10,
         base_shield_recharge=1,
         base_hull=30,
+        start_weapons=('light_laser',),
+        start_modules=('expanded_cargo', 'armor_plating'),
     ),
     # ------------------------------------------------------------------- #
     # Tier 4 — Cruiser (combat mid-tier)
@@ -104,6 +110,8 @@ SHIPS: tuple[Ship, ...] = (
         base_shield_max=25,
         base_shield_recharge=3,
         base_hull=60,
+        start_weapons=('light_laser', 'heavy_laser', 'light_missile'),
+        start_modules=('compact_reactor', 'shield_mk1'),
     ),
     # ------------------------------------------------------------------- #
     # Tier 5 — Frigate (end-game combat)
@@ -126,6 +134,8 @@ SHIPS: tuple[Ship, ...] = (
         base_shield_max=40,
         base_shield_recharge=5,
         base_hull=100,
+        start_weapons=('light_laser', 'light_laser', 'heavy_laser', 'light_missile'),
+        start_modules=('compact_reactor', 'shield_mk1', 'shield_recharger', 'targeting_computer'),
     ),
     # ------------------------------------------------------------------- #
     # Tier 5 — Freighter (end-game cargo)
@@ -148,5 +158,7 @@ SHIPS: tuple[Ship, ...] = (
         base_shield_max=15,
         base_shield_recharge=2,
         base_hull=40,
+        start_weapons=('light_laser',),
+        start_modules=('expanded_cargo', 'compact_reactor'),
     ),
 )

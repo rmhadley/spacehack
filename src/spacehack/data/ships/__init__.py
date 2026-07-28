@@ -34,6 +34,9 @@ class Ship:
     base_shield_max: int = 0      # base shield HP (0 = no shields)
     base_shield_recharge: int = 0 # base shield regen per turn
     base_hull: int = 100         # base hull hit points
+    # Starting loadout when purchased — empty tuples = no free equipment.
+    start_weapons: tuple[str, ...] = ()
+    start_modules: tuple[str, ...] = ()
 
 
 from .core import SHIPS  # noqa: E402

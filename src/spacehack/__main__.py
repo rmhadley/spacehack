@@ -439,7 +439,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             blocker.pos = world.HANGAR_ANCHOR
                             blocker.owned = True
                             blocker.name = f'Your Ship: {ship.name}'
-                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=('light_laser', 'heavy_laser', 'light_missile'), modules=('compact_reactor', 'shield_mk1'), fuel=ship.max_fuel)
+                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=ship.start_weapons, modules=ship.start_modules, fuel=ship.max_fuel)
                             ctx.player_owned_ship = player_owned_ship
                             if _trade_in_value > 0:
                                 log.add(f'Traded in for the {ship.name} — paid {_effective_price}$ (trade-in {_trade_in_value}$).')
