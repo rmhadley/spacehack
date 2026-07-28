@@ -188,6 +188,118 @@ class OwnedShip:
         self.cargo_ammo = total_ammo_cargo(self.weapons)
 
 
+# ---------------------------------------------------------------------------
+# Ship mutation helpers (used by the mechanic loadout UI)
+# ---------------------------------------------------------------------------
+
+
+def _install_weapon(owned: OwnedShip, weapon_id: str, ship_spec: Ship) -> bool:
+    """Install ``weapon_id`` into the first empty weapon slot.
+
+    Returns True on success. Recalculates ``cargo_ammo`` if the
+    weapon is a missile type (the caller must also sync).
+    Returns False if all weapon slots are full.
+    """
+    if len(owned.weapons) >= ship_spec.weapon_slots:
+        return False
+    owned.weapons = owned.weapons + (weapon_id,)
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    return True
+
+
+def _remove_weapon(owned: OwnedShip, index: int) -> tuple[str, ...]:
+    """Remove the weapon at ``index`` from the owned ship.
+
+    Returns the new weapons tuple (caller must assign back).
+    Recalculates ``cargo_ammo``. No-op if the index is out of
+    range (returns the current tuple unchanged).
+    """
+    if index < 0 or index >= len(owned.weapons):
+        return owned.weapons
+    new = owned.weapons[:index] + owned.weapons[index + 1:]
+    owned.weapons = new
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    return new
+
+
+def _install_module(owned: OwnedShip, module_id: str, ship_spec: Ship) -> bool:
+    """Install ``module_id`` into the first empty module slot.
+
+    Returns True on success. Returns False if all module slots
+    are full.
+    """
+    if len(owned.modules) >= ship_spec.module_slots:
+        return False
+    owned.modules = owned.modules + (module_id,)
+    return True
+
+
+def _remove_module(owned: OwnedShip, index: int) -> tuple[str, ...]:
+    """Remove the module at ``index`` from the owned ship.
+
+    Returns the new modules tuple (caller must assign back).
+    No-op if the index is out of range.
+    """
+    if index < 0 or index >= len(owned.modules):
+        return owned.modules
+    new = owned.modules[:index] + owned.modules[index + 1:]
+    owned.modules = new
+    return new
+
+
+def _sell_price(item_type: str, item_id: str) -> int:
+    """Sell-back value for an installed part: 50% of buy price.
+
+    ``item_type`` is ``"weapon"`` or ``"module"``. Returns at
+    least 1 credit.
+    """
+    if item_type == "weapon":
+        from .data.weapons import find_weapon as _fw
+        try:
+            spec = _fw(item_id)
+        except KeyError:
+            return 0
+        return max(1, spec.price // 2)
+    elif item_type == "module":
+        from .data.modules import find_module as _fm
+        try:
+            spec = _fm(item_id)
+        except KeyError:
+            return 0
+        return max(1, spec.price // 2)
+    return 0
+
+
+def _find_weapon_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[str | None, int]]:
+    """Build a list of all weapon slots with their installed state.
+
+    Returns ``[(weapon_id or None, slot_index), ...]`` so the UI
+    can render each slot row. Empty slots show as ``(None, index)``.
+    """
+    result: list[tuple[str | None, int]] = []
+    for i in range(ship_spec.weapon_slots):
+        if i < len(owned.weapons):
+            result.append((owned.weapons[i], i))
+        else:
+            result.append((None, i))
+    return result
+
+
+def _find_module_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[str | None, int]]:
+    """Build a list of all module slots with their installed state.
+
+    Returns ``[(module_id or None, slot_index), ...]`` so the UI
+    can render each slot row. Empty slots show as ``(None, index)``.
+    """
+    result: list[tuple[str | None, int]] = []
+    for i in range(ship_spec.module_slots):
+        if i < len(owned.modules):
+            result.append((owned.modules[i], i))
+        else:
+            result.append((None, i))
+    return result
+
+
 # Fuel economics constants. JUMP_FUEL_COST is consumed by the
 # gate-bump dispatcher before _jump_to_system fires. FUEL_COST_PER_UNIT
 # is the credits price per unit the player pays at the hangar-menu
