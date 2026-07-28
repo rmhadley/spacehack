@@ -32,6 +32,7 @@ from ._actions import (
 from ._types import EnemyInstance
 from ._stats import (
     init_combat_state,
+    calc_hit_chance,
     calc_flee_chance,
     _calc_dodge_bonus,
     _distance,
