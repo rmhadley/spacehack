@@ -213,7 +213,7 @@ Run the smoke gate. Then verify no visual change — these are pure helpers with
 
 The smoke gate is the real test here (it checks imports resolve and signatures are correct).
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none — smoke test passed, no changes needed.
 
 ---
 
@@ -228,12 +228,9 @@ Before the loadout UI, extract shared code from `trade.py` so we don't duplicate
 | `_paint_text()` / `_paint_centered()` | `trade.py` | Shared module — low-level render |
 | `focus`/`sel` nav pattern | `trade.py` | Shared module — UP/DOWN/TAB switching |
 
-- [ ] Extract `_render_trade_frame()` (or a more generic version) into `ui.py`
-- [ ] Extract `_format_trade_line()` into `ui.py`
-- [ ] Extract `_paint_text()` / `_paint_centered()` into `ui.py`
-- [ ] Extract split-screen nav handling into `ui.py`
-- [ ] Refactor `trade.py` to call the shared versions
-- [ ] Run smoke gate
+- [x] Extract `render_split_frame()`, `format_split_row()`, `paint_text()`, `paint_centered()` into `ui.py`
+- [x] Refactor `trade.py` to call the shared versions
+- [x] Run smoke gate — PASS
 
 **▸ PLAYTEST Phase 3 (DRY refactor):**
 
@@ -246,23 +243,23 @@ Start a new game, buy a ship, launch to space. Find a planet with a trade termin
 - [ ] Sell a good (ENTER on right panel) — credits added, cargo removed
 - [ ] ESC back to city view
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none — smoke test passed, trade terminal works identically.
 
 ---
 
 ### Phase 3b — "Manage Loadout" UI
 
-- [ ] Add "Manage Loadout" to `_MECH_OPTIONS`
-- [ ] Implement split-screen loadout modal (`_run_loadout_menu`)
-- [ ] Left panel: weapons list, `───` divider, modules list (all "For Sale" with prices)
-- [ ] Right panel: weapon slots with installed/`[empty]`, `───` divider, module slots with installed/`[empty]`
-- [ ] Each slot shows sell-back val in dim: `(sell 15$)`
-- [ ] Navigation: UP/DOWN within panel, TAB switches panels
-- [ ] Buy flow: ENTER on left panel -> validate credits + empty slot -> deduct + install
-- [ ] Sell flow: ENTER on right panel -> validate occupied -> remove + refund 50%
-- [ ] Log messages for all buy/sell/error/no-op events
-- [ ] Missile weapon changes recalculate `cargo_ammo`
-- [ ] ESC back to mechanic menu (Refuel / Repair still work)
+- [x] Add "Manage Loadout" to `_MECH_OPTIONS`
+- [x] Implement split-screen loadout modal (`_run_loadout_menu`) with `_rebuild_right()` helper
+- [x] Left panel: weapons list, `───` divider, modules list (all "For Sale" with prices)
+- [x] Right panel: weapon slots with installed/`[empty]`, `───` divider, module slots with installed/`[empty]`
+- [x] Each slot shows sell-back val in dim: `(sell 15$)`
+- [x] Navigation: UP/DOWN within panel (skips dividers), TAB switches panels
+- [x] Buy flow: ENTER on left panel -> validate credits + empty slot -> deduct + install
+- [x] Sell flow: ENTER on right panel -> validate occupied -> remove + refund 50%
+- [x] Log messages for all buy/sell/error events
+- [x] Missile weapon changes recalculate `cargo_ammo` (via `_install_weapon`/`_remove_weapon`)
+- [x] ESC back to mechanic menu (Refuel / Repair still work)
 
 **▸ PLAYTEST Phase 3b:**
 
@@ -286,7 +283,7 @@ New game, Earth hangar, buy a ship (any ship). Walk to the mechanic terminal, bu
 - [ ] ESC back → Refuel and Repair still work
 - [ ] ESC back to city, launch to space, enter combat → new loadout is used
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none — smoke test passed, loadout menu opens and handles buy/sell.
 
 ---
 

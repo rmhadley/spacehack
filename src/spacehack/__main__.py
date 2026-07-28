@@ -407,7 +407,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             blocker.pos = world.HANGAR_ANCHOR
                             blocker.owned = True
                             blocker.name = f'Your Ship: {ship.name}'
-                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=('light_laser', 'heavy_laser', 'plasma_cannon', 'light_missile', 'heavy_missile', 'emp_missile'), modules=('compact_reactor', 'shield_mk1'), fuel=ship.max_fuel)
+                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=('light_laser', 'heavy_laser', 'light_missile'), modules=('compact_reactor', 'shield_mk1'), fuel=ship.max_fuel)
                             ctx.player_owned_ship = player_owned_ship
                             log.add(f'You bought the {ship.name} for {ship.price}$ and parked it in your hangar.')
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
