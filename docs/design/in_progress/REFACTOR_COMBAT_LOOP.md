@@ -131,13 +131,17 @@ The render block runs at the top of `while True`, *before* the guard that checks
 **Smoke test**: ✅ PASS
 **Commit**: `4edda76` (entity removal helper) + Phase 1 commit (B1/B2/B3/space-enter removal)
 
-### Phase 2 — Extract enemy AI into `_ai.py`
+### Phase 2 — Extract enemy AI into `_ai.py` ✅ DONE
 
-- [ ] Move the enemy-turn section (the `for _ei in enemy_insts` loop with its movement + fire logic) into a new `combat/_ai.py` module.
-- [ ] New function: `_run_enemy_turn(ctx, player_state, enemy_insts, enemy_specs, ...)` — takes the current game state and mutates enemies.
-- [ ] Keeps all enemy AI logic in one place, testable independently.
+- [x] Move the enemy-turn section (the `for _ei in enemy_insts` loop with its movement + fire logic) into a new `combat/_ai.py` module.
+- [x] New function: `_run_enemy_turn(...)` — 17 positional params, returns `"DEFEAT"` or `None`.
+- [x] Keeps all enemy AI logic in one place, testable independently.
+- [x] Removed dead imports from `_loop.py`: `start_enemy_turn`, `_render_anim_frame`, `_responsive_sleep`.
+- [x] `_loop.py` is now ~680 lines (was ~940).
 
-**Smoke test**: Verify combat works identically.
+**Smoke test**: ✅ PASS
+**Commit**: `7c08550`
+**Note**: The 17-param function signature is a consequence of pure extraction. Phase 3 (weapons) is a natural point to consider a shared `CombatState` namespace to reduce parameter explosion.
 
 ### Phase 3 — Extract weapon fire into `_weapons.py`
 
