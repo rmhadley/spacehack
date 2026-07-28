@@ -455,7 +455,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)
                 elif blocker.mech_terminal:
-                    _run_mech_menu(ctx)
+                    _run_mech_menu(ctx, current_city_id)
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
                     deliver_mission: mission_module.Mission | None = None

@@ -181,6 +181,8 @@ class GameContext:
     player_owned_ship: ship_module.OwnedShip | None = None
     player_active_mission: mission_module.ActiveMission | None = None
     bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)
+    # Per-planet mechanic visit counter — refreshes loadout inventory each visit.
+    mech_visit_count: dict[str, int] = dataclasses.field(default_factory=dict)
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     npc_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     npc_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)

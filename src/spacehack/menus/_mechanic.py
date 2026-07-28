@@ -27,12 +27,14 @@ class _MechanicOutcome(Enum):
     LOADOUT = auto()
 
 
-def _run_mech_menu(ctx) -> None:
+def _run_mech_menu(ctx, planet_id: str = "") -> None:
     """Show the mechanic-terminal menu with Refuel + Repair + Loadout options.
 
     Refuel buys fuel cells for the player's ship at the standard rate.
     Repair restores hull integrity at a cost based on damage.
     Loadout opens the split-screen part management modal.
+    ``planet_id`` is forwarded to the loadout menu so it can resolve
+    per-planet weapon/module inventories. Empty string = use full catalog.
     ESC / QUIT returns silently.
     """
     if ctx.player_owned_ship is None:
@@ -133,6 +135,6 @@ def _run_mech_menu(ctx) -> None:
             continue
         if action is _MechanicOutcome.LOADOUT:
             from ._loadout import _run_loadout_menu
-            _run_loadout_menu(ctx)
+            _run_loadout_menu(ctx, planet_id)
             continue
         return  # BACK or QUIT

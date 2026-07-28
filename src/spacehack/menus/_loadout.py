@@ -24,7 +24,7 @@ class _LoadoutOutcome(Enum):
     QUIT = auto()
 
 
-def _run_loadout_menu(ctx) -> None:
+def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     """Show the loadout management split-screen modal.
 
     Left panel: weapons for sale, divider, modules for sale.
@@ -32,6 +32,10 @@ def _run_loadout_menu(ctx) -> None:
     installed module slots (or [empty]).
     ENTER on left panel = buy + install.  ENTER on right panel
     = sell installed part for 50% back.
+
+    ``planet_id`` determines which weapons/modules are for sale —
+    empty string = use full catalog (fallback). Each visit to
+    the same planet refreshes the RNG-based subset.
     """
     owned = ctx.player_owned_ship
     if owned is None:
@@ -39,13 +43,27 @@ def _run_loadout_menu(ctx) -> None:
         return
 
     ship_spec = ship_module.find_ship(owned.ship_id)
-    from ..data.weapons import find_weapon as _fw, list_weapons as _lw
-    from ..data.modules import find_module as _fm, list_modules as _lm
+    from ..data.weapons import find_weapon as _fw
+    from ..data.modules import find_module as _fm
     from .. import ship as _sm
 
-    # Build left-panel catalog (For Sale).
-    _weapons_list = sorted(_lw(), key=lambda w: w.price)
-    _modules_list = sorted(_lm(), key=lambda m: m.price)
+    # Resolve per-planet weapon/module inventory.
+    if planet_id:
+        from ..data.planets import resolve_mech_inventory as _rvi
+        _visit = ctx.mech_visit_count.get(planet_id, 0)
+        ctx.mech_visit_count[planet_id] = _visit + 1
+        _wpn_ids, _mod_ids = _rvi(planet_id, _visit)
+        _weapons_list = sorted(
+            [_fw(wid) for wid in _wpn_ids], key=lambda w: w.price,
+        )
+        _modules_list = sorted(
+            [_fm(mid) for mid in _mod_ids], key=lambda m: m.price,
+        )
+    else:
+        from ..data.weapons import list_weapons as _lw
+        from ..data.modules import list_modules as _lm
+        _weapons_list = sorted(_lw(), key=lambda w: w.price)
+        _modules_list = sorted(_lm(), key=lambda m: m.price)
 
     # Each left-panel item: (name, label, suffix, fg, item_type, item_id)
     _left_items: list[tuple[str, str, str, tuple, str, str | None]] = []

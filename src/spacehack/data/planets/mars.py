@@ -97,4 +97,6 @@ SPEC = PlanetSpec(
         ("electronics", 15),
         ("luxury_goods", 10),
     ),
+    mech_weapons=("light_laser", "heavy_laser", "light_missile"),
+    mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo", "armor_plating"),
 )

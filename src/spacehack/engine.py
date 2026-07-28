@@ -37,6 +37,14 @@ import tcod.tileset
 
 RNG: _random.Random = _random.Random()
 
+# The initial seed value used for deterministic per-run operations
+# (e.g. mechanic inventory generation, planet loot tables). Saved
+# when :func:`seed_rng` is called so downstream helpers can create
+# isolated :class:`random.Random` instances seeded from a hash of
+# ``INIT_SEED + planet_id + refresh_count`` without mutating the
+# main RNG or depending on its ephemeral state.
+INIT_SEED: int = 0
+
 
 def seed_rng(seed: int) -> None:
     """Re-seed the shared :data:`RNG` with ``seed``.
@@ -45,8 +53,9 @@ def seed_rng(seed: int) -> None:
     a future iteration; for now we derive one from ``os.urandom()``
     or the caller can pass their own integer.
     """
-    global RNG
+    global RNG, INIT_SEED
     RNG = _random.Random(seed)
+    INIT_SEED = seed
 
 
 # Screen dimensions in character cells. With the 16x16 tilesheet this
