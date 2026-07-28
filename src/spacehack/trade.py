@@ -893,7 +893,7 @@ def open_cargo(ctx: GameContext) -> None:
         cy = 2
         # Title
         title = f"CARGO \u2014 {ship_name.upper()} ({_cargo_used}/{max_cargo})"
-                paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
+        paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
         cy += 2
 
         # Ship stats header
