@@ -525,9 +525,12 @@ def render_combat_hud(
             if ppos and hasattr(_e, 'pos'):
                 import math as _m
                 _dist_str = f"{int(_m.hypot(ppos.x - _e.pos.x, ppos.y - _e.pos.y))}"
-            # Name line
+            # Name line with distance
+            _name_str = f"{marker}{_name}"
+            if _dist_str:
+                _name_str = f"{_name_str}  {_dist_str}"
             _name_fg = COLOR_COMBAT_TITLE if is_target else COLOR_VALUE_DIM
-            console.print(x=hud_x, y=y, string=f"{marker}{_name}", fg=_name_fg)
+            console.print(x=hud_x, y=y, string=_name_str[:HUD_WIDTH], fg=_name_fg)
             y += 1
             # Shield bar (above hull when shields exist)
             if _e.max_shields > 0:
@@ -536,13 +539,11 @@ def render_combat_hud(
                 _shd_line = f"  Shd {_shd_bar} {int(_e_shd_pct * 100)}%"
                 console.print(x=hud_x, y=y, string=_shd_line[:HUD_WIDTH], fg=COLOR_SHIELD_BAR)
                 y += 1
-            # Hull bar (below shields, with distance)
+            # Hull bar (below shields)
             _e_hull_pct = _e.hull / max(_e.max_hull, 1)
             _e_pct_display = int(_e_hull_pct * 100)
             _bar = _bar_str(_e.hull, _e.max_hull, width=5)
             _hull_line = f"  Hul {_bar} {_e_pct_display}%"
-            if _dist_str:
-                _hull_line = f"{_hull_line} {_dist_str}"
             console.print(x=hud_x, y=y, string=_hull_line[:HUD_WIDTH], fg=_hull_bar_color(_e_hull_pct))
             y += 1
         y += 1
