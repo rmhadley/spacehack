@@ -14,6 +14,12 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         tech_level=1,
     ),
     WeaponSpec(
+        id="medium_laser", name="Medium Laser", slot_type="energy",
+        damage=6, accuracy=72, ap_cost=1, power_cost=1,
+        price=45, min_range=1, max_range=5,
+        tech_level=1,
+    ),
+    WeaponSpec(
         id="heavy_laser", name="Heavy Laser", slot_type="energy",
         damage=8, accuracy=65, ap_cost=1, power_cost=2,
         price=60, min_range=1, max_range=5,
