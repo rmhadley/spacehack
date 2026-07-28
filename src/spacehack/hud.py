@@ -504,7 +504,8 @@ def render_combat_hud(
         evade_line = f"Evade +{evade_bonus}%"
         console.print(x=hud_x, y=y, string=evade_line, fg=evade_color)
         y += 1
-    pow_line = f"Pow: {ppow}/{ppow_max}"
+    ppow_gen = player_state.get("power_gen", 0)
+    pow_line = f"Pow: {ppow}/{ppow_max} (+{ppow_gen})"
     console.print(x=hud_x, y=y, string=pow_line, fg=COLOR_POWER)
     y += 2
 
