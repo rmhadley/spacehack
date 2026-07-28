@@ -164,9 +164,9 @@ duplication and single-responsibility violations.*
 
 ### Phase 3: Month/year rollover log messages
 
-- [ ] `advance_time()` logs a colored message when month or year changes
-- [ ] Smoke test
-- [ ] Commit
+- [x] `advance_time()` logs a colored message when month or year changes
+- [x] Smoke test
+- [x] Commit
 
 **PLAYTEST — Phase 2:**
 

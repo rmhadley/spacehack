@@ -24,6 +24,9 @@ def advance_time(ctx: GameContext, days: int) -> None:
     if days <= 0:
         return
 
+    old_month = ctx.time_month
+    old_year = ctx.time_year
+
     ctx.time_day += days
 
     while ctx.time_day > 30:
@@ -34,7 +37,13 @@ def advance_time(ctx: GameContext, days: int) -> None:
         ctx.time_month -= 12
         ctx.time_year += 1
 
-    # Phase 3: tick_economy(ctx) will be consolidated here.
+    from . import message_log as _mlog
+    if ctx.time_month != old_month:
+        ctx.log.add_colored("A new month begins.", _mlog.COLOR_IMPORTANT_EVENT)
+    if ctx.time_year != old_year:
+        ctx.log.add_colored(f"A new year begins \u2014 {ctx.time_year}.", _mlog.COLOR_IMPORTANT_EVENT)
+
+    # Phase 4: tick_economy(ctx) will be consolidated here.
 
 
 def format_date(ctx: GameContext) -> str:
