@@ -407,31 +407,39 @@ def resolve_damage(
 def start_player_turn(player_state: dict) -> None:
     """Reset per-turn resources for the player and apply shield regen.
 
-    Shield regen is **proportional** — consumes power for exactly what it
-    regens instead of all-or-nothing.  A near-cap discount means you only
-    pay for the shield points you actually gain (room < rate).
+    Shield regen uses two tiers:
+      - Base rate (player-set via S key): costs power, proportional,
+        with engineering discount.
+      - Module bonus (shield_recharge_bonus): free regen, no power cost.
     """
     # Power generation first
     player_state["power_pool"] = min(
         player_state["max_power"],
         player_state["power_pool"] + player_state["power_gen"],
     )
-    # Shield regen: proportional, with engineering discount + near-cap discount
-    rate = player_state.get("shield_regen_rate", 0) + player_state.get("shield_recharge_bonus", 0)
     max_sh = player_state["max_shields"]
-    if rate > 0 and max_sh > 0 and player_state["shields"] < max_sh:
+    if max_sh > 0 and player_state["shields"] < max_sh:
         eng = player_state.get("engineering", 0)
         room = max_sh - player_state["shields"]
-        full_cost = max(1, rate - eng // 20)
-        # How many points can we actually regen?  Bounded by rate, room,
-        # and what we can afford proportionally.
-        actual_regen = min(rate, room, player_state["power_pool"] * rate // full_cost)
-        if actual_regen > 0:
-            # Proportional cost: ceil(actual * full_cost / rate)
-            actual_cost = (actual_regen * full_cost + rate - 1) // rate
-            actual_cost = min(actual_cost, player_state["power_pool"])
-            player_state["power_pool"] -= actual_cost
-            player_state["shields"] += actual_regen
+        # Tier 1: paid regen from player-set rate (costs power, engineering discount applies).
+        base_rate = player_state.get("shield_regen_rate", 0)
+        if base_rate > 0:
+            full_cost = max(1, base_rate - eng // 20)
+            # How many points can we actually regen?  Bounded by rate, room,
+            # and what we can afford proportionally.
+            paid_regen = min(base_rate, room, player_state["power_pool"] * base_rate // full_cost)
+            if paid_regen > 0:
+                # Proportional cost: ceil(paid * full_cost / rate)
+                paid_cost = (paid_regen * full_cost + base_rate - 1) // base_rate
+                paid_cost = min(paid_cost, player_state["power_pool"])
+                player_state["power_pool"] -= paid_cost
+                player_state["shields"] += paid_regen
+                room -= paid_regen
+        # Tier 2: free regen from module bonuses (no power cost).
+        module_bonus = player_state.get("shield_recharge_bonus", 0)
+        if module_bonus > 0 and room > 0:
+            free_regen = min(module_bonus, room)
+            player_state["shields"] += free_regen
     player_state["ap_remaining"] = player_state["ap_total"]
     player_state["cells_moved_this_turn"] = 0
 
@@ -439,8 +447,8 @@ def start_player_turn(player_state: dict) -> None:
 def start_enemy_turn(enemy: EnemyInstance) -> None:
     """Reset per-turn resources for an enemy and apply shield regen.
 
-    Mirrors :func:`start_player_turn` — proportional regen with
-    engineering discount and near-cap discount.
+    Mirrors :func:`start_player_turn` — base regen costs power with
+    engineering discount; module recharge bonus is free.
     """
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
     # Module shield recharge bonus.
@@ -450,16 +458,21 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
             _module_recharge += find_module_spec(_mod_id).shield_recharge_bonus
         except KeyError:
             pass
-    rate = enemy.shield_regen_rate + _module_recharge
-    if rate > 0 and enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
+    if enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
         room = enemy.max_shields - enemy.shields
-        full_cost = max(1, rate - enemy.pilot_engineering // 20)
-        actual_regen = min(rate, room, enemy.power_pool * rate // full_cost)
-        if actual_regen > 0:
-            actual_cost = (actual_regen * full_cost + rate - 1) // rate
-            actual_cost = min(actual_cost, enemy.power_pool)
-            enemy.power_pool -= actual_cost
-            enemy.shields += actual_regen
+        # Tier 1: paid regen from base rate.
+        if enemy.shield_regen_rate > 0:
+            full_cost = max(1, enemy.shield_regen_rate - enemy.pilot_engineering // 20)
+            paid_regen = min(enemy.shield_regen_rate, room, enemy.power_pool * enemy.shield_regen_rate // full_cost)
+            if paid_regen > 0:
+                paid_cost = (paid_regen * full_cost + enemy.shield_regen_rate - 1) // enemy.shield_regen_rate
+                paid_cost = min(paid_cost, enemy.power_pool)
+                enemy.power_pool -= paid_cost
+                enemy.shields += paid_regen
+                room -= paid_regen
+        # Tier 2: free regen from module bonus.
+        if _module_recharge > 0 and room > 0:
+            enemy.shields += min(_module_recharge, room)
     enemy.ap_remaining = enemy.ap_total
     enemy.cells_moved_this_turn = 0
 
