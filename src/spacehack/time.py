@@ -1,0 +1,45 @@
+"""Game time: day/month/year clock and tick helpers.
+
+Central choke-point for all time-advancing actions (jump gates,
+planet landings). Every subsystem that needs to react to time
+passing hooks in through :func:`advance_time`.
+"""
+
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .game_context import GameContext
+
+
+def advance_time(ctx: GameContext, days: int) -> None:
+    """Advance the game clock by ``days``.
+
+    Wraps months at 30, years at 12. Fires subscriber hooks for
+    month/year rollover. Also ticks the economy on every advance.
+
+    This is THE single function that mutates ``ctx.time_*`` --
+    all call sites go through it.
+    """
+    if days <= 0:
+        return
+
+    ctx.time_day += days
+
+    while ctx.time_day > 30:
+        ctx.time_day -= 30
+        ctx.time_month += 1
+
+    while ctx.time_month > 12:
+        ctx.time_month -= 12
+        ctx.time_year += 1
+
+    # Phase 3: tick_economy(ctx) will be consolidated here.
+
+
+def format_date(ctx: GameContext) -> str:
+    """Return a human-readable date string for HUD display.
+
+    Example: ``"Day 15, Month 3, Year 2200"``.
+    """
+    return f"Day {ctx.time_day}, Month {ctx.time_month}, Year {ctx.time_year}"

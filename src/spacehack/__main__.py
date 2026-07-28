@@ -69,6 +69,7 @@ from .navigation import (
     _jump_to_system,
 )
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
+from .time import advance_time, format_date
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
@@ -209,7 +210,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
         # Detect available terminals on the current city map.
         _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, date_str=format_date(ctx))
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         for event in tcod.event.wait():
@@ -358,6 +359,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             if outcome is PlanetMenuOutcome.LAND:
                                 # Shared: runs on ANY landing.
                                 _run_cargo_scan(ctx, pid)
+                                advance_time(ctx, 1)
                                 hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
 
                                 if pid == current_city_id:

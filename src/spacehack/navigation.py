@@ -928,6 +928,8 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     """
     from .trade import tick_economy as _tick_economy
     _tick_economy(ctx)
+    from .time import advance_time
+    advance_time(ctx, 1)
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
     # Reset any NPC auto-comms warning for the outgoing system so the
     # player gets a fresh warning on their next visit.

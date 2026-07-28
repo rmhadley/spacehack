@@ -150,6 +150,7 @@ def render_hud(
     ship_catalog: Any = None,            # ship_module.Ship catalog entry
     has_trade_terminal: bool = False,    # city mode: show = terminal hint
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
+    date_str: str | None = None,          # formatted date for HUD display
 ) -> None:
     """Paint the right-side HUD into the top ``hud_view_height`` rows.
 
@@ -207,7 +208,11 @@ def render_hud(
         y += 1
         if location:
             console.print(x=hud_x, y=y, string=location.upper(), fg=COLOR_VALUE_DIM)
-        y += 2
+        # Date (silver, below location)
+        y += 1
+        if date_str:
+            console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
+        y += 1
 
         # Fuel
         console.print(x=hud_x, y=y, string="Fuel", fg=COLOR_SHIP_LABEL)
@@ -286,6 +291,10 @@ def render_hud(
         y += 1
         if location:
             console.print(x=hud_x, y=y, string=location, fg=COLOR_VALUE_DIM)
+        # Date (silver, below location)
+        y += 1
+        if date_str:
+            console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
         y += 1
 
         # Blank line between identity and mission/divider.
