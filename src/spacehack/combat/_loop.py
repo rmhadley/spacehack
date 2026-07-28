@@ -409,6 +409,7 @@ def run_combat(
                 flee_chance=_flee_chance,
                 hit_chances=_weapon_hit_chances,
                 evade_bonus=_evade_bonus,
+                range_weapon_id=_range_wid,
             )
             _ml.render_message_log(
                 console, log,

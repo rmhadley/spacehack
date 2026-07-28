@@ -404,6 +404,7 @@ def render_combat_hud(
     flee_chance: int | None = None,
     hit_chances: dict[str, int] | None = None,  # per-weapon hit % vs current target
     evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
+    range_weapon_id: str | None = None,  # weapon id for coloring distance by range
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 
@@ -527,10 +528,36 @@ def render_combat_hud(
                 _dist_str = f"{int(_m.hypot(ppos.x - _e.pos.x, ppos.y - _e.pos.y))}"
             # Name line with distance
             _name_str = f"{marker}{_name}"
-            if _dist_str:
-                _name_str = f"{_name_str}  {_dist_str}"
             _name_fg = COLOR_COMBAT_TITLE if is_target else COLOR_VALUE_DIM
-            console.print(x=hud_x, y=y, string=_name_str[:HUD_WIDTH], fg=_name_fg)
+            # Render name + distance with separate colors for the distance
+            # number, matching the targeting-line range colors.
+            console.print(x=hud_x, y=y, string=_name_str, fg=_name_fg)
+            if _dist_str and range_weapon_id is not None:
+                from .data.weapons import find_weapon as _fw
+                try:
+                    _ws = _fw(range_weapon_id)
+                    _dist_val = int(_dist_str)
+                    _half = _ws.max_range // 2
+                    if _dist_val <= _half:
+                        _dc = (100, 235, 115)  # green
+                    elif _dist_val <= _ws.max_range:
+                        _dc = (255, 220, 80)   # yellow
+                    elif _ws.min_range > 0 and _dist_val <= _ws.min_range:
+                        _dc = (255, 160, 60)   # orange
+                    else:
+                        _dc = (255, 80, 80)    # red
+                    console.print(
+                        x=hud_x + len(_name_str) + 2, y=y,
+                        string=_dist_str, fg=_dc,
+                    )
+                except KeyError:
+                    pass
+            elif _dist_str:
+                # No range info available — print distance in default color
+                console.print(
+                    x=hud_x + len(_name_str) + 2, y=y,
+                    string=_dist_str, fg=COLOR_VALUE_DIM,
+                )
             y += 1
             # Shield bar (above hull when shields exist)
             if _e.max_shields > 0:
