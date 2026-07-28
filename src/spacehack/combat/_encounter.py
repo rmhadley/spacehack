@@ -91,13 +91,15 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                     if _bounty_spawn is not None:
                         _bx, _by, _bspec_id = _bounty_spawn
                         for _e in list(ctx.game_map.entities):
-                            if getattr(_e, 'spec_id', None) == _bspec_id:
+                            if getattr(_e, 'npc_ship_id', None) == _bspec_id:
                                 ctx.game_map.entities.remove(_e)
                         ctx.bounty_spawn_data = None
 
         # Remove dead enemies from the game map.
+        # Enemy world.Entity objects store their spec reference via
+        # npc_ship_id (set by npc_ships.py / solar_system.py).
         for _e in list(ctx.game_map.entities):
-            _e_spec = getattr(_e, 'spec_id', None)
+            _e_spec = getattr(_e, 'npc_ship_id', None)
             if _e_spec is not None and _e_spec in _defeated_ids:
                 ctx.game_map.entities.remove(_e)
 
