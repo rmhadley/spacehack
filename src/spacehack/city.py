@@ -31,6 +31,8 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
     per-frame sleep; 0.08 reads as a brisk but visible glide.
     """
     direction = -1 if ship_ent.pos.y > target_y else 1
+    _has_trade = any(e.trade_terminal for e in game_map.entities)
+    _has_mech = any(e.mech_terminal for e in game_map.entities)
     while ship_ent.pos.y != target_y:
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         console.clear()
@@ -39,7 +41,7 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         _active_mission_text = (
             mission_module.find_mission(_am.mission_id).title if _am is not None else ''
         )
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text, location=location or None, date_str=format_date(ctx))
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text, location=location or None, date_str=format_date(ctx), has_trade_terminal=_has_trade, has_mech_terminal=_has_mech)
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_seconds)
