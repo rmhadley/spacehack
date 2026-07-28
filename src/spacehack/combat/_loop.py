@@ -19,7 +19,6 @@ import tcod.event
 from .. import ui
 from .. import world
 from ..engine import RNG
-from ..data.weapons import find_weapon
 from ..data.pilot_skills import PilotSkills
 from ..input_helpers import _try_open_guide
 
