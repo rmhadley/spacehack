@@ -14,6 +14,7 @@ from . import ship as ship_module
 from . import solar_system as solar_system_module
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, MSG_LOG_HEIGHT
 from .navigation import _add_bounty_spawns_to_map, _responsive_sleep
+from .time import format_date
 
 
 def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = 0.08) -> None:
@@ -38,7 +39,7 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         _active_mission_text = (
             mission_module.find_mission(_am.mission_id).title if _am is not None else ''
         )
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text, date_str=format_date(ctx))
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_seconds)

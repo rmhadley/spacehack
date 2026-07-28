@@ -23,6 +23,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .data import solar_systems as solar_systems_module
 from .data.npc_ships import find_npc_ship
 from .input_helpers import _try_open_guide
+from .time import format_date
 
 
 # ---------------------------------------------------------------------------
@@ -672,6 +673,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         location=solar_system_module.current_system().name,
                         owned_ship=ctx.player_owned_ship,
                         ship_catalog=_ship_cat,
+                        date_str=format_date(ctx),
                     )
                     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
                     ctx.context.present(console)
@@ -908,7 +910,7 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         else:
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, active_mission=active_mission_text or None)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, active_mission=active_mission_text or None, date_str=format_date(ctx))
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_s)
