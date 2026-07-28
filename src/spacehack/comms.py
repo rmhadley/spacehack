@@ -24,6 +24,7 @@ from .data.npc_ships import find_npc_ship as _find_npc_ship
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
 from . import message_log as _ml
+from .input_helpers import _try_open_guide
 
 
 class _CommsListOutcome(Enum):
@@ -240,6 +241,8 @@ def open_comms(
 
     def _update_list(event) -> _CommsListOutcome:
         nonlocal selected
+        if _try_open_guide(event, ctx):
+            return _CommsListOutcome.IGNORE
         if isinstance(event, tcod.event.Quit):
             return _CommsListOutcome.QUIT
         if not isinstance(event, tcod.event.KeyDown):
@@ -286,6 +289,8 @@ def open_comms(
 
     def _update_interaction(event) -> _InteractionOutcome:
         nonlocal _interaction_selected
+        if _try_open_guide(event, ctx):
+            return _InteractionOutcome.IGNORE
         if isinstance(event, tcod.event.Quit):
             return _InteractionOutcome.QUIT
         if not isinstance(event, tcod.event.KeyDown):

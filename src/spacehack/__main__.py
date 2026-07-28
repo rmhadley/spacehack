@@ -40,7 +40,7 @@ from .npc import TalkOutcome, _run_npc_talk
 from . import world
 from . import combat
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
-from .input_helpers import Outcome, _run_pick, _run_confirm, _vim_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_c_press, _is_t_press, _is_question_press
+from .input_helpers import Outcome, _run_pick, _run_confirm, _vim_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_c_press, _is_t_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -201,9 +201,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if should_quit(event):
                 return
             # ? = open game guide (checked early so it can't be shadowed).
-            if _is_question_press(event):
-                from .help import _run_help_guide as _guide
-                _guide(ctx)
+            if _try_open_guide(event, ctx):
                 continue
             if _is_q_press(event):
                 outcome, new_active = _run_quest_log(ctx)

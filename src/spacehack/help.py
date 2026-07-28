@@ -63,262 +63,408 @@ _GUIDE_GAME_OVERVIEW = GuideSection(
     body=(
         "The year is 2156. Humankind has spread across a dozen star systems, "
         "linked by jump gates of unknown origin. You are a freelance pilot "
-        "making a living on the frontier — trading, bounty hunting, and "
-        "surviving where the law is what you make of it."
+        "making a living on the frontier."
         "\n\n"
-        "The core loop: start in a city on Earth -> buy a ship at the "
-        "spaceport -> launch into the Sol system -> travel to other star "
-        "systems via jump gates -> take on missions and trade goods -> earn "
-        "credits -> upgrade your ship -> repeat. The game ends when your "
-        "ship is destroyed in combat; you then start a fresh run."
+        "How it works:"
+        "\n"
+        "- Start in a city on Earth"
+        "\n"
+        "- Buy a ship at the spaceport"
+        "\n"
+        "- Launch into the Sol system"
+        "\n"
+        "- Travel to other systems via jump gates"
+        "\n"
+        "- Take missions and trade goods to earn credits"
+        "\n"
+        "- Upgrade your ship and repeat"
         "\n\n"
-        "In city mode you walk around a map with h/j/k/l. Interact with "
-        "entities by walking into them: ships at the spaceport can be "
-        "bought, NPCs in guild halls offer missions and dialog, terminals "
-        "let you trade or repair. In space mode you fly your ship on a "
-        "solar system map. Bump into planets to land, fly into jump gates "
-        "to travel between systems."
+        "Death is permanent: when your ship is destroyed in combat,"
+        "you start a fresh run from Earth."
+        "\n\n"
+        "City mode: walk around the city with h/j/k/l. Walk into entities"
+        "to interact — ships at the spaceport (buy/launch), NPCs in guild"
+        "halls (talk/missions), terminals (trade/repair)."
+        "\n\n"
+        "Space mode: fly your ship on the solar system map. Bump into"
+        "planets to land, fly into jump gates to travel between systems."
     ),
 )
 
 _GUIDE_CONTROLS = GuideSection(
     title="Controls & Keybindings",
     body=(
-        "Movement: h/j/k/l for cardinal directions, y/u/b/n for diagonals. "
-        "These work in city mode, space mode, and during combat."
+        "Movement: h/j/k/l for cardinal directions, y/u/b/n for diagonals."
         "\n\n"
-        "City mode keys: Q opens the quest log (view or abandon your active "
-        "mission). Walk into entities to interact — ships (buy/launch), NPCs "
-        "(talk/missions), terminals (trade/repair). ESC quits the game."
+        "City mode:"
+        "\n"
+        "- Q: open quest log (view or abandon mission)"
+        "\n"
+        "- Walk into entities to interact: ships (buy/launch),"
+        "NPCs (talk/missions), terminals (trade/repair)"
+        "\n"
+        "- ESC: quit the game"
         "\n\n"
-        "Space mode keys: G activates auto-nav (Go To) toward a selected "
-        "target. M opens the system navigation map showing planets, jump "
-        "gates, and your position. C opens the cargo hold. T opens the "
-        "comms panel to hail nearby ships. Period (.) waits one turn "
-        "(pirates move, shields regen). ESC opens the ship menu."
+        "Space mode:"
+        "\n"
+        "- G: auto-nav (Go To) toward a selected target"
+        "\n"
+        "- M: navigation map showing planets, gates, your ship"
+        "\n"
+        "- C: cargo hold"
+        "\n"
+        "- T: comms panel (hail nearby ships)"
+        "\n"
+        "- Period (.): wait one turn (pirates move, shields regen)"
+        "\n"
+        "- ESC: ship menu"
+        "\n"
+        "- ?: this guide"
         "\n\n"
-        "Combat keys: h/j/k/l and y/u/b/n move your ship on the tactical "
-        "grid. TAB cycles targets. F fires the selected weapon at the "
-        "current target. 1-9 select which weapon to fire. S cycles the "
-        "shield regeneration rate (0-10). W waits (ends your turn). "
-        "ESC attempts to flee combat."
+        "Combat keys:"
+        "\n"
+        "- h/j/k/l, y/u/b/n: move on the tactical grid"
+        "\n"
+        "- TAB: cycle targets"
+        "\n"
+        "- F: fire selected weapon at current target"
+        "\n"
+        "- 1-9: select weapon"
+        "\n"
+        "- S: cycle shield regen rate (0-10)"
+        "\n"
+        "- W: wait (end your turn)"
+        "\n"
+        "- ESC: attempt to flee"
         "\n\n"
-        "Modal keys (trade, cargo, menus): Arrow keys or j/k navigate. "
-        "ENTER confirms. ESC cancels or goes back. +/- adjusts quantities "
-        "where applicable."
+        "Modal keys (trade, cargo, menus):"
+        "\n"
+        "- Arrow keys or j/k: navigate"
+        "\n"
+        "- ENTER: confirm"
+        "\n"
+        "- ESC: cancel or go back"
+        "\n"
+        "- +/-: adjust quantities"
     ),
 )
 
 _GUIDE_COMBAT = GuideSection(
     title="Combat System",
     body=(
-        "Combat is turn-based and plays out on the space map as a tactical "
-        "grid. Each combatant has Action Points (AP), a power pool, shields, "
-        "and hull hit points."
+        "Combat is turn-based on the space map. Each ship has Action Points"
+        "(AP), power, shields, and hull hit points."
         "\n\n"
-        "AP per turn = 3 + (Piloting // 20). You spend AP to move (1 AP per "
-        "cell) and fire weapons (variable cost per weapon). When AP reaches "
-        "0, the enemy takes their turn."
+        "Action Points:"
+        "\n"
+        "- AP per turn = 3 + (Piloting // 20)"
+        "\n"
+        "- Move: 1 AP per cell"
+        "\n"
+        "- Fire: AP cost varies by weapon"
+        "\n"
+        "- When AP reaches 0, the enemy takes their turn"
         "\n\n"
-        "Hit chance formula: weapon.accuracy + (Gunnery * 0.5) + "
-        "close-range bonus (5% if within half max range) - distance penalty "
-        "(10% per cell beyond max range) - minimum range penalty (5% per "
-        "cell inside min range) - target dodge bonus. Result is clamped "
-        "between 5% and 95%."
+        "Hit chance:"
+        "\n"
+        "chance = weapon_accuracy + (Gunnery * 0.5)"
+        "\n"
+        "       + close_bonus (5% if within half max range)"
+        "\n"
+        "       - dist_penalty (10% per cell beyond max range)"
+        "\n"
+        "       - min_penalty (5% per cell inside min range)"
+        "\n"
+        "       - target_dodge_bonus"
+        "\n"
+        "Result clamped to 5%-95% (always a chance to hit or miss)."
         "\n\n"
-        "Dodge bonus: +5% per cell moved this turn (cap 30%) + (Piloting "
-        "* 0.5), soft-capped at 60%. Moving during combat makes you "
-        "harder to hit."
+        "Dodge bonus:"
+        "\n"
+        "- +5% per cell moved this turn (cap 30%)"
+        "\n"
+        "- + (Piloting * 0.5), soft-capped at 60% total"
+        "\n"
+        "- Moving makes you harder to hit"
         "\n\n"
-        "Damage: weapon base damage * a quality multiplier (50%-100% based "
-        "on a random roll, with a chance of glancing hits at half damage "
-        "if the target's Piloting is high) * a variance factor (80%-120%). "
-        "Shields absorb damage before hull. When hull reaches 0, the ship "
-        "is destroyed."
+        "Damage:"
+        "\n"
+        "raw = weapon_damage * quality_mult (50%-100%)"
+        "\n"
+        "     * variance (80%-120%)"
+        "\n"
+        "Shields absorb damage before hull. Hull at 0 = ship destroyed."
+        "\n"
+        "Enemies with high Piloting skill may cause glancing hits that"
+        "deal half damage."
         "\n\n"
-        "Shield regen: set a rate of 0-10 per turn (S key cycles it). Each "
-        "point of regen costs power proportional to the rate, with an "
-        "Engineering discount (reduces power cost)."
+        "Shield regeneration:"
+        "\n"
+        "- Set rate 0-10 per turn with the S key"
+        "\n"
+        "- Each point of regen costs power (rate - Engineering/20)"
+        "\n"
+        "- Higher Engineering = cheaper shield regen"
         "\n\n"
-        "Flee formula: base 30% + (your Piloting - enemy Piloting) * 2 + "
-        "hull desperation bonus (20% at 0 hull) - close distance penalty "
-        "(5% per cell under 5 distance) + 10% per previous failed attempt. "
-        "Clamped 5%-95%. Each failed flee attempt makes the next one easier."
+        "Flee chance:"
+        "\n"
+        "base = 30% + (your Piloting - enemy Piloting) * 2"
+        "\n"
+        "     + hull_desperation (20% at 0 hull)"
+        "\n"
+        "     - close_dist_penalty (5%/cell under 5)"
+        "\n"
+        "     + 10% per previous failed attempt"
+        "\n"
+        "Result clamped 5%-95%."
         "\n\n"
-        "Weapon types: Energy weapons (lasers) cost power per shot but have "
-        "unlimited ammo. Missile weapons cost no power but consume ammo that "
-        "must be purchased and takes up cargo space."
+        "Weapon types:"
+        "\n"
+        "- Energy (lasers): cost power, unlimited ammo"
+        "\n"
+        "- Missile: no power cost, limited ammo (takes cargo space)"
     ),
 )
 
 _GUIDE_TRADE = GuideSection(
     title="Trading & Economy",
     body=(
-        "Trade terminals appear as = symbols on the city map. Walk into one "
-        "to open the trade interface where you can buy and sell goods."
+        "Trade terminals appear as = symbols on the city map. Walk into"
+        "one to buy and sell goods."
         "\n\n"
-        "Each planet has a different economy with supply and demand for "
-        "various goods. Buying goods on planets that produce them (low price) "
-        "and selling on planets that consume them (high price) is the basic "
-        "profit strategy. Prices fluctuate based on the planet's economic "
-        "profile."
+        "Basic strategy:"
+        "\n"
+        "- Buy goods on planets that produce them (low price)"
+        "\n"
+        "- Sell on planets that consume them (high price)"
+        "\n"
+        "- Each planet has its own economic profile with supply/demand"
+        "\n"
+        "- Prices fluctuate based on current stock levels"
         "\n\n"
-        "Your ship has a cargo capacity (max_cargo). Each trade good takes "
-        "up a certain amount of cargo space. Plan your cargo loadout based "
-        "on your destination — fill up with goods that will sell well there."
+        "Cargo:"
+        "\n"
+        "- Your ship has a cargo capacity (shown in the HUD)"
+        "\n"
+        "- Each good takes up a certain amount of cargo space"
+        "\n"
+        "- Plan your loadout based on your destination"
+        "\n"
+        "- Current credits and cargo space are always visible in the"
+        "HUD sidebar"
         "\n\n"
-        "The current stock of each good on a planet is tracked per-visit "
-        "and replenishes over time. You cannot sell more of a good than the "
-        "planet demands, and you cannot buy more than it has in stock."
+        "Stock levels:"
+        "\n"
+        "- Stock is tracked per-planet and replenishes over time"
+        "\n"
+        "- You cannot sell more than the planet demands"
+        "\n"
+        "- You cannot buy more than the planet has in stock"
         "\n\n"
-        "Your current credits and cargo space are shown in the HUD. The "
-        "mechanic terminal (% on the city map) handles ship refueling and "
-        "repairs, not trading."
+        "The mechanic terminal (% on the city map) handles refueling"
+        "and repairs, not trading."
     ),
 )
 
 _GUIDE_MISSIONS = GuideSection(
     title="Missions & Bounties",
     body=(
-        "Talk to NPCs in guild halls (walk into them) and ask for work. "
-        "Each NPC may offer one or more missions. You can only hold one "
-        "active mission at a time."
+        "Talk to NPCs in guild halls (walk into them) and ask for work."
+        "You can only hold one active mission at a time."
         "\n\n"
-        "Mission types:\n"
-        "- Delivery: take a package to a specific NPC on another planet. "
-        "Travel to the target system, land at the city, and talk to the "
-        "recipient NPC to complete.\n"
-        "- Bounty: destroy a specific enemy ship in a target system. "
-        "The bounty target is marked on the space map. Fly there and "
-        "engage in combat. Destroying the target completes the mission "
-        "automatically."
+        "Mission types:"
+        "\n"
+        "- Delivery: take a package to a specific NPC on another planet."
+        "Travel there, land, and talk to the recipient to complete."
+        "\n"
+        "- Bounty: destroy a specific enemy ship in a target system."
+        "The target is marked on the space map. Engage and destroy to"
+        "complete automatically."
         "\n\n"
-        "To view or abandon your active mission, press Q in city mode. "
-        "The quest log shows the mission details. Press A to initiate "
-        "abandon, then ENTER to confirm or ESC to cancel."
+        "Managing missions:"
+        "\n"
+        "- Press Q in city mode to open the quest log"
+        "\n"
+        "- Press A to initiate abandon, ENTER to confirm, ESC to cancel"
+        "\n"
+        "- Abandoning frees the slot for a new mission"
         "\n\n"
-        "Missions have recommended class and ship cargo requirements. "
-        "Check the mission details before accepting — a delivery mission "
-        "may require more cargo space than your ship has. Rewards include "
-        "credits and experience points."
+        "Requirements:"
+        "\n"
+        "- Missions may require minimum cargo space (delivery)"
+        "\n"
+        "- Some are best suited for specific classes"
+        "\n"
+        "- Rewards include credits and experience points"
     ),
 )
 
 _GUIDE_SHIPS = GuideSection(
     title="Ships & Equipment",
     body=(
-        "Buy a ship by walking into the ship entity at the spaceport in "
-        "city mode. Each ship has stats: hull strength, fuel capacity, "
-        "cargo capacity, weapon slots, and module slots."
+        "Buy a ship by walking into the ship entity at the spaceport."
+        "Each ship has: hull strength, fuel capacity, cargo capacity,"
+        "weapon slots, and module slots."
         "\n\n"
-        "Weapons are fitted into weapon slots:\n"
-        "- Light Laser: 3 damage, 80% accuracy, 1 AP, 2 power\n"
-        "- Heavy Laser: 8 damage, 65% accuracy, 1 AP, 6 power\n"
-        "- Plasma Cannon: 12 damage, 55% accuracy, 2 AP, 10 power\n"
-        "- Light Missile: 10 damage, 75% accuracy, 2 AP, 5 ammo\n"
-        "- Heavy Missile: 20 damage, 60% accuracy, 2 AP, 3 ammo\n"
-        "- EMP Missile: 0 damage, 70% accuracy, 2 AP, 2 ammo (disables "
-        "target systems)"
+        "Weapons:"
+        "\n"
+        "- Light Laser: 3 dmg, 80% acc, 1 AP, 2 power"
+        "\n"
+        "- Heavy Laser: 8 dmg, 65% acc, 1 AP, 6 power"
+        "\n"
+        "- Plasma Cannon: 12 dmg, 55% acc, 2 AP, 10 power"
+        "\n"
+        "- Light Missile: 10 dmg, 75% acc, 2 AP, 5 ammo"
+        "\n"
+        "- Heavy Missile: 20 dmg, 60% acc, 2 AP, 3 ammo"
+        "\n"
+        "- EMP Missile: 0 dmg (disables systems), 70% acc, 2 AP, 2 ammo"
         "\n\n"
-        "Modules fit into module slots and provide bonuses:\n"
-        "- Engines (compact_reactor, heavy_reactor): bonus power generation\n"
-        "- Systems (shield_capacitor, shield_recharger, targeting_computer, "
-        "gyro_stabilizer, expanded_cargo, armor_plating, shield_mk1): "
-        "bonuses to shields, gunnery, piloting, cargo, or hull"
+        "Modules:"
+        "\n"
+        "- Engines (compact/heavy reactor): bonus power generation"
+        "\n"
+        "- Systems: shield capacitors, targeting computers, gyro"
+        "stabilizers, expanded cargo, armor plating — bonuses to"
+        "shields, gunnery, piloting, cargo, or hull"
         "\n\n"
-        "The mechanic terminal (% on the city map) lets you refuel (buy "
-        "fuel cells at a per-unit cost) and repair hull damage. Repair "
-        "cost scales with damage percentage and ship price."
+        "Mechanic terminal (% on the city map):"
+        "\n"
+        "- Refuel: buy fuel cells at per-unit cost"
+        "\n"
+        "- Repair: restore hull integrity (cost scales with damage)"
     ),
 )
 
 _GUIDE_NAVIGATION = GuideSection(
     title="Navigation & Jump Gates",
     body=(
-        "Space mode places you on a solar system map. Each system contains "
-        "planets, jump gates, stations, and potentially other ships. The "
-        "view scrolls as you move."
+        "Space mode places you on a solar system map. Each system contains"
+        "planets, jump gates, stations, and other ships. The view scrolls"
+        "as you move."
         "\n\n"
-        "Jump gates connect star systems. Fly into a jump gate to see where "
-        "it connects. Jumping costs fuel (JUMP_FUEL_COST units). If you "
-        "don't have enough fuel, the jump is blocked. After jumping, you "
-        "arrive at the corresponding jump gate in the destination system."
+        "Jump gates:"
+        "\n"
+        "- Connect star systems — fly into one to see where it leads"
+        "\n"
+        "- Jumping costs fuel per jump"
+        "\n"
+        "- Without enough fuel the jump is blocked"
+        "\n"
+        "- You arrive at the matching gate in the destination system"
         "\n\n"
-        "G (Go To): opens a target-selection overlay. Pick a planet or "
-        "jump gate and your ship auto-navigates there. If you encounter "
-        "enemies along the path, combat triggers automatically."
+        "G (Go To):"
+        "\n"
+        "- Opens a target-selection overlay"
+        "\n"
+        "- Pick a planet or jump gate to auto-navigate there"
+        "\n"
+        "- Combat triggers automatically if enemies cross your path"
         "\n\n"
-        "M (Map): the navigation overlay shows system information, "
-        "planet names, jump gate connections, and areas of interest."
+        "M (Map):"
+        "\n"
+        "- Navigation overlay showing the system layout"
+        "\n"
+        "- Lists planet names, jump gate connections, and distance"
         "\n\n"
-        "Period (.): wait one turn. Pirates move, shields regenerate, "
-        "and NPC ships navigate. Useful for letting enemies come to you "
-        "or waiting for shield regen."
+        "Period (.):"
+        "\n"
+        "- Wait one turn — pirates move, shields regenerate"
+        "\n"
+        "- Useful for letting enemies come to you"
         "\n\n"
-        "Planets: fly into a planet to approach it. If it has a landing "
-        "port, you can land and explore the city. If not, you can only "
-        "fly past. Landing triggers a cargo scan."
+        "Planets:"
+        "\n"
+        "- Fly into one to approach. Land if it has a port"
+        "\n"
+        "- Without a port you can only fly past"
+        "\n"
+        "- Landing triggers a cargo scan by local militia"
     ),
 )
 
 _GUIDE_CHARACTER = GuideSection(
     title="Character & Skills",
     body=(
-        "At the start of the game you choose a species and a class. "
-        "These determine your starting skills and flavor."
+        "At the start you choose a species and a class. These determine"
+        "your starting skills. All skills begin at base 30, then species"
+        "and class bonuses are added."
         "\n\n"
-        "Species:\n"
-        "- Human: +5 Gunnery, +0 Piloting, +5 Engineering\n"
+        "Species:"
+        "\n"
+        "- Human: +5 Gunnery, +0 Piloting, +5 Engineering"
+        "\n"
         "- Martian: +5 Gunnery, +10 Piloting, +5 Engineering"
         "\n\n"
-        "Classes:\n"
-        "- Pirate: +15 Gunnery, +10 Piloting, +0 Engineering\n"
-        "- Merchant: +0 Gunnery, +5 Piloting, +15 Engineering\n"
+        "Classes:"
+        "\n"
+        "- Pirate: +15 Gunnery, +10 Piloting, +0 Engineering"
+        "\n"
+        "- Merchant: +0 Gunnery, +5 Piloting, +15 Engineering"
+        "\n"
         "- Bounty Hunter: +10 Gunnery, +10 Piloting, +5 Engineering"
         "\n\n"
-        "All skills start at a base of 30, then species and class bonuses "
-        "are added on top. Three skills affect gameplay:\n"
-        "- Gunnery: improves hit chance in combat (each point = +0.5% "
-        "accuracy)\n"
-        "- Piloting: determines AP per turn (3 + Piloting//20) and "
-        "dodge bonus in combat (each point = +0.5% dodge)\n"
-        "- Engineering: reduces power cost of shield regeneration "
-        "(each 20 points reduces cost by 1) and increases max power pool "
-        "(Engineering // 5 bonus)"
+        "Skills:"
+        "\n"
+        "- Gunnery: +0.5% hit chance per point in combat"
+        "\n"
+        "- Piloting: determines AP/turn (3 + Piloting//20) and dodge"
+        "(+0.5% per point, capped at 60%)"
+        "\n"
+        "- Engineering: reduces shield regen power cost (-1 per 20"
+        "points) and increases max power pool (+1 per 5 points)"
         "\n\n"
-        "Module bonuses from your ship (targeting computer, gyro "
-        "stabilizer) are added on top of your base skills during combat."
+        "Module bonuses from your ship (targeting computer, gyro"
+        "stabilizer) stack on top of your base skills during combat."
     ),
 )
 
 _GUIDE_NPCS = GuideSection(
     title="NPCs & Factions",
     body=(
-        "City maps have guild halls with NPCs you can talk to:\n"
-        "- Spaceport: buy ships\n"
-        "- Merchant guild: trade-related NPCs\n"
-        "- Militia guild: law enforcement missions\n"
-        "- Bounty guild: bounty hunter missions\n"
+        "City guilds:"
+        "\n"
+        "- Spaceport: buy ships"
+        "\n"
+        "- Merchant guild: trade contacts and delivery missions"
+        "\n"
+        "- Militia guild: law enforcement missions"
+        "\n"
+        "- Bounty guild: bounty hunting missions"
+        "\n"
         "- Bar: civilian contacts and rumors"
         "\n\n"
-        "Walking into an NPC opens a dialog with options: Talk (flavor "
-        "text), Work (browse missions), or Deliver (if you have a delivery "
-        "mission for that NPC)."
+        "NPC interaction:"
+        "\n"
+        "- Walk into an NPC to open their dialog"
+        "\n"
+        "- Talk: flavor text and background"
+        "\n"
+        "- Work: browse available missions"
+        "\n"
+        "- Deliver: complete a delivery mission for this NPC"
         "\n\n"
-        "Faction reputation tracks how each group views you:\n"
-        "- Pirates: start at -100 (hostile)\n"
-        "- Merchants: start at 0 (neutral)\n"
-        "- Civilians: start at 0 (neutral)\n"
+        "Faction reputation:"
+        "\n"
+        "- Pirates: start at -100 (hostile)"
+        "\n"
+        "- Merchants: start at 0 (neutral)"
+        "\n"
+        "- Civilians: start at 0 (neutral)"
+        "\n"
         "- Militia: start at 50 (friendly)"
         "\n\n"
-        "Reputation changes based on your actions — destroying pirates "
-        "improves militia and civilian reputation, attacking civilians "
-        "damages all non-pirate factions."
+        "- Destroying pirates improves militia/civilian rep"
+        "\n"
+        "- Attacking civilians damages all non-pirate factions"
         "\n\n"
-        "In space mode, T opens the comms panel. You can hail nearby "
-        "ships to identify them. Hostile ships that approach may trigger "
-        "combat. Some systems have NPC ship traffic (merchant convoys, "
-        "pirate patrols) that move and respond to your presence."
+        "Space mode:"
+        "\n"
+        "- T opens the comms panel to hail nearby ships"
+        "\n"
+        "- Hostile ships approaching may trigger combat"
+        "\n"
+        "- Some systems have NPC traffic (convoys, patrols)"
     ),
 )
 
@@ -341,8 +487,21 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
 # ---------------------------------------------------------------------------
 
 
-# Left-column content width — full screen minus margins.
-_CONTENT_WIDTH: int = SCREEN_WIDTH - 6
+# Border frame around the entire guide.
+_BORDER_RECT = (1, 1, SCREEN_WIDTH - 2, SCREEN_HEIGHT - 2)
+
+# Left-edge x for left-aligned body text (inside border + padding).
+_CONTENT_LEFT: int = 4
+
+# Word-wrap width for body text — matches the space inside the border
+# after accounting for 3-char left padding.
+_CONTENT_WIDTH: int = SCREEN_WIDTH - 8
+
+# Rows available for body text: room for title (3), divider (1), blank (1),
+# then body, then blank (1), divider (1), hint (1), blank (1) before border.
+# Shared between render_guide_page and update_guide so scroll logic stays
+# consistent.
+_BODY_AVAIL_ROWS: int = SCREEN_HEIGHT - 13
 
 
 def render_guide_list(
@@ -353,33 +512,43 @@ def render_guide_list(
     """Paint the topic-selection list. Clears console first."""
     console.clear()
 
+    # Border frame (subtle dot-border)
+    ui.paint_rect_border(console, _BORDER_RECT, fg=ui.COLOR_VALUE_DIM, char=".")
+
     # Title
     _title = "GAME GUIDE"
     console.print(
-        x=ui.centered_x(_title, SCREEN_WIDTH), y=2,
+        x=ui.centered_x(_title, SCREEN_WIDTH), y=3,
         string=_title, fg=ui.COLOR_TITLE,
     )
 
-    # Section list — centered vertically, with selection markers
-    _list_top = 6
-    _n = len(sections)
+    # Divider below title
+    _div = "\u2500" * (SCREEN_WIDTH - 8)
+    console.print(
+        x=ui.centered_x(_div, SCREEN_WIDTH), y=4,
+        string=_div, fg=ui.COLOR_VALUE_DIM,
+    )
+
+    # Section list — numbered, centered, with selection marker
+    _list_top = 7
     for i, sec in enumerate(sections):
         _row = _list_top + i
         _is_sel = i == selected
-        _marker = "> " if _is_sel else "  "
-        _end = " <" if _is_sel else "  "
+        _num = f"{i + 1:02d}"
+        _marker = "\u25b8" if _is_sel else " "  # ▸ for selected
+        _text = f"{_marker} {_num}  {sec.title}"
         _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
         console.print(
-            x=ui.centered_x(_marker + sec.title + _end, SCREEN_WIDTH),
+            x=ui.centered_x(_text, SCREEN_WIDTH),
             y=_row,
-            string=_marker + sec.title + _end,
+            string=_text,
             fg=_fg,
         )
 
     # Hint
-    _hint = "Up/Down navigate - ENTER open - ESC close"
+    _hint = "\u2191\u2193 / jk  navigate  \u00b7  ENTER  open  \u00b7  ESC  close"
     console.print(
-        x=ui.centered_x(_hint, SCREEN_WIDTH), y=SCREEN_HEIGHT - 4,
+        x=ui.centered_x(_hint, SCREEN_WIDTH), y=SCREEN_HEIGHT - 5,
         string=_hint, fg=ui.COLOR_INSTRUCTION,
     )
 
@@ -392,52 +561,68 @@ def render_guide_page(
     """Paint one section's body text, word-wrapped. Clears console first.
 
     ``page_offset`` is the first line to display (for scrolling long
-    sections). Section title, a short divider, and a hint are always
-    painted; the body text starts below the divider.
+    sections). Section title, dividers, and hint are always painted;
+    the body text starts below the title divider and is left-aligned
+    inside the border frame for easier reading of long passages.
     """
     console.clear()
 
+    # Border frame
+    ui.paint_rect_border(console, _BORDER_RECT, fg=ui.COLOR_VALUE_DIM, char=".")
+
     # Title
     console.print(
-        x=ui.centered_x(section.title, SCREEN_WIDTH), y=2,
+        x=ui.centered_x(section.title, SCREEN_WIDTH), y=3,
         string=section.title, fg=ui.COLOR_TITLE,
     )
 
-    # Subtle divider below title
-    _divider = "\u2500" * min(len(section.title) + 4, _CONTENT_WIDTH)
+    # Divider below title
+    _div = "\u2500" * min(len(section.title) + 4, _CONTENT_WIDTH)
     console.print(
-        x=ui.centered_x(_divider, SCREEN_WIDTH), y=3,
-        string=_divider, fg=ui.COLOR_VALUE_DIM,
+        x=ui.centered_x(_div, SCREEN_WIDTH), y=4,
+        string=_div, fg=ui.COLOR_VALUE_DIM,
     )
 
-    # Body text — word-wrapped, starting at row 5
+    # Body text — word-wrapped, left-aligned, starting at row 6
     _lines = ui.wrap_text(section.body, _CONTENT_WIDTH)
-    _start_y = 5
-    _avail_rows = SCREEN_HEIGHT - _start_y - 3  # leave room for hint
-    for i in range(_avail_rows):
+    _start_y = 6
+    for i in range(_BODY_AVAIL_ROWS):
         _idx = page_offset + i
         if _idx >= len(_lines):
             break
         console.print(
-            x=ui.centered_x(_lines[_idx], SCREEN_WIDTH),
+            x=_CONTENT_LEFT,
             y=_start_y + i,
             string=_lines[_idx],
             fg=ui.COLOR_VALUE_WHITE,
         )
 
-    # Hint — shows page info if multi-page
+    if not _lines:
+        return
+
+    # Bottom divider (same width as body text)
+    _hint_y = _start_y + _BODY_AVAIL_ROWS + 1
+    if _hint_y < SCREEN_HEIGHT - 2:
+        _bd = "\u2500" * _CONTENT_WIDTH
+        console.print(
+            x=_CONTENT_LEFT, y=_hint_y,
+            string=_bd, fg=ui.COLOR_VALUE_DIM,
+        )
+        _hint_y += 1
+
+    # Hint — scroll indicator with page counter for multi-page sections
     _hint: str
-    if len(_lines) > _avail_rows:
-        _total_pages = (len(_lines) + _avail_rows - 1) // _avail_rows
-        _cur_page = page_offset // _avail_rows + 1
+    if len(_lines) > _BODY_AVAIL_ROWS:
+        _total_pages = (len(_lines) + _BODY_AVAIL_ROWS - 1) // _BODY_AVAIL_ROWS
+        _cur_page = page_offset // _BODY_AVAIL_ROWS + 1
         _hint = (
-            f"Up/Down scroll  ({_cur_page}/{_total_pages})  "
-            "ESC to go back"
+            f"\u2191\u2193 scroll  ({_cur_page}/{_total_pages})  "
+            "\u00b7  ESC  back"
         )
     else:
-        _hint = "ESC to go back"
+        _hint = "ESC  go back"
     console.print(
-        x=ui.centered_x(_hint, SCREEN_WIDTH), y=SCREEN_HEIGHT - 2,
+        x=ui.centered_x(_hint, SCREEN_WIDTH), y=_hint_y,
         string=_hint, fg=ui.COLOR_INSTRUCTION,
     )
 
@@ -469,10 +654,19 @@ def update_guide(
         # We are on a section page
         if sym_name in ("escape",):
             return GuideOutcome.BACK_TO_LIST, selected, None
-        # Scrolling
+        # Scrolling — page-down/page-up for full-page jumps
         _lines = ui.wrap_text(viewing.body, _CONTENT_WIDTH)
-        _avail = SCREEN_HEIGHT - 5 - 3
-        if sym_name in ("down", "j") and page_offset + _avail < len(_lines):
+        if sym_name in ("pagedown",):
+            _next = page_offset + _BODY_AVAIL_ROWS
+            if _next < len(_lines):
+                return GuideOutcome.IGNORE, selected, _next
+            return GuideOutcome.IGNORE, selected, page_offset
+        if sym_name in ("pageup",):
+            _prev = page_offset - _BODY_AVAIL_ROWS
+            if _prev > 0:
+                return GuideOutcome.IGNORE, selected, _prev
+            return GuideOutcome.IGNORE, selected, 0
+        if sym_name in ("down", "j") and page_offset + _BODY_AVAIL_ROWS < len(_lines):
             return GuideOutcome.IGNORE, selected, page_offset + 1
         if sym_name in ("up", "k") and page_offset > 0:
             return GuideOutcome.IGNORE, selected, page_offset - 1

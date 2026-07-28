@@ -29,6 +29,7 @@ from . import ui
 from .data.npcs import NPC, find_npc, list_npcs
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from .game_context import GameContext
+from .input_helpers import _try_open_guide
 
 if TYPE_CHECKING:
     from .mission import Mission
@@ -228,6 +229,8 @@ def _run_npc_talk(
 
     def _update(event: tcod.event.Event) -> TalkOutcome:
         nonlocal selected
+        if _try_open_guide(event, ctx):
+            return TalkOutcome.IGNORE
         new = _npc_talk_navigate(event, selected, n_options)
         if new is not None:
             selected = new

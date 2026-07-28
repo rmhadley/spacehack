@@ -20,6 +20,7 @@ from . import npc as npc_module
 from .game_context import GameContext
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .data.classes import find_class
+from .input_helpers import _try_open_guide
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +170,8 @@ def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuy
         render_ship_buy(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> ShipBuyOutcome:
+        if _try_open_guide(event, ctx):
+            return ShipBuyOutcome.IGNORE
         return update_ship_buy(event, ship, ctx.stats)
     return ui.Modal(ctx.context, console).run(_render, _update)
 
@@ -294,6 +297,8 @@ def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_mo
 
     def _update(event) -> MissionOutcome:
         nonlocal selected
+        if _try_open_guide(event, ctx):
+            return MissionOutcome.IGNORE
         new = _mission_navigate(event, selected, len(offerings))
         if new is not None:
             selected = new
@@ -406,6 +411,8 @@ def _run_quest_log(ctx) -> tuple[QuestLogOutcome, mission_module.ActiveMission |
 
     def _update(event) -> QuestLogOutcome:
         nonlocal confirm_abandon
+        if _try_open_guide(event, ctx):
+            return QuestLogOutcome.IGNORE
         result = update_quest_log(event, confirm_abandon=confirm_abandon)
         if result is QuestLogOutcome.ABANDONED and (not confirm_abandon):
             confirm_abandon = True
@@ -537,6 +544,8 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
 
     def _update(event) -> ShipMenuAction:
         nonlocal selected
+        if _try_open_guide(event, ctx):
+            return ShipMenuAction.IGNORE
         new = _ship_menu_navigate(event, selected, n)
         if new is not None:
             selected = new
@@ -605,6 +614,8 @@ def _run_mech_menu(ctx) -> None:
 
     def _update(event) -> _MechanicOutcome:
         nonlocal selected
+        if _try_open_guide(event, ctx):
+            return _MechanicOutcome.IGNORE
         if isinstance(event, tcod.event.Quit):
             return _MechanicOutcome.QUIT
         if not isinstance(event, tcod.event.KeyDown):
@@ -772,5 +783,7 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet, *, active_miss
         render_planet_menu(console, ctx, planet_obj, has_port=has_port)
 
     def _update(event) -> PlanetMenuOutcome:
+        if _try_open_guide(event, ctx):
+            return PlanetMenuOutcome.IGNORE
         return update_planet_menu(event, has_port=has_port)
     return ui.Modal(ctx.context, console).run(_render, _update)

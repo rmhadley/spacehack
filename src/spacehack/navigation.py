@@ -22,6 +22,7 @@ from .game_context import GameContext
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .data import solar_systems as solar_systems_module
 from .data.npc_ships import find_npc_ship
+from .input_helpers import _try_open_guide
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +282,12 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
 
     def _render() -> None:
         render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
-    return ui.Modal(ctx.context, console).run(_render, update_navigation)
+
+    def _update(event) -> NavigationOutcome:
+        if _try_open_guide(event, ctx):
+            return NavigationOutcome.IGNORE
+        return update_navigation(event)
+    return ui.Modal(ctx.context, console).run(_render, _update)
 
 
 def _nearest_body_name(pos: world.Position, system) -> str:
@@ -542,6 +548,8 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                 continue
             sym = event.sym
             sym_name: str = getattr(sym, 'name', '').lower()
+            if _try_open_guide(event, ctx):
+                continue
             if sym in ui._UP_SYMS or sym_name == 'k':
                 selected = (selected - 1) % n
                 break
@@ -761,6 +769,8 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
         render_jump_menu(console, ctx, jp, target_system_id, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, current_fuel=_fuel, max_fuel=_max_fuel, jump_fuel_cost=ship_module.JUMP_FUEL_COST)
 
     def _update(event) -> JumpMenuOutcome:
+        if _try_open_guide(event, ctx):
+            return JumpMenuOutcome.IGNORE
         ctx.context.convert_event(event)
         return update_jump_menu(event)
     return ui.Modal(ctx.context, console).run(_render, _update)

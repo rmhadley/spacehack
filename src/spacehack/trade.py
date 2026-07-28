@@ -25,6 +25,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make
 from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
+from .input_helpers import _try_open_guide
 
 
 NEUTRAL_TARGET: int = 8
@@ -403,6 +404,9 @@ def _run_quantity_prompt(
     def _update(event: tcod.event.Event) -> _QOut:
         nonlocal qty
 
+        if _try_open_guide(event, ctx):
+            return _QOut.IGNORE
+
         if isinstance(event, tcod.event.Quit):
             return _QOut.BACK
         if not isinstance(event, tcod.event.KeyDown):
@@ -505,6 +509,8 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         )
 
     def _update(event) -> _LootOutcome:
+        if _try_open_guide(event, ctx):
+            return _LootOutcome.IGNORE
         if isinstance(event, tcod.event.Quit):
             return _LootOutcome.QUIT
         if not isinstance(event, tcod.event.KeyDown):
@@ -629,6 +635,9 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
 
     def _update(event: tcod.event.Event) -> _NpcTradeOutcome:
         nonlocal _focus, _sel
+
+        if _try_open_guide(event, ctx):
+            return _NpcTradeOutcome.IGNORE
 
         if isinstance(event, tcod.event.Quit):
             return _NpcTradeOutcome.QUIT
@@ -815,6 +824,9 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
     def _update(event: tcod.event.Event) -> _TradeOutcome:
         nonlocal _focus, _sel
+
+        if _try_open_guide(event, ctx):
+            return _TradeOutcome.IGNORE
 
         if isinstance(event, tcod.event.Quit):
             return _TradeOutcome.QUIT
@@ -1043,6 +1055,9 @@ def open_cargo(ctx: GameContext) -> None:
 
     def _update(event: tcod.event.Event) -> _COut:
         nonlocal _sel
+
+        if _try_open_guide(event, ctx):
+            return _COut.IGNORE
 
         if isinstance(event, tcod.event.Quit):
             return _COut.QUIT

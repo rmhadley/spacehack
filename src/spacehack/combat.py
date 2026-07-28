@@ -29,6 +29,7 @@ from .data.modules import find_module as find_module_spec
 from .engine import RNG
 
 from . import ship as _ship_module
+from .input_helpers import _try_open_guide
 
 
 
@@ -1474,6 +1475,10 @@ def run_combat(
                     break
                 if not isinstance(event, tcod.event.KeyDown):
                     continue
+
+                if ctx is not None and _try_open_guide(event, ctx):
+                    continue
+
                 sym_name: str = getattr(event.sym, "name", "").lower()
                 sym = event.sym
 
