@@ -42,6 +42,7 @@ class ModuleSpec:
     engineering_bonus: int = 0
     max_hull_bonus: int = 0
     price: int = 0
+    tech_level: int = 1               # minimum planet tech level to stock this
 
 
 _BY_ID: dict[str, ModuleSpec] | None = None

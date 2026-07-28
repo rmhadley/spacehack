@@ -44,6 +44,7 @@ class WeaponSpec:
     price: int = 0                    # credits cost to buy
     min_range: int = 1
     max_range: int = 5
+    tech_level: int = 1               # minimum planet tech level to stock this
 
 
 # Lazy-built registry
