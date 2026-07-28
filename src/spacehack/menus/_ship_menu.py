@@ -139,8 +139,11 @@ def _run_loadout_view(ctx) -> None:
     def fit(line: str) -> str:
         return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
+    # Left margin for all content lines.
+    LEFT_X = 6
+
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=row, string=text, fg=fg)
+        console.print(x=LEFT_X, y=row, string=text, fg=fg, bg=(0, 0, 0))
 
     def _render() -> None:
         console.clear()
@@ -149,17 +152,18 @@ def _run_loadout_view(ctx) -> None:
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 4
 
-        # Title
-        paint(cy, fit(f"YOUR {ship_spec.name.upper()} — LOADOUT"), fg=ui.COLOR_TITLE)
+        # Title (centered)
+        title_text = f"YOUR {ship_spec.name.upper()} — LOADOUT"
+        console.print(x=ui.centered_x(title_text, SCREEN_WIDTH), y=cy, string=title_text, fg=ui.COLOR_TITLE)
         cy += 2
 
         # Weapons
         wpn_count = len(owned.weapons)
         wpn_slots = ship_spec.weapon_slots
-        paint(cy, fit(f"Weapons ({wpn_count}/{wpn_slots}):"), fg=ui.COLOR_VALUE_WHITE)
+        paint(cy, f"Weapons ({wpn_count}/{wpn_slots}):", fg=ui.COLOR_VALUE_WHITE)
         cy += 1
         if wpn_count == 0:
-            paint(cy, fit("  (none installed)"), fg=ui.COLOR_VALUE_DIM)
+            paint(cy, "  (none installed)", fg=ui.COLOR_VALUE_DIM)
             cy += 1
         else:
             for wid in owned.weapons:
@@ -171,34 +175,32 @@ def _run_loadout_view(ctx) -> None:
                 paint(cy, fit(line), fg=ui.COLOR_OPTION)
                 cy += 1
 
-        # Divider
         cy += 1
 
         # Modules
         mod_count = len(owned.modules)
         mod_slots = ship_spec.module_slots
-        paint(cy, fit(f"Modules ({mod_count}/{mod_slots}):"), fg=ui.COLOR_VALUE_WHITE)
+        paint(cy, f"Modules ({mod_count}/{mod_slots}):", fg=ui.COLOR_VALUE_WHITE)
         cy += 1
         if mod_count == 0:
-            paint(cy, fit("  (none installed)"), fg=ui.COLOR_VALUE_DIM)
+            paint(cy, "  (none installed)", fg=ui.COLOR_VALUE_DIM)
             cy += 1
         else:
             for mid in owned.modules:
                 try:
                     ms = _fm(mid)
-                    paint(cy, fit(f"  {ms.name}"), fg=ui.COLOR_OPTION)
+                    paint(cy, f"  {ms.name}", fg=ui.COLOR_OPTION)
                     cy += 1
-                    paint(cy, fit(f"    {ms.description}"), fg=ui.COLOR_VALUE_DIM)
+                    paint(cy, f"    {ms.description}", fg=ui.COLOR_VALUE_DIM)
                     cy += 1
                 except KeyError:
-                    paint(cy, fit(f"  {mid} (unknown)"), fg=ui.COLOR_VALUE_DIM)
+                    paint(cy, f"  {mid} (unknown)", fg=ui.COLOR_VALUE_DIM)
                     cy += 1
 
-        # Divider
         cy += 1
 
         # Stats
-        paint(cy, fit("Stats:"), fg=ui.COLOR_VALUE_WHITE)
+        paint(cy, "Stats:", fg=ui.COLOR_VALUE_WHITE)
         cy += 1
         stats_lines = [
             f"  Fuel: {owned.fuel} / {ship_spec.max_fuel}",
@@ -211,20 +213,21 @@ def _run_loadout_view(ctx) -> None:
             paint(cy, fit(line), fg=ui.COLOR_VALUE_WHITE)
             cy += 1
 
-        # Hint
         cy += 1
-        paint(cy, fit("Press ESC to go back."), fg=ui.COLOR_INSTRUCTION)
+        paint(cy, "Press ESC to go back.", fg=ui.COLOR_INSTRUCTION)
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
-    def _update(event: tcod.event.Event) -> bool | None:
-        """Return non-None to close the modal."""
+    def _update(event: tcod.event.Event) -> ShipMenuAction | None:
+        """Return IGNORE to keep polling, None to close."""
         if _try_open_guide(event, ctx):
-            return None
+            return ShipMenuAction.IGNORE
         if isinstance(event, tcod.event.Quit):
-            return True
-        if not isinstance(event, tcod.event.KeyDown):
             return None
-        return True if event.sym in ui._ESCAPE_SYMS else None
+        if not isinstance(event, tcod.event.KeyDown):
+            return ShipMenuAction.IGNORE
+        if event.sym in ui._ESCAPE_SYMS:
+            return None
+        return ShipMenuAction.IGNORE
 
     ui.Modal(ctx.context, console).run(_render, _update)
 
