@@ -1,12 +1,47 @@
 """Player ship catalog — the purchasable starships at the space port.
 
+Six-ship progression:
+
+  * **Starter** — given free at game start; basic stats, few slots.
+  * **Scout** — early upgrade; better combat, light shields.
+  * **Hauler** — cargo specialist; big holds, light weapons.
+  * **Cruiser** — combat mid-tier; heavy guns, good shields.
+  * **Frigate** — end-game combat; overwhelming firepower.
+  * **Freighter** — end-game cargo; massive holds.
+
 Extracted from ``ship.py`` during the data-first migration.
+Rebalanced to give the player a free starter ship and a clear
+progression path to earn better ships.
 """
 
 from . import Ship
 
 
 SHIPS: tuple[Ship, ...] = (
+    # ------------------------------------------------------------------- #
+    # Tier 1 — Starter (free, given at game start)
+    # ------------------------------------------------------------------- #
+    Ship(
+        id="starter",
+        name="Starter",
+        char="t",
+        fg=(180, 200, 220),                                              # muted steel-blue
+        price=0,
+        width=1, height=1,
+        description=(
+            "A modest starter vessel. Gets you where you need to go."
+        ),
+        weapon_slots=2,
+        module_slots=1,
+        max_cargo=20,
+        max_fuel=80,
+        base_power_gen=2,
+        base_shield_max=0,
+        base_hull=15,
+    ),
+    # ------------------------------------------------------------------- #
+    # Tier 2 — Scout (early combat upgrade)
+    # ------------------------------------------------------------------- #
     Ship(
         id="scout",
         name="Scout",
@@ -15,16 +50,20 @@ SHIPS: tuple[Ship, ...] = (
         price=80,
         width=1, height=1,
         description=(
-            "A small, fast scoutship - quick on cargo runs, lightly armed."
+            "A small, fast scoutship — quick on cargo runs, lightly armed."
         ),
-        weapon_slots=6,
+        weapon_slots=4,
         module_slots=1,
-        max_cargo=40,
+        max_cargo=30,
         max_fuel=100,
         base_power_gen=3,
-        base_shield_max=0,
-        base_hull=20,
+        base_shield_max=5,
+        base_shield_recharge=1,
+        base_hull=25,
     ),
+    # ------------------------------------------------------------------- #
+    # Tier 3 — Hauler (cargo specialist)
+    # ------------------------------------------------------------------- #
     Ship(
         id="hauler",
         name="Hauler",
@@ -41,24 +80,73 @@ SHIPS: tuple[Ship, ...] = (
         max_fuel=80,
         base_power_gen=4,
         base_shield_max=10,
+        base_shield_recharge=1,
         base_hull=30,
     ),
+    # ------------------------------------------------------------------- #
+    # Tier 4 — Cruiser (combat mid-tier)
+    # ------------------------------------------------------------------- #
     Ship(
         id="cruiser",
         name="Cruiser",
         char="C",
         fg=(235, 130, 130),
-        price=240,
+        price=350,
         width=2, height=2,
         description=(
-            "A well-armed cruiser - capable in a fight, slow in dock."
+            "A well-armed cruiser — capable in a fight, well-shielded."
         ),
         weapon_slots=6,
         module_slots=4,
-        max_cargo=40,
-        max_fuel=60,
+        max_cargo=50,
+        max_fuel=80,
         base_power_gen=5,
-        base_shield_max=20,
-        base_hull=50,
+        base_shield_max=25,
+        base_shield_recharge=3,
+        base_hull=60,
+    ),
+    # ------------------------------------------------------------------- #
+    # Tier 5 — Frigate (end-game combat)
+    # ------------------------------------------------------------------- #
+    Ship(
+        id="frigate",
+        name="Frigate",
+        char="F",
+        fg=(200, 100, 255),                                              # purple — distinct from cruiser red
+        price=600,
+        width=3, height=2,
+        description=(
+            "Heavy warship with overwhelming firepower and thick armour."
+        ),
+        weapon_slots=8,
+        module_slots=6,
+        max_cargo=80,
+        max_fuel=100,
+        base_power_gen=6,
+        base_shield_max=40,
+        base_shield_recharge=5,
+        base_hull=100,
+    ),
+    # ------------------------------------------------------------------- #
+    # Tier 5 — Freighter (end-game cargo)
+    # ------------------------------------------------------------------- #
+    Ship(
+        id="freighter",
+        name="Freighter",
+        char="F",
+        fg=(255, 180, 80),                                               # gold — distinct from hauler green
+        price=500,
+        width=3, height=2,
+        description=(
+            "Massive cargo hauler for the serious trader."
+        ),
+        weapon_slots=3,
+        module_slots=4,
+        max_cargo=250,
+        max_fuel=70,
+        base_power_gen=4,
+        base_shield_max=15,
+        base_shield_recharge=2,
+        base_hull=40,
     ),
 )

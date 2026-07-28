@@ -151,10 +151,25 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
     log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
     log.add("The cobblestones are damp from last night's rain.")
     log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
+    log.add('Your starter ship is docked at the space port.')
     log.add('Buildings: North-West space port, South-West merchant guild,')
     log.add('Bar in the plaza, militia + bounty guild on the South-East.')
-    log.add('Visit the space port to buy a ship; the guild halls offer work later.')
-    player_owned_ship: ship_module.OwnedShip | None = None
+    log.add('Visit the guild halls to find work or the port to upgrade your ship.')
+    # Give the player a free starter ship.
+    starter_ship = ship_module.find_ship("starter")
+    starter_entity = world.Entity(
+        char=starter_ship.char, fg=starter_ship.fg,
+        pos=world.HANGAR_ANCHOR,
+        name=f'Your Ship: {starter_ship.name}',
+        ship_id=starter_ship.id, owned=True,
+    )
+    game_map.entities.append(starter_entity)
+    player_owned_ship: ship_module.OwnedShip = ship_module.OwnedShip(
+        ship_id=starter_ship.id,
+        weapons=('light_laser',),
+        modules=(),
+        fuel=starter_ship.max_fuel,
+    )
     player_active_mission: mission_module.ActiveMission | None = None
     character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
     ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_mission=player_active_mission)
@@ -396,23 +411,43 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                 ctx.player = player
                                 current_mode = 'space'
                             continue
-                    elif player_owned_ship is not None:
-                        log.add('You already have a ship docked in your hangar.')
                     else:
-                        result = _run_ship_buy(ctx, blocker, ship)
+                        # Trade-in: if the player already owns a ship, compute its value.
+                        _trade_in_value = 0
+                        if player_owned_ship is not None:
+                            _old_ship = ship_module.find_ship(player_owned_ship.ship_id)
+                            _trade_in_value = max(0, _old_ship.price // 2)
+                        _effective_price = max(0, ship.price - _trade_in_value)
+                        result = _run_ship_buy(ctx, blocker, ship, effective_price=_effective_price)
                         if result is ShipBuyOutcome.QUIT:
                             return
                         if result is ShipBuyOutcome.BUY:
-                            stats.credits -= ship.price
+                            if ctx.stats.credits < _effective_price:
+                                short = _effective_price - ctx.stats.credits
+                                log.add(f'Including trade-in ({_trade_in_value}$) you need {_effective_price}$, but you are {short}$ short.')
+                                continue
+                            stats.credits -= _effective_price
+                            # Remove the old owned entity from the city, if any.
+                            if player_owned_ship is not None:
+                                _old_entity = next((e for e in city_game_map.entities if e.owned and e.ship_id == player_owned_ship.ship_id), None)
+                                if _old_entity is not None:
+                                    try:
+                                        city_game_map.entities.remove(_old_entity)
+                                    except ValueError:
+                                        pass
+                            # Place the new ship in the hangar.
                             blocker.pos = world.HANGAR_ANCHOR
                             blocker.owned = True
                             blocker.name = f'Your Ship: {ship.name}'
                             player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=('light_laser', 'heavy_laser', 'light_missile'), modules=('compact_reactor', 'shield_mk1'), fuel=ship.max_fuel)
                             ctx.player_owned_ship = player_owned_ship
-                            log.add(f'You bought the {ship.name} for {ship.price}$ and parked it in your hangar.')
+                            if _trade_in_value > 0:
+                                log.add(f'Traded in for the {ship.name} — paid {_effective_price}$ (trade-in {_trade_in_value}$).')
+                            else:
+                                log.add(f'You bought the {ship.name} for {ship.price}$ and parked it in your hangar.')
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
-                            short = ship.price - stats.credits
-                            log.add(f'You cannot afford the {ship.name} ({short}$ short).')
+                            short = _effective_price - ctx.stats.credits
+                            log.add(f'You cannot afford the {ship.name} — need {_effective_price}$ (including {_trade_in_value}$ trade-in), {short}$ short.')
                 elif blocker.loot_data:
                     from .trade import open_loot_pickup as _open_loot
                     _open_loot(ctx, blocker)

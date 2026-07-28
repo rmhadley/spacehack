@@ -33,20 +33,26 @@ class ShipBuyOutcome(Enum):
     QUIT = auto()
 
 
-def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int) -> None:
+def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int, effective_price: int | None = None) -> None:
     """Paint the centered ship-buy dialog into ``console``.
 
-    Clears first so the dialog fully replaces the city view; the
-    caller re-paints city + HUD + msg log once the dialog exits.
+    When ``effective_price`` is provided (trade-in scenario) the
+    dialog shows the discounted price and uses it for affordability
+    checks instead of ``ship.price``.
     """
+    _price = effective_price if effective_price is not None else ship.price
     console.clear()
     title = f'A {ship.name.upper()} sits on the showroom floor.'
     body = ship.description
-    price_line = f'Cost: {ship.price}$    You have: {ctx.stats.credits}$'
-    if ctx.stats.credits >= ship.price:
+    if effective_price is not None and effective_price < ship.price:
+        _trade_in_save = ship.price - effective_price
+        price_line = f'Cost: {ship.price}$  (trade-in {_trade_in_save}$)  You have: {ctx.stats.credits}$'
+    else:
+        price_line = f'Cost: {ship.price}$    You have: {ctx.stats.credits}$'
+    if ctx.stats.credits >= _price:
         afford = 'Press ENTER to buy it.'
     else:
-        short = ship.price - ctx.stats.credits
+        short = _price - ctx.stats.credits
         afford = f'You cannot afford it. ({short}$ short)'
     back = 'Press ESC to walk away.'
     max_w = screen_width - HUD_WIDTH - 2
@@ -59,14 +65,19 @@ def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
     paint(center_y - 4, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y - 1, fit(body), fg=ui.COLOR_DESCRIPTION)
-    paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if ctx.stats.credits >= ship.price else ui.COLOR_VALUE_DIM)
-    paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.credits >= ship.price else ui.COLOR_VALUE_DIM)
+    paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
+    paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
     paint(center_y + 7, fit(back), fg=ui.COLOR_INSTRUCTION)
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 
-def update_ship_buy(event: tcod.event.Event, ship: ship_module.Ship, stats: hud.HudStats) -> ShipBuyOutcome:
-    """Map a single event for the ship-buy dialog."""
+def update_ship_buy(event: tcod.event.Event, ship: ship_module.Ship, stats: hud.HudStats, *, effective_price: int | None = None) -> ShipBuyOutcome:
+    """Map a single event for the ship-buy dialog.
+
+    Uses ``effective_price`` (when provided) to decide affordability
+    instead of ``ship.price``.
+    """
+    _price = effective_price if effective_price is not None else ship.price
     if isinstance(event, tcod.event.Quit):
         return ShipBuyOutcome.QUIT
     if not isinstance(event, tcod.event.KeyDown):
@@ -75,23 +86,23 @@ def update_ship_buy(event: tcod.event.Event, ship: ship_module.Ship, stats: hud.
     if sym in ui._ESCAPE_SYMS:
         return ShipBuyOutcome.BACK
     if sym in ui._ENTER_SYMS:
-        return ShipBuyOutcome.BUY if stats.credits >= ship.price else ShipBuyOutcome.TOO_EXPENSIVE
+        return ShipBuyOutcome.BUY if stats.credits >= _price else ShipBuyOutcome.TOO_EXPENSIVE
     return ShipBuyOutcome.IGNORE
 
 
-def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuyOutcome:
-    """Show the ship-buy modal for ``ship`` (the entity standing in
-    the player's way is ``blocker``). Returns the dialog outcome;
-    callers handle the actual purchase (mutating ``stats``, removing
-    ``blocker`` from ``game_map.entities``, logging).
+def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship, *, effective_price: int | None = None) -> ShipBuyOutcome:
+    """Show the ship-buy modal for ``ship``.
+
+    When ``effective_price`` is provided (trade-in), the dialog uses
+    it for afford checks instead of ``ship.price``.
     """
     console = make_console()
 
     def _render() -> None:
-        render_ship_buy(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_ship_buy(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, effective_price=effective_price)
 
     def _update(event) -> ShipBuyOutcome:
         if _try_open_guide(event, ctx):
             return ShipBuyOutcome.IGNORE
-        return update_ship_buy(event, ship, ctx.stats)
+        return update_ship_buy(event, ship, ctx.stats, effective_price=effective_price)
     return ui.Modal(ctx.context, console).run(_render, _update)
