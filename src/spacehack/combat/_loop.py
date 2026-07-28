@@ -23,9 +23,9 @@ from ..data.weapons import find_weapon
 from ..data.pilot_skills import PilotSkills
 from ..input_helpers import _try_open_guide
 
+from ._ai import _run_enemy_turn
 from ._actions import (
     start_player_turn,
-    start_enemy_turn,
     move_entity,
     resolve_damage,
     can_afford_action,
@@ -42,11 +42,9 @@ from ._stats import (
 from ._animations import (
     _animate_laser_shot,
     _animate_explosion,
-    _render_anim_frame,
     _resolve_target,
     _paint_target_highlight,
     _paint_range_line,
-    _responsive_sleep,
 )
 
 
@@ -392,208 +390,15 @@ def run_combat(
             # key to advance.
             if player_state["ap_remaining"] <= 0 or combat_mode == "WAIT":
                 combat_mode = "WAIT"
-                # Execute enemy turn for ALL alive enemies
-                for _ei in enemy_insts:
-                    if not _ei.alive:
-                        continue
-                    start_enemy_turn(_ei)
-                    # Enemy AI: burn the full AP per turn. Each iter =
-                    # ONE action that costs 1 AP. Move if outside
-                    # preferred_range, else fire (when armed). Loop
-                    # terminates on ap_remaining==0 or on the idle
-                    # branch (already in range, no weapons). Fire
-                    # charges 1 AP too (mirrors player fire cost) so
-                    # the loop can't spin forever if the AI is unable
-                    # to close distance. Tactical choices (hold vs.
-                    # fire, range gating) are out of scope for the
-                    # simple v1 of this fix.
-                    # Find matching spec for this enemy via spec_id
-                    _esp = next(
-                        (_sp for _sp in enemy_specs if getattr(_sp, 'id', None) == _ei.spec_id),
-                        enemy_specs[0] if enemy_specs else None,
-                    )
-                    if _esp is None:
-                        continue
-                    # Cache entity-index lookup once per enemy so the
-                    # while loop doesn't re-scan enemy_insts per
-                    # move step.
-                    _e_idx = next(
-                        (_j for _j, _je in enumerate(enemy_insts) if _je is _ei),
-                        -1,
-                    )
-                    while _ei.ap_remaining > 0:
-                        _edist = _distance(
-                            player_state["pos"], _ei.pos,
-                        )
-                        _moved = False
-                        if _edist > _esp.ai_preferred_range:
-                            # Attempt to move one cell toward the
-                            # player. The target cell must be both
-                            # walkable AND unoccupied — the burn-full
-                            # AP refactor exposed overlap because
-                            # pirates now move up to 4 cells per
-                            # turn instead of 1, so two enemies
-                            # converging on the player would happily
-                            # step onto each other (or onto the
-                            # player). Reject collisions with the
-                            # player, another enemy that already
-                            # moved earlier in this same for-loop
-                            # iteration, or any solar-body entity.
-                            _dx = 0 if _ei.pos.x == player_state["pos"].x else (1 if _ei.pos.x < player_state["pos"].x else -1)
-                            _dy = 0 if _ei.pos.y == player_state["pos"].y else (1 if _ei.pos.y < player_state["pos"].y else -1)
-                            _nx = _ei.pos.x + _dx
-                            _ny = _ei.pos.y + _dy
-                            # Check direct instance-position collision first:
-                            # no other alive enemy may occupy the target cell.
-                            # Entity-at checks can miss unmapped enemies whose
-                            # game_map entity positions are stale, so skip the
-                            # entity mapping entirely and check EnemyInstance
-                            # positions directly.
-                            _blocked_by_other = any(
-                                _oe is not _ei and _oe.alive
-                                and _oe.pos.x == _nx and _oe.pos.y == _ny
-                                for _oe in enemy_insts
-                            )
-                            if not _blocked_by_other and (
-                                game_map.is_walkable(_nx, _ny)
-                                and game_map.entity_at(
-                                    _nx, _ny, exclude=None,
-                                ) is None
-                            ):
-                                _ei.pos = world.Position(_nx, _ny)
-                                _ei.cells_moved_this_turn += 1
-                                _ei.ap_remaining -= 1
-                                # Sync enemy entity position AFTER AI movement
-                                if _e_idx >= 0 and _e_idx in _enemy_ents:
-                                    _enemy_ents[_e_idx].pos = _ei.pos
-                                _moved = True
-                                # Render a frame so the player sees the enemy move
-                                # (prevents the teleport feel of multi-AP movement).
-                                _cam_x, _cam_y = _calc_cam()
-                                _flee_now = calc_flee_chance(
-                                    player_state["piloting"],
-                                    _closest_enemy.pilot_piloting,
-                                    player_state["hull"] / max(player_state["max_hull"], 1),
-                                    _distance(player_state["pos"], _closest_enemy.pos),
-                                    flee_attempts,
-                                )
-                                _render_anim_frame(
-                                    console, context, game_map,
-                                    _cam_x, _cam_y, view_w, view_h,
-                                    player_state, enemy_insts, target_idx, log,
-                                    weapon_list=tuple(weapons_list),
-                                    active_weapons=active_weapons,
-                                    evade_bonus=_evade_bonus,
-                                    hit_chances=_weapon_hit_chances,
-                                    flee_chance=_flee_now,
-                                    player_mode=combat_mode,
-                                )
-                                _responsive_sleep(0.05)
-                        if not _moved:
-                            # Either in preferred range (no move
-                            # attempted) OR move was blocked. Pivot
-                            # to fire if armed — mirrors the player-
-                            # side rule of \"if you can't move, shoot\"
-                            # so the AP isn't wasted. If move was
-                            # blocked AND the enemy is unarmed, idle
-                            # for the rest of the turn rather than
-                            # spinning.
-                            if _ei.weapons:
-                                # Enemy fires
-                                _wid = _ei.weapons[0]
-                                _dist = _distance(
-                                    player_state["pos"], _ei.pos,
-                                )
-                                _dodge = _calc_dodge_bonus(
-                                    player_state.get("cells_moved_this_turn", 0),
-                                    int(player_state.get("piloting", 0) * 0.5),
-                                )
-                                _chance = calc_hit_chance(
-                                    _wid, _ei.pilot_gunnery, _dist, _dodge,
-                                )
-                                # Single roll decides both animation AND damage
-                                _e_hit = RNG.randint(1, 100) <= _chance
-                                _ecx, _ecy = _calc_cam()
-                                _animate_laser_shot(
-                                    console, context, game_map,
-                                    _ei.pos, player_state["pos"],
-                                    is_hit=_e_hit,
-                                    cam_x=_ecx, cam_y=_ecy,
-                                    view_w=view_w, view_h=view_h,
-                                    player_state=player_state,
-                                    enemies=enemy_insts,
-                                    target_idx=target_idx,
-                                    log=log,
-                                    weapon_list=tuple(weapons_list),
-                                    active_weapons=active_weapons,
-                                    evade_bonus=_evade_bonus,
-                                    hit_chances=_weapon_hit_chances,
-                                    flee_chance=calc_flee_chance(
-                                        player_state["piloting"],
-                                        _closest_enemy.pilot_piloting,
-                                        player_state["hull"] / max(player_state["max_hull"], 1),
-                                        _distance(player_state["pos"], _closest_enemy.pos),
-                                        flee_attempts,
-                                    ),
-                                )
-                                if _e_hit:
-                                    _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                                        _wid, player_state["hull"],
-                                        player_state["shields"],
-                                        target_pilot_piloting=player_state.get("piloting", 0),
-                                    )
-                                    player_state["shields"] = max(0, player_state["shields"] - _sdmg)
-                                    player_state["hull"] = _fh
-                                    _verb = "glancing hit" if _is_glancing else "hits"
-                                    _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!")
-                                    if _fh <= 0:
-                                        _e_log("Your ship has been destroyed!")
-                                        # Explosion at player position
-                                        _ecx, _ecy = _calc_cam()
-                                        _animate_explosion(
-                                            console, context, game_map,
-                                            player_state["pos"],
-                                            cam_x=_ecx, cam_y=_ecy,
-                                            view_w=view_w, view_h=view_h,
-                                            player_state=player_state,
-                                            enemies=enemy_insts,
-                                            target_idx=target_idx,
-                                            log=log,
-                                            weapon_list=tuple(weapons_list),
-                                            active_weapons=active_weapons,
-                                            evade_bonus=_evade_bonus,
-                                            hit_chances=_weapon_hit_chances,
-                                            flee_chance=calc_flee_chance(
-                                                player_state["piloting"],
-                                                _closest_enemy.pilot_piloting,
-                                                player_state["hull"] / max(player_state["max_hull"], 1),
-                                                _distance(player_state["pos"], _closest_enemy.pos),
-                                                flee_attempts,
-                                            ),
-                                        )
-                                        _result = "DEFEAT"
-                                        break  # exits while
-                                else:
-                                    _e_log(f"{_ei.name} misses!")
-                                # Fire costs 1 AP — mirrors the
-                                # player rule (a shot committed is
-                                # a shot paid for) and guarantees
-                                # the while loop terminates when
-                                # ap_remaining hits 0.
-                                _ei.ap_remaining -= 1
-                            else:
-                                # In preferred range and unarmed, OR
-                                # blocked move and unarmed — idle
-                                # for the rest of the turn.
-                                break
-                    # Cascade DEFEAT out of the for-loop so the
-                    # remaining enemies don't get their turns after
-                    # the player is already destroyed. Without this
-                    # the inner ``break`` only exits the new while.
-                    if _result is not None:
-                        break
-                # If DEFEAT happened during the enemy turn, exit
-                # combat now (don't re-render a fresh player turn).
+                # Delegate enemy AI to its own module.
+                _result = _run_enemy_turn(
+                    console, context, game_map,
+                    player_state, enemy_insts, enemy_specs,
+                    _enemy_ents, target_idx, log,
+                    weapons_list, active_weapons,
+                    _weapon_hit_chances, _evade_bonus,
+                    flee_attempts, view_w, view_h, _calc_cam,
+                )
                 if _result is not None:
                     break
                 # Tick NPCs on the space map between combat rounds
