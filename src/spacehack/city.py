@@ -17,7 +17,7 @@ from .navigation import _add_bounty_spawns_to_map, _responsive_sleep
 from .time import format_date
 
 
-def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = 0.08) -> None:
+def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = 0.08, location: str = '') -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the
@@ -39,7 +39,7 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         _active_mission_text = (
             mission_module.find_mission(_am.mission_id).title if _am is not None else ''
         )
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text, date_str=format_date(ctx))
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, active_mission=_active_mission_text, location=location or None, date_str=format_date(ctx))
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_seconds)
@@ -66,7 +66,7 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
     _tick_economy(ctx)
     offscreen_y = -(solar_system_module.SOL_VIEW_H // 2) - 1
     if hangar_ship_ent.pos.y > offscreen_y:
-        _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y)
+        _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y, location=current_city_id.replace('_', ' ').title())
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
@@ -86,7 +86,7 @@ def _return_to_city(ctx, console: tcod.console.Console, hangar_ship_ent: world.E
     instance that was animated offscreen during launch, so no
     entity-list swap is needed on the city map.
     """
-    _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=world.HANGAR_ANCHOR.y)
+    _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=world.HANGAR_ANCHOR.y, location='Earth')
     if city_player_ent not in city_game_map.entities:
         city_game_map.entities.append(city_player_ent)
     ctx.log.add('You return to Earth and dock at your hangar.')

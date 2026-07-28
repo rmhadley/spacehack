@@ -382,7 +382,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                             city_game_map.entities.remove(hangar_ship)
                                         hangar_ship.pos = world.Position(new_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1)
                                         new_city_map.entities.append(hangar_ship)
-                                        _animate_ship_to_y(ctx, console, hangar_ship, new_city_map, target_y=new_anchor.y)
+                                        _animate_ship_to_y(ctx, console, hangar_ship, new_city_map, target_y=new_anchor.y, location=pid.replace('_', ' ').title())
                                         log.add(f'You touch down on {planet_obj.name}.')
                                     if city_player not in new_city_map.entities:
                                         new_city_map.entities.append(city_player)
