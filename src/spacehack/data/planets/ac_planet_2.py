@@ -52,4 +52,5 @@ SPEC = PlanetSpec(
         ("fuel_cells", 12),
     ),
     tech_level=2,
+    mission_tier=2,
 )

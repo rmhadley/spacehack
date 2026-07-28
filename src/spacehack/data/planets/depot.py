@@ -60,4 +60,5 @@ SPEC = PlanetSpec(
         ("electronics", 8),
     ),
     tech_level=3,
+    mission_tier=2,
 )

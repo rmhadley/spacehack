@@ -67,4 +67,5 @@ SPEC = PlanetSpec(
         ("medical_supplies", 8),
     ),
     tech_level=2,
+    mission_tier=3,
 )

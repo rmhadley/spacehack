@@ -90,4 +90,5 @@ SPEC = PlanetSpec(
         ("luxury_goods", 8),
     ),
     tech_level=2,
+    mission_tier=2,
 )

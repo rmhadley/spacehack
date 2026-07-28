@@ -90,4 +90,5 @@ SPEC = PlanetSpec(
         ("machine_parts", 10),
     ),
     tech_level=3,
+    mission_tier=2,
 )

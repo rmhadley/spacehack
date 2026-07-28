@@ -467,6 +467,13 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     _run_mech_menu(ctx, current_city_id)
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
+                    # Look up planet's mission tier for filtering offerings.
+                    _planet_tier = 1
+                    try:
+                        from .data.planets import find_planet_spec as _fps
+                        _planet_tier = _fps(current_city_id).mission_tier
+                    except KeyError:
+                        pass
                     # Find deliverable missions at this NPC+planet.
                     _deliverable = mission_module.find_deliverable_missions(
                         player_active_missions, npc_obj.id, current_city_id,
@@ -498,7 +505,11 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                 "Abandon one first (Q)."
                             )
                         else:
-                            offerings = mission_module.missions_offered_by(npc_obj.id)
+                            offerings = mission_module.missions_offered_by(
+                                npc_obj.id,
+                                planet_tier=_planet_tier,
+                                completed_ids=frozenset(ctx.completed_mission_ids),
+                            )
                             if not offerings:
                                 log.add(f'{npc_obj.name} has no work for you right now.')
                             else:

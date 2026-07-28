@@ -143,14 +143,29 @@ def list_missions() -> tuple[MissionSpec, ...]:
     return tuple(_registry().values())
 
 
-def missions_offered_by(npc_id: str) -> tuple[MissionSpec, ...]:
+def missions_offered_by(
+    npc_id: str,
+    planet_tier: int = 1,
+    completed_ids: frozenset[str] | None = None,
+) -> tuple[MissionSpec, ...]:
     """All :class:`MissionSpec` entries whose ``giver_npc_id``
-    matches ``npc_id``.
+    matches ``npc_id``, filtered by planet tier and completion status.
+
+    Only returns missions where:
+      * ``m.tier <= planet_tier`` (planet can support this mission level)
+      * ``m.id`` is NOT in ``completed_ids`` (static missions don't repeat)
 
     Returns an empty tuple on a no-match so the offering modal
     just shows "no work available".
     """
-    return tuple(m for m in list_missions() if m.giver_npc_id == npc_id)
+    if completed_ids is None:
+        completed_ids = frozenset()
+    return tuple(
+        m for m in list_missions()
+        if m.giver_npc_id == npc_id
+        and m.tier <= planet_tier
+        and m.id not in completed_ids
+    )
 
 
 __all__ = [
