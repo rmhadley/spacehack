@@ -361,11 +361,18 @@ duplication and single-responsibility violations.*
 
 ### Phase 9: Mission deadline support
 
-- [ ] Add `time_deadline: tuple[int, int, int] | None` to `ActiveMission`
-- [ ] Mission accept computes deadline = current date + N days from mission spec
-- [ ] HUD shows "Due: Day D, Month M" when deadline approaching
-- [ ] Quest log shows time remaining
-- [ ] This phase is designed but implemented later (when we have timed missions)
+- [x] Add `deadline_days: int = 0` to `Mission` dataclass
+- [x] Add `time_deadline: tuple[int, int, int] | None` to `ActiveMission`
+- [x] Add `add_days_to_date()` pure function to `time.py` — wraps months/years
+- [x] Compute deadline on mission accept (when `deadline_days > 0`)
+- [x] Quest log shows "Due: Day D, Month M, Year Y (X days)" when deadline set
+- [x] Expired missions shown in red
+- [x] DRY fix: `advance_time()` delegates to `add_days_to_date()` for wrap logic
+- [x] Smoke test
+- [x] Commit
+
+**Infrastructure only** — no missions have `deadline_days > 0` yet.
+Plumbing is ready for future content.
 
 ## Acceptance criteria
 

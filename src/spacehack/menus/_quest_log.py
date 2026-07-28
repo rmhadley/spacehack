@@ -70,7 +70,19 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, confirm
         paint(desc_start_row + j, line, fg=ui.COLOR_VALUE_WHITE)
     reward_row = desc_start_row + len(desc_rows) + 1
     paint(reward_row, fit(f'Reward: {mission.reward_credits}$ + {mission.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
-    button_row = reward_row + 3
+    # Deadline line (only when mission has one).
+    _dl = ctx.player_active_mission.time_deadline
+    deadline_row = reward_row + 1
+    if _dl is not None:
+        _d, _m, _y = _dl
+        # Days remaining: simple subtraction (30-day months, 12-month years).
+        _total_days = (_y - ctx.time_year) * 360 + (_m - ctx.time_month) * 30 + (_d - ctx.time_day)
+        if _total_days > 0:
+            paint(deadline_row, fit(f'Due: Day {_d}, Month {_m}, Year {_y} ({_total_days} days)'), fg=ui.COLOR_OPTION_HIGHLIGHT)
+        else:
+            paint(deadline_row, fit(f'EXPIRED — Due: Day {_d}, Month {_m}, Year {_y}'), fg=(255, 80, 80))
+        deadline_row += 1
+    button_row = deadline_row + 2
     if confirm_abandon:
         paint(button_row, fit('Press ENTER to abandon. ESC cancels.'), fg=ui.COLOR_OPTION_HIGHLIGHT)
     else:

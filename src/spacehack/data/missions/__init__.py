@@ -93,6 +93,7 @@ class Mission:
     delivery_target_planet_id: str | None = None
     target_enemy_id: str | None = None    # bounty: which enemy spec to kill
     target_system_id: str | None = None   # bounty: which system to find them in
+    deadline_days: int = 0                # days until deadline (0 = no deadline)
 
 
 # Per-faction mission tuples - append an import + line in

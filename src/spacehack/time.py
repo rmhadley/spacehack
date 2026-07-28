@@ -28,15 +28,9 @@ def advance_time(ctx: GameContext, days: int) -> None:
     old_month = ctx.time_month
     old_year = ctx.time_year
 
-    ctx.time_day += days
-
-    while ctx.time_day > 30:
-        ctx.time_day -= 30
-        ctx.time_month += 1
-
-    while ctx.time_month > 12:
-        ctx.time_month -= 12
-        ctx.time_year += 1
+    ctx.time_day, ctx.time_month, ctx.time_year = add_days_to_date(
+        ctx.time_day, ctx.time_month, ctx.time_year, days,
+    )
 
     from . import message_log as _mlog
     if ctx.time_month != old_month:
@@ -88,6 +82,25 @@ def tick_move(ctx: GameContext) -> None:
     if ctx.move_counter >= speed:
         advance_time(ctx, 1)
         ctx.move_counter = 0
+
+
+def add_days_to_date(
+    day: int, month: int, year: int, days: int,
+) -> tuple[int, int, int]:
+    """Return ``(day, month, year)`` after adding ``days`` to the
+    given date. Wraps months at 30, years at 12.
+
+    Pure function — does not mutate any game state. Used to compute
+    mission deadlines from the current game clock.
+    """
+    d, m, y = day + days, month, year
+    while d > 30:
+        d -= 30
+        m += 1
+    while m > 12:
+        m -= 12
+        y += 1
+    return (d, m, y)
 
 
 def format_date(ctx: GameContext) -> str:

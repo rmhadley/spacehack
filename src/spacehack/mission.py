@@ -71,6 +71,7 @@ class ActiveMission:
     mission_id: str
     status: MissionStatus = MissionStatus.IN_PROGRESS
     bounty_spawn_id: str | None = None
+    time_deadline: tuple[int, int, int] | None = None  # (day, month, year) from accept time + deadline_days
 
 
 def try_accept_mission(

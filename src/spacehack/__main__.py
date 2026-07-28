@@ -69,7 +69,7 @@ from .navigation import (
     _jump_to_system,
 )
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
-from .time import tick_move, format_date
+from .time import tick_move, format_date, add_days_to_date
 
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
@@ -510,9 +510,18 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                                         log.add(f"Bounty target marked in {_target_sys.name}.")
                                                 except KeyError:
                                                     pass
+                                            # Compute deadline if mission has one.
+                                            _dl_days = getattr(picked, 'deadline_days', 0)
+                                            _deadline = None
+                                            if _dl_days > 0:
+                                                _deadline = add_days_to_date(
+                                                    ctx.time_day, ctx.time_month,
+                                                    ctx.time_year, _dl_days,
+                                                )
                                             player_active_mission = mission_module.ActiveMission(
                                                 mission_id=picked.id,
                                                 bounty_spawn_id=_bounty_spawn_id,
+                                                time_deadline=_deadline,
                                             )
                                             ctx.player_active_mission = player_active_mission
                 else:
