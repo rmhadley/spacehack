@@ -11,15 +11,10 @@ from __future__ import annotations
 import math
 import time
 
-from typing import Any
-
-import tcod.console
-import tcod.context
 import tcod.event
 
 from .. import world
 from ._types import EnemyInstance
-from ._stats import _distance
 from ..data.weapons import find_weapon
 
 # ---------------------------------------------------------------------------
@@ -232,6 +227,7 @@ def _render_anim_frame(
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
+    player_mode: str = "FIRING",
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
     from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
@@ -258,7 +254,7 @@ def _render_anim_frame(
         player_state=player_state,
         enemies=enemies,
         target_idx=target_idx,
-        player_mode="FIRING",
+        player_mode=player_mode,
         active_weapons=active_weapons,
         weapon_list=weapon_list,
         evade_bonus=evade_bonus,

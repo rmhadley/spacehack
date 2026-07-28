@@ -167,6 +167,16 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     enemy.cells_moved_this_turn = 0
 
 
+def _sync_back_hull(player_state: dict, player_owned_ship: Any) -> None:
+    """Persist combat hull damage back to the player's OwnedShip."""
+    if player_owned_ship is None:
+        return
+    max_hull = player_state.get("max_hull", 100)
+    current_hull = player_state.get("hull", max_hull)
+    new_dmg_pct = 100 - (current_hull * 100 // max(max_hull, 1))
+    player_owned_ship.hull_damage_pct = max(0, min(100, new_dmg_pct))
+
+
 def move_entity(
     pos: world.Position,
     dx: int,

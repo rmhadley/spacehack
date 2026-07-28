@@ -29,6 +29,7 @@ from ._actions import (
     move_entity,
     resolve_damage,
     can_afford_action,
+    _sync_back_hull,
 )
 from ._types import EnemyInstance
 from ._stats import (
@@ -37,22 +38,44 @@ from ._stats import (
     calc_flee_chance,
     _calc_dodge_bonus,
     _distance,
-    _sync_back_hull,
-)
-from ._actions import (
-    start_player_turn,
-    start_enemy_turn,
-    move_entity,
-    resolve_damage,
 )
 from ._animations import (
     _animate_laser_shot,
     _animate_explosion,
+    _render_anim_frame,
     _resolve_target,
     _paint_target_highlight,
     _paint_range_line,
     _responsive_sleep,
 )
+
+
+
+
+def _spawn_loot_drops(
+    game_map: world.GameMap,
+    target_pos: world.Position,
+    enemy_specs: list,
+) -> None:
+    """Spawn 1-2 loot items near a destroyed enemy ship."""
+    _spec_loot = getattr(enemy_specs[0], 'cargo_goods', None) or ()
+    _loot_items = list(_spec_loot)
+    if not _loot_items:
+        _loot_items = ["scrap_metal"]
+    _drop_count = min(len(_loot_items), RNG.randint(1, 2))
+    for _li in range(_drop_count):
+        _loot_id = RNG.choice(_loot_items)
+        _lx = target_pos.x + RNG.randint(-1, 1)
+        _ly = target_pos.y + RNG.randint(-1, 1)
+        if not game_map.is_walkable(_lx, _ly):
+            _lx, _ly = target_pos.x, target_pos.y
+        game_map.entities.append(world.Entity(
+            x=_lx, y=_ly, char="%",
+            fg=(255, 215, 0),
+            name="Loot",
+            blocks_movement=False,
+            loot_data={_loot_id: RNG.randint(1, 3)},
+        ))
 
 
 def run_combat(
@@ -83,7 +106,7 @@ def run_combat(
     """
     from .. import hud as _hud
     from .. import message_log as _ml
-    from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT, MSG_LOG_HEIGHT, HUD_WIDTH
+    from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 
     if not enemy_specs or not enemy_positions:
         return ("FLEE", [])
@@ -430,21 +453,8 @@ def run_combat(
                                     _enemy_ents[_e_idx].pos = _ei.pos
                                 _moved = True
                                 # Render a frame so the player sees the enemy move
-                                # (prevents the \"teleport\" feel of multi-AP movement).
+                                # (prevents the teleport feel of multi-AP movement).
                                 _cam_x, _cam_y = _calc_cam()
-                                console.clear()
-                                world.render_world_view(
-                                    console, game_map,
-                                    region_x=0, region_y=0,
-                                    region_w=view_w, region_h=view_h,
-                                    camera_x=_cam_x, camera_y=_cam_y,
-                                )
-                                _tgt = _resolve_target(enemy_insts, target_idx)
-                                if _tgt is not None:
-                                    _paint_target_highlight(
-                                        console, _cam_x, _cam_y,
-                                        view_w, view_h, 0, 0, _tgt,
-                                    )
                                 _flee_now = calc_flee_chance(
                                     player_state["piloting"],
                                     _closest_enemy.pilot_piloting,
@@ -452,26 +462,17 @@ def run_combat(
                                     _distance(player_state["pos"], _closest_enemy.pos),
                                     flee_attempts,
                                 )
-                                _hud.render_combat_hud(
-                                    console,
-                                    screen_width=SCREEN_WIDTH,
-                                    screen_height=SCREEN_HEIGHT,
-                                    player_state=player_state,
-                                    enemies=enemy_insts,
-                                    target_idx=target_idx,
-                                    player_mode=combat_mode,
-                                    active_weapons=active_weapons,
+                                _render_anim_frame(
+                                    console, context, game_map,
+                                    _cam_x, _cam_y, view_w, view_h,
+                                    player_state, enemy_insts, target_idx, log,
                                     weapon_list=tuple(weapons_list),
+                                    active_weapons=active_weapons,
                                     evade_bonus=_evade_bonus,
                                     hit_chances=_weapon_hit_chances,
                                     flee_chance=_flee_now,
+                                    player_mode=combat_mode,
                                 )
-                                _ml.render_message_log(
-                                    console, log,
-                                    screen_width=SCREEN_WIDTH,
-                                    screen_height=SCREEN_HEIGHT,
-                                )
-                                context.present(console)
                                 _responsive_sleep(0.05)
                         if not _moved:
                             # Either in preferred range (no move
@@ -819,24 +820,7 @@ def run_combat(
                                 ),
                             )
                             # Loot drop: spawn 1-2 items near the wreck
-                            _spec_loot = getattr(enemy_specs[0], 'cargo_goods', None) or ()
-                            _loot_items = list(_spec_loot)
-                            if not _loot_items:
-                                _loot_items = ["scrap_metal"]
-                            _drop_count = min(len(_loot_items), RNG.randint(1, 2))
-                            for _li in range(_drop_count):
-                                _loot_id = RNG.choice(_loot_items)
-                                _lx = _target_pos.x + RNG.randint(-1, 1)
-                                _ly = _target_pos.y + RNG.randint(-1, 1)
-                                if not game_map.is_walkable(_lx, _ly):
-                                    _lx, _ly = _target_pos.x, _target_pos.y
-                                game_map.entities.append(world.Entity(
-                                    x=_lx, y=_ly, char="%",
-                                    fg=(255, 215, 0),
-                                    name="Loot",
-                                    blocks_movement=False,
-                                    loot_data={_loot_id: RNG.randint(1, 3)},
-                                ))
+                            _spawn_loot_drops(game_map, _target_pos, enemy_specs)
                     else:
                         _p_log(f"You miss {_target_enemy.name}!")
                     # Deduct AP, power, ammo
@@ -963,24 +947,7 @@ def run_combat(
                                     ),
                                 )
                                 # Loot drop
-                                _spec_loot = getattr(enemy_specs[0], 'cargo_goods', None) or ()
-                                _loot_items = list(_spec_loot)
-                                if not _loot_items:
-                                    _loot_items = ["scrap_metal"]
-                                _drop_count = min(len(_loot_items), RNG.randint(1, 2))
-                                for _li in range(_drop_count):
-                                    _loot_id = RNG.choice(_loot_items)
-                                    _lx = _target_pos.x + RNG.randint(-1, 1)
-                                    _ly = _target_pos.y + RNG.randint(-1, 1)
-                                    if not game_map.is_walkable(_lx, _ly):
-                                        _lx, _ly = _target_pos.x, _target_pos.y
-                                    game_map.entities.append(world.Entity(
-                                        x=_lx, y=_ly, char="%",
-                                        fg=(255, 215, 0),
-                                        name="Loot",
-                                        blocks_movement=False,
-                                        loot_data={_loot_id: RNG.randint(1, 3)},
-                                    ))
+                                _spawn_loot_drops(game_map, _target_pos, enemy_specs)
                         else:
                             _p_log(f"{_fwid} misses {_target_enemy.name}!")
                         # Deduct per-weapon costs

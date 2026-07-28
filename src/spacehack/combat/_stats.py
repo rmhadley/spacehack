@@ -53,16 +53,6 @@ def _calc_hull_for_enemy(enemy_spec: Any) -> int:
     return _base_hull
 
 
-def _sync_back_hull(player_state: dict, player_owned_ship: Any) -> None:
-    """Persist combat hull damage back to the player's OwnedShip."""
-    if player_owned_ship is None:
-        return
-    max_hull = player_state.get("max_hull", 100)
-    current_hull = player_state.get("hull", max_hull)
-    new_dmg_pct = 100 - (current_hull * 100 // max(max_hull, 1))
-    player_owned_ship.hull_damage_pct = max(0, min(100, new_dmg_pct))
-
-
 def _calc_power_gen(ship_catalog: Any, owned_ship: Any) -> int:
     base = getattr(ship_catalog, 'base_power_gen', 3)
     for mod_id in getattr(owned_ship, 'modules', ()) or ():

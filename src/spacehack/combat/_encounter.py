@@ -10,12 +10,8 @@ when the player loses.
 
 from __future__ import annotations
 
-import tcod.console
-import tcod.context
 import tcod.event
 
-from .. import ui
-from .. import world
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 from ._loop import run_combat
 

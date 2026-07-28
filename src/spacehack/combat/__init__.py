@@ -18,7 +18,6 @@ the migration from a single-file module to a package.
 from ._types import CombatPhase, CombatMode, EnemyInstance
 from ._stats import (
     _calc_hull, _calc_max_hull, _calc_hull_for_enemy,
-    _sync_back_hull,
     _calc_power_gen, _calc_max_shields,
     _calc_ap, _calc_dodge_bonus, _distance,
     calc_hit_chance, calc_flee_chance,
@@ -30,6 +29,7 @@ from ._actions import (
     start_player_turn,
     start_enemy_turn,
     move_entity,
+    _sync_back_hull,
 )
 from ._animations import (
     _responsive_sleep,
