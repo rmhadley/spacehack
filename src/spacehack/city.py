@@ -64,8 +64,6 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
     """
     if city_player in city_game_map.entities:
         city_game_map.entities.remove(city_player)
-    from .trade import tick_economy as _tick_economy
-    _tick_economy(ctx)
     offscreen_y = -(solar_system_module.SOL_VIEW_H // 2) - 1
     if hangar_ship_ent.pos.y > offscreen_y:
         _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y, location=current_city_id.replace('_', ' ').title())
