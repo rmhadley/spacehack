@@ -79,7 +79,7 @@ def update_ship_buy(event: tcod.event.Event, ship: ship_module.Ship, stats: hud.
     return ShipBuyOutcome.IGNORE
 
 
-def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuyOutcome
+def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship) -> ShipBuyOutcome:
     """Show the ship-buy modal for ``ship`` (the entity standing in
     the player's way is ``blocker``). Returns the dialog outcome;
     callers handle the actual purchase (mutating ``stats``, removing
