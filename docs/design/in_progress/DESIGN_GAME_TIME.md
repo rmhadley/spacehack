@@ -339,23 +339,25 @@ duplication and single-responsibility violations.*
 
 ### Phase 8: DRY evaluation — month-change hook
 
-*After Phase 6, verify the month-change hook is cleanly structured.*
+*After Phase 7, verify the month-change hook is cleanly structured.*
 
 **Checklist:**
-- [ ] Month rollover detection happens in ONE place — `advance_time()` checks if
+- [x] Month rollover detection happens in ONE place — `advance_time()` checks if
   `time_day` wrapped past 30. No other function re-checks this condition.
-- [ ] `_on_month_change(ctx)` is a separate module-level function in `time.py`,
+- [x] `_on_month_change(ctx)` is a separate module-level function in `time.py`,
   not an inner function in `advance_time()`. Inner functions that don't close over
   the parent scope should be module-level (per reviewer checklist in knowledge.md).
-- [ ] The log message "Shops have restocked for the new month." is inside
+- [x] The log message "Shops have restocked for the new month." is inside
   `_on_month_change`, not duplicated in a caller.
-- [ ] `mech_visit_count` is only reset inside `_on_month_change` — no other code
-  path clears or replaces that dict.
-- [ ] `_on_month_change` does exactly two things: reset `mech_visit_count` + log.
-  It doesn't also tick economy (that's `advance_time`'s job) or format dates
-  (that's `format_date`'s job).
-- [ ] Run smoke test.
-- [ ] Fix any DRY issues found, then commit.
+- [x] `mech_visit_count` removed entirely — no other code path clears or replaces that dict.
+- [x] `_on_month_change` does exactly one thing: log. It doesn't also tick economy
+  (that's `advance_time`'s job) or format dates (that's `format_date`'s job).
+- [x] **Bonus: full-project RNG audit.** Found 1 gameplay-affecting issue —
+  `trade.py` used bare `random.shuffle`/`randint` for NPC trade loot. Fixed to use
+  `engine.RNG`. Remaining bare `random` uses (ui.py splash, world.py grass,
+  solar_system.py stars) are decoration-only, left as-is per user request.
+- [x] Run smoke test.
+- [x] Fix any DRY issues found, then commit.
 
 ### Phase 9: Mission deadline support
 

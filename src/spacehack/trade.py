@@ -469,16 +469,16 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
         ctx.log.add("You need a ship with cargo space to trade.")
         return
 
-    import random
+    from .engine import RNG
     _cargo_list = list(npc_spec.cargo_goods)
     if not _cargo_list:
         ctx.log.add(f"{npc_spec.name} has nothing to trade.")
         return
 
-    random.shuffle(_cargo_list)
+    RNG.shuffle(_cargo_list)
     _selected = _cargo_list[:npc_spec.cargo_count]
     _npc_stock: dict[str, int] = {
-        gid: random.randint(3, 8) for gid in _selected
+        gid: RNG.randint(3, 8) for gid in _selected
     }
 
     # Price multipliers.
