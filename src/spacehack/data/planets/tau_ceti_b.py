@@ -1,4 +1,4 @@
-"""τ Cet b — a temperate habitable-zone world, Sol's nearest cousin.
+"""Tau Cet b — a temperate habitable-zone world, Sol's nearest cousin.
 
 A fledgling colony with optimistic frontier-town energy. Lush green
 parks, wide plazas, and a bustling merchant hall. The first "New Earth"
@@ -60,7 +60,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(180, 220, 130),
                 flavor_text=(
-                    "Welcome to τ Cet b — the beer is local, the "
+                    "Welcome to Tau Cet b — the beer is local, the "
                     "stories are tall, and the landing pads are always open."
                 ),
             ),
