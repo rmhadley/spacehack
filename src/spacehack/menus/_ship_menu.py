@@ -1,8 +1,9 @@
 """Ship hangar menu — render, update, and modal runner.
 
-Provides the ``View Cargo`` / ``Launch`` options for the player's
-owned ship while in city mode. Also exports ``_find_hangar_ship``
-used by the landing animation code in ``__main__.py``.
+Provides the ``View Cargo`` / ``View Loadout`` / ``Launch`` options
+for the player's owned ship while in city mode. Also exports
+``_find_hangar_ship`` used by the landing animation code in
+``__main__.py``.
 
 Extracted from the old ``menus.py`` during the package refactor.
 """
@@ -26,6 +27,7 @@ class ShipMenuAction(Enum):
     """Which sub-modal of the hangar menu the player triggers."""
     IGNORE = auto()
     VIEW = auto()
+    LOADOUT = auto()
     REFUEL = auto()
     SELL = auto()
     LAUNCH = auto()
@@ -33,17 +35,16 @@ class ShipMenuAction(Enum):
     QUIT = auto()
 
 
-SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'Launch')
+SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
 
 
 def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int = 0, *, screen_width: int, screen_height: int) -> None:
-    """Paint the 2-option hangar ship menu via :func:`ui.render_selectable_list`.
+    """Paint the hangar ship menu via :func:`ui.render_selectable_list`.
 
     Clears first so the modal fully replaces the city view; the
     caller re-paints city + HUD + msg log once the modal exits.
     Ship stats (description, fuel, hull, credits) are rendered
-    directly above the list so they don't interfere with selection
-    markers.
+    directly above the list.
     """
     console.clear()
     title = f'Your {ship.name.upper()}'
@@ -80,7 +81,7 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 
-def _ship_menu_navigate(event: tcod.event.Event, selected: int, n: int = 2) -> int | None:
+def _ship_menu_navigate(event: tcod.event.Event, selected: int, n: int = 3) -> int | None:
     """If ``event`` drives hangar-menu nav, return the new
     ``selected`` index (modulo ``n`` options).
 
@@ -102,8 +103,8 @@ def _ship_menu_navigate(event: tcod.event.Event, selected: int, n: int = 2) -> i
 def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
     """Map a single event for the hangar menu.
 
-    Pure dispatcher: UP/DOWN navigation is handled by the caller.
-    ESC -> BACK, Enter -> action, Quit -> QUIT.
+    ESC -> BACK, Enter -> action (index 0=Cargo, 1=Loadout, 2=Launch),
+    Quit -> QUIT.
     """
     if isinstance(event, tcod.event.Quit):
         return ShipMenuAction.QUIT
@@ -113,16 +114,128 @@ def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
     if sym in ui._ESCAPE_SYMS:
         return ShipMenuAction.BACK
     if sym in ui._ENTER_SYMS:
-        return ShipMenuAction.VIEW if selected == 0 else ShipMenuAction.LAUNCH
+        if selected == 0:
+            return ShipMenuAction.VIEW
+        elif selected == 1:
+            return ShipMenuAction.LOADOUT
+        else:
+            return ShipMenuAction.LAUNCH
     return ShipMenuAction.IGNORE
+
+
+def _run_loadout_view(ctx) -> None:
+    """Show a centered read-only view of the player's ship loadout.
+
+    Displays installed weapons with combat stats, installed modules,
+    and key ship stats (fuel, hull, cargo, shields, power gen).
+    """
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    console = make_console()
+    max_w = SCREEN_WIDTH - HUD_WIDTH - 2
+
+    def fit(line: str) -> str:
+        return line if len(line) <= max_w else line[:max_w - 1] + '…'
+
+    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+        console.print(x=ui.centered_x(text, SCREEN_WIDTH), y=row, string=text, fg=fg)
+
+    def _render() -> None:
+        console.clear()
+        from ..data.weapons import find_weapon as _fw
+        from ..data.modules import find_module as _fm
+
+        cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 4
+
+        # Title
+        paint(cy, fit(f"YOUR {ship_spec.name.upper()} — LOADOUT"), fg=ui.COLOR_TITLE)
+        cy += 2
+
+        # Weapons
+        wpn_count = len(owned.weapons)
+        wpn_slots = ship_spec.weapon_slots
+        paint(cy, fit(f"Weapons ({wpn_count}/{wpn_slots}):"), fg=ui.COLOR_VALUE_WHITE)
+        cy += 1
+        if wpn_count == 0:
+            paint(cy, fit("  (none installed)"), fg=ui.COLOR_VALUE_DIM)
+            cy += 1
+        else:
+            for wid in owned.weapons:
+                try:
+                    ws = _fw(wid)
+                    line = f"  {ws.name}  dmg:{ws.damage}  acc:{ws.accuracy}%  range:{ws.min_range}-{ws.max_range}"
+                except KeyError:
+                    line = f"  {wid} (unknown)"
+                paint(cy, fit(line), fg=ui.COLOR_OPTION)
+                cy += 1
+
+        # Divider
+        cy += 1
+
+        # Modules
+        mod_count = len(owned.modules)
+        mod_slots = ship_spec.module_slots
+        paint(cy, fit(f"Modules ({mod_count}/{mod_slots}):"), fg=ui.COLOR_VALUE_WHITE)
+        cy += 1
+        if mod_count == 0:
+            paint(cy, fit("  (none installed)"), fg=ui.COLOR_VALUE_DIM)
+            cy += 1
+        else:
+            for mid in owned.modules:
+                try:
+                    ms = _fm(mid)
+                    paint(cy, fit(f"  {ms.name}"), fg=ui.COLOR_OPTION)
+                    cy += 1
+                    paint(cy, fit(f"    {ms.description}"), fg=ui.COLOR_VALUE_DIM)
+                    cy += 1
+                except KeyError:
+                    paint(cy, fit(f"  {mid} (unknown)"), fg=ui.COLOR_VALUE_DIM)
+                    cy += 1
+
+        # Divider
+        cy += 1
+
+        # Stats
+        paint(cy, fit("Stats:"), fg=ui.COLOR_VALUE_WHITE)
+        cy += 1
+        stats_lines = [
+            f"  Fuel: {owned.fuel} / {ship_spec.max_fuel}",
+            f"  Hull: {owned.hull_damage_pct}% damage",
+            f"  Cargo: {owned.cargo_used} / {ship_spec.max_cargo} used",
+            f"  Shields: {ship_spec.base_shield_max} max",
+            f"  Power Gen: {ship_spec.base_power_gen}",
+        ]
+        for line in stats_lines:
+            paint(cy, fit(line), fg=ui.COLOR_VALUE_WHITE)
+            cy += 1
+
+        # Hint
+        cy += 1
+        paint(cy, fit("Press ESC to go back."), fg=ui.COLOR_INSTRUCTION)
+        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
+    def _update(event: tcod.event.Event) -> bool | None:
+        """Return non-None to close the modal."""
+        if _try_open_guide(event, ctx):
+            return None
+        if isinstance(event, tcod.event.Quit):
+            return True
+        if not isinstance(event, tcod.event.KeyDown):
+            return None
+        return True if event.sym in ui._ESCAPE_SYMS else None
+
+    ui.Modal(ctx.context, console).run(_render, _update)
 
 
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the hub-menu modal for ``ship``; return the chosen action.
 
-    The menu has 2 options (View Cargo, Launch); the highlighted
-    option (initially 0 = View Cargo) is mutated by UP / DOWN arrows
-    AND vim ``j`` / ``k`` via :func:`_ship_menu_navigate`.
+    The menu has 3 options (View Cargo, View Loadout, Launch);
+    the highlighted option (initially 0 = View Cargo) is mutated by
+    UP / DOWN arrows AND vim ``j`` / ``k`` via
+    :func:`_ship_menu_navigate`.
     """
     console = make_console()
     selected = 0
@@ -145,6 +258,9 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
         if action is ShipMenuAction.VIEW:
             from ..trade import open_cargo as _open_cargo
             _open_cargo(ctx)
+            continue
+        if action is ShipMenuAction.LOADOUT:
+            _run_loadout_view(ctx)
             continue
         return action  # LAUNCH, BACK, or QUIT
 
