@@ -378,10 +378,10 @@ def run_combat(
                     camera_x=_cam_x, camera_y=_cam_y,
                 )
             _range_wid = None
-            if weapons_list:
-                _first_active = next((i for i, a in enumerate(active_weapons) if a), None)
-                if _first_active is not None and _first_active < len(weapons_list):
-                    _range_wid = weapons_list[_first_active]
+            if weapons_list and any(active_weapons):
+                from ..data.weapons import find_weapon as _fw
+                _active_ids = [weapons_list[i] for i, a in enumerate(active_weapons) if a]
+                _range_wid = min(_active_ids, key=lambda _wid: _fw(_wid).max_range)
             if _range_wid is not None:
                 _tgt = _resolve_target(enemy_insts, target_idx)
                 if _tgt is not None:
