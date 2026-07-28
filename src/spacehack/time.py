@@ -49,15 +49,26 @@ def advance_time(ctx: GameContext, days: int) -> None:
 
 
 def tick_move(ctx: GameContext) -> None:
-    """Count a space movement and advance time every 10 moves.
+    """Count a space movement and advance time based on ship speed.
 
     Call this on every manual space move and auto-nav step.
-    Accumulates across all space actions (jumps and landings do
-    NOT reset the counter). Calls :func:`advance_time` when the
-    counter reaches 10.
+    Reads the player ship's ``speed`` stat (moves per day) to
+    determine when to advance the clock. Fast ships cover more
+    ground per day; slow ships take longer.
+
+    The counter accumulates across all space actions (jumps and
+    landings do NOT reset it).
     """
+    from .ship import find_ship as _find_ship
+    speed = 10  # fallback if ship lookup fails
+    if ctx.player_owned_ship is not None:
+        try:
+            speed = _find_ship(ctx.player_owned_ship.ship_id).speed
+        except (KeyError, ImportError):
+            pass
+
     ctx.move_counter += 1
-    if ctx.move_counter >= 10:
+    if ctx.move_counter >= speed:
         advance_time(ctx, 1)
         ctx.move_counter = 0
 

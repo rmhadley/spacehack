@@ -31,6 +31,7 @@ SHIPS: tuple[Ship, ...] = (
         description=(
             "A modest starter vessel. Gets you where you need to go."
         ),
+        speed=10,
         weapon_slots=2,
         module_slots=1,
         max_cargo=20,
@@ -54,6 +55,7 @@ SHIPS: tuple[Ship, ...] = (
         description=(
             "A small, fast scoutship — quick on cargo runs, lightly armed."
         ),
+        speed=14,
         weapon_slots=4,
         module_slots=1,
         max_cargo=30,
@@ -78,6 +80,7 @@ SHIPS: tuple[Ship, ...] = (
         description=(
             "A long-range cargo hauler with roomy cargo bays."
         ),
+        speed=7,
         weapon_slots=2,
         module_slots=2,
         max_cargo=120,
@@ -102,6 +105,7 @@ SHIPS: tuple[Ship, ...] = (
         description=(
             "A well-armed cruiser — capable in a fight, well-shielded."
         ),
+        speed=9,
         weapon_slots=6,
         module_slots=4,
         max_cargo=50,
@@ -126,6 +130,7 @@ SHIPS: tuple[Ship, ...] = (
         description=(
             "Heavy warship with overwhelming firepower and thick armour."
         ),
+        speed=8,
         weapon_slots=8,
         module_slots=6,
         max_cargo=80,
@@ -150,6 +155,7 @@ SHIPS: tuple[Ship, ...] = (
         description=(
             "Massive cargo hauler for the serious trader."
         ),
+        speed=6,
         weapon_slots=3,
         module_slots=4,
         max_cargo=250,

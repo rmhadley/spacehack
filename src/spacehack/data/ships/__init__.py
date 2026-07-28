@@ -29,6 +29,11 @@ class Ship:
     module_slots: int   # how many ship modules this hull can install
     max_cargo: int      # cargo capacity of the hull
     max_fuel: int = 100  # tank capacity; consumed by jump gates
+    # Travel speed — moves per day in overworld space travel.
+    # tick_move() divides move_counter by this to advance the clock.
+    # Fast ships (scout: 14) cover more ground per day; slow ships
+    # (freighter: 6) take longer per cell.
+    speed: int = 10
     # Combat stats
     base_power_gen: int = 3       # power generated per turn
     base_shield_max: int = 0      # base shield HP (0 = no shields)

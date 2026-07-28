@@ -24,12 +24,14 @@ lives on `GameContext` so every subsystem can read it, and a single
 time_day: int = 1       # 1–30
 time_month: int = 1     # 1–12
 time_year: int = 2200   # starting year
-move_counter: int = 0   # increments per space move; ticks a day at 10
+move_counter: int = 0   # increments per space move; ticks a day at ship.speed
 ```
 
 - 30 days per month, 12 months per year. Simple, predictable, no leap-year edge cases.
 - Start date: Day 1, Month 1, Year 2200. Sci-fi future, clean start.
-- All fields are plain `int` — no frozen dataclass needed for three numbers.
+- Time advances based on ship speed: fast ships (scout=14) need more moves per day;
+  slow ships (freighter=6) need fewer. Distance = time, modified by ship choice.
+- All fields are plain `int`.
 
 ## Domain: `src/spacehack/time.py`
 
@@ -42,7 +44,8 @@ advance_time(ctx, days: int) -> None
     (Now only called internally by tick_move; no external callers remain.)
 
 tick_move(ctx) -> None
-    Count a space movement. Every 10 calls = 1 day via advance_time.
+    Count a space movement. Checks the player ship's ``speed`` stat
+    (moves per day); advances time when counter >= speed.
     Counter persists across jumps and landings (does NOT reset).
     Called from manual space movement (__main__.py) and auto-nav (navigation.py).
 
@@ -72,6 +75,23 @@ auto-nav (G key) steps count. The counter persists across all actions
 This makes distance meaningful: Earth → Mars (~80 cells) = ~8 days,
 Earth → Alpha Centauri Gate (~55 cells) = ~5.5 days. The player feels
 the scale of the solar system through the clock ticking as they fly.
+
+## Ship speed reference
+
+Each ship has a `speed` stat (moves per day). Faster ships cover more
+cells per day — travel time varies significantly by hull choice.
+
+| Ship | Speed | Earth→Mars (80 cells) |
+|------|-------|----------------------|
+| Scout | 14 | ~5.7 days |
+| Starter | 10 | ~8.0 days |
+| Cruiser | 9 | ~8.9 days |
+| Frigate | 8 | ~10.0 days |
+| Hauler | 7 | ~11.4 days |
+| Freighter | 6 | ~13.3 days |
+
+Future: engine/thruster modules could add a `speed_bonus` to
+increase moves-per-day beyond the hull base speed.
 
 ## HUD display
 
