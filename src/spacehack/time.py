@@ -52,13 +52,12 @@ def advance_time(ctx: GameContext, days: int) -> None:
 def _on_month_change(ctx: GameContext) -> None:
     """Called by :func:`advance_time` when the month rolls over.
 
-    Resets shop visit counters so the next mechanic visit on each
-    planet gets fresh RNG inventory. Logs a restock message.
+    Logs a restock message. Shop inventory refreshes naturally
+    through the shared engine.RNG advancing with each visit.
 
     Module-level (not an inner function) per reviewer checklist —
     it has no meaningful closure over ``advance_time``'s scope.
     """
-    ctx.mech_visit_count.clear()
     from . import message_log as _mlog
     ctx.log.add_colored(
         "Shops have restocked for the new month.",

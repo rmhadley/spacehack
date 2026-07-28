@@ -153,22 +153,20 @@ def find_planet_spec(planet_id: str) -> PlanetSpec:
 
 def resolve_mech_inventory(
     planet_id: str,
-    visit_count: int = 0,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Return ``(weapon_ids, module_ids)`` sold at ``planet_id``'s mechanic.
 
     If the planet's :attr:`PlanetSpec.mech_weapons` / ``mech_modules`` is
     non-empty, those lists are used verbatim (e.g. Earth/Mars have fixed
-    starter sets). Otherwise, a seeded RNG picks a subset from items
-    whose ``tech_level <= planet.tech_level`` — the subset is deterministic
-    per ``(INIT_SEED, planet_id, visit_count)`` so each run produces
-    the same selection, but different runs or planets get different stock.
+    starter sets). Otherwise, uses the shared :data:`engine.RNG` to pick
+    a subset from items whose ``tech_level <= planet.tech_level``.
+
+    Inventory changes naturally each visit because the shared RNG state
+    advances with every call — no manual visit counter needed.
     """
-    import random as _random
-    from ...engine import INIT_SEED as _init_seed
+    from ...engine import RNG
 
     spec = find_planet_spec(planet_id)
-    import hashlib as _hashlib
 
     if spec.mech_weapons:
         _w_ids = spec.mech_weapons
@@ -179,12 +177,8 @@ def resolve_mech_inventory(
             _w_ids = ()
         else:
             _all_w.sort(key=lambda _x: _x.price)
-            _w_seed = int(
-                _hashlib.md5(f"{_init_seed}_{planet_id}_w_{visit_count}".encode()).hexdigest(), 16,
-            )
-            _rng_w = _random.Random(_w_seed)
             _count = min(4, len(_all_w))
-            _w_ids = tuple(_x.id for _x in _rng_w.sample(_all_w, _count))
+            _w_ids = tuple(_x.id for _x in RNG.sample(_all_w, _count))
 
     if spec.mech_modules:
         _m_ids = spec.mech_modules
@@ -195,12 +189,8 @@ def resolve_mech_inventory(
             _m_ids = ()
         else:
             _all_m.sort(key=lambda _x: _x.price)
-            _m_seed = int(
-                _hashlib.md5(f"{_init_seed}_{planet_id}_m_{visit_count}".encode()).hexdigest(), 16,
-            )
-            _rng_m = _random.Random(_m_seed)
             _count = min(6, len(_all_m))
-            _m_ids = tuple(_x.id for _x in _rng_m.sample(_all_m, _count))
+            _m_ids = tuple(_x.id for _x in RNG.sample(_all_m, _count))
 
     return _w_ids, _m_ids
 

@@ -49,13 +49,10 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     from .. import ship as _sm
 
     # Resolve per-planet weapon/module inventory.
-    # Seed includes visit_count so each visit produces different stock.
-    # visit_count is reset on month rollover (via _on_month_change).
+    # Uses the shared engine.RNG — inventory changes naturally each visit.
     if planet_id:
-        _vc = ctx.mech_visit_count.get(planet_id, 0)
         from ..data.planets import resolve_mech_inventory as _rvi
-        _wpn_ids, _mod_ids = _rvi(planet_id, visit_count=_vc)
-        ctx.mech_visit_count[planet_id] = _vc + 1
+        _wpn_ids, _mod_ids = _rvi(planet_id)
         _weapons_list = sorted(
             [_fw(wid) for wid in _wpn_ids], key=lambda w: w.price,
         )

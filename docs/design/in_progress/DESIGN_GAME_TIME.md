@@ -311,6 +311,7 @@ duplication and single-responsibility violations.*
 - [x] Reset `mech_visit_count` dict → next mechanic visit gets fresh RNG inventory
 - [x] Log "Shops have restocked for the new month."
 - [x] Wire `mech_visit_count` into `_loadout.py` — pass `visit_count` to `resolve_mech_inventory()` and increment each visit
+- [x] **RNG fix**: `resolve_mech_inventory` now uses shared `engine.RNG` instead of local `random.Random(hash)`. Removed `visit_count` parameter, `mech_visit_count` field, and hash-based seed — inventory changes naturally with RNG state.
 - [x] Run smoke test
 - [x] Commit
 
