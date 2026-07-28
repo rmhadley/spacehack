@@ -142,6 +142,32 @@ def _run_loadout_menu(ctx) -> None:
             hint="UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
         )
 
+        # Detail line for the currently selected item.
+        _items = _left_items if _focus == 0 else _right_items
+        if 0 <= _sel < len(_items):
+            _name, _label, _suffix, _fg, _itype, _iid = _items[_sel]
+            if _itype != "divider" and _iid is not None:
+                _detail = ""
+                try:
+                    if _itype in ("weapon", "weapon_slot"):
+                        _ws = _fw(_iid)
+                        _detail = (
+                            f"Damage: {_ws.damage}  |  Accuracy: {_ws.accuracy}%  |  "
+                            f"Range: {_ws.min_range}-{_ws.max_range}  |  "
+                            f"AP: {_ws.ap_cost}  |  Power: {_ws.power_cost}"
+                        )
+                        if _ws.slot_type == "missile":
+                            _detail += f"  |  Ammo: {_ws.ammo_capacity} ({_ws.cargo_per_round} cr/rd)"
+                    elif _itype in ("module", "module_slot"):
+                        _ms = _fm(_iid)
+                        _detail = _ms.description
+                except KeyError:
+                    pass
+                if _detail:
+                    _max_w = SCREEN_WIDTH - HUD_WIDTH - 2
+                    _detail_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT + 1
+                    ui.paint_text(console, 2, _detail_y, _detail, fg=ui.COLOR_VALUE_DIM, max_x=2 + _max_w)
+
     def _update(event: tcod.event.Event) -> _LoadoutOutcome:
         nonlocal _focus, _sel
 
