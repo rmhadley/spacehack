@@ -522,7 +522,6 @@ def render_combat_hud(
             # Short name (trim to 9 chars at most)
             _name = _e.name[:9] if len(_e.name) > 9 else _e.name
             _e_hull_pct = _e.hull / max(_e.max_hull, 1)
-            _e_hull_color = _hull_bar_color(_e_hull_pct)
             _e_pct_display = int(_e_hull_pct * 100)
             _bar = _bar_str(_e.hull, _e.max_hull, width=5)
             _dist_str = ""
@@ -531,11 +530,22 @@ def render_combat_hud(
                 _dist_str = f" {int(_m.hypot(ppos.x - _e.pos.x, ppos.y - _e.pos.y))}"
             # Layout: > NAME ##.. 70% D5
             _line = f"{marker}{_name} {_bar} {_e_pct_display}%"
+            # Append distance
+            _line = f"{_line}{_dist_str}"
             # Trim to HUD_WIDTH
             _line = _line[:HUD_WIDTH]
             fg = COLOR_COMBAT_TITLE if is_target else COLOR_VALUE_DIM
             console.print(x=hud_x, y=y, string=_line, fg=fg)
             y += 1
+            # Shield line for enemies with shields
+            if _e.max_shields > 0:
+                _e_shd_pct = _e.shields / max(_e.max_shields, 1)
+                _shd_bar = _bar_str(_e.shields, _e.max_shields, width=5)
+                # Indent with spaces to line up under the name
+                _shd_line = f"  Shd {_shd_bar} {int(_e_shd_pct * 100)}%"
+                _shd_line = _shd_line[:HUD_WIDTH]
+                console.print(x=hud_x, y=y, string=_shd_line, fg=COLOR_SHIELD_BAR)
+                y += 1
         y += 1
 
     # --- WEAPONS list ---
