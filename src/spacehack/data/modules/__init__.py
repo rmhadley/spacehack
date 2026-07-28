@@ -27,6 +27,7 @@ class ModuleSpec:
         piloting_bonus: +dodge, +AP per turn.
         engineering_bonus: +power efficiency, +shield recharge rate.
         max_hull_bonus: additional hull HP.
+        speed_bonus: additional moves-per-day in overworld travel.
         price: credits cost to buy.
     """
     id: str
@@ -41,6 +42,7 @@ class ModuleSpec:
     piloting_bonus: int = 0
     engineering_bonus: int = 0
     max_hull_bonus: int = 0
+    speed_bonus: int = 0
     price: int = 0
     tech_level: int = 1               # minimum planet tech level to stock this
 

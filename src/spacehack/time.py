@@ -77,6 +77,13 @@ def tick_move(ctx: GameContext) -> None:
             speed = _find_ship(ctx.player_owned_ship.ship_id).speed
         except (KeyError, ImportError):
             pass
+        # Add speed bonuses from installed engine modules.
+        from .data.modules import find_module as _fm
+        for mid in ctx.player_owned_ship.modules:
+            try:
+                speed += _fm(mid).speed_bonus
+            except KeyError:
+                pass
 
     ctx.move_counter += 1
     if ctx.move_counter >= speed:
