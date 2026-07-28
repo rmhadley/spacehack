@@ -76,4 +76,5 @@ SPEC = PlanetSpec(
         ("fuel_cells", 12),
         ("weapons_blackmarket", 8),
     ),
+    tech_level=3,
 )

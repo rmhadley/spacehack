@@ -70,6 +70,7 @@ class PlanetSpec:
     # :func:`resolve_mech_inventory`).
     mech_weapons: tuple[str, ...] = ()
     mech_modules: tuple[str, ...] = ()
+    tech_level: int = 1               # max tech level stocked at this planet
 
 
 # ---------------------------------------------------------------------------
@@ -158,13 +159,10 @@ def resolve_mech_inventory(
 
     If the planet's :attr:`PlanetSpec.mech_weapons` / ``mech_modules`` is
     non-empty, those lists are used verbatim (e.g. Earth/Mars have fixed
-    starter sets). Otherwise, a seeded RNG picks a subset from the full
-    catalog — the subset is deterministic per ``(INIT_SEED, planet_id,
-    visit_count)`` so each visit to the same planet with the same seed
-    produces the same selection, but different runs or planets get
-    different stock. ``visit_count`` is incremented each time the player
-    opens the mechanic terminal on that planet, providing a refresh
-    mechanism.
+    starter sets). Otherwise, a seeded RNG picks a subset from items
+    whose ``tech_level <= planet.tech_level`` — the subset is deterministic
+    per ``(INIT_SEED, planet_id, visit_count)`` so each run produces
+    the same selection, but different runs or planets get different stock.
     """
     import random as _random
     from ...engine import INIT_SEED as _init_seed
@@ -176,25 +174,33 @@ def resolve_mech_inventory(
         _w_ids = spec.mech_weapons
     else:
         from ...data.weapons import list_weapons as _lw
-        _all_w = sorted(_lw(), key=lambda _x: _x.price)
-        _w_seed = int(
-            _hashlib.md5(f"{_init_seed}_{planet_id}_w_{visit_count}".encode()).hexdigest(), 16,
-        )
-        _rng_w = _random.Random(_w_seed)
-        _count = min(4, len(_all_w))
-        _w_ids = tuple(_x.id for _x in _rng_w.sample(_all_w, _count))
+        _all_w = [w for w in _lw() if w.tech_level <= spec.tech_level]
+        if not _all_w:
+            _w_ids = ()
+        else:
+            _all_w.sort(key=lambda _x: _x.price)
+            _w_seed = int(
+                _hashlib.md5(f"{_init_seed}_{planet_id}_w_{visit_count}".encode()).hexdigest(), 16,
+            )
+            _rng_w = _random.Random(_w_seed)
+            _count = min(4, len(_all_w))
+            _w_ids = tuple(_x.id for _x in _rng_w.sample(_all_w, _count))
 
     if spec.mech_modules:
         _m_ids = spec.mech_modules
     else:
         from ...data.modules import list_modules as _lm
-        _all_m = sorted(_lm(), key=lambda _x: _x.price)
-        _m_seed = int(
-            _hashlib.md5(f"{_init_seed}_{planet_id}_m_{visit_count}".encode()).hexdigest(), 16,
-        )
-        _rng_m = _random.Random(_m_seed)
-        _count = min(6, len(_all_m))
-        _m_ids = tuple(_x.id for _x in _rng_m.sample(_all_m, _count))
+        _all_m = [m for m in _lm() if m.tech_level <= spec.tech_level]
+        if not _all_m:
+            _m_ids = ()
+        else:
+            _all_m.sort(key=lambda _x: _x.price)
+            _m_seed = int(
+                _hashlib.md5(f"{_init_seed}_{planet_id}_m_{visit_count}".encode()).hexdigest(), 16,
+            )
+            _rng_m = _random.Random(_m_seed)
+            _count = min(6, len(_all_m))
+            _m_ids = tuple(_x.id for _x in _rng_m.sample(_all_m, _count))
 
     return _w_ids, _m_ids
 

@@ -89,4 +89,5 @@ SPEC = PlanetSpec(
         ("medical_supplies", 8),
         ("machine_parts", 10),
     ),
+    tech_level=3,
 )

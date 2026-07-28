@@ -55,4 +55,5 @@ SPEC = PlanetSpec(
         ("food_rations", 8),
         ("fuel_cells", 10),
     ),
+    tech_level=2,
 )

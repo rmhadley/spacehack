@@ -66,4 +66,5 @@ SPEC = PlanetSpec(
         ("fuel_cells", 10),
         ("medical_supplies", 8),
     ),
+    tech_level=2,
 )

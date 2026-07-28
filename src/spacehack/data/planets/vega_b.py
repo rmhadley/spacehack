@@ -69,4 +69,5 @@ SPEC = PlanetSpec(
         ("electronics", 8),
         ("machine_parts", 6),
     ),
+    tech_level=3,
 )

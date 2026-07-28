@@ -66,4 +66,5 @@ SPEC = PlanetSpec(
     ),
     mech_weapons=("light_laser", "light_missile"),
     mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo"),
+    tech_level=1,
 )
