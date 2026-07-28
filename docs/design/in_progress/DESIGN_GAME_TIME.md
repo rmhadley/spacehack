@@ -293,17 +293,17 @@ duplication and single-responsibility violations.*
 *After Phase 4, verify the economy tick is truly single-sourced.*
 
 **Checklist:**
-- [ ] `tick_economy(ctx)` is called from exactly ONE place: inside `advance_time()`.
+- [x] `tick_economy(ctx)` is called from exactly ONE place: inside `advance_time()`.
   Search the codebase for `tick_economy` — there should be no stray call in
   `_jump_to_system` or any other navigation function.
-- [ ] `advance_time()` calls `tick_economy` once per invocation, not per day (if
+- [x] `advance_time()` calls `tick_economy` once per invocation, not per day (if
   `days > 1`, it should still call `tick_economy` once, not in a loop).
-- [ ] The old `from .trade import tick_economy` import in `navigation.py` is removed
+- [x] The old `from .trade import tick_economy` import in `navigation.py` is removed
   if `_jump_to_system` no longer calls it directly.
-- [ ] No other tick-like function (NPC movement, shield regen) was accidentally
+- [x] No other tick-like function (NPC movement, shield regen) was accidentally
   pulled into `advance_time()` — this phase only moves `tick_economy`, nothing else.
-- [ ] Run smoke test.
-- [ ] Fix any DRY issues found, then commit.
+- [x] Run smoke test.
+- [x] Fix any DRY issues found, then commit.
 
 ### Phase 7: Shop refresh on month rollover
 
