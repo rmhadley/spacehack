@@ -3,107 +3,126 @@
 Missions live in two layers:
 
   * :mod:`spacehack.data.missions` - the static catalog (the
-    :class:`Mission` dataclass + per-faction ``MISSIONS`` tuples
+    :class:`MissionSpec` dataclass + per-faction ``MISSIONS`` tuples
     + :func:`find_mission` / :func:`missions_offered_by` lookup
     helpers). Adding a new mission is a one-file edit there.
   * Here (:class:`ActiveMission` + the four runtime functions
-    below) - the BUSINESS LOGIC that operates on a :class:`Mission`
-    instance the player has accepted. Splits the "data shape"
-    concern (in data/) from the "what happens when the player
-    accepts / delivers / aborts / completes" concern (here).
+    below) - the BUSINESS LOGIC that operates on a :class:`MissionSpec`
+    instance the player has accepted.
 
-This module re-exports :class:`Mission`, :func:`find_mission`,
+This module re-exports :class:`MissionSpec`, :func:`find_mission`,
 and :func:`missions_offered_by` from :mod:`spacehack.data.missions`
-so the dispatcher's ``mission_module.Mission`` / ``mission_module.
-find_mission`` / ``mission_module.missions_offered_by`` references
-keep working without forcing a second import line on every caller.
-The runtime functions take a :class:`Mission` as their first arg
-so the data dependency is explicit at the call boundary.
+so the dispatcher's ``mission_module.MissionSpec`` references keep
+working without a second import line.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from . import ship
-from .data.missions import Mission, find_mission, missions_offered_by
+from .data.missions import MissionSpec, find_mission, list_missions, missions_offered_by
+
+MAX_ACTIVE_MISSIONS: int = 5
+
+
+@dataclass
+class MissionBoard:
+    """Per-NPC mission offering state.
+
+    Stored on :attr:`GameContext.mission_boards`, keyed by NPC id.
+    Lazy-initialized on first NPC talk. Slots refill on month rollover.
+
+    Attributes:
+        npc_id: which NPC giver this board belongs to.
+        slots: mission spec IDs or generated keys. ``None`` = empty slot.
+        max_slots: how many missions this NPC can offer at once.
+        last_refresh_month: game month when the board was last populated
+            (0 = never populated). Used to prevent double-fill within
+            the same month.
+    """
+    npc_id: str
+    slots: list[str | None] = field(default_factory=list)
+    max_slots: int = 5
+    last_refresh_month: int = 0
 
 
 class MissionStatus(Enum):
-    """Lifecycle state of an :class:`ActiveMission`.
-
-    Single member this iteration (\"in_progress\") - the user's
-    explicit \"we don't have to wire up mission completion yet\"
-    note. Future iterations add ``COMPLETED`` and ``FAILED`` here;
-    callers dispatch on the enum value rather than a free-form
-    string so a typo can't quietly land an invalid state.
-
-    Defined ABOVE :class:`ActiveMission` so the field default
-    ``MissionStatus.IN_PROGRESS`` is visible when :class:`ActiveMission`
-    is evaluated (Python resolves default expressions at class-body
-    time, not lazily). A string forward reference would have worked
-    for the *annotation* but not for the *default expression*.
-    """
+    """Lifecycle state of an :class:`ActiveMission`."""
 
     IN_PROGRESS = auto()
+    COMPLETED = auto()
+    FAILED = auto()
 
 
 @dataclass
 class ActiveMission:
-    """Mutable state of the player's currently accepted mission.
+    """Mutable state of one player-accepted mission.
 
-    Single slot - matches :class:`spacehack.ship.OwnedShip` and the
-    overall one-of-everything scaffold design. ``status`` is a
-    :class:`MissionStatus` enum (auto()-numbered to mirror
-    :class:`spacehack.ui.MenuAction` / :class:`spacehack.character`
-    -- free-form strings would let typos sneak in once completion
-    lands). Only ``IN_PROGRESS`` is wired this iteration; future
-    states (``COMPLETED``, ``FAILED``) can be added here without
-    churning call sites because no caller outside the dispatcher
-    reads ``status`` yet.
-
-    ``bounty_spawn_id`` is set on accept for bounty missions with
-    a ``target_enemy_id`` — it links the active mission to the
-    dynamically spawned :class:`GameContext.BountySpawn` so combat
-    can verify the correct target was killed.
+    Up to :data:`MAX_ACTIVE_MISSIONS` are tracked in
+    :attr:`GameContext.player_active_missions`. Each holds a snapshot
+    of delivery/reward/deadline fields so procedural missions don't
+    need a catalog lookup at runtime.
     """
 
     mission_id: str
+    is_procedural: bool = False
     status: MissionStatus = MissionStatus.IN_PROGRESS
+    title: str = ""  # display title (snapshot from spec or generated)
+
+    # Delivery fields
+    required_cargo_size: int = 0
+    delivery_target_npc_id: str | None = None
+    delivery_target_planet_id: str | None = None
+
+    # Bounty fields (future)
     bounty_spawn_id: str | None = None
-    time_deadline: tuple[int, int, int] | None = None  # (day, month, year) from accept time + deadline_days
+    target_enemy_id: str | None = None
+    target_system_id: str | None = None
+
+    # Deadline
+    time_deadline: tuple[int, int, int] | None = None  # (day, month, year)
+    deadline_days: int = 0
+    accept_day: int = 0  # absolute game day when accepted (for early-bonus calc)
+
+    # Reward
+    reward_credits: int = 0
+    reward_xp: int = 0
+    early_bonus_pct: int = 0
 
 
 def try_accept_mission(
-    mission: Mission,
+    mission: MissionSpec,
     owned_ship: object,
     log: object,
+    active_count: int = 0,
 ) -> bool:
-    """Accept ``mission`` if the player's owned ship has the cargo
-    capacity for it. Mutates :attr:`OwnedShip.mission_reserved` on
-    success (which feeds into ``.cargo_used``). Returns ``True`` if
-    the mission was accepted,
-    ``False`` if the cargo cap was exceeded.
+    """Accept ``mission`` if the player has room and cargo capacity.
 
-    ``owned_ship`` is duck-typed (``cargo_used`` / ``ship_id``)
-    rather than imported as :class:`spacehack.ship.OwnedShip` so
-    this module stays free of cross-imports - the dispatcher
-    passes the player's actual instance and we drive the
-    mutation off ``ship_id``. ``log`` is duck-typed the same way
-    (must expose :func:`add`).
+    Checks:
+      1. ``active_count < MAX_ACTIVE_MISSIONS`` (slots check).
+      2. If the mission has cargo, the owned ship must exist and have
+         enough free capacity.
 
-    A ``mission`` with :attr:`Mission.required_cargo_size` of 0
-    has no cargo to load -- it always accepts regardless of the
-    ship (and never mutates ``cargo_used``). When
-    ``owned_ship`` is ``None`` (the player hasn't bought a ship
-    yet), zero-cargo missions still accept; non-zero ones refuse
-    with the standard "you need a hull" log line.
+    Returns ``True`` if the mission can be accepted. Does NOT mutate
+    state — the caller is responsible for creating the
+    :class:`ActiveMission` and adding it to the list.
     """
+    if active_count >= MAX_ACTIVE_MISSIONS:
+        log.add(
+            f"Your mission log is full ({MAX_ACTIVE_MISSIONS}/{MAX_ACTIVE_MISSIONS}). "
+            "Abandon one first (Q)."
+        )
+        return False
+
     if mission.required_cargo_size <= 0:
         return True
+
     if owned_ship is None:
         log.add("You don't have a ship to carry cargo yet.")
         return False
+
     ship_obj = ship.find_ship(owned_ship.ship_id)
     _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
     new_used = owned_ship.cargo_used + mission.required_cargo_size
@@ -115,34 +134,42 @@ def try_accept_mission(
             f"/{_eff_cap})."
         )
         return False
-    owned_ship.mission_reserved += mission.required_cargo_size
-    log.add(
-        f"You accept: {mission.title}. "
-        f"Cargo now {owned_ship.cargo_used}/{_eff_cap}."
-    )
     return True
 
 
-def is_deliverable_at(mission: Mission, npc_id: str, planet_id: str) -> bool:
+def commit_accept_mission(
+    mission: MissionSpec,
+    owned_ship: object | None,
+    log: object,
+) -> None:
+    """Apply the side-effects of accepting ``mission``.
+
+    Loads cargo onto ``owned_ship`` (if the mission has cargo) and
+    logs the acceptance. Call this AFTER :func:`try_accept_mission`
+    returns ``True`` and the :class:`ActiveMission` has been created.
+    """
+    if mission.required_cargo_size > 0 and owned_ship is not None:
+        owned_ship.mission_reserved += mission.required_cargo_size
+        ship_obj = ship.find_ship(owned_ship.ship_id)
+        _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
+        log.add(
+            f"You accept: {mission.title}. "
+            f"Cargo now {owned_ship.cargo_used}/{_eff_cap}."
+        )
+    else:
+        log.add(f"You accept: {mission.title}.")
+
+
+def is_deliverable_at(
+    mission: MissionSpec,
+    npc_id: str,
+    planet_id: str,
+) -> bool:
     """True iff ``mission`` can be handed over to NPC ``npc_id``
     while the player is on ``planet_id``.
 
-    A mission is deliverable at a given (NPC, planet) pair only
-    when ALL of the following hold:
-
-      * the mission actually moves cargo (:attr:`required_cargo_size`
-        > 0) — combat / diplomacy jobs never raise a Deliver
-        option so they cannot be "mis-delivered" by accident,
-      * the NPC id matches :attr:`Mission.delivery_target_npc_id`,
-      * the planet id matches :attr:`Mission.delivery_target_planet_id`.
-
-    The predicate is intentionally strict — a partial match
-    (right NPC, wrong planet, or vice versa) returns ``False`` so
-    the dispatcher shows the regular NPC flavor dialog instead
-    of a Deliver option. Without the strict check, a future
-    cross-system delivery could fire ``complete_mission`` on the
-    wrong body the player happened to bump while flying past.
-    The smoke @checks lock this contract in.
+    Also works with an :class:`ActiveMission`'s stored delivery fields
+    for procedural missions — pass those as named args by unpacking.
     """
     if mission.required_cargo_size <= 0:
         return False
@@ -156,70 +183,117 @@ def is_deliverable_at(mission: Mission, npc_id: str, planet_id: str) -> bool:
     )
 
 
+def active_is_deliverable_at(
+    active: ActiveMission,
+    npc_id: str,
+    planet_id: str,
+) -> bool:
+    """Check if an :class:`ActiveMission` is deliverable at the given
+    NPC+planet. Works for both static and procedural missions.
+
+    For static missions, looks up the :class:`MissionSpec` for field values.
+    For procedural missions, uses the fields stored on ``active`` directly.
+    """
+    if active.required_cargo_size <= 0:
+        return False
+    target_npc = active.delivery_target_npc_id
+    target_planet = active.delivery_target_planet_id
+    if target_npc is None or target_planet is None:
+        return False
+    return target_npc == npc_id and target_planet == planet_id
+
+
+def find_deliverable(
+    active_missions: list[ActiveMission],
+    npc_id: str,
+    planet_id: str,
+) -> ActiveMission | None:
+    """Return the first deliverable mission in ``active_missions``
+    for the given NPC+planet, or ``None``.
+    """
+    for am in active_missions:
+        if active_is_deliverable_at(am, npc_id, planet_id):
+            return am
+    return None
+
+
+def find_deliverable_missions(
+    active_missions: list[ActiveMission],
+    npc_id: str,
+    planet_id: str,
+) -> list[ActiveMission]:
+    """Return ALL deliverable missions for the given NPC+planet."""
+    return [
+        am for am in active_missions
+        if active_is_deliverable_at(am, npc_id, planet_id)
+    ]
+
+
 def abort_mission(
-    mission: Mission,
+    active: ActiveMission,
     owned_ship: object,
     log: object,
 ) -> None:
-    """Drop the mission's cargo from ``owned_ship`` and log the
-    release. Symmetric to the ACCEPT-side cargo load — the only
-    side-effect on the player's hull is undone without granting
-    any credits/xp (abandoning is not the same as completing).
+    """Drop the mission's cargo from ``owned_ship`` and log the release.
 
-    Used when the player abandons a mission through the quest
-    log. Pure side-effects; the dispatcher is responsible for
-    clearing :class:`ActiveMission` afterwards so this helper
-    stays out of the mission-slot bookkeeping.
-
-    A zero-cargo mission is a no-op (nothing to release). A
-    ``None`` owned_ship is a no-op too — the player cannot have
-    cargo loaded without a hull, so there's nothing to give back.
-    The cargo drop is clamped at zero so a future regression
-    that mis-pairs the accept/abort math cannot land the
-    cargo_used below the floor.
+    Does NOT remove ``active`` from the mission list — the caller
+    owns that bookkeeping.
     """
-    if mission.required_cargo_size <= 0 or owned_ship is None:
+    if active.required_cargo_size <= 0 or owned_ship is None:
         return
     owned_ship.mission_reserved = max(
-        0, owned_ship.mission_reserved - mission.required_cargo_size,
+        0, owned_ship.mission_reserved - active.required_cargo_size,
     )
     ship_obj = ship.find_ship(owned_ship.ship_id)
     _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
     log.add(
-        f"Cargo released from abandoned '{mission.title}' "
+        f"Cargo released from abandoned '{active.title}' "
         f"({owned_ship.cargo_used}/{_eff_cap})."
     )
 
 
 def complete_mission(
-    mission: Mission,
+    active: ActiveMission,
     owned_ship: object,
     stats: object,
     log: object,
+    current_day: int = 0,
 ) -> None:
-    """Complete ``mission``: drop its cargo from the owned ship,
-    grant credits to ``stats``, and log the payout.
+    """Complete ``active``: drop cargo, grant reward (with early/late
+    modifiers), and log the payout.
 
-    Symmetric with :func:`try_accept_mission` -- the cargo delta
-    is exactly :attr:`Mission.required_cargo_size` either way (so
-    cargo_used returns to zero if no other missions are active).
-    Duck-types ``owned_ship`` / ``stats`` / ``log`` for the same
-    reason as :func:`try_accept_mission` - the dispatcher is the
-    one place that knows the concrete types and is responsible for
-    clearing :class:`ActiveMission` after this returns.
-
-    The mission's :attr:`Mission.reward_xp` is logged but not
-    applied to a stat yet (future iteration: add an xp field to
-    :class:`spacehack.hud.HudStats`). The reward_xp flow is
-    accounted for so the player sees the full payout in the
-    message log even though we don't persist xp.
+    Does NOT remove ``active`` from the mission list or add to
+    ``completed_mission_ids`` — the caller owns that bookkeeping.
     """
-    if mission.required_cargo_size > 0 and owned_ship is not None:
+    # Drop cargo.
+    if active.required_cargo_size > 0 and owned_ship is not None:
         owned_ship.mission_reserved = max(
-            0, owned_ship.mission_reserved - mission.required_cargo_size,
+            0, owned_ship.mission_reserved - active.required_cargo_size,
         )
+
+    # Compute reward with early/late modifiers.
+    credits = active.reward_credits
+    xp = active.reward_xp
+    bonus_msg = ""
+
+    if active.deadline_days > 0 and active.accept_day > 0 and current_day > 0:
+        elapsed = current_day - active.accept_day
+        half_deadline = active.deadline_days // 2
+        if elapsed < half_deadline:
+            # Early bonus: +early_bonus_pct% credits.
+            if active.early_bonus_pct > 0:
+                bonus = credits * active.early_bonus_pct // 100
+                credits += bonus
+                bonus_msg = f" Early delivery bonus: +{bonus}$."
+        elif elapsed > active.deadline_days:
+            # Late penalty: half credits, no XP.
+            credits = credits // 2
+            xp = 0
+            bonus_msg = " Late delivery — half pay."
+
     if hasattr(stats, "credits"):
-        stats.credits = stats.credits + mission.reward_credits
+        stats.credits = stats.credits + credits
+
     ship_obj = (
         ship.find_ship(owned_ship.ship_id)
         if owned_ship is not None
@@ -231,38 +305,27 @@ def complete_mission(
         else "no ship"
     )
     log.add(
-        f"Delivered: {mission.title}. +{mission.reward_credits}$ "
-        f"+{mission.reward_xp}xp. ({cargo_after} cargo.)"
+        f"Delivered: {active.title}. +{credits}$ "
+        f"+{xp}xp. ({cargo_after} cargo.){bonus_msg}"
     )
 
 
-# Re-exports so consumers (e.g. ``spacehack.__main__``) can keep
-# using ``mission_module.Mission`` / ``mission_module.find_mission`` /
-# ``mission_module.missions_offered_by`` without a second import
-# line. The data lives in :mod:`spacehack.data.missions`; this
-# module is the runtime layer that operates on it.
-#
-# Two import paths are equivalent and both supported:
-#   from spacehack import mission as mission_module        # runtime + data facade
-#   from spacehack.data.missions import Mission, ...        # data-only
-# The facade keeps ``mission_module.X`` working so existing call
-# sites in ``__main__`` (~16 references) don't churn. New code can
-# import directly from data.missions for clarity; old code keeps
-# working.
-#
-# IDENTITY GUARANTEE: ``mission_module.Mission is Mission`` (and
-# ditto for the helpers). Smoke-verified at the registry build site
-# so a future refactor that accidentally drops the re-exports (or
-# wraps the symbol in a proxy) breaks the identity check rather
-# than silently changing consumer semantics.
+# Re-exports so consumers can keep using ``mission_module.MissionSpec``
+# etc. without a second import line.
 __all__ = [
     "ActiveMission",
-    "Mission",
+    "MissionSpec",
     "MissionStatus",
+    "MAX_ACTIVE_MISSIONS",
     "abort_mission",
+    "active_is_deliverable_at",
+    "commit_accept_mission",
     "complete_mission",
     "find_mission",
+    "find_deliverable",
+    "find_deliverable_missions",
     "is_deliverable_at",
+    "list_missions",
     "missions_offered_by",
     "try_accept_mission",
 ]

@@ -71,6 +71,16 @@ from .navigation import (
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
 from .time import tick_move, format_date, add_days_to_date
 
+def _active_mission_hud(missions: list) -> str | None:
+    """Return a compact HUD string for active missions, or None if empty."""
+    if not missions:
+        return None
+    first = missions[0].title
+    if len(missions) == 1:
+        return first
+    return f"[{len(missions)}] {first}"
+
+
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
     target enemy. Prefers a cell near the first non-sun planet, falling
@@ -171,9 +181,9 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
         modules=starter_ship.start_modules,
         fuel=starter_ship.max_fuel,
     )
-    player_active_mission: mission_module.ActiveMission | None = None
+    player_active_missions: list[mission_module.ActiveMission] = []
     character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
-    ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_mission=player_active_mission)
+    ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
     console = make_console()
@@ -200,7 +210,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
-        active_mission_text = mission_module.find_mission(player_active_mission.mission_id).title if player_active_mission is not None else None
+        active_mission_text = _active_mission_hud(player_active_missions)
         _show_ship_hud = current_mode == 'space' and player_owned_ship is not None
         _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if _show_ship_hud else None
         if current_mode == 'space':
@@ -220,23 +230,22 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
             if _try_open_guide(event, ctx):
                 continue
             if _is_q_press(event):
-                outcome, new_active = _run_quest_log(ctx)
+                outcome, abandoned_idx = _run_quest_log(ctx)
                 if outcome is QuestLogOutcome.QUIT:
                     return
-                if outcome is QuestLogOutcome.ABANDONED:
-                    if player_active_mission is not None:
-                        abandoned = mission_module.find_mission(player_active_mission.mission_id)
+                if outcome is QuestLogOutcome.ABANDONED and abandoned_idx is not None:
+                    if 0 <= abandoned_idx < len(player_active_missions):
+                        abandoned = player_active_missions[abandoned_idx]
                         log.add(f'You abandoned: {abandoned.title}.')
                         mission_module.abort_mission(abandoned, player_owned_ship, log)
-                        # Remove any bounty spawn associated with this mission.
-                        if player_active_mission.bounty_spawn_id is not None:
+                        if abandoned.bounty_spawn_id is not None:
                             _remove_bounty_spawn(
                                 ctx,
-                                player_active_mission.bounty_spawn_id,
+                                abandoned.bounty_spawn_id,
                                 abandoned.target_system_id,
                             )
-                    player_active_mission = new_active
-                    ctx.player_active_mission = new_active
+                        del player_active_missions[abandoned_idx]
+                        ctx.player_active_missions = player_active_missions
                 continue
             if current_mode == 'space' and _is_m_press(event):
                 outcome = _run_navigation(ctx, player.pos)
@@ -247,10 +256,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
-                    # Sync local mission state — _handle_combat_encounter
-                    # may have cleared ctx.player_active_mission (bounty
-                    # auto-complete) but the local copy is stale.
-                    player_active_mission = ctx.player_active_mission
+                    # Sync local mission state after combat.
+                    player_active_missions = ctx.player_active_missions
                     # After combat, loop: re-check for more nearby enemies
                     # (e.g. a second squad that was just out of range
                     # initially). Keeps fighting until no more are detected.
@@ -259,7 +266,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         if _next_encounter is None:
                             break
                         _result = combat._handle_combat_encounter(ctx, console, _next_encounter)
-                        player_active_mission = ctx.player_active_mission
+                        player_active_missions = ctx.player_active_missions
                         if _result != "VICTORY":
                             break
                 continue
@@ -284,13 +291,13 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         _, _attack_data = _auto_result
                         if _attack_data is not None:
                             combat._handle_combat_encounter(ctx, console, _attack_data)
-                            player_active_mission = ctx.player_active_mission
+                            player_active_missions = ctx.player_active_missions
                     while True:
                         _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                         if _encounter is None:
                             break
                         _result = combat._handle_combat_encounter(ctx, console, _encounter)
-                        player_active_mission = ctx.player_active_mission
+                        player_active_missions = ctx.player_active_missions
                         if _result != "VICTORY":
                             break
                     from .npc_ships import move_npcs as _mn
@@ -309,14 +316,14 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     _, _attack_data = _auto_result
                     if _attack_data is not None:
                         combat._handle_combat_encounter(ctx, console, _attack_data)
-                        player_active_mission = ctx.player_active_mission
+                        player_active_missions = ctx.player_active_missions
                 while True:
                     _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
                     if _encounter is None:
                         break
                     _result = combat._handle_combat_encounter(ctx, console, _encounter)
                     # Sync local mission state after combat.
-                    player_active_mission = ctx.player_active_mission
+                    player_active_missions = ctx.player_active_missions
                     if _result != "VICTORY":
                         break
                 # Move procedural NPCs after the player moves.
@@ -460,24 +467,36 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     _run_mech_menu(ctx, current_city_id)
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
-                    deliver_mission: mission_module.Mission | None = None
-                    if player_active_mission is not None:
-                        active_mission_obj = mission_module.find_mission(player_active_mission.mission_id)
-                        if mission_module.is_deliverable_at(active_mission_obj, npc_obj.id, current_city_id):
-                            deliver_mission = active_mission_obj
-                    result, deliver_in_progress = _run_npc_talk(ctx, npc_obj, deliver_mission=deliver_mission)
+                    # Find deliverable missions at this NPC+planet.
+                    _deliverable = mission_module.find_deliverable_missions(
+                        player_active_missions, npc_obj.id, current_city_id,
+                    )
+                    _deliver_mission = _deliverable[0] if _deliverable else None
+                    result, _ = _run_npc_talk(ctx, npc_obj, deliver_mission=_deliver_mission)
                     if result is TalkOutcome.QUIT:
                         return
                     if result is TalkOutcome.DELIVER:
-                        if deliver_in_progress is not None:
-                            mission_module.complete_mission(deliver_in_progress, player_owned_ship, stats, log)
-                        player_active_mission = None
-                        ctx.player_active_mission = None
+                        if _deliver_mission is not None:
+                            _today = ctx.time_day + (ctx.time_month - 1) * 30
+                            mission_module.complete_mission(
+                                _deliver_mission, player_owned_ship, stats, log,
+                                current_day=_today,
+                            )
+                            if not _deliver_mission.is_procedural:
+                                ctx.completed_mission_ids.add(_deliver_mission.mission_id)
+                            try:
+                                player_active_missions.remove(_deliver_mission)
+                            except ValueError:
+                                pass
+                            ctx.player_active_missions = player_active_missions
                     if result is TalkOutcome.WORK:
-                        if player_active_mission is not None:
-                            current = mission_module.find_mission(player_active_mission.mission_id)
-                            giver = npc_module.find_npc(current.giver_npc_id)
-                            log.add(f'You already have work from {giver.name}. Press Q to view or abandon it.')
+                        if len(player_active_missions) >= mission_module.MAX_ACTIVE_MISSIONS:
+                            log.add(
+                                f"Your mission log is full "
+                                f"({mission_module.MAX_ACTIVE_MISSIONS}/"
+                                f"{mission_module.MAX_ACTIVE_MISSIONS}). "
+                                "Abandon one first (Q)."
+                            )
                         else:
                             offerings = mission_module.missions_offered_by(npc_obj.id)
                             if not offerings:
@@ -485,45 +504,60 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             else:
                                 outcome, picked = _run_mission_offerings(ctx, npc_obj, offerings)
                                 if outcome is MissionOutcome.ACCEPT and picked is not None:
-                                        if mission_module.try_accept_mission(picked, player_owned_ship, log):
-                                            _bounty_spawn_id: str | None = None
-                                            if picked.target_enemy_id is not None and picked.target_system_id is not None:
-                                                # Generate a unique spawn id for this bounty target.
-                                                _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
-                                                try:
-                                                    _target_sys = solar_systems_module.find_solar_system(picked.target_system_id)
-                                                    _spawn_pos = _pick_bounty_spawn_pos(_target_sys)
-                                                    if _spawn_pos is not None:
-                                                        from .game_context import BountySpawn
-                                                        _bs = BountySpawn(
-                                                            spawn_id=_bounty_spawn_id,
-                                                            enemy_id=picked.target_enemy_id,
-                                                            pos=_spawn_pos,
-                                                        )
-                                                        if picked.target_system_id not in ctx.bounty_spawns:
-                                                            ctx.bounty_spawns[picked.target_system_id] = []
-                                                        ctx.bounty_spawns[picked.target_system_id].append(_bs)
-                                                        # If player is already in the target system, add the
-                                                        # entity to the current game_map immediately.
-                                                        if solar_system_module.current_solar_system_id == picked.target_system_id:
-                                                            _add_bounty_spawns_to_map(ctx, ctx.game_map, picked.target_system_id)
-                                                        log.add(f"Bounty target marked in {_target_sys.name}.")
-                                                except KeyError:
-                                                    pass
-                                            # Compute deadline if mission has one.
-                                            _dl_days = getattr(picked, 'deadline_days', 0)
-                                            _deadline = None
-                                            if _dl_days > 0:
-                                                _deadline = add_days_to_date(
-                                                    ctx.time_day, ctx.time_month,
-                                                    ctx.time_year, _dl_days,
-                                                )
-                                            player_active_mission = mission_module.ActiveMission(
-                                                mission_id=picked.id,
-                                                bounty_spawn_id=_bounty_spawn_id,
-                                                time_deadline=_deadline,
+                                    if mission_module.try_accept_mission(
+                                        picked, player_owned_ship, log,
+                                        active_count=len(player_active_missions),
+                                    ):
+                                        _bounty_spawn_id: str | None = None
+                                        if picked.target_enemy_id is not None and picked.target_system_id is not None:
+                                            _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
+                                            try:
+                                                _target_sys = solar_systems_module.find_solar_system(picked.target_system_id)
+                                                _spawn_pos = _pick_bounty_spawn_pos(_target_sys)
+                                                if _spawn_pos is not None:
+                                                    from .game_context import BountySpawn
+                                                    _bs = BountySpawn(
+                                                        spawn_id=_bounty_spawn_id,
+                                                        enemy_id=picked.target_enemy_id,
+                                                        pos=_spawn_pos,
+                                                    )
+                                                    if picked.target_system_id not in ctx.bounty_spawns:
+                                                        ctx.bounty_spawns[picked.target_system_id] = []
+                                                    ctx.bounty_spawns[picked.target_system_id].append(_bs)
+                                                    if solar_system_module.current_solar_system_id == picked.target_system_id:
+                                                        _add_bounty_spawns_to_map(ctx, ctx.game_map, picked.target_system_id)
+                                                    log.add(f"Bounty target marked in {_target_sys.name}.")
+                                            except KeyError:
+                                                pass
+                                        # Compute deadline if mission has one.
+                                        _dl_days = getattr(picked, 'deadline_days', 0)
+                                        _deadline = None
+                                        if _dl_days > 0:
+                                            _deadline = add_days_to_date(
+                                                ctx.time_day, ctx.time_month,
+                                                ctx.time_year, _dl_days,
                                             )
-                                            ctx.player_active_mission = player_active_mission
+                                        _new_active = mission_module.ActiveMission(
+                                            mission_id=picked.id,
+                                            title=picked.title,
+                                            required_cargo_size=picked.required_cargo_size,
+                                            delivery_target_npc_id=picked.delivery_target_npc_id,
+                                            delivery_target_planet_id=picked.delivery_target_planet_id,
+                                            deadline_days=_dl_days,
+                                            accept_day=ctx.time_day + (ctx.time_month - 1) * 30,
+                                            time_deadline=_deadline,
+                                            reward_credits=picked.reward_credits,
+                                            reward_xp=picked.reward_xp,
+                                            early_bonus_pct=picked.early_bonus_pct,
+                                            bounty_spawn_id=_bounty_spawn_id,
+                                            target_enemy_id=picked.target_enemy_id,
+                                            target_system_id=picked.target_system_id,
+                                        )
+                                        mission_module.commit_accept_mission(
+                                            picked, player_owned_ship, log,
+                                        )
+                                        player_active_missions.append(_new_active)
+                                        ctx.player_active_missions = player_active_missions
                 else:
                     log.add(f'You bump into {blocker.name}.')
 

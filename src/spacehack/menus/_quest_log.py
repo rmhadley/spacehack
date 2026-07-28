@@ -1,6 +1,7 @@
 """Quest log overlay — render, update, and modal runner.
 
 Extracted from the old ``menus.py`` during the package refactor.
+Supports up to 5 active missions with arrow-key navigation.
 """
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ import tcod.event
 
 from .. import ui
 from .. import mission as mission_module
-from .. import npc as npc_module
 from ..game_context import GameContext
 from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..input_helpers import _try_open_guide
@@ -20,10 +20,9 @@ from ..input_helpers import _try_open_guide
 class QuestLogOutcome(Enum):
     """What the player chose in the city quest log.
 
-    ``ABANDONED`` carries the abandoned mission's title back so
-    :func:`_run_game` can log a "You abandoned ..." line; the
-    caller is responsible for clearing ``player_active_mission``
-    since this enum doesn't have access to the world state.
+    ``ABANDONED`` carries the abandoned mission's index back so
+    :func:`_run_game` can log a "You abandoned ..." line and
+    remove the mission from the list.
     """
     IGNORE = auto()
     BACK = auto()
@@ -31,20 +30,14 @@ class QuestLogOutcome(Enum):
     QUIT = auto()
 
 
-def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
+def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
     """Paint the city quest-log overlay.
 
-    Two visual states:
-
-      * ``confirm_abandon`` False — shows the active mission's full
-        details and the "Press A to abandon. ESC to close." hint.
-      * ``confirm_abandon`` True — swaps in "Press ENTER to abandon.
-        ESC cancels." for the two-step confirmation.
-
-    If there is no active mission, draws "(no active mission)" + ESC
-    hint and the abandon confirmation is irrelevant.
+    Shows a list of up to 5 active missions. Arrow keys navigate,
+    Enter to view details (future), A to abandon, ESC to close.
     """
     console.clear()
+    missions = ctx.player_active_missions
     max_w = screen_width - HUD_WIDTH - 2
 
     def fit(line: str) -> str:
@@ -52,41 +45,62 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, confirm
 
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
         console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
+
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    if ctx.player_active_mission is None:
+
+    if not missions:
         paint(center_y - 2, fit('QUEST LOG'), fg=ui.COLOR_TITLE)
-        paint(center_y + 1, fit('(no active mission)'), fg=ui.COLOR_DESCRIPTION)
+        paint(center_y + 1, fit('(no active missions)'), fg=ui.COLOR_DESCRIPTION)
         paint(center_y + 5, fit('Press ESC to close.'), fg=ui.COLOR_INSTRUCTION)
+        from .. import message_log
         message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
         return
-    mission = mission_module.find_mission(ctx.player_active_mission.mission_id)
-    giver = npc_module.find_npc(mission.giver_npc_id)
-    paint(center_y - 6, fit('QUEST LOG'), fg=ui.COLOR_TITLE)
-    paint(center_y - 3, fit(mission.title.upper()), fg=ui.COLOR_TITLE)
-    paint(center_y - 1, fit(f'From: {giver.name} ({giver.guild})'), fg=ui.COLOR_DESCRIPTION)
-    desc_rows = ui.wrap_text(mission.description, max_w)
-    desc_start_row = center_y + 2
-    for j, line in enumerate(desc_rows):
-        paint(desc_start_row + j, line, fg=ui.COLOR_VALUE_WHITE)
-    reward_row = desc_start_row + len(desc_rows) + 1
-    paint(reward_row, fit(f'Reward: {mission.reward_credits}$ + {mission.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
-    # Deadline line (only when mission has one).
-    _dl = ctx.player_active_mission.time_deadline
-    deadline_row = reward_row + 1
-    if _dl is not None:
-        _d, _m, _y = _dl
-        # Days remaining: simple subtraction (30-day months, 12-month years).
-        _total_days = (_y - ctx.time_year) * 360 + (_m - ctx.time_month) * 30 + (_d - ctx.time_day)
-        if _total_days > 0:
-            paint(deadline_row, fit(f'Due: Day {_d}, Month {_m}, Year {_y} ({_total_days} days)'), fg=ui.COLOR_OPTION_HIGHLIGHT)
-        else:
-            paint(deadline_row, fit(f'EXPIRED — Due: Day {_d}, Month {_m}, Year {_y}'), fg=(255, 80, 80))
-        deadline_row += 1
-    button_row = deadline_row + 2
+
+    paint(center_y - 8, fit('QUEST LOG'), fg=ui.COLOR_TITLE)
+    paint(center_y - 6, fit(f'{len(missions)} / {mission_module.MAX_ACTIVE_MISSIONS} missions'), fg=ui.COLOR_VALUE_DIM)
+
+    list_top = center_y - 4
+    for i, am in enumerate(missions):
+        row = list_top + i * 2
+        is_sel = i == selected
+        marker = '> ' if is_sel else '  '
+        end_marker = ' <' if is_sel else '  '
+        _prefix = '[S] ' if not am.is_procedural else '[P] '
+        text = f'{marker}{_prefix}{am.title}{end_marker}'
+        console.print(
+            x=ui.centered_x(text, screen_width), y=row, string=text,
+            fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION,
+        )
+
+    # Detail pane for selected mission
+    if 0 <= selected < len(missions):
+        am = missions[selected]
+        detail_top = list_top + len(missions) * 2 + 1
+        paint(detail_top, fit(f'Type: {"Procedural" if am.is_procedural else "Contract"}'), fg=ui.COLOR_VALUE_DIM)
+        detail_top += 1
+        if am.delivery_target_planet_id:
+            paint(detail_top, fit(f'Deliver to: {am.delivery_target_planet_id}'), fg=ui.COLOR_VALUE_WHITE)
+            detail_top += 1
+        paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
+        detail_top += 1
+        paint(detail_top, fit(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
+        detail_top += 1
+        if am.time_deadline is not None:
+            _d, _m, _y = am.time_deadline
+            _total_days = (_y - ctx.time_year) * 360 + (_m - ctx.time_month) * 30 + (_d - ctx.time_day)
+            if _total_days > 0:
+                paint(detail_top, fit(f'Due: Day {_d}, Month {_m}, Year {_y} ({_total_days} days)'), fg=ui.COLOR_OPTION_HIGHLIGHT)
+            else:
+                paint(detail_top, fit(f'EXPIRED — Due: Day {_d}, Month {_m}, Year {_y}'), fg=(255, 80, 80))
+            detail_top += 1
+
+    button_row = max(list_top + len(missions) * 2 + 8, center_y + 10)
     if confirm_abandon:
         paint(button_row, fit('Press ENTER to abandon. ESC cancels.'), fg=ui.COLOR_OPTION_HIGHLIGHT)
     else:
-        paint(button_row, fit('Press A to abandon. ESC to close.'), fg=ui.COLOR_INSTRUCTION)
+        paint(button_row, fit('ARROW KEYS navigate - A abandon - ESC close.'), fg=ui.COLOR_INSTRUCTION)
+
+    from .. import message_log
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 
@@ -114,29 +128,51 @@ def update_quest_log(event: tcod.event.Event, *, confirm_abandon: bool) -> Quest
     return QuestLogOutcome.IGNORE
 
 
-def _run_quest_log(ctx) -> tuple[QuestLogOutcome, mission_module.ActiveMission | None]:
-    """Show the city quest-log overlay and apply any state changes.
+def _quest_log_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
+    """If ``event`` drives quest log nav, return the new ``selected`` index."""
+    if n <= 0:
+        return None
+    if not isinstance(event, tcod.event.KeyDown):
+        return None
+    sym = event.sym
+    sym_name: str = getattr(sym, 'name', '').lower()
+    if sym in ui._UP_SYMS or sym_name == 'k':
+        return (selected - 1) % n
+    if sym in ui._DOWN_SYMS or sym_name == 'j':
+        return (selected + 1) % n
+    return None
 
-    Returns ``(outcome, maybe_new_active)``: ``maybe_new_active`` is
-    ``None`` when the player confirmed ABANDONED, or the same
-    ``ActiveMission`` instance for every other outcome.
+
+def _run_quest_log(ctx) -> tuple[QuestLogOutcome, int | None]:
+    """Show the city quest-log overlay and return the outcome.
+
+    Returns ``(outcome, abandoned_index)``: ``abandoned_index`` is
+    the index of the abandoned mission (for removal from the list),
+    or ``None``.
     """
     console = make_console()
+    selected = 0
     confirm_abandon = False
+    missions = ctx.player_active_missions
 
     def _render() -> None:
-        render_quest_log(console, ctx, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_quest_log(console, ctx, selected=selected, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
     def _update(event) -> QuestLogOutcome:
-        nonlocal confirm_abandon
+        nonlocal selected, confirm_abandon
         if _try_open_guide(event, ctx):
+            return QuestLogOutcome.IGNORE
+        new = _quest_log_navigate(event, selected, len(missions))
+        if new is not None:
+            selected = new
             return QuestLogOutcome.IGNORE
         result = update_quest_log(event, confirm_abandon=confirm_abandon)
         if result is QuestLogOutcome.ABANDONED and (not confirm_abandon):
             confirm_abandon = True
             return QuestLogOutcome.IGNORE
         return result
+
     outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if outcome is QuestLogOutcome.ABANDONED:
-        return (outcome, None)
-    return (outcome, ctx.player_active_mission)
+        return (outcome, selected)
+    return (outcome, None)

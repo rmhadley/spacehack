@@ -71,6 +71,7 @@ class PlanetSpec:
     mech_weapons: tuple[str, ...] = ()
     mech_modules: tuple[str, ...] = ()
     tech_level: int = 1               # max tech level stocked at this planet
+    mission_tier: int = 1             # max mission tier offered at this planet's NPCs
 
 
 # ---------------------------------------------------------------------------

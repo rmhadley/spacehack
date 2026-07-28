@@ -127,8 +127,14 @@ class GameContext:
       player gains credits, takes damage, etc.
     * :attr:`player_owned_ship` - ``OwnedShip | None``; ``None`` until the
       player buys their first ship, then mutated on refuel / sell-cargo.
-    * :attr:`player_active_mission` - ``ActiveMission | None``; ``None``
-      until the player accepts, then ``None`` again on abandon / complete.
+    * :attr:`player_active_missions` - ``list[ActiveMission]``; up to
+      :data:`mission.MAX_ACTIVE_MISSIONS` entries. Empty until the player
+      accepts work, grows/shrinks on abandon / complete.
+    * :attr:`completed_mission_ids` - ``set[str]``; static MissionSpec IDs
+      the player has finished. Prevents re-offering the same hand-crafted
+      mission.
+    * :attr:`mission_boards` - ``dict[str, MissionBoard]``; per-NPC board
+      state, keyed by NPC id. Lazy-initialized on first talk.
     * :attr:`bounty_spawns` - mutable registry of dynamic bounty-target
       spawns, keyed by system id. Populated on mission accept, consumed
       by :func:`spacehack.solar_system.make_solar_system` and
@@ -139,7 +145,7 @@ class GameContext:
 
     * **Field reassignment** (``ctx.player = X``,
       ``ctx.game_map = X``, ``ctx.player_owned_ship = X``,
-      ``ctx.player_active_mission = X`` or ``None``) is
+      ``ctx.player_active_missions = X`` or ``None``) is
       intentional and rare - only ~5 sites do it: the
       launch / land / jump dispatchers in
       :func:`spacehack.__main__._run_game`, the ship-buy
@@ -168,7 +174,7 @@ class GameContext:
 
     The order of fields is significant for the dataclass: non-default fields
     must precede defaulted fields. ``player_owned_ship`` and
-    ``player_active_mission`` are the only two with defaults (because they
+    ``player_active_missions`` are the only two with defaults (because they
     start as ``None``); everything else is required at construction.
     """
 
@@ -179,7 +185,13 @@ class GameContext:
     player: world.Entity
     stats: hud.HudStats
     player_owned_ship: ship_module.OwnedShip | None = None
-    player_active_mission: mission_module.ActiveMission | None = None
+    player_active_missions: list[mission_module.ActiveMission] = dataclasses.field(
+        default_factory=list,
+    )
+    completed_mission_ids: set[str] = dataclasses.field(default_factory=set)
+    mission_boards: dict[str, mission_module.MissionBoard] = dataclasses.field(
+        default_factory=dict,
+    )
     bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     npc_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)

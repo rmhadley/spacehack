@@ -1,19 +1,15 @@
 """Missions catalog: contract-style jobs the player picks up from city NPCs.
 
-Each :class:`Mission` is a frozen dataclass. Adding a new mission is
-one entry in a per-faction tuple (e.g. ``merchants.py``, ``bar.py``)
+Each :class:`MissionSpec` is a frozen dataclass. Adding a new mission is
+one entry in a per-faction tuple (e.g. ``merchants.py``)
 - no if/else chains, no dispatcher rewrites. The runtime layer
 (``ActiveMission``, ``try_accept_mission``, ``complete_mission``,
 etc.) lives in :mod:`spacehack.mission` so this package stays
 focused on static data.
 
-The :mod:`spacehack.__main__` dispatcher uses
-:func:`missions_offered_by` to populate the NPC-talk modal and
-:func:`find_mission` to resolve the player's :class:`ActiveMission`
-back to its full spec. Mission validation lives in
-:func:`spacehack.mission.try_accept_mission` /
-:func:`spacehack.mission.is_deliverable_at` so the catalog stays
-free of business logic.
+Delivery-only this iteration. Bounty, patrol, and flavor mission
+types are follow-up work — the data model supports them (fields present)
+but no entries exist yet.
 """
 
 from __future__ import annotations
@@ -22,105 +18,94 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class Mission:
+class MissionSpec:
     """A static contract entry in the city's mission catalog.
 
-    Two flavors are wired in this iteration:
+    Two tiers of complexity:
 
-    **Delivery** (functional) - the player accepts cargo on one
-    planet, flies it to another, hands it to the target NPC.
-    ``merchants_supply_run_alpha_centauri`` is the canonical
-    exemplar. A delivery mission sets ALL of:
+    **Hand-crafted** — a content author writes a :class:`MissionSpec`
+    literal in a faction file (e.g. ``merchants.py``). These are
+    tracked by ``completed_mission_ids`` so they don't repeat.
 
-      * ``required_cargo_size > 0`` (the cargo load)
-      * ``delivery_target_npc_id`` (the receiving NPC)
-      * ``delivery_target_planet_id`` (the receiving planet)
-
-    The runtime layer (:func:`spacehack.mission.try_accept_mission`
-    loads cargo, :func:`spacehack.mission.is_deliverable_at` gates
-    the Deliver option, :func:`spacehack.mission.complete_mission`
-    grants reward) wires the full lifecycle.
-
-    **Flavor** (placeholder) - the player reads the blurb, gets
-    the reward, no cargo moves. Eight of the nine current
-    missions are flavor; they keep ``required_cargo_size=0`` and
-    leave ``delivery_target_*`` unset so :func:`is_deliverable_at`
-    never raises a Deliver option for them. Future flavor
-    missions stay simple - just title/description/reward - and
-    don't touch the cargo/delivery fields.
-
-    Adding a future flavor like the delivery exemplar is a
-    one-file edit in the matching ``<faction>.py`` + (if a new
-    flavor is added) one line in :func:`_build_registry`. No
-    dispatcher / engine / render code rewrites.
+    **Procedural** — generated at runtime by
+    :func:`generate_delivery_mission`. These are ephemeral: abandon
+    = gone, new one generates in the freed board slot.
 
     Attributes:
-        id: registry key, e.g. ``\"merchants_supply_run_alpha_centauri\"``.
+        id: registry key, e.g. ``"merchants_delivery_earth_mars"``.
         title: display title shown in the offering modal + log lines.
         description: 1-3 sentence blurb shown in the offering modal.
-        giver_npc_id: NPC id (matches :class:`spacehack.data.npcs.NPC.id`)
-            who offers this work in their talk modal.
-        reward_credits: payout on completion (added to ``stats.credits``).
-        reward_xp: payout on completion (logged only - xp stat not
-            yet persisted on :class:`spacehack.hud.HudStats`).
-        recommended_class_id: optional class id for the \"best suited
-            for X\" hint in the offering modal. Soft hint only,
-            never a hard filter.
-        recommended_ship_min_cargo: optional hull-capacity hint
-            shown in the offering modal. Soft hint only.
-        required_cargo_size: cargo units the mission loads onto the
-            player's hull on accept (subtracted on deliver/abandon).
-            Zero for flavor missions. ``> 0`` + matching delivery
-            target ids = a delivery mission.
-        delivery_target_npc_id: NPC id the player must hand cargo
-            to. Required for delivery missions; left ``None`` for
-            flavor.
-        delivery_target_planet_id: planet id the player must be on
-            to deliver. Required for delivery missions; left ``None``
-            for flavor.
+        giver_npc_id: NPC id who offers this work in their talk modal.
+        faction: guild/faction tag — ``"merchants"``, ``"bounty"``, etc.
+        mission_type: ``"delivery"`` (this iteration), or ``"bounty"``,
+            ``"patrol"`` in future passes.
+        tier: 1-4, controls where the mission appears (planet
+            ``mission_tier`` gates) and reward scaling.
+        reward_credits: base payout on completion.
+        reward_xp: base XP on completion.
+        deadline_days: days until deadline (0 = no deadline).
+        early_bonus_pct: % bonus if completed in < 50% of deadline
+            (e.g. 25 = +25% credits). 0 = no early bonus.
+
+        # --- Delivery-specific ---
+        required_cargo_size: cargo units loaded on accept,
+            released on deliver/abandon. 0 for non-delivery types.
+        delivery_target_npc_id: NPC to hand cargo to.
+        delivery_target_planet_id: planet where delivery happens.
+        origin_planet_id: source planet, used for tier gating
+            (only offered on planets where this matches).
+
+        # --- Bounty-specific (future) ---
+        target_enemy_id: enemy spec to kill.
+        target_system_id: system to find them in.
+
+        # --- Recommendations (soft hints) ---
+        recommended_class_id: optional class hint for offering modal.
+        recommended_ship_min_cargo: optional hull-capacity hint.
     """
 
     id: str
     title: str
     description: str
     giver_npc_id: str
-    reward_credits: int
-    reward_xp: int
-    recommended_class_id: str | None = None
-    recommended_ship_min_cargo: int = 0
+    faction: str = "merchants"
+    mission_type: str = "delivery"
+    tier: int = 1
+    reward_credits: int = 0
+    reward_xp: int = 0
+    deadline_days: int = 0
+    early_bonus_pct: int = 0
+
+    # --- Delivery-specific ---
     required_cargo_size: int = 0
     delivery_target_npc_id: str | None = None
     delivery_target_planet_id: str | None = None
-    target_enemy_id: str | None = None    # bounty: which enemy spec to kill
-    target_system_id: str | None = None   # bounty: which system to find them in
-    deadline_days: int = 0                # days until deadline (0 = no deadline)
+    origin_planet_id: str | None = None
+
+    # --- Bounty-specific (future) ---
+    target_enemy_id: str | None = None
+    target_system_id: str | None = None
+
+    # --- Recommendations ---
+    recommended_class_id: str | None = None
+    recommended_ship_min_cargo: int = 0
 
 
-# Per-faction mission tuples - append an import + line in
-# ``_build_registry`` when adding a new faction (mirrors how
-# ``data/weapons/__init__.py`` picks up new weapon modules).
-# Order is preserved as offering-modal order (see ``list_missions``).
+# Per-faction mission tuples. Empty this iteration — all existing missions
+# are replaced. Phase 2 adds hand-crafted delivery missions here.
 #
-# Note on the per-faction split (vs a single ``missions.py`` like
-# ``data/npcs/guilds.py`` has all 5 NPCs): missions have richer
-# per-instance variation than NPCs (different field combinations:
-# delivery vs flavor) AND each guild has distinct thematic coherence
-# (bar=gossip+rumors, merchants=trade+cargo, militia=law+patrol,
-# bounty=chases+retrieval) + a common ``giver_npc_id`` binding them
-# to one NPC. Grouping by guild keeps a single author's edits
-# localised - a future expansion of, say, merchants missions
-# naturally edits ``merchants.py`` without growing a single-file
-# catalog. If a guild ever needs to ship 10+ missions, splitting
-# further (e.g. ``merchants/trade.py`` vs ``merchants/delivery.py``)
-# is a natural follow-up rather than a forced refactor.
+# Adding a new faction:
+#   1. Create a new <faction>.py exporting MISSIONS: tuple[MissionSpec, ...]
+#   2. Add an import + loop in _build_registry below.
+#   3. Missions are auto-discovered — no dispatcher changes needed.
 
 
-def _build_registry() -> dict[str, "Mission"]:
+def _build_registry() -> dict[str, "MissionSpec"]:
     from . import bar as bar_module
     from . import merchants as merchants_module
     from . import militia as militia_module
     from . import bounty as bounty_module
-    combined: dict[str, Mission] = {}
+    combined: dict[str, MissionSpec] = {}
     for m in bar_module.MISSIONS:
         combined[m.id] = m
     for m in merchants_module.MISSIONS:
@@ -132,22 +117,20 @@ def _build_registry() -> dict[str, "Mission"]:
     return combined
 
 
-_BY_ID: dict[str, Mission] | None = None
+_BY_ID: dict[str, MissionSpec] | None = None
 
 
-def _registry() -> dict[str, Mission]:
+def _registry() -> dict[str, MissionSpec]:
     global _BY_ID
     if _BY_ID is None:
         _BY_ID = _build_registry()
     return _BY_ID
 
 
-def find_mission(mission_id: str) -> Mission:
-    """Look up a :class:`Mission` catalog entry by id.
+def find_mission(mission_id: str) -> MissionSpec:
+    """Look up a :class:`MissionSpec` catalog entry by id.
 
-    Raises :class:`KeyError` on an unknown id so callers in
-    :mod:`spacehack.__main__` get the same
-    look-up-by-id contract used by every other catalog module.
+    Raises :class:`KeyError` on an unknown id.
     """
     try:
         return _registry()[mission_id]
@@ -155,20 +138,24 @@ def find_mission(mission_id: str) -> Mission:
         raise KeyError(f"unknown mission id: {mission_id!r}") from None
 
 
-def list_missions() -> tuple[Mission, ...]:
-    """All registered missions, in registry (offering-modal) order."""
+def list_missions() -> tuple[MissionSpec, ...]:
+    """All registered missions, in registry order."""
     return tuple(_registry().values())
 
 
-def missions_offered_by(npc_id: str) -> tuple[Mission, ...]:
-    """All :class:`Mission` catalog entries whose ``giver_npc_id``
+def missions_offered_by(npc_id: str) -> tuple[MissionSpec, ...]:
+    """All :class:`MissionSpec` entries whose ``giver_npc_id``
     matches ``npc_id``.
 
-    Returns an empty tuple on a no-match (an NPC that hasn't been
-    wired with missions yet) so callers don't have to special-case
-    KeyError - the offering modal just shows \"no work available\".
+    Returns an empty tuple on a no-match so the offering modal
+    just shows "no work available".
     """
     return tuple(m for m in list_missions() if m.giver_npc_id == npc_id)
 
 
-__all__ = ["Mission", "find_mission", "list_missions", "missions_offered_by"]
+__all__ = [
+    "MissionSpec",
+    "find_mission",
+    "list_missions",
+    "missions_offered_by",
+]

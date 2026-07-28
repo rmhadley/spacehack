@@ -21,16 +21,16 @@ from ..input_helpers import _try_open_guide
 class MissionOutcome(Enum):
     """What the player chose in an NPC's mission offering modal.
 
-    ``ACCEPT`` carries the picked :class:`spacehack.mission.Mission`
+    ``ACCEPT`` carries the picked :class:`spacehack.mission.MissionSpec`
     back to the caller so :func:`_run_game` can slot it into the
-    ``player_active_mission`` single-slot state.
+    ``player_active_missions`` list.
     """
     IGNORE = auto()
     ACCEPT = auto()
     BACK = auto()
 
 
-def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Mission, ...]) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
+def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...]) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
     """Build an :class:`spacehack.ui.MenuScreen` payload from an
     NPC-mission-list so we can reuse the shared menu primitives.
 
@@ -43,7 +43,7 @@ def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Miss
     return (f'{npc.name} - available work', available_options, descriptions)
 
 
-def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, offerings: tuple[mission_module.Mission, ...], selected: int, *, screen_width: int, screen_height: int) -> None:
+def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...], selected: int, *, screen_width: int, screen_height: int) -> None:
     """Paint the NPC's available missions as a centered menu.
 
     ``selected`` is the index of the highlighted option (clamped
@@ -131,13 +131,13 @@ def _mission_navigate(event: tcod.event.Event, selected: int, n: int) -> int | N
     return None
 
 
-def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_module.Mission, ...]) -> tuple[MissionOutcome, mission_module.Mission | None]:
+def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...]) -> tuple[MissionOutcome, mission_module.MissionSpec | None]:
     """Show the NPC's offerings modal and return the choice.
 
     Returns ``(MissionOutcome, picked_mission)``: ``picked`` is
     ``None`` whenever the outcome is not ACCEPT. The caller
     (:func:`_run_game`) is responsible for swapping
-    ``player_active_mission`` once it sees an ACCEPT.
+    ``player_active_missions`` once it sees an ACCEPT.
     """
     console = make_console()
     selected = 0

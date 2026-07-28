@@ -862,15 +862,12 @@ def open_cargo(ctx: GameContext) -> None:
     modules_n = len(owned.modules)
     module_slots = ship_spec.module_slots
 
-    # Active mission title (for display).
+    # Active mission titles (for display).
     mission_title = ""
-    active_mission = ctx.player_active_mission
-    if active_mission is not None:
-        try:
-            m = mission_module.find_mission(active_mission.mission_id)
-            mission_title = m.title
-        except KeyError:
-            pass
+    active_missions = ctx.player_active_missions
+    if active_missions:
+        titles = [m.title for m in active_missions]
+        mission_title = ", ".join(titles) if titles else ""
 
     console = make_console()
     _sel: int = 0
@@ -937,7 +934,7 @@ def open_cargo(ctx: GameContext) -> None:
         # Mission cargo (read-only)
         paint_text(console, 2, cy, "MISSION CARGO:", fg=ui.COLOR_TITLE)
         cy += 1
-        if active_mission is not None:
+        if active_missions:
             paint_text(console, 4, cy, f"{_mission_res} unit{'' if _mission_res == 1 else 's'} reserved \u2014 {mission_title}", fg=ui.COLOR_VALUE_WHITE)
         else:
             paint_text(console, 4, cy, "0 units (no active mission)", fg=ui.COLOR_VALUE_DIM)

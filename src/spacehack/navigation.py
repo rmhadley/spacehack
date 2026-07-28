@@ -660,8 +660,8 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     console.clear()
                     world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
                     # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
-                    _am = ctx.player_active_mission
-                    _active_mission_text = mission_module.find_mission(_am.mission_id).title if _am is not None else None
+                    _missions = ctx.player_active_missions
+                    _active_mission_text = _missions[0].title if _missions else None
                     _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None
                     hud.render_hud(
                         console,
