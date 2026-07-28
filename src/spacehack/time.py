@@ -43,7 +43,8 @@ def advance_time(ctx: GameContext, days: int) -> None:
     if ctx.time_year != old_year:
         ctx.log.add_colored(f"A new year begins \u2014 {ctx.time_year}.", _mlog.COLOR_IMPORTANT_EVENT)
 
-    # Phase 4: tick_economy(ctx) will be consolidated here.
+    from .trade import tick_economy as _tick_economy
+    _tick_economy(ctx)
 
 
 def format_date(ctx: GameContext) -> str:

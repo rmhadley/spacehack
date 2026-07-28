@@ -186,10 +186,10 @@ duplication and single-responsibility violations.*
 
 ### Phase 4: Economy hooks into time
 
-- [ ] Move `tick_economy(ctx)` call from `_jump_to_system` into `advance_time()`
-- [ ] So the economy ticks whenever time advances (not just on jumps)
-- [ ] Smoke test
-- [ ] Commit
+- [x] Move `tick_economy(ctx)` call from `_jump_to_system` into `advance_time()`
+- [x] So the economy ticks whenever time advances (not just on jumps)
+- [x] Smoke test
+- [x] Commit
 
 **PLAYTEST — Phase 3:**
 

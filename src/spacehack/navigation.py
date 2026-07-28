@@ -928,8 +928,6 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     :class:`world.GameMap` plus the ship :class:`world.Entity` the
     dispatcher should rebind to as the new ``player``.
     """
-    from .trade import tick_economy as _tick_economy
-    _tick_economy(ctx)
     from .time import advance_time
     advance_time(ctx, 1)
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
