@@ -722,11 +722,9 @@ def _run_loadout_menu(ctx) -> None:
         _left_items.append((m.name, f"{m.price:>4}$", "", ui.COLOR_OPTION, "module", m.id))
 
     # Build right-panel items (My Ship slots).
-    _weapon_slots = _sm._find_weapon_slots(owned, ship_spec)
-    _module_slots = _sm._find_module_slots(owned, ship_spec)
-
     _right_items: list[tuple[str, str, str, tuple, str, str | None]] = []
-    for slot_id, _idx in _weapon_slots:
+    _right_items.append(("─── WEAPON SLOTS ───", "", "", ui.COLOR_VALUE_DIM, "divider", None))
+    for slot_id, _idx in _sm._find_weapon_slots(owned, ship_spec):
         if slot_id is not None:
             try:
                 _spec = _fw(slot_id)
@@ -737,7 +735,7 @@ def _run_loadout_menu(ctx) -> None:
         else:
             _right_items.append(("[empty]", "", "", ui.COLOR_VALUE_DIM, "weapon_slot", None))
     _right_items.append(("─── MODULE SLOTS ───", "", "", ui.COLOR_VALUE_DIM, "divider", None))
-    for slot_id, _idx in _module_slots:
+    for slot_id, _idx in _sm._find_module_slots(owned, ship_spec):
         if slot_id is not None:
             try:
                 _spec = _fm(slot_id)
@@ -778,9 +776,16 @@ def _run_loadout_menu(ctx) -> None:
             else:
                 _right_items.append(("[empty]", "", "", ui.COLOR_VALUE_DIM, "module_slot", None))
 
+    # Initialize _sel to the first non-divider item on each panel.
+    def _first_selectable(items):
+        for i, item in enumerate(items):
+            if item[4] != "divider":
+                return i
+        return 0
+
     console = make_console()
     _focus: int = 0  # 0 = left, 1 = right
-    _sel: int = 0
+    _sel: int = _first_selectable(_left_items)
 
     def _render() -> None:
         nonlocal _sel
@@ -822,7 +827,8 @@ def _run_loadout_menu(ctx) -> None:
         # TAB = switch focus.
         if sym_name == "tab":
             _focus = 1 - _focus
-            _sel = 0
+            _items = _left_items if _focus == 0 else _right_items
+            _sel = _first_selectable(_items)
             return _LoadoutOutcome.IGNORE
 
         # UP / DOWN navigation (skip dividers).
