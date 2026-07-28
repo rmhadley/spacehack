@@ -34,8 +34,9 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     = sell installed part for 50% back.
 
     ``planet_id`` determines which weapons/modules are for sale —
-    empty string = use full catalog (fallback). Each visit to
-    the same planet refreshes the RNG-based subset.
+    empty string = use full catalog (fallback). Inventory is fixed
+    per run (seeded by game seed + planet id) and does NOT refresh
+    between visits — prevents save-scumming the RNG.
     """
     owned = ctx.player_owned_ship
     if owned is None:
@@ -47,12 +48,10 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     from ..data.modules import find_module as _fm
     from .. import ship as _sm
 
-    # Resolve per-planet weapon/module inventory.
+    # Resolve per-planet weapon/module inventory (one seed per run).
     if planet_id:
         from ..data.planets import resolve_mech_inventory as _rvi
-        _visit = ctx.mech_visit_count.get(planet_id, 0)
-        ctx.mech_visit_count[planet_id] = _visit + 1
-        _wpn_ids, _mod_ids = _rvi(planet_id, _visit)
+        _wpn_ids, _mod_ids = _rvi(planet_id)
         _weapons_list = sorted(
             [_fw(wid) for wid in _wpn_ids], key=lambda w: w.price,
         )
