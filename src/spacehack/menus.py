@@ -714,6 +714,7 @@ def _run_loadout_menu(ctx) -> None:
 
     # Each left-panel item: (name, label, suffix, fg, item_type, item_id)
     _left_items: list[tuple[str, str, str, tuple, str, str | None]] = []
+    _left_items.append(("─── WEAPONS ───", "", "", ui.COLOR_VALUE_DIM, "divider", None))
     for w in _weapons_list:
         _left_items.append((w.name, f"{w.price:>4}$", "", ui.COLOR_OPTION, "weapon", w.id))
     _left_items.append(("─── MODULES ───", "", "", ui.COLOR_VALUE_DIM, "divider", None))
