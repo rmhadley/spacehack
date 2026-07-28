@@ -155,13 +155,15 @@ The render block runs at the top of `while True`, *before* the guard that checks
 **Smoke test**: ✅ PASS
 **Commit**: `e703c97`
 
-### Phase 4 — Optimizations
+### Phase 4 — Optimizations ✅ DONE
 
-- [ ] **Q2**: Cache `calc_flee_chance` result per turn iteration. Recalculate only when `flee_attempts` changes.
-- [ ] **Q3**: Maintain `_alive_enemies` incrementally instead of filtering every tick.
-- [ ] **Q4**: Move the auto-end-turn guard before the render block.
+- [x] **Q2**: `calc_flee_chance` computed once per frame in `_loop.py` (`_flee_chance`), passed through `_fire_weapons` and cached per-enemy in `_run_enemy_turn`. Eliminates 5 redundant recalcs per frame. ESC flee handler still computes fresh (it's an action, not display).
+- [x] **Q3**: Skipped — O(n) for n=1-5 enemies is negligible; incremental maintenance complexity not worth the tradeoff.
+- [x] **Q4**: Auto-end-turn guard moved BEFORE the render block. When AP=0 or `WAIT`, the loop skips rendering, entity sync, closest-enemy computation, and hit-chance calculation — goes straight to the enemy turn. Eliminates the one-frame flash before enemy actions.
+- [x] Cleaned up `_ai.py` and `_weapons.py` — removed `calc_flee_chance` import where replaced by params, removed `flee_attempts` param from `_fire_weapons`, fixed stale `_flee_now` reference in `_ai.py`.
 
-**Smoke test**: Verify no regressions.
+**Smoke test**: ✅ PASS
+**Commit**: `68db1b8`
 
 ---
 
