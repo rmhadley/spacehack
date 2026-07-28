@@ -104,19 +104,20 @@ def try_accept_mission(
         log.add("You don't have a ship to carry cargo yet.")
         return False
     ship_obj = ship.find_ship(owned_ship.ship_id)
+    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
     new_used = owned_ship.cargo_used + mission.required_cargo_size
-    if new_used > ship_obj.max_cargo:
-        short = new_used - ship_obj.max_cargo
+    if new_used > _eff_cap:
+        short = new_used - _eff_cap
         log.add(
             f"Your {ship_obj.name} can't carry '{mission.title}' - "
             f"{short} cargo unit(s) over capacity ({owned_ship.cargo_used}"
-            f"/{ship_obj.max_cargo})."
+            f"/{_eff_cap})."
         )
         return False
     owned_ship.mission_reserved += mission.required_cargo_size
     log.add(
         f"You accept: {mission.title}. "
-        f"Cargo now {owned_ship.cargo_used}/{ship_obj.max_cargo}."
+        f"Cargo now {owned_ship.cargo_used}/{_eff_cap}."
     )
     return True
 
@@ -182,9 +183,10 @@ def abort_mission(
         0, owned_ship.mission_reserved - mission.required_cargo_size,
     )
     ship_obj = ship.find_ship(owned_ship.ship_id)
+    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
     log.add(
         f"Cargo released from abandoned '{mission.title}' "
-        f"({owned_ship.cargo_used}/{ship_obj.max_cargo})."
+        f"({owned_ship.cargo_used}/{_eff_cap})."
     )
 
 
@@ -223,7 +225,7 @@ def complete_mission(
         else None
     )
     cargo_after = (
-        f"{owned_ship.cargo_used}/{ship_obj.max_cargo}"
+        f"{owned_ship.cargo_used}/{ship.effective_max_cargo(ship_obj, owned_ship)}"
         if ship_obj is not None
         else "no ship"
     )

@@ -191,6 +191,10 @@ def render_hud(
         hull_pct = 100 - hull_damage
         cargo_used = getattr(owned_ship, 'cargo_used', 0)
         max_cargo = getattr(ship_catalog, 'max_cargo', 0)
+        # Apply module cargo bonuses for effective capacity.
+        from . import ship as _ship_mod
+        if owned_ship is not None and ship_catalog is not None:
+            max_cargo = _ship_mod.effective_max_cargo(ship_catalog, owned_ship)
         weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
         weapon_slots = getattr(ship_catalog, 'weapon_slots', 0)
         modules_n = len(getattr(owned_ship, 'modules', ()) or ())

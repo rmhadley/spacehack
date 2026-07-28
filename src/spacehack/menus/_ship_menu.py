@@ -152,16 +152,7 @@ def _effective_power_gen(ship_spec, owned) -> int:
     return max(0, total)
 
 
-def _effective_max_cargo(ship_spec, owned) -> int:
-    """Sum base max cargo + all module cargo_bonuses."""
-    from ..data.modules import find_module as _fm
-    total = ship_spec.max_cargo
-    for mid in getattr(owned, 'modules', ()) or ():
-        try:
-            total += _fm(mid).cargo_bonus
-        except KeyError:
-            pass
-    return max(0, total)
+
 
 
 def _run_loadout_view(ctx) -> None:
@@ -181,7 +172,7 @@ def _run_loadout_view(ctx) -> None:
     # Pre-compute effective stats with module bonuses.
     eff_shields = _effective_shields(ship_spec, owned)
     eff_power = _effective_power_gen(ship_spec, owned)
-    eff_cargo = _effective_max_cargo(ship_spec, owned)
+    eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
 
     def _render() -> None:
         console.clear()

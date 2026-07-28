@@ -241,12 +241,14 @@ def init_combat_state(
     engineering = player_pilot_skills.engineering
 
     # Module bonuses
+    shield_recharge_bonus = 0
     for mod_id in getattr(player_owned_ship, 'modules', ()) or ():
         try:
             ms = find_module_spec(mod_id)
             gunnery += ms.gunnery_bonus
             piloting += ms.piloting_bonus
             engineering += ms.engineering_bonus
+            shield_recharge_bonus += ms.shield_recharge_bonus
         except KeyError:
             pass
 
@@ -282,6 +284,7 @@ def init_combat_state(
         "power_gen": pwr_gen,
         "cells_moved_this_turn": 0,
         "shield_regen_rate": 0,
+        "shield_recharge_bonus": shield_recharge_bonus,
         "weapon_ammo": w_ammo,
     }
 
@@ -414,7 +417,7 @@ def start_player_turn(player_state: dict) -> None:
         player_state["power_pool"] + player_state["power_gen"],
     )
     # Shield regen: proportional, with engineering discount + near-cap discount
-    rate = player_state.get("shield_regen_rate", 0)
+    rate = player_state.get("shield_regen_rate", 0) + player_state.get("shield_recharge_bonus", 0)
     max_sh = player_state["max_shields"]
     if rate > 0 and max_sh > 0 and player_state["shields"] < max_sh:
         eng = player_state.get("engineering", 0)
@@ -440,7 +443,14 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     engineering discount and near-cap discount.
     """
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
-    rate = enemy.shield_regen_rate
+    # Module shield recharge bonus.
+    _module_recharge = 0
+    for _mod_id in getattr(enemy, 'modules', ()) or ():
+        try:
+            _module_recharge += find_module_spec(_mod_id).shield_recharge_bonus
+        except KeyError:
+            pass
+    rate = enemy.shield_regen_rate + _module_recharge
     if rate > 0 and enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
         room = enemy.max_shields - enemy.shields
         full_cost = max(1, rate - enemy.pilot_engineering // 20)
@@ -1542,9 +1552,11 @@ def run_combat(
                         cur = player_state.get("shield_regen_rate", 0)
                         next_rate = (cur + 1) % 11
                         player_state["shield_regen_rate"] = next_rate
+                        _mod_bonus = player_state.get("shield_recharge_bonus", 0)
+                        effective = next_rate + _mod_bonus
                         eng = player_state.get("engineering", 0)
                         actual_cost = 0 if next_rate == 0 else max(1, next_rate - eng // 20)
-                        _p_log(f"Shield regen set to {next_rate}/10 (costs {actual_cost} power per turn)")
+                        _p_log(f"Shield regen set to {next_rate}/10 (+{_mod_bonus} module = {effective} total, costs {actual_cost} power per turn)")
                     break
 
                 # [w] -> Wait / end turn

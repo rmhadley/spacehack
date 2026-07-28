@@ -85,6 +85,23 @@ class OwnedShip:
 
 
 # ---------------------------------------------------------------------------
+# Effective stat helpers (used by mechanic UI, trade, HUD, missions)
+# ---------------------------------------------------------------------------
+
+
+def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
+    """Sum base max cargo + all module cargo_bonuses."""
+    from .data.modules import find_module as _fm
+    total = ship_spec.max_cargo
+    for mid in getattr(owned, 'modules', ()) or ():
+        try:
+            total += _fm(mid).cargo_bonus
+        except KeyError:
+            pass
+    return max(0, total)
+
+
+# ---------------------------------------------------------------------------
 # Ship mutation helpers (used by the mechanic loadout UI)
 # ---------------------------------------------------------------------------
 

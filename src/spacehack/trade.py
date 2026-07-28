@@ -257,10 +257,13 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
 
 
 def _free_cargo(owned) -> int:
-    """Remaining cargo capacity on ``owned`` (Ship max - used)."""
+    """Remaining cargo capacity on ``owned`` (effective max - used).
+
+    Effective max includes module cargo bonuses.
+    """
     from . import ship as ship_module
     ship_spec = ship_module.find_ship(owned.ship_id)
-    return ship_spec.max_cargo - owned.cargo_used
+    return ship_module.effective_max_cargo(ship_spec, owned) - owned.cargo_used
 
 
 # (Shared render helpers _paint_text, _paint_centered, _format_trade_line,
@@ -520,7 +523,8 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
         # Footer strings.
         from . import ship as ship_module
         ship_spec = ship_module.find_ship(owned.ship_id)
-        cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
+        _eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
+        cargo_str = f"Cargo: {owned.cargo_used}/{_eff_cargo}"
         credits_str = f"Credits: {ctx.stats.credits}"
 
         render_split_frame(
@@ -707,7 +711,8 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         if owned is not None:
             from . import ship as ship_module
             ship_spec = ship_module.find_ship(owned.ship_id)
-            cargo_str = f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}"
+            _eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
+            cargo_str = f"Cargo: {owned.cargo_used}/{_eff_cargo}"
         else:
             cargo_str = "Cargo: N/A"
         credits_str = f"Credits: {ctx.stats.credits}"
@@ -848,8 +853,9 @@ def open_cargo(ctx: GameContext) -> None:
     ship_spec = ship_module.find_ship(owned.ship_id)
 
     # Cache static ship stats.
+    from . import ship as _ship_mod
     ship_name = ship_spec.name
-    max_cargo = ship_spec.max_cargo
+    max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned)
     hull_damage = owned.hull_damage_pct
     weapons_n = len(owned.weapons)
     weapon_slots = ship_spec.weapon_slots
