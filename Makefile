@@ -55,12 +55,15 @@ dist/spacehack/run_spacehack: run_spacehack
 	cp run_spacehack dist/spacehack/
 	chmod +x dist/spacehack/run_spacehack
 
+# Current date for dev builds (YYYYMMDD).
+ZIP_DATE := $(shell date +%Y%m%d)
+
 # ──────────────────────────────────────────────
 # zip  — bundle dist/spacehack/ into a single .zip for sharing
 # ──────────────────────────────────────────────
 zip: dist
-	@cd dist && zip -r spacehack-$(VERSION).zip spacehack/
-	@echo "─── Zip ready: dist/spacehack-$(VERSION).zip ───"
+	@cd dist && zip -r spacehack-dev-$(ZIP_DATE).zip spacehack/
+	@echo "─── Zip ready: dist/spacehack-dev-$(ZIP_DATE).zip ───"
 
 # ──────────────────────────────────────────────
 # clean

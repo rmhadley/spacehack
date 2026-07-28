@@ -21,6 +21,24 @@ python -m spacehack           # run the game
 - **Run the smoke gate before each commit.** Never commit without a passing smoke test (see Pre-commit gate below).
 - **NO mega-commits.** Break large work into a sequence of atomic commits.
 
+### Commit triggers (AI agents: follow these rules absolutely)
+
+1. **One phase = one commit.** When a design-doc phase is fully implemented and all its checkboxes are checked, commit before starting the next phase.
+
+2. **Bug fixes commit immediately.** A single fix (even one line) is a commit. Do not bundle it with the next feature.
+
+3. **Refactors commit separately.** If a refactor (e.g. DRY extraction) touches files that were modified by the current phase, commit the refactor as its own commit directly after the phase commit.
+
+4. **User says "great" = commit trigger.** Any time the user says some variant of "looks good", "looks great", "nice", "approved" — stop and commit what you have before continuing.
+
+5. **Every distinct file change is a candidate.** If you edit a file that wasn't part of the current phase's plan, that's probably a separate commit waiting to happen.
+
+6. **Boundary rule for cross-cutting changes.** A cross-cutting change (same edit repeated in many files) still counts as ONE commit, because the individual edits are meaningless without each other. Example: wiring `?` into 16 modal handlers across 6 files = one commit ("feat: wire ? into all modal sub-screens").
+
+7. **Never commit without a passing smoke test.** Run ``python3 tools/smoke.py`` first.
+
+**Violation example from a real session:** After a session with 11 files changed, the agent made 2 commits instead of ~6. The second commit bundled 5+ unrelated changes (a feature, a refactor, a content restructure, a HUD addition, and a one-line fix). Each should have been separate.
+
 ### Why
 Each new AI session opens from `git status` / `git diff --stat` / `git log`. If changes aren't committed, the agent has no memory of what was done. Commit aggressively so the next turn picks up from a clean diff, not from prose recall.
 
