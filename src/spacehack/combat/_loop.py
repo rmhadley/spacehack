@@ -24,24 +24,20 @@ from ..data.pilot_skills import PilotSkills
 from ..input_helpers import _try_open_guide
 
 from ._ai import _run_enemy_turn
+from ._weapons import _fire_weapons
 from ._actions import (
     start_player_turn,
     move_entity,
-    resolve_damage,
-    can_afford_action,
     _sync_back_hull,
 )
 from ._types import EnemyInstance
 from ._stats import (
     init_combat_state,
-    calc_hit_chance,
     calc_flee_chance,
     _calc_dodge_bonus,
     _distance,
 )
 from ._animations import (
-    _animate_laser_shot,
-    _animate_explosion,
     _resolve_target,
     _paint_target_highlight,
     _paint_range_line,
@@ -543,143 +539,17 @@ def run_combat(
                     combat_mode = "WAIT"
                     break
 
-                # [f] -> Fire ALL active weapons (the only fire mode)
-                # Single-fire via space/enter was removed by player feedback:
-                # toggle weapons on/off with 1-9 and fire with f.
+                # [f] -> Fire ALL active weapons
                 if sym_name == "f":
-                    # Collect all active weapon IDs
-                    _fire_list = [
-                        weapons_list[wi] for wi, wa in enumerate(active_weapons)
-                        if wa and wi < len(weapons_list)
-                    ]
-                    if not _fire_list:
-                        _p_log("No active weapons to fire.")
-                        break
-                    if not (0 <= target_idx < len(enemy_insts) and enemy_insts[target_idx].alive):
-                        _p_log("No valid target.")
-                        break
-
-                    # Check combined requirements: max AP cost among selected weapons,
-                    # total power cost, and ammo availability.
-                    _max_ap = 0
-                    _total_power = 0
-                    _all_ok = True
-                    for _fwid in _fire_list:
-                        _ok, _reason = _check_fire_ready(
-                            player_state, _fwid, target_idx, enemy_insts,
-                        )
-                        if not _ok:
-                            _p_log(f"{_fwid}: {_reason}")
-                            _all_ok = False
-                            break
-                        _fws = find_weapon(_fwid)
-                        _max_ap = max(_max_ap, _fws.ap_cost)
-                        _total_power += _fws.power_cost
-                    if not _all_ok:
-                        break
-                    # Fail-fast: check combined power cost before firing.
-                    if player_state["power_pool"] < _total_power:
-                        _p_log(f"Not enough power: need {_total_power}, have {player_state['power_pool']}.")
-                        break
-
-                    # Fire each active weapon in sequence.
-                    _target_enemy = enemy_insts[target_idx]
-                    _target_pos = _target_enemy.pos
-                    for _fwid in _fire_list:
-                        if not _target_enemy.alive:
-                            break
-                        _fws = find_weapon(_fwid)
-                        # Calculate hit chance (respect target state).
-                        _player_dist = _distance(player_state["pos"], _target_pos)
-                        _target_dodge = _calc_dodge_bonus(
-                            _target_enemy.cells_moved_this_turn,
-                            int(_target_enemy.pilot_piloting * 0.5),
-                        )
-                        _hit_chance = calc_hit_chance(
-                            _fwid, player_state["gunnery"],
-                            _player_dist, _target_dodge,
-                        )
-                        _is_hit = RNG.randint(1, 100) <= _hit_chance
-
-                        _cam_x, _cam_y = _calc_cam()
-                        _animate_laser_shot(
-                            console, context, game_map,
-                            player_state["pos"], _target_pos,
-                            is_hit=_is_hit,
-                            cam_x=_cam_x, cam_y=_cam_y,
-                            view_w=view_w, view_h=view_h,
-                            player_state=player_state,
-                            enemies=enemy_insts,
-                            target_idx=target_idx,
-                            log=log,
-                            weapon_list=tuple(weapons_list),
-                            active_weapons=active_weapons,
-                            evade_bonus=_evade_bonus,
-                            hit_chances=_weapon_hit_chances,
-                            flee_chance=calc_flee_chance(
-                                player_state["piloting"],
-                                _closest_enemy.pilot_piloting,
-                                player_state["hull"] / max(player_state["max_hull"], 1),
-                                _distance(player_state["pos"], _closest_enemy.pos),
-                                flee_attempts,
-                            ),
-                        )
-
-                        if _is_hit:
-                            _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                                _fwid,
-                                _target_enemy.hull,
-                                _target_enemy.shields,
-                                target_pilot_piloting=_target_enemy.pilot_piloting,
-                            )
-                            _target_enemy.shields = max(0, _target_enemy.shields - _sdmg)
-                            _target_enemy.hull = _fh
-                            _verb = "glancing hit" if _is_glancing else "hits"
-                            _p_log(f"{_fwid} {_verb} {_target_enemy.name} for {_dmg}!")
-                            if _fh <= 0:
-                                _target_enemy.alive = False
-                                _defeated_spec_ids.append(_target_enemy.spec_id)
-                                _c_log(f"{_target_enemy.name} destroyed!")
-                                _remove_dead_entity(game_map, _enemy_ents, target_idx)
-                                _cam_x, _cam_y = _calc_cam()
-                                _animate_explosion(
-                                    console, context, game_map,
-                                    _target_pos,
-                                    cam_x=_cam_x, cam_y=_cam_y,
-                                    view_w=view_w, view_h=view_h,
-                                    player_state=player_state,
-                                    enemies=enemy_insts,
-                                    target_idx=target_idx,
-                                    log=log,
-                                    weapon_list=tuple(weapons_list),
-                                    active_weapons=active_weapons,
-                                    evade_bonus=_evade_bonus,
-                                    hit_chances=_weapon_hit_chances,
-                                    flee_chance=calc_flee_chance(
-                                        player_state["piloting"],
-                                        _closest_enemy.pilot_piloting,
-                                        player_state["hull"] / max(player_state["max_hull"], 1),
-                                        _distance(player_state["pos"], _closest_enemy.pos),
-                                        flee_attempts,
-                                    ),
-                                )
-                                # Loot drop: find correct spec by matching spec_id
-                                _correct_spec = next(
-                                    (_sp for _sp in enemy_specs if getattr(_sp, 'id', None) == _target_enemy.spec_id),
-                                    enemy_specs[0] if enemy_specs else None,
-                                )
-                                if _correct_spec is not None:
-                                    _spawn_loot_drops(game_map, _target_pos, _correct_spec)
-                        else:
-                            _p_log(f"{_fwid} misses {_target_enemy.name}!")
-                        # Deduct per-weapon costs
-                        if _fws.slot_type == "energy":
-                            player_state["power_pool"] -= _fws.power_cost
-                        elif _fws.slot_type == "missile":
-                            old = player_state["weapon_ammo"][_fwid]
-                            player_state["weapon_ammo"][_fwid] = old - _fws.ammo_per_shot
-                    # Deduct combined AP (max cost among fired weapons)
-                    player_state["ap_remaining"] -= _max_ap
+                    _fire_weapons(
+                        console, context, game_map,
+                        player_state, enemy_insts, enemy_specs,
+                        _enemy_ents, target_idx, log,
+                        weapons_list, active_weapons,
+                        _weapon_hit_chances, _evade_bonus,
+                        flee_attempts, view_w, view_h, _calc_cam,
+                        _defeated_spec_ids, _closest_enemy,
+                    )
                     break
 
                 # [1]–[9] -> Toggle weapon on/off
