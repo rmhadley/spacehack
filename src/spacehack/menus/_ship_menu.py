@@ -123,20 +123,65 @@ def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
     return ShipMenuAction.IGNORE
 
 
-def _run_loadout_view(ctx) -> None:
-    """Show a centered read-only view of the player's ship loadout.
+# ---------------------------------------------------------------------------
+# Effective-stat helpers (sums base + module bonuses)
+# ---------------------------------------------------------------------------
 
-    Displays installed weapons with combat stats, installed modules,
-    and key ship stats (fuel, hull, cargo, shields, power gen).
+
+def _effective_shields(ship_spec, owned) -> int:
+    """Sum base shield max + all module max_shield_bonuses."""
+    from ..data.modules import find_module as _fm
+    total = ship_spec.base_shield_max
+    for mid in getattr(owned, 'modules', ()) or ():
+        try:
+            total += _fm(mid).max_shield_bonus
+        except KeyError:
+            pass
+    return total
+
+
+def _effective_power_gen(ship_spec, owned) -> int:
+    """Sum base power gen + all module power_gen_bonuses."""
+    from ..data.modules import find_module as _fm
+    total = ship_spec.base_power_gen
+    for mid in getattr(owned, 'modules', ()) or ():
+        try:
+            total += _fm(mid).power_gen_bonus
+        except KeyError:
+            pass
+    return max(0, total)
+
+
+def _effective_max_cargo(ship_spec, owned) -> int:
+    """Sum base max cargo + all module cargo_bonuses."""
+    from ..data.modules import find_module as _fm
+    total = ship_spec.max_cargo
+    for mid in getattr(owned, 'modules', ()) or ():
+        try:
+            total += _fm(mid).cargo_bonus
+        except KeyError:
+            pass
+    return max(0, total)
+
+
+def _run_loadout_view(ctx) -> None:
+    """Show a read-only view of the player's ship loadout.
+
+    All displayed stats reflect module bonuses (shields, power,
+    cargo are base + module bonuses).
     """
     owned = ctx.player_owned_ship
     if owned is None:
         return
     ship_spec = ship_module.find_ship(owned.ship_id)
     console = make_console()
-    max_w = SCREEN_WIDTH - HUD_WIDTH - 2
 
     from ..ui import paint_text
+
+    # Pre-compute effective stats with module bonuses.
+    eff_shields = _effective_shields(ship_spec, owned)
+    eff_power = _effective_power_gen(ship_spec, owned)
+    eff_cargo = _effective_max_cargo(ship_spec, owned)
 
     def _render() -> None:
         console.clear()
@@ -152,13 +197,13 @@ def _run_loadout_view(ctx) -> None:
         paint_text(console, ui.centered_x(title_text, SCREEN_WIDTH), cy, title_text, fg=ui.COLOR_TITLE)
         cy += 2
 
-        # Ship stats header
+        # Ship stats header — effective values with module bonuses.
         header = (
             f"Fuel: {owned.fuel}/{ship_spec.max_fuel}  |  "
             f"Hull: {owned.hull_damage_pct}%  |  "
-            f"Cargo: {owned.cargo_used}/{ship_spec.max_cargo}  |  "
-            f"Shields: {ship_spec.base_shield_max}  |  "
-            f"Power: {ship_spec.base_power_gen}"
+            f"Cargo: {owned.cargo_used}/{eff_cargo}  |  "
+            f"Shields: {eff_shields}  |  "
+            f"Power: {eff_power}"
         )
         paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
         cy += 2
