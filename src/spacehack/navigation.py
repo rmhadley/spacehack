@@ -354,6 +354,7 @@ def _add_bounty_spawns_to_map(
             name=_display_name,
             width=1, height=1,
             npc_ship_id=_bs.enemy_id,
+            bounty_spawn_id=_bs.spawn_id,
         ))
         if _system is not None:
             _landmark = _nearest_body_name(_bs.pos, _system)

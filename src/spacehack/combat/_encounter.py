@@ -76,33 +76,32 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         else:
             ctx.log.add(f"Victory! {len(_defeated_names)} enemies destroyed.")
 
-        # Check bounty completion: if the player has an active bounty
-        # mission and the defeated enemy matches, complete it.
+        # Check bounty completion: match defeated entities by their
+        # bounty_spawn_id against the player's active bounty missions.
+        # This ensures only the specific bounty target entity triggers
+        # completion, not any random enemy with the same spec_id.
         _missions = getattr(ctx, 'player_active_missions', [])
+        _bounty_spawn_ids: set[str] = set()
+        for _e in ctx.game_map.entities:
+            _bid = getattr(_e, 'bounty_spawn_id', None)
+            if _bid is not None and _bid not in _bounty_spawn_ids:
+                _e_spec = getattr(_e, 'npc_ship_id', None)
+                if _e_spec is not None and _e_spec in _defeated_ids:
+                    _bounty_spawn_ids.add(_bid)
         for _m in _missions:
-            if getattr(_m, 'target_enemy_id', None) is not None:
-                _bounty_target = _m.target_enemy_id
-                if _bounty_target in _defeated_ids:
-                    from ..mission import complete_mission as _complete
-                    _today = ctx.time_day + (ctx.time_month - 1) * 30
-                    _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today)
-                    if not _m.is_procedural:
-                        ctx.completed_mission_ids.add(_m.mission_id)
-                    try:
-                        _missions.remove(_m)
-                    except ValueError:
-                        pass
-                    ctx.player_active_missions = _missions
-                    ctx.log.add(f"Bounty complete! {_m.title}")
-                    # Clean up bounty spawn if present.
-                    _bounty_spawn_data = getattr(ctx, 'bounty_spawn_data', None)
-                    if _bounty_spawn_data is not None:
-                        _bx, _by, _bspec_id = _bounty_spawn_data
-                        for _e in list(ctx.game_map.entities):
-                            if getattr(_e, 'npc_ship_id', None) == _bspec_id:
-                                ctx.game_map.entities.remove(_e)
-                        ctx.bounty_spawn_data = None
-                    break
+            _m_spawn = getattr(_m, 'bounty_spawn_id', None)
+            if _m_spawn is not None and _m_spawn in _bounty_spawn_ids:
+                from ..mission import complete_mission as _complete
+                _today = ctx.time_day + (ctx.time_month - 1) * 30
+                _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today)
+                if not _m.is_procedural:
+                    ctx.completed_mission_ids.add(_m.mission_id)
+                try:
+                    _missions.remove(_m)
+                except ValueError:
+                    pass
+                ctx.player_active_missions = _missions
+                ctx.log.add(f"Bounty complete! {_m.title}")
 
         # Remove dead enemies from the game map.
         # Enemy world.Entity objects store their spec reference via
