@@ -181,6 +181,7 @@ def save_game(
         _synced_mids[_sys_id] = _mids
 
     _data = _ctx_to_dict(ctx)
+    _data["map_loot"] = _save_loot(ctx.game_map)
     _data["procedural_spawns"] = _d(_synced_spawns)
     _data["procedural_mids"] = _synced_mids
     _data["npc_targets"] = _synced_targets
