@@ -62,17 +62,42 @@ def _remove_dead_entity(
         game_map.entities.remove(_dead_ent)
 
 
+# Max number of loot entities allowed on the map at once.
+# Beyond this, oldest loot is removed when new loot spawns — keeps
+# entity-list size bounded so rendering and AI pathfinding stay fast
+# even after large battles.
+_MAX_LOOT_ENTITIES: int = 30
+
+
 def _spawn_loot_drops(
     game_map: world.GameMap,
     target_pos: world.Position,
     enemy_spec: Any,
 ) -> None:
-    """Spawn 1-2 loot items near a destroyed enemy ship."""
+    """Spawn 1-2 loot items near a destroyed enemy ship.
+
+    Caps total loot entities at :data:`_MAX_LOOT_ENTITIES` — removes
+    the oldest loot first to prevent unbounded entity-list growth.
+    """
     _spec_loot = getattr(enemy_spec, 'cargo_goods', None) or ()
     _loot_items = list(_spec_loot)
     if not _loot_items:
         _loot_items = ["scrap_metal"]
+
+    # Enforce loot cap: remove oldest loot if we'd exceed the limit
+    # after adding new drops.  Keeps entity-list size bounded so
+    # rendering and AI pathfinding stay fast even after large battles.
     _drop_count = min(len(_loot_items), RNG.randint(1, 2))
+    _existing_loot = [e for e in game_map.entities if e.loot_data is not None]
+    _excess = max(0, len(_existing_loot) + _drop_count - _MAX_LOOT_ENTITIES)
+    for _ in range(_excess):
+        if _existing_loot:
+            try:
+                game_map.entities.remove(_existing_loot[0])
+            except ValueError:
+                pass
+            _existing_loot.pop(0)
+
     for _li in range(_drop_count):
         _loot_id = RNG.choice(_loot_items)
         _lx = target_pos.x + RNG.randint(-1, 1)

@@ -996,8 +996,16 @@ def render_world_view(
     # on top. Loot has loot_data set; sorting with key=lambda e:
     # e.loot_data is None puts loot (False=0) before ships (True=1)
     # while preserving insertion order for same-key entities.
-    for e in sorted(game_map.entities,
-                     key=lambda _e: _e.loot_data is None):
+    #
+    # Viewport cull: only sort + iterate entities touching the
+    # visible camera region.  Avoids O(n log n) on hundreds of
+    # off-screen loot entities accumulated from large battles.
+    _visible = [
+        _e for _e in game_map.entities
+        if (_e.pos.x < cam_x + region_w and _e.pos.x + _e.width > cam_x
+            and _e.pos.y < cam_y + region_h and _e.pos.y + _e.height > cam_y)
+    ]
+    for e in sorted(_visible, key=lambda _e: _e.loot_data is None):
         for dx in range(e.width):
             for dy in range(e.height):
                 ex = e.pos.x + dx
