@@ -282,11 +282,10 @@ def _run_faction_view(ctx) -> None:
     }
 
     def _progress_bar(rep: int, width: int = 31) -> str:
-        """Return a centered bar with │ at 0, negative filling left,
-        positive filling right. Width must be odd so the centre
-        marker sits in the exact middle. Unfilled space is literal
-        spaces so rep=0 shows only the centre marker."""
-        half = width // 2  # chars on each side of the centre marker
+        """Return a centered bar with | at 0, negative filling left
+        with =, positive filling right with =. Unfilled space uses -
+        so the layout is visible even if colour is lost."""
+        half = width // 2
         if rep < 0:
             neg_fill = int((abs(rep) / 100) * half)
             pos_fill = 0
@@ -295,9 +294,21 @@ def _run_faction_view(ctx) -> None:
             pos_fill = int((rep / 100) * half)
         neg_fill = max(0, min(half, neg_fill))
         pos_fill = max(0, min(half, pos_fill))
-        left = " " * (half - neg_fill) + "█" * neg_fill
-        right = "█" * pos_fill + " " * (half - pos_fill)
-        return left + "│" + right
+        # Build from leftmost to rightmost character-by-character.
+        chars: list[str] = []
+        for _i in range(half):
+            _pos_from_centre = half - _i
+            if neg_fill >= _pos_from_centre:
+                chars.append("=")
+            else:
+                chars.append("-")
+        chars.append("|")
+        for _i in range(half):
+            if pos_fill >= _i + 1:
+                chars.append("=")
+            else:
+                chars.append("-")
+        return "".join(chars)
 
     def _render() -> None:
         console.clear()
