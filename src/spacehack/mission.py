@@ -703,8 +703,11 @@ def generate_delivery_mission(
     cargo_lo, cargo_hi = _cargo_ranges.get(tier, (5, 10))
     cargo = rng.randint(cargo_lo, cargo_hi)
 
-    # 6. Deadline: 4 days per hop + random 2-6 days.
-    deadline = max(3, hops * 4 + rng.randint(2, 6))
+    # 6. Deadline: ~10 days per hop so travel + hunting fits comfortably.
+    #    Every 10 space moves = 1 day, so a 1-hop trip (~100 cells = ~10
+    #    days of local travel) needs at least 15-20 days. Longer hops add
+    #    ~10 days each for system transits.
+    deadline = max(10, hops * 10 + rng.randint(5, 15))
 
     # 7. Reward: credits scale by cargo * 5 * (tier + 1) so tier ranges
     #    match the design doc: T1 50-100, T2 150-300, T3 400-800, T4 1000-1500.
@@ -947,8 +950,10 @@ def generate_bounty_mission(
     credits = int(_hull_strength * tier * 40 * _sq_mult)
     xp = int(_hull_strength * tier * 2 * _sq_mult)
 
-    # 8. Deadline: hops × 6 + randint(3, 8).
-    deadline = max(3, hops * 6 + rng.randint(3, 8))
+    # 8. Deadline: ~12 days per hop so travel + hunting fits comfortably.
+    #    Bounties need more time than deliveries (no return trip required
+    #    but more local hunting). Every 10 space moves = 1 day.
+    deadline = max(10, hops * 12 + rng.randint(5, 15))
 
     # 9. Danger text + description.
     _danger = _bounty_danger_text(tier, squad_size)

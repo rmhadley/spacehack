@@ -72,31 +72,50 @@ from .navigation import (
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
 from .time import tick_move, format_date, add_days_to_date
 
-def _pick_bounty_spawn_pos(system) -> world.Position | None:
-    """Return a free-space position in ``system`` for placing a bounty
-    target enemy. Prefers a cell near the first non-sun planet, falling
-    back to the first jump gate or a centre-of-map position.
-
-    Returns ``None`` if the system has no bodies (shouldn't happen
-    with the current data).
-    """
-    # Try first non-sun planet: offset by (planet.width + 3, 0) cells
-    # so the bounty sits east of the planet in clear space.
+def _bounty_landmarks(system) -> list[world.Position]:
+    """Return one spawn position per landmark (planet, gate, station)
+    in ``system``, ordered by distance from the system centre."""
+    _positions: list[world.Position] = []
+    # Non-sun planets — offset east of each planet.
     for p in system.planets:
         if getattr(p, 'sun', False):
             continue
         sx = p.pos.x + p.width + 3
         sy = p.pos.y + p.height // 2
         if 0 <= sx < system.width and 0 <= sy < system.height:
-            return world.Position(sx, sy)
-    # Fallback: first jump gate
+            _positions.append(world.Position(sx, sy))
+    # Jump gates — offset east of each gate.
     for jp in system.jump_points:
         sx = jp.pos.x + jp.width + 6
         sy = jp.pos.y + jp.height // 2
         if 0 <= sx < system.width and 0 <= sy < system.height:
-            return world.Position(sx, sy)
-    # Last resort: centre-ish of the map
-    return world.Position(system.width // 2, system.height // 2)
+            _positions.append(world.Position(sx, sy))
+    # Stations — offset east of each station.
+    for st in getattr(system, 'stations', ()) or ():
+        sx = st.pos.x + st.width + 3
+        sy = st.pos.y + st.height // 2
+        if 0 <= sx < system.width and 0 <= sy < system.height:
+            _positions.append(world.Position(sx, sy))
+    # Sort by distance from system centre for deterministic order.
+    _cx, _cy = system.width // 2, system.height // 2
+    _positions.sort(key=lambda p: (p.x - _cx) ** 2 + (p.y - _cy) ** 2)
+    return _positions
+
+
+def _pick_bounty_spawn_pos(
+    system, *,
+    used_positions: frozenset = frozenset(),
+) -> world.Position | None:
+    """Return a free-space position in ``system`` for placing a bounty
+    target enemy. Picks the first unused landmark position (sorted by
+    distance from system centre). Returns ``None`` if all landmarks in
+    the system are already occupied by other bounty spawns — the
+    player must clear an existing bounty before another can spawn here.
+    """
+    for _pos in _bounty_landmarks(system):
+        if (_pos.x, _pos.y) not in used_positions:
+            return _pos
+    return None
 
 
 def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> None:
@@ -533,12 +552,17 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     ):
                                         mission_module.board_remove(_board, picked.id)
                                         _bounty_spawn_id: str | None = None
+                                        _spawn_ok = True  # non-bounty missions always proceed
                                         if picked.target_enemy_id is not None and picked.target_system_id is not None:
                                             _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
                                             _squad_size = getattr(picked, 'bounty_target_squad_size', 1)
                                             try:
                                                 _target_sys = solar_systems_module.find_solar_system(picked.target_system_id)
-                                                _spawn_pos = _pick_bounty_spawn_pos(_target_sys)
+                                                _used = frozenset(
+                                                    (_bs.pos.x, _bs.pos.y)
+                                                    for _bs in ctx.bounty_spawns.get(picked.target_system_id, [])
+                                                )
+                                                _spawn_pos = _pick_bounty_spawn_pos(_target_sys, used_positions=_used)
                                                 if _spawn_pos is not None:
                                                     from .game_context import BountySpawn
                                                     # Leader BountySpawn.
@@ -554,7 +578,6 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                                         ctx.bounty_spawns[picked.target_system_id] = []
                                                     ctx.bounty_spawns[picked.target_system_id].append(_bs)
                                                     # Wingmate BountySpawns (squad_size > 1).
-                                                    # Positioned in a line east of the leader.
                                                     _wing_offsets = [(2, 0), (-2, 0), (0, 2), (0, -2)]
                                                     for _wi in range(min(_squad_size - 1, len(_wing_offsets))):
                                                         _wox, _woy = _wing_offsets[_wi]
@@ -572,43 +595,49 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                                             ctx.bounty_spawns[picked.target_system_id].append(_wbs)
                                                     _squad_note = f" ({_squad_size}-ship squad)" if _squad_size > 1 else ""
                                                     log.add(f"Bounty target marked in {_target_sys.name}.{_squad_note}")
+                                                else:
+                                                    # All landmarks in the target system are occupied.
+                                                    _spawn_ok = False
+                                                    mission_module.board_return_static(_board, picked.id)
+                                                    log.add(f"Cannot accept: {_target_sys.name} bounty system full. Clear an existing bounty first.")
                                             except KeyError:
                                                 pass
-                                        # Compute deadline if mission has one.
-                                        _dl_days = getattr(picked, 'deadline_days', 0)
-                                        _deadline = None
-                                        if _dl_days > 0:
-                                            _deadline = add_days_to_date(
-                                                ctx.time_day, ctx.time_month,
-                                                ctx.time_year, _dl_days,
+                                        if _spawn_ok:
+                                            # Compute deadline if mission has one.
+                                            _dl_days = getattr(picked, 'deadline_days', 0)
+                                            _deadline = None
+                                            if _dl_days > 0:
+                                                _deadline = add_days_to_date(
+                                                    ctx.time_day, ctx.time_month,
+                                                    ctx.time_year, _dl_days,
+                                                )
+                                            _is_proc = picked.id in ctx.generated_missions
+                                            _new_active = mission_module.ActiveMission(
+                                                mission_id=picked.id,
+                                                is_procedural=_is_proc,
+                                                title=picked.title,
+                                                required_cargo_size=picked.required_cargo_size,
+                                                delivery_target_npc_id=picked.delivery_target_npc_id,
+                                                delivery_target_planet_id=picked.delivery_target_planet_id,
+                                                deadline_days=_dl_days,
+                                                accept_day=ctx.time_day + (ctx.time_month - 1) * 30,
+                                                time_deadline=_deadline,
+                                                reward_credits=picked.reward_credits,
+                                                reward_xp=picked.reward_xp,
+                                                early_bonus_pct=picked.early_bonus_pct,
+                                                bounty_spawn_id=_bounty_spawn_id,
+                                                target_enemy_id=picked.target_enemy_id,
+                                                target_system_id=picked.target_system_id,
+                                                bounty_target_name=getattr(picked, 'bounty_target_name', None),
+                                                bounty_target_squad_size=getattr(picked, 'bounty_target_squad_size', 1),
+                                                bounty_target_loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
+                                                tier=picked.tier,
                                             )
-                                        _is_proc = picked.id in ctx.generated_missions
-                                        _new_active = mission_module.ActiveMission(
-                                            mission_id=picked.id,
-                                            is_procedural=_is_proc,
-                                            title=picked.title,
-                                            required_cargo_size=picked.required_cargo_size,
-                                            delivery_target_npc_id=picked.delivery_target_npc_id,
-                                            delivery_target_planet_id=picked.delivery_target_planet_id,
-                                            deadline_days=_dl_days,
-                                            accept_day=ctx.time_day + (ctx.time_month - 1) * 30,
-                                            time_deadline=_deadline,
-                                            reward_credits=picked.reward_credits,
-                                            reward_xp=picked.reward_xp,
-                                            early_bonus_pct=picked.early_bonus_pct,
-                                            bounty_spawn_id=_bounty_spawn_id,
-                                            target_enemy_id=picked.target_enemy_id,
-                                            target_system_id=picked.target_system_id,
-                                            bounty_target_name=getattr(picked, 'bounty_target_name', None),
-                                            bounty_target_squad_size=getattr(picked, 'bounty_target_squad_size', 1),
-                                            bounty_target_loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
-                                            tier=picked.tier,
-                                        )
-                                        mission_module.commit_accept_mission(
-                                            picked, player_owned_ship, log,
-                                        )
-                                        player_active_missions.append(_new_active)
-                                        ctx.player_active_missions = player_active_missions
+                                            mission_module.commit_accept_mission(
+                                                picked, player_owned_ship, log,
+                                            )
+                                            player_active_missions.append(_new_active)
+                                            ctx.player_active_missions = player_active_missions
                 else:
                     log.add(f'You bump into {blocker.name}.')
 
