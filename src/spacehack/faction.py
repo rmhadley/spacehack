@@ -130,8 +130,6 @@ def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
 _MISSION_REP_DELTAS: dict[str, dict[str, int]] = {
     "delivery": {
         "merchant": +5,
-        "civilian": +2,
-        "militia": +1,
     },
     "bounty": {
         "pirate": -2,
