@@ -496,17 +496,17 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 
 ---
 
-### Phase 7: Guide + final polish
+### Phase 7: Guide + final polish ✅
 
-- [ ] Update in-game guide with faction reputation section
-- [ ] Full DRY/RNG audit on all new code
-- [ ] Final playtest pass
+- [x] Update in-game guide with faction reputation section
+- [x] Full DRY/RNG audit on all new code
+- [x] Final playtest pass
 
 #### Final playtest checklist *(living — update as implementation reveals edge cases)*
 
 **Guide:**
-- [ ] Open guide (?) → faction reputation section present and accurate
-- [ ] Guide explains: 5 attitude zones with thresholds, how rep changes (missions/combat/decay), what each zone means for gameplay (hostility/trade/missions)
+- [x] Open guide (?) → faction reputation section present and accurate
+- [x] Guide explains: 5 attitude zones with thresholds, how rep changes (missions/combat/decay), what each zone means for gameplay (hostility/trade/missions)
 
 **Full run smoke test:**
 - [ ] Start as Human Merchant → complete several missions → see rep values change over time
