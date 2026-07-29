@@ -281,13 +281,22 @@ def _run_faction_view(ctx) -> None:
         "allied": (100, 255, 130),     # green
     }
 
-    def _progress_bar(rep: int, width: int = 32) -> tuple[str, float]:
-        """Return (bar_string, fill_pct) for a rep score [-100, 100]."""
-        pct = (rep + 100) / 200  # map [-100,100] → [0.0, 1.0]
-        filled = int(pct * width)
-        filled = max(0, min(width, filled))
-        bar = "█" * filled + "░" * (width - filled)
-        return bar, pct
+    def _progress_bar(rep: int, width: int = 31) -> str:
+        """Return a centered bar with │ at 0, negative filling left,
+        positive filling right. Width must be odd so the centre
+        marker sits in the exact middle."""
+        half = width // 2  # chars on each side of the centre marker
+        if rep < 0:
+            neg_fill = int((abs(rep) / 100) * half)
+            pos_fill = 0
+        else:
+            neg_fill = 0
+            pos_fill = int((rep / 100) * half)
+        neg_fill = max(0, min(half, neg_fill))
+        pos_fill = max(0, min(half, pos_fill))
+        left = "░" * (half - neg_fill) + "█" * neg_fill
+        right = "█" * pos_fill + "░" * (half - pos_fill)
+        return left + "│" + right
 
     def _render() -> None:
         console.clear()
@@ -311,7 +320,7 @@ def _run_faction_view(ctx) -> None:
         for _i, _faction in enumerate(_ALL_FACTIONS):
             _rep = ctx.faction_reputation.get(_faction, 0)
             _attitude = get_attitude(_rep)
-            _bar, _pct = _progress_bar(_rep)
+            _bar = _progress_bar(_rep)
             _color = _ZONE_COLORS.get(_attitude, (180, 180, 180))
             _y = _start_y + _i * 3
 
