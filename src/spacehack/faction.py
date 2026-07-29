@@ -260,7 +260,7 @@ def adjust_mission_tier(planet_tier: int, attitude: str) -> int:
         "allied": +2,
     }
     _offset = _offsets.get(attitude, 0)
-    return max(1, planet_tier + _offset)
+    return max(1, min(4, planet_tier + _offset))
 
 
 def adjust_reward_pct(attitude: str) -> int:
