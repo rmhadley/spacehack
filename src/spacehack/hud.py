@@ -144,7 +144,7 @@ def render_hud(
     hud_view_height: int,
     character: dict,
     stats: HudStats,
-    active_mission: str | None = None,
+    active_mission: str | None = None,  # deprecated — kept for backward compat, no longer rendered
     location: str | None = None,
     owned_ship: Any = None,              # ship_module.OwnedShip when in space
     ship_catalog: Any = None,            # ship_module.Ship catalog entry
@@ -252,11 +252,6 @@ def render_hud(
         y += 1
         _render_skill_line(console, hud_x, y, stats)
 
-        # Active mission (inline, no extra divider)
-        if active_mission:
-            y += 1
-            _render_mission_line(console, hud_x, y, active_mission)
-
         # Divider
         y += 1
         _render_divider(console, hud_x, y)
@@ -305,11 +300,6 @@ def render_hud(
 
         # Blank line between identity and mission/divider.
         y += 1
-
-        # Active mission (between identity and first divider)
-        if active_mission:
-            y += 1
-            _render_mission_line(console, hud_x, y, active_mission)
 
         # Blank line before divider (unconditional, matches original spacing)
         y += 1

@@ -71,16 +71,6 @@ from .navigation import (
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
 from .time import tick_move, format_date, add_days_to_date
 
-def _active_mission_hud(missions: list) -> str | None:
-    """Return a compact HUD string for active missions, or None if empty."""
-    if not missions:
-        return None
-    first = missions[0].title
-    if len(missions) == 1:
-        return first
-    return f"[{len(missions)}] {first}"
-
-
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
     target enemy. Prefers a cell near the first non-sun planet, falling
@@ -210,7 +200,6 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
-        active_mission_text = _active_mission_hud(player_active_missions)
         _show_ship_hud = current_mode == 'space' and player_owned_ship is not None
         _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if _show_ship_hud else None
         if current_mode == 'space':
@@ -220,7 +209,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
         # Detect available terminals on the current city map.
         _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, active_mission=active_mission_text, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, date_str=format_date(ctx))
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, date_str=format_date(ctx))
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         for event in tcod.event.wait():
@@ -365,7 +354,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     continue
                                 player_owned_ship.fuel -= ship_module.JUMP_FUEL_COST
                                 log.add(f'Jump drive engaged. Fuel: {player_owned_ship.fuel} / {ship_record_for_fuel.max_fuel}.')
-                                _animate_jump(ctx, console, ctx.player, active_mission_text=active_mission_text or '')
+                                _animate_jump(ctx, console, ctx.player)
                                 new_game_map, player = _jump_to_system(ctx=ctx, jp=jp, target_system_id=target_system_id, target_jp_id=target_jp_id)
                                 game_map = new_game_map
                                 ctx.game_map = game_map
@@ -374,7 +363,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                         elif pid is not None:
                             planet_obj = solar_system_module.find_planet(pid)
                             log.add(f'You approach {planet_obj.name}.')
-                            outcome = _run_planet_menu(ctx, planet_obj, active_mission_text=active_mission_text)
+                            outcome = _run_planet_menu(ctx, planet_obj)
                             if outcome is PlanetMenuOutcome.LAND:
                                 # Shared: runs on ANY landing.
                                 _run_cargo_scan(ctx, pid)

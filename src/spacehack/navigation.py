@@ -660,8 +660,6 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     console.clear()
                     world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
                     # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
-                    _missions = ctx.player_active_missions
-                    _active_mission_text = _missions[0].title if _missions else None
                     _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None
                     hud.render_hud(
                         console,
@@ -669,7 +667,6 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         hud_view_height=view_h,
                         character=ctx.character_info,
                         stats=ctx.stats,
-                        active_mission=_active_mission_text,
                         location=solar_system_module.current_system().name,
                         owned_ship=ctx.player_owned_ship,
                         ship_catalog=_ship_cat,
@@ -867,7 +864,7 @@ def _responsive_sleep(seconds: float) -> None:
             time.sleep(min(remaining, 0.01))
 
 
-def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entity, *, active_mission_text: str = '') -> None:
+def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entity) -> None:
     """Render a brief "jump drive" animation before the system swap.
 
     Draws the current space view with an expanding bright explosion
@@ -911,7 +908,7 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         else:
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, active_mission=active_mission_text or None, location=solar_system_module.current_system().name, owned_ship=ctx.player_owned_ship, ship_catalog=ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None, date_str=format_date(ctx))
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, location=solar_system_module.current_system().name, owned_ship=ctx.player_owned_ship, ship_catalog=ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None, date_str=format_date(ctx))
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_s)

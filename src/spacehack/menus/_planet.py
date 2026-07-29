@@ -83,7 +83,7 @@ def update_planet_menu(event: tcod.event.Event, *, has_port: bool = True) -> Pla
     return PlanetMenuOutcome.IGNORE
 
 
-def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet, *, active_mission_text: str | None) -> PlanetMenuOutcome:
+def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> PlanetMenuOutcome:
     """Show the planet-bump modal for ``planet_obj``; return the chosen outcome.
 
     The ``Land`` option only appears if the planet has a registered
