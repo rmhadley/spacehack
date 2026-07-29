@@ -207,26 +207,27 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 ### Phase 4.5: Playtest — quest log
 
 **Checklist:**
-- [ ] Quest log shows bounty with custom name, system, danger level, deadline
-- [ ] Squad bounty shows "+ N wingmates"
-- [ ] Complete bounty — verify it disappears from active list
-- [ ] Abandon — verify cleanup
+- [x] Quest log shows bounty with custom name, system, danger level, deadline
+- [x] Squad bounty shows "+ N wingmates"
+- [x] Complete bounty — verify it disappears from active list
+- [x] Abandon — verify cleanup
 
 ### Phase 5: Final polish + guide update
 
-- [ ] Update `help.py` Bounty Guild section
-- [ ] Final DRY scan over all bounty code paths
-- [ ] RNG audit — all procedural calls use `engine.RNG`
-- [ ] Dead code sweep
+- [x] Update `help.py` Missions section with full bounty documentation (accept, auto-hail, squad mechanics, danger levels, name generation)
+- [x] Final DRY scan over all bounty code paths (found and removed duplicate `except KeyError: pass`)
+- [x] RNG audit — all procedural calls use `engine.RNG`
+- [x] Dead code sweep (duplicate `except KeyError: pass` removed)
+- [x] Expanded bounty name generator to ~100 adjectives + ~100 first names (10K+ combos), deduplicated across pools
 
 ### Phase 5.5: Final playtest + guide
 
 **Checklist:**
 - [ ] Full run: accept bounty, travel, fight squad leader, complete
-- [ ] All quest log displays verified
-- [ ] Guide (?) covers bounty missions accurately
+- [x] All quest log displays verified
+- [x] Guide (?) covers bounty missions accurately
 - [ ] Month rollover refreshes bounty boards
-- [ ] No dev-facing labels in player UI
+- [x] No dev-facing labels in player UI
 
 ## Acceptance criteria
 
