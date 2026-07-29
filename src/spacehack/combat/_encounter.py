@@ -94,13 +94,22 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                     pass
                 ctx.player_active_missions = _missions
                 ctx.log.add(f"Bounty complete! {_m.title}")
+                # Clean up the BountySpawn so re-detect doesn't find it.
+                _spawn_sys = getattr(_m, 'target_system_id', None)
+                if _spawn_sys and _spawn_sys in ctx.bounty_spawns:
+                    ctx.bounty_spawns[_spawn_sys] = [
+                        _bs for _bs in ctx.bounty_spawns[_spawn_sys]
+                        if getattr(_bs, 'spawn_id', '') != _m_spawn
+                    ]
 
         # Remove dead enemies from the game map.
-        # Enemy world.Entity objects store their spec reference via
-        # npc_ship_id (set by npc_ships.py / solar_system.py).
+        # _remove_dead_entity handles individual kills during combat.
+        # Only sweep non-bounty entities by spec_id; bounty entities
+        # are protected from the broad sweep and handled individually.
         for _e in list(ctx.game_map.entities):
             _e_spec = getattr(_e, 'npc_ship_id', None)
-            if _e_spec is not None and _e_spec in _defeated_ids:
+            _e_bounty = getattr(_e, 'bounty_spawn_id', None)
+            if _e_spec is not None and _e_spec in _defeated_ids and _e_bounty is None:
                 ctx.game_map.entities.remove(_e)
 
     elif _combat_result == "DEFEAT":
