@@ -316,6 +316,20 @@ def _run_interaction_modal(
                     continue
                 _attack_specs.append(_spec)
                 _attack_positions.append(_e.pos)
+        # Also include bounty squad wingmates (tagged via BountySpawn).
+        _bounty_id = getattr(contact_entity, 'bounty_spawn_id', None)
+        if _bounty_id:
+            from . import solar_system as _ss
+            _sys_id = getattr(_ss.current_system(), 'id', '')
+            if _sys_id:
+                for _bs in ctx.bounty_spawns.get(_sys_id, []):
+                    if _bs.squad_group_id == _bounty_id:
+                        try:
+                            _wing_spec = _find_npc_ship(_bs.enemy_id)
+                        except (KeyError, ImportError):
+                            continue
+                        _attack_specs.append(_wing_spec)
+                        _attack_positions.append(_bs.pos)
         return (_attack_specs, _attack_positions)
 
     elif interaction_outcome is _InteractionOutcome.SCAN:
