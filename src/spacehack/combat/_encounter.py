@@ -62,7 +62,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.log.add("Ship catalog mismatch — cannot start combat.")
         return "FLEE"
 
-    _combat_result, _defeated_ids, _defeated_names = run_combat(
+    _combat_result, _defeated_ids, _defeated_names, _defeated_bounty_ids = run_combat(
         console, ctx.context,
         _ship_cat, ctx.player_owned_ship,
         ctx.player.pos, _pilot_skills,
@@ -76,21 +76,13 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         else:
             ctx.log.add(f"Victory! {len(_defeated_names)} enemies destroyed.")
 
-        # Check bounty completion: match defeated entities by their
-        # bounty_spawn_id against the player's active bounty missions.
-        # This ensures only the specific bounty target entity triggers
-        # completion, not any random enemy with the same spec_id.
+        # Check bounty completion: match defeated bounty_spawn_ids
+        # collected during combat against active missions. Only the
+        # specific bounty target entity triggers completion.
         _missions = getattr(ctx, 'player_active_missions', [])
-        _bounty_spawn_ids: set[str] = set()
-        for _e in ctx.game_map.entities:
-            _bid = getattr(_e, 'bounty_spawn_id', None)
-            if _bid is not None and _bid not in _bounty_spawn_ids:
-                _e_spec = getattr(_e, 'npc_ship_id', None)
-                if _e_spec is not None and _e_spec in _defeated_ids:
-                    _bounty_spawn_ids.add(_bid)
         for _m in _missions:
             _m_spawn = getattr(_m, 'bounty_spawn_id', None)
-            if _m_spawn is not None and _m_spawn in _bounty_spawn_ids:
+            if _m_spawn is not None and _m_spawn in _defeated_bounty_ids:
                 from ..mission import complete_mission as _complete
                 _today = ctx.time_day + (ctx.time_month - 1) * 30
                 _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today)
