@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import os
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -71,7 +70,11 @@ def _d(obj) -> object:
 
 
 def _ctx_to_dict(ctx: GameContext) -> dict:
-    """Serialize only the fields that survive a save/load cycle."""
+    """Serialize only the fields that survive a save/load cycle.
+
+    Returns a flat dict — callers add mode / position / synced-spawn
+    fields before writing to disk.
+    """
     return {
         "character_info": _d(ctx.character_info),
         "stats": {
@@ -100,15 +103,8 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "time_month": ctx.time_month,
         "time_year": ctx.time_year,
         "move_counter": ctx.move_counter,
-        "current_mode": "city",
-        "current_city_id": "earth",
-        "current_system_id": "sol",
-    "player_pos_x": ctx.player.pos.x,
-    "player_pos_y": ctx.player.pos.y,
-    "map_loot": _save_loot(ctx.game_map),
-    "economy_state": _d(ctx.economy_state),
         "generated_missions": _d(ctx.generated_missions),
-        "procedural_spawns": _d(ctx.procedural_spawns),
+        "economy_state": _d(ctx.economy_state),
     }
 
 
@@ -139,30 +135,36 @@ def save_game(
     # Sync procedural spawn positions from actual entity positions on
     # the map.  move_npcs() moves entities but doesn't update the
     # ProceduralSpawn.pos in ctx.procedural_spawns, so the spawn data
-    # holds the original spawn position — not where the NPC actually is.
-    # Also capture each entity's movement ID so we can restore targets
-    # and paths on load.
+    # holds the original spawn position.
+    #
+    # Entities are indexed by npc_ship_id and popped one-at-a-time
+    # per spawn so every spawn gets a *different* entity's position.
+    # Without pop()-based dedup, two solo spawns of the same type
+    # would both match the first entity found — the stacking bug.
     from .game_context import ProceduralSpawn
-    _synced_spawns: dict[str, list] = {}
-    _synced_mids: dict[str, list] = {}             # sys_id → [movement_id per spawn]
-    _synced_targets: dict[str, list[int]] = {}      # movement_id → [tx, ty]
-    _synced_paths: dict[str, list] = {}              # movement_id → [[x,y],...]
+    _synced_spawns: dict[str, list] = {}               # sys_id → [synced ProceduralSpawn]
+    _synced_mids: dict[str, list] = {}                 # sys_id → [movement_id per spawn]
+    _synced_targets: dict[str, list[int]] = {}          # movement_id → [tx, ty]
+    _synced_paths: dict[str, list] = {}                 # movement_id → [[x,y],...]
     for _sys_id, _spawns in ctx.procedural_spawns.items():
+        # Build candidate list keyed by npc_ship_id.  pop(0) on match
+        # gives each spawn a different entity (prevents stacking).
+        _by_type: dict[str, list] = {}
+        for _e in ctx.game_map.entities:
+            _eid = getattr(_e, 'npc_ship_id', '')
+            if _eid and getattr(_e, 'procedural_squad_id', '') != '':
+                _by_type.setdefault(_eid, []).append(_e)
+
         _updated: list = []
         _mids: list = []
-        _matched_ids: set[int] = set()
         for _ps in _spawns:
             _cur_pos = _ps.pos
             _cur_mid = ""
-            for _e in ctx.game_map.entities:
-                if id(_e) in _matched_ids:
-                    continue
-                if (getattr(_e, 'npc_ship_id', '') == _ps.npc_id
-                        and getattr(_e, 'procedural_squad_id', '') != ''):
-                    _cur_pos = _e.pos
-                    _cur_mid = _e.procedural_squad_id
-                    _matched_ids.add(id(_e))
-                    break
+            _candidates = _by_type.get(_ps.npc_id, [])
+            if _candidates:
+                _matched = _candidates.pop(0)
+                _cur_pos = _matched.pos
+                _cur_mid = _matched.procedural_squad_id
             _updated.append(ProceduralSpawn(
                 npc_id=_ps.npc_id, pos=_cur_pos, squad_id=_ps.squad_id,
             ))

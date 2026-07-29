@@ -72,6 +72,45 @@ from .navigation import (
 )
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
 from .time import tick_move, format_date, add_days_to_date
+from .saveload import save_game as _save_game
+from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
+
+
+# ---------------------------------------------------------------------------
+# Space-mode helpers (combat + NPC movement shared by multiple input paths)
+# ---------------------------------------------------------------------------
+
+def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False) -> None:
+    """Run combat encounters in a loop until no more are detected.
+
+    Checks auto-comms warnings, runs the detection→combat loop, and
+    optionally moves NPCs afterward.  Combat handlers mutate
+    ``ctx.player_active_missions`` in place — callers sync their
+    local copy after this returns.
+    """
+    _auto_result = _check_auto_comms_warning(
+        ctx, player.pos, solar_system_module.current_system(),
+    )
+    if _auto_result is not None:
+        _, _attack_data = _auto_result
+        if _attack_data is not None:
+            combat._handle_combat_encounter(ctx, console, _attack_data)
+
+    while True:
+        _encounter = _detect_combat_encounter(
+            ctx, player.pos, solar_system_module.current_system(),
+        )
+        if _encounter is None:
+            break
+        _result = combat._handle_combat_encounter(ctx, console, _encounter)
+        if _result != "VICTORY":
+            break
+
+    if also_move_npcs:
+        _move_npcs(ctx, ctx.game_map)
+
+
+# --- End space-mode helpers ---
 
 def _bounty_landmarks(system) -> list[world.Position]:
     """Return one spawn position per landmark (planet, gate, station)
@@ -231,8 +270,6 @@ def _run_game(
             cam_x = max(0, min(player.pos.x - view_w // 2, sol_w - view_w))
             cam_y = max(0, min(player.pos.y - view_h // 2, sol_h - view_h))
             world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
-            # Paint NPC flash events (jump gate spawn/despawn rings).
-            from .npc_ships import render_npc_flash_events
             render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
@@ -250,7 +287,6 @@ def _run_game(
         ctx.context.present(console)
         for event in tcod.event.wait():
             if should_quit(event):
-                from .saveload import save_game as _save_game
                 _save_game(ctx, mode=current_mode, city_id=current_city_id,
                            system_id=solar_system_module.current_solar_system_id)
                 return
@@ -305,19 +341,8 @@ def _run_game(
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
-                    # Sync local mission state after combat.
+                    _run_combat_loop(ctx, console, player)
                     player_active_missions = ctx.player_active_missions
-                    # After combat, loop: re-check for more nearby enemies
-                    # (e.g. a second squad that was just out of range
-                    # initially). Keeps fighting until no more are detected.
-                    while True:
-                        _next_encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
-                        if _next_encounter is None:
-                            break
-                        _result = combat._handle_combat_encounter(ctx, console, _next_encounter)
-                        player_active_missions = ctx.player_active_missions
-                        if _result != "VICTORY":
-                            break
                 continue
             # C = open cargo menu (space mode).
             if current_mode == 'space' and _is_i_press(event):
@@ -332,25 +357,11 @@ def _run_game(
                     combat._handle_combat_encounter(ctx, console, _attack_data)
                     player_active_missions = ctx.player_active_missions
                 continue
-            # Period = wait one turn (space mode: pirates move, shields regen).
+            # Period = wait one turn (space mode: NPCs move, shields regen).
             if _is_period_press(event):
                 if current_mode == 'space' and (player_owned_ship is not None):
-                    _auto_result = _check_auto_comms_warning(ctx, player.pos, solar_system_module.current_system())
-                    if _auto_result is not None:
-                        _, _attack_data = _auto_result
-                        if _attack_data is not None:
-                            combat._handle_combat_encounter(ctx, console, _attack_data)
-                            player_active_missions = ctx.player_active_missions
-                    while True:
-                        _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
-                        if _encounter is None:
-                            break
-                        _result = combat._handle_combat_encounter(ctx, console, _encounter)
-                        player_active_missions = ctx.player_active_missions
-                        if _result != "VICTORY":
-                            break
-                    from .npc_ships import move_npcs as _mn
-                    _mn(ctx, game_map)
+                    _run_combat_loop(ctx, console, player, also_move_npcs=True)
+                    player_active_missions = ctx.player_active_missions
                 ctx.log.add('You wait.')
                 continue
 
@@ -360,24 +371,8 @@ def _run_game(
             dx, dy = delta
             code, blocker = world.try_move(player, game_map, dx, dy)
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
-                _auto_result = _check_auto_comms_warning(ctx, player.pos, solar_system_module.current_system())
-                if _auto_result is not None:
-                    _, _attack_data = _auto_result
-                    if _attack_data is not None:
-                        combat._handle_combat_encounter(ctx, console, _attack_data)
-                        player_active_missions = ctx.player_active_missions
-                while True:
-                    _encounter = _detect_combat_encounter(ctx, player.pos, solar_system_module.current_system())
-                    if _encounter is None:
-                        break
-                    _result = combat._handle_combat_encounter(ctx, console, _encounter)
-                    # Sync local mission state after combat.
-                    player_active_missions = ctx.player_active_missions
-                    if _result != "VICTORY":
-                        break
-                # Move procedural NPCs after the player moves.
-                from .npc_ships import move_npcs as _mn
-                _mn(ctx, game_map)
+                _run_combat_loop(ctx, console, player, also_move_npcs=True)
+                player_active_missions = ctx.player_active_missions
                 tick_move(ctx)
             if code == 'wall':
                 if current_mode == 'space':
@@ -454,7 +449,6 @@ def _run_game(
                                     current_mode = 'city'
 
                                 # Auto-save after landing.
-                                from .saveload import save_game as _save_game
                                 _save_game(ctx, mode=current_mode, city_id=current_city_id,
                                            system_id=solar_system_module.current_solar_system_id)
                             continue

@@ -37,10 +37,9 @@ T = TypeVar("T", bound=Enum)
 COLOR_TITLE: tuple[int, int, int] = (130, 220, 255)              # bright cyan
 COLOR_INSTRUCTION: tuple[int, int, int] = (110, 130, 175)        # muted periwinkle
 COLOR_OPTION: tuple[int, int, int] = (200, 200, 220)             # pale lavender-grey
-COLOR_OPTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)
-COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (150, 200, 220)        # steel-cyan, used for science ports + station glyphs in AoI panel.
-    # pure white (brightest)
-COLOR_DESCRIPTION: tuple[int, int, int] = (175, 170, 210)        # muted lavender
+COLOR_OPTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)      # pure white (brightest)
+COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (150, 200, 220)     # steel-cyan, used for science ports + station glyphs in AoI panel
+COLOR_DESCRIPTION: tuple[int, int, int] = (175, 170, 210)           # muted lavender
 # Value cells (numbers, prices) - kept here so dialogs in __main__
 # (e.g. the ship-buy modal) can use the same near-white/dim pair.
 COLOR_VALUE_WHITE: tuple[int, int, int] = (250, 250, 250)
