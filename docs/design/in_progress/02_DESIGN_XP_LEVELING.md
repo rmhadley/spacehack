@@ -6,7 +6,9 @@ Add a leveling system that gives meaning to the XP already being awarded by miss
 
 ### What levels unlock
 
-Leveling grants **2 skill points per level** (each point adds +2 to one pilot skill). The only other unlock milestones are trait choices at 20 and 30. No hull/fuel/cargo/shield/slot bonuses — progression is purely about pilot skill growth.
+Leveling grants **2 skill points per level** (each point adds +2 to one pilot skill). Skills are viewed and points spent via the **Character screen** (`K` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 20 and 30. No hull/fuel/cargo/shield/slot bonuses — progression is purely about pilot skill growth.
+
+**Keybinding:** `K` opens the Character screen. `C` is already taken by Cargo in space mode, so `K` was chosen to avoid a conflict. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
 - **Gunnery** → weapon accuracy (`gunnery * 0.5` added to hit chance)
 - **Piloting** → AP per turn (`3 + piloting // 20`), dodge bonus (`piloting * 0.5`)
@@ -146,24 +148,59 @@ A T1 mission gives ~20 XP. A T4 mission gives ~300 XP. A combat kill gives ~30-2
 
 At level 20, the player has earned **38 skill points (76 stat points invested)** and must choose their major trait. A Human Pirate who invested everything in gunnery would have gunnery = 41 + 76 = 117 (but soft-capped at 100), with piloting=5 and engineering=3. A balanced build would be roughly gunnery=79, piloting=43, engineering=41.
 
-### Skill point allocation
+### Character screen (K hotkey)
 
-When the player levels up, they earn 2 skill points. They can spend them via a new "Skills" option in the ship menu (accessible from the hangar menu in city mode):
+A new **Character screen** accessed via the `K` hotkey from city or space mode. This is the start of an RPG-style character sheet that will grow with future features. For this feature, it shows:
+
+- Current level and XP progress
+- Skill ratings with available points to spend
+- Chosen traits (once earned)
+
+The screen is NOT in the ship menu — it's a global hotkey like `F` for Factions.
+
+**Keybinding note:** `C` is already taken by Cargo in space mode, so the Character screen uses `K`.
 
 ```
-═══════════════════════════
-       SKILLS (Level 3)
-═══════════════════════════
-Skill Points Available: 2
+══════════════════════════════════════════════
+           CHARACTER — Level 3 Pirate
+══════════════════════════════════════════════
 
-> Gunnery:     42 [+]
-  Piloting:    37 [+]
-  Engineering: 35 [+]
+  XP: 320 / 480  [████████░░░░]  Next: 160 XP
 
-[H]elp  [Enter] spend  [Tab] cycle  [ESC] back
+  Skill Points Available: 2
+
+  > Gunnery:     42  [+]
+    Piloting:    37  [+]
+    Engineering: 35  [+]
+
+  Traits: (none yet — unlock at level 20)
+
+══════════════════════════════════════════════
+  ENTER spend  TAB cycle  ESC back
 ```
 
 Each point spent adds +2 to that skill. The "max" is soft-capped at 100 (harder to justify spending beyond that due to diminishing returns on hit chance).
+
+### PilotSkills integration
+
+The existing skill pipeline: `character.starting_pilot_skills()` → stored in `ctx.stats.gunnery/piloting/engineering` (a `HudStats` object) → read by combat init (`_encounter.py`).
+
+Level-up bonuses feed into this pipeline via `ctx.player_*_bonus` fields. When the player spends a skill point, the bonus field is incremented and `ctx.stats` is immediately updated:
+
+```python
+def _apply_skill_point(ctx, skill: str) -> None:
+    """Spend one skill point on *skill* (gunnery/piloting/engineering)."""
+    if ctx.player_skill_points <= 0:
+        return
+    bonus_field = f"player_{skill}_bonus"
+    current_bonus = getattr(ctx, bonus_field, 0)
+    setattr(ctx, bonus_field, current_bonus + 2)
+    ctx.player_skill_points -= 1
+    # Immediately update HudStats so combat + HUD see the change.
+    setattr(ctx.stats, skill, getattr(ctx.stats, skill) + 2)
+```
+
+This keeps the single source of truth (`ctx.stats`) in sync with the persistent bonus counters (`ctx.player_*_bonus`) without requiring every combat read site to sum multiple fields.
 
 ### Trait choices — playstyle-gated pool
 
@@ -184,7 +221,7 @@ Both level 20 and level 30 draw from the **same shared trait pool**. At each mil
 | **Sharpshooter** | +10% hit chance | 60+ gunnery (after skill points) | 80+ gunnery | Gunnery focus |
 | **Evasive** | +15% dodge chance | 40+ piloting (after skill points) | 60+ piloting | Piloting focus |
 | **Power Surge** | +5 max power | 40+ engineering (after skill points) | 60+ engineering | Engineering focus |
-| **Bounty Network** | +15% mission credit rewards | 10+ bounties completed | 25+ bounties completed | Bounty hunter |
+| **Bounty Network** | +15% bounty mission credit rewards | 10+ bounties completed | 25+ bounties completed | Bounty hunter |
 | **Trade Route** | -5% buy / +5% sell prices | 20+ deliveries completed | 50+ deliveries completed | Merchant |
 | **Juggernaut** | -50% missile damage taken | 30+ kills (any) | 80+ kills (any) | Veteran |
 | **Hardened** | -10% all damage taken | 2000+ damage taken + 50+ kills | 5000+ damage taken + 150+ kills | Battle-scarred |
@@ -272,42 +309,203 @@ They can pick whichever fits their build — no restrictions other than threshol
 
 When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level 4! 2 skill points earned."` At level 20/30: `"Level 20! Choose a major trait."`
 
-### Phase 1.5: Playtest
+### Phase 1: XP tracking + skill rebalance
 
-**Checklist:**
-- [ ] Complete a mission → XP gain logged
+#### Pre-implementation audit (guardrail 5)
+
+**Existing modules to extend/reuse:**
+- `game_context.py` — add `player_xp`, `player_level`, `player_skill_points`, `player_*_bonus` fields, plus playstyle counters
+- `character.py` — `starting_pilot_skills()` already computes base+species+class; modify to halve bonuses. `starting_stats()` feeds `HudStats` — add level-related fields.
+- `data/species/core.py` + `data/classes/core.py` — skill_bonus fields (frozen `PilotSkills`), reduce values per rebalance table
+- `mission.py` — `complete_mission()` already has `reward_xp`; feed into `add_xp()`
+- `combat/_encounter.py` — VICTORY path: add combat XP per kill
+- `combat/_weapons.py` — increment playstyle counters on shot/hit/damage events
+- `menus/_ship_menu.py` — NOT touched (Character screen uses hotkey, not ship menu)
+- `hud.py` — add level/XP display
+- `input_helpers.py` — add `_is_k_press()` for Character screen hotkey
+- `__main__.py` — wire K hotkey
+
+**Three duplication hotspots:**
+1. **XP award duplicated across mission completion and combat kill.** Fix: single `add_xp(ctx, amount)` function in new `xp.py` module that handles level-up logic, logging, and trait triggers.
+2. **Skill total formula scattered across combat/HUD/character.** Fix: all skill values flow through `ctx.stats` (HudStats) — `_apply_skill_point()` updates `ctx.stats` directly, combat reads from `ctx.stats`, HUD reads from `ctx.stats`. Single source of truth.
+3. **Playstyle counter increments copy-pasted across combat actions.** Fix: helper functions in `xp.py` for `_increment_weapon_counter(ctx, weapon_type)` and `_increment_kill_counter(ctx, faction)` called from the combat loop.
+
+**DRY strategy:**
+- `xp.py` owns: `add_xp()`, `xp_for_level()`, level-up logic, trait qualification checks, playstyle counter helpers
+- `ctx.stats` is the single source of truth for current skill values
+- Species/class rebalance: edit the frozen `PilotSkills` values in data files only
+
+#### Checklist
+
+- [ ] Add `player_xp`, `player_level`, `player_skill_points`, `player_*_bonus` fields to `GameContext`
+- [ ] Add playstyle counter fields to `GameContext` (9 counters)
+- [ ] Create `xp.py` with `add_xp(ctx, amount)`, `xp_for_level(level)`, `_apply_skill_point()`
+- [ ] Halve species skill bonuses in `data/species/core.py`
+- [ ] Halve class skill bonuses in `data/classes/core.py`
+- [ ] Wire `add_xp()` into `mission.complete_mission()` call path
+- [ ] Wire `add_xp()` into `combat/_encounter.py` VICTORY path (per-kill)
+- [ ] Add `_is_k_press()` to `input_helpers.py`, wire K hotkey in `__main__.py`
+- [ ] Smoke test + commit
+
+#### Playtest checklist
+
+- [ ] Start new game → verify starting skills match rebalance table (e.g. Human Pirate: 41/5/3)
+- [ ] Complete a delivery mission → XP gain logged, level-up if threshold crossed
 - [ ] Kill an enemy in combat → XP gain logged
-- [ ] Level up → 2 skill points awarded
-- [ ] Open ship menu → "Skills" option visible
-- [ ] Spend skill points → skills change
-- [ ] Enter combat → new skill values reflected in hit chance / AP / power
+- [ ] Level up → "Level N! 2 skill points earned." message
+- [ ] Press K → Character screen opens (blank skills section for now, just shows level/XP)
+- [ ] New character screen accessible from both city and space modes
 
-### Phase 2: Skill point UI
+---
 
-- [ ] Add "Skills" option to the ship menu (hangar)
-- [ ] Build skill allocation modal: show current skills + available points, allow spending
-- [ ] Wire skill point bonuses into `starting_pilot_skills` and combat init formulas
-- [ ] Add visual feedback on point spend
+### Phase 2: Skill point UI (Character screen)
+
+#### Pre-implementation audit
+
+**Existing modules to extend/reuse:**
+- `help.py` — existing guide modal pattern (render + update + Modal.run)
+- `menus/_ship_menu.py` — `_run_faction_view()` is the closest analogue: read-only stats modal opened via hotkey, with ESC to close. Follow the same pattern.
+- `hud.py` — `_render_help_lines()` for key hints; already shows `K - Character` (added in Phase 1)
+- `faction.py` — `_ALL_FACTIONS` tuple pattern for cycling UI elements
+
+**Three duplication hotspots:**
+1. **Skill display repeated across Character screen + HUD.** Fix: Character screen calls `ctx.stats` (single source of truth); HUD already reads from `ctx.stats`.
+2. **Modal close-on-ESC pattern.** Fix: reuse existing `ui.Modal(ctx.context, console).run(render, update)` pattern from `_run_faction_view()`.
+3. **Keybinding wired in two places.** Fix: `_is_k_press()` in `input_helpers.py` + `__main__.py` handler (single pattern, same as F).
+
+**DRY strategy:**
+- Character screen is a self-contained modal in its own file: `src/spacehack/character_screen.py`
+- `_apply_skill_point()` is called from the modal's update function
+- Follows the exact pattern of `_run_faction_view()`: standalone function taking `ctx`, called from hotkey handler
+
+#### Checklist
+
+- [ ] Create `character_screen.py` with `open_character_screen(ctx)` entry point
+- [ ] Build modal: show level, XP bar, skill values with [+], available points, trait slots
+- [ ] TAB cycles between Gunnery/Piloting/Engineering; ENTER spends a point
+- [ ] Wire `_apply_skill_point()` to update both `ctx.player_*_bonus` and `ctx.stats`
+- [ ] Soft-cap visual: highlight skills at 100 to indicate diminishing returns
+- [ ] Smoke test + commit
+
+#### Playtest checklist
+
+- [ ] Press K → Character screen shows current level, XP bar, skill values, available points
+- [ ] Have 2+ skill points → TAB to Gunnery, ENTER → gunnery increases by 2, points decrease by 1
+- [ ] Spend all points → [+] indicators disappear
+- [ ] Launch into space → check combat HUD: new skill values reflected in hit chance / AP / power
+- [ ] Character screen from space mode → same values, consistent
+
+---
 
 ### Phase 3: HUD display + polish
 
-- [ ] Add XP bar or level indicator to the HUD (compact: "Lv.3" near stats)
-- [ ] Add "Next level: 400/500 XP" to the skills screen
-- [ ] Log messages on level-up with details
-- [ ] Level-up screen flash or banner effect
+#### Pre-implementation audit
+
+**Existing modules to extend/reuse:**
+- `hud.py` — `render_hud()` already shows species/class/HP/credits/skills; add compact level indicator
+- `message_log.py` — level-up messages use existing `add_colored()` with event color
+- `xp.py` — `add_xp()` already logs XP gain; add level-up message with skill point count
+
+**Three duplication hotspots:**
+1. **Level indicator drawn differently in city vs space HUD.** Fix: single helper `_render_level_line()` called from both branches.
+2. **XP progress bar duplicated between Character screen and potential HUD element.** Fix: Character screen owns the detailed XP bar; HUD shows compact "Lv.N" only.
+3. **Level-up message format duplicated.** Fix: single format string in `xp.py` `add_xp()`, not in HUD.
+
+**DRY strategy:**
+- Level display: one line in HUD, one detailed view in Character screen
+- All level-up logic in `xp.py`; HUD only reads `ctx.player_level`
+
+#### Checklist
+
+- [ ] Add "Lv.N" to city HUD (near species/class, or below HP/credits)
+- [ ] Add "Lv.N" to space HUD (near ship name or below fuel/hull)
+- [ ] `add_xp()` logs `"+N XP"` on gain, `"Level N! 2 skill points earned."` on level-up
+- [ ] Character screen shows "Next level: 400/500 XP" with progress bar
+- [ ] Add `K` to HUD key hints in both city and space modes
+- [ ] Smoke test + commit
+
+#### Playtest checklist
+
+- [ ] City HUD shows "Lv.1" for a new character
+- [ ] Gain XP from a mission → "+NN XP" in message log, HUD level updates if threshold crossed
+- [ ] Level up → "Level N! 2 skill points earned." message is colored distinctly
+- [ ] Character screen shows XP progress bar "320/480" with visual fill
+- [ ] Both city and space HUDs show K in key hints
+
+---
 
 ### Phase 4: Traits at 20/30
 
-- [ ] Trait selection modal at level 20
-- [ ] Trait selection modal at level 30
-- [ ] Wire trait effects into combat formulas
-- [ ] Apply soft-cap at 100 for skills
+#### Pre-implementation audit
+
+**Existing modules to extend/reuse:**
+- `xp.py` — `add_xp()` already fires on level-up; add trait-check trigger when level == 20 or 30
+- `mission.py` — `bounties_completed` / `deliveries_completed` already incremented in `complete_mission()`
+- `combat/_weapons.py` — per-shot counters (laser/missile/plasma) incremented in fire path
+- `combat/_encounter.py` — per-kill counters (total_kills, merchant_kills) incremented in VICTORY path
+- `combat/_loop.py` — `combat_flees` incremented on flee; `total_damage_taken` incremented on damage
+- `trade.py` — `Scavenger` trait affects loot drop quantities
+- `faction.py` — reputation-gated traits check `ctx.faction_reputation`
+
+**Three duplication hotspots:**
+1. **Trait threshold checking duplicated for playstyle + rep-gated traits.** Fix: `xp.py` has single `_qualifying_traits(ctx, milestone_level)` that evaluates ALL traits against counters + rep, returns list.
+2. **Trait effect application scattered across combat/trade/comms.** Fix: `xp.py` exports `has_trait(ctx, trait_name) -> bool`; each domain checks the flag where the effect applies.
+3. **Counter increments copy-pasted.** Fix: `_increment_weapon_counter()` and `_increment_kill_counter()` helper functions (already from Phase 1).
+
+**DRY strategy:**
+- `xp.py` is the single source of truth for: trait pool, thresholds, qualification, selection tracking
+- Trait effects are checked via `has_trait()` at point of use (e.g. `if has_trait(ctx, 'Ace Pilot'): ap += 1`)
+- Trait selection modal follows the existing modal pattern (render + update + Modal.run)
+
+#### Checklist
+
+- [ ] Add `player_traits: list[str]` field to `GameContext`
+- [ ] Build trait selection modal in `xp.py` (or `trait_screen.py`): shows qualifying traits, pick one
+- [ ] Wire `_qualifying_traits()` — evaluates all 13 playstyle + 4 rep-gated traits
+- [ ] Wire playstyle counter increments in combat (`_weapons.py`, `_loop.py`, `_encounter.py`)
+- [ ] Wire mission counter increments in `mission.py` (`complete_mission()`)
+- [ ] Trigger trait selection when `add_xp()` detects level 20 or 30
+- [ ] Wire trait effects: `Ace Pilot` (+1 AP), `Overcharge` (+25% shields), `Laser Mastery` (+20% laser dmg), `Scavenger` (+50% loot), `Sharpshooter` (+10% hit), `Evasive` (+15% dodge), `Power Surge` (+5 max power), `Juggernaut` (-50% missile dmg taken), `Hardened` (-10% all dmg), `Trade Route` (-5% buy/+5% sell), `Bounty Network` (+15% bounty credits)
+- [ ] Wire reputation-gated traits: `Merchant Alliance`, `Pirate King`, `Militia Commission`, `Galaxy's Most Wanted`
+- [ ] Soft-cap skills at 100 in `_apply_skill_point()` and `add_xp()` auto-assignment
+- [ ] Smoke test + commit
+
+#### Playtest checklist
+
+- [ ] Play through enough content to reach level 20 → trait selection modal appears
+- [ ] Modal shows ALL qualifying traits (e.g. if you have 500+ laser shots AND 60+ gunnery, see both Laser Mastery + Sharpshooter)
+- [ ] Pick a trait → effect is immediately active (e.g. Ace Pilot → +1 AP in next combat)
+- [ ] Reach level 30 → second trait modal, first trait is excluded
+- [ ] Allied with merchants at level 20 → Merchant Alliance available alongside playstyle traits
+- [ ] Skill at 100 → "[+]" button disabled or shows "MAX"
+- [ ] Trait effects persist across saves/loads for the same run
+
+---
 
 ### Phase 5: Guide update + final polish
 
-- [ ] Update in-game guide with leveling system docs
-- [ ] DRY audit on all new code
-- [ ] Re-verify starting skill rebalance numbers
+#### Pre-implementation audit
+
+**Existing modules to extend/reuse:**
+- `help.py` — add leveling/traits section to `GUIDE_SECTIONS` or expand existing Character section
+- `character_screen.py` — trait descriptions visible on the Character screen
+
+**Three duplication hotspots:**
+1. **Trait descriptions duplicated between guide and trait selection modal.** Fix: guide references trait names, not full descriptions; trait modal shows full text.
+2. **Level threshold formula duplicated.** Fix: `xp_for_level()` is the single source; guide references it conceptually.
+3. **Guide section structure.** Fix: follow existing pattern — one `GuideSection` with title + body, appended to `GUIDE_SECTIONS` tuple.
+
+**DRY strategy:**
+- Guide is a separate text layer; all game logic stays in `xp.py`
+- No code duplication between guide and game systems
+
+#### Checklist
+
+- [ ] Add "Leveling & Traits" section to `_GUIDE_CHARACTER` or as a new `_GUIDE_LEVELING` section
+- [ ] Guide explains: XP sources, level curve, skill points, trait system, soft cap at 100
+- [ ] Full DRY audit on all new code
+- [ ] Re-verify starting skill rebalance numbers match actual gameplay
+- [ ] Smoke test + commit
 
 ## Open questions
 
