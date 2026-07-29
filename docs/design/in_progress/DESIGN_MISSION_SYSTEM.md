@@ -521,16 +521,16 @@ Quest log deadline display.
 **What**: Update `help.py` with full mission system documentation.
 Final DRY pass over ALL mission code. RNG audit. Dead code sweep.
 
-- [ ] Update `help.py` Game Overview: mention mission tiers, multiple slots, procedural generation
-- [ ] Update `help.py` Missions section: full rewrite — types, tiers, deadlines, early bonus,
+- [x] Update `help.py` Game Overview: mention mission tiers, multiple slots, procedural generation
+- [x] Update `help.py` Missions section: full rewrite — types, tiers, deadlines, early bonus,
       board refresh, procedural vs static, quest log, delivery flow
-- [ ] Update `help.py` Ships section: note cargo capacity matters for multi-mission stacking
-- [ ] Update `help.py` Navigation section: mention that longer trips affect deadlines
-- [ ] Final DRY scan: all mission files — duplication, inner functions, dead code
-- [ ] Final RNG audit: every random call in mission code confirmed through `engine.RNG`
-- [ ] Dead code sweep: removed flavor missions, old `Mission` dataclass references,
+- [x] Update `help.py` Ships section: note cargo capacity matters for multi-mission stacking
+- [x] Update `help.py` Navigation section: mention that longer trips affect deadlines
+- [x] Final DRY scan: all mission files — duplication, inner functions, dead code
+- [x] Final RNG audit: every random call in mission code confirmed through `engine.RNG`
+- [x] Dead code sweep: removed flavor missions, old `Mission` dataclass references,
       single-slot `player_active_mission` stragglers
-- [ ] Smoke test
+- [x] Smoke test
 
 ---
 
