@@ -98,15 +98,11 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 from ..navigation import _remove_bounty_spawn
                 _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
 
-        # Remove dead enemies from the game map.
-        # _remove_dead_entity handles individual kills during combat.
-        # Only sweep non-bounty entities by spec_id; bounty entities
-        # are protected from the broad sweep and handled individually.
-        for _e in list(ctx.game_map.entities):
-            _e_spec = getattr(_e, 'npc_ship_id', None)
-            _e_bounty = getattr(_e, 'bounty_spawn_id', None)
-            if _e_spec is not None and _e_spec in _cr.defeated_spec_ids and _e_bounty is None:
-                ctx.game_map.entities.remove(_e)
+        # Dead enemies are already removed individually during combat
+        # by _remove_dead_entity (called from _weapons.py on each kill).
+        # No broad sweep needed — a spec_id-based sweep would incorrectly
+        # remove ALL map entities of the same type (e.g. all pirate_scouts)
+        # instead of only the ones that were in this encounter.
 
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True

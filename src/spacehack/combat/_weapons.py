@@ -173,7 +173,6 @@ def _fire_weapons(
             _p_log(f"{_fws.name} {_verb} {_target_enemy.name} for {_dmg}!", log)
             if _fh <= 0:
                 _target_enemy.alive = False
-                _cr.defeated_spec_ids.append(_target_enemy.spec_id)
                 _cr.defeated_names.append(_target_enemy.name)
                 # Collect bounty_spawn_id from the killed entity
                 # so bounty completion matches the specific target,
