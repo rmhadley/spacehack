@@ -100,7 +100,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         # Bounty-specific display.
         if _is_bounty:
             # Status: Hunting (gold accent).
-            paint(detail_top, fit(f'\u23f3 Hunting'), fg=ui.COLOR_OPTION_HIGHLIGHT)
+            paint(detail_top, fit(f'\u25ba Hunting'), fg=ui.COLOR_OPTION_HIGHLIGHT)
             detail_top += 1
             # Danger level based on tier + squad size.
             _t = getattr(am, 'tier', 1)

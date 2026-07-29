@@ -804,12 +804,11 @@ _BOUNTY_FIRST_NAMES: tuple[str, ...] = (
 
 
 
-def _generate_bounty_name(tier: int, rng: random.Random) -> str:
+def _generate_bounty_name(rng: random.Random) -> str:
     """Generate a bounty target name like "Crimson Jack".
 
-    Picks a random adjective + first name from flat pools.
-    Tier is accepted but ignored (all names available at all tiers)
-    to keep the naming flexible.
+    Picks a random adjective + first name from large flat pools
+    (96 adjectives × 107 first names = 10,272 possible combos).
     """
     _adj = rng.choice(_BOUNTY_ADJECTIVES)
     _fn = rng.choice(_BOUNTY_FIRST_NAMES)
@@ -937,7 +936,7 @@ def generate_bounty_mission(
     squad_size = rng.randint(_sq_lo, _sq_hi)
 
     # 6. Generate name.
-    target_name = _generate_bounty_name(tier, rng)
+    target_name = _generate_bounty_name(rng)
 
     # 7. Reward: base = hull_strength × tier × 40, × squad multiplier.
     _sq_mult = {1: 1.0, 2: 1.5, 3: 2.0}.get(squad_size, 1.0)
