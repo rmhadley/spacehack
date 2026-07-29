@@ -2,16 +2,16 @@
 
 Two blockade stations guard the border past Luyten's Star — the last
 outpost of charted space. The station interior is functional and
-utilitarian: a landing bay and a militia command post with the
-Blockade Officer who questions every ship heading into the void.
+utilitarian: a landing bay, a militia command post with the Blockade
+Officer, and a Bounty Office offering high-tier frontier contracts.
 
 Layout (60x40):
 
   * spaceport, NW corner.
-  * militia, S row — blockade command centre.
+  * militia, SE corner — blockade command centre.
+  * bounty office, SW corner — tier-4 frontier bounties.
 
-Reuses the global ``blockade_officer`` NPC from the NPCS catalog
-(no overrides needed).
+Reuses the global NPCs from the NPCS catalog (no overrides needed).
 """
 from __future__ import annotations
 
@@ -38,6 +38,11 @@ SPEC = PlanetSpec(
         world.CityBuilding(
             label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35,
             door_x=47, npc_id="blockade_officer",
+            door_north=True,
+        ),
+        world.CityBuilding(
+            label="bounties",  x_lo=4,  x_hi=19, y_lo=26, y_hi=35,
+            door_x=11, npc_id="bounty_master",
             door_north=True,
         ),
     ),
