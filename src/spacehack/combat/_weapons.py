@@ -174,6 +174,7 @@ def _fire_weapons(
             if _fh <= 0:
                 _target_enemy.alive = False
                 _cr.defeated_names.append(_target_enemy.name)
+                _cr.defeated_spec_ids.append(_target_enemy.spec_id)
                 # Collect bounty_spawn_id from the killed entity
                 # so bounty completion matches the specific target,
                 # not any random enemy with the same spec_id.

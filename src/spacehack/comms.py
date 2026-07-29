@@ -282,6 +282,11 @@ def _run_interaction_modal(
 
     # ---- Handle interaction outcome ----
     if interaction_outcome is _InteractionOutcome.ATTACK:
+        # Apply unprovoked attack rep penalty before combat starts.
+        from .faction import modify_rep, _COMBAT_UNPROVOKED_DELTAS
+        for _fac, _delta in _COMBAT_UNPROVOKED_DELTAS.items():
+            modify_rep(ctx, _fac, _delta)
+
         ctx.log.add_colored(
             f"You transmit a warning to the {contact_name}.",
             _ml.COLOR_IMPORTANT_EVENT,

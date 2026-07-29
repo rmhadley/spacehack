@@ -64,3 +64,4 @@ class CombatResult:
     outcome: str = "FLEE"  # "VICTORY", "DEFEAT", or "FLEE"
     defeated_names: list[str] = field(default_factory=list)
     defeated_bounty_ids: list[str] = field(default_factory=list)
+    defeated_spec_ids: list[str] = field(default_factory=list)

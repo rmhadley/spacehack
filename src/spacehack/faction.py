@@ -168,6 +168,53 @@ _REP_GAIN_COLOR: tuple[int, int, int] = (100, 235, 115)    # green
 _REP_LOSS_COLOR: tuple[int, int, int] = (255, 95, 95)      # red
 
 
+# Combat rep deltas — keyed by the defeated enemy's faction (pirate, merchant,
+# civilian, militia). Applied per-kill when an enemy ship is destroyed.
+_COMBAT_KILL_DELTAS: dict[str, dict[str, int]] = {
+    "pirate": {
+        "pirate": -3,
+        "merchant": +2,
+        "civilian": +2,
+        "militia": +3,
+    },
+    "merchant": {
+        "pirate": +5,
+        "merchant": -8,
+        "civilian": -3,
+        "militia": -5,
+    },
+    "civilian": {
+        "pirate": +5,
+        "merchant": -5,
+        "civilian": -8,
+        "militia": -5,
+    },
+    "militia": {
+        "pirate": +8,
+        "merchant": -5,
+        "civilian": -5,
+        "militia": -12,
+    },
+}
+
+# Flee rep penalty — applied once when the player flees combat.
+_COMBAT_FLEE_DELTAS: dict[str, int] = {
+    "merchant": -1,
+    "civilian": -1,
+    "militia": -2,
+}
+
+# Unprovoked attack rep penalty — applied when the player initiates combat
+# via comms ("Attack" option) rather than being auto-hailed or bumping into
+# an enemy.
+_COMBAT_UNPROVOKED_DELTAS: dict[str, int] = {
+    "pirate": +2,
+    "merchant": -2,
+    "civilian": -2,
+    "militia": -3,
+}
+
+
 # ---------------------------------------------------------------------------
 # modify_rep — central rep mutation helper
 # ---------------------------------------------------------------------------

@@ -76,6 +76,24 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         else:
             ctx.log.add(f"Victory! {len(_cr.defeated_names)} enemies destroyed.")
 
+        # Apply combat kill reputation changes per defeated enemy.
+        # Squad bonus (+1 to positive deltas) folds in when the
+        # entire original group is wiped (2+ enemies).
+        from ..faction import modify_rep, _COMBAT_KILL_DELTAS
+        from ..data.npc_ships import find_npc_ship as _fns
+        _all_killed = len(_cr.defeated_spec_ids) == len(_specs)
+        _squad_bonus = _all_killed and len(_cr.defeated_spec_ids) >= 2
+        for _dsid in _cr.defeated_spec_ids:
+            try:
+                _es = _fns(_dsid)
+                _deltas = _COMBAT_KILL_DELTAS.get(_es.faction, {})
+                for _fac, _delta in _deltas.items():
+                    if _squad_bonus and _delta > 0:
+                        _delta += 1
+                    modify_rep(ctx, _fac, _delta)
+            except (KeyError, ImportError):
+                pass
+
         # Check bounty completion: match defeated bounty_spawn_ids
         # collected during combat against active missions. Only the
         # specific bounty target entity triggers completion.
@@ -107,6 +125,11 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
         _render_death_screen(console, ctx.context, ctx.log)
+    elif _cr.outcome == "FLEE":
+        # Apply cowardice rep penalty for fleeing combat.
+        from ..faction import modify_rep, _COMBAT_FLEE_DELTAS
+        for _fac, _delta in _COMBAT_FLEE_DELTAS.items():
+            modify_rep(ctx, _fac, _delta)
 
     return _cr.outcome
 
