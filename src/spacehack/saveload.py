@@ -343,17 +343,22 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 _game_map.entities.append(_ent)
 
             # Add procedural NPCs from saved spawns (don't generate new ones).
-            for _ps in _proc_spawns.get(_system_id, []):
+            for _i, _ps in enumerate(_proc_spawns.get(_system_id, [])):
                 try:
                     _espec = _find_npc(_ps.npc_id)
                 except (KeyError, ImportError):
                     continue
+                # Solo NPCs have squad_id=None in the save, but move_npcs
+                # and combat detection filter by procedural_squad_id != ''.
+                # Generate a unique movement ID for each NPC so the systems
+                # recognize them.
+                _mid = _ps.squad_id or f"proc_loaded_{_system_id}_{_ps.npc_id}_{_i}"
                 _ent = world.Entity(
                     char=_espec.char, fg=_espec.fg,
                     pos=_ps.pos, name=_espec.name,
                     width=1, height=1,
                     npc_ship_id=_ps.npc_id,
-                    procedural_squad_id=_ps.squad_id or "",
+                    procedural_squad_id=_mid,
                 )
                 _game_map.entities.append(_ent)
 
