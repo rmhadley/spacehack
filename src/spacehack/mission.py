@@ -397,12 +397,16 @@ def board_remove(board: MissionBoard, mission_id: str) -> None:
 
 def board_return_static(board: MissionBoard, mission_id: str) -> None:
     """Return a static mission ID to the first empty slot on
-    ``board``. No-op if no empty slot exists.
+    ``board``. If no empty slot exists, bumps the last slot to
+    make room (the bumped mission goes back into the candidate pool
+    for future fills).
     """
     for i in range(len(board.slots)):
         if board.slots[i] is None:
             board.slots[i] = mission_id
             return
+    # Board is full — bump the last slot to make room.
+    board.slots[-1] = mission_id
 
 
 def refresh_all_boards(ctx) -> None:
