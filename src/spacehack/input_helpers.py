@@ -208,6 +208,24 @@ def _is_t_press(event: tcod.event.Event) -> bool:
     return sym_name in ('T', 't')
 
 
+def _is_c_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``C`` key (or its
+    lowercase alias).
+
+    Routes C (Character screen) through a module-level helper.
+    Lowercase ``c`` and uppercase ``C`` both open the character
+    sheet; anything else returns False.
+
+    ``C``/``c`` is unused by vim movement so it's a clean pick.
+    ``getattr(..., "name", "")`` belt-and-suspenders against a
+    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('C', 'c')
+
+
 def _is_f_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``F`` key (or its
     lowercase alias).

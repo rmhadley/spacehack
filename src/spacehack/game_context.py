@@ -80,6 +80,28 @@ class NpcFlashEvent:
     lifetime: int = 4  # frames remaining; decremented each render. Must match _NPC_FLASH_RINGS entry count in npc_ships.py.
 
 
+@dataclasses.dataclass
+class PlayerCounters:
+    """Playstyle tracking counters for trait qualification.
+
+    All counters reset on death (fresh run). Incremented during
+    normal gameplay by combat, missions, and trade paths.
+
+    One field on :class:`GameContext` (``player_counters``) instead
+    of nine individual fields — extendable by adding a counter to
+    this dataclass and updating the trait catalog.
+    """
+    laser_shots: int = 0
+    missile_shots: int = 0
+    plasma_shots: int = 0
+    merchant_kills: int = 0
+    total_kills: int = 0
+    bounties_completed: int = 0
+    deliveries_completed: int = 0
+    total_damage_taken: int = 0
+    combat_flees: int = 0
+
+
 @dataclasses.dataclass(frozen=True)
 class BountySpawn:
     """A dynamically-placed bounty target enemy spawn.
@@ -230,3 +252,12 @@ class GameContext:
     # stored here so board_offerings can resolve them without the
     # static catalog.
     generated_missions: dict = dataclasses.field(default_factory=dict)
+    # XP & leveling (docs/design/in_progress/02_DESIGN_XP_LEVELING.md)
+    player_xp: int = 0
+    player_level: int = 1
+    player_skill_points: int = 0
+    player_gunnery_bonus: int = 0
+    player_piloting_bonus: int = 0
+    player_engineering_bonus: int = 0
+    player_traits: list[str] = dataclasses.field(default_factory=list)
+    player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)

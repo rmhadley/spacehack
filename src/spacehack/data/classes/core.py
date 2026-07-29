@@ -21,7 +21,7 @@ CLASSES: tuple[GameClass, ...] = (
         description="Lives beyond the law. Plunders and pillages.",
         hp_base=9,
         credits=1000,
-        skill_bonus=PilotSkills(gunnery=15, piloting=10, engineering=0),
+        skill_bonus=PilotSkills(gunnery=8, piloting=0, engineering=0),
     ),
     GameClass(
         id="merchant",
@@ -29,7 +29,7 @@ CLASSES: tuple[GameClass, ...] = (
         description="Trades goods across the systems.",
         hp_base=7,
         credits=1000,
-        skill_bonus=PilotSkills(gunnery=0, piloting=5, engineering=15),
+        skill_bonus=PilotSkills(gunnery=0, piloting=0, engineering=8),
     ),
     GameClass(
         id="bounty_hunter",
@@ -37,6 +37,6 @@ CLASSES: tuple[GameClass, ...] = (
         description="Hunts the wanted. Paid in credits.",
         hp_base=10,
         credits=1000,
-        skill_bonus=PilotSkills(gunnery=10, piloting=10, engineering=5),
+        skill_bonus=PilotSkills(gunnery=3, piloting=3, engineering=3),
     ),
 )

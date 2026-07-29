@@ -319,6 +319,18 @@ def complete_mission(
         f"+{xp}xp. ({cargo_after} cargo.){bonus_msg}"
     )
 
+    # --- XP gain ---
+    if ctx is not None and xp > 0:
+        from .xp import add_xp
+        add_xp(ctx, xp)
+        # Increment delivery/bounty counters.
+        if hasattr(ctx, 'player_counters'):
+            _mtype = getattr(active, 'mission_id', '')
+            if 'delivery' in _mtype.lower() or 'proc_delivery' in _mtype.lower():
+                ctx.player_counters.deliveries_completed += 1
+            elif 'bounty' in _mtype.lower() or 'proc_bounty' in _mtype.lower():
+                ctx.player_counters.bounties_completed += 1
+
     # --- Faction reputation changes ---
     if ctx is not None:
         _apply_mission_rep(active, ctx, is_early=bool(

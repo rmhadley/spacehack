@@ -76,16 +76,30 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         else:
             ctx.log.add(f"Victory! {len(_cr.defeated_names)} enemies destroyed.")
 
-        # Apply combat kill reputation changes per defeated enemy.
+        # Apply combat kill reputation changes + XP per defeated enemy.
         # Squad bonus (+1 to positive deltas) folds in when the
         # entire original group is wiped (2+ enemies).
         from ..faction import modify_rep, _COMBAT_KILL_DELTAS
         from ..data.npc_ships import find_npc_ship as _fns
+        from ..data.ships import find_ship as _find_ship_cat
+        from ..xp import add_xp as _add_xp
         _all_killed = len(_cr.defeated_spec_ids) == len(_specs)
         _squad_bonus = _all_killed and len(_cr.defeated_spec_ids) >= 2
         for _dsid in _cr.defeated_spec_ids:
             try:
                 _es = _fns(_dsid)
+                # Combat XP: enemy base hull * 2 per kill.
+                try:
+                    _sc = _find_ship_cat(_es.ship_id)
+                    _add_xp(ctx, _sc.base_hull * 2)
+                except (KeyError, ImportError):
+                    pass
+                # Playstyle kill counters.
+                if hasattr(ctx, 'player_counters'):
+                    ctx.player_counters.total_kills += 1
+                    if getattr(_es, 'faction', '') == 'merchant':
+                        ctx.player_counters.merchant_kills += 1
+                # Faction reputation deltas.
                 _deltas = _COMBAT_KILL_DELTAS.get(_es.faction, {})
                 for _fac, _delta in _deltas.items():
                     if _squad_bonus and _delta > 0:
