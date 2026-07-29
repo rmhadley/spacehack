@@ -404,14 +404,14 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 
 #### Checklist
 
-- [ ] Add compact XP bar to city HUD: `"LV 4 [#####-----]"` between key hints and footer
-- [ ] Add compact XP bar to space HUD: same format, same position
-- [ ] Extract `_render_xp_bar(value, max_val, width)` helper in `hud.py`
-- [ ] `add_xp()` logs `"+N XP"` on gain, `"Level N! 2 skill points earned."` on level-up
-- [ ] Character screen shows detailed XP progress bar using same helper
-- [ ] Add `C` to HUD key hints in both city and space modes
-- [ ] Verify XP bar renders with CP437-safe `#`/`-` chars on the tilesheet
-- [ ] Smoke test + commit
+- [x] Add compact XP bar to city HUD: `"LV 4 [#####-----]"` between key hints and footer
+- [x] Add compact XP bar to space HUD: same format, same position
+- [x] Extract `_render_xp_bar(value, max_val, width)` helper in `hud.py`
+- [x] `add_xp()` logs `"+N XP"` on gain, `"Level N! 2 skill points earned."` on level-up
+- [x] Character screen shows detailed XP progress bar using same helper
+- [x] Add `C` to HUD key hints in both city and space modes
+- [x] Verify XP bar renders with CP437-safe `#`/`-` chars on the tilesheet
+- [x] Smoke test + commit
 
 #### Playtest checklist
 
