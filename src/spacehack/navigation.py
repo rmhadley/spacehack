@@ -363,6 +363,42 @@ def _add_bounty_spawns_to_map(
                                 message_log.COLOR_IMPORTANT_EVENT)
 
 
+def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
+    """Remove the bounty spawn with ``spawn_id`` from
+    ``ctx.bounty_spawns[system_id]``, and from the current
+    ``ctx.game_map.entities`` if the player is in that system.
+
+    No-op if the spawn doesn't exist (e.g. was already removed).
+    """
+    if system_id is None or system_id not in ctx.bounty_spawns:
+        return
+    # Snapshot the spawn's position before filtering it out.
+    _pos_to_remove = None
+    for _bs in ctx.bounty_spawns[system_id]:
+        if _bs.spawn_id == spawn_id:
+            _pos_to_remove = _bs.pos
+            break
+    ctx.bounty_spawns[system_id] = [
+        _bs for _bs in ctx.bounty_spawns[system_id]
+        if _bs.spawn_id != spawn_id
+    ]
+    if _pos_to_remove is not None:
+        # Also remove the matching entity from the game_map if the
+        # player is currently in the spawn's system.
+        _cur_sys = getattr(solar_system_module.current_system(), 'id', None)
+        if _cur_sys == system_id and ctx.game_map is not None:
+            _target_entity = None
+            for _e in ctx.game_map.entities:
+                if not getattr(_e, 'owned', False) and _e.pos == _pos_to_remove:
+                    _target_entity = _e
+                    break
+            if _target_entity is not None:
+                try:
+                    ctx.game_map.entities.remove(_target_entity)
+                except ValueError:
+                    pass
+
+
 # ---------------------------------------------------------------------------
 # Combat encounter detection
 # ---------------------------------------------------------------------------

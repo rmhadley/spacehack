@@ -62,7 +62,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.log.add("Ship catalog mismatch — cannot start combat.")
         return "FLEE"
 
-    _combat_result, _defeated_ids, _defeated_names, _defeated_bounty_ids = run_combat(
+    _cr = run_combat(
         console, ctx.context,
         _ship_cat, ctx.player_owned_ship,
         ctx.player.pos, _pilot_skills,
@@ -70,11 +70,11 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.game_map, ctx.log, ctx,
     )
 
-    if _combat_result == "VICTORY":
-        if len(_defeated_names) == 1:
-            ctx.log.add(f"Victory! {_defeated_names[0]} destroyed.")
+    if _cr.outcome == "VICTORY":
+        if len(_cr.defeated_names) == 1:
+            ctx.log.add(f"Victory! {_cr.defeated_names[0]} destroyed.")
         else:
-            ctx.log.add(f"Victory! {len(_defeated_names)} enemies destroyed.")
+            ctx.log.add(f"Victory! {len(_cr.defeated_names)} enemies destroyed.")
 
         # Check bounty completion: match defeated bounty_spawn_ids
         # collected during combat against active missions. Only the
@@ -82,7 +82,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         _missions = getattr(ctx, 'player_active_missions', [])
         for _m in _missions:
             _m_spawn = getattr(_m, 'bounty_spawn_id', None)
-            if _m_spawn is not None and _m_spawn in _defeated_bounty_ids:
+            if _m_spawn is not None and _m_spawn in _cr.defeated_bounty_ids:
                 from ..mission import complete_mission as _complete
                 _today = ctx.time_day + (ctx.time_month - 1) * 30
                 _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today)
@@ -95,12 +95,8 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 ctx.player_active_missions = _missions
                 ctx.log.add(f"Bounty complete! {_m.title}")
                 # Clean up the BountySpawn so re-detect doesn't find it.
-                _spawn_sys = getattr(_m, 'target_system_id', None)
-                if _spawn_sys and _spawn_sys in ctx.bounty_spawns:
-                    ctx.bounty_spawns[_spawn_sys] = [
-                        _bs for _bs in ctx.bounty_spawns[_spawn_sys]
-                        if getattr(_bs, 'spawn_id', '') != _m_spawn
-                    ]
+                from ..navigation import _remove_bounty_spawn
+                _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
 
         # Remove dead enemies from the game map.
         # _remove_dead_entity handles individual kills during combat.
@@ -109,14 +105,14 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         for _e in list(ctx.game_map.entities):
             _e_spec = getattr(_e, 'npc_ship_id', None)
             _e_bounty = getattr(_e, 'bounty_spawn_id', None)
-            if _e_spec is not None and _e_spec in _defeated_ids and _e_bounty is None:
+            if _e_spec is not None and _e_spec in _cr.defeated_spec_ids and _e_bounty is None:
                 ctx.game_map.entities.remove(_e)
 
-    elif _combat_result == "DEFEAT":
+    elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
         _render_death_screen(console, ctx.context, ctx.log)
 
-    return _combat_result
+    return _cr.outcome
 
 
 def _render_death_screen(console, context, log) -> None:

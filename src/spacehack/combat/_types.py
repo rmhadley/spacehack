@@ -54,3 +54,14 @@ class EnemyInstance:
     cells_moved_this_turn: int = 0
     shield_regen_rate: int = 0
     alive: bool = True
+
+
+@dataclass
+class CombatResult:
+    """Bundles the outcome and defeated-entity tracking from a combat
+    encounter. Returned by :func:`run_combat` so callers access named
+    fields instead of unpacking a naked tuple."""
+    outcome: str = "FLEE"  # "VICTORY", "DEFEAT", or "FLEE"
+    defeated_spec_ids: list[str] = field(default_factory=list)
+    defeated_names: list[str] = field(default_factory=list)
+    defeated_bounty_ids: list[str] = field(default_factory=list)

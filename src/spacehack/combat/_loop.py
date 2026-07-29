@@ -29,7 +29,7 @@ from ._actions import (
     move_entity,
     _sync_back_hull,
 )
-from ._types import EnemyInstance
+from ._types import EnemyInstance, CombatResult
 from ._stats import (
     init_combat_state,
     calc_hit_chance,
@@ -232,12 +232,7 @@ def run_combat(
 
     _c_log(f"Combat starts! {len(enemy_insts)} enemy ship(s): "
            + ", ".join(e.name for e in enemy_insts))
-    # Track which enemy spec IDs were defeated (for bounty completion).
-    _defeated_spec_ids: list[str] = []
-    # Track defeated enemy names for the victory message.
-    _defeated_names: list[str] = []
-    # Track defeated bounty spawn IDs (only set on bounty target entities).
-    _defeated_bounty_ids: list[str] = []
+    _cr = CombatResult()
     start_player_turn(player_state)
 
     view_w = 80
@@ -525,7 +520,7 @@ def run_combat(
                         weapons_list, active_weapons,
                         _weapon_hit_chances, _evade_bonus,
                         view_w, view_h, _calc_cam,
-                        _defeated_spec_ids, _defeated_names, _defeated_bounty_ids, _closest_enemy,
+                        _cr, _closest_enemy,
                         _flee_chance,
                     )
                     break
@@ -553,4 +548,5 @@ def run_combat(
         # Always persist hull damage, even on FLEE/DEFEAT.
         _sync_back_hull(player_state, player_owned_ship)
 
-    return _result, _defeated_spec_ids, _defeated_names, _defeated_bounty_ids
+    _cr.outcome = _result
+    return _cr
