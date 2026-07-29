@@ -772,6 +772,14 @@ _BOUNTY_ADJECTIVES: tuple[str, ...] = (
     "Vile", "Pale", "Dead", "Cold", "Grave", "Midnight",
     "Scarred", "Jagged", "Shade", "Spectral", "Cursed", "Flint",
     "Thunder", "Onyx", "Deep", "Feral", "Raven", "Wild",
+    "Bitter", "Bleak", "Blind", "Bloody", "Blunt", "Brass",
+    "Brazen", "Burning", "Charred", "Chrome", "Copper", "Corroded",
+    "Cracked", "Crude", "Dread", "Drowned", "Dusty", "Fallen",
+    "Fiery", "Flaming", "Forged", "Fractured", "Frozen", "Fuming",
+    "Gilded", "Glassy", "Gleaming", "Gloom", "Glowing", "Golden",
+    "Granite", "Haunted", "Howling", "Hungry", "Hushed", "Icy",
+    "Keen", "Lethal", "Livid", "Lonely", "Meridian", "Molten",
+    "Mortal", "Nocturnal", "Quick", "Reckless", "Restless", "Rusted",
 )
 
 _BOUNTY_FIRST_NAMES: tuple[str, ...] = (
@@ -784,7 +792,16 @@ _BOUNTY_FIRST_NAMES: tuple[str, ...] = (
     "Raven", "Storm", "Blaze", "Jinx", "Sol", "Wren",
     "Vesper", "Flint", "Ridge", "Vale", "Mara", "Toren",
     "Shae", "Elyse", "Doran", "Kestrel", "Nyx", "Korra",
+    "Alden", "Astra", "Bex", "Briar", "Calyx", "Cass",
+    "Cinder", "Cypher", "Dash", "Dove", "Draven", "Dune",
+    "Elara", "Ember", "Faye", "Gage", "Galen", "Garnet",
+    "Harlow", "Haven", "Iris", "Ivory", "Jade", "Jorah",
+    "Kaida", "Lark", "Lira", "Lorn", "Mace", "Maren",
+    "Maven", "Nash", "Niam", "Oren", "Orion",
+    "Palen", "Pax", "Rayne", "Reed", "Riven", "Rowan",
+    "Salem", "Soren", "Sylvan", "Torin", "Vance",
 )
+
 
 
 def _generate_bounty_name(tier: int, rng: random.Random) -> str:
