@@ -763,31 +763,40 @@ def generate_delivery_mission(
 # Procedural bounty mission generator
 # ---------------------------------------------------------------------------
 
-_BOUNTY_NAME_PREFIXES: dict[int, tuple[str, ...]] = {
-    1: ("Rookie", "Deserter", "Wanted", "Marked"),
-    2: ("Fugitive", "Smuggler", "Outlaw", "Notorious"),
-    3: ("Hunted", "Infamous", "Vicious", "Feared"),
-    4: ("Dread", "Warlord", "Legendary", "Cursed"),
-}
+_BOUNTY_ADJECTIVES: tuple[str, ...] = (
+    "Crimson", "Shadow", "Iron", "Silver", "Black", "Red",
+    "Void", "Ghost", "Rust", "Bone", "Ash", "Frost",
+    "Storm", "Venom", "Blade", "Fang", "Claw", "Wraith",
+    "Dusk", "Ember", "Rogue", "Savage", "Cinder", "Obsidian",
+    "Scorch", "Drift", "Hollow", "Broken", "Silent", "Grim",
+    "Vile", "Pale", "Dead", "Cold", "Grave", "Midnight",
+    "Scarred", "Jagged", "Shade", "Spectral", "Cursed", "Flint",
+    "Thunder", "Onyx", "Deep", "Feral", "Raven", "Wild",
+)
 
-_BOUNTY_NAME_TITLES: dict[int, tuple[str, ...]] = {
-    1: ("Scavenger", "Runner", "Rat", "Drifter"),
-    2: ("Corsair", "Hauler", "Runner", "Dealer"),
-    3: ("Marauder", "Raider", "Enforcer", "Reaver"),
-    4: ("Captain", "Overlord", "Wraith", "Reaper"),
-}
+_BOUNTY_FIRST_NAMES: tuple[str, ...] = (
+    "Jack", "Kai", "Nova", "Rex", "Vex", "Zara",
+    "Finn", "Mira", "Cole", "Sera", "Jax", "Vega",
+    "Lyra", "Kira", "Zane", "Rook", "Tessa", "Orin",
+    "Cora", "Dax", "Luna", "Rhea", "Thane", "Arya",
+    "Kael", "Nyla", "Talon", "Sasha", "Remy", "Jett",
+    "Quinn", "Phoenix", "River", "Sky", "Echo", "Sparrow",
+    "Raven", "Storm", "Blaze", "Jinx", "Sol", "Wren",
+    "Vesper", "Flint", "Ridge", "Vale", "Mara", "Toren",
+    "Shae", "Elyse", "Doran", "Kestrel", "Nyx", "Korra",
+)
 
 
 def _generate_bounty_name(tier: int, rng: random.Random) -> str:
-    """Generate a tier-appropriate bounty target name.
+    """Generate a bounty target name like "Crimson Jack".
 
-    Picks a random prefix + title from the tier-gated pools.
-    Tier is clamped to 1-4.
+    Picks a random adjective + first name from flat pools.
+    Tier is accepted but ignored (all names available at all tiers)
+    to keep the naming flexible.
     """
-    _t = max(1, min(4, tier))
-    _pre = rng.choice(_BOUNTY_NAME_PREFIXES[_t])
-    _tit = rng.choice(_BOUNTY_NAME_TITLES[_t])
-    return f"{_pre} {_tit}"
+    _adj = rng.choice(_BOUNTY_ADJECTIVES)
+    _fn = rng.choice(_BOUNTY_FIRST_NAMES)
+    return f"{_adj} {_fn}"
 
 
 def _bounty_enemy_pool(tier: int) -> list[str]:
