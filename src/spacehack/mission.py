@@ -668,8 +668,9 @@ def generate_delivery_mission(
     # 6. Deadline: 4 days per hop + random 2-6 days.
     deadline = max(3, hops * 4 + rng.randint(2, 6))
 
-    # 7. Reward: credits = cargo * 10 * tier, xp = cargo * 2 * tier.
-    credits = cargo * 10 * tier
+    # 7. Reward: credits scale by cargo * 5 * (tier + 1) so tier ranges
+    #    match the design doc: T1 50-100, T2 150-300, T3 400-800, T4 1000-1500.
+    credits = cargo * 5 * (tier + 1)
     xp = cargo * 2 * tier
 
     # 8. Generated ID: unique per run, deterministic from RNG state.
