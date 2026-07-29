@@ -78,6 +78,7 @@ def _fire_weapons(
     _cr: CombatResult,
     _closest_enemy,
     flee_chance: int,
+    ctx = None,
 ) -> None:
     """Fire all active weapons at the current target.
 
@@ -130,6 +131,17 @@ def _fire_weapons(
         if not _target_enemy.alive:
             break
         _fws = find_weapon(_fwid)
+
+        # Increment per-weapon shot counter (trait tracking).
+        if ctx is not None:
+            _slot = _fws.slot_type
+            if _slot == "energy":
+                ctx.player_counters.laser_shots += 1
+            elif _slot == "missile":
+                ctx.player_counters.missile_shots += 1
+            elif _slot == "plasma":
+                ctx.player_counters.plasma_shots += 1
+
         # Calculate hit chance (respect target state).
         _player_dist = _distance(player_state["pos"], _target_pos)
         _target_dodge = _calc_dodge_bonus(

@@ -64,6 +64,7 @@ def _run_enemy_turn(
     view_w: int,
     view_h: int,
     _calc_cam,
+    ctx = None,
 ) -> str | None:
     """Execute the AI turn for all alive enemies.
 
@@ -182,6 +183,8 @@ def _run_enemy_turn(
                         )
                         player_state["shields"] = max(0, player_state["shields"] - _sdmg)
                         player_state["hull"] = _fh
+                        if ctx is not None:
+                            ctx.player_counters.total_damage_taken += _dmg
                         _verb = "glancing hit" if _is_glancing else "hits"
                         _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!", log)
                         if _fh <= 0:

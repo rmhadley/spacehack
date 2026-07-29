@@ -98,7 +98,14 @@ def open_character_screen(ctx: GameContext) -> None:
         # Traits.
         _traits = ctx.player_traits
         if _traits:
-            _trait_str = ", ".join(t.title().replace("_", " ") for t in _traits)
+            _names: list[str] = []
+            from .data.traits.core import find_trait as _find_trait
+            for _tid in _traits:
+                try:
+                    _names.append(_find_trait(_tid).name)
+                except KeyError:
+                    _names.append(_tid)
+            _trait_str = ", ".join(_names)
         elif _level < 20:
             _trait_str = f"(unlock at level 20 — need {20 - _level} more)"
         else:

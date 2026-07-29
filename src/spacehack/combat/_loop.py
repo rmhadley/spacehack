@@ -303,6 +303,7 @@ def run_combat(
                     weapons_list, active_weapons,
                     _weapon_hit_chances, _evade_bonus,
                     flee_attempts, view_w, view_h, _calc_cam,
+                    ctx=ctx,
                 )
                 if _result is not None:
                     break
@@ -509,6 +510,8 @@ def run_combat(
                     )
                     if RNG.randint(1, 100) <= _chance:
                         _p_log("You fled!")
+                        if ctx is not None:
+                            ctx.player_counters.combat_flees += 1
                         _result = "FLEE"
                         break
                     else:
@@ -549,6 +552,7 @@ def run_combat(
                         view_w, view_h, _calc_cam,
                         _cr, _closest_enemy,
                         _flee_chance,
+                        ctx=ctx,
                     )
                     break
 

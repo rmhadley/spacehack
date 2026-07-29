@@ -62,9 +62,10 @@ def add_xp(ctx: GameContext, amount: int) -> None:
             _msg += " Choose a trait (C key)."
         ctx.log.add_colored(_msg, _ml.COLOR_COMBAT_EVENT)
 
-        # Trait selection at milestones (deferred to Phase 4).
+        # Trait selection at milestones.
         if ctx.player_level in (20, 30):
-            pass  # TODO: Phase 4 — _open_trait_selection(ctx)
+            from .trait_screen import open_trait_selection
+            open_trait_selection(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -100,3 +101,45 @@ def _apply_skill_point(ctx: GameContext, skill: str) -> bool:
 def has_trait(ctx: GameContext, trait_id: str) -> bool:
     """Check if the player has taken *trait_id*."""
     return trait_id in ctx.player_traits
+
+
+# ---------------------------------------------------------------------------
+# Trait qualification
+# ---------------------------------------------------------------------------
+
+_SKILL_FIELDS: frozenset[str] = frozenset({"gunnery", "piloting", "engineering"})
+
+
+def _qualifying_traits(ctx: GameContext) -> list:
+    """Return traits the player qualifies for (not already chosen).
+
+    Scans :data:`data.traits.core.ALL_TRAITS`, checks each trait's
+    counter requirements against ``ctx.player_counters`` (for
+    playstyle counters) and ``ctx.stats`` (for skill fields like
+    gunnery). Excludes traits already in ``ctx.player_traits``.
+    """
+    from .data.traits.core import ALL_TRAITS
+    _qualified: list = []
+    _have = set(ctx.player_traits)
+    for _trait in ALL_TRAITS:
+        if _trait.id in _have:
+            continue
+        _met = True
+        for _field, _min in _trait.counters:
+            if _field in _SKILL_FIELDS:
+                if getattr(ctx.stats, _field, 0) < _min:
+                    _met = False
+                    break
+            else:
+                if getattr(ctx.player_counters, _field, 0) < _min:
+                    _met = False
+                    break
+        if _trait.rep_required is not None:
+            _faction, _attitude = _trait.rep_required
+            from .faction import get_attitude as _ga
+            _rep = ctx.faction_reputation.get(_faction, 0)
+            if _ga(_rep) != _attitude:
+                _met = False
+        if _met:
+            _qualified.append(_trait)
+    return _qualified
