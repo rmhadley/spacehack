@@ -307,7 +307,7 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 
 ### Phase 3: Combat rep changes ✅
 
-#### Pre-implementation audit (guardrail 5)
+*[Implemented and playtested — see playtest checklist below]*
 
 **1. Existing modules to extend/reuse:**
 - ``faction.py`` — ``modify_rep()`` already handles clamping/logging/zone-boundary messages; ``_MISSION_REP_DELTAS`` pattern to follow for combat tables
@@ -366,18 +366,40 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 
 ---
 
-### Phase 4: Hostility + mission gating
+### Phase 4: Hostility + mission gating ✅
 
-- [ ] Add `modify_mission_tier(planet_tier, attitude) -> int` helper to `faction.py`
-- [ ] Wire attitude-adjusted tiers into `fill_empty_slots` for procedural missions
-- [ ] Wire attitude-adjusted pay scaling into mission generation (apply % bonus/penalty to `reward_credits`)
-- [ ] Add enemy hostility to NPC movement: in `npcs_ships.py`, check attitude and set hostile target for `"enemy"` factions (deterministic, no probability check)
-- [ ] Smoke test + commit
+#### Pre-implementation audit (guardrail 5)
+
+**1. Existing modules to extend/reuse:**
+- ``faction.py`` — ``get_attitude()`` already maps rep → zone; ``_ALL_FACTIONS`` for guild→faction mapping
+- ``mission.py`` — ``fill_empty_slots()`` already computes tier and generates missions; pass ``ctx`` for rep lookup
+- ``npc_ships.py`` — ``move_npcs()`` already iterates NPCs by faction; add hostility check before patrol logic
+- ``__main__.py`` — NPC talk flow already checks ``TalkOutcome.WORK``; add enemy gate before mission offering
+
+**2. Three duplication hotspots:**
+- **(a) Guild → faction mapping.** Every call site that needs to know which faction a board belongs to would re-derive this from NPC properties. Fix: ``guild_to_faction()`` pure helper in ``faction.py`` — table lookup, single source of truth.
+- **(b) Faction attitude resolution in fill_empty_slots.** Tier adjustment and pay scaling both needed the same guild→faction→rep→attitude chain. Fix: compute ``_board_attitude`` once, reuse for both adjustments.
+- **(c) Hostility check between move_npcs and _detect_combat_encounter.** Both need to know if an NPC should auto-engage. Fix: ``get_attitude()`` is the single check — ``move_npcs`` overrides target for enemy NPCs, ``_detect_combat_encounter`` handles proximity detection (existing).
+
+**3. DRY strategy:**
+- All gating helpers live in ``faction.py`` as pure functions
+- Board attitude computed once, stored as local — reused for tier + pay
+- Hostility: single ``get_attitude() == "enemy"`` check in ``move_npcs()``
+
+---
+
+- [x] Add ``guild_to_faction()``, ``adjust_mission_tier()``, ``adjust_reward_pct()`` to ``faction.py``
+- [x] Wire tier adjustment into ``fill_empty_slots()`` (enemy=no missions, disliked=-1 tier, liked=+1, allied=+2)
+- [x] Wire pay scaling into ``fill_empty_slots()`` (disliked -15%, liked +10%, allied +20%)
+- [x] Add enemy hostility to ``move_npcs()`` — enemy factions chase player (deterministic)
+- [x] Gate NPC talk in ``__main__.py`` — enemy NPCs refuse to speak
+- [x] Fix DRY: compute ``_board_attitude`` once, reuse for tier + pay
+- [x] Smoke test + commit (`8d4f11e`)
 
 #### DRY eval
 
-- [ ] Is the hostility check duplicated between `_tick_npcs` and `_detect_combat_encounter`? Should be one helper.
-- [ ] Are the pay-scaling and tier-modification formulas centralized in `faction.py`?
+- [x] Is the hostility check duplicated? ✅ — single ``get_attitude() == "enemy"`` check in ``move_npcs()``
+- [x] Are pay-scaling and tier-modification formulas centralized? ✅ — all in ``faction.py``
 
 #### Playtest checklist *(living — update as implementation reveals edge cases)*
 
