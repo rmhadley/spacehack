@@ -182,7 +182,7 @@ def render_hud(
     _xp_into_level = max(0, player_xp - _xp_total_for_level)
     _xp_needed = 50 + (player_level + 1) * 20
     _xp_bar = _render_xp_bar(_xp_into_level, _xp_needed)
-    _xp_line = f"LV {player_level}  [{_xp_bar}]"
+    _xp_line = f"LV {player_level:>2} [{_xp_bar}]"
 
     # Title — always at row 0
     console.print(
