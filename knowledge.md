@@ -109,6 +109,163 @@ The smoke test auto-mounts `.venv/bin/python3` so tcod is always resolved. It ve
 - **Gates beat playtests.** Run the smoke test before each commit to catch import errors and missing entry points.
 - **Terse code-shaped docs.** Skim-don't-read mode.
 
+### Code quality guardrails
+
+#### 1. State tables over conditional logic
+
+**Never** write chained `if`/`elif`/`else` blocks for state matching, type
+dispatching, or command routing when there are **3 or more branches**.
+Extract the conditional logic into a static table (dict, tuple, or mapping)
+and look up the result. Treat code execution as a table lookup where possible.
+
+**Threshold:** 2-branch `if`/`elif` is fine. The rule activates at 3+.
+
+**Exempt:** Sequential event-dispatch loops (e.g. ``__main__.py`` mode-gated
+key handling) where branch order, compound conditions, or fundamentally
+different side effects make a flat table obscure the control flow.
+
+**Before (violation):**
+```python
+if chosen == "Open Trade":
+    return _InteractionOutcome.TRADE
+elif chosen == "Attack":
+    return _InteractionOutcome.ATTACK
+elif chosen == "Scan Cargo":
+    return _InteractionOutcome.SCAN
+else:
+    return _InteractionOutcome.BACK
+```
+
+**After (table-driven):**
+```python
+_COMMAND_OUTCOME = {
+    "Open Trade": _InteractionOutcome.TRADE,
+    "Attack":      _InteractionOutcome.ATTACK,
+    "Scan Cargo":  _InteractionOutcome.SCAN,
+}
+return _COMMAND_OUTCOME.get(chosen, _InteractionOutcome.BACK)
+```
+
+**For fat branches** (≥5 lines per case), extract the body of each branch
+into a named module-level function and dispatch to it via a handler dict:
+
+```python
+_HANDLERS = {
+    "weapon":  _handle_buy_weapon,
+    "module":  _handle_buy_module,
+    "slot":    _handle_sell_slot,
+}
+handler = _HANDLERS.get(item_type)
+if handler:
+    handler(ctx, owned, ship_spec, item_id)
+```
+
+**What this project already does right (table-driven data):**
+- Every ``data/`` catalog — ``_BY_ID: dict[str, Spec]`` with ``find_*(id)``
+- ``world.VIM_DELTAS: dict[str, tuple[int, int]]`` — key name → dx,dy
+- ``faction._SPECIES_REP`` / ``faction._CLASS_REP`` — species/class → rep delta
+- ``world.BUILDING_LABEL_COLORS: dict[str, tuple]`` — building label → colour
+
+#### 2. Single Responsibility Principle (SRP)
+
+Every function must do exactly **one thing** — if you can't describe it with
+a simple verb phrase (no "and"), split it into private helpers prefixed with
+``_``.
+
+**Line-count rules:**
+
+| Lines | Rule |
+|-------|------|
+| **≤25** | The sweet spot. The project's cleanest code (``ship.py``, ``faction.py``, ``character.py``) already lives here — 90% of functions are 2–21 lines. |
+| **26–40** | Allowed only if the function passes the "one verb phrase" test. Modal runners (``ui.Modal(...).run(...)``), render functions with multiple visual sections, and complex pure-formula functions may legitimately reach this range — but ask yourself: *"could this be two functions?"* |
+| **>40** | **Never allowed.** Always split. Every function in this range in the current codebase is doing multiple things by definition. |
+
+**How to split:** Extract logical sections into private module-level helpers.
+If a helper needs closure over local state, consider whether that state
+should be a parameter instead. Example — a 60-line function with three
+sections becomes:
+
+```python
+def _do_thing(ctx, data):
+    _validate_inputs(data)
+    result = _compute_result(data)
+    _apply_result(ctx, result)
+```
+
+**Exempt:** The top-level game loop ``_run_game`` in ``__main__.py`` is a
+known legacy violation (~500 lines). New features must not add to it —
+extract to domain modules per the "Adding a new game domain" convention.
+When refactoring it, split into ``_handle_key_dispatch``,
+``_handle_wall_bump``, ``_handle_occupied_bump``, etc.
+
+#### 3. Composition over inheritance
+
+**Never** use class inheritance for domain logic. Keep inheritance flat —
+maximum **1 level deep** — and restricted to standard-library base classes
+(``Enum``, ``RuntimeError``, ``TypedDict``). Prefer ``@dataclass`` with
+explicit composition over deep hierarchies.
+
+**Dependency injection:** Classes that need collaborators must accept them
+via their constructor — never instantiate their own sub-components internally.
+
+**What this project already does right:**
+- Every domain class is a ``@dataclass`` — zero inheritance hierarchies.
+- ``ui.Modal(context, console)`` — both dependencies injected at construction.
+- ``MessageLog(capacity)`` — configuration injected.
+- Domain functions take ``ctx`` as first parameter — parameter-based DI
+  instead of hidden global state.
+
+**Before (violation):**
+```python
+class PirateShip(EnemyShip):          # 2-level hierarchy
+    def __init__(self):
+        self.weapon = LaserCannon()   # instantiates own dependency
+```
+
+**After (composition):**
+```python
+@dataclass
+class PirateShip:
+    weapon: WeaponSpec                # injected, swappable, testable
+```
+
+#### 4. Pure functions for computation, explicit mutation for actions
+
+**Utility and computation functions must be pure:** take explicit inputs, return
+new values, never mutate their arguments, and never produce side effects
+(logging, I/O, state mutation). Use ``@dataclass(frozen=True)`` for static
+data containers — the project already does this for all 24+ data specs.
+
+**Domain action functions** that need to mutate game state (``ctx``) are
+allowed, but the computation and the mutation should live in **separate
+functions**:
+
+```python
+# Pure computation (testable, no ctx)
+def _calc_price(base: int, stock: int, target: int) -> int:
+    ...
+
+# Thin mutation wrapper (orchestrates, calls pure helpers)
+def _buy_good(ctx, planet_id, good_id, qty):
+    price = _calc_price(base, stock, target)
+    ctx.stats.credits -= price * qty
+    ctx.log.add(f"Bought {qty}x {good.name} for {price*qty}$.")
+```
+
+**What this project already does right:**
+- ``combat/_stats.py`` — every function is pure (``calc_hit_chance``,
+  ``calc_flee_chance``, ``_calc_hull``, etc.). Module docstring explicitly
+  states "deterministic … suitable for testing in isolation."
+- ``faction.py`` — ``get_attitude``, ``starting_reputation`` are pure.
+- ``ship.py`` — ``total_ammo_cargo``, ``effective_speed``, ``_sell_price``
+  are pure.
+- ``trade.py`` — ``trade_price()`` is pure; ``_buy_good()`` / ``_sell_good()``
+  call it then mutate ``ctx`` (computation separated from mutation).
+- All 24+ data specs in ``data/`` use ``@dataclass(frozen=True)``.
+
+**Exempt:** Render functions (painting to console is inherently a side
+effect), modal runners, and the top-level game loop.
+
 ## Screen constants (in `engine.py`)
 ```python
 SCREEN_WIDTH   = 100
@@ -146,7 +303,41 @@ When the user says "let's design X", the agent MUST first check if a design doc 
 1. Create `docs/design/in_progress/<feature>.md`
 2. Structure it with: overview, philosophy alignment table, data model, domain changes, phased implementation plan with checkboxes, acceptance criteria, open questions
 3. Include a **PLAYTEST** section in each phase with concrete steps the user can follow
-4. **Do NOT start implementation yet** — present the doc to the user for feedback first
+4. **Do NOT start implementation yet** — present the doc to the user for feedback first.
+
+### Pre-implementation audit (MANDATORY before writing code)
+
+After the design doc is approved but **before writing any code**, you MUST
+scan the codebase and add a **"Pre-implementation audit"** section to the
+design doc covering three items:
+
+1. **Existing classes / modules to extend or reuse.**
+   List every module, class, helper, or pattern already in the project that
+   the new feature can build on. Include concrete file paths and function
+   names. Examples:
+   - ``EnemyInstance`` (``combat/_types.py``) can be reused for crew members
+   - ``BountySpawn`` lifecycle (``game_context.py`` → ``__main__.py`` spawn
+     + ``navigation.py`` cleanup) can be reused for heist targets
+   - ``ui.render_selectable_list`` can render the faction standings viewer
+   - ``world.Entity`` with ``loot_data`` can place interactable wrecks
+
+2. **Three potential duplication hotspots.**
+   Predict where the implementation might accidentally duplicate existing
+   logic. Common traps:
+   - Copy-pasting an ``Entity(...)`` construction block instead of reusing a
+     factory helper
+   - Re-implementing a path-computation loop that already exists
+   - Duplicating a modal runner pattern instead of reusing
+     ``ui.Modal(ctx.context, console).run(render_fn, update_fn)``
+
+3. **DRY strategy for each hotspot.**
+   Describe the specific approach: extract a shared helper, parameterize an
+   existing function, or use a table-driven dispatch instead of copy-pasted
+   conditionals. Reference the relevant guardrail from this document where
+   applicable.
+
+Update this audit section as the implementation reveals surprises — it's a
+living part of the design doc alongside the playtest checklists.
 
 ### Iterating — doc stays the contract
 
