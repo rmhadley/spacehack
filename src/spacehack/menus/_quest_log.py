@@ -69,34 +69,57 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         console.print(
             x=ui.centered_x(text, screen_width), y=row, string=text,
             fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION,
-        )
-
-    # Detail pane for selected mission
+        )        # Detail pane for selected mission
     if 0 <= selected < len(missions):
         am = missions[selected]
         detail_top = list_top + len(missions) * 2 + 1
+        _is_bounty = am.target_enemy_id is not None and am.target_system_id is not None
 
-        if am.delivery_target_planet_id:
-            _planet_name = am.delivery_target_planet_id
-            try:
-                from ..data.planets import find_planet_spec as _fps_q
-                _planet_name = _fps_q(am.delivery_target_planet_id).name
-            except (KeyError, ImportError):
-                pass
-            _npc_name = ""
-            if am.delivery_target_npc_id:
+        # Delivery-specific fields.
+        if not _is_bounty:
+            if am.delivery_target_planet_id:
+                _planet_name = am.delivery_target_planet_id
                 try:
-                    from ..data.npcs import find_npc as _fnpc_q
-                    _npc_name = f" ({_fnpc_q(am.delivery_target_npc_id).name})"
+                    from ..data.planets import find_planet_spec as _fps_q
+                    _planet_name = _fps_q(am.delivery_target_planet_id).name
                 except (KeyError, ImportError):
                     pass
-            paint(detail_top, fit(f'Deliver to: {_planet_name}{_npc_name}'), fg=ui.COLOR_VALUE_WHITE)
+                _npc_name = ""
+                if am.delivery_target_npc_id:
+                    try:
+                        from ..data.npcs import find_npc as _fnpc_q
+                        _npc_name = f" ({_fnpc_q(am.delivery_target_npc_id).name})"
+                    except (KeyError, ImportError):
+                        pass
+                paint(detail_top, fit(f'Deliver to: {_planet_name}{_npc_name}'), fg=ui.COLOR_VALUE_WHITE)
+                detail_top += 1
+            if am.required_cargo_size > 0:
+                paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
+                detail_top += 1
+
+        # Bounty-specific display.
+        if _is_bounty:
+            # Status: Hunting (gold accent).
+            paint(detail_top, fit(f'\u23f3 Hunting'), fg=ui.COLOR_OPTION_HIGHLIGHT)
             detail_top += 1
-        if am.required_cargo_size > 0:
-            paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
+            # Danger level based on tier + squad size.
+            _t = getattr(am, 'tier', 1)
+            _sq = getattr(am, 'bounty_target_squad_size', 1)
+            if _t >= 4 and _sq >= 2:
+                _danger = "Extreme"
+                _danger_fg = (255, 60, 60)
+            elif _t >= 3:
+                _danger = "High"
+                _danger_fg = (255, 140, 60)
+            elif _t >= 2:
+                _danger = "Moderate"
+                _danger_fg = (255, 200, 100)
+            else:
+                _danger = "Low"
+                _danger_fg = (140, 200, 140)
+            paint(detail_top, fit(f'Danger: {_danger}'), fg=_danger_fg)
             detail_top += 1
-        # Bounty mission display: show target name + system.
-        if am.target_enemy_id and am.target_system_id:
+            # Target name + system + wingmates.
             _target_name = am.bounty_target_name or am.target_enemy_id
             try:
                 from ..data.solar_systems import find_solar_system as _fss_q
@@ -106,6 +129,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             _squad_str = f" + {am.bounty_target_squad_size - 1} wingmates" if am.bounty_target_squad_size > 1 else ""
             paint(detail_top, fit(f'Target: {_target_name} ({_target_sys_name}){_squad_str}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
+
         paint(detail_top, fit(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
         if am.time_deadline is not None:

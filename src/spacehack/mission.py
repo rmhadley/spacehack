@@ -85,6 +85,7 @@ class ActiveMission:
     bounty_target_name: str | None = None
     bounty_target_squad_size: int = 1
     bounty_target_loadout_pct: int = 0
+    tier: int = 1
 
     # Deadline
     time_deadline: tuple[int, int, int] | None = None  # (day, month, year)

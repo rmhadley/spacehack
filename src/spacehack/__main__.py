@@ -602,6 +602,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                             bounty_target_name=getattr(picked, 'bounty_target_name', None),
                                             bounty_target_squad_size=getattr(picked, 'bounty_target_squad_size', 1),
                                             bounty_target_loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
+                                            tier=picked.tier,
                                         )
                                         mission_module.commit_accept_mission(
                                             picked, player_owned_ship, log,
