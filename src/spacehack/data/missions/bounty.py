@@ -33,7 +33,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         target_enemy_id="pirate_scout",
         target_system_id="sol",
         bounty_target_name="Crimson Jack",
-        bounty_target_squad_size=1,
+        bounty_target_squad_size=2,
         bounty_target_loadout_pct=20,
         origin_planet_id="earth",
     ),

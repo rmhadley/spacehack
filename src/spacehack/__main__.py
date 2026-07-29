@@ -535,23 +535,45 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                         _bounty_spawn_id: str | None = None
                                         if picked.target_enemy_id is not None and picked.target_system_id is not None:
                                             _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
+                                            _squad_size = getattr(picked, 'bounty_target_squad_size', 1)
                                             try:
                                                 _target_sys = solar_systems_module.find_solar_system(picked.target_system_id)
                                                 _spawn_pos = _pick_bounty_spawn_pos(_target_sys)
                                                 if _spawn_pos is not None:
                                                     from .game_context import BountySpawn
+                                                    # Leader BountySpawn.
                                                     _bs = BountySpawn(
                                                         spawn_id=_bounty_spawn_id,
                                                         enemy_id=picked.target_enemy_id,
                                                         pos=_spawn_pos,
                                                         bounty_target_name=getattr(picked, 'bounty_target_name', None),
-                                                        squad_size=getattr(picked, 'bounty_target_squad_size', 1),
+                                                        squad_size=_squad_size,
                                                         loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
                                                     )
                                                     if picked.target_system_id not in ctx.bounty_spawns:
                                                         ctx.bounty_spawns[picked.target_system_id] = []
                                                     ctx.bounty_spawns[picked.target_system_id].append(_bs)
-                                                    log.add(f"Bounty target marked in {_target_sys.name}.")
+                                                    # Wingmate BountySpawns (squad_size > 1).
+                                                    # Positioned in a line east of the leader.
+                                                    _wing_offsets = [(2, 0), (-2, 0), (0, 2), (0, -2)]
+                                                    for _wi in range(min(_squad_size - 1, len(_wing_offsets))):
+                                                        _wox, _woy = _wing_offsets[_wi]
+                                                        _wpos = world.Position(_spawn_pos.x + _wox, _spawn_pos.y + _woy)
+                                                        if 0 <= _wpos.x < _target_sys.width and 0 <= _wpos.y < _target_sys.height:
+                                                            _wbs = BountySpawn(
+                                                                spawn_id=f"{_bounty_spawn_id}_wing{_wi}",
+                                                                enemy_id=picked.target_enemy_id,
+                                                                pos=_wpos,
+                                                                bounty_target_name=None,
+                                                                squad_size=_squad_size,
+                                                                loadout_pct=0,
+                                                                squad_group_id=_bounty_spawn_id,
+                                                            )
+                                                            ctx.bounty_spawns[picked.target_system_id].append(_wbs)
+                                                    _squad_note = f" ({_squad_size}-ship squad)" if _squad_size > 1 else ""
+                                                    log.add(f"Bounty target marked in {_target_sys.name}.{_squad_note}")
+                                            except KeyError:
+                                                pass
                                             except KeyError:
                                                 pass
                                         # Compute deadline if mission has one.

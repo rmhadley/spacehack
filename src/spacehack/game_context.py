@@ -88,6 +88,11 @@ class BountySpawn:
     :attr:`GameContext.bounty_spawns` so the target persists across
     system transitions. The ``spawn_id`` is a unique key that links
     back to :attr:`mission_module.ActiveMission.bounty_spawn_id`.
+
+    For squad bounties (``squad_size > 1``), the leader's
+    ``spawn_id`` is stored on the mission while wingmates have
+    distinct ``spawn_id`` values and reference the leader via
+    ``squad_group_id`` so they can be cleaned up together.
     """
     spawn_id: str
     enemy_id: str
@@ -95,6 +100,7 @@ class BountySpawn:
     bounty_target_name: str | None = None
     squad_size: int = 1
     loadout_pct: int = 0
+    squad_group_id: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)

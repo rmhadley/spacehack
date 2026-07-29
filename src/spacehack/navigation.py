@@ -357,7 +357,7 @@ def _add_bounty_spawns_to_map(
         )
         _ent.bounty_spawn_id = _bs.spawn_id
         game_map.entities.append(_ent)
-        if _system is not None:
+        if _system is not None and _bs.squad_group_id is None:
             _landmark = _nearest_body_name(_bs.pos, _system)
             ctx.log.add_colored(f"Sensor ping: bounty target detected near {_landmark}.",
                                 message_log.COLOR_IMPORTANT_EVENT)
@@ -368,35 +368,42 @@ def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
     ``ctx.bounty_spawns[system_id]``, and from the current
     ``ctx.game_map.entities`` if the player is in that system.
 
-    No-op if the spawn doesn't exist (e.g. was already removed).
+    Also removes any wingmate spawns linked to the same squad
+    (matching ``squad_group_id``). No-op if the spawn doesn't
+    exist (e.g. was already removed).
     """
     if system_id is None or system_id not in ctx.bounty_spawns:
         return
-    # Snapshot the spawn's position before filtering it out.
-    _pos_to_remove = None
+    # Collect all spawn_ids to remove: the primary + any wingmates.
+    _to_remove: set[str] = {spawn_id}
     for _bs in ctx.bounty_spawns[system_id]:
-        if _bs.spawn_id == spawn_id:
-            _pos_to_remove = _bs.pos
-            break
+        if _bs.squad_group_id == spawn_id:
+            _to_remove.add(_bs.spawn_id)
+    # Snapshot positions before filtering.
+    _positions_to_remove: list[world.Position] = []
+    for _bs in ctx.bounty_spawns[system_id]:
+        if _bs.spawn_id in _to_remove:
+            _positions_to_remove.append(_bs.pos)
     ctx.bounty_spawns[system_id] = [
         _bs for _bs in ctx.bounty_spawns[system_id]
-        if _bs.spawn_id != spawn_id
+        if _bs.spawn_id not in _to_remove
     ]
-    if _pos_to_remove is not None:
-        # Also remove the matching entity from the game_map if the
+    if _positions_to_remove:
+        # Also remove matching entities from the game_map if the
         # player is currently in the spawn's system.
         _cur_sys = getattr(solar_system_module.current_system(), 'id', None)
         if _cur_sys == system_id and ctx.game_map is not None:
-            _target_entity = None
-            for _e in ctx.game_map.entities:
-                if not getattr(_e, 'owned', False) and _e.pos == _pos_to_remove:
-                    _target_entity = _e
-                    break
-            if _target_entity is not None:
-                try:
-                    ctx.game_map.entities.remove(_target_entity)
-                except ValueError:
-                    pass
+            for _pos in _positions_to_remove:
+                _target_entity = None
+                for _e in ctx.game_map.entities:
+                    if not getattr(_e, 'owned', False) and _e.pos == _pos:
+                        _target_entity = _e
+                        break
+                if _target_entity is not None:
+                    try:
+                        ctx.game_map.entities.remove(_target_entity)
+                    except ValueError:
+                        pass
 
 
 # ---------------------------------------------------------------------------
@@ -450,6 +457,12 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         if _dist > 0 and _dist <= _espec.detect_radius:
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
+            # If this is a squad leader, also trigger all wingmates
+            # so the entire squad joins combat together.
+            if _bs.squad_group_id is None and _bs.squad_size > 1:
+                for _other in _bounty_spawns:
+                    if _other.squad_group_id == _bs.spawn_id:
+                        _triggered_solo_positions.add((_other.pos.x, _other.pos.y))
     # Also check procedural NPCs by current entity positions.
     _procedural_entities = [
         _e for _e in ctx.game_map.entities
