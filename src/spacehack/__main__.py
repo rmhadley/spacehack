@@ -574,8 +574,6 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                                     log.add(f"Bounty target marked in {_target_sys.name}.{_squad_note}")
                                             except KeyError:
                                                 pass
-                                            except KeyError:
-                                                pass
                                         # Compute deadline if mission has one.
                                         _dl_days = getattr(picked, 'deadline_days', 0)
                                         _deadline = None
