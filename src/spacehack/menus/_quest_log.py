@@ -83,7 +83,14 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                 _planet_name = _fps_q(am.delivery_target_planet_id).name
             except (KeyError, ImportError):
                 pass
-            paint(detail_top, fit(f'Deliver to: {_planet_name}'), fg=ui.COLOR_VALUE_WHITE)
+            _npc_name = ""
+            if am.delivery_target_npc_id:
+                try:
+                    from ..data.npcs import find_npc as _fnpc_q
+                    _npc_name = f" ({_fnpc_q(am.delivery_target_npc_id).name})"
+                except (KeyError, ImportError):
+                    pass
+            paint(detail_top, fit(f'Deliver to: {_planet_name}{_npc_name}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
         paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
