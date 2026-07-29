@@ -284,7 +284,8 @@ def _run_faction_view(ctx) -> None:
     def _progress_bar(rep: int, width: int = 31) -> str:
         """Return a centered bar with │ at 0, negative filling left,
         positive filling right. Width must be odd so the centre
-        marker sits in the exact middle."""
+        marker sits in the exact middle. Unfilled space is literal
+        spaces so rep=0 shows only the centre marker."""
         half = width // 2  # chars on each side of the centre marker
         if rep < 0:
             neg_fill = int((abs(rep) / 100) * half)
@@ -294,8 +295,8 @@ def _run_faction_view(ctx) -> None:
             pos_fill = int((rep / 100) * half)
         neg_fill = max(0, min(half, neg_fill))
         pos_fill = max(0, min(half, pos_fill))
-        left = "░" * (half - neg_fill) + "█" * neg_fill
-        right = "█" * pos_fill + "░" * (half - pos_fill)
+        left = " " * (half - neg_fill) + "█" * neg_fill
+        right = "█" * pos_fill + " " * (half - pos_fill)
         return left + "│" + right
 
     def _render() -> None:
