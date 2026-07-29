@@ -239,26 +239,36 @@ is handed over. If multiple are deliverable at the same NPC, show a picker.
 
 ### Algorithm
 ```python
-def generate_delivery(origin_planet_id: str, tier: int, rng: random.Random) -> dict:
-    # 1. Pick a destination planet in a different system
+def generate_delivery(origin_planet_id: str, max_tier: int, rng: random.Random) -> dict:
+    # 1. Roll tier: weighted random 1..max_tier (lower tiers more common)
+    #    - tier = min(rng.randint(1, max_tier), rng.randint(1, max_tier))
+    #      (min-of-two gives a weighted curve: tier 4 appears ~6% of the time
+    #       at a tier-4 planet, tier 1 appears ~44%)
+    #
+    # 2. Pick a destination planet in a different system
     #    - Filter systems reachable within tier-appropriate jump range
     #    - Pick a planet in that system with a landable port
     #
-    # 2. Generate cargo amount: rng.randint(tier_min, tier_max)
+    # 3. Generate cargo amount: rng.randint(tier_min, tier_max)
     #
-    # 3. Generate deadline: based on jump distance * 2 + buffer
-    #    - Jump count between origin and dest systems (precomputed or BFS)
+    # 4. Generate deadline: based on jump distance
+    #    - Jump count between origin and dest systems (BFS)
     #    - deadline_days = (jumps * 4) + rng.randint(2, 6)
     #
-    # 4. Generate reward:
-    #    - base = cargo * 10 * tier (credits)
+    # 5. Generate reward:
+    #    - credits = cargo * 10 * tier
     #    - xp = cargo * 2 * tier
+    #    - early_bonus_pct = 25
     #
-    # 5. Pick a delivery target NPC on the destination planet
-    #    - Look up planet's buildings for NPC ids
+    # 6. Pick a delivery target NPC on the destination planet
     #
     # Returns dict with all fields for ActiveMission construction
 ```
+
+**Tier weighting** uses `min(rng.randint(1, max_tier), rng.randint(1, max_tier))` —
+the min-of-two-rolls gives a natural curve where higher tiers are rarer.
+At a tier-4 planet: tier 1 ~44%, tier 2 ~31%, tier 3 ~19%, tier 4 ~6%.
+This makes lucrative high-tier missions feel special when they appear.
 
 ### Generated ID format
 `"proc_delivery_{origin}_{dest}_{hash}"` — unique per run, deterministic from RNG.
