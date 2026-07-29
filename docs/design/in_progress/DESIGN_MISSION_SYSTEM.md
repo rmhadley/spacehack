@@ -402,7 +402,7 @@ Destination picker. Wire into board fill.
 - [ ] Destination planet picker: different system, landable port, within tier range
 - [ ] Cargo amount: `rng.randint(tier_min, tier_max)` from tier table
 - [ ] Deadline: `(jump_count * 4) + rng.randint(2, 6)` days
-- [ ] Reward: `credits = cargo * 10 * tier`, `xp = cargo * 2 * tier`
+- [x] Reward: `credits = cargo * 5 * (tier + 1)`, `xp = cargo * 2 * tier`
 - [ ] Delivery target NPC: pick from destination planet's buildings
 - [ ] Generated ID: `"proc_delivery_{origin}_{dest}_{counter}"` — unique per run
 - [ ] Wire into board fill as fallback after static missions exhausted
@@ -445,13 +445,13 @@ Destination picker. Wire into board fill.
 **What**: Early completion bonus (50% of deadline), late penalty (half reward).
 Quest log deadline display.
 
-- [ ] Add `early_bonus_pct` to `MissionSpec` static missions (25-50%)
-- [ ] Store `accept_day` on `ActiveMission` — computed from `ctx.time_day/month/year`
-- [ ] In `complete_mission`: compute elapsed days, grant early bonus if < deadline/2
-- [ ] Log: `"Early delivery bonus: +X$"` or `"Late delivery — half pay: +X$"`
-- [ ] Quest log: show days remaining; red EXPIRED when overdue
-- [ ] Expired missions still deliverable — half reward (50% credits, no XP bonus)
-- [ ] Smoke test
+- [x] Add `early_bonus_pct` to `MissionSpec` static missions (25-50%)
+- [x] Store `accept_day` on `ActiveMission` — computed from `ctx.time_day/month/year`
+- [x] In `complete_mission`: compute elapsed days, grant early bonus if < deadline/2
+- [x] Log: `"Early delivery bonus: +X$"` or `"Late delivery — half pay: +X$"`
+- [x] Quest log: show days remaining; red EXPIRED when overdue
+- [x] Expired missions still deliverable — half reward (50% credits, no XP bonus)
+- [x] Smoke test
 
 ---
 
