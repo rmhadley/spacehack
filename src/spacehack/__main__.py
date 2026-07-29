@@ -459,7 +459,13 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                             blocker.pos = world.HANGAR_ANCHOR
                             blocker.owned = True
                             blocker.name = f'Your Ship: {ship.name}'
-                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=ship.start_weapons, modules=ship.start_modules, fuel=ship.max_fuel)
+                            # Preserve mission cargo from the old ship.
+                            _old_reserved = player_owned_ship.mission_reserved if player_owned_ship is not None else 0
+                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=ship.start_weapons, modules=ship.start_modules, fuel=ship.max_fuel, mission_reserved=_old_reserved)
+                            # Warn if the new ship can't hold mission cargo.
+                            _new_cap = ship_module.effective_max_cargo(ship, player_owned_ship)
+                            if _old_reserved > _new_cap:
+                                log.add(f'WARNING: {ship.name} cannot hold your mission cargo ({_old_reserved}/{_new_cap}). Some missions may be undeliverable.')
                             ctx.player_owned_ship = player_owned_ship
                             if _trade_in_value > 0:
                                 log.add(f'Traded in for the {ship.name} — paid {_effective_price}$ (trade-in {_trade_in_value}$).')

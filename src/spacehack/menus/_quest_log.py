@@ -79,7 +79,13 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         paint(detail_top, fit(f'Type: {"Procedural" if am.is_procedural else "Contract"}'), fg=ui.COLOR_VALUE_DIM)
         detail_top += 1
         if am.delivery_target_planet_id:
-            paint(detail_top, fit(f'Deliver to: {am.delivery_target_planet_id}'), fg=ui.COLOR_VALUE_WHITE)
+            _planet_name = am.delivery_target_planet_id
+            try:
+                from ..data.planets import find_planet_spec as _fps_q
+                _planet_name = _fps_q(am.delivery_target_planet_id).name
+            except (KeyError, ImportError):
+                pass
+            paint(detail_top, fit(f'Deliver to: {_planet_name}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
         paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
