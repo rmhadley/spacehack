@@ -28,11 +28,11 @@ def open_character_screen(ctx: GameContext) -> None:
     console = make_console()
     _sel: int = 0  # 0=gunnery, 1=piloting, 2=engineering
 
-    # Compute XP for next level (50 + (level+1)*20).
+    # Compute XP for next level.
     _level = ctx.player_level
-    _needed = 50 + (_level + 1) * 20
-    from .xp import xp_for_level as _xp_for_level
+    from .xp import xp_for_level as _xp_for_level, _xp_to_next as _xp_to_next
     _total_for_current = _xp_for_level(_level)
+    _needed = _xp_to_next(_level)
     _into_level = max(0, ctx.player_xp - _total_for_current)
 
     def _render() -> None:
@@ -109,7 +109,7 @@ def open_character_screen(ctx: GameContext) -> None:
         elif _level < 20:
             _trait_str = f"(unlock at level 20 — need {20 - _level} more)"
         else:
-            _trait_str = "(none chosen — open Character screen at a milestone to pick)"
+            _trait_str = "(no traits chosen)"
         console.print(
             x=SCREEN_WIDTH // 4,
             y=_y,

@@ -177,10 +177,10 @@ def render_hud(
     """
     hud_x = screen_width - HUD_WIDTH
     # Compute XP progress for both city and space modes.
-    from .xp import xp_for_level as _xp_for_level
+    from .xp import xp_for_level as _xp_for_level, _xp_to_next as _xp_to_next
     _xp_total_for_level = _xp_for_level(player_level) if player_level > 1 else 0
     _xp_into_level = max(0, player_xp - _xp_total_for_level)
-    _xp_needed = 50 + (player_level + 1) * 20
+    _xp_needed = _xp_to_next(player_level)
     _xp_bar = _render_xp_bar(_xp_into_level, _xp_needed)
     _xp_line = f"LV {player_level:>2} [{_xp_bar}]"
 

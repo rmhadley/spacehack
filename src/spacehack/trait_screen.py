@@ -16,7 +16,6 @@ from . import ui
 from . import message_log
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
-from .data.traits.core import find_trait
 from .input_helpers import _try_open_guide
 from .xp import _qualifying_traits
 
