@@ -118,3 +118,93 @@ def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
         adj = sp_adj.get(faction, 0) + cl_adj.get(faction, 0)
         result[faction] = max(-100, min(100, base + adj))
     return result
+
+
+# ---------------------------------------------------------------------------
+# Reputation change sources — delta tables
+# ---------------------------------------------------------------------------
+
+# Mission completion rep deltas, keyed by mission type (from MissionSpec.mission_type).
+# Each entry maps faction -> delta. These are the BASE values; early bonus
+# (+50%) is applied by the caller on top.
+_MISSION_REP_DELTAS: dict[str, dict[str, int]] = {
+    "delivery": {
+        "merchant": +5,
+        "civilian": +2,
+        "militia": +1,
+    },
+    "bounty": {
+        "pirate": -2,
+        "merchant": +3,
+        "civilian": +3,
+        "militia": +5,
+    },
+    "intercept": {
+        "pirate": +5,
+        "merchant": -10,
+        "civilian": -2,
+        "militia": -5,
+    },
+    "smuggling": {
+        "pirate": +2,
+        "merchant": -5,
+        "civilian": -5,
+        "militia": -8,
+    },
+    "extortion": {
+        "pirate": +5,
+        "merchant": -5,
+        "civilian": -3,
+        "militia": -3,
+    },
+    "salvage": {
+        "pirate": +3,
+        "merchant": -3,
+        "civilian": 0,
+        "militia": -2,
+    },
+}
+
+# Log message colours for rep changes.
+_REP_GAIN_COLOR: tuple[int, int, int] = (100, 235, 115)    # green
+_REP_LOSS_COLOR: tuple[int, int, int] = (255, 95, 95)      # red
+
+
+# ---------------------------------------------------------------------------
+# modify_rep — central rep mutation helper
+# ---------------------------------------------------------------------------
+
+def modify_rep(ctx, faction: str, delta: int) -> None:
+    """Apply a reputation delta to ``faction``, handling clamping,
+    logging, and zone-boundary crossing announcements.
+
+    Mutates ``ctx.faction_reputation[faction]`` and appends to
+    ``ctx.log``. A no-op if ``delta`` is zero or ``faction`` is
+    not one of the four tracked factions.
+
+    Log format:
+      Within same zone:  ``+5 rep with Merchant faction (now +23)``
+      Crossing a boundary: ``-8 rep with Militia faction (now -15, Liked → Disliked)``
+    """
+    if delta == 0:
+        return
+    if faction not in _ALL_FACTIONS:
+        return
+
+    old_val: int = ctx.faction_reputation.get(faction, 0)
+    old_attitude: str = get_attitude(old_val)
+
+    new_val: int = max(-100, min(100, old_val + delta))
+    ctx.faction_reputation[faction] = new_val
+
+    new_attitude: str = get_attitude(new_val)
+
+    # Build log message.
+    sign = "+" if delta > 0 else ""
+    msg = f"{sign}{delta} rep with {faction.title()} faction (now {new_val:+d})"
+    if new_attitude != old_attitude:
+        msg += f", {old_attitude.title()} → {new_attitude.title()}"
+
+    from . import message_log as _ml
+    color = _REP_GAIN_COLOR if delta > 0 else _REP_LOSS_COLOR
+    ctx.log.add_colored(msg, color)

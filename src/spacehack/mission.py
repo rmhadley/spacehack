@@ -264,12 +264,16 @@ def complete_mission(
     stats: object,
     log: object,
     current_day: int = 0,
+    ctx = None,
 ) -> None:
     """Complete ``active``: drop cargo, grant reward (with early/late
-    modifiers), and log the payout.
+    modifiers), apply faction rep changes, and log the payout.
 
     Does NOT remove ``active`` from the mission list or add to
     ``completed_mission_ids`` — the caller owns that bookkeeping.
+
+    ``ctx`` is optional for backward compatibility — rep changes
+    are skipped when ctx is None (legacy callers, tests).
     """
     # Drop cargo.
     if active.required_cargo_size > 0 and owned_ship is not None:
@@ -314,6 +318,56 @@ def complete_mission(
         f"Delivered: {active.title}. +{credits}$ "
         f"+{xp}xp. ({cargo_after} cargo.){bonus_msg}"
     )
+
+    # --- Faction reputation changes ---
+    if ctx is not None:
+        _apply_mission_rep(active, ctx, is_early=bool(
+            active.deadline_days > 0 and active.accept_day > 0
+            and current_day > 0
+            and (current_day - active.accept_day) < active.deadline_days // 2
+        ))
+
+
+def _apply_mission_rep(
+    active: ActiveMission,
+    ctx,
+    *,
+    is_early: bool = False,
+) -> None:
+    """Apply faction reputation changes for completing ``active``.
+
+    Looks up the mission type from the static catalog or generated
+    missions, then applies the per-faction deltas from
+    :data:`faction._MISSION_REP_DELTAS`.  If ``is_early`` is True,
+    each delta gets a +50% bonus (rounded up).
+    """
+    from .faction import modify_rep, _MISSION_REP_DELTAS
+
+    # Resolve mission type from spec.
+    mission_type: str | None = None
+    try:
+        if active.is_procedural:
+            gen = ctx.generated_missions.get(active.mission_id)
+            if gen is not None:
+                mission_type = gen.mission_type
+        else:
+            spec = find_mission(active.mission_id)
+            mission_type = spec.mission_type
+    except (KeyError, AttributeError):
+        pass
+
+    if mission_type is None:
+        return
+
+    deltas = _MISSION_REP_DELTAS.get(mission_type)
+    if deltas is None:
+        return
+
+    for faction, delta in deltas.items():
+        if is_early:
+            bonus = (abs(delta) + 1) // 2   # ceil division = 50% rounded up
+            delta = delta + bonus if delta > 0 else delta - bonus
+        modify_rep(ctx, faction, delta)
 
 
 def ensure_board(

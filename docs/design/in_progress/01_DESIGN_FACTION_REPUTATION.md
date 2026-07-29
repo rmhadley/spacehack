@@ -222,14 +222,16 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 
 ## Implementation phases
 
-### Phase 1: Attitude zones + starting rep
+### Phase 1: Attitude zones + starting rep ✅
 
-- [ ] Update `faction.get_attitude()` to return 5 zones instead of 3
-- [ ] Add `faction.starting_reputation(species_id, class_id) -> dict[str, int]`
-- [ ] Update `GameContext` default — remove hardcoded lambda, set to None, initialize in `__main__.py` at char creation
-- [ ] Update existing defaut-rep call sites that rely on the hardcoded pirate=-100/etc
-- [ ] Update `comms.py`: hostile tag = `"enemy"` or `"disliked"`, trade gated to neutral+, scan always available
-- [ ] Smoke test + commit
+- [x] Update `faction.get_attitude()` to return 5 zones instead of 3
+- [x] Add `faction.starting_reputation(species_id, class_id) -> dict[str, int]`
+- [x] Update `GameContext` default — remove hardcoded lambda, initialize in `__main__.py` at char creation
+- [x] Update existing default-rep call sites that rely on the hardcoded pirate=-100/etc
+- [x] Update `comms.py`: hostile tag = `"enemy"` or `"disliked"`, trade gated to neutral+, scan always available
+- [x] Smoke test + commit (`dffab7d`)
+- [x] Playtest: all faction/class combos verified, comms behavior matches design
+- [x] Fix: End Transmission always last in comms options (`7e7889c`)
 
 #### Playtest checklist *(living — update as implementation reveals edge cases)*
 
@@ -246,6 +248,27 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 ---
 
 ### Phase 2: Mission rep changes
+
+#### Pre-implementation audit (guardrail 5)
+
+**1. Existing modules to extend/reuse:**
+- ``faction.py`` — hosts ``modify_rep()`` and rep delta tables; ``get_attitude()`` already detects zone crossings
+- ``mission.py`` — ``complete_mission()`` is the single completion path for all mission types; already computes early/late bonus logic
+- ``message_log.py`` — ``add_colored()`` for colored rep change messages
+- ``__main__.py`` — TalkOutcome.DELIVER calls ``complete_mission()``; add rep changes right after
+- ``combat/_encounter.py`` — bounty mission completion calls ``complete_mission()``; add rep changes right after
+
+**2. Three duplication hotspots:**
+- **(a) Rep delta values copied per call site.** The per-mission-type rep tables could get copy-pasted into both ``__main__.py`` (delivery) and ``combat/_encounter.py`` (bounty). Fix: store in ``faction.py`` as ``_MISSION_REP_DELTAS: dict[str, dict[str, int]]`` keyed by mission type.
+- **(b) Zone-boundary detection duplicated.** Checking "was attitude X, now attitude Y" could be re-implemented at every rep change site. Fix: ``modify_rep()`` handles it internally via ``get_attitude()`` before/after comparison.
+- **(c) ``complete_mission()`` bypass.** If rep changes are added to ``complete_mission()`` callers instead of the function itself, the pattern gets duplicated. Fix: add ``ctx`` parameter to ``complete_mission()`` and apply rep changes inside it based on mission type — one edit, both call sites covered.
+
+**3. DRY strategy:**
+- All rep delta tables live in ``faction.py`` as module-level constants
+- ``modify_rep(ctx, faction, delta)`` handles clamping (-100..100), colored logging, and zone-boundary messages in ONE place
+- ``complete_mission()`` takes ``ctx`` and applies rep deltas based on mission type, reusing existing early/late bonus logic
+
+---
 
 - [ ] Add `modify_rep(ctx, faction, delta)` helper to `faction.py` — handles logging, zone-boundary messages
 - [ ] Wire `modify_rep` into all four mission completion paths in `mission.py`:

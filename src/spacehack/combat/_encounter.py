@@ -85,7 +85,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
             if _m_spawn is not None and _m_spawn in _cr.defeated_bounty_ids:
                 from ..mission import complete_mission as _complete
                 _today = ctx.time_day + (ctx.time_month - 1) * 30
-                _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today)
+                _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today, ctx=ctx)
                 if not _m.is_procedural:
                     ctx.completed_mission_ids.add(_m.mission_id)
                 try:
