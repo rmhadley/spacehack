@@ -92,8 +92,20 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                     pass
             paint(detail_top, fit(f'Deliver to: {_planet_name}{_npc_name}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
-        paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
-        detail_top += 1
+        if am.required_cargo_size > 0:
+            paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
+            detail_top += 1
+        # Bounty mission display: show target name + system.
+        if am.target_enemy_id and am.target_system_id:
+            _target_name = am.bounty_target_name or am.target_enemy_id
+            try:
+                from ..data.solar_systems import find_solar_system as _fss_q
+                _target_sys_name = _fss_q(am.target_system_id).name
+            except (KeyError, ImportError):
+                _target_sys_name = am.target_system_id
+            _squad_str = f" + {am.bounty_target_squad_size - 1} wingmates" if am.bounty_target_squad_size > 1 else ""
+            paint(detail_top, fit(f'Target: {_target_name} ({_target_sys_name}){_squad_str}'), fg=ui.COLOR_VALUE_WHITE)
+            detail_top += 1
         paint(detail_top, fit(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
         if am.time_deadline is not None:

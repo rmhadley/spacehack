@@ -563,8 +563,6 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                                     if picked.target_system_id not in ctx.bounty_spawns:
                                                         ctx.bounty_spawns[picked.target_system_id] = []
                                                     ctx.bounty_spawns[picked.target_system_id].append(_bs)
-                                                    if solar_system_module.current_solar_system_id == picked.target_system_id:
-                                                        _add_bounty_spawns_to_map(ctx, ctx.game_map, picked.target_system_id)
                                                     log.add(f"Bounty target marked in {_target_sys.name}.")
                                             except KeyError:
                                                 pass
