@@ -659,6 +659,12 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     cam_y = max(0, min(sy - view_h // 2, sol_h - view_h))
                     console.clear()
                     world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
+                    # Render NPC flash events so merchant despawns decay
+                    # normally during auto-nav instead of accumulating and
+                    # bursting all at once when the main render loop resumes.
+                    if ctx.npc_flash_events:
+                        from .npc_ships import render_npc_flash_events as _rnfe
+                        _rnfe(console, ctx, cam_x, cam_y, view_w, view_h)
                     # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
                     _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None
                     hud.render_hud(
