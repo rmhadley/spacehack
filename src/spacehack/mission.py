@@ -887,7 +887,8 @@ def generate_bounty_mission(
       6. Generate name via tier-gated prefix/title pools.
       7. Compute reward: base = hull_strength × tier × 40, adjusted
          by squad size.
-      8. Compute deadline: hops × 6 + randint(3, 8).
+      8. Compute deadline: max(20, hops × 35 + randint(10, 25)) — accounts for
+         200×140 system size (~18 days per crossing at speed 10).
       9. Build MissionSpec with mission_type="bounty", faction="bhguild".
 
     Returns ``None`` if no suitable target system can be found.

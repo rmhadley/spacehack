@@ -62,6 +62,5 @@ class CombatResult:
     encounter. Returned by :func:`run_combat` so callers access named
     fields instead of unpacking a naked tuple."""
     outcome: str = "FLEE"  # "VICTORY", "DEFEAT", or "FLEE"
-    defeated_spec_ids: list[str] = field(default_factory=list)
     defeated_names: list[str] = field(default_factory=list)
     defeated_bounty_ids: list[str] = field(default_factory=list)

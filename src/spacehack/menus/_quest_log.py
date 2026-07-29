@@ -103,6 +103,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             paint(detail_top, fit(f'Hunting'), fg=ui.COLOR_OPTION_HIGHLIGHT)
             detail_top += 1
             # Danger level based on tier.
+            # NOTE: Keep in sync with _bounty_danger_text() in mission.py.
             _t = getattr(am, 'tier', 1)
             if _t >= 4:
                 _danger = "Extreme"

@@ -86,7 +86,7 @@ def _fire_weapons(
     damage, handling kills (death log, entity removal, explosion,
     loot drop), and deducting per-weapon costs. Mutates
     ``player_state``, ``enemy_insts``, ``_enemy_ents``,
-    ``_defeated_spec_ids``, and ``game_map.entities`` in place.
+    ``defeated_names`` and ``game_map.entities`` in place.
     """
     # Collect all active weapon IDs
     _fire_list = [

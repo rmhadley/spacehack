@@ -5,7 +5,7 @@ input events, rendering frames, and coordinating all sub-module
 functions (stats, actions, animations).
 
 Callers in __main__.py and _encounter.py hand off control here
-and receive a ``(result, defeated_spec_ids)`` tuple back.
+and receive a ``CombatResult`` back.
 """
 
 from __future__ import annotations
@@ -103,10 +103,8 @@ def run_combat(
     """Drive the combat turn loop using tcod events.
 
     Accepts lists of enemy specs and positions for multi-enemy combat.
-    Returns ``(result, defeated_spec_ids)`` where ``result`` is
-    ``\"VICTORY\"``, ``\"DEFEAT\"``, or ``\"FLEE\"`` and
-    ``defeated_spec_ids`` lists the ``spec_id`` of each enemy
-    destroyed during combat (empty for non-VICTORY outcomes).
+    Returns a :class:`CombatResult` with ``outcome``, ``defeated_names``,
+    and ``defeated_bounty_ids`` fields.
 
     The player cycles targets with Tab. On VICTORY all dead enemy
     entities are removed from ``game_map.entities``. The player's
