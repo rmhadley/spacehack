@@ -296,6 +296,10 @@ def run_combat(
                             for _ge in game_map.entities:
                                 if getattr(_ge, 'owned', False):
                                     continue
+                                # Skip loot entities — their "Loot" name would
+                                # override the enemy spec name in the combat HUD.
+                                if getattr(_ge, 'loot_data', None) is not None:
+                                    continue
                                 if _ge.pos.x == _np.x and _ge.pos.y == _np.y:
                                     _found_entity = _ge
                                     break
