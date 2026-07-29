@@ -52,13 +52,21 @@ _BY_ID: dict[str, WeaponSpec] | None = None
 
 
 def _build_registry() -> dict[str, WeaponSpec]:
-    from . import lasers as lasers_module
-    from . import missiles as missiles_module
+    """Auto-discover all weapon modules under this package.
+
+    Every module exporting a ``WEAPONS`` tuple is automatically
+    registered — just drop a new ``.py`` in ``data/weapons/`` and
+    it's picked up without touching any registry code.
+    """
+    import importlib, pkgutil
     combined: dict[str, WeaponSpec] = {}
-    for w in lasers_module.WEAPONS:
-        combined[w.id] = w
-    for w in missiles_module.WEAPONS:
-        combined[w.id] = w
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"{__name__}.{name}")
+        if hasattr(mod, "WEAPONS"):
+            for w in mod.WEAPONS:
+                combined[w.id] = w
     return combined
 
 

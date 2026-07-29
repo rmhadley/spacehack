@@ -84,10 +84,21 @@ _BY_ID: dict[str, NpcShipSpec] | None = None
 
 
 def _build_registry() -> dict[str, NpcShipSpec]:
-    from . import core
+    """Auto-discover all NPC ship catalogs under this package.
+
+    Every module exporting a ``NPC_SHIPS`` tuple is automatically
+    registered — just drop a new ``.py`` in ``data/npc_ships/`` and
+    it's picked up without touching any registry code.
+    """
+    import importlib, pkgutil
     combined: dict[str, NpcShipSpec] = {}
-    for spec in core.NPC_SHIPS:
-        combined[spec.id] = spec
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"{__name__}.{name}")
+        if hasattr(mod, "NPC_SHIPS"):
+            for spec in mod.NPC_SHIPS:
+                combined[spec.id] = spec
     return combined
 
 

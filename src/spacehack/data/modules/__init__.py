@@ -51,13 +51,21 @@ _BY_ID: dict[str, ModuleSpec] | None = None
 
 
 def _build_registry() -> dict[str, ModuleSpec]:
-    from . import engines as engines_module
-    from . import systems as systems_module
+    """Auto-discover all module catalogs under this package.
+
+    Every module exporting a ``MODULES`` tuple is automatically
+    registered — just drop a new ``.py`` in ``data/modules/`` and
+    it's picked up without touching any registry code.
+    """
+    import importlib, pkgutil
     combined: dict[str, ModuleSpec] = {}
-    for m in engines_module.MODULES:
-        combined[m.id] = m
-    for m in systems_module.MODULES:
-        combined[m.id] = m
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"{__name__}.{name}")
+        if hasattr(mod, "MODULES"):
+            for m in mod.MODULES:
+                combined[m.id] = m
     return combined
 
 

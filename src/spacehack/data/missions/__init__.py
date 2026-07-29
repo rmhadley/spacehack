@@ -104,29 +104,27 @@ class MissionSpec:
     recommended_ship_min_cargo: int = 0
 
 
-# Per-faction mission tuples. Empty this iteration — all existing missions
-# are replaced. Phase 2 adds hand-crafted delivery missions here.
-#
-# Adding a new faction:
+# Per-faction mission tuples. Adding a new faction:
 #   1. Create a new <faction>.py exporting MISSIONS: tuple[MissionSpec, ...]
-#   2. Add an import + loop in _build_registry below.
-#   3. Missions are auto-discovered — no dispatcher changes needed.
+#   2. Done — auto-discovery handles registration.
 
 
 def _build_registry() -> dict[str, "MissionSpec"]:
-    from . import bar as bar_module
-    from . import merchants as merchants_module
-    from . import militia as militia_module
-    from . import bounty as bounty_module
+    """Auto-discover all mission catalogs under this package.
+
+    Every module exporting a ``MISSIONS`` tuple is automatically
+    registered — just drop a new ``.py`` in ``data/missions/`` and
+    it's picked up without touching any registry code.
+    """
+    import importlib, pkgutil
     combined: dict[str, MissionSpec] = {}
-    for m in bar_module.MISSIONS:
-        combined[m.id] = m
-    for m in merchants_module.MISSIONS:
-        combined[m.id] = m
-    for m in militia_module.MISSIONS:
-        combined[m.id] = m
-    for m in bounty_module.MISSIONS:
-        combined[m.id] = m
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"{__name__}.{name}")
+        if hasattr(mod, "MISSIONS"):
+            for m in mod.MISSIONS:
+                combined[m.id] = m
     return combined
 
 
