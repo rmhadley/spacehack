@@ -355,7 +355,11 @@ def _add_bounty_spawns_to_map(
             width=1, height=1,
             npc_ship_id=_bs.enemy_id,
         )
-        _ent.bounty_spawn_id = _bs.spawn_id
+        # Only the leader (no squad_group_id) gets bounty_spawn_id.
+        # Wingmates don't get it so they don't trigger auto-hail or
+        # bounty completion on kill.
+        if _bs.squad_group_id is None:
+            _ent.bounty_spawn_id = _bs.spawn_id
         game_map.entities.append(_ent)
         if _system is not None and _bs.squad_group_id is None:
             _landmark = _nearest_body_name(_bs.pos, _system)
@@ -457,11 +461,12 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         if _dist > 0 and _dist <= _espec.detect_radius:
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
-            # If this is a squad leader, also trigger all wingmates
-            # so the entire squad joins combat together.
-            if _bs.squad_group_id is None and _bs.squad_size > 1:
+            # Squad grouping: if ANY squad member triggers, add ALL
+            # squad members so the entire squad joins combat together.
+            if _bs.squad_size > 1:
+                _squad_ref = _bs.spawn_id if _bs.squad_group_id is None else _bs.squad_group_id
                 for _other in _bounty_spawns:
-                    if _other.squad_group_id == _bs.spawn_id:
+                    if _other.spawn_id == _squad_ref or _other.squad_group_id == _squad_ref:
                         _triggered_solo_positions.add((_other.pos.x, _other.pos.y))
     # Also check procedural NPCs by current entity positions.
     _procedural_entities = [
