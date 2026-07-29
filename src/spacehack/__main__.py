@@ -216,8 +216,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 continue
             # C = Character screen (city or space).
             if _is_c_press(event):
-                from .xp import add_xp as _noop  # stub — Phase 2 builds the UI
-                ctx.log.add("Character screen coming in Phase 2.")
+                from .character_screen import open_character_screen
+                open_character_screen(ctx)
                 continue
             if _is_q_press(event):
                 outcome, abandoned_idx = _run_quest_log(ctx)
