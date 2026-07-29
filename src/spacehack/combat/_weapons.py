@@ -227,7 +227,7 @@ def _fire_weapons(
         else:
             _p_log(f"{find_weapon(_fwid).name} misses {_target_enemy.name}!", log)
         # Deduct per-weapon costs
-        if _fws.slot_type == "energy":
+        if _fws.slot_type in ("energy", "plasma"):
             player_state["power_pool"] -= _fws.power_cost
         elif _fws.slot_type == "missile":
             old = player_state["weapon_ammo"][_fwid]

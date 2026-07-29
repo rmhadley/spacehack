@@ -19,7 +19,7 @@ class WeaponSpec:
     Attributes:
         id: registry key, e.g. "light_laser".
         name: display name, e.g. "Light Laser".
-        slot_type: "energy" or "missile" (controls ammo/power rules).
+        slot_type: "energy", "plasma", or "missile" (controls ammo/power rules).
         damage: base damage per hit (before skill/range modifiers).
         accuracy: base hit % (0-100).
         ap_cost: action points to fire once.
@@ -33,7 +33,7 @@ class WeaponSpec:
     """
     id: str
     name: str
-    slot_type: str                     # "energy" or "missile"
+    slot_type: str                     # "energy", "plasma", or "missile"
     damage: int
     accuracy: int                      # 0-100
     ap_cost: int = 1

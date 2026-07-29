@@ -1,6 +1,7 @@
-"""Laser / energy weapons.
+"""Laser / energy / plasma weapons.
 
-All entries share slot_type="energy", ammo_capacity=-1 (no ammo).
+Laser entries use slot_type="energy", Plasma Cannon uses "plasma".
+All energy/plasma weapons have ammo_capacity=-1 (no ammo).
 Power cost scales with damage output.
 """
 
@@ -26,7 +27,7 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         tech_level=2,
     ),
     WeaponSpec(
-        id="plasma_cannon", name="Plasma Cannon", slot_type="energy",
+        id="plasma_cannon", name="Plasma Cannon", slot_type="plasma",
         damage=16, accuracy=70, ap_cost=2, power_cost=4,
         price=120, min_range=1, max_range=8,
         tech_level=3,

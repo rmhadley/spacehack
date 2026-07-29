@@ -27,7 +27,7 @@ def can_afford_action(
     if player_state["ap_remaining"] < ws.ap_cost:
         return False, f"Need {ws.ap_cost} AP (have {player_state['ap_remaining']})"
 
-    if ws.slot_type == "energy":
+    if ws.slot_type in ("energy", "plasma"):
         if player_state["power_pool"] < ws.power_cost:
             return False, f"Need {ws.power_cost} power (have {player_state['power_pool']})"
     elif ws.slot_type == "missile":

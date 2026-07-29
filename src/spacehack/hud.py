@@ -620,7 +620,7 @@ def render_combat_hud(
             # Check if can fire
             wammo = player_state.get("weapon_ammo", {}).get(wid, 0)
             ap_req = ws.ap_cost
-            pow_req = ws.power_cost if ws.slot_type == "energy" else 0
+            pow_req = ws.power_cost if ws.slot_type in ("energy", "plasma") else 0
             has_ap = pap >= ap_req
             has_pow = ppow >= pow_req
             has_ammo = wammo > 0 or ws.ammo_capacity <= 0
@@ -645,7 +645,7 @@ def render_combat_hud(
             console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
             y += 1
 
-            if ws.slot_type == "energy":
+            if ws.slot_type in ("energy", "plasma"):
                 cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
             else:
                 ammo_str = f"{wammo}" if wammo >= 0 else "∞"
