@@ -109,6 +109,19 @@ The smoke test auto-mounts `.venv/bin/python3` so tcod is always resolved. It ve
 - **Gates beat playtests.** Run the smoke test before each commit to catch import errors and missing entry points.
 - **Terse code-shaped docs.** Skim-don't-read mode.
 
+### Tcod-safe characters (CP437)
+
+The tilesheet `dejavu16x16_gs_tc.png` uses CP437 encoding. Only characters in the CP437 set render correctly. **Always use CP437-safe characters for UI elements** — avoid Unicode block chars (U+2588 `█`, U+2591 `░`, U+2502 `│`, U+2500 `─`) that may not map to the tilesheet. Safe alternatives:
+
+| Purpose | Safe (CP437) | Unsafe (Unicode) |
+|---------|-------------|------------------|
+| Filled bar | `#` (0x23) | `█` (U+2588) |
+| Empty bar | `-` (0x2D) or `.` (0x2E) | `░` (U+2591) |
+| Center marker | `|` (0x7C) | `│` (U+2502) |
+| Horizontal line | `-` (0x2D) or `=` (0x3D) | `─` (U+2500) |
+
+Pre-existing violations (faction bars were fixed; `═` in some titles remains but renders on the tilesheet — double-check before using box-drawing chars).
+
 ### Code quality guardrails
 
 #### 1. State tables over conditional logic
