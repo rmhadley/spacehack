@@ -287,8 +287,19 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _pos_y = _data.get("player_pos_y", 17)
     _city_id = _data.get("current_city_id", "earth")
 
-    from .data.planets import load_planet as planets_load_planet
+    from .data.planets import load_planet as planets_load_planet, hangar_anchor as _planet_hangar
     _game_map = planets_load_planet(_city_id)
+    # Space-mode saves have coordinates (e.g. 128,58) far outside
+    # a ~60×40 city map.  If the saved position is out of bounds,
+    # place the player next to their ship (hangar anchor + 1).
+    if not (0 < _pos_x < _game_map.width - 1 and 0 < _pos_y < _game_map.height - 1):
+        try:
+            _anchor = _planet_hangar(_city_id)
+            _pos_x = _anchor.x + 1
+            _pos_y = _anchor.y + 1
+        except KeyError:
+            _pos_x = min(max(_pos_x, 1), _game_map.width - 2)
+            _pos_y = min(max(_pos_y, 1), _game_map.height - 2)
     _player_ent = world.Entity(
         char='@', fg=(255, 255, 255),
         pos=world.Position(_pos_x, _pos_y), name='Player',
