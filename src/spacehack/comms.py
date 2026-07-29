@@ -232,14 +232,12 @@ def _run_interaction_modal(
     )
     _contact_attitude = _get_attitude(_contact_rep)
 
-    _options: list[str] = ["End Transmission"]
-    # Attack is always available.
-    _options.insert(0, "Attack")
-    # Scan Cargo is always available.
-    _options.insert(2, "Scan Cargo")
+    _options: list[str] = ["Attack", "Scan Cargo"]
     # Trade only available for neutral+ attitudes.
     if _contact_attitude in ('neutral', 'liked', 'allied'):
         _options.insert(1, "Open Trade")
+    # End Transmission always last.
+    _options.append("End Transmission")
 
     _interaction_selected = 0
 
