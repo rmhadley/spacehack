@@ -287,40 +287,62 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 #### Playtest checklist *(living — update as implementation reveals edge cases)*
 
 **Delivery missions:**
-- [ ] Complete a **delivery** mission → log shows `+5 rep with Merchant faction`
-- [ ] Complete a delivery **early** (within 50% of deadline) → log shows base + 50% bonus (e.g. +5 → +8 merchant)
+- [x] Complete a **delivery** mission → log shows `+5 rep with Merchant faction`
+- [x] Complete a delivery **early** (within 50% of deadline) → log shows base + 50% bonus (e.g. +5 → +8 merchant)
+- [x] Fix: spurious civilian/militia deltas removed from delivery table (`482643d`)
 
 **Bounty missions:**
-- [ ] Complete a **bounty** mission (pirate target) → log shows `-2 pirate, +3 merchant, +3 civilian, +5 militia`
-- [ ] Complete a bounty early → +50% bonus on all deltas
+- [x] Complete a **bounty** mission (pirate target) → log shows `-2 pirate, +3 merchant, +3 civilian, +5 militia`
+- [x] Complete a bounty early → +50% bonus on all deltas (positive only — neg deltas not boosted, `8f182b4`)
 
 **Bar missions:**
-- [ ] Complete an **intercept** mission → `+5 pirate, -10 merchant, -2 civilian, -5 militia`
-- [ ] Complete a **smuggling** mission → `+2 pirate, -5 merchant, -5 civilian, -8 militia`
-- [ ] Complete an **extortion** mission → `+5 pirate, -5 merchant, -3 civilian, -3 militia`
-- [ ] Complete a **salvage** mission → `+3 pirate, -3 merchant, 0 civilian, -2 militia`
+- [ ] Not yet implemented — skip (known)
 
 **Edge cases:**
-- [ ] **Abort** a mission (Q → abandon) → **no rep change** logged
-- [ ] Complete a mission that crosses a zone boundary → zone-crossing message fires
-- [ ] Rep clamped at +100 / -100 (complete a mission while already at cap)
+- [x] **Abort** a mission (Q → abandon) → **no rep change** logged
+- [x] Complete a mission that crosses a zone boundary → zone-crossing message fires
+- [x] Rep clamped at +100 / -100 (complete a mission while already at cap)
 
 ---
 
-### Phase 3: Combat rep changes
+### Phase 3: Combat rep changes ✅
 
-- [ ] Wire `modify_rep` into `_handle_combat_encounter` (or death handler) — check the dead entity's spec faction
-- [ ] Kill a pirate → adjust rep per table
-- [ ] Kill a merchant → adjust rep per table
-- [ ] Kill a militia ship → adjust rep per table
-- [ ] Flee from combat → small rep penalty to lawful factions
-- [ ] Squad kill bonus: +1 bonus rep per squad cleared
-- [ ] Smoke test + commit
+#### Pre-implementation audit (guardrail 5)
+
+**1. Existing modules to extend/reuse:**
+- ``faction.py`` — ``modify_rep()`` already handles clamping/logging/zone-boundary messages; ``_MISSION_REP_DELTAS`` pattern to follow for combat tables
+- ``combat/_encounter.py`` — ``_handle_combat_encounter`` has VICTORY/DEFEAT/FLEE outcome branches; perfect hooks
+- ``combat/_weapons.py`` — already records ``defeated_names`` on kill; add ``defeated_spec_ids`` in the same spot
+- ``combat/_types.py`` — ``CombatResult`` carries post-combat data; add ``defeated_spec_ids`` field
+- ``comms.py`` — ``_run_interaction_modal`` already has ATTACK outcome; add unprovoked penalty there
+
+**2. Three duplication hotspots:**
+- **(a) Kill-rep iteration duplicated for squad bonus.** The squad bonus re-iterates ``defeated_spec_ids`` and re-resolves ``find_npc_ship`` — identical to the main kill loop. Fix: fold squad bonus check into the main loop with a single ``_squad_bonus`` flag.
+- **(b) ``modify_rep`` called from multiple places.** kill-rep, flee-rep, and unprovoked-attack-rep all call ``modify_rep`` individually. This is correct (single entry point) but each call site does its own import and loop. No DRY issue — the loop shapes differ (iterate specs vs flat dict).
+- **(c) Faction resolution from spec_id.** Both kill-rep and squad bonus need ``find_npc_ship(spec_id).faction``. Centralized in the main kill loop import, not duplicated.
+
+**3. DRY strategy:**
+- All combat rep deltas live in ``faction.py`` as module-level constants alongside ``_MISSION_REP_DELTAS``
+- ``modify_rep()`` is the single entry point for all rep changes
+- Squad bonus folded into the main kill loop (no second pass)
+- ``defeated_spec_ids`` tracked in ``CombatResult`` and populated at kill time in ``_weapons.py``
+
+---
+
+- [x] Add ``defeated_spec_ids`` to ``CombatResult`` + record on kill in ``_weapons.py``
+- [x] Add ``_COMBAT_KILL_DELTAS`` table (keyed by enemy faction) to ``faction.py``
+- [x] Add ``_COMBAT_FLEE_DELTAS`` (cowardice penalty) to ``faction.py``
+- [x] Add ``_COMBAT_UNPROVOKED_DELTAS`` (comms-initiated attack) to ``faction.py``
+- [x] Wire kill rep into ``_encounter.py`` VICTORY path via ``modify_rep``
+- [x] Squad bonus folded into main kill loop: +1 to positive deltas when entire group wiped
+- [x] Wire flee rep into ``_encounter.py`` FLEE path
+- [x] Wire unprovoked attack rep into ``comms.py`` ATTACK path
+- [x] Smoke test + commit (`3bd5236`)
 
 #### DRY eval
 
-- [ ] Are combat rep changes using the same `modify_rep` helper as missions?
-- [ ] Is there a single function that handles all kill-based rep changes, or is it duplicated per faction?
+- [x] Are combat rep changes using the same `modify_rep` helper as missions? ✅
+- [x] Is there a single function that handles all kill-based rep changes, or is it duplicated per faction? ✅ — single loop in `_encounter.py`, squad bonus folded in
 
 #### Playtest checklist *(living — update as implementation reveals edge cases)*
 
