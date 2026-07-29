@@ -47,7 +47,7 @@ def add_xp(ctx: GameContext, amount: int) -> None:
         return
 
     ctx.player_xp += amount
-    ctx.log.add_colored(f"+{amount} XP", _ml.COLOR_HP_GOOD)
+    ctx.log.add_colored(f"+{amount} XP", _ml.COLOR_PLAYER_ACTION)
 
     # Check for level-ups (may gain multiple levels at once).
     while True:
