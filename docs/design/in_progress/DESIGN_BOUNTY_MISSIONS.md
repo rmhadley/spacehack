@@ -164,8 +164,17 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 - [ ] Does `generate_bounty_mission` share tier-roll, hop-range, reward-formula logic with `generate_delivery_mission`? Extract shared helpers.
 - [ ] Is the `BountySpawn` creation path in the accept flow duplicating logic?
 
-### Phase 3: Bounty completion in combat
+### Phase 3: Bounty completion in combat + comms
 
+- [ ] **Bounty-specific comms lines**: Set `comms_lines` on bounty target NpcShipSpec entries (or override at spawn time). Hand-crafted bounties get unique flavor lines; procedural bounties roll from tier-gated pools:
+  - Tier 1: "You're making a mistake, hunter." / "I ain't worth the bounty, pal."
+  - Tier 2: "You've got guts coming after me." / "Name your price. Everyone has one."
+  - Tier 3: "I've killed better hunters than you." / "You want my head? Come take it."
+  - Tier 4: "I am the price on your head, hunter." / "They sent YOU? I'm insulted."
+- [ ] **Bounty auto-hail**: When the player enters the bounty target's `comms_warning_range` (same field as militia), the comms panel opens automatically with the target's taunt line. This doubles as an "enemy spotted" indicator — the player knows they've found their target.
+  - Add `comms_warning_range` to bounty target NpcShipSpec entries (e.g. 20 cells)
+  - Reuse `_check_auto_comms_warning` pattern, or add a bounty-specific `_check_bounty_auto_hail` that checks `ctx.player_active_missions` for bounty targets in range
+  - Auto-hail only fires once per target (track hailed bounty spawn IDs to prevent spam)
 - [ ] In `combat/_loop.py`, when the **leader** enemy is destroyed:
   - Check `ctx.player_active_missions` for bounty missions targeting the enemy by `bounty_spawn_id`
   - If match found: mark complete, call `complete_mission`, remove spawn
