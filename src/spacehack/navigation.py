@@ -347,15 +347,16 @@ def _add_bounty_spawns_to_map(
         except (KeyError, ImportError):
             continue
         _display_name = _bs.bounty_target_name or _espec.name
-        game_map.entities.append(world.Entity(
+        _ent = world.Entity(
             char=_espec.char,
             fg=_espec.fg,
             pos=_bs.pos,
             name=_display_name,
             width=1, height=1,
             npc_ship_id=_bs.enemy_id,
-            bounty_spawn_id=_bs.spawn_id,
-        ))
+        )
+        _ent.bounty_spawn_id = _bs.spawn_id
+        game_map.entities.append(_ent)
         if _system is not None:
             _landmark = _nearest_body_name(_bs.pos, _system)
             ctx.log.add_colored(f"Sensor ping: bounty target detected near {_landmark}.",
