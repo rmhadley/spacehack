@@ -480,10 +480,10 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     """
     # Faction rep gating: enemy/disliked can't trade.
     _npc_faction = getattr(npc_spec, 'faction', 'civilian')
-    from .faction import get_attitude
+    from .faction import get_attitude, buy_price_modifier, sell_price_modifier
     _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
-    _attitude = get_attitude(_npc_rep)
-    if _attitude in ("enemy", "disliked"):
+    _npc_attitude = get_attitude(_npc_rep)
+    if _npc_attitude in ("enemy", "disliked"):
         ctx.log.add(f"{npc_spec.name} refuses to trade with you.")
         return
 
@@ -509,9 +509,6 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     _SELL_MULT = 0.5  # player sells to NPC at discount
 
     # Apply faction rep modifier on top of NPC trade base rates.
-    from .faction import get_attitude, buy_price_modifier, sell_price_modifier
-    _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
-    _npc_attitude = get_attitude(_npc_rep)
     _BUY_MULT *= buy_price_modifier(_npc_attitude)
     _SELL_MULT *= sell_price_modifier(_npc_attitude)
 
@@ -693,12 +690,13 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         return
 
     # Faction rep gating: enemy/disliked can't use trade terminals.
-    from .faction import get_attitude
+    from .faction import get_attitude, sell_price_modifier
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
     if _attitude in ("enemy", "disliked"):
         ctx.log.add("The Trade Guild refuses to do business with you.")
         return
+    _sell_mod = sell_price_modifier(_attitude)
 
     if ctx.player_owned_ship is None:
         ctx.log.add("You need a ship with cargo space to use this terminal.")
@@ -736,7 +734,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             if i >= SCREEN_HEIGHT - 12:
                 break
             good = find_trade_good(gid)
-            sell_price = max(1, _unit_price(ctx, planet_id, gid) * 3 // 4)
+            sell_price = max(1, int(_unit_price(ctx, planet_id, gid) * 3 // 4 * _sell_mod))
             price_label = f"{sell_price:>5}$"
             _contra = good.category == "contraband" and not _can_sell_here(planet_id, gid)
             if _contra:
