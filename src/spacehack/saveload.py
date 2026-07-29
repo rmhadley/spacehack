@@ -103,12 +103,25 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "current_mode": "city",
         "current_city_id": "earth",
         "current_system_id": "sol",
-        "player_pos_x": ctx.player.pos.x,
-        "player_pos_y": ctx.player.pos.y,
-        "economy_state": _d(ctx.economy_state),
+    "player_pos_x": ctx.player.pos.x,
+    "player_pos_y": ctx.player.pos.y,
+    "map_loot": _save_loot(ctx.game_map),
+    "economy_state": _d(ctx.economy_state),
         "generated_missions": _d(ctx.generated_missions),
         "procedural_spawns": _d(ctx.procedural_spawns),
     }
+
+
+def _save_loot(game_map) -> list[dict]:
+    """Serialize all loot entities on the map."""
+    _result: list[dict] = []
+    for _e in getattr(game_map, 'entities', []):
+        if getattr(_e, 'loot_data', None) is not None:
+            _result.append({
+                'x': _e.pos.x, 'y': _e.pos.y,
+                'loot_data': _e.loot_data,
+            })
+    return _result
 
 
 def save_game(
@@ -340,6 +353,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     pos=_ps.pos, name=_espec.name,
                     width=1, height=1,
                     npc_ship_id=_ps.npc_id,
+                    procedural_squad_id=_ps.squad_id or "",
                 )
                 _game_map.entities.append(_ent)
 
@@ -379,6 +393,18 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 ship_id=_owned_ship.ship_id, owned=True,
             )
             _game_map.entities.append(_hangar)
+
+    # --- Restore loot entities (space or city) ---
+    for _ld in _data.get("map_loot", []) or []:
+        _lx = _ld.get("x", 0)
+        _ly = _ld.get("y", 0)
+        _loot_e = world.Entity(
+            char='%', fg=(255, 215, 0),
+            pos=world.Position(_lx, _ly),
+            name='Loot', width=1, height=1,
+            loot_data=_ld.get("loot_data"),
+        )
+        _game_map.entities.append(_loot_e)
 
     # --- Assemble GameContext ---
     _ctx = GameContext(
