@@ -59,6 +59,9 @@ def _on_month_change(ctx: GameContext) -> None:
     )
     from .mission import refresh_all_boards as _refresh_boards
     _refresh_boards(ctx)
+    # Apply monthly faction reputation decay.
+    from .faction import apply_monthly_decay
+    apply_monthly_decay(ctx)
 
 
 def tick_move(ctx: GameContext) -> None:

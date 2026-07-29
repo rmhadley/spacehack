@@ -221,9 +221,13 @@ def _sell_good(
         ctx.log.add(f"You only have {held} crates of {good.name}.")
         return False
 
-    # Compute sell price (75% of buy price for the same stock level).
+    # Compute sell price (75% of buy price, adjusted by faction rep).
     buy_price = _unit_price(ctx, planet_id, good_id)
-    sell_price = max(1, buy_price * 3 // 4)
+    from .faction import get_attitude, sell_price_modifier
+    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _attitude = get_attitude(_merchant_rep)
+    _sell_mod = sell_price_modifier(_attitude)
+    sell_price = max(1, int(buy_price * 3 // 4 * _sell_mod))
     revenue = sell_price * quantity
 
     # Add to stock.
@@ -248,12 +252,22 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     For goods the planet produces, the target stock comes from the
     ``produces`` tuple.  For goods the planet demands, the target
     is from ``demands``.  Neutral goods use :data:`NEUTRAL_TARGET`.
+
+    Applies faction reputation buy discount (Liked=5%, Allied=10%)
+    based on the player's merchant faction standing (trade terminals
+    are merchant infrastructure).
     """
     good = find_trade_good(good_id)
     stocks = ctx.economy_state.get(planet_id, {})
     current = stocks.get(good_id, 0)
     target = _target_stock_for(planet_id, good_id)
-    return trade_price(good.base_price, current, target)
+    price = trade_price(good.base_price, current, target)
+    # Apply faction rep discount.
+    from .faction import get_attitude, buy_price_modifier
+    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _attitude = get_attitude(_merchant_rep)
+    _mod = buy_price_modifier(_attitude)
+    return max(1, int(price * _mod))
 
 
 def _free_cargo(owned) -> int:
@@ -464,6 +478,15 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     Player buys from NPC at base_price plus 20% markup.
     Player sells to NPC at base_price minus 50% discount.
     """
+    # Faction rep gating: enemy/disliked can't trade.
+    _npc_faction = getattr(npc_spec, 'faction', 'civilian')
+    from .faction import get_attitude
+    _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
+    _attitude = get_attitude(_npc_rep)
+    if _attitude in ("enemy", "disliked"):
+        ctx.log.add(f"{npc_spec.name} refuses to trade with you.")
+        return
+
     owned = ctx.player_owned_ship
     if owned is None:
         ctx.log.add("You need a ship with cargo space to trade.")
@@ -484,6 +507,13 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     # Price multipliers.
     _BUY_MULT = 1.2   # player buys from NPC at markup
     _SELL_MULT = 0.5  # player sells to NPC at discount
+
+    # Apply faction rep modifier on top of NPC trade base rates.
+    from .faction import get_attitude, buy_price_modifier, sell_price_modifier
+    _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
+    _npc_attitude = get_attitude(_npc_rep)
+    _BUY_MULT *= buy_price_modifier(_npc_attitude)
+    _SELL_MULT *= sell_price_modifier(_npc_attitude)
 
     _npc_goods: list[str] = list(_npc_stock.keys())
     _focus: int = 0        # 0 = NPC panel, 1 = player panel
@@ -660,6 +690,14 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
     if not _station_goods:
         ctx.log.add("This terminal has nothing to trade.")
+        return
+
+    # Faction rep gating: enemy/disliked can't use trade terminals.
+    from .faction import get_attitude
+    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _attitude = get_attitude(_merchant_rep)
+    if _attitude in ("enemy", "disliked"):
+        ctx.log.add("The Trade Guild refuses to do business with you.")
         return
 
     if ctx.player_owned_ship is None:

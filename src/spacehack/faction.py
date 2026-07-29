@@ -286,6 +286,92 @@ def adjust_reward_pct(attitude: str) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Monthly decay
+# ---------------------------------------------------------------------------
+
+_DECAY_RATES: dict[str, int] = {
+    "enemy": +3,      # drift toward neutral from deep negative
+    "disliked": +2,
+    "neutral": 0,
+    "liked": -2,
+    "allied": -3,     # drift toward neutral from deep positive
+}
+
+
+def decay_rate(attitude: str) -> int:
+    """Return the monthly rep drift for the given attitude zone.
+
+    Pure function — no I/O, no context dependency.
+
+    Positive values move reputation toward 0 from negative zones;
+    negative values move toward 0 from positive zones.
+    """
+    return _DECAY_RATES.get(attitude, 0)
+
+
+def apply_monthly_decay(ctx) -> None:
+    """Apply one month of faction reputation decay toward neutral.
+
+    Decay stops at the zone boundary to prevent crossing from
+    positive to negative (or vice versa) through decay alone.
+    Only player actions can change the sign of a reputation.
+    """
+    for _fac in _ALL_FACTIONS:
+        _rep = ctx.faction_reputation.get(_fac, 0)
+        _attitude = get_attitude(_rep)
+        _drift = decay_rate(_attitude)
+        if _drift == 0:
+            continue
+        # Stop at boundary: drift should never flip the sign.
+        # Only player actions can change reputation from negative
+        # to positive or vice versa.
+        _new = _rep + _drift
+        if _rep < 0 and _new >= 0:
+            _new = -1
+        elif _rep > 0 and _new <= 0:
+            _new = 1
+        if _new != _rep:
+            modify_rep(ctx, _fac, _new - _rep)
+
+
+# ---------------------------------------------------------------------------
+# Trade price modifiers
+# ---------------------------------------------------------------------------
+
+_BUY_MODIFIERS: dict[str, float] = {
+    "enemy": 1.0,       # can't trade — never reached
+    "disliked": 1.0,    # can't trade — never reached
+    "neutral": 1.0,
+    "liked": 0.95,      # 5% discount
+    "allied": 0.90,     # 10% discount
+}
+
+_SELL_MODIFIERS: dict[str, float] = {
+    "enemy": 1.0,
+    "disliked": 1.0,
+    "neutral": 1.0,
+    "liked": 1.05,      # 5% bonus
+    "allied": 1.10,     # 10% bonus
+}
+
+
+def buy_price_modifier(attitude: str) -> float:
+    """Return the multiplier for buy prices based on faction attitude.
+
+    1.0 = no change, 0.95 = 5% discount, etc.
+    """
+    return _BUY_MODIFIERS.get(attitude, 1.0)
+
+
+def sell_price_modifier(attitude: str) -> float:
+    """Return the multiplier for sell prices based on faction attitude.
+
+    1.0 = no change, 1.05 = 5% bonus, etc.
+    """
+    return _SELL_MODIFIERS.get(attitude, 1.0)
+
+
+# ---------------------------------------------------------------------------
 # modify_rep — central rep mutation helper
 # ---------------------------------------------------------------------------
 
