@@ -767,11 +767,11 @@ _BOUNTY_ADJECTIVES: tuple[str, ...] = (
     "Crimson", "Shadow", "Iron", "Silver", "Black", "Red",
     "Void", "Ghost", "Rust", "Bone", "Ash", "Frost",
     "Storm", "Venom", "Blade", "Fang", "Claw", "Wraith",
-    "Dusk", "Ember", "Rogue", "Savage", "Cinder", "Obsidian",
+    "Dusk", "Blazing", "Rogue", "Savage", "Bleeding", "Obsidian",
     "Scorch", "Drift", "Hollow", "Broken", "Silent", "Grim",
     "Vile", "Pale", "Dead", "Cold", "Grave", "Midnight",
-    "Scarred", "Jagged", "Shade", "Spectral", "Cursed", "Flint",
-    "Thunder", "Onyx", "Deep", "Feral", "Raven", "Wild",
+    "Scarred", "Jagged", "Shade", "Spectral", "Cursed", "Slate",
+    "Thunder", "Onyx", "Deep", "Feral", "Plague", "Wild",
     "Bitter", "Bleak", "Blind", "Bloody", "Blunt", "Brass",
     "Brazen", "Burning", "Charred", "Chrome", "Copper", "Corroded",
     "Cracked", "Crude", "Dread", "Drowned", "Dusty", "Fallen",
@@ -799,7 +799,7 @@ _BOUNTY_FIRST_NAMES: tuple[str, ...] = (
     "Kaida", "Lark", "Lira", "Lorn", "Mace", "Maren",
     "Maven", "Nash", "Niam", "Oren", "Orion",
     "Palen", "Pax", "Rayne", "Reed", "Riven", "Rowan",
-    "Salem", "Soren", "Sylvan", "Torin", "Vance",
+    "Ryan", "Salem", "Soren", "Sylvan", "Torin", "Vance",
 )
 
 
