@@ -18,6 +18,7 @@ working without a second import line.
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
@@ -331,18 +332,26 @@ def ensure_board(
     return ctx.mission_boards[npc_id]
 
 
-def board_offerings(board: MissionBoard) -> tuple[MissionSpec, ...]:
+def board_offerings(
+    board: MissionBoard,
+    generated: dict[str, MissionSpec] | None = None,
+) -> tuple[MissionSpec, ...]:
     """Return :class:`MissionSpec` objects for non-empty slots on
-    ``board``. Skips slots whose mission ID is no longer in the
-    catalog (e.g. procedural missions from a previous session).
+    ``board``. Checks the static catalog first, then falls back to
+    ``generated`` (procedural missions). Skips slots whose ID is
+    unresolvable in both registries.
     """
+    if generated is None:
+        generated = {}
     result: list[MissionSpec] = []
     for slot_id in board.slots:
         if slot_id is not None:
             try:
                 result.append(find_mission(slot_id))
             except KeyError:
-                pass
+                gen = generated.get(slot_id)
+                if gen is not None:
+                    result.append(gen)
     return tuple(result)
 
 
@@ -352,14 +361,28 @@ def fill_empty_slots(
     completed_ids: frozenset[str],
     active_ids: frozenset[str],
     planet_id: str,
+    *,
+    generated: dict[str, MissionSpec] | None = None,
+    rng: random.Random | None = None,
 ) -> None:
     """Fill empty (None) slots on ``board`` with available missions.
 
     First evicts any slot whose ID is in ``completed_ids`` or
     ``active_ids`` (stale slots from completed/accepted missions).
     Then fills the resulting empties with static missions first,
-    using :func:`missions_offered_by` for the pool.
+    using :func:`missions_offered_by` for the pool. Remaining empty
+    slots are filled with procedurally-generated delivery missions.
+
+    Generated missions are stored in ``generated`` (typically
+    ``ctx.generated_missions``) so :func:`board_offerings` can
+    resolve them later.
     """
+    if generated is None:
+        generated = {}
+    if rng is None:
+        from .engine import RNG
+        rng = RNG
+
     # Evict completed/active missions from board slots.
     for i in range(len(board.slots)):
         _sid = board.slots[i]
@@ -383,6 +406,24 @@ def fill_empty_slots(
                     board.slots[i] = mid
                     existing.add(mid)
                     break
+
+    # Fill remaining empty slots with procedural delivery missions.
+    _proc_counter = 0
+    for i in range(len(board.slots)):
+        if board.slots[i] is not None:
+            continue
+        _proc = generate_delivery_mission(
+            origin_planet_id=planet_id,
+            max_tier=planet_tier,
+            rng=rng,
+            counter=_proc_counter,
+            giver_npc_id=board.npc_id,
+        )
+        if _proc is not None:
+            generated[_proc.id] = _proc
+            board.slots[i] = _proc.id
+            existing.add(_proc.id)
+            _proc_counter += 1
 
 
 def board_remove(board: MissionBoard, mission_id: str) -> None:
@@ -416,6 +457,7 @@ def refresh_all_boards(ctx) -> None:
     Skips boards whose ``last_refresh_month`` matches the current month
     (already refreshed this month).
     """
+    from .engine import RNG
     active_ids = frozenset(m.mission_id for m in ctx.player_active_missions)
     completed_ids = frozenset(ctx.completed_mission_ids)
 
@@ -436,8 +478,246 @@ def refresh_all_boards(ctx) -> None:
             completed_ids=completed_ids,
             active_ids=active_ids,
             planet_id=board.planet_id,
+            generated=ctx.generated_missions,
+            rng=RNG,
         )
         board.last_refresh_month = ctx.time_month
+
+
+# ---------------------------------------------------------------------------
+# Procedural delivery mission generator
+# ---------------------------------------------------------------------------
+
+# Cached planet_id → system_id mapping. Built lazily on first call to
+# _planet_to_system() from the solar system registry.
+_PLANET_SYSTEM_CACHE: dict[str, str] | None = None
+
+
+def _planet_to_system() -> dict[str, str]:
+    """Return ``{planet_id: system_id}`` for every planet (and station
+    city_planet_id) across all registered solar systems.
+
+    Lazy-built and cached so procedural generation doesn't re-scan the
+    system registry on every call.
+    """
+    global _PLANET_SYSTEM_CACHE
+    if _PLANET_SYSTEM_CACHE is not None:
+        return _PLANET_SYSTEM_CACHE
+
+    from .data import solar_systems as _sys_mod
+    mapping: dict[str, str] = {}
+    for _sys in _sys_mod.list_solar_systems():
+        for _p in _sys.planets:
+            if not getattr(_p, 'sun', False):
+                mapping[_p.id] = _sys.id
+        # Stations with city_planet_id share the same system.
+        for _st in getattr(_sys, 'stations', ()) or ():
+            if _st.city_planet_id:
+                mapping[_st.city_planet_id] = _sys.id
+    _PLANET_SYSTEM_CACHE = mapping
+    return mapping
+
+
+def _planet_npc_ids(planet_id: str) -> list[str]:
+    """Return the NPC IDs present on ``planet_id`` (non-empty npc_ids
+    from the planet's building specs).
+
+    Used to pick a delivery target NPC for procedural missions.
+    Returns empty list if the planet is unknown or has no NPC buildings.
+    """
+    try:
+        from .data.planets import find_planet_spec as _fps
+        spec = _fps(planet_id)
+    except KeyError:
+        return []
+    return [b.npc_id for b in spec.buildings if b.npc_id]
+
+
+def _dest_candidates_in_system(
+    system_id: str,
+    origin_planet_id: str,
+    hops: int,
+) -> list[tuple[str, str, int]]:
+    """Return ``[(planet_id, system_id, hops), ...]`` for every
+    landable planet (or station city_planet_id) in ``system_id``
+    that is not ``origin_planet_id`` and has at least one NPC.
+
+    Handles both same-system and remote-system destination lookup
+    with a single code path.
+    """
+    from .data.planets import has_landable_port
+    from .data import solar_systems as _sys_mod
+
+    try:
+        _sys = _sys_mod.find_solar_system(system_id)
+    except KeyError:
+        return []
+
+    result: list[tuple[str, str, int]] = []
+    # Planets.
+    for _p in _sys.planets:
+        if getattr(_p, 'sun', False):
+            continue
+        if _p.id == origin_planet_id:
+            continue
+        if not has_landable_port(_p.id):
+            continue
+        if not _planet_npc_ids(_p.id):
+            continue
+        result.append((_p.id, system_id, hops))
+    # Stations (city_planet_id points to the planet spec).
+    for _st in getattr(_sys, 'stations', ()) or ():
+        if _st.city_planet_id == origin_planet_id:
+            continue
+        if not _st.city_planet_id:
+            continue
+        if not has_landable_port(_st.city_planet_id):
+            continue
+        if not _planet_npc_ids(_st.city_planet_id):
+            continue
+        result.append((_st.city_planet_id, system_id, hops))
+    return result
+
+
+def generate_delivery_mission(
+    origin_planet_id: str,
+    max_tier: int,
+    rng: random.Random,
+    counter: int = 0,
+    giver_npc_id: str = "",
+) -> MissionSpec | None:
+    """Generate one procedural delivery mission originating from
+    ``origin_planet_id``.
+
+    Algorithm:
+      1. Roll tier: weighted 1..max_tier using min-of-two-rolls.
+      2. Find the origin system, then filter reachable systems by
+         tier-appropriate jump range (via BFS hop count).
+      3. Pick a destination planet in a different system with a
+         landable port and at least one NPC.
+      4. Generate cargo, deadline, and reward scaled by tier + distance.
+
+    Returns ``None`` if no suitable destination planet can be found
+    (e.g. isolated system with no jump gates, or no NPCs on any
+    reachable planet).
+
+    Args:
+        origin_planet_id: planet registry key (e.g. ``"earth"``).
+        max_tier: planet's ``mission_tier`` — caps the rolled tier.
+        rng: shared :data:`engine.RNG` for deterministic generation.
+        counter: unique per-fill counter appended to the generated ID.
+    """
+    from .data.solar_systems import reachable_system_ids
+
+    # 1. Weighted tier roll: min-of-two gives a natural rarity curve.
+    _max = max(1, max_tier)
+    tier = min(rng.randint(1, _max), rng.randint(1, _max))
+
+    # 2. Resolve origin system and reachable systems.
+    p2s = _planet_to_system()
+    origin_system_id = p2s.get(origin_planet_id)
+    if origin_system_id is None:
+        return None
+
+    reachable = reachable_system_ids(origin_system_id, max_hops=10)
+
+    # Tier → hop range: same-system deliveries are allowed for tier 1.
+    _hop_ranges = {
+        1: (0, 1),   # same system or neighbor
+        2: (1, 2),   # regional
+        3: (2, 4),   # sector
+        4: (3, 6),   # frontier
+    }
+    min_hops, max_hops = _hop_ranges.get(tier, (0, 10))
+
+    # Build candidate (system_id, hop_count) pairs.
+    _candidates: list[tuple[str, int]] = []
+    if min_hops == 0:
+        # Include same-system destinations (hop count 0).
+        _candidates.append((origin_system_id, 0))
+    for sys_id, hops in reachable.items():
+        if min_hops <= hops <= max_hops:
+            _candidates.append((sys_id, hops))
+
+    if not _candidates:
+        return None
+
+    # 3. Collect all landable planets (excl. origin) in candidate
+    #    systems, with at least one NPC. Uses a shared helper so
+    #    same-system and different-system enumeration share one path.
+    _dest_candidates: list[tuple[str, str, int]] = []  # (planet_id, system_id, hops)
+    for cand_sys_id, hops in _candidates:
+        _dest_candidates.extend(
+            _dest_candidates_in_system(cand_sys_id, origin_planet_id, hops),
+        )
+
+    if not _dest_candidates:
+        return None
+
+    dest_planet_id, dest_system_id, hops = rng.choice(_dest_candidates)
+
+    # 4. Pick a delivery target NPC on the destination planet.
+    npc_ids = _planet_npc_ids(dest_planet_id)
+    target_npc_id = rng.choice(npc_ids) if npc_ids else None
+
+    # 5. Cargo amount, scaled by tier.
+    _cargo_ranges = {1: (5, 10), 2: (10, 20), 3: (20, 40), 4: (40, 60)}
+    cargo_lo, cargo_hi = _cargo_ranges.get(tier, (5, 10))
+    cargo = rng.randint(cargo_lo, cargo_hi)
+
+    # 6. Deadline: 4 days per hop + random 2-6 days.
+    deadline = max(3, hops * 4 + rng.randint(2, 6))
+
+    # 7. Reward: credits = cargo * 10 * tier, xp = cargo * 2 * tier.
+    credits = cargo * 10 * tier
+    xp = cargo * 2 * tier
+
+    # 8. Generated ID: unique per run, deterministic from RNG state.
+    gen_id = f"proc_delivery_{origin_planet_id}_{dest_planet_id}_{counter}_{tier}"
+
+    # 9. Construct display title and description.
+    try:
+        from .data.planets import find_planet_spec as _fps_dest
+        dest_name = _fps_dest(dest_planet_id).name
+    except KeyError:
+        dest_name = dest_planet_id
+
+    try:
+        from .data.planets import find_planet_spec as _fps_origin
+        origin_name = _fps_origin(origin_planet_id).name
+    except KeyError:
+        origin_name = origin_planet_id
+
+    title = f"Delivery: {origin_name} \u2192 {dest_name}"
+    # Build a simple description mentioning cargo and jumps.
+    _hop_desc = "same system" if hops == 0 else f"{hops} jump(s)"
+    description = (
+        f"A {cargo}-unit cargo shipment from {origin_name} to "
+        f"{dest_name}. ({_hop_desc}, tier {tier})."
+    )
+
+    # 10. Determine faction + giver NPC from the board.
+    # For procedural missions, we use the board's NPC id as giver.
+    # The faction defaults to "merchants" for delivery missions.
+    # These fields are filled in by the caller based on the board.
+
+    return MissionSpec(
+        id=gen_id,
+        title=title,
+        description=description,
+        giver_npc_id=giver_npc_id,
+        faction="merchants",
+        mission_type="delivery",
+        tier=tier,
+        reward_credits=credits,
+        reward_xp=xp,
+        deadline_days=deadline,
+        early_bonus_pct=25,
+        required_cargo_size=cargo,
+        delivery_target_npc_id=target_npc_id,
+        delivery_target_planet_id=dest_planet_id,
+        origin_planet_id=origin_planet_id,
+    )
 
 
 # Re-exports so consumers can keep using ``mission_module.MissionSpec``
@@ -464,4 +744,7 @@ __all__ = [
     "board_remove",
     "board_return_static",
     "refresh_all_boards",
+    "generate_delivery_mission",
+    "_planet_npc_ids",
+    "_planet_to_system",
 ]

@@ -533,9 +533,12 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     completed_ids=_completed_ids,
                                     active_ids=_active_ids,
                                     planet_id=current_city_id,
+                                    generated=ctx.generated_missions,
                                 )
                                 _board.last_refresh_month = ctx.time_month
-                            offerings = mission_module.board_offerings(_board)
+                            offerings = mission_module.board_offerings(
+                                _board, generated=ctx.generated_missions,
+                            )
                             if not offerings:
                                 log.add(f'{npc_obj.name} has no work for you right now.')
                             else:
@@ -575,8 +578,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                                 ctx.time_day, ctx.time_month,
                                                 ctx.time_year, _dl_days,
                                             )
+                                        _is_proc = picked.id in ctx.generated_missions
                                         _new_active = mission_module.ActiveMission(
                                             mission_id=picked.id,
+                                            is_procedural=_is_proc,
                                             title=picked.title,
                                             required_cargo_size=picked.required_cargo_size,
                                             delivery_target_npc_id=picked.delivery_target_npc_id,

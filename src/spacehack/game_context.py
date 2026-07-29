@@ -223,3 +223,8 @@ class GameContext:
     time_month: int = 1
     time_year: int = 2200
     move_counter: int = 0  # increments per space move; ticks a day at 10
+    # Runtime-generated procedural missions, keyed by generated ID.
+    # Procedural MissionSpec entries are built at generation time and
+    # stored here so board_offerings can resolve them without the
+    # static catalog.
+    generated_missions: dict = dataclasses.field(default_factory=dict)
