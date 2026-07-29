@@ -150,10 +150,27 @@ def _run_game(
         player_owned_ship = ctx.player_owned_ship
         player_active_missions = ctx.player_active_missions
         character_info = ctx.character_info
-        city_game_map = game_map
-        city_player = player
-        current_mode: str = 'city'
         current_city_id: str = ctx.current_city_id
+        current_mode = getattr(ctx, '_loaded_mode', 'city')
+
+        if current_mode == 'space':
+            # city_game_map/city_player needed for landing back.
+            from .data.planets import load_planet as _plp, hangar_anchor as _phang
+            try:
+                city_game_map = _plp(current_city_id)
+                _anchor = _phang(current_city_id)
+                city_player = world.Entity(
+                    char='@', fg=(255, 255, 255),
+                    pos=world.Position(_anchor.x, _anchor.y + 1),
+                    name='Player',
+                )
+                city_game_map.entities.append(city_player)
+            except KeyError:
+                city_game_map = game_map
+                city_player = player
+        else:
+            city_game_map = game_map
+            city_player = player
     else:
         # --- New game setup ---
         species = find_species(species_id)
@@ -234,7 +251,8 @@ def _run_game(
         for event in tcod.event.wait():
             if should_quit(event):
                 from .saveload import save_game as _save_game
-                _save_game(ctx, mode=current_mode, city_id=current_city_id)
+                _save_game(ctx, mode=current_mode, city_id=current_city_id,
+                           system_id=solar_system_module.current_solar_system_id)
                 return
             # ? = open game guide (checked early so it can't be shadowed).
             if _try_open_guide(event, ctx):
@@ -437,7 +455,8 @@ def _run_game(
 
                                 # Auto-save after landing.
                                 from .saveload import save_game as _save_game
-                                _save_game(ctx, mode=current_mode, city_id=current_city_id)
+                                _save_game(ctx, mode=current_mode, city_id=current_city_id,
+                                           system_id=solar_system_module.current_solar_system_id)
                             continue
                 log.add('A wall blocks your path.')
             elif code == 'occupied':

@@ -102,6 +102,7 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "move_counter": ctx.move_counter,
         "current_mode": "city",
         "current_city_id": "earth",
+        "current_system_id": "sol",
         "player_pos_x": ctx.player.pos.x,
         "player_pos_y": ctx.player.pos.y,
         "economy_state": _d(ctx.economy_state),
@@ -110,18 +111,24 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
     }
 
 
-def save_game(ctx: GameContext, *, mode: str = "city", city_id: str = "earth") -> None:
+def save_game(
+    ctx: GameContext,
+    *,
+    mode: str = "city",
+    city_id: str = "earth",
+    system_id: str = "sol",
+) -> None:
     """Save the current game state to the autosave file.
 
-    ``mode`` and ``city_id`` are passed by the caller so save/load
-    doesn't need to reach into ``_run_game``'s closure locals.
+    ``mode``, ``city_id``, and ``system_id`` are passed by the caller
+    so save/load doesn't need to reach into ``_run_game``'s closure locals.
     """
     _data = _ctx_to_dict(ctx)
     _data["current_mode"] = mode
     _data["current_city_id"] = city_id
+    _data["current_system_id"] = system_id
     _data["player_pos_x"] = ctx.player.pos.x
     _data["player_pos_y"] = ctx.player.pos.y
-    # Persist current_city_id on ctx itself so load_game can restore it.
     ctx.current_city_id = city_id
     _path = _autosave_path()
     _path.write_text(json.dumps(_data, indent=2, ensure_ascii=False))
@@ -159,7 +166,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         return None
 
     from . import hud, message_log, mission as mission_module
-    from . import ship as ship_module, world
+    from . import ship as ship_module, world, solar_system as solar_system_module
     from .game_context import GameContext, PlayerCounters, BountySpawn, ProceduralSpawn
 
     # --- character_info ---
@@ -286,36 +293,92 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _pos_x = _data.get("player_pos_x", 13)
     _pos_y = _data.get("player_pos_y", 17)
     _city_id = _data.get("current_city_id", "earth")
+    _mode = _data.get("current_mode", "city")
+    _system_id = _data.get("current_system_id", "sol")
 
-    from .data.planets import load_planet as planets_load_planet, hangar_anchor as _planet_hangar
-    _game_map = planets_load_planet(_city_id)
-    # Space-mode saves have coordinates (e.g. 128,58) far outside
-    # a ~60×40 city map.  If the saved position is out of bounds,
-    # place the player next to their ship (hangar anchor + 1).
-    if not (0 < _pos_x < _game_map.width - 1 and 0 < _pos_y < _game_map.height - 1):
+    if _mode == "space":
+        # --- Space mode: rebuild solar system ---
+        from .data.solar_systems import find_solar_system as _find_sys
+        from .data.npc_ships import find_npc_ship as _find_npc
+
         try:
-            _anchor = _planet_hangar(_city_id)
-            _pos_x = _anchor.x + 1
-            _pos_y = _anchor.y + 1
+            _sys_spec = _find_sys(_system_id)
         except KeyError:
-            _pos_x = min(max(_pos_x, 1), _game_map.width - 2)
-            _pos_y = min(max(_pos_y, 1), _game_map.height - 2)
-    _player_ent = world.Entity(
-        char='@', fg=(255, 255, 255),
-        pos=world.Position(_pos_x, _pos_y), name='Player',
-    )
-    _game_map.entities.append(_player_ent)
+            _log.add(f"Save references unknown system '{_system_id}' — loading Earth city.")
+            _mode = "city"
+            _city_id = "earth"
 
-    # Restore hangar ship if owned.
-    if _owned_ship is not None:
-        _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
-        _hangar = world.Entity(
-            char=_ship_spec.char, fg=_ship_spec.fg,
-            pos=world.HANGAR_ANCHOR,
-            name=f"Your Ship: {_ship_spec.name}",
-            ship_id=_owned_ship.ship_id, owned=True,
+        if _mode == "space":
+            _game_map = solar_system_module.make_solar_system(system=_sys_spec)
+            solar_system_module.current_solar_system_id = _system_id
+
+            # Add bounty NPCs directly from saved spawns.
+            for _bs in _bounty_spawns.get(_system_id, []):
+                try:
+                    _espec = _find_npc(_bs.enemy_id)
+                except (KeyError, ImportError):
+                    continue
+                _display_name = _bs.bounty_target_name or _espec.name
+                _ent = world.Entity(
+                    char=_espec.char, fg=_espec.fg,
+                    pos=_bs.pos, name=_display_name,
+                    width=1, height=1,
+                    npc_ship_id=_bs.enemy_id,
+                )
+                if not _bs.squad_group_id:
+                    _ent.bounty_spawn_id = _bs.spawn_id
+                _game_map.entities.append(_ent)
+
+            # Add procedural NPCs from saved spawns (don't generate new ones).
+            for _ps in _proc_spawns.get(_system_id, []):
+                try:
+                    _espec = _find_npc(_ps.npc_id)
+                except (KeyError, ImportError):
+                    continue
+                _ent = world.Entity(
+                    char=_espec.char, fg=_espec.fg,
+                    pos=_ps.pos, name=_espec.name,
+                    width=1, height=1,
+                    npc_ship_id=_ps.npc_id,
+                )
+                _game_map.entities.append(_ent)
+
+            # Place player ship entity at saved space position.
+            if _owned_ship is not None:
+                _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
+                _player_ent = world.Entity(
+                    char=_ship_spec.char, fg=_ship_spec.fg,
+                    pos=world.Position(_pos_x, _pos_y),
+                    name=f"Your Ship: {_ship_spec.name}",
+                    ship_id=_owned_ship.ship_id, owned=True,
+                )
+            else:
+                _player_ent = world.Entity(
+                    char='@', fg=(255, 255, 255),
+                    pos=world.Position(_pos_x, _pos_y), name='Player',
+                )
+            _game_map.entities.append(_player_ent)
+    else:
+        # --- City mode: load planet map ---
+        from .data.planets import load_planet as planets_load_planet
+
+        _game_map = planets_load_planet(_city_id)
+        _player_ent = world.Entity(
+            char='@', fg=(255, 255, 255),
+            pos=world.Position(_pos_x, _pos_y), name='Player',
         )
-        _game_map.entities.append(_hangar)
+        _game_map.entities.append(_player_ent)
+
+        # Restore hangar ship if owned.
+        if _owned_ship is not None:
+            _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
+            _hangar = world.Entity(
+                char=_ship_spec.char, fg=_ship_spec.fg,
+                pos=world.HANGAR_ANCHOR,
+                name=f"Your Ship: {_ship_spec.name}",
+                ship_id=_owned_ship.ship_id, owned=True,
+            )
+            _game_map.entities.append(_hangar)
 
     # --- Assemble GameContext ---
     _ctx = GameContext(
@@ -348,5 +411,6 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.generated_missions = _gen
     _ctx.procedural_spawns = _proc_spawns
     _ctx.current_city_id = _city_id
+    _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
 
     return _ctx
