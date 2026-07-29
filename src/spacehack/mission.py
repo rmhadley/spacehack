@@ -407,9 +407,21 @@ def fill_empty_slots(
                     existing.add(mid)
                     break
 
+    # Only merchant guild NPCs offer procedural delivery missions.
+    # Other guilds (bar, militia, bounty, lab, depot) will get their
+    # own mission types in future passes.
+    _is_merchant = False
+    try:
+        from .data.npcs import find_npc as _fnpc
+        _is_merchant = _fnpc(board.npc_id).guild == "merchants"
+    except KeyError:
+        pass
+
     # Fill remaining empty slots with procedural delivery missions.
     _proc_counter = 0
     for i in range(len(board.slots)):
+        if not _is_merchant:
+            break
         if board.slots[i] is not None:
             continue
         _proc = generate_delivery_mission(
