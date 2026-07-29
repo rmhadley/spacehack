@@ -93,10 +93,10 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 
 ### Phase 1: Data model + hand-crafted missions
 
-- [ ] Add `bounty_target_name`, `bounty_target_squad_size`, `bounty_target_loadout_pct` to `MissionSpec`
-- [ ] Add `bounty_target_name`, `bounty_target_squad_size`, `bounty_target_loadout_pct` to `ActiveMission`
-- [ ] Add corresponding fields to `BountySpawn` (immutable, needs `frozen=True` check)
-- [ ] Add 6 hand-crafted bounty missions to `data/missions/bounty.py`:
+- [x] Add `bounty_target_name`, `bounty_target_squad_size`, `bounty_target_loadout_pct` to `MissionSpec`
+- [x] Add `bounty_target_name`, `bounty_target_squad_size`, `bounty_target_loadout_pct` to `ActiveMission`
+- [x] Add corresponding fields to `BountySpawn` (immutable, needs `frozen=True` check)
+- [x] Add 6 hand-crafted bounty missions to `data/missions/bounty.py`:
 
 | # | ID | Name | Tier | Target Enemy | System | Squad | Loadout% | Credits |
 |---|-----|------|------|-------------|--------|-------|----------|---------|
@@ -109,16 +109,16 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 
 (*May need a new `pirate_cruiser` NpcShipSpec — or use `militia_blockade` as base.)
 
-- [ ] Set `faction="bhguild"`, `giver_npc_id="bounty_master"`, `mission_type="bounty"`
-- [ ] Set deadlines, early_bonus_pct, origin_planet_id per entry
-- [ ] Wire `bounty_target_name` etc. into `ActiveMission` during accept flow
-- [ ] Verify `missions_offered_by` filters by `giver_npc_id="bounty_master"`
+- [x] Set `faction="bhguild"`, `giver_npc_id="bounty_master"`, `mission_type="bounty"`
+- [x] Set deadlines, early_bonus_pct, origin_planet_id per entry
+- [x] Wire `bounty_target_name` etc. into `ActiveMission` during accept flow
+- [x] Verify `missions_offered_by` filters by `giver_npc_id="bounty_master"`
 
 ### Phase 1.5: Playtest — static bounty missions
 
 **Checklist:**
 - [ ] Visit Earth bounty guild, talk to Bounty Master
-- [ ] Verify "View available work" shows hand-crafted bounty missions with custom names
+- [x] Verify "View available work" shows hand-crafted bounty missions with custom names
 - [ ] Accept "Crimson Jack" — verify target spawns in Sol with custom name
 - [ ] Quest log shows "Target: Crimson Jack" with system and danger level
 - [ ] Travel to target, engage, destroy — verify mission completes
@@ -133,9 +133,9 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 
 ### Phase 2: Procedural bounty generation
 
-- [ ] Add `_generate_bounty_name(tier, rng)` — picks from tier-gated prefix/title pools
-- [ ] Add `_bounty_enemy_pool(tier)` — returns eligible NpcShipSpec IDs
-- [ ] Add `generate_bounty_mission` to `mission.py`:
+- [x] Add `_generate_bounty_name(tier, rng)` — picks from tier-gated prefix/title pools
+- [x] Add `_bounty_enemy_pool(tier)` — returns eligible NpcShipSpec IDs
+- [x] Add `generate_bounty_mission` to `mission.py`:
   - Algorithm:
     1. Roll tier (min-of-two, same as delivery)
     2. Pick target system via hop-range gating (reuse `_hop_ranges` dict pattern)
@@ -147,14 +147,14 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
     8. Generate deadline: hop_count * 6 + randint(3, 8)
     9. Build MissionSpec with `mission_type="bounty"`, `faction="bhguild"`
   - [ ] Generated ID: `proc_bounty_{origin}_{system}_{enemy_id}_{counter}_{tier}`
-- [ ] Wire into `fill_empty_slots` with guild gate (`guild == "bhguild"`)
+- [x] Wire into `fill_empty_slots` with guild gate (`guild == "bhguild"`)
 
 ### Phase 2.5: Playtest — procedural bounties
 
 **Checklist:**
 - [ ] Visit multiple Bounty Masters across different planets
-- [ ] Verify procedural bounties appear with generated names (not "Pirate Scout")
-- [ ] Verify tier gating and danger levels match expectations
+- [x] Verify procedural bounties appear with generated names (not "Pirate Scout")
+- [x] Verify tier gating and danger levels match expectations
 - [ ] Accept a tier-3 bounty with squad — verify multiple enemies spawn
 - [ ] Accept a tier-4 bounty with full loadout — verify target has extra weapons
 - [ ] Complete it — verify reward scales with tier + squad
@@ -166,21 +166,21 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 
 ### Phase 3: Bounty completion in combat + comms
 
-- [ ] **Bounty-specific comms lines**: Set `comms_lines` on bounty target NpcShipSpec entries (or override at spawn time). Hand-crafted bounties get unique flavor lines; procedural bounties roll from tier-gated pools:
+- [x] **Bounty-specific comms lines**: Set `comms_lines` on bounty target NpcShipSpec entries (or override at spawn time). Hand-crafted bounties get unique flavor lines; procedural bounties roll from tier-gated pools:
   - Tier 1: "You're making a mistake, hunter." / "I ain't worth the bounty, pal."
   - Tier 2: "You've got guts coming after me." / "Name your price. Everyone has one."
   - Tier 3: "I've killed better hunters than you." / "You want my head? Come take it."
   - Tier 4: "I am the price on your head, hunter." / "They sent YOU? I'm insulted."
-- [ ] **Bounty auto-hail**: When the player enters the bounty target's `comms_warning_range` (same field as militia), the comms panel opens automatically with the target's taunt line. This doubles as an "enemy spotted" indicator — the player knows they've found their target.
+- [x] **Bounty auto-hail**: When the player enters the bounty target's `comms_warning_range` (same field as militia), the comms panel opens automatically with the target's taunt line. This doubles as an "enemy spotted" indicator — the player knows they've found their target.
   - Add `comms_warning_range` to bounty target NpcShipSpec entries (e.g. 20 cells)
   - Reuse `_check_auto_comms_warning` pattern, or add a bounty-specific `_check_bounty_auto_hail` that checks `ctx.player_active_missions` for bounty targets in range
   - Auto-hail only fires once per target (track hailed bounty spawn IDs to prevent spam)
-- [ ] In `combat/_loop.py`, when the **leader** enemy is destroyed:
+- [x] In `combat/_encounter.py`, when the **leader** enemy is destroyed:
   - Check `ctx.player_active_missions` for bounty missions targeting the enemy by `bounty_spawn_id`
   - If match found: mark complete, call `complete_mission`, remove spawn
   - Log: "Bounty complete: {bounty_target_name} destroyed."
-- [ ] Squad wingmate deaths do NOT complete the bounty
-- [ ] Clean up spawn data on abandon (already handled by `_remove_bounty_spawn`)
+- [x] Squad wingmate deaths do NOT complete the bounty
+- [x] Clean up spawn data on abandon (already handled by `_remove_bounty_spawn`)
 
 ### Phase 3.5: Playtest — combat integration
 
