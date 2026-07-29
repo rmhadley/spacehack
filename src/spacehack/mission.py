@@ -847,8 +847,12 @@ def _bounty_squad_range(tier: int) -> tuple[int, int]:
 
 
 def _bounty_danger_text(tier: int, squad_size: int) -> str:
-    """Return a danger-level label for mission descriptions."""
-    if tier >= 4 and squad_size >= 2:
+    """Return a danger-level label for mission descriptions.
+
+    Based purely on tier so the label always matches the mission's
+    reward tier (which already scales with squad size internally).
+    """
+    if tier >= 4:
         return "Extreme"
     if tier >= 3:
         return "High"

@@ -102,10 +102,9 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             # Status: Hunting (gold accent).
             paint(detail_top, fit(f'Hunting'), fg=ui.COLOR_OPTION_HIGHLIGHT)
             detail_top += 1
-            # Danger level based on tier + squad size.
+            # Danger level based on tier.
             _t = getattr(am, 'tier', 1)
-            _sq = getattr(am, 'bounty_target_squad_size', 1)
-            if _t >= 4 and _sq >= 2:
+            if _t >= 4:
                 _danger = "Extreme"
                 _danger_fg = (255, 60, 60)
             elif _t >= 3:
