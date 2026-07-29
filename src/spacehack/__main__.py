@@ -483,10 +483,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     if result is TalkOutcome.DELIVER:
                         if _deliver_mission is not None:
                             _today = ctx.time_day + (ctx.time_month - 1) * 30
-                        mission_module.complete_mission(
-                            _deliver_mission, player_owned_ship, stats, log,
-                            current_day=_today, ctx=ctx,
-                        )
+                            mission_module.complete_mission(
+                                _deliver_mission, player_owned_ship, stats, log,
+                                current_day=_today, ctx=ctx,
+                            )
                             if not _deliver_mission.is_procedural:
                                 ctx.completed_mission_ids.add(_deliver_mission.mission_id)
                             try:
