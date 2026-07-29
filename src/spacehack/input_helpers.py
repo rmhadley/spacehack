@@ -169,25 +169,22 @@ def _is_g_press(event: tcod.event.Event) -> bool:
     return sym_name in ('G', 'g')
 
 
-def _is_c_press(event: tcod.event.Event) -> bool:
-    """True iff ``event`` is a ``KeyDown`` for the ``C`` key (or its
+def _is_i_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``I`` key (or its
     lowercase alias).
 
-    Routes C (cargo menu) through a module-level helper so the
-    smoke test can regression-guard the KeySym name lookup,
-    mirroring :func:`_is_m_press` exactly. Lowercase ``c`` and
-    uppercase ``C`` both open the cargo-overlay modal; anything
-    else returns False so the dispatcher can route through
-    movement + planet-bump handlers.
+    Routes I (inventory / cargo menu) through a module-level helper.
+    Lowercase ``i`` and uppercase ``I`` both open the cargo-overlay
+    modal; anything else returns False.
 
-    ``C``/``c`` is unused by vim movement so it's a clean pick.
+    ``I``/``i`` is unused by vim movement so it's a clean pick.
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
     if not isinstance(event, tcod.event.KeyDown):
         return False
     sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('C', 'c')
+    return sym_name in ('I', 'i')
 
 
 def _is_t_press(event: tcod.event.Event) -> bool:
@@ -196,7 +193,7 @@ def _is_t_press(event: tcod.event.Event) -> bool:
 
     Routes T (transmit / comms) through a module-level helper so the
     smoke test can regression-guard the KeySym name lookup,
-    mirroring :func:`_is_c_press` exactly. Lowercase ``t`` and
+    mirroring :func:`_is_i_press` exactly. Lowercase ``t`` and
     uppercase ``T`` both open the comms panel; anything
     else returns False so the dispatcher can route through
     movement + planet-bump handlers.

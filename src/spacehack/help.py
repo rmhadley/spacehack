@@ -119,7 +119,7 @@ _GUIDE_CONTROLS = GuideSection(
         "\n"
         "- M: navigation map showing planets, gates, your ship"
         "\n"
-        "- C: cargo hold"
+        "- I: cargo hold"
         "\n""- T: comms panel (hail nearby ships)"
         "\n"
         "- F: faction standings viewer"

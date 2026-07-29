@@ -6,9 +6,9 @@ Add a leveling system that gives meaning to the XP already being awarded by miss
 
 ### What levels unlock
 
-Leveling grants **2 skill points per level** (each point adds +2 to one pilot skill). Skills are viewed and points spent via the **Character screen** (`K` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 20 and 30. No hull/fuel/cargo/shield/slot bonuses — progression is purely about pilot skill growth.
+Leveling grants **2 skill points per level** (each point adds +2 to one pilot skill). Skills are viewed and points spent via the **Character screen** (`C` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 20 and 30. No hull/fuel/cargo/shield/slot bonuses — progression is purely about pilot skill growth.
 
-**Keybinding:** `K` opens the Character screen. `C` is already taken by Cargo in space mode, so `K` was chosen to avoid a conflict. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
+**Keybinding:** `C` opens the Character screen. Cargo was moved to `I` (Inventory) to free up `C`. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
 - **Gunnery** → weapon accuracy (`gunnery * 0.5` added to hit chance)
 - **Piloting** → AP per turn (`3 + piloting // 20`), dodge bonus (`piloting * 0.5`)
@@ -148,9 +148,9 @@ A T1 mission gives ~20 XP. A T4 mission gives ~300 XP. A combat kill gives ~30-2
 
 At level 20, the player has earned **38 skill points (76 stat points invested)** and must choose their major trait. A Human Pirate who invested everything in gunnery would have gunnery = 41 + 76 = 117 (but soft-capped at 100), with piloting=5 and engineering=3. A balanced build would be roughly gunnery=79, piloting=43, engineering=41.
 
-### Character screen (K hotkey)
+### Character screen (C hotkey)
 
-A new **Character screen** accessed via the `K` hotkey from city or space mode. This is the start of an RPG-style character sheet that will grow with future features. For this feature, it shows:
+A new **Character screen** accessed via the `C` hotkey from city or space mode. This is the start of an RPG-style character sheet that will grow with future features. For this feature, it shows:
 
 - Current level and XP progress
 - Skill ratings with available points to spend
@@ -158,7 +158,7 @@ A new **Character screen** accessed via the `K` hotkey from city or space mode. 
 
 The screen is NOT in the ship menu — it's a global hotkey like `F` for Factions.
 
-**Keybinding note:** `C` is already taken by Cargo in space mode, so the Character screen uses `K`.
+**Keybinding note:** `C` is already taken by Cargo in space mode, so the Character screen uses `C`.
 
 ```
 ══════════════════════════════════════════════
@@ -322,8 +322,8 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - `combat/_weapons.py` — increment playstyle counters on shot/hit/damage events
 - `menus/_ship_menu.py` — NOT touched (Character screen uses hotkey, not ship menu)
 - `hud.py` — add level/XP display
-- `input_helpers.py` — add `_is_k_press()` for Character screen hotkey
-- `__main__.py` — wire K hotkey
+- `input_helpers.py` — add `_is_c_press()` for Character screen hotkey (renamed from old cargo key)
+- `__main__.py` — wire C hotkey for Character screen, I hotkey for cargo
 
 **Three duplication hotspots:**
 1. **XP award duplicated across mission completion and combat kill.** Fix: single `add_xp(ctx, amount)` function in new `xp.py` module that handles level-up logic, logging, and trait triggers.
@@ -344,7 +344,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - [ ] Halve class skill bonuses in `data/classes/core.py`
 - [ ] Wire `add_xp()` into `mission.complete_mission()` call path
 - [ ] Wire `add_xp()` into `combat/_encounter.py` VICTORY path (per-kill)
-- [ ] Add `_is_k_press()` to `input_helpers.py`, wire K hotkey in `__main__.py`
+- [ ] Add `_is_k_press()` to `input_helpers.py`, wire C hotkey in `__main__.py`
 - [ ] Smoke test + commit
 
 #### Playtest checklist
@@ -421,7 +421,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - [ ] Add "Lv.N" to space HUD (near ship name or below fuel/hull)
 - [ ] `add_xp()` logs `"+N XP"` on gain, `"Level N! 2 skill points earned."` on level-up
 - [ ] Character screen shows "Next level: 400/500 XP" with progress bar
-- [ ] Add `K` to HUD key hints in both city and space modes
+- [ ] Add `C` to HUD key hints in both city and space modes
 - [ ] Smoke test + commit
 
 #### Playtest checklist

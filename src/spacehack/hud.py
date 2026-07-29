@@ -264,7 +264,7 @@ def render_hud(
         y = _render_help_lines(console, hud_x, y, [
             ("G", "Go To"),
             ("M", "Map"),
-            ("C", "Cargo"),
+            ("I", "Cargo"),
             ("T", "Comms"),
             ("F", "Factions"),
             ("?", "Guide"),
