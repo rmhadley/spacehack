@@ -157,27 +157,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
         fuel=starter_ship.max_fuel,
     )
     # --- Dev mode: super-powered frigate for playtesting ---
-    import os as _os
-    if _os.environ.get('SPACEHACK_DEV'):
-        starter_ship = ship_module.find_ship("frigate")
-        starter_entity.char = starter_ship.char
-        starter_entity.fg = starter_ship.fg
-        starter_entity.name = f'Your Ship: {starter_ship.name}'
-        starter_entity.ship_id = starter_ship.id
-        player_owned_ship = ship_module.OwnedShip(
-            ship_id="frigate",
-            weapons=(
-                "plasma_cannon", "plasma_cannon", "plasma_cannon", "plasma_cannon",
-                "heavy_missile", "heavy_missile", "heavy_missile", "heavy_missile",
-            ),
-            modules=(
-                "reactor_mk4", "shield_mk4", "shield_recharger",
-                "targeting_mk4", "gyro_mk4", "armor_mk4",
-            ),
-            fuel=999,
-        )
-        stats.credits = 999999
-        log.add('[DEV MODE] Super-powered frigate + 999,999 credits.')
+    from .dev_mode import apply_dev_overrides as _apply_dev_overrides
+    starter_ship, starter_entity, player_owned_ship = _apply_dev_overrides(
+        starter_ship, starter_entity, player_owned_ship, stats, log,
+    )
     player_active_missions: list[mission_module.ActiveMission] = []
     character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
     ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
