@@ -92,6 +92,9 @@ class BountySpawn:
     spawn_id: str
     enemy_id: str
     pos: world.Position
+    bounty_target_name: str | None = None
+    squad_size: int = 1
+    loadout_pct: int = 0
 
 
 @dataclasses.dataclass(frozen=True)

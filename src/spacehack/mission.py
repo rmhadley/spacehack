@@ -78,10 +78,13 @@ class ActiveMission:
     delivery_target_npc_id: str | None = None
     delivery_target_planet_id: str | None = None
 
-    # Bounty fields (future)
+    # Bounty fields
     bounty_spawn_id: str | None = None
     target_enemy_id: str | None = None
     target_system_id: str | None = None
+    bounty_target_name: str | None = None
+    bounty_target_squad_size: int = 1
+    bounty_target_loadout_pct: int = 0
 
     # Deadline
     time_deadline: tuple[int, int, int] | None = None  # (day, month, year)

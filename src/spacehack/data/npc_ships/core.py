@@ -91,6 +91,36 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
             "This sector is under federation blockade. Turn back now.",
         ),
     ),
+    # --- Pirate Captain (Tier 4 bounty target) ---
+    NpcShipSpec(
+        id="pirate_captain",
+        name="Pirate Captain",
+        char="D",
+        fg=(200, 40, 40),
+        ship_id="frigate",
+        faction="pirate",
+        weapons=("heavy_laser", "heavy_missile", "light_laser"),
+        modules=("shield_mk1", "shield_capacitor", "targeting_computer", "armor_plating"),
+        cargo_goods=("weapons_blackmarket", "luxury_goods", "electronics"),
+        cargo_count=3,
+        # Boss-level threat: high accuracy, moderate dodge, nearly never flees
+        ai_aggressiveness=85,
+        ai_preferred_range=3,
+        ai_flee_threshold=0.05,
+        ai_accuracy_bonus=25,
+        ai_dodge_bonus=10,
+        pilot_gunnery=40,
+        pilot_piloting=30,
+        pilot_engineering=30,
+        min_power_gen=8,
+        detect_radius=12,
+        comms_warning_range=20,
+        comms_lines=(
+            "You've come far to die, hunter.",
+            "I've crushed better ships than yours.",
+            "Name your price. Everyone has one.",
+        ),
+    ),
     # --- Merchants ---
     NpcShipSpec(
         id="merchant_hauler",

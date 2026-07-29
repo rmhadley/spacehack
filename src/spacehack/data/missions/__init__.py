@@ -55,9 +55,19 @@ class MissionSpec:
         origin_planet_id: source planet, used for tier gating
             (only offered on planets where this matches).
 
-        # --- Bounty-specific (future) ---
+        # --- Bounty-specific ---
         target_enemy_id: enemy spec to kill.
         target_system_id: system to find them in.
+        bounty_target_name: custom display name for the target
+            (e.g. "Vex Korr"). When set, overrides the base
+            NpcShipSpec name for the spawned enemy entity.
+            Procedural missions generate names from tier-gated
+            word pools. None == use the base spec name.
+        bounty_target_squad_size: number of enemies in the target
+            group (leader + wingmates). 1 = solo target.
+        bounty_target_loadout_pct: 0-100 representing how upgraded
+            the target's weapons/modules are vs the base spec.
+            0 = base spec, 50 = +1 weapon, 100 = fully kitted.
 
         # --- Recommendations (soft hints) ---
         recommended_class_id: optional class hint for offering modal.
@@ -82,9 +92,12 @@ class MissionSpec:
     delivery_target_planet_id: str | None = None
     origin_planet_id: str | None = None
 
-    # --- Bounty-specific (future) ---
+    # --- Bounty-specific ---
     target_enemy_id: str | None = None
     target_system_id: str | None = None
+    bounty_target_name: str | None = None
+    bounty_target_squad_size: int = 1
+    bounty_target_loadout_pct: int = 0
 
     # --- Recommendations ---
     recommended_class_id: str | None = None
