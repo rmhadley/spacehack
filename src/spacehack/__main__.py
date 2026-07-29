@@ -182,7 +182,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
         player_owned_ship = ship_module.OwnedShip(
             ship_id="frigate",
             weapons=(
-                "heavy_laser", "heavy_laser", "heavy_laser", "heavy_laser",
+                "plasma_cannon", "plasma_cannon", "plasma_cannon", "plasma_cannon",
                 "heavy_missile", "heavy_missile", "heavy_missile", "heavy_missile",
             ),
             modules=(
