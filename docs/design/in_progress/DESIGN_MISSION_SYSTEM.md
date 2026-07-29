@@ -475,13 +475,14 @@ Quest log deadline display.
 
 **What**: Quest log list view, HUD mission indicator, delivery picker, slots-full message.
 
-- [ ] Quest log: list view with up to 5 missions, arrow-key navigation, Enter for detail,
+- [x] Quest log: list view with up to 5 missions, arrow-key navigation, Enter for detail,
       A to abandon (with confirmation)
-- [ ] HUD: compact mission indicator — count + first mission title truncated
-- [ ] Delivery picker: if multiple missions deliverable at same NPC, show modal to pick one
-- [ ] Accept flow: `"Your mission log is full (5/5). Abandon one first."` when at cap
-- [ ] Cargo check on accept: sum of all mission cargo vs available capacity
-- [ ] Smoke test
+- [x] HUD: compact mission indicator — count + first mission title truncated
+      (removed entirely — Q quest log is the single mission viewer)
+- [x] Delivery picker: if multiple missions deliverable at same NPC, show modal to pick one
+- [x] Accept flow: `"Your mission log is full (5/5). Abandon one first."` when at cap
+- [x] Cargo check on accept: sum of all mission cargo vs available capacity
+- [x] Smoke test
 
 ---
 
