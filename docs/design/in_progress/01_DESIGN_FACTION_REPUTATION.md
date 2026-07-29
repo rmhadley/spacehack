@@ -102,7 +102,7 @@ Reputation starts at a baseline determined by **species + class**:
 | Kill a militia ship | +8 | -5 | -5 | -12 |
 | Kill a civilian ship | +5 | -5 | -8 | -5 |
 | Flee from combat | 0 | -1 | -1 | -2 | Cowardice — all lawful factions look down on it |
-| Initiate unprovoked attack (comms) | +2 | -2 | -2 | -3 | Player attacks first via comms |
+| Initiate unprovoked attack (comms) | +2 pirate¹ | −2 merchant | −2 civilian | −3 militia | ¹ Only if target is NOT pirate-aligned |
 
 **Squad bonus:** Killing all members of a squad adds +1 bonus rep to the relevant faction (e.g. clearing a pirate squad gives +1 extra pirate rep hit, +1 extra merchant/militia gain).
 
