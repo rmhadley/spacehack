@@ -211,6 +211,24 @@ def _is_t_press(event: tcod.event.Event) -> bool:
     return sym_name in ('T', 't')
 
 
+def _is_f_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``F`` key (or its
+    lowercase alias).
+
+    Routes F (faction standings viewer) through a module-level helper.
+    Lowercase ``f`` and uppercase ``F`` both open the faction viewer;
+    anything else returns False.
+
+    ``F``/``f`` is unused by vim movement so it's a clean pick.
+    ``getattr(..., "name", "")`` belt-and-suspenders against a
+    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('F', 'f')
+
+
 def _is_question_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``?`` key.
 
