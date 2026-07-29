@@ -233,8 +233,9 @@ def _run_game(
         ctx.context.present(console)
         for event in tcod.event.wait():
             if should_quit(event):
-                from .saveload import save_game as _save_game
-                _save_game(ctx, mode=current_mode, city_id=current_city_id)
+                if current_mode == 'city':
+                    from .saveload import save_game as _save_game
+                    _save_game(ctx, mode=current_mode, city_id=current_city_id)
                 return
             # ? = open game guide (checked early so it can't be shadowed).
             if _try_open_guide(event, ctx):
