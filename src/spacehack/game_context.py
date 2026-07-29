@@ -261,3 +261,7 @@ class GameContext:
     player_engineering_bonus: int = 0
     player_traits: list[str] = dataclasses.field(default_factory=list)
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
+    # Current city the player is on (for save/load).  Updated on
+    # planet landing; used by the title-menu Continue path to
+    # restore the correct city map.
+    current_city_id: str = "earth"

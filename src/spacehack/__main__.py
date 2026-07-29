@@ -119,60 +119,88 @@ def _pick_bounty_spawn_pos(
     return None
 
 
-def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> None:
+def _run_game(
+    context: tcod.context.Context,
+    species_id: str = "",
+    class_id: str = "",
+    *,
+    loaded_ctx: GameContext | None = None,
+) -> None:
     """Render the small city + HUD + msg log and handle vim movement.
 
     Walking into a wall logs a short message. Walking into a
     non-interactable entity logs a "bump" message. Walking into
     a ship (at the space port) opens the ship-buy modal; walking
     into a guild NPC opens the flavor-talk modal.
+
+    When ``loaded_ctx`` is provided (Continue path), setup is
+    skipped and the game resumes from the saved state.
     """
-    species = find_species(species_id)
-    klass = find_class(class_id)
-    CITY_WIDTH, CITY_HEIGHT = (60, 40)
-    game_map = world.make_city(width=CITY_WIDTH, height=CITY_HEIGHT)
-    player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(x=CITY_WIDTH // 2, y=CITY_HEIGHT // 2), name='Player')
-    game_map.entities.append(player)
-    stats = character.starting_stats(species_id, class_id)
-    log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
-    log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
-    log.add("The cobblestones are damp from last night's rain.")
-    log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
-    log.add('Your starter ship is docked at the space port.')
-    log.add('Buildings: North-West space port, South-West merchant guild,')
-    log.add('Bar in the plaza, militia + bounty guild on the South-East.')
-    log.add('Visit the guild halls to find work or the port to upgrade your ship.')
-    # Give the player a free starter ship.
-    starter_ship = ship_module.find_ship("starter")
-    starter_entity = world.Entity(
-        char=starter_ship.char, fg=starter_ship.fg,
-        pos=world.HANGAR_ANCHOR,
-        name=f'Your Ship: {starter_ship.name}',
-        ship_id=starter_ship.id, owned=True,
-    )
-    game_map.entities.append(starter_entity)
-    player_owned_ship: ship_module.OwnedShip = ship_module.OwnedShip(
-        ship_id=starter_ship.id,
-        weapons=starter_ship.start_weapons,
-        modules=starter_ship.start_modules,
-        fuel=starter_ship.max_fuel,
-    )
-    # --- Dev mode: super-powered frigate for playtesting ---
-    from .dev_mode import apply_dev_overrides as _apply_dev_overrides
-    starter_ship, starter_entity, player_owned_ship = _apply_dev_overrides(
-        starter_ship, starter_entity, player_owned_ship, stats, log,
-    )
-    player_active_missions: list[mission_module.ActiveMission] = []
-    character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
-    ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
-    ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
     console = make_console()
-    city_game_map = game_map
-    city_player = player
-    current_mode: str = 'city'
-    current_city_id: str = 'earth'
+
+    if loaded_ctx is not None:
+        # --- Resume from save ---
+        ctx = loaded_ctx
+        game_map = ctx.game_map
+        player = ctx.player
+        stats = ctx.stats
+        log = ctx.log
+        player_owned_ship = ctx.player_owned_ship
+        player_active_missions = ctx.player_active_missions
+        character_info = ctx.character_info
+        city_game_map = game_map
+        city_player = player
+        current_mode: str = 'city'
+        current_city_id: str = ctx.current_city_id
+    else:
+        # --- New game setup ---
+        species = find_species(species_id)
+        klass = find_class(class_id)
+        CITY_WIDTH, CITY_HEIGHT = (60, 40)
+        game_map = world.make_city(width=CITY_WIDTH, height=CITY_HEIGHT)
+        player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(x=CITY_WIDTH // 2, y=CITY_HEIGHT // 2), name='Player')
+        game_map.entities.append(player)
+        stats = character.starting_stats(species_id, class_id)
+        log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
+        log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
+        log.add("The cobblestones are damp from last night's rain.")
+        log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
+        log.add('Your starter ship is docked at the space port.')
+        log.add('Buildings: North-West space port, South-West merchant guild,')
+        log.add('Bar in the plaza, militia + bounty guild on the South-East.')
+        log.add('Visit the guild halls to find work or the port to upgrade your ship.')
+        # Give the player a free starter ship.
+        starter_ship = ship_module.find_ship("starter")
+        starter_entity = world.Entity(
+            char=starter_ship.char, fg=starter_ship.fg,
+            pos=world.HANGAR_ANCHOR,
+            name=f'Your Ship: {starter_ship.name}',
+            ship_id=starter_ship.id, owned=True,
+        )
+        game_map.entities.append(starter_entity)
+        player_owned_ship: ship_module.OwnedShip = ship_module.OwnedShip(
+            ship_id=starter_ship.id,
+            weapons=starter_ship.start_weapons,
+            modules=starter_ship.start_modules,
+            fuel=starter_ship.max_fuel,
+        )
+        # --- Dev mode: super-powered frigate for playtesting ---
+        from .dev_mode import apply_dev_overrides as _apply_dev_overrides
+        starter_ship, starter_entity, player_owned_ship = _apply_dev_overrides(
+            starter_ship, starter_entity, player_owned_ship, stats, log,
+        )
+        player_active_missions: list[mission_module.ActiveMission] = []
+        character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
+        ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
+        ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
+        city_game_map = game_map
+        city_player = player
+        current_mode: str = 'city'
+        current_city_id: str = 'earth'
+
+    # --- Main game loop ---
     while True:
         if ctx.player_dead:
             return
@@ -205,6 +233,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
         ctx.context.present(console)
         for event in tcod.event.wait():
             if should_quit(event):
+                from .saveload import save_game as _save_game
+                _save_game(ctx, mode=current_mode, city_id=current_city_id)
                 return
             # ? = open game guide (checked early so it can't be shadowed).
             if _try_open_guide(event, ctx):
@@ -374,6 +404,8 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     # Returning to current city — map is cached, just animate ship down.
                                     if hangar_ship is not None:
                                         game_map, player = _return_to_city(ctx, console, hangar_ship, city_game_map, city_player)
+                                        ctx.game_map = game_map
+                                        ctx.player = player
                                         current_mode = 'city'
                                 else:
                                     # Landing on a new planet — load fresh map.
@@ -402,6 +434,10 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     ctx.player = player
                                     current_city_id = pid
                                     current_mode = 'city'
+
+                                # Auto-save after landing.
+                                from .saveload import save_game as _save_game
+                                _save_game(ctx, mode=current_mode, city_id=current_city_id)
                             continue
                 log.add('A wall blocks your path.')
             elif code == 'occupied':
@@ -648,30 +684,72 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     log.add(f'You bump into {blocker.name}.')
 
 def run(context: tcod.context.Context) -> None:
-    """Drive the 3 creation screens, then drop into the city game."""
+    """Show title menu, then either new game or continue from save."""
     import os
     import struct
     _seed = struct.unpack('I', os.urandom(4))[0]
     seed_rng(_seed)
-    # Show the title splash screen before the character-creation flow.
+    # Show the title splash screen.
     ui.render_title_splash(context)
+    console = make_console()
     while True:
-        outcome, species_id = _run_pick(context, ui.species_menu())
-        if outcome in (Outcome.QUIT, Outcome.BACK):
+        # --- Title menu ---
+        from .saveload import save_exists as _has_save, load_game as _load
+        _sel = 0
+        _save_avail = _has_save()
+        _menu_outcome = ui.TitleMenuOutcome.IGNORE
+        while _menu_outcome is ui.TitleMenuOutcome.IGNORE:
+            console.clear()
+            ui.render_title_menu(
+                console, SCREEN_WIDTH, SCREEN_HEIGHT,
+                selected=_sel, save_available=_save_avail,
+            )
+            context.present(console)
+            for event in tcod.event.wait():
+                if should_quit(event):
+                    return
+                _menu_outcome, _sel = ui.update_title_menu(
+                    event, selected=_sel, save_available=_save_avail,
+                )
+                if _menu_outcome is not ui.TitleMenuOutcome.IGNORE:
+                    break
+        if _menu_outcome is ui.TitleMenuOutcome.EXIT:
             return
-        outcome, class_id = _run_pick(context, ui.class_menu())
-        if outcome is Outcome.QUIT:
-            return
-        if outcome is Outcome.BACK:
+        if _menu_outcome is ui.TitleMenuOutcome.CONTINUE:
+            _ctx = _load(context)
+            if _ctx is not None:
+                _run_game(context, loaded_ctx=_ctx)
+            else:
+                # Corrupted save — flash error then return to menu.
+                console.clear()
+                _msg = "Save file corrupted."
+                console.print(
+                    x=ui.centered_x(_msg, SCREEN_WIDTH),
+                    y=SCREEN_HEIGHT // 2,
+                    string=_msg, fg=(255, 100, 100),
+                )
+                context.present(console)
+                import time as _time
+                _time.sleep(1.0)
             continue
-        outcome = _run_confirm(context, species_id, class_id)
-        if outcome is Outcome.QUIT:
-            return
-        if outcome is Outcome.BACK:
-            continue
-        _run_game(context, species_id, class_id)
-        # After _run_game returns (death or completion), loop back to
-        # the main menu so the player can start a fresh run.
+        # --- New Game: character creation ---
+        while True:
+            outcome, species_id = _run_pick(context, ui.species_menu())
+            if outcome in (Outcome.QUIT, Outcome.BACK):
+                break
+            outcome, class_id = _run_pick(context, ui.class_menu())
+            if outcome is Outcome.QUIT:
+                break
+            if outcome is Outcome.BACK:
+                continue
+            outcome = _run_confirm(context, species_id, class_id)
+            if outcome is Outcome.QUIT:
+                break
+            if outcome is Outcome.BACK:
+                continue
+            _run_game(context, species_id, class_id)
+            break
+        # After game ends, loop back to title menu.
         continue
 
 def main() -> None:

@@ -357,6 +357,116 @@ _SHIP_ART: tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Title menu (after splash screen)
+# ---------------------------------------------------------------------------
+
+class TitleMenuOutcome(Enum):
+    """Terminal outcomes for the title menu."""
+    NEW_GAME = auto()
+    CONTINUE = auto()
+    EXIT = auto()
+    IGNORE = auto()
+
+
+def render_title_menu(
+    console: tcod.console.Console,
+    screen_width: int,
+    screen_height: int,
+    *,
+    selected: int = 0,
+    save_available: bool = False,
+) -> None:
+    """Render the title menu with New Game / Continue / Exit.
+
+    ``Continue`` is dimmed (and unselectable via update) when no
+    save file exists.
+    """
+    console.clear()
+
+    # Title art
+    _title_y = screen_height // 2 - 10
+    for _i, _line in enumerate(_TITLE_ART):
+        _x = (screen_width - len(_line)) // 2
+        console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
+
+    # Menu options
+    _options: list[tuple[str, tuple]] = [
+        ("New Game", COLOR_OPTION),
+        ("Continue", COLOR_OPTION if save_available else COLOR_VALUE_DIM),
+        ("Exit", COLOR_OPTION),
+    ]
+    _menu_y = _title_y + len(_TITLE_ART) + 3
+    for _i, (_label, _base_fg) in enumerate(_options):
+        _is_sel = _i == selected
+        _marker = "> " if _is_sel else "  "
+        _close = " <" if _is_sel else "  "
+        _fg = COLOR_OPTION_HIGHLIGHT if _is_sel else _base_fg
+        console.print(
+            x=centered_x(f"{_marker}{_label}{_close}", screen_width),
+            y=_menu_y + _i * 2,
+            string=f"{_marker}{_label}{_close}",
+            fg=_fg,
+        )
+
+    # Hint
+    _hint = "UP/DOWN navigate - ENTER select"
+    console.print(
+        x=centered_x(_hint, screen_width), y=screen_height - 4,
+        string=_hint, fg=COLOR_INSTRUCTION,
+    )
+
+
+def update_title_menu(
+    event: tcod.event.Event,
+    *,
+    selected: int,
+    save_available: bool = False,
+) -> tuple[TitleMenuOutcome, int]:
+    """Handle a key event for the title menu.
+
+    Returns ``(outcome, new_selected)``. ``Continue`` skips to Exit
+    when no save is available.
+    """
+    _max = 2  # 0=New Game, 1=Continue, 2=Exit
+    _sel = selected
+
+    if isinstance(event, tcod.event.KeyDown):
+        sym = event.sym
+        sym_name: str = getattr(sym, 'name', '').lower()
+
+        if sym in _UP_SYMS or sym_name == 'k':
+            _sel = (_sel - 1) % (_max + 1)
+            # Skip Continue if no save.
+            if _sel == 1 and not save_available:
+                _sel = 0 if _sel == 1 else _sel - 1
+            return TitleMenuOutcome.IGNORE, _sel
+
+        if sym in _DOWN_SYMS or sym_name == 'j':
+            _sel = (_sel + 1) % (_max + 1)
+            if _sel == 1 and not save_available:
+                _sel = 2
+            return TitleMenuOutcome.IGNORE, _sel
+
+        if sym in _ENTER_SYMS:
+            if _sel == 0:
+                return TitleMenuOutcome.NEW_GAME, _sel
+            if _sel == 1 and save_available:
+                return TitleMenuOutcome.CONTINUE, _sel
+            if _sel == 2:
+                return TitleMenuOutcome.EXIT, _sel
+            return TitleMenuOutcome.IGNORE, _sel
+
+        if sym in _ESCAPE_SYMS:
+            return TitleMenuOutcome.EXIT, _sel
+
+    return TitleMenuOutcome.IGNORE, _sel
+
+
+# ---------------------------------------------------------------------------
+# Title splash screen
+# ---------------------------------------------------------------------------
+
 def render_title_splash(context: tcod.context.Context) -> None:
     """Render the title splash screen and wait for any key.
 
