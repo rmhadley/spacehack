@@ -13,6 +13,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -45,13 +46,16 @@ def save_exists() -> bool:
 def _d(obj) -> object:
     """Recursively convert *obj* to a JSON-safe value.
 
-    Dataclasses → dict, sets → sorted list, positions → (x,y) tuple.
+    Dataclasses → dict, sets → sorted list, enums → name string,
+    positions → (x,y) tuple.
     """
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         _fields: dict[str, object] = {}
         for _f in dataclasses.fields(obj):
             _fields[_f.name] = _d(getattr(obj, _f.name))
         return _fields
+    if isinstance(obj, Enum):
+        return obj.name
     if isinstance(obj, (list, tuple)):
         return [_d(v) for v in obj]
     if isinstance(obj, (set, frozenset)):
@@ -182,6 +186,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         _active_missions.append(mission_module.ActiveMission(
             mission_id=_am["mission_id"],
             is_procedural=_am.get("is_procedural", False),
+            status=mission_module.MissionStatus[_am["status"]] if _am.get("status") else mission_module.MissionStatus.IN_PROGRESS,
             title=_am.get("title", ""),
             required_cargo_size=_am.get("required_cargo_size", 0),
             delivery_target_npc_id=_am.get("delivery_target_npc_id", ""),
