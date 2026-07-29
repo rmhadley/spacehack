@@ -166,6 +166,11 @@ def run_combat(
                 _enemy_ents[_i] = _e
                 _matched.add(id(_e))
                 break
+        # Override enemy name with the entity's custom name (e.g. bounty
+        # targets like "Crimson Jack" instead of "Pirate Scout").
+        _ent = _enemy_ents.get(_i)
+        if _ent is not None and getattr(_ent, 'name', ''):
+            _inst.name = _ent.name
 
     # -------- Deduplicate overlapping positions --------
     # If two or more enemies share the same cell (possible after
@@ -313,7 +318,9 @@ def run_combat(
                             enemy_insts.append(_new_ei)
                             if _found_entity is not None:
                                 _enemy_ents[len(enemy_insts) - 1] = _found_entity
-                            _c_log(f"{_ns.name} joins the fight!")
+                                if getattr(_found_entity, 'name', ''):
+                                    _new_ei.name = _found_entity.name
+                            _c_log(f"{getattr(_found_entity, 'name', '') or _ns.name} joins the fight!")
                 combat_mode = "DEFAULT"
                 turn += 1
                 start_player_turn(player_state)
