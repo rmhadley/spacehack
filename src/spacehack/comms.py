@@ -283,8 +283,14 @@ def _run_interaction_modal(
     # ---- Handle interaction outcome ----
     if interaction_outcome is _InteractionOutcome.ATTACK:
         # Apply unprovoked attack rep penalty before combat starts.
+        # Pirates only get +2 if the target is NOT pirate-aligned
+        # (attacking their enemies earns respect; attacking their
+        # own does not). Lawful faction penalties always apply.
         from .faction import modify_rep, _COMBAT_UNPROVOKED_DELTAS
+        _target_faction = getattr(contact_spec, 'faction', '')
         for _fac, _delta in _COMBAT_UNPROVOKED_DELTAS.items():
+            if _fac == 'pirate' and _delta > 0 and _target_faction == 'pirate':
+                continue
             modify_rep(ctx, _fac, _delta)
 
         ctx.log.add_colored(
