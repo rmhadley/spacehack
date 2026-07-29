@@ -83,7 +83,7 @@ def _scan_contacts(
         if not (_cam_x <= _e.pos.x < _cam_x + _view_w
                 and _cam_y <= _e.pos.y < _cam_y + _view_h):
             continue
-        contacts.append((_spec.name, _spec, _e))
+        contacts.append((getattr(_e, 'name', '') or _spec.name, _spec, _e))
     # Sort by distance (nearest first) for consistent ordering.
     contacts.sort(
         key=lambda c: math.hypot(
