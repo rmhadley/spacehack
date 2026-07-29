@@ -270,13 +270,13 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 
 ---
 
-- [ ] Add `modify_rep(ctx, faction, delta)` helper to `faction.py` — handles logging, zone-boundary messages
-- [ ] Wire `modify_rep` into all four mission completion paths in `mission.py`:
+- [x] Add `modify_rep(ctx, faction, delta)` helper to `faction.py` — handles logging, zone-boundary messages
+- [x] Wire `modify_rep` into mission completion paths in `mission.py`:
   - Delivery → merchant rep
   - Bounty (pirate target) → militia rep + merchant rep
-  - Bar missions (intercept/smuggling/extortion/salvage) → pirate rep + merchant rep
-- [ ] Early bonus: +50% rep gain on early delivery
-- [ ] Smoke test + commit
+  - Bar missions (intercept/smuggling/extortion/salvage) → tables added, awaiting bar mission implementation
+- [x] Early bonus: +50% rep gain on early delivery (ceil division for correct rounding)
+- [x] Smoke test + commit (`885e29e`)
 
 #### DRY eval
 
