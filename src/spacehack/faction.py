@@ -98,6 +98,18 @@ _CLASS_REP: dict[str, dict[str, int]] = {
 # for any faction not covered by the adjustment tables).
 _ALL_FACTIONS: tuple[str, ...] = ("pirate", "merchant", "civilian", "militia")
 
+# Guild → faction mapping for mission board attitude gating.
+# When a player talks to an NPC from guild X, the board's faction
+# reputation determines tier/pay adjustments.
+_GUILD_FACTION: dict[str, str] = {
+    "merchants": "merchant",
+    "bhguild": "militia",   # bounty hunters work with militia/patrols
+    "militia": "militia",
+    "bar": "pirate",       # bar missions are pirate-aligned
+    "lab": "civilian",
+    "depot": "civilian",
+}
+
 
 def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
     """Return the starting ``{faction: reputation}`` dict for a
@@ -213,6 +225,64 @@ _COMBAT_UNPROVOKED_DELTAS: dict[str, int] = {
     "civilian": -2,
     "militia": -3,
 }
+
+
+# ---------------------------------------------------------------------------
+# Mission gating — tier + pay adjustment
+# ---------------------------------------------------------------------------
+
+def guild_to_faction(guild: str) -> str:
+    """Map a guild ID ("merchants", "bhguild", etc.) to its faction key.
+
+    Returns "civilian" for unrecognised guilds so the player can always
+    get *some* missions from unknown NPC types.
+    """
+    return _GUILD_FACTION.get(guild, "civilian")
+
+
+def adjust_mission_tier(planet_tier: int, attitude: str) -> int:
+    """Return the effective mission tier for a planet given the player's
+    faction attitude.
+
+    Pure function — no I/O, no context dependency.
+
+    * enemy  → 0 (no missions)
+    * disliked → -1 tier (min 1)
+    * neutral → unchanged
+    * liked → +1 tier
+    * allied → +2 tier
+    """
+    _offsets = {
+        "enemy": -planet_tier,   # zeroes out — no missions
+        "disliked": -1,
+        "neutral": 0,
+        "liked": +1,
+        "allied": +2,
+    }
+    _offset = _offsets.get(attitude, 0)
+    return max(1, planet_tier + _offset)
+
+
+def adjust_reward_pct(attitude: str) -> int:
+    """Return the percentage modifier (can be negative) to apply to
+    mission reward credits based on faction attitude.
+
+    Pure function — no I/O, no context dependency.
+
+    * enemy → N/A (no missions offered)
+    * disliked → -15%
+    * neutral → 0%
+    * liked → +10%
+    * allied → +20%
+    """
+    _modifiers = {
+        "enemy": 0,      # never reached — enemy = no missions
+        "disliked": -15,
+        "neutral": 0,
+        "liked": +10,
+        "allied": +20,
+    }
+    return _modifiers.get(attitude, 0)
 
 
 # ---------------------------------------------------------------------------

@@ -18,6 +18,7 @@ from . import message_log as _ml
 from . import solar_system as _solar_module
 from . import world
 from .data.npc_ships import find_npc_ship as _find_npc_ship
+from .faction import get_attitude as _get_attitude
 from .game_context import GameContext, ProceduralSpawn, NpcFlashEvent
 
 
@@ -346,6 +347,22 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
             continue
         # Determine faction for this squad (read from the leader's spec).
         _faction = _faction_of(_members[0])
+
+        # --- Enemy hostility: chase the player ---
+        # Enemy NPCs override their patrol target and path to chase the
+        # player. This is deterministic (no probability check per the
+        # design doc). The existing movement logic below follows the
+        # new player-chasing path normally.
+        if _faction and ctx is not None:
+            _player_rep = ctx.faction_reputation.get(_faction, 0)
+            if _get_attitude(_player_rep) == "enemy":
+                _player_pos = (ctx.player.pos.x, ctx.player.pos.y)
+                _tx, _ty = ctx.npc_targets.get(_sid) or (None, None)
+                if (_tx, _ty) != _player_pos:
+                    _set_npc_path(
+                        ctx, _sid, _members[0].pos,
+                        _player_pos, game_map,
+                    )
 
         _is_squad = len(_members) > 1
         _leader = _members[0]

@@ -495,6 +495,16 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                 pass
                             ctx.player_active_missions = player_active_missions
                     if result is TalkOutcome.WORK:
+                        # --- Faction reputation gating: enemy NPCs refuse work ---
+                        _guild_name = getattr(npc_obj, 'guild', '')
+                        if _guild_name:
+                            from .faction import guild_to_faction, get_attitude
+                            _npc_faction = guild_to_faction(_guild_name)
+                            _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
+                            if get_attitude(_npc_rep) == 'enemy':
+                                log.add(f'{npc_obj.name} refuses to speak with you.')
+                                continue
+
                         if len(player_active_missions) >= mission_module.MAX_ACTIVE_MISSIONS:
                             log.add(
                                 f"Your mission log is full "
@@ -521,6 +531,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                                     active_ids=_active_ids,
                                     planet_id=current_city_id,
                                     generated=ctx.generated_missions,
+                                    ctx=ctx,
                                 )
                                 _board.last_refresh_month = ctx.time_month
                             offerings = mission_module.board_offerings(

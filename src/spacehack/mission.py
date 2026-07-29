@@ -423,6 +423,7 @@ def fill_empty_slots(
     *,
     generated: dict[str, MissionSpec] | None = None,
     rng: random.Random | None = None,
+    ctx = None,
 ) -> None:
     """Fill empty (None) slots on ``board`` with available missions.
 
@@ -480,6 +481,20 @@ def fill_empty_slots(
     _is_merchant = _guild == "merchants"
     _is_bh = _guild == "bhguild"
 
+    # --- Faction reputation gating ---
+    # Compute board attitude once; reused by tier adjustment and pay scaling.
+    _eff_tier: int | None = None  # None = no adjustment (static-only fill)
+    _board_attitude: str = "neutral"  # default when ctx is None
+    if ctx is not None and (_is_merchant or _is_bh):
+        from .faction import guild_to_faction, adjust_mission_tier, get_attitude
+        _board_faction = guild_to_faction(_guild)
+        _board_rep = ctx.faction_reputation.get(_board_faction, 0)
+        _board_attitude = get_attitude(_board_rep)
+        if _board_attitude == "enemy":
+            _is_merchant = _is_bh = False  # no procedural missions at all
+        else:
+            _eff_tier = adjust_mission_tier(planet_tier, _board_attitude)
+
     # Fill remaining empty slots with procedural missions.
     if not _is_merchant and not _is_bh:
         return
@@ -487,10 +502,11 @@ def fill_empty_slots(
     for i in range(len(board.slots)):
         if board.slots[i] is not None:
             continue
+        _max_tier = _eff_tier if _eff_tier is not None else planet_tier
         if _is_merchant:
             _proc = generate_delivery_mission(
                 origin_planet_id=planet_id,
-                max_tier=planet_tier,
+                max_tier=_max_tier,
                 rng=rng,
                 counter=_proc_counter,
                 giver_npc_id=board.npc_id,
@@ -498,12 +514,20 @@ def fill_empty_slots(
         else:  # _is_bh
             _proc = generate_bounty_mission(
                 origin_planet_id=planet_id,
-                max_tier=planet_tier,
+                max_tier=_max_tier,
                 rng=rng,
                 counter=_proc_counter,
                 giver_npc_id=board.npc_id,
             )
         if _proc is not None:
+            # Apply faction attitude pay scaling (reuses _board_attitude computed above).
+            if ctx is not None and _eff_tier is not None:
+                from .faction import adjust_reward_pct
+                _pay_pct = adjust_reward_pct(_board_attitude)
+                if _pay_pct != 0:
+                    _proc.reward_credits = max(
+                        1, _proc.reward_credits * (100 + _pay_pct) // 100,
+                    )
             generated[_proc.id] = _proc
             board.slots[i] = _proc.id
             existing.add(_proc.id)
@@ -564,6 +588,7 @@ def refresh_all_boards(ctx) -> None:
             planet_id=board.planet_id,
             generated=ctx.generated_missions,
             rng=RNG,
+            ctx=ctx,
         )
         board.last_refresh_month = ctx.time_month
 
