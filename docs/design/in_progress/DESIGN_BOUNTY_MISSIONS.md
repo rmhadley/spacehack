@@ -161,7 +161,7 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
 
 ### DRY eval #2
 
-- [ ] Does `generate_bounty_mission` share tier-roll, hop-range, reward-formula logic with `generate_delivery_mission`? Extract shared helpers.
+- [x] Does `generate_bounty_mission` share tier-roll, hop-range, reward-formula logic with `generate_delivery_mission`? Extract shared helpers (`_roll_tier`).
 - [ ] Is the `BountySpawn` creation path in the accept flow duplicating logic?
 
 ### Phase 3: Bounty completion in combat + comms
@@ -181,6 +181,7 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
   - Log: "Bounty complete: {bounty_target_name} destroyed."
 - [x] Squad wingmate deaths do NOT complete the bounty
 - [x] Clean up spawn data on abandon (already handled by `_remove_bounty_spawn`)
+- [x] **Squad spawning**: Added `squad_group_id` to `BountySpawn` — wingmates reference the leader's spawn_id. Accept flow creates wingmate BountySpawn entries at offset positions. `_remove_bounty_spawn` cleans up all squad members. Combat grouping: any squad member within `detect_radius` triggers the full squad. Auto-hail attack includes all wingmates via `ctx.bounty_spawns` lookup in `_run_interaction_modal`.
 
 ### Phase 3.5: Playtest — combat integration
 
