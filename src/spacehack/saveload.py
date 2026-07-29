@@ -140,28 +140,49 @@ def save_game(
     # the map.  move_npcs() moves entities but doesn't update the
     # ProceduralSpawn.pos in ctx.procedural_spawns, so the spawn data
     # holds the original spawn position — not where the NPC actually is.
+    # Also capture each entity's movement ID so we can restore targets
+    # and paths on load.
     from .game_context import ProceduralSpawn
     _synced_spawns: dict[str, list] = {}
+    _synced_mids: dict[str, list] = {}             # sys_id → [movement_id per spawn]
+    _synced_targets: dict[str, list[int]] = {}      # movement_id → [tx, ty]
+    _synced_paths: dict[str, list] = {}              # movement_id → [[x,y],...]
     for _sys_id, _spawns in ctx.procedural_spawns.items():
         _updated: list = []
+        _mids: list = []
         _matched_ids: set[int] = set()
         for _ps in _spawns:
             _cur_pos = _ps.pos
+            _cur_mid = ""
             for _e in ctx.game_map.entities:
                 if id(_e) in _matched_ids:
                     continue
                 if (getattr(_e, 'npc_ship_id', '') == _ps.npc_id
                         and getattr(_e, 'procedural_squad_id', '') != ''):
                     _cur_pos = _e.pos
+                    _cur_mid = _e.procedural_squad_id
                     _matched_ids.add(id(_e))
                     break
             _updated.append(ProceduralSpawn(
                 npc_id=_ps.npc_id, pos=_cur_pos, squad_id=_ps.squad_id,
             ))
+            _mids.append(_cur_mid)
+            # Capture the entity's current target and path.
+            if _cur_mid:
+                _tgt = ctx.npc_targets.get(_cur_mid)
+                if _tgt is not None:
+                    _synced_targets[_cur_mid] = [_tgt[0], _tgt[1]]
+                _pth = ctx.npc_paths.get(_cur_mid)
+                if _pth:
+                    _synced_paths[_cur_mid] = [[x, y] for x, y in _pth]
         _synced_spawns[_sys_id] = _updated
+        _synced_mids[_sys_id] = _mids
 
     _data = _ctx_to_dict(ctx)
     _data["procedural_spawns"] = _d(_synced_spawns)
+    _data["procedural_mids"] = _synced_mids
+    _data["npc_targets"] = _synced_targets
+    _data["npc_paths"] = _synced_paths
     _data["current_mode"] = mode
     _data["current_city_id"] = city_id
     _data["current_system_id"] = system_id
@@ -293,16 +314,31 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
 
     # --- Procedural spawns ---
     _proc_data = _data.get("procedural_spawns", {}) or {}
+    _proc_mids = _data.get("procedural_mids", {}) or {}
     _proc_spawns: dict[str, list] = {}
     for _sys_id, _slist in _proc_data.items():
         _proc_spawns[_sys_id] = []
-        for _ps in (_slist or []):
+        for _i, _ps in enumerate(_slist or []):
             _px, _py = _parse_pos(_ps.get("pos", [0, 0]))
             _proc_spawns[_sys_id].append(ProceduralSpawn(
                 npc_id=_ps.get("npc_id", ""),
                 pos=world.Position(_px, _py),
                 squad_id=_ps.get("squad_id"),
             ))
+    # Load saved movement IDs for each spawn (keyed by system, then index).
+    _proc_mid_map: dict[str, list[str]] = {}
+    for _sys_id, _mids in (_proc_mids or {}).items():
+        _proc_mid_map[_sys_id] = [str(m) for m in _mids]
+    # Load saved NPC targets and paths (keyed by movement_id).
+    _npc_targets: dict[str, tuple[int, int]] = {}
+    for _mid, _tgt in (_data.get("npc_targets", {}) or {}).items():
+        if isinstance(_tgt, list) and len(_tgt) >= 2:
+            _npc_targets[str(_mid)] = (int(_tgt[0]), int(_tgt[1]))
+    _npc_paths: dict[str, list[tuple[int, int]]] = {}
+    for _mid, _pth in (_data.get("npc_paths", {}) or {}).items():
+        _npc_paths[str(_mid)] = [
+            (int(p[0]), int(p[1])) for p in _pth if isinstance(p, list) and len(p) >= 2
+        ]
 
     # --- PlayerCounters ---
     _pc_data = _data.get("player_counters", {}) or {}
@@ -373,11 +409,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     _espec = _find_npc(_ps.npc_id)
                 except (KeyError, ImportError):
                     continue
-                # Solo NPCs have squad_id=None in the save, but move_npcs
-                # and combat detection filter by procedural_squad_id != ''.
-                # Generate a unique movement ID for each NPC so the systems
-                # recognize them.
-                _mid = _ps.squad_id or f"proc_loaded_{_system_id}_{_ps.npc_id}_{_i}"
+                # Use the saved movement ID if available, otherwise generate one.
+                _saved_mids = _proc_mid_map.get(_system_id, [])
+                _mid = (_saved_mids[_i] if _i < len(_saved_mids) and _saved_mids[_i]
+                        else _ps.squad_id
+                        or f"proc_loaded_{_system_id}_{_ps.npc_id}_{_i}")
                 _ent = world.Entity(
                     char=_espec.char, fg=_espec.fg,
                     pos=_ps.pos, name=_espec.name,
@@ -466,6 +502,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.economy_state = _econ
     _ctx.generated_missions = _gen
     _ctx.procedural_spawns = _proc_spawns
+    _ctx.npc_targets = _npc_targets
+    _ctx.npc_paths = _npc_paths
     _ctx.current_city_id = _city_id
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
 
