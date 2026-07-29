@@ -15,22 +15,11 @@ from . import ui
 from . import message_log
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
+from .hud import _render_xp_bar
 from .input_helpers import _try_open_guide
 
 
 _SKILLS: tuple[str, ...] = ("gunnery", "piloting", "engineering")
-
-
-def _xp_bar(current: int, needed: int, width: int = 20) -> str:
-    """Return a compact XP progress bar using CP437-safe chars.
-
-    ``#`` = filled, ``-`` = empty.  ``current`` is XP earned this
-    level; ``needed`` is total XP to reach the next level.
-    """
-    if needed <= 0:
-        return "#" * width
-    filled = max(0, min(width, current * width // needed))
-    return "#" * filled + "-" * (width - filled)
 
 
 def open_character_screen(ctx: GameContext) -> None:
@@ -44,7 +33,7 @@ def open_character_screen(ctx: GameContext) -> None:
     _needed = 50 + (_level + 1) * 20
     from .xp import xp_for_level as _xp_for_level
     _total_for_current = _xp_for_level(_level)
-    _into_level = ctx.player_xp - _total_for_current
+    _into_level = max(0, ctx.player_xp - _total_for_current)
 
     def _render() -> None:
         nonlocal _sel
@@ -67,7 +56,7 @@ def open_character_screen(ctx: GameContext) -> None:
         )
 
         # XP bar.
-        _bar = _xp_bar(_into_level, _needed)
+        _bar = _render_xp_bar(_into_level, _needed, width=20)
         _xp_line = f"XP: {_into_level} / {_total_for_current + _needed}  [{_bar}]  Next: {_needed - _into_level} XP"
         _y = SCREEN_HEIGHT // 6 + 3
         console.print(

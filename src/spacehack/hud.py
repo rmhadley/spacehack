@@ -151,6 +151,8 @@ def render_hud(
     has_trade_terminal: bool = False,    # city mode: show = terminal hint
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
     date_str: str | None = None,          # formatted date for HUD display
+    player_xp: int = 0,                   # current total XP (for progress bar)
+    player_level: int = 1,                # current player level
 ) -> None:
     """Paint the right-side HUD into the top ``hud_view_height`` rows.
 
@@ -174,6 +176,13 @@ def render_hud(
     catalog exists.
     """
     hud_x = screen_width - HUD_WIDTH
+    # Compute XP progress for both city and space modes.
+    from .xp import xp_for_level as _xp_for_level
+    _xp_total_for_level = _xp_for_level(player_level) if player_level > 1 else 0
+    _xp_into_level = max(0, player_xp - _xp_total_for_level)
+    _xp_needed = 50 + (player_level + 1) * 20
+    _xp_bar = _render_xp_bar(_xp_into_level, _xp_needed)
+    _xp_line = f"LV {player_level}  [{_xp_bar}]"
 
     # Title — always at row 0
     console.print(
@@ -273,6 +282,9 @@ def render_hud(
             ("y/u/b/n", "Diag"),
         ])
 
+        # XP progress bar — between key hints and footer.
+        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=COLOR_VALUE_DIM)
+
         # Bottom hint — ESC behaviour varies by mode (quit in city,
         # dispatch menu in space); we show a generic hint here.
         y = hud_view_height - 2
@@ -349,6 +361,9 @@ def render_hud(
             ("y/u/b/n", "Diag"),
         ])
 
+        # XP progress bar — between key hints and footer.
+        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=COLOR_VALUE_DIM)
+
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
         console.print(x=hud_x, y=y, string="bump to interact", fg=COLOR_VALUE_DIM)
@@ -384,6 +399,20 @@ def _bar_str(value: int, max_value: int, width: int = 10) -> str:
         return _BAR_CHAR_EMPTY * width
     full = max(0, min(width, value * width // max_value))
     return _BAR_CHAR_FULL * full + _BAR_CHAR_EMPTY * (width - full)
+
+
+def _render_xp_bar(current: int, needed: int, width: int = 10) -> str:
+    """Return a compact XP progress bar using CP437-safe chars.
+
+    ``#`` = filled, ``-`` = empty.  ``current`` is XP earned into
+    the current level; ``needed`` is total XP to reach the next level.
+
+    Shared between HUD and Character screen.
+    """
+    if needed <= 0:
+        return "#" * width
+    filled = max(0, min(width, current * width // needed))
+    return "#" * filled + "-" * (width - filled)
 
 
 def _hull_bar_color(pct: float) -> tuple[int, int, int]:
