@@ -7,8 +7,7 @@ and have no UI side effects. Suitable for testing in isolation.
 from __future__ import annotations
 
 import math
-
-from typing import Any
+from typing import TYPE_CHECKING
 
 from .. import world
 from ._types import EnemyInstance
@@ -17,15 +16,20 @@ from ..data.weapons import find_weapon
 from ..data.modules import find_module as find_module_spec
 from .. import ship as _ship_mod
 
+if TYPE_CHECKING:
+    from ..data.ships import Ship
+    from ..data.npc_ships import NpcShipSpec
+    from ..ship import OwnedShip
 
-def _calc_hull(ship_catalog: Any, owned_ship: Any) -> int:
+
+def _calc_hull(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
     """Compute current hull HP from hull_damage_pct."""
     max_h = _calc_max_hull(ship_catalog, owned_ship)
     dmg_pct = getattr(owned_ship, 'hull_damage_pct', 0)
     return max(1, max_h * (100 - dmg_pct) // 100)
 
 
-def _calc_max_hull(ship_catalog: Any, owned_ship: Any) -> int:
+def _calc_max_hull(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
     base = getattr(ship_catalog, 'base_hull', 100)
     bonus = 0
     for mod_id in getattr(owned_ship, 'modules', ()) or ():
@@ -37,7 +41,7 @@ def _calc_max_hull(ship_catalog: Any, owned_ship: Any) -> int:
     return base + bonus
 
 
-def _calc_hull_for_enemy(enemy_spec: Any) -> int:
+def _calc_hull_for_enemy(enemy_spec: NpcShipSpec) -> int:
     """Compute an enemy ship's max (and initial) hull HP from its ship_id + modules."""
     try:
         _ship_rec = _ship_mod.find_ship(enemy_spec.ship_id)
@@ -53,7 +57,7 @@ def _calc_hull_for_enemy(enemy_spec: Any) -> int:
     return _base_hull
 
 
-def _calc_power_gen(ship_catalog: Any, owned_ship: Any) -> int:
+def _calc_power_gen(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
     base = getattr(ship_catalog, 'base_power_gen', 3)
     for mod_id in getattr(owned_ship, 'modules', ()) or ():
         try:
@@ -64,7 +68,7 @@ def _calc_power_gen(ship_catalog: Any, owned_ship: Any) -> int:
     return max(0, base)
 
 
-def _calc_max_shields(ship_catalog: Any, owned_ship: Any) -> int:
+def _calc_max_shields(ship_catalog: Ship | NpcShipSpec, owned_ship: OwnedShip | NpcShipSpec) -> int:
     base = getattr(ship_catalog, 'base_shield_max', 0)
     for mod_id in getattr(owned_ship, 'modules', ()) or ():
         try:
@@ -156,11 +160,11 @@ def calc_flee_chance(
 
 
 def init_combat_state(
-    player_ship_catalog: Any,
-    player_owned_ship: Any,
+    player_ship_catalog: Ship,
+    player_owned_ship: OwnedShip,
     player_pos: world.Position,
     player_pilot_skills: PilotSkills,
-    enemy_spec: Any,
+    enemy_spec: NpcShipSpec,
     enemy_pos: world.Position,
 ) -> tuple[dict, EnemyInstance]:
     """Create initial combat state dict for the player and EnemyInstance.

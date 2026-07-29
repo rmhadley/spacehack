@@ -7,8 +7,6 @@ target, resetting per-turn resources, or moving an entity.
 
 from __future__ import annotations
 
-from typing import Any
-
 from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
@@ -167,7 +165,7 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     enemy.cells_moved_this_turn = 0
 
 
-def _sync_back_hull(player_state: dict, player_owned_ship: Any) -> None:
+def _sync_back_hull(player_state: dict, player_owned_ship: OwnedShip | None) -> None:
     """Persist combat hull damage back to the player's OwnedShip."""
     if player_owned_ship is None:
         return
