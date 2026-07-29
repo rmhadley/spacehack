@@ -28,7 +28,6 @@ class ShipMenuAction(Enum):
     IGNORE = auto()
     VIEW = auto()
     LOADOUT = auto()
-    FACTIONS = auto()
     REFUEL = auto()
     SELL = auto()
     LAUNCH = auto()
@@ -36,7 +35,7 @@ class ShipMenuAction(Enum):
     QUIT = auto()
 
 
-SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Factions', 'Launch')
+SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
 
 
 def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int = 0, *, screen_width: int, screen_height: int) -> None:
@@ -121,8 +120,6 @@ def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
             return ShipMenuAction.VIEW
         elif selected == 1:
             return ShipMenuAction.LOADOUT
-        elif selected == 2:
-            return ShipMenuAction.FACTIONS
         else:
             return ShipMenuAction.LAUNCH
     return ShipMenuAction.IGNORE
@@ -410,9 +407,6 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
             continue
         if action is ShipMenuAction.LOADOUT:
             _run_loadout_view(ctx)
-            continue
-        if action is ShipMenuAction.FACTIONS:
-            _run_faction_view(ctx)
             continue
         return action  # LAUNCH, BACK, or QUIT
 
