@@ -71,63 +71,6 @@ from .navigation import (
 from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
 from .time import tick_move, format_date, add_days_to_date
 
-def _run_delivery_picker(
-    ctx, deliverable: list[mission_module.ActiveMission],
-) -> mission_module.ActiveMission | None:
-    """When multiple missions are deliverable at the same NPC, show a
-    picker so the player can choose which one to hand in.
-
-    Returns the selected :class:`ActiveMission`, or ``None`` if the
-    player backs out.
-    """
-    n = len(deliverable)
-    if n <= 1:
-        return deliverable[0] if deliverable else None
-
-    console = make_console()
-    selected = 0
-
-    def _render() -> None:
-        console.clear()
-        items = [
-            (m.title, f"{m.reward_credits}$  {m.required_cargo_size}u cargo")
-            for m in deliverable
-        ]
-        ui.render_selectable_list(
-            console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="DELIVER WHICH MISSION?",
-            items=items,
-            selected=selected,
-            hint='ARROW KEYS navigate - ENTER deliver - ESC cancel',
-        )
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
-    def _update(event) -> str:
-        nonlocal selected
-        if isinstance(event, tcod.event.Quit):
-            return 'quit'
-        if not isinstance(event, tcod.event.KeyDown):
-            return ''
-        sym = event.sym
-        sym_name: str = getattr(sym, 'name', '').lower()
-        if sym in ui._UP_SYMS or sym_name == 'k':
-            selected = (selected - 1) % n
-            return ''
-        if sym in ui._DOWN_SYMS or sym_name == 'j':
-            selected = (selected + 1) % n
-            return ''
-        if sym in ui._ESCAPE_SYMS:
-            return 'back'
-        if sym in ui._ENTER_SYMS:
-            return 'pick'
-        return ''
-
-    outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if outcome == 'pick' and 0 <= selected < n:
-        return deliverable[selected]
-    return None
-
-
 def _pick_bounty_spawn_pos(system) -> world.Position | None:
     """Return a free-space position in ``system`` for placing a bounty
     target enemy. Prefers a cell near the first non-sun planet, falling
@@ -541,12 +484,9 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                     _deliverable = mission_module.find_deliverable_missions(
                         player_active_missions, npc_obj.id, current_city_id,
                     )
-                    # Single mission: deliver directly. Multiple: show picker.
-                    if len(_deliverable) <= 1:
-                        _deliver_mission = _deliverable[0] if _deliverable else None
-                    else:
-                        _deliver_mission = _run_delivery_picker(ctx, _deliverable)
-                    result, _ = _run_npc_talk(ctx, npc_obj, deliver_mission=_deliver_mission)
+                    result, _deliver_mission = _run_npc_talk(
+                        ctx, npc_obj, deliver_missions=_deliverable or None,
+                    )
                     if result is TalkOutcome.QUIT:
                         return
                     if result is TalkOutcome.DELIVER:

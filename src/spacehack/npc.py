@@ -63,34 +63,14 @@ def render_npc_talk(
     *,
     screen_width: int,
     screen_height: int,
-    deliver_mission: Mission | None = None,
+    deliver_missions: list | None = None,
     selected: int = 0,
 ) -> None:
     """Paint the centered NPC-talk dialog into ``console``.
 
-    Layout mirrors :func:`spacehack.__main__.render_ship_buy`: NPC
-    name + guild on the top line, flavor text in the middle, a
-    vertically-stacked MENU of selectable actions below it (NOT a
-    static "Press ENTER..." hint any more), and an ESC hint at the
-    bottom.
-
-    The menu has 1-2 rows depending on ``deliver_mission``:
-
-      * Always: ``"View available work"`` (opens the offerings
-        modal at :func:`_run_npc_talk`).
-      * Always: ``"View available work"`` (opens the offerings
-        modal at :func:`_run_npc_talk`).
-      * When a delivery-mission is in scope: ``"Deliver <title>"``
-        as the FIRST row, highlighted by default so Enter on the
-        default highlight completes the mission ("common sense"
-        behaviour the user explicitly requested).
-
-    ``selected`` is the highlighted index (clamped modulo the
-    number of rows by :func:`_run_npc_talk`). ``> ... <`` markers
-    match the species / class / mission-offerings / ship-menu
-    styles so the player only learns one highlight idiom.
-
-    Clear-first so the modal fully replaces the city view.
+    The menu shows one "Deliver: <title>" row per deliverable
+    mission, then "View available work" at the bottom. When no
+    missions are deliverable, only "View available work" appears.
     """
     console.clear()
     title = f"{npc.name} ({npc.guild})"
@@ -106,9 +86,11 @@ def render_npc_talk(
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
     paint(center_y - 2, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y + 1, fit(body), fg=ui.COLOR_DESCRIPTION)
+
+    _missions = deliver_missions or []
     options: list[tuple[str, bool]] = []
-    if deliver_mission is not None:
-        options.append(("Deliver " + deliver_mission.title, True))
+    for m in _missions:
+        options.append(("Deliver: " + m.title, True))
     options.append(("View available work", False))
     n = len(options)
     sel = selected % n
@@ -188,33 +170,24 @@ def _run_npc_talk(
     ctx: GameContext,
     npc: NPC,
     *,
-    deliver_mission: Mission | None = None,
+    deliver_missions: list | None = None,
 ) -> tuple[TalkOutcome, Mission | None]:
     """Show the talk modal for ``npc`` and return the chosen outcome.
 
-    Dialog is a vertically-navigable menu with 1-2 selectable
-    rows (``Deliver <title>`` first when in scope, then
-    ``View available work`` always). The on-screen order has
-    DELIVER at index 0 when present so Enter on the default
-    highlight completes the mission at the target NPC — "common
-    sense" behaviour the user explicitly asked for. Players who
-    want to check other missions arrow down to ``View available
-    work`` before pressing Enter.
+    Menu has one "Deliver: <title>" row per deliverable mission
+    (highlighted gold), then "View available work" at the bottom.
+    ENTER on a deliver row returns DELIVER with that mission;
+    ENTER on the work row returns WORK.
 
-    Logs ``"You chat briefly with X."`` the first time the
-    dialog opens so the player has feedback that something
-    happened.
-
-    Returns ``(outcome, deliver_mission)``: ``deliver_mission``
-    is the same value that was passed in whenever the outcome
-    is :attr:`TalkOutcome.DELIVER`, and ``None`` for every other
-    outcome so callers don't have to discriminate on the
-    outcome enum.
+    Returns ``(outcome, deliver_mission)``: the specific mission
+    when DELIVER, ``None`` otherwise.
     """
     ctx.log.add(f"You chat briefly with {npc.name}.")
     console = make_console()
     selected = 0
-    n_options = 1 + (1 if deliver_mission is not None else 0)
+    _missions = deliver_missions or []
+    n_deliver = len(_missions)
+    n_options = n_deliver + 1  # deliver rows + "View available work"
 
     def _render() -> None:
         render_npc_talk(
@@ -223,7 +196,7 @@ def _run_npc_talk(
             npc,
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
-            deliver_mission=deliver_mission,
+            deliver_missions=_missions,
             selected=selected,
         )
 
@@ -242,11 +215,13 @@ def _run_npc_talk(
             return TalkOutcome.QUIT
         if result is TalkOutcome.BACK:
             return TalkOutcome.BACK
-        return TalkOutcome.DELIVER if deliver_mission is not None and selected == 0 else TalkOutcome.WORK
+        if selected < n_deliver:
+            return TalkOutcome.DELIVER
+        return TalkOutcome.WORK
 
     outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if outcome is TalkOutcome.DELIVER:
-        return (outcome, deliver_mission)
+    if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:
+        return (outcome, _missions[selected])
     return (outcome, None)
 
 
