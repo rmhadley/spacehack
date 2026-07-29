@@ -266,6 +266,7 @@ def render_hud(
             ("M", "Map"),
             ("I", "Cargo"),
             ("T", "Comms"),
+            ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
             ("h/j/k/l", "Move"),
@@ -341,6 +342,7 @@ def render_hud(
         y += 2
         y = _render_help_lines(console, hud_x, y, [
             ("Q", "Quest Log"),
+            ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
             ("h/j/k/l", "Move"),
