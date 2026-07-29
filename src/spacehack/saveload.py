@@ -47,13 +47,8 @@ def _d(obj) -> object:
     """Recursively convert *obj* to a JSON-safe value.
 
     Dataclasses → dict, sets → sorted list, enums → name string,
-    positions → (x,y) tuple.
+    Position-like objects → [x, y] list.
     """
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        _fields: dict[str, object] = {}
-        for _f in dataclasses.fields(obj):
-            _fields[_f.name] = _d(getattr(obj, _f.name))
-        return _fields
     if isinstance(obj, Enum):
         return obj.name
     if isinstance(obj, (list, tuple)):
@@ -62,6 +57,14 @@ def _d(obj) -> object:
         return sorted(_d(v) for v in obj)
     if isinstance(obj, dict):
         return {str(k): _d(v) for k, v in obj.items()}
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        # Position-like dataclasses: serialize as [x, y] for compactness.
+        if hasattr(obj, "x") and hasattr(obj, "y"):
+            return [_d(obj.x), _d(obj.y)]
+        _fields: dict[str, object] = {}
+        for _f in dataclasses.fields(obj):
+            _fields[_f.name] = _d(getattr(obj, _f.name))
+        return _fields
     if hasattr(obj, "x") and hasattr(obj, "y"):
         return [_d(obj.x), _d(obj.y)]
     return obj
@@ -135,6 +138,15 @@ def _load_json(path: Path) -> dict | None:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, FileNotFoundError):
         return None
+
+
+def _parse_pos(raw) -> tuple[int, int]:
+    """Parse a serialized position from either [x, y] list or {x, y} dict."""
+    if isinstance(raw, dict):
+        return (raw.get("x", 0), raw.get("y", 0))
+    if isinstance(raw, (list, tuple)) and len(raw) >= 2:
+        return (raw[0], raw[1])
+    return (0, 0)
 
 
 def load_game(context: "tcod.context.Context") -> GameContext | None:
@@ -223,11 +235,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     for _sys_id, _spawns in (_data.get("bounty_spawns", {}) or {}).items():
         _bounty_spawns[_sys_id] = []
         for _bs in (_spawns or []):
-            _pos = _bs.get("pos", [0, 0])
+            _px, _py = _parse_pos(_bs.get("pos", [0, 0]))
             _bounty_spawns[_sys_id].append(BountySpawn(
                 spawn_id=_bs["spawn_id"],
                 enemy_id=_bs.get("enemy_id", ""),
-                pos=world.Position(_pos[0], _pos[1]),
+                pos=world.Position(_px, _py),
                 bounty_target_name=_bs.get("bounty_target_name"),
                 squad_size=_bs.get("squad_size", 1),
                 loadout_pct=_bs.get("loadout_pct", 0),
@@ -240,10 +252,10 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     for _sys_id, _slist in _proc_data.items():
         _proc_spawns[_sys_id] = []
         for _ps in (_slist or []):
-            _pos = _ps.get("pos", [0, 0])
+            _px, _py = _parse_pos(_ps.get("pos", [0, 0]))
             _proc_spawns[_sys_id].append(ProceduralSpawn(
                 npc_id=_ps.get("npc_id", ""),
-                pos=world.Position(_pos[0], _pos[1]),
+                pos=world.Position(_px, _py),
                 squad_id=_ps.get("squad_id"),
             ))
 
