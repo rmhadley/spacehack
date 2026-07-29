@@ -299,13 +299,13 @@ def _run_faction_view(ctx) -> None:
         for _i in range(half):
             _pos_from_centre = half - _i
             if neg_fill >= _pos_from_centre:
-                chars.append("=")
+                chars.append("#")
             else:
                 chars.append("-")
         chars.append("|")
         for _i in range(half):
             if pos_fill >= _i + 1:
-                chars.append("=")
+                chars.append("#")
             else:
                 chars.append("-")
         return "".join(chars)
