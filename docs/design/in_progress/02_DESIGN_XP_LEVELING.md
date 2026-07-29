@@ -321,15 +321,15 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 
 #### Checklist
 
-- [ ] Add `player_xp`, `player_level`, `player_skill_points`, `player_*_bonus` fields to `GameContext`
-- [ ] Add `PlayerCounters` dataclass + `player_counters` field to `GameContext`
-- [ ] Create `xp.py` with `add_xp(ctx, amount)`, `xp_for_level(level)`, `_apply_skill_point()`
-- [ ] Update species skill bonuses in `data/species/core.py` (new values per rebalance table)
-- [ ] Update class skill bonuses in `data/classes/core.py` (new values per rebalance table)
-- [ ] Wire `add_xp()` into `mission.complete_mission()` call path
-- [ ] Wire `add_xp()` into `combat/_encounter.py` VICTORY path (per-kill)
-- [ ] Add `_is_k_press()` to `input_helpers.py`, wire C hotkey in `__main__.py`
-- [ ] Smoke test + commit
+- [x] Add `player_xp`, `player_level`, `player_skill_points`, `player_*_bonus` fields to `GameContext`
+- [x] Add `PlayerCounters` dataclass + `player_counters` field to `GameContext`
+- [x] Create `xp.py` with `add_xp(ctx, amount)`, `xp_for_level(level)`, `_apply_skill_point()`
+- [x] Update species skill bonuses in `data/species/core.py` (new values per rebalance table)
+- [x] Update class skill bonuses in `data/classes/core.py` (new values per rebalance table)
+- [x] Wire `add_xp()` into `mission.complete_mission()` call path
+- [x] Wire `add_xp()` into `combat/_encounter.py` VICTORY path (per-kill)
+- [x] Add `_is_c_press()` to `input_helpers.py`, wire C hotkey in `__main__.py`
+- [x] Smoke test + commit
 
 #### Playtest checklist
 
