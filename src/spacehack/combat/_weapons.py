@@ -110,7 +110,7 @@ def _fire_weapons(
             player_state, _fwid, target_idx, enemy_insts,
         )
         if not _ok:
-            _p_log(f"{_fwid}: {_reason}", log)
+            _p_log(f"{find_weapon(_fwid).name}: {_reason}", log)
             _all_ok = False
             break
         _fws = find_weapon(_fwid)
@@ -170,7 +170,7 @@ def _fire_weapons(
             _target_enemy.shields = max(0, _target_enemy.shields - _sdmg)
             _target_enemy.hull = _fh
             _verb = "glancing hit" if _is_glancing else "hits"
-            _p_log(f"{_fwid} {_verb} {_target_enemy.name} for {_dmg}!", log)
+            _p_log(f"{_fws.name} {_verb} {_target_enemy.name} for {_dmg}!", log)
             if _fh <= 0:
                 _target_enemy.alive = False
                 _cr.defeated_spec_ids.append(_target_enemy.spec_id)
@@ -213,7 +213,7 @@ def _fire_weapons(
                     from ._loop import _spawn_loot_drops as _sld
                     _sld(game_map, _target_pos, _correct_spec)
         else:
-            _p_log(f"{_fwid} misses {_target_enemy.name}!", log)
+            _p_log(f"{find_weapon(_fwid).name} misses {_target_enemy.name}!", log)
         # Deduct per-weapon costs
         if _fws.slot_type == "energy":
             player_state["power_pool"] -= _fws.power_cost

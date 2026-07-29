@@ -541,7 +541,8 @@ def run_combat(
                     if _idx < len(active_weapons):
                         active_weapons[_idx] = not active_weapons[_idx]
                         _state = "ON" if active_weapons[_idx] else "OFF"
-                        _p_log(f"Weapon {_idx + 1} ({weapons_list[_idx]}): {_state}")
+                        from ..data.weapons import find_weapon as _fw
+                        _p_log(f"Weapon {_idx + 1} ({_fw(weapons_list[_idx]).name}): {_state}")
                     break
 
     finally:
