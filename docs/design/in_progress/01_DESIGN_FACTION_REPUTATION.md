@@ -491,7 +491,7 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] **Neutral** with a faction → verify **standard prices** (no modifier)
 
 **Stacking:**
-- [ ] Trade price modifiers stack correctly: `base_price × skill_discount × rep_discount` (multiplicative)
+- [ ] Trade price modifiers apply correctly (skill_discount is future — rep_discount only for now)
 - [ ] Price modifiers apply to both city trade (trade terminals) and ship-to-ship trade (comms → Open Trade)
 
 ---
