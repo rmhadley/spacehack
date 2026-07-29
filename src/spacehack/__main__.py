@@ -32,6 +32,7 @@ from . import ship as ship_module
 from . import solar_system as solar_system_module
 from . import ui
 from .game_context import GameContext
+from . import faction
 from .data import solar_systems as solar_systems_module
 from . import npc as npc_module
 from .data.species import find_species
@@ -164,6 +165,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
     player_active_missions: list[mission_module.ActiveMission] = []
     character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
     ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
+    ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
     console = make_console()

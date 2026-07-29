@@ -143,19 +143,33 @@ When entering a system or when NPC ships are moved by `move_npcs`:
 | Attitude | Ships of that faction |
 |----------|----------------------|
 | Enemy | Immediate hostile approach — they move toward the player and engage at detect range. |
-| Disliked | Not hostile by default, but a % chance (based on how disliked: 10-40%) to go hostile when scanned at close range. |
-| Neutral | Never hostile unless provoked. |
+| Disliked | Shows `(hostile)` tag in comms, but does NOT attack on sight. |
+| Neutral | Never hostile unless provoked. Trade available. |
 | Liked | Never hostile. May hail with greetings. |
 | Allied | Never hostile. Hail with friendly dialogue. May offer tips/trade before being asked. |
 
+**Design decision (2026-07-29):** Hostility is deterministic. "Enemy" = attacks on sight. "Disliked" = hostile-tagged in comms but no auto-aggression. The "disliked hostility % chance" was dropped for simplicity.
+
 **Implementation:** `npc_ships._tick_npcs` checks attitude via `get_attitude(ctx.faction_reputation[spec.faction])`. For `"enemy"` attitude, NPCs set a target toward the player's position and enter combat range.
+
+### Comms behavior
+
+| Attitude | Hostile tag | Trade available | Scan available |
+|----------|------------|----------------|---------------|
+| Enemy | ✅ `(hostile)` | ❌ | ✅ |
+| Disliked | ✅ `(hostile)` | ❌ | ✅ |
+| Neutral | ❌ | ✅ | ✅ |
+| Liked | ❌ | ✅ | ✅ |
+| Allied | ❌ | ✅ | ✅ |
+
+**Design decision (2026-07-29):** Hostile tag shows for both Enemy and Disliked. Trade is gated to Neutral+. Scan is always available (future: richer scan mechanics).
 
 ### Trade access
 
 | Attitude | Trade effect |
 |----------|-------------|
 | Enemy | Cannot trade at faction-owned shops or stations. |
-| Disliked | -10% sell price, +10% buy price. Higher scan chance. |
+| Disliked | Cannot trade at faction-owned shops or stations. |
 | Neutral | Standard prices. |
 | Liked | +5% sell price, -5% buy price. |
 | Allied | +10% sell price, -10% buy price. Access to restricted goods. |
@@ -214,7 +228,7 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Add `faction.starting_reputation(species_id, class_id) -> dict[str, int]`
 - [ ] Update `GameContext` default — remove hardcoded lambda, set to None, initialize in `__main__.py` at char creation
 - [ ] Update existing defaut-rep call sites that rely on the hardcoded pirate=-100/etc
-- [ ] Update `comms.py` to use new attitude zones (the "hostile" check becomes "enemy" or "disliked")
+- [ ] Update `comms.py`: hostile tag = `"enemy"` or `"disliked"`, trade gated to neutral+, scan always available
 - [ ] Smoke test + commit
 
 #### Playtest checklist
@@ -274,8 +288,7 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Add `modify_mission_tier(planet_tier, attitude) -> int` helper to `faction.py`
 - [ ] Wire attitude-adjusted tiers into `fill_empty_slots` for procedural missions
 - [ ] Wire attitude-adjusted pay scaling into mission generation (apply % bonus/penalty to `reward_credits`)
-- [ ] Add enemy hostility to NPC movement: in `npcs_ships.py`, check attitude and set hostile target for `"enemy"` factions
-- [ ] Add `"disliked"` chance check in NPC movement (10-40% based on score) to go hostile
+- [ ] Add enemy hostility to NPC movement: in `npcs_ships.py`, check attitude and set hostile target for `"enemy"` factions (deterministic, no probability check)
 - [ ] Smoke test + commit
 
 #### DRY eval
@@ -289,7 +302,7 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] As a Human Pirate (militia Disliked, pirate Enemy) → militia missions should be penalized or removed
 - [ ] As a Human Merchant (pirate Enemy) → no missions from pirate-adjacent NPCs (none exist yet, but bar missions are gated by pirate rep in Phase 5)
 - [ ] Enemy NPCs approach and attack on sight
-- [ ] Disliked NPCs have a % chance to go hostile at close range
+- [ ] Disliked NPCs show `(hostile)` in comms but do NOT auto-attack
 
 ### Phase 5: Faction UI viewer
 

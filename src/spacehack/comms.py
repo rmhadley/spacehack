@@ -5,9 +5,9 @@ NPC ships within ``comms_range`` (default 15 cells) and lets the
 player hail them for interaction (trade, cargo scan, attack, or
 end transmission).
 
-Faction-aware: pirates show ``(hostile)`` tags and an "Attack"
-option instead of "Open Trade". Merchants and other neutrals get
-"Open Trade" and "Scan Cargo" options.
+Faction-aware: enemy and disliked factions show ``(hostile)`` tags.
+Trade is only available for neutral+ attitudes.  "Scan Cargo" is
+always available.  "Attack" is always available.
 """
 
 from __future__ import annotations
@@ -130,7 +130,7 @@ def _render_comms_panel(
     for name, spec, _entity in contacts:
         _rep = ctx.faction_reputation.get(spec.faction, 0)
         _attitude = _get_attitude(_rep)
-        _display_name = f"{name} (hostile)" if _attitude == 'hostile' else name
+        _display_name = f"{name} (hostile)" if _attitude in ('enemy', 'disliked') else name
         _flavor = spec.comms_lines[0] if spec.comms_lines else "..."
         _items.append((_display_name, _flavor))
 
@@ -233,12 +233,13 @@ def _run_interaction_modal(
     _contact_attitude = _get_attitude(_contact_rep)
 
     _options: list[str] = ["End Transmission"]
-    # Attack is always available — players can choose to engage
-    # any ship (pirating, bounty hunting, etc.).
+    # Attack is always available.
     _options.insert(0, "Attack")
-    if _contact_attitude != 'hostile':
+    # Scan Cargo is always available.
+    _options.insert(2, "Scan Cargo")
+    # Trade only available for neutral+ attitudes.
+    if _contact_attitude in ('neutral', 'liked', 'allied'):
         _options.insert(1, "Open Trade")
-        _options.insert(2, "Scan Cargo")
 
     _interaction_selected = 0
 
