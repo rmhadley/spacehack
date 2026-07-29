@@ -298,11 +298,6 @@ def render_hud(
             console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
         y += 1
 
-        # Blank line between identity and mission/divider.
-        y += 1
-
-        # Blank line before divider (unconditional, matches original spacing)
-        y += 1
         # Divider — separates identity from stats
         y += 1
         _render_divider(console, hud_x, y)
