@@ -339,7 +339,8 @@ def _apply_mission_rep(
     Looks up the mission type from the static catalog or generated
     missions, then applies the per-faction deltas from
     :data:`faction._MISSION_REP_DELTAS`.  If ``is_early`` is True,
-    each delta gets a +50% bonus (rounded up).
+    positive deltas get a +50% bonus (rounded up). Negative deltas
+    are never boosted.
     """
     from .faction import modify_rep, _MISSION_REP_DELTAS
 
@@ -364,9 +365,9 @@ def _apply_mission_rep(
         return
 
     for faction, delta in deltas.items():
-        if is_early:
-            bonus = (abs(delta) + 1) // 2   # ceil division = 50% rounded up
-            delta = delta + bonus if delta > 0 else delta - bonus
+        if is_early and delta > 0:
+            bonus = (delta + 1) // 2   # ceil division = 50% rounded up
+            delta = delta + bonus
         modify_rep(ctx, faction, delta)
 
 
