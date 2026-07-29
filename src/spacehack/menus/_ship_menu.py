@@ -28,6 +28,7 @@ class ShipMenuAction(Enum):
     IGNORE = auto()
     VIEW = auto()
     LOADOUT = auto()
+    FACTIONS = auto()
     REFUEL = auto()
     SELL = auto()
     LAUNCH = auto()
@@ -35,7 +36,7 @@ class ShipMenuAction(Enum):
     QUIT = auto()
 
 
-SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
+SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Factions', 'Launch')
 
 
 def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int = 0, *, screen_width: int, screen_height: int) -> None:
@@ -120,6 +121,8 @@ def update_ship_menu(event: tcod.event.Event, selected: int) -> ShipMenuAction:
             return ShipMenuAction.VIEW
         elif selected == 1:
             return ShipMenuAction.LOADOUT
+        elif selected == 2:
+            return ShipMenuAction.FACTIONS
         else:
             return ShipMenuAction.LAUNCH
     return ShipMenuAction.IGNORE
@@ -265,6 +268,95 @@ def _run_loadout_view(ctx) -> None:
     ui.Modal(ctx.context, console).run(_render, _update)
 
 
+def _run_faction_view(ctx) -> None:
+    """Show faction standings with progress bars."""
+    from ..faction import get_attitude, _ALL_FACTIONS
+    console = make_console()
+
+    _ZONE_COLORS: dict[str, tuple[int, int, int]] = {
+        "enemy": (255, 80, 80),       # red
+        "disliked": (255, 165, 60),    # orange
+        "neutral": (180, 180, 180),    # grey
+        "liked": (100, 200, 255),      # blue
+        "allied": (100, 255, 130),     # green
+    }
+
+    def _progress_bar(rep: int, width: int = 32) -> tuple[str, float]:
+        """Return (bar_string, fill_pct) for a rep score [-100, 100]."""
+        pct = (rep + 100) / 200  # map [-100,100] → [0.0, 1.0]
+        filled = int(pct * width)
+        filled = max(0, min(width, filled))
+        bar = "█" * filled + "░" * (width - filled)
+        return bar, pct
+
+    def _render() -> None:
+        console.clear()
+        # Title
+        _title = "FACTION STANDINGS"
+        _div = "═" * 48
+        console.print(
+            x=ui.centered_x(_title, SCREEN_WIDTH),
+            y=SCREEN_HEIGHT // 6,
+            string=_title,
+            fg=ui.COLOR_TITLE,
+        )
+        console.print(
+            x=ui.centered_x(_div, SCREEN_WIDTH),
+            y=SCREEN_HEIGHT // 6 + 1,
+            string=_div,
+            fg=ui.COLOR_TITLE,
+        )
+
+        _start_y = SCREEN_HEIGHT // 6 + 3
+        for _i, _faction in enumerate(_ALL_FACTIONS):
+            _rep = ctx.faction_reputation.get(_faction, 0)
+            _attitude = get_attitude(_rep)
+            _bar, _pct = _progress_bar(_rep)
+            _color = _ZONE_COLORS.get(_attitude, (180, 180, 180))
+            _y = _start_y + _i * 3
+
+            # Faction name (left-aligned, fixed width)
+            _name = _faction.title().ljust(10)
+            # Score (right-aligned, 5 chars for ±NNN)
+            _score = f"{_rep:+d}".rjust(5)
+            # Progress bar
+            _line = f"{_name} {_score}  {_bar}  {_attitude.title()}"
+            console.print(
+                x=SCREEN_WIDTH // 4,
+                y=_y,
+                string=_line,
+                fg=_color,
+            )
+
+        # Hint
+        _hint_y = _start_y + len(_ALL_FACTIONS) * 3 + 2
+        console.print(
+            x=SCREEN_WIDTH // 4,
+            y=_hint_y,
+            string="ENTER / ESC — back",
+            fg=ui.COLOR_INSTRUCTION,
+        )
+
+        message_log.render_message_log(
+            console, ctx.log,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+        )
+
+    def _update(event: tcod.event.Event) -> ShipMenuAction | None:
+        if _try_open_guide(event, ctx):
+            return ShipMenuAction.IGNORE
+        if isinstance(event, tcod.event.Quit):
+            return None
+        if not isinstance(event, tcod.event.KeyDown):
+            return ShipMenuAction.IGNORE
+        if event.sym in ui._ESCAPE_SYMS or event.sym in ui._ENTER_SYMS:
+            return None
+        return ShipMenuAction.IGNORE
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the hub-menu modal for ``ship``; return the chosen action.
 
@@ -297,6 +389,9 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
             continue
         if action is ShipMenuAction.LOADOUT:
             _run_loadout_view(ctx)
+            continue
+        if action is ShipMenuAction.FACTIONS:
+            _run_faction_view(ctx)
             continue
         return action  # LAUNCH, BACK, or QUIT
 
