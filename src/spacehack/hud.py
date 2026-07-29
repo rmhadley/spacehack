@@ -285,11 +285,10 @@ def render_hud(
         # XP progress bar — between key hints and footer.
         console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=COLOR_VALUE_DIM)
 
-        # Bottom hint — ESC behaviour varies by mode (quit in city,
-        # dispatch menu in space); we show a generic hint here.
+        # Bottom hint.
         y = hud_view_height - 2
-        console.print(x=hud_x, y=y, string="bump to land / interact", fg=COLOR_VALUE_DIM)
-        console.print(x=hud_x, y=y + 1, string="ESC - menu / quit", fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y, string="bump to interact", fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y + 1, string="ESC to quit", fg=COLOR_VALUE_DIM)
 
     else:
         # ---- City mode: character stats ----
