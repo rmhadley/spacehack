@@ -231,12 +231,19 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Update `comms.py`: hostile tag = `"enemy"` or `"disliked"`, trade gated to neutral+, scan always available
 - [ ] Smoke test + commit
 
-#### Playtest checklist
+#### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-- [ ] Start a new game as Human Merchant → verify starting reps: pirate=-90, merchant=+10, civilian=+5, militia=+55
-- [ ] Start a new game as Human Pirate → verify starting reps: pirate=-70, merchant=-10, civilian=-10, militia=-30
-- [ ] Open comms with various NPCs → verify attitude labels match
-- [ ] Migrate an existing save (not possible — new run required)
+- [ ] Start new game as **Human Merchant** → verify starting faction window shows correct values. *(Can't see it yet — Phase 5 adds the UI. For now, trust the code: pirate=-90, merchant=+10, civilian=+5, militia=+55.)*
+- [ ] Start new game as **Human Pirate** → pirate=-70 (disliked), militia=-30 (disliked)
+- [ ] Start new game as **Human Bounty Hunter** → pirate=-100 (enemy), militia=+65 (liked)
+- [ ] Start new game as **Martian Pirate** → militia=-10 (disliked) vs human pirate's -30
+- [ ] Open comms (T) with any **pirate** ship → `(hostile)` tag visible (pirates are enemy for merchants/bounty hunters, disliked for pirates)
+- [ ] Comms with a pirate: verify **Attack** and **Scan Cargo** are available, **Open Trade** is hidden (enemy/disliked = no trade)
+- [ ] Comms with a **merchant** ship (as Human Merchant, merchant +10 neutral): verify **Open Trade** IS available
+- [ ] Comms with a **merchant** ship (as Human Pirate, merchant -10 disliked): verify **Open Trade** is hidden
+- [ ] Migrate an old save — not possible, new run required *(expected behavior)*
+
+---
 
 ### Phase 2: Mission rep changes
 
@@ -254,12 +261,28 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Are all 4 mission completion paths using the same `modify_rep` helper?
 - [ ] Check for hardcoded rep changes that bypass `modify_rep`.
 
-#### Playtest checklist
+#### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-- [ ] Complete a delivery mission → verify +5 merchant rep
-- [ ] Complete a bounty mission → verify -2 pirate, +3 merchant, +3 civilian, +5 militia
-- [ ] Complete a delivery early → verify +5 (base) + 50% = +8 merchant rep
-- [ ] Abort a mission → verify no rep change
+**Delivery missions:**
+- [ ] Complete a **delivery** mission → log shows `+5 rep with Merchant faction`
+- [ ] Complete a delivery **early** (within 50% of deadline) → log shows base + 50% bonus (e.g. +5 → +8 merchant)
+
+**Bounty missions:**
+- [ ] Complete a **bounty** mission (pirate target) → log shows `-2 pirate, +3 merchant, +3 civilian, +5 militia`
+- [ ] Complete a bounty early → +50% bonus on all deltas
+
+**Bar missions:**
+- [ ] Complete an **intercept** mission → `+5 pirate, -10 merchant, -2 civilian, -5 militia`
+- [ ] Complete a **smuggling** mission → `+2 pirate, -5 merchant, -5 civilian, -8 militia`
+- [ ] Complete an **extortion** mission → `+5 pirate, -5 merchant, -3 civilian, -3 militia`
+- [ ] Complete a **salvage** mission → `+3 pirate, -3 merchant, 0 civilian, -2 militia`
+
+**Edge cases:**
+- [ ] **Abort** a mission (Q → abandon) → **no rep change** logged
+- [ ] Complete a mission that crosses a zone boundary → zone-crossing message fires
+- [ ] Rep clamped at +100 / -100 (complete a mission while already at cap)
+
+---
 
 ### Phase 3: Combat rep changes
 
@@ -276,12 +299,27 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Are combat rep changes using the same `modify_rep` helper as missions?
 - [ ] Is there a single function that handles all kill-based rep changes, or is it duplicated per faction?
 
-#### Playtest checklist
+#### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-- [ ] Kill a pirate in combat → verify rep changes (pirate -3, merchant +2)
-- [ ] Kill a merchant in combat → verify rep changes (merchant -8)
-- [ ] Flee from combat → verify -1/-2 to lawful factions
-- [ ] Kill a pirate squad of 3 → verify extra +1 per squad
+**Kills:**
+- [ ] Kill a **pirate** ship → log shows `-3 pirate, +2 merchant, +2 civilian, +3 militia`
+- [ ] Kill a **merchant** ship → log shows `+5 pirate, -8 merchant, -3 civilian, -5 militia`
+- [ ] Kill a **militia** ship → log shows `+8 pirate, -5 merchant, -5 civilian, -12 militia`
+- [ ] Kill a **civilian** ship → log shows `+5 pirate, -5 merchant, -8 civilian, -5 militia`
+
+**Other combat actions:**
+- [ ] **Flee** from combat → log shows `-1 merchant, -1 civilian, -2 militia` (cowardice penalty)
+- [ ] Initiate **unprovoked attack** via comms → log shows `+2 pirate, -2 merchant, -2 civilian, -3 militia`
+
+**Squad bonus:**
+- [ ] Kill an entire **pirate squad** (e.g. 3 ships) → verify extra `+1` bonus rep to relevant factions per squad cleared
+- [ ] Kill a **bounty squad** → verify squad bonus applies
+
+**Edge cases:**
+- [ ] Kill a ship whose faction isn't in the 4 tracked factions → no rep change, no crash
+- [ ] Kill multiple ships in one combat → all deltas logged individually
+
+---
 
 ### Phase 4: Hostility + mission gating
 
@@ -296,13 +334,25 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Is the hostility check duplicated between `_tick_npcs` and `_detect_combat_encounter`? Should be one helper.
 - [ ] Are the pay-scaling and tier-modification formulas centralized in `faction.py`?
 
-#### Playtest checklist
+#### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-- [ ] As a Human Merchant (militia Liked) → Earth militia should offer mission tier +1 (if planet supports it)
-- [ ] As a Human Pirate (militia Disliked, pirate Enemy) → militia missions should be penalized or removed
-- [ ] As a Human Merchant (pirate Enemy) → no missions from pirate-adjacent NPCs (none exist yet, but bar missions are gated by pirate rep in Phase 5)
-- [ ] Enemy NPCs approach and attack on sight
-- [ ] Disliked NPCs show `(hostile)` in comms but do NOT auto-attack
+**Mission gating:**
+- [ ] As Human Merchant (militia **Liked** +55): visit Earth → militia mission board offers **+1 tier** better missions (if planet tier supports it)
+- [ ] As Human Pirate (militia **Disliked** -30): militia missions are **penalized** (reduced tier/pay)
+- [ ] As Human Merchant (pirate **Enemy** -90): no pirate-faction missions offered *(bar missions not yet gated — future)*
+- [ ] As Human Bounty Hunter (militia **Liked** +65): verify +1 tier on militia bounty boards
+
+**NPC hostility (deterministic):**
+- [ ] Pirate NPCs as Human Bounty Hunter (pirate **Enemy** -100): pirates **attack on sight** — they move toward you and engage at detect range
+- [ ] Pirate NPCs as Human Pirate (pirate **Disliked** -70): pirates show `(hostile)` in comms but do **NOT auto-attack**
+- [ ] Merchant NPCs as Human Merchant (merchant **Neutral** +10): never hostile unless player attacks first
+- [ ] Militia NPCs as Human Bounty Hunter (militia **Liked** +65): never hostile, may hail with greetings
+
+**Edge cases:**
+- [ ] Enemy NPCs in a different system — when player jumps in, they immediately move toward player
+- [ ] Disliked NPCs at close range — verify they do NOT engage (no probability check)
+
+---
 
 ### Phase 5: Faction UI viewer
 
@@ -311,12 +361,35 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Wire zone-boundary logging into `modify_rep` (already defined in Phase 2, just ensure messages are formatted)
 - [ ] Smoke test + commit
 
-#### Playtest checklist
+#### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-- [ ] Open ship hangar → "Factions" option visible
-- [ ] Select "Factions" → viewer shows all 4 factions with correct scores and bars
-- [ ] Complete a mission → rep changes → viewer reflects updated values
-- [ ] Cross a zone boundary → log message fires
+**Basic UI:**
+- [ ] Open ship hangar (bump your ship in city) → **"Factions"** option visible in menu
+- [ ] Select "Factions" → viewer shows all 4 factions with correct scores
+- [ ] Verify each faction shows: name, current score, progress bar, attitude label
+
+**Progress bars:**
+- [ ] Enemy zone (-100 to -76) → bar rendered in / with correct fill
+- [ ] Disliked zone (-75 to -26) → bar rendered correctly
+- [ ] Neutral zone (-25 to +25) → bar rendered correctly
+- [ ] Liked zone (+26 to +75) → bar rendered correctly
+- [ ] Allied zone (+76 to +100) → bar rendered correctly
+
+**Live updates:**
+- [ ] Complete a mission → reopen Factions → viewer reflects updated rep values
+- [ ] Kill a ship in combat → reopen Factions → viewer reflects updated values
+
+**Zone-boundary messages:**
+- [ ] Cross from Neutral → Liked: log message `+N rep with X faction (now +26, Neutral → Liked)`
+- [ ] Cross from Liked → Neutral: log message with zone change noted
+- [ ] Cross from Disliked → Enemy: log message with zone change
+- [ ] Rep change within same zone: log message without zone-change suffix
+
+**Navigation:**
+- [ ] ENTER / ESC closes the viewer and returns to ship menu
+- [ ] Guide (?) works from within the viewer
+
+---
 
 ### Phase 6: Monthly decay + trade pricing
 
@@ -330,18 +403,61 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 - [ ] Is the month-change decay logic a single loop over all factions, or duplicated per faction?
 - [ ] Are trade price modifiers centralized (one function each for buy/sell) or duplicated across city and ship trade?
 
-#### Playtest checklist
+#### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-- [ ] Become Allied with militia → verify +10% sell / -10% buy at militia stations
-- [ ] Become Enemy with merchants → verify can't trade at merchant shops
-- [ ] Advance one month → verify decay (if Liked, -2 towards neutral)
-- [ ] Verify decay stops at zone boundary (+1/-1)
+**Monthly decay:**
+- [ ] Become **Allied** with militia (+76+): advance one month → verify **-3 decay** toward neutral
+- [ ] Become **Liked** with merchants (+26 to +75): advance one month → verify **-2 decay**
+- [ ] Become **Disliked** with pirates (-75 to -26): advance one month → verify **+2 decay** (toward neutral)
+- [ ] Become **Enemy** with pirates (-100 to -76): advance one month → verify **+3 decay**
+- [ ] **Neutral** zone (-25 to +25): advance one month → verify **no decay** at all
+
+**Decay boundary stops:**
+- [ ] At +26 (bottom of Liked): decay stops at **+1** — cannot cross from positive to negative via decay alone
+- [ ] At -26 (top of Disliked): decay stops at **-1** — cannot cross from negative to positive via decay alone
+- [ ] Only player actions can change the sign of a reputation
+
+**Trade pricing:**
+- [ ] Become **Allied** with militia (+76+) → verify **+10% sell / -10% buy** at militia faction stations
+- [ ] Become **Enemy** with merchants (-76 or lower) → verify **cannot trade** at merchant shops at all
+- [ ] Become **Liked** with merchants → verify **+5% sell / -5% buy**
+- [ ] **Neutral** with a faction → verify **standard prices** (no modifier)
+
+**Stacking:**
+- [ ] Trade price modifiers stack correctly: `base_price × skill_discount × rep_discount` (multiplicative)
+- [ ] Price modifiers apply to both city trade (trade terminals) and ship-to-ship trade (comms → Open Trade)
+
+---
 
 ### Phase 7: Guide + final polish
 
 - [ ] Update in-game guide with faction reputation section
 - [ ] Full DRY/RNG audit on all new code
 - [ ] Final playtest pass
+
+#### Final playtest checklist *(living — update as implementation reveals edge cases)*
+
+**Guide:**
+- [ ] Open guide (?) → faction reputation section present and accurate
+- [ ] Guide explains: 5 attitude zones with thresholds, how rep changes (missions/combat/decay), what each zone means for gameplay (hostility/trade/missions)
+
+**Full run smoke test:**
+- [ ] Start as Human Merchant → complete several missions → see rep values change over time
+- [ ] Cross at least 3 zone boundaries during a session → verify all log messages are clear and correctly formatted
+- [ ] Advance multiple months → verify decay is working and stops at boundaries
+- [ ] Trade at stations with different faction attitudes → verify price modifiers apply
+
+**Extreme states:**
+- [ ] Become **Enemy with ALL four factions** (< -76 each) → log says *"With no faction willing to work with you, the galaxy has closed its doors"*
+- [ ] Become **Allied with ALL four factions** (+76+ each) → verify all allied bonuses stack correctly
+
+**No regressions:**
+- [ ] Smoke test passes before final commit
+- [ ] All existing mission types work (delivery, bounty, bar if implemented)
+- [ ] Combat works with all faction combos
+- [ ] Comms panel works for all attitude zones
+
+---
 
 ## Open questions
 
