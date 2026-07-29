@@ -136,7 +136,32 @@ def save_game(
     ``mode``, ``city_id``, and ``system_id`` are passed by the caller
     so save/load doesn't need to reach into ``_run_game``'s closure locals.
     """
+    # Sync procedural spawn positions from actual entity positions on
+    # the map.  move_npcs() moves entities but doesn't update the
+    # ProceduralSpawn.pos in ctx.procedural_spawns, so the spawn data
+    # holds the original spawn position — not where the NPC actually is.
+    from .game_context import ProceduralSpawn
+    _synced_spawns: dict[str, list] = {}
+    for _sys_id, _spawns in ctx.procedural_spawns.items():
+        _updated: list = []
+        _matched_ids: set[int] = set()
+        for _ps in _spawns:
+            _cur_pos = _ps.pos
+            for _e in ctx.game_map.entities:
+                if id(_e) in _matched_ids:
+                    continue
+                if (getattr(_e, 'npc_ship_id', '') == _ps.npc_id
+                        and getattr(_e, 'procedural_squad_id', '') != ''):
+                    _cur_pos = _e.pos
+                    _matched_ids.add(id(_e))
+                    break
+            _updated.append(ProceduralSpawn(
+                npc_id=_ps.npc_id, pos=_cur_pos, squad_id=_ps.squad_id,
+            ))
+        _synced_spawns[_sys_id] = _updated
+
     _data = _ctx_to_dict(ctx)
+    _data["procedural_spawns"] = _d(_synced_spawns)
     _data["current_mode"] = mode
     _data["current_city_id"] = city_id
     _data["current_system_id"] = system_id
