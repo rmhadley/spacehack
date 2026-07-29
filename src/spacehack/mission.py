@@ -411,29 +411,42 @@ def fill_empty_slots(
                     break
 
     # Only merchant guild NPCs offer procedural delivery missions.
-    # Other guilds (bar, militia, bounty, lab, depot) will get their
+    # Bounty guild NPCs offer procedural bounty missions.
+    # Other guilds (bar, militia, lab, depot) will get their
     # own mission types in future passes.
-    _is_merchant = False
+    _guild = ""
     try:
         from .data.npcs import find_npc as _fnpc
-        _is_merchant = _fnpc(board.npc_id).guild == "merchants"
+        _guild = _fnpc(board.npc_id).guild
     except KeyError:
         pass
 
-    # Fill remaining empty slots with procedural delivery missions.
+    _is_merchant = _guild == "merchants"
+    _is_bh = _guild == "bhguild"
+
+    # Fill remaining empty slots with procedural missions.
+    if not _is_merchant and not _is_bh:
+        return
     _proc_counter = 0
     for i in range(len(board.slots)):
-        if not _is_merchant:
-            break
         if board.slots[i] is not None:
             continue
-        _proc = generate_delivery_mission(
-            origin_planet_id=planet_id,
-            max_tier=planet_tier,
-            rng=rng,
-            counter=_proc_counter,
-            giver_npc_id=board.npc_id,
-        )
+        if _is_merchant:
+            _proc = generate_delivery_mission(
+                origin_planet_id=planet_id,
+                max_tier=planet_tier,
+                rng=rng,
+                counter=_proc_counter,
+                giver_npc_id=board.npc_id,
+            )
+        else:  # _is_bh
+            _proc = generate_bounty_mission(
+                origin_planet_id=planet_id,
+                max_tier=planet_tier,
+                rng=rng,
+                counter=_proc_counter,
+                giver_npc_id=board.npc_id,
+            )
         if _proc is not None:
             generated[_proc.id] = _proc
             board.slots[i] = _proc.id
@@ -506,6 +519,16 @@ def refresh_all_boards(ctx) -> None:
 # Cached planet_id → system_id mapping. Built lazily on first call to
 # _planet_to_system() from the solar system registry.
 _PLANET_SYSTEM_CACHE: dict[str, str] | None = None
+
+
+def _roll_tier(max_tier: int, rng: random.Random) -> int:
+    """Weighted tier roll: min-of-two gives a natural rarity curve.
+
+    Shared by both delivery and bounty procedural generators.
+    Returns 1..max_tier with lower tiers more common.
+    """
+    _max = max(1, max_tier)
+    return min(rng.randint(1, _max), rng.randint(1, _max))
 
 
 def _planet_to_system() -> dict[str, str]:
@@ -624,9 +647,8 @@ def generate_delivery_mission(
     """
     from .data.solar_systems import reachable_system_ids
 
-    # 1. Weighted tier roll: min-of-two gives a natural rarity curve.
-    _max = max(1, max_tier)
-    tier = min(rng.randint(1, _max), rng.randint(1, _max))
+    # 1. Weighted tier roll.
+    tier = _roll_tier(max_tier, rng)
 
     # 2. Resolve origin system and reachable systems.
     p2s = _planet_to_system()
@@ -736,6 +758,209 @@ def generate_delivery_mission(
     )
 
 
+# ---------------------------------------------------------------------------
+# Procedural bounty mission generator
+# ---------------------------------------------------------------------------
+
+_BOUNTY_NAME_PREFIXES: dict[int, tuple[str, ...]] = {
+    1: ("Rookie", "Deserter", "Wanted", "Marked"),
+    2: ("Fugitive", "Smuggler", "Outlaw", "Notorious"),
+    3: ("Hunted", "Infamous", "Vicious", "Feared"),
+    4: ("Dread", "Warlord", "Legendary", "Cursed"),
+}
+
+_BOUNTY_NAME_TITLES: dict[int, tuple[str, ...]] = {
+    1: ("Scavenger", "Runner", "Rat", "Drifter"),
+    2: ("Corsair", "Hauler", "Runner", "Dealer"),
+    3: ("Marauder", "Raider", "Enforcer", "Reaver"),
+    4: ("Captain", "Overlord", "Wraith", "Reaper"),
+}
+
+
+def _generate_bounty_name(tier: int, rng: random.Random) -> str:
+    """Generate a tier-appropriate bounty target name.
+
+    Picks a random prefix + title from the tier-gated pools.
+    Tier is clamped to 1-4.
+    """
+    _t = max(1, min(4, tier))
+    _pre = rng.choice(_BOUNTY_NAME_PREFIXES[_t])
+    _tit = rng.choice(_BOUNTY_NAME_TITLES[_t])
+    return f"{_pre} {_tit}"
+
+
+def _bounty_enemy_pool(tier: int) -> list[str]:
+    """Return eligible NpcShipSpec IDs for a bounty of the given tier."""
+    _pools: dict[int, list[str]] = {
+        1: ["pirate_scout"],
+        2: ["pirate_scout", "pirate_raider"],
+        3: ["pirate_raider"],
+        4: ["pirate_raider", "pirate_captain"],
+    }
+    return _pools.get(max(1, min(4, tier)), ["pirate_scout"])
+
+
+def _bounty_loadout_range(tier: int) -> tuple[int, int]:
+    """Return (min_pct, max_pct) for loadout scaling by tier."""
+    return {
+        1: (0, 25),
+        2: (25, 50),
+        3: (50, 75),
+        4: (75, 100),
+    }.get(max(1, min(4, tier)), (0, 25))
+
+
+def _bounty_squad_range(tier: int) -> tuple[int, int]:
+    """Return (min_squad, max_squad) by tier."""
+    return {
+        1: (1, 1),
+        2: (1, 1),
+        3: (1, 2),
+        4: (2, 3),
+    }.get(max(1, min(4, tier)), (1, 1))
+
+
+def _bounty_danger_text(tier: int, squad_size: int) -> str:
+    """Return a danger-level label for mission descriptions."""
+    if tier >= 4 and squad_size >= 2:
+        return "Extreme"
+    if tier >= 3:
+        return "High"
+    if tier >= 2:
+        return "Moderate"
+    return "Low"
+
+
+def generate_bounty_mission(
+    origin_planet_id: str,
+    max_tier: int,
+    rng: random.Random,
+    counter: int = 0,
+    giver_npc_id: str = "",
+) -> MissionSpec | None:
+    """Generate one procedural bounty mission originating from
+    ``origin_planet_id``.
+
+    Algorithm:
+      1. Roll tier: weighted 1..max_tier using min-of-two-rolls.
+      2. Find origin system and reachable systems (reuses hop-range
+         pattern from delivery generation).
+      3. Pick a target system via hop-range gating tuned for bounty
+         distances (longer ranges than delivery).
+      4. Pick enemy from tier-appropriate pool.
+      5. Roll loadout_pct and squad_size within tier ranges.
+      6. Generate name via tier-gated prefix/title pools.
+      7. Compute reward: base = hull_strength × tier × 40, adjusted
+         by squad size.
+      8. Compute deadline: hops × 6 + randint(3, 8).
+      9. Build MissionSpec with mission_type="bounty", faction="bhguild".
+
+    Returns ``None`` if no suitable target system can be found.
+    """
+    from .data.solar_systems import reachable_system_ids
+    from .data.npc_ships import find_npc_ship
+    from .data.ships import find_ship as _find_ship_cat
+
+    # 1. Tier roll (shared two-roll pattern for rarity curve).
+    tier = _roll_tier(max_tier, rng)
+
+    # 2. Resolve origin system and reachable systems.
+    p2s = _planet_to_system()
+    origin_system_id = p2s.get(origin_planet_id)
+    if origin_system_id is None:
+        return None
+
+    reachable = reachable_system_ids(origin_system_id, max_hops=10)
+
+    # Bounty hop ranges: slightly longer than delivery.
+    _hop_ranges = {
+        1: (1, 2),
+        2: (1, 3),
+        3: (2, 5),
+        4: (3, 7),
+    }
+    min_hops, max_hops = _hop_ranges.get(tier, (1, 10))
+
+    # Build candidate system list.
+    _candidates: list[tuple[str, int]] = []
+    for sys_id, hops in reachable.items():
+        if min_hops <= hops <= max_hops and sys_id != origin_system_id:
+            _candidates.append((sys_id, hops))
+
+    if not _candidates:
+        return None
+
+    # 3. Pick a target system.
+    target_system_id, hops = rng.choice(_candidates)
+
+    # 4. Pick enemy from tier-appropriate pool.
+    _pool = _bounty_enemy_pool(tier)
+    enemy_id = rng.choice(_pool)
+    try:
+        _espec = find_npc_ship(enemy_id)
+        _ship_cat = _find_ship_cat(_espec.ship_id)
+        _hull_strength = _ship_cat.base_hull
+    except (KeyError, ImportError):
+        _hull_strength = 50
+
+    # 5. Roll loadout and squad.
+    _lo_lo, _lo_hi = _bounty_loadout_range(tier)
+    loadout_pct = rng.randint(_lo_lo, _lo_hi)
+    _sq_lo, _sq_hi = _bounty_squad_range(tier)
+    squad_size = rng.randint(_sq_lo, _sq_hi)
+
+    # 6. Generate name.
+    target_name = _generate_bounty_name(tier, rng)
+
+    # 7. Reward: base = hull_strength × tier × 40, × squad multiplier.
+    _sq_mult = {1: 1.0, 2: 1.5, 3: 2.0}.get(squad_size, 1.0)
+    credits = int(_hull_strength * tier * 40 * _sq_mult)
+    xp = int(_hull_strength * tier * 2 * _sq_mult)
+
+    # 8. Deadline: hops × 6 + randint(3, 8).
+    deadline = max(3, hops * 6 + rng.randint(3, 8))
+
+    # 9. Danger text + description.
+    _danger = _bounty_danger_text(tier, squad_size)
+    try:
+        from .data.planets import find_planet_spec as _fps_origin
+        origin_name = _fps_origin(origin_planet_id).name
+    except KeyError:
+        origin_name = origin_planet_id
+
+    title = f"Wanted: {target_name}"
+    _squad_note = f" + {squad_size - 1} wingmates" if squad_size > 1 else ""
+    _loadout_note = " (heavy loadout)" if loadout_pct >= 75 else ""
+    description = (
+        f"The Bounty Guild on {origin_name} seeks {target_name}, "
+        f"last seen {hops} jump(s) away. "
+        f"Danger: {_danger}.{_squad_note}{_loadout_note}"
+    )
+
+    # 10. Generated ID.
+    gen_id = f"proc_bounty_{origin_planet_id}_{target_system_id}_{enemy_id}_{counter}_{tier}"
+
+    return MissionSpec(
+        id=gen_id,
+        title=title,
+        description=description,
+        giver_npc_id=giver_npc_id,
+        faction="bhguild",
+        mission_type="bounty",
+        tier=tier,
+        reward_credits=credits,
+        reward_xp=xp,
+        deadline_days=deadline,
+        early_bonus_pct=30,
+        target_enemy_id=enemy_id,
+        target_system_id=target_system_id,
+        bounty_target_name=target_name,
+        bounty_target_squad_size=squad_size,
+        bounty_target_loadout_pct=loadout_pct,
+        origin_planet_id=origin_planet_id,
+    )
+
+
 # Re-exports so consumers can keep using ``mission_module.MissionSpec``
 # etc. without a second import line.
 __all__ = [
@@ -761,6 +986,7 @@ __all__ = [
     "board_return_static",
     "refresh_all_boards",
     "generate_delivery_mission",
+    "generate_bounty_mission",
     "_planet_npc_ids",
     "_planet_to_system",
 ]
