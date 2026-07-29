@@ -281,7 +281,7 @@ def _run_game(context: tcod.context.Context, species_id: str, class_id: str) -> 
                 _attack_data = _open_comms(ctx, player.pos)
                 if _attack_data is not None:
                     combat._handle_combat_encounter(ctx, console, _attack_data)
-                    player_active_mission = ctx.player_active_mission
+                    player_active_missions = ctx.player_active_missions
                 continue
             # Period = wait one turn (space mode: pirates move, shields regen).
             if _is_period_press(event):
