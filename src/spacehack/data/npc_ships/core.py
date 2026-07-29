@@ -31,9 +31,11 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_engineering=10,
         min_power_gen=3,
         detect_radius=8,
+        comms_warning_range=16,
         comms_lines=(
+            "You're making a mistake, hunter.",
+            "I ain't worth the bounty, pal.",
             "Back off or be boarded!",
-            "This is our space, pilot!",
         ),
     ),
     NpcShipSpec(
@@ -58,7 +60,10 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_engineering=15,
         min_power_gen=4,
         detect_radius=10,
+        comms_warning_range=18,
         comms_lines=(
+            "You've got guts coming after me, hunter.",
+            "Name your price. Everyone has one.",
             "Hand over your cargo or we'll take it!",
             "You're in raider space now!",
         ),
@@ -116,7 +121,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         detect_radius=12,
         comms_warning_range=20,
         comms_lines=(
-            "You've come far to die, hunter.",
+            "They sent YOU? I'm insulted.",
+            "I am the price on your head, hunter.",
             "I've crushed better ships than yours.",
             "Name your price. Everyone has one.",
         ),
