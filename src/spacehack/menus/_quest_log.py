@@ -95,7 +95,9 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             _d, _m, _y = am.time_deadline
             _total_days = (_y - ctx.time_year) * 360 + (_m - ctx.time_month) * 30 + (_d - ctx.time_day)
             _date_str = f'{_y}{_m:02d}{_d:02d}'
-            if _total_days > 0:
+            # Show EXPIRED only when strictly past the deadline.
+            # _total_days == 0 means due TODAY — still deliverable at full pay.
+            if _total_days >= 0:
                 paint(detail_top, fit(f'Due: {_date_str} ({_total_days} days)'), fg=ui.COLOR_OPTION_HIGHLIGHT)
             else:
                 paint(detail_top, fit(f'EXPIRED — Due: {_date_str}'), fg=(255, 80, 80))
