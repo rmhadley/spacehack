@@ -62,7 +62,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.log.add("Ship catalog mismatch — cannot start combat.")
         return "FLEE"
 
-    _combat_result, _defeated_ids = run_combat(
+    _combat_result, _defeated_ids, _defeated_names = run_combat(
         console, ctx.context,
         _ship_cat, ctx.player_owned_ship,
         ctx.player.pos, _pilot_skills,
@@ -71,10 +71,10 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     )
 
     if _combat_result == "VICTORY":
-        if len(_defeated_ids) == 1:
-            ctx.log.add(f"Victory! {_defeated_ids[0]} destroyed.")
+        if len(_defeated_names) == 1:
+            ctx.log.add(f"Victory! {_defeated_names[0]} destroyed.")
         else:
-            ctx.log.add(f"Victory! {len(_defeated_ids)} enemies destroyed.")
+            ctx.log.add(f"Victory! {len(_defeated_names)} enemies destroyed.")
 
         # Check bounty completion: if the player has an active bounty
         # mission and the defeated enemy matches, complete it.

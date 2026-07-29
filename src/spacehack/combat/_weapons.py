@@ -76,6 +76,7 @@ def _fire_weapons(
     view_h: int,
     _calc_cam,
     _defeated_spec_ids: list[str],
+    _defeated_names: list[str],
     _closest_enemy,
     flee_chance: int,
 ) -> None:
@@ -174,6 +175,7 @@ def _fire_weapons(
             if _fh <= 0:
                 _target_enemy.alive = False
                 _defeated_spec_ids.append(_target_enemy.spec_id)
+                _defeated_names.append(_target_enemy.name)
                 _c_log(f"{_target_enemy.name} destroyed!", log)
                 # Remove dead entity from the game map
                 from ._loop import _remove_dead_entity as _rde

@@ -234,6 +234,8 @@ def run_combat(
            + ", ".join(e.name for e in enemy_insts))
     # Track which enemy spec IDs were defeated (for bounty completion).
     _defeated_spec_ids: list[str] = []
+    # Track defeated enemy names for the victory message.
+    _defeated_names: list[str] = []
     start_player_turn(player_state)
 
     view_w = 80
@@ -521,7 +523,7 @@ def run_combat(
                         weapons_list, active_weapons,
                         _weapon_hit_chances, _evade_bonus,
                         view_w, view_h, _calc_cam,
-                        _defeated_spec_ids, _closest_enemy,
+                        _defeated_spec_ids, _defeated_names, _closest_enemy,
                         _flee_chance,
                     )
                     break
@@ -549,4 +551,4 @@ def run_combat(
         # Always persist hull damage, even on FLEE/DEFEAT.
         _sync_back_hull(player_state, player_owned_ship)
 
-    return _result, _defeated_spec_ids
+    return _result, _defeated_spec_ids, _defeated_names
