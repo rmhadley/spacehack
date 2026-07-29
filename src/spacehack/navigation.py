@@ -487,22 +487,20 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 # ---------------------------------------------------------------------------
 
 def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | None:
-    """Check if any NPC with ``comms_warning_range > 0`` is within range.
+    """Check if any bounty target with ``comms_warning_range > 0`` is within range.
 
-    If a qualifying NPC is found and the player has NOT already been
-    warned in this system, opens the comms panel and marks the system
-    as warned. Returns:
+    Only checks entities tagged with ``bounty_spawn_id``, so only
+    bounty targets trigger auto-hail — random pirates do not.
+    If a qualifying entity is found and the player has NOT already
+    been warned in this system, opens the comms panel and marks the
+    system as warned. Returns:
 
       * ``(True, attack_data_or_None)`` -- warning was issued.
         ``attack_data`` is ``(specs, positions)`` if the player
         chose **Attack** from the comms, or ``None`` if they closed
         the comms or chose another option.
-      * ``None`` -- no qualifying NPC within range (or already
-        warned). Callers should continue normally.
-
-    Warning range must be larger than ``detect_radius`` on the same
-    NPC spec so the player gets a chance to turn back before combat
-    triggers.
+      * ``None`` -- no qualifying bounty target within range (or
+        already warned). Callers should continue normally.
     """
     _sys_id = getattr(system, 'id', '')
     if not _sys_id:
@@ -512,6 +510,10 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
 
     for _e in ctx.game_map.entities:
         if getattr(_e, 'owned', False):
+            continue
+        # Only auto-hail for bounty targets (tagged with bounty_spawn_id).
+        _b_id = getattr(_e, 'bounty_spawn_id', None)
+        if not _b_id:
             continue
         _pid = getattr(_e, 'npc_ship_id', '')
         if not _pid:
