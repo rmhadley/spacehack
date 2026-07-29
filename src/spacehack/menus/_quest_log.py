@@ -65,8 +65,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         is_sel = i == selected
         marker = '> ' if is_sel else '  '
         end_marker = ' <' if is_sel else '  '
-        _prefix = '[S] ' if not am.is_procedural else '[P] '
-        text = f'{marker}{_prefix}{am.title}{end_marker}'
+        text = f'{marker}{am.title}{end_marker}'
         console.print(
             x=ui.centered_x(text, screen_width), y=row, string=text,
             fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION,
@@ -76,8 +75,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
     if 0 <= selected < len(missions):
         am = missions[selected]
         detail_top = list_top + len(missions) * 2 + 1
-        paint(detail_top, fit(f'Type: {"Procedural" if am.is_procedural else "Contract"}'), fg=ui.COLOR_VALUE_DIM)
-        detail_top += 1
+
         if am.delivery_target_planet_id:
             _planet_name = am.delivery_target_planet_id
             try:
