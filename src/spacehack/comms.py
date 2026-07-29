@@ -207,6 +207,160 @@ def _render_interaction_modal(
 
 
 # ---------------------------------------------------------------------------
+# Interaction sub-modal (shared between open_comms and open_comms_direct)
+# ---------------------------------------------------------------------------
+
+def _run_interaction_modal(
+    ctx: GameContext,
+    console: tcod.console.Console,
+    contact_name: str,
+    contact_spec: object,
+    contact_entity: object,
+) -> tuple[list, list] | None:
+    """Run the interaction sub-modal for a single contact and return
+    the outcome.
+
+    Skips the contact-list modal and goes straight to displaying
+    the contact's comms lines (flavor text) with action options.
+
+    Returns ``(specs, positions)`` if the player chose **Attack**,
+    or ``None`` if they chose End Transmission, Open Trade, Scan
+    Cargo, or ESC.
+    """
+    _contact_rep = ctx.faction_reputation.get(
+        getattr(contact_spec, 'faction', ''), 0,
+    )
+    _contact_attitude = _get_attitude(_contact_rep)
+
+    _options: list[str] = ["End Transmission"]
+    # Attack is always available — players can choose to engage
+    # any ship (pirating, bounty hunting, etc.).
+    _options.insert(0, "Attack")
+    if _contact_attitude != 'hostile':
+        _options.insert(1, "Open Trade")
+        _options.insert(2, "Scan Cargo")
+
+    _interaction_selected = 0
+
+    def _render_interaction() -> None:
+        _render_interaction_modal(
+            console, contact_name, contact_spec,
+            _options, _interaction_selected,
+        )
+
+    def _update_interaction(event) -> _InteractionOutcome:
+        nonlocal _interaction_selected
+        if _try_open_guide(event, ctx):
+            return _InteractionOutcome.IGNORE
+        if isinstance(event, tcod.event.Quit):
+            return _InteractionOutcome.QUIT
+        if not isinstance(event, tcod.event.KeyDown):
+            return _InteractionOutcome.IGNORE
+        sym_name: str = getattr(event.sym, 'name', '').lower()
+        if event.sym in ui._ESCAPE_SYMS:
+            return _InteractionOutcome.BACK
+        if event.sym in ui._UP_SYMS or sym_name == 'k':
+            _interaction_selected = (_interaction_selected - 1) % len(_options)
+            return _InteractionOutcome.IGNORE
+        if event.sym in ui._DOWN_SYMS or sym_name == 'j':
+            _interaction_selected = (_interaction_selected + 1) % len(_options)
+            return _InteractionOutcome.IGNORE
+        if event.sym in ui._ENTER_SYMS:
+            chosen = _options[_interaction_selected]
+            if chosen == "Open Trade":
+                return _InteractionOutcome.TRADE
+            elif chosen == "Attack":
+                return _InteractionOutcome.ATTACK
+            elif chosen == "Scan Cargo":
+                return _InteractionOutcome.SCAN
+            else:  # "End Transmission"
+                return _InteractionOutcome.BACK
+        return _InteractionOutcome.IGNORE
+
+    interaction_outcome = ui.Modal(ctx.context, console).run(
+        _render_interaction, _update_interaction,
+    )
+
+    # ---- Handle interaction outcome ----
+    if interaction_outcome is _InteractionOutcome.ATTACK:
+        ctx.log.add_colored(
+            f"You transmit a warning to the {contact_name}.",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+        if getattr(contact_spec, 'comms_lines', None):
+            _reply = contact_spec.comms_lines[-1]
+            ctx.log.add_colored(
+                f"{contact_name}: \"{_reply}\"",
+                _ml.COLOR_ENEMY_ACTION,
+            )
+        ctx.log.add_colored(
+            f"You open fire on the {contact_name}!",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+        # Look up the contacted ship's squad and include ALL members.
+        _squad_id = getattr(contact_entity, 'procedural_squad_id', '')
+        _attack_specs: list = [contact_spec]
+        _attack_positions: list = [contact_entity.pos]
+        if _squad_id:
+            for _e in ctx.game_map.entities:
+                if _e is contact_entity:
+                    continue
+                if getattr(_e, 'procedural_squad_id', '') != _squad_id:
+                    continue
+                _pid = getattr(_e, 'npc_ship_id', '')
+                if not _pid:
+                    continue
+                try:
+                    _spec = _find_npc_ship(_pid)
+                except (KeyError, ImportError):
+                    continue
+                _attack_specs.append(_spec)
+                _attack_positions.append(_e.pos)
+        return (_attack_specs, _attack_positions)
+
+    elif interaction_outcome is _InteractionOutcome.SCAN:
+        _goods = getattr(contact_spec, 'cargo_goods', ())
+        if _goods:
+            _goods_str = ", ".join(str(g) for g in _goods)
+            ctx.log.add(f"Cargo scan of {contact_name}: {_goods_str}.")
+        else:
+            ctx.log.add(f"Cargo scan of {contact_name}: empty hold.")
+        return None
+
+    elif interaction_outcome is _InteractionOutcome.TRADE:
+        from .trade import open_npc_trade as _open_npc_trade
+        _open_npc_trade(ctx, contact_spec)
+        return None
+
+    else:  # BACK / QUIT / anything else
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Direct comms (skip contact list, hail a specific entity)
+# ---------------------------------------------------------------------------
+
+def open_comms_direct(
+    ctx: GameContext,
+    entity: object,
+) -> tuple[list, list] | None:
+    """Open comms directly with a specific entity, skipping the contact
+    list. Used by auto-hail so the player sees the hailing ship's
+    message immediately without selecting from a list.
+    """
+    _pid = getattr(entity, 'npc_ship_id', '')
+    if not _pid:
+        return None
+    try:
+        _spec = _find_npc_ship(_pid)
+    except (KeyError, ImportError):
+        return None
+    _name = getattr(entity, 'name', '') or _spec.name
+    console = make_console()
+    return _run_interaction_modal(ctx, console, _name, _spec, entity)
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -268,114 +422,6 @@ def open_comms(
 
     # ---- Modal 2: interaction with selected contact ----
     _contact_name, _contact_spec, _contact_entity = contacts[selected]
-    _contact_rep = ctx.faction_reputation.get(getattr(_contact_spec, 'faction', ''), 0)
-    _contact_attitude = _get_attitude(_contact_rep)
-
-    _options: list[str] = ["End Transmission"]
-    # Attack is always available — players can choose to engage
-    # any ship (pirating, bounty hunting, etc.).
-    _options.insert(0, "Attack")
-    if _contact_attitude != 'hostile':
-        _options.insert(1, "Open Trade")
-        _options.insert(2, "Scan Cargo")
-
-    _interaction_selected = 0
-
-    def _render_interaction() -> None:
-        _render_interaction_modal(
-            console, _contact_name, _contact_spec,
-            _options, _interaction_selected,
-        )
-
-    def _update_interaction(event) -> _InteractionOutcome:
-        nonlocal _interaction_selected
-        if _try_open_guide(event, ctx):
-            return _InteractionOutcome.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return _InteractionOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _InteractionOutcome.IGNORE
-        sym_name: str = getattr(event.sym, 'name', '').lower()
-        if event.sym in ui._ESCAPE_SYMS:
-            return _InteractionOutcome.BACK
-        if event.sym in ui._UP_SYMS or sym_name == 'k':
-            _interaction_selected = (_interaction_selected - 1) % len(_options)
-            return _InteractionOutcome.IGNORE
-        if event.sym in ui._DOWN_SYMS or sym_name == 'j':
-            _interaction_selected = (_interaction_selected + 1) % len(_options)
-            return _InteractionOutcome.IGNORE
-        if event.sym in ui._ENTER_SYMS:
-            chosen = _options[_interaction_selected]
-            if chosen == "Open Trade":
-                return _InteractionOutcome.TRADE
-            elif chosen == "Attack":
-                return _InteractionOutcome.ATTACK
-            elif chosen == "Scan Cargo":
-                return _InteractionOutcome.SCAN
-            else:  # "End Transmission"
-                return _InteractionOutcome.BACK
-        return _InteractionOutcome.IGNORE
-
-    interaction_outcome = ui.Modal(ctx.context, console).run(
-        _render_interaction, _update_interaction,
+    return _run_interaction_modal(
+        ctx, console, _contact_name, _contact_spec, _contact_entity,
     )
-
-    # ---- Handle interaction outcome ----
-    if interaction_outcome is _InteractionOutcome.ATTACK:
-        ctx.log.add_colored(
-            f"You transmit a warning to the {_contact_name}.",
-            _ml.COLOR_IMPORTANT_EVENT,
-        )
-        if _contact_spec.comms_lines:
-            _reply = _contact_spec.comms_lines[-1]
-            ctx.log.add_colored(
-                f"{_contact_name}: \"{_reply}\"",
-                _ml.COLOR_ENEMY_ACTION,
-            )
-        ctx.log.add_colored(
-            f"You open fire on the {_contact_name}!",
-            _ml.COLOR_IMPORTANT_EVENT,
-        )
-        # Look up the contacted ship's squad and include ALL members.
-        _squad_id = getattr(_contact_entity, 'procedural_squad_id', '')
-        _attack_specs: list = [_contact_spec]
-        _attack_positions: list = [_contact_entity.pos]
-        if _squad_id:
-            for _e in ctx.game_map.entities:
-                if _e is _contact_entity:
-                    continue
-                if getattr(_e, 'procedural_squad_id', '') != _squad_id:
-                    continue
-                _pid = getattr(_e, 'npc_ship_id', '')
-                if not _pid:
-                    continue
-                try:
-                    _spec = _find_npc_ship(_pid)
-                except (KeyError, ImportError):
-                    continue
-                _attack_specs.append(_spec)
-                _attack_positions.append(_e.pos)
-        return (_attack_specs, _attack_positions)
-
-    elif interaction_outcome is _InteractionOutcome.SCAN:
-        _goods = getattr(_contact_spec, 'cargo_goods', ())
-        if _goods:
-            _goods_str = ", ".join(
-                str(g) for g in _goods
-            )
-            ctx.log.add(
-                f"Cargo scan of {_contact_name}: {_goods_str}.",
-            )
-        else:
-            ctx.log.add(
-                f"Cargo scan of {_contact_name}: empty hold.",
-            )
-        return None
-
-    elif interaction_outcome is _InteractionOutcome.TRADE:
-        from .trade import open_npc_trade as _open_npc_trade
-        _open_npc_trade(ctx, _contact_spec)
-        return None
-
-    else:  # BACK / QUIT / anything else
-        return None

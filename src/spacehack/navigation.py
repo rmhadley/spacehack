@@ -531,11 +531,11 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         )
         if 0 < _dist <= _warn_range:
             ctx.militia_warned_systems.add(_sys_id)
-            # Open the existing comms panel so the player sees the
-            # hailing ship and can choose to turn back, attack, or
-            # interact further.
-            from .comms import open_comms as _open_comms
-            _attack_data = _open_comms(ctx, player_pos)
+            # Open comms directly with the bounty target — skip the
+            # contact list so the player sees the hailing ship's
+            # message immediately.
+            from .comms import open_comms_direct as _ocd
+            _attack_data = _ocd(ctx, _e)
             return (True, _attack_data)
     return None
 
