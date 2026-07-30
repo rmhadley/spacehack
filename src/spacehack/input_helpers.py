@@ -244,6 +244,23 @@ def _is_f_press(event: tcod.event.Event) -> bool:
     return sym_name in ('F', 'f')
 
 
+def _is_shift_x_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+X.
+
+    Pressing Shift+X sends ``KeySym.X`` with the shift modifier.
+    Plain ``x`` sends ``KeySym.X`` without the modifier.  Used in
+    dev mode (``SPACEHACK_DEV``) to award bonus XP.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    if sym_name != 'X':
+        return False
+    mod = getattr(event, 'mod', 0)
+    shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
+    return bool(mod & shift)
+
+
 def _is_question_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``?`` key.
 
