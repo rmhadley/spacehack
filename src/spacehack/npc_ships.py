@@ -132,17 +132,32 @@ def _spawn_derelict(
     own ``derelict_spawn_chance`` field. If the roll hits, spawns
     a single derelict_scout in empty space far from any body.
 
+    When ``SPACEHACK_DEV`` is set and in the Sol system, bypasses
+    the RNG roll and spawns a derelict near Earth for easy testing.
+
     Returns ``True`` if a derelict was spawned.
     """
-    if getattr(system, 'derelict_spawn_chance', 0) <= 0:
-        return False
-    if _engine.RNG.random() >= system.derelict_spawn_chance:
-        return False
+    import os as _os
+    _is_dev = bool(_os.environ.get("SPACEHACK_DEV"))
 
-    _pos = _find_open_space(system, _derelict_blocked_near(system))
-    if _pos is None:
-        return False
+    # --- Determine spawn position ---
+    if _is_dev and system_id == "sol":
+        # Dev mode: force a derelict outside Earth's docking position.
+        # Earth is at (140, 39), 3x3. The player docks just east of
+        # Earth at (143, 40). Place the derelict a few cells east so
+        # the player sees it immediately on launch.
+        _pos = world.Position(150, 40)
+    else:
+        # Normal: roll RNG + find open space far from bodies.
+        if getattr(system, 'derelict_spawn_chance', 0) <= 0:
+            return False
+        if _engine.RNG.random() >= system.derelict_spawn_chance:
+            return False
+        _pos = _find_open_space(system, _derelict_blocked_near(system))
+        if _pos is None:
+            return False
 
+    # --- Build entity + register spawn ---
     try:
         _spec = _find_npc_ship("derelict_scout")
     except KeyError:
