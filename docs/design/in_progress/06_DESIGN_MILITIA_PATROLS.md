@@ -290,6 +290,15 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 - [ ] Full DRY/RNG audit on all new code
 - [ ] Final playtest pass
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** New GameContext fields (`smuggler_hold_capacity`, `contraband_goods`) → both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Save/load:** New SolarSystem field (`patrol_density`) — validated at load, no serialization needed (recomputed from system spec)
+- [ ] **NPC spawns:** Militia patrol entities → registered in `ctx.procedural_spawns` with matching `squad_id`
+- [ ] **NPC cleanup:** Patrol killed in combat → spawn removed via per-kill handler in `_weapons.py`
+- [ ] **Game guide:** Militia patrols, cargo scans, contraband → update `_GUIDE_NPCS` or new `_GUIDE_MILITIA` section
+- [ ] **Module-level state:** No new module-level globals expected (patrol density per-system, not global)
+
 ## Open questions
 
 1. **Should fleeing from a scan always engage combat on failure, or should there be degrees of failure (e.g. lose some cargo vs full combat)?** For v1, let's keep it simple: flee = 60% escape, 40% forced combat. No partial outcomes.

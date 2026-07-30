@@ -17,6 +17,12 @@ Expand the comms system with dialogue branches, negotiation, and bribe mechanics
 
 After bounty missions (DESIGN_BOUNTY_MISSIONS.md) is complete and the bounty gameplay loop feels solid. The bribe mechanic needs the bounty mission lifecycle to be stable first.
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** New dialogue state → added to both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Game guide:** New comms options (bribe, multi-turn dialogue) → updated `_GUIDE_NPCS` and `_GUIDE_CONTROLS`
+- [ ] **Module-level state:** No new module-level globals expected
+
 ## Open questions
 
 1. Should bribe amounts be a % of mission reward (simple) or rolled independently (more varied)?

@@ -301,6 +301,14 @@ Room types (data-driven weights per location type): crew quarters, cargo hold, e
 
 Comparable effort to the bounty missions implementation. Not a v3 mega-project.
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** New GameContext fields (ground_hp, ground_ap, ground_armor, ground skills, crew roster) → both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Save/load:** Dungeon state (map, enemies, fog of war) — may need specialized serialization or procedural regeneration
+- [ ] **NPC spawns:** Ground enemies → if they persist outside the dungeon map, register in appropriate spawn tracking
+- [ ] **Game guide:** Ground combat, crew, dungeons → new `_GUIDE_GROUND_COMBAT` section
+- [ ] **Module-level state:** No new module-level globals expected (dungeon map is entity on space map)
+
 ## Open questions (resolved by audit)
 
 1. ~~**Should ground XP be separate from ship XP?**~~ Resolved: Same XP/level track. Ground kills give combat XP, same as ship kills.

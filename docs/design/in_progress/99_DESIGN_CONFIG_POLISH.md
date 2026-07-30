@@ -106,6 +106,12 @@ Pauses game loop (no NPC movement, no time advance).
 - [ ] Update guide with game modes, config, keybinding reference
 - [ ] Full playtest: all three modes across sessions
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** New GameContext fields (GameMode, KeyBindings, PauseMode) → added to both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Game guide:** New keybindings/config → updated `_GUIDE_CONTROLS`, new modes → new guide section
+- [ ] **Module-level state:** Config loaded at startup — ensure reset on New Game if per-run mutable
+
 ## Open questions
 
 1. Should save files be JSON or binary? JSON for v1.

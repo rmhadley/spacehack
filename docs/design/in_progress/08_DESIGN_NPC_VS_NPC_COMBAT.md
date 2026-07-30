@@ -225,6 +225,14 @@ class NpcCombatInstance:
 
 **Note:** Phase 5 may be deferred indefinitely. The core experience is watching the fight happen in the viewport, not background simulation.
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** New GameContext field (`npc_combats`) → both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Save/load:** Auto-resolved NPC deaths → spawn entries cleaned up from `ctx.procedural_spawns`
+- [ ] **NPC spawns:** No new NPC types required (existing pirates/militia/merchants)
+- [ ] **Game guide:** NPC vs NPC combat → update `_GUIDE_NPCS`
+- [ ] **Module-level state:** No new module-level globals expected
+
 ## Open questions
 
 1. **Should NPCs use ammo?** Currently `ammo_per_shot` is a weapon stat, but NPCs don't track ammo. For NPC vs NPC, we'd need to either ignore ammo (simplification) or add ammo tracking to enemy instances. Recommend ignoring for v1 — NPCs have infinite ammo.

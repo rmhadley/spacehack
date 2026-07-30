@@ -270,6 +270,12 @@ A dead-star system with an alien structure — the source of the signal.
 - [ ] Full playtest: prologue → research → blockade breach → beyond → finale
 - [ ] DRY/RNG audit
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items` → added to both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Game guide:** New main quest overlay → updated `_GUIDE_MISSIONS` or new `_GUIDE_MAIN_QUEST` section
+- [ ] **NPC spawns:** Alien sentinel ships → registered in `ctx.procedural_spawns` with matching `squad_id`
+
 ## Open questions
 
 1. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.

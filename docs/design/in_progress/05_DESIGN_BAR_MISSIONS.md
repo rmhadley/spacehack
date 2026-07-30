@@ -248,6 +248,15 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 - [ ] DRY scan across all four bar mission code paths
 - [ ] RNG audit
 
+## Contracts compliance (MANDATORY — see knowledge.md)
+
+- [ ] **Save/load:** New ActiveMission fields (`heist_target_*`) → added to both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Save/load:** Smuggler's hold `hidden_cargo` → computed from modules (no new field needed, but verify module bonuses survive save/load)
+- [ ] **NPC spawns:** Merchant target ships, patrol guards → registered in `ctx.procedural_spawns` with matching `squad_id`
+- [ ] **NPC cleanup:** Intercept target killed → spawn removed from `ctx.procedural_spawns` via per-kill handler
+- [ ] **Game guide:** Bar missions → new `_GUIDE_BAR_MISSIONS` section or update `_GUIDE_MISSIONS`
+- [ ] **Game guide:** Smuggler's hold module → update `_GUIDE_SHIPS` module table
+
 ## Open questions
 
 1. **How does the player know WHERE in the system the target is?** Sensor ping on system entry (intercept/salvage), comms ping (extortion), landmark marker (salvage wreck).
