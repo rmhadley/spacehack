@@ -10,19 +10,93 @@ A new content layer that reuses the existing combat engine, map system, and land
 
 | System | How ground combat reuses it |
 |--------|-----------------------------|
-| **`world.Entity`** | Generic dataclass (`char`, `fg`, `pos`, `name`, `width`, `height`, `owned`, `loot_data`, etc.). NOT frozen — `pos` is reassigned in-place. Ground player = `Entity(char='@')`. Crew = same. No new entity class needed. |
-| **Combat loop** (`combat/_loop.py`) | `run_combat` accepts `list[enemy_insts]` — already multi-entity. Each crew member = one `EnemyInstance` in the list. Turn order currently player → all enemies; adding crew turns between them is a small change to the loop. |
-| **EnemyInstance** (`combat/_types.py`) | Has `spec_id`, `name`, `char`, `fg`, `hull`, `max_hull`, `weapons`, `modules`, `pilot_gunnery`, `pilot_piloting`, `pos`, `ap_remaining`. Works for ANY combatant — ship or human. Ground HP replaces `hull`, ground AP replaces `ap_total`. |
-| **Range checking** (`combat/_stats.py`) | `WeaponSpec.min_range`/`max_range` already supported. `calc_hit_chance` penalizes out-of-range shots. Melee = `min_range=1, max_range=1`. Ranged = `max_range=5+`. No changes needed. |
-| **Damage resolution** (`combat/_actions.py`) | `resolve_damage(weapon_id, target_hull, target_shields, ...)` — pure function. Ground weapons feed `damage` stat pipe. No changes needed. |
-| **Scene-swap pattern** (`city.py`) | `_launch_to_space` / `_return_to_city` can be copy-pasted for dungeon boarding: bump derelict → swap to dungeon map → set player as ground entity → on exit → swap back. Same pattern, different scenery. |
-| **Planet landing flow** (`__main__.py`) | Bump planet → `_run_planet_menu` → LAND → scene swap. Derelict boarding = bump derelict → "Board?" dialog → scene swap. Reuses the same modal + entity-list splice pattern. |
-| **Interaction system** | `loot_data` on entities for pickup modal, `trade_terminal`/`mech_terminal` bool for bump dispatch. Terminal hacking = reuse bump → modal pattern. Loot = reuse `open_loot_pickup`. |
-| **ModuleSpec** (`data/modules/__init__.py`) | Additive bonus system (`power_gen_bonus`, `gunnery_bonus`, etc.). Cybernetics = same `ModuleSpec` with `slot_type="cybernetic"` and new bonus fields (`ground_hp_bonus`, `melee_skill_bonus`, `ranged_skill_bonus`, `tech_skill_bonus`). Same `find_module()`. Same mechanic terminal UI. |
-| **Enemy AI** (`combat/_ai.py`) | Movement + targeting + firing. Minor tweak needed for melee AI (prefer `preferred_range=1`). |
-| **Data catalogs** | `WeaponSpec`, `ModuleSpec`, `NpcShipSpec`, `PlanetSpec` — all follow the same frozen dataclass + tuple + `find_*()` pattern. Ground weapons = `GroundWeaponSpec` + one tuple. Ground enemies = `GroundEnemySpec` + one tuple. |
-| **Input helpers** (`input_helpers.py`) | `_vim_action`, `_is_q_press`, `_try_open_guide` — all keyboard handling shared. Ground movement uses the same h/j/k/l/y/u/b/n keys. |
-| **Message log** (`message_log.py`) | Same log. Ground combat logs to it. |
+| **`world.Entity`** | Generic dataclass (`char`, `fg`, `pos`, `name`, `width`, `height`, `owned`, `loot_data`, etc.). NOT frozen — `pos` is reassigned in-place. Ground player = `Entity(char='@')`. Ground enemies = `Entity(npc_ship_id='ground_enemy_...')`. No new entity class needed. |
+| **`world.GameMap`** | ``width`` × ``height`` tile grid + entity list. Dungeon map = ``GameMap`` with ``Tile(kind="wall"/"floor")`` tiles. Same ``in_bounds``, ``is_walkable``, ``entity_at`` — all work unchanged. |
+| **`world.Tile`** | Frozen dataclass: ``kind``, ``char``, ``walkable``, ``fg``, ``bg``. We define ``DUNGEON_WALL`` and ``DUNGEON_FLOOR`` tile constants (same pattern as ``WALL``/``FLOOR``). |
+| **`world.try_move`** | Returns ``("moved"|"wall"|"occupied", blocker)``. Dungeon movement reuses this directly — walls block, entities block, floor is walkable. |
+| **`world.render_world`** | Paints ``GameMap`` tiles + entities into console. For dungeons ≤ 40×40 we can use this directly (no scrolling needed for v1). For scrollable dungeons, ``render_world_view`` accepts ``camera_x``/``camera_y``. |
+| **Scene-swap pattern** (`city.py`) | ``_launch_to_space`` removes player from city map, builds space map, places ship entity, returns ``(new_map, new_player)``. Dungeon boarding follows same pattern: remove player from space map, build dungeon, place ground entity, return. |
+| **Planet bump flow** (`__main__.py`) | Bump planet → ``_run_planet_menu`` → LAND → scene swap. Derelict boarding = bump derelict → "Board?" dialog → scene swap. Same modal + entity-list splice pattern. |
+| **`ui.Modal`** | ``Modal(ctx.context, console).run(render_fn, update_fn)`` — boarding dialog, loot pickup, any dungeon interaction reuses this. |
+| **`open_loot_pickup`** (`trade.py`) | Already operates on ``loot_data`` dicts on entities. Dungeon loot containers = ``Entity(char='%', loot_data={"good_id": ..., "quantity": ...})``. No changes needed. |
+| **`input_helpers._vim_action`** | Translates KeyDown → ``(dx, dy)`` via ``world.VIM_DELTAS``. Dungeon movement reuses this directly — same h/j/k/l/y/u/b/n keys. |
+| **`combat/_types.py` EnemyInstance** | Has ``hull`` (reused as HP), ``weapons``, ``pos``, ``ap_remaining``, ``spec_id``. Already generic enough for ground combatants — shields become armor DR. |
+| **`combat/_loop.py` run_combat** | Accepts ``enemy_specs``, ``enemy_positions``, ``game_map``, ``log``. Could be reused for ground combat if we feed it ground-compatible weapon/stats data. |
+| **Data catalog pattern** | Every catalog: frozen ``@dataclass`` + ``_BY_ID: dict[str, Spec]`` + ``find_*(id)``. Ground weapons/armor/enemies follow the exact same pattern. |
+
+## Pre-implementation audit (MANDATORY — knowledge.md)
+
+### Existing classes / modules to extend or reuse
+
+1. **Scene swap: `city._launch_to_space` → `_board_derelict`**
+   The launch pattern (remove player from source map, build destination map, place entity, return tuple) is a template for dungeon boarding. The key difference: dungeon boarding has no ship animation — just an instant scene swap. We should extract a minimal ``_swap_scene(ctx, new_map, new_player, mode)`` helper rather than copy-paste the 40-line ``_launch_to_space`` body.
+
+2. **Map building: `world.make_building` → `dungeon.py` room carving**
+   ``make_building`` carves a labeled rectangle with walls, doors, and interior. The dungeon generator carves rooms with walls, corridors, and doors. Both return tile changes + entity lists. The dungeon generator is new code but the *pattern* (build a tile grid, carve shapes, return ``(tile_changes, entities)``) is identical.
+
+3. **Render: `world.render_world` → fog-aware variant**
+   ``render_world`` iterates tiles then entities into the console. For fog of war we need a variant that checks ``seen[y][x]`` before painting. Rather than duplicating the 30-line render loop, add an optional ``seen: list[list[bool]] | None = None`` parameter. Unseen = black tile; seen = normal render.
+
+4. **Entity construction: `world.Entity` kwargs**
+   ``Entity`` already supports ``npc_ship_id``, ``loot_data``, ``name``, ``char``, ``fg``, ``pos``. Ground entities (player, enemies, loot containers, exit markers) use the same class with different field combinations. No subclassing needed — just different construction arguments.
+
+5. **Combat: `EnemyInstance` as ground combatant**
+   The existing ``EnemyInstance`` has ``hull`` (reuse as ground HP), ``shields`` (reuse as armor DR), ``weapons``, ``pos``, ``ap_remaining``. ``init_combat_state`` already builds these from specs. A ground-combat variant of ``init_combat_state`` feeds ground weapon stats and armor values.
+
+6. **Movement: `world.try_move` unchanged**
+   Same ``VIM_DELTAS``, same ``try_move`` with ``("moved"|"wall"|"occupied", blocker)`` return. The dungeon game loop calls this identically to city mode.
+
+7. **Loot: `trade.open_loot_pickup` unchanged**
+   Already reads ``loot_data`` dicts on entities. Dungeon loot containers set ``loot_data`` on construction. No changes needed.
+
+### Three duplication hotspots + DRY strategies
+
+#### Hotspot 1: Scene-swap boilerplate
+
+**Risk:** Copying ``_launch_to_space``'s 40-line body for dungeon boarding duplicates: entity-list management (remove from old map, add to new), map generation, entity placement, mode tracking. Every future "swap scene" feature would repeat this.
+
+**DRY strategy:** Extract a ``_swap_scene(ctx, new_map, new_entity, mode)`` helper (∼8 lines):
+
+```python
+def _swap_scene(ctx, new_map, new_entity, mode):
+    """Atomically swap ctx to a new map, player entity, and mode."""
+    ctx.game_map = new_map
+    ctx.player = new_entity
+    ctx._current_ground_mode = mode  # 'city' | 'space' | 'dungeon'
+    new_map.entities.append(new_entity)
+    return (new_map, new_entity)
+```
+
+The current launch/land flow pre-animates the ship entity and spawns NPCs before calling the equivalent logic — those stay in their callers. The swap itself is the shared part.
+
+#### Hotspot 2: Entity construction drift
+
+**Risk:** Ground player, ground enemies, loot containers, exit markers all construct ``Entity(...)`` with slightly different keyword combinations. Over 5+ phases these tend to drift (different defaults, inconsistent field population).
+
+**DRY strategy:** Use explicit keyword arguments at every construction site. ``Entity`` already has sensible defaults (``width=1, height=1, ship_id='', npc_id='', ...``). Don't create factory functions for a 10-arg dataclass — the dataclass IS the factory. The DRY check is: every construction site uses keyword args, never positional beyond ``char`` and ``fg``:
+
+```python
+# Good — keywords, self-documenting
+Entity(char='@', fg=(255,255,255), pos=start_pos, name='Player')
+
+# Bad — positional args, order-dependent
+Entity('@', (255,255,255), start_pos, 'Player', 1, 1)
+```
+
+#### Hotspot 3: Render pass for fog of war
+
+**Risk:** Copying ``render_world``'s 30-line tile+sprite loop into a ``render_fog_view`` duplicates the iteration, entity culling, and footprint logic. If ``render_world`` changes (e.g. entity sorting), the fog variant silently diverges.
+
+**DRY strategy:** Add an optional ``seen`` parameter to ``render_world`` (not a separate function):
+
+```python
+def render_world(console, game_map, *, region_x, region_y, region_w, region_h,
+                 seen: list[list[bool | None]] | None = None):
+    # None | True | False per cell: None = unseen (black),
+    # False = explored-out-of-sight (dim), True = visible (normal)
+```
+
+This keeps the render logic in one place. The caller builds the ``seen`` array from the dungeon's exploration state. For city/space mode, ``seen=None`` skips the check entirely (no perf impact).
 
 ## What's genuinely NEW
 
