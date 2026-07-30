@@ -361,8 +361,9 @@ def _add_bounty_spawns_to_map(
         # bounty completion on kill.
         if _bs.squad_group_id is None:
             _ent.bounty_spawn_id = _bs.spawn_id
-            # Propagate per-spawn warning range for distance-based auto-hail.
-            _ent.bounty_comms_range = _bs.comms_warning_range
+        # Propagate warning range to ALL squad members so no one
+        # triggers combat before the auto-hail fires.
+        _ent.bounty_comms_range = _bs.comms_warning_range
         game_map.entities.append(_ent)
         if _system is not None and _bs.squad_group_id is None:
             _landmark = _nearest_body_name(_bs.pos, _system)
@@ -555,9 +556,9 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         # Gather auto-hail sources from spec and entity.
         _spec_distance = _spec.comms_warning_range
         _spec_viewport = getattr(_spec, 'comms_trigger_viewport', False)
-        _runtime_bounty = getattr(_e, 'bounty_spawn_id', None) is not None
+        _entity_bounty_range = getattr(_e, 'bounty_comms_range', 0)
 
-        if _spec_distance <= 0 and not _spec_viewport:
+        if _spec_distance <= 0 and not _spec_viewport and _entity_bounty_range <= 0:
             continue  # no auto-hail behaviour for this entity
 
         # --- Distance-based trigger (blockade zone defenders) ---
@@ -570,21 +571,17 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
                 ctx.militia_warned_systems.add(_sys_id)
                 from .comms import open_comms_direct as _ocd
                 _attack_data = _ocd(ctx, _e)
+                return (True, _attack_data)        # --- Bounty distance-based trigger (per-entity range from BountySpawn) ---
+        if _entity_bounty_range > 0:
+            _dist = math.hypot(
+                player_pos.x - _e.pos.x,
+                player_pos.y - _e.pos.y,
+            )
+            if 0 < _dist <= _entity_bounty_range:
+                ctx.militia_warned_systems.add(_sys_id)
+                from .comms import open_comms_direct as _ocd
+                _attack_data = _ocd(ctx, _e)
                 return (True, _attack_data)
-
-        # --- Bounty distance-based trigger (per-entity range from BountySpawn) ---
-        if _runtime_bounty:
-            _bounty_range = getattr(_e, 'bounty_comms_range', 0)
-            if _bounty_range > 0:
-                _dist = math.hypot(
-                    player_pos.x - _e.pos.x,
-                    player_pos.y - _e.pos.y,
-                )
-                if 0 < _dist <= _bounty_range:
-                    ctx.militia_warned_systems.add(_sys_id)
-                    from .comms import open_comms_direct as _ocd
-                    _attack_data = _ocd(ctx, _e)
-                    return (True, _attack_data)
 
         # --- Viewport trigger (derelicts only) ---
         if _spec_viewport:
