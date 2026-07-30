@@ -82,6 +82,95 @@ def _set_npc_path(
 # Initial spawn (on jump / launch)
 # ---------------------------------------------------------------------------
 
+def _derelict_blocked_near(system, margin: int = 15) -> set[tuple[int, int]]:
+    """Build a set of cells too close to any body in ``system``.
+
+    Includes a ``margin``-cell buffer around every planet (non-sun),
+    jump gate, and station. Used to ensure derelicts spawn in empty
+    space, far from landmarks.
+    """
+    _blocked: set[tuple[int, int]] = set()
+    for _p in system.planets:
+        if getattr(_p, 'sun', False):
+            continue
+        for _dy in range(-margin, _p.height + margin):
+            for _dx in range(-margin, _p.width + margin):
+                _blocked.add((_p.pos.x + _dx, _p.pos.y + _dy))
+    for _jp in system.jump_points:
+        for _dy in range(-margin, _jp.height + margin):
+            for _dx in range(-margin, _jp.width + margin):
+                _blocked.add((_jp.pos.x + _dx, _jp.pos.y + _dy))
+    for _st in getattr(system, 'stations', ()) or ():
+        for _dy in range(-margin, _st.height + margin):
+            for _dx in range(-margin, _st.width + margin):
+                _blocked.add((_st.pos.x + _dx, _st.pos.y + _dy))
+    return _blocked
+
+
+def _find_open_space(system, blocked: set[tuple[int, int]]) -> world.Position | None:
+    """Return a random open-space position in ``system`` not in ``blocked``.
+
+    Tries up to 100 random cells. Returns ``None`` if all attempts
+    land in the blocked set (extremely rare on a 200x140 map).
+    """
+    for _ in range(100):
+        _tx = _engine.RNG.randint(5, system.width - 5)
+        _ty = _engine.RNG.randint(5, system.height - 5)
+        if (_tx, _ty) not in blocked:
+            return world.Position(_tx, _ty)
+    return None
+
+
+def _spawn_derelict(
+    ctx: GameContext,
+    game_map: world.GameMap,
+    system_id: str,
+    system,
+) -> bool:
+    """Roll for a derelict ship in ``system``.
+
+    Separate from the normal NPC spawn roll — derelicts use their
+    own ``derelict_spawn_chance`` field. If the roll hits, spawns
+    a single derelict_scout in empty space far from any body.
+
+    Returns ``True`` if a derelict was spawned.
+    """
+    if getattr(system, 'derelict_spawn_chance', 0) <= 0:
+        return False
+    if _engine.RNG.random() >= system.derelict_spawn_chance:
+        return False
+
+    _pos = _find_open_space(system, _derelict_blocked_near(system))
+    if _pos is None:
+        return False
+
+    try:
+        _spec = _find_npc_ship("derelict_scout")
+    except KeyError:
+        return False
+
+    _derelict_ent = world.Entity(
+        char=_spec.char, fg=_spec.fg, pos=_pos,
+        name=_spec.name, width=1, height=1,
+        npc_ship_id=_spec.id,
+    )
+    game_map.entities.append(_derelict_ent)
+
+    _spawn_id = f"derelict_{system_id}_{_pos.x}_{_pos.y}"
+    if system_id not in ctx.procedural_spawns:
+        ctx.procedural_spawns[system_id] = []
+    ctx.procedural_spawns[system_id].append(
+        ProceduralSpawn(npc_id=_spec.id, pos=_pos, squad_id=_spawn_id)
+    )
+
+    ctx.log.add_colored(
+        f"Sensor ping: faint derelict signal detected "
+        f"near ({_pos.x}, {_pos.y}).",
+        _ml.COLOR_IMPORTANT_EVENT,
+    )
+    return True
+
+
 def spawn_npcs(
     ctx: GameContext,
     game_map: world.GameMap,
@@ -100,6 +189,9 @@ def spawn_npcs(
     (arriving from the body) rather than appearing at a random point
     in empty space.
 
+    Also rolls for derelict ship spawning via the system's
+    ``derelict_spawn_chance`` field (separate roll from NPC table).
+
     Uses ``ctx.procedural_spawns`` (keyed by system id) so combat
     detection can locate them.
     """
@@ -108,6 +200,10 @@ def spawn_npcs(
         _system = _fss(system_id)
     except KeyError:
         return
+
+    # Separate derelict spawn roll (independent of NPC chance)
+    _spawn_derelict(ctx, game_map, system_id, _system)
+
     if _system.npc_spawn_chance <= 0.0 or not _system.npc_spawn_table or _system.npc_density <= 0:
         return
     if _engine.RNG.random() >= _system.npc_spawn_chance:

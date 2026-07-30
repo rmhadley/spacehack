@@ -84,6 +84,11 @@ class NpcShipSpec:
     is_boardable: bool = False
     comms_lines: tuple[str, ...] = ("Greetings, pilot.",)
     base_speed: int = 1
+    # Loot budget for interior salvage (boardable ships).
+    # Tuple of (min_credits, max_credits). At layout generation,
+    # a total value is rolled from this range and spent across
+    # loot markers. (0, 0) means no interior loot.
+    loot_budget: tuple[int, int] = (0, 0)
 
 
 _BY_ID: dict[str, NpcShipSpec] | None = None

@@ -79,4 +79,5 @@ SYSTEM: SolarSystem = SolarSystem(
     npc_spawn_chance=0.9,
     npc_spawn_table=(("pirate_scout", 0.9), ("pirate_raider", 0.7)),
     npc_density=6,
+    derelict_spawn_chance=0.06,
 )

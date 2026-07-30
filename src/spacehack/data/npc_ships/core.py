@@ -31,9 +31,14 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_engineering=0,
         min_power_gen=0,
         detect_radius=0,
-        comms_warning_range=0,
         base_speed=0,
-        comms_lines=(),
+        comms_lines=(
+            "[DISTRESS BEACON] - Scout ship 'Event Horizon' - hull breach - ",
+            "[DISTRESS BEACON] - life support failing - any vessel please respond - ",
+            "[DISTRESS BEACON] - automated message - crew status: unknown - ",
+        ),
+        comms_warning_range=15,
+        loot_budget=(400, 1600),
     ),
     # --- Pirates (migrated from data/enemies/) ---
     NpcShipSpec(

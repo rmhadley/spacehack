@@ -232,12 +232,17 @@ def _run_interaction_modal(
     )
     _contact_attitude = _get_attitude(_contact_rep)
 
-    _options: list[str] = ["Attack", "Scan Cargo"]
-    # Trade only available for neutral+ attitudes.
-    if _contact_attitude in ('neutral', 'liked', 'allied'):
-        _options.insert(1, "Open Trade")
-    # End Transmission always last.
-    _options.append("End Transmission")
+    # Derelict/boardable ships: only "End Transmission" makes sense.
+    # No crew to trade with, no cargo to scan, no point attacking a wreck.
+    if getattr(contact_spec, 'is_boardable', False):
+        _options: list[str] = ["End Transmission"]
+    else:
+        _options: list[str] = ["Attack", "Scan Cargo"]
+        # Trade only available for neutral+ attitudes.
+        if _contact_attitude in ('neutral', 'liked', 'allied'):
+            _options.insert(1, "Open Trade")
+        # End Transmission always last.
+        _options.append("End Transmission")
 
     _interaction_selected = 0
 

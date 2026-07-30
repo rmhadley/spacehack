@@ -820,6 +820,69 @@ _GUIDE_NPCS = GuideSection(
     ),
 )
 
+_GUIDE_DERELICT = GuideSection(
+    title="Derelict Ships & Boarding",
+    body=(
+        "Derelict ships are abandoned wrecks drifting in deep space, far "
+        "from planets and trade lanes. They can only be found in frontier "
+        "systems (Epsilon Eridani, Procyon, Tau Ceti, Wolf 359, Luyten's "
+        "Star, Barnard's Star) and are very rare."
+        "\n\n"
+        "Finding a derelict:"
+        "\n"
+        "- When you enter a frontier system, the game rolls a small chance "
+        "for a derelict to be present. If one spawns, your sensors pick up "
+        "a faint signal."
+        "\n"
+        "- The derelict appears as an 's' glyph (scout-class wreck) with a "
+        "distinct colour. Fly toward it."
+        "\n"
+        "- Once it enters your viewport, it automatically hails you with "
+        "a looping distress beacon. The comms panel shows only 'End "
+        "Transmission' — there is no crew to negotiate with."
+        "\n\n"
+        "Boarding:"
+        "\n"
+        "- Fly into the derelict and choose 'Board' from the interaction "
+        "menu. Your ship cuts through the hull with a breach charge."
+        "\n"
+        "- The interior is displayed as a tile map of the ship's layout. "
+        "Fog of war hides unexplored areas — only cells in your line of "
+        "sight are revealed."
+        "\n"
+        "- Walls (#) block movement and line of sight. Doors (like walls "
+        "on the tile map) also block vision but can be stood on once open. "
+        "Structural hull walls ({##}) block movement but not vision — they "
+        "reveal the ship's silhouette even in fog."
+        "\n"
+        "- Walk with h/j/k/l and diagonals y/u/b/n. Exit the way you "
+        "entered (the breach point marked with X)."
+        "\n\n"
+        "Loot:"
+        "\n"
+        "- Rooms may contain loot piles marked with $ on the floor. Walk "
+        "into them to scavenge trade goods. Loot is placed randomly within "
+        "each room and the total value of the ship is budgeted at generation "
+        "time — richer wrecks have more and better loot."
+        "\n\n"
+        "Ship computer:"
+        "\n"
+        "- The cockpit contains a ship computer (C on the map). Bump it to "
+        "access the ship's systems. Activating the computer restores "
+        "emergency power, increasing your vision range in fog of war so "
+        "you can see further into the wreck."
+        "\n\n"
+        "After exploration:"
+        "\n"
+        "- When you exit back to space, the derelict is removed from the "
+        "system map. Each derelict is a one-time encounter — you cannot "
+        "reboard the same wreck."
+        "\n"
+        "- Only one derelict can be present per system visit. If you leave "
+        "the system and return, a new derelict may spawn on a fresh roll."
+    ),
+)
+
 # All sections in order. Add new sections here (insert or append).
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_GAME_OVERVIEW,
@@ -829,6 +892,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_MISSIONS,
     _GUIDE_SHIPS,
     _GUIDE_NAVIGATION,
+    _GUIDE_DERELICT,
     _GUIDE_CHARACTER,
     _GUIDE_LEVELING,
     _GUIDE_NPCS,

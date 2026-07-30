@@ -529,10 +529,6 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
     for _e in ctx.game_map.entities:
         if getattr(_e, 'owned', False):
             continue
-        # Only auto-hail for bounty targets (tagged with bounty_spawn_id).
-        _b_id = getattr(_e, 'bounty_spawn_id', None)
-        if not _b_id:
-            continue
         _pid = getattr(_e, 'npc_ship_id', '')
         if not _pid:
             continue
@@ -540,18 +536,21 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
             _spec = find_npc_ship(_pid)
         except (KeyError, ImportError):
             continue
-        _warn_range = getattr(_spec, 'comms_warning_range', 0)
-        if _warn_range <= 0:
+        # Only boardable ships (derelicts) and bounty targets auto-hail.
+        # Random pirates with comms_warning_range should NOT trigger.
+        if not getattr(_spec, 'is_boardable', False) and not getattr(_e, 'bounty_spawn_id', None):
             continue
-        _dist = math.hypot(
-            player_pos.x - _e.pos.x,
-            player_pos.y - _e.pos.y,
-        )
-        if 0 < _dist <= _warn_range:
+        # Trigger when the entity enters the viewport, not at a fixed distance.
+        # Compute camera bounds from player position.
+        _view_w = solar_system_module.SOL_VIEW_W
+        _view_h = solar_system_module.SOL_VIEW_H
+        _cam_x = max(0, min(player_pos.x - _view_w // 2, system.width - _view_w))
+        _cam_y = max(0, min(player_pos.y - _view_h // 2, system.height - _view_h))
+        if (_cam_x <= _e.pos.x < _cam_x + _view_w
+                and _cam_y <= _e.pos.y < _cam_y + _view_h):
             ctx.militia_warned_systems.add(_sys_id)
-            # Open comms directly with the bounty target — skip the
-            # contact list so the player sees the hailing ship's
-            # message immediately.
+            # Open comms directly — skip the contact list so the player
+            # sees the hailing ship's message immediately.
             from .comms import open_comms_direct as _ocd
             _attack_data = _ocd(ctx, _e)
             return (True, _attack_data)

@@ -196,6 +196,11 @@ class SolarSystem:
     npc_spawn_chance: float = 0.0
     npc_spawn_table: tuple[tuple[str, float], ...] = ()
     npc_density: int = 0
+    # Chance of a derelict ship spawning in this system (separate roll
+    # from the normal NPC spawn table). Derelicts are boardable,
+    # non-moving wrecks with interior salvage. Set per-system for
+    # frontier vs core balance.
+    derelict_spawn_chance: float = 0.0
 
 
 _BY_ID: dict[str, SolarSystem] | None = None

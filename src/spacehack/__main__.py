@@ -383,9 +383,12 @@ def _run_game(
                 player_active_missions = ctx.player_active_missions
                 tick_move(ctx)
             if code == 'moved' and current_mode == 'dungeon':
-                # Check if player walked onto a breach tile (exit)
+                # Reveal fog around new position (using current sight radius)
+                from .dungeon import reveal_around as _reveal_around
+                _reveal_around(game_map, player.pos, radius=game_map.sight_radius)
+                # Check if player walked onto the exit tile
                 _tile = game_map.tiles[player.pos.y][player.pos.x]
-                if _tile.kind == 'breach':
+                if _tile.kind == 'exit':
                     if space_game_map is not None and space_player is not None:
                         game_map = space_game_map
                         player = space_player
@@ -543,8 +546,60 @@ def _run_game(
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)
-                elif blocker.mech_terminal:
-                    _run_mech_menu(ctx, current_city_id)
+                elif blocker.computer_terminal:
+                    if current_mode == 'dungeon':
+                        from . import ui as _ui
+                        _comp_console = make_console()
+                        def _comp_render():
+                            _comp_console.clear()
+                            _comp_console.print(
+                                x=_ui.centered_x("Ship Computer Terminal", SCREEN_WIDTH),
+                                y=SCREEN_HEIGHT // 3,
+                                string="Ship Computer Terminal",
+                                fg=_ui.COLOR_TITLE,
+                            )
+                            _comp_console.print(
+                                x=_ui.centered_x("Restore emergency power to the ship?", SCREEN_WIDTH),
+                                y=SCREEN_HEIGHT // 3 + 2,
+                                string="Restore emergency power to the ship?",
+                                fg=_ui.COLOR_DESCRIPTION,
+                            )
+                            _comp_console.print(
+                                x=_ui.centered_x("This will boost interior lighting and sensor range.", SCREEN_WIDTH),
+                                y=SCREEN_HEIGHT // 3 + 3,
+                                string="This will boost interior lighting and sensor range.",
+                                fg=_ui.COLOR_VALUE_DIM,
+                            )
+                            _comp_console.print(
+                                x=_ui.centered_x("ENTER to activate  |  ESC to leave", SCREEN_WIDTH),
+                                y=SCREEN_HEIGHT // 3 + 5,
+                                string="ENTER to activate  |  ESC to leave",
+                                fg=_ui.COLOR_INSTRUCTION,
+                            )
+                        def _comp_update(event):
+                            if isinstance(event, tcod.event.Quit):
+                                return _ui.MenuAction.CONFIRM  # treat as confirm to exit modal
+                            if not isinstance(event, tcod.event.KeyDown):
+                                return _ui.MenuAction.NONE
+                            if event.sym in _ui._ENTER_SYMS:
+                                return _ui.MenuAction.CONFIRM
+                            if event.sym in _ui._ESCAPE_SYMS:
+                                return _ui.MenuAction.BACK
+                            return _ui.MenuAction.NONE
+                        _comp_result = ui.Modal(ctx.context, _comp_console).run(_comp_render, _comp_update, ignore=_ui.MenuAction.NONE)
+                        if _comp_result == ui.MenuAction.CONFIRM:
+                            # Check if power was already restored
+                            if getattr(game_map, 'power_restored', False):
+                                log.add("The ship's power grid is already online.")
+                            else:
+                                game_map.sight_radius = 20
+                                game_map.power_restored = True
+                                from .dungeon import reveal_around as _r2
+                                _r2(game_map, player.pos, radius=20)
+                                log.add_colored("Emergency power restored. Interior sensors online.",
+                                                 message_log.COLOR_IMPORTANT_EVENT)
+                        continue
+                    log.add(f'You bump into {blocker.name}.')
                 elif blocker.npc_ship_id:
                     from .data.npc_ships import find_npc_ship as _find_ship
                     try:
@@ -580,17 +635,40 @@ def _run_game(
                             if _board_result == PlanetMenuOutcome.QUIT:
                                 return
                             if _board_result == PlanetMenuOutcome.LAND:
-                                from .dungeon import load_layout as _load_layout
+                                from .dungeon import load_layout as _load_layout, animate_breach as _animate_breach, init_fog as _init_fog, reveal_around as _reveal_around
                                 try:
-                                    _dungeon_map, _spawn = _load_layout("scout_a")
+                                    _dungeon_map, _spawn = _load_layout(
+                                        "scout_a",
+                                        loot_budget=_npcspec.loot_budget,
+                                    )
                                 except (FileNotFoundError, ValueError):
                                     log.add("The derelict's interior is too damaged to explore.")
                                     continue
+                                # Despawn the derelict from the space map —
+                                # once boarded, it's consumed.
+                                try:
+                                    ctx.game_map.entities.remove(blocker)
+                                    # Also clean up its procedural spawn entry
+                                    _sys_id = solar_system_module.current_solar_system_id
+                                    if _sys_id in ctx.procedural_spawns:
+                                        ctx.procedural_spawns[_sys_id] = [
+                                            _ps for _ps in ctx.procedural_spawns[_sys_id]
+                                            if _ps.npc_id != _npcspec.id
+                                            or _ps.pos != blocker.pos
+                                        ]
+                                except (ValueError, AttributeError):
+                                    pass
+                                # Initialize fog of war
+                                _init_fog(_dungeon_map)
+                                _reveal_around(_dungeon_map, _spawn)
+                                # Play breach animation before giving control
                                 _dungeon_player = world.Entity(
                                     char='@', fg=(255, 255, 255),
                                     pos=_spawn, name='Player',
                                 )
                                 _dungeon_map.entities.append(_dungeon_player)
+                                _animate_breach(ctx, console, _dungeon_map, _spawn,
+                                                region_w=map_w, region_h=map_h)
                                 space_game_map = game_map
                                 space_player = player
                                 game_map = _dungeon_map

@@ -112,6 +112,15 @@ ENGINE_TILE = Tile(kind="engine", char="E", walkable=True,
                     fg=(180, 200, 220), bg=(40, 45, 55))
 DEBRIS = Tile(kind="debris", char="%", walkable=True,
               fg=(140, 130, 100), bg=(60, 55, 40))
+EXIT = Tile(kind="exit", char=">", walkable=True,
+            fg=(100, 255, 120), bg=(20, 60, 25))
+
+# Hull wall — blocks movement like DUNGEON_WALL but does NOT block
+# FOV raycasting, so structural groups ({##}) on the ship exterior
+# can be seen through. The layout parser replaces # tiles within
+# {…} groups with this tile.
+HULL_WALL = Tile(kind="hull_wall", char="#", walkable=False,
+                 fg=(120, 130, 150), bg=(30, 35, 45))
 
 # --- Building-interior furniture tiles ---
 # Bar counter top (warm golden wood).
@@ -206,6 +215,7 @@ class Entity:
     procedural_squad_id: str = ""
     trade_terminal: bool = False
     mech_terminal: bool = False
+    computer_terminal: bool = False  # dungeon ship computer — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
 
 
@@ -232,6 +242,8 @@ class GameMap:
     height: int
     tiles: list[list[Tile]]
     entities: list[Entity]
+    seen: list[list[bool]] | None = None  # fog-of-war: True = revealed; None = no fog
+    sight_radius: int = 4  # dungeon fog sight radius; increased by power restore
 
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
@@ -258,6 +270,18 @@ class GameMap:
 
     def replace_tile(self, x: int, y: int, tile: Tile) -> None:
         self.tiles[y][x] = tile
+
+    def is_revealed(self, x: int, y: int) -> bool:
+        """Whether a cell is revealed by fog of war.
+
+        Returns ``True`` if there's no fog (city/space maps) or the
+        cell has been explored.
+        """
+        if self.seen is None:
+            return True
+        if not self.in_bounds(x, y):
+            return False
+        return self.seen[y][x]
 
 
 # ---------------------------------------------------------------------------
@@ -934,6 +958,9 @@ def render_world(
 
     for ty in range(game_map.height):
         for tx in range(game_map.width):
+            # Fog of war: skip unseen tiles (renders as black)
+            if not game_map.is_revealed(tx, ty):
+                continue
             tile = game_map.tiles[ty][tx]
             console.print(
                 x=region_x + off_x + tx,
@@ -943,6 +970,9 @@ def render_world(
                 bg=tile.bg,
             )
     for e in game_map.entities:
+        # Skip entities on unseen tiles
+        if not game_map.is_revealed(e.pos.x, e.pos.y):
+            continue
         for dx in range(e.width):
             for dy in range(e.height):
                 ex = e.pos.x + dx
