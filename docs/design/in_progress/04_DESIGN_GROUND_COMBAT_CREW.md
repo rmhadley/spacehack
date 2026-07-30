@@ -30,6 +30,7 @@ Phase 5+ content expansions.**
 | **`combat/_types.py` EnemyInstance`** | Has `hull` (reused as HP), `weapons`, `pos`, `ap_remaining`, `spec_id`. Already generic enough for ground combatants — shields become armor DR. |
 | **`combat/_loop.py` run_combat`** | Accepts `enemy_specs`, `enemy_positions`, `game_map`, `log`. Could be reused for ground combat if we feed it ground-compatible weapon/stats data. |
 | **Data catalog pattern** | Every catalog: frozen `@dataclass` + `_BY_ID: dict[str, Spec]` + `find_*(id)`. Ground weapons/enemies follow the exact same pattern. |
+| **`menus/_loadout.py`** | Split-screen buy/sell modal for ship equipment. Ground armory terminal (`menus/_armory.py`) mirrors this pattern: left panel = items for sale, right panel = equipped slots, ENTER to buy or sell. |
 
 ## Pre-implementation audit (MANDATORY — knowledge.md)
 
@@ -196,96 +197,189 @@ Space mode:
 
 ## Implementation phases
 
-### Phase 1: Dungeon generator + boarding
+### Phase 1: Layout-based dungeon + boarding (COMPLETED)
 
-**Goal:** Generate a dungeon, board it, walk around, see walls and floors. No enemies, no loot, no fog, no combat. Just a walkable dungeon you can enter and leave.
+**What shipped:** Designer-authored `.layout` files parsed by `dungeon.py`, replacing the planned procedural generator. Layouts are text files with tile markers—editable in any text editor, no code changes needed for new ship interiors.
 
-#### Step 1a: Derelict ship wiring (completed)
+#### Step 1a: Derelict ship wiring
 
 - [x] Add `is_boardable: bool = False` to `NpcShipSpec` in `data/npc_ships/__init__.py`
 - [x] Add `derelict_scout` spec to `data/npc_ships/core.py` (faction="neutral", base_speed=0, detect_radius=0, is_boardable=True)
 - [x] Add `EnemySpawn` for derelict near Earth in `data/solar_systems/sol.py` at (140, 43)
-- [x] Add `elif blocker.npc_ship_id:` → `is_boardable` check in `__main__.py` occupied handler (before `npc_id`)
+- [x] Add `elif blocker.npc_ship_id:` → `is_boardable` check in `__main__.py` occupied handler
 - [x] Smoke test + commit
 
-#### Step 1b: Dungeon generator (next)
+#### Step 1b: Layout files + parser
 
-- [ ] Create `dungeon.py` — `generate_dungeon(location_type, seed)` returning `world.GameMap`
-- [ ] Add `DUNGEON_WALL` / `DUNGEON_FLOOR` tile constants to `world.py`
-- [ ] Wire bump → "Board?" dialog (`ui.Modal` pattern from `_run_planet_menu`)
-- [ ] Scene swap: save space map + player entity, build dungeon, swap `ctx.game_map` / `ctx.player`
-- [ ] Dungeon movement: reuse `_vim_action` + `try_move` (city-mode style)
-- [ ] Walk into exit (`>` glyph) → "Return to ship?" → restore space map + ship entity
-- [ ] Smoke test + commit
-
-#### Playtest checklist
-
-- [ ] Launch from Earth, fly to derelict `%`, bump it → "Board?" dialog appears
-- [ ] Board → dungeon map renders with `#` walls and `.` floors
-- [ ] Walk with h/j/k/l → walls block, floor is passable
-- [ ] Walk into `>` exit → "Return to ship?" → back in space at derelict position
-- [ ] Re-board → same dungeon layout (deterministic seed)
-- [ ] ESC from dungeon → save on space map, quit, continue → back in space (dungeon state not persisted yet)
-
----
-
-### Phase 2: Fog of war + loot
-
-**Goal:** Dungeon exploration feels like discovery. Unexplored areas are hidden. Loot containers provide the reward loop.
-
-- [ ] Add optional `seen` parameter to `render_world` (DRY hotspot #3)
-- [ ] Track `seen[y][x]` array on dungeon state — 3-cell reveal radius on player move
-- [ ] Unseen tiles = black; seen-out-of-sight = dim (70% brightness); seen = normal
-- [ ] Spawn 1-2 loot containers (`%` glyph, `loot_data=...`) in each room during generation
-- [ ] Walk into loot → `open_loot_pickup` (reused from `trade.py`, no changes)
-- [ ] Smoke test + commit
+- [x] Create `dungeon.py` — `load_layout(layout_id, *, loot_budget=(0,0))` parsing `.layout` text files
+- [x] Create `data/layouts/scout_a.layout` — 80-wide ship interior: cockpit, engine room, crew quarters, cargo hold, corridors, doors
+- [x] Define tile set: `#`=wall, `.`=floor, `+`=door (blocking/openable), `{`/`}`=see-through wall cluster, `X`=breach/entry, `>`=exit
+- [x] Wire bump → "Board?" dialog → `load_layout()` → breach animation → fog init → scene swap
+- [x] Exit via `>` tile → restore space map + ship entity
+- [x] Add room-based loot markers via number annotations in layout (e.g., `1`=crew_quarters loot, `2`=cargo loot)
+- [x] Breach animation: `#` wall replaced with `X` breaching cut, explosion flash inward
+- [x] Ship computer (`C`) terminal — restore power, boost sight radius to 20
+- [x] Derelict procedural spawning via `derelict_spawn_chance` on `SolarSystem`
+- [x] Distance-based auto-hail (comms warning) via `comms_trigger_viewport` / `comms_warning_range`
+- [x] Smoke test + commit
 
 #### Playtest checklist
 
-- [ ] Board derelict → most of map is black
-- [ ] Move around → tiles revealed in 3-cell radius
-- [ ] Walk away from a revealed area → tiles remain visible but dim
-- [ ] Find a loot `%` glyph → bump it → pickup modal shows the good + quantity
-- [ ] Take loot → added to player inventory (verify in cargo menu `I`)
-- [ ] Exit dungeon → back in space, cargo has the looted goods
+- [x] Launch from Earth, find derelict `s` via coordinates, bump it → "Board?" dialog appears
+- [x] Board → breach animation plays, then dungeon renders with `#` walls, `.` floors, `+` doors
+- [x] Walk with h/j/k/l → walls block, floor is passable, doors block (player vision stops at closed doors)
+- [x] Walk into `X` breach → exit back to space
+- [x] Re-board → same layout (deterministic from file)
+- [x] ESC from dungeon → save, quit, continue → back in dungeon at same position with fog preserved
+
+#### What was deferred from Phase 1 design doc
+
+- **Procedural dungeon generator** → replaced by authorable `.layout` files    
+  *Rationale: designed rooms are more interesting than random carve, and text files are faster to iterate on than code.
+- **Dungeon tile constants** → not added to `world.py`; tiles are defined inline in the layout parser
+- **Fog integration with `render_world`** → handled by `dungeon.py`'s own render path, not `render_world`
 
 ---
 
-### Phase 3: Ground combat
+### Phase 2: Fog of war + loot (COMPLETED)
+
+**What shipped:** Full fog-of-war with per-tile `seen` tracking, reveal radius, dimmed explored tiles, RNG-based loot placement from layout room markers with a loot budget system.
+
+- [x] Add `seen: list[list[bool | None]]` to dungeon `GameMap` as dynamic attribute (`game_map.seen`)
+- [x] `init_fog(game_map)` — initialize all tiles as `None` (unseen)
+- [x] `reveal_around(game_map, pos, radius)` — mark tiles within radius as `True` (visible)
+- [x] Player move → `reveal_around` with `sight_radius` (default 6, boosted to 20 via ship computer)
+- [x] Render: unseen = `' '` black, explored-out-of-sight = dim (30% brightness), visible = normal
+- [x] Loot budget system: roll total value from `loot_budget=(min, max)` tuple on `NpcShipSpec`
+- [x] Room loot markers in layout files (`1`=crew_quarters, `2`=cargo, etc.) with weighted good tables
+- [x] Up to 4 RNG passes through rooms to spend budget, multiple loot per room possible
+- [x] Loot entity: `%` glyph, gold FG, `loot_data={"good_id": ..., "quantity": ...}`
+- [x] Walk into loot → `open_loot_pickup` (reused from `trade.py`, no changes)
+- [x] Ship computer (`C`) → power restoration → `sight_radius = 20` + `reveal_around` at 20
+- [x] See-through wall clusters (`{`/`}`) — all tiles in a cluster share reveal state
+- [x] Derelict despawns once boarded (removed from space map + procedural spawn list)
+- [x] Save/load dungeon state (map tiles, entities, fog, power status, loot)
+- [x] Smoke test + commit
+
+#### Playtest checklist
+
+- [x] Board derelict → most of map is black (unseen)
+- [x] Move around → tiles revealed in sight radius
+- [x] Walk behind a door → area behind door stays black until door is open/player crosses threshold
+- [x] Walk away from revealed area → tiles remain visible but dim (30% brightness)
+- [x] Find loot `%` → bump → pickup modal shows good + quantity
+- [x] Take loot → added to cargo (verify with `I` cargo menu)
+- [x] Find `C` computer → bump → restore power → sight radius jumps to 20
+- [x] Save + continue while on derelict → back in derelict with same fog/loot state
+- [x] Exit → back in space, cargo has looted goods
+
+---
+
+### Phase 3: Ground gear + armory terminal (COMPLETED)
+
+**What shipped:** Two new data catalogs (ground weapons, ground armor), armory terminal on city maps, 2 weapon slots + 5 armor slots, tabbed C screen equipment viewer.
+
+#### Step 3a: Ground weapons catalog
+
+- [x] Create `data/ground_weapons/__init__.py` with `GroundWeaponSpec` frozen dataclass
+- [x] Fields: `id`, `name`, `damage_type` (melee/kinetic/energy/explosive), `damage`, `accuracy`, `ap_cost`, `hands` (1 or 2), `min_range`, `max_range`, `ammo_capacity` (-1=infinite), `ammo_per_shot`, `price`, `tech_level`
+- [x] `data/ground_weapons/melee.py` — fists, combat_knife, stun_baton, survival_axe (all damage_type="melee", range=1, infinite ammo)
+- [x] `data/ground_weapons/pistols.py` — laser_pistol (100 ammo, damage_type="energy"), kinetic_pistol (12 ammo, damage_type="kinetic")
+- [x] `data/ground_weapons/rifles.py` — laser_rifle, kinetic_rifle, shotgun (2-handed, longer range)
+
+#### Step 3b: Ground armor catalog
+
+- [x] Create `data/ground_armor/__init__.py` with `GroundArmorSpec` frozen dataclass
+- [x] Fields: `id`, `name`, `slot` (head/body/hands/legs/feet), `defense` (flat DR), `description`, `price`, `tech_level`
+- [x] `data/ground_armor/vests.py` — light/heavy helmet (head), light/medium/heavy vest (body), tactical_gloves (hands), armour_pads/heavy_legs (legs), combat_boots (feet)
+
+#### Step 3c: Armory terminal
+
+- [x] Add `armory_terminal: bool = False` to `world.Entity`
+- [x] Place `A` glyph terminal on every planet with a spaceport (south wall, left of mechanic)
+- [x] Wire bump → armory_terminal → `menus/_armory.py`
+- [x] Armory menu mirrors `menus/_loadout.py`: left panel = items for sale, right panel = equipped slots
+- [x] ENTER on left = buy + auto-equip to first empty compatible slot (rejects if no slot free)
+- [x] ENTER on right = sell equipped item for half price (frees the slot)
+- [x] HUD shows `A  Armory` terminal indicator on city map
+
+#### Step 3d: Ground equipment slots
+
+- [x] `GameContext.equipped_ground_weapons: list[str]` — up to 2 weapon ids (empty list = fists)
+- [x] `GameContext.equipped_ground_armor: dict[str, str]` — slot→id for head/body/hands/legs/feet
+- [x] Save/load for both fields (backward-compatible `.get()` defaults)
+
+#### Step 3e: C screen equipment tab
+
+- [x] TAB cycles between Stats tab (unchanged) and Equipment tab
+- [x] Equipment tab shows: Weapon Slot 1 / Weapon Slot 2, then Head/Body/Hands/Legs/Feet slots
+- [x] Empty slots show "Fists" for weapon, "None" for armor
+
+#### Step 3f: Game guide
+
+- [x] `_GUIDE_GROUND_GEAR` section in `help.py` — armory terminal, weapon types, armour slots, buy/sell flow
+
+#### Playtest checklist
+
+- [x] Walk into `A` Armory terminal on city map → split-screen modal opens
+- [x] Left panel shows weapons + armor with prices
+- [x] ENTER on a weapon → bought + auto-equipped to first empty weapon slot
+- [x] ENTER on a weapon when both slots full → "Both weapon slots are full" error
+- [x] ENTER on armor → bought + equipped to its slot (head/body/hands/legs/feet)
+- [x] TAB to right panel → shows equipped slots with sell prices
+- [x] ENTER on a filled slot → item sold for half price, slot freed
+- [x] Press C → TAB to Equipment tab → shows both weapon slots + all 5 armor slots
+- [x] Save/continue → equipment persists correctly
+
+---
+
+### Phase 4: Ground combat (NEXT)
 
 **Goal:** Walk into an enemy → fight them with ground weapons using the existing combat engine.
 
-- [ ] Create `data/ground_weapons.py` — 3 weapons (knife, pistol, rifle) — frozen dataclass + `find_*()`
-- [ ] Create `data/ground_enemies.py` — 2 enemies (scavenger, guard) — frozen dataclass + `find_*()`
-- [ ] Add `ground_hp`, `ground_max_hp`, `ground_armor` fields to `GameContext`
-- [ ] Spawn enemies as `Entity(npc_ship_id='ground_enemy_...', char=..., fg=...)` in dungeon rooms
-- [ ] Walk into enemy → ground combat: build `EnemyInstance` from ground enemy spec, call `run_combat`
-- [ ] Ground combat: hull = HP, shields = armor, ground weapons feed the same `resolve_damage` pipe
-- [ ] Enemy death → remove entity from dungeon map (reuse `_remove_dead_entity` pattern)
-- [ ] Player death → log "You collapse..." → exit dungeon → respawn at ship with 1 HP
+- [ ] Create enemy spawn markers in `.layout` files (e.g., `E` for enemy spawn point)
+- [ ] Place 1-2 enemies per room during `load_layout()` from location type's enemy pool
+- [ ] RNG enemy weapon assignment (knife vs pistol from a pick list)
+- [ ] Walk into enemy → `"occupied"` → ground combat scene swap
+- [ ] Reuse `EnemyInstance` from combat engine — hull=HP, shields=armor, ground weapons feed the same pipeline
+- [ ] Player ground HP tracked on ctx (30 HP default, use species/class HP?)
+- [ ] Enemy death → remove entity from dungeon map (reuse entity removal pattern)
+- [ ] Player death → "You collapse..." → exit dungeon → respawn at ship with 1 HP
+- [ ] Save/restore ground_hp across save/load
 - [ ] Smoke test + commit
 
 #### Playtest checklist
 
-- [ ] Board derelict → see enemy glyphs (`s` or `g`) in rooms
-- [ ] Walk into enemy → combat starts, combat HUD renders
-- [ ] Fire weapon (F) → damage applied to enemy HP, enemy name + HP shown in HUD
-- [ ] Kill enemy → "destroyed" message, enemy glyph removed from dungeon map
-- [ ] Enemy hits player → ground_hp decreases in HUD
-- [ ] Player HP hits 0 → "You collapse" → back in space at derelict, HP = 1
-- [ ] Save after exiting dungeon, quit, continue → back in space (ground stats reset — dungeon not persisted)
+- [ ] Board derelict → enemy glyphs visible in rooms (when revealed)
+- [ ] Walk into enemy → combat starts with ground HUD (HP bar, weapon name)
+- [ ] Fire equipped weapon → damage applied, enemy reacts
+- [ ] Kill enemy → "destroyed" message, glyph removed
+- [ ] Enemy hits player → HP bar decreases
+- [ ] Player HP hits 0 → "You collapse..." → back in ship, HP=1
+- [ ] Save in space, continue → no ground state leak
 
 ---
 
-### Phase 4: Save/load + guide (future)
+### Phase 4: Planet/station dungeon entrances (NEXT)
 
-Deferred until the framework is solid. Dungeon state persistence (map, entities, fog, ground stats) is the biggest remaining piece.
+**Goal:** Walk into a building on a planet or station → enter a dungeon. Same layout system, different tile/room themes.
 
-- [ ] Serialize dungeon state (map seed + cleared room flags → regenerate on load)
-- [ ] Save/restore ground_hp, ground_armor
+- [ ] Add `has_dungeon: bool = False` + `dungeon_layout_id: str = ""` to `PlanetSpec`
+- [ ] Wire planet bump → EXPLORE option (already wired) → load layout for that planet
+- [ ] Create 1-2 station-themed layouts (e.g., "abandoned research station")
+- [ ] Planet dungeons don't consume the planet (can re-enter)
+- [ ] Different loot tables for station vs ship interiors
+- [ ] Smoke test + commit
+
+---
+
+### Phase 5: Save/load polish + guide (NEXT)
+
 - [ ] Add `_GUIDE_GROUND_COMBAT` section to `help.py`
+- [ ] Verify derelict despawn + no-respawn on save/load
+- [ ] Verify ground stats reset on exit
 
-### Phase 5: Crew, cybernetics, terminals (future content pass)
+### Phase 6: Crew, cybernetics, terminals (future content pass)
 
 Full content expansion — deferred. See original sections below for the design.
 
