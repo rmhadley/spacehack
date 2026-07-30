@@ -252,7 +252,6 @@ def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
                         ctx.log.add(f"Bought and equipped {_as.name} ({_sl}) for {_as.price}$.")
 
                     _right_items = _build_right()
-                    _sel = min(_sel, len(_right_items) - 1)
 
             else:
                 # Sell equipped item (right panel).
