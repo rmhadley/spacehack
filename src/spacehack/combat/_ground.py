@@ -168,10 +168,10 @@ def _render_ground_combat_hud(
             console.print(x=_hud_x, y=y, string=f"{_sel}[{_i+1}] {_ws.name}"[:24], fg=_name_fg)
             y += 1
             _hc = hit_chances.get(_wid, 0)
-            console.print(x=_hud_x, y=y, string=f"     DMG {_ws.damage} HIT {_hc}%", fg=_ml.COLOR_VALUE_DIM)
+            console.print(x=_hud_x, y=y, string=f"     DMG {_ws.damage} HIT {_hc}%", fg=ui.COLOR_VALUE_DIM)
             y += 1
             _rng = f"{_ws.min_range}-{_ws.max_range}" if _ws.min_range > 0 else f"0-{_ws.max_range}"
-            console.print(x=_hud_x, y=y, string=f"     RNG {_rng} AP {_ws.ap_cost}", fg=_ml.COLOR_VALUE_DIM)
+            console.print(x=_hud_x, y=y, string=f"     RNG {_rng} AP {_ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
             y += 1
         y += 1
 
