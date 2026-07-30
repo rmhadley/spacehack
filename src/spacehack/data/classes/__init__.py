@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..pilot_skills import PilotSkills
+from ..pilot_skills import PilotSkills, GroundStats
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,8 @@ class GameClass:
         credits: starting credits this class grants on a new game.
         skill_bonus: per-skill additive bonuses added at character
             creation (see :func:`spacehack.character.starting_pilot_skills`).
+        ground_bonus: per-stat additive bonuses for ground combat
+            (see :func:`spacehack.character.starting_ground_stats`).
     """
     id: str
     name: str
@@ -34,6 +36,7 @@ class GameClass:
     hp_base: int = 10
     credits: int = 1000
     skill_bonus: PilotSkills = PilotSkills()
+    ground_bonus: GroundStats = GroundStats()
 
 
 # Per-file class tuples — append an import + line in

@@ -72,29 +72,45 @@ def add_xp(ctx: GameContext, amount: int) -> None:
 # Skill point allocation
 # ---------------------------------------------------------------------------
 
+# Ground stat names that route to ctx.ground_stats instead of ctx.stats.
+_GROUND_STAT_NAMES: frozenset[str] = frozenset({"reflexes", "strength", "stamina"})
+
+# Caps for ship skills vs ground stats.
+_SHIP_SKILL_CAP: int = 100
+_GROUND_STAT_CAP: int = 30
+
+
 def _apply_skill_point(ctx: GameContext, skill: str) -> bool:
-    """Spend one skill point on *skill* (gunnery/piloting/engineering).
+    """Spend one skill point on *skill*.
 
-    Each point adds +1. Soft-capped at 100. Returns True if the point
-    was spent, False if no points available or skill is at cap.
+    Ship skills (gunnery/piloting/engineering) route to ``ctx.stats``
+    and cap at 100. Ground stats (reflexes/strength/stamina) route to
+    ``ctx.ground_stats`` and cap at 30.
 
-    Updates both ``ctx.player_*_bonus`` (persistent counter) and
-    ``ctx.stats`` (HudStats — single source of truth for combat/HUD).
+    Each point adds +1. Returns True if spent, False if no points
+    available or skill is at cap.
     """
     if ctx.player_skill_points <= 0:
         return False
 
-    _current = getattr(ctx.stats, skill, 0)
-    if _current >= 100:
-        return False  # soft cap
+    if skill in _GROUND_STAT_NAMES:
+        _target = ctx.ground_stats
+        _cap = _GROUND_STAT_CAP
+    else:
+        _target = ctx.stats
+        _cap = _SHIP_SKILL_CAP
+
+    _current = getattr(_target, skill, 0)
+    if _current >= _cap:
+        return False
 
     _bonus_field = f"player_{skill}_bonus"
     _current_bonus = getattr(ctx, _bonus_field, 0)
     setattr(ctx, _bonus_field, _current_bonus + 1)
     ctx.player_skill_points -= 1
 
-    # Keep ctx.stats in sync — combat + HUD read from here.
-    setattr(ctx.stats, skill, _current + 1)
+    # Update the source-of-truth container.
+    setattr(_target, skill, _current + 1)
     return True
 
 

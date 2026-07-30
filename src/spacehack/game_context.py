@@ -36,6 +36,7 @@ from . import message_log
 from . import mission as mission_module
 from . import ship as ship_module
 from . import world
+from .character import GroundStats as _GroundStats
 
 
 class CharacterInfo(TypedDict):
@@ -262,6 +263,8 @@ class GameContext:
     player_engineering_bonus: int = 0
     player_traits: list[str] = dataclasses.field(default_factory=list)
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
+    # Ground combat stats (reflexes, strength, stamina).
+    ground_stats: _GroundStats = dataclasses.field(default_factory=_GroundStats)
     # Equipped ground weapon slots (up to 2). Empty slot = fists.
     equipped_ground_weapons: list[str] = dataclasses.field(default_factory=list)
     # Equipped ground armour by slot: slot -> GroundArmorSpec id.

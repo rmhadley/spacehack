@@ -7,7 +7,7 @@ a one-file change. Edit :data:`SPECIES` to add or tweak a species
 :attr:`Species.skill_bonus` directly.
 """
 from . import Species
-from ..pilot_skills import PilotSkills
+from ..pilot_skills import PilotSkills, GroundStats
 
 
 # Frozen tuples so callers can't accidentally mutate the catalog at
@@ -20,6 +20,7 @@ SPECIES: tuple[Species, ...] = (
         description="Native to Earth. Versatile and adaptable.",
         hp_bonus=0,
         skill_bonus=PilotSkills(gunnery=2, piloting=0, engineering=2),
+        ground_bonus=GroundStats(reflexes=1, strength=1, stamina=1),
     ),
     Species(
         id="martian",
@@ -27,5 +28,6 @@ SPECIES: tuple[Species, ...] = (
         description="Native to Mars. Hardy in extremes, adapted to low-gravity.",
         hp_bonus=1,
         skill_bonus=PilotSkills(gunnery=0, piloting=5, engineering=0),
+        ground_bonus=GroundStats(reflexes=2, strength=0, stamina=1),
     ),
 )

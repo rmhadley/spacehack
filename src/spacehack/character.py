@@ -1,17 +1,15 @@
 """Character helpers: formulas that combine the player-picked species
-and class into runtime values for the HUD and combat init.
+and class into runtime values for the HUD, combat init, and ground combat.
 
 The data catalogs (species + class tuples, gameplay numbers) live in
 :mod:`spacehack.data.species` and :mod:`spacehack.data.classes`. This
 module is a thin layer above those catalogs that performs the
-SPECIES + CLASS math (skill bonuses, HP, credits) and exposes
-``starting_pilot_skills`` / ``starting_stats`` / ``format_combo``.
+SPECIES + CLASS math (skill bonuses, HP, credits, ground stats) and
+exposes ``starting_pilot_skills`` / ``starting_ground_stats`` /
+``starting_stats`` / ``format_combo``.
 
 New species or classes only need edits in their data modules — the
-formulas below read straight off the resolved spec dataclasses, so
-the five scattered lookup dicts (``SPECIES_SKILL_BONUSES``,
-``CLASS_SKILL_BONUSES``, ``_SPECIES_HP_BONUS``, ``_CLASS_HP_BASE``,
-``_CLASS_GOLD``) are gone.
+formulas below read straight off the resolved spec dataclasses.
 """
 from __future__ import annotations
 
@@ -19,6 +17,7 @@ from dataclasses import dataclass
 
 from .data.species import find_species, list_species
 from .data.classes import find_class, list_classes
+from .data.pilot_skills import GroundStats as _GroundStats
 
 
 # Base pilot-skill rating before species or class bonuses are added.
@@ -27,6 +26,9 @@ from .data.classes import find_class, list_classes
 # files. Mirrors the convention elsewhere in the project where
 # tunable defaults live close to the formula.
 PILOT_SKILL_BASE = 30
+
+# Base ground-stat rating before species or class bonuses are added.
+GROUND_STAT_BASE = 10
 
 
 @dataclass
@@ -40,6 +42,19 @@ class PilotSkills:
     gunnery: int = PILOT_SKILL_BASE
     piloting: int = PILOT_SKILL_BASE
     engineering: int = PILOT_SKILL_BASE
+
+
+@dataclass
+class GroundStats:
+    """Per-character ground combat stats (0-30).
+
+    ``reflexes`` affects ranged accuracy and dodge bonus.
+    ``strength`` affects melee damage and heavy-weapon efficiency.
+    ``stamina`` affects HP pool and damage resistance.
+    """
+    reflexes: int = GROUND_STAT_BASE
+    strength: int = GROUND_STAT_BASE
+    stamina: int = GROUND_STAT_BASE
 
 
 def starting_pilot_skills(species_id: str, class_id: str) -> PilotSkills:
@@ -61,6 +76,25 @@ def starting_pilot_skills(species_id: str, class_id: str) -> PilotSkills:
         gunnery=PILOT_SKILL_BASE + sp_skills.gunnery + cl_skills.gunnery,
         piloting=PILOT_SKILL_BASE + sp_skills.piloting + cl_skills.piloting,
         engineering=PILOT_SKILL_BASE + sp_skills.engineering + cl_skills.engineering,
+    )
+
+
+def starting_ground_stats(species_id: str, class_id: str) -> GroundStats:
+    """Starting :class:`GroundStats` for a (species, class) combo.
+
+    Reads stat bonuses straight off the resolved spec dataclasses
+    (see :attr:`spacehack.data.species.Species.ground_bonus` and
+    :attr:`spacehack.data.classes.GameClass.ground_bonus`). Unknown
+    ids fall through to the base stat only.
+    """
+    sp = _safe_lookup_species(species_id)
+    cl = _safe_lookup_class(class_id)
+    sp_bonus = sp.ground_bonus if sp is not None else _GroundStats()
+    cl_bonus = cl.ground_bonus if cl is not None else _GroundStats()
+    return GroundStats(
+        reflexes=GROUND_STAT_BASE + sp_bonus.reflexes + cl_bonus.reflexes,
+        strength=GROUND_STAT_BASE + sp_bonus.strength + cl_bonus.strength,
+        stamina=GROUND_STAT_BASE + sp_bonus.stamina + cl_bonus.stamina,
     )
 
 
@@ -130,10 +164,13 @@ def _safe_lookup_class(class_id: str):
 
 __all__ = [
     "PILOT_SKILL_BASE",
+    "GROUND_STAT_BASE",
     "PilotSkills",
+    "GroundStats",
     "list_species",
     "list_classes",
     "starting_pilot_skills",
+    "starting_ground_stats",
     "starting_stats",
     "format_combo",
 ]

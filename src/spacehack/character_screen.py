@@ -1,9 +1,10 @@
 """Character screen — level, XP, skills, traits, and ground equipment.
 
-Opened via the C hotkey from city or space mode. Follows the same
-modal pattern as :func:`spacehack.menus._ship_menu._run_faction_view`.
+Opened via the C hotkey from city or space mode. TAB cycles between
+the Stats tab and the Equipment tab.
 
-TAB cycles between the Stats tab and the Equipment tab.
+The Stats tab shows all 6 skill rows: Gunnery, Piloting, Engineering
+(ship skills) and Reflexes, Strength, Stamina (ground stats).
 """
 
 from __future__ import annotations
@@ -19,7 +20,10 @@ from .hud import _render_xp_bar
 from .input_helpers import _try_open_guide
 
 
-_SKILLS: tuple[str, ...] = ("gunnery", "piloting", "engineering")
+_SKILLS: tuple[str, ...] = (
+    "gunnery", "piloting", "engineering",
+    "reflexes", "strength", "stamina",
+)
 _ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
 _ARMOR_SLOT_LABELS: dict[str, str] = {
     "head": "Head", "body": "Body", "hands": "Hands",
@@ -45,7 +49,7 @@ def open_character_screen(ctx: GameContext) -> None:
         console.clear()
 
         _class_name = ctx.character_info.get("class_name", "").title()
-        _title = f"CHARACTER — Level {_level} {_class_name}"
+        _title = f"CHARACTER -- Level {_level} {_class_name}"
 
         # Tab bar.
         _tab_labels = ["  Stats  ", "  Equipment  "]
@@ -104,9 +108,6 @@ def open_character_screen(ctx: GameContext) -> None:
             return ShipMenuAction.IGNORE
 
         if _tab == 0:
-            if sym_name == "tab":
-                _sel = (_sel + 1) % len(_SKILLS)
-                return ShipMenuAction.IGNORE
             if sym in ui._ENTER_SYMS:
                 from .xp import _apply_skill_point
                 _apply_skill_point(ctx, _SKILLS[_sel])
@@ -126,7 +127,7 @@ def _render_stats(
     ctx: GameContext, console: tcod.console.Console,
     _sel: int, _level: int, _into_level: int, _needed: int,
 ) -> None:
-    """Paint the Stats tab (level, XP, skills, traits)."""
+    """Paint the Stats tab (level, XP, all 6 skills, traits)."""
     from .xp import xp_for_level as _xpfl
     _total_for_level = _xpfl(_level)
     _bar = _render_xp_bar(_into_level, _needed, width=20)
@@ -146,11 +147,21 @@ def _render_stats(
     )
     _y += 2
 
-    for _i, _skill in enumerate(_SKILLS):
-        _val = getattr(ctx.stats, _skill, 0)
-        _is_sel = _i == _sel
+    n = len(_SKILLS)
+    for i in range(n):
+        _is_sel = i == _sel
         _marker = ">" if _is_sel else " "
-        _plus = "[+]" if _pts > 0 and _val < 100 else "MAX" if _val >= 100 else "   "
+        _skill = _SKILLS[i]
+
+        # Ship skills come from ctx.stats, ground stats from ctx.ground_stats.
+        if i < 3:
+            _val = getattr(ctx.stats, _skill, 0)
+            _max_val = 100
+        else:
+            _val = getattr(ctx.ground_stats, _skill, 10)
+            _max_val = 30
+
+        _plus = "[+]" if _pts > 0 and _val < _max_val else "MAX" if _val >= _max_val else "   "
         _line = f"{_marker} {_skill.title():<12} {_val:>3}  {_plus}"
         _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
         console.print(x=SCREEN_WIDTH // 4, y=_y, string=_line, fg=_fg)
@@ -168,7 +179,7 @@ def _render_stats(
                 _names.append(_tid)
         _trait_str = ", ".join(_names)
     elif _level < 20:
-        _trait_str = f"(unlock at level 20 — need {20 - _level} more)"
+        _trait_str = f"(unlock at level 20 -- need {20 - _level} more)"
     else:
         _trait_str = "(no traits chosen)"
     console.print(
@@ -190,7 +201,6 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
 
     _y = SCREEN_HEIGHT // 6 + 3
 
-    # Weapon slots 1-2.
     _weapons = list(ctx.equipped_ground_weapons)
     while len(_weapons) < 2:
         _weapons.append("")
@@ -203,14 +213,10 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
                 _label += _wid
         else:
             _label += "Fists"
-        console.print(
-            x=SCREEN_WIDTH // 4, y=_y,
-            string=_label, fg=ui.COLOR_OPTION_HIGHLIGHT,
-        )
+        console.print(x=SCREEN_WIDTH // 4, y=_y, string=_label, fg=ui.COLOR_OPTION_HIGHLIGHT)
         _y += 1
     _y += 1
 
-    # Armour slots.
     for _slot in _ARMOR_SLOTS:
         _slot_label = _ARMOR_SLOT_LABELS.get(_slot, _slot.title())
         _aid = ctx.equipped_ground_armor.get(_slot)
@@ -221,14 +227,8 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
                 _name = _aid
         else:
             _name = "None"
-        _pad = 10 - len(_slot_label)
-        if _pad < 1:
-            _pad = 1
-        console.print(
-            x=SCREEN_WIDTH // 4, y=_y,
-            string=f"{_slot_label}:{' ' * _pad}{_name}",
-            fg=ui.COLOR_OPTION,
-        )
+        _pad = max(1, 10 - len(_slot_label))
+        console.print(x=SCREEN_WIDTH // 4, y=_y, string=f"{_slot_label}:{' ' * _pad}{_name}", fg=ui.COLOR_OPTION)
         _y += 1
     _y += 1
 

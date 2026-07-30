@@ -1,4 +1,5 @@
-"""Shared PilotSkills dataclass used by species, classes, and enemy specs.
+"""Shared PilotSkills and GroundStats dataclasses used by species, classes,
+and enemy specs.
 
 A frozen dataclass replacing the duplicated ``{"gunnery": X, "piloting": Y,
 "engineering": Z}`` dict pattern across three catalogs. Eliminates the
@@ -6,9 +7,10 @@ A frozen dataclass replacing the duplicated ``{"gunnery": X, "piloting": Y,
 
 Usage in data files::
 
-    from ..pilot_skills import PilotSkills
+    from ..pilot_skills import PilotSkills, GroundStats
 
     skill_bonus=PilotSkills(gunnery=15, piloting=10, engineering=0)
+    ground_bonus=GroundStats(reflexes=1, strength=0, stamina=2)
 
     # instead of:
     skill_bonus={"gunnery": 15, "piloting": 10, "engineering": 0}
@@ -34,4 +36,19 @@ class PilotSkills:
     engineering: int = 0
 
 
-__all__ = ["PilotSkills"]
+@dataclass(frozen=True)
+class GroundStats:
+    """Per-character ground combat stat bonuses — additive to the base 10.
+
+    Each field corresponds to one ground-combat stat:
+
+        reflexes:  ranged accuracy, dodge bonus.
+        strength:  melee damage, heavy-weapon efficiency.
+        stamina:   HP pool, damage resistance.
+    """
+    reflexes: int = 0
+    strength: int = 0
+    stamina: int = 0
+
+
+__all__ = ["PilotSkills", "GroundStats"]
