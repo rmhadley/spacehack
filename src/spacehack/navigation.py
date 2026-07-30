@@ -516,20 +516,18 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | None:
     """Check if any entity with auto-hail behaviour is within range.
 
-    Three trigger types:
-      1. Boardable ships (derelicts) — trigger on viewport entry.
-      2. Bounty targets — trigger on viewport entry.
-      3. Zone defenders with ``comms_warning_range > 0`` (blockade) —
-         trigger on distance-based range check.
+    Two independent trigger sources, checked per entity:
+      1. **Spec-defined** — ``comms_warning_range > 0`` (distance-based)
+         or ``comms_trigger_viewport`` (viewport-based).
+      2. **Runtime-tagged** — ``bounty_spawn_id`` set on the entity
+         (always viewport-based).
 
-    Only fires ONCE per system (tracked via ``militia_warned_systems``).
-    After the warning the player can open comms to attack or turn back.
+    Fires at most ONCE per system (tracked via
+    ``militia_warned_systems``). After the warning the comms panel
+    opens so the player can attack or turn back.
     Returns:
 
       * ``(True, attack_data_or_None)`` -- warning was issued.
-        ``attack_data`` is ``(specs, positions)`` if the player
-        chose **Attack** from the comms, or ``None`` if they closed
-        the comms or chose another option.
       * ``None`` -- no qualifying entity (or already warned).
     """
     _sys_id = getattr(system, 'id', '')
@@ -552,27 +550,28 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         except (KeyError, ImportError):
             continue
 
-        _is_boardable = getattr(_spec, 'is_boardable', False)
-        _has_bounty = getattr(_e, 'bounty_spawn_id', None) is not None
-        _comms_range = _spec.comms_warning_range
+        # Gather auto-hail sources from spec and entity.
+        _spec_distance = _spec.comms_warning_range
+        _spec_viewport = getattr(_spec, 'comms_trigger_viewport', False)
+        _runtime_bounty = getattr(_e, 'bounty_spawn_id', None) is not None
 
-        if not _is_boardable and not _has_bounty and _comms_range <= 0:
-            continue  # this entity has no auto-hail behaviour
+        if _spec_distance <= 0 and not _spec_viewport and not _runtime_bounty:
+            continue  # no auto-hail behaviour for this entity
 
-        # --- Distance-based trigger (zone defenders with comms_warning_range) ---
-        if _comms_range > 0:
+        # --- Distance-based trigger (blockade zone defenders) ---
+        if _spec_distance > 0:
             _dist = math.hypot(
                 player_pos.x - _e.pos.x,
                 player_pos.y - _e.pos.y,
             )
-            if 0 < _dist <= _comms_range:
+            if 0 < _dist <= _spec_distance:
                 ctx.militia_warned_systems.add(_sys_id)
                 from .comms import open_comms_direct as _ocd
                 _attack_data = _ocd(ctx, _e)
                 return (True, _attack_data)
 
-        # --- Viewport trigger (derelicts and bounty targets) ---
-        if _is_boardable or _has_bounty:
+        # --- Viewport trigger (derelicts, bounty targets) ---
+        if _spec_viewport or _runtime_bounty:
             _cam_x = max(0, min(player_pos.x - _view_w // 2, system.width - _view_w))
             _cam_y = max(0, min(player_pos.y - _view_h // 2, system.height - _view_h))
             if (_cam_x <= _e.pos.x < _cam_x + _view_w

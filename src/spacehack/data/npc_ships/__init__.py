@@ -76,6 +76,11 @@ class NpcShipSpec:
     # their first comms line. Only fires once per system visit.
     # Must be larger than detect_radius to give the player a
     # chance to turn back before combat triggers.
+    comms_trigger_viewport: bool = False
+    # When True, the NPC auto-hails the player when its entity
+    # enters the player's viewport. Independent of
+    # comms_warning_range — both can be active simultaneously
+    # (the first one to trigger wins).
     # When True, this ship can be boarded by the player (bumping
     # it opens the "Board?" dialog instead of logging a bump message).
     # Derelicts set this to True with base_speed=0 / detect_radius=0

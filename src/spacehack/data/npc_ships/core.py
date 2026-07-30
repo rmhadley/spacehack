@@ -37,7 +37,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
             "[DISTRESS BEACON] - life support failing - any vessel please respond - ",
             "[DISTRESS BEACON] - automated message - crew status: unknown - ",
         ),
-        comms_warning_range=15,
+        comms_trigger_viewport=True,   # hail on viewport entry, not at a fixed distance
+        comms_warning_range=0,         # no distance-based hail for derelicts
         loot_budget=(400, 1600),
     ),
     # --- Pirates (migrated from data/enemies/) ---
@@ -63,7 +64,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_engineering=10,
         min_power_gen=3,
         detect_radius=8,
-        comms_warning_range=16,
+        comms_warning_range=0,    # random pirates don't auto-hail — only zone defenders do
         comms_lines=(
             "You're making a mistake, hunter.",
             "I ain't worth the bounty, pal.",
@@ -92,7 +93,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_engineering=15,
         min_power_gen=4,
         detect_radius=10,
-        comms_warning_range=18,
+        comms_warning_range=0,    # random pirates don't auto-hail — only zone defenders do
         comms_lines=(
             "You've got guts coming after me, hunter.",
             "Name your price. Everyone has one.",
@@ -151,7 +152,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         pilot_engineering=30,
         min_power_gen=8,
         detect_radius=12,
-        comms_warning_range=20,
+        comms_warning_range=0,    # random pirates don't auto-hail — only zone defenders do
         comms_lines=(
             "They sent YOU? I'm insulted.",
             "I am the price on your head, hunter.",
