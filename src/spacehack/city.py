@@ -66,9 +66,16 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
     space_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
-    from .npc_ships import spawn_npcs as _sn
-    _sn(ctx, space_map, solar_system_module.current_solar_system_id)
+    # Exclude a radius around the origin planet so the player
+    # isn't immediately surrounded on launch.
     origin_planet = solar_system_module.find_planet(current_city_id)
+    _spawn_exclusion: set[tuple[int, int]] = set()
+    for _dy in range(-6, 7):
+        for _dx in range(-6, 7):
+            _spawn_exclusion.add((origin_planet.pos.x + _dx, origin_planet.pos.y + _dy))
+    from .npc_ships import spawn_npcs as _sn
+    _sn(ctx, space_map, solar_system_module.current_solar_system_id,
+        player_spawn_exclusion=_spawn_exclusion)
     space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
     space_map.entities.append(space_player)
     return (space_map, space_player)

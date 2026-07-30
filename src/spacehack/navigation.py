@@ -1010,9 +1010,15 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
-    from .npc_ships import spawn_npcs as _sn
-    _sn(ctx, new_map, target_system_id)
+    # Look up the destination gate FIRST so we can exclude its
+    # area from NPC spawns — the player shouldn't arrive surrounded.
     dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
+    _spawn_exclusion: set[tuple[int, int]] = set()
+    for _dy in range(-6, 7):
+        for _dx in range(-6, 7):
+            _spawn_exclusion.add((dest_jp.pos.x + _dx, dest_jp.pos.y + _dy))
+    from .npc_ships import spawn_npcs as _sn
+    _sn(ctx, new_map, target_system_id, player_spawn_exclusion=_spawn_exclusion)
     ship_record = ship_module.find_ship(ctx.player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
     new_ship_ent = world.Entity(char=ship_record.char, fg=ship_record.fg, pos=new_pos, name=f'Your Ship: {ship_record.name}', ship_id=ship_record.id, width=ship_record.width, height=ship_record.height, owned=True)

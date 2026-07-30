@@ -193,6 +193,11 @@ def spawn_npcs(
     Also rolls for derelict ship spawning via the system's
     ``derelict_spawn_chance`` field (separate roll from NPC table).
 
+    ``player_spawn_exclusion`` — cells that should be blocked from
+    NPC placement, typically a radius around the player's arrival
+    point (jump gate or planet) so the player isn't immediately
+    surrounded after a jump or launch.
+
     Uses ``ctx.procedural_spawns`` (keyed by system id) so combat
     detection can locate them.
     """
@@ -228,6 +233,11 @@ def spawn_npcs(
         for _dy in range(_e.height):
             for _dx in range(_e.width):
                 _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
+
+    # Exclude the player's arrival zone so they aren't immediately
+    # surrounded after a jump or launch.
+    if player_spawn_exclusion:
+        _blocked.update(player_spawn_exclusion)
 
     # Build body goals once, shared by all active NPC types.
     _body_goals = _build_body_goals(_system)
