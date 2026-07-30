@@ -81,16 +81,3 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
     return (space_map, space_player)
 
 
-def _return_to_city(ctx, console: tcod.console.Console, hangar_ship_ent: world.Entity, city_game_map: world.GameMap, city_player_ent: world.Entity) -> tuple[world.GameMap, world.Entity]:
-    """Animate the same ``hangar_ship_ent`` down to :data:`world.HANGAR_ANCHOR`
-    and return ``(city_game_map, city_player_entity)``.
-
-    Mirrors :func:`_launch_to_space`: the ship entity is the SAME
-    instance that was animated offscreen during launch, so no
-    entity-list swap is needed on the city map.
-    """
-    _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=world.HANGAR_ANCHOR.y, location='Earth')
-    if city_player_ent not in city_game_map.entities:
-        city_game_map.entities.append(city_player_ent)
-    ctx.log.add('You return to Earth and dock at your hangar.')
-    return (city_game_map, city_player_ent)

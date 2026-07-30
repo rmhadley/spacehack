@@ -70,7 +70,7 @@ from .navigation import (
     _animate_jump,
     _jump_to_system,
 )
-from .city import _animate_ship_to_y, _launch_to_space, _return_to_city
+from .city import _animate_ship_to_y, _launch_to_space
 from .time import tick_move, format_date, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
@@ -191,40 +191,12 @@ def _run_game(
         character_info = ctx.character_info
         current_city_id: str = ctx.current_city_id
         current_mode = getattr(ctx, '_loaded_mode', 'city')
-
         if current_mode == 'dungeon':
             # Restore space map/player for exit path back to ship.
             space_game_map = getattr(ctx, '_space_game_map', None)
             space_player = getattr(ctx, '_space_player', None)
-            # Build city map for landing return path after leaving dungeon.
-            from .data.planets import load_planet as _plp, hangar_anchor as _phang
-            try:
-                city_game_map = _plp(current_city_id)
-                _anchor = _phang(current_city_id)
-                city_player = world.Entity(
-                    char='@', fg=(255, 255, 255),
-                    pos=world.Position(_anchor.x, _anchor.y + 1),
-                    name='Player',
-                )
-                city_game_map.entities.append(city_player)
-            except KeyError:
-                city_game_map = game_map
-                city_player = player
         elif current_mode == 'space':
-            # city_game_map/city_player needed for landing back.
-            from .data.planets import load_planet as _plp, hangar_anchor as _phang
-            try:
-                city_game_map = _plp(current_city_id)
-                _anchor = _phang(current_city_id)
-                city_player = world.Entity(
-                    char='@', fg=(255, 255, 255),
-                    pos=world.Position(_anchor.x, _anchor.y + 1),
-                    name='Player',
-                )
-                city_game_map.entities.append(city_player)
-            except KeyError:
-                city_game_map = game_map
-                city_player = player
+            pass  # city map is built fresh on landing — no cache needed
         else:
             city_game_map = game_map
             city_player = player
@@ -276,9 +248,20 @@ def _run_game(
         # Reset module-level solar system state so a prior continue
         # session's system doesn't leak into a fresh game.
         solar_system_module.set_current_solar_system("sol")
+
     # --- Space state for dungeon boarding ---
-    space_game_map: world.GameMap | None = None
-    space_player: world.Entity | None = None
+    # NOTE: These are bare annotations, NOT assignments with = None.
+    # The = None at the end would overwrite the loaded values from
+    # ctx._space_game_map / ctx._space_player in the load path above
+    # (lines ~197-198), causing the dungeon exit check to always fail
+    # on a loaded save because both variables would be None.
+    #
+    # Both variables are assigned by the three paths that need them:
+    #   - _launch_to_space return value (city → space transition)
+    #   - boarding a derelict (space → dungeon transition)
+    #   - loading a dungeon save (ctx._space_game_map / ctx._space_player)
+    space_game_map: world.GameMap | None
+    space_player: world.Entity | None
 
     # --- Main game loop ---
     while True:
@@ -462,43 +445,45 @@ def _run_game(
                             if outcome is PlanetMenuOutcome.LAND:
                                 # Shared: runs on ANY landing.
                                 _run_cargo_scan(ctx, pid)
-                                hangar_ship = _find_hangar_ship(city_game_map, player_owned_ship)
-
-                                if pid == current_city_id:
-                                    # Returning to current city — map is cached, just animate ship down.
-                                    if hangar_ship is not None:
-                                        game_map, player = _return_to_city(ctx, console, hangar_ship, city_game_map, city_player)
-                                        ctx.game_map = game_map
-                                        ctx.player = player
-                                        current_mode = 'city'
-                                else:
-                                    # Landing on a new planet — load fresh map.
-                                    from .data.planets import load_planet as planets_load_planet, hangar_anchor as planet_hangar_anchor, has_landable_port as planets_has_landable_port
-                                    if not planets_has_landable_port(pid):
-                                        log.add(f'You see no port on {planet_obj.name}.')
-                                        continue
-                                    if city_player in city_game_map.entities:
-                                        city_game_map.entities.remove(city_player)
-                                    new_city_map = planets_load_planet(pid)
-                                    new_anchor = planet_hangar_anchor(pid)
-                                    if hangar_ship is not None:
-                                        if hangar_ship in city_game_map.entities:
-                                            city_game_map.entities.remove(hangar_ship)
-                                        hangar_ship.pos = world.Position(new_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1)
-                                        new_city_map.entities.append(hangar_ship)
-                                        _animate_ship_to_y(ctx, console, hangar_ship, new_city_map, target_y=new_anchor.y, location=pid.replace('_', ' ').title())
-                                        log.add(f'You touch down on {planet_obj.name}.')
-                                    if city_player not in new_city_map.entities:
-                                        new_city_map.entities.append(city_player)
-                                    city_player.pos = world.Position(new_anchor.x, new_anchor.y + 1)
-                                    city_game_map = new_city_map
-                                    game_map = new_city_map
-                                    player = city_player
-                                    ctx.game_map = game_map
-                                    ctx.player = player
-                                    current_city_id = pid
-                                    current_mode = 'city'
-
+                                from .data.planets import load_planet as _plp, hangar_anchor as _phang, has_landable_port as _phlp
+                                if not _phlp(pid):
+                                    log.add(f'You see no port on {planet_obj.name}.')
+                                    continue
+                                # Always build the city map fresh — no cache needed.
+                                _new_city_map = _plp(pid)
+                                _anchor = _phang(pid)
+                                # Create fresh city player.
+                                _new_city_player = world.Entity(
+                                    char='@', fg=(255, 255, 255),
+                                    pos=world.Position(_anchor.x, _anchor.y + 1),
+                                    name='Player',
+                                )
+                                # Create fresh hangar ship from player_owned_ship,
+                                # place offscreen, animate down to anchor.
+                                # NOTE: Player @ is NOT appended until AFTER the
+                                # animation — otherwise @ would appear at the dock
+                                # before the ship finishes descending.
+                                if player_owned_ship is not None:
+                                    _ship_spec = ship_module.find_ship(player_owned_ship.ship_id)
+                                    _hangar_ship = world.Entity(
+                                        char=_ship_spec.char, fg=_ship_spec.fg,
+                                        pos=world.Position(_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1),
+                                        name=f'Your Ship: {_ship_spec.name}',
+                                        ship_id=_ship_spec.id, owned=True,
+                                    )
+                                    _new_city_map.entities.append(_hangar_ship)
+                                    _animate_ship_to_y(ctx, console, _hangar_ship, _new_city_map, target_y=_anchor.y, location=pid.replace('_', ' ').title())
+                                    log.add(f'You touch down on {planet_obj.name}.')
+                                # NOW add the player — animation is done, ship is at anchor.
+                                _new_city_map.entities.append(_new_city_player)
+                                city_game_map = _new_city_map
+                                city_player = _new_city_player
+                                game_map = _new_city_map
+                                player = _new_city_player
+                                ctx.game_map = game_map
+                                ctx.player = player
+                                current_city_id = pid
+                                current_mode = 'city'
                                 # Auto-save after landing.
                                 _save_game(ctx, mode=current_mode, city_id=current_city_id,
                                            system_id=solar_system_module.current_solar_system_id)
@@ -570,6 +555,9 @@ def _run_game(
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)
+                elif blocker.mech_terminal:
+                    _run_mech_menu(ctx, current_city_id)
+                    continue
                 elif blocker.computer_terminal:
                     if current_mode == 'dungeon':
                         from . import ui as _ui
@@ -602,7 +590,7 @@ def _run_game(
                             )
                         def _comp_update(event):
                             if isinstance(event, tcod.event.Quit):
-                                return _ui.MenuAction.CONFIRM  # treat as confirm to exit modal
+                                return _ui.MenuAction.CONFIRM
                             if not isinstance(event, tcod.event.KeyDown):
                                 return _ui.MenuAction.NONE
                             if event.sym in _ui._ENTER_SYMS:
@@ -612,7 +600,6 @@ def _run_game(
                             return _ui.MenuAction.NONE
                         _comp_result = ui.Modal(ctx.context, _comp_console).run(_comp_render, _comp_update, ignore=_ui.MenuAction.NONE)
                         if _comp_result == ui.MenuAction.CONFIRM:
-                            # Check if power was already restored
                             if getattr(game_map, 'power_restored', False):
                                 log.add("The ship's power grid is already online.")
                             else:
