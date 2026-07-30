@@ -707,7 +707,7 @@ def run(context: tcod.context.Context) -> None:
     console = make_console()
     while True:
         # --- Title menu ---
-        from .saveload import save_exists as _has_save, load_game as _load
+        from .saveload import save_exists as _has_save, load_game as _load, delete_save as _delete_save
         _sel = 0
         _save_avail = _has_save()
         _menu_outcome = ui.TitleMenuOutcome.IGNORE
@@ -731,6 +731,7 @@ def run(context: tcod.context.Context) -> None:
         if _menu_outcome is ui.TitleMenuOutcome.CONTINUE:
             _ctx = _load(context)
             if _ctx is not None:
+                _delete_save()  # roguelike: no save scumming
                 _run_game(context, loaded_ctx=_ctx)
             else:
                 # Corrupted save — flash error then return to menu.

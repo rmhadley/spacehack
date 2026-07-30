@@ -37,6 +37,15 @@ def save_exists() -> bool:
     return _autosave_path().is_file()
 
 
+def delete_save() -> None:
+    """Remove the autosave file (roguelike: save-on-quit, delete-on-load)."""
+    _path = _autosave_path()
+    try:
+        _path.unlink()
+    except FileNotFoundError:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Serialization
 # ---------------------------------------------------------------------------
