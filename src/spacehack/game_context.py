@@ -123,6 +123,7 @@ class BountySpawn:
     squad_size: int = 1
     loadout_pct: int = 0
     squad_group_id: str | None = None
+    comms_warning_range: int = 0   # distance-based auto-hail; 0 = viewport-based
 
 
 @dataclasses.dataclass(frozen=True)

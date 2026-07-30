@@ -792,6 +792,15 @@ def _run_game(
                                                 _spawn_pos = _pick_bounty_spawn_pos(_target_sys, used_positions=_used)
                                                 if _spawn_pos is not None:
                                                     from .game_context import BountySpawn
+                                                    from .data.npc_ships import find_npc_ship as _bfns
+                                                    # Compute a warning range wider than combat detection so
+                                                    # the player gets warned before combat triggers.
+                                                    _bounty_warning_range = 0
+                                                    try:
+                                                        _bounty_spec = _bfns(picked.target_enemy_id)
+                                                        _bounty_warning_range = max(12, _bounty_spec.detect_radius * 2)
+                                                    except (KeyError, ImportError):
+                                                        pass
                                                     # Leader BountySpawn.
                                                     _bs = BountySpawn(
                                                         spawn_id=_bounty_spawn_id,
@@ -800,6 +809,7 @@ def _run_game(
                                                         bounty_target_name=getattr(picked, 'bounty_target_name', None),
                                                         squad_size=_squad_size,
                                                         loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
+                                                        comms_warning_range=_bounty_warning_range,
                                                     )
                                                     if picked.target_system_id not in ctx.bounty_spawns:
                                                         ctx.bounty_spawns[picked.target_system_id] = []
@@ -818,6 +828,7 @@ def _run_game(
                                                                 squad_size=_squad_size,
                                                                 loadout_pct=0,
                                                                 squad_group_id=_bounty_spawn_id,
+                                                                comms_warning_range=0,  # wingmates use viewport-based, not distance
                                                             )
                                                             ctx.bounty_spawns[picked.target_system_id].append(_wbs)
                                                     _squad_note = f" ({_squad_size}-ship squad)" if _squad_size > 1 else ""

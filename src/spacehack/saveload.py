@@ -377,6 +377,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 squad_size=_bs.get("squad_size", 1),
                 loadout_pct=_bs.get("loadout_pct", 0),
                 squad_group_id=_bs.get("squad_group_id"),
+                comms_warning_range=_bs.get("comms_warning_range", 0),
             ))
 
     # --- Procedural spawns ---
