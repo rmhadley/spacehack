@@ -196,6 +196,26 @@ def resolve_mech_inventory(
     return _w_ids, _m_ids
 
 
+_EXPLORABLE_SITES: dict[str, list[str]] = {
+    "uranus": ["Icy Caverns"],  # wireframe: first planet dungeon
+}
+
+
+def has_explorable_sites(planet_id: str) -> list[str]:
+    """Return a list of explorable site names for ``planet_id``, or
+    empty list if the planet has no dungeons/points of interest.
+
+    Checks both the hardcoded :data:`_EXPLORABLE_SITES` mapping (for
+    planets that don't have a :class:`PlanetSpec`) and the
+    :class:`PlanetSpec.dungeons` field when a spec exists.
+
+    For now, just the hardcoded mapping — the ``dungeons`` field on
+    ``PlanetSpec`` will be wired when content planets get dungeon
+    definitions.
+    """
+    return _EXPLORABLE_SITES.get(planet_id, [])
+
+
 def has_landable_port(planet_id: str) -> bool:
     """Return True iff ``planet_id`` resolves to a :class:`PlanetSpec`
     whose :attr:`PlanetSpec.buildings` includes a spaceport-labeled
@@ -378,4 +398,4 @@ def _resolve_ship(ship_id: str):
     return ship_module.find_ship(ship_id)
 
 
-__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor"]
+__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor", "has_explorable_sites", "has_landable_port"]

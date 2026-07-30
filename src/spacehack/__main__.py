@@ -52,7 +52,7 @@ from .menus import (
     render_ship_menu, _ship_menu_navigate, update_ship_menu, _run_ship_menu,
     _run_mech_menu,
     _find_hangar_ship,
-    render_planet_menu, update_planet_menu, _run_planet_menu,
+    _run_planet_menu,
 )
 from .navigation import (
     JumpMenuOutcome, GotoOutcome, NavigationOutcome,
@@ -411,6 +411,10 @@ def _run_game(
                             planet_obj = solar_system_module.find_planet(pid)
                             log.add(f'You approach {planet_obj.name}.')
                             outcome = _run_planet_menu(ctx, planet_obj)
+                            if outcome is PlanetMenuOutcome.EXPLORE:
+                                log.add(f"You approach {planet_obj.name}'s surface. Strange crystalline structures glow in the dim light.")
+                                log.add("(Dungeon exploration — coming in a future update.)")
+                                continue
                             if outcome is PlanetMenuOutcome.LAND:
                                 # Shared: runs on ANY landing.
                                 _run_cargo_scan(ctx, pid)
