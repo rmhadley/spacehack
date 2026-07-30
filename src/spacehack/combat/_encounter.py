@@ -13,7 +13,7 @@ from __future__ import annotations
 import tcod.event
 
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
-from ._loop import run_combat, _run_combat_legacy
+from ._loop import run_combat
 from . import _rules_space
 
 

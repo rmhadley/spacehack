@@ -191,11 +191,33 @@ def enemy_alive(enemy: world.Entity) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
-def hit_chance(weapon_id: str, enemy: world.Entity, ctx) -> int:
+def _ground_hit_chance_raw(
+    weapon_id: str,
+    attacker_reflexes: int,
+    target_reflexes: int,
+) -> int:
+    """Pure hit-chance formula — used by AI which doesn't go through ctx."""
     _ws = _find_gw(weapon_id)
-    _dodge = (_enemy_spec.reflexes if _enemy_spec else 10) * 2
-    _chance = _ws.accuracy + ctx.ground_stats.reflexes * 3 - _dodge
+    _dodge = target_reflexes * 2
+    _chance = _ws.accuracy + attacker_reflexes * 3 - _dodge
     return max(5, min(95, _chance))
+
+
+def _ground_damage_raw(
+    weapon_id: str,
+    strength: int,
+    armor_defense: int,
+) -> int:
+    """Pure damage formula — used by AI which doesn't go through ctx."""
+    _ws = _find_gw(weapon_id)
+    _str_bonus = strength // 4 if _ws.damage_type == 'melee' else 0
+    _raw = _ws.damage + _str_bonus
+    return max(1, _raw - armor_defense)
+
+
+def hit_chance(weapon_id: str, enemy: world.Entity, ctx) -> int:
+    _dodge = (_enemy_spec.reflexes if _enemy_spec else 10) * 2
+    return _ground_hit_chance_raw(weapon_id, ctx.ground_stats.reflexes, _dodge // 2)
 
 
 def damage(weapon_id: str, enemy: world.Entity, ctx) -> int:

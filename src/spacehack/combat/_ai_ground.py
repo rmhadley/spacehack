@@ -37,9 +37,8 @@ def run_ground_enemy_turn(
     The caller is responsible for applying ``damage_dealt`` to the
     player's HP pool and checking for defeat.
     """
-    # Lazy import avoids circular import (both _ground.py and _ai_ground.py
-    # reference each other's functions).
-    from ._ground import _ground_hit_chance, _ground_damage
+    # Lazy import avoids circular import.
+    from ._rules_ground import _ground_hit_chance_raw, _ground_damage_raw
     from ._stats import _distance
 
     if not enemy_weapon_id or enemy_ap <= 0:
@@ -60,11 +59,11 @@ def run_ground_enemy_turn(
 
         # If in weapon range -> fire
         if _ews and _dist <= _ews.max_range and _dist >= _ews.min_range:
-            _hit = RNG.randint(1, 100) <= _ground_hit_chance(
+            _hit = RNG.randint(1, 100) <= _ground_hit_chance_raw(
                 enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
             )
             if _hit:
-                _damage_dealt = _ground_damage(
+                _damage_dealt = _ground_damage_raw(
                     enemy_weapon_id, enemy_spec.strength, armor_defense,
                 )
                 ctx.log.add_colored(
