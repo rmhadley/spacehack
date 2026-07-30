@@ -302,7 +302,13 @@ def spawn_npcs(
             _set_npc_path(ctx, _movement_id, _group_positions[0], _initial_target, game_map)
 
     if _all_procedural:
-        ctx.procedural_spawns[system_id] = [
+        # Preserve existing spawn entries whose npc_id wasn't just
+        # spawned by this call (e.g. derelicts from _spawn_derelict).
+        _spawned_npc_ids = {npc_id for _, _, npc_id in _all_procedural}
+        _existing = ctx.procedural_spawns.get(system_id, [])
+        _preserved = [_ps for _ps in _existing
+                      if _ps.npc_id not in _spawned_npc_ids]
+        ctx.procedural_spawns[system_id] = _preserved + [
             ProceduralSpawn(npc_id=npc_id, pos=pos, squad_id=sid)
             for pos, sid, npc_id in _all_procedural
         ]
