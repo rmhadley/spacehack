@@ -554,20 +554,21 @@ def run_ground_combat(
         if _player_ap <= 0:
             # Enemy turn — delegated to _ai_ground.py
             # Run first so we know the real hit/miss result for the animation
-            _ap_before = _enemy_ap
-            _enemy_ap, _dmg = _enemy_turn(
+            _enemy_ap, _dmg, _did_fire = _enemy_turn(
                 ctx,
                 enemy_weapon_id=_enemy_weapon_id,
                 enemy_spec=_enemy_spec,
                 enemy_ap=_enemy_ap,
                 player_pos=_player_pos,
-                enemy_pos=_enemy_pos,
-                dist=_dist,
+                enemy_entity=enemy_entity,
+                game_map=game_map,
                 armor_defense=_armor_defense,
             )
+            # Sync position after AI may have moved the enemy
+            _enemy_pos = enemy_entity.pos
 
-            # Animate enemy shot — only if enemy actually fired (spent AP)
-            if _enemy_ap < _ap_before:
+            # Animate enemy shot — only if enemy actually fired this turn
+            if _did_fire:
                 _animate_ground_laser_shot(
                     console, ctx, game_map,
                     _enemy_pos, _player_pos,

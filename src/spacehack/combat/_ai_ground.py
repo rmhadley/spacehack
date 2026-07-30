@@ -1,9 +1,8 @@
-"""Ground combat enemy AI — extracted from _ground.py's inline enemy turn.
+"""Ground combat enemy AI — movement + fire logic for on-foot enemies.
 
-Mirrors :mod:`combat._ai` which handles ship enemy behavior. Currently
-simple (attack-if-in-range), but extracted so multi-enemy support and
-smarter AI (movement, cover-seeking, etc.) can be added without
-inflating the main combat loop.
+Mirrors :mod:`combat._ai` which handles ship enemy behavior. Enemies
+move toward the player when out of weapon range, fire when in range,
+and spend AP on each action (1 per move, weapon's ap_cost per shot).
 """
 
 from __future__ import annotations
@@ -20,56 +19,87 @@ def run_ground_enemy_turn(
     enemy_spec,
     enemy_ap: int,
     player_pos: world.Position,
-    enemy_pos: world.Position,
-    dist: int,
+    enemy_entity: world.Entity,
+    game_map: world.GameMap,
     armor_defense: int,
 ) -> tuple[int, int]:
     """Execute one enemy turn during ground combat.
 
-    The enemy fires its weapon if it has one, has AP remaining, and
-    the player is within weapon range.
+    While the enemy has AP remaining it either:
+      1. Fires its weapon if the player is within weapon range.
+      2. Moves toward the player (1 cell per AP) if out of range.
+
+    Mutates ``enemy_entity.pos`` in-place as the enemy moves. The
+    caller reads ``enemy_entity.pos`` after return for rendering.
 
     Returns ``(new_enemy_ap, damage_dealt)`` where ``damage_dealt`` is
     the amount of player HP reduced this turn (0 if miss or no weapon).
     The caller is responsible for applying ``damage_dealt`` to the
     player's HP pool and checking for defeat.
-
-    Pure logic — no rendering. The caller (``run_ground_combat``)
-    renders frames and advances the turn clock.
     """
     # Lazy import avoids circular import (both _ground.py and _ai_ground.py
     # reference each other's functions).
     from ._ground import _ground_hit_chance, _ground_damage
+    from ._stats import _distance
 
     if not enemy_weapon_id or enemy_ap <= 0:
-        return (enemy_ap, 0)
+        return (enemy_ap, 0, False)
 
     from ..data.ground_weapons import find_ground_weapon as _find_gw
     try:
         _ews = _find_gw(enemy_weapon_id)
     except KeyError:
-        return (enemy_ap, 0)
+        return (enemy_ap, 0, False)
 
     _result_ap = enemy_ap
     _damage_dealt = 0
+    _fired = False
 
-    if _ews and dist <= _ews.max_range and dist >= _ews.min_range:
-        _hit = RNG.randint(1, 100) <= _ground_hit_chance(
-            enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
-        )
-        if _hit:
-            _damage_dealt = _ground_damage(
-                enemy_weapon_id, enemy_spec.strength, armor_defense,
+    while _result_ap > 0:
+        _dist = _distance(enemy_entity.pos, player_pos)
+
+        # If in weapon range -> fire
+        if _ews and _dist <= _ews.max_range and _dist >= _ews.min_range:
+            _hit = RNG.randint(1, 100) <= _ground_hit_chance(
+                enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
             )
-            ctx.log.add_colored(
-                f"{enemy_spec.name} hits you for {_damage_dealt}!",
-                _ml.COLOR_ENEMY_ACTION,
-            )
+            if _hit:
+                _damage_dealt = _ground_damage(
+                    enemy_weapon_id, enemy_spec.strength, armor_defense,
+                )
+                ctx.log.add_colored(
+                    f"{enemy_spec.name} hits you for {_damage_dealt}!",
+                    _ml.COLOR_ENEMY_ACTION,
+                )
+            else:
+                ctx.log.add_colored(
+                    f"{enemy_spec.name} fires but misses!",
+                    _ml.COLOR_ENEMY_ACTION,
+                )
+            _result_ap -= _ews.ap_cost if _ews else 1
+            _fired = True
+            break  # one shot per enemy turn (matched to player's single [f] action)
+
+        # Out of range -> move toward player (1 AP per step)
+        _dx = 0 if enemy_entity.pos.x == player_pos.x else (1 if enemy_entity.pos.x < player_pos.x else -1)
+        _dy = 0 if enemy_entity.pos.y == player_pos.y else (1 if enemy_entity.pos.y < player_pos.y else -1)
+        _nx = enemy_entity.pos.x + _dx
+        _ny = enemy_entity.pos.y + _dy
+
+        # Don't move into the player
+        if (_nx, _ny) == (player_pos.x, player_pos.y):
+            break
+
+        if game_map.is_walkable(_nx, _ny) and game_map.entity_at(_nx, _ny, exclude=enemy_entity) is None:
+            enemy_entity.pos = world.Position(_nx, _ny)
+            _result_ap -= 1
         else:
-            ctx.log.add_colored(
-                f"{enemy_spec.name} fires but misses!",
-                _ml.COLOR_ENEMY_ACTION,
-            )
-        _result_ap -= _ews.ap_cost if _ews else 1
+            break  # blocked — can't move this turn
 
-    return (_result_ap, _damage_dealt)
+    if not _fired:
+        ctx.log.add_colored(
+            f"{enemy_spec.name} moves into position.",
+            _ml.COLOR_ENEMY_ACTION,
+        )
+
+    return (_result_ap, _damage_dealt, _fired)

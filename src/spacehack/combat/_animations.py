@@ -223,6 +223,10 @@ def _draw_range_colored_line(
         player_pos.x, player_pos.y,
         target_pos.x, target_pos.y,
     ):
+        # Skip the target's own cell — the highlight/bg handles that
+        if bx == target_pos.x and by == target_pos.y:
+            continue
+
         sx = bx - cam_x
         sy = by - cam_y
         if not (0 <= sx < view_w and 0 <= sy < view_h):
