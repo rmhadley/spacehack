@@ -390,53 +390,6 @@ def _animate_ground_laser_shot(
             _responsive_sleep(0.06)
 
 
-def _animate_ground_explosion(
-    console: tcod.console.Console,
-    ctx,
-    game_map: world.GameMap,
-    center_pos: world.Position,
-    frame_params: dict,
-) -> None:
-    """Animate an expanding explosion at center_pos (5 rings)."""
-    _ox, _oy = _render_offsets(game_map)
-    _EXPLOSION_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (
-        ("*", (255, 200, 100)),
-        ("+", (255, 255, 150)),
-        ("o", (255, 255, 200)),
-        ("O", (200, 200, 255)),
-        ("#", (180, 180, 255)),
-    )
-    for rings in range(len(_EXPLOSION_RINGS)):
-        _render_ground_frame(console, ctx, game_map, **frame_params)
-        for ring_idx in range(min(rings + 1, len(_EXPLOSION_RINGS))):
-            r_char, r_fg = _EXPLOSION_RINGS[ring_idx]
-            dist = ring_idx + 1
-            for dy in range(-dist, dist + 1):
-                for dx in range(-dist, dist + 1):
-                    if abs(dx) + abs(dy) != dist:
-                        continue
-                    sx, sy = (center_pos.x + dx) + _ox, (center_pos.y + dy) + _oy
-                    if 0 <= sx < _RENDER_WIDTH and 0 <= sy < _RENDER_HEIGHT:
-                        console.print(x=sx, y=sy, string=r_char, fg=r_fg)
-        ctx.context.present(console)
-        _responsive_sleep(0.07)
-
-    # White flash frame
-    _render_ground_frame(console, ctx, game_map, **frame_params)
-    for dy in range(-4, 5):
-        for dx in range(-4, 5):
-            sx, sy = (center_pos.x + dx) + _ox, (center_pos.y + dy) + _oy
-            if 0 <= sx < _RENDER_WIDTH and 0 <= sy < _RENDER_HEIGHT:
-                if abs(dx) + abs(dy) <= 3:
-                    console.print(x=sx, y=sy, string=" ", fg=(255, 255, 255), bg=(255, 255, 255))
-    ctx.context.present(console)
-    _responsive_sleep(0.08)
-
-    # Void settle
-    _render_ground_frame(console, ctx, game_map, **frame_params)
-    _responsive_sleep(0.04)
-
-
 # Shorthand: build frame_params and call _render_ground_combat_frame
 def _render_ground_frame(
     console: tcod.console.Console,
@@ -600,6 +553,8 @@ def run_ground_combat(
         # ---- Auto-end-turn when AP depleted ----
         if _player_ap <= 0:
             # Enemy turn — delegated to _ai_ground.py
+            # Run first so we know the real hit/miss result for the animation
+            _ap_before = _enemy_ap
             _enemy_ap, _dmg = _enemy_turn(
                 ctx,
                 enemy_weapon_id=_enemy_weapon_id,
@@ -610,6 +565,16 @@ def run_ground_combat(
                 dist=_dist,
                 armor_defense=_armor_defense,
             )
+
+            # Animate enemy shot — only if enemy actually fired (spent AP)
+            if _enemy_ap < _ap_before:
+                _animate_ground_laser_shot(
+                    console, ctx, game_map,
+                    _enemy_pos, _player_pos,
+                    is_hit=(_dmg > 0),
+                    frame_params=_frame_params(),
+                )
+
             if _dmg > 0:
                 _player_hp -= _dmg
                 if _player_hp <= 0:
@@ -722,12 +687,6 @@ def run_ground_combat(
                             _ml.COLOR_PLAYER_ACTION,
                         )
                         if _enemy_hp <= 0:
-                            # Enemy death
-                            _animate_ground_explosion(
-                                console, ctx, game_map,
-                                _enemy_pos,
-                                frame_params=_frame_params(),
-                            )
                             ctx.log.add_colored(
                                 f"{_enemy_spec.name} collapses!",
                                 _ml.COLOR_COMBAT_EVENT,
