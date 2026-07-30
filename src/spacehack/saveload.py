@@ -201,6 +201,12 @@ def save_game(
     _data["player_pos_x"] = ctx.player.pos.x
     _data["player_pos_y"] = ctx.player.pos.y
     ctx.current_city_id = city_id
+
+    # --- Save RNG state so Continue restores the exact same stream ---
+    from .engine import RNG
+    _rng_state = RNG.getstate()
+    _data["rng_state"] = [_rng_state[0], list(_rng_state[1]), _rng_state[2]]
+
     _path = _autosave_path()
     _path.write_text(json.dumps(_data, indent=2, ensure_ascii=False))
 
@@ -518,5 +524,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.npc_paths = _npc_paths
     _ctx.current_city_id = _city_id
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
+
+    # --- Restore RNG state ---
+    _rng_state = _data.get("rng_state")
+    if _rng_state is not None:
+        from .engine import RNG
+        RNG.setstate((_rng_state[0], tuple(_rng_state[1]), _rng_state[2]))
 
     return _ctx

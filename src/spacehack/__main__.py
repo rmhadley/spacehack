@@ -764,6 +764,9 @@ def run(context: tcod.context.Context) -> None:
                 break
             if outcome is Outcome.BACK:
                 continue
+            # Fresh seed per run — standard roguelike behavior.
+            _seed = struct.unpack('I', os.urandom(4))[0]
+            seed_rng(_seed)
             _run_game(context, species_id, class_id)
             break
         # After game ends, loop back to title menu.
