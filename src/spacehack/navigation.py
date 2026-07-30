@@ -22,6 +22,7 @@ from .game_context import GameContext
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .data import solar_systems as solar_systems_module
 from .data.npc_ships import find_npc_ship
+from .faction import get_attitude as _get_attitude
 from .input_helpers import _try_open_guide
 from .time import tick_move, format_date
 
@@ -442,6 +443,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_spawn, _espec))
         _dist = math.hypot(player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y)
         if _dist > 0 and _dist <= _espec.detect_radius:
+            # Reputation gate: only hostile factions trigger combat
+            if _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
+                continue
             if _spawn.squad_id is not None:
                 _triggered_squad_ids.add(_spawn.squad_id)
             else:
@@ -460,6 +464,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_bs, _espec))
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         if _dist > 0 and _dist <= _espec.detect_radius:
+            # Reputation gate: only hostile factions trigger combat
+            if _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
+                continue
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
             # Squad grouping: if ANY squad member triggers, add ALL
             # squad members so the entire squad joins combat together.
@@ -483,6 +490,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_pe, _espec))
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
         if _dist > 0 and _dist <= _espec.detect_radius:
+            # Reputation gate: only hostile factions trigger combat
+            if _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
+                continue
             _triggered_squad_ids.add(_pe.procedural_squad_id)
     _nearby_specs: list = []
     _nearby_positions: list = []

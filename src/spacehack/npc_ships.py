@@ -174,6 +174,8 @@ def spawn_npcs(
     ctx: GameContext,
     game_map: world.GameMap,
     system_id: str,
+    *,
+    player_spawn_exclusion: set[tuple[int, int]] | None = None,
 ) -> None:
     """Roll for procedural NPC encounters in ``system_id``.
 
@@ -456,22 +458,11 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         # Determine faction for this squad (read from the leader's spec).
         _faction = _faction_of(_members[0])
 
-        # --- Enemy hostility: chase the player ---
-        # Enemy NPCs override their patrol target and path to chase the
-        # player. This is deterministic (no probability check per the
-        # design doc). The existing movement logic below follows the
-        # new player-chasing path normally.
-        if _faction and ctx is not None:
-            _player_rep = ctx.faction_reputation.get(_faction, 0)
-            if _get_attitude(_player_rep) == "enemy":
-                _player_pos = (ctx.player.pos.x, ctx.player.pos.y)
-                _tx, _ty = ctx.npc_targets.get(_sid) or (None, None)
-                if (_tx, _ty) != _player_pos:
-                    _set_npc_path(
-                        ctx, _sid, _members[0].pos,
-                        _player_pos, game_map,
-                    )
-
+        # No global aggro — NPCs do not chase the player based on
+        # reputation alone. Combat triggers only when the player
+        # gets within ``detect_radius`` (handled by
+        # ``_detect_combat_encounter``) or bumps an NPC and chooses
+        # Attack via comms.
         _is_squad = len(_members) > 1
         _leader = _members[0]
         _lx, _ly = _leader.pos.x, _leader.pos.y
@@ -618,9 +609,9 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                             break
         if _leader_moved:
             ctx.npc_paths[_sid].pop(0)
-        else:
-            ctx.npc_paths.pop(_sid, None)
-            ctx.npc_targets.pop(_sid, None)
+        # On collision, preserve the path so the leader retries the same
+        # step next tick. Don't recompute A* just because a cell was
+        # temporarily occupied — the path is still valid.
         # Squad cohesion: pull stragglers toward centre
         if _is_squad:
             _cx = sum(m.pos.x for m in _members) // len(_members)
