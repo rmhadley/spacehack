@@ -291,6 +291,18 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         game_map.entities.append(
                             _make_npc_entity(_tick_spec, _tick_pos, _tick_mid)
                         )
+                        # Register in procedural_spawns so save/load can find it.
+                        # Per-tick NPCs are always solo (squad_id=None).
+                        _cur_sys_id = getattr(_system, 'id', '')
+                        if _cur_sys_id not in ctx.procedural_spawns:
+                            ctx.procedural_spawns[_cur_sys_id] = []
+                        ctx.procedural_spawns[_cur_sys_id].append(
+                            ProceduralSpawn(
+                                npc_id=_tick_id,
+                                pos=_tick_pos,
+                                squad_id=None,
+                            )
+                        )
                         if _tick_initial_target is not None:
                             _set_npc_path(ctx, _tick_mid, _tick_pos, _tick_initial_target, game_map)
                         ctx.log.add_colored(
@@ -431,12 +443,17 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         pass
                 ctx.npc_targets.pop(_sid, None)
                 ctx.npc_paths.pop(_sid, None)
-                # Clean up procedural_spawns for this squad.
+                # Clean up procedural_spawns for the despawned entities.
+                # Match by both NPC type and position so we don't
+                # accidentally remove a different NPC type at the same spot.
                 _cur_sys_id = getattr(_system, 'id', '')
+                _leader_npc = getattr(_leader, 'npc_ship_id', '')
+                _despawned_positions = {(m.pos.x, m.pos.y) for m in _members}
                 if _cur_sys_id in ctx.procedural_spawns:
                     ctx.procedural_spawns[_cur_sys_id] = [
                         _ps for _ps in ctx.procedural_spawns[_cur_sys_id]
-                        if _ps.squad_id != _sid
+                        if not (_ps.npc_id == _leader_npc
+                                and (_ps.pos.x, _ps.pos.y) in _despawned_positions)
                     ]
                 continue
             # Normal (pirate) or merchant with no current target: pick new.
