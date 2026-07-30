@@ -197,7 +197,7 @@ def _fire_weapons(
                         _cr.defeated_bounty_ids.append(_bid)
                 _c_log(f"{_target_enemy.name} destroyed!", log)
                 # Remove dead entity from the game map
-                from ._loop import _remove_dead_entity as _rde
+                from ._actions import _remove_dead_entity as _rde
                 _rde(game_map, _enemy_ents, target_idx)
                 # Explosion at target position
                 _cam_x, _cam_y = _calc_cam()
@@ -222,7 +222,7 @@ def _fire_weapons(
                     enemy_specs[0] if enemy_specs else None,
                 )
                 if _correct_spec is not None:
-                    from ._loop import _spawn_loot_drops as _sld
+                    from ._actions import _spawn_loot_drops as _sld
                     _sld(game_map, _target_pos, _correct_spec)
         else:
             _p_log(f"{find_weapon(_fwid).name} misses {_target_enemy.name}!", log)

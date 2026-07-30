@@ -30,11 +30,13 @@ from ._actions import (
     start_enemy_turn,
     move_entity,
     _sync_back_hull,
+    _remove_dead_entity,
+    _spawn_loot_drops,
+    _MAX_LOOT_ENTITIES,
 )
 from ._animations import (
     _responsive_sleep,
     _bresenham_line,
-    _COMBAT_EXPLOSION_RINGS,
     _resolve_target,
     _paint_target_highlight,
     _paint_range_line,
