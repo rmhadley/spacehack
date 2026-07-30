@@ -28,8 +28,12 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
 from ..data.trade_goods import find_trade_good as _find_good
+from ._types import CombatResult
 from ._actions import _remove_dead_entity as _rde
 from ._stats import _distance
+from ._actions import _spawn_loot_at_position as _shared_loot
+from ..hud import _bar_str
+from ._ai_ground import run_ground_enemy_turn as _enemy_turn
 from ._animations import (
     _bresenham_line,
     _responsive_sleep,
@@ -197,13 +201,6 @@ def _render_ground_combat_hud(
         console.print(x=_hud_x, y=y, string=f"{key} {desc}", fg=_COLOR_GROUND_ACTION)
         y += 1
 
-
-def _bar_str(value: int, max_value: int, width: int = 10) -> str:
-    """CP437-safe bar string."""
-    if max_value <= 0:
-        return "." * width
-    _full = max(0, min(width, value * width // max_value))
-    return "#" * _full + "." * (width - _full)
 
 
 # ---------------------------------------------------------------------------
@@ -460,26 +457,20 @@ def _spawn_ground_loot(
     pos: world.Position,
     enemy_id: str,
 ) -> None:
-    """Drop loot at the enemy's death position (no explosion)."""
+    """Drop loot at the enemy's death position using shared loot function."""
     try:
         _spec = _find_nc(enemy_id)
     except KeyError:
         return
-    _pool = _spec.loot_pool
-    if not _pool:
+    if not _spec.loot_pool:
         return
     _min, _max = _spec.loot_count
-    _count = RNG.randint(_min, _max)
-    for _ in range(_count):
-        _good_id = RNG.choice(_pool)
-        _qty = RNG.randint(1, 2)
-        game_map.entities.append(world.Entity(
-            char="%",
-            fg=(255, 215, 0),
-            pos=pos,
-            name="Loot", width=1, height=1,
-            loot_data={"good_id": _good_id, "quantity": _qty},
-        ))
+    _shared_loot(
+        game_map, pos,
+        _spec.loot_pool,
+        count_range=(_min, _max),
+        qty_range=(1, 2),
+    )
 
 
 def run_ground_combat(
@@ -487,21 +478,24 @@ def run_ground_combat(
     ctx,
     enemy_entity: world.Entity,
     game_map: world.GameMap,
-) -> tuple[str, str]:
+) -> CombatResult:
     """Run a ground combat encounter against one enemy.
 
     Args:
         enemy_entity: the hostile Entity on the dungeon map.
 
     Returns:
-        ``(outcome, defeated_enemy_id)`` where outcome is
-        ``"VICTORY"``, ``"DEFEAT"``, or ``"FLEE"``.
+        A :class:`CombatResult` with ``outcome`` (``"VICTORY"``,
+        ``"DEFEAT"``, or ``"FLEE"``) and tracking of defeated
+        entities — matches the return type of :func:`run_combat`.
     """
     try:
         _enemy_spec = _find_nc(enemy_entity.npc_char_id)
     except KeyError:
         ctx.log.add("Unknown ground enemy — cannot start combat.")
-        return ("FLEE", "")
+        _result = CombatResult()
+        _result.outcome = "FLEE"
+        return _result
 
     # Determine enemy's weapon
     _enemy_weapon_id = ""
@@ -540,8 +534,8 @@ def run_ground_combat(
     _target_idx = 0
     _active_weapons = [True] * len(_player_weapon_ids)
 
-    _outcome = "FLEE"
-    _defeated_id = ""
+    _cr = CombatResult()
+    _cr.outcome = "FLEE"
 
     # Helper to build frame_params for animations
     def _frame_params() -> dict:
@@ -605,32 +599,22 @@ def run_ground_combat(
 
         # ---- Auto-end-turn when AP depleted ----
         if _player_ap <= 0:
-            # Enemy turn
-            if _enemy_weapon_id and _enemy_ap > 0:
-                try:
-                    _ews = _find_gw(_enemy_weapon_id)
-                except KeyError:
-                    _ews = None
-                if _ews and _dist <= _ews.max_range and _dist >= _ews.min_range:
-                    _hit = RNG.randint(1, 100) <= _ground_hit_chance(
-                        _enemy_weapon_id, _enemy_spec.reflexes, ctx.ground_stats.reflexes,
-                    )
-                    if _hit:
-                        _dmg = _ground_damage(_enemy_weapon_id, _enemy_spec.strength, _armor_defense)
-                        _player_hp -= _dmg
-                        ctx.log.add_colored(
-                            f"{_enemy_spec.name} hits you for {_dmg}!",
-                            _ml.COLOR_ENEMY_ACTION,
-                        )
-                        if _player_hp <= 0:
-                            _outcome = "DEFEAT"
-                            break
-                    else:
-                        ctx.log.add_colored(
-                            f"{_enemy_spec.name} fires but misses!",
-                            _ml.COLOR_ENEMY_ACTION,
-                        )
-                _enemy_ap -= _ews.ap_cost if _ews else 1
+            # Enemy turn — delegated to _ai_ground.py
+            _enemy_ap, _dmg = _enemy_turn(
+                ctx,
+                enemy_weapon_id=_enemy_weapon_id,
+                enemy_spec=_enemy_spec,
+                enemy_ap=_enemy_ap,
+                player_pos=_player_pos,
+                enemy_pos=_enemy_pos,
+                dist=_dist,
+                armor_defense=_armor_defense,
+            )
+            if _dmg > 0:
+                _player_hp -= _dmg
+                if _player_hp <= 0:
+                    _cr.outcome = "DEFEAT"
+                    break
             _player_ap = _player_ap_total
             _enemy_ap = _enemy_ap_total
             continue
@@ -666,6 +650,10 @@ def run_ground_combat(
             # [Tab] / [Left] / [Right] -> Cycle target (prep for multi-enemy)
             if _sym_name in ("tab", "left", "right"):
                 # Single-enemy: just re-highlight (no-op visually)
+                break
+
+            # [s] -> No shields in ground combat (no-op for shared keybind consistency)
+            if _sym_name == "s":
                 break
 
             # [1]-[9] -> Toggle weapon on/off
@@ -750,8 +738,9 @@ def run_ground_combat(
                             _add_xp(ctx, _enemy_spec.xp_reward)
                             if hasattr(ctx, 'player_counters'):
                                 ctx.player_counters.total_kills += 1
-                            _outcome = "VICTORY"
-                            _defeated_id = enemy_entity.npc_char_id
+                            _cr.outcome = "VICTORY"
+                            _cr.defeated_spec_ids.append(enemy_entity.npc_char_id)
+                            _cr.defeated_names.append(_enemy_spec.name)
                             break
                     else:
                         ctx.log.add_colored(
@@ -763,7 +752,7 @@ def run_ground_combat(
                     _player_ap -= _fws.ap_cost
 
                 # If no VICTORY yet and AP is now 0, end turn
-                if _outcome == "FLEE" and _player_ap <= 0:
+                if _cr.outcome == "FLEE" and _player_ap <= 0:
                     _player_ap = 0
                 break
 
@@ -777,21 +766,21 @@ def run_ground_combat(
                 _flee_chance = 60  # flat 60% flee chance for ground
                 if RNG.randint(1, 100) <= _flee_chance:
                     ctx.log.add("You break contact and retreat!")
-                    _outcome = "FLEE"
+                    _cr.outcome = "FLEE"
                 else:
                     ctx.log.add("Failed to flee!")
                     _player_ap = 0
                 break
 
-        if _outcome != "FLEE":
+        if _cr.outcome != "FLEE":
             break
 
     # Save HP back to ctx
     ctx.ground_hp = max(0, _player_hp)
     ctx.ground_max_hp = _player_max_hp
 
-    if _outcome == "DEFEAT":
+    if _cr.outcome == "DEFEAT":
         ctx.player_dead = True
         ctx.log.add_colored("You collapse from your wounds...", _ml.COLOR_COMBAT_EVENT)
 
-    return (_outcome, _defeated_id)
+    return _cr

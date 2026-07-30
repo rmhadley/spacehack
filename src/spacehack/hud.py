@@ -450,7 +450,10 @@ _BAR_CHAR_EMPTY: str = "."   # empty marker
 
 
 def _bar_str(value: int, max_value: int, width: int = 10) -> str:
-    """Return a 10-char bar string like '██████░░░░'."""
+    """Return a CP437-safe bar string with ``#`` for filled and ``.`` for empty.
+
+    Exported so ground combat can import the same function.
+    """
     if max_value <= 0:
         return _BAR_CHAR_EMPTY * width
     full = max(0, min(width, value * width // max_value))

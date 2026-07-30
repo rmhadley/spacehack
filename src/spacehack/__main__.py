@@ -404,8 +404,8 @@ def _run_game(
                 from .dungeon import _detect_ground_combat as _dgc
                 _hostile = _dgc(ctx, game_map, player.pos)
                 if _hostile is not None:
-                    _outcome, _ = _run_ground_combat(console, ctx, _hostile, game_map)
-                    if _outcome == "DEFEAT":
+                    _ground_result = _run_ground_combat(console, ctx, _hostile, game_map)
+                    if _ground_result.outcome == "DEFEAT":
                         return
                     # After combat, refresh the map render
                     continue

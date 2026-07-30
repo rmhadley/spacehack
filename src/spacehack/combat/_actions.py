@@ -19,6 +19,35 @@ from ..engine import RNG
 _MAX_LOOT_ENTITIES: int = 30
 
 
+def _spawn_loot_at_position(
+    game_map: world.GameMap,
+    pos: world.Position,
+    loot_pool: tuple[str, ...],
+    count_range: tuple[int, int] = (1, 2),
+    qty_range: tuple[int, int] = (1, 2),
+) -> None:
+    """Drop loot items at a death position using the given loot pool.
+
+    Shared by both ship combat (:func:`_spawn_loot_drops`) and ground
+    combat (:func:`spacehack.combat._ground._spawn_ground_loot`) so
+    loot-spawning behavior stays consistent between systems.
+    """
+    _items = list(loot_pool)
+    if not _items:
+        _items = ["scrap_metal"]
+    _min_c, _max_c = count_range
+    _count = RNG.randint(_min_c, _max_c)
+    for _ in range(_count):
+        _good_id = RNG.choice(_items)
+        _qty = RNG.randint(qty_range[0], qty_range[1])
+        game_map.entities.append(world.Entity(
+            char="%", fg=(255, 215, 0),
+            pos=pos,
+            name="Loot", width=1, height=1,
+            loot_data={"good_id": _good_id, "quantity": _qty},
+        ))
+
+
 def _remove_dead_entity(
     game_map: world.GameMap,
     enemy_ents: dict,
@@ -44,13 +73,15 @@ def _spawn_loot_drops(
 
     Caps total loot entities at :data:`_MAX_LOOT_ENTITIES` — removes
     the oldest loot first to prevent unbounded entity-list growth.
+    Uses the shared :func:`_spawn_loot_at_position` for the actual
+    entity creation so both ship and ground loot behave identically.
     """
     _spec_loot = getattr(enemy_spec, 'cargo_goods', None) or ()
     _loot_items = list(_spec_loot)
     if not _loot_items:
         _loot_items = ["scrap_metal"]
 
-    _drop_count = min(len(_loot_items), RNG.randint(1, 2))
+    _drop_count = max(1, min(len(_loot_items), RNG.randint(1, 2)))
     _existing_loot = [e for e in game_map.entities if e.loot_data is not None]
     _excess = max(0, len(_existing_loot) + _drop_count - _MAX_LOOT_ENTITIES)
     for _ in range(_excess):
@@ -62,17 +93,17 @@ def _spawn_loot_drops(
             _existing_loot.pop(0)
 
     for _li in range(_drop_count):
-        _loot_id = RNG.choice(_loot_items)
         _lx = target_pos.x + RNG.randint(-1, 1)
         _ly = target_pos.y + RNG.randint(-1, 1)
         if not game_map.is_walkable(_lx, _ly):
             _lx, _ly = target_pos.x, target_pos.y
-        game_map.entities.append(world.Entity(
-            char="%", fg=(255, 215, 0),
-            pos=world.Position(_lx, _ly),
-            name="Loot", width=1, height=1,
-            loot_data={"good_id": _loot_id, "quantity": RNG.randint(1, 3)},
-        ))
+        _loot_pos = world.Position(_lx, _ly)
+        _spawn_loot_at_position(
+            game_map, _loot_pos,
+            tuple(_loot_items),
+            count_range=(1, 1),
+            qty_range=(1, 3),
+        )
 
 
 def can_afford_action(
