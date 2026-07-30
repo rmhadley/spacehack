@@ -279,6 +279,35 @@ def _buy_good(ctx, planet_id, good_id, qty):
 **Exempt:** Render functions (painting to console is inherently a side
 effect), modal runners, and the top-level game loop.
 
+#### 5. Performance awareness
+
+Every player move in space mode calls ``move_npcs``, which iterates all
+entities and may trigger A* pathfinding for multiple squads. Performance
+regressions here are immediately noticeable ("space movement feels
+sluggish").
+
+**When adding or modifying code that runs every player step:**
+
+| Rule | Rationale |
+|------|-----------|
+| **Cache A* paths.** Recompute only on arrival or collision, not every tick. | ``world.find_path()`` explores dozens of cells per call. With 15-30 NPC squads recomputing each tick, this dominates the frame budget. |
+| **Batch entity iteration.** Collect squad maps, faction data, and pirate positions in a single pass over ``game_map.entities``. | Three passes = 3x the iteration cost. Every loop over all entities multiplies with the number of entities. |
+| **Throttle with probability.** Movement, pathfinding, and spawn rolls can skip 60-80% of ticks with minimal visible impact. | NPCs already move with 80% probability per tick — adding another throttle on top is imperceptible to the player. |
+| **Cap per-tick spawns.** Always enforce an upper limit on entity count. | Per-tick spawns compound: ``density × 3`` keeps traffic alive without exponential growth. |
+| **Viewport-cull rendering.** Skip entities outside the visible camera area. | Off-screen entities don't need A* paths or movement updates on the same tick. |
+| **Prefer simple drift over A* for far-away NPCs.** If a squad is >50 cells from the player, skip pathfinding and let them drift toward their target. | The player can't see or interact with those NPCs anyway — precise pathfinding is wasted work. |
+
+**Common perf traps:**
+- Calling ``world.find_path()`` for every squad that needs a new target on the same tick (batch them or stagger them)
+- Iterating ``game_map.entities`` inside a loop that also iterates ``game_map.entities`` (quadratic cost)
+- Building blocked sets or goal lists from scratch every tick when they rarely change (cache until bodies are destroyed)
+- Per-tick log/rendering work that scales with entity count (skip if entity is outside viewport)
+
+**Checklist before shipping a per-tick change:**
+- [ ] Does this add a new O(n) pass over all entities? Can it be folded into an existing pass?
+- [ ] Does this call ``world.find_path()``? Can it skip ticks or cache the result?
+- [ ] Does this spawn new entities? Is there a cap to prevent unbounded growth?
+
 ## System contracts (MANDATORY — silent breakage if violated)
 
 These contracts govern subsystems that have no automated enforcement.
@@ -289,98 +318,139 @@ smoke test won't catch it. Only a playtest will.
 
 ### Save/load contract
 
-The save system serializes ``GameContext`` fields manually, regenerates
-the map on load, and rebuilds entities from spawn metadata. Three rules:
+This is a **roguelike**. Save/load is sacred — every piece of player
+state must survive a save/quit/continue cycle without data loss,
+duplication, or map corruption. There is no checkpoint system, no
+"last autosave" safety net. The single autosave file IS the game.
 
-#### Rule 1: New GameContext field → add to save AND load
+#### Principle
 
-Every field on ``GameContext`` must be explicitly listed in **both**
-``saveload._ctx_to_dict()`` (serialize) **and** ``saveload.load_game()``
-(deserialize). If you add a field to ``GameContext`` but skip either side:
+**All mutable game state must serialize and deserialize correctly.**
+This includes, but is not limited to:
 
-| What you forgot | Result |
-|-----------------|--------|
-| Not in ``_ctx_to_dict`` | Field silently missing from autosave JSON |
-| Not in ``load_game`` | Field resets to default on Continue |
+- Every ``GameContext`` field (in ``saveload._ctx_to_dict()`` and
+  ``load_game()``)
+- Module-level globals that carry session state (see Module-level
+  state contract)
+- The current map and all entities on it
+- Player position, inventory, ship state, mission state, reputation
+- RNG state (so Continue doesn't replay the same random outcomes)
+- Any mode the player can be in (city, space, dungeon, …)
 
-**Checklist when adding a ``GameContext`` field:**
-- [ ] Add to ``_ctx_to_dict()`` — wrap complex types in ``_d()``
-- [ ] Read in ``load_game()`` — use ``.get("key", default)`` for backward compat with old saves
+There is only one rule:
 
-#### Rule 2: New NPC entity → register in ctx.procedural_spawns
+> **Every code change that introduces or modifies mutable state MUST
+> ensure that state survives a save/load cycle.**
 
-Every NPC entity on the space map must have a corresponding
-``ProceduralSpawn`` entry in ``ctx.procedural_spawns``. The spawn's
-``squad_id`` **must** match the entity's ``procedural_squad_id``
-for 1:1 cleanup matching.
+This is not checked by the smoke test. Forgetting it produces a
+silent bug that only a playtest can catch.
 
-**Checklist when adding a new spawn mechanism:**
-- [ ] Append ``ProceduralSpawn(npc_id, pos, squad_id=movement_id)`` to ``ctx.procedural_spawns[system_id]``
-- [ ] Set ``entity.procedural_squad_id = movement_id`` (matches spawn's squad_id)
-- [ ] Set ``entity.npc_ship_id = spec.id`` (for catalog lookups + cleanup matching)
+#### Minimal sniff test
 
-#### Rule 3: NPC killed or despawned → remove its spawn entry
+After any change to game state, run this manual check:
 
-Dead entities are removed from ``game_map.entities`` but their spawn
-entry in ``ctx.procedural_spawns`` persists **until explicitly cleaned
-up**. If a spawn entry outlives its entity, the NPC respawns on the
-next save/load cycle.
+1. Reach the modified state (e.g. enter a new mode, interact with a
+   new system, take an action that modifies the new state)
+2. Save and quit (ESC from the main game loop)
+3. Continue from the title menu
+4. Verify the game is in the **exact same state** — same map, same
+   position, same inventory, same progress, same entities alive/dead
 
-**Cleanup sites (both must exist):**
+If any piece of state is wrong, the save/load contract is violated.
 
-| Event | Location | Matching strategy |
-|-------|----------|-------------------|
-| Combat kill | ``combat/_weapons.py`` per-kill handler | ``(squad_id, npc_id)`` — exact 1:1 |
-| Merchant despawn | ``npc_ships.py`` move_npcs() | ``(npc_id, position)`` — type + cell |
+#### Common gotchas (from real bugs)
 
-**Checklist when adding a new NPC removal event:**
-- [ ] Add spawn cleanup at the removal site
-- [ ] Match by ``(squad_id, npc_id)`` for 1:1 precision (preferred), or ``(npc_id, position)`` as fallback
-- [ ] Bounty spawns live in ``ctx.bounty_spawns``, not ``procedural_spawns`` — clean those up via ``navigation._remove_bounty_spawn()``
+| Pattern | How it breaks |
+|---------|---------------|
+| Adding a ``GameContext`` field without updating both ``_ctx_to_dict()`` and ``load_game()`` | Field silently missing from save JSON (``_ctx_to_dict``) or resets to default (``load_game``). |
+| Adding module-level mutable state without save/load support | On Continue the global retains its default value (e.g.
+  ``current_solar_system_id`` stays ``"sol"`` instead of the saved
+  system). |
+| Spawning entities without registering them for save/load sync | Entities despawned on load (not recreated) or respawn on top of
+  existing ones (duplication). |
+| Adding a new game mode without wiring its map into the save file | Loading produces a wrong map (e.g. Earth instead of dungeon) with
+  the old mode's entities scattered across it. |
 
-#### Sniff test for save/load bugs
-
-After any change touching spawns, cleanup, or GameContext fields:
-1. Start a new game, launch to space, kill an NPC
-2. Save (land on a planet) and quit
-3. Continue — the killed NPC should NOT be on the map
-4. Other NPCs that were alive should still be present
+**Checklist before shipping any change:**
+- [ ] Does this change introduce or modify mutable state? (If no, stop here.)
+- [ ] Is every new/modified field serialized in ``saveload.save_game()``?
+- [ ] Is every new/modified field deserialized in ``saveload.load_game()``?
+- [ ] Do module-level globals get saved/restored? (See Module-level state contract.)
+- [ ] Does the sniff test pass? (Save → quit → Continue → verify exact state.)
 
 ---
 
 ### Game guide contract
 
-The game guide (``?`` key, ``help.py``) has a ``GUIDE_SECTIONS`` tuple
-of ``GuideSection`` objects. Each section explains one system to the
-player.
+The in-game guide (``?`` key, ``help.py``) is the player's only
+built-in documentation. Every player-facing feature must have a
+corresponding ``GuideSection`` that explains how it works. If the
+guide is stale, the player has no way to learn the system.
 
-**When you add, change, or remove a player-facing feature,** you MUST
-update the corresponding guide section. If a new system has no existing
-section, add one and append it to ``GUIDE_SECTIONS``.
+#### Principle
 
-**Checklist when shipping a feature:**
-- [ ] Does an existing section cover this system? Update its ``body`` text
-- [ ] Is this a new system? Create a ``_GUIDE_<NAME>`` section + append to ``GUIDE_SECTIONS``
-- [ ] Are keybindings affected? Update ``_GUIDE_CONTROLS``
-- [ ] Are formulas/numbers changed? Update the relevant section's numbers
-- [ ] Keep body text self-contained — cross-reference other sections by name ("see Trading & Economy")
-- [ ] Use CP437-safe characters only (``#`` not ``█``, ``|`` not ``│``, ``-`` not ``─``)
+**Every player-facing feature MUST have an up-to-date guide entry.**
+
+> **Any code change that adds, changes, or removes player-facing
+> behavior MUST also update the guide.** If the affected system has
+> an existing section, update it. If it's a new system, add a section
+> and append it to ``GUIDE_SECTIONS``.
+
+#### Minimal sniff test
+
+Open the guide (``?`` from the main game loop) and verify:
+1. The new/changed feature has a section
+2. The section's body text accurately describes the current behavior
+3. Keybindings, formulas, and numbers match the implementation
+
+#### Common gotchas
+
+| Pattern | How it breaks |
+|---------|---------------|
+| Adding a new interaction (keybinding, bump action, modal) without updating the guide | Player can't discover the feature exists. |
+| Changing formulas (damage, prices, XP curves) without updating numbers in the relevant section | Player sees wrong numbers in the guide — trust erodes. |
+| Removing a feature without removing or updating its section | Dead section misleads the player into thinking a feature still exists. |
+| Adding a section with Unicode box-drawing chars (``│``, ``─``, ``█``) | Characters don't render on the CP437 tilesheet — garbled display. |
+
+**Checklist before shipping:**
+- [ ] Does this change affect player-facing behavior? (If no, stop here.)
+- [ ] Is the affected guide section updated? Or a new section added?
+- [ ] Do keybindings, formulas, and numbers match the implementation?
 
 ---
 
 ### Module-level state contract
 
-Only two module-level globals carry session-persistent state:
+Module-level mutable globals are a deliberate exception to the
+``ctx``-first pattern — each one must be explicitly managed across
+New Game and Continue. Currently two such globals exist:
 
-| Variable | Module | Contract |
-|----------|--------|----------|
-| ``current_solar_system_id`` | ``solar_system.py`` | Reset to ``"sol"`` on New Game via ``set_current_solar_system()``. Restored from save on Continue. |
-| ``RNG`` | ``engine.py`` | Fresh ``seed_rng(os.urandom())`` on New Game. State saved/restored on Continue via ``RNG.getstate()`` / ``RNG.setstate()``. |
+| Variable | Module | Reset (New Game) | Save | Restore (Continue) |
+|----------|--------|-----------------|------|--------------------|
+| ``current_solar_system_id`` | ``solar_system.py`` | ``set_current_solar_system("sol")`` | auto via system_id param | ``solar_system_module.current_solar_system_id = _system_id`` |
+| ``RNG`` | ``engine.py`` | ``seed_rng(os.urandom())`` | ``RNG.getstate()`` | ``RNG.setstate(...)`` |
 
-**When adding new module-level mutable state,** you MUST:
-- [ ] Reset it in the New Game path (``__main__.py`` new-game setup block)
-- [ ] Save it in ``saveload.save_game()``
-- [ ] Restore it in ``saveload.load_game()``
+#### Principle
+
+**Every module-level mutable global must survive New Game AND
+Continue.** Neither path is optional.
+
+> **Adding a new module-level global is a last resort.** Prefer
+> ``GameContext`` fields first. If a global is unavoidable, you
+> MUST wire all three lifecycle events.
+
+#### Common gotchas
+
+| Pattern | How it breaks |
+|---------|---------------|
+| Adding a module-level global without resetting it on New Game | Starting a new game after Continue carries over stale state from the previous session. |
+| Adding a global without saving/restoring it | On Continue the global silently reverts to its Python default — the game behaves as though the player never advanced. |
+
+**Checklist when adding a new module-level global:**
+- [ ] Is there really no way to put this on ``GameContext`` instead?
+- [ ] Reset in ``__main__.py`` new-game setup block
+- [ ] Serialize in ``saveload.save_game()``
+- [ ] Deserialize + restore in ``saveload.load_game()``
 
 ---
 

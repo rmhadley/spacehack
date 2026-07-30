@@ -18,7 +18,6 @@ from . import message_log as _ml
 from . import solar_system as _solar_module
 from . import world
 from .data.npc_ships import find_npc_ship as _find_npc_ship
-from .faction import get_attitude as _get_attitude
 from .game_context import GameContext, ProceduralSpawn, NpcFlashEvent
 
 
