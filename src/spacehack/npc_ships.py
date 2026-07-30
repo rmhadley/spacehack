@@ -170,6 +170,12 @@ def _spawn_derelict(
     return True
 
 
+# Radius (cells) around the player's arrival body to exclude from
+# initial NPC placement. NPCs spawned from other bodies will be
+# placed outside this radius.
+SPAWN_EXCLUSION_RADIUS: int = 12
+
+
 def spawn_npcs(
     ctx: GameContext,
     game_map: world.GameMap,
@@ -241,6 +247,18 @@ def spawn_npcs(
 
     # Build body goals once, shared by all active NPC types.
     _body_goals = _build_body_goals(_system)
+
+    # Exclude the arrival body's goal from NPC spawn origins so
+    # NPC groups can't originate from the exact body the player
+    # just arrived at. The arrival body's goal cell is the same
+    # position as the player's ship — if the exclusion zone didn't
+    # filter it out during the randint(-4,4) spread, this prevents
+    # it from being chosen at all.
+    if player_spawn_exclusion:
+        _body_goals = [
+            g for g in _body_goals
+            if (g[0], g[1]) not in player_spawn_exclusion
+        ]
 
     # Roll which NPC types appear from the weighted table.
     _active_types: list[str] = []

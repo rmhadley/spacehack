@@ -1013,11 +1013,11 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     # Look up the destination gate FIRST so we can exclude its
     # area from NPC spawns — the player shouldn't arrive surrounded.
     dest_jp = solar_system_module.find_jump_point(target_jp_id, system=target_system)
+    from .npc_ships import SPAWN_EXCLUSION_RADIUS as _SER, spawn_npcs as _sn
     _spawn_exclusion: set[tuple[int, int]] = set()
-    for _dy in range(-6, 7):
-        for _dx in range(-6, 7):
+    for _dy in range(-_SER, _SER + 1):
+        for _dx in range(-_SER, _SER + 1):
             _spawn_exclusion.add((dest_jp.pos.x + _dx, dest_jp.pos.y + _dy))
-    from .npc_ships import spawn_npcs as _sn
     _sn(ctx, new_map, target_system_id, player_spawn_exclusion=_spawn_exclusion)
     ship_record = ship_module.find_ship(ctx.player_owned_ship.ship_id)
     new_pos = solar_system_module.place_jumped_ship(ship_record, dest_jp)
