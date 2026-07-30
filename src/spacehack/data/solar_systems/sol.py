@@ -21,7 +21,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import JumpPoint, SolarSystem
+from . import EnemySpawn, JumpPoint, SolarSystem
 
 
 # Anchor positions for Sol + the eight planets on the 200x140 map.
@@ -157,6 +157,10 @@ SYSTEM: SolarSystem = SolarSystem(
     jump_points=_jump_points,
     stations=(),                  # no stations near Sol yet (future: Earth Orbital Station)
     stars=_stars,
+    enemies=(
+        # Derelict scout — first boardable test ship, just south of Earth.
+        EnemySpawn(enemy_id="derelict_scout", pos=world.Position(140, 43), patrol_radius=0),
+    ),
     npc_spawn_chance=0.7,
     npc_spawn_table=(("merchant_hauler", 0.9), ("pirate_scout", 0.4)),
     npc_density=2,

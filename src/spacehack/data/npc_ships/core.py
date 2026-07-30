@@ -8,6 +8,33 @@ from . import NpcShipSpec
 
 
 NPC_SHIPS: tuple[NpcShipSpec, ...] = (
+    # --- Derelicts (boardable, no crew, no movement) ---
+    NpcShipSpec(
+        id="derelict_scout",
+        name="Derelict Scout",
+        char="%",
+        fg=(180, 180, 200),
+        ship_id="scout",
+        faction="neutral",
+        is_boardable=True,
+        weapons=(),
+        modules=(),
+        cargo_goods=("food_rations", "fuel_cells"),
+        cargo_count=1,
+        ai_aggressiveness=0,
+        ai_preferred_range=0,
+        ai_flee_threshold=0.0,
+        ai_accuracy_bonus=0,
+        ai_dodge_bonus=0,
+        pilot_gunnery=0,
+        pilot_piloting=0,
+        pilot_engineering=0,
+        min_power_gen=0,
+        detect_radius=0,
+        comms_warning_range=0,
+        base_speed=0,
+        comms_lines=(),
+    ),
     # --- Pirates (migrated from data/enemies/) ---
     NpcShipSpec(
         id="pirate_scout",

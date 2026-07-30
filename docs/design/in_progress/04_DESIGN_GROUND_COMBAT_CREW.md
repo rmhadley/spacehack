@@ -200,9 +200,18 @@ Space mode:
 
 **Goal:** Generate a dungeon, board it, walk around, see walls and floors. No enemies, no loot, no fog, no combat. Just a walkable dungeon you can enter and leave.
 
+#### Step 1a: Derelict ship wiring (completed)
+
+- [x] Add `is_boardable: bool = False` to `NpcShipSpec` in `data/npc_ships/__init__.py`
+- [x] Add `derelict_scout` spec to `data/npc_ships/core.py` (faction="neutral", base_speed=0, detect_radius=0, is_boardable=True)
+- [x] Add `EnemySpawn` for derelict near Earth in `data/solar_systems/sol.py` at (140, 43)
+- [x] Add `elif blocker.npc_ship_id:` → `is_boardable` check in `__main__.py` occupied handler (before `npc_id`)
+- [x] Smoke test + commit
+
+#### Step 1b: Dungeon generator (next)
+
 - [ ] Create `dungeon.py` — `generate_dungeon(location_type, seed)` returning `world.GameMap`
 - [ ] Add `DUNGEON_WALL` / `DUNGEON_FLOOR` tile constants to `world.py`
-- [ ] Add derelict entity (`%` glyph) to space map as a hardcoded test spawn near Sol's Earth
 - [ ] Wire bump → "Board?" dialog (`ui.Modal` pattern from `_run_planet_menu`)
 - [ ] Scene swap: save space map + player entity, build dungeon, swap `ctx.game_map` / `ctx.player`
 - [ ] Dungeon movement: reuse `_vim_action` + `try_move` (city-mode style)

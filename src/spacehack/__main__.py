@@ -524,6 +524,17 @@ def _run_game(
                     _open_trade(ctx, current_city_id)
                 elif blocker.mech_terminal:
                     _run_mech_menu(ctx, current_city_id)
+                elif blocker.npc_ship_id:
+                    from .data.npc_ships import find_npc_ship as _find_ship
+                    try:
+                        _npcspec = _find_ship(blocker.npc_ship_id)
+                        if _npcspec.is_boardable:
+                            log.add(f'You approach the {_npcspec.name}. It drifts silently, dark and unpowered.')
+                            log.add('(Boarding — coming in a future update.)')
+                            continue
+                    except KeyError:
+                        pass
+                    log.add(f'You bump into {blocker.name}.')
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
                     # Look up planet's mission tier for filtering offerings.
