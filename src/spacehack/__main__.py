@@ -192,7 +192,25 @@ def _run_game(
         current_city_id: str = ctx.current_city_id
         current_mode = getattr(ctx, '_loaded_mode', 'city')
 
-        if current_mode == 'space':
+        if current_mode == 'dungeon':
+            # Restore space map/player for exit path back to ship.
+            space_game_map = getattr(ctx, '_space_game_map', None)
+            space_player = getattr(ctx, '_space_player', None)
+            # Build city map for landing return path after leaving dungeon.
+            from .data.planets import load_planet as _plp, hangar_anchor as _phang
+            try:
+                city_game_map = _plp(current_city_id)
+                _anchor = _phang(current_city_id)
+                city_player = world.Entity(
+                    char='@', fg=(255, 255, 255),
+                    pos=world.Position(_anchor.x, _anchor.y + 1),
+                    name='Player',
+                )
+                city_game_map.entities.append(city_player)
+            except KeyError:
+                city_game_map = game_map
+                city_player = player
+        elif current_mode == 'space':
             # city_game_map/city_player needed for landing back.
             from .data.planets import load_planet as _plp, hangar_anchor as _phang
             try:
@@ -295,8 +313,14 @@ def _run_game(
         ctx.context.present(console)
         for event in tcod.event.wait():
             if should_quit(event):
-                _save_game(ctx, mode=current_mode, city_id=current_city_id,
-                           system_id=solar_system_module.current_solar_system_id)
+                if current_mode == 'dungeon':
+                    _save_game(ctx, mode='dungeon', city_id=current_city_id,
+                               system_id=solar_system_module.current_solar_system_id,
+                               space_player_pos=(space_player.pos.x, space_player.pos.y)
+                               if space_player else None)
+                else:
+                    _save_game(ctx, mode=current_mode, city_id=current_city_id,
+                               system_id=solar_system_module.current_solar_system_id)
                 return
             # ? = open game guide (checked early so it can't be shadowed).
             if _try_open_guide(event, ctx):

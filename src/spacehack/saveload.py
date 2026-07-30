@@ -135,11 +135,16 @@ def save_game(
     mode: str = "city",
     city_id: str = "earth",
     system_id: str = "sol",
+    space_player_pos: tuple[int, int] | None = None,
 ) -> None:
     """Save the current game state to the autosave file.
 
     ``mode``, ``city_id``, and ``system_id`` are passed by the caller
     so save/load doesn't need to reach into ``_run_game``'s closure locals.
+
+    ``space_player_pos`` is required when ``mode == "dungeon"`` — the
+    player's ship position in the space map, needed to reconstruct the
+    space side on load.
     """
     # Sync procedural spawn positions from actual entity positions on
     # the map.  move_npcs() moves entities but doesn't update the
@@ -201,6 +206,32 @@ def save_game(
     _data["player_pos_x"] = ctx.player.pos.x
     _data["player_pos_y"] = ctx.player.pos.y
     ctx.current_city_id = city_id
+
+    # --- Dungeon mode: serialize dungeon map + space player position ---
+    if mode == "dungeon":
+        _gm = ctx.game_map
+        _dungeon_data = {
+            "width": _gm.width,
+            "height": _gm.height,
+            "tiles": [[c.kind for c in row] for row in _gm.tiles],
+            "entities": [
+                {
+                    "char": e.char,
+                    "fg_r": e.fg[0], "fg_g": e.fg[1], "fg_b": e.fg[2],
+                    "x": e.pos.x, "y": e.pos.y,
+                    "name": e.name,
+                    "loot_data": e.loot_data,
+                    "computer_terminal": e.computer_terminal,
+                }
+                for e in _gm.entities if e.char != '@'
+            ],
+            "seen": _gm.seen,
+            "sight_radius": _gm.sight_radius,
+            "power_restored": getattr(_gm, 'power_restored', False),
+            "space_player_x": space_player_pos[0] if space_player_pos else 0,
+            "space_player_y": space_player_pos[1] if space_player_pos else 0,
+        }
+        _data["dungeon"] = _dungeon_data
 
     # --- Save RNG state so Continue restores the exact same stream ---
     from .engine import RNG
@@ -437,8 +468,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     pos=_ps.pos, name=_espec.name,
                     width=1, height=1,
                     npc_ship_id=_ps.npc_id,
-                    procedural_squad_id=_mid,
                 )
+                # Stationary ships (base_speed=0, e.g. derelicts) don't get
+                # procedural_squad_id so move_npcs ignores them.
+                if getattr(_espec, 'base_speed', 0) > 0:
+                    _ent.procedural_squad_id = _mid
                 _game_map.entities.append(_ent)
 
             # Place player ship entity at saved space position.
@@ -456,6 +490,146 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     pos=world.Position(_pos_x, _pos_y), name='Player',
                 )
             _game_map.entities.append(_player_ent)
+
+    elif _mode == "dungeon":
+        # --- Dungeon mode: rebuild space map first, then dungeon map ---
+        from .data.solar_systems import find_solar_system as _find_sys
+        from .data.npc_ships import find_npc_ship as _find_npc
+
+        # Tile kind → Tile object lookup
+        _TILE_FROM_KIND: dict[str, world.Tile] = {
+            "dungeon_wall": world.DUNGEON_WALL,
+            "dungeon_floor": world.DUNGEON_FLOOR,
+            "dungeon_door": world.DUNGEON_DOOR,
+            "void": world.VOID,
+            "airlock": world.AIRLOCK,
+            "breach": world.BREACH,
+            "cockpit": world.COCKPIT,
+            "engine": world.ENGINE_TILE,
+            "debris": world.DEBRIS,
+            "exit": world.EXIT,
+            "hull_wall": world.HULL_WALL,
+        }
+
+        _dd = _data.get("dungeon", {})
+        if not _dd:
+            _log.add("Dungeon save data missing — loading Earth city.")
+            _mode = "city"
+            _city_id = "earth"
+        else:
+            try:
+                _sys_spec = _find_sys(_system_id)
+            except KeyError:
+                _log.add(f"Save references unknown system '{_system_id}' — loading Earth city.")
+                _mode = "city"
+                _city_id = "earth"
+
+        if _mode == "dungeon":
+            # 1. Build space map (same layout as space mode).
+            _space_map = solar_system_module.make_solar_system(system=_sys_spec)
+            solar_system_module.current_solar_system_id = _system_id
+
+            # Add bounty NPCs.
+            for _bs in _bounty_spawns.get(_system_id, []):
+                try:
+                    _espec = _find_npc(_bs.enemy_id)
+                except (KeyError, ImportError):
+                    continue
+                _display_name = _bs.bounty_target_name or _espec.name
+                _ent = world.Entity(
+                    char=_espec.char, fg=_espec.fg,
+                    pos=_bs.pos, name=_display_name,
+                    width=1, height=1,
+                    npc_ship_id=_bs.enemy_id,
+                )
+                if not _bs.squad_group_id:
+                    _ent.bounty_spawn_id = _bs.spawn_id
+                _space_map.entities.append(_ent)
+
+            # Add procedural NPCs.
+            for _i, _ps in enumerate(_proc_spawns.get(_system_id, [])):
+                try:
+                    _espec = _find_npc(_ps.npc_id)
+                except (KeyError, ImportError):
+                    continue
+                _saved_mids = _proc_mid_map.get(_system_id, [])
+                _mid = (_saved_mids[_i] if _i < len(_saved_mids) and _saved_mids[_i]
+                        else _ps.squad_id
+                        or f"proc_loaded_{_system_id}_{_ps.npc_id}_{_i}")
+                _ent = world.Entity(
+                    char=_espec.char, fg=_espec.fg,
+                    pos=_ps.pos, name=_espec.name,
+                    width=1, height=1,
+                    npc_ship_id=_ps.npc_id,
+                )
+                if getattr(_espec, 'base_speed', 0) > 0:
+                    _ent.procedural_squad_id = _mid
+                _space_map.entities.append(_ent)
+
+            # Place the player's SHIP at the saved space position.
+            _space_px = _dd.get("space_player_x", _pos_x)
+            _space_py = _dd.get("space_player_y", _pos_y)
+            if _owned_ship is not None:
+                _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
+                _space_player_ent = world.Entity(
+                    char=_ship_spec.char, fg=_ship_spec.fg,
+                    pos=world.Position(_space_px, _space_py),
+                    name=f"Your Ship: {_ship_spec.name}",
+                    ship_id=_owned_ship.ship_id, owned=True,
+                )
+            else:
+                _space_player_ent = world.Entity(
+                    char='@', fg=(255, 255, 255),
+                    pos=world.Position(_space_px, _space_py), name='Player',
+                )
+            _space_map.entities.append(_space_player_ent)
+
+            # 2. Rebuild dungeon map from saved data.
+            _dw = _dd.get("width", 1)
+            _dh = _dd.get("height", 1)
+            _raw_tiles: list[list[str]] = _dd.get("tiles", [["void"]])
+            _dungeon_tiles: list[list[world.Tile]] = [
+                [_TILE_FROM_KIND.get(k, world.VOID) for k in row]
+                for row in _raw_tiles
+            ]
+            _dungeon_entities: list[world.Entity] = []
+            for _ed in _dd.get("entities", []):
+                _e = world.Entity(
+                    char=_ed.get("char", "?"),
+                    fg=(_ed.get("fg_r", 255), _ed.get("fg_g", 255), _ed.get("fg_b", 255)),
+                    pos=world.Position(_ed.get("x", 0), _ed.get("y", 0)),
+                    name=_ed.get("name", ""),
+                    width=1, height=1,
+                    loot_data=_ed.get("loot_data"),
+                    computer_terminal=_ed.get("computer_terminal", False),
+                )
+                _dungeon_entities.append(_e)
+
+            _dungeon_map = world.GameMap(
+                width=_dw, height=_dh,
+                tiles=_dungeon_tiles,
+                entities=_dungeon_entities,
+            )
+            _dungeon_map.seen = _dd.get("seen")
+            _dungeon_map.sight_radius = _dd.get("sight_radius", 4)
+            if _dd.get("power_restored", False):
+                _dungeon_map.power_restored = True
+
+            # 3. Create dungeon player entity at saved position.
+            _dungeon_player = world.Entity(
+                char='@', fg=(255, 255, 255),
+                pos=world.Position(_pos_x, _pos_y),
+                name='Player',
+            )
+            _dungeon_map.entities.append(_dungeon_player)
+
+            # 4. Set up return values.
+            _game_map = _dungeon_map
+            _player_ent = _dungeon_player
+            # Store space map/player for ctx assembly later.
+            _saved_space_map = _space_map
+            _saved_space_player = _space_player_ent
+
     else:
         # --- City mode: load planet map ---
         from .data.planets import load_planet as planets_load_planet
@@ -524,6 +698,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.npc_paths = _npc_paths
     _ctx.current_city_id = _city_id
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
+    if _mode == "dungeon":
+        _ctx._space_game_map = _saved_space_map  # type: ignore[attr-defined]
+        _ctx._space_player = _saved_space_player  # type: ignore[attr-defined]
 
     # --- Restore RNG state ---
     _rng_state = _data.get("rng_state")
