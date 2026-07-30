@@ -514,7 +514,8 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 
 # ---------------------------------------------------------------------------
 # NPC auto-comms warning (before combat triggers)
-# ---------------------------------------------------------------------------def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
+# ---------------------------------------------------------------------------
+def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
     """Mark system warned and open comms with the entity.
 
     Shared by all trigger paths — avoids repeating the
