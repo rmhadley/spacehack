@@ -413,32 +413,69 @@ skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
 
 ---
 
-### Phase 5: Ground combat (NEXT)
+### Phase 5: Ground combat — enemy catalog, sight detection, combat loop (COMPLETED)
 
-**Goal:** Walk into an enemy → fight them with ground weapons using the existing combat engine.
+**What shipped:** `GroundEnemySpec` catalog, layout enemy markers, sight-based combat
+  detection, full turn-based ground combat loop, ground combat HUD, loot drops on kill,
+  player death handling, ground HP save/load.
 
-- [ ] Create enemy spawn markers in `.layout` files (e.g., `E` for enemy spawn point)
-- [ ] Place 1-2 enemies per room during `load_layout()` from location type's enemy pool
-- [ ] RNG enemy weapon assignment (knife vs pistol from a pick list)
-- [ ] Walk into enemy → `"occupied"` → ground combat scene swap
-- [ ] Reuse `EnemyInstance` from combat engine — hull=HP, shields=armor
-- [ ] **REFLEXES formula:** hit_chance = weapon.accuracy + (reflexes * 0.5) - target_dodge
-- [ ] **STRENGTH formula:** melee_damage = weapon.damage + (strength * 0.2)
-- [ ] **STAMINA formula:** ground_hp = 20 + stamina * 2; armor_effectiveness = stamina // 10
-- [ ] Enemy death → remove entity from dungeon map (reuse entity removal pattern)
-- [ ] Player death → "You collapse..." → exit dungeon → respawn at ship with 1 HP
-- [ ] Save/restore ground_hp across save/load
-- [ ] Smoke test + commit
+#### Step 1: Ground enemy catalog
+
+- [x] Created `data/ground_enemies/__init__.py` with `GroundEnemySpec` frozen dataclass
+- [x] Created `data/ground_enemies/core.py` with two enemies:
+  - `derelict_scavenger` (char=`s`, HP=20, knife/pistol 50/50, REF=8, STR=12, STA=10, detect=4)
+  - `derelict_guard` (char=`g`, HP=30, kinetic_pistol, REF=10, STR=10, STA=12, detect=5)
+
+#### Step 2: Layout enemy markers
+
+- [x] `ENEMY:` directive parser in `dungeon.py` — format: `ENEMY: s = derelict_scavenger@0.6`
+- [x] Enemy glyphs `s` and `g` added to `_ENTITY_GLYPHS` and `_ENEMY_GLYPHS`
+- [x] `scout_a.layout` updated: `s` in engine room, `g` in mess hall
+- [x] Enemy entities created with `hostile=True` + `ground_enemy_id` during `load_layout()`
+
+#### Step 3: Sight-based detection
+
+- [x] `_detect_ground_combat(ctx, game_map, player_pos)` in `dungeon.py` — checks each hostile
+  entity within `detect_radius` with LOS raycast through walkable tiles (walls/doors block)
+- [x] Wired in `__main__.py` dungeon movement handler (triggers after fog reveal, before exit check)
+- [x] First triggered entity → `run_ground_combat(console, ctx, enemy_entity, game_map)`
+
+#### Step 4: Ground combat loop (`combat/_ground.py`)
+
+- [x] AP pool: **4 per turn** (brisker than ship combat's 3)
+- [x] Movement: vim keys (h/j/k/l/y/u/b/n), 1 AP per cell
+- [x] Hit formula: `weapon.accuracy + reflexes*3 - target_reflexes*2` (clamped 5-95)
+- [x] Damage formula: `weapon.damage + STR//4` (melee only) minus armor DR
+- [x] Player HP: `20 + stamina * 2` (e.g. 40 HP at STA 10)
+- [x] Armor DR: sum of all 5 equipped armor slots
+- [x] No shields, no power pool — ammo-based ranged, infinite melee
+- [x] Ground combat HUD on right panel: player HP, enemy HP/name/distance, AP, weapon
+- [x] Enemy AI: simple attack-if-in-range melee/ranged each turn
+- [x] Flee: 60% flat chance, returns to dungeon at current position
+
+#### Step 5: Combat resolution + loot
+
+- [x] Enemy death → remove entity, `_spawn_ground_loot()` drops `%` at death position (no explosion)
+- [x] Loot pool from `GroundEnemySpec.loot_pool`, 1-2 items per kill, 1-2 qty each
+- [x] XP reward on kill (`xp_reward` field)
+- [x] Player death → `ctx.player_dead = True` → main loop returns to title
+- [x] `ground_hp` / `ground_max_hp` on `GameContext`, serialized in save/load
+- [x] HP persists across multiple combat encounters in one dungeon visit
+- [x] `hostile: bool` and `ground_enemy_id: str` fields added to `world.Entity`
 
 #### Playtest checklist
 
-- [ ] Board derelict → enemy glyphs visible in rooms (when revealed)
-- [ ] Walk into enemy → combat starts with ground HUD (HP bar, weapon name)
-- [ ] Fire equipped weapon → damage formula uses REFLEXES for hit, STRENGTH for melee
-- [ ] Player HP = 20 + stamina * 2 (e.g., 40 HP at stamina 10, 60 at stamina 20)
-- [ ] Kill enemy → "destroyed" message, glyph removed
-- [ ] Player HP hits 0 → "You collapse..." → back in ship, HP=1
-- [ ] Save in space, continue → no ground state leak
+- [ ] `SPACEHACK_DEV=1` → launch from Earth → derelict at (150, 40)
+- [ ] Board derelict → `s` and `g` glyphs visible in rooms (when revealed by fog)
+- [ ] Walk toward enemy within detect_radius → combat auto-triggers on sight
+- [ ] Combat HUD shows player HP and enemy name/HP
+- [ ] Move with h/j/k/l during combat → AP consumed per step
+- [ ] Fire equipped weapon → hit formula uses REFLEXES, damage uses STRENGTH for melee
+- [ ] Kill enemy → no explosion, loot `%` at death spot
+- [ ] Pick up loot → added to cargo
+- [ ] Flee combat → back in dungeon at current position
+- [ ] Player HP hits 0 → death screen, return to title
+- [ ] Save/continue while on derelict → ground HP preserved
 
 ---
 
