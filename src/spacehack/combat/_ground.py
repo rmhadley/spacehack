@@ -20,7 +20,7 @@ from .. import world
 from .. import message_log as _ml
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from ..data.ground_weapons import find_ground_weapon as _find_gw
-from ..data.ground_enemies import find_ground_enemy as _find_ge
+from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
 from ..data.trade_goods import find_trade_good as _find_good
 from ._actions import _remove_dead_entity as _rde
@@ -163,7 +163,7 @@ def _spawn_ground_loot(
 ) -> None:
     """Drop loot at the enemy's death position (no explosion)."""
     try:
-        _spec = _find_ge(enemy_id)
+        _spec = _find_nc(enemy_id)
     except KeyError:
         return
     _pool = _spec.loot_pool
@@ -199,7 +199,7 @@ def run_ground_combat(
         ``\"VICTORY\"``, ``\"DEFEAT\"``, or ``\"FLEE\"``.
     """
     try:
-        _enemy_spec = _find_ge(enemy_entity.ground_enemy_id)
+        _enemy_spec = _find_nc(enemy_entity.npc_char_id)
     except KeyError:
         ctx.log.add("Unknown ground enemy — cannot start combat.")
         return ("FLEE", "")
@@ -351,7 +351,7 @@ def run_ground_combat(
                             )
                             # Remove enemy entity, drop loot
                             _rde(game_map, {0: enemy_entity}, 0)
-                            _spawn_ground_loot(game_map, _enemy_pos, enemy_entity.ground_enemy_id)
+                            _spawn_ground_loot(game_map, _enemy_pos, enemy_entity.npc_char_id)
                             # XP reward
                             from ..xp import add_xp as _add_xp
                             _add_xp(ctx, _enemy_spec.xp_reward)
@@ -359,7 +359,7 @@ def run_ground_combat(
                             if hasattr(ctx, 'player_counters'):
                                 ctx.player_counters.total_kills += 1
                             _outcome = "VICTORY"
-                            _defeated_id = enemy_entity.ground_enemy_id
+                            _defeated_id = enemy_entity.npc_char_id
                             break
                     else:
                         ctx.log.add_colored(

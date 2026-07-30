@@ -187,9 +187,9 @@ _GLYPH_TILES: dict[str, world.Tile] = {
     "}": world.HULL_WALL,
 }
 
-# Enemy spawn glyphs — placed as hostile entities, rendered as floor.
+# Enemy spawn glyphs — placed as NPC char entities, rendered as floor.
 # Using distinct glyphs so they don't conflict with engine (E) or other markers.
-_ENEMY_GLYPHS: set[str] = {"s", "g"}
+_ENEMY_GLYPHS: set[str] = {"r", "R"}
 
 # Glyphs that place entities rather than tiles.
 _ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
@@ -387,8 +387,7 @@ def load_layout(
                             pos=world.Position(col_idx, row_idx),
                             name="",  # set later from spec
                             width=1, height=1,
-                            hostile=True,
-                            ground_enemy_id=_eid,
+                            npc_char_id=_eid,
                         ))
                 continue
 
@@ -649,23 +648,29 @@ def animate_breach(
 
 
 def _detect_ground_combat(ctx, game_map: world.GameMap, player_pos: world.Position):
-    """Check for hostile entities within detect radius + LOS.
+    """Check for hostile NPC chars within detect radius + LOS.
 
-    Returns the first hostile entity that triggers, or ``None``.
+    Hostility is determined by faction reputation — if the NPC's
+    faction attitude is ``"enemy"`` or ``"disliked"``, combat triggers.
+    Returns the first hostile entity, or ``None``.
     """
     import math as _m
-    from .data.ground_enemies import find_ground_enemy as _fge
+    from .data.npc_chars import find_npc_char as _fnc
+    from . import faction as _faction
     for _e in game_map.entities:
         if _e is ctx.player:
             continue
-        if not getattr(_e, 'hostile', False):
-            continue
-        _eid = getattr(_e, 'ground_enemy_id', '')
+        _eid = getattr(_e, 'npc_char_id', '')
         if not _eid:
             continue
         try:
-            _spec = _fge(_eid)
+            _spec = _fnc(_eid)
         except KeyError:
+            continue
+        # Check faction attitude for hostility
+        _rep = ctx.faction_reputation.get(_spec.faction, 0)
+        _attitude = _faction.get_attitude(_rep)
+        if _attitude not in ("enemy", "disliked"):
             continue
         _dist = _m.hypot(player_pos.x - _e.pos.x, player_pos.y - _e.pos.y)
         if _dist <= 0 or _dist > _spec.detect_radius:

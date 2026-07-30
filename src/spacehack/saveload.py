@@ -245,6 +245,7 @@ def save_game(
                     "name": e.name,
                     "loot_data": e.loot_data,
                     "computer_terminal": e.computer_terminal,
+                    "npc_char_id": e.npc_char_id,
                 }
                 for e in _gm.entities if e.char != '@'
             ],
@@ -626,6 +627,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     width=1, height=1,
                     loot_data=_ed.get("loot_data"),
                     computer_terminal=_ed.get("computer_terminal", False),
+                    npc_char_id=_ed.get("npc_char_id", ""),
                 )
                 _dungeon_entities.append(_e)
 

@@ -19,13 +19,13 @@ MAP
     #......#............############...############
     #.....1d............#.....#....#...#....#.....#################
 {###}......#............#.....d....d...d....d.....#...............#
-{##}E...s..#............#.....#....#...#....#.....#.......3.......#
+{##}E...r..#............#.....#....#...#....#.....#.......3.......#
 {##}########............#############d####################d##############
    #.......#............#.........................................#.....#
    a.......a............d.........................................d....C#
    #.......#............#.........................................#.....#
 {##}########............#############d####################d##############
-{##}E......#............#....g.......2............#.......3.......#
+{##}E......#............#....R.......2............#.......3.......#
 {###}......#............#.........................#...............#
     #.....1d............#.........................#################
     #......#............#.........................#
@@ -50,9 +50,9 @@ TILE: C = cockpit
 TILE: E = engine
 TILE: > = exit
 
-# Enemy spawn markers (s = scavenger at 60%, g = guard at 40%)
-ENEMY: s = derelict_scavenger@0.6
-ENEMY: g = derelict_guard@0.4
+# Enemy spawn markers (r = pirate raider at 60%, R = pirate rifleman at 40%)
+ENEMY: r = pirate_raider@0.6
+ENEMY: R = pirate_rifleman@0.4
 
 # Loot mappings
 LOOT: 1 = engine_room
@@ -69,7 +69,7 @@ COLOUR: d = (100, 220, 255)     # door — cyan glow
 COLOUR: C = (255, 200, 80)      # cockpit computer — warm gold
 COLOUR: E = (180, 200, 220)     # engine — muted blue-white
 COLOUR: > = (100, 255, 120)     # exit — bright green arrow
-COLOUR: s = (200, 150, 100)     # scavenger — warm amber
-COLOUR: g = (150, 200, 150)     # guard — muted green
+COLOUR: r = (220, 120, 80)      # pirate raider — rust-orange
+COLOUR: R = (200, 80, 80)       # pirate rifleman — faded red
 COLOUR: { = (140, 180, 210)     # hull bracket — cool steel blue, slightly brighter than #
 COLOUR: } = (140, 180, 210)     # hull bracket -- cool steel blue, slightly brighter than #
