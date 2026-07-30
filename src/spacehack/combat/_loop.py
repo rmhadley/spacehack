@@ -323,7 +323,8 @@ def run_combat(
                 if _flee_result == "FLEE":
                     _result = "FLEE"
                     break
-                # Failed flee — end turn (AP will be zeroed by rules)
+                # Failed flee — zero AP so enemy gets their turn
+                rules.set_player_ap(ctx, 0)
                 break
 
         if _result is not None:

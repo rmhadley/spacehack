@@ -540,6 +540,12 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 # State sync
 # ---------------------------------------------------------------------------
 
+def set_player_ap(ctx, ap: int) -> None:
+    """Set the player's AP to a specific value (used by flee-on-failure)."""
+    global _player_ap
+    _player_ap = ap
+
+
 def reset_turn(ctx) -> None:
     """Reset player and enemy AP for a new turn."""
     global _player_ap, _enemy_ap
