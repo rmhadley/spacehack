@@ -240,6 +240,7 @@ def _run_game(
         character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
         ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
         ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
+        ctx.ground_stats = character.starting_ground_stats(species_id, class_id)
         city_game_map = game_map
         city_player = player
         current_mode: str = 'city'
