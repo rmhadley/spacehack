@@ -1,68 +1,75 @@
-# DESIGN: Ground Combat, Crew & Dungeon Exploration
+# DESIGN: Ground Combat, Crew & Dungeon Exploration — Framework
 
-> **Updated**: After codebase audit — scope corrected downward. Most systems already exist.
+> **Scope**: Solid, testable framework — not full content. Crew and cybernetics deferred to a
+> future content pass. This pass ships: dungeon generator, boarding flow, fog of war,
+> basic ground combat with 3 weapons + 2 enemies, and loot pickup.
+>
+> **Updated**: Pre-implementation audit complete. Phases rewritten with playtest checklists.
 
 ## Overview
 
-A new content layer that reuses the existing combat engine, map system, and landing flow. The player docks at a derelict ship or alien structure, enters on foot with a crew, and explores a procedurally-generated interior with ground combat and loot.
+A new content layer that reuses the existing combat engine, map system, and landing flow.
+The player docks at a derelict ship, enters on foot, and explores a procedurally-generated
+interior with ground combat and loot. **No crew, no cybernetics, no terminals — those are
+Phase 5+ content expansions.**
 
 ## What already exists (reusable, confirmed by audit)
 
 | System | How ground combat reuses it |
 |--------|-----------------------------|
 | **`world.Entity`** | Generic dataclass (`char`, `fg`, `pos`, `name`, `width`, `height`, `owned`, `loot_data`, etc.). NOT frozen — `pos` is reassigned in-place. Ground player = `Entity(char='@')`. Ground enemies = `Entity(npc_ship_id='ground_enemy_...')`. No new entity class needed. |
-| **`world.GameMap`** | ``width`` × ``height`` tile grid + entity list. Dungeon map = ``GameMap`` with ``Tile(kind="wall"/"floor")`` tiles. Same ``in_bounds``, ``is_walkable``, ``entity_at`` — all work unchanged. |
-| **`world.Tile`** | Frozen dataclass: ``kind``, ``char``, ``walkable``, ``fg``, ``bg``. We define ``DUNGEON_WALL`` and ``DUNGEON_FLOOR`` tile constants (same pattern as ``WALL``/``FLOOR``). |
-| **`world.try_move`** | Returns ``("moved"|"wall"|"occupied", blocker)``. Dungeon movement reuses this directly — walls block, entities block, floor is walkable. |
-| **`world.render_world`** | Paints ``GameMap`` tiles + entities into console. For dungeons ≤ 40×40 we can use this directly (no scrolling needed for v1). For scrollable dungeons, ``render_world_view`` accepts ``camera_x``/``camera_y``. |
-| **Scene-swap pattern** (`city.py`) | ``_launch_to_space`` removes player from city map, builds space map, places ship entity, returns ``(new_map, new_player)``. Dungeon boarding follows same pattern: remove player from space map, build dungeon, place ground entity, return. |
-| **Planet bump flow** (`__main__.py`) | Bump planet → ``_run_planet_menu`` → LAND → scene swap. Derelict boarding = bump derelict → "Board?" dialog → scene swap. Same modal + entity-list splice pattern. |
-| **`ui.Modal`** | ``Modal(ctx.context, console).run(render_fn, update_fn)`` — boarding dialog, loot pickup, any dungeon interaction reuses this. |
-| **`open_loot_pickup`** (`trade.py`) | Already operates on ``loot_data`` dicts on entities. Dungeon loot containers = ``Entity(char='%', loot_data={"good_id": ..., "quantity": ...})``. No changes needed. |
-| **`input_helpers._vim_action`** | Translates KeyDown → ``(dx, dy)`` via ``world.VIM_DELTAS``. Dungeon movement reuses this directly — same h/j/k/l/y/u/b/n keys. |
-| **`combat/_types.py` EnemyInstance** | Has ``hull`` (reused as HP), ``weapons``, ``pos``, ``ap_remaining``, ``spec_id``. Already generic enough for ground combatants — shields become armor DR. |
-| **`combat/_loop.py` run_combat** | Accepts ``enemy_specs``, ``enemy_positions``, ``game_map``, ``log``. Could be reused for ground combat if we feed it ground-compatible weapon/stats data. |
-| **Data catalog pattern** | Every catalog: frozen ``@dataclass`` + ``_BY_ID: dict[str, Spec]`` + ``find_*(id)``. Ground weapons/armor/enemies follow the exact same pattern. |
+| **`world.GameMap`** | `width` × `height` tile grid + entity list. Dungeon map = `GameMap` with `Tile(kind="wall"/"floor")` tiles. Same `in_bounds`, `is_walkable`, `entity_at` — all work unchanged. |
+| **`world.Tile`** | Frozen dataclass: `kind`, `char`, `walkable`, `fg`, `bg`. We define `DUNGEON_WALL` and `DUNGEON_FLOOR` tile constants (same pattern as `WALL`/`FLOOR`). |
+| **`world.try_move`** | Returns `("moved"|"wall"|"occupied", blocker)`. Dungeon movement reuses this directly — walls block, entities block, floor is walkable. |
+| **`world.render_world`** | Paints `GameMap` tiles + entities into console. For dungeons ≤ 40×40 we can use this directly (no scrolling needed for v1). For scrollable dungeons, `render_world_view` accepts `camera_x`/`camera_y`. Fog of war adds an optional `seen` parameter — no new render function. |
+| **Scene-swap pattern** (`city.py`) | `_launch_to_space` removes player from city map, builds space map, places ship entity, returns `(new_map, new_player)`. Dungeon boarding follows same pattern: remove player from space map, build dungeon, place ground entity, return. |
+| **Planet bump flow** (`__main__.py`) | Bump planet → `_run_planet_menu` → LAND → scene swap. Derelict boarding = bump derelict → "Board?" dialog → scene swap. Same modal + entity-list splice pattern. |
+| **`ui.Modal`** | `Modal(ctx.context, console).run(render_fn, update_fn)` — boarding dialog, loot pickup, any dungeon interaction reuses this. |
+| **`open_loot_pickup`** (`trade.py`) | Already operates on `loot_data` dicts on entities. Dungeon loot containers = `Entity(char='%', loot_data={"good_id": ..., "quantity": ...})`. No changes needed. |
+| **`input_helpers._vim_action`** | Translates KeyDown → `(dx, dy)` via `world.VIM_DELTAS`. Dungeon movement reuses this directly — same h/j/k/l/y/u/b/n keys. |
+| **`combat/_types.py` EnemyInstance`** | Has `hull` (reused as HP), `weapons`, `pos`, `ap_remaining`, `spec_id`. Already generic enough for ground combatants — shields become armor DR. |
+| **`combat/_loop.py` run_combat`** | Accepts `enemy_specs`, `enemy_positions`, `game_map`, `log`. Could be reused for ground combat if we feed it ground-compatible weapon/stats data. |
+| **Data catalog pattern** | Every catalog: frozen `@dataclass` + `_BY_ID: dict[str, Spec]` + `find_*(id)`. Ground weapons/enemies follow the exact same pattern. |
 
 ## Pre-implementation audit (MANDATORY — knowledge.md)
 
 ### Existing classes / modules to extend or reuse
 
 1. **Scene swap: `city._launch_to_space` → `_board_derelict`**
-   The launch pattern (remove player from source map, build destination map, place entity, return tuple) is a template for dungeon boarding. The key difference: dungeon boarding has no ship animation — just an instant scene swap. We should extract a minimal ``_swap_scene(ctx, new_map, new_player, mode)`` helper rather than copy-paste the 40-line ``_launch_to_space`` body.
+   The launch pattern (remove player from source map, build destination map, place entity, return tuple) is a template for dungeon boarding. The key difference: dungeon boarding has no ship animation — just an instant scene swap. We should extract a minimal `_swap_scene(ctx, new_map, new_player, mode)` helper rather than copy-paste the 40-line `_launch_to_space` body.
 
 2. **Map building: `world.make_building` → `dungeon.py` room carving**
-   ``make_building`` carves a labeled rectangle with walls, doors, and interior. The dungeon generator carves rooms with walls, corridors, and doors. Both return tile changes + entity lists. The dungeon generator is new code but the *pattern* (build a tile grid, carve shapes, return ``(tile_changes, entities)``) is identical.
+   `make_building` carves a labeled rectangle with walls, doors, and interior. The dungeon generator carves rooms with walls, corridors, and doors. Both return tile changes + entity lists. The dungeon generator is new code but the *pattern* (build a tile grid, carve shapes, return `(tile_changes, entities)`) is identical.
 
 3. **Render: `world.render_world` → fog-aware variant**
-   ``render_world`` iterates tiles then entities into the console. For fog of war we need a variant that checks ``seen[y][x]`` before painting. Rather than duplicating the 30-line render loop, add an optional ``seen: list[list[bool]] | None = None`` parameter. Unseen = black tile; seen = normal render.
+   `render_world` iterates tiles then entities into the console. For fog of war we add an optional `seen: list[list[bool | None]] | None = None` parameter rather than duplicating the 30-line render loop. Unseen = black tile; seen-out-of-sight = dim; seen = normal.
 
 4. **Entity construction: `world.Entity` kwargs**
-   ``Entity`` already supports ``npc_ship_id``, ``loot_data``, ``name``, ``char``, ``fg``, ``pos``. Ground entities (player, enemies, loot containers, exit markers) use the same class with different field combinations. No subclassing needed — just different construction arguments.
+   `Entity` already supports `npc_ship_id`, `loot_data`, `name`, `char`, `fg`, `pos`. Ground entities (player, enemies, loot containers, exit markers) use the same class with different field combinations. No subclassing needed.
 
 5. **Combat: `EnemyInstance` as ground combatant**
-   The existing ``EnemyInstance`` has ``hull`` (reuse as ground HP), ``shields`` (reuse as armor DR), ``weapons``, ``pos``, ``ap_remaining``. ``init_combat_state`` already builds these from specs. A ground-combat variant of ``init_combat_state`` feeds ground weapon stats and armor values.
+   The existing `EnemyInstance` has `hull` (reuse as ground HP), `shields` (reuse as armor DR), `weapons`, `pos`, `ap_remaining`. `init_combat_state` already builds these from specs. A ground-combat variant feeds ground weapon stats and armor values.
 
 6. **Movement: `world.try_move` unchanged**
-   Same ``VIM_DELTAS``, same ``try_move`` with ``("moved"|"wall"|"occupied", blocker)`` return. The dungeon game loop calls this identically to city mode.
+   Same `VIM_DELTAS`, same `try_move` with `("moved"|"wall"|"occupied", blocker)` return. The dungeon game loop calls this identically to city mode.
 
 7. **Loot: `trade.open_loot_pickup` unchanged**
-   Already reads ``loot_data`` dicts on entities. Dungeon loot containers set ``loot_data`` on construction. No changes needed.
+   Already reads `loot_data` dicts on entities. Dungeon loot containers set `loot_data` on construction. No changes needed.
 
 ### Three duplication hotspots + DRY strategies
 
 #### Hotspot 1: Scene-swap boilerplate
 
-**Risk:** Copying ``_launch_to_space``'s 40-line body for dungeon boarding duplicates: entity-list management (remove from old map, add to new), map generation, entity placement, mode tracking. Every future "swap scene" feature would repeat this.
+**Risk:** Copying `_launch_to_space`'s 40-line body for dungeon boarding duplicates: entity-list management, map generation, entity placement, mode tracking.
 
-**DRY strategy:** Extract a ``_swap_scene(ctx, new_map, new_entity, mode)`` helper (∼8 lines):
+**DRY strategy:** Extract a `_swap_scene(ctx, new_map, new_entity, mode)` helper (~8 lines):
 
 ```python
 def _swap_scene(ctx, new_map, new_entity, mode):
     """Atomically swap ctx to a new map, player entity, and mode."""
     ctx.game_map = new_map
     ctx.player = new_entity
-    ctx._current_ground_mode = mode  # 'city' | 'space' | 'dungeon'
+    ctx._current_mode = mode  # 'city' | 'space' | 'dungeon'
     new_map.entities.append(new_entity)
     return (new_map, new_entity)
 ```
@@ -71,9 +78,9 @@ The current launch/land flow pre-animates the ship entity and spawns NPCs before
 
 #### Hotspot 2: Entity construction drift
 
-**Risk:** Ground player, ground enemies, loot containers, exit markers all construct ``Entity(...)`` with slightly different keyword combinations. Over 5+ phases these tend to drift (different defaults, inconsistent field population).
+**Risk:** Ground player, ground enemies, loot containers, exit markers all construct `Entity(...)` with slightly different keyword combinations.
 
-**DRY strategy:** Use explicit keyword arguments at every construction site. ``Entity`` already has sensible defaults (``width=1, height=1, ship_id='', npc_id='', ...``). Don't create factory functions for a 10-arg dataclass — the dataclass IS the factory. The DRY check is: every construction site uses keyword args, never positional beyond ``char`` and ``fg``:
+**DRY strategy:** Use explicit keyword arguments at every construction site. `Entity` already has sensible defaults. Don't create factory functions for a 10-arg dataclass — the dataclass IS the factory. Every construction site uses keyword args, never positional beyond `char` and `fg`:
 
 ```python
 # Good — keywords, self-documenting
@@ -85,9 +92,9 @@ Entity('@', (255,255,255), start_pos, 'Player', 1, 1)
 
 #### Hotspot 3: Render pass for fog of war
 
-**Risk:** Copying ``render_world``'s 30-line tile+sprite loop into a ``render_fog_view`` duplicates the iteration, entity culling, and footprint logic. If ``render_world`` changes (e.g. entity sorting), the fog variant silently diverges.
+**Risk:** Copying `render_world`'s 30-line tile+sprite loop into a `render_fog_view` duplicates the iteration, entity culling, and footprint logic.
 
-**DRY strategy:** Add an optional ``seen`` parameter to ``render_world`` (not a separate function):
+**DRY strategy:** Add an optional `seen` parameter to `render_world` (not a separate function):
 
 ```python
 def render_world(console, game_map, *, region_x, region_y, region_w, region_h,
@@ -96,296 +103,194 @@ def render_world(console, game_map, *, region_x, region_y, region_w, region_h,
     # False = explored-out-of-sight (dim), True = visible (normal)
 ```
 
-This keeps the render logic in one place. The caller builds the ``seen`` array from the dungeon's exploration state. For city/space mode, ``seen=None`` skips the check entirely (no perf impact).
+For city/space mode, `seen=None` skips the check entirely (no perf impact).
 
-## What's genuinely NEW
-
-| New piece | LOC estimate | Why it's new |
-|-----------|-------------|--------------|
-| **Dungeon map generator** (`dungeon.py`) | ~200 | Procedural room-and-corridor layout. No existing equivalent. |
-| **Fog of war render pass** | ~50 | Unexplored tiles rendered black; explored-but-out-of-sight dimmed. New render state + pass. |
-| **Ground weapon data** | ~30 entries | `GroundWeaponSpec` dataclass + weapons tuple. Trivial (same pattern as lasers.py). |
-| **Ground armor data** | ~10 entries | `GroundArmorSpec` dataclass + armor tuple. Trivial. |
-| **Ground enemy data** | ~10 entries | `GroundEnemySpec` dataclass + enemy tuple. Trivial (same pattern as NPC ships). |
-| **Crew recruitment story content** | ~6 NPC specs + dialogue | Hand-crafted content, not engine work. |
-| **Cybernetic data** | ~6 entries | `ModuleSpec` entries with `slot_type="cybernetic"` + new bonus fields. Trivial. |
-| **Melee AI tweak** | ~10 lines | Prefer `preferred_range=1` when equipped with melee weapon. |
-| **Turn order extension** | ~15 lines | Insert crew turns between player and enemies in `run_combat`. |
-| **Ground stat fields on `GameContext`** | ~4 fields | `ground_hp`, `ground_ap`, `ground_armor`, `melee_skill`, `ranged_skill`, `tech_skill` |
-
-**Total new code:** ~350-400 lines of engine code + ~100 lines of data = **~500 lines total**.
-
-This is comparable to adding a new mission type (like bounties), not a whole new game.
-
-## What a ground combat session looks like
-
-```
-Space mode:
-  [%] Derelict debris drifting near Mars
-  
-  Bump it → "Board the derelict? Your ship will be docked outside."
-  
-  Yes → Scene swap (same pattern as landing on a planet):
-    - Player entity becomes '@' on foot
-    - Dungeon map with walls, corridors, rooms
-    - Fog of war (unexplored = black)
-    - Ground enemies patrol rooms
-  
-  Move with h/j/k/l/y/u/b/n (same keys)
-  
-  Enter combat:
-    - Same combat loop (run_combat)
-    - Player uses ground weapons (pistol/rifle/knife)
-    - Crew members act on their turns
-    - Fog of war hides enemies until in detect range
-  
-  Bump loot containers → open_loot_pickup (reused)
-  Bump terminals → tech_skill check → unlock doors / read lore
-  Bump exit → "Return to ship?" → Transfer loot → scene swap back to space
-```
-
-## Trigger: boarding a derelict
-
-1. Player bumps a derelict entity on the space map (same as bumping a planet)
-2. Dialog: "Board the {name}? You'll leave your ship docked outside."
-3. Yes → `_board_derelict(ctx, location_id)` — scene swap to dungeon mode
-4. No → fly past
-
-**Where derelicts appear:**
-- **Procedural spawns** — rare chance per system, like NPC ship spawns
-- **Main quest Act 3** — the alien structure beyond Luyten's Star
-
-## Boardable location types
-
-Each type is just a parameter set — the dungeon generator, combat engine, and interaction system are shared:
-
-| Type | Glyph | Size | Floors | Enemies | Theme color |
-|------|-------|------|--------|---------|-------------|
-| Derelict ship | `%` grey | 20×20 (small) | 1 | Pirate scavengers | Metal grey |
-| Lost station | `O` white | 40×40 (medium) | 1-2 | Militia remnants | Tech white |
-| Alien structure | `^` blue | 40×40 (medium) | 1-2 | Alien drones | Dark purple |
-
-**Dungeon generator** (`dungeon.py`): Rooms + corridors, 1-2 floors, loot containers and enemies placed per room type. Reuses `world.GameMap` with `world.Tile` for walls/floors.
-
-## Ground combat
-
-### Reusing the combat engine
-
-The existing `run_combat()` works for ground combat with minimal changes:
-
-- **Player entity** → on-foot avatar (`Entity(char='@')`). Uses ground HP instead of hull, ground AP, ground weapons.
-- **Enemy entities** → ground enemies (pirates, aliens). Reuse `EnemyInstance` model — it has `hull` (reused as ground HP), `weapons`, `modules`, `pos`, `ap_remaining`.
-- **Crew entities** → player-controlled `EnemyInstance` with `is_crew=True`. They get their own turn in the initiative order.
-- **Damage resolution** → same `resolve_damage()` — just different `WeaponSpec` stats.
-
-### Ground weapons
-
-New `data/weapons_ground.py` module. Same `WeaponSpec` dataclass repurposed:
-
-| Weapon | Damage | Range | AP | Type |
-|--------|--------|-------|----|------|
-| Combat knife | 5-8 | 1 (melee) | 2 | Melee |
-| Crowbar | 8-12 | 1 (melee) | 3 | Melee (opens doors) |
-| Pistol | 6-10 | 5 | 3 | Ranged |
-| Shotgun | 12-18 | 3 | 4 | Ranged (short range) |
-| Rifle | 10-15 | 8 | 4 | Ranged |
-| SMG | 4-7 | 4 | 3 | Ranged (burst) |
-| Alien blaster | 15-25 | 6 | 4 | Ranged (rare) |
-
-### Ground armor
-
-Add an `armor_bonus` field to `ModuleSpec` (or create a `GroundArmorSpec`):
-
-| Armor | DR | Weight | Notes |
-|-------|----|--------|-------|
-| Flak vest | 5 | Light | Standard |
-| Combat armor | 10 | Medium | Military |
-| Power armor | 20 | Heavy | -1 AP |
-| Alien carapace | 15 | Medium | Rare |
-
-### Ground stats
-
-New fields on `GameContext`:
-
-```python
-ground_hp: int = 30
-ground_max_hp: int = 30
-ground_ap: int = 4
-ground_armor: int = 0       # damage reduction from equipped armor
-melee_skill: int = 20
-ranged_skill: int = 20
-tech_skill: int = 10
-crew: list[CrewMember] = field(default_factory=list)
-```
-
-### Ground enemies
-
-New `data/ground_enemies.py` — same pattern as `NpcShipSpec`:
-
-| Enemy | HP | Weapon | Behavior |
-|-------|----|--------|----------|
-| Pirate scavenger | 20 | Pistol or knife | Patrols, calls for help |
-| Militia guard | 30 | Rifle | Disciplined |
-| Mercenary | 35 | SMG | Aggressive, flanks |
-| Alien drone | 25 | Energy blast | Detects movement |
-
-## Crew system
-
-### Recruiting
-
-6 hand-crafted crew members, each recruited via a short quest or payment:
-
-| Name | Location | Recruitment | Role | Weapon |
-|------|----------|-------------|------|--------|
-| Mara | Luyten's Star bar | Complete bar mission | Combat | Shotgun |
-| Doctor Vex | Alpha Centauri Science Port | Research delivery | Medic | Pistol |
-| Finn | Earth/Mars bar | Pay 2000cr debt | Tech | Crowbar |
-| Commander Rourke | Sirius depot | Allied with militia OR combat path | Combat | Rifle |
-| Zara | Procyon C station | Bring rare trade good | Scientist | Pistol |
-| Kael | Random derelict rescue | Save him from a derelict | Combat | SMG |
-
-### Crew in combat
-
-- Max **3 crew members** accompany the player
-- Each has their own HP, AP, weapon, armor
-- Crew are **player-controlled** — each gets a turn in the initiative order
-- Crew use `EnemyInstance` model with `is_crew=True` flag
-- Turn order: player → crew #1 → crew #2 → crew #3 → enemies → repeat
-- Crew death in roguelike mode = permanent loss
-
-### Multi-character turn order
-
-Small change to `run_combat` in `_loop.py`:
-
-```python
-# Current:
-#   player acts → ALL enemies act → repeat
-
-# New:
-#   player acts → crew[0] acts → crew[1] acts → crew[2] acts → ALL enemies act → repeat
-```
-
-Each crew member gets a `_run_crew_turn` function that reuses the player's weapon-firing and movement logic but is controlled via a simplified UI (select target → fire, or select position → move).
-
-## Fog of war
-
-- All dungeon tiles start unexplored (rendered black)
-- Player and crew reveal tiles within 3-cell radius as they move
-- Previously-explored tiles that are out of sight render dimly ("fog" state)
-- Enemies in fog = invisible until they enter detect range
-
-**Implementation:** Store a 2D `bool` array `seen[y][x]` in the dungeon map (or on `GameContext`). The render pass checks this array and skips unseen tiles. Add a `world.render_fog_view` variant of `render_world_view`.
-
-## Cybernetics
-
-Permanent upgrades installed at a station's medbay (new interaction):
-
-| Cybernetic | Bonus | Found |
-|------------|-------|-------|
-| Subdermal armor | +5 ground armor | Military outposts |
-| Reflex booster | +1 ground AP | Science stations |
-| Neural link | +20 tech skill | Research labs |
-| Targeting eye | +20 ranged skill | Black market |
-| Adrenal pump | +2 AP when HP < 25% | Alien derelicts |
-
-**Implementation:** New `ModuleSpec` entries with `slot_type="cybernetic"`. New bonus fields on `ModuleSpec`:
-
-```python
-ground_hp_bonus: int = 0
-ground_ap_bonus: int = 0
-ground_armor_bonus: int = 0
-melee_skill_bonus: int = 0
-ranged_skill_bonus: int = 0
-tech_skill_bonus: int = 0
-```
-
-Same `find_module()` lookup. Same mechanic terminal UI for browsing and installing.
-
-## Dungeon generator (the one genuinely new piece)
+## Dungeon generator — the one genuinely new piece
 
 ```python
 # dungeon.py
-def generate_dungeon(location_type: str, floor: int = 1) -> world.GameMap:
+def generate_dungeon(location_type: str, *, seed: int = 0) -> world.GameMap:
     """Generate a room-and-corridor dungeon map."""
 ```
 
 Algorithm:
-1. Start with a blank grid of WALL tiles
-2. Carve rooms at semi-random positions (non-overlapping)
-3. Connect rooms with corridors (simple L-shaped or straight)
-4. Place doors at room entrances
-5. Place loot containers in ~50% of rooms
-6. Place enemies in ~60% of rooms (from location type's enemy pool)
-7. Place exit at the far end
+1. Start with a blank grid of DUNGEON_WALL tiles (20×20 for derelict, 40×40 for stations)
+2. Carve 5-8 rooms at semi-random positions (non-overlapping)
+3. Connect rooms with L-shaped corridors
+4. Place doors at room-to-corridor junctions
+5. Place player spawn in first room, exit in last room
+6. Place 1-2 loot containers per room (50% chance each)
+7. Place 1 enemy per non-spawn room (from location type's enemy pool)
 
-Room types (data-driven weights per location type): crew quarters, cargo hold, engine room, bridge, armory, science lab, boss chamber.
+Room types: storage, crew quarters, engine room, bridge, armory.
+
+No multi-floor support in v1 — that's Phase 4.
+
+## Ground combat — minimal viable set
+
+### Weapons (3 for framework)
+
+New `data/ground_weapons.py` — same frozen dataclass + `find_*()` pattern:
+
+| Weapon ID | Damage | Range | AP | Type |
+|-----------|--------|-------|-----|------|
+| `knife` | 5-8 | 1 (melee, min_range=1, max_range=1) | 2 | Melee |
+| `pistol` | 6-10 | 5 | 3 | Ranged |
+| `rifle` | 10-15 | 8 | 4 | Ranged |
+
+### Enemies (2 for framework)
+
+New `data/ground_enemies.py` — same frozen dataclass + `find_*()` pattern:
+
+| Enemy ID | HP | Weapon | Char | FG |
+|----------|-----|--------|------|-----|
+| `scavenger` | 20 | `knife` or `pistol` (50/50) | `s` | (200,150,100) |
+| `guard` | 30 | `rifle` | `g` | (150,200,150) |
+
+### Ground stats (on GameContext)
+
+```python
+ground_hp: int = 30
+ground_max_hp: int = 30
+ground_armor: int = 0       # damage reduction (0 for framework — no armor items yet)
+```
+
+No melee/ranged/tech skills for framework — those come with the content pass.
+No crew, no cybernetics, no terminal hacking.
+
+## Fog of war
+
+- All dungeon tiles start unseen (rendered as black space)
+- Player reveals tiles within 3-cell radius on each move
+- Previously-seen tiles out of sight render dim (70% brightness)
+- Enemies in unseen tiles are invisible (not rendered, not interactable)
+
+**Implementation:** Add `seen: list[list[bool | None]]` to `GameMap` or a parallel array on the dungeon state. `render_world` checks it per cell. Player movement marks cells as seen.
+
+## What a framework session looks like
+
+```
+Space mode:
+  [%] Derelict debris drifting near Mars
+
+  Bump it → "Board the derelict? Your ship will be docked outside."
+
+  Yes → Scene swap:
+    - Player becomes '@' on foot (30 HP)
+    - 20×20 dungeon with walls, corridors, 5-8 rooms
+    - Fog of war (unseen = black)
+    - 1-2 enemies per room
+    - Loot containers (% glyphs) in ~50% of rooms
+
+  Move with h/j/k/l/y/u/b/n (same keys)
+
+  Walk into an enemy → combat:
+    - Same combat loop (run_combat)
+    - Player uses pistol or rifle
+    - Enemies use their assigned weapon
+
+  Walk into loot (%) → open_loot_pickup (reused)
+
+  Walk into exit (>) → "Return to ship?" → transfer loot → scene swap to space
+```
 
 ## Implementation phases
 
-### Phase 1: Dungeon generator + boarding (NEW code)
+### Phase 1: Dungeon generator + boarding
 
-- [ ] Create `dungeon.py` — room-and-corridor generator (~200 lines)
-- [ ] Add derelict entity type to space map (reuse NPC spawn pattern)
-- [ ] Wire bump → "Board?" dialog (copy planet bump flow)
-- [ ] Scene swap: space map → dungeon map (copy `_launch_to_space`)
-- [ ] Player entity swaps to ground `@` avatar
+**Goal:** Generate a dungeon, board it, walk around, see walls and floors. No enemies, no loot, no fog, no combat. Just a walkable dungeon you can enter and leave.
 
-### Phase 2: Fog of war + render (NEW code)
+- [ ] Create `dungeon.py` — `generate_dungeon(location_type, seed)` returning `world.GameMap`
+- [ ] Add `DUNGEON_WALL` / `DUNGEON_FLOOR` tile constants to `world.py`
+- [ ] Add derelict entity (`%` glyph) to space map as a hardcoded test spawn near Sol's Earth
+- [ ] Wire bump → "Board?" dialog (`ui.Modal` pattern from `_run_planet_menu`)
+- [ ] Scene swap: save space map + player entity, build dungeon, swap `ctx.game_map` / `ctx.player`
+- [ ] Dungeon movement: reuse `_vim_action` + `try_move` (city-mode style)
+- [ ] Walk into exit (`>` glyph) → "Return to ship?" → restore space map + ship entity
+- [ ] Smoke test + commit
 
-- [ ] Add `seen[y][x]` 2D bool array to dungeon GameMap
-- [ ] Create `render_fog_view` — unseen = black, seen-out-of-sight = dim
-- [ ] Mark tiles as seen within 3-cell radius of player movement
+#### Playtest checklist
 
-### Phase 3: Ground combat data + integration (trivial data + small wiring)
+- [ ] Launch from Earth, fly to derelict `%`, bump it → "Board?" dialog appears
+- [ ] Board → dungeon map renders with `#` walls and `.` floors
+- [ ] Walk with h/j/k/l → walls block, floor is passable
+- [ ] Walk into `>` exit → "Return to ship?" → back in space at derelict position
+- [ ] Re-board → same dungeon layout (deterministic seed)
+- [ ] ESC from dungeon → save on space map, quit, continue → back in space (dungeon state not persisted yet)
 
-- [ ] Add `GroundWeaponSpec` dataclass + weapons tuple
-- [ ] Add ground stat fields to `GameContext`
-- [ ] Add `GroundEnemySpec` dataclass + enemy tuple
-- [ ] Wire ground combat into dungeon encounters — call `run_combat` with ground enemies
-- [ ] Wire loot drops in dungeon rooms (reuse `open_loot_pickup`)
-- [ ] Wire exit → transfer loot to ship cargo (reuse cargo transfer)
+---
 
-### Phase 4: Crew + multi-character turns (mostly wiring)
+### Phase 2: Fog of war + loot
 
-- [ ] Add 6 crew members with recruitment paths (story content)
-- [ ] Add `is_crew` flag to `EnemyInstance`
-- [ ] Extend turn order in `run_combat`: player → crew → enemies
-- [ ] Add simple crew action UI (select target → fire, select position → move)
-- [ ] Wire crew death handling (permadeath / injury)
+**Goal:** Dungeon exploration feels like discovery. Unexplored areas are hidden. Loot containers provide the reward loop.
 
-### Phase 5: Terminals + cybernetics (trivial data + wiring)
+- [ ] Add optional `seen` parameter to `render_world` (DRY hotspot #3)
+- [ ] Track `seen[y][x]` array on dungeon state — 3-cell reveal radius on player move
+- [ ] Unseen tiles = black; seen-out-of-sight = dim (70% brightness); seen = normal
+- [ ] Spawn 1-2 loot containers (`%` glyph, `loot_data=...`) in each room during generation
+- [ ] Walk into loot → `open_loot_pickup` (reused from `trade.py`, no changes)
+- [ ] Smoke test + commit
 
-- [ ] Terminal interaction: tech_skill check → unlock doors / lore display
-- [ ] Add `slot_type="cybernetic"` module entries
-- [ ] Add new bonus fields to `ModuleSpec`
-- [ ] Wire cybernetic effects into ground stats
-- [ ] Wire medbay installation UI (reuse mechanic terminal pattern)
+#### Playtest checklist
 
-## Total effort estimate
+- [ ] Board derelict → most of map is black
+- [ ] Move around → tiles revealed in 3-cell radius
+- [ ] Walk away from a revealed area → tiles remain visible but dim
+- [ ] Find a loot `%` glyph → bump it → pickup modal shows the good + quantity
+- [ ] Take loot → added to player inventory (verify in cargo menu `I`)
+- [ ] Exit dungeon → back in space, cargo has the looted goods
 
-| Phase | Engine code | Data/content | Dependencies |
-|-------|-------------|-------------|--------------|
-| 1. Dungeon gen + boarding | ~200 lines | None | None |
-| 2. Fog of war | ~50 lines | None | Phase 1 |
-| 3. Ground combat | ~50 lines | ~60 entries | Phase 1-2 |
-| 4. Crew | ~50 lines | ~6 NPCs + dialogue | Phase 3 |
-| 5. Terminals + cybernetics | ~30 lines | ~12 entries | Phase 3 |
+---
 
-**Total: ~380 lines of engine code + ~72 data entries across ~4 new data files.**
+### Phase 3: Ground combat
 
-Comparable effort to the bounty missions implementation. Not a v3 mega-project.
+**Goal:** Walk into an enemy → fight them with ground weapons using the existing combat engine.
+
+- [ ] Create `data/ground_weapons.py` — 3 weapons (knife, pistol, rifle) — frozen dataclass + `find_*()`
+- [ ] Create `data/ground_enemies.py` — 2 enemies (scavenger, guard) — frozen dataclass + `find_*()`
+- [ ] Add `ground_hp`, `ground_max_hp`, `ground_armor` fields to `GameContext`
+- [ ] Spawn enemies as `Entity(npc_ship_id='ground_enemy_...', char=..., fg=...)` in dungeon rooms
+- [ ] Walk into enemy → ground combat: build `EnemyInstance` from ground enemy spec, call `run_combat`
+- [ ] Ground combat: hull = HP, shields = armor, ground weapons feed the same `resolve_damage` pipe
+- [ ] Enemy death → remove entity from dungeon map (reuse `_remove_dead_entity` pattern)
+- [ ] Player death → log "You collapse..." → exit dungeon → respawn at ship with 1 HP
+- [ ] Smoke test + commit
+
+#### Playtest checklist
+
+- [ ] Board derelict → see enemy glyphs (`s` or `g`) in rooms
+- [ ] Walk into enemy → combat starts, combat HUD renders
+- [ ] Fire weapon (F) → damage applied to enemy HP, enemy name + HP shown in HUD
+- [ ] Kill enemy → "destroyed" message, enemy glyph removed from dungeon map
+- [ ] Enemy hits player → ground_hp decreases in HUD
+- [ ] Player HP hits 0 → "You collapse" → back in space at derelict, HP = 1
+- [ ] Save after exiting dungeon, quit, continue → back in space (ground stats reset — dungeon not persisted)
+
+---
+
+### Phase 4: Save/load + guide (future)
+
+Deferred until the framework is solid. Dungeon state persistence (map, entities, fog, ground stats) is the biggest remaining piece.
+
+- [ ] Serialize dungeon state (map seed + cleared room flags → regenerate on load)
+- [ ] Save/restore ground_hp, ground_armor
+- [ ] Add `_GUIDE_GROUND_COMBAT` section to `help.py`
+
+### Phase 5: Crew, cybernetics, terminals (future content pass)
+
+Full content expansion — deferred. See original sections below for the design.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** New GameContext fields (ground_hp, ground_ap, ground_armor, ground skills, crew roster) → both `_ctx_to_dict()` AND `load_game()`
-- [ ] **Save/load:** Dungeon state (map, enemies, fog of war) — may need specialized serialization or procedural regeneration
-- [ ] **NPC spawns:** Ground enemies → if they persist outside the dungeon map, register in appropriate spawn tracking
-- [ ] **Game guide:** Ground combat, crew, dungeons → new `_GUIDE_GROUND_COMBAT` section
-- [ ] **Module-level state:** No new module-level globals expected (dungeon map is entity on space map)
+- [ ] **Save/load:** New GameContext fields (ground_hp, ground_max_hp, ground_armor) → both `_ctx_to_dict()` AND `load_game()` (Phase 4)
+- [ ] **Save/load:** Dungeon state — procedural regeneration from seed + cleared-room flags (Phase 4)
+- [ ] **NPC spawns:** Ground enemies are dungeon-only, not in `ctx.procedural_spawns` — no persistence needed (entities rebuilt from seed on re-entry)
+- [ ] **Game guide:** Ground combat section in `help.py` (Phase 4)
+- [ ] **Module-level state:** No new module-level globals expected
 
-## Open questions (resolved by audit)
+## Open questions
 
-1. ~~**Should ground XP be separate from ship XP?**~~ Resolved: Same XP/level track. Ground kills give combat XP, same as ship kills.
-2. ~~**Should dungeons persist after leaving?**~~ Resolved: Cleared rooms stay cleared. Enemies may respawn in uncleared rooms. The map is regenerated on re-entry with the same seed so the layout is deterministic.
-3. ~~**Should crew members have their own inventory?**~~ Resolved: Share the player's inventory for simplicity (reuse ship cargo).
-4. ~~**Does the combat engine need changes for friendly units?**~~ Resolved: No. `EnemyInstance` works for any combatant. Crew = `EnemyInstance` with `is_crew=True`. The turn order extension is the only change needed.
+1. **Save/load strategy for dungeons?** Regenerate from seed + track cleared rooms. Simplest approach: on re-entry, regenerate the same layout, skip enemies in cleared rooms. This avoids serializing the entire dungeon map.
+2. **Should the derelict despawn after clearing?** For framework: no — it stays. Content pass can add one-shot derelicts.
+3. **Player death in dungeon?** Respawn at ship with 1 HP. Don't save dungeon state on death — the player can re-board (dungeon regenerates fresh from same seed).
+4. **Does the combat engine need changes?** Minimally. We need a ground-combat variant of `init_combat_state` that reads ground weapon specs and sets shields=armor. The core loop (`run_combat`) should work unchanged if we feed it compatible data.
