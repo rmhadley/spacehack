@@ -131,26 +131,10 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
 
         # Dead enemies are already removed individually during combat
-        # by _remove_dead_entity (called from _weapons.py on each kill).
-        # No broad sweep needed — a spec_id-based sweep would incorrectly
-        # remove ALL map entities of the same type (e.g. all pirate_scouts)
-        # instead of only the ones that were in this encounter.
-
-        # Clean up procedural spawns: any spawn in the current system
-        # whose position no longer has a matching entity on the map
-        # refers to an NPC that was killed in this (or a previous) combat.
-        # Remove it so the dead NPC doesn't respawn on save/load.
-        from .. import solar_system as _solar_system_module
-        _cur_sys_id = _solar_system_module.current_solar_system_id
-        if _cur_sys_id in ctx.procedural_spawns:
-            _alive_positions: set[tuple[int, int]] = set()
-            for _e in ctx.game_map.entities:
-                if getattr(_e, 'npc_ship_id', '') != '':
-                    _alive_positions.add((_e.pos.x, _e.pos.y))
-            ctx.procedural_spawns[_cur_sys_id] = [
-                _ps for _ps in ctx.procedural_spawns[_cur_sys_id]
-                if (_ps.pos.x, _ps.pos.y) in _alive_positions
-            ]
+        # by _remove_dead_entity (called from _weapons.py on each kill),
+        # and their procedural spawns are cleaned up per-kill in
+        # _weapons.py (matched by squad_id + npc_id for 1:1 precision).
+        # No post-combat sweep needed.
 
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True

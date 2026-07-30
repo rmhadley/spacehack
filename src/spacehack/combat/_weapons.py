@@ -199,6 +199,20 @@ def _fire_weapons(
                 # Remove dead entity from the game map
                 from ._actions import _remove_dead_entity as _rde
                 _rde(game_map, _enemy_ents, target_idx)
+                # Clean up the matching procedural spawn so the
+                # dead NPC doesn't respawn on save/load.
+                # Match by squad_id + npc_id for 1:1 precision.
+                if ctx is not None and _dead_ent is not None:
+                    _mid = getattr(_dead_ent, 'procedural_squad_id', None)
+                    _nid = getattr(_dead_ent, 'npc_ship_id', None)
+                    if _mid and _nid:
+                        from .. import solar_system as _ss
+                        _sys_id = _ss.current_solar_system_id
+                        _spawns = ctx.procedural_spawns.get(_sys_id, [])
+                        for _i, _sp in enumerate(_spawns):
+                            if _sp.squad_id == _mid and _sp.npc_id == _nid:
+                                _spawns.pop(_i)
+                                break
                 # Explosion at target position
                 _cam_x, _cam_y = _calc_cam()
                 _animate_explosion(

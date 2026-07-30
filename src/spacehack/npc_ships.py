@@ -196,7 +196,7 @@ def spawn_npcs(
             _blocked.add((_x, _y))
             game_map.entities.append(_make_npc_entity(_spec, _pos, _movement_id))
             _group_positions.append(_pos)
-            _all_procedural.append((_pos, _squad_id, _npc_id))
+            _all_procedural.append((_pos, _movement_id, _npc_id))
             _group_entities += 1
         _total_spawned += _group_entities
 
@@ -292,7 +292,8 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                             _make_npc_entity(_tick_spec, _tick_pos, _tick_mid)
                         )
                         # Register in procedural_spawns so save/load can find it.
-                        # Per-tick NPCs are always solo (squad_id=None).
+                        # squad_id = movement_id so per-kill combat cleanup
+                        # can match spawn → entity 1:1.
                         _cur_sys_id = getattr(_system, 'id', '')
                         if _cur_sys_id not in ctx.procedural_spawns:
                             ctx.procedural_spawns[_cur_sys_id] = []
@@ -300,7 +301,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                             ProceduralSpawn(
                                 npc_id=_tick_id,
                                 pos=_tick_pos,
-                                squad_id=None,
+                                squad_id=_tick_mid,
                             )
                         )
                         if _tick_initial_target is not None:
