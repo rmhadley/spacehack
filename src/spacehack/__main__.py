@@ -258,6 +258,9 @@ def _run_game(
         # Reset module-level solar system state so a prior continue
         # session's system doesn't leak into a fresh game.
         solar_system_module.set_current_solar_system("sol")
+    # --- Space state for dungeon boarding ---
+    space_game_map: world.GameMap | None = None
+    space_player: world.Entity | None = None
 
     # --- Main game loop ---
     while True:
@@ -280,6 +283,8 @@ def _run_game(
         _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if _show_ship_hud else None
         if current_mode == 'space':
             _location = solar_system_module.current_system().name
+        elif current_mode == 'dungeon':
+            _location = "Derelict Ship"
         else:
             _location = current_city_id.replace('_', ' ').title()
         # Detect available terminals on the current city map.
@@ -377,6 +382,18 @@ def _run_game(
                 _run_combat_loop(ctx, console, player, also_move_npcs=True)
                 player_active_missions = ctx.player_active_missions
                 tick_move(ctx)
+            if code == 'moved' and current_mode == 'dungeon':
+                # Check if player walked onto a breach tile (exit)
+                _tile = game_map.tiles[player.pos.y][player.pos.x]
+                if _tile.kind == 'breach':
+                    if space_game_map is not None and space_player is not None:
+                        game_map = space_game_map
+                        player = space_player
+                        ctx.game_map = game_map
+                        ctx.player = player
+                        current_mode = 'space'
+                        log.add('You exit through the hull breach and return to your ship.')
+                        continue
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
@@ -533,8 +550,56 @@ def _run_game(
                     try:
                         _npcspec = _find_ship(blocker.npc_ship_id)
                         if _npcspec.is_boardable:
-                            log.add(f'You approach the {_npcspec.name}. It drifts silently, dark and unpowered.')
-                            log.add('(Boarding — coming in a future update.)')
+                            # Show board dialog
+                            _board_console = make_console()
+                            def _board_render():
+                                _board_console.clear()
+                                _board_console.print(
+                                    x=ui.centered_x(f"Board the {_npcspec.name}?", SCREEN_WIDTH),
+                                    y=SCREEN_HEIGHT // 3,
+                                    string=f"Board the {_npcspec.name}?",
+                                    fg=ui.COLOR_TITLE,
+                                )
+                                _board_console.print(
+                                    x=ui.centered_x("ENTER to board - ESC to fly past", SCREEN_WIDTH),
+                                    y=SCREEN_HEIGHT // 3 + 2,
+                                    string="ENTER to board - ESC to fly past",
+                                    fg=ui.COLOR_INSTRUCTION,
+                                )
+                            def _board_update(event):
+                                if isinstance(event, tcod.event.Quit):
+                                    return PlanetMenuOutcome.QUIT
+                                if not isinstance(event, tcod.event.KeyDown):
+                                    return PlanetMenuOutcome.IGNORE
+                                if event.sym in ui._ENTER_SYMS:
+                                    return PlanetMenuOutcome.LAND
+                                if event.sym in ui._ESCAPE_SYMS:
+                                    return PlanetMenuOutcome.BACK
+                                return PlanetMenuOutcome.IGNORE
+                            _board_result = ui.Modal(ctx.context, _board_console).run(_board_render, _board_update)
+                            if _board_result == PlanetMenuOutcome.QUIT:
+                                return
+                            if _board_result == PlanetMenuOutcome.LAND:
+                                from .dungeon import load_layout as _load_layout
+                                try:
+                                    _dungeon_map, _spawn = _load_layout("scout_a")
+                                except (FileNotFoundError, ValueError):
+                                    log.add("The derelict's interior is too damaged to explore.")
+                                    continue
+                                _dungeon_player = world.Entity(
+                                    char='@', fg=(255, 255, 255),
+                                    pos=_spawn, name='Player',
+                                )
+                                _dungeon_map.entities.append(_dungeon_player)
+                                space_game_map = game_map
+                                space_player = player
+                                game_map = _dungeon_map
+                                player = _dungeon_player
+                                ctx.game_map = game_map
+                                ctx.player = player
+                                current_mode = 'dungeon'
+                                log.add(f'You cut through the hull and enter the {_npcspec.name}.')
+                                continue
                             continue
                     except KeyError:
                         pass

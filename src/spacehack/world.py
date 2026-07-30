@@ -93,6 +93,26 @@ DECOR = Tile(kind="plaza", char="\u2666", walkable=True, fg=(255, 160, 120), bg=
 # clean indoor surface distinct from the outdoor GRASS tiles.
 INTERIOR = Tile(kind="floor", char="\u00b7", walkable=True, fg=(245, 225, 175), bg=(130, 108, 70))
 
+# --- Dungeon tiles (ship interiors) ---
+DUNGEON_WALL = Tile(kind="dungeon_wall", char="#", walkable=False,
+                     fg=(120, 130, 150), bg=(30, 35, 45))
+DUNGEON_FLOOR = Tile(kind="dungeon_floor", char=".", walkable=True,
+                      fg=(200, 200, 210), bg=(50, 55, 65))
+DUNGEON_DOOR = Tile(kind="dungeon_door", char="+", walkable=True,
+                     fg=(100, 220, 255), bg=(20, 45, 70))
+VOID = Tile(kind="void", char=" ", walkable=False,
+            fg=(0, 0, 0), bg=(0, 0, 0))
+AIRLOCK = Tile(kind="airlock", char="=", walkable=True,
+               fg=(100, 200, 255), bg=(30, 60, 80))
+BREACH = Tile(kind="breach", char="X", walkable=True,
+              fg=(255, 120, 50), bg=(80, 30, 10))
+COCKPIT = Tile(kind="cockpit", char="C", walkable=True,
+               fg=(255, 200, 80), bg=(60, 45, 20))
+ENGINE_TILE = Tile(kind="engine", char="E", walkable=True,
+                    fg=(180, 200, 220), bg=(40, 45, 55))
+DEBRIS = Tile(kind="debris", char="%", walkable=True,
+              fg=(140, 130, 100), bg=(60, 55, 40))
+
 # --- Building-interior furniture tiles ---
 # Bar counter top (warm golden wood).
 BAR_COUNTER = Tile(kind="floor", char="\u2591", walkable=True, fg=(210, 165, 90), bg=(120, 100, 65))
