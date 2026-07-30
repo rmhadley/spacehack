@@ -257,7 +257,7 @@ def _run_game(
         current_city_id: str = 'earth'
         # Reset module-level solar system state so a prior continue
         # session's system doesn't leak into a fresh game.
-        solar_system_module.set_current_system_id("sol")
+        solar_system_module.set_current_solar_system("sol")
 
     # --- Main game loop ---
     while True:
