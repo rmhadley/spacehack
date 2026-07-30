@@ -12,8 +12,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="derelict_scout",
         name="Derelict Scout",
-        char="%",
-        fg=(180, 180, 200),
+        char="s",
+        fg=(200, 160, 80),    # warm amber — visible against dark starfield, distinct from pirate reds/merchant greens
         ship_id="scout",
         faction="neutral",
         is_boardable=True,
