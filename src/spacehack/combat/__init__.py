@@ -46,3 +46,4 @@ from ._animations import (
 )
 from ._loop import run_combat
 from ._encounter import _handle_combat_encounter, _render_death_screen
+from ._ground import run_ground_combat

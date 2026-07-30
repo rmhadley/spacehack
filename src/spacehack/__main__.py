@@ -40,6 +40,7 @@ from .data.classes import find_class
 from .npc import TalkOutcome, _run_npc_talk
 from . import world
 from . import combat
+from .combat._ground import run_ground_combat as _run_ground_combat
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
 from .input_helpers import Outcome, _run_pick, _run_confirm, _vim_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _try_open_guide
@@ -399,6 +400,15 @@ def _run_game(
                 # Reveal fog around new position (using current sight radius)
                 from .dungeon import reveal_around as _reveal_around
                 _reveal_around(game_map, player.pos, radius=game_map.sight_radius)
+                # Check for ground combat (sight-based detection)
+                from .dungeon import _detect_ground_combat as _dgc
+                _hostile = _dgc(ctx, game_map, player.pos)
+                if _hostile is not None:
+                    _outcome, _ = _run_ground_combat(console, ctx, _hostile, game_map)
+                    if _outcome == "DEFEAT":
+                        return
+                    # After combat, refresh the map render
+                    continue
                 # Check if player walked onto the exit tile
                 _tile = game_map.tiles[player.pos.y][player.pos.x]
                 if _tile.kind == 'exit':

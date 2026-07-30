@@ -270,6 +270,10 @@ class GameContext:
     # Equipped ground armour by slot: slot -> GroundArmorSpec id.
     # Slots: head, body, hands, legs, feet.
     equipped_ground_armor: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Ground combat HP — set on dungeon entry, persisted across
+    # combat encounters in the same dungeon visit.
+    ground_hp: int = 30
+    ground_max_hp: int = 30
     # Current city the player is on (for save/load).  Updated on
     # planet landing; used by the title-menu Continue path to
     # restore the correct city map.

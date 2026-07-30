@@ -118,6 +118,8 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "ground_stats": _d(ctx.ground_stats),
         "equipped_ground_weapons": list(ctx.equipped_ground_weapons),
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
+        "ground_hp": ctx.ground_hp,
+        "ground_max_hp": ctx.ground_max_hp,
     }
 
 
@@ -716,6 +718,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     )
     _ctx.equipped_ground_weapons = list(_data.get("equipped_ground_weapons", []) or [])
     _ctx.equipped_ground_armor = dict(_data.get("equipped_ground_armor", {}) or {})
+    _ctx.ground_hp = _data.get("ground_hp", 30)
+    _ctx.ground_max_hp = _data.get("ground_max_hp", 30)
     _ctx.player_xp = _data.get("player_xp", 0)
     _ctx.player_level = _data.get("player_level", 1)
     _ctx.player_skill_points = _data.get("player_skill_points", 0)

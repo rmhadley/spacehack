@@ -218,6 +218,8 @@ class Entity:
     armory_terminal: bool = False
     computer_terminal: bool = False  # dungeon ship computer — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
+    hostile: bool = False  # True for ground-combat enemies that auto-aggro on sight
+    ground_enemy_id: str = ""  # references GroundEnemySpec.id for ground combat enemies
 
 
 # Anchor where the player's bought ship is parked outside the

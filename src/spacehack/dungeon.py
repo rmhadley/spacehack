@@ -187,8 +187,12 @@ _GLYPH_TILES: dict[str, world.Tile] = {
     "}": world.HULL_WALL,
 }
 
+# Enemy spawn glyphs — placed as hostile entities, rendered as floor.
+# Using distinct glyphs so they don't conflict with engine (E) or other markers.
+_ENEMY_GLYPHS: set[str] = {"s", "g"}
+
 # Glyphs that place entities rather than tiles.
-_ENTITY_GLYPHS: set[str] = {"P", "C", "E"}
+_ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
 
 _LAYOUT_DIR = pathlib.Path(__file__).parent / "data" / "layouts"
 
@@ -242,9 +246,10 @@ def load_layout(
 
     raw = path.read_text(encoding="utf-8").splitlines()
 
-    # Collect colour overrides and loot zone mappings
+    # Collect colour overrides, loot zone mappings, and enemy spawn directives
     colour_overrides: dict[str, tuple[int, int, int]] = {}
     loot_zones: dict[str, str] = {}  # glyph -> room_type
+    enemy_spawn_specs: dict[str, tuple[str, float]] = {}  # glyph -> (enemy_id, spawn_chance)
 
     # --- Parse MAP section ---
     map_lines: list[str] = []
@@ -278,6 +283,24 @@ def load_layout(
                     glyph = glyph_part.strip()
                     room_type = room_part.strip()
                     loot_zones[glyph] = room_type
+                continue
+            # Parse ENEMY directives:  ENEMY: E = derelict_scavenger@0.6
+            if stripped.startswith("ENEMY:"):
+                rest = stripped[6:].strip()
+                if "=" in rest:
+                    glyph_part, spec_part = rest.split("=", 1)
+                    glyph = glyph_part.strip()
+                    spec_str = spec_part.strip()
+                    if "@" in spec_str:
+                        enemy_id, chance_str = spec_str.rsplit("@", 1)
+                        try:
+                            chance = float(chance_str)
+                        except ValueError:
+                            chance = 1.0
+                    else:
+                        enemy_id = spec_str
+                        chance = 1.0
+                    enemy_spawn_specs[glyph] = (enemy_id.strip(), chance)
                 continue
             # Parse TILE and COLOUR directives
             if stripped.startswith("TILE:"):
@@ -353,6 +376,20 @@ def load_layout(
                         pos=world.Position(col_idx, row_idx),
                         name="Engine Terminal", width=1, height=1,
                     ))
+                elif ch in enemy_spawn_specs:
+                    # Enemy spawn marker — roll RNG, spawn if hit
+                    _eid, _chance = enemy_spawn_specs[ch]
+                    from .engine import RNG as _RNG
+                    if _RNG.random() < _chance:
+                        entities.append(world.Entity(
+                            char=ch,  # render the glyph from the layout
+                            fg=colour_overrides.get(ch, (255, 100, 100)),
+                            pos=world.Position(col_idx, row_idx),
+                            name="",  # set later from spec
+                            width=1, height=1,
+                            hostile=True,
+                            ground_enemy_id=_eid,
+                        ))
                 continue
 
             # Loot marker — treat as floor, record position for flood-fill
@@ -609,3 +646,43 @@ def animate_breach(
 
     # Brief reveal frame
     _render_frame([])
+
+
+def _detect_ground_combat(ctx, game_map: world.GameMap, player_pos: world.Position):
+    """Check for hostile entities within detect radius + LOS.
+
+    Returns the first hostile entity that triggers, or ``None``.
+    """
+    import math as _m
+    from .data.ground_enemies import find_ground_enemy as _fge
+    for _e in game_map.entities:
+        if _e is ctx.player:
+            continue
+        if not getattr(_e, 'hostile', False):
+            continue
+        _eid = getattr(_e, 'ground_enemy_id', '')
+        if not _eid:
+            continue
+        try:
+            _spec = _fge(_eid)
+        except KeyError:
+            continue
+        _dist = _m.hypot(player_pos.x - _e.pos.x, player_pos.y - _e.pos.y)
+        if _dist <= 0 or _dist > _spec.detect_radius:
+            continue
+        # LOS check: ray from player to enemy through walkable tiles
+        _steps = max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y))
+        _los_blocked = False
+        for _si in range(1, _steps):
+            _t = _si / max(_steps, 1)
+            _lx = round(player_pos.x + (_e.pos.x - player_pos.x) * _t)
+            _ly = round(player_pos.y + (_e.pos.y - player_pos.y) * _t)
+            if game_map.in_bounds(_lx, _ly):
+                _tile = game_map.tiles[_ly][_lx]
+                if not _tile.walkable:  # walls and closed doors block LOS
+                    _los_blocked = True
+                    break
+        if _los_blocked:
+            continue
+        return _e
+    return None
