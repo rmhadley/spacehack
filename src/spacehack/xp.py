@@ -19,6 +19,12 @@ from . import message_log as _ml
 # Level thresholds
 # ---------------------------------------------------------------------------
 
+# Hard level cap — the game guide states max level is 30.  Once the
+# player hits this, XP still accumulates (for display) but no further
+# level-ups or skill points are awarded.
+MAX_PLAYER_LEVEL: int = 30
+
+
 def xp_for_level(level: int) -> int:
     """Return the XP required to reach *level* (cumulative)."""
     _total = 0
@@ -50,7 +56,7 @@ def add_xp(ctx: GameContext, amount: int) -> None:
     ctx.log.add_colored(f"+{amount} XP", _ml.COLOR_PLAYER_ACTION)
 
     # Check for level-ups (may gain multiple levels at once).
-    while True:
+    while ctx.player_level < MAX_PLAYER_LEVEL:
         _needed = _xp_to_next(ctx.player_level)
         if ctx.player_xp < xp_for_level(ctx.player_level) + _needed:
             break
