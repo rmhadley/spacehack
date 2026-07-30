@@ -34,15 +34,25 @@ Space mode (when ``owned_ship`` is provided):
 
 The HUD paints only into the top portion of the screen so the message
 log (drawn separately) owns the bottom rows.
+
+**API:** Callers pass ``ctx`` (the single source of truth) plus only the
+few layout-or-mode params that aren't on GameContext: ``screen_width``,
+``hud_view_height``, ``location``, and the terminal flags. Everything else
+(the stats, XP, ground stats, ship state, date) is pulled from ``ctx``
+internally, so adding a new HUD-displayed field to ``GameContext`` never
+requires updating call sites.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 import tcod.console
 
 from .engine import HUD_WIDTH
+
+if TYPE_CHECKING:
+    from .game_context import GameContext
 
 
 # Vivid HUD palette: gold title, bright near-white values, blue-tinted
@@ -157,22 +167,14 @@ def _render_help_lines(
 
 def render_hud(
     console: tcod.console.Console,
+    ctx: GameContext,
     *,
     screen_width: int,
     hud_view_height: int,
-    character: dict,
-    stats: HudStats,
-    active_mission: str | None = None,  # deprecated — kept for backward compat, no longer rendered
     location: str | None = None,
-    owned_ship: Any = None,              # ship_module.OwnedShip when in space
-    ship_catalog: Any = None,            # ship_module.Ship catalog entry
     has_trade_terminal: bool = False,    # city mode: show = terminal hint
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
     has_armory_terminal: bool = False,    # city mode: show A terminal hint
-    date_str: str | None = None,          # formatted date for HUD display
-    player_xp: int = 0,                   # current total XP (for progress bar)
-    player_level: int = 1,                # current player level
-    ground_stats = None,                  # GroundStats dataclass — shows REF/STR/STA when provided
 ) -> None:
     """Paint the right-side HUD into the top ``hud_view_height`` rows.
 
@@ -184,17 +186,39 @@ def render_hud(
     space mode (e.g. "Sol", "Alpha Centauri"). Shown below the
     title in both modes so the player always knows where they are.
 
-    When ``owned_ship`` and ``ship_catalog`` are provided (space mode),
-    the HUD shows ship stats (fuel, hull, cargo, weapons, modules)
-    and a keybinding-help panel instead of character species/class/HP.
+    **Pull-from-ctx contract.** Everything except ``screen_width``,
+    ``hud_view_height``, ``location``, and the terminal flags is
+    extracted from ``ctx`` internally::
 
-    ``active_mission`` is the pre-resolved mission title (without
-    the "MISSION: " prefix) drawn between the title and the divider,
-    or ``None`` if the player has no active mission. The caller
-    (``_run_game`` in :mod:`spacehack.__main__`) looks the title up
-    once per frame so the HUD module doesn't have to know the mission
-    catalog exists.
+        character      ->  ctx.character_info
+        stats          ->  ctx.stats
+        owned_ship     ->  ctx.player_owned_ship
+        ship_catalog   ->  resolved from ctx.player_owned_ship
+        date_str       ->  format_date(ctx)
+        player_xp      ->  ctx.player_xp
+        player_level   ->  ctx.player_level
+        ground_stats   ->  ctx.ground_stats
+
+    This means adding a new field to GameContext that the HUD should
+    display never requires updating call sites.
     """
+    # ---- Extract all state from ctx ----
+    character = ctx.character_info
+    stats = ctx.stats
+    owned_ship = ctx.player_owned_ship
+    player_xp = ctx.player_xp
+    player_level = ctx.player_level
+    ground_stats = ctx.ground_stats
+    ship_catalog = None
+    if owned_ship is not None:
+        from . import ship as _ship_cat_mod
+        try:
+            ship_catalog = _ship_cat_mod.find_ship(owned_ship.ship_id)
+        except KeyError:
+            pass
+    from .time import format_date as _format_date
+    date_str = _format_date(ctx)
+
     hud_x = screen_width - HUD_WIDTH
     # Compute XP progress for both city and space modes.
     from .xp import xp_for_level as _xp_for_level, _xp_to_next as _xp_to_next

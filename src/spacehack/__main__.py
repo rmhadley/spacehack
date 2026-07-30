@@ -71,7 +71,7 @@ from .navigation import (
     _jump_to_system,
 )
 from .city import _animate_ship_to_y, _launch_to_space
-from .time import tick_move, format_date, add_days_to_date
+from .time import tick_move, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
 
@@ -281,8 +281,6 @@ def _run_game(
             render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
-        _show_ship_hud = current_mode == 'space' and player_owned_ship is not None
-        _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if _show_ship_hud else None
         if current_mode == 'space':
             _location = solar_system_module.current_system().name
         elif current_mode == 'dungeon':
@@ -293,7 +291,7 @@ def _run_game(
         _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_armory = any(e.armory_terminal for e in game_map.entities) if current_mode == 'city' else False
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=map_h, character=character_info, stats=stats, location=_location, owned_ship=player_owned_ship if _show_ship_hud else None, ship_catalog=_ship_cat, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory, date_str=format_date(ctx), player_xp=ctx.player_xp, player_level=ctx.player_level, ground_stats=ctx.ground_stats)
+        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         for event in tcod.event.wait():
