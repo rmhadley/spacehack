@@ -184,7 +184,7 @@ def _render_stats(
 
 
 def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
-    """Paint the Equipment tab (weapon slots + armour slots + carried items)."""
+    """Paint the Equipment tab (weapon slots + armour slots)."""
     from .data.ground_weapons import find_ground_weapon as _fgw
     from .data.ground_armor import find_ground_armor as _fga
 
@@ -232,16 +232,8 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
         _y += 1
     _y += 1
 
-    # Inventory count.
-    _inv_count = len(ctx.ground_inventory)
     console.print(
         x=SCREEN_WIDTH // 4, y=_y,
-        string=f"Carrying: {_inv_count} item{'s' if _inv_count != 1 else ''}",
-        fg=ui.COLOR_VALUE_WHITE,
-    )
-    _y += 2
-    console.print(
-        x=SCREEN_WIDTH // 4, y=_y,
-        string="TAB cycle tabs  |  Use Armory (A) to manage gear  |  ESC close",
+        string="Use the Armory terminal (A) on the city map to manage gear.",
         fg=ui.COLOR_INSTRUCTION,
     )

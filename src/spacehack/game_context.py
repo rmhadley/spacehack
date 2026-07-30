@@ -262,8 +262,6 @@ class GameContext:
     player_engineering_bonus: int = 0
     player_traits: list[str] = dataclasses.field(default_factory=list)
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
-    # Ground-combat gear inventory (list of GroundWeaponSpec / GroundArmorSpec ids).
-    ground_inventory: list[str] = dataclasses.field(default_factory=list)
     # Equipped ground weapon slots (up to 2). Empty slot = fists.
     equipped_ground_weapons: list[str] = dataclasses.field(default_factory=list)
     # Equipped ground armour by slot: slot -> GroundArmorSpec id.
