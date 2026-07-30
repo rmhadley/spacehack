@@ -463,7 +463,13 @@ skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
 - [x] HP persists across multiple combat encounters in one dungeon visit
 - [x] `hostile: bool` and `ground_enemy_id: str` fields added to `world.Entity`
 
-#### Playtest checklist
+#### Playtest checklist — **DEFERRED**
+
+> ⚠️ **Phase 5 playtest deferred.** The implementation shipped a standalone
+> `run_ground_combat()` loop that duplicates ~300 lines of turn-structure,
+> AP management, key dispatch, weapon orchestration, and target cycling
+> from `run_combat()`. Running the playtest on a known-broken architecture
+> wastes cycles — the loop will be rebuilt in Phase 5.1.
 
 - [ ] `SPACEHACK_DEV=1` → launch from Earth → derelict at (150, 40)
 - [ ] Board derelict → `s` and `g` glyphs visible in rooms (when revealed by fog)
@@ -476,6 +482,130 @@ skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
 - [ ] Flee combat → back in dungeon at current position
 - [ ] Player HP hits 0 → death screen, return to title
 - [ ] Save/continue while on derelict → ground HP preserved
+
+---
+
+### Phase 5.1: Unified combat architecture (NEXT)
+
+> **Problem:** Phase 5 shipped two independent combat loops —
+> `combat/_loop.py::run_combat()` (~500 lines, space) and
+> `combat/_ground.py::run_ground_combat()` (~400 lines, ground) —
+> that share identical turn structure, AP management, vim movement,
+> weapon toggle/fire orchestration, target cycling, and
+> victory/flee/death resolution. The only genuinely different code
+> is the stats, formulas, rendering, and kill behavior — maybe
+> 30% of each loop. This is the project's largest DRY violation.
+>
+> **Solution:** Extract a single `run_combat(console, ctx, game_map, rules)`
+> loop that calls into a **rules module** for flavor-specific behavior.
+
+#### Architecture
+
+```
+                run_combat (rules engine)
+               /          |           \
+        shared          rules        shared
+        helpers        module        helpers
+     (_movement,     (space or       (_target,
+      _weapons,       ground)         _flee)
+      _render)
+```
+
+**The loop owns:** turn structure, AP tracking, key dispatch (vim/tab/f/w/ESC/s),
+weapon fire orchestration (iterate active, roll hit, apply damage, check kill),
+target cycling, victory/defeat/flee resolution, end-turn guard.
+
+**The rules module owns** (everything that differs between space and ground):
+state access, stat formulas, weapon affordability, rendering, animation,
+kill/death/flee resolution, defense toggle, enemy AI, mid-combat joins,
+state persistence back to `ctx`.
+
+No classes, no inheritance, no callable dataclass fields. The rules module
+is a plain Python module with a standard set of exported functions. The loop
+calls `rules.hit_chance(...)`, `rules.render_frame(...)`, etc. — same call
+shape regardless of which rules module is passed.
+
+#### Rules module contract
+
+Every rules module (e.g. `combat/_rules_space.py`, `combat/_rules_ground.py`)
+must export these functions with these signatures:
+
+| Function | Signature | Purpose |
+|----------|-----------|---------|
+| `player_hp` | `(ctx) -> int` | Current player HP |
+| `player_max_hp` | `(ctx) -> int` | Maximum player HP |
+| `player_ap` | `(ctx) -> int` | Current AP remaining |
+| `player_ap_total` | `(ctx) -> int` | AP per turn |
+| `player_weapons` | `(ctx) -> list[str]` | Equipped weapon IDs |
+| `active_weapons` | `(ctx) -> list[bool]` | Which weapons are toggled on |
+| `set_active_weapons` | `(ctx, active: list[bool]) -> None` | Persist toggles |
+| `get_enemies` | `(ctx, game_map) -> list` | Enemy objects (EnemyInstance or Entity) |
+| `enemy_pos` | `(enemy) -> Position` | Enemy map position |
+| `enemy_name` | `(enemy) -> str` | Display name for HUD |
+| `enemy_hp` | `(enemy) -> int` | Current enemy HP |
+| `enemy_max_hp` | `(enemy) -> int` | Maximum enemy HP |
+| `enemy_alive` | `(enemy) -> bool` | Is this enemy still alive? |
+| `hit_chance` | `(weapon_id, enemy, ctx) -> int` | 0–100 hit probability |
+| `damage` | `(weapon_id, enemy, ctx) -> int` | Damage after defenses |
+| `flee_chance` | `(ctx) -> int` | 0–100 flee probability |
+| `can_fire` | `(weapon_id, ctx) -> tuple[bool, str]` | Affordability check (power/ammo) |
+| `consume_shot` | `(weapon_id, ctx) -> None` | Deduct power/ammo for one shot |
+| `render_frame` | `(console, ctx, game_map, enemies, target_idx) -> None` | Draw full combat view |
+| `animate_fire` | `(console, ctx, game_map, from_pos, to_pos, is_hit) -> None` | Weapon fire animation |
+| `on_kill` | `(game_map, enemy, ctx) -> None` | Handle enemy death (loot, explosion, XP) |
+| `on_player_death` | `(ctx) -> None` | Handle player death (ctx.player_dead = True) |
+| `handle_defense` | `(ctx) -> None` | [s] key handler (shields or no-op) |
+| `run_enemy_turns` | `(ctx, game_map) -> int` | Execute all enemy turns, return damage dealt |
+| `check_reinforcements` | `(ctx, game_map) -> None` | Add new combatants mid-fight |
+| `sync_state` | `(ctx) -> None` | Persist HP/damage/ammo back to ctx |
+
+#### Shared helpers extracted from both loops
+
+Functions that are identical across space and ground move to shared
+helpers called by the unified loop (not by the rules module):
+
+- `_try_vim_move(ctx, game_map, dx, dy) -> bool` — 1 AP movement
+- `_cycle_target(target_idx, enemies) -> int` — Tab/Left/Right cycling
+- `_toggle_weapon(idx, active_weapons) -> list[bool]` — 1-9 key handler
+- `_fire_all_weapons(weapon_ids, active, target, ctx, rules) -> Outcome` — iterate weapons, roll hit, apply damage, check kill
+- `_resolve_flee(flee_chance, ctx, rules) -> str` — roll flee, return "FLEE" or ""
+- `_end_turn_guard(ctx, rules, game_map) -> bool` — if AP=0, run enemy turns, check player death
+
+#### Files to create / modify
+
+| File | Action |
+|------|--------|
+| `combat/_rules_space.py` | **New** — extract space-specific functions from `_loop.py` + `_stats.py` |
+| `combat/_rules_ground.py` | **New** — extract ground-specific functions from `_ground.py` |
+| `combat/_loop.py` | **Rewrite** — unified loop calling `rules.*`; shared helpers become module-level |
+| `combat/_ground.py` | **Delete** — all logic moves to `_rules_ground.py` + unified loop |
+| `combat/_encounter.py` | **Update** — pass space rules module to unified loop |
+| `__main__.py` | **Update** — pass ground rules module to unified loop |
+
+#### Migration strategy (phased, commit per step)
+
+1. **Extract space rules** — move space-specific functions from `_loop.py`
+   into `_rules_space.py`. The existing `run_combat()` still works
+   unchanged (it just imports from the new module). Smoke test.
+
+2. **Extract shared helpers** — pull `_try_vim_move`, `_cycle_target`,
+   `_toggle_weapon`, `_fire_all_weapons`, `_resolve_flee`,
+   `_end_turn_guard` out of `_loop.py` into module-level helpers.
+   `run_combat()` still works. Smoke test.
+
+3. **Build unified loop** — rewrite `_loop.py::run_combat()` to take
+   `rules` and call `rules.*` for all flavor. Wire space combat through
+   it. Verify space combat works identically. Smoke test.
+
+4. **Extract ground rules** — move ground-specific functions from
+   `_ground.py` into `_rules_ground.py`. Smoke test.
+
+5. **Wire ground through unified loop** — replace the `run_ground_combat`
+   call in `__main__.py` with `run_combat(console, ctx, game_map, rules_ground)`.
+   Delete `_ground.py`. Run Phase 5 playtest checklist.
+
+6. **Cleanup** — remove dead imports, verify both combat modes, run full
+   playtest. Update guide section.
 
 ---
 

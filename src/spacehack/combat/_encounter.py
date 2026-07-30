@@ -13,7 +13,8 @@ from __future__ import annotations
 import tcod.event
 
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
-from ._loop import run_combat
+from ._loop import run_combat, _run_combat_legacy
+from . import _rules_space
 
 
 def _handle_combat_encounter(ctx, console, encounter) -> str:
@@ -62,13 +63,15 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.log.add("Ship catalog mismatch — cannot start combat.")
         return "FLEE"
 
-    _cr = run_combat(
-        console, ctx.context,
+    from ._rules_space import init as _rs_init
+    _rs_init(
+        ctx, console,
         _ship_cat, ctx.player_owned_ship,
         ctx.player.pos, _pilot_skills,
         _specs, _positions,
-        ctx.game_map, ctx.log, ctx,
+        ctx.game_map, ctx.log,
     )
+    _cr = run_combat(console, ctx, ctx.game_map, _rules_space)
 
     if _cr.outcome == "VICTORY":
         if len(_cr.defeated_names) == 1:
