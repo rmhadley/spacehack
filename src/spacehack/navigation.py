@@ -518,11 +518,11 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | None:
     """Check if any entity with auto-hail behaviour is within range.
 
-    Two independent trigger sources, checked per entity:
-      1. **Spec-defined** — ``comms_warning_range > 0`` (distance-based)
-         or ``comms_trigger_viewport`` (viewport-based).
-      2. **Runtime-tagged** — ``bounty_spawn_id`` set on the entity
-         (always viewport-based).
+    Three independent trigger sources, checked per entity:
+      1. **Spec distance** — ``comms_warning_range > 0`` (blockade).
+      2. **Bounty entity distance** — ``bounty_comms_range`` set at
+         spawn time from ``BountySpawn.comms_warning_range``.
+      3. **Spec viewport** — ``comms_trigger_viewport`` (derelicts).
 
     Fires at most ONCE per system (tracked via
     ``militia_warned_systems``). After the warning the comms panel
@@ -557,7 +557,7 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         _spec_viewport = getattr(_spec, 'comms_trigger_viewport', False)
         _runtime_bounty = getattr(_e, 'bounty_spawn_id', None) is not None
 
-        if _spec_distance <= 0 and not _spec_viewport and not _runtime_bounty:
+        if _spec_distance <= 0 and not _spec_viewport:
             continue  # no auto-hail behaviour for this entity
 
         # --- Distance-based trigger (blockade zone defenders) ---
@@ -586,8 +586,8 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
                     _attack_data = _ocd(ctx, _e)
                     return (True, _attack_data)
 
-        # --- Viewport trigger (derelicts, bounty fallback) ---
-        if _spec_viewport or _runtime_bounty:
+        # --- Viewport trigger (derelicts only) ---
+        if _spec_viewport:
             _cam_x = max(0, min(player_pos.x - _view_w // 2, system.width - _view_w))
             _cam_y = max(0, min(player_pos.y - _view_h // 2, system.height - _view_h))
             if (_cam_x <= _e.pos.x < _cam_x + _view_w
