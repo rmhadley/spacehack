@@ -114,6 +114,7 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "move_counter": ctx.move_counter,
         "generated_missions": _d(ctx.generated_missions),
         "economy_state": _d(ctx.economy_state),
+        "militia_warned_systems": sorted(ctx.militia_warned_systems),
     }
 
 
@@ -161,24 +162,41 @@ def save_game(
     _synced_targets: dict[str, list[int]] = {}          # movement_id → [tx, ty]
     _synced_paths: dict[str, list] = {}                 # movement_id → [[x,y],...]
     for _sys_id, _spawns in ctx.procedural_spawns.items():
-        # Build candidate list keyed by npc_ship_id.  pop(0) on match
-        # gives each spawn a different entity (prevents stacking).
-        _by_type: dict[str, list] = {}
-        for _e in ctx.game_map.entities:
-            _eid = getattr(_e, 'npc_ship_id', '')
-            if _eid and getattr(_e, 'procedural_squad_id', '') != '':
-                _by_type.setdefault(_eid, []).append(_e)
+        # Only the current system's map is in ctx.game_map — for other
+        # systems we keep all spawns as-is (no entity data to match).
+        _is_current = (_sys_id == system_id)
+
+        if _is_current:
+            # Build candidate list keyed by npc_ship_id.  Any entity with
+            # npc_ship_id is a candidate — including derelicts (which
+            # have npc_ship_id but NOT procedural_squad_id because
+            # their base_speed=0 omits squad registration).  pop(0) on
+            # match gives each spawn a different entity (prevents stacking).
+            _by_type: dict[str, list] = {}
+            for _e in ctx.game_map.entities:
+                _eid = getattr(_e, 'npc_ship_id', '')
+                if _eid:
+                    _by_type.setdefault(_eid, []).append(_e)
 
         _updated: list = []
         _mids: list = []
         for _ps in _spawns:
             _cur_pos = _ps.pos
             _cur_mid = ""
-            _candidates = _by_type.get(_ps.npc_id, [])
-            if _candidates:
-                _matched = _candidates.pop(0)
-                _cur_pos = _matched.pos
-                _cur_mid = _matched.procedural_squad_id
+            if _is_current:
+                _candidates = _by_type.get(_ps.npc_id, [])
+                if _candidates:
+                    _matched = _candidates.pop(0)
+                    _cur_pos = _matched.pos
+                    _cur_mid = _matched.procedural_squad_id
+                else:
+                    # Entity was killed — remove its spawn so it doesn't
+                    # respawn on the next load.
+                    continue
+            else:
+                # For other systems preserve all spawns at their last
+                # recorded position (best-effort — no entity data).
+                pass
             _updated.append(ProceduralSpawn(
                 npc_id=_ps.npc_id, pos=_cur_pos, squad_id=_ps.squad_id,
             ))
@@ -632,7 +650,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
 
     else:
         # --- City mode: load planet map ---
-        from .data.planets import load_planet as planets_load_planet
+        from .data.planets import load_planet as planets_load_planet, hangar_anchor as _planet_anchor
 
         _game_map = planets_load_planet(_city_id)
         _player_ent = world.Entity(
@@ -641,28 +659,32 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         )
         _game_map.entities.append(_player_ent)
 
-        # Restore hangar ship if owned.
+        # Restore hangar ship at the planet's correct anchor position.
         if _owned_ship is not None:
             _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
             _hangar = world.Entity(
                 char=_ship_spec.char, fg=_ship_spec.fg,
-                pos=world.HANGAR_ANCHOR,
+                pos=_planet_anchor(_city_id),
                 name=f"Your Ship: {_ship_spec.name}",
                 ship_id=_owned_ship.ship_id, owned=True,
             )
             _game_map.entities.append(_hangar)
 
     # --- Restore loot entities (space or city) ---
-    for _ld in _data.get("map_loot", []) or []:
-        _lx = _ld.get("x", 0)
-        _ly = _ld.get("y", 0)
-        _loot_e = world.Entity(
-            char='%', fg=(255, 215, 0),
-            pos=world.Position(_lx, _ly),
-            name='Loot', width=1, height=1,
-            loot_data=_ld.get("loot_data"),
-        )
-        _game_map.entities.append(_loot_e)
+    # Skip for dungeon mode: dungeon entities (including loot) are already
+    # restored from dungeon.entities above — appending map_loot too would
+    # duplicate each loot entity on every save/load cycle.
+    if _mode != "dungeon":
+        for _ld in _data.get("map_loot", []) or []:
+            _lx = _ld.get("x", 0)
+            _ly = _ld.get("y", 0)
+            _loot_e = world.Entity(
+                char='%', fg=(255, 215, 0),
+                pos=world.Position(_lx, _ly),
+                name='Loot', width=1, height=1,
+                loot_data=_ld.get("loot_data"),
+            )
+            _game_map.entities.append(_loot_e)
 
     # --- Assemble GameContext ---
     _ctx = GameContext(
@@ -679,6 +701,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.mission_boards = _mission_boards
     _ctx.bounty_spawns = _bounty_spawns
     _ctx.faction_reputation = _rep
+    _ctx.militia_warned_systems = set(_data.get("militia_warned_systems", []) or [])
     _ctx.player_xp = _data.get("player_xp", 0)
     _ctx.player_level = _data.get("player_level", 1)
     _ctx.player_skill_points = _data.get("player_skill_points", 0)
