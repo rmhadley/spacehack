@@ -514,7 +514,33 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 
 # ---------------------------------------------------------------------------
 # NPC auto-comms warning (before combat triggers)
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
+    """Mark system warned and open comms with the entity.
+
+    Shared by all trigger paths — avoids repeating the
+    ``militia_warned_systems`` add + ``open_comms_direct`` call.
+    """
+    ctx.militia_warned_systems.add(_sys_id)
+    from .comms import open_comms_direct as _ocd
+    _attack_data = _ocd(ctx, _e)
+    return (True, _attack_data)
+
+
+def _check_spec_distance(e, player_pos, max_dist) -> bool:
+    """Pure: returns True if player is within ``max_dist`` of entity ``e``."""
+    _dist = math.hypot(player_pos.x - e.pos.x, player_pos.y - e.pos.y)
+    return 0 < _dist <= max_dist
+
+
+def _check_viewport_visible(e, player_pos, system) -> bool:
+    """Pure: returns True if entity ``e`` is within the player's viewport."""
+    _view_w = solar_system_module.SOL_VIEW_W
+    _view_h = solar_system_module.SOL_VIEW_H
+    _cam_x = max(0, min(player_pos.x - _view_w // 2, system.width - _view_w))
+    _cam_y = max(0, min(player_pos.y - _view_h // 2, system.height - _view_h))
+    return (_cam_x <= e.pos.x < _cam_x + _view_w
+            and _cam_y <= e.pos.y < _cam_y + _view_h)
+
 
 def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | None:
     """Check if any entity with auto-hail behaviour is within range.
@@ -539,9 +565,6 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
     if _sys_id in ctx.militia_warned_systems:
         return None
 
-    _view_w = solar_system_module.SOL_VIEW_W
-    _view_h = solar_system_module.SOL_VIEW_H
-
     for _e in ctx.game_map.entities:
         if getattr(_e, 'owned', False):
             continue
@@ -553,46 +576,24 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         except (KeyError, ImportError):
             continue
 
-        # Gather auto-hail sources from spec and entity.
         _spec_distance = _spec.comms_warning_range
         _spec_viewport = getattr(_spec, 'comms_trigger_viewport', False)
         _entity_bounty_range = getattr(_e, 'bounty_comms_range', 0)
 
         if _spec_distance <= 0 and not _spec_viewport and _entity_bounty_range <= 0:
-            continue  # no auto-hail behaviour for this entity
+            continue
 
-        # --- Distance-based trigger (blockade zone defenders) ---
-        if _spec_distance > 0:
-            _dist = math.hypot(
-                player_pos.x - _e.pos.x,
-                player_pos.y - _e.pos.y,
-            )
-            if 0 < _dist <= _spec_distance:
-                ctx.militia_warned_systems.add(_sys_id)
-                from .comms import open_comms_direct as _ocd
-                _attack_data = _ocd(ctx, _e)
-                return (True, _attack_data)        # --- Bounty distance-based trigger (per-entity range from BountySpawn) ---
-        if _entity_bounty_range > 0:
-            _dist = math.hypot(
-                player_pos.x - _e.pos.x,
-                player_pos.y - _e.pos.y,
-            )
-            if 0 < _dist <= _entity_bounty_range:
-                ctx.militia_warned_systems.add(_sys_id)
-                from .comms import open_comms_direct as _ocd
-                _attack_data = _ocd(ctx, _e)
-                return (True, _attack_data)
+        # --- Spec distance (blockade) ---
+        if _spec_distance > 0 and _check_spec_distance(_e, player_pos, _spec_distance):
+            return _fire_warning(ctx, _sys_id, _e)
 
-        # --- Viewport trigger (derelicts only) ---
-        if _spec_viewport:
-            _cam_x = max(0, min(player_pos.x - _view_w // 2, system.width - _view_w))
-            _cam_y = max(0, min(player_pos.y - _view_h // 2, system.height - _view_h))
-            if (_cam_x <= _e.pos.x < _cam_x + _view_w
-                    and _cam_y <= _e.pos.y < _cam_y + _view_h):
-                ctx.militia_warned_systems.add(_sys_id)
-                from .comms import open_comms_direct as _ocd
-                _attack_data = _ocd(ctx, _e)
-                return (True, _attack_data)
+        # --- Bounty entity distance ---
+        if _entity_bounty_range > 0 and _check_spec_distance(_e, player_pos, _entity_bounty_range):
+            return _fire_warning(ctx, _sys_id, _e)
+
+        # --- Viewport (derelicts) ---
+        if _spec_viewport and _check_viewport_visible(_e, player_pos, system):
+            return _fire_warning(ctx, _sys_id, _e)
 
     return None
 

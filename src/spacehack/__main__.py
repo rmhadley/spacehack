@@ -51,7 +51,6 @@ from .menus import (
     render_quest_log, update_quest_log, _run_quest_log,
     render_ship_menu, _ship_menu_navigate, update_ship_menu, _run_ship_menu,
     _run_mech_menu,
-    _find_hangar_ship,
     _run_planet_menu,
 )
 from .navigation import (
