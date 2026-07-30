@@ -153,6 +153,9 @@ def _paint_range_line(
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by weapon range bands.
 
+    Delegates to :func:`_draw_range_colored_line` after resolving
+    the weapon spec — shared by both ship and ground combat.
+
     Each cell along a Bresenham line is colored based on its distance
     from the player and the selected weapon's range profile:
 
@@ -169,8 +172,47 @@ def _paint_range_line(
     except KeyError:
         return
 
-    half_range = ws.max_range // 2
-    has_min_range = ws.min_range > 0
+    _draw_range_colored_line(
+        console,
+        player_pos, target_pos,
+        ws.max_range, ws.min_range,
+        cam_x, cam_y, view_w, view_h,
+        region_x, region_y,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Shared drawing primitives (reused by ground combat)
+# ---------------------------------------------------------------------------
+
+
+def _draw_range_colored_line(
+    console,
+    player_pos: world.Position,
+    target_pos: world.Position,
+    weapon_max_range: int,
+    weapon_min_range: int,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Draw a range-accuracy line from player to target, colored by
+    distance from the player and the weapon's range profile.
+
+    This is the core drawing logic extracted from
+    :func:`_paint_range_line` so both ship combat and ground combat
+    can share it with different weapon catalog lookups.
+
+    * **Green** — within ``max_range // 2`` (close-bonus zone)
+    * **Yellow** — within ``max_range`` (normal range)
+    * **Orange** — within ``min_range`` (too-close penalty)
+    * **Red** — beyond ``max_range`` (dist penalty active)
+    """
+    half_range = weapon_max_range // 2
+    has_min_range = weapon_min_range > 0
 
     _GREEN = (100, 235, 115)
     _YELLOW = (255, 220, 80)
@@ -190,9 +232,9 @@ def _paint_range_line(
 
         if dist <= half_range:
             color = _GREEN
-        elif dist <= ws.max_range:
+        elif dist <= weapon_max_range:
             color = _YELLOW
-        elif has_min_range and dist <= ws.min_range:
+        elif has_min_range and dist <= weapon_min_range:
             color = _ORANGE
         else:
             color = _RED
