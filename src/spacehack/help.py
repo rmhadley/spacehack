@@ -647,7 +647,7 @@ _GUIDE_CHARACTER = GuideSection(
         "- Engineering: reduces shield regen power cost (-1 per 20"
         "points) and increases max power pool (+1 per 5 points)"
         "\n\n"
-        "Ground stats (affect foot combat in dungeons):"
+        "Ground stats (affect foot combat in dungeons, all cap at 100):"
         "\n"
         "- Reflexes: improves ranged accuracy and dodge bonus on foot"
         "\n"
@@ -656,9 +656,9 @@ _GUIDE_CHARACTER = GuideSection(
         "\n"
         "- Stamina: increases HP pool and damage resistance"
         "\n\n"
-        "All six skills are shown on the C screen Stats tab. Spend"
-        "skill points gained from leveling up on any skill -- ship or"
-        "ground -- at the same cost."
+        "All six skills are shown on the C screen Stats tab and the HUD."
+        "Spend skill points gained from leveling up on any skill -- ship"
+        "or ground -- at the same cost.  All six cap at 100."
     ),
 )
 

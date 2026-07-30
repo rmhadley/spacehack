@@ -116,6 +116,24 @@ def _render_skill_line(
     )
 
 
+def _render_ground_stat_line(
+    console: tcod.console.Console, hud_x: int, y: int, ground_stats,
+) -> None:
+    """Print the REF/STR/STA ground stat line at ``(hud_x, y)``.
+
+    Pure print — caller owns y advancement.
+    """
+    console.print(
+        x=hud_x, y=y,
+        string=(
+            f"REF:{ground_stats.reflexes} "
+            f"STR:{ground_stats.strength} "
+            f"STA:{ground_stats.stamina}"
+        )[:HUD_WIDTH],
+        fg=COLOR_SHIP_LABEL,
+    )
+
+
 def _render_help_lines(
     console: tcod.console.Console,
     hud_x: int,
@@ -154,6 +172,7 @@ def render_hud(
     date_str: str | None = None,          # formatted date for HUD display
     player_xp: int = 0,                   # current total XP (for progress bar)
     player_level: int = 1,                # current player level
+    ground_stats = None,                  # GroundStats dataclass — shows REF/STR/STA when provided
 ) -> None:
     """Paint the right-side HUD into the top ``hud_view_height`` rows.
 
@@ -261,6 +280,11 @@ def render_hud(
         # Pilot skills (compact one-liner)
         y += 1
         _render_skill_line(console, hud_x, y, stats)
+        y += 1
+        # Ground stats (second line)
+        if ground_stats is not None:
+            _render_ground_stat_line(console, hud_x, y, ground_stats)
+            y += 1
 
         # Divider
         y += 1
@@ -331,11 +355,16 @@ def render_hud(
         console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
 
         # Pilot skills (compact one-liner)
-        y += 2
+        y += 1
         _render_skill_line(console, hud_x, y, stats)
+        y += 1
+        # Ground stats (second line)
+        if ground_stats is not None:
+            _render_ground_stat_line(console, hud_x, y, ground_stats)
+            y += 1
 
         # Divider — separates stats from terminals
-        y += 2
+        y += 1
         _render_divider(console, hud_x, y)
 
         # Terminal indicators (each on its own line)

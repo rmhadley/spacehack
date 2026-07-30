@@ -81,17 +81,17 @@ def add_xp(ctx: GameContext, amount: int) -> None:
 # Ground stat names that route to ctx.ground_stats instead of ctx.stats.
 _GROUND_STAT_NAMES: frozenset[str] = frozenset({"reflexes", "strength", "stamina"})
 
-# Caps for ship skills vs ground stats.
-_SHIP_SKILL_CAP: int = 100
-_GROUND_STAT_CAP: int = 30
+# All six skills (Gunnery/Piloting/Engineering + Reflexes/Strength/Stamina)
+# cap at 100. The level cap of 30 limits how many points you can earn.
+_SKILL_CAP: int = 100
 
 
 def _apply_skill_point(ctx: GameContext, skill: str) -> bool:
     """Spend one skill point on *skill*.
 
-    Ship skills (gunnery/piloting/engineering) route to ``ctx.stats``
-    and cap at 100. Ground stats (reflexes/strength/stamina) route to
-    ``ctx.ground_stats`` and cap at 30.
+    Ship skills (gunnery/piloting/engineering) route to ``ctx.stats``.
+    Ground stats (reflexes/strength/stamina) route to ``ctx.ground_stats``.
+    All six cap at 100.
 
     Each point adds +1. Returns True if spent, False if no points
     available or skill is at cap.
@@ -101,10 +101,9 @@ def _apply_skill_point(ctx: GameContext, skill: str) -> bool:
 
     if skill in _GROUND_STAT_NAMES:
         _target = ctx.ground_stats
-        _cap = _GROUND_STAT_CAP
     else:
         _target = ctx.stats
-        _cap = _SHIP_SKILL_CAP
+    _cap = _SKILL_CAP
 
     _current = getattr(_target, skill, 0)
     if _current >= _cap:

@@ -154,12 +154,12 @@ def _render_stats(
         _skill = _SKILLS[i]
 
         # Ship skills come from ctx.stats, ground stats from ctx.ground_stats.
+        # All six cap at 100.
         if i < 3:
             _val = getattr(ctx.stats, _skill, 0)
-            _max_val = 100
         else:
             _val = getattr(ctx.ground_stats, _skill, 10)
-            _max_val = 30
+        _max_val = 100
 
         _plus = "[+]" if _pts > 0 and _val < _max_val else "MAX" if _val >= _max_val else "   "
         _line = f"{_marker} {_skill.title():<12} {_val:>3}  {_plus}"
