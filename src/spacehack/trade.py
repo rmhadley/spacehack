@@ -566,6 +566,7 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
             footer_left=cargo_str,
             footer_right=credits_str,
             hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
+            log=ctx.log,
         )
 
     def _update(event: tcod.event.Event) -> _NpcTradeOutcome:
@@ -765,6 +766,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             footer_left=cargo_str,
             footer_right=credits_str,
             hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
+            log=ctx.log,
         )
 
     def _update(event: tcod.event.Event) -> _TradeOutcome:

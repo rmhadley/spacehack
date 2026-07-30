@@ -767,6 +767,7 @@ def render_split_frame(
     footer_left: str,
     footer_right: str,
     hint: str,
+    log = None,
 ) -> None:
     """Render a split-screen two-panel frame.
 
@@ -775,8 +776,11 @@ def render_split_frame(
     by :func:`format_split_row`.
     ``focus`` (0 = left, 1 = right) and ``sel`` drive the per-row
     selection highlight.
+    ``log`` — optional ``MessageLog``; when provided the bottom
+    ``MSG_LOG_HEIGHT`` rows are painted with the recent messages.
     """
     from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
+    from . import message_log as _ml
     console.clear()
     max_w = SCREEN_WIDTH - HUD_WIDTH - 2
     col_w = max_w // 2 - 2
@@ -810,3 +814,11 @@ def render_split_frame(
     paint_text(console, 2, foot_y, footer_left, fg=COLOR_VALUE_WHITE)
     paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(footer_right) - 2, foot_y, footer_right, fg=COLOR_VALUE_WHITE)
     paint_text(console, 2, foot_y + 2, hint, fg=COLOR_INSTRUCTION)
+
+    # Message log at the bottom.
+    if log is not None:
+        _ml.render_message_log(
+            console, log,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+        )

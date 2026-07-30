@@ -158,6 +158,7 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
             footer_left=f"Credits: {ctx.stats.credits}$",
             footer_right=f"{_wpn_label}  {_mod_label}",
             hint="UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+            log=ctx.log,
         )
 
         # Detail line for the currently selected item.
@@ -183,7 +184,7 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
                     pass
                 if _detail:
                     _max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-                    _detail_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT + 1
+                    _detail_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 2
                     ui.paint_text(console, 2, _detail_y, _detail, fg=ui.COLOR_VALUE_DIM, max_x=2 + _max_w)
 
     def _update(event: tcod.event.Event) -> _LoadoutOutcome:
