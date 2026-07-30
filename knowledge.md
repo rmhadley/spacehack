@@ -279,6 +279,111 @@ def _buy_good(ctx, planet_id, good_id, qty):
 **Exempt:** Render functions (painting to console is inherently a side
 effect), modal runners, and the top-level game loop.
 
+## System contracts (MANDATORY — silent breakage if violated)
+
+These contracts govern subsystems that have no automated enforcement.
+Forgetting a step here produces a **silent bug**, not a crash — the
+smoke test won't catch it. Only a playtest will.
+
+---
+
+### Save/load contract
+
+The save system serializes ``GameContext`` fields manually, regenerates
+the map on load, and rebuilds entities from spawn metadata. Three rules:
+
+#### Rule 1: New GameContext field → add to save AND load
+
+Every field on ``GameContext`` must be explicitly listed in **both**
+``saveload._ctx_to_dict()`` (serialize) **and** ``saveload.load_game()``
+(deserialize). If you add a field to ``GameContext`` but skip either side:
+
+| What you forgot | Result |
+|-----------------|--------|
+| Not in ``_ctx_to_dict`` | Field silently missing from autosave JSON |
+| Not in ``load_game`` | Field resets to default on Continue |
+
+**Checklist when adding a ``GameContext`` field:**
+- [ ] Add to ``_ctx_to_dict()`` — wrap complex types in ``_d()``
+- [ ] Read in ``load_game()`` — use ``.get("key", default)`` for backward compat with old saves
+
+#### Rule 2: New NPC entity → register in ctx.procedural_spawns
+
+Every NPC entity on the space map must have a corresponding
+``ProceduralSpawn`` entry in ``ctx.procedural_spawns``. The spawn's
+``squad_id`` **must** match the entity's ``procedural_squad_id``
+for 1:1 cleanup matching.
+
+**Checklist when adding a new spawn mechanism:**
+- [ ] Append ``ProceduralSpawn(npc_id, pos, squad_id=movement_id)`` to ``ctx.procedural_spawns[system_id]``
+- [ ] Set ``entity.procedural_squad_id = movement_id`` (matches spawn's squad_id)
+- [ ] Set ``entity.npc_ship_id = spec.id`` (for catalog lookups + cleanup matching)
+
+#### Rule 3: NPC killed or despawned → remove its spawn entry
+
+Dead entities are removed from ``game_map.entities`` but their spawn
+entry in ``ctx.procedural_spawns`` persists **until explicitly cleaned
+up**. If a spawn entry outlives its entity, the NPC respawns on the
+next save/load cycle.
+
+**Cleanup sites (both must exist):**
+
+| Event | Location | Matching strategy |
+|-------|----------|-------------------|
+| Combat kill | ``combat/_weapons.py`` per-kill handler | ``(squad_id, npc_id)`` — exact 1:1 |
+| Merchant despawn | ``npc_ships.py`` move_npcs() | ``(npc_id, position)`` — type + cell |
+
+**Checklist when adding a new NPC removal event:**
+- [ ] Add spawn cleanup at the removal site
+- [ ] Match by ``(squad_id, npc_id)`` for 1:1 precision (preferred), or ``(npc_id, position)`` as fallback
+- [ ] Bounty spawns live in ``ctx.bounty_spawns``, not ``procedural_spawns`` — clean those up via ``navigation._remove_bounty_spawn()``
+
+#### Sniff test for save/load bugs
+
+After any change touching spawns, cleanup, or GameContext fields:
+1. Start a new game, launch to space, kill an NPC
+2. Save (land on a planet) and quit
+3. Continue — the killed NPC should NOT be on the map
+4. Other NPCs that were alive should still be present
+
+---
+
+### Game guide contract
+
+The game guide (``?`` key, ``help.py``) has a ``GUIDE_SECTIONS`` tuple
+of ``GuideSection`` objects. Each section explains one system to the
+player.
+
+**When you add, change, or remove a player-facing feature,** you MUST
+update the corresponding guide section. If a new system has no existing
+section, add one and append it to ``GUIDE_SECTIONS``.
+
+**Checklist when shipping a feature:**
+- [ ] Does an existing section cover this system? Update its ``body`` text
+- [ ] Is this a new system? Create a ``_GUIDE_<NAME>`` section + append to ``GUIDE_SECTIONS``
+- [ ] Are keybindings affected? Update ``_GUIDE_CONTROLS``
+- [ ] Are formulas/numbers changed? Update the relevant section's numbers
+- [ ] Keep body text self-contained — cross-reference other sections by name ("see Trading & Economy")
+- [ ] Use CP437-safe characters only (``#`` not ``█``, ``|`` not ``│``, ``-`` not ``─``)
+
+---
+
+### Module-level state contract
+
+Only two module-level globals carry session-persistent state:
+
+| Variable | Module | Contract |
+|----------|--------|----------|
+| ``current_solar_system_id`` | ``solar_system.py`` | Reset to ``"sol"`` on New Game via ``set_current_solar_system()``. Restored from save on Continue. |
+| ``RNG`` | ``engine.py`` | Fresh ``seed_rng(os.urandom())`` on New Game. State saved/restored on Continue via ``RNG.getstate()`` / ``RNG.setstate()``. |
+
+**When adding new module-level mutable state,** you MUST:
+- [ ] Reset it in the New Game path (``__main__.py`` new-game setup block)
+- [ ] Save it in ``saveload.save_game()``
+- [ ] Restore it in ``saveload.load_game()``
+
+---
+
 ## Screen constants (in `engine.py`)
 ```python
 SCREEN_WIDTH   = 100
