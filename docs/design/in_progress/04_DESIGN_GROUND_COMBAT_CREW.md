@@ -333,7 +333,87 @@ Space mode:
 
 ---
 
-### Phase 4: Ground combat (NEXT)
+### Phase 4: Ground stats — REFLEXES / STRENGTH / STAMINA (COMPLETED)
+
+**What shipped:** `GroundStats` dataclass with REF/STR/STA, species/class bonuses via
+`ground_bonus` fields, unified Stats tab on C screen (6 rows, 2 tabs), shared skill point
+pool, HUD display of REF/STR/STA line below GUN/PIL/ENG, caps raised to 100 for all
+skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
+
+#### Step 4a: GroundStats dataclass
+
+- [x] `GroundStats(reflexes=10, strength=10, stamina=10)` dataclass in `character.py`
+- [x] Base values all start at 10 ("average human" baseline)
+- [x] `ground_stats: GroundStats` field on `GameContext` (default factory)
+- [x] `GROUND_STAT_BASE = 10` module constant
+
+#### Step 4b: Species/class integration
+
+- [x] `ground_bonus` field on `Species` dataclass:
+
+  | Species | REF | STR | STA | Rationale |
+  |---------|-----|-----|-----|-----------|
+  | Human   | +1  | +1  | +1  | Versatile baseline |
+  | Martian | +2  | +0  | +1  | Low-grav agility |
+
+- [x] `ground_bonus` field on `GameClass` dataclass:
+
+  | Class          | REF | STR | STA | Rationale |
+  |----------------|-----|-----|-----|-----------|
+  | Pirate         | +0  | +3  | +0  | Brawler |
+  | Merchant       | +0  | +0  | +3  | Survivability |
+  | Bounty Hunter  | +1  | +1  | +1  | Balanced |
+
+- [x] `starting_ground_stats(species_id, class_id) -> GroundStats` in `character.py`
+- [x] Computed at character creation (initially missed — hotfixed: was defaulting to 10/10/10)
+- [x] Save/load `ground_stats` in saveload.py
+
+#### Step 4c: Unified Stats tab on C screen
+
+- [x] Ground stats sit alongside ship skills on the single **Stats** tab (2 tabs total — no third tab)
+- [x] Stats tab shows 6 rows: Gunnery, Piloting, Engineering, Reflexes, Strength, Stamina
+- [x] TAB cycles between `[Stats]` and `[Equipment]` tabs
+- [x] ENTER spends a skill point on whichever row is selected (all 6 share the point pool)
+- [x] Cap for **all** skills raised to **100** (originally 30 for ground stats, changed during playtest)
+
+#### Step 4d: Level-up + HUD integration
+
+- [x] Skill points shared between ship skills and ground stats — one pool, player chooses
+- [x] HUD shows REF/STR/STA on a second line below GUN/PIL/ENG in both city and space mode
+- [x] All 4 render_hud call sites pass `ctx` (refactored to prevent future missed-site bugs)
+- [x] Max player level enforced at 30 (`MAX_PLAYER_LEVEL = 30` in `xp.py`)
+- [x] Dev mode Shift+X hotkey awards 200 XP (gated behind `SPACEHACK_DEV` env var)
+
+#### Step 4e: Game guide
+
+- [x] `_GUIDE_CHARACTER` section updated to mention all six skills and max level 30
+- [x] `_GUIDE_GROUND_GEAR` section in `help.py` — armory terminal, weapons, armor, buy/sell
+
+#### Bugfixes discovered during playtest
+
+- [x] **`starting_ground_stats` never called during new game setup** — C screen showed flat 10/10/10
+- [x] **Armory cursor jump** — buying armor from left panel clamped `_sel` against right panel length
+- [x] **Message log missing from split-screen modals** — `render_split_frame` didn't render message log
+- [x] **Animation HUD missing ground stats** — 3 call sites (city, auto-nav, jump) not passing `ground_stats`
+- [x] **Ground stats cap at 30** — changed to 100 to match ship skills
+
+#### Playtest checklist
+
+- [x] New game: C screen has **2 tabs** — TAB cycles Stats / Equipment
+- [x] Stats tab shows 6 rows: GUN/PIL/ENG/REF/STR/STA with species+class bonuses
+- [x] Human starts at 11/11/11 (REF/STR/STA), Pirate at 11/13/10, Merchant at 11/10/13
+- [x] Martian Bounty Hunter starts at 13/10/12
+- [x] Spend skill point on REFLEXES → increases by 1, points decrease by 1
+- [x] Ground stats show MAX at 100, ship skills show MAX at 100
+- [x] Level stops at 30 — no more skill points
+- [x] HUD shows `REF:11 STR:13 STA:10` below `GUN:30 PIL:30 ENG:30` in both city and space
+- [x] Shift+X in dev mode awards 200 XP
+- [x] Save/continue → ground stats preserved
+- [x] Guide section explains all six skills + max level 30
+
+---
+
+### Phase 5: Ground combat (NEXT)
 
 **Goal:** Walk into an enemy → fight them with ground weapons using the existing combat engine.
 
@@ -341,8 +421,10 @@ Space mode:
 - [ ] Place 1-2 enemies per room during `load_layout()` from location type's enemy pool
 - [ ] RNG enemy weapon assignment (knife vs pistol from a pick list)
 - [ ] Walk into enemy → `"occupied"` → ground combat scene swap
-- [ ] Reuse `EnemyInstance` from combat engine — hull=HP, shields=armor, ground weapons feed the same pipeline
-- [ ] Player ground HP tracked on ctx (30 HP default, use species/class HP?)
+- [ ] Reuse `EnemyInstance` from combat engine — hull=HP, shields=armor
+- [ ] **REFLEXES formula:** hit_chance = weapon.accuracy + (reflexes * 0.5) - target_dodge
+- [ ] **STRENGTH formula:** melee_damage = weapon.damage + (strength * 0.2)
+- [ ] **STAMINA formula:** ground_hp = 20 + stamina * 2; armor_effectiveness = stamina // 10
 - [ ] Enemy death → remove entity from dungeon map (reuse entity removal pattern)
 - [ ] Player death → "You collapse..." → exit dungeon → respawn at ship with 1 HP
 - [ ] Save/restore ground_hp across save/load
@@ -352,15 +434,15 @@ Space mode:
 
 - [ ] Board derelict → enemy glyphs visible in rooms (when revealed)
 - [ ] Walk into enemy → combat starts with ground HUD (HP bar, weapon name)
-- [ ] Fire equipped weapon → damage applied, enemy reacts
+- [ ] Fire equipped weapon → damage formula uses REFLEXES for hit, STRENGTH for melee
+- [ ] Player HP = 20 + stamina * 2 (e.g., 40 HP at stamina 10, 60 at stamina 20)
 - [ ] Kill enemy → "destroyed" message, glyph removed
-- [ ] Enemy hits player → HP bar decreases
 - [ ] Player HP hits 0 → "You collapse..." → back in ship, HP=1
 - [ ] Save in space, continue → no ground state leak
 
 ---
 
-### Phase 4: Planet/station dungeon entrances (NEXT)
+### Phase 6: Planet/station dungeon entrances (NEXT)
 
 **Goal:** Walk into a building on a planet or station → enter a dungeon. Same layout system, different tile/room themes.
 
@@ -373,27 +455,27 @@ Space mode:
 
 ---
 
-### Phase 5: Save/load polish + guide (NEXT)
+### Phase 7: Save/load polish + guide (NEXT)
 
 - [ ] Add `_GUIDE_GROUND_COMBAT` section to `help.py`
 - [ ] Verify derelict despawn + no-respawn on save/load
 - [ ] Verify ground stats reset on exit
 
-### Phase 6: Crew, cybernetics, terminals (future content pass)
+### Phase 8: Crew, cybernetics, terminals (future content pass)
 
 Full content expansion — deferred. See original sections below for the design.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** New GameContext fields (ground_hp, ground_max_hp, ground_armor) → both `_ctx_to_dict()` AND `load_game()` (Phase 4)
-- [ ] **Save/load:** Dungeon state — procedural regeneration from seed + cleared-room flags (Phase 4)
-- [ ] **NPC spawns:** Ground enemies are dungeon-only, not in `ctx.procedural_spawns` — no persistence needed (entities rebuilt from seed on re-entry)
-- [ ] **Game guide:** Ground combat section in `help.py` (Phase 4)
-- [ ] **Module-level state:** No new module-level globals expected
+- [x] **Save/load:** GroundStats field added to `_ctx_to_dict` + `load_game` with `.get("ground_stats", ...)` fallback
+- [x] **Game guide:** `_GUIDE_CHARACTER` section updated to mention all six skills and cap at 100; `_GUIDE_GROUND_GEAR` section documents armory terminal and equipment
+- [x] **Module-level state:** No new globals
+- [ ] **Ground combat guide:** Pending Phase 5
 
 ## Open questions
 
-1. **Save/load strategy for dungeons?** Regenerate from seed + track cleared rooms. Simplest approach: on re-entry, regenerate the same layout, skip enemies in cleared rooms. This avoids serializing the entire dungeon map.
-2. **Should the derelict despawn after clearing?** For framework: no — it stays. Content pass can add one-shot derelicts.
-3. **Player death in dungeon?** Respawn at ship with 1 HP. Don't save dungeon state on death — the player can re-board (dungeon regenerates fresh from same seed).
-4. **Does the combat engine need changes?** Minimally. We need a ground-combat variant of `init_combat_state` that reads ground weapon specs and sets shields=armor. The core loop (`run_combat`) should work unchanged if we feed it compatible data.
+1. **Save/load strategy for dungeons?** Solved — dungeon map is fully serialized (tiles, fog, entities, loot, power status) via `_d() / load_game()`
+2. **Should the derelict despawn after clearing?** Derelict despawns from space map once boarded (consumed).
+3. **Player death in dungeon?** Not implemented yet — deferred to Phase 5 (ground combat).
+4. **Does the combat engine need changes?** Not yet — ground combat uses the existing `combat._loop` with ground-weapon data. Minimal changes expected.
+5. **Should skill points be shared between ship and ground?** Yes — implemented as a single shared pool across all 6 skills.
