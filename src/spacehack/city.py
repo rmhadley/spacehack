@@ -38,7 +38,7 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         console.clear()
         world.render_world(console, game_map, region_x=0, region_y=0, region_w=solar_system_module.SOL_VIEW_W, region_h=solar_system_module.SOL_VIEW_H)
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, location=location or None, date_str=format_date(ctx), has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory, player_xp=ctx.player_xp, player_level=ctx.player_level)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, character=ctx.character_info, stats=ctx.stats, location=location or None, date_str=format_date(ctx), has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory, player_xp=ctx.player_xp, player_level=ctx.player_level, ground_stats=ctx.ground_stats)
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_seconds)

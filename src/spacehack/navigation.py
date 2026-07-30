@@ -778,6 +778,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         date_str=format_date(ctx),
                         player_xp=ctx.player_xp,
                         player_level=ctx.player_level,
+                        ground_stats=ctx.ground_stats,
                     )
                     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
                     ctx.context.present(console)
@@ -1015,7 +1016,7 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         else:
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
-        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, location=solar_system_module.current_system().name, owned_ship=ctx.player_owned_ship, ship_catalog=ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None, date_str=format_date(ctx), player_xp=ctx.player_xp, player_level=ctx.player_level)
+        hud.render_hud(console, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, character=ctx.character_info, stats=ctx.stats, location=solar_system_module.current_system().name, owned_ship=ctx.player_owned_ship, ship_catalog=ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None, date_str=format_date(ctx), player_xp=ctx.player_xp, player_level=ctx.player_level, ground_stats=ctx.ground_stats)
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_s)
