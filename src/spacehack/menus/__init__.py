@@ -25,4 +25,5 @@ from ._ship_menu import (
     _ship_menu_navigate, update_ship_menu, _run_ship_menu, _find_hangar_ship,
 )
 from ._mechanic import _run_mech_menu
+from ._armory import _run_armory_menu
 from ._planet import PlanetMenuOutcome, render_planet_menu, update_planet_menu, _run_planet_menu

@@ -262,6 +262,12 @@ class GameContext:
     player_engineering_bonus: int = 0
     player_traits: list[str] = dataclasses.field(default_factory=list)
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
+    # Ground-combat gear inventory (list of GroundWeaponSpec / GroundArmorSpec ids).
+    ground_inventory: list[str] = dataclasses.field(default_factory=list)
+    # Currently equipped ground weapon (id or None = fists).
+    equipped_ground_weapon: str | None = None
+    # Equipped ground armour by slot: slot → GroundArmorSpec id.
+    equipped_ground_armor: dict[str, str] = dataclasses.field(default_factory=dict)
     # Current city the player is on (for save/load).  Updated on
     # planet landing; used by the title-menu Continue path to
     # restore the correct city map.

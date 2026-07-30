@@ -1,0 +1,65 @@
+"""Melee ground weapons — fists, knives, batons.
+
+All share damage_type="melee", range=1, ammo_capacity=-1 (infinite).
+"""
+
+from . import GroundWeaponSpec
+
+WARES: tuple[GroundWeaponSpec, ...] = (
+    GroundWeaponSpec(
+        id="fists",
+        name="Fists",
+        damage_type="melee",
+        damage=1,
+        accuracy=90,
+        ap_cost=1,
+        hands=1,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=0,
+        tech_level=1,
+    ),
+    GroundWeaponSpec(
+        id="combat_knife",
+        name="Combat Knife",
+        damage_type="melee",
+        damage=3,
+        accuracy=85,
+        ap_cost=1,
+        hands=1,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=20,
+        tech_level=1,
+    ),
+    GroundWeaponSpec(
+        id="stun_baton",
+        name="Stun Baton",
+        damage_type="melee",
+        damage=2,
+        accuracy=80,
+        ap_cost=1,
+        hands=1,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=35,
+        tech_level=2,
+    ),
+    GroundWeaponSpec(
+        id="survival_axe",
+        name="Survival Axe",
+        damage_type="melee",
+        damage=5,
+        accuracy=72,
+        ap_cost=1,
+        hands=2,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=45,
+        tech_level=1,
+    ),
+)

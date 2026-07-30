@@ -150,6 +150,7 @@ def render_hud(
     ship_catalog: Any = None,            # ship_module.Ship catalog entry
     has_trade_terminal: bool = False,    # city mode: show = terminal hint
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
+    has_armory_terminal: bool = False,    # city mode: show A terminal hint
     date_str: str | None = None,          # formatted date for HUD display
     player_xp: int = 0,                   # current total XP (for progress bar)
     player_level: int = 1,                # current player level
@@ -339,11 +340,14 @@ def render_hud(
 
         # Terminal indicators (each on its own line)
         y += 1
+        if has_armory_terminal:
+            console.print(x=hud_x, y=y, string="A  Armory", fg=COLOR_LABEL)
+            y += 1
         if has_mech_terminal:
-            console.print(x=hud_x, y=y, string="%  Mechanic Terminal", fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="%  Mechanic", fg=COLOR_LABEL)
             y += 1
         if has_trade_terminal:
-            console.print(x=hud_x, y=y, string="=  Trade Terminal", fg=COLOR_LABEL)
+            console.print(x=hud_x, y=y, string="=  Trade", fg=COLOR_LABEL)
 
         # Divider — separates terminals from keybinding help
         y += 1

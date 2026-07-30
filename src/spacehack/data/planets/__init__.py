@@ -333,6 +333,17 @@ def load_planet(planet_id: str) -> world.GameMap:
             width=1, height=1,
             mech_terminal=True,
         ))
+        # Armory terminal: placed further left of the mechanic terminal.
+        _armory_x = port.door_x - 5
+        _armory_y = port.y_hi + 1
+        entities.append(world.Entity(
+            char="A",
+            fg=(255, 160, 80),
+            pos=world.Position(x=_armory_x, y=_armory_y),
+            name="Armory Terminal",
+            width=1, height=1,
+            armory_terminal=True,
+        ))
 
     # Shared decoration: roads, plaza, sidewalks, grass patch.
     world._layout_outside(tiles, width, height, spec.buildings, theme=theme)

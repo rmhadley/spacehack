@@ -885,6 +885,60 @@ _GUIDE_DERELICT = GuideSection(
 )
 
 # All sections in order. Add new sections here (insert or append).
+_GUIDE_GROUND_GEAR = GuideSection(
+    title="Ground Gear & Armory",
+    body=(
+        "Ground combat (dungeons, derelict ship boarding) uses personal weapons "
+        "and armour separate from your ship's loadout. Manage your ground gear "
+        "at the Armory Terminal (A symbol on the city map)."
+        "\n\n"
+        "Armory Terminal:"
+        "\n"
+        "- Located on every planet with a spaceport, just south of the building"
+        "near the mechanic terminal"
+        "\n"
+        "- Walk into the A glyph to open the buy/sell split-screen"
+        "\n"
+        "- TAB switches between For Sale (left) and My Gear (right)"
+        "\n"
+        "- ENTER on the left panel buys the selected item"
+        "\n"
+        "- ENTER on the right panel equips/unequips the selected item"
+        "\n\n"
+        "Weapon types:"
+        "\n"
+        "- Melee (fists, combat knife, stun baton): range 1, infinite ammo, "
+        "one- or two-handed"
+        "\n"
+        "- Pistols (laser, kinetic): range 4, one-handed, limited or "
+        "rechargeable ammo"
+        "\n"
+        "- Rifles (laser, kinetic, shotgun): range 4-7, two-handed, higher damage"
+        "\n\n"
+        "Armour slots:"
+        "\n"
+        "- Helmet: protects head"
+        "\n"
+        "- Vest: protects torso (highest defense value)"
+        "\n"
+        "- Gloves: protects hands"
+        "\n"
+        "- Boots: protects feet"
+        "\n"
+        "Each armour piece provides flat damage reduction per hit."
+        "\n\n"
+        "Viewing your loadout:"
+        "\n"
+        "- Press C to open the Character screen, then TAB to switch to"
+        "the Equipment tab"
+        "\n"
+        "- Shows your currently equipped weapon and all armour slots"
+        "\n"
+        "- Shows how many items you are carrying in your ground inventory"
+    ),
+)
+
+
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_GAME_OVERVIEW,
     _GUIDE_CONTROLS,
@@ -896,6 +950,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_DERELICT,
     _GUIDE_CHARACTER,
     _GUIDE_LEVELING,
+    _GUIDE_GROUND_GEAR,
     _GUIDE_NPCS,
 )
 

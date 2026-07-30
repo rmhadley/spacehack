@@ -215,6 +215,7 @@ class Entity:
     procedural_squad_id: str = ""
     trade_terminal: bool = False
     mech_terminal: bool = False
+    armory_terminal: bool = False
     computer_terminal: bool = False  # dungeon ship computer — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
 

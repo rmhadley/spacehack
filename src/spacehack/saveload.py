@@ -115,6 +115,9 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "generated_missions": _d(ctx.generated_missions),
         "economy_state": _d(ctx.economy_state),
         "militia_warned_systems": sorted(ctx.militia_warned_systems),
+        "ground_inventory": list(ctx.ground_inventory),
+        "equipped_ground_weapon": ctx.equipped_ground_weapon,
+        "equipped_ground_armor": _d(ctx.equipped_ground_armor),
     }
 
 
@@ -703,6 +706,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.bounty_spawns = _bounty_spawns
     _ctx.faction_reputation = _rep
     _ctx.militia_warned_systems = set(_data.get("militia_warned_systems", []) or [])
+    _ctx.ground_inventory = list(_data.get("ground_inventory", []) or [])
+    _ctx.equipped_ground_weapon = _data.get("equipped_ground_weapon")
+    _ctx.equipped_ground_armor = dict(_data.get("equipped_ground_armor", {}) or {})
     _ctx.player_xp = _data.get("player_xp", 0)
     _ctx.player_level = _data.get("player_level", 1)
     _ctx.player_skill_points = _data.get("player_skill_points", 0)
