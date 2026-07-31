@@ -294,6 +294,8 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
         return False
     ctx.player.pos = world.Position(_nx, _ny)
     _player_ap -= 1
+    from ..dungeon import reveal_around as _reveal_around
+    _reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
     return True
 
 
