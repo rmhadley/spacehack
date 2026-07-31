@@ -37,7 +37,9 @@ MISSIONS: tuple[MissionSpec, ...] = (
         # Wingmates spawn as pirate_scout (not merchant_hauler) via
         # bounty_wingmate_enemy_id — same squad triggers as bounty
         # wingmen (auto-hail pulls the whole group into combat).
-        bounty_target_squad_size=2,
+        # 6-ship squad = 1 merchant + 5 pirate scouts (extreme escort
+        # test config; the 5th wingmate offset exists in __main__.py).
+        bounty_target_squad_size=6,
         bounty_wingmate_enemy_id="pirate_scout",
         target_system_id="alpha_centauri",
         heist_target_good_id="electronics",

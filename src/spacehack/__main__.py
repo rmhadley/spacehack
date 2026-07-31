@@ -932,7 +932,9 @@ def _run_game(
                                                         ctx.bounty_spawns[picked.target_system_id] = []
                                                     ctx.bounty_spawns[picked.target_system_id].append(_bs)
                                                     # Wingmate BountySpawns (squad_size > 1).
-                                                    _wing_offsets = [(2, 0), (-2, 0), (0, 2), (0, -2)]
+                                                    # 5 offsets supports up to 5 escorts around a leader
+                                                    # (e.g. The AC Run's extreme-escort test config).
+                                                    _wing_offsets = [(2, 0), (-2, 0), (0, 2), (0, -2), (2, 2)]
                                                     for _wi in range(min(_squad_size - 1, len(_wing_offsets))):
                                                         _wox, _woy = _wing_offsets[_wi]
                                                         _wpos = world.Position(_spawn_pos.x + _wox, _spawn_pos.y + _woy)
