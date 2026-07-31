@@ -388,6 +388,9 @@ def _run_game(
                 if current_mode == 'space' and (player_owned_ship is not None):
                     _run_combat_loop(ctx, console, player, also_move_npcs=True)
                     player_active_missions = ctx.player_active_missions
+                elif current_mode == 'dungeon':
+                    from .ground_npcs import move_ground_npcs as _move_ground_npcs
+                    _move_ground_npcs(ctx, game_map)
                 ctx.log.add('You wait.')
                 continue
 
