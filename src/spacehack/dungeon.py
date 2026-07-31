@@ -660,7 +660,7 @@ def generate_dungeon(
 
     # Spawn = exit (standard roguelike).  The BSP midpoint can land on
     # a wall when rooms are sparse — walk outward to find a real floor.
-    spawn_pos = _find_walkable_near(tiles, _center[0], _center[1], params)
+    spawn_pos = _find_walkable_near(tiles, _center[0], _center[1])
 
     game_map = world.GameMap(width=w, height=h, tiles=tiles, entities=[])
     game_map.sight_radius = params.sight_radius
@@ -805,17 +805,27 @@ def _carve_corridor(
 def _find_walkable_near(
     tiles: list[list[world.Tile]],
     cx: int, cy: int,
-    params: DungeonParams,
 ) -> world.Position:
-    """Find a walkable floor tile near ``(cx, cy)``, spiralling outward.
+    """Find a wall tile adjacent to floor near ``(cx, cy)`` and carve
+    the exit into it (classic roguelike exit-alcove).
 
-    Used to pick the spawn/exit position after BSP carving.  The
-    mathematical midpoint can land on a wall when rooms are sparse;
-    this walks outward in expanding Chebyshev rings until it finds
-    floor, then places the EXIT glyph there.
+    Spirals outward from the midpoint, looking for a wall cell that
+    has at least one walkable neighbour.  This embeds the ``>`` in a
+    wall rather than on a corridor floor where it would block travel.
     """
     _h = len(tiles)
     _w = len(tiles[0]) if _h > 0 else 0
+
+    _neighbour_dirs = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+
+    def _has_floor_neighbour(tx: int, ty: int) -> bool:
+        for _ndx, _ndy in _neighbour_dirs:
+            _nx, _ny = tx + _ndx, ty + _ndy
+            if 0 <= _nx < _w and 0 <= _ny < _h:
+                if tiles[_ny][_nx].walkable:
+                    return True
+        return False
+
     for _r in range(max(_w, _h)):
         for _dx in range(-_r, _r + 1):
             for _dy in range(-_r, _r + 1):
@@ -823,20 +833,21 @@ def _find_walkable_near(
                     continue
                 _tx, _ty = cx + _dx, cy + _dy
                 if 0 <= _tx < _w and 0 <= _ty < _h:
-                    if tiles[_ty][_tx].walkable:
+                    if not tiles[_ty][_tx].walkable and _has_floor_neighbour(_tx, _ty):
                         tiles[_ty][_tx] = world.EXIT
                         return world.Position(_tx, _ty)
-    # Fallback: shouldn't happen (BSP always carves rooms), but scan
-    # the entire map for any walkable tile rather than default to the
-    # midpoint (which may be a wall).
+    # Fallback: scan entire map for a wall cell next to floor.
+    for _y in range(_h):
+        for _x in range(_w):
+            if not tiles[_y][_x].walkable and _has_floor_neighbour(_x, _y):
+                tiles[_y][_x] = world.EXIT
+                return world.Position(_x, _y)
+    # Last resort: place EXIT on any walkable tile.
     for _y in range(_h):
         for _x in range(_w):
             if tiles[_y][_x].walkable:
                 tiles[_y][_x] = world.EXIT
                 return world.Position(_x, _y)
-    # Truly empty map — place EXIT at midpoint as last resort.
-    if 0 <= cx < _w and 0 <= cy < _h:
-        tiles[cy][cx] = world.EXIT
     return world.Position(cx, cy)
 
 
