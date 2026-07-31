@@ -150,9 +150,9 @@ Reward is immediate on payment — no return trip required. But higher tiers mea
 
 ### Salvage rights — Boarded wreck recovery
 
-Player flow: accept at bar → travel to target system → find the wreck marked on the map → **clear the patrol guarding it (space combat)** → **board the wreck** → **fight the scavenger crew inside (ground combat)** → secure the mission component from the interior → exit to space → return to bar → deliver.
+Player flow: accept at bar → travel to target system → find the wreck marked on the map → **clear (or evade) the patrol guarding it (space combat)** → **board the wreck** → **fight the scavenger crew inside (ground combat)** → secure the mission component from the interior → exit to space → return to bar → deliver.
 
-The wreck is a **boardable derelict** — this phase reuses the entire boarding + ground-combat framework shipped in ``04_DESIGN_GROUND_COMBAT_CREW.md`` (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat). A patrol squad guards it in space; once cleared, the wreck becomes boardable. Inside: a layout-built interior with a scavenger crew and a **guaranteed mission-tagged component** in a specific room.
+The wreck is a **boardable derelict** — this phase reuses the entire boarding + ground-combat framework shipped in ``04_DESIGN_GROUND_COMBAT_CREW.md`` (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat). A patrol squad guards it in space; boarding is possible whenever the player is out of combat (decision 3). Inside: a layout-built interior with a scavenger crew and a **guaranteed mission-tagged component** hidden in one of several marked rooms (decision 2).
 
 Tier progression:
 
@@ -168,10 +168,15 @@ Patrols don't despawn until cleared (you can leave and come back). The wreck per
 #### Design decisions (locked in design review)
 
 1. **Component = heist cargo, delivered like intercept.** The mission component reuses the entire intercept delivery machinery — ``heist_target_good_id`` on MissionSpec/ActiveMission, a mission-tagged loot entity (``heist_mission=True`` + ``heist_mission_id``), ``_secure_heist_cargo`` on pickup, the ``heist_good_secured`` flag, ``mission_reserved`` hold space, and delivery to the barkeep. No new delivery path — the only difference is WHERE the component is found (inside a boarded interior instead of floating space debris).
-2. **Patrol must be cleared before boarding.** The wreck is non-boardable while any patrol member is alive (open question 5). The patrol spawns as a BountySpawn squad (leader + wingmates via the existing ``bounty_wingmate_enemy_id``) near the wreck's landmark; the wreck is a separate **non-combatant** BountySpawn (derelict spec: no weapons, ``ai_aggressiveness=0``) carrying the mission link.
-3. **Wreck persists until the component is secured.** Unlike random derelicts (consumed on board), a mission wreck stays on the space map so the player can leave and re-board. The component can only be secured once (``heist_good_secured`` flag), so it cannot be duplicated. Once secured AND the player exits to space, the wreck despawns.
-4. **Interior crew = existing pirate NPC chars as "scavengers".** ``pirate_raider`` / ``pirate_rifleman`` (``data/npc_chars/core.py``) already fill the "salvager stripping a wreck" role — their docstring says exactly that. Reuse them via layout ``ENEMY:`` directives; tiers scale squad sizes. New ``freighter_a.layout`` (larger wreck interior) for T3+; ``scout_a`` reused for T1-2.
-5. **Anti-farm cap (open question 8).** Re-boarding regenerates the interior, so crew XP + random loot could be farmed. Recommended: only the FIRST board has crew + random salvage — subsequent boards are a stripped husk containing only the mission component. TBD in review.
+2. **Component hides in a random marked room.** Each wreck layout declares several component-candidate rooms (bridge, engine room, cargo bay, personal storage). On FIRST board, the loader RNG-picks one and places the mission-tagged ``%`` there — the player must search the wreck, and the placement persists (interior cache, decision 6). The quest log says "somewhere in the wreck" rather than pinpointing it.
+3. **Board anytime you're out of combat (no hard patrol gate).** You can't board mid-combat anyway (bump-dialog only fires between combat rounds), so the wreck is boardable as soon as the player is out of combat — however they got there (won, fled, evaded). The patrol squad still spawns around the wreck and will engage on approach, so in practice it's usually cleared first; a stealthy/evasive player can board around it. Patrol = BountySpawn squad (leader + wingmates via ``bounty_wingmate_enemy_id``); the wreck is a separate **non-combatant** BountySpawn (derelict spec: no weapons, ``ai_aggressiveness=0``).
+4. **Wreck persists until the component is secured.** Unlike random derelicts (consumed on board), a mission wreck stays on the space map so the player can leave and re-board. The component can only be secured once (``heist_good_secured`` flag), so it cannot be duplicated. Once secured AND the player exits to space, the wreck despawns and its interior cache entry is dropped.
+5. **Interior crew = existing pirate NPC chars as "scavengers".** ``pirate_raider`` / ``pirate_rifleman`` (``data/npc_chars/core.py``) already fill the "salvager stripping a wreck" role — their docstring says exactly that. Reuse them via layout ``ENEMY:`` directives; tiers scale squad sizes. New ``freighter_a.layout`` (larger wreck interior) for T3+; ``scout_a`` reused for T1-2.
+6. **Persistent interiors — the anti-farm answer (open question 8 RESOLVED).** Interiors must live consistently across exit/re-board AND save/load, like nethack levels live inside the save file:
+   - **In-memory cache:** ``GameContext.interiors: dict[str, world.GameMap]`` keyed by a stable interior id (the wreck's BountySpawn id). First board → ``load_layout()`` → store in the cache → use. Exit → keep in the cache (don't discard the map). Re-board → reuse the cached map: fog, taken loot, dead crew, restored power, and component placement all exactly as left.
+   - **Save/load:** the existing single-dungeon serialization (the ``_data["dungeon"]`` block) is the exact format we need — extract it into shared ``_dungeon_to_dict(gm, space_player_pos)`` / ``_dungeon_from_dict(data)`` helpers (DRY: currently duplicated inline in ``save_game`` / ``load_game``), then save ``_data["interiors"] = {id: _dungeon_to_dict(...)}`` for every cached interior and restore them all on load. The autosave IS the on-disk cache.
+   - **Why this kills farming:** no respawn — the crew you killed stays dead, loot you took stays taken. Re-boarding a half-explored wreck is a half-explored wreck.
+   - **Scope:** mission wrecks get persistent interiors now; random derelicts keep their current consume-on-board behavior (the cache infra is general and they can adopt it later if wanted).
 
 ## New ship module: Smuggler's Hold
 
@@ -378,17 +383,19 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 Reuses the entire boarding + ground-combat framework (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat) and the intercept heist-cargo delivery path.
 
 - [ ] Add boardable wreck NpcShipSpec(s) — ``derelict_scout`` exists; add ``derelict_freighter`` for T3+ (larger hull, bigger ``loot_budget``)
-- [ ] Add ``freighter_a.layout`` — larger wreck interior with crew + a guaranteed component marker; ``scout_a`` reused for T1-2
-- [ ] Layout: guaranteed mission-component marker glyph (places a ``%`` with ``heist_mission=True`` + ``heist_mission_id`` in a specific room, e.g. bridge / cargo bay)
+- [ ] Add ``freighter_a.layout`` — larger wreck interior with crew + component-candidate rooms; ``scout_a`` reused for T1-2
+- [ ] Layout: component-candidate room markers (2-3 per layout); on first board RNG-pick one and place the mission-tagged ``%`` (``heist_mission=True`` + ``heist_mission_id``) — placement persists via the interior cache
 - [ ] MissionSpec/ActiveMission fields: reuse ``heist_target_good_id``/``target_system_id``/``bounty_*``; add ``salvage_wreck_enemy_id`` + ``salvage_layout_id`` (no new patrol fields — patrol reuses ``target_enemy_id`` + ``bounty_target_squad_size`` + ``bounty_wingmate_enemy_id``)
 - [ ] Spawn wreck as non-combatant BountySpawn at a landmark + patrol squad nearby (both in ``ctx.bounty_spawns`` → save/load for free)
-- [ ] Boarding gate: wreck not boardable while any patrol member is alive ("The patrol still guards the wreck.")
-- [ ] Wreck lifecycle: persists until component secured; despawns after secure + exit (design decision 3; anti-farm cap per decision 5)
+- [ ] Boarding: bump wreck → Board dialog whenever the player is out of combat (no patrol-alive gate; you can't board mid-combat anyway)
+- [ ] **Persistent interiors:** ``GameContext.interiors: dict[str, world.GameMap]`` cache keyed by wreck spawn id; exit keeps the map in the cache; re-board reuses it (fog/loot/crew/power intact)
+- [ ] **Save/load:** extract shared ``_dungeon_to_dict`` / ``_dungeon_from_dict`` helpers (currently duplicated inline); save ``interiors`` dict + restore on load; drop a wreck's entry when it despawns
+- [ ] Wreck lifecycle: persists until component secured; despawns after secure + exit (design decision 4)
 - [ ] Ground victory: killing the scavenger crew applies pirate rep deltas (already wired in the ``__main__.py`` post-combat block)
 - [ ] Add 4 hand-crafted salvage missions to `bar.py` (component, system, patrol, wreck, layout per tier)
-- [ ] Quest log: show component, system, patrol threat level + boarded-wreck state
-- [ ] Save/load: new ActiveMission fields (``salvage_wreck_enemy_id``, ``salvage_layout_id``, first-board flag) on both sides
-- [ ] Guide: `_GUIDE_BAR_MISSIONS` salvage block (patrol-first rule, board flow, component delivery)
+- [ ] Quest log: show component, system, patrol threat level + "component somewhere in the wreck"
+- [ ] Save/load: new ActiveMission fields (``salvage_wreck_enemy_id``, ``salvage_layout_id``) on both sides
+- [ ] Guide: `_GUIDE_BAR_MISSIONS` salvage block (patrol threat, board flow, search + secure, component delivery)
 
 ### Phase 5: Procedural generation + polish
 
@@ -414,7 +421,7 @@ Reuses the entire boarding + ground-combat framework (board dialog, ``load_layou
 2. **Should stolen goods be contraband for militia scans?** Yes — extends risk/reward tension to intercept missions too. Smuggler's hold module mitigates this.
 3. **What happens if the player's ship is destroyed?** Mission auto-fails on death.
 4. **Extortion: what if the target has nothing to give?** Always yields at least some credits. Higher tier = better payout.
-5. **Salvage: can the player board the wreck early and skip the patrol?** No — the wreck is non-boardable until the guarding patrol squad is destroyed ("The patrol still guards the wreck."). Confirmed with boarding.
+5. **Salvage: can the player board the wreck early and skip the patrol?** RESOLVED — the wreck is boardable whenever the player is out of combat (you can't board mid-combat anyway). The patrol still spawns around the wreck and engages on approach, so it's *usually* cleared first, but a player who evades or flees can board around it. No hard gate.
 
-8. **Salvage: can the player farm crew XP / random loot by re-boarding?** The wreck persists until the component is secured, and re-boarding regenerates the interior — so re-boarding could farm crew kills + random salvage. Options: (a) accept it (crew is small, salvage budgets are modest), (b) only the FIRST board has crew + random loot — subsequent boards are a stripped husk containing only the component (recommended), (c) wreck is consumed on first exit without the component → mission auto-fails. TBD in design review.
+8. **Salvage: can the player farm crew XP / random loot by re-boarding?** RESOLVED — persistent interiors (design decision 6). The interior is cached and serialized with the save: crew stay dead, loot stays taken, fog stays revealed. Re-boarding a half-explored wreck is a half-explored wreck. No respawn, no farming, and the map survives exit → dump cargo → return, plus save/quit/continue. (This is a concrete instance of the entity/map persistence problem that ``docs/design/future/DESIGN_SAVE_LOAD_V2.md`` addresses architecturally — Phase 4 implements the contained version inside the current save system, and the v2 rewrite can subsume it later.)
 6. **What if the player already has the target good in their inventory (intercept/salvage)?** RESOLVED — mission completion checks the per-mission `heist_good_secured` flag (set only by securing the mission-tagged loot entity), not an inventory count. Buying the good at a terminal or carrying it from another mission never completes the intercept.
