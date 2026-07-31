@@ -724,7 +724,6 @@ def render_combat_hud(
         ("[f]", "Fire"),
         ("[s]", "Shields"),
         ("[w]", "Wait"),
-        ("[ESC]", "Flee"),
     ]
     # Only advertise the digit-swap affordance when there is
     # actually something to swap between; a single-weapon player
@@ -741,9 +740,4 @@ def render_combat_hud(
         console.print(x=hud_x, y=y, string=line[:HUD_WIDTH-1], fg=COLOR_COMBAT_ACTION)
         y += 1
 
-    # Flee chance if shown
-    if flee_chance is not None:
-        y += 1
-        flee_line = f"Flee: {flee_chance}%"
-        fc = COLOR_HP_GOOD if flee_chance >= 50 else COLOR_HP_LOW
-        console.print(x=hud_x, y=y, string=flee_line, fg=fc)
+

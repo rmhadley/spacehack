@@ -236,10 +236,6 @@ def damage(weapon_id: str, enemy: world.Entity, ctx) -> int:
     return _dmg
 
 
-def flee_chance(ctx) -> int:
-    return 60  # flat 60% for ground
-
-
 # ---------------------------------------------------------------------------
 # Weapon actions
 # ---------------------------------------------------------------------------
@@ -406,7 +402,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     y += 1
     _actions = [
         ("[Tab]", "Target"), ("[m]", "Move"), ("[f]", "Fire"),
-        ("[w]", "Wait"), ("[ESC]", "Flee"),
+        ("[w]", "Wait"),
     ]
     if len(_weapons) > 1:
         _actions.insert(3, (f"[1-{len(_weapons)}]", "Toggle Wpn"))
@@ -554,7 +550,7 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 # ---------------------------------------------------------------------------
 
 def set_player_ap(ctx, ap: int) -> None:
-    """Set the player's AP to a specific value (used by flee-on-failure)."""
+    """Set the player's AP to a specific value."""
     global _player_ap
     _player_ap = ap
 

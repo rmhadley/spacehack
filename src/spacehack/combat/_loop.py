@@ -32,7 +32,6 @@ from ._types import EnemyInstance, CombatResult
 from ._stats import (
     init_combat_state,
     calc_hit_chance,
-    calc_flee_chance,
     _calc_dodge_bonus,
     _distance,
 )
@@ -189,28 +188,6 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     return False
 
 
-def _resolve_flee(ctx, rules, flee_attempts: list[int]) -> str | None:
-    """Attempt to flee combat. Returns "FLEE" on success, None on failure.
-
-    On failure, zeroes the player's AP so the enemy turn triggers.
-    """
-    from .. import message_log as _ml
-    _chance = rules.flee_chance(ctx)
-    if RNG.randint(1, 100) <= _chance:
-        ctx.log.add("You fled!")
-        if hasattr(ctx, 'player_counters'):
-            ctx.player_counters.combat_flees += 1
-        return "FLEE"
-    else:
-        flee_attempts[0] += 1
-        ctx.log.add_colored(
-            f"Flee failed! ({_chance}% chance)",
-            _ml.COLOR_ENEMY_ACTION,
-        )
-        # Force end of turn by zeroing AP
-        return None
-
-
 def _end_turn(ctx, game_map, rules) -> str | None:
     """Run enemy turns + reinforcements. Returns "DEFEAT" if player
     died, ``None`` otherwise."""
@@ -251,7 +228,6 @@ def run_combat(
     from .. import message_log as _ml
     from ..input_helpers import _try_open_guide
 
-    _flee_attempts: list[int] = [0]
     _target_idx: int = 0
     _turn: int = 1
     _result: str | None = None
@@ -332,16 +308,6 @@ def run_combat(
                 _active = _toggle_weapon(_idx, _active, ctx, rules)
                 break
 
-            # ESC -> Flee
-            if sym in ui._ESCAPE_SYMS:
-                _flee_result = _resolve_flee(ctx, rules, _flee_attempts)
-                if _flee_result == "FLEE":
-                    _result = "FLEE"
-                    break
-                # Failed flee — zero AP so enemy gets their turn
-                rules.set_player_ap(ctx, 0)
-                break
-
         if _result is not None:
             break
 
@@ -362,6 +328,6 @@ def run_combat(
         _cr = rules.get_combat_result()
     else:
         _cr = CombatResult()
-    _cr.outcome = _result or "FLEE"
+    _cr.outcome = _result or "VICTORY"
     return _cr
 

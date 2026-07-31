@@ -24,7 +24,6 @@ from ._types import EnemyInstance, CombatResult
 from ._stats import (
     init_combat_state,
     calc_hit_chance as _space_hit_chance,
-    calc_flee_chance as _space_flee_chance,
     _calc_dodge_bonus,
     _distance,
 )
@@ -64,7 +63,6 @@ _ctx: Any = None
 _console: Any = None
 _game_map: Any = None
 _log: Any = None
-_flee_attempts: int = 0
 _cr: CombatResult | None = None
 
 
@@ -84,13 +82,12 @@ def init(
     global _player_state, _enemy_insts, _enemy_specs, _enemy_ents
     global _player_ent, _weapons_list, _active_weapons, _target_idx
     global _view_w, _view_h, _ctx, _console, _game_map, _log
-    global _flee_attempts, _cr
+    global _cr
 
     _ctx = ctx
     _console = console
     _game_map = game_map
     _log = log
-    _flee_attempts = 0
     _target_idx = 0
     _view_w = 80
     _view_h = 54
@@ -271,20 +268,6 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
     return _prev_hull - enemy.hull
 
 
-def flee_chance(ctx) -> int:
-    _alive = [e for e in _enemy_insts if e.alive]
-    if not _alive:
-        return 95
-    _closest = min(_alive, key=lambda e: _distance(_player_state["pos"], e.pos))
-    return _space_flee_chance(
-        _player_state["piloting"],
-        _closest.pilot_piloting,
-        _player_state["hull"] / max(_player_state["max_hull"], 1),
-        _distance(_player_state["pos"], _closest.pos),
-        _flee_attempts,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Weapon actions
 # ---------------------------------------------------------------------------
@@ -405,17 +388,6 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         int(_player_state.get("piloting", 0) * 0.5),
     )
 
-    # Closest enemy for flee
-    _alive = [e for e in _enemy_insts if e.alive]
-    _closest = min(_alive, key=lambda e: _distance(_player_state["pos"], e.pos))
-    _fc = _space_flee_chance(
-        _player_state["piloting"],
-        _closest.pilot_piloting,
-        _player_state["hull"] / max(_player_state["max_hull"], 1),
-        _distance(_player_state["pos"], _closest.pos),
-        _flee_attempts,
-    )
-
     _hud.render_combat_hud(
         console,
         screen_width=SCREEN_WIDTH,
@@ -426,7 +398,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         player_mode="DEFAULT",
         active_weapons=_active_weapons,
         weapon_list=tuple(_weapons_list),
-        flee_chance=_fc,
+        flee_chance=None,
         hit_chances=_hit_chances,
         evade_bonus=_evade,
         range_weapon_id=_range_wid,
@@ -467,16 +439,6 @@ def animate_fire(
         int(_player_state.get("piloting", 0) * 0.5),
     )
 
-    _alive = [e for e in _enemy_insts if e.alive]
-    _closest = min(_alive, key=lambda e: _distance(_player_state["pos"], e.pos))
-    _fc = _space_flee_chance(
-        _player_state["piloting"],
-        _closest.pilot_piloting,
-        _player_state["hull"] / max(_player_state["max_hull"], 1),
-        _distance(_player_state["pos"], _closest.pos),
-        _flee_attempts,
-    )
-
     _animate_laser_shot(
         console, ctx.context, game_map,
         from_pos, to_pos,
@@ -491,7 +453,7 @@ def animate_fire(
         active_weapons=_active_weapons,
         evade_bonus=_evade,
         hit_chances=_hit_chances,
-        flee_chance=_fc,
+        flee_chance=None,
     )
 
 
@@ -527,18 +489,6 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
         _player_state.get("cells_moved_this_turn", 0),
         int(_player_state.get("piloting", 0) * 0.5),
     )
-    _alive_all = [e for e in _enemy_insts if e.alive]
-    _fc = 50
-    if _alive_all:
-        _closest = min(_alive_all, key=lambda e: _distance(_player_state["pos"], e.pos))
-        _fc = _space_flee_chance(
-            _player_state["piloting"],
-            _closest.pilot_piloting,
-            _player_state["hull"] / max(_player_state["max_hull"], 1),
-            _distance(_player_state["pos"], _closest.pos),
-            _flee_attempts,
-        )
-
     _animate_explosion(
         _console, ctx.context, game_map,
         enemy.pos,
@@ -552,7 +502,7 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
         active_weapons=_active_weapons,
         evade_bonus=_evade,
         hit_chances=_hit_chances,
-        flee_chance=_fc,
+        flee_chance=None,
     )
 
     _correct_spec = next(
@@ -663,7 +613,7 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
         _enemy_ents, _target_idx, _log,
         _weapons_list, _active_weapons,
         _hit_chances, _evade,
-        _flee_attempts, _view_w, _view_h,
+        0, _view_w, _view_h,
         _calc_camera,
         ctx=ctx,
     )
@@ -747,7 +697,7 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 # ---------------------------------------------------------------------------
 
 def set_player_ap(ctx, ap: int) -> None:
-    """Set the player's AP to a specific value (used by flee-on-failure)."""
+    """Set the player's AP to a specific value."""
     _player_state["ap_remaining"] = ap
 
 
