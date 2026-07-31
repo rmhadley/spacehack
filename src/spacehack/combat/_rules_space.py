@@ -549,9 +549,11 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
     _state.cr.defeated_spec_ids.append(enemy.spec_id)
     if _dead_ent is not None:
         _bid = getattr(_dead_ent, 'bounty_spawn_id', None)
-        if _bid is not None:
-            _state.cr.defeated_bounty_ids.append(_bid)
         _hid = getattr(_dead_ent, 'heist_spawn_id', None)
+        # Intercept missions use bounty_spawn_id for spawn lifecycle but
+        # must NOT auto-complete on kill — they complete on delivery.
+        if _bid is not None and _hid is None:
+            _state.cr.defeated_bounty_ids.append(_bid)
         if _hid is not None:
             _state.cr.defeated_heist_ids.append(_hid)
 
