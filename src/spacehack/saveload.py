@@ -357,6 +357,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             bounty_target_name=_am.get("bounty_target_name"),
             bounty_target_squad_size=_am.get("bounty_target_squad_size", 1),
             bounty_target_loadout_pct=_am.get("bounty_target_loadout_pct", 0),
+            bounty_wingmate_enemy_id=_am.get("bounty_wingmate_enemy_id"),
             tier=_am.get("tier", 1),
             heist_target_good_id=_am.get("heist_target_good_id"),
             heist_good_secured=_am.get("heist_good_secured", False),
@@ -481,6 +482,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 )
                 if not _bs.squad_group_id:
                     _ent.bounty_spawn_id = _bs.spawn_id
+                    # Restore intercept linkage so on_kill still drops the
+                    # mission loot after a save/quit/continue (mirrors
+                    # navigation._add_bounty_spawns_to_map).
+                    if _bs.heist_spawn_id is not None:
+                        _ent.heist_spawn_id = _bs.heist_spawn_id
                 _game_map.entities.append(_ent)
 
             # Add procedural NPCs from saved spawns (don't generate new ones).
@@ -575,6 +581,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 )
                 if not _bs.squad_group_id:
                     _ent.bounty_spawn_id = _bs.spawn_id
+                    # Restore intercept linkage so on_kill still drops the
+                    # mission loot after a save/quit/continue (mirrors
+                    # navigation._add_bounty_spawns_to_map).
+                    if _bs.heist_spawn_id is not None:
+                        _ent.heist_spawn_id = _bs.heist_spawn_id
                 _space_map.entities.append(_ent)
 
             # Add procedural NPCs.
