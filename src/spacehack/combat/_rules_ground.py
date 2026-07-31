@@ -226,12 +226,18 @@ def hit_chance(weapon_id: str, enemy: world.Entity, ctx) -> int:
 
 
 def damage(weapon_id: str, enemy: world.Entity, ctx) -> int:
-    """Apply damage to enemy. Returns damage dealt (for log)."""
+    """Apply damage to enemy. Returns damage dealt (for log).
+
+    Enemy armor is not yet implemented — NpcCharSpec has no armor
+    field, so damage reduction is always 0 for enemies.  The
+    ``_armor_defense`` module variable tracks the *player's* armor
+    and is only used by the AI path (enemy → player damage).
+    """
     global _enemy_hp
     _ws = _find_gw(weapon_id)
     _str_bonus = ctx.ground_stats.strength // 4 if _ws.damage_type == 'melee' else 0
     _raw = _ws.damage + _str_bonus
-    _dmg = max(1, _raw - _armor_defense)
+    _dmg = max(1, _raw)
     _enemy_hp -= _dmg
     return _dmg
 
