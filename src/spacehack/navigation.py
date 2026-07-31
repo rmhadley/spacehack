@@ -781,6 +781,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         screen_width=SCREEN_WIDTH,
                         hud_view_height=view_h,
                         location=solar_system_module.current_system().name,
+                        mode="space",
                     )
                     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
                     ctx.context.present(console)
@@ -1018,7 +1019,7 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         else:
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
-        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, location=solar_system_module.current_system().name)
+        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, location=solar_system_module.current_system().name, mode="space")
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         _responsive_sleep(frame_s)

@@ -300,7 +300,7 @@ def _run_game(
         _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_armory = any(e.armory_terminal for e in game_map.entities) if current_mode == 'city' else False
-        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
+        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, mode=current_mode, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)
         for event in tcod.event.wait():

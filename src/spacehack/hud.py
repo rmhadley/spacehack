@@ -172,6 +172,7 @@ def render_hud(
     screen_width: int,
     hud_view_height: int,
     location: str | None = None,
+    mode: str = "city",
     has_trade_terminal: bool = False,    # city mode: show = terminal hint
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
     has_armory_terminal: bool = False,    # city mode: show A terminal hint
@@ -236,7 +237,7 @@ def render_hud(
         fg=COLOR_HUD_TITLE,
     )
 
-    if owned_ship is not None and ship_catalog is not None:
+    if mode == "space" and owned_ship is not None and ship_catalog is not None:
         # ---- Space mode: ship stats + keybinding help ----
         ship_name = getattr(ship_catalog, 'name', 'Ship')
         fuel = getattr(owned_ship, 'fuel', 0)
@@ -340,7 +341,7 @@ def render_hud(
         console.print(x=hud_x, y=y + 1, string="ESC to quit", fg=COLOR_VALUE_DIM)
 
     else:
-        # ---- City mode: character stats ----
+        # ---- City / dungeon mode: character stats ----
         # Species + class (two-line block)
         species_name = character.get("species_name", "")
         class_name = character.get("class_name", "")
