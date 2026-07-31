@@ -10,6 +10,7 @@ from __future__ import annotations
 from .. import world
 from .. import message_log as _ml
 from ..engine import RNG
+from ._animations import _bresenham_line
 
 
 def run_ground_enemy_turn(
@@ -58,27 +59,40 @@ def run_ground_enemy_turn(
     while _result_ap > 0:
         _dist = _distance(enemy_entity.pos, player_pos)
 
-        # If in weapon range -> fire
+        # If in weapon range + line of sight -> fire
         if _ews and _dist <= _ews.max_range and _dist >= _ews.min_range:
-            _hit = RNG.randint(1, 100) <= _ground_hit_chance_raw(
-                enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
-            )
-            if _hit:
-                _damage_dealt = _ground_damage_raw(
-                    enemy_weapon_id, enemy_spec.strength, armor_defense,
-                )
-                ctx.log.add_colored(
-                    f"{enemy_spec.name} hits you for {_damage_dealt}!",
-                    _ml.COLOR_ENEMY_ACTION,
-                )
+            # Check line of sight — don't shoot through walls
+            _blocked = False
+            for _bx, _by in _bresenham_line(
+                enemy_entity.pos.x, enemy_entity.pos.y,
+                player_pos.x, player_pos.y,
+            ):
+                if not game_map.is_walkable(_bx, _by):
+                    _blocked = True
+                    break
+            if _blocked:
+                # Can't shoot through walls — try to move instead
+                pass
             else:
-                ctx.log.add_colored(
-                    f"{enemy_spec.name} fires but misses!",
-                    _ml.COLOR_ENEMY_ACTION,
+                _hit = RNG.randint(1, 100) <= _ground_hit_chance_raw(
+                    enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
                 )
-            _result_ap -= _ews.ap_cost if _ews else 1
-            _fired = True
-            break  # one shot per enemy turn (matched to player's single [f] action)
+                if _hit:
+                    _damage_dealt = _ground_damage_raw(
+                        enemy_weapon_id, enemy_spec.strength, armor_defense,
+                    )
+                    ctx.log.add_colored(
+                        f"{enemy_spec.name} hits you for {_damage_dealt}!",
+                        _ml.COLOR_ENEMY_ACTION,
+                    )
+                else:
+                    ctx.log.add_colored(
+                        f"{enemy_spec.name} fires but misses!",
+                        _ml.COLOR_ENEMY_ACTION,
+                    )
+                _result_ap -= _ews.ap_cost if _ews else 1
+                _fired = True
+                break  # one shot per enemy turn (matched to player's single [f] action)
 
         # Out of range — compute A* path once, follow it step by step.
         if _cached_path is None:

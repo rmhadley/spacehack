@@ -257,6 +257,14 @@ def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
         return False, f"Out of range ({_dist}u, need {_ws.min_range}-{_ws.max_range})"
     if _player_ap < _ws.ap_cost:
         return False, f"Need {_ws.ap_cost} AP (have {_player_ap})"
+    # Line of sight: projectile blocked by walls
+    if _game_map is not None and _enemy_entity is not None:
+        for _bx, _by in _bresenham_line(
+            ctx.player.pos.x, ctx.player.pos.y,
+            _enemy_entity.pos.x, _enemy_entity.pos.y,
+        ):
+            if not _game_map.is_walkable(_bx, _by):
+                return False, "Blocked by wall"
     return True, ""
 
 
