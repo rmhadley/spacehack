@@ -177,6 +177,8 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 | `bar_intercept_sirius_luxury` | Sirius Luxury | 3 | `luxury_goods` | `merchant_freighter` | Sirius | 800$ / 140xp |
 | `bar_intercept_frontier_tech` | Frontier Tech | 4 | `electronics` | `merchant_caravan` | Luyten's Star | 1800$ / 300xp |
 
+**Deadline rule (playtest fix):** Intercepts are ROUND TRIPS — fly out, kill, fly back — so deadlines are scaled to real travel distance at starter-ship speed (10 moves/day), with ~2.1-2.2x headroom so BOTH on-time completion AND the early bonus (< half the deadline) are achievable at starter speed (faster ships get slack). Measured round trips: AC ~41d (deadline 90), Vega ~32d (70), Sirius ~69d (150), Luyten ~169d (360). The old 30/40/50/60 ladder was impossible (T1 needed 41d on a 30d clock; T4 is a 10-jump/100-fuel run on an 80-fuel tank).
+
 ### Smuggling
 
 | ID | Title | Tier | Contraband | Destination | System | Rewards |
