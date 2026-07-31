@@ -93,7 +93,9 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                         pass
                 paint(detail_top, fit(f'Deliver to: {_planet_name}{_npc_name}'), fg=ui.COLOR_VALUE_WHITE)
                 detail_top += 1
-            if am.required_cargo_size > 0:
+            # Smuggling missions render their own cargo line (with the
+            # contraband type + scan risk) below — skip the generic row.
+            if am.required_cargo_size > 0 and not getattr(am, 'is_smuggle', False):
                 paint(detail_top, fit(f'Cargo: {am.required_cargo_size} units'), fg=ui.COLOR_VALUE_WHITE)
                 detail_top += 1
 
@@ -159,6 +161,22 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             paint(detail_top, fit(f'Cargo: {_good_name} ({_status})'), fg=_sfg)
             detail_top += 1
 
+        # Smuggling-specific display: contraband type + scan-risk warning.
+        if getattr(am, 'is_smuggle', False):
+            _sgid = getattr(am, 'smuggle_good_id', None)
+            _sgood = 'contraband'
+            if _sgid:
+                try:
+                    from ..data.trade_goods import find_trade_good as _ftg_sm
+                    _sgood = _ftg_sm(_sgid).name
+                except (KeyError, ImportError):
+                    _sgood = _sgid.replace('_', ' ').title()
+            paint(detail_top, fit(f'Cargo: {_sgood} ({am.required_cargo_size} units)'), fg=ui.COLOR_VALUE_WHITE)
+            detail_top += 1
+            _risk, _risk_fg = _smuggle_scan_risk(ctx, am)
+            paint(detail_top, fit(f'SCAN RISK: {_risk}'), fg=_risk_fg)
+            detail_top += 1
+
         paint(detail_top, fit(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
         if am.time_deadline is not None:
@@ -205,6 +223,23 @@ def update_quest_log(event: tcod.event.Event, *, confirm_abandon: bool) -> Quest
     if sym_name == 'a':
         return QuestLogOutcome.ABANDONED
     return QuestLogOutcome.IGNORE
+
+
+def _smuggle_scan_risk(ctx, am) -> tuple[str, tuple[int, int, int]]:
+    """Return ``(label, fg)`` for a smuggling mission's scan risk.
+
+    Compares the mission's cargo volume against the player's current
+    smuggler's hold capacity (sum of installed ``smuggler_cargo``
+    module bonuses).
+    """
+    from .. import ship as _ship_sm
+    _cargo = am.required_cargo_size
+    _hold = _ship_sm.smuggler_hold_capacity(ctx.player_owned_ship)
+    if _hold >= _cargo:
+        return "Low", (120, 220, 120)
+    if _hold >= _cargo // 2:
+        return "Medium", (255, 200, 100)
+    return "High", (255, 80, 80)
 
 
 def _quest_log_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
