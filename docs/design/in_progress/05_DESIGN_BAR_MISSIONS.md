@@ -7,7 +7,7 @@ Give the Barkeep NPC (guild `bar`) an active mission board with shady pirate-sty
 1. **Intercept** (merchant hunting) — track down a merchant vessel, destroy it, loot a specific good, return to the bar.
 2. **Smuggling** — move contraband goods through militia-patrolled systems to a destination. Risk of cargo scans.
 3. **Extortion** — "collect what they owe us." Fly to a system, find a target via comms, demand tribute.
-4. **Salvage rights** — a pirate crew lost a wreck in hostile space. Destroy the patrol guarding it, loot the mission component, return.
+4. **Salvage rights** — a pirate crew lost a wreck in hostile space. Clear the patrol guarding it, **board the wreck**, fight the scavenger crew inside, extract the mission component, return.
 
 All bar missions share: high pay, risk of militia attention, and a clear criminal alignment path for players who want it.
 
@@ -148,22 +148,30 @@ Tier progression:
 
 Reward is immediate on payment — no return trip required. But higher tiers mean combat is more likely and militia response is nearly guaranteed.
 
-### Salvage rights — Wreck recovery
+### Salvage rights — Boarded wreck recovery
 
-Player flow: accept at bar → travel to target system → find a wreck marked on the map → destroy the patrol guarding it → loot the component → return to bar.
+Player flow: accept at bar → travel to target system → find the wreck marked on the map → **clear the patrol guarding it (space combat)** → **board the wreck** → **fight the scavenger crew inside (ground combat)** → secure the mission component from the interior → exit to space → return to bar → deliver.
 
-The wreck is a static map feature. A patrol squad spawns nearby. Once the patrol is cleared, the player can interact with the wreck to extract the specific mission component.
+The wreck is a **boardable derelict** — this phase reuses the entire boarding + ground-combat framework shipped in ``04_DESIGN_GROUND_COMBAT_CREW.md`` (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat). A patrol squad guards it in space; once cleared, the wreck becomes boardable. Inside: a layout-built interior with a scavenger crew and a **guaranteed mission-tagged component** in a specific room.
 
 Tier progression:
 
-| Tier | Patrol composition | Wreck location | Component value |
-|------|-------------------|---------------|----------------|
-| 1 | 1 pirate_scout | Near landmark, safe-ish space | 180$ |
-| 2 | 2 pirate_scouts | Open space, moderate distance from gate | 400$ |
-| 3 | 1 pirate_raider + 1 pirate_scout | Behind a planet, near enemy territory | 850$ |
-| 4 | 2 pirate_raiders + 1 pirate_captain | Deep in hostile space, 5+ hops out | 2000$ |
+| Tier | Space patrol | Interior crew (layout) | Wreck | Component value |
+|------|-------------|------------------------|-------|----------------|
+| 1 | 1 pirate_scout | 1-2 scavengers (``scout_a``) | ``derelict_scout`` | 180$ |
+| 2 | 2 pirate_scouts | 2-4 scavengers (``scout_a``) | ``derelict_scout`` | 400$ |
+| 3 | 1 pirate_raider + 1 pirate_scout | 3-6 crew incl. riflemen (``freighter_a``) | ``derelict_freighter`` | 850$ |
+| 4 | 2 pirate_raiders + 1 pirate_captain | 4-8 crew, heavy squads (``freighter_a``) | ``derelict_freighter`` | 2000$ |
 
-No random loot — just the mission component. Patrols don't despawn until cleared (you can leave and come back).
+Patrols don't despawn until cleared (you can leave and come back). The wreck persists until the component is secured.
+
+#### Design decisions (locked in design review)
+
+1. **Component = heist cargo, delivered like intercept.** The mission component reuses the entire intercept delivery machinery — ``heist_target_good_id`` on MissionSpec/ActiveMission, a mission-tagged loot entity (``heist_mission=True`` + ``heist_mission_id``), ``_secure_heist_cargo`` on pickup, the ``heist_good_secured`` flag, ``mission_reserved`` hold space, and delivery to the barkeep. No new delivery path — the only difference is WHERE the component is found (inside a boarded interior instead of floating space debris).
+2. **Patrol must be cleared before boarding.** The wreck is non-boardable while any patrol member is alive (open question 5). The patrol spawns as a BountySpawn squad (leader + wingmates via the existing ``bounty_wingmate_enemy_id``) near the wreck's landmark; the wreck is a separate **non-combatant** BountySpawn (derelict spec: no weapons, ``ai_aggressiveness=0``) carrying the mission link.
+3. **Wreck persists until the component is secured.** Unlike random derelicts (consumed on board), a mission wreck stays on the space map so the player can leave and re-board. The component can only be secured once (``heist_good_secured`` flag), so it cannot be duplicated. Once secured AND the player exits to space, the wreck despawns.
+4. **Interior crew = existing pirate NPC chars as "scavengers".** ``pirate_raider`` / ``pirate_rifleman`` (``data/npc_chars/core.py``) already fill the "salvager stripping a wreck" role — their docstring says exactly that. Reuse them via layout ``ENEMY:`` directives; tiers scale squad sizes. New ``freighter_a.layout`` (larger wreck interior) for T3+; ``scout_a`` reused for T1-2.
+5. **Anti-farm cap (open question 8).** Re-boarding regenerates the interior, so crew XP + random loot could be farmed. Recommended: only the FIRST board has crew + random salvage — subsequent boards are a stripped husk containing only the mission component. TBD in review.
 
 ## New ship module: Smuggler's Hold
 
@@ -217,14 +225,14 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 | `bar_extort_vega_interest` | Vega Interest | 3 | Trade convoy | Vega | 900$ / 150xp |
 | `bar_extort_frontier_tribute` | Frontier Tribute | 4 | Outpost supply | Luyten's Star | 2000$ / 350xp |
 
-### Salvage rights
+### Salvage rights (boarding-integrated)
 
-| ID | Title | Tier | Component | System | Rewards |
-|----|-------|------|-----------|--------|---------|
-| `bar_salvage_tau_parts` | Tau Ceti Wreck | 1 | `machine_parts` | Tau Ceti | 180$ / 35xp |
-| `bar_salvage_epsilon_drive` | Epsilon Drive | 2 | `electronics` | Epsilon Eridani | 400$ / 70xp |
-| `bar_salvage_procyon_core` | Procyon Core | 3 | `fuel_cells` | Procyon | 850$ / 140xp |
-| `bar_salvage_luyten_blackbox` | Luyten Black Box | 4 | `luxury_goods` | Luyten's Star | 2000$ / 320xp |
+| ID | Title | Tier | Component | System | Patrol | Wreck / Layout | Rewards |
+|----|-------|------|-----------|--------|--------|----------------|---------|
+| `bar_salvage_tau_parts` | Tau Ceti Wreck | 1 | `machine_parts` | Tau Ceti | 1 pirate_scout | scout / ``scout_a`` | 180$ / 35xp |
+| `bar_salvage_epsilon_drive` | Epsilon Drive | 2 | `electronics` | Epsilon Eridani | 2 pirate_scouts | scout / ``scout_a`` | 400$ / 70xp |
+| `bar_salvage_procyon_core` | Procyon Core | 3 | `fuel_cells` | Procyon | raider + scout | freighter / ``freighter_a`` | 850$ / 140xp |
+| `bar_salvage_luyten_blackbox` | Luyten Black Box | 4 | `luxury_goods` | Luyten's Star | 2 raiders + captain | freighter / ``freighter_a`` | 2000$ / 320xp |
 
 ## Pre-implementation audit (MANDATORY — knowledge.md)
 
@@ -353,21 +361,34 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 - `_smuggle_scan_risk` converted from a 3-branch chain to a table lookup (`_SCAN_RISK_STEPS`, divisor-based) — integer-division thresholds preserved exactly
 - `_militia_scan_target()` extracted in `navigation.py` — brings `_run_cargo_scan` under the 40-line rule, pure guards separated from mutation
 
-### Phase 3: Extortion
+### Phase 3: Extortion — DEFERRED
 
-- [ ] Add extortion comms dialog (demand payment, demand cargo, threaten, let go)
-- [ ] Add civilian NPC ship spec (non-hostile, carries credits + cargo)
-- [ ] Wire extortion outcome: pay (instant reward) or fight (combat + possible militia)
-- [ ] Add 4 hand-crafted extortion missions to `bar.py`
-- [ ] Quest log: show target name, system, "collect what they owe"
+**Status: DEFERRED.** Extortion depends on a full-featured comms system (demand tribute, threaten, flee responses, militia response) — the current comms is a bare hail/trade/attack dialog. Revisit after the comms expansion (``docs/design/in_progress/09_DESIGN_COMMS_RP_EXPANSION.md``). The tier table and 4 mission ideas above remain the target design for when comms is ready.
 
-### Phase 4: Salvage rights
+- [ ] (deferred) Add extortion comms dialog (demand payment, demand cargo, threaten, let go)
+- [ ] (deferred) Add civilian NPC ship spec (non-hostile, carries credits + cargo)
+- [ ] (deferred) Wire extortion outcome: pay (instant reward) or fight (combat + possible militia)
+- [ ] (deferred) Add 4 hand-crafted extortion missions to `bar.py`
+- [ ] (deferred) Quest log: show target name, system, "collect what they owe"
 
-- [ ] Add wreck/interactable entity type (static loot point on map)
-- [ ] Add patrol spawn around wreck (combat encounter)
-- [ ] Wire wreck interaction: "Extract component" after patrol cleared
-- [ ] Add 4 hand-crafted salvage missions to `bar.py`
-- [ ] Quest log: show component, system, patrol threat level
+### Phase 4: Salvage rights — BOARDING-INTEGRATED (design review pending)
+
+**Player flow:** accept at bar → travel to target system → find the wreck (marked) → clear the space patrol → board the wreck → fight the scavenger crew inside → secure the mission component from the interior → exit to space → return to bar → deliver.
+
+Reuses the entire boarding + ground-combat framework (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat) and the intercept heist-cargo delivery path.
+
+- [ ] Add boardable wreck NpcShipSpec(s) — ``derelict_scout`` exists; add ``derelict_freighter`` for T3+ (larger hull, bigger ``loot_budget``)
+- [ ] Add ``freighter_a.layout`` — larger wreck interior with crew + a guaranteed component marker; ``scout_a`` reused for T1-2
+- [ ] Layout: guaranteed mission-component marker glyph (places a ``%`` with ``heist_mission=True`` + ``heist_mission_id`` in a specific room, e.g. bridge / cargo bay)
+- [ ] MissionSpec/ActiveMission fields: reuse ``heist_target_good_id``/``target_system_id``/``bounty_*``; add ``salvage_wreck_enemy_id`` + ``salvage_layout_id`` (no new patrol fields — patrol reuses ``target_enemy_id`` + ``bounty_target_squad_size`` + ``bounty_wingmate_enemy_id``)
+- [ ] Spawn wreck as non-combatant BountySpawn at a landmark + patrol squad nearby (both in ``ctx.bounty_spawns`` → save/load for free)
+- [ ] Boarding gate: wreck not boardable while any patrol member is alive ("The patrol still guards the wreck.")
+- [ ] Wreck lifecycle: persists until component secured; despawns after secure + exit (design decision 3; anti-farm cap per decision 5)
+- [ ] Ground victory: killing the scavenger crew applies pirate rep deltas (already wired in the ``__main__.py`` post-combat block)
+- [ ] Add 4 hand-crafted salvage missions to `bar.py` (component, system, patrol, wreck, layout per tier)
+- [ ] Quest log: show component, system, patrol threat level + boarded-wreck state
+- [ ] Save/load: new ActiveMission fields (``salvage_wreck_enemy_id``, ``salvage_layout_id``, first-board flag) on both sides
+- [ ] Guide: `_GUIDE_BAR_MISSIONS` salvage block (patrol-first rule, board flow, component delivery)
 
 ### Phase 5: Procedural generation + polish
 
@@ -393,5 +414,7 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 2. **Should stolen goods be contraband for militia scans?** Yes — extends risk/reward tension to intercept missions too. Smuggler's hold module mitigates this.
 3. **What happens if the player's ship is destroyed?** Mission auto-fails on death.
 4. **Extortion: what if the target has nothing to give?** Always yields at least some credits. Higher tier = better payout.
-5. **Salvage: can the player loot the wreck early and skip the patrol?** No — patrol must be cleared first (wreck is non-interactable until enemies are dead).
+5. **Salvage: can the player board the wreck early and skip the patrol?** No — the wreck is non-boardable until the guarding patrol squad is destroyed ("The patrol still guards the wreck."). Confirmed with boarding.
+
+8. **Salvage: can the player farm crew XP / random loot by re-boarding?** The wreck persists until the component is secured, and re-boarding regenerates the interior — so re-boarding could farm crew kills + random salvage. Options: (a) accept it (crew is small, salvage budgets are modest), (b) only the FIRST board has crew + random loot — subsequent boards are a stripped husk containing only the component (recommended), (c) wreck is consumed on first exit without the component → mission auto-fails. TBD in design review.
 6. **What if the player already has the target good in their inventory (intercept/salvage)?** RESOLVED — mission completion checks the per-mission `heist_good_secured` flag (set only by securing the mission-tagged loot entity), not an inventory count. Buying the good at a terminal or carrying it from another mission never completes the intercept.
