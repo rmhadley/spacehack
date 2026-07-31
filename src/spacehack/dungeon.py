@@ -1,4 +1,4 @@
-"""Ship interior layout parser.
+"""Ship interior layout parser and procedural dungeon generator.
 
 Reads ``.layout`` files from ``data/layouts/`` and builds a
 :class:`world.GameMap` with tiles, entities, and the player
@@ -13,13 +13,43 @@ Layout format (DCSS-inspired):
 The parser finds the hull boundary per row (first/last non-space
 character). Everything between boundaries is interior; everything
 before/after is void.
+
+For planet surface dungeons, :func:`generate_dungeon` uses BSP
+room-and-corridor generation instead of hand-authored layouts.
 """
 
 from __future__ import annotations
 
 import pathlib
+from dataclasses import dataclass
 
 from . import world
+
+
+# ---------------------------------------------------------------------------
+# Dungeon generation parameters
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class DungeonParams:
+    """Configuration for procedural dungeon generation.
+
+    Attributes:
+        width / height:            Map dimensions in cells.
+        min_room_size / max_room_size:  Room interior dimension range.
+        tile_wall:                 Tile used for walls (default
+                                   :data:`world.DUNGEON_WALL`).
+        tile_floor:                Tile used for floors + corridors
+                                   (default :data:`world.DUNGEON_FLOOR`).
+        sight_radius:              Fog-of-war reveal radius.
+    """
+    width: int = 50
+    height: int = 40
+    min_room_size: int = 5
+    max_room_size: int = 12
+    tile_wall: world.Tile = world.DUNGEON_WALL
+    tile_floor: world.Tile = world.DUNGEON_FLOOR
+    sight_radius: int = 4
 
 
 # Sight radius for dungeon fog of war (Chebyshev distance).
@@ -590,6 +620,168 @@ def load_layout(
     )
 
     return (game_map, spawn_pos)
+
+
+def generate_dungeon(
+    params: DungeonParams,
+) -> tuple[world.GameMap, world.Position]:
+    """Generate a procedural dungeon using BSP room-and-corridor.
+
+    Recursively splits the map with binary space partition, carves
+    rooms in leaf regions, and connects sibling rooms with L-shaped
+    corridors. Uses the run's seeded :data:`engine.RNG` so the same
+    seed produces identical layouts.
+
+    Args:
+        params: :class:`DungeonParams` controlling dimensions,
+                room sizes, and tile theming.
+
+    Returns:
+        ``(game_map, spawn_pos)`` — same shape as
+        :func:`load_layout` so the EXPLORE handler works with
+        either path.
+    """
+    from .engine import RNG
+
+    w, h = params.width, params.height
+
+    # Fill with wall tiles.
+    tiles: list[list[world.Tile]] = [
+        [params.tile_wall for _ in range(w)] for _ in range(h)
+    ]
+
+    # BSP split — recursively carve rooms and corridors.
+    _center = _bsp_split(tiles, 0, 0, w, h, RNG, params)
+
+    # Spawn = exit (same tile, standard roguelike pattern).
+    spawn_pos = world.Position(_center[0], _center[1])
+    tiles[spawn_pos.y][spawn_pos.x] = world.EXIT
+
+    game_map = world.GameMap(width=w, height=h, tiles=tiles, entities=[])
+    game_map.sight_radius = params.sight_radius
+
+    return game_map, spawn_pos
+
+
+# ---------------------------------------------------------------------------
+# BSP helpers
+# ---------------------------------------------------------------------------
+
+def _bsp_split(
+    tiles: list[list[world.Tile]],
+    x: int, y: int,
+    w: int, h: int,
+    rng,
+    params: DungeonParams,
+) -> tuple[int, int]:
+    """Recursively split region into rooms connected by corridors.
+
+    Returns the center ``(cx, cy)`` of the carved area so parent
+    splits can connect sibling halves.
+    """
+    _can_h = w >= params.min_room_size * 2 + 2
+    _can_v = h >= params.min_room_size * 2 + 2
+
+    if not _can_h and not _can_v:
+        return _carve_room(tiles, x, y, w, h, rng, params)
+
+    # Decide split direction: prefer the longer axis.
+    if _can_h and _can_v:
+        _horizontal = w > h
+    else:
+        _horizontal = _can_h
+
+    if _horizontal:
+        _split = rng.randint(
+            params.min_room_size + 1,
+            w - params.min_room_size - 1,
+        )
+        c1 = _bsp_split(tiles, x, y, _split, h, rng, params)
+        c2 = _bsp_split(tiles, x + _split, y, w - _split, h, rng, params)
+    else:
+        _split = rng.randint(
+            params.min_room_size + 1,
+            h - params.min_room_size - 1,
+        )
+        c1 = _bsp_split(tiles, x, y, w, _split, rng, params)
+        c2 = _bsp_split(tiles, x, y + _split, w, h - _split, rng, params)
+
+    # Connect sibling halves with an L-shaped corridor.
+    if c1 and c2:
+        _carve_corridor(tiles, c1[0], c1[1], c2[0], c2[1], rng, params)
+
+    return ((c1[0] + c2[0]) // 2, (c1[1] + c2[1]) // 2)
+
+
+def _carve_room(
+    tiles: list[list[world.Tile]],
+    x: int, y: int,
+    w: int, h: int,
+    rng,
+    params: DungeonParams,
+) -> tuple[int, int]:
+    """Carve a room inside the region, leaving a 1-tile wall border.
+
+    Returns the room centre for corridor connections.
+    """
+    if w < 3 or h < 3:
+        return (x + w // 2, y + h // 2)
+
+    _avail_w = min(params.max_room_size, w - 2)
+    _avail_h = min(params.max_room_size, h - 2)
+
+    _rw = (
+        rng.randint(params.min_room_size, _avail_w)
+        if _avail_w >= params.min_room_size
+        else max(1, _avail_w)
+    )
+    _rh = (
+        rng.randint(params.min_room_size, _avail_h)
+        if _avail_h >= params.min_room_size
+        else max(1, _avail_h)
+    )
+
+    _rx = x + rng.randint(1, max(1, w - _rw - 1))
+    _ry = y + rng.randint(1, max(1, h - _rh - 1))
+
+    for _ry2 in range(_ry, _ry + _rh):
+        for _rx2 in range(_rx, _rx + _rw):
+            tiles[_ry2][_rx2] = params.tile_floor
+
+    return (_rx + _rw // 2, _ry + _rh // 2)
+
+
+def _carve_corridor(
+    tiles: list[list[world.Tile]],
+    x1: int, y1: int,
+    x2: int, y2: int,
+    rng,
+    params: DungeonParams,
+) -> None:
+    """Carve an L-shaped corridor between two room centres."""
+    _h = len(tiles)
+    _w = len(tiles[0]) if _h > 0 else 0
+
+    if rng.random() < 0.5:
+        # Horizontal leg, then vertical.
+        for _x in range(min(x1, x2), max(x1, x2) + 1):
+            if 0 <= y1 < _h and 0 <= _x < _w:
+                if tiles[y1][_x].kind == 'dungeon_wall':
+                    tiles[y1][_x] = params.tile_floor
+        for _y in range(min(y1, y2), max(y1, y2) + 1):
+            if 0 <= _y < _h and 0 <= x2 < _w:
+                if tiles[_y][x2].kind == 'dungeon_wall':
+                    tiles[_y][x2] = params.tile_floor
+    else:
+        # Vertical leg, then horizontal.
+        for _y in range(min(y1, y2), max(y1, y2) + 1):
+            if 0 <= _y < _h and 0 <= x1 < _w:
+                if tiles[_y][x1].kind == 'dungeon_wall':
+                    tiles[_y][x1] = params.tile_floor
+        for _x in range(min(x1, x2), max(x1, x2) + 1):
+            if 0 <= y2 < _h and 0 <= _x < _w:
+                if tiles[y2][_x].kind == 'dungeon_wall':
+                    tiles[y2][_x] = params.tile_floor
 
 
 def animate_breach(

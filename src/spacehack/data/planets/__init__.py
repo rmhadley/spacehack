@@ -73,6 +73,7 @@ class PlanetSpec:
     tech_level: int = 1               # max tech level stocked at this planet
     mission_tier: int = 1             # max mission tier offered at this planet's NPCs
     dungeon_layout_id: str = ""       # .layout file to load when player chooses EXPLORE
+    dungeon_params: object = None      # :class:`~spacehack.dungeon.DungeonParams` for procedural dungeons
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +214,7 @@ def has_explorable_sites(planet_id: str) -> list[str]:
     """
     try:
         spec = find_planet_spec(planet_id)
-        if spec.dungeon_layout_id:
+        if getattr(spec, 'dungeon_params', None) is not None or spec.dungeon_layout_id:
             return [spec.name + " Surface"]
     except KeyError:
         pass

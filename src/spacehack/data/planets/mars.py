@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
+from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import MARS
 
@@ -101,5 +102,16 @@ SPEC = PlanetSpec(
     mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo", "armor_plating"),
     tech_level=2,
     mission_tier=1,
-    dungeon_layout_id="station_research",
+    dungeon_params=DungeonParams(
+        width=50,
+        height=40,
+        tile_wall=world.Tile(
+            kind="dungeon_wall", char="#", walkable=False,
+            fg=(180, 120, 80), bg=(30, 20, 10),
+        ),
+        tile_floor=world.Tile(
+            kind="dungeon_floor", char=".", walkable=True,
+            fg=(200, 160, 120), bg=(50, 35, 20),
+        ),
+    ),
 )
