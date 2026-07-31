@@ -589,7 +589,9 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 
 
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
-    pass
+    """Move non-combat ground NPCs during combat (matches space behaviour)."""
+    from ..ground_npcs import move_ground_npcs as _move_ground_npcs
+    _move_ground_npcs(ctx, game_map)
 
 
 # ---------------------------------------------------------------------------
