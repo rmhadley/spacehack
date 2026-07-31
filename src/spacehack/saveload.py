@@ -131,6 +131,7 @@ def _save_loot(game_map) -> list[dict]:
             _result.append({
                 'x': _e.pos.x, 'y': _e.pos.y,
                 'loot_data': _e.loot_data,
+                'heist_mission': bool(getattr(_e, 'heist_mission', False)),
             })
     return _result
 
@@ -709,6 +710,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 name='Loot', width=1, height=1,
                 loot_data=_ld.get("loot_data"),
             )
+            if _ld.get("heist_mission", False):
+                _loot_e.heist_mission = True
             _game_map.entities.append(_loot_e)
 
     # --- Assemble GameContext ---

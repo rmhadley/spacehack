@@ -526,8 +526,12 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
                         name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
                         width=1, height=1,
                         loot_data={"good_id": _good_id, "quantity": 1},
-                        heist_mission=True,
                     )
+                    # Mission-specific flag — set post-construction (not a
+                    # dataclass field), same pattern as bounty_spawn_id /
+                    # heist_spawn_id on spawn entities. Read by
+                    # trade.open_loot_pickup via getattr.
+                    _loot_ent.heist_mission = True
                     game_map.entities.append(_loot_ent)
                     _state.log.add_colored(
                         f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
