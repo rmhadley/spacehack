@@ -105,6 +105,8 @@ SPEC = PlanetSpec(
     dungeon_params=DungeonParams(
         width=120,
         height=90,
+        min_room_size=8,
+        max_room_size=16,
         tile_wall=world.Tile(
             kind="dungeon_wall", char="#", walkable=False,
             fg=(180, 120, 80), bg=(30, 20, 10),
