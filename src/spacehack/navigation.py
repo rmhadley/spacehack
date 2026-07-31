@@ -406,7 +406,11 @@ def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
             for _pos in _positions_to_remove:
                 _target_entity = None
                 for _e in ctx.game_map.entities:
-                    if not getattr(_e, 'owned', False) and _e.pos == _pos:
+                    if getattr(_e, 'owned', False):
+                        continue
+                    if getattr(_e, 'loot_data', None) is not None:
+                        continue  # don't remove player-lootable salvage
+                    if _e.pos == _pos:
                         _target_entity = _e
                         break
                 if _target_entity is not None:
