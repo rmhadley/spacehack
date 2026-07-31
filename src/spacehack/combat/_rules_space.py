@@ -42,7 +42,6 @@ from ._animations import (
     _has_los,
     _paint_target_highlight,
     _paint_range_line,
-    _resolve_target,
 )
 
 
@@ -221,6 +220,21 @@ def set_target_idx(ctx, idx: int) -> None:
     _target_idx = idx
 
 
+def _alive_target():
+    """Get the currently targeted alive enemy.
+
+    ``_target_idx`` is an index into the alive-only sublist (matching
+    the unified loop's ``get_enemies()``).  This helper maps it back
+    to the correct entry in the full ``_enemy_insts`` list so that
+    rendering, hit chances, and LOS checks query the right enemy
+    after kills have shifted the alive sublist.
+    """
+    _alive = [e for e in _enemy_insts if e.alive]
+    if 0 <= _target_idx < len(_alive):
+        return _alive[_target_idx]
+    return None
+
+
 def get_enemies(ctx) -> list[EnemyInstance]:
     return [e for e in _enemy_insts if e.alive]
 
@@ -283,8 +297,8 @@ def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
     if not _ok:
         return _ok, _reason
     # Line of sight: projectile blocked by obstacles
-    if _target_idx < len(_enemy_insts) and _enemy_insts[_target_idx].alive:
-        _target = _enemy_insts[_target_idx]
+    _target = _alive_target()
+    if _target is not None:
         if not _has_los(
             _game_map,
             _player_state["pos"].x, _player_state["pos"].y,
@@ -373,7 +387,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         if _active_ids:
             _range_wid = min(_active_ids, key=lambda wid: _fw(wid).max_range)
     if _range_wid is not None:
-        _tgt = _resolve_target(_enemy_insts, _target_idx)
+        _tgt = _alive_target()
         if _tgt is not None:
             _paint_range_line(
                 console,
@@ -383,7 +397,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             )
 
     # Target highlight
-    _tgt = _resolve_target(_enemy_insts, _target_idx)
+    _tgt = _alive_target()
     if _tgt is not None:
         _paint_target_highlight(
             console, _cam_x, _cam_y, _view_w, _view_h, 0, 0, _tgt,
@@ -391,12 +405,12 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
 
     # Compute hit chances for HUD
     _hit_chances: dict[str, int] = {}
-    if _weapons_list and _target_idx < len(_enemy_insts):
-        _target_e = _enemy_insts[_target_idx]
-        _dist = _distance(_player_state["pos"], _target_e.pos)
+    _tgt_hc = _alive_target()
+    if _weapons_list and _tgt_hc is not None:
+        _dist = _distance(_player_state["pos"], _tgt_hc.pos)
         _target_dodge = _calc_dodge_bonus(
-            _target_e.cells_moved_this_turn,
-            int(_target_e.pilot_piloting * 0.5),
+            _tgt_hc.cells_moved_this_turn,
+            int(_tgt_hc.pilot_piloting * 0.5),
         )
         for _wid in _weapons_list:
             try:
@@ -443,12 +457,12 @@ def animate_fire(
 
     # Compute HUD state for animation frames
     _hit_chances: dict[str, int] = {}
-    if _weapons_list and _target_idx < len(_enemy_insts):
-        _target_e = _enemy_insts[_target_idx]
-        _dist = _distance(_player_state["pos"], _target_e.pos)
+    _tgt_a = _alive_target()
+    if _weapons_list and _tgt_a is not None:
+        _dist = _distance(_player_state["pos"], _tgt_a.pos)
         _target_dodge = _calc_dodge_bonus(
-            _target_e.cells_moved_this_turn,
-            int(_target_e.pilot_piloting * 0.5),
+            _tgt_a.cells_moved_this_turn,
+            int(_tgt_a.pilot_piloting * 0.5),
         )
         for _wid in _weapons_list:
             try:
@@ -609,21 +623,20 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai import _run_enemy_turn as _enemy_ai
 
     _hit_chances: dict[str, int] = {}
-    if _weapons_list and _target_idx < len(_enemy_insts):
-        _target_e = _enemy_insts[_target_idx]
-        if _target_e.alive:
-            _dist = _distance(_player_state["pos"], _target_e.pos)
-            _target_dodge = _calc_dodge_bonus(
-                _target_e.cells_moved_this_turn,
-                int(_target_e.pilot_piloting * 0.5),
-            )
-            for _wid in _weapons_list:
-                try:
-                    _hit_chances[_wid] = _space_hit_chance(
-                        _wid, _player_state["gunnery"], _dist, _target_dodge,
-                    )
-                except KeyError:
-                    pass
+    _tgt_r = _alive_target()
+    if _weapons_list and _tgt_r is not None:
+        _dist = _distance(_player_state["pos"], _tgt_r.pos)
+        _target_dodge = _calc_dodge_bonus(
+            _tgt_r.cells_moved_this_turn,
+            int(_tgt_r.pilot_piloting * 0.5),
+        )
+        for _wid in _weapons_list:
+            try:
+                _hit_chances[_wid] = _space_hit_chance(
+                    _wid, _player_state["gunnery"], _dist, _target_dodge,
+                )
+            except KeyError:
+                pass
 
     _evade = _calc_dodge_bonus(
         _player_state.get("cells_moved_this_turn", 0),
