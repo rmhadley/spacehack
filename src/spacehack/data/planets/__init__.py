@@ -204,7 +204,7 @@ def has_explorable_sites(planet_id: str) -> list[str]:
     try:
         spec = find_planet_spec(planet_id)
         if getattr(spec, 'dungeon_params', None) is not None:
-            return [spec.name + " Surface"]
+            return ["Surface"]
     except KeyError:
         pass
     return []
