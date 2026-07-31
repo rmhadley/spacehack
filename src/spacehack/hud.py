@@ -607,12 +607,14 @@ def render_combat_hud(
         console.print(x=hud_x, y=y, string="ENEMIES", fg=COLOR_DIVIDER)
         y += 1
         ppos = player_state.get("pos")
+        _alive_count = 0
         for _ei, _e in enumerate(enemies):
             if y > screen_height - 20:
                 break
             if not getattr(_e, 'alive', True):
                 continue
-            is_target = _ei == target_idx
+            is_target = _alive_count == target_idx
+            _alive_count += 1
             marker = ">" if is_target else " "
             # Short name (trim to 9 chars at most)
             _name = _e.name[:9] if len(_e.name) > 9 else _e.name
