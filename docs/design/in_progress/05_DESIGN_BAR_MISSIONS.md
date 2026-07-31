@@ -376,26 +376,51 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 - [ ] (deferred) Add 4 hand-crafted extortion missions to `bar.py`
 - [ ] (deferred) Quest log: show target name, system, "collect what they owe"
 
-### Phase 4: Salvage rights — BOARDING-INTEGRATED (design review pending)
+### Phase 4: Salvage rights — BOARDING-INTEGRATED (IMPLEMENTED — playtest pending)
 
 **Player flow:** accept at bar → travel to target system → find the wreck (marked) → clear the space patrol → board the wreck → fight the scavenger crew inside → secure the mission component from the interior → exit to space → return to bar → deliver.
 
 Reuses the entire boarding + ground-combat framework (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat) and the intercept heist-cargo delivery path.
 
-- [ ] Add boardable wreck NpcShipSpec(s) — ``derelict_scout`` exists; add ``derelict_freighter`` for T3+ (larger hull, bigger ``loot_budget``)
-- [ ] Add ``freightliner_a.layout`` — larger wreck interior with crew + component-candidate rooms; ``scout_a`` reused for T1-2
-- [ ] Layout: component-candidate room markers (2-3 per layout); on first board RNG-pick one and place the mission-tagged ``%`` (``heist_mission=True`` + ``heist_mission_id``) — placement persists via the interior cache
-- [ ] MissionSpec/ActiveMission fields: reuse ``heist_target_good_id``/``target_system_id``/``bounty_*``; add ``salvage_wreck_enemy_id`` + ``salvage_layout_id`` (no new patrol fields — patrol reuses ``target_enemy_id`` + ``bounty_target_squad_size`` + ``bounty_wingmate_enemy_id``)
-- [ ] Spawn wreck as non-combatant BountySpawn at a landmark + patrol squad nearby (both in ``ctx.bounty_spawns`` → save/load for free)
-- [ ] Boarding: bump wreck → Board dialog whenever the player is out of combat (no patrol-alive gate; you can't board mid-combat anyway)
-- [ ] **Persistent interiors:** ``GameContext.interiors: dict[str, world.GameMap]`` cache keyed by wreck spawn id; exit keeps the map in the cache; re-board reuses it (fog/loot/crew/power intact)
-- [ ] **Save/load:** extract shared ``_dungeon_to_dict`` / ``_dungeon_from_dict`` helpers (currently duplicated inline); save ``interiors`` dict + restore on load; drop a wreck's entry when it despawns
-- [ ] Wreck lifecycle: persists until component secured; despawns after secure + exit (design decision 4)
-- [ ] Ground victory: killing the scavenger crew applies pirate rep deltas (already wired in the ``__main__.py`` post-combat block)
-- [ ] Add 4 hand-crafted salvage missions to `bar.py` (component, system, patrol, wreck, layout per tier)
-- [ ] Quest log: show component, system, patrol threat level + "component somewhere in the wreck"
-- [ ] Save/load: new ActiveMission fields (``salvage_wreck_enemy_id``, ``salvage_layout_id``) on both sides
-- [ ] Guide: `_GUIDE_BAR_MISSIONS` salvage block (patrol threat, board flow, search + secure, component delivery)
+- [x] Add boardable wreck NpcShipSpec(s) — ``derelict_scout`` exists; add ``derelict_freighter`` for T3+ (larger hull, bigger ``loot_budget``)
+- [x] Add ``freightliner_a.layout`` — larger wreck interior with crew + component-candidate rooms; ``scout_a`` reused for T1-2 (hand-edited by user for the "oh this is a ship" silhouette)
+- [x] Layout: component-candidate room markers (2-3 per layout); on first board RNG-pick one and place the mission-tagged ``%`` (``heist_mission=True`` + ``heist_mission_id``) — placement persists via the interior cache
+- [x] MissionSpec/ActiveMission fields: reuse ``heist_target_good_id``/``target_system_id``/``bounty_*``; add ``salvage_wreck_enemy_id`` + ``salvage_layout_id`` (no new patrol fields — patrol reuses ``target_enemy_id`` + ``bounty_target_squad_size`` + ``bounty_wingmate_enemy_id``)
+- [x] Spawn wreck as non-combatant BountySpawn at a landmark + patrol squad nearby (both in ``ctx.bounty_spawns`` → save/load for free)
+- [x] Boarding: bump wreck → Board dialog whenever the player is out of combat (no patrol-alive gate; you can't board mid-combat anyway)
+- [x] **Persistent interiors:** ``GameContext.interiors: dict[str, world.GameMap]`` cache keyed by wreck spawn id; exit keeps the map in the cache; re-board reuses it (fog/loot/crew/power intact)
+- [x] **Save/load:** extract shared ``_dungeon_to_dict`` / ``_dungeon_from_dict`` helpers (currently duplicated inline); save ``interiors`` dict + restore on load; drop a wreck's entry when it despawns
+- [x] Wreck lifecycle: persists until component secured; despawns after secure + exit (design decision 4)
+- [x] Ground victory: killing the scavenger crew applies pirate rep deltas (already wired in the ``__main__.py`` post-combat block)
+- [x] Add 4 hand-crafted salvage missions to `bar.py` (component, system, patrol, wreck, layout per tier)
+- [x] Quest log: show component, system, patrol threat level + "component somewhere in the wreck"
+- [x] Save/load: new ActiveMission fields (``salvage_wreck_enemy_id``, ``salvage_layout_id``) on both sides
+- [x] Guide: `_GUIDE_BAR_MISSIONS` salvage block (patrol threat, board flow, search + secure, component delivery)
+
+**Implementation notes (post-review):**
+- Patrol kill does NOT auto-complete the salvage mission — ``_encounter.py`` skips bounty-completion for missions with ``salvage_layout_id`` but still removes the dead patrol's BountySpawn (no respawn on reload).
+- Boarding an abandoned wreck: the abandon path (Q) now also removes the wreck BountySpawn + its interior cache entry.
+- Active-wreck save/load identity: ``load_game`` overwrites ``ctx.interiors[wsid]`` with the freshly-loaded active dungeon map so post-load progress (crew killed, loot taken) isn't lost to a stale deserialized twin.
+- ``_dungeon_to_dict``/``_dungeon_from_dict`` now also preserve ground-combat ``squad_id`` + heist loot flags on the ACTIVE dungeon (strict improvement over the old inline blocks).
+
+**PLAYTEST — Phase 4 (salvage):**
+
+*You'll verify: wreck spawn + sensor ping, patrol clear + boarding, component search inside the wreck, intercept-style delivery, interior persistence (anti-farm), wreck despawn, save/load round trips.*
+
+1. **Earth bar → accept a salvage mission** (all 4 tiers offered thanks to Earth's ``mission_tier=4`` playtest config).
+   → Log: "Salvage site marked in <system>: wreck + N-ship patrol."
+2. **Travel to the target system** (T1 Tau Ceti is 3 hops; T2 Epsilon Eridani 1 hop; T3 Procyon 2 hops; T4 Luyten's Star 5 hops).
+   → On entry: "Sensor ping: derelict wreck detected near <landmark>." The wreck glyph is near the patrol.
+3. **Approach the patrol** → auto-hail fires (patrol = bounty-style squad). Destroy the patrol.
+   → Killing the patrol must NOT complete the mission (quest log still shows the salvage objective). No component drops in space.
+4. **Board the wreck** (bump → Board). Play the breach animation, explore the interior, fight the scavenger crew.
+   → A gold % component is hidden in ONE RNG-picked room. Search until you find it (quest log says SOMEWHERE IN THE WRECK).
+5. **Secure the component** (walk over the gold %) → becomes MISSION CARGO, not trade goods, can't be sold.
+   → Quest log flips to SECURED.
+6. **Exit to space** → the secured wreck despawns ("The secured wreck drifts away"). Return to bar → Deliver → reward + rep.
+7. **Anti-farm check:** board, kill 1-2 crew, exit WITHOUT securing → re-board → dead crew stay dead, taken loot stays gone, fog stays revealed.
+8. **Save/load round trip:** accept → travel → save INSIDE the wreck interior → Continue → crew/loot/fog/component placement identical; exit works; deliver still completes.
+9. **Abandon:** accept a second salvage mission, travel, abandon (Q) → wreck + patrol gone from the map, mission returns to bar board.
 
 ### Phase 5: Procedural generation + polish
 
