@@ -46,6 +46,17 @@ All bar missions share: high pay, risk of militia attention, and a clear crimina
 - **`heist_target_good_id: str | None = None`** — snapshot for quest log + completion check
 - **`heist_target_enemy_id: str | None = None`** — for merchant ship spawn
 - **`heist_target_system_id: str | None = None`** — for spawn + quest log
+- **`heist_good_secured: bool = False`** — True once the mission's loot entity is secured. Delivery checks THIS flag, never the trade inventory — buying the target good at a terminal does NOT complete the mission.
+
+### Mission-tagged cargo (design decision — from open question #6)
+
+Intercept loot is mission-tagged, not a generic inventory count:
+
+- The loot entity (`%`) carries `heist_mission_id` linking it to the exact `ActiveMission` (two intercept missions can target the same good — e.g. `electronics` at T1 and T4 — so a good-id match is not enough).
+- Securing the loot sets `ActiveMission.heist_good_secured = True` and reserves the good's volume in `OwnedShip.mission_reserved` — the existing MISSION CARGO hold concept (shown in the cargo screen, consumed by `cargo_used`).
+- The good never enters `OwnedShip.inventory`, so it cannot be sold at a trade terminal and does not stack with bought/traded goods.
+- Delivery (`active_is_deliverable_at`) checks `heist_good_secured`, not `inventory[good] > 0`.
+- `complete_mission` / `abort_mission` release the reserved volume (shared `_reserved_heist_volume` helper).
 
 ### Existing infrastructure to reuse
 
@@ -325,4 +336,4 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 3. **What happens if the player's ship is destroyed?** Mission auto-fails on death.
 4. **Extortion: what if the target has nothing to give?** Always yields at least some credits. Higher tier = better payout.
 5. **Salvage: can the player loot the wreck early and skip the patrol?** No — patrol must be cleared first (wreck is non-interactable until enemies are dead).
-6. **What if the player already has the target good in their inventory (intercept/salvage)?** Mission completion checks for the specific mission-tagged item, not just a count.
+6. **What if the player already has the target good in their inventory (intercept/salvage)?** RESOLVED — mission completion checks the per-mission `heist_good_secured` flag (set only by securing the mission-tagged loot entity), not an inventory count. Buying the good at a terminal or carrying it from another mission never completes the intercept.
