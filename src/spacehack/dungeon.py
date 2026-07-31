@@ -752,6 +752,12 @@ def _detect_ground_combat(
                 )
                 if _od <= _ASSIST_RADIUS:
                     _result.append(_oe)
+
+        # Reveal fog around all combatants — combat is loud,
+        # the player would know where enemies are positioned.
+        for _ce in _result:
+            reveal_around(game_map, _ce.pos, radius=3)
+
         return _result
 
     return []
