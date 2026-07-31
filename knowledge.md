@@ -308,6 +308,56 @@ sluggish").
 - [ ] Does this call ``world.find_path()``? Can it skip ticks or cache the result?
 - [ ] Does this spawn new entities? Is there a cap to prevent unbounded growth?
 
+#### 6. Session-state encapsulation — one dataclass, not 14 globals
+
+Module-level combat/encounter state (e.g. ``_rules_space.py``,
+``_rules_ground.py``) must live in a single ``@dataclass`` instance
+rather than a dozen scattered ``None``-initialized globals with
+``global`` declarations in every function.
+
+**Pattern:**
+
+```python
+@dataclass
+class CombatState:
+    ctx: Any
+    game_map: world.GameMap
+    enemies: list = field(default_factory=list)
+    player_hp: int = 30
+    target_idx: int = 0
+    # … remaining session fields
+
+_state: CombatState | None = None  # ← the ONLY module-level mutable global
+
+def init(ctx, ...) -> None:
+    global _state
+    _state = CombatState(ctx=ctx, game_map=game_map, ...)
+
+def player_hp(ctx) -> int:
+    return _state.player_hp           # ← no global declaration needed
+```
+
+**Why:**
+- **Readability:** one place to look for all session fields — the dataclass
+  definition IS the schema.
+- **Testability:** you can construct ``CombatState(...)`` in a test harness
+  without touching the module.
+- **Fewer ``global`` declarations:** only ``init()`` needs ``global _state``.
+  Every other function just reads/writes ``_state.field``.
+- **Threadability (future):** a single ``_state`` object is trivially
+  replaceable with a parameter if we ever need concurrent encounters.
+
+**Also:** once the dataclass exists, thread it through to callees.
+``_run_enemy_turn(state, *, hit_chances, …)`` is better than
+``_run_enemy_turn(console, ctx, game_map, player_state, enemy_insts, …)``
+with 18 positional params.
+
+**What this project already does right:**
+- ``combat/_rules_space.py`` — :class:`SpaceCombatState` (15 globals → 1)
+- ``combat/_rules_ground.py`` — :class:`GroundCombatState` (14 globals → 1)
+
+---
+
 ## System contracts (MANDATORY — silent breakage if violated)
 
 These contracts govern subsystems that have no automated enforcement.
