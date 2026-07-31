@@ -487,6 +487,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     # navigation._add_bounty_spawns_to_map).
                     if _bs.heist_spawn_id is not None:
                         _ent.heist_spawn_id = _bs.heist_spawn_id
+                # Squad linkage for comms Attack (mirrors navigation.py).
+                _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
+                # Restore auto-hail range on all members too (mirrors
+                # navigation.py) so post-load behavior matches fresh spawn.
+                _ent.bounty_comms_range = _bs.comms_warning_range
                 _game_map.entities.append(_ent)
 
             # Add procedural NPCs from saved spawns (don't generate new ones).
@@ -586,6 +591,11 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     # navigation._add_bounty_spawns_to_map).
                     if _bs.heist_spawn_id is not None:
                         _ent.heist_spawn_id = _bs.heist_spawn_id
+                # Squad linkage for comms Attack (mirrors navigation.py).
+                _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
+                # Restore auto-hail range on all members too (mirrors
+                # navigation.py) so post-load behavior matches fresh spawn.
+                _ent.bounty_comms_range = _bs.comms_warning_range
                 _space_map.entities.append(_ent)
 
             # Add procedural NPCs.

@@ -363,6 +363,10 @@ def _add_bounty_spawns_to_map(
             _ent.bounty_spawn_id = _bs.spawn_id
             if _bs.heist_spawn_id is not None:
                 _ent.heist_spawn_id = _bs.heist_spawn_id
+        # Squad linkage: EVERY member (leader + wingmates) carries the
+        # leader's spawn id so comms Attack on ANY member — merchant
+        # leader OR pirate escort — pulls the whole squad into combat.
+        _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
         # Propagate warning range to ALL squad members so no one
         # triggers combat before the auto-hail fires.
         _ent.bounty_comms_range = _bs.comms_warning_range
