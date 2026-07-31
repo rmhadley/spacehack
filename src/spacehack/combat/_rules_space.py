@@ -612,14 +612,11 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     )
 
     _result = _enemy_ai(
-        _state.console, ctx.context,
-        game_map,
-        _state.player_state, _state.enemy_insts, _state.enemy_specs,
-        _state.enemy_ents, _state.target_idx, _state.log,
-        _state.weapons_list, _state.active_weapons,
-        _hit_chances, _evade,
-        0, _state.view_w, _state.view_h,
-        _calc_camera,
+        _state,
+        hit_chances=_hit_chances,
+        evade_bonus=_evade,
+        flee_attempts=0,
+        calc_cam=_calc_camera,
         ctx=ctx,
     )
 
