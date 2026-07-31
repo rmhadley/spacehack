@@ -26,7 +26,11 @@ MISSIONS: tuple[MissionSpec, ...] = (
         tier=1,
         reward_credits=200,
         reward_xp=40,
-        deadline_days=30,
+        # Round trip at starter speed (10 moves/day) is ~41 days:
+        # Earth->gate 6d, AC gate->landmark 14d, then back again.
+        # Deadline ~2.2x RT so both on-time AND the early bonus
+        # (< deadline/2 = 45d) are achievable; faster ships get slack.
+        deadline_days=90,
         early_bonus_pct=25,
         target_enemy_id="merchant_hauler",
         target_system_id="alpha_centauri",
@@ -47,7 +51,9 @@ MISSIONS: tuple[MissionSpec, ...] = (
         tier=2,
         reward_credits=400,
         reward_xp=70,
-        deadline_days=40,
+        # Round trip to Vega ~32 days at starter speed. Deadline ~2.2x
+        # RT: early bonus (< 35d) reachable at starter speed.
+        deadline_days=70,
         early_bonus_pct=25,
         target_enemy_id="merchant_hauler",
         target_system_id="vega",
@@ -69,7 +75,10 @@ MISSIONS: tuple[MissionSpec, ...] = (
         tier=3,
         reward_credits=800,
         reward_xp=140,
-        deadline_days=50,
+        # Round trip to Sirius is 2 hops ~69 days at starter speed
+        # (cross Vega gate-to-gate). Deadline ~2.2x RT so the early
+        # bonus (< 75d) is achievable; generous for a deep run.
+        deadline_days=150,
         early_bonus_pct=25,
         target_enemy_id="merchant_freighter",
         target_system_id="sirius",
@@ -91,7 +100,11 @@ MISSIONS: tuple[MissionSpec, ...] = (
         tier=4,
         reward_credits=1800,
         reward_xp=300,
-        deadline_days=60,
+        # Round trip to Luyten's Star is 5 hops ~169 days at starter
+        # speed (10 jumps, needs a refuel stop). Deadline ~2.1x RT so
+        # the early bonus (< 180d) is achievable; very generous for
+        # the deep-space run.
+        deadline_days=360,
         early_bonus_pct=30,
         target_enemy_id="merchant_caravan",
         target_system_id="luyten_star",
