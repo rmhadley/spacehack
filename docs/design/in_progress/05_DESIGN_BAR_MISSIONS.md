@@ -38,8 +38,11 @@ All bar missions share: high pay, risk of militia attention, and a clear crimina
 - **`heist_target_good_id: str | None = None`** — trade good ID the player must loot and return (e.g. `"electronics"`)
 - **`heist_target_enemy_id: str | None = None`** — NPC ship spec to spawn as the target merchant vessel (e.g. `"merchant_scout"`)
 - **`heist_target_system_id: str | None = None`** — system where the merchant patrols
+- **`bounty_wingmate_enemy_id: str | None = None`** — ship type for the squad's wingmates when it's a MIXED squad. None (default) = wingmates are the same ship as the leader (bounty default). Intercepts use this to spawn pirate fighter escorts alongside the merchant — e.g. `bounty_target_squad_size=2` + `bounty_wingmate_enemy_id="pirate_scout"` puts one Pirate Scout in the merchant's squad.
 
 (These mirror the existing bounty fields but for the intercept flow.)
+
+**Mixed-squad escort (playtest feature):** The squad system was already type-agnostic at the plumbing level — every `BountySpawn` carries its own `enemy_id`, and `_detect_combat_encounter` / comms Attack / `_add_bounty_spawns_to_map` / `_remove_bounty_spawn` all resolve specs per-spawn. Adding `bounty_wingmate_enemy_id` to `MissionSpec` (and mirroring it on `ActiveMission` for save/load + quest log) lets a hand-crafted mission declare a different wingmate ship. The AC Run (T1) now spawns `merchant_hauler` + 1 `pirate_scout` escort; escorts fight as one squad with the merchant (auto-hail pulls the whole group), and only the merchant leader counts for heist completion.
 
 ### New fields on `ActiveMission`
 
@@ -172,10 +175,12 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 
 | ID | Title | Tier | Target Good | Target Ship | System | Rewards |
 |----|-------|------|-------------|-------------|--------|---------|
-| `bar_intercept_earth_ac` | The AC Run | 1 | `electronics` | `merchant_hauler` | Alpha Centauri | 200$ / 40xp |
+| `bar_intercept_earth_ac` | The AC Run | 1 | `electronics` | `merchant_hauler` + 1 `pirate_scout` escort | Alpha Centauri | 200$ / 40xp |
 | `bar_intercept_vega_components` | Vega Components | 2 | `machine_parts` | `merchant_hauler` | Vega | 400$ / 70xp |
 | `bar_intercept_sirius_luxury` | Sirius Luxury | 3 | `luxury_goods` | `merchant_freighter` | Sirius | 800$ / 140xp |
 | `bar_intercept_frontier_tech` | Frontier Tech | 4 | `electronics` | `merchant_caravan` | Luyten's Star | 1800$ / 300xp |
+
+**Escort rule:** T1+ intercepts may include pirate fighter escorts via `bounty_wingmate_enemy_id`. Escorts spawn with the merchant, share its squad id, and trigger like bounty wingmen (auto-hail / combat start). Only the merchant leader completes the mission; escorts are bonus kills + bonus rep/loot.
 
 **Deadline rule (playtest fix):** Intercepts are ROUND TRIPS — fly out, kill, fly back — so deadlines are scaled to real travel distance at starter-ship speed (10 moves/day), with ~2.1-2.2x headroom so BOTH on-time completion AND the early bonus (< half the deadline) are achievable at starter speed (faster ships get slack). Measured round trips: AC ~41d (deadline 90), Vega ~32d (70), Sirius ~69d (150), Luyten ~169d (360). The old 30/40/50/60 ladder was impossible (T1 needed 41d on a 30d clock; T4 is a 10-jump/100-fuel run on an 80-fuel tank).
 
