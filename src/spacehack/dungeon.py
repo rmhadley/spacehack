@@ -716,11 +716,11 @@ def _bsp_split(
         c1 = _bsp_split(tiles, x, y, w, _split, rng, params)
         c2 = _bsp_split(tiles, x, y + _split, w, h - _split, rng, params)
 
-    # Connect sibling halves with an L-shaped corridor.
-    if c1 and c2:
-        _carve_corridor(tiles, c1[0], c1[1], c2[0], c2[1], rng, params)
-
-    return ((c1[0] + c2[0]) // 2, (c1[1] + c2[1]) // 2)
+    # Connect sibling halves with an L-shaped corridor.  Return the
+    # corner (always on the path) so higher-level corridors reliably
+    # intersect lower-level ones — the mathematical midpoint isn't
+    # guaranteed to be on an L-shaped path.
+    return _carve_corridor(tiles, c1[0], c1[1], c2[0], c2[1], rng, params)
 
 
 def _carve_room(
@@ -775,8 +775,14 @@ def _carve_corridor(
     x2: int, y2: int,
     rng,
     params: DungeonParams,
-) -> None:
-    """Carve an L-shaped corridor between two room centres."""
+) -> tuple[int, int]:
+    """Carve an L-shaped corridor between two points.
+
+    Returns the corner ``(cx, cy)`` where the two legs meet —
+    guaranteed to be on the corridor path.  Callers use this instead
+    of the mathematical midpoint so higher-level corridors reliably
+    intersect lower-level ones.
+    """
     _h = len(tiles)
     _w = len(tiles[0]) if _h > 0 else 0
 
@@ -790,6 +796,7 @@ def _carve_corridor(
             if 0 <= _y < _h and 0 <= x2 < _w:
                 if tiles[_y][x2].kind == 'dungeon_wall':
                     tiles[_y][x2] = params.tile_floor
+        return (x2, y1)
     else:
         # Vertical leg, then horizontal.
         for _y in range(min(y1, y2), max(y1, y2) + 1):
@@ -800,6 +807,7 @@ def _carve_corridor(
             if 0 <= y2 < _h and 0 <= _x < _w:
                 if tiles[y2][_x].kind == 'dungeon_wall':
                     tiles[y2][_x] = params.tile_floor
+        return (x1, y2)
 
 
 def _find_walkable_near(
