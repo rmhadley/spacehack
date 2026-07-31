@@ -390,6 +390,11 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         good = find_trade_good(good_id)
     except KeyError:
         ctx.log.add("Unknown cargo debris.")
+        # Remove the unresolvable loot entity so it doesn't block movement.
+        try:
+            ctx.game_map.entities.remove(loot_entity)
+        except ValueError:
+            pass
         return
 
     owned = ctx.player_owned_ship

@@ -75,6 +75,15 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
     ),
     # --- Raw Materials ---
     TradeGood(
+        id="scrap_metal",
+        name="Scrap Metal",
+        description="Salvaged hull plating, wiring, and structural debris.",
+        base_price=10,
+        category="raw_material",
+        volume=1,
+        rarity=0.8,
+    ),
+    TradeGood(
         id="fuel_cells",
         name="Fuel Cells",
         description="Standardised hydrogen cells for jump drives and reactors.",
