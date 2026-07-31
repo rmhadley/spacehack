@@ -161,6 +161,11 @@ def set_active_weapons(ctx, active: list[bool]) -> None:
 # Enemy accessors
 # ---------------------------------------------------------------------------
 
+def set_target_idx(ctx, idx: int) -> None:
+    """Ground combat has single enemies — no-op."""
+    pass
+
+
 def get_enemies(ctx) -> list[world.Entity]:
     if _enemy_entity is not None and _enemy_hp > 0:
         return [_enemy_entity]

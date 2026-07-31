@@ -275,6 +275,7 @@ def run_combat(
         # ---- Re-target if current target is dead ----
         if _target_idx >= len(_enemies) or not rules.enemy_alive(_enemies[_target_idx]):
             _target_idx = 0
+            rules.set_target_idx(ctx, _target_idx)
 
         # ---- Render ----
         rules.render_frame(console, ctx, game_map)
@@ -298,6 +299,7 @@ def run_combat(
             if sym_name in ("tab", "left", "right"):
                 _dir = -1 if sym_name == "left" else 1
                 _target_idx = _cycle_target(_target_idx, len(_enemies), _dir)
+                rules.set_target_idx(ctx, _target_idx)
                 break
 
             # Vim movement

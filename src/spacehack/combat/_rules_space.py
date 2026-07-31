@@ -212,6 +212,12 @@ def set_active_weapons(ctx, active: list[bool]) -> None:
 # Enemy accessors
 # ---------------------------------------------------------------------------
 
+def set_target_idx(ctx, idx: int) -> None:
+    """Sync target index from the unified loop to the rules module."""
+    global _target_idx
+    _target_idx = idx
+
+
 def get_enemies(ctx) -> list[EnemyInstance]:
     return [e for e in _enemy_insts if e.alive]
 
