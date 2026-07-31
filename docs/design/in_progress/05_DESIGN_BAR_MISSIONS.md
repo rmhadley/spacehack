@@ -325,6 +325,34 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 
 **Playtest config (Phase 2):** Earth's `mission_tier` raised 1 → 4 so all hand-crafted bar missions (intercept + smuggling) are offered at the home bar for playtesting (the design tier table covers 1-4 from the Earth barkeep). All four Smuggler's Holds (mk1-mk4) are stocked at Earth's mechanic terminal for testing — mk4 is otherwise a deep-space TL4 item.
 
+### Phase 2.5: Playtest — Smuggling
+
+**Status: COMPLETE — playtest passed.** All four smuggling missions, the smuggler's-hold protection model (mission-cargo-first allocation), scan confiscation + auto-fail, quest-log scan risk, the militia-scan telegraphing UX, and save/load persistence were verified in play.
+
+**Checklist:**
+- [x] Earth mechanic stocks all 4 Smuggler's Holds; installing one shows in the loadout
+- [x] Accept a smuggling mission → cargo auto-loads into MISSION CARGO (never trade goods, cannot be sold; buying the good at a terminal does not complete the mission)
+- [x] Quest log shows `Cargo: <good> (N units)` + live `SCAN RISK: Low/Medium/High` from installed hold capacity
+- [x] Land on a militia planet WITH a hold sized ≥ cargo → scan passes clean
+- [x] Land WITHOUT a hold → cargo confiscated, mission FAILED, static mission returns to the bar board (re-acceptable)
+- [x] Mission-first protection: inventory contraband confiscated while mission cargo stays safe when the hold covers mission cargo
+- [x] **Frontier Fuel Heist** (55 cargo): at risk with mk3 (50), safe with mk4 (75) — overflow tension confirmed
+- [x] Deliver to destination NPC → reward + XP + rep (`+2 pirate, -5 merchant, -5 civilian, -8 militia`)
+- [x] Save mid-smuggle → Continue → mission active with correct scan-risk display
+- [x] All 4 smuggling missions offered at Earth's bar (Earth `mission_tier=4` playtest config)
+
+**Post-playtest polish (scan telegraphing UX):** Militia scans are no longer a silent 40% roll — the mechanic is now discoverable through gameplay, not just the guide (`navigation.py`, `menus/_planet.py`):
+
+- **Approach:** the planet menu shows a red "MILITIA CHECKPOINT ACTIVE - INBOUND CARGO IS SUBJECT TO SCANS" warning when bumping a militia planet (new `has_militia_presence()` helper in `data/planets/__init__.py`, shared with the scan)
+- **Landing:** carrying exposed contraband logs a red at-risk warning BEFORE the 40% roll (pure `_compute_scan_exposure()`)
+- **Scan event:** a triggered scan announces itself in gold ("A militia patrol hails you for a routine cargo scan...") before the outcome — even clean scans are visible
+
+**Code-quality audit (knowledge.md, post-playtest):** DRY + guardrail fixes from the self-audit pass:
+- `release_mission_cargo()` extracted in `mission.py` — the reservation-release math existed in 3 copies (abort / complete / smuggle auto-fail)
+- `_good_display_name()` extracted in `menus/_quest_log.py` — the intercept + smuggling good-name lookup blocks were duplicated
+- `_smuggle_scan_risk` converted from a 3-branch chain to a table lookup (`_SCAN_RISK_STEPS`, divisor-based) — integer-division thresholds preserved exactly
+- `_militia_scan_target()` extracted in `navigation.py` — brings `_run_cargo_scan` under the 40-line rule, pure guards separated from mutation
+
 ### Phase 3: Extortion
 
 - [ ] Add extortion comms dialog (demand payment, demand cargo, threaten, let go)
