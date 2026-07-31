@@ -11,6 +11,7 @@ City mode (default):
     |     REGION      |          |
     |                 | -------- |
     |                 | HP 10/10 |
+    |                 | Cargo 0/0|
     |                 | $   100  |
     |                 |          |
     |                 | ..       |
@@ -124,6 +125,25 @@ def _render_skill_line(
         string=f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"[:HUD_WIDTH],
         fg=COLOR_SHIP_LABEL,
     )
+
+
+def _cargo_used_max(owned_ship, ship_catalog) -> tuple[int, int]:
+    """Return ``(cargo_used, max_cargo)`` for the player's ship.
+
+    ``cargo_used`` comes from the owned-ship state (includes mission
+    cargo); ``max_cargo`` is the hull's base capacity plus any module
+    bonuses via :func:`ship.effective_max_cargo`. Safe when either
+    argument is ``None`` (returns zeroed values).
+
+    Shared by the space and city HUD branches so the capacity math
+    can never drift between them.
+    """
+    cargo_used = getattr(owned_ship, 'cargo_used', 0)
+    max_cargo = getattr(ship_catalog, 'max_cargo', 0)
+    if owned_ship is not None and ship_catalog is not None:
+        from . import ship as _ship_mod
+        max_cargo = _ship_mod.effective_max_cargo(ship_catalog, owned_ship)
+    return cargo_used, max_cargo
 
 
 def _render_ground_stat_line(
@@ -244,12 +264,7 @@ def render_hud(
         max_fuel = getattr(ship_catalog, 'max_fuel', 1)
         hull_damage = getattr(owned_ship, 'hull_damage_pct', 0)
         hull_pct = 100 - hull_damage
-        cargo_used = getattr(owned_ship, 'cargo_used', 0)
-        max_cargo = getattr(ship_catalog, 'max_cargo', 0)
-        # Apply module cargo bonuses for effective capacity.
-        from . import ship as _ship_mod
-        if owned_ship is not None and ship_catalog is not None:
-            max_cargo = _ship_mod.effective_max_cargo(ship_catalog, owned_ship)
+        cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
         weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
         weapon_slots = getattr(ship_catalog, 'weapon_slots', 0)
         modules_n = len(getattr(owned_ship, 'modules', ()) or ())
@@ -297,6 +312,7 @@ def render_hud(
         y += 1
 
         # Speed (base + module bonuses)
+        from . import ship as _ship_mod
         _eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
         console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
         console.print(x=hud_x + 5, y=y, string=str(_eff_spd), fg=COLOR_SHIP_VALUE)
@@ -374,10 +390,19 @@ def render_hud(
         hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
         console.print(x=hud_x + 3, y=y, string=hp_str, fg=hp_fg)
 
+        # Cargo (used/max — handy while shopping at trade terminals)
+        y += 1
+        console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_LABEL)
+        cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
+        console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_VALUE_WHITE)
+
         # Credits
         y += 1
         console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
         console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
+
+        # Blank line — separates the headline stats from the skills block.
+        y += 1
 
         # Pilot skills (compact one-liner)
         y += 1
