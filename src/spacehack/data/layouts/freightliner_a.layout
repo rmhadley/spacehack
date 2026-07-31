@@ -12,6 +12,8 @@
 #   Row 22                    bulkhead (3 doors)
 #   Rows 23-27  ENGINE ROOM 1 (L) | ENGINE ROOM 2 (C) | AIRLOCK+STORE (R)
 #   Row 28                    hull — breach 'b' (cut into engine room 2)
+#                             plus two exhaust nozzles 'a' under the
+#                             engine rooms (mirrors scout_a's left-side exhaust)
 #   Rows 29-31  spawn alcove: P = board spawn, > = exit
 #
 # Three vertical shafts (doors at x=8 / x=26 / x=45) connect every
@@ -58,7 +60,7 @@ MAP
   #..1..E......#....R.....E....1......#......a...1..#
   #............#......................#.............#
   #............#......................#.............#
-  ########################b##########################
+  ######a#################b#########a################
                          #P#
                          #>#
                          ###
