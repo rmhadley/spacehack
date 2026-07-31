@@ -167,6 +167,8 @@ def _paint_range_line(
     view_h: int,
     region_x: int = 0,
     region_y: int = 0,
+    *,
+    color_override: tuple[int, int, int] | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by weapon range bands.
 
@@ -180,6 +182,9 @@ def _paint_range_line(
       * **Yellow** — within ``max_range`` (normal range)
       * **Orange** — within ``min_range`` (too-close penalty, if min_range > 0)
       * **Red** — beyond ``max_range`` (dist penalty active)
+
+    When ``color_override`` is set, all cells use that color instead
+    (e.g. solid red when LOS is blocked).
 
     The line updates immediately when the player switches weapons.    Uses ``~`` (tilde) as the line character so it's visible but
     doesn't fully obscure glyphs underneath. Tilde is a safe
@@ -195,6 +200,7 @@ def _paint_range_line(
         ws.max_range, ws.min_range,
         cam_x, cam_y, view_w, view_h,
         region_x, region_y,
+        color_override=color_override,
     )
 
 
@@ -215,6 +221,8 @@ def _draw_range_colored_line(
     view_h: int,
     region_x: int = 0,
     region_y: int = 0,
+    *,
+    color_override: tuple[int, int, int] | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by
     distance from the player and the weapon's range profile.
@@ -227,6 +235,9 @@ def _draw_range_colored_line(
     * **Yellow** — within ``max_range`` (normal range)
     * **Orange** — within ``min_range`` (too-close penalty)
     * **Red** — beyond ``max_range`` (dist penalty active)
+
+    When ``color_override`` is set, all cells use that color instead
+    (e.g. solid red ``(255, 60, 60)`` when LOS is blocked).
     """
     half_range = weapon_max_range // 2
     has_min_range = weapon_min_range > 0
@@ -249,16 +260,18 @@ def _draw_range_colored_line(
         if not (0 <= sx < view_w and 0 <= sy < view_h):
             continue
 
-        dist = math.hypot(bx - player_pos.x, by - player_pos.y)
-
-        if dist <= half_range:
-            color = _GREEN
-        elif dist <= weapon_max_range:
-            color = _YELLOW
-        elif has_min_range and dist <= weapon_min_range:
-            color = _ORANGE
+        if color_override is not None:
+            color = color_override
         else:
-            color = _RED
+            dist = math.hypot(bx - player_pos.x, by - player_pos.y)
+            if dist <= half_range:
+                color = _GREEN
+            elif dist <= weapon_max_range:
+                color = _YELLOW
+            elif has_min_range and dist <= weapon_min_range:
+                color = _ORANGE
+            else:
+                color = _RED
 
         console.print(
             x=region_x + sx, y=region_y + sy,

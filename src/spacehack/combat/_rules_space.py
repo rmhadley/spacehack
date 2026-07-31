@@ -389,11 +389,17 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     if _range_wid is not None:
         _tgt = _alive_target()
         if _tgt is not None:
+            _los_ok = _has_los(
+                _game_map,
+                _player_state["pos"].x, _player_state["pos"].y,
+                _tgt.pos.x, _tgt.pos.y,
+            )
             _paint_range_line(
                 console,
                 _player_state["pos"], _tgt.pos,
                 _range_wid,
                 _cam_x, _cam_y, _view_w, _view_h, 0, 0,
+                color_override=None if _los_ok else (255, 60, 60),
             )
 
     # Target highlight

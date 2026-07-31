@@ -327,7 +327,7 @@ def _ground_offsets(game_map: world.GameMap) -> tuple[int, int]:
     return (_ox, _oy)
 
 
-def _ground_range_line(console, player_pos, target_pos, weapon_id, ox, oy):
+def _ground_range_line(console, player_pos, target_pos, weapon_id, ox, oy, *, color_override=None):
     try:
         _ws = _find_gw(weapon_id)
     except KeyError:
@@ -338,6 +338,7 @@ def _ground_range_line(console, player_pos, target_pos, weapon_id, ox, oy):
         _ws.max_range, _ws.min_range,
         0, 0, _RENDER_WIDTH, _RENDER_HEIGHT,
         region_x=ox, region_y=oy,
+        color_override=color_override,
     )
 
 
@@ -368,9 +369,18 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         if i < len(_active_weapon_list) and _active_weapon_list[i]
     ]
     if _active_w and _enemy_entity is not None:
+        _los_blocked = (
+            _game_map is not None
+            and not _has_los(
+                _game_map,
+                ctx.player.pos.x, ctx.player.pos.y,
+                _enemy_entity.pos.x, _enemy_entity.pos.y,
+            )
+        )
         _ground_range_line(
             console, ctx.player.pos, _enemy_entity.pos,
             _active_w[0], _ox, _oy,
+            color_override=(255, 60, 60) if _los_blocked else None,
         )
 
     # HUD
