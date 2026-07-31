@@ -816,13 +816,13 @@ def _run_game(
                             # Intercept delivery: remove the heist good from inventory.
                             _heist_good = getattr(_deliver_mission, 'heist_target_good_id', None)
                             if _heist_good is not None and player_owned_ship is not None:
-                                _inv = getattr(player_owned_ship, 'inventory', {}) or {}
-                                _qty = _inv.get(_heist_good, 0)
-                                if _qty > 0:
-                                    if _qty <= 1:
-                                        del _inv[_heist_good]
+                                _held = player_owned_ship.inventory.get(_heist_good, 0)
+                                if _held > 0:
+                                    _rem = _held - 1
+                                    if _rem <= 0:
+                                        del player_owned_ship.inventory[_heist_good]
                                     else:
-                                        _inv[_heist_good] = _qty - 1
+                                        player_owned_ship.inventory[_heist_good] = _rem
                                     log.add(f"You hand over the stolen {_heist_good.replace('_', ' ')}.")
                             _today = ctx.time_day + (ctx.time_month - 1) * 30
                             mission_module.complete_mission(

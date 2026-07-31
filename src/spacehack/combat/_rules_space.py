@@ -521,11 +521,12 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
                 _good_id = getattr(_m, 'heist_target_good_id', '')
                 if _good_id:
                     _loot_ent = world.Entity(
-                        char='%', fg=(255, 215, 0),
+                        char='%', fg=(0, 255, 255),
                         pos=enemy.pos,
-                        name=f'Salvage: {_good_id.replace("_", " ").title()}',
+                        name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
                         width=1, height=1,
                         loot_data={"good_id": _good_id, "quantity": 1},
+                        heist_mission=True,
                     )
                     game_map.entities.append(_loot_ent)
                     _state.log.add_colored(

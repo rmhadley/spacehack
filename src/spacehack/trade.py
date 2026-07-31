@@ -413,25 +413,28 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         return
 
     console = make_console()
+    _is_heist = getattr(loot_entity, 'heist_mission', False)
 
     def _render() -> None:
         console.clear()
-        title = "CARGO DEBRIS"
-        line1 = f"You found {good.name} x{quantity}"
+        title = "MISSION CARGO" if _is_heist else "CARGO DEBRIS"
+        label = "Secured mission cargo:" if _is_heist else f"You found {good.name} x{quantity}"
+        take_label = "Secure" if _is_heist else "Take"
+        hint = "ENTER to secure  |  ESC to leave" if _is_heist else "ENTER to take  |  ESC to leave"
         line2 = f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
         paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
-        paint_centered(console, cy + 2, line1, fg=ui.COLOR_VALUE_WHITE)
+        paint_centered(console, cy + 2, label, fg=ui.COLOR_VALUE_WHITE)
         paint_centered(console, cy + 3, line2, fg=ui.COLOR_VALUE_DIM)
 
         ui.render_selectable_list(
             console, SCREEN_WIDTH, SCREEN_HEIGHT,
             title="",
-            items=[("Take", "")],
+            items=[(take_label, "")],
             selected=0,
             title_y=cy + 4,
-            hint="ENTER to take  |  ESC to leave",
+            hint=hint,
         )
 
     def _update(event) -> _LootOutcome:
@@ -449,8 +452,12 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
 
     _outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if _outcome is _LootOutcome.TAKE:
-        owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-        ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
+        if getattr(loot_entity, 'heist_mission', False):
+            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+            ctx.log.add(f"Secured mission cargo: {good.name} x{quantity}. Do not sell!")
+        else:
+            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+            ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
         if loot_entity in ctx.game_map.entities:
             try:
                 ctx.game_map.entities.remove(loot_entity)
