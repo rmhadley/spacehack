@@ -998,6 +998,8 @@ def _run_game(
                                                 bounty_wingmate_enemy_id=getattr(picked, 'bounty_wingmate_enemy_id', None),
                                                 tier=picked.tier,
                                                 heist_target_good_id=_heist_good,
+                                                is_smuggle=getattr(picked, 'is_smuggle', False),
+                                                smuggle_good_id=getattr(picked, 'smuggle_good_id', None),
                                             )
                                             mission_module.commit_accept_mission(
                                                 picked, player_owned_ship, log,

@@ -93,6 +93,10 @@ class ActiveMission:
     heist_target_good_id: str | None = None
     heist_good_secured: bool = False  # True once the mission's loot is secured in the hold
 
+    # Smuggling fields
+    is_smuggle: bool = False       # cargo is hot — militia scans can confiscate it
+    smuggle_good_id: str | None = None  # flavor good id for quest log display
+
     # Deadline
     time_deadline: tuple[int, int, int] | None = None  # (day, month, year)
     deadline_days: int = 0

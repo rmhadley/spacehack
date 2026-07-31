@@ -73,6 +73,18 @@ class MissionSpec:
             leader with pirate fighter escorts). None = wingmates
             are the same ship type as the leader (bounty default).
 
+        # --- Intercept-specific ---
+        heist_target_good_id: the trade good the player must loot from
+            the destroyed merchant (intercept missions).
+
+        # --- Smuggling-specific ---
+        is_smuggle: True = the mission cargo is contraband — militia
+            scans can confiscate it. The cargo is flavor-tagged with
+            ``smuggle_good_id`` but is hot because of this flag, not
+            the good's category.
+        smuggle_good_id: flavor trade good id for quest-log display
+            (the scan risk comes from ``is_smuggle``, not the good).
+
         # --- Recommendations (soft hints) ---
         recommended_class_id: optional class hint for offering modal.
         recommended_ship_min_cargo: optional hull-capacity hint.
@@ -106,6 +118,10 @@ class MissionSpec:
 
     # --- Intercept-specific ---
     heist_target_good_id: str | None = None
+
+    # --- Smuggling-specific ---
+    is_smuggle: bool = False       # cargo is hot — militia scans can confiscate
+    smuggle_good_id: str | None = None  # flavor good id (quest log display only)
 
     # --- Recommendations ---
     recommended_class_id: str | None = None

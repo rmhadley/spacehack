@@ -361,6 +361,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             tier=_am.get("tier", 1),
             heist_target_good_id=_am.get("heist_target_good_id"),
             heist_good_secured=_am.get("heist_good_secured", False),
+            is_smuggle=_am.get("is_smuggle", False),
+            smuggle_good_id=_am.get("smuggle_good_id"),
         ))
 
     # --- Mission boards ---

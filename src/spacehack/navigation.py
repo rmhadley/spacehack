@@ -896,10 +896,18 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     planet with a militia presence.
 
     If the planet has a building labeled ``"militia"`` there is a
-    40% chance the militia runs a scan.  When contraband is
-    found every contraband crate is confiscated and a fine equal
-    to 50% of the goods' total base value is deducted from
-    the player's credits.
+    40% chance the militia runs a scan.  When contraband is found
+    beyond the smuggler's hold capacity, it is confiscated and a
+    fine equal to 50% of the goods' total base value is deducted
+    from the player's credits.
+
+    Smuggler's hold protection (Phase 2): the hold (sum of installed
+    ``smuggler_cargo`` module bonuses) conceals cargo from the scan.
+    Mission smuggling cargo (:attr:`ActiveMission.is_smuggle`) is
+    protected FIRST — each mission claims its ``required_cargo_size``
+    from the hold — and inventory contraband gets whatever capacity
+    remains.  A mission whose cargo overflows the hold is confiscated
+    and the mission auto-fails (design decision 3).
     """
     from .data.trade_goods import find_trade_good as _ftg
     from . import engine as _engine
@@ -920,19 +928,52 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     if _engine.RNG.random() >= 0.4:
         return
 
+    # --- Smuggler's hold capacity: sum of installed smuggler_cargo bonuses ---
+    _hold_cap = ship_module.smuggler_hold_capacity(owned)
+
+    # --- Mission smuggling cargo is protected FIRST ---
+    # Each active is_smuggle mission claims its cargo volume from the
+    # hold. A mission whose cargo overflows the hold is confiscated →
+    # the mission auto-fails (mission cargo is at risk only when
+    # M > C — design decision 3).
+    _failed_missions: list = []
+    for _am in list(ctx.player_active_missions):
+        if not getattr(_am, 'is_smuggle', False):
+            continue
+        _vol = _am.required_cargo_size
+        if _vol <= _hold_cap:
+            _hold_cap -= _vol
+        else:
+            _failed_missions.append(_am)
+            _hold_cap = 0
+    for _am in _failed_missions:
+        _fail_smuggle_mission(ctx, owned, _am)
+
+    # --- Inventory contraband: protected only up to remaining capacity ---
     _confiscated: list[tuple[str, int, int]] = []
     for gid, qty in list(owned.inventory.items()):
         try:
             good = _ftg(gid)
         except KeyError:
             continue
-        if good.category == "contraband":
-            _fine = good.base_price * qty // 2
-            _confiscated.append((gid, qty, _fine))
+        if good.category != "contraband":
+            continue
+        # The hold conceals crates up to its remaining volume capacity.
+        _protected_crates = 0
+        if _hold_cap > 0 and good.volume > 0:
+            _protected_crates = min(qty, _hold_cap // good.volume)
+            _hold_cap -= _protected_crates * good.volume
+        _lose = qty - _protected_crates
+        if _lose <= 0:
+            continue
+        _fine = good.base_price * _lose // 2
+        _confiscated.append((gid, _lose, _fine))
 
-    if not _confiscated:
+    if not _confiscated and not _failed_missions:
         ctx.log.add("Militia scans your cargo \u2014 clean.")
         return
+    if not _confiscated:
+        return  # mission(s) failed above; nothing else to report
 
     _total_fine = 0
     for gid, qty, fine in _confiscated:
@@ -950,6 +991,37 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     ctx.stats.credits = max(0, ctx.stats.credits - _total_fine)
     ctx.log.add_colored(f"Militia levies a fine of {_total_fine}$ for contraband.",
                         message_log.COLOR_IMPORTANT_EVENT)
+
+
+def _fail_smuggle_mission(ctx, owned, active) -> None:
+    """Auto-fail a smuggling mission whose cargo was confiscated.
+
+    Releases the mission's reserved cargo volume, marks the mission
+    FAILED, removes it from the active list, and returns a static
+    mission to its giver's board so it can be re-accepted.
+    """
+    if owned is not None and active.required_cargo_size > 0:
+        owned.mission_reserved = max(
+            0, owned.mission_reserved - active.required_cargo_size,
+        )
+    active.status = mission_module.MissionStatus.FAILED
+    ctx.log.add_colored(
+        f"Mission FAILED \u2014 militia confiscates the smuggled cargo of "
+        f"'{active.title}'!",
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    try:
+        ctx.player_active_missions.remove(active)
+    except ValueError:
+        pass
+    if not getattr(active, 'is_procedural', False):
+        try:
+            _spec = mission_module.find_mission(active.mission_id)
+            _board = ctx.mission_boards.get(_spec.giver_npc_id)
+            if _board is not None:
+                mission_module.board_return_static(_board, active.mission_id)
+        except KeyError:
+            pass
 
 
 # ---------------------------------------------------------------------------
