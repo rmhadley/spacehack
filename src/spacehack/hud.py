@@ -610,6 +610,8 @@ def render_combat_hud(
         for _ei, _e in enumerate(enemies):
             if y > screen_height - 20:
                 break
+            if not getattr(_e, 'alive', True):
+                continue
             is_target = _ei == target_idx
             marker = ">" if is_target else " "
             # Short name (trim to 9 chars at most)
