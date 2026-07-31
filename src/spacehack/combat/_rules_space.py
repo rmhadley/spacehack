@@ -516,6 +516,7 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
     _heist_id = getattr(_dead_ent, 'heist_spawn_id', None) if _dead_ent is not None else None
     if _heist_id is not None:
         _missions = getattr(ctx, 'player_active_missions', [])
+        _found = False
         for _m in _missions:
             if getattr(_m, 'bounty_spawn_id', None) == _heist_id:
                 _good_id = getattr(_m, 'heist_target_good_id', '')
@@ -532,7 +533,14 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
                         f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
                         _ml.COLOR_IMPORTANT_EVENT,
                     )
+                    _found = True
                 break
+        if not _found:
+            _state.log.add(f"[DEBUG] heist_id={_heist_id} matched no mission bounty_spawn_id (missions={len(_missions)})")
+    elif _dead_ent is not None:
+        _state.log.add(f"[DEBUG] entity has no heist_spawn_id (has bounty={hasattr(_dead_ent, 'bounty_spawn_id')})")
+    elif _dead_ent is None:
+        _state.log.add(f"[DEBUG] _dead_ent is None for {enemy.name}")
 
     from ..data.ships import find_ship as _find_ship_cat
     try:
