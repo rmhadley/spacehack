@@ -1036,6 +1036,9 @@ def render_world_view(
             map_x = cam_x + tx
             map_y = cam_y + ty
             if 0 <= map_x < game_map.width and 0 <= map_y < game_map.height:
+                # Fog of war: skip unseen tiles (renders as black).
+                if not game_map.is_revealed(map_x, map_y):
+                    continue
                 tile = game_map.tiles[map_y][map_x]
                 console.print(
                     x=region_x + tx,
@@ -1059,6 +1062,9 @@ def render_world_view(
             and _e.pos.y < cam_y + region_h and _e.pos.y + _e.height > cam_y)
     ]
     for e in sorted(_visible, key=lambda _e: _e.loot_data is None):
+        # Fog of war: skip entities on unrevealed cells.
+        if not game_map.is_revealed(e.pos.x, e.pos.y):
+            continue
         for dx in range(e.width):
             for dy in range(e.height):
                 ex = e.pos.x + dx
