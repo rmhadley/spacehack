@@ -42,7 +42,9 @@ All bar missions share: high pay, risk of militia attention, and a clear crimina
 
 (These mirror the existing bounty fields but for the intercept flow.)
 
-**Mixed-squad escort (playtest feature):** The squad system was already type-agnostic at the plumbing level — every `BountySpawn` carries its own `enemy_id`, and `_detect_combat_encounter` / comms Attack / `_add_bounty_spawns_to_map` / `_remove_bounty_spawn` all resolve specs per-spawn. Adding `bounty_wingmate_enemy_id` to `MissionSpec` (and mirroring it on `ActiveMission` for save/load + quest log) lets a hand-crafted mission declare a different wingmate ship. The AC Run (T1) now spawns `merchant_hauler` + 1 `pirate_scout` escort; escorts fight as one squad with the merchant (auto-hail pulls the whole group), and only the merchant leader counts for heist completion.
+**Mixed-squad escort (playtest feature):** The squad system was already type-agnostic at the plumbing level — every `BountySpawn` carries its own `enemy_id`, and `_detect_combat_encounter` / comms Attack / `_add_bounty_spawns_to_map` / `_remove_bounty_spawn` all resolve specs per-spawn. Adding `bounty_wingmate_enemy_id` to `MissionSpec` (and mirroring it on `ActiveMission` for save/load + quest log) lets a hand-crafted mission declare a different wingmate ship. The AC Run (T1) now spawns `merchant_hauler` + 1 `pirate_scout` escort; escorts fight as one squad with the merchant, and only the merchant leader counts for heist completion.
+
+**Squad-wide aggro (follow-up fix):** Every squad member — leader AND wingmates — carries `Entity.bounty_squad_id` (the leader's spawn id), set at spawn in `_add_bounty_spawns_to_map` and restored in both `saveload.load_game` restore loops. Comms Attack resolves the full squad from `bounty_squad_id`, so hailing ANY member (merchant OR escort) and attacking pulls the whole group into combat — matching the "one squad" expectation. Previously only the leader carried a squad reference, so hailing an escort attacked just that one ship.
 
 ### New fields on `ActiveMission`
 
