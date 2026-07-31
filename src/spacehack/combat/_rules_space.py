@@ -331,6 +331,7 @@ def _calc_camera():
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     """Draw the full space combat view: scrolling map + HUD + message log."""
+    console.clear()
     _cam_x, _cam_y = _calc_camera()
     world.render_world_view(
         console, game_map,
