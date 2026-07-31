@@ -79,11 +79,18 @@ def run_ground_enemy_turn(
             _fired = True
             break  # one shot per enemy turn (matched to player's single [f] action)
 
-        # Out of range -> move toward player (1 AP per step)
-        _dx = 0 if enemy_entity.pos.x == player_pos.x else (1 if enemy_entity.pos.x < player_pos.x else -1)
-        _dy = 0 if enemy_entity.pos.y == player_pos.y else (1 if enemy_entity.pos.y < player_pos.y else -1)
-        _nx = enemy_entity.pos.x + _dx
-        _ny = enemy_entity.pos.y + _dy
+        # Out of range — use A* pathfinding to navigate around walls/corners.
+        _path = world.find_path(
+            (enemy_entity.pos.x, enemy_entity.pos.y),
+            {(player_pos.x, player_pos.y)},
+            game_map,
+            exclude_entity=enemy_entity,
+            max_steps=2000,
+        )
+        if _path is None or len(_path) == 0:
+            break  # no path to player
+
+        _nx, _ny = _path[0]  # first step along A* path
 
         # Don't move into the player
         if (_nx, _ny) == (player_pos.x, player_pos.y):

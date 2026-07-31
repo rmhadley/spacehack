@@ -113,10 +113,20 @@ def _run_enemy_turn(
             )
             _moved = False
             if _edist > _esp.ai_preferred_range:
-                _dx = 0 if _ei.pos.x == player_state["pos"].x else (1 if _ei.pos.x < player_state["pos"].x else -1)
-                _dy = 0 if _ei.pos.y == player_state["pos"].y else (1 if _ei.pos.y < player_state["pos"].y else -1)
-                _nx = _ei.pos.x + _dx
-                _ny = _ei.pos.y + _dy
+                # A* path to player — navigates around obstacles
+                _p_pos = player_state["pos"]
+                _exclude = _enemy_ents.get(_e_idx) if _e_idx >= 0 else None
+                _path = world.find_path(
+                    (_ei.pos.x, _ei.pos.y),
+                    {(_p_pos.x, _p_pos.y)},
+                    game_map,
+                    exclude_entity=_exclude,
+                    max_steps=2000,
+                )
+                if _path:
+                    _nx, _ny = _path[0]
+                else:
+                    _nx, _ny = _ei.pos.x, _ei.pos.y  # no path, stay put
                 _blocked_by_other = any(
                     _oe is not _ei and _oe.alive
                     and _oe.pos.x == _nx and _oe.pos.y == _ny
