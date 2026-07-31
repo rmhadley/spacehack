@@ -54,6 +54,23 @@ def _bresenham_line(
         yield (cx, cy)
 
 
+def _has_los(
+    game_map,
+    from_x: int, from_y: int,
+    to_x: int, to_y: int,
+) -> bool:
+    """Check line of sight — True if no walls block the path.
+
+    Walks ``_bresenham_line`` between the two points (excluding
+    start and end cells) and returns ``False`` if any intermediate
+    cell is unwalkable (a wall, obstacle, etc.).
+    """
+    for _bx, _by in _bresenham_line(from_x, from_y, to_x, to_y):
+        if not game_map.is_walkable(_bx, _by):
+            return False
+    return True
+
+
 # Explosion ring glyphs — same pattern as __main__'s _animate_jump.
 # Expanding bright flash from centre outward.
 _COMBAT_EXPLOSION_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (

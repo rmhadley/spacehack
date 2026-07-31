@@ -39,6 +39,7 @@ from ._actions import (
 from ._animations import (
     _animate_laser_shot,
     _animate_explosion,
+    _has_los,
     _paint_target_highlight,
     _paint_range_line,
     _resolve_target,
@@ -278,7 +279,19 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
 # ---------------------------------------------------------------------------
 
 def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
-    return _space_can_afford(_player_state, weapon_id)
+    _ok, _reason = _space_can_afford(_player_state, weapon_id)
+    if not _ok:
+        return _ok, _reason
+    # Line of sight: projectile blocked by obstacles
+    if _target_idx < len(_enemy_insts) and _enemy_insts[_target_idx].alive:
+        _target = _enemy_insts[_target_idx]
+        if not _has_los(
+            _game_map,
+            _player_state["pos"].x, _player_state["pos"].y,
+            _target.pos.x, _target.pos.y,
+        ):
+            return False, "Blocked by obstacle"
+    return True, ""
 
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:

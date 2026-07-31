@@ -10,7 +10,7 @@ from __future__ import annotations
 from .. import world
 from .. import message_log as _ml
 from ..engine import RNG
-from ._animations import _bresenham_line
+from ._animations import _has_los
 
 
 def run_ground_enemy_turn(
@@ -61,16 +61,11 @@ def run_ground_enemy_turn(
 
         # If in weapon range + line of sight -> fire
         if _ews and _dist <= _ews.max_range and _dist >= _ews.min_range:
-            # Check line of sight — don't shoot through walls
-            _blocked = False
-            for _bx, _by in _bresenham_line(
+            if not _has_los(
+                game_map,
                 enemy_entity.pos.x, enemy_entity.pos.y,
                 player_pos.x, player_pos.y,
             ):
-                if not game_map.is_walkable(_bx, _by):
-                    _blocked = True
-                    break
-            if _blocked:
                 # Can't shoot through walls — try to move instead
                 pass
             else:

@@ -31,6 +31,7 @@ from ._actions import (
 from ._animations import (
     _animate_laser_shot,
     _animate_explosion,
+    _has_los,
     _render_anim_frame,
     _responsive_sleep,
 )
@@ -167,6 +168,15 @@ def _run_enemy_turn(
                 if _ei.weapons:
                     _wid = _ei.weapons[0]
                     _dist = _distance(player_state["pos"], _ei.pos)
+                    # Line of sight: don't shoot through obstacles
+                    _p_pos = player_state["pos"]
+                    if not _has_los(
+                        game_map,
+                        _ei.pos.x, _ei.pos.y,
+                        _p_pos.x, _p_pos.y,
+                    ):
+                        _ei.ap_remaining -= 1
+                        continue
                     _dodge = _calc_dodge_bonus(
                         player_state.get("cells_moved_this_turn", 0),
                         int(player_state.get("piloting", 0) * 0.5),
