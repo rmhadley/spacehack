@@ -289,6 +289,21 @@ def _is_question_press(event: tcod.event.Event) -> bool:
     return False
 
 
+def _is_shift_r_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+R.
+
+    Dev-mode only (``SPACEHACK_DEV``): fully reveals dungeon fog.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    if sym_name != 'R':
+        return False
+    mod = getattr(event, 'mod', 0)
+    shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
+    return bool(mod & shift)
+
+
 def _try_open_guide(event: tcod.event.Event, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.
 

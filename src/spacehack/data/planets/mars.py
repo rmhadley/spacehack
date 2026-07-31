@@ -107,7 +107,7 @@ SPEC = PlanetSpec(
         height=90,
         min_room_size=10,
         max_room_size=30,
-        room_fill_pct=0.5,
+        room_fill_pct=0.8,
         tile_wall=world.Tile(
             kind="dungeon_wall", char="#", walkable=False,
             fg=(180, 120, 80), bg=(30, 20, 10),
