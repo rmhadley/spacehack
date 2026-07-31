@@ -168,6 +168,11 @@ def init(
         else:
             _occupied.add(_key)
 
+    # Re-sync entity positions after dedup moved some EnemyInstances
+    for _i, _ent in _enemy_ents.items():
+        if _i < len(_enemy_insts):
+            _ent.pos = _enemy_insts[_i].pos
+
     _cr = CombatResult()
     start_player_turn(_player_state)
 
@@ -634,6 +639,13 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     from .. import solar_system as _ss_module
 
     _tick_npcs(ctx, game_map)
+
+    # Re-sync entity positions back to EnemyInstance — _tick_npcs may
+    # have moved combat entities on the game map, creating a ghost
+    # target highlight if we don't sync back.
+    for _i, _ent in _enemy_ents.items():
+        if _i < len(_enemy_insts) and _enemy_insts[_i].alive:
+            _enemy_insts[_i].pos = _ent.pos
 
     _new_encounter = _re_detect(ctx, _player_state["pos"], _ss_module.current_system())
     if _new_encounter is None:
