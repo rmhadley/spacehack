@@ -115,10 +115,18 @@ def _run_enemy_turn(
                 player_state["pos"], _ei.pos,
             )
             _moved = False
-            if _edist > _esp.ai_preferred_range:
+
+            # Check line of sight once per iteration — if blocked,
+            # force movement to reposition (same as ground AI fallback).
+            _p_pos = player_state["pos"]
+            _can_shoot = _has_los(
+                game_map, _ei.pos.x, _ei.pos.y,
+                _p_pos.x, _p_pos.y,
+            )
+
+            if _edist > _esp.ai_preferred_range or not _can_shoot:
                 # Compute A* path once, follow it step by step.
                 if _cached_path is None:
-                    _p_pos = player_state["pos"]
                     _exclude = _enemy_ents.get(_e_idx) if _e_idx >= 0 else None
                     _cached_path = world.find_path(
                         (_ei.pos.x, _ei.pos.y),
@@ -165,18 +173,9 @@ def _run_enemy_turn(
                     _cached_path = None
 
             if not _moved:
-                if _ei.weapons:
+                if _ei.weapons and _can_shoot:
                     _wid = _ei.weapons[0]
                     _dist = _distance(player_state["pos"], _ei.pos)
-                    # Line of sight: don't shoot through obstacles
-                    _p_pos = player_state["pos"]
-                    if not _has_los(
-                        game_map,
-                        _ei.pos.x, _ei.pos.y,
-                        _p_pos.x, _p_pos.y,
-                    ):
-                        _ei.ap_remaining -= 1
-                        continue
                     _dodge = _calc_dodge_bonus(
                         player_state.get("cells_moved_this_turn", 0),
                         int(player_state.get("piloting", 0) * 0.5),
