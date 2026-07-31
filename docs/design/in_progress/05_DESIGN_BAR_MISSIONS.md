@@ -106,16 +106,24 @@ Merchants are **non-hostile** — they don't attack on sight. The player engages
 
 Player flow: accept at bar → receive contraband cargo → travel to destination planet → deliver to a specific NPC → get paid.
 
-Mechanically similar to delivery missions, but the cargo is **flagged as contraband**. Militia cargo scans (`_run_cargo_scan`) can catch it. The **smuggler's hold ship module** hides up to X cargo from scans.
+Mechanically similar to delivery missions, but the cargo is **hot** — militia cargo scans (`_run_cargo_scan`) can confiscate it. The **smuggler's hold ship module** protects cargo from scans.
+
+#### Design decisions (locked in design review)
+
+1. **Cargo model: mission cargo (like intercept).** Smuggled cargo lives in `OwnedShip.mission_reserved` (MISSION CARGO hold) — it is **never** in `owned.inventory`, so it can't be sold at a terminal and can't be bought to complete the mission. Delivery is a straight NPC hand-in (no "secure loot" step — the cargo is loaded on accept). The militia scan is **extended to check smuggling mission cargo**, not just inventory. The hand-crafted good ids are flavor only — the mission's `is_smuggle` flag is what makes the cargo hot, not the good's category.
+2. **Smuggler's Hold protects any contraband you carry, mission cargo first.** Hold capacity `C` (sum of installed `smuggler_cargo` module bonuses; 0 without a module). Total contraband = mission cargo volume `M` + inventory contraband volume `I`. Protection is allocated **mission-first**: `min(M, C)` of mission cargo is safe, then inventory up to the remaining `max(0, C - M)`. Anything beyond capacity is at risk — and since mission cargo claims the hold first, when the hold is full it's the **inventory contraband that gets confiscated**, leaving the mission cargo safe.
+3. **On confiscation: mission auto-fails.** If any mission smuggling cargo is confiscated (only possible when `M > C` — mission cargo overflows the hold), the mission is marked failed and removed from the active list (static mission returns to the bar's board so it can be re-accepted). Inventory contraband confiscation applies the existing fine; the mission survives.
 
 Tier progression:
 
-| Tier | Cargo size | Scan risk | Route type | Reward premium over delivery |
-|------|-----------|-----------|------------|------------------------------|
-| 1 | 5-10 | Low (few militia planets) | 1 hop | +25% |
-| 2 | 10-20 | Medium (1-2 militia planets) | 1-2 hops | +40% |
-| 3 | 20-40 | High (must pass through militia) | 2-4 hops | +60% |
-| 4 | 40-60 | Extreme (militia home system) | 3-6 hops | +100% |
+| Tier | Cargo size | Hold needed (mk) | Scan risk | Route type | Reward premium over delivery |
+|------|-----------|------------------|-----------|------------|------------------------------|
+| 1 | 5-10 | mk1 (10) | Low (few militia planets) | 1 hop | +25% |
+| 2 | 10-20 | mk2 (25) | Medium (1-2 militia planets) | 1-2 hops | +40% |
+| 3 | 20-40 | mk3 (50) | High (must pass through militia) | 2-4 hops | +60% |
+| 4 | 40-60 | mk3 (50) — 40-50 safe, 51-60 at risk | Extreme (militia home system) | 3-6 hops | +100% |
+
+**Design note:** T4 (51-60 units) can exceed even the mk3 hold's 50 — that overflow is genuinely at risk, which is the intended high-stakes tension. Destination-planet scans count (the hold is the mitigation), tuned during playtest.
 
 Deadlines are generous to allow circuitous routes that avoid heavily-patroled systems.
 
@@ -159,15 +167,15 @@ No random loot — just the mission component. Patrols don't despawn until clear
 
 ## New ship module: Smuggler's Hold
 
-A module that hides up to X cargo units from militia scans. Higher-tier versions hide more:
+A module that protects up to X volume of contraband from militia scans. Higher-tier versions protect more:
 
-| Module | Cargo hidden | Slots | Tech level | Price |
-|--------|-------------|-------|-----------|-------|
+| Module | Cargo protected | Slots | Tech level | Price |
+|--------|-----------------|-------|-----------|-------|
 | `smuggler_hold_mk1` | 10 | 1 | 1 | 200$ |
 | `smuggler_hold_mk2` | 25 | 1 | 2 | 500$ |
 | `smuggler_hold_mk3` | 50 | 1 | 3 | 1200$ |
 
-Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan outcome — doesn't change actual cargo capacity or storage. Only affects *smuggling* mission cargo, not regular trade goods (unless the player is carrying contraband they acquired independently).
+**Semantics (locked):** a new `ModuleSpec.smuggler_cargo: int = 0` bonus field (summed like every other module bonus — the combat/loadout engine already sums bonuses generically, no if/else). The scan computes total hold capacity `C` from installed modules and protects **mission smuggling cargo first**, then inventory contraband up to the remainder. It does NOT change cargo capacity or storage — only scan outcome. Contraband in inventory beyond the hold's remaining capacity is confiscated as today; mission cargo beyond the hold is confiscated → mission auto-fails.
 
 ## Faction reputation impact
 
@@ -190,12 +198,14 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 
 ### Smuggling
 
-| ID | Title | Tier | Contraband | Destination | System | Rewards |
-|----|-------|------|------------|-------------|--------|---------|
-| `bar_smuggle_mars_weapons` | Mars Weapons Run | 1 | `weapons` | Mars Barkeep | Sol | 150$ / 25xp |
-| `bar_smuggle_sirius_tech` | Sirius Black-Tech | 2 | `electronics` | Sirius Station | Sirius | 350$ / 60xp |
-| `bar_smuggle_vega_drugs` | Vega Narcotics | 3 | `luxury_goods` | Vega Barkeep | Vega | 700$ / 120xp |
-| `bar_smuggle_frontier_fuel` | Frontier Fuel Heist | 4 | `fuel_cells` | Blockade Station | Luyten's Star | 1500$ / 250xp |
+> **Goods are flavor only** — the mission's `is_smuggle` flag makes the cargo hot, not the good's category (design decision 1). Destination NPCs verified to exist on the target planet during implementation.
+
+| ID | Title | Tier | Good (flavor) | Destination | System | Rewards |
+|----|-------|------|--------------|-------------|--------|---------|
+| `bar_smuggle_mars_weapons` | Mars Weapons Run | 1 | `weapons_blackmarket` | Mars NPC | Sol | 150$ / 25xp |
+| `bar_smuggle_sirius_tech` | Sirius Black-Tech | 2 | `electronics` | Sirius Station NPC | Sirius | 350$ / 60xp |
+| `bar_smuggle_vega_drugs` | Vega Narcotics | 3 | `luxury_goods` | Vega NPC | Vega | 700$ / 120xp |
+| `bar_smuggle_frontier_fuel` | Frontier Fuel Heist | 4 | `fuel_cells` | Blockade Station NPC | Luyten's Star | 1500$ / 250xp |
 
 ### Extortion
 
@@ -301,13 +311,16 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 - [x] Save in target system → Continue → killing the merchant still drops loot
 - [x] Return to bar → deliver → reward granted, reserved cargo released
 
-### Phase 2: Smuggling
+### Phase 2: Smuggling (design locked — see "Smuggling — Contraband transport" above)
 
-- [ ] Add `generate_smuggle_mission` to `mission.py` — like delivery, but contraband cargo + scan risk
-- [ ] Add smuggler's hold module entries to `data/modules/`
-- [ ] Wire cargo scan to check smuggler's hold (hidden cargo passes scan)
-- [ ] Add 4 hand-crafted smuggling missions to `bar.py`
-- [ ] Quest log: show contraband type, route, scan risk warning
+- [ ] Add `is_smuggle: bool = False` to `MissionSpec` + `ActiveMission` (snapshot; persisted in saveload); `mission_type="smuggling"` for rep deltas
+- [ ] Add `smuggler_cargo: int = 0` to `ModuleSpec` + `data/modules/smuggler.py` (mk1 10 / mk2 25 / mk3 50, TL 1/2/3)
+- [ ] Extend `_run_cargo_scan`: compute hold capacity from modules; protect mission smuggling cargo first, then inventory contraband; confiscate the excess (mission overflow → auto-fail)
+- [ ] Add 4 hand-crafted smuggling missions to `bar.py` (cargo auto-loaded on accept via `required_cargo_size`)
+- [ ] Quest log: show contraband type, route, scan-risk warning (Cargo: <good> — SCAN RISK: High/Med/Low)
+- [ ] Guide: `_GUIDE_BAR_MISSIONS` smuggling block + `_GUIDE_SHIPS` module table entry
+- [ ] Faction rep: `_MISSION_REP_DELTAS` entry for `"smuggling"` (bar-aligned deltas)
+- [ ] Verify destination NPCs exist on each target planet; wire delivery targets
 
 ### Phase 3: Extortion
 
