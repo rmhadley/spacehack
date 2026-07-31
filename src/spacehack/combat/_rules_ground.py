@@ -562,6 +562,8 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
         enemy_entity=_enemy_entity,
         game_map=game_map,
         armor_defense=_armor_defense,
+        console=_console,
+        render_callback=render_frame,
     )
 
     if _dmg > 0:

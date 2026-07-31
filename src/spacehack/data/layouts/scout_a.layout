@@ -32,7 +32,7 @@ MAP
     ########............#.........................#
            #............#.........................#
            #............###########################
-           #....4.......#
+           #....4S......#
            #####b########
                #P#
                #>#
@@ -53,6 +53,7 @@ TILE: > = exit
 # Enemy spawn markers (r = pirate raider at 60%, R = pirate rifleman at 40%)
 ENEMY: r = pirate_raider@0.6
 ENEMY: R = pirate_rifleman@0.4
+ENEMY: S = pirate_raider@1.0#3-3
 
 # Loot mappings
 LOOT: 1 = engine_room
