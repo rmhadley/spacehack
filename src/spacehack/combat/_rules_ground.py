@@ -96,6 +96,10 @@ def init(ctx, enemy_entity: world.Entity, game_map: world.GameMap) -> None:
     _enemy_ap = 4
     _enemy_ap_total = 4
     _player_max_hp = 20 + ctx.ground_stats.stamina * 2
+    # If stamina increased since last combat, immediately grant the HP delta.
+    _hp_delta = _player_max_hp - ctx.ground_max_hp
+    if _hp_delta > 0:
+        ctx.ground_hp += _hp_delta
     _player_hp = min(ctx.ground_hp, _player_max_hp)
     _enemy_max_hp = _enemy_spec.hp + _enemy_spec.stamina * 2
     _enemy_hp = _enemy_max_hp

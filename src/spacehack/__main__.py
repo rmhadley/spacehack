@@ -487,6 +487,7 @@ def _run_game(
                                 ctx.game_map = game_map
                                 ctx.player = player
                                 current_mode = 'dungeon'
+                                ctx.ground_hp = ctx.ground_max_hp
                                 log.add(f'You descend to the surface of {planet_obj.name}.')
                                 continue
                             if outcome is PlanetMenuOutcome.LAND:
@@ -744,6 +745,7 @@ def _run_game(
                                 ctx.game_map = game_map
                                 ctx.player = player
                                 current_mode = 'dungeon'
+                                ctx.ground_hp = ctx.ground_max_hp
                                 log.add(f'You cut through the hull and enter the {_npcspec.name}.')
                                 continue
                             continue
