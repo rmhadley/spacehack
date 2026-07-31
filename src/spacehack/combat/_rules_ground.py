@@ -349,7 +349,6 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
 _COLOR_GROUND_TITLE: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_PLAYER: tuple[int, int, int] = (100, 220, 255)
 _COLOR_GROUND_ENEMY: tuple[int, int, int] = (255, 100, 100)
-_COLOR_GROUND_ENEMY_DEAD: tuple[int, int, int] = (120, 80, 80)
 _COLOR_GROUND_ENEMY_TARGET: tuple[int, int, int] = (255, 220, 100)
 _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
@@ -459,29 +458,22 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             y += 1
         y += 1
 
-    # Enemy block — list all enemies with target marker
-    if _enemies:
+    # Enemy block — alive enemies only (dead removed, matches space combat UX)
+    _alive_enemies = [e for e in _enemies if e.alive]
+    if _alive_enemies:
         console.print(x=_hud_x, y=y, string="ENEMIES", fg=_COLOR_GROUND_TITLE)
         y += 1
-        _alive_count = 0
-        for _ei, _gei in enumerate(_enemies):
-            _is_target = _gei.alive and _alive_count == _target_idx
-            _name_fg = _COLOR_GROUND_ENEMY_TARGET if _is_target else (
-                _COLOR_GROUND_ENEMY if _gei.alive else _COLOR_GROUND_ENEMY_DEAD
-            )
+        for _i, _gei in enumerate(_alive_enemies):
+            _is_target = _i == _target_idx
+            _name_fg = _COLOR_GROUND_ENEMY_TARGET if _is_target else _COLOR_GROUND_ENEMY
             _marker = ">" if _is_target else " "
-            _name_display = f"{_marker}{_gei.name}"[:24]
-            if not _gei.alive:
-                _name_display = f"{_marker}{_gei.name} (dead)"[:24]
-            console.print(x=_hud_x, y=y, string=_name_display, fg=_name_fg)
+            console.print(x=_hud_x, y=y, string=f"{_marker}{_gei.name}"[:24], fg=_name_fg)
             y += 1
-            if _gei.alive:
-                _e_bar = _bar_str(_gei.hp, _gei.max_hp, width=8)
-                _e_pct = _gei.hp * 100 // max(_gei.max_hp, 1)
-                _dist = int(_distance(ctx.player.pos, _gei.pos))
-                console.print(x=_hud_x, y=y, string=f"  HP {_e_bar} {_e_pct}%  {_dist}u", fg=_name_fg)
-                y += 1
-            _alive_count += 1 if _gei.alive else 0
+            _e_bar = _bar_str(_gei.hp, _gei.max_hp, width=8)
+            _e_pct = _gei.hp * 100 // max(_gei.max_hp, 1)
+            _dist = int(_distance(ctx.player.pos, _gei.pos))
+            console.print(x=_hud_x, y=y, string=f"  HP {_e_bar} {_e_pct}%  {_dist}u", fg=_name_fg)
+            y += 1
     y += 1
 
     # Actions
