@@ -22,7 +22,6 @@ from ..data.pilot_skills import PilotSkills
 from ..input_helpers import _try_open_guide
 
 from ._ai import _run_enemy_turn
-from ._weapons import _fire_weapons
 from ._actions import (
     start_player_turn,
     move_entity,

@@ -134,9 +134,8 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
 
         # Dead enemies are already removed individually during combat
-        # by _remove_dead_entity (called from _weapons.py on each kill),
-        # and their procedural spawns are cleaned up per-kill in
-        # _weapons.py (matched by squad_id + npc_id for 1:1 precision).
+        # by rules.on_kill() (which calls _remove_dead_entity and cleans
+        # up procedural spawns matched by squad_id + npc_id).
         # No post-combat sweep needed.
 
     elif _cr.outcome == "DEFEAT":
