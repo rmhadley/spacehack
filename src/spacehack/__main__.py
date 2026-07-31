@@ -284,6 +284,10 @@ def _run_game(
             cam_y = max(0, min(player.pos.y - view_h // 2, sol_h - view_h))
             world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
             render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
+        elif current_mode == 'dungeon':
+            cam_x = max(0, min(player.pos.x - map_w // 2, game_map.width - map_w))
+            cam_y = max(0, min(player.pos.y - map_h // 2, game_map.height - map_h))
+            world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h, camera_x=cam_x, camera_y=cam_y)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
         if current_mode == 'space':

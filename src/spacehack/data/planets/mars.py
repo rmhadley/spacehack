@@ -103,8 +103,8 @@ SPEC = PlanetSpec(
     tech_level=2,
     mission_tier=1,
     dungeon_params=DungeonParams(
-        width=50,
-        height=40,
+        width=120,
+        height=90,
         tile_wall=world.Tile(
             kind="dungeon_wall", char="#", walkable=False,
             fg=(180, 120, 80), bg=(30, 20, 10),
