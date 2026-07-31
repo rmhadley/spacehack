@@ -37,6 +37,10 @@ class DungeonParams:
     Attributes:
         width / height:            Map dimensions in cells.
         min_room_size / max_room_size:  Room interior dimension range.
+        room_fill_pct:             Fraction of the leaf region (0-1)
+                                   that the room fills.  Lower = smaller
+                                   rooms in larger wall-gaps → sparse
+                                   layout with long corridors.
         tile_wall:                 Tile used for walls (default
                                    :data:`world.DUNGEON_WALL`).
         tile_floor:                Tile used for floors + corridors
@@ -47,6 +51,7 @@ class DungeonParams:
     height: int = 40
     min_room_size: int = 5
     max_room_size: int = 12
+    room_fill_pct: float = 0.65
     tile_wall: world.Tile = world.DUNGEON_WALL
     tile_floor: world.Tile = world.DUNGEON_FLOOR
     sight_radius: int = 4
@@ -679,8 +684,11 @@ def _bsp_split(
     Returns the center ``(cx, cy)`` of the carved area so parent
     splits can connect sibling halves.
     """
-    _can_h = w >= params.min_room_size * 2 + 2
-    _can_v = h >= params.min_room_size * 2 + 2
+    # BSP splits until leaves are big enough that rooms (scaled by
+    # fill_pct) have meaningful wall-space around them for corridors.
+    _leaf_min = int(params.max_room_size / params.room_fill_pct) + 2
+    _can_h = w >= _leaf_min
+    _can_v = h >= _leaf_min
 
     if not _can_h and not _can_v:
         return _carve_room(tiles, x, y, w, h, rng, params)
@@ -691,17 +699,19 @@ def _bsp_split(
     else:
         _horizontal = _can_h
 
+    # Minimum half must be big enough for a room + wall borders.
+    _half_min = int(params.max_room_size / params.room_fill_pct) // 2 + 1
     if _horizontal:
         _split = rng.randint(
-            params.min_room_size + 1,
-            w - params.min_room_size - 1,
+            max(params.min_room_size + 1, _half_min),
+            w - max(params.min_room_size + 1, _half_min),
         )
         c1 = _bsp_split(tiles, x, y, _split, h, rng, params)
         c2 = _bsp_split(tiles, x + _split, y, w - _split, h, rng, params)
     else:
         _split = rng.randint(
-            params.min_room_size + 1,
-            h - params.min_room_size - 1,
+            max(params.min_room_size + 1, _half_min),
+            h - max(params.min_room_size + 1, _half_min),
         )
         c1 = _bsp_split(tiles, x, y, w, _split, rng, params)
         c2 = _bsp_split(tiles, x, y + _split, w, h - _split, rng, params)
@@ -739,8 +749,12 @@ def _carve_room(
                 tiles[_ry2][_rx2] = params.tile_floor
         return (_fx + _floor_w // 2, _fy + _floor_h // 2)
 
-    _avail_w = min(params.max_room_size, w - 2)
-    _avail_h = min(params.max_room_size, h - 2)
+    # Scale room max size by fill_pct so rooms leave wall-space
+    # around them → corridors are visible and traversable.
+    _avail_w = int((w - 2) * params.room_fill_pct)
+    _avail_h = int((h - 2) * params.room_fill_pct)
+    _avail_w = min(params.max_room_size, max(params.min_room_size, _avail_w))
+    _avail_h = min(params.max_room_size, max(params.min_room_size, _avail_h))
 
     _rw = rng.randint(params.min_room_size, _avail_w)
     _rh = rng.randint(params.min_room_size, _avail_h)
