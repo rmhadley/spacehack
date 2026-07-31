@@ -405,7 +405,7 @@ def _run_game(
                 from .dungeon import reveal_around as _reveal_around
                 _reveal_around(game_map, player.pos, radius=game_map.sight_radius)
                 # Check for ground combat (sight-based detection)
-                from .dungeon import _detect_ground_combat as _dgc
+                from .combat._encounter import detect_ground_combat as _dgc
                 _hostiles = _dgc(ctx, game_map, player.pos)
                 if _hostiles:
                     _ground_init(ctx, _hostiles, game_map)
