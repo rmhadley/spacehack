@@ -255,7 +255,10 @@ def render_selectable_list(
         if desc:
             desc_fg = desc_fg_selected if is_selected else desc_fg_normal
             console.print(
-                x=_col_x + 2, y=row + 1,
+                # Indent past the item name (name starts at _col_x + 2)
+                # so the description reads as a sub-line of the menu
+                # choice above, not a peer option.
+                x=_col_x + 4, y=row + 1,
                 string=desc, fg=desc_fg,
             )
 
