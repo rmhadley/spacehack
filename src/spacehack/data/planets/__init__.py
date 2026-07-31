@@ -72,7 +72,6 @@ class PlanetSpec:
     mech_modules: tuple[str, ...] = ()
     tech_level: int = 1               # max tech level stocked at this planet
     mission_tier: int = 1             # max mission tier offered at this planet's NPCs
-    dungeon_layout_id: str = ""       # .layout file to load when player chooses EXPLORE
     dungeon_params: object = None      # :class:`~spacehack.dungeon.DungeonParams` for procedural dungeons
 
 
@@ -198,27 +197,17 @@ def resolve_mech_inventory(
     return _w_ids, _m_ids
 
 
-_EXPLORABLE_SITES: dict[str, list[str]] = {
-    "uranus": ["Icy Caverns"],  # wireframe: first planet dungeon
-}
-
-
 def has_explorable_sites(planet_id: str) -> list[str]:
     """Return a list of explorable site names for ``planet_id``, or
-    empty list if the planet has no dungeons/points of interest.
-
-    Checks the :class:`PlanetSpec.dungeon_layout_id` field first
-    (preferred, data-driven path). Falls back to the hardcoded
-    :data:`_EXPLORABLE_SITES` mapping for planets that don't have
-    a :class:`PlanetSpec` (e.g. gas giants).
+    empty list if the planet has no surface dungeon configured.
     """
     try:
         spec = find_planet_spec(planet_id)
-        if getattr(spec, 'dungeon_params', None) is not None or spec.dungeon_layout_id:
+        if getattr(spec, 'dungeon_params', None) is not None:
             return [spec.name + " Surface"]
     except KeyError:
         pass
-    return _EXPLORABLE_SITES.get(planet_id, [])
+    return []
 
 
 def has_landable_port(planet_id: str) -> bool:

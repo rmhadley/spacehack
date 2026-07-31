@@ -498,7 +498,6 @@ def _run_game(
                             if outcome is PlanetMenuOutcome.EXPLORE:
                                 from .data.planets import find_planet_spec as _fps
                                 from .dungeon import (
-                                    load_layout as _load_layout,
                                     init_fog as _init_fog,
                                     reveal_around as _reveal_around,
                                     generate_dungeon as _generate_dungeon,
@@ -506,15 +505,11 @@ def _run_game(
                                 try:
                                     _pspec = _fps(pid)
                                     _params = getattr(_pspec, 'dungeon_params', None)
-                                    if _params is not None:
-                                        _dungeon_map, _spawn = _generate_dungeon(_params)
-                                    else:
-                                        _layout_id = _pspec.dungeon_layout_id
-                                        if not _layout_id:
-                                            log.add(f"Nothing to explore on {planet_obj.name}.")
-                                            continue
-                                        _dungeon_map, _spawn = _load_layout(_layout_id)
-                                except (FileNotFoundError, ValueError, KeyError):
+                                    if _params is None:
+                                        log.add(f"Nothing to explore on {planet_obj.name}.")
+                                        continue
+                                    _dungeon_map, _spawn = _generate_dungeon(_params)
+                                except (ValueError, KeyError):
                                     log.add(f"The surface of {planet_obj.name} is too hazardous to explore.")
                                     continue
                                 _init_fog(_dungeon_map)
