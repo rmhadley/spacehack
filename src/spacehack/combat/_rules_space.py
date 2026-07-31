@@ -287,6 +287,12 @@ def weapon_ap_cost(weapon_id: str, ctx) -> int:
     return _fw(weapon_id).ap_cost
 
 
+def weapon_name(weapon_id: str, ctx) -> str:
+    """Return the human-friendly name for a weapon (e.g. 'Heavy Laser')."""
+    from ..data.weapons import find_weapon as _fw
+    return _fw(weapon_id).name
+
+
 def consume_shot(weapon_id: str, ctx) -> None:
     """Deduct power and/or ammo for firing weapon_id.
 

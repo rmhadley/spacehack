@@ -85,9 +85,8 @@ def _toggle_weapon(
         _weapons = rules.player_weapons(ctx)
         _state = "ON" if active_weapons[idx] else "OFF"
         if idx < len(_weapons):
-            from ..data.weapons import find_weapon as _fw
             try:
-                _name = _fw(_weapons[idx]).name
+                _name = rules.weapon_name(_weapons[idx], ctx)
             except KeyError:
                 _name = _weapons[idx]
             ctx.log.add(f"Weapon {idx + 1} ({_name}): {_state}")
@@ -105,7 +104,6 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     and ground combat.
     """
     from .. import message_log as _ml
-    from ..data.weapons import find_weapon as _fw
 
     _weapons = rules.player_weapons(ctx)
     _active = rules.active_weapons(ctx)
@@ -137,7 +135,7 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
         _ok, _reason = rules.can_fire(_wid, ctx)
         if not _ok:
             try:
-                _wname = _fw(_wid).name
+                _wname = rules.weapon_name(_wid, ctx)
             except KeyError:
                 _wname = _wid
             ctx.log.add(f"{_wname}: {_reason}")
@@ -155,7 +153,7 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
         )
 
         try:
-            _wname = _fw(_wid).name
+            _wname = rules.weapon_name(_wid, ctx)
         except KeyError:
             _wname = _wid
 

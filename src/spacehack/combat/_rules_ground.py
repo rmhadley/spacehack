@@ -255,6 +255,11 @@ def weapon_ap_cost(weapon_id: str, ctx) -> int:
     return _find_gw(weapon_id).ap_cost
 
 
+def weapon_name(weapon_id: str, ctx) -> str:
+    """Return the human-friendly name for a weapon (e.g. 'Laser Rifle')."""
+    return _find_gw(weapon_id).name
+
+
 def consume_shot(weapon_id: str, ctx) -> None:
     """Ground weapons have no ammo — no-op.
 
