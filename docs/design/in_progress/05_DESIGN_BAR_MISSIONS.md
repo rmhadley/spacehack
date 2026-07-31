@@ -42,9 +42,9 @@ All bar missions share: high pay, risk of militia attention, and a clear crimina
 
 (These mirror the existing bounty fields but for the intercept flow.)
 
-**Mixed-squad escort (playtest feature):** The squad system was already type-agnostic at the plumbing level — every `BountySpawn` carries its own `enemy_id`, and `_detect_combat_encounter` / comms Attack / `_add_bounty_spawns_to_map` / `_remove_bounty_spawn` all resolve specs per-spawn. Adding `bounty_wingmate_enemy_id` to `MissionSpec` (and mirroring it on `ActiveMission` for save/load + quest log) lets a hand-crafted mission declare a different wingmate ship. The AC Run (T1) now spawns `merchant_hauler` + 5 `pirate_scout` escorts (6-ship squad); escorts fight as one squad with the merchant, and only the merchant leader counts for heist completion.
+**Mixed-squad escort (playtest feature):** The squad system was already type-agnostic at the plumbing level — every `BountySpawn` carries its own `enemy_id`, and `_detect_combat_encounter` / comms Attack / `_add_bounty_spawns_to_map` / `_remove_bounty_spawn` all resolve specs per-spawn. Adding `bounty_wingmate_enemy_id` to `MissionSpec` (and mirroring it on `ActiveMission` for save/load + quest log) lets a hand-crafted mission declare a different wingmate ship. Escorts fight as one squad with the merchant, and only the merchant leader counts for heist completion.
 
-**Extreme escort test config:** The AC Run was bumped to a 6-ship squad (1 merchant + 5 pirate scouts) so the player can feel out an extreme escort fight. The wingmate spawn loop in `__main__.py` previously had only 4 offsets — a 5th (`(2, 2)`) was added so 5 escorts can actually spawn. Revert to `bounty_target_squad_size=2` for the intended T1 difficulty once the stress test is done.
+**Escort status:** The AC Run (T1) was briefly used to stress-test an extreme 5-escort config (6-ship squad); the wingmate spawn loop's 4-offset cap was lifted to 5 (`(2, 2)` added in `__main__.py`) so 5 escorts can spawn. Per playtest feedback the AC Run was reverted to an **unescorted** solo hauler — the mixed-squad mechanic stays available for future intercepts via `bounty_wingmate_enemy_id` (e.g. `bounty_target_squad_size=2` + `bounty_wingmate_enemy_id="pirate_scout"` puts one Pirate Scout in the merchant's squad).
 
 **Squad-wide aggro (follow-up fix):** Every squad member — leader AND wingmates — carries `Entity.bounty_squad_id` (the leader's spawn id), set at spawn in `_add_bounty_spawns_to_map` and restored in both `saveload.load_game` restore loops. Comms Attack resolves the full squad from `bounty_squad_id`, so hailing ANY member (merchant OR escort) and attacking pulls the whole group into combat — matching the "one squad" expectation. Previously only the leader carried a squad reference, so hailing an escort attacked just that one ship.
 
@@ -179,7 +179,7 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 
 | ID | Title | Tier | Target Good | Target Ship | System | Rewards |
 |----|-------|------|-------------|-------------|--------|---------|
-| `bar_intercept_earth_ac` | The AC Run | 1 | `electronics` | `merchant_hauler` + 5 `pirate_scout` escorts (test config) | Alpha Centauri | 200$ / 40xp |
+| `bar_intercept_earth_ac` | The AC Run | 1 | `electronics` | `merchant_hauler` (unescorted) | Alpha Centauri | 200$ / 40xp |
 | `bar_intercept_vega_components` | Vega Components | 2 | `machine_parts` | `merchant_hauler` | Vega | 400$ / 70xp |
 | `bar_intercept_sirius_luxury` | Sirius Luxury | 3 | `luxury_goods` | `merchant_freighter` | Sirius | 800$ / 140xp |
 | `bar_intercept_frontier_tech` | Frontier Tech | 4 | `electronics` | `merchant_caravan` | Luyten's Star | 1800$ / 300xp |

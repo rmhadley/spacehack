@@ -33,14 +33,9 @@ MISSIONS: tuple[MissionSpec, ...] = (
         deadline_days=90,
         early_bonus_pct=25,
         target_enemy_id="merchant_hauler",
-        # Mixed squad: the hauler rides with a pirate fighter escort.
-        # Wingmates spawn as pirate_scout (not merchant_hauler) via
-        # bounty_wingmate_enemy_id — same squad triggers as bounty
-        # wingmen (auto-hail pulls the whole group into combat).
-        # 6-ship squad = 1 merchant + 5 pirate scouts (extreme escort
-        # test config; the 5th wingmate offset exists in __main__.py).
-        bounty_target_squad_size=6,
-        bounty_wingmate_enemy_id="pirate_scout",
+        # Solo target: the hauler flies unescorted. (The mixed-squad
+        # escort mechanic stays available for future intercepts via
+        # bounty_wingmate_enemy_id — see design doc.)
         target_system_id="alpha_centauri",
         heist_target_good_id="electronics",
     ),
