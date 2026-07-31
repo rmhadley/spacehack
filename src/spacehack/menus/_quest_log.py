@@ -126,7 +126,22 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                 _target_sys_name = _fss_q(am.target_system_id).name
             except (KeyError, ImportError):
                 _target_sys_name = am.target_system_id
-            _squad_str = f" + {am.bounty_target_squad_size - 1} wingmates" if am.bounty_target_squad_size > 1 else ""
+            _wing_count = am.bounty_target_squad_size - 1
+            _wing_id = getattr(am, 'bounty_wingmate_enemy_id', None)
+            _wing_label = "wingmates"
+            if _wing_count > 0 and _wing_id and _wing_id != am.target_enemy_id:
+                # Mixed squad (e.g. pirate fighter escort) — name the
+                # wingmate ship type so the player knows what to expect.
+                try:
+                    from ..data.npc_ships import find_npc_ship as _fws_q
+                    _wing_name = _fws_q(_wing_id).name
+                    _wing_label = (
+                        f"{_wing_name} escort" if _wing_count == 1
+                        else f"{_wing_name} escorts"
+                    )
+                except (KeyError, ImportError):
+                    _wing_label = "escorts"
+            _squad_str = f" + {_wing_count} {_wing_label}" if _wing_count > 0 else ""
             paint(detail_top, fit(f'Target: {_target_name} ({_target_sys_name}){_squad_str}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
 

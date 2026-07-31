@@ -68,6 +68,10 @@ class MissionSpec:
         bounty_target_loadout_pct: 0-100 representing how upgraded
             the target's weapons/modules are vs the base spec.
             0 = base spec, 50 = +1 weapon, 100 = fully kitted.
+        bounty_wingmate_enemy_id: NpcShipSpec id used for the
+            wingmates when the squad is MIXED (e.g. a merchant
+            leader with pirate fighter escorts). None = wingmates
+            are the same ship type as the leader (bounty default).
 
         # --- Recommendations (soft hints) ---
         recommended_class_id: optional class hint for offering modal.
@@ -98,6 +102,7 @@ class MissionSpec:
     bounty_target_name: str | None = None
     bounty_target_squad_size: int = 1
     bounty_target_loadout_pct: int = 0
+    bounty_wingmate_enemy_id: str | None = None
 
     # --- Intercept-specific ---
     heist_target_good_id: str | None = None

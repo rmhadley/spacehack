@@ -86,6 +86,7 @@ class ActiveMission:
     bounty_target_name: str | None = None
     bounty_target_squad_size: int = 1
     bounty_target_loadout_pct: int = 0
+    bounty_wingmate_enemy_id: str | None = None  # mixed squad: wingmate ship type (e.g. pirate escort)
     tier: int = 1
 
     # Intercept fields

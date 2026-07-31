@@ -890,6 +890,12 @@ def _run_game(
                                         if picked.target_enemy_id is not None and picked.target_system_id is not None:
                                             _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
                                             _squad_size = getattr(picked, 'bounty_target_squad_size', 1)
+                                            # Mixed squads: wingmates may be a DIFFERENT ship type
+                                            # (e.g. a merchant leader with pirate fighter escorts).
+                                            # Default None = same ship as the leader (bounty default).
+                                            _wingmate_enemy_id = getattr(
+                                                picked, 'bounty_wingmate_enemy_id', None,
+                                            ) or picked.target_enemy_id
                                             try:
                                                 _target_sys = solar_systems_module.find_solar_system(picked.target_system_id)
                                                 _used = frozenset(
@@ -933,7 +939,7 @@ def _run_game(
                                                         if 0 <= _wpos.x < _target_sys.width and 0 <= _wpos.y < _target_sys.height:
                                                             _wbs = BountySpawn(
                                                                 spawn_id=f"{_bounty_spawn_id}_wing{_wi}",
-                                                                enemy_id=picked.target_enemy_id,
+                                                                enemy_id=_wingmate_enemy_id,
                                                                 pos=_wpos,
                                                                 bounty_target_name=None,
                                                                 squad_size=_squad_size,
@@ -987,6 +993,7 @@ def _run_game(
                                                 bounty_target_name=getattr(picked, 'bounty_target_name', None),
                                                 bounty_target_squad_size=getattr(picked, 'bounty_target_squad_size', 1),
                                                 bounty_target_loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
+                                                bounty_wingmate_enemy_id=getattr(picked, 'bounty_wingmate_enemy_id', None),
                                                 tier=picked.tier,
                                                 heist_target_good_id=_heist_good,
                                             )
