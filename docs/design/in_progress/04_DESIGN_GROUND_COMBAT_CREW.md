@@ -5,8 +5,9 @@
 > basic ground combat with 3 weapons + 2 enemies, and loot pickup.
 >
 > **Updated**: Derelicts are feature-complete. Ground combat, NPC movement, evade, squad
-> cohesion, faction rep, and loot are shipped. Planet dungeon entrances are wired but
-> need layout content iteration.
+> cohesion, faction rep, and loot are shipped. BSP procedural dungeon generator replaces
+> layout-based planet dungeons — Mars has its first procedural surface dungeon. Scrolling
+> viewport, per-planet tile theming, save/load tile colors preserved.
 
 ## Session overview — what shipped beyond the design doc
 
@@ -27,6 +28,12 @@ polish, and new features:
 | **Loot fixes** | Added `scrap_metal` trade good. Failed loot pickups now remove the blocking entity. |
 | **DRY cleanups** | `dataclasses.replace()` for frozen MissionSpec, hit-chance helper extracted, `VIM_DELTAS` imported, color constants aliased to `ui.*`, `SCREEN_WIDTH - 25` → `SCREEN_WIDTH - HUD_WIDTH`. |
 | **Fog on aggro** | All squad members' fog revealed when combat triggers. |
+| **BSP procedural dungeons** | `DungeonParams` frozen dataclass with per-planet config (width, height, room sizes, `room_fill_pct`, custom wall/floor tiles). `generate_dungeon()` replaces hand-authored layouts for planet surfaces. Mars has a 120×90 red-rock dungeon with sparse rooms and long corridors. |
+| **Dungeon generation polish** | 1-tile room bug fix, `room_fill_pct` for sparse layouts, BSP threshold based on `max_room_size / fill_pct`, `_find_walkable_near` spiral for spawn-on-wall fix, exit `>` embedded in wall alcoves, disconnected rooms fix (corridor corner returned instead of midpoint). |
+| **Scrolling viewport** | `render_world_view` for dungeons larger than the screen — camera follows the player. Fog of war correctly culled in viewport. |
+| **Save/load tile colors** | Full `Tile` dict serialized (kind, char, walkable, fg, bg) — procedural dungeon tiles (e.g. Mars red rock walls) survive save/continue. Backward-compat for old string-only saves. |
+| **Game guide fixes** | Removed stale "Centered map view (no scrolling)" text. Ground Combat section now mentions planet surface exploration. |
+| **Dev mode Shift+R** | Fully reveal dungeon fog of war (gated behind `SPACEHACK_DEV` env var). |
 
 ## Overview
 
@@ -683,33 +690,104 @@ unoccupied positions for each enemy in the squad.
 
 ---
 
-### Phase 6: Planet/station dungeon entrances (WIRED — needs content)
+### Phase 6: BSP procedural dungeon generator + planet surface dungeons (COMPLETED)
 
-**Goal:** Walk into a building on a planet or station → enter a dungeon. Same layout system, different tile/room themes.
+**Goal:** Replace hand-authored `.layout` files for planet surfaces with a BSP
+room-and-corridor procedural generator. Each planet configures its own dungeon via
+`DungeonParams` on `PlanetSpec` — no code changes needed for new planets.
 
-> **What's wired:** `PlanetSpec.dungeon_layout_id` exists, EXPLORE handler loads
-> layouts and scene-swaps to dungeon mode. Mars has `dungeon_layout_id="scout_a"`
-> for testing. What's missing: dedicated planet-themed layouts (research station,
-> mining outpost, etc.) and planet-specific enemy/loot configurations.
+**What changed from original plan:** The original Phase 6 assumed more `.layout`
+files (research station, mining outpost, etc.). During implementation it became
+clear that procedural generation is a better fit for planet surfaces — infinite
+variety from a single seed, per-planet theming via tile colors and room geometry,
+and no content-authoring burden.
 
-- [x] `dungeon_layout_id: str = ""` field on `PlanetSpec`
-- [x] `PlanetMenuOutcome.EXPLORE` handler in `__main__.py` — loads layout, inits fog, scene-swaps
-- [x] Ground HP reset to max on dungeon entry
-- [ ] Create planet-themed layouts: research station, mining outpost, abandoned colony
-- [ ] Planet-specific NPC factions and loot tables
-- [ ] Planet dungeons don't consume the planet (can re-enter) — already works, verify
-- [ ] Smoke test + commit
+#### Step 6a: DungeonParams dataclass
+
+- [x] `DungeonParams` frozen dataclass in `dungeon.py`:
+  - `width`, `height` — map dimensions (default 50×40, Mars is 120×90)
+  - `min_room_size`, `max_room_size` — room interior dimension range
+  - `room_fill_pct` — fraction of leaf region the room fills (0-1). Lower = smaller
+    rooms in larger wall gaps → sparse layout with long corridors.
+  - `tile_wall`, `tile_floor` — custom `world.Tile` for per-planet theming
+  - `sight_radius` — fog-of-war reveal radius
+
+#### Step 6b: BSP generator
+
+- [x] `generate_dungeon(params: DungeonParams) -> (GameMap, Position)`:
+  - Fills grid with `tile_wall`, recursively splits with BSP
+  - `_bsp_split()` — splits until leaves are ≥ `max_room_size / room_fill_pct + 2`
+    (ensures rooms have wall gaps around them for visible corridors)
+  - `_carve_room()` — carves room sized by `fill_pct` of available space, random position
+  - `_carve_corridor()` — L-shaped corridors between sibling rooms, returns corner
+    (not midpoint) so higher-level corridors intersect lower-level ones
+  - `_find_walkable_near()` — spirals outward from BSP midpoint to find a wall cell
+    adjacent to floor, embeds exit `>` in a wall alcove (never blocks corridors)
+  - Uses run's seeded `engine.RNG` — same seed = same dungeon
+
+#### Step 6c: PlanetSpec wiring
+
+- [x] `dungeon_params: object = None` added to `PlanetSpec` — accepts a `DungeonParams`
+  instance for procedural generation
+- [x] `dungeon_layout_id: str = ""` kept for backward compat (hand-authored layouts)
+- [x] EXPLORE handler in `__main__.py`: tries `dungeon_params` first → `generate_dungeon()`,
+  falls back to `dungeon_layout_id` → `load_layout()`
+- [x] Mars configured with `dungeon_params`: 120×90, rooms 5–30, `fill_pct=0.8`,
+  custom red rock walls (`fg=(180,120,80), bg=(30,20,10)`) and warm sandstone floors
+- [x] `has_surface_dungeon()` helper on `PlanetSpec` — returns True if either
+  `dungeon_params` or `dungeon_layout_id` is set; controls "Surface" menu option
+
+#### Step 6d: Scrolling viewport for large dungeons
+
+- [x] `render_world_view` (from space mode) reused for dungeons — camera follows player
+- [x] Fog of war correctly culled: unrevealed tiles render as black in viewport
+- [x] `camera_x`, `camera_y` computed from player position, clamped to map bounds
+
+#### Step 6e: Polish + bug fixes
+
+- [x] **1-tile room bug:** Guard threshold changed from `w < 3` to `w < min_room_size + 2`
+- [x] **Sparse layouts:** BSP threshold uses `max_room_size / room_fill_pct + 2` instead
+  of `min_room_size * 2 + 2` — leaves are guaranteed large enough for rooms to have
+  wall gaps around them for visible corridors
+- [x] **Spawn on wall:** `_find_walkable_near` spirals outward from BSP midpoint to find
+  a real floor tile (midpoint can land on a wall in sparse layouts)
+- [x] **Exit alcove:** Exit `>` placed on a wall cell adjacent to floor — never blocks
+  a narrow corridor
+- [x] **Disconnected rooms:** `_carve_corridor` returns the L-corner (always on the
+  corridor path) instead of the mathematical midpoint — higher-level corridors
+  reliably intersect lower-level ones
+- [x] **Save/load tile colors:** Full tile dict serialized (kind, char, walkable, fg, bg)
+  — procedural dungeon tiles survive save/continue with backward-compat for old saves
+
+#### What's deferred to a future content pass
+
+- [ ] Additional planets with dungeon params (only Mars configured)
+- [ ] Planet-specific NPC spawns and loot tables for procedural dungeons
+- [ ] Dungeon floors (multi-level) — current scope is single-floor per planet
+- [ ] Planet dungeons don't currently spawn entities or loot (just empty rooms + corridors)
+
+#### Playtest checklist
+
+- [x] Land on Mars → planet menu shows "Mars Surface" as an option
+- [x] Choose EXPLORE → procedural dungeon renders with red rock walls and warm floors
+- [x] Map is larger than viewport → camera scrolls with player movement
+- [x] Fog of war works correctly — unrevealed areas are black
+- [x] Rooms have distinct walls, corridors connect them all (Shift+R to verify)
+- [x] Exit `>` is embedded in a wall alcove, not blocking a corridor
+- [x] Save while on Mars surface → quit → continue → back in dungeon with correct tiles/colors
+- [x] Walk into `>` → return to Mars city
 
 ---
 
-### Phase 7: Save/load polish + guide (PARTIAL)
+### Phase 7: Save/load polish + guide (COMPLETED)
 
 - [x] Derelict despawns on boarding, no-respawn verified
 - [x] Ground HP save/load wired
 - [x] Ground stats save/load wired
-- [x] Dungeon map fully serialized (tiles, fog, entities, loot, power status)
-- [ ] Add `_GUIDE_GROUND_COMBAT` section to `help.py`
-- [ ] Verify ground HP/stats reset behavior on dungeon exit
+- [x] Dungeon map fully serialized (tiles, fog, entities, loot, power status, tile colors)
+- [x] `_GUIDE_GROUND_COMBAT` section added to `help.py` with scrolling viewport + planet surface
+- [x] Ground HP resets to max on dungeon entry, persists within a dungeon visit
+- [x] Game guide updated: removed "no scrolling" claim, added planet surface exploration
 
 ### Phase 8: Crew, cybernetics, terminals (DEFERRED — future content pass)
 
@@ -718,14 +796,16 @@ Full content expansion — deferred.
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
 - [x] **Save/load:** GroundStats field added to `_ctx_to_dict` + `load_game` with `.get("ground_stats", ...)` fallback
-- [x] **Game guide:** `_GUIDE_CHARACTER` section updated to mention all six skills and cap at 100; `_GUIDE_GROUND_GEAR` section documents armory terminal and equipment
+- [x] **Save/load tile colors:** Full `Tile` dict serialized (kind, char, walkable, fg, bg) — procedural dungeon tiles survive save/continue. Backward-compat for old string-only saves.
+- [x] **Game guide:** `_GUIDE_CHARACTER` section updated to mention all six skills and cap at 100; `_GUIDE_GROUND_GEAR` section documents armory terminal and equipment; `_GUIDE_GROUND_COMBAT` section covers ground combat system with updated scrolling viewport and planet surface exploration.
 - [x] **Module-level state:** No new globals
-- [ ] **Ground combat guide:** Pending (help.py section needed)
+- [x] **Ground combat guide:** Added in help.py with combat formulas, keybindings, and planet surface exploration mention.
 
 ## Open questions
 
-1. **Save/load strategy for dungeons?** Solved — dungeon map is fully serialized.
+1. **Save/load strategy for dungeons?** Solved — dungeon map is fully serialized, including tile colors (fg/bg preserved since Phase 6e).
 2. **Should the derelict despawn after clearing?** Derelict despawns from space map once boarded (consumed).
 3. **Player death in dungeon?** Solved — `ctx.player_dead = True` triggers death screen.
 4. **Does the combat engine need changes?** Solved — unified loop handles both space and ground.
 5. **Should skill points be shared between ship and ground?** Solved — single shared pool across all 6 skills.
+6. **Next: dungeon content?** Procedural dungeons currently generate empty rooms + corridors. Enemy spawns, loot, and planet-specific NPC factions are deferred to a future content pass. Only Mars has a surface dungeon configured.
