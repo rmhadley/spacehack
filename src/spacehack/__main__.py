@@ -412,6 +412,22 @@ def _run_game(
                     _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
                     if _ground_result.outcome == "DEFEAT":
                         return
+                    # --- Ground combat victory: faction rep changes ---
+                    if _ground_result.outcome == "VICTORY" and _ground_result.defeated_spec_ids:
+                        from .data.npc_chars import find_npc_char as _fnc
+                        from .faction import modify_rep, _COMBAT_KILL_DELTAS
+                        _all_killed = len(_ground_result.defeated_spec_ids) == len(_hostiles)
+                        _squad_bonus = _all_killed and len(_ground_result.defeated_spec_ids) >= 2
+                        for _dsid in _ground_result.defeated_spec_ids:
+                            try:
+                                _npc = _fnc(_dsid)
+                                _deltas = _COMBAT_KILL_DELTAS.get(_npc.faction, {})
+                                for _fac, _delta in _deltas.items():
+                                    if _squad_bonus and _delta > 0:
+                                        _delta += 1
+                                    modify_rep(ctx, _fac, _delta)
+                            except (KeyError, ImportError):
+                                pass
                     # After combat, refresh the map render
                     continue
                 # Check if player walked onto the exit tile
