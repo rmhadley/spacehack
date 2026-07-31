@@ -287,11 +287,20 @@ def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
     return _space_can_afford(_player_state, weapon_id)
 
 
+def weapon_ap_cost(weapon_id: str, ctx) -> int:
+    """Return the AP cost of firing this weapon once."""
+    from ..data.weapons import find_weapon as _fw
+    return _fw(weapon_id).ap_cost
+
+
 def consume_shot(weapon_id: str, ctx) -> None:
-    """Deduct AP, power, and/or ammo for firing weapon_id."""
+    """Deduct power and/or ammo for firing weapon_id.
+
+    NOTE: AP is NOT deducted here — the unified loop charges
+    max(ap_cost) across all fired weapons in a single burst.
+    """
     from ..data.weapons import find_weapon as _fw
     _ws = _fw(weapon_id)
-    _player_state["ap_remaining"] -= _ws.ap_cost
     if _ws.slot_type in ("energy", "plasma"):
         _player_state["power_pool"] -= _ws.power_cost
     elif _ws.slot_type == "missile":

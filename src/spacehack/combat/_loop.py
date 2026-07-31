@@ -126,6 +126,11 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
 
     _player_pos = ctx.player.pos
 
+    # Burst-fire rule: track max AP among weapons that actually fire.
+    # Pay max(ap_cost) once after the loop, but consume ammo/energy per weapon.
+    _max_ap_cost = 0
+    _any_fired = False
+
     for _wid in _fire_ids:
         if not rules.enemy_alive(_target):
             break
@@ -140,6 +145,9 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
             continue
 
         _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, _target, ctx)
+
+        _any_fired = True
+        _max_ap_cost = max(_max_ap_cost, rules.weapon_ap_cost(_wid, ctx))
 
         rules.animate_fire(
             console, ctx, game_map,
@@ -172,6 +180,11 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
             )
 
         rules.consume_shot(_wid, ctx)
+
+    # Charge max AP once for the entire burst (only if something fired)
+    if _any_fired:
+        _ap_now = rules.player_ap(ctx)
+        rules.set_player_ap(ctx, _ap_now - _max_ap_cost)
 
     return False
 

@@ -249,10 +249,18 @@ def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
     return True, ""
 
 
+def weapon_ap_cost(weapon_id: str, ctx) -> int:
+    """Return the AP cost of firing this weapon once."""
+    return _find_gw(weapon_id).ap_cost
+
+
 def consume_shot(weapon_id: str, ctx) -> None:
-    global _player_ap
-    _ws = _find_gw(weapon_id)
-    _player_ap -= _ws.ap_cost
+    """Ground weapons have no ammo — no-op.
+
+    NOTE: AP is NOT deducted here — the unified loop charges
+    max(ap_cost) across all fired weapons in a single burst.
+    """
+    pass
 
 
 # ---------------------------------------------------------------------------
