@@ -256,17 +256,19 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 
 ### Phase 1: Data model — Intercept (the foundation)
 
-- [ ] Add `heist_target_good_id`, `heist_target_enemy_id`, `heist_target_system_id` to `MissionSpec` (defaulting to None)
-- [ ] Add same fields to `ActiveMission`
-- [ ] Add merchant NpcShipSpec entries (`merchant_hauler`, `merchant_freighter`, `merchant_caravan`)
-- [ ] Add HeistSpawn helper dataclass (mirrors BountySpawn)
-- [ ] Populate `data/missions/bar.py` with 4 hand-crafted intercept missions
-- [ ] Wire `fill_empty_slots` guild gate to include `"bar"` guild
-- [ ] Wire `heist_target_*` fields into ActiveMission during accept flow (intercept variant)
-- [ ] Wire intercept combat completion (destroy merchant → loot drops specific good)
-- [ ] Wire intercept delivery to barkeep (complete on cargo hand-in)
+- [x] Add `heist_target_good_id` to `MissionSpec` — `data/missions/__init__.py:103`. `target_enemy_id` / `target_system_id` reuse the existing bounty fields (no new `heist_target_enemy/system` fields — DRY per audit Hotspot 1)
+- [x] Add `heist_target_good_id` to `ActiveMission` — `mission.py:92` (delivery + bounty fields reused for return tracking)
+- [x] Add merchant NpcShipSpec entries (`merchant_hauler`, `merchant_freighter`, `merchant_caravan`) — `data/npc_ships/core.py`
+- [x] Heist spawn support — `BountySpawn.heist_spawn_id` (`game_context.py:128`) instead of a separate HeistSpawn class (audit Hotspot 1 DRY strategy)
+- [x] Populate `data/missions/bar.py` with 4 hand-crafted intercept missions
+- [x] Wire barkeep board — auto-discovery via `_build_registry` + static fill in `fill_empty_slots` (`missions_offered_by("barkeep")`). Procedural bar gen deferred to Phase 5
+- [x] Wire `heist_target_*` fields into ActiveMission during accept flow — `__main__.py` intercept accept block
+- [x] Wire intercept combat completion — `CombatResult.defeated_heist_ids` (`combat/_types.py:67`), `on_kill` appends (`_rules_space.py:563`), post-victory loot spawn (`_encounter.py:147`)
+- [x] Wire intercept delivery to barkeep — `active_is_deliverable_at` checks ship inventory for the looted good (complete on cargo hand-in, no auto-complete on kill)
 
 ### Phase 1.5: Playtest — Intercept
+
+**Status: code complete, ready for playtest.** Crash fixed (`fix: heist loot spawn no longer crashes on_kill` — `753833e`): heist loot entities set `heist_mission` post-construction (Entity has no such field) and the flag survives save/load.
 
 **Checklist:**
 - [ ] Visit Earth bar → missions visible
@@ -309,11 +311,11 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** New ActiveMission fields (`heist_target_*`) → added to both `_ctx_to_dict()` AND `load_game()`
+- [x] **Save/load:** New ActiveMission field `heist_target_good_id` → added to both `_ctx_to_dict()` AND `load_game()` (`saveload.py:359`); heist loot `heist_mission` flag persisted + restored
 - [ ] **Save/load:** Smuggler's hold `hidden_cargo` → computed from modules (no new field needed, but verify module bonuses survive save/load)
-- [ ] **NPC spawns:** Merchant target ships, patrol guards → registered in `ctx.procedural_spawns` with matching `squad_id`
-- [ ] **NPC cleanup:** Intercept target killed → spawn removed from `ctx.procedural_spawns` via per-kill handler
-- [ ] **Game guide:** Bar missions → new `_GUIDE_BAR_MISSIONS` section or update `_GUIDE_MISSIONS`
+- [x] **NPC spawns:** Merchant target ships → placed via `ctx.bounty_spawns` (BountySpawn with `heist_spawn_id`), saved/restored in saveload
+- [x] **NPC cleanup:** Intercept target killed → `defeated_heist_ids` handled in `_encounter.py` post-victory; spawn removed via `_remove_bounty_spawn`
+- [x] **Game guide:** Bar missions → `_GUIDE_BAR_MISSIONS` section (`help.py:896`)
 - [ ] **Game guide:** Smuggler's hold module → update `_GUIDE_SHIPS` module table
 
 ## Open questions
