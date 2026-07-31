@@ -101,7 +101,7 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
-def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap) -> None:
+def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
 
@@ -147,6 +147,7 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap) -> No
         player_ap=4, player_ap_total=4,
         armor_defense=_armor_defense,
         active_weapon_list=[True] * len(_weapons),
+        console=console,
     )
 
     _names = ", ".join(_e.name for _e in _enemies)

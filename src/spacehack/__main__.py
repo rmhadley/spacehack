@@ -414,7 +414,7 @@ def _run_game(
                 from .combat._encounter import detect_ground_combat as _dgc
                 _hostiles = _dgc(ctx, game_map, player.pos)
                 if _hostiles:
-                    _ground_init(ctx, _hostiles, game_map)
+                    _ground_init(ctx, _hostiles, game_map, console=console)
                     _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
                     if _ground_result.outcome == "DEFEAT":
                         return
