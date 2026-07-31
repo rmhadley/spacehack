@@ -286,17 +286,20 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 - [x] Wire barkeep board — auto-discovery via `_build_registry` + static fill in `fill_empty_slots` (`missions_offered_by("barkeep")`). Procedural bar gen deferred to Phase 5
 - [x] Wire `heist_target_*` fields into ActiveMission during accept flow — `__main__.py` intercept accept block
 - [x] Wire intercept combat completion — `CombatResult.defeated_heist_ids` (`combat/_types.py:67`), `on_kill` appends (`_rules_space.py:563`), post-victory loot spawn (`_encounter.py:147`)
-- [x] Wire intercept delivery to barkeep — `active_is_deliverable_at` checks ship inventory for the looted good (complete on cargo hand-in, no auto-complete on kill)
+- [x] Wire intercept delivery to barkeep — `active_is_deliverable_at` checks the per-mission `heist_good_secured` flag (set only by securing the mission-tagged `%` loot entity), never the trade inventory — buying the good cannot complete the mission (see "Mission-tagged cargo" above)
 
 ### Phase 1.5: Playtest — Intercept
 
-**Status: code complete, ready for playtest.** Crash fixed (`fix: heist loot spawn no longer crashes on_kill` — `753833e`): heist loot entities set `heist_mission` post-construction (Entity has no such field) and the flag survives save/load.
+**Status: COMPLETE — playtest passed.** Intercepts (T1-T4), mission-tagged cargo, the mixed-squad escort mechanic (stress-tested at 5 escorts, then reverted to unescorted), squad-wide aggro, round-trip deadlines, and the save/load heist-loot fix were all verified in play.
 
 **Checklist:**
-- [ ] Visit Earth bar → missions visible
-- [ ] Accept intercept → merchant spawns in target system
-- [ ] Destroy merchant → specific good appears in inventory
-- [ ] Return to bar → deliver → reward granted, good removed
+- [x] Visit Earth bar → missions visible
+- [x] Accept intercept → merchant spawns in target system
+- [x] Destroy merchant → mission-tagged `%` loot drops → SECURE → shows under MISSION CARGO (not TRADE GOODS), cannot be sold
+- [x] Buying the target good at a terminal does NOT complete the mission
+- [x] Escort squad: hailing ANY member (merchant or escort) pulls the whole squad; only the merchant completes the mission
+- [x] Save in target system → Continue → killing the merchant still drops loot
+- [x] Return to bar → deliver → reward granted, reserved cargo released
 
 ### Phase 2: Smuggling
 
