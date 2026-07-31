@@ -609,6 +609,56 @@ helpers called by the unified loop (not by the rules module):
 
 ---
 
+### Phase 5.2: Squads + scatter-spawn for ground enemies (IN PROGRESS)
+
+**Goal:** Enemy markers in layouts scatter-spawn within their room (like loot),
+and support squad notation (`#min-max`) for multi-enemy spawns from a single
+marker. This is the first step toward multi-enemy ground combat.
+
+#### Design
+
+| Notation | Meaning |
+|----------|---------|
+| `ENEMY: r = pirate_raider@0.6` | 60% chance of **1** pirate, scattered in room |
+| `ENEMY: S = pirate_raider@1.0#3-3` | 100% chance of **3** pirates, scattered in room |
+| `ENEMY: X = enemy@0.5!` *(future)* | Exact position, no scatter |
+
+**Scatter algorithm:** Same BFS flood-fill as loot. From the marker position,
+flood through walkable cells to find the room boundary, then pick random
+unoccupied positions for each enemy in the squad.
+
+#### Step 5.2a: Parse squad notation
+
+- [ ] Update `enemy_spawn_specs` from `dict[str, tuple[str, float]]` to
+  `dict[str, tuple[str, float, int, int]]` — add `(squad_min, squad_max)`
+- [ ] Parse `#3-3` suffix from spec string: split on `#`, parse `min-max`
+- [ ] Default squad is `(1, 1)` when no `#` suffix
+
+#### Step 5.2b: Scatter-spawn enemies
+
+- [ ] Extract room flood-fill into a shared helper (`_flood_room`) —
+  currently inline in the loot scatter section
+- [ ] For each enemy marker: flood room, pick `squad_size` random unoccupied
+  walkable cells, spawn entities
+- [ ] Register `S` glyph in `_ENEMY_GLYPHS`
+- [ ] Fallback: if room flood fails (no walkable cells), spawn at marker
+  position with a position scatter (+/- 1 tile)
+
+#### Step 5.2c: Layout updates
+
+- [x] `scout_a.layout`: `S = pirate_raider@1.0#3-3` — 3-pirate squad in cargo bay
+
+#### What this does NOT do (deferred to future phases)
+
+- **Multi-enemy ground combat** — `_rules_ground.py` still handles single enemy.
+  Squads spawn multiple entities but combat is still 1v1 (the first triggered
+  enemy starts combat, others wait). Full multi-enemy ground combat is a
+  separate phase.
+- **Static flag (`!`)** — all enemies scatter by default. Exact-position
+  spawning with `!` suffix is future work.
+
+---
+
 ### Phase 6: Planet/station dungeon entrances (NEXT)
 
 **Goal:** Walk into a building on a planet or station → enter a dungeon. Same layout system, different tile/room themes.

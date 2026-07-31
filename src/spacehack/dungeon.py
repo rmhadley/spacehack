@@ -189,7 +189,7 @@ _GLYPH_TILES: dict[str, world.Tile] = {
 
 # Enemy spawn glyphs — placed as NPC char entities, rendered as floor.
 # Using distinct glyphs so they don't conflict with engine (E) or other markers.
-_ENEMY_GLYPHS: set[str] = {"r", "R"}
+_ENEMY_GLYPHS: set[str] = {"r", "R", "S"}
 
 # Glyphs that place entities rather than tiles.
 _ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
@@ -249,7 +249,7 @@ def load_layout(
     # Collect colour overrides, loot zone mappings, and enemy spawn directives
     colour_overrides: dict[str, tuple[int, int, int]] = {}
     loot_zones: dict[str, str] = {}  # glyph -> room_type
-    enemy_spawn_specs: dict[str, tuple[str, float]] = {}  # glyph -> (enemy_id, spawn_chance)
+    enemy_spawn_specs: dict[str, tuple[str, float, int, int]] = {}  # glyph -> (enemy_id, spawn_chance, squad_min, squad_max)
 
     # --- Parse MAP section ---
     map_lines: list[str] = []
@@ -284,13 +284,30 @@ def load_layout(
                     room_type = room_part.strip()
                     loot_zones[glyph] = room_type
                 continue
-            # Parse ENEMY directives:  ENEMY: E = derelict_scavenger@0.6
+            # Parse ENEMY directives:  ENEMY: r = pirate_raider@0.6
+            # Squad notation:           ENEMY: S = pirate_raider@1.0#3-3
             if stripped.startswith("ENEMY:"):
                 rest = stripped[6:].strip()
                 if "=" in rest:
                     glyph_part, spec_part = rest.split("=", 1)
                     glyph = glyph_part.strip()
                     spec_str = spec_part.strip()
+                    squad_min, squad_max = 1, 1
+                    # Parse squad suffix: #min-max (e.g. #3-3 or #2-5)
+                    if "#" in spec_str:
+                        spec_str, squad_str = spec_str.rsplit("#", 1)
+                        if "-" in squad_str:
+                            parts = squad_str.split("-")
+                            try:
+                                squad_min = int(parts[0])
+                                squad_max = int(parts[1])
+                            except ValueError:
+                                pass
+                        else:
+                            try:
+                                squad_min = squad_max = int(squad_str)
+                            except ValueError:
+                                pass
                     if "@" in spec_str:
                         enemy_id, chance_str = spec_str.rsplit("@", 1)
                         try:
@@ -300,7 +317,7 @@ def load_layout(
                     else:
                         enemy_id = spec_str
                         chance = 1.0
-                    enemy_spawn_specs[glyph] = (enemy_id.strip(), chance)
+                    enemy_spawn_specs[glyph] = (enemy_id.strip(), chance, squad_min, squad_max)
                 continue
             # Parse TILE and COLOUR directives
             if stripped.startswith("TILE:"):
@@ -320,11 +337,12 @@ def load_layout(
     # Pad all lines to the same width
     map_lines = [line.ljust(grid_width) for line in map_lines]
 
-    # Build tiles and collect entity placements + loot marker positions
+    # Build tiles and collect entity placements + loot marker positions + enemy markers
     tiles: list[list[world.Tile]] = []
     entities: list[world.Entity] = []
     spawn_pos: world.Position | None = None
     loot_markers: list[tuple[str, int, int]] = []  # (room_type, x, y)
+    enemy_markers: list[tuple[str, int, int]] = []  # (glyph, x, y) — deferred scatter after tile build
 
     for row_idx, line in enumerate(map_lines):
         tile_row: list[world.Tile] = []
@@ -377,18 +395,8 @@ def load_layout(
                         name="Engine Terminal", width=1, height=1,
                     ))
                 elif ch in enemy_spawn_specs:
-                    # Enemy spawn marker — roll RNG, spawn if hit
-                    _eid, _chance = enemy_spawn_specs[ch]
-                    from .engine import RNG as _RNG
-                    if _RNG.random() < _chance:
-                        entities.append(world.Entity(
-                            char=ch,  # render the glyph from the layout
-                            fg=colour_overrides.get(ch, (255, 100, 100)),
-                            pos=world.Position(col_idx, row_idx),
-                            name="",  # set later from spec
-                            width=1, height=1,
-                            npc_char_id=_eid,
-                        ))
+                    # Enemy marker — defer spawn to scatter pass (like loot)
+                    enemy_markers.append((ch, col_idx, row_idx))
                 continue
 
             # Loot marker — treat as floor, record position for flood-fill
@@ -446,11 +454,63 @@ def load_layout(
                         bg=tile.bg,
                     )
 
-    # --- Scatter loot via flood-fill (BFS from each marker through walkable cells) ---
+    # --- Shared room flood-fill helper (reused by enemy scatter + loot scatter) ---
     from collections import deque
     from .engine import RNG as _RNG
     from .data.trade_goods import find_trade_good as _find_good
 
+    def _flood_room(mx: int, my: int) -> list[tuple[int, int]]:
+        """BFS from (mx, my) through walkable cells. Returns unoccupied cells.
+
+        Walls and doors stop room expansion. Already-occupied positions
+        (by entities) are excluded from the returned cell list.
+        """
+        _occupied = {(e.pos.x, e.pos.y) for e in entities}
+        visited: set[tuple[int, int]] = {(mx, my)}
+        queue: deque[tuple[int, int]] = deque([(mx, my)])
+        room_cells: list[tuple[int, int]] = []
+        while queue:
+            cx, cy = queue.popleft()
+            if (cx, cy) not in _occupied:
+                room_cells.append((cx, cy))
+            for ndx, ndy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                nx, ny = cx + ndx, cy + ndy
+                if (nx, ny) in visited:
+                    continue
+                if not (0 <= nx < grid_width and 0 <= ny < grid_height):
+                    continue
+                nt = tiles[ny][nx]
+                if not nt.walkable or nt.kind == 'dungeon_door':
+                    continue
+                visited.add((nx, ny))
+                queue.append((nx, ny))
+        return room_cells
+
+    # --- Scatter-spawn enemies via room flood-fill ---
+    for glyph, mx, my in enemy_markers:
+        if glyph not in enemy_spawn_specs:
+            continue
+        _eid, _chance, _smin, _smax = enemy_spawn_specs[glyph]
+        if _RNG.random() >= _chance:
+            continue
+        _squad_size = _RNG.randint(_smin, _smax)
+        _cells = _flood_room(mx, my)
+        if not _cells:
+            # Fallback: no walkable cells found — spawn at marker ± scatter
+            _cells = [(mx, my)]
+        _RNG.shuffle(_cells)
+        for _i in range(min(_squad_size, len(_cells))):
+            _cx, _cy = _cells[_i]
+            entities.append(world.Entity(
+                char=glyph,
+                fg=colour_overrides.get(glyph, (255, 100, 100)),
+                pos=world.Position(_cx, _cy),
+                name="",
+                width=1, height=1,
+                npc_char_id=_eid,
+            ))
+
+    # --- Scatter loot via flood-fill ---
     # If no budget provided, fall back to old guaranteed behavior
     # (loot_budget is (0, 0) for non-boardable ships)
     _has_budget = loot_budget is not None and loot_budget[1] > 0
@@ -467,27 +527,7 @@ def load_layout(
             if not pool:
                 continue
 
-            # BFS through walkable cells (walls and doors are room boundaries)
-            visited: set[tuple[int, int]] = {(mx, my)}
-            queue: deque[tuple[int, int]] = deque([(mx, my)])
-            room_cells: list[tuple[int, int]] = []
-            _occupied = {(e.pos.x, e.pos.y) for e in entities}
-            while queue:
-                cx, cy = queue.popleft()
-                if (cx, cy) not in _occupied:
-                    room_cells.append((cx, cy))
-                for ndx, ndy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                    nx, ny = cx + ndx, cy + ndy
-                    if (nx, ny) in visited:
-                        continue
-                    if not (0 <= nx < grid_width and 0 <= ny < grid_height):
-                        continue
-                    nt = tiles[ny][nx]
-                    # Walls and doors stop room expansion
-                    if not nt.walkable or nt.kind == 'dungeon_door':
-                        continue
-                    visited.add((nx, ny))
-                    queue.append((nx, ny))
+            room_cells = _flood_room(mx, my)
             if not room_cells:
                 continue
 
