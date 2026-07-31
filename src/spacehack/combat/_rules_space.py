@@ -514,18 +514,11 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
 
     # Heist/intercept: spawn mission-specific loot entity at death position.
     _heist_id = getattr(_dead_ent, 'heist_spawn_id', None) if _dead_ent is not None else None
-    print(f"[DEBUG on_kill] enemy={enemy.name} _dead_ent={'None' if _dead_ent is None else 'Entity'}")
-    print(f"[DEBUG on_kill] _heist_id={_heist_id}")
     if _heist_id is not None:
         _missions = getattr(ctx, 'player_active_missions', [])
-        print(f"[DEBUG on_kill] active_missions={len(_missions)}")
-        _found = False
         for _m in _missions:
-            _m_spawn = getattr(_m, 'bounty_spawn_id', None)
-            print(f"[DEBUG on_kill] mission={_m.title} bounty_spawn_id={_m_spawn}")
-            if _m_spawn == _heist_id:
+            if getattr(_m, 'bounty_spawn_id', None) == _heist_id:
                 _good_id = getattr(_m, 'heist_target_good_id', '')
-                print(f"[DEBUG on_kill] MATCH! good_id={_good_id}")
                 if _good_id:
                     _loot_ent = world.Entity(
                         char='%', fg=(255, 215, 0),
@@ -539,10 +532,7 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
                         f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
                         _ml.COLOR_IMPORTANT_EVENT,
                     )
-                    _found = True
                 break
-        if not _found:
-            print(f"[DEBUG on_kill] heist_id matched no mission")
 
     from ..data.ships import find_ship as _find_ship_cat
     try:
