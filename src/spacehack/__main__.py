@@ -401,6 +401,9 @@ def _run_game(
                 player_active_missions = ctx.player_active_missions
                 tick_move(ctx)
             if code == 'moved' and current_mode == 'dungeon':
+                # Move ground NPCs (patrol / wander), then reveal fog.
+                from .ground_npcs import move_ground_npcs as _move_ground_npcs
+                _move_ground_npcs(ctx, game_map)
                 # Reveal fog around new position (using current sight radius)
                 from .dungeon import reveal_around as _reveal_around
                 _reveal_around(game_map, player.pos, radius=game_map.sight_radius)
