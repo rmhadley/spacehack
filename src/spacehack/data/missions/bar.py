@@ -3,6 +3,11 @@
 Intercept missions: track down a merchant vessel, destroy it, loot a
 specific good, return to the bar and deliver it to the barkeep.
 
+Smuggling missions: transport contraband cargo to a destination NPC.
+The cargo is loaded into the MISSION CARGO hold on accept; militia
+cargo scans can confiscate it (the Smuggler's Hold module conceals
+cargo from scans).
+
 These are hand-crafted static missions. Procedural bar mission
 generation is deferred to a later phase.
 """
@@ -114,5 +119,113 @@ MISSIONS: tuple[MissionSpec, ...] = (
         bounty_target_squad_size=4,
         bounty_target_loadout_pct=75,
         heist_target_good_id="electronics",
+    ),
+    # --- Smuggling ---
+    # Tier 1 — Mars, same-system hot cargo. 8 units fits a mk1 hold (10).
+    MissionSpec(
+        id="bar_smuggle_mars_weapons",
+        title="Mars Weapons Run",
+        description=(
+            "A crate of black-market side-arms needs to reach the Mars "
+            "Barkeep. The colony patrol scans incoming freight — fly "
+            "quiet, or pay the price."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="smuggling",
+        tier=1,
+        reward_credits=150,
+        reward_xp=25,
+        # Same-system run (~20-30 days at starter speed). Deadline
+        # leaves room to orbit past the militia patrol on Mars.
+        deadline_days=45,
+        early_bonus_pct=25,
+        required_cargo_size=8,
+        delivery_target_npc_id="barkeep",       # Mars Barkeep override
+        delivery_target_planet_id="mars",
+        origin_planet_id="earth",
+        is_smuggle=True,
+        smuggle_good_id="weapons_blackmarket",
+    ),
+    # Tier 2 — Sirius Station, 2 hops. 15 units fits a mk2 hold (25).
+    MissionSpec(
+        id="bar_smuggle_sirius_tech",
+        title="Sirius Black-Tech",
+        description=(
+            "Experimental electronics, no questions asked. The Binary "
+            "Observer at the research station pays well for hardware that "
+            "fell off the back of a freighter. Sirius is patrolled — "
+            "mind the scans."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="smuggling",
+        tier=2,
+        reward_credits=350,
+        reward_xp=60,
+        # 2 hops (~35 days one-way at starter speed) + detour slack.
+        deadline_days=90,
+        early_bonus_pct=25,
+        required_cargo_size=15,
+        delivery_target_npc_id="research_officer",  # Binary Observer
+        delivery_target_planet_id="sirius_station",
+        origin_planet_id="earth",
+        is_smuggle=True,
+        smuggle_good_id="electronics",
+    ),
+    # Tier 3 — Vega b, 1 hop. 30 units fits a mk3 hold (50).
+    MissionSpec(
+        id="bar_smuggle_vega_drugs",
+        title="Vega Narcotics",
+        description=(
+            "The Cloud Host on Vega b has clients with expensive tastes. "
+            "Ship the luxury goods through the orbital checkpoint — the "
+            "station scans everything that docks."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="smuggling",
+        tier=3,
+        reward_credits=700,
+        reward_xp=120,
+        # 1 hop (~16 days one-way at starter speed) — generous to allow
+        # a wide approach that avoids the patrol lanes.
+        deadline_days=60,
+        early_bonus_pct=25,
+        required_cargo_size=30,
+        delivery_target_npc_id="barkeep",       # Cloud Host override
+        delivery_target_planet_id="vega_b",
+        origin_planet_id="earth",
+        is_smuggle=True,
+        smuggle_good_id="luxury_goods",
+    ),
+    # Tier 4 — Luyten's Star, 5 hops. 55 units overflows a mk3 hold (50)
+    # — genuinely at risk without a mk4 (75). Blockade Station is the
+    # militia home system: scans are the extreme end of the spectrum.
+    MissionSpec(
+        id="bar_smuggle_frontier_fuel",
+        title="Frontier Fuel Heist",
+        description=(
+            "Fuel cells — a lot of them — need to reach the Bounty Master "
+            "at Blockade Station, the last port before uncharted space. "
+            "The blockade runs the tightest scans in the sector. This one "
+            "pays like a heist because it is one."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="smuggling",
+        tier=4,
+        reward_credits=1500,
+        reward_xp=250,
+        # 5 hops (~85 days one-way at starter speed, needs a refuel
+        # stop) + wide detour slack around militia patrols.
+        deadline_days=200,
+        early_bonus_pct=30,
+        required_cargo_size=55,
+        delivery_target_npc_id="bounty_master",   # Bounty Master on Blockade
+        delivery_target_planet_id="blockade",
+        origin_planet_id="earth",
+        is_smuggle=True,
+        smuggle_good_id="fuel_cells",
     ),
 )
