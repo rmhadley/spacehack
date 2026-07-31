@@ -18,6 +18,7 @@ import tcod.event
 from .. import ui
 from .. import world
 from ..engine import RNG
+from ..world import VIM_DELTAS as _VIM_KEYS
 from ..data.pilot_skills import PilotSkills
 from ..input_helpers import _try_open_guide
 
@@ -45,12 +46,6 @@ from ._animations import (
 # ---------------------------------------------------------------------------
 # Shared helpers + unified loop
 # ---------------------------------------------------------------------------
-
-# Vim movement deltas — same for space and ground.
-_VIM_KEYS: dict[str, tuple[int, int]] = {
-    "h": (-1, 0), "j": (0, 1), "k": (0, -1), "l": (1, 0),
-    "y": (-1, -1), "u": (1, -1), "b": (-1, 1), "n": (1, 1),
-}
 
 # Numeric key mapping for weapon toggle (1-9, numpad 1-9).
 _NUM_KEYS: dict[str, int] = {

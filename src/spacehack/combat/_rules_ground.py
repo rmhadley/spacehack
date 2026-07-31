@@ -14,8 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .. import world
+from .. import ui
 from .. import message_log as _ml
-from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT
+from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
@@ -90,7 +91,7 @@ class GroundCombatState:
 _state: GroundCombatState | None = None
 
 # Rendering constants
-_RENDER_WIDTH: int = SCREEN_WIDTH - 25
+_RENDER_WIDTH: int = SCREEN_WIDTH - HUD_WIDTH
 _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 
 
@@ -318,7 +319,6 @@ _COLOR_GROUND_ENEMY_TARGET: tuple[int, int, int] = (255, 220, 100)
 _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
-_COLOR_VALUE_DIM: tuple[int, int, int] = (150, 150, 150)
 
 
 def _ground_offsets(game_map: world.GameMap) -> tuple[int, int]:
@@ -375,7 +375,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             color_override=(255, 60, 60) if _los_blocked else None,
         )
 
-    _hud_x = SCREEN_WIDTH - 25
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
     y = 0
     console.print(x=_hud_x, y=y, string="> GROUND COMBAT <", fg=_COLOR_GROUND_TITLE)
     y += 2
@@ -403,10 +403,10 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             console.print(x=_hud_x, y=y, string=f"{_sel}[{_i+1}] {_ws.name}"[:24], fg=_name_fg)
             y += 1
             _hc = hit_chance(_wid, _alive[_state.target_idx], ctx) if _state.target_idx < len(_alive) else 0
-            console.print(x=_hud_x, y=y, string=f"     DMG {_ws.damage} HIT {_hc}%", fg=_COLOR_VALUE_DIM)
+            console.print(x=_hud_x, y=y, string=f"     DMG {_ws.damage} HIT {_hc}%", fg=ui.COLOR_VALUE_DIM)
             y += 1
             _rng = f"{_ws.min_range}-{_ws.max_range}" if _ws.min_range > 0 else f"0-{_ws.max_range}"
-            console.print(x=_hud_x, y=y, string=f"     RNG {_rng} AP {_ws.ap_cost}", fg=_COLOR_VALUE_DIM)
+            console.print(x=_hud_x, y=y, string=f"     RNG {_rng} AP {_ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
             y += 1
         y += 1
 

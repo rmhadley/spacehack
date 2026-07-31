@@ -339,6 +339,26 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
 # Rendering
 # ---------------------------------------------------------------------------
 
+def _build_hit_chances(target) -> dict[str, int]:
+    """Return {weapon_id: hit_chance_pct} for all weapons against target."""
+    _result: dict[str, int] = {}
+    if not _state.weapons_list or target is None:
+        return _result
+    _dist = _distance(_state.player_state["pos"], target.pos)
+    _target_dodge = _calc_dodge_bonus(
+        target.cells_moved_this_turn,
+        int(target.pilot_piloting * 0.5),
+    )
+    for _wid in _state.weapons_list:
+        try:
+            _result[_wid] = _space_hit_chance(
+                _wid, _state.player_state["gunnery"], _dist, _target_dodge,
+            )
+        except KeyError:
+            pass
+    return _result
+
+
 def _calc_camera():
     _cw = max(0, _state.game_map.width - _state.view_w)
     _ch = max(0, _state.game_map.height - _state.view_h)
@@ -389,21 +409,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             console, _cam_x, _cam_y, _state.view_w, _state.view_h, 0, 0, _tgt,
         )
 
-    _hit_chances: dict[str, int] = {}
-    _tgt_hc = _alive_target()
-    if _state.weapons_list and _tgt_hc is not None:
-        _dist = _distance(_state.player_state["pos"], _tgt_hc.pos)
-        _target_dodge = _calc_dodge_bonus(
-            _tgt_hc.cells_moved_this_turn,
-            int(_tgt_hc.pilot_piloting * 0.5),
-        )
-        for _wid in _state.weapons_list:
-            try:
-                _hit_chances[_wid] = _space_hit_chance(
-                    _wid, _state.player_state["gunnery"], _dist, _target_dodge,
-                )
-            except KeyError:
-                pass
+    _hit_chances = _build_hit_chances(_alive_target())
 
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
@@ -436,21 +442,7 @@ def animate_fire(
 ) -> None:
     _cam_x, _cam_y = _calc_camera()
 
-    _hit_chances: dict[str, int] = {}
-    _tgt_a = _alive_target()
-    if _state.weapons_list and _tgt_a is not None:
-        _dist = _distance(_state.player_state["pos"], _tgt_a.pos)
-        _target_dodge = _calc_dodge_bonus(
-            _tgt_a.cells_moved_this_turn,
-            int(_tgt_a.pilot_piloting * 0.5),
-        )
-        for _wid in _state.weapons_list:
-            try:
-                _hit_chances[_wid] = _space_hit_chance(
-                    _wid, _state.player_state["gunnery"], _dist, _target_dodge,
-                )
-            except KeyError:
-                pass
+    _hit_chances = _build_hit_chances(_alive_target())
 
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
@@ -491,13 +483,7 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
 
     _cam_x, _cam_y = _calc_camera()
 
-    _hit_chances: dict[str, int] = {}
-    if _state.weapons_list:
-        for _wid in _state.weapons_list:
-            try:
-                _hit_chances[_wid] = hit_chance(_wid, enemy, ctx)
-            except (KeyError, ValueError):
-                pass
+    _hit_chances = _build_hit_chances(enemy)
 
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
@@ -590,21 +576,7 @@ def handle_defense(ctx) -> None:
 def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai import _run_enemy_turn as _enemy_ai
 
-    _hit_chances: dict[str, int] = {}
-    _tgt_r = _alive_target()
-    if _state.weapons_list and _tgt_r is not None:
-        _dist = _distance(_state.player_state["pos"], _tgt_r.pos)
-        _target_dodge = _calc_dodge_bonus(
-            _tgt_r.cells_moved_this_turn,
-            int(_tgt_r.pilot_piloting * 0.5),
-        )
-        for _wid in _state.weapons_list:
-            try:
-                _hit_chances[_wid] = _space_hit_chance(
-                    _wid, _state.player_state["gunnery"], _dist, _target_dodge,
-                )
-            except KeyError:
-                pass
+    _hit_chances = _build_hit_chances(_alive_target())
 
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),

@@ -18,6 +18,7 @@ working without a second import line.
 
 from __future__ import annotations
 
+import dataclasses
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -537,9 +538,9 @@ def fill_empty_slots(
                 from .faction import adjust_reward_pct
                 _pay_pct = adjust_reward_pct(_board_attitude)
                 if _pay_pct != 0:
-                    object.__setattr__(
-                        _proc, 'reward_credits',
-                        max(1, _proc.reward_credits * (100 + _pay_pct) // 100),
+                    _proc = dataclasses.replace(
+                        _proc,
+                        reward_credits=max(1, _proc.reward_credits * (100 + _pay_pct) // 100),
                     )
             generated[_proc.id] = _proc
             board.slots[i] = _proc.id

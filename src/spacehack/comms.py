@@ -98,15 +98,16 @@ def _scan_contacts(
 # Rendering helpers
 # ---------------------------------------------------------------------------
 
-_CONTACTS_TITLE_COLOR: tuple[int, int, int] = (130, 220, 255)      # cyan
-_CONTACTS_FLAVOR: tuple[int, int, int] = (175, 170, 210)           # muted lavender
-_CONTACTS_DIM: tuple[int, int, int] = (150, 150, 150)              # silver dim
+# Colour constants — all imported from ui.py to avoid duplication.
+_CONTACTS_TITLE_COLOR = ui.COLOR_TITLE
+_CONTACTS_FLAVOR = ui.COLOR_DESCRIPTION
+_CONTACTS_DIM = ui.COLOR_VALUE_DIM
 
-_INTERACTION_TITLE: tuple[int, int, int] = (130, 220, 255)         # cyan title
-_INTERACTION_FLAVOR: tuple[int, int, int] = (175, 170, 210)        # flavor text
-_INTERACTION_OPTION: tuple[int, int, int] = (200, 200, 220)        # normal option
-_INTERACTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)     # selected option
-_INTERACTION_INSTRUCTION: tuple[int, int, int] = (110, 130, 175)   # instruction
+_INTERACTION_TITLE = ui.COLOR_TITLE
+_INTERACTION_FLAVOR = ui.COLOR_DESCRIPTION
+_INTERACTION_OPTION = ui.COLOR_OPTION
+_INTERACTION_HIGHLIGHT = ui.COLOR_OPTION_HIGHLIGHT
+_INTERACTION_INSTRUCTION = ui.COLOR_INSTRUCTION
 
 
 def _render_comms_panel(
