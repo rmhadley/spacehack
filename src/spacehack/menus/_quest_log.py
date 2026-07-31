@@ -150,11 +150,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         # Intercept-specific display: mission cargo secured status.
         _heist_good = getattr(am, 'heist_target_good_id', None)
         if _heist_good is not None:
-            try:
-                from ..data.trade_goods import find_trade_good as _ftg_hl
-                _good_name = _ftg_hl(_heist_good).name
-            except (KeyError, ImportError):
-                _good_name = _heist_good.replace('_', ' ').title()
+            _good_name = _good_display_name(_heist_good)
             _secured = getattr(am, 'heist_good_secured', False)
             _status = 'SECURED' if _secured else 'NOT SECURED'
             _sfg = (120, 220, 120) if _secured else (255, 180, 80)
@@ -164,13 +160,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         # Smuggling-specific display: contraband type + scan-risk warning.
         if getattr(am, 'is_smuggle', False):
             _sgid = getattr(am, 'smuggle_good_id', None)
-            _sgood = 'contraband'
-            if _sgid:
-                try:
-                    from ..data.trade_goods import find_trade_good as _ftg_sm
-                    _sgood = _ftg_sm(_sgid).name
-                except (KeyError, ImportError):
-                    _sgood = _sgid.replace('_', ' ').title()
+            _sgood = _good_display_name(_sgid)
             paint(detail_top, fit(f'Cargo: {_sgood} ({am.required_cargo_size} units)'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
             _risk, _risk_fg = _smuggle_scan_risk(ctx, am)
@@ -225,20 +215,46 @@ def update_quest_log(event: tcod.event.Event, *, confirm_abandon: bool) -> Quest
     return QuestLogOutcome.IGNORE
 
 
+# Scan-risk bands: ``(hold_divisor, label, fg)`` evaluated in order.
+# Low when the hold covers the full cargo (hold >= cargo // 1), Medium
+# at half coverage (hold >= cargo // 2), else High. Divisors preserve
+# the exact integer semantics of the original thresholds.
+_SCAN_RISK_STEPS: tuple[tuple[int, str, tuple[int, int, int]], ...] = (
+    (1, "Low",    (120, 220, 120)),
+    (2, "Medium", (255, 200, 100)),
+)
+
+
+def _good_display_name(good_id: str | None) -> str:
+    """Resolve a trade-good id to its display name, with fallback.
+
+    Falls back to a title-cased version of the raw id when the
+    catalog lookup fails (unknown / procedural goods). ``None``
+    resolves to ``"contraband"`` (generic smuggled cargo label).
+    """
+    if not good_id:
+        return "contraband"
+    try:
+        from ..data.trade_goods import find_trade_good as _ftg
+        return _ftg(good_id).name
+    except (KeyError, ImportError):
+        return good_id.replace('_', ' ').title()
+
+
 def _smuggle_scan_risk(ctx, am) -> tuple[str, tuple[int, int, int]]:
     """Return ``(label, fg)`` for a smuggling mission's scan risk.
 
     Compares the mission's cargo volume against the player's current
     smuggler's hold capacity (sum of installed ``smuggler_cargo``
-    module bonuses).
+    module bonuses). Looked up from :data:`_SCAN_RISK_STEPS`; falls
+    back to High when coverage drops below half.
     """
     from .. import ship as _ship_sm
     _cargo = am.required_cargo_size
     _hold = _ship_sm.smuggler_hold_capacity(ctx.player_owned_ship)
-    if _hold >= _cargo:
-        return "Low", (120, 220, 120)
-    if _hold >= _cargo // 2:
-        return "Medium", (255, 200, 100)
+    for _div, _label, _fg in _SCAN_RISK_STEPS:
+        if _hold >= _cargo // _div:
+            return _label, _fg
     return "High", (255, 80, 80)
 
 

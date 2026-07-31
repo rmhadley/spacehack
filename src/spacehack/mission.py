@@ -290,6 +290,25 @@ def _reserved_heist_volume(active: ActiveMission) -> int:
         return 0
 
 
+def release_mission_cargo(active: ActiveMission, owned_ship: object) -> int:
+    """Release the mission's reserved hold volume; returns units freed.
+
+    Frees both the delivery reservation (``required_cargo_size``) and
+    any secured intercept cargo. Shared by abort / complete / auto-fail
+    paths so the release math lives in exactly one place. Returns 0
+    when there is no ship or nothing was reserved.
+    """
+    if owned_ship is None:
+        return 0
+    _release = active.required_cargo_size + _reserved_heist_volume(active)
+    if _release <= 0:
+        return 0
+    owned_ship.mission_reserved = max(
+        0, owned_ship.mission_reserved - _release,
+    )
+    return _release
+
+
 def abort_mission(
     active: ActiveMission,
     owned_ship: object,
@@ -302,12 +321,8 @@ def abort_mission(
     """
     if owned_ship is None:
         return
-    _release = active.required_cargo_size + _reserved_heist_volume(active)
-    if _release <= 0:
+    if release_mission_cargo(active, owned_ship) <= 0:
         return
-    owned_ship.mission_reserved = max(
-        0, owned_ship.mission_reserved - _release,
-    )
     ship_obj = ship.find_ship(owned_ship.ship_id)
     _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
     log.add(
@@ -334,12 +349,7 @@ def complete_mission(
     are skipped when ctx is None (legacy callers, tests).
     """
     # Drop cargo (delivery reservation + secured intercept cargo).
-    if owned_ship is not None:
-        _release = active.required_cargo_size + _reserved_heist_volume(active)
-        if _release > 0:
-            owned_ship.mission_reserved = max(
-                0, owned_ship.mission_reserved - _release,
-            )
+    release_mission_cargo(active, owned_ship)
 
     # Compute reward with early/late modifiers.
     credits = active.reward_credits
@@ -1162,6 +1172,7 @@ __all__ = [
     "MissionSpec",
     "MissionStatus",
     "MAX_ACTIVE_MISSIONS",
+    "release_mission_cargo",
     "abort_mission",
     "active_is_deliverable_at",
     "commit_accept_mission",

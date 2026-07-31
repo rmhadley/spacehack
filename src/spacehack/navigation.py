@@ -959,6 +959,26 @@ def _apply_scan_confiscation(ctx, owned, confiscated) -> None:
                         message_log.COLOR_IMPORTANT_EVENT)
 
 
+def _militia_scan_target(ctx, planet_id: str):
+    """Guard + resolve the militia checkpoint for a landing scan.
+
+    Returns ``(owned, spec)`` when a scan is possible — the player
+    owns a ship AND the planet is known AND has a militia building.
+    Returns ``None`` otherwise (no scan). Pure lookup, no mutation.
+    """
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return None
+    from .data.planets import find_planet_spec, has_militia_presence
+    try:
+        spec = find_planet_spec(planet_id)
+    except KeyError:
+        return None
+    if not has_militia_presence(planet_id):
+        return None
+    return owned, spec
+
+
 def _run_cargo_scan(ctx, planet_id: str) -> None:
     """Check the player's cargo for contraband when landing on a
     planet with a militia presence.
@@ -984,17 +1004,10 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     """
     from . import engine as _engine
 
-    owned = ctx.player_owned_ship
-    if owned is None:
+    _target = _militia_scan_target(ctx, planet_id)
+    if _target is None:
         return
-
-    from .data.planets import find_planet_spec, has_militia_presence
-    try:
-        spec = find_planet_spec(planet_id)
-    except KeyError:
-        return
-    if not has_militia_presence(planet_id):
-        return
+    owned, spec = _target
 
     # Pure exposure computation (mission cargo protected FIRST, then
     # inventory contraband gets whatever hold capacity remains).
@@ -1038,10 +1051,7 @@ def _fail_smuggle_mission(ctx, owned, active) -> None:
     FAILED, removes it from the active list, and returns a static
     mission to its giver's board so it can be re-accepted.
     """
-    if owned is not None and active.required_cargo_size > 0:
-        owned.mission_reserved = max(
-            0, owned.mission_reserved - active.required_cargo_size,
-        )
+    mission_module.release_mission_cargo(active, owned)
     active.status = mission_module.MissionStatus.FAILED
     ctx.log.add_colored(
         f"Mission FAILED \u2014 militia confiscates the smuggled cargo of "
