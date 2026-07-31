@@ -1,0 +1,102 @@
+# freightliner_a.layout — Bulk Freightliner Interior
+#
+# Deck plan (top of map = bow, bottom = stern):
+#   Row 0                      hull
+#   Rows 1-6    BRIDGE (L)  |  CREW QUARTERS (C)  |  CREW QUARTERS 2 (R)
+#   Row 7                     bulkhead (3 doors)
+#   Rows 8-12   MESS HALL (L) | OFFICER STORAGE (C) | LOUNGE (R)
+#   Row 13                    bulkhead (3 doors)
+#   Rows 14-15  MAIN CORRIDOR (full width, E-W spine)
+#   Row 16                    bulkhead (3 doors)
+#   Rows 17-21  CARGO BAY 1 (L) | CARGO BAY 2 (C) | MED BAY (R)
+#   Row 22                    bulkhead (3 doors)
+#   Rows 23-27  ENGINE ROOM 1 (L) | ENGINE ROOM 2 (C) | AIRLOCK+STORE (R)
+#   Row 28                    hull — breach 'b' (cut into engine room 2)
+#   Rows 29-31  spawn alcove: P = board spawn, > = exit
+#
+# Three vertical shafts (doors at x=8 / x=26 / x=45) connect every
+# deck, so every room is reachable from the breach entry.
+#
+# Component-candidate rooms (design decision 2 — RNG picks ONE on first
+# board): bridge (LOOT 3 @ x=12), cargo bay 2 (LOOT 4 @ x=26),
+# engine room 2 (LOOT 1 @ x=31).
+#
+# Enemy crew (T3-4 tuning — adjust the ENEMY directives below):
+#   r  raider (solo: bridge, cargo bay 1)   R  rifleman (1-1: officer storage, engine 2)
+#   S  raider squad (2-2: crew quarters, cargo bay 2)
+# Total 8 crew — sits inside the design doc's T4 "4-8 crew" band.
+# Med bay + crew quarters 2 intentionally empty = breathing-room zones
+# between fights (pacing). Per-tier crew scaling (T3 lighter) is a
+# Phase-4 implementation decision, not a layout concern.
+#
+MAP
+  ###################################################
+  #............#......................#.............#
+  #............#......................#.............#
+  #..r..C...3..#..........S......3....#.............#
+  #............#......................#.............#
+  #............#......................#.............#
+  #............#......................#.............#
+  ######d#################d##################d#######
+  #............#......................#.............#
+  #..2.........#..........3...........#......3......#
+  #............#...............R......#.............#
+  #............#......................#.............#
+  #............#......................#.............#
+  ######d#################d##################d#######
+  #...........%.........................%...........#
+  #.................................................#
+  ######d#################d##################d#######
+  #............#......................#.............#
+  #............#......................#.............#
+  #..r..4......#....S.....4......%....#......3......#
+  #............#......................#.............#
+  #............#......................#.............#
+  ######d#################d##################d#######
+  #............#......................#.............#
+  #............#......................#.............#
+  #..1..E......#....R.....E....1......#......a...1..#
+  #............#......................#.............#
+  #............#......................#.............#
+  ########################b##########################
+                         #P#
+                         #>#
+                         ###
+ENDMAP
+
+# Tile mappings (documentation only — the parser uses its hardcoded table)
+TILE: # = wall
+TILE: . = floor
+TILE: d = door
+TILE: a = airlock
+TILE: b = breach
+TILE: P = player_spawn
+TILE: C = bridge computer
+TILE: E = engine
+TILE: > = exit
+TILE: % = debris
+
+# Enemy spawn markers class@chance#min_num-max_num
+ENEMY: r = pirate_raider@1.0
+ENEMY: R = pirate_rifleman@1.0#1-1
+ENEMY: S = pirate_raider@1.0#2-2
+
+# Loot mappings (digit -> room loot table)
+LOOT: 1 = engine_room
+LOOT: 2 = mess_hall
+LOOT: 3 = personal_storage
+LOOT: 4 = cargo_bay
+
+# Color overrides — each glyph gets a distinct color
+COLOUR: # = (120, 130, 150)     # hull/bulkhead — steel grey
+COLOUR: . = (200, 200, 210)     # floor — pale metal decking
+COLOUR: a = (100, 200, 255)     # airlock — cool blue
+COLOUR: b = (255, 120, 50)      # breach — hot orange (cut edge)
+COLOUR: d = (100, 220, 255)     # door — cyan glow
+COLOUR: C = (255, 200, 80)      # bridge computer — warm gold
+COLOUR: E = (180, 200, 220)     # engine — muted blue-white
+COLOUR: > = (100, 255, 120)     # exit — bright green arrow
+COLOUR: % = (140, 130, 100)     # debris — dull brass
+COLOUR: r = (220, 120, 80)      # pirate raider — rust-orange
+COLOUR: R = (200, 80, 80)       # pirate rifleman — faded red
+COLOUR: S = (220, 120, 80)      # pirate raider squad — rust-orange

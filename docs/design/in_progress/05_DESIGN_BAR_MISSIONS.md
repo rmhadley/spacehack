@@ -160,8 +160,8 @@ Tier progression:
 |------|-------------|------------------------|-------|----------------|
 | 1 | 1 pirate_scout | 1-2 scavengers (``scout_a``) | ``derelict_scout`` | 180$ |
 | 2 | 2 pirate_scouts | 2-4 scavengers (``scout_a``) | ``derelict_scout`` | 400$ |
-| 3 | 1 pirate_raider + 1 pirate_scout | 3-6 crew incl. riflemen (``freighter_a``) | ``derelict_freighter`` | 850$ |
-| 4 | 2 pirate_raiders + 1 pirate_captain | 4-8 crew, heavy squads (``freighter_a``) | ``derelict_freighter`` | 2000$ |
+| 3 | 1 pirate_raider + 1 pirate_scout | 8 crew (shared ``freightliner_a`` — T3 scaling at impl) | ``derelict_freighter`` | 850$ |
+| 4 | 2 pirate_raiders + 1 pirate_captain | 8 crew, heavy squads (``freightliner_a``) | ``derelict_freighter`` | 2000$ |
 
 Patrols don't despawn until cleared (you can leave and come back). The wreck persists until the component is secured.
 
@@ -171,7 +171,7 @@ Patrols don't despawn until cleared (you can leave and come back). The wreck per
 2. **Component hides in a random marked room.** Each wreck layout declares several component-candidate rooms (bridge, engine room, cargo bay, personal storage). On FIRST board, the loader RNG-picks one and places the mission-tagged ``%`` there — the player must search the wreck, and the placement persists (interior cache, decision 6). The quest log says "somewhere in the wreck" rather than pinpointing it.
 3. **Board anytime you're out of combat (no hard patrol gate).** You can't board mid-combat anyway (bump-dialog only fires between combat rounds), so the wreck is boardable as soon as the player is out of combat — however they got there (won, fled, evaded). The patrol squad still spawns around the wreck and will engage on approach, so in practice it's usually cleared first; a stealthy/evasive player can board around it. Patrol = BountySpawn squad (leader + wingmates via ``bounty_wingmate_enemy_id``); the wreck is a separate **non-combatant** BountySpawn (derelict spec: no weapons, ``ai_aggressiveness=0``).
 4. **Wreck persists until the component is secured.** Unlike random derelicts (consumed on board), a mission wreck stays on the space map so the player can leave and re-board. The component can only be secured once (``heist_good_secured`` flag), so it cannot be duplicated. Once secured AND the player exits to space, the wreck despawns and its interior cache entry is dropped.
-5. **Interior crew = existing pirate NPC chars as "scavengers".** ``pirate_raider`` / ``pirate_rifleman`` (``data/npc_chars/core.py``) already fill the "salvager stripping a wreck" role — their docstring says exactly that. Reuse them via layout ``ENEMY:`` directives; tiers scale squad sizes. New ``freighter_a.layout`` (larger wreck interior) for T3+; ``scout_a`` reused for T1-2.
+5. **Interior crew = existing pirate NPC chars as "scavengers".** ``pirate_raider`` / ``pirate_rifleman`` (``data/npc_chars/core.py``) already fill the "salvager stripping a wreck" role — their docstring says exactly that. Reuse them via layout ``ENEMY:`` directives; tiers scale squad sizes. New ``freightliner_a.layout`` (larger wreck interior) for T3+; ``scout_a`` reused for T1-2.
 6. **Persistent interiors — the anti-farm answer (open question 8 RESOLVED).** Interiors must live consistently across exit/re-board AND save/load, like nethack levels live inside the save file:
    - **In-memory cache:** ``GameContext.interiors: dict[str, world.GameMap]`` keyed by a stable interior id (the wreck's BountySpawn id). First board → ``load_layout()`` → store in the cache → use. Exit → keep in the cache (don't discard the map). Re-board → reuse the cached map: fog, taken loot, dead crew, restored power, and component placement all exactly as left.
    - **Save/load:** the existing single-dungeon serialization (the ``_data["dungeon"]`` block) is the exact format we need — extract it into shared ``_dungeon_to_dict(gm, space_player_pos)`` / ``_dungeon_from_dict(data)`` helpers (DRY: currently duplicated inline in ``save_game`` / ``load_game``), then save ``_data["interiors"] = {id: _dungeon_to_dict(...)}`` for every cached interior and restore them all on load. The autosave IS the on-disk cache.
@@ -236,8 +236,8 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 |----|-------|------|-----------|--------|--------|----------------|---------|
 | `bar_salvage_tau_parts` | Tau Ceti Wreck | 1 | `machine_parts` | Tau Ceti | 1 pirate_scout | scout / ``scout_a`` | 180$ / 35xp |
 | `bar_salvage_epsilon_drive` | Epsilon Drive | 2 | `electronics` | Epsilon Eridani | 2 pirate_scouts | scout / ``scout_a`` | 400$ / 70xp |
-| `bar_salvage_procyon_core` | Procyon Core | 3 | `fuel_cells` | Procyon | raider + scout | freighter / ``freighter_a`` | 850$ / 140xp |
-| `bar_salvage_luyten_blackbox` | Luyten Black Box | 4 | `luxury_goods` | Luyten's Star | 2 raiders + captain | freighter / ``freighter_a`` | 2000$ / 320xp |
+| `bar_salvage_procyon_core` | Procyon Core | 3 | `fuel_cells` | Procyon | raider + scout | freighter / ``freightliner_a`` | 850$ / 140xp |
+| `bar_salvage_luyten_blackbox` | Luyten Black Box | 4 | `luxury_goods` | Luyten's Star | 2 raiders + captain | freighter / ``freightliner_a`` | 2000$ / 320xp |
 
 ## Pre-implementation audit (MANDATORY — knowledge.md)
 
@@ -383,7 +383,7 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 Reuses the entire boarding + ground-combat framework (board dialog, ``load_layout`` interiors, fog of war, ``_rules_ground`` combat) and the intercept heist-cargo delivery path.
 
 - [ ] Add boardable wreck NpcShipSpec(s) — ``derelict_scout`` exists; add ``derelict_freighter`` for T3+ (larger hull, bigger ``loot_budget``)
-- [ ] Add ``freighter_a.layout`` — larger wreck interior with crew + component-candidate rooms; ``scout_a`` reused for T1-2
+- [ ] Add ``freightliner_a.layout`` — larger wreck interior with crew + component-candidate rooms; ``scout_a`` reused for T1-2
 - [ ] Layout: component-candidate room markers (2-3 per layout); on first board RNG-pick one and place the mission-tagged ``%`` (``heist_mission=True`` + ``heist_mission_id``) — placement persists via the interior cache
 - [ ] MissionSpec/ActiveMission fields: reuse ``heist_target_good_id``/``target_system_id``/``bounty_*``; add ``salvage_wreck_enemy_id`` + ``salvage_layout_id`` (no new patrol fields — patrol reuses ``target_enemy_id`` + ``bounty_target_squad_size`` + ``bounty_wingmate_enemy_id``)
 - [ ] Spawn wreck as non-combatant BountySpawn at a landmark + patrol squad nearby (both in ``ctx.bounty_spawns`` → save/load for free)
