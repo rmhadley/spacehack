@@ -210,6 +210,21 @@ def has_explorable_sites(planet_id: str) -> list[str]:
     return []
 
 
+def has_militia_presence(planet_id: str) -> bool:
+    """Return True iff ``planet_id`` has a building labeled ``"militia"``.
+
+    Militia checkpoints run cargo scans on landing (see
+    :func:`spacehack.navigation._run_cargo_scan`). Used by the
+    planet-bump dialog to warn the player before they commit to
+    landing, and by the scan itself. Returns False for unknown ids.
+    """
+    try:
+        spec = find_planet_spec(planet_id)
+    except KeyError:
+        return False
+    return any(b.label == "militia" for b in spec.buildings)
+
+
 def has_landable_port(planet_id: str) -> bool:
     """Return True iff ``planet_id`` resolves to a :class:`PlanetSpec`
     whose :attr:`PlanetSpec.buildings` includes a spaceport-labeled
@@ -403,4 +418,4 @@ def _resolve_ship(ship_id: str):
     return ship_module.find_ship(ship_id)
 
 
-__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor", "has_explorable_sites", "has_landable_port"]
+__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor", "has_explorable_sites", "has_landable_port", "has_militia_presence"]

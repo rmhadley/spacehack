@@ -891,53 +891,19 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
 # Cargo scan
 # ---------------------------------------------------------------------------
 
-def _run_cargo_scan(ctx, planet_id: str) -> None:
-    """Check the player's cargo for contraband when landing on a
-    planet with a militia presence.
+def _compute_scan_exposure(owned, active_missions) -> tuple[list, list]:
+    """Pure: compute what a militia scan would confiscate.
 
-    If the planet has a building labeled ``"militia"`` there is a
-    40% chance the militia runs a scan.  When contraband is found
-    beyond the smuggler's hold capacity, it is confiscated and a
-    fine equal to 50% of the goods' total base value is deducted
-    from the player's credits.
-
-    Smuggler's hold protection (Phase 2): the hold (sum of installed
-    ``smuggler_cargo`` module bonuses) conceals cargo from the scan.
-    Mission smuggling cargo (:attr:`ActiveMission.is_smuggle`) is
-    protected FIRST — each mission claims its ``required_cargo_size``
-    from the hold — and inventory contraband gets whatever capacity
-    remains.  A mission whose cargo overflows the hold is confiscated
-    and the mission auto-fails (design decision 3).
+    Returns ``(failed_missions, confiscated)`` where ``failed_missions``
+    are active ``is_smuggle`` missions whose cargo overflows the
+    smuggler's hold, and ``confiscated`` is ``(good_id, qty, fine)``
+    triples for exposed inventory contraband. Mutates nothing — the
+    caller applies the outcome only after the scan roll succeeds.
     """
     from .data.trade_goods import find_trade_good as _ftg
-    from . import engine as _engine
-
-    owned = ctx.player_owned_ship
-    if owned is None:
-        return
-
-    from .data.planets import find_planet_spec
-    try:
-        spec = find_planet_spec(planet_id)
-    except KeyError:
-        return
-    _has_militia = any(b.label == "militia" for b in spec.buildings)
-    if not _has_militia:
-        return
-
-    if _engine.RNG.random() >= 0.4:
-        return
-
-    # --- Smuggler's hold capacity: sum of installed smuggler_cargo bonuses ---
     _hold_cap = ship_module.smuggler_hold_capacity(owned)
-
-    # --- Mission smuggling cargo is protected FIRST ---
-    # Each active is_smuggle mission claims its cargo volume from the
-    # hold. A mission whose cargo overflows the hold is confiscated →
-    # the mission auto-fails (mission cargo is at risk only when
-    # M > C — design decision 3).
     _failed_missions: list = []
-    for _am in list(ctx.player_active_missions):
+    for _am in list(active_missions):
         if not getattr(_am, 'is_smuggle', False):
             continue
         _vol = _am.required_cargo_size
@@ -946,10 +912,6 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
         else:
             _failed_missions.append(_am)
             _hold_cap = 0
-    for _am in _failed_missions:
-        _fail_smuggle_mission(ctx, owned, _am)
-
-    # --- Inventory contraband: protected only up to remaining capacity ---
     _confiscated: list[tuple[str, int, int]] = []
     for gid, qty in list(owned.inventory.items()):
         try:
@@ -968,15 +930,19 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
             continue
         _fine = good.base_price * _lose // 2
         _confiscated.append((gid, _lose, _fine))
+    return _failed_missions, _confiscated
 
-    if not _confiscated and not _failed_missions:
-        ctx.log.add("Militia scans your cargo \u2014 clean.")
-        return
-    if not _confiscated:
-        return  # mission(s) failed above; nothing else to report
 
+def _apply_scan_confiscation(ctx, owned, confiscated) -> None:
+    """Mutate: remove confiscated inventory contraband and levy the fine.
+
+    ``confiscated`` is the ``(good_id, qty, fine)`` triple list from
+    :func:`_compute_scan_exposure`. Logs each confiscation, deletes or
+    decrements the goods, and deducts the total fine from credits.
+    """
+    from .data.trade_goods import find_trade_good as _ftg
     _total_fine = 0
-    for gid, qty, fine in _confiscated:
+    for gid, qty, fine in confiscated:
         good = _ftg(gid)
         ctx.log.add_colored(f"Contraband {good.name} x{qty} confiscated by militia!",
                             message_log.COLOR_IMPORTANT_EVENT)
@@ -991,6 +957,78 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     ctx.stats.credits = max(0, ctx.stats.credits - _total_fine)
     ctx.log.add_colored(f"Militia levies a fine of {_total_fine}$ for contraband.",
                         message_log.COLOR_IMPORTANT_EVENT)
+
+
+def _run_cargo_scan(ctx, planet_id: str) -> None:
+    """Check the player's cargo for contraband when landing on a
+    planet with a militia presence.
+
+    If the planet has a building labeled ``"militia"`` there is a
+    40% chance the militia runs a scan.  When contraband is found
+    beyond the smuggler's hold capacity, it is confiscated and a
+    fine equal to 50% of the goods' total base value is deducted
+    from the player's credits.
+
+    Smuggler's hold protection (Phase 2): the hold (sum of installed
+    ``smuggler_cargo`` module bonuses) conceals cargo from the scan.
+    Mission smuggling cargo (:attr:`ActiveMission.is_smuggle`) is
+    protected FIRST — each mission claims its ``required_cargo_size``
+    from the hold — and inventory contraband gets whatever capacity
+    remains.  A mission whose cargo overflows the hold is confiscated
+    and the mission auto-fails (design decision 3).
+
+    UX (scan telegraphing): exposure is computed up front so the
+    player is warned they're at risk BEFORE the 40% roll, and a
+    triggered scan announces itself before the outcome — the mechanic
+    is discoverable through gameplay, not just the guide.
+    """
+    from . import engine as _engine
+
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return
+
+    from .data.planets import find_planet_spec, has_militia_presence
+    try:
+        spec = find_planet_spec(planet_id)
+    except KeyError:
+        return
+    if not has_militia_presence(planet_id):
+        return
+
+    # Pure exposure computation (mission cargo protected FIRST, then
+    # inventory contraband gets whatever hold capacity remains).
+    _failed_missions, _confiscated = _compute_scan_exposure(
+        owned, ctx.player_active_missions,
+    )
+
+    # UX: warn the player they're at risk BEFORE the roll.
+    if _confiscated or _failed_missions:
+        ctx.log.add_colored(
+            f"You're carrying goods a militia scan could confiscate on "
+            f"{spec.name}!",
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
+
+    # 40% chance the militia runs a scan.
+    if _engine.RNG.random() >= 0.4:
+        return
+
+    # UX: a triggered scan is a visible event, even when clean.
+    ctx.log.add_colored(
+        "A militia patrol hails you for a routine cargo scan...",
+        message_log.COLOR_COMBAT_EVENT,
+    )
+
+    if not _confiscated and not _failed_missions:
+        ctx.log.add("Militia scans your cargo \u2014 clean.")
+        return
+
+    # Apply consequences (mutation) only now that the scan fired.
+    for _am in _failed_missions:
+        _fail_smuggle_mission(ctx, owned, _am)
+    if _confiscated:
+        _apply_scan_confiscation(ctx, owned, _confiscated)
 
 
 def _fail_smuggle_mission(ctx, owned, active) -> None:

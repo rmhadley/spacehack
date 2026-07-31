@@ -616,7 +616,11 @@ _GUIDE_NAVIGATION = GuideSection(
         "\n"
         "- Without a port you can only fly past"
         "\n"
-        "- Landing triggers a cargo scan by local militia"
+        "- Militia checkpoints (planets with a militia building) warn you"
+        "on approach: the planet menu shows a checkpoint warning before"
+        "you land. Landing triggers a possible cargo scan by local militia"
+        "- If a scan runs, the militia hails you first \u2014 you'll see it"
+        "happen even when your cargo is clean"
     ),
 )
 
@@ -942,7 +946,12 @@ _GUIDE_BAR_MISSIONS = GuideSection(
         "\n"
         "- Militia cargo scans: when you land on a planet with a militia "
         "building, there's a 40% chance the militia scans your hold. "
-        "Contraband found gets confiscated and you pay a fine."
+        "Contraband found gets confiscated and you pay a fine. Militia "
+        "planets telegraph this in gameplay: the planet menu warns you "
+        "about the checkpoint on approach, landing while carrying exposed "
+        "contraband logs a red warning before the roll, and a triggered "
+        "scan announces itself (\"A militia patrol hails you...\") before "
+        "the outcome."
         "\n"
         "- The Smuggler's Hold module (see Ships & Equipment) conceals "
         "cargo from scans. Mission smuggling cargo is hidden FIRST, then "
