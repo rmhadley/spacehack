@@ -72,6 +72,7 @@ class PlanetSpec:
     mech_modules: tuple[str, ...] = ()
     tech_level: int = 1               # max tech level stocked at this planet
     mission_tier: int = 1             # max mission tier offered at this planet's NPCs
+    dungeon_layout_id: str = ""       # .layout file to load when player chooses EXPLORE
 
 
 # ---------------------------------------------------------------------------
@@ -205,14 +206,17 @@ def has_explorable_sites(planet_id: str) -> list[str]:
     """Return a list of explorable site names for ``planet_id``, or
     empty list if the planet has no dungeons/points of interest.
 
-    Checks both the hardcoded :data:`_EXPLORABLE_SITES` mapping (for
-    planets that don't have a :class:`PlanetSpec`) and the
-    :class:`PlanetSpec.dungeons` field when a spec exists.
-
-    For now, just the hardcoded mapping — the ``dungeons`` field on
-    ``PlanetSpec`` will be wired when content planets get dungeon
-    definitions.
+    Checks the :class:`PlanetSpec.dungeon_layout_id` field first
+    (preferred, data-driven path). Falls back to the hardcoded
+    :data:`_EXPLORABLE_SITES` mapping for planets that don't have
+    a :class:`PlanetSpec` (e.g. gas giants).
     """
+    try:
+        spec = find_planet_spec(planet_id)
+        if spec.dungeon_layout_id:
+            return [spec.name + " Surface"]
+    except KeyError:
+        pass
     return _EXPLORABLE_SITES.get(planet_id, [])
 
 

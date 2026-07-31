@@ -254,6 +254,7 @@ def save_game(
             "power_restored": getattr(_gm, 'power_restored', False),
             "space_player_x": space_player_pos[0] if space_player_pos else 0,
             "space_player_y": space_player_pos[1] if space_player_pos else 0,
+            "location_name": getattr(_gm, 'location_name', ''),
         }
         _data["dungeon"] = _dungeon_data
 
@@ -638,6 +639,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             )
             _dungeon_map.seen = _dd.get("seen")
             _dungeon_map.sight_radius = _dd.get("sight_radius", 4)
+            _dungeon_map.location_name = _dd.get("location_name", "")
             if _dd.get("power_restored", False):
                 _dungeon_map.power_restored = True
 

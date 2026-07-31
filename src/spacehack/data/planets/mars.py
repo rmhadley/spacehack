@@ -101,4 +101,5 @@ SPEC = PlanetSpec(
     mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo", "armor_plating"),
     tech_level=2,
     mission_tier=1,
+    dungeon_layout_id="station_research",
 )

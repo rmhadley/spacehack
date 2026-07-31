@@ -287,7 +287,7 @@ def _run_game(
         if current_mode == 'space':
             _location = solar_system_module.current_system().name
         elif current_mode == 'dungeon':
-            _location = "Derelict Ship"
+            _location = getattr(game_map, 'location_name', 'Derelict Ship')
         else:
             _location = current_city_id.replace('_', ' ').title()
         # Detect available terminals on the current city map.
@@ -458,8 +458,34 @@ def _run_game(
                             log.add(f'You approach {planet_obj.name}.')
                             outcome = _run_planet_menu(ctx, planet_obj)
                             if outcome is PlanetMenuOutcome.EXPLORE:
-                                log.add(f"You approach {planet_obj.name}'s surface. Strange crystalline structures glow in the dim light.")
-                                log.add("(Dungeon exploration — coming in a future update.)")
+                                from .data.planets import find_planet_spec as _fps
+                                from .dungeon import load_layout as _load_layout, init_fog as _init_fog, reveal_around as _reveal_around
+                                try:
+                                    _pspec = _fps(pid)
+                                    _layout_id = _pspec.dungeon_layout_id
+                                    if not _layout_id:
+                                        log.add(f"Nothing to explore on {planet_obj.name}.")
+                                        continue
+                                    _dungeon_map, _spawn = _load_layout(_layout_id)
+                                except (FileNotFoundError, ValueError, KeyError):
+                                    log.add(f"The surface of {planet_obj.name} is too hazardous to explore.")
+                                    continue
+                                _init_fog(_dungeon_map)
+                                _reveal_around(_dungeon_map, _spawn)
+                                _dungeon_player = world.Entity(
+                                    char='@', fg=(255, 255, 255),
+                                    pos=_spawn, name='Player',
+                                )
+                                _dungeon_map.entities.append(_dungeon_player)
+                                _dungeon_map.location_name = f"{planet_obj.name} Surface"
+                                space_game_map = game_map
+                                space_player = player
+                                game_map = _dungeon_map
+                                player = _dungeon_player
+                                ctx.game_map = game_map
+                                ctx.player = player
+                                current_mode = 'dungeon'
+                                log.add(f'You descend to the surface of {planet_obj.name}.')
                                 continue
                             if outcome is PlanetMenuOutcome.LAND:
                                 # Shared: runs on ANY landing.
@@ -708,6 +734,7 @@ def _run_game(
                                 _dungeon_map.entities.append(_dungeon_player)
                                 _animate_breach(ctx, console, _dungeon_map, _spawn,
                                                 region_w=map_w, region_h=map_h)
+                                _dungeon_map.location_name = _npcspec.name
                                 space_game_map = game_map
                                 space_player = player
                                 game_map = _dungeon_map
