@@ -487,6 +487,7 @@ def load_layout(
         return room_cells
 
     # --- Scatter-spawn enemies via room flood-fill ---
+    _squad_counter = 0
     for glyph, mx, my in enemy_markers:
         if glyph not in enemy_spawn_specs:
             continue
@@ -496,9 +497,10 @@ def load_layout(
         _squad_size = _RNG.randint(_smin, _smax)
         _cells = _flood_room(mx, my)
         if not _cells:
-            # Fallback: no walkable cells found — spawn at marker ± scatter
             _cells = [(mx, my)]
         _RNG.shuffle(_cells)
+        _squad_id = f"{layout_id}_{glyph}_{_squad_counter}"
+        _squad_counter += 1
         for _i in range(min(_squad_size, len(_cells))):
             _cx, _cy = _cells[_i]
             entities.append(world.Entity(
@@ -508,6 +510,7 @@ def load_layout(
                 name="",
                 width=1, height=1,
                 npc_char_id=_eid,
+                squad_id=_squad_id,
             ))
 
     # --- Scatter loot via flood-fill ---
@@ -687,16 +690,21 @@ def animate_breach(
     _render_frame([])
 
 
-def _detect_ground_combat(ctx, game_map: world.GameMap, player_pos: world.Position):
+def _detect_ground_combat(
+    ctx, game_map: world.GameMap, player_pos: world.Position,
+) -> list[world.Entity]:
     """Check for hostile NPC chars within detect radius + LOS.
 
-    Hostility is determined by faction reputation — if the NPC's
-    faction attitude is ``"enemy"`` or ``"disliked"``, combat triggers.
-    Returns the first hostile entity, or ``None``.
+    If any hostile entity spots the player, all entities with the
+    same ``squad_id`` within a 20-tile assist radius are pulled into
+    combat. Returns a list of hostile entities (may be empty).
     """
     import math as _m
     from .data.npc_chars import find_npc_char as _fnc
     from . import faction as _faction
+
+    _ASSIST_RADIUS = 20
+
     for _e in game_map.entities:
         if _e is ctx.player:
             continue
@@ -707,7 +715,6 @@ def _detect_ground_combat(ctx, game_map: world.GameMap, player_pos: world.Positi
             _spec = _fnc(_eid)
         except KeyError:
             continue
-        # Check faction attitude for hostility
         _rep = ctx.faction_reputation.get(_spec.faction, 0)
         _attitude = _faction.get_attitude(_rep)
         if _attitude not in ("enemy", "disliked"):
@@ -715,7 +722,6 @@ def _detect_ground_combat(ctx, game_map: world.GameMap, player_pos: world.Positi
         _dist = _m.hypot(player_pos.x - _e.pos.x, player_pos.y - _e.pos.y)
         if _dist <= 0 or _dist > _spec.detect_radius:
             continue
-        # LOS check: ray from player to enemy through walkable tiles
         _steps = max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y))
         _los_blocked = False
         for _si in range(1, _steps):
@@ -724,10 +730,28 @@ def _detect_ground_combat(ctx, game_map: world.GameMap, player_pos: world.Positi
             _ly = round(player_pos.y + (_e.pos.y - player_pos.y) * _t)
             if game_map.in_bounds(_lx, _ly):
                 _tile = game_map.tiles[_ly][_lx]
-                if not _tile.walkable:  # walls and closed doors block LOS
+                if not _tile.walkable:
                     _los_blocked = True
                     break
         if _los_blocked:
             continue
-        return _e
-    return None
+
+        # Hostile spotted! Find all squad members within assist radius.
+        _squad_id = getattr(_e, 'squad_id', '')
+        _result = [_e]
+        if _squad_id:
+            for _oe in game_map.entities:
+                if _oe is _e or _oe is ctx.player:
+                    continue
+                if getattr(_oe, 'squad_id', '') != _squad_id:
+                    continue
+                if not getattr(_oe, 'npc_char_id', ''):
+                    continue
+                _od = _m.hypot(
+                    player_pos.x - _oe.pos.x, player_pos.y - _oe.pos.y,
+                )
+                if _od <= _ASSIST_RADIUS:
+                    _result.append(_oe)
+        return _result
+
+    return []

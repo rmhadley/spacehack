@@ -6,10 +6,14 @@ same call shape as :mod:`._rules_space`.
 
 **Module-level state** is scoped to a single combat encounter.
 Initialised by :func:`init`, read by all accessors.
+
+Supports multi-enemy squads — :class:`GroundEnemyInstance` tracks
+per-enemy HP, AP, spec, and weapon state.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
 from .. import world
@@ -33,16 +37,44 @@ from ._animations import (
 
 
 # ---------------------------------------------------------------------------
+# GroundEnemyInstance — per-enemy state during combat
+# ---------------------------------------------------------------------------
+
+@dataclass
+class GroundEnemyInstance:
+    """Per-enemy combat state.  Lightweight dataclass replacing the old
+    singleton globals (``_enemy_hp``, ``_enemy_ap``, etc.)."""
+
+    entity: world.Entity           # the map entity (position, char, etc.)
+    spec: Any                      # NpcCharSpec
+    weapon_id: str                 # active weapon id (empty if none)
+    hp: int = 30
+    max_hp: int = 30
+    ap: int = 4
+    ap_total: int = 4
+
+    @property
+    def alive(self) -> bool:
+        return self.hp > 0
+
+    @property
+    def pos(self) -> world.Position:
+        return self.entity.pos
+
+    @pos.setter
+    def pos(self, value: world.Position) -> None:
+        self.entity.pos = value
+
+    @property
+    def name(self) -> str:
+        return self.spec.name if self.spec else "Unknown"
+
+
+# ---------------------------------------------------------------------------
 # Module-level combat session state
 # ---------------------------------------------------------------------------
 
-_enemy_entity: world.Entity | None = None
-_enemy_spec: Any = None
-_enemy_weapon_id: str = ""
-_enemy_hp: int = 0
-_enemy_max_hp: int = 0
-_enemy_ap: int = 0
-_enemy_ap_total: int = 4
+_enemies: list[GroundEnemyInstance] = []
 
 _player_hp: int = 30
 _player_max_hp: int = 30
@@ -50,6 +82,8 @@ _player_ap: int = 4
 _player_ap_total: int = 4
 _armor_defense: int = 0
 _active_weapon_list: list[bool] = []
+
+_target_idx: int = 0  # synced from unified loop via set_target_idx()
 
 _ctx: Any = None
 _console: Any = None
@@ -64,47 +98,54 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
-def init(ctx, enemy_entity: world.Entity, game_map: world.GameMap) -> None:
-    """Set up module-level state for a ground combat encounter."""
-    global _enemy_entity, _enemy_spec, _enemy_weapon_id
-    global _enemy_hp, _enemy_max_hp, _enemy_ap, _enemy_ap_total
+def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap) -> None:
+    """Set up module-level state for a ground combat encounter.
+
+    ``enemy_entities`` is a list of :class:`world.Entity` objects with
+    ``npc_char_id`` set — typically all squad members within detection
+    range.  Single-enemy calls pass a one-element list.
+    """
+    global _enemies, _target_idx
     global _player_hp, _player_max_hp, _player_ap_total
     global _armor_defense, _active_weapon_list, _ctx, _console, _game_map
 
     _ctx = ctx
-    _console = None  # set by render_frame
+    _console = None
     _game_map = game_map
-    _enemy_entity = enemy_entity
+    _target_idx = 0
+    _enemies = []
 
-    # Resolve enemy spec
-    try:
-        _enemy_spec = _find_nc(enemy_entity.npc_char_id)
-    except KeyError:
-        _enemy_spec = None
-        return
+    for _ent in enemy_entities:
+        try:
+            _spec = _find_nc(_ent.npc_char_id)
+        except KeyError:
+            continue
 
-    # Enemy weapon
-    _enemy_weapon_id = ""
-    if _enemy_spec.weapons:
-        _enemy_weapon_id = _enemy_spec.weapons[0]
-    elif _enemy_spec.weapon_pick:
-        _enemy_weapon_id = RNG.choice(_enemy_spec.weapon_pick)
+        _wid = ""
+        if _spec.weapons:
+            _wid = _spec.weapons[0]
+        elif _spec.weapon_pick:
+            _wid = RNG.choice(_spec.weapon_pick)
 
-    # Stats
-    global _player_ap, _player_ap_total, _enemy_ap, _enemy_ap_total, _armor_defense
+        _max_hp = _spec.hp + _spec.stamina * 2
+        _enemies.append(GroundEnemyInstance(
+            entity=_ent,
+            spec=_spec,
+            weapon_id=_wid,
+            hp=_max_hp,
+            max_hp=_max_hp,
+            ap=4,
+            ap_total=4,
+        ))
+
+    # Player stats
     _player_ap = 4
     _player_ap_total = 4
-    _enemy_ap = 4
-    _enemy_ap_total = 4
     _player_max_hp = 20 + ctx.ground_stats.stamina * 2
-    # If stamina increased since last combat, immediately grant the HP delta.
     _hp_delta = _player_max_hp - ctx.ground_max_hp
     if _hp_delta > 0:
         ctx.ground_hp += _hp_delta
     _player_hp = min(ctx.ground_hp, _player_max_hp)
-    _enemy_max_hp = _enemy_spec.hp + _enemy_spec.stamina * 2
-    _enemy_hp = _enemy_max_hp
-    _enemy_ap = _enemy_ap_total
 
     # Armor
     _armor_defense = 0
@@ -122,8 +163,9 @@ def init(ctx, enemy_entity: world.Entity, game_map: world.GameMap) -> None:
         _weapons = ["fists"]
     _active_weapon_list = [True] * len(_weapons)
 
+    _names = ", ".join(_e.name for _e in _enemies)
     ctx.log.add_colored(
-        f"Combat starts! {_enemy_spec.name} blocks your path!",
+        f"Combat starts! {_names} engage!",
         _ml.COLOR_COMBAT_EVENT,
     )
 
@@ -167,34 +209,33 @@ def set_active_weapons(ctx, active: list[bool]) -> None:
 # ---------------------------------------------------------------------------
 
 def set_target_idx(ctx, idx: int) -> None:
-    """Ground combat has single enemies — no-op."""
-    pass
+    """Sync target index from the unified loop."""
+    global _target_idx
+    _target_idx = idx
 
 
-def get_enemies(ctx) -> list[world.Entity]:
-    if _enemy_entity is not None and _enemy_hp > 0:
-        return [_enemy_entity]
-    return []
+def get_enemies(ctx) -> list[GroundEnemyInstance]:
+    return [e for e in _enemies if e.alive]
 
 
-def enemy_pos(enemy: world.Entity) -> world.Position:
+def enemy_pos(enemy: GroundEnemyInstance) -> world.Position:
     return enemy.pos
 
 
-def enemy_name(enemy: world.Entity) -> str:
-    return _enemy_spec.name if _enemy_spec else "Unknown"
+def enemy_name(enemy: GroundEnemyInstance) -> str:
+    return enemy.name
 
 
-def enemy_hp(enemy: world.Entity) -> int:
-    return _enemy_hp
+def enemy_hp(enemy: GroundEnemyInstance) -> int:
+    return enemy.hp
 
 
-def enemy_max_hp(enemy: world.Entity) -> int:
-    return _enemy_max_hp
+def enemy_max_hp(enemy: GroundEnemyInstance) -> int:
+    return enemy.max_hp
 
 
-def enemy_alive(enemy: world.Entity) -> bool:
-    return _enemy_hp > 0
+def enemy_alive(enemy: GroundEnemyInstance) -> bool:
+    return enemy.alive
 
 
 # ---------------------------------------------------------------------------
@@ -225,25 +266,18 @@ def _ground_damage_raw(
     return max(1, _raw - armor_defense)
 
 
-def hit_chance(weapon_id: str, enemy: world.Entity, ctx) -> int:
-    _dodge = (_enemy_spec.reflexes if _enemy_spec else 10) * 2
+def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
+    _dodge = (enemy.spec.reflexes if enemy.spec else 10) * 2
     return _ground_hit_chance_raw(weapon_id, ctx.ground_stats.reflexes, _dodge // 2)
 
 
-def damage(weapon_id: str, enemy: world.Entity, ctx) -> int:
-    """Apply damage to enemy. Returns damage dealt (for log).
-
-    Enemy armor is not yet implemented — NpcCharSpec has no armor
-    field, so damage reduction is always 0 for enemies.  The
-    ``_armor_defense`` module variable tracks the *player's* armor
-    and is only used by the AI path (enemy → player damage).
-    """
-    global _enemy_hp
+def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
+    """Apply damage to enemy. Returns damage dealt (for log)."""
     _ws = _find_gw(weapon_id)
     _str_bonus = ctx.ground_stats.strength // 4 if _ws.damage_type == 'melee' else 0
     _raw = _ws.damage + _str_bonus
     _dmg = max(1, _raw)
-    _enemy_hp -= _dmg
+    enemy.hp -= _dmg
     return _dmg
 
 
@@ -253,38 +287,35 @@ def damage(weapon_id: str, enemy: world.Entity, ctx) -> int:
 
 def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
     _ws = _find_gw(weapon_id)
-    _dist = int(_distance(ctx.player.pos, _enemy_entity.pos))
+    _alive = get_enemies(ctx)
+    if _target_idx >= len(_alive):
+        return False, "No valid target"
+    _target = _alive[_target_idx]
+    _dist = int(_distance(ctx.player.pos, _target.pos))
     if _dist > _ws.max_range or _dist < _ws.min_range:
         return False, f"Out of range ({_dist}u, need {_ws.min_range}-{_ws.max_range})"
     if _player_ap < _ws.ap_cost:
         return False, f"Need {_ws.ap_cost} AP (have {_player_ap})"
-    # Line of sight: projectile blocked by walls
-    if _game_map is not None and _enemy_entity is not None:
+    if _game_map is not None:
         if not _has_los(
             _game_map,
             ctx.player.pos.x, ctx.player.pos.y,
-            _enemy_entity.pos.x, _enemy_entity.pos.y,
+            _target.pos.x, _target.pos.y,
         ):
             return False, "Blocked by wall"
     return True, ""
 
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
-    """Return the AP cost of firing this weapon once."""
     return _find_gw(weapon_id).ap_cost
 
 
 def weapon_name(weapon_id: str, ctx) -> str:
-    """Return the human-friendly name for a weapon (e.g. 'Laser Rifle')."""
     return _find_gw(weapon_id).name
 
 
 def consume_shot(weapon_id: str, ctx) -> None:
-    """Ground weapons have no ammo — no-op.
-
-    NOTE: AP is NOT deducted here — the unified loop charges
-    max(ap_cost) across all fired weapons in a single burst.
-    """
+    """Ground weapons have no ammo — no-op."""
     pass
 
 
@@ -299,8 +330,11 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
     if not game_map.is_walkable(_nx, _ny):
         return False
     _blocker = game_map.entity_at(_nx, _ny, exclude=ctx.player)
-    if _blocker is not None and _blocker is not _enemy_entity:
-        return False
+    if _blocker is not None:
+        # Only block if the entity is an enemy in this combat
+        _enemy_ids = {id(_e.entity) for _e in _enemies if _e.alive}
+        if id(_blocker) not in _enemy_ids:
+            return False
     ctx.player.pos = world.Position(_nx, _ny)
     _player_ap -= 1
     from ..dungeon import reveal_around as _reveal_around
@@ -315,6 +349,8 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
 _COLOR_GROUND_TITLE: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_PLAYER: tuple[int, int, int] = (100, 220, 255)
 _COLOR_GROUND_ENEMY: tuple[int, int, int] = (255, 100, 100)
+_COLOR_GROUND_ENEMY_DEAD: tuple[int, int, int] = (120, 80, 80)
+_COLOR_GROUND_ENEMY_TARGET: tuple[int, int, int] = (255, 220, 100)
 _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
@@ -352,15 +388,16 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
     )
 
-    # Target highlight
-    if _enemy_entity is not None and _enemy_hp > 0:
+    # Target highlight — paint the currently targeted alive enemy
+    _alive = get_enemies(ctx)
+    if _target_idx < len(_alive):
         _paint_target_highlight(
             console, 0, 0, _RENDER_WIDTH, _RENDER_HEIGHT,
             _ox, _oy,
-            _enemy_entity,
+            _alive[_target_idx].entity,
         )
 
-    # Range line
+    # Range line — draw from player to current target
     _weapons = list(ctx.equipped_ground_weapons)
     if not _weapons:
         _weapons = ["fists"]
@@ -368,17 +405,18 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         _weapons[i] for i in range(len(_weapons))
         if i < len(_active_weapon_list) and _active_weapon_list[i]
     ]
-    if _active_w and _enemy_entity is not None:
+    if _active_w and _target_idx < len(_alive):
+        _tgt = _alive[_target_idx]
         _los_blocked = (
             _game_map is not None
             and not _has_los(
                 _game_map,
                 ctx.player.pos.x, ctx.player.pos.y,
-                _enemy_entity.pos.x, _enemy_entity.pos.y,
+                _tgt.pos.x, _tgt.pos.y,
             )
         )
         _ground_range_line(
-            console, ctx.player.pos, _enemy_entity.pos,
+            console, ctx.player.pos, _tgt.pos,
             _active_w[0], _ox, _oy,
             color_override=(255, 60, 60) if _los_blocked else None,
         )
@@ -413,7 +451,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             _name_fg = _COLOR_GROUND_WEAPON if _is_active else _COLOR_GROUND_WEAPON_DIM
             console.print(x=_hud_x, y=y, string=f"{_sel}[{_i+1}] {_ws.name}"[:24], fg=_name_fg)
             y += 1
-            _hc = hit_chance(_wid, _enemy_entity, ctx) if _enemy_entity else 0
+            _hc = hit_chance(_wid, _alive[_target_idx], ctx) if _target_idx < len(_alive) else 0
             console.print(x=_hud_x, y=y, string=f"     DMG {_ws.damage} HIT {_hc}%", fg=_COLOR_VALUE_DIM)
             y += 1
             _rng = f"{_ws.min_range}-{_ws.max_range}" if _ws.min_range > 0 else f"0-{_ws.max_range}"
@@ -421,17 +459,30 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
             y += 1
         y += 1
 
-    # Enemy block
-    if _enemy_spec and _enemy_entity:
-        _dist = int(_distance(ctx.player.pos, _enemy_entity.pos))
-        console.print(x=_hud_x, y=y, string=f"ENEMY: {_enemy_spec.name}", fg=_COLOR_GROUND_ENEMY)
+    # Enemy block — list all enemies with target marker
+    if _enemies:
+        console.print(x=_hud_x, y=y, string="ENEMIES", fg=_COLOR_GROUND_TITLE)
         y += 1
-        _e_bar = _bar_str(_enemy_hp, _enemy_max_hp, width=8)
-        _e_pct = _enemy_hp * 100 // max(_enemy_max_hp, 1)
-        console.print(x=_hud_x, y=y, string=f"HP  {_e_bar} {_e_pct}%", fg=_COLOR_GROUND_ENEMY)
-        y += 1
-        console.print(x=_hud_x, y=y, string=f"Dist: {_dist}", fg=_COLOR_GROUND_ENEMY)
-    y += 2
+        _alive_count = 0
+        for _ei, _gei in enumerate(_enemies):
+            _is_target = _gei.alive and _alive_count == _target_idx
+            _name_fg = _COLOR_GROUND_ENEMY_TARGET if _is_target else (
+                _COLOR_GROUND_ENEMY if _gei.alive else _COLOR_GROUND_ENEMY_DEAD
+            )
+            _marker = ">" if _is_target else " "
+            _name_display = f"{_marker}{_gei.name}"[:24]
+            if not _gei.alive:
+                _name_display = f"{_marker}{_gei.name} (dead)"[:24]
+            console.print(x=_hud_x, y=y, string=_name_display, fg=_name_fg)
+            y += 1
+            if _gei.alive:
+                _e_bar = _bar_str(_gei.hp, _gei.max_hp, width=8)
+                _e_pct = _gei.hp * 100 // max(_gei.max_hp, 1)
+                _dist = int(_distance(ctx.player.pos, _gei.pos))
+                console.print(x=_hud_x, y=y, string=f"  HP {_e_bar} {_e_pct}%  {_dist}u", fg=_name_fg)
+                y += 1
+            _alive_count += 1 if _gei.alive else 0
+    y += 1
 
     # Actions
     console.print(x=_hud_x, y=y, string="ACTIONS", fg=_COLOR_GROUND_TITLE)
@@ -500,30 +551,30 @@ def animate_fire(
 # Resolution
 # ---------------------------------------------------------------------------
 
-def on_kill(game_map: world.GameMap, enemy: world.Entity, ctx) -> None:
+def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
     """Handle enemy death: remove entity, drop loot, award XP."""
-    global _enemy_hp, _enemy_entity
-    if _enemy_entity is not None and _enemy_entity in game_map.entities:
-        game_map.entities.remove(_enemy_entity)
+    _ent = enemy.entity
+    if _ent is not None and _ent in game_map.entities:
+        game_map.entities.remove(_ent)
 
     # Loot drop
-    if _enemy_spec and _enemy_spec.loot_pool:
-        _min, _max = _enemy_spec.loot_count
+    if enemy.spec and enemy.spec.loot_pool:
+        _min, _max = enemy.spec.loot_count
         _shared_loot(
-            game_map, _enemy_entity.pos,
-            _enemy_spec.loot_pool,
+            game_map, _ent.pos,
+            enemy.spec.loot_pool,
             count_range=(_min, _max),
             qty_range=(1, 2),
         )
 
     # XP
-    if _enemy_spec:
+    if enemy.spec:
         from ..xp import add_xp as _add_xp
-        _add_xp(ctx, _enemy_spec.xp_reward)
+        _add_xp(ctx, enemy.spec.xp_reward)
         if hasattr(ctx, 'player_counters'):
             ctx.player_counters.total_kills += 1
 
-    _enemy_hp = 0
+    enemy.hp = 0
 
 
 def on_player_death(ctx) -> None:
@@ -546,36 +597,40 @@ def handle_defense(ctx) -> None:
 # ---------------------------------------------------------------------------
 
 def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
-    """Execute enemy AI. Returns damage dealt to player, or 999 for death."""
-    global _enemy_ap, _enemy_hp, _player_hp
+    """Execute AI turns for all alive enemies. Returns total damage to player."""
+    global _player_hp
     from ._ai_ground import run_ground_enemy_turn as _enemy_ai
 
-    if not _enemy_weapon_id or _enemy_ap <= 0 or _enemy_hp <= 0:
-        return 0
+    _total_dmg = 0
+    for _gei in _enemies:
+        if not _gei.alive or _gei.ap <= 0 or not _gei.weapon_id:
+            continue
 
-    _enemy_ap, _dmg, _fired = _enemy_ai(
-        ctx,
-        enemy_weapon_id=_enemy_weapon_id,
-        enemy_spec=_enemy_spec,
-        enemy_ap=_enemy_ap,
-        player_pos=ctx.player.pos,
-        enemy_entity=_enemy_entity,
-        game_map=game_map,
-        armor_defense=_armor_defense,
-        console=_console,
-        render_callback=render_frame,
-    )
+        _new_ap, _dmg, _fired = _enemy_ai(
+            ctx,
+            enemy_weapon_id=_gei.weapon_id,
+            enemy_spec=_gei.spec,
+            enemy_ap=_gei.ap,
+            player_pos=ctx.player.pos,
+            enemy_entity=_gei.entity,
+            game_map=game_map,
+            armor_defense=_armor_defense,
+            console=_console,
+            render_callback=render_frame,
+        )
+        _gei.ap = _new_ap
 
-    if _dmg > 0:
-        _player_hp -= _dmg
-        if _player_hp <= 0:
-            return 999  # signal death
+        if _dmg > 0:
+            _player_hp -= _dmg
+            _total_dmg += _dmg
+            if _player_hp <= 0:
+                return 999
 
-    return _dmg
+    return _total_dmg
 
 
 # ---------------------------------------------------------------------------
-# Reinforcements — no-op for ground (single enemy, no mid-combat joins)
+# Reinforcements — no-op for ground
 # ---------------------------------------------------------------------------
 
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
@@ -588,16 +643,16 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 # ---------------------------------------------------------------------------
 
 def set_player_ap(ctx, ap: int) -> None:
-    """Set the player's AP to a specific value."""
     global _player_ap
     _player_ap = ap
 
 
 def reset_turn(ctx) -> None:
-    """Reset player and enemy AP for a new turn."""
-    global _player_ap, _enemy_ap
+    """Reset player and all enemy AP for a new turn."""
+    global _player_ap
     _player_ap = _player_ap_total
-    _enemy_ap = _enemy_ap_total
+    for _gei in _enemies:
+        _gei.ap = _gei.ap_total
 
 
 def sync_state(ctx) -> None:
@@ -608,7 +663,8 @@ def sync_state(ctx) -> None:
 
 def get_combat_result() -> CombatResult:
     _cr = CombatResult()
-    if _enemy_spec:
-        _cr.defeated_names.append(_enemy_spec.name)
-        _cr.defeated_spec_ids.append(_enemy_spec.id)
+    for _gei in _enemies:
+        if not _gei.alive and _gei.spec:
+            _cr.defeated_names.append(_gei.spec.name)
+            _cr.defeated_spec_ids.append(_gei.spec.id)
     return _cr

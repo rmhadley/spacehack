@@ -406,9 +406,9 @@ def _run_game(
                 _reveal_around(game_map, player.pos, radius=game_map.sight_radius)
                 # Check for ground combat (sight-based detection)
                 from .dungeon import _detect_ground_combat as _dgc
-                _hostile = _dgc(ctx, game_map, player.pos)
-                if _hostile is not None:
-                    _ground_init(ctx, _hostile, game_map)
+                _hostiles = _dgc(ctx, game_map, player.pos)
+                if _hostiles:
+                    _ground_init(ctx, _hostiles, game_map)
                     _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
                     if _ground_result.outcome == "DEFEAT":
                         return
