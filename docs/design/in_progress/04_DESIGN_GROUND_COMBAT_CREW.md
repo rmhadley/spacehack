@@ -4,7 +4,29 @@
 > future content pass. This pass ships: dungeon generator, boarding flow, fog of war,
 > basic ground combat with 3 weapons + 2 enemies, and loot pickup.
 >
-> **Updated**: Pre-implementation audit complete. Phases rewritten with playtest checklists.
+> **Updated**: Derelicts are feature-complete. Ground combat, NPC movement, evade, squad
+> cohesion, faction rep, and loot are shipped. Planet dungeon entrances are wired but
+> need layout content iteration.
+
+## Session overview — what shipped beyond the design doc
+
+Beyond the phased plan below, this session delivered significant architecture,
+polish, and new features:
+
+| Area | What shipped |
+|------|-------------|
+| **Unified combat loop** | Single `run_combat(console, ctx, game_map, rules)` — space and ground share one loop. Rules modules (`_rules_space.py`, `_rules_ground.py`) provide flavor. `_weapons.py` deleted (dead code). |
+| **State encapsulation** | `SpaceCombatState` and `GroundCombatState` dataclasses replaced 14–15 scattered globals per module. Rule codified in `knowledge.md`. |
+| **Multi-enemy ground combat** | `GroundEnemyInstance` dataclass, per-enemy HP/AP, Tab target cycling, squad-based detection, dead enemies removed from HUD. |
+| **Ground evade system** | Movement dodge (+5% per cell, cap 30), EVA line in HUD, enemy AI penalized by player dodge, reset each turn. Mirrors space `_calc_dodge_bonus`. |
+| **Faction rep on ground victory** | Killing ground NPCs now applies `_COMBAT_KILL_DELTAS` — matches space combat's post-victory rep handling. |
+| **Ground NPC movement (out of combat)** | `ground_npcs.py` — hostiles patrol between rooms via A*, neutrals wander randomly, 80% move chance per tick, squad cohesion (leader path, followers trail, pull stragglers). |
+| **NPC movement on wait** | `.` (wait) now moves ground NPCs in dungeon mode (was space-only). |
+| **Combat animation** | Enemy movement in ground combat animates one cell at a time with render frames (was teleporting because `console` wasn't passed to `init()`). |
+| **Non-combat NPCs move during combat** | `check_reinforcements()` calls `move_ground_npcs()` — NPCs in other rooms keep moving during fights. |
+| **Loot fixes** | Added `scrap_metal` trade good. Failed loot pickups now remove the blocking entity. |
+| **DRY cleanups** | `dataclasses.replace()` for frozen MissionSpec, hit-chance helper extracted, `VIM_DELTAS` imported, color constants aliased to `ui.*`, `SCREEN_WIDTH - 25` → `SCREEN_WIDTH - HUD_WIDTH`. |
+| **Fog on aggro** | All squad members' fog revealed when combat triggers. |
 
 ## Overview
 
@@ -485,7 +507,7 @@ skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
 
 ---
 
-### Phase 5.1: Unified combat architecture (NEXT)
+### Phase 5.1: Unified combat architecture (COMPLETED)
 
 > **Problem:** Phase 5 shipped two independent combat loops —
 > `combat/_loop.py::run_combat()` (~500 lines, space) and
@@ -609,7 +631,7 @@ helpers called by the unified loop (not by the rules module):
 
 ---
 
-### Phase 5.2: Squads + scatter-spawn for ground enemies (IN PROGRESS)
+### Phase 5.2: Squads + scatter-spawn for ground enemies (COMPLETED)
 
 **Goal:** Enemy markers in layouts scatter-spawn within their room (like loot),
 and support squad notation (`#min-max`) for multi-enemy spawns from a single
@@ -627,72 +649,83 @@ marker. This is the first step toward multi-enemy ground combat.
 flood through walkable cells to find the room boundary, then pick random
 unoccupied positions for each enemy in the squad.
 
+> **What shipped beyond the original plan:** Phase 5.2 was originally scoped
+> as scatter-spawn only (squads spawn together but combat stays 1v1). During
+> implementation, multi-enemy ground combat was added — `GroundEnemyInstance`
+> dataclass, `_enemies` list, per-enemy HP/AP, Tab target cycling, multi-enemy
+> HUD, squad-based combat detection, and dead enemies removed from HUD. All
+> phases through 5.2 are fully shipped.
+
 #### Step 5.2a: Parse squad notation
 
-- [ ] Update `enemy_spawn_specs` from `dict[str, tuple[str, float]]` to
-  `dict[str, tuple[str, float, int, int]]` — add `(squad_min, squad_max)`
-- [ ] Parse `#3-3` suffix from spec string: split on `#`, parse `min-max`
-- [ ] Default squad is `(1, 1)` when no `#` suffix
+- [x] Parse `#3-3` suffix from spec string: split on `#`, parse `min-max`
+- [x] Default squad is `(1, 1)` when no `#` suffix
 
 #### Step 5.2b: Scatter-spawn enemies
 
-- [ ] Extract room flood-fill into a shared helper (`_flood_room`) —
-  currently inline in the loot scatter section
-- [ ] For each enemy marker: flood room, pick `squad_size` random unoccupied
-  walkable cells, spawn entities
-- [ ] Register `S` glyph in `_ENEMY_GLYPHS`
-- [ ] Fallback: if room flood fails (no walkable cells), spawn at marker
-  position with a position scatter (+/- 1 tile)
+- [x] Room flood-fill for enemy placement (reuses loot scatter logic)
+- [x] For each enemy marker: flood room, pick `squad_size` random unoccupied walkable cells
+- [x] `squad_id` assigned to all members of a spawn group
 
-#### Step 5.2c: Layout updates
+#### Step 5.2c: Multi-enemy ground combat
+
+- [x] `GroundEnemyInstance` dataclass replacing single-enemy singletons
+- [x] `_enemies: list[GroundEnemyInstance]` — per-enemy HP, AP, weapon tracking
+- [x] `_detect_ground_combat` returns ALL squad members within 20-tile assist radius
+- [x] Tab target cycling through alive enemies
+- [x] Multi-enemy HUD with target marker (`>`)
+- [x] Dead enemies removed from HUD (matches space combat)
+- [x] Fog revealed around all combatants on aggro
+
+#### Step 5.2d: Layout updates
 
 - [x] `scout_a.layout`: `S = pirate_raider@1.0#3-3` — 3-pirate squad in cargo bay
 
-#### What this does NOT do (deferred to future phases)
-
-- **Multi-enemy ground combat** — `_rules_ground.py` still handles single enemy.
-  Squads spawn multiple entities but combat is still 1v1 (the first triggered
-  enemy starts combat, others wait). Full multi-enemy ground combat is a
-  separate phase.
-- **Static flag (`!`)** — all enemies scatter by default. Exact-position
-  spawning with `!` suffix is future work.
-
 ---
 
-### Phase 6: Planet/station dungeon entrances (NEXT)
+### Phase 6: Planet/station dungeon entrances (WIRED — needs content)
 
 **Goal:** Walk into a building on a planet or station → enter a dungeon. Same layout system, different tile/room themes.
 
-- [ ] Add `has_dungeon: bool = False` + `dungeon_layout_id: str = ""` to `PlanetSpec`
-- [ ] Wire planet bump → EXPLORE option (already wired) → load layout for that planet
-- [ ] Create 1-2 station-themed layouts (e.g., "abandoned research station")
-- [ ] Planet dungeons don't consume the planet (can re-enter)
-- [ ] Different loot tables for station vs ship interiors
+> **What's wired:** `PlanetSpec.dungeon_layout_id` exists, EXPLORE handler loads
+> layouts and scene-swaps to dungeon mode. Mars has `dungeon_layout_id="scout_a"`
+> for testing. What's missing: dedicated planet-themed layouts (research station,
+> mining outpost, etc.) and planet-specific enemy/loot configurations.
+
+- [x] `dungeon_layout_id: str = ""` field on `PlanetSpec`
+- [x] `PlanetMenuOutcome.EXPLORE` handler in `__main__.py` — loads layout, inits fog, scene-swaps
+- [x] Ground HP reset to max on dungeon entry
+- [ ] Create planet-themed layouts: research station, mining outpost, abandoned colony
+- [ ] Planet-specific NPC factions and loot tables
+- [ ] Planet dungeons don't consume the planet (can re-enter) — already works, verify
 - [ ] Smoke test + commit
 
 ---
 
-### Phase 7: Save/load polish + guide (NEXT)
+### Phase 7: Save/load polish + guide (PARTIAL)
 
+- [x] Derelict despawns on boarding, no-respawn verified
+- [x] Ground HP save/load wired
+- [x] Ground stats save/load wired
+- [x] Dungeon map fully serialized (tiles, fog, entities, loot, power status)
 - [ ] Add `_GUIDE_GROUND_COMBAT` section to `help.py`
-- [ ] Verify derelict despawn + no-respawn on save/load
-- [ ] Verify ground stats reset on exit
+- [ ] Verify ground HP/stats reset behavior on dungeon exit
 
-### Phase 8: Crew, cybernetics, terminals (future content pass)
+### Phase 8: Crew, cybernetics, terminals (DEFERRED — future content pass)
 
-Full content expansion — deferred. See original sections below for the design.
+Full content expansion — deferred.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
 - [x] **Save/load:** GroundStats field added to `_ctx_to_dict` + `load_game` with `.get("ground_stats", ...)` fallback
 - [x] **Game guide:** `_GUIDE_CHARACTER` section updated to mention all six skills and cap at 100; `_GUIDE_GROUND_GEAR` section documents armory terminal and equipment
 - [x] **Module-level state:** No new globals
-- [ ] **Ground combat guide:** Pending Phase 5
+- [ ] **Ground combat guide:** Pending (help.py section needed)
 
 ## Open questions
 
-1. **Save/load strategy for dungeons?** Solved — dungeon map is fully serialized (tiles, fog, entities, loot, power status) via `_d() / load_game()`
+1. **Save/load strategy for dungeons?** Solved — dungeon map is fully serialized.
 2. **Should the derelict despawn after clearing?** Derelict despawns from space map once boarded (consumed).
-3. **Player death in dungeon?** Not implemented yet — deferred to Phase 5 (ground combat).
-4. **Does the combat engine need changes?** Not yet — ground combat uses the existing `combat._loop` with ground-weapon data. Minimal changes expected.
-5. **Should skill points be shared between ship and ground?** Yes — implemented as a single shared pool across all 6 skills.
+3. **Player death in dungeon?** Solved — `ctx.player_dead = True` triggers death screen.
+4. **Does the combat engine need changes?** Solved — unified loop handles both space and ground.
+5. **Should skill points be shared between ship and ground?** Solved — single shared pool across all 6 skills.
