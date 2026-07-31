@@ -12,9 +12,11 @@
 #   Row 22                    bulkhead (3 doors)
 #   Rows 23-27  ENGINE ROOM 1 (L) | ENGINE ROOM 2 (C) | AIRLOCK+STORE (R)
 #   Row 28                    hull — breach 'b' (cut into engine room 2)
-#                             plus two exhaust nozzles 'a' under the
-#                             engine rooms (mirrors scout_a's left-side exhaust)
-#   Rows 29-31  spawn alcove: P = board spawn, > = exit
+#   Rows 29-31  stern nacelles — twin {####} engine-block housings at the
+#               corners (unwalkable, FOV-transparent — mirrors scout_a's
+#               left-side {###} rocket housings) flanking the 3-wide
+#               breach shaft down to the alcove
+#   Rows 32-34  spawn alcove: P = board spawn, > = exit
 #
 # Three vertical shafts (doors at x=8 / x=26 / x=45) connect every
 # deck, so every room is reachable from the breach entry.
@@ -60,7 +62,10 @@ MAP
   #..1..E......#....R.....E....1......#......a...1..#
   #............#......................#.............#
   #............#......................#.............#
-  ######a#################b#########a################
+  ########################b##########################
+  {####}#################...###################{####}
+  {####}#################...###################{####}
+  {####}#################...###################{####}
                          #P#
                          #>#
                          ###
@@ -91,6 +96,8 @@ LOOT: 4 = cargo_bay
 
 # Color overrides — each glyph gets a distinct color
 COLOUR: # = (120, 130, 150)     # hull/bulkhead — steel grey
+COLOUR: { = (140, 180, 210)     # hull bracket — cool steel blue, slightly brighter than #
+COLOUR: } = (140, 180, 210)     # hull bracket — cool steel blue, slightly brighter than #
 COLOUR: . = (200, 200, 210)     # floor — pale metal decking
 COLOUR: a = (100, 200, 255)     # airlock — cool blue
 COLOUR: b = (255, 120, 50)      # breach — hot orange (cut edge)
