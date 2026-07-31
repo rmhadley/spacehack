@@ -117,6 +117,22 @@ def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
     return max(0, total)
 
 
+def smuggler_hold_capacity(owned: OwnedShip) -> int:
+    """Sum of installed modules' smuggler_cargo bonuses.
+
+    This is the volume of contraband the player's ship can conceal
+    from militia scans. 0 with no smuggler's hold installed.
+    """
+    from .data.modules import find_module as _fm
+    total = 0
+    for mid in getattr(owned, 'modules', ()) or ():
+        try:
+            total += _fm(mid).smuggler_cargo
+        except KeyError:
+            pass
+    return total
+
+
 # ---------------------------------------------------------------------------
 # Ship mutation helpers (used by the mechanic loadout UI)
 # ---------------------------------------------------------------------------

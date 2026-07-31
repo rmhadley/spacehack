@@ -65,6 +65,12 @@ SPEC = PlanetSpec(
         ("fuel_cells", 20),
     ),
     mech_weapons=("light_laser", "light_missile"),
-    mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo"),
+    mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo",
+                  "smuggler_hold_mk1", "smuggler_hold_mk2", "smuggler_hold_mk3", "smuggler_hold_mk4"),
     tech_level=1,
+    # mission_tier=4: Earth is the home bar — hand-crafted bar missions
+    # (intercept + smuggling) are Earth-origin content and all tiers are
+    # offered at Earth's bar for playtesting (the design doc's tier
+    # progression table covers 1-4 from the Earth barkeep).
+    mission_tier=4,
 )

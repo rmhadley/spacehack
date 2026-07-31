@@ -28,6 +28,9 @@ class ModuleSpec:
         engineering_bonus: +power efficiency, +shield recharge rate.
         max_hull_bonus: additional hull HP.
         speed_bonus: additional moves-per-day in overworld travel.
+        smuggler_cargo: cargo units concealed from militia scans
+            (smuggler's holds). Does NOT affect storage capacity —
+            only scan outcome.
         price: credits cost to buy.
     """
     id: str
@@ -43,6 +46,7 @@ class ModuleSpec:
     engineering_bonus: int = 0
     max_hull_bonus: int = 0
     speed_bonus: int = 0
+    smuggler_cargo: int = 0
     price: int = 0
     tech_level: int = 1               # minimum planet tech level to stock this
 
