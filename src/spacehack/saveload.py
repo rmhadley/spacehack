@@ -236,7 +236,7 @@ def save_game(
         _dungeon_data = {
             "width": _gm.width,
             "height": _gm.height,
-            "tiles": [[c.kind for c in row] for row in _gm.tiles],
+            "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg)} for c in row] for row in _gm.tiles],
             "entities": [
                 {
                     "char": e.char,
@@ -522,7 +522,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         from .data.solar_systems import find_solar_system as _find_sys
         from .data.npc_ships import find_npc_ship as _find_npc
 
-        # Tile kind → Tile object lookup
+        # Backward-compat fallback for old saves that stored kind strings.
         _TILE_FROM_KIND: dict[str, world.Tile] = {
             "dungeon_wall": world.DUNGEON_WALL,
             "dungeon_floor": world.DUNGEON_FLOOR,
@@ -613,11 +613,24 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             # 2. Rebuild dungeon map from saved data.
             _dw = _dd.get("width", 1)
             _dh = _dd.get("height", 1)
-            _raw_tiles: list[list[str]] = _dd.get("tiles", [["void"]])
-            _dungeon_tiles: list[list[world.Tile]] = [
-                [_TILE_FROM_KIND.get(k, world.VOID) for k in row]
-                for row in _raw_tiles
-            ]
+            _raw_tiles = _dd.get("tiles", [["void"]])
+            _dungeon_tiles: list[list[world.Tile]] = []
+            for row in _raw_tiles:
+                _tile_row: list[world.Tile] = []
+                for t in row:
+                    if isinstance(t, str):
+                        # Old save format: kind string → lookup default Tile.
+                        _tile_row.append(_TILE_FROM_KIND.get(t, world.VOID))
+                    else:
+                        # New format: full tile dict with fg/bg preserved.
+                        _tile_row.append(world.Tile(
+                            kind=t.get("kind", "void"),
+                            char=t.get("char", " "),
+                            walkable=t.get("walkable", False),
+                            fg=tuple(t.get("fg", [0, 0, 0])),
+                            bg=tuple(t.get("bg", [0, 0, 0])),
+                        ))
+                _dungeon_tiles.append(_tile_row)
             _dungeon_entities: list[world.Entity] = []
             for _ed in _dd.get("entities", []):
                 _e = world.Entity(

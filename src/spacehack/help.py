@@ -971,7 +971,8 @@ _GUIDE_GROUND_COMBAT = GuideSection(
     title="Ground Combat",
     body=(
         "Ground combat triggers automatically when an enemy on foot spots you "
-        "in a dungeon (derelict ship interior or other boarded location). "
+        "in a dungeon — planet surface exploration, derelict ship interiors, "
+        "or other boarded locations. "
         "Enemies detect you by line-of-sight within their detection radius — walls "
         "and closed doors block sight, so you can use cover to avoid or surprise them."
         "\n\n"
@@ -1090,7 +1091,7 @@ _GUIDE_GROUND_COMBAT = GuideSection(
         "\n"
         "- REFLEXES/STRENGTH/STAMINA instead of Gunnery/Piloting/Engineering"
         "\n"
-        "- Centered map view (no scrolling — dungeons fit on one screen)"
+        "- Scrolling map view (dungeons can be larger than the screen)"
     ),
 )
 
