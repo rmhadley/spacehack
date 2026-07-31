@@ -174,6 +174,7 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 | `smuggler_hold_mk1` | 10 | 1 | 1 | 200$ |
 | `smuggler_hold_mk2` | 25 | 1 | 2 | 500$ |
 | `smuggler_hold_mk3` | 50 | 1 | 3 | 1200$ |
+| `smuggler_hold_mk4` | 75 | 1 | 4 | 2500$ |
 
 **Semantics (locked):** a new `ModuleSpec.smuggler_cargo: int = 0` bonus field (summed like every other module bonus — the combat/loadout engine already sums bonuses generically, no if/else). The scan computes total hold capacity `C` from installed modules and protects **mission smuggling cargo first**, then inventory contraband up to the remainder. It does NOT change cargo capacity or storage — only scan outcome. Contraband in inventory beyond the hold's remaining capacity is confiscated as today; mission cargo beyond the hold is confiscated → mission auto-fails.
 
@@ -200,12 +201,12 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 
 > **Goods are flavor only** — the mission's `is_smuggle` flag makes the cargo hot, not the good's category (design decision 1). Destination NPCs verified to exist on the target planet during implementation.
 
-| ID | Title | Tier | Good (flavor) | Destination | System | Rewards |
-|----|-------|------|--------------|-------------|--------|---------|
-| `bar_smuggle_mars_weapons` | Mars Weapons Run | 1 | `weapons_blackmarket` | Mars NPC | Sol | 150$ / 25xp |
-| `bar_smuggle_sirius_tech` | Sirius Black-Tech | 2 | `electronics` | Sirius Station NPC | Sirius | 350$ / 60xp |
-| `bar_smuggle_vega_drugs` | Vega Narcotics | 3 | `luxury_goods` | Vega NPC | Vega | 700$ / 120xp |
-| `bar_smuggle_frontier_fuel` | Frontier Fuel Heist | 4 | `fuel_cells` | Blockade Station NPC | Luyten's Star | 1500$ / 250xp |
+| ID | Title | Tier | Good (flavor) | Cargo | Destination | System | Rewards |
+|----|-------|------|--------------|-------|-------------|--------|---------|
+| `bar_smuggle_mars_weapons` | Mars Weapons Run | 1 | `weapons_blackmarket` | 8 | Mars Barkeep (`barkeep`) | Sol | 150$ / 25xp |
+| `bar_smuggle_sirius_tech` | Sirius Black-Tech | 2 | `electronics` | 15 | Binary Observer (`research_officer`) | Sirius | 350$ / 60xp |
+| `bar_smuggle_vega_drugs` | Vega Narcotics | 3 | `luxury_goods` | 30 | Cloud Host (`barkeep`) | Vega | 700$ / 120xp |
+| `bar_smuggle_frontier_fuel` | Frontier Fuel Heist | 4 | `fuel_cells` | 55 | Bounty Master (`bounty_master`) | Luyten's Star | 1500$ / 250xp |
 
 ### Extortion
 
@@ -313,14 +314,16 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 
 ### Phase 2: Smuggling (design locked — see "Smuggling — Contraband transport" above)
 
-- [ ] Add `is_smuggle: bool = False` to `MissionSpec` + `ActiveMission` (snapshot; persisted in saveload); `mission_type="smuggling"` for rep deltas
-- [ ] Add `smuggler_cargo: int = 0` to `ModuleSpec` + `data/modules/smuggler.py` (mk1 10 / mk2 25 / mk3 50, TL 1/2/3)
-- [ ] Extend `_run_cargo_scan`: compute hold capacity from modules; protect mission smuggling cargo first, then inventory contraband; confiscate the excess (mission overflow → auto-fail)
-- [ ] Add 4 hand-crafted smuggling missions to `bar.py` (cargo auto-loaded on accept via `required_cargo_size`)
-- [ ] Quest log: show contraband type, route, scan-risk warning (Cargo: <good> — SCAN RISK: High/Med/Low)
-- [ ] Guide: `_GUIDE_BAR_MISSIONS` smuggling block + `_GUIDE_SHIPS` module table entry
-- [ ] Faction rep: `_MISSION_REP_DELTAS` entry for `"smuggling"` (bar-aligned deltas)
-- [ ] Verify destination NPCs exist on each target planet; wire delivery targets
+- [x] Add `is_smuggle: bool = False` to `MissionSpec` + `ActiveMission` (snapshot; persisted in saveload); `mission_type="smuggling"` for rep deltas
+- [x] Add `smuggler_cargo: int = 0` to `ModuleSpec` + `data/modules/smuggler.py` (mk1 10 / mk2 25 / mk3 50 / mk4 75, TL 1/2/3/4)
+- [x] Extend `_run_cargo_scan`: compute hold capacity from modules; protect mission smuggling cargo first, then inventory contraband; confiscate the excess (mission overflow → auto-fail via `_fail_smuggle_mission`)
+- [x] Add 4 hand-crafted smuggling missions to `bar.py` (cargo auto-loaded on accept via `required_cargo_size`; all `origin_planet_id="earth"`)
+- [x] Quest log: show contraband type, route, scan-risk warning (Cargo: <good> — SCAN RISK: High/Med/Low via `_smuggle_scan_risk`)
+- [x] Guide: `_GUIDE_BAR_MISSIONS` smuggling block + `_GUIDE_SHIPS` module table entry
+- [x] Faction rep: `_MISSION_REP_DELTAS` entry for `"smuggling"` (pirate +2, merchant -5, civilian -5, militia -8 — pre-existing, verified)
+- [x] Verify destination NPCs exist on each target planet; wire delivery targets (Mars Barkeep, Binary Observer, Cloud Host, Bounty Master)
+
+**Playtest config (Phase 2):** Earth's `mission_tier` raised 1 → 4 so all hand-crafted bar missions (intercept + smuggling) are offered at the home bar for playtesting (the design tier table covers 1-4 from the Earth barkeep). All four Smuggler's Holds (mk1-mk4) are stocked at Earth's mechanic terminal for testing — mk4 is otherwise a deep-space TL4 item.
 
 ### Phase 3: Extortion
 
@@ -350,11 +353,11 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
 - [x] **Save/load:** New ActiveMission field `heist_target_good_id` → added to both `_ctx_to_dict()` AND `load_game()` (`saveload.py:359`); heist loot `heist_mission` flag persisted + restored
-- [ ] **Save/load:** Smuggler's hold `hidden_cargo` → computed from modules (no new field needed, but verify module bonuses survive save/load)
+- [x] **Save/load:** Smuggler's hold `hidden_cargo` → computed from modules (no new field needed; module bonuses survive save/load via `OwnedShip.modules`). `is_smuggle` + `smuggle_good_id` deserialized on `ActiveMission` in `saveload.load_game()`
 - [x] **NPC spawns:** Merchant target ships → placed via `ctx.bounty_spawns` (BountySpawn with `heist_spawn_id`), saved/restored in saveload
 - [x] **NPC cleanup:** Intercept target killed → `defeated_heist_ids` handled in `_encounter.py` post-victory; spawn removed via `_remove_bounty_spawn`
 - [x] **Game guide:** Bar missions → `_GUIDE_BAR_MISSIONS` section (`help.py:896`)
-- [ ] **Game guide:** Smuggler's hold module → update `_GUIDE_SHIPS` module table
+- [x] **Game guide:** Smuggler's hold module → `_GUIDE_SHIPS` module table updated (mk1-mk4)
 
 ## Open questions
 
