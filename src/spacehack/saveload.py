@@ -132,6 +132,7 @@ def _save_loot(game_map) -> list[dict]:
                 'x': _e.pos.x, 'y': _e.pos.y,
                 'loot_data': _e.loot_data,
                 'heist_mission': bool(getattr(_e, 'heist_mission', False)),
+                'heist_mission_id': getattr(_e, 'heist_mission_id', None),
             })
     return _result
 
@@ -358,6 +359,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             bounty_target_loadout_pct=_am.get("bounty_target_loadout_pct", 0),
             tier=_am.get("tier", 1),
             heist_target_good_id=_am.get("heist_target_good_id"),
+            heist_good_secured=_am.get("heist_good_secured", False),
         ))
 
     # --- Mission boards ---
@@ -712,6 +714,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             )
             if _ld.get("heist_mission", False):
                 _loot_e.heist_mission = True
+            _lmid = _ld.get("heist_mission_id")
+            if _lmid:
+                _loot_e.heist_mission_id = _lmid
             _game_map.entities.append(_loot_e)
 
     # --- Assemble GameContext ---

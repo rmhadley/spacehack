@@ -130,6 +130,20 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             paint(detail_top, fit(f'Target: {_target_name} ({_target_sys_name}){_squad_str}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
 
+        # Intercept-specific display: mission cargo secured status.
+        _heist_good = getattr(am, 'heist_target_good_id', None)
+        if _heist_good is not None:
+            try:
+                from ..data.trade_goods import find_trade_good as _ftg_hl
+                _good_name = _ftg_hl(_heist_good).name
+            except (KeyError, ImportError):
+                _good_name = _heist_good.replace('_', ' ').title()
+            _secured = getattr(am, 'heist_good_secured', False)
+            _status = 'SECURED' if _secured else 'NOT SECURED'
+            _sfg = (120, 220, 120) if _secured else (255, 180, 80)
+            paint(detail_top, fit(f'Cargo: {_good_name} ({_status})'), fg=_sfg)
+            detail_top += 1
+
         paint(detail_top, fit(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp'), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
         if am.time_deadline is not None:

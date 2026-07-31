@@ -90,6 +90,7 @@ class ActiveMission:
 
     # Intercept fields
     heist_target_good_id: str | None = None
+    heist_good_secured: bool = False  # True once the mission's loot is secured in the hold
 
     # Deadline
     time_deadline: tuple[int, int, int] | None = None  # (day, month, year)
@@ -212,16 +213,16 @@ def active_is_deliverable_at(
     """
     _heist_good = getattr(active, 'heist_target_good_id', None)
 
-    # Intercept path: requires the looted good in cargo.
+    # Intercept path: requires the mission's loot to be SECURED.
+    # The flag is set only by securing the mission-specific loot
+    # entity — buying the same good at a trade terminal does NOT
+    # count (design doc open question #6).
     if _heist_good is not None:
         target_npc = active.delivery_target_npc_id
         target_planet = active.delivery_target_planet_id
         if target_npc != npc_id or target_planet != planet_id:
             return False
-        if owned_ship is None:
-            return False
-        _inv = getattr(owned_ship, 'inventory', {}) or {}
-        return _inv.get(_heist_good, 0) > 0
+        return getattr(active, 'heist_good_secured', False)
 
     # Standard delivery path: must have reserved cargo.
     if active.required_cargo_size <= 0:
@@ -263,6 +264,27 @@ def find_deliverable_missions(
     ]
 
 
+def _reserved_heist_volume(active: ActiveMission) -> int:
+    """Hold space reserved by a secured intercept mission (0 if none).
+
+    Assumes the loot quantity is 1 (intercept loot entities are
+    spawned with ``quantity: 1``). Keep in sync with the secure-side
+    reservation in ``trade._secure_heist_cargo`` — the flag is set
+    only AFTER this lookup on the release side, so the two can't
+    share one helper without breaking that timing.
+    """
+    if not getattr(active, 'heist_good_secured', False):
+        return 0
+    _good_id = getattr(active, 'heist_target_good_id', None)
+    if not _good_id:
+        return 0
+    try:
+        from .data.trade_goods import find_trade_good as _ftg
+        return _ftg(_good_id).volume
+    except KeyError:
+        return 0
+
+
 def abort_mission(
     active: ActiveMission,
     owned_ship: object,
@@ -273,10 +295,13 @@ def abort_mission(
     Does NOT remove ``active`` from the mission list — the caller
     owns that bookkeeping.
     """
-    if active.required_cargo_size <= 0 or owned_ship is None:
+    if owned_ship is None:
+        return
+    _release = active.required_cargo_size + _reserved_heist_volume(active)
+    if _release <= 0:
         return
     owned_ship.mission_reserved = max(
-        0, owned_ship.mission_reserved - active.required_cargo_size,
+        0, owned_ship.mission_reserved - _release,
     )
     ship_obj = ship.find_ship(owned_ship.ship_id)
     _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
@@ -303,11 +328,13 @@ def complete_mission(
     ``ctx`` is optional for backward compatibility — rep changes
     are skipped when ctx is None (legacy callers, tests).
     """
-    # Drop cargo.
-    if active.required_cargo_size > 0 and owned_ship is not None:
-        owned_ship.mission_reserved = max(
-            0, owned_ship.mission_reserved - active.required_cargo_size,
-        )
+    # Drop cargo (delivery reservation + secured intercept cargo).
+    if owned_ship is not None:
+        _release = active.required_cargo_size + _reserved_heist_volume(active)
+        if _release > 0:
+            owned_ship.mission_reserved = max(
+                0, owned_ship.mission_reserved - _release,
+            )
 
     # Compute reward with early/late modifiers.
     credits = active.reward_credits

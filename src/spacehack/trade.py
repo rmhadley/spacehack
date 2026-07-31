@@ -375,12 +375,58 @@ class _LootOutcome(Enum):
     QUIT = auto()
 
 
+def _secure_heist_cargo(ctx: GameContext, loot_entity, good_id: str, quantity: int) -> bool:
+    """Mark the intercept mission's loot as secured and reserve hold space.
+
+    Returns True if the loot belonged to an active (not-yet-secured)
+    intercept mission, in which case the mission's ``heist_good_secured``
+    flag is set and the cargo volume is reserved in
+    ``owned.mission_reserved`` (the MISSION CARGO hold concept).
+    The good does NOT enter the trade inventory — it cannot be sold
+    and buying the same good at a terminal does not count.
+
+    Returns False if no matching active mission exists (e.g. the
+    mission was abandoned) — the caller falls back to normal debris
+    pickup into the trade inventory.
+    """
+    _good_id = good_id
+    _qty = quantity
+    for _am in ctx.player_active_missions:
+        if getattr(_am, 'heist_target_good_id', None) != _good_id:
+            continue
+        # Prefer an exact mission link when the loot entity carries one.
+        _mid = getattr(loot_entity, 'heist_mission_id', None)
+        if _mid and _am.mission_id != _mid:
+            continue
+        if getattr(_am, 'heist_good_secured', False):
+            continue
+        # Reserve the same volume that mission._reserved_heist_volume
+        # releases on complete/abort (which assumes quantity 1). The
+        # flag is set AFTER this lookup so the two stay in sync.
+        try:
+            _vol = find_trade_good(_good_id).volume * _qty
+        except KeyError:
+            _vol = 0
+        _am.heist_good_secured = True
+        _owned = ctx.player_owned_ship
+        if _owned is not None:
+            _owned.mission_reserved += _vol
+        return True
+    return False
+
+
 def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open a simple modal to pick up loot from a destroyed ship.
 
     Shows what's available and lets the player take it (or leave it).
     If cargo space is insufficient, logs the shortfall and stays in
     space so the player can decide what to jettison.
+
+    Intercept-mission loot (``heist_mission`` set) is secured as
+    MISSION CARGO — reserved in the hold, kept out of the trade
+    inventory, and never sellable. The mission only completes when
+    that specific cargo is secured; buying the same good at a
+    terminal does not count.
     """
     good_id = loot_entity.loot_data.get("good_id", "")
     quantity = loot_entity.loot_data.get("quantity", 1)
@@ -452,9 +498,14 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
 
     _outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if _outcome is _LootOutcome.TAKE:
+        _secured = False
         if getattr(loot_entity, 'heist_mission', False):
-            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-            ctx.log.add(f"Secured mission cargo: {good.name} x{quantity}. Do not sell!")
+            _secured = _secure_heist_cargo(ctx, loot_entity, good_id, quantity)
+        if _secured:
+            ctx.log.add(
+                f"Secured mission cargo: {good.name} x{quantity} "
+                f"(reserved in hold). Do not sell!"
+            )
         else:
             owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
             ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")

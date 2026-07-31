@@ -813,17 +813,13 @@ def _run_game(
                         return
                     if result is TalkOutcome.DELIVER:
                         if _deliver_mission is not None:
-                            # Intercept delivery: remove the heist good from inventory.
+                            # Intercept delivery: the looted cargo is mission
+                            # cargo (reserved hold space), never in the trade
+                            # inventory. complete_mission releases the
+                            # reservation; nothing to remove here.
                             _heist_good = getattr(_deliver_mission, 'heist_target_good_id', None)
-                            if _heist_good is not None and player_owned_ship is not None:
-                                _held = player_owned_ship.inventory.get(_heist_good, 0)
-                                if _held > 0:
-                                    _rem = _held - 1
-                                    if _rem <= 0:
-                                        del player_owned_ship.inventory[_heist_good]
-                                    else:
-                                        player_owned_ship.inventory[_heist_good] = _rem
-                                    log.add(f"You hand over the stolen {_heist_good.replace('_', ' ')}.")
+                            if _heist_good is not None and getattr(_deliver_mission, 'heist_good_secured', False):
+                                log.add(f"You hand over the stolen {_heist_good.replace('_', ' ')}.")
                             _today = ctx.time_day + (ctx.time_month - 1) * 30
                             mission_module.complete_mission(
                                 _deliver_mission, player_owned_ship, stats, log,
