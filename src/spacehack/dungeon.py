@@ -724,22 +724,26 @@ def _carve_room(
 
     Returns the room centre for corridor connections.
     """
-    if w < 3 or h < 3:
-        return (x + w // 2, y + h // 2)
+    # Need at least 1 tile of wall border on each side → region
+    # must be ≥ (min_room_size + 2) in both axes for a proper room.
+    _need_w = params.min_room_size + 2
+    _need_h = params.min_room_size + 2
+    if w < _need_w or h < _need_h:
+        # Region too small — carve as much floor as possible.
+        _floor_w = max(1, w - 2)
+        _floor_h = max(1, h - 2)
+        _fx = x + max(0, (w - _floor_w) // 2)
+        _fy = y + max(0, (h - _floor_h) // 2)
+        for _ry2 in range(_fy, _fy + _floor_h):
+            for _rx2 in range(_fx, _fx + _floor_w):
+                tiles[_ry2][_rx2] = params.tile_floor
+        return (_fx + _floor_w // 2, _fy + _floor_h // 2)
 
     _avail_w = min(params.max_room_size, w - 2)
     _avail_h = min(params.max_room_size, h - 2)
 
-    _rw = (
-        rng.randint(params.min_room_size, _avail_w)
-        if _avail_w >= params.min_room_size
-        else max(1, _avail_w)
-    )
-    _rh = (
-        rng.randint(params.min_room_size, _avail_h)
-        if _avail_h >= params.min_room_size
-        else max(1, _avail_h)
-    )
+    _rw = rng.randint(params.min_room_size, _avail_w)
+    _rh = rng.randint(params.min_room_size, _avail_h)
 
     _rx = x + rng.randint(1, max(1, w - _rw - 1))
     _ry = y + rng.randint(1, max(1, h - _rh - 1))
