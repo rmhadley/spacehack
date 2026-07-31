@@ -235,6 +235,9 @@ _LAYOUT_DIR = pathlib.Path(__file__).parent / "data" / "layouts"
 def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:
     """Parse a ``COLOUR: X = (R, G, B)`` line.
 
+    Trailing ``#`` comments are stripped (the ``(R, G, B)`` tuple is
+    decimal, so ``#`` can never appear inside it).
+
     Returns ``(glyph, (r, g, b))`` or ``None`` if the line isn't a
     colour directive.
     """
@@ -242,6 +245,8 @@ def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:
     if not line.startswith("COLOUR:"):
         return None
     rest = line[7:].strip()
+    if "#" in rest:
+        rest = rest.split("#", 1)[0].strip()
     if "=" not in rest:
         return None
     glyph_part, rgb_part = rest.split("=", 1)
@@ -515,7 +520,10 @@ def load_layout(
                 if not (0 <= nx < grid_width and 0 <= ny < grid_height):
                     continue
                 nt = tiles[ny][nx]
-                if not nt.walkable or nt.kind == 'dungeon_door':
+                # Breach tiles are the hull entry — interior spawns
+                # (enemies/loot) must not cross them into the entry
+                # shaft outside the ship.
+                if not nt.walkable or nt.kind in ('dungeon_door', 'breach'):
                     continue
                 visited.add((nx, ny))
                 queue.append((nx, ny))
