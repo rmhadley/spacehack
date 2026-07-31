@@ -197,13 +197,33 @@ def active_is_deliverable_at(
     active: ActiveMission,
     npc_id: str,
     planet_id: str,
+    *,
+    owned_ship: object | None = None,
 ) -> bool:
     """Check if an :class:`ActiveMission` is deliverable at the given
     NPC+planet. Works for both static and procedural missions.
 
     For static missions, looks up the :class:`MissionSpec` for field values.
     For procedural missions, uses the fields stored on ``active`` directly.
+
+    Intercept missions (``heist_target_good_id`` set) are deliverable
+    when the NPC/planet match AND the player has the looted good in
+    their ship inventory.
     """
+    _heist_good = getattr(active, 'heist_target_good_id', None)
+
+    # Intercept path: requires the looted good in cargo.
+    if _heist_good is not None:
+        target_npc = active.delivery_target_npc_id
+        target_planet = active.delivery_target_planet_id
+        if target_npc != npc_id or target_planet != planet_id:
+            return False
+        if owned_ship is None:
+            return False
+        _inv = getattr(owned_ship, 'inventory', {}) or {}
+        return _inv.get(_heist_good, 0) > 0
+
+    # Standard delivery path: must have reserved cargo.
     if active.required_cargo_size <= 0:
         return False
     target_npc = active.delivery_target_npc_id
@@ -217,12 +237,14 @@ def find_deliverable(
     active_missions: list[ActiveMission],
     npc_id: str,
     planet_id: str,
+    *,
+    owned_ship: object | None = None,
 ) -> ActiveMission | None:
     """Return the first deliverable mission in ``active_missions``
     for the given NPC+planet, or ``None``.
     """
     for am in active_missions:
-        if active_is_deliverable_at(am, npc_id, planet_id):
+        if active_is_deliverable_at(am, npc_id, planet_id, owned_ship=owned_ship):
             return am
     return None
 
@@ -231,11 +253,13 @@ def find_deliverable_missions(
     active_missions: list[ActiveMission],
     npc_id: str,
     planet_id: str,
+    *,
+    owned_ship: object | None = None,
 ) -> list[ActiveMission]:
     """Return ALL deliverable missions for the given NPC+planet."""
     return [
         am for am in active_missions
-        if active_is_deliverable_at(am, npc_id, planet_id)
+        if active_is_deliverable_at(am, npc_id, planet_id, owned_ship=owned_ship)
     ]
 
 

@@ -804,6 +804,7 @@ def _run_game(
                     # Find deliverable missions at this NPC+planet.
                     _deliverable = mission_module.find_deliverable_missions(
                         player_active_missions, npc_obj.id, current_city_id,
+                        owned_ship=player_owned_ship,
                     )
                     result, _deliver_mission = _run_npc_talk(
                         ctx, npc_obj, deliver_missions=_deliverable or None,
