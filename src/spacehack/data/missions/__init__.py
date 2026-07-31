@@ -77,6 +77,14 @@ class MissionSpec:
         heist_target_good_id: the trade good the player must loot from
             the destroyed merchant (intercept missions).
 
+        # --- Salvage-specific ---
+        salvage_wreck_enemy_id: derelict NpcShipSpec id for the boarded
+            wreck (e.g. ``"derelict_freighter"``). The wreck is a
+            non-combatant BountySpawn the player boards.
+        salvage_layout_id: interior layout file id for the wreck
+            (e.g. ``"freightliner_a"``). The mission component hides in
+            the wreck interior, not in space.
+
         # --- Smuggling-specific ---
         is_smuggle: True = the mission cargo is contraband — militia
             scans can confiscate it. The cargo is flavor-tagged with
@@ -118,6 +126,10 @@ class MissionSpec:
 
     # --- Intercept-specific ---
     heist_target_good_id: str | None = None
+
+    # --- Salvage-specific ---
+    salvage_wreck_enemy_id: str | None = None  # derelict spec for the wreck (e.g. derelict_freighter)
+    salvage_layout_id: str | None = None       # interior layout for the wreck (e.g. freightliner_a)
 
     # --- Smuggling-specific ---
     is_smuggle: bool = False       # cargo is hot — militia scans can confiscate

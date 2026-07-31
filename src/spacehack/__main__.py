@@ -369,6 +369,14 @@ def _run_game(
                                 abandoned.bounty_spawn_id,
                                 abandoned.target_system_id,
                             )
+                        # Salvage missions: also clean up the wreck spawn
+                        # and its cached interior so neither lingers.
+                        _wreck_sid_ab = getattr(abandoned, 'salvage_wreck_spawn_id', None)
+                        if _wreck_sid_ab is not None:
+                            _remove_bounty_spawn(
+                                ctx, _wreck_sid_ab, abandoned.target_system_id,
+                            )
+                            ctx.interiors.pop(_wreck_sid_ab, None)
                         del player_active_missions[abandoned_idx]
                         ctx.player_active_missions = player_active_missions
                 continue
@@ -454,6 +462,25 @@ def _run_game(
                 _tile = game_map.tiles[player.pos.y][player.pos.x]
                 if _tile.kind == 'exit':
                     if space_game_map is not None and space_player is not None:
+                        # Salvage wreck lifecycle: once the mission component is
+                        # secured, exiting despawns the wreck (entity + spawn +
+                        # interior cache). Unsecured wrecks stay for re-boarding.
+                        _wsid = getattr(game_map, 'wreck_spawn_id', None)
+                        if _wsid is not None:
+                            _secured = False
+                            for _am in player_active_missions:
+                                if (getattr(_am, 'salvage_wreck_spawn_id', None) == _wsid
+                                        and getattr(_am, 'heist_good_secured', False)):
+                                    _secured = True
+                                    break
+                            if _secured:
+                                _sys_id = solar_system_module.current_solar_system_id
+                                for _e in list(space_game_map.entities):
+                                    if getattr(_e, 'salvage_wreck_spawn_id', None) == _wsid:
+                                        space_game_map.entities.remove(_e)
+                                _remove_bounty_spawn(ctx, _wsid, _sys_id)
+                                ctx.interiors.pop(_wsid, None)
+                                log.add("The secured wreck drifts away — its component is yours.")
                         game_map = space_game_map
                         player = space_player
                         ctx.game_map = game_map
@@ -744,30 +771,83 @@ def _run_game(
                                 return
                             if _board_result == PlanetMenuOutcome.LAND:
                                 from .dungeon import load_layout as _load_layout, animate_breach as _animate_breach, init_fog as _init_fog, reveal_around as _reveal_around
-                                try:
-                                    _dungeon_map, _spawn = _load_layout(
-                                        "scout_a",
-                                        loot_budget=_npcspec.loot_budget,
-                                    )
-                                except (FileNotFoundError, ValueError):
+                                # Salvage-mission wreck: reuse the cached interior
+                                # when present (crew stay dead, loot stays taken,
+                                # fog stays revealed — anti-farm). Otherwise load
+                                # the mission's layout with the mission-tagged
+                                # component on first board and cache it.
+                                _wreck_sid = getattr(blocker, 'salvage_wreck_spawn_id', None)
+                                _mission = None
+                                if _wreck_sid is not None:
+                                    for _am in player_active_missions:
+                                        if getattr(_am, 'salvage_wreck_spawn_id', None) == _wreck_sid:
+                                            _mission = _am
+                                            break
+                                _dungeon_map = None
+                                _spawn = None
+                                if _mission is not None and _wreck_sid in ctx.interiors:
+                                    _dungeon_map = ctx.interiors[_wreck_sid]
+                                    _spawn = getattr(_dungeon_map, 'entry_spawn', None)
+                                    # Clear the stale player entity from the
+                                    # previous visit before placing a fresh one.
+                                    for _oe in list(_dungeon_map.entities):
+                                        if _oe.char == '@':
+                                            _dungeon_map.entities.remove(_oe)
+                                elif _mission is not None and _mission.salvage_layout_id:
+                                    try:
+                                        _dungeon_map, _spawn = _load_layout(
+                                            _mission.salvage_layout_id,
+                                            loot_budget=_npcspec.loot_budget,
+                                            component_good_id=_mission.heist_target_good_id,
+                                            component_mission_id=_mission.mission_id,
+                                        )
+                                    except (FileNotFoundError, ValueError):
+                                        log.add("The derelict's interior is too damaged to explore.")
+                                        continue
+                                    _dungeon_map.wreck_spawn_id = _wreck_sid
+                                    _dungeon_map.entry_spawn = _spawn
+                                    ctx.interiors[_wreck_sid] = _dungeon_map
+                                else:
+                                    # Random derelict: consume-on-board behavior.
+                                    try:
+                                        _dungeon_map, _spawn = _load_layout(
+                                            "scout_a",
+                                            loot_budget=_npcspec.loot_budget,
+                                        )
+                                    except (FileNotFoundError, ValueError):
+                                        log.add("The derelict's interior is too damaged to explore.")
+                                        continue
+                                    # Despawn the derelict from the space map —
+                                    # once boarded, it's consumed.
+                                    try:
+                                        ctx.game_map.entities.remove(blocker)
+                                        # Also clean up its procedural spawn entry
+                                        _sys_id = solar_system_module.current_solar_system_id
+                                        if _sys_id in ctx.procedural_spawns:
+                                            ctx.procedural_spawns[_sys_id] = [
+                                                _ps for _ps in ctx.procedural_spawns[_sys_id]
+                                                if _ps.npc_id != _npcspec.id
+                                                or _ps.pos != blocker.pos
+                                            ]
+                                    except (ValueError, AttributeError):
+                                        pass
+                                if _dungeon_map is None:
                                     log.add("The derelict's interior is too damaged to explore.")
                                     continue
-                                # Despawn the derelict from the space map —
-                                # once boarded, it's consumed.
-                                try:
-                                    ctx.game_map.entities.remove(blocker)
-                                    # Also clean up its procedural spawn entry
-                                    _sys_id = solar_system_module.current_solar_system_id
-                                    if _sys_id in ctx.procedural_spawns:
-                                        ctx.procedural_spawns[_sys_id] = [
-                                            _ps for _ps in ctx.procedural_spawns[_sys_id]
-                                            if _ps.npc_id != _npcspec.id
-                                            or _ps.pos != blocker.pos
-                                        ]
-                                except (ValueError, AttributeError):
-                                    pass
-                                # Initialize fog of war
-                                _init_fog(_dungeon_map)
+                                if _spawn is None:
+                                    # Cached interior without a recorded entry
+                                    # spawn — fall back to the first walkable tile.
+                                    for _yy in range(_dungeon_map.height):
+                                        for _xx in range(_dungeon_map.width):
+                                            if _dungeon_map.tiles[_yy][_xx].walkable:
+                                                _spawn = world.Position(_xx, _yy)
+                                                break
+                                        if _spawn is not None:
+                                            break
+                                # Initialize fog of war (fresh maps only — cached
+                                # interiors keep their revealed fog).
+                                if _dungeon_map.seen is None:
+                                    _init_fog(_dungeon_map)
                                 _reveal_around(_dungeon_map, _spawn)
                                 # Play breach animation before giving control
                                 _dungeon_player = world.Entity(
@@ -889,6 +969,7 @@ def _run_game(
                                         _spawn_ok = True  # non-bounty missions always proceed
                                         if picked.target_enemy_id is not None and picked.target_system_id is not None:
                                             _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
+                                            _wreck_spawn_id: str | None = None
                                             _squad_size = getattr(picked, 'bounty_target_squad_size', 1)
                                             # Mixed squads: wingmates may be a DIFFERENT ship type
                                             # (e.g. a merchant leader with pirate fighter escorts).
@@ -915,8 +996,11 @@ def _run_game(
                                                     except (KeyError, ImportError):
                                                         pass
                                                     # Leader BountySpawn.
+                                                    # Intercept loot drops in space; salvage's component
+                                                    # lives INSIDE the wreck (never on the guard patrol).
                                                     _heist_sid = None
-                                                    if getattr(picked, 'heist_target_good_id', None) is not None:
+                                                    if (getattr(picked, 'heist_target_good_id', None) is not None
+                                                            and getattr(picked, 'salvage_layout_id', None) is None):
                                                         _heist_sid = _bounty_spawn_id
                                                     _bs = BountySpawn(
                                                         spawn_id=_bounty_spawn_id,
@@ -951,7 +1035,33 @@ def _run_game(
                                                             )
                                                             ctx.bounty_spawns[picked.target_system_id].append(_wbs)
                                                     _squad_note = f" ({_squad_size}-ship squad)" if _squad_size > 1 else ""
-                                                    log.add(f"Bounty target marked in {_target_sys.name}.{_squad_note}")
+                                                    # Salvage missions: the wreck itself spawns as a
+                                                    # non-combatant BountySpawn near the patrol. Boardable
+                                                    # whenever the player is out of combat; persists until
+                                                    # the mission component is secured (lifecycle handled
+                                                    # at dungeon exit in the exit-tile handler).
+                                                    if getattr(picked, 'salvage_wreck_enemy_id', None) is not None:
+                                                        _wreck_spawn_id = f"wreck_{picked.id}_{int(time.time())}"
+                                                        _wreck_pos = world.Position(
+                                                            min(_spawn_pos.x + 5, _target_sys.width - 1),
+                                                            _spawn_pos.y,
+                                                        )
+                                                        _wbs = BountySpawn(
+                                                            spawn_id=_wreck_spawn_id,
+                                                            enemy_id=picked.salvage_wreck_enemy_id,
+                                                            pos=_wreck_pos,
+                                                            bounty_target_name=None,
+                                                            squad_size=1,
+                                                            loadout_pct=0,
+                                                            salvage_wreck=True,
+                                                        )
+                                                        ctx.bounty_spawns[picked.target_system_id].append(_wbs)
+                                                        log.add(
+                                                            f"Salvage site marked in {_target_sys.name}: "
+                                                            f"wreck + {_squad_size}-ship patrol."
+                                                        )
+                                                    else:
+                                                        log.add(f"Bounty target marked in {_target_sys.name}.{_squad_note}")
                                                 else:
                                                     # All landmarks in the target system are occupied.
                                                     _spawn_ok = False
@@ -998,6 +1108,9 @@ def _run_game(
                                                 bounty_wingmate_enemy_id=getattr(picked, 'bounty_wingmate_enemy_id', None),
                                                 tier=picked.tier,
                                                 heist_target_good_id=_heist_good,
+                                                salvage_wreck_enemy_id=getattr(picked, 'salvage_wreck_enemy_id', None),
+                                                salvage_layout_id=getattr(picked, 'salvage_layout_id', None),
+                                                salvage_wreck_spawn_id=_wreck_spawn_id,
                                                 is_smuggle=getattr(picked, 'is_smuggle', False),
                                                 smuggle_good_id=getattr(picked, 'smuggle_good_id', None),
                                             )

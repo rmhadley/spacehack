@@ -41,6 +41,38 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         comms_warning_range=0,         # no distance-based hail for derelicts
         loot_budget=(400, 1600),
     ),
+    NpcShipSpec(
+        id="derelict_freighter",
+        name="Derelict Freighter",
+        char="f",
+        fg=(190, 140, 60),    # dull brass — distinct from scout's amber, reads as a larger wreck
+        ship_id="freighter",
+        faction="neutral",
+        is_boardable=True,
+        weapons=(),
+        modules=(),
+        cargo_goods=("machine_parts", "fuel_cells", "electronics"),
+        cargo_count=2,
+        ai_aggressiveness=0,
+        ai_preferred_range=0,
+        ai_flee_threshold=0.0,
+        ai_accuracy_bonus=0,
+        ai_dodge_bonus=0,
+        pilot_gunnery=0,
+        pilot_piloting=0,
+        pilot_engineering=0,
+        min_power_gen=0,
+        detect_radius=0,
+        base_speed=0,
+        comms_lines=(
+            "[DISTRESS BEACON] - Freighter 'Goliath' - multiple hull breaches - ",
+            "[DISTRESS BEACON] - life support failing - any vessel please respond - ",
+            "[DISTRESS BEACON] - automated message - crew status: unknown - ",
+        ),
+        comms_trigger_viewport=True,   # hail on viewport entry, not at a fixed distance
+        comms_warning_range=0,         # no distance-based hail for derelicts
+        loot_budget=(1400, 4200),
+    ),
     # --- Pirates (migrated from data/enemies/) ---
     NpcShipSpec(
         id="pirate_scout",

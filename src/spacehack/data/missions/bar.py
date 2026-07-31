@@ -228,4 +228,123 @@ MISSIONS: tuple[MissionSpec, ...] = (
         is_smuggle=True,
         smuggle_good_id="fuel_cells",
     ),
+    # --- Salvage rights (boarding-integrated) ---
+    # Patrol guards the wreck in space; the mission component hides in
+    # the boarded interior. Patrol reuses the bounty fields; the wreck
+    # is a separate non-combatant BountySpawn (salvage_wreck_enemy_id +
+    # salvage_layout_id). Deadlines are ROUND TRIPS (fly out, clear the
+    # patrol, board, fight the crew, fly back) — same 2.1-2.2x RT rule
+    # as intercepts, with a small boarding buffer.
+    # Tier 1 — Tau Ceti, 3 hops. Solo scout patrol, scout_a interior.
+    MissionSpec(
+        id="bar_salvage_tau_parts",
+        title="Tau Ceti Wreck",
+        description=(
+            "A pirate crew lost a freighter in Tau Ceti and left a scout "
+            "guarding the wreck. Clear the patrol, cut into the hull, and "
+            "pull the machine parts out of the cargo hold. Bring them "
+            "back here."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="salvage",
+        tier=1,
+        reward_credits=180,
+        reward_xp=35,
+        # Round trip to Tau Ceti (3 hops) ~100 days at starter speed;
+        # deadline ~2.2x RT keeps both on-time and the early bonus
+        # (< 110d) achievable.
+        deadline_days=220,
+        early_bonus_pct=25,
+        target_enemy_id="pirate_scout",       # the guard patrol
+        target_system_id="tau_ceti",
+        bounty_target_squad_size=1,
+        heist_target_good_id="machine_parts",  # mission component
+        salvage_wreck_enemy_id="derelict_scout",
+        salvage_layout_id="scout_a",
+    ),
+    # Tier 2 — Epsilon Eridani, 1 hop. Two-scout patrol, scout_a interior.
+    MissionSpec(
+        id="bar_salvage_epsilon_drive",
+        title="Epsilon Drive",
+        description=(
+            "A freighter went down near Epsilon Eridani with a hold of "
+            "electronics. Two pirates are picking it clean — and they "
+            "won't share. Clear the patrol and board the wreck for the "
+            "drive components."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="salvage",
+        tier=2,
+        reward_credits=400,
+        reward_xp=70,
+        # Round trip to Epsilon Eridani (1 hop) ~35 days; deadline ~2.2x
+        # RT with a boarding buffer.
+        deadline_days=90,
+        early_bonus_pct=25,
+        target_enemy_id="pirate_scout",
+        target_system_id="epsilon_eridani",
+        bounty_target_squad_size=2,
+        heist_target_good_id="electronics",
+        salvage_wreck_enemy_id="derelict_scout",
+        salvage_layout_id="scout_a",
+    ),
+    # Tier 3 — Procyon, 2 hops. Raider + scout patrol, freightliner interior.
+    MissionSpec(
+        id="bar_salvage_procyon_core",
+        title="Procyon Core",
+        description=(
+            "A big freighter is dead in the water off Procyon, and a raider "
+            "crew with a scout escort has claimed it. The reactor core is "
+            "still intact — fuel cells for the taking. Clear the patrol, "
+            "board, and strip the engine room."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="salvage",
+        tier=3,
+        reward_credits=850,
+        reward_xp=140,
+        # Round trip to Procyon (2 hops) ~70 days; deadline ~2.2x RT.
+        deadline_days=155,
+        early_bonus_pct=25,
+        target_enemy_id="pirate_raider",
+        target_system_id="procyon",
+        bounty_target_squad_size=2,
+        bounty_wingmate_enemy_id="pirate_scout",
+        heist_target_good_id="fuel_cells",
+        salvage_wreck_enemy_id="derelict_freighter",
+        salvage_layout_id="freightliner_a",
+    ),
+    # Tier 4 — Luyten's Star, 5 hops. Captain + 2 raiders, freightliner.
+    MissionSpec(
+        id="bar_salvage_luyten_blackbox",
+        title="Luyten Black Box",
+        description=(
+            "Deep in Luyten's Star, a pirate captain and his raiders are "
+            "guarding a gutted luxury liner. The cargo vault is still "
+            "sealed — luxury goods waiting. This one's a full boarding "
+            "action: clear the space patrol, then fight the crew inside "
+            "deck by deck."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="salvage",
+        tier=4,
+        reward_credits=2000,
+        reward_xp=320,
+        # Round trip to Luyten's Star (5 hops) ~170 days (10 jumps, needs
+        # a refuel stop); deadline ~2.1x RT with a boarding buffer.
+        deadline_days=370,
+        early_bonus_pct=30,
+        target_enemy_id="pirate_captain",
+        target_system_id="luyten_star",
+        bounty_target_squad_size=3,
+        bounty_wingmate_enemy_id="pirate_raider",
+        bounty_target_loadout_pct=75,
+        heist_target_good_id="luxury_goods",
+        salvage_wreck_enemy_id="derelict_freighter",
+        salvage_layout_id="freightliner_a",
+    ),
 )

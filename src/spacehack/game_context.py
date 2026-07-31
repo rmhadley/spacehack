@@ -126,6 +126,7 @@ class BountySpawn:
     squad_group_id: str | None = None
     comms_warning_range: int = 0   # distance-based auto-hail; 0 = viewport-based
     heist_spawn_id: str | None = None  # links to ActiveMission for intercept loot drop
+    salvage_wreck: bool = False    # True = non-combatant mission wreck (boardable, persists until secured)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -227,6 +228,10 @@ class GameContext:
         default_factory=dict,
     )
     bounty_spawns: dict[str, list[BountySpawn]] = dataclasses.field(default_factory=dict)
+    # Persistent wreck interiors, keyed by the wreck's BountySpawn spawn id.
+    # First board caches the layout; exit keeps it; re-board reuses it so
+    # crew stay dead, loot stays taken, fog stays revealed (anti-farm).
+    interiors: dict[str, world.GameMap] = dataclasses.field(default_factory=dict)
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     npc_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     npc_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)

@@ -93,6 +93,11 @@ class ActiveMission:
     heist_target_good_id: str | None = None
     heist_good_secured: bool = False  # True once the mission's loot is secured in the hold
 
+    # Salvage fields
+    salvage_wreck_enemy_id: str | None = None  # derelict spec for the boarded wreck
+    salvage_layout_id: str | None = None       # interior layout id for the wreck
+    salvage_wreck_spawn_id: str | None = None  # BountySpawn id of the wreck (interior cache key + lifecycle)
+
     # Smuggling fields
     is_smuggle: bool = False       # cargo is hot — militia scans can confiscate it
     smuggle_good_id: str | None = None  # flavor good id for quest log display

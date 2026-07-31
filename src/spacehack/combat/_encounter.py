@@ -120,6 +120,14 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         for _m in _missions:
             _m_spawn = getattr(_m, 'bounty_spawn_id', None)
             if _m_spawn is not None and _m_spawn in _cr.defeated_bounty_ids:
+                # Salvage missions: killing the guard patrol does NOT complete
+                # the mission — the component is secured from the wreck's
+                # interior and delivered to the barkeep. Still clean up the
+                # dead patrol's BountySpawn so it doesn't linger.
+                if getattr(_m, 'salvage_layout_id', None) is not None:
+                    from ..navigation import _remove_bounty_spawn
+                    _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
+                    continue
                 from ..mission import complete_mission as _complete
                 _today = ctx.time_day + (ctx.time_month - 1) * 30
                 _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today, ctx=ctx)
@@ -141,6 +149,9 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
             _m for _m in (_missions or [])
             if getattr(_m, 'bounty_spawn_id', None) is not None
             and getattr(_m, 'heist_target_good_id', None) is not None
+            # Salvage missions reuse heist_target_good_id for the component
+            # but their patrol carries no heist_spawn_id — exclude them.
+            and getattr(_m, 'salvage_layout_id', None) is None
         ]
         for _hm in _hei_missions:
             _hm_spawn = getattr(_hm, 'bounty_spawn_id', None)

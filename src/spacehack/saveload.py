@@ -234,31 +234,16 @@ def save_game(
 
     # --- Dungeon mode: serialize dungeon map + space player position ---
     if mode == "dungeon":
-        _gm = ctx.game_map
-        _dungeon_data = {
-            "width": _gm.width,
-            "height": _gm.height,
-            "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg)} for c in row] for row in _gm.tiles],
-            "entities": [
-                {
-                    "char": e.char,
-                    "fg_r": e.fg[0], "fg_g": e.fg[1], "fg_b": e.fg[2],
-                    "x": e.pos.x, "y": e.pos.y,
-                    "name": e.name,
-                    "loot_data": e.loot_data,
-                    "computer_terminal": e.computer_terminal,
-                    "npc_char_id": e.npc_char_id,
-                }
-                for e in _gm.entities if e.char != '@'
-            ],
-            "seen": _gm.seen,
-            "sight_radius": _gm.sight_radius,
-            "power_restored": getattr(_gm, 'power_restored', False),
-            "space_player_x": space_player_pos[0] if space_player_pos else 0,
-            "space_player_y": space_player_pos[1] if space_player_pos else 0,
-            "location_name": getattr(_gm, 'location_name', ''),
+        _data["dungeon"] = _dungeon_to_dict(ctx.game_map, space_player_pos)
+
+    # --- Persistent wreck interiors (salvage missions) ---
+    # The autosave IS the on-disk cache: every boarded wreck interior is
+    # serialized here and restored on load so crew stay dead, loot stays
+    # taken, and fog stays revealed across save/quit/continue.
+    if ctx.interiors:
+        _data["interiors"] = {
+            _k: _dungeon_to_dict(_v, None) for _k, _v in ctx.interiors.items()
         }
-        _data["dungeon"] = _dungeon_data
 
     # --- Save RNG state so Continue restores the exact same stream ---
     from .engine import RNG
@@ -267,6 +252,135 @@ def save_game(
 
     _path = _autosave_path()
     _path.write_text(json.dumps(_data, indent=2, ensure_ascii=False))
+
+
+# ---------------------------------------------------------------------------
+# Shared dungeon serialization (active dungeon + persistent interiors)
+# ---------------------------------------------------------------------------
+
+
+def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
+    """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict.
+
+    Shared by the active-dungeon save block AND the
+    ``ctx.interiors`` cache (salvage wrecks). ``space_player_pos`` is
+    only meaningful for the active dungeon (the player's ship position
+    in space while boarded); interiors pass ``None``.
+    """
+    return {
+        "width": gm.width,
+        "height": gm.height,
+        "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg)} for c in row] for row in gm.tiles],
+        "entities": [
+            {
+                "char": e.char,
+                "fg_r": e.fg[0], "fg_g": e.fg[1], "fg_b": e.fg[2],
+                "x": e.pos.x, "y": e.pos.y,
+                "name": e.name,
+                "loot_data": e.loot_data,
+                "computer_terminal": e.computer_terminal,
+                "npc_char_id": e.npc_char_id,
+                "squad_id": getattr(e, 'squad_id', ''),
+                "heist_mission": bool(getattr(e, 'heist_mission', False)),
+                "heist_mission_id": getattr(e, 'heist_mission_id', None),
+            }
+            for e in gm.entities if e.char != '@'
+        ],
+        "seen": gm.seen,
+        "sight_radius": gm.sight_radius,
+        "power_restored": getattr(gm, 'power_restored', False),
+        "space_player_x": space_player_pos[0] if space_player_pos else 0,
+        "space_player_y": space_player_pos[1] if space_player_pos else 0,
+        "location_name": getattr(gm, 'location_name', ''),
+        # Salvage-wreck interior anchors: the wreck's BountySpawn id
+        # (cache key + lifecycle) and the interior's entry spawn, so
+        # re-boarding a restored interior places the player correctly.
+        "wreck_spawn_id": getattr(gm, 'wreck_spawn_id', None),
+        "entry_spawn": (
+            [gm.entry_spawn.x, gm.entry_spawn.y]
+            if getattr(gm, 'entry_spawn', None) is not None else None
+        ),
+    }
+
+
+def _dungeon_from_dict(dd: dict) -> tuple:
+    """Rebuild a dungeon :class:`world.GameMap` from a serialized dict.
+
+    Returns ``(game_map, space_player_pos)``. The player entity is NOT
+    included (the caller appends a fresh ``@`` at the saved position).
+    """
+    # Backward-compat fallback for old saves that stored kind strings.
+    _TILE_FROM_KIND: dict[str, world.Tile] = {
+        "dungeon_wall": world.DUNGEON_WALL,
+        "dungeon_floor": world.DUNGEON_FLOOR,
+        "dungeon_door": world.DUNGEON_DOOR,
+        "void": world.VOID,
+        "airlock": world.AIRLOCK,
+        "breach": world.BREACH,
+        "cockpit": world.COCKPIT,
+        "engine": world.ENGINE_TILE,
+        "debris": world.DEBRIS,
+        "exit": world.EXIT,
+        "hull_wall": world.HULL_WALL,
+    }
+    _dw = dd.get("width", 1)
+    _dh = dd.get("height", 1)
+    _raw_tiles = dd.get("tiles", [["void"]])
+    _dungeon_tiles: list[list[world.Tile]] = []
+    for row in _raw_tiles:
+        _tile_row: list[world.Tile] = []
+        for t in row:
+            if isinstance(t, str):
+                # Old save format: kind string → lookup default Tile.
+                _tile_row.append(_TILE_FROM_KIND.get(t, world.VOID))
+            else:
+                # New format: full tile dict with fg/bg preserved.
+                _tile_row.append(world.Tile(
+                    kind=t.get("kind", "void"),
+                    char=t.get("char", " "),
+                    walkable=t.get("walkable", False),
+                    fg=tuple(t.get("fg", [0, 0, 0])),
+                    bg=tuple(t.get("bg", [0, 0, 0])),
+                ))
+        _dungeon_tiles.append(_tile_row)
+    _dungeon_entities: list[world.Entity] = []
+    for _ed in dd.get("entities", []):
+        _e = world.Entity(
+            char=_ed.get("char", "?"),
+            fg=(_ed.get("fg_r", 255), _ed.get("fg_g", 255), _ed.get("fg_b", 255)),
+            pos=world.Position(_ed.get("x", 0), _ed.get("y", 0)),
+            name=_ed.get("name", ""),
+            width=1, height=1,
+            loot_data=_ed.get("loot_data"),
+            computer_terminal=_ed.get("computer_terminal", False),
+            npc_char_id=_ed.get("npc_char_id", ""),
+            squad_id=_ed.get("squad_id", ""),
+        )
+        if _ed.get("heist_mission", False):
+            _e.heist_mission = True
+        _hmid = _ed.get("heist_mission_id")
+        if _hmid:
+            _e.heist_mission_id = _hmid
+        _dungeon_entities.append(_e)
+
+    _dungeon_map = world.GameMap(
+        width=_dw, height=_dh,
+        tiles=_dungeon_tiles,
+        entities=_dungeon_entities,
+    )
+    _dungeon_map.seen = dd.get("seen")
+    _dungeon_map.sight_radius = dd.get("sight_radius", 4)
+    _dungeon_map.location_name = dd.get("location_name", "")
+    if dd.get("power_restored", False):
+        _dungeon_map.power_restored = True
+    _wsid = dd.get("wreck_spawn_id")
+    if _wsid:
+        _dungeon_map.wreck_spawn_id = _wsid
+    _es = dd.get("entry_spawn")
+    if isinstance(_es, (list, tuple)) and len(_es) >= 2:
+        _dungeon_map.entry_spawn = world.Position(int(_es[0]), int(_es[1]))
+    _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
+    return _dungeon_map, _space_pos
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +475,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             tier=_am.get("tier", 1),
             heist_target_good_id=_am.get("heist_target_good_id"),
             heist_good_secured=_am.get("heist_good_secured", False),
+            salvage_wreck_enemy_id=_am.get("salvage_wreck_enemy_id"),
+            salvage_layout_id=_am.get("salvage_layout_id"),
+            salvage_wreck_spawn_id=_am.get("salvage_wreck_spawn_id"),
             is_smuggle=_am.get("is_smuggle", False),
             smuggle_good_id=_am.get("smuggle_good_id"),
         ))
@@ -393,6 +510,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 squad_group_id=_bs.get("squad_group_id"),
                 comms_warning_range=_bs.get("comms_warning_range", 0),
                 heist_spawn_id=_bs.get("heist_spawn_id"),
+                salvage_wreck=_bs.get("salvage_wreck", False),
             ))
 
     # --- Procedural spawns ---
@@ -482,6 +600,14 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     width=1, height=1,
                     npc_ship_id=_bs.enemy_id,
                 )
+                if _bs.salvage_wreck:
+                    # Non-combatant mission wreck: boardable, persists until
+                    # the component is secured. Tagged with its spawn id so
+                    # the boarding flow finds the mission + interior cache.
+                    # No bounty_spawn_id — it must never auto-complete.
+                    _ent.salvage_wreck_spawn_id = _bs.spawn_id
+                    _game_map.entities.append(_ent)
+                    continue
                 if not _bs.squad_group_id:
                     _ent.bounty_spawn_id = _bs.spawn_id
                     # Restore intercept linkage so on_kill still drops the
@@ -540,21 +666,6 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         from .data.solar_systems import find_solar_system as _find_sys
         from .data.npc_ships import find_npc_ship as _find_npc
 
-        # Backward-compat fallback for old saves that stored kind strings.
-        _TILE_FROM_KIND: dict[str, world.Tile] = {
-            "dungeon_wall": world.DUNGEON_WALL,
-            "dungeon_floor": world.DUNGEON_FLOOR,
-            "dungeon_door": world.DUNGEON_DOOR,
-            "void": world.VOID,
-            "airlock": world.AIRLOCK,
-            "breach": world.BREACH,
-            "cockpit": world.COCKPIT,
-            "engine": world.ENGINE_TILE,
-            "debris": world.DEBRIS,
-            "exit": world.EXIT,
-            "hull_wall": world.HULL_WALL,
-        }
-
         _dd = _data.get("dungeon", {})
         if not _dd:
             _log.add("Dungeon save data missing — loading Earth city.")
@@ -586,6 +697,14 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                     width=1, height=1,
                     npc_ship_id=_bs.enemy_id,
                 )
+                if _bs.salvage_wreck:
+                    # Non-combatant mission wreck: boardable, persists until
+                    # the component is secured. Tagged with its spawn id so
+                    # the boarding flow finds the mission + interior cache.
+                    # No bounty_spawn_id — it must never auto-complete.
+                    _ent.salvage_wreck_spawn_id = _bs.spawn_id
+                    _space_map.entities.append(_ent)
+                    continue
                 if not _bs.squad_group_id:
                     _ent.bounty_spawn_id = _bs.spawn_id
                     # Restore intercept linkage so on_kill still drops the
@@ -638,51 +757,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 )
             _space_map.entities.append(_space_player_ent)
 
-            # 2. Rebuild dungeon map from saved data.
-            _dw = _dd.get("width", 1)
-            _dh = _dd.get("height", 1)
-            _raw_tiles = _dd.get("tiles", [["void"]])
-            _dungeon_tiles: list[list[world.Tile]] = []
-            for row in _raw_tiles:
-                _tile_row: list[world.Tile] = []
-                for t in row:
-                    if isinstance(t, str):
-                        # Old save format: kind string → lookup default Tile.
-                        _tile_row.append(_TILE_FROM_KIND.get(t, world.VOID))
-                    else:
-                        # New format: full tile dict with fg/bg preserved.
-                        _tile_row.append(world.Tile(
-                            kind=t.get("kind", "void"),
-                            char=t.get("char", " "),
-                            walkable=t.get("walkable", False),
-                            fg=tuple(t.get("fg", [0, 0, 0])),
-                            bg=tuple(t.get("bg", [0, 0, 0])),
-                        ))
-                _dungeon_tiles.append(_tile_row)
-            _dungeon_entities: list[world.Entity] = []
-            for _ed in _dd.get("entities", []):
-                _e = world.Entity(
-                    char=_ed.get("char", "?"),
-                    fg=(_ed.get("fg_r", 255), _ed.get("fg_g", 255), _ed.get("fg_b", 255)),
-                    pos=world.Position(_ed.get("x", 0), _ed.get("y", 0)),
-                    name=_ed.get("name", ""),
-                    width=1, height=1,
-                    loot_data=_ed.get("loot_data"),
-                    computer_terminal=_ed.get("computer_terminal", False),
-                    npc_char_id=_ed.get("npc_char_id", ""),
-                )
-                _dungeon_entities.append(_e)
-
-            _dungeon_map = world.GameMap(
-                width=_dw, height=_dh,
-                tiles=_dungeon_tiles,
-                entities=_dungeon_entities,
-            )
-            _dungeon_map.seen = _dd.get("seen")
-            _dungeon_map.sight_radius = _dd.get("sight_radius", 4)
-            _dungeon_map.location_name = _dd.get("location_name", "")
-            if _dd.get("power_restored", False):
-                _dungeon_map.power_restored = True
+            # 2. Rebuild dungeon map from saved data (shared helper —
+            #    preserves ground-combat squads, heist loot, wreck anchors).
+            _dungeon_map, _ = _dungeon_from_dict(_dd)
 
             # 3. Create dungeon player entity at saved position.
             _dungeon_player = world.Entity(
@@ -792,6 +869,19 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     if _mode == "dungeon":
         _ctx._space_game_map = _saved_space_map  # type: ignore[attr-defined]
         _ctx._space_player = _saved_space_player  # type: ignore[attr-defined]
+
+    # --- Restore persistent wreck interiors (salvage missions) ---
+    # Each serialized interior carries its wreck's spawn id + entry spawn.
+    for _k, _idict in (_data.get("interiors", {}) or {}).items():
+        _imap, _ = _dungeon_from_dict(_idict)
+        _ctx.interiors[str(_k)] = _imap
+    # If the player is INSIDE a wreck (mode=dungeon), the active dungeon
+    # map is the authoritative copy — overwrite the restored cache entry
+    # with it so re-boarding after exit sees post-load progress (crew
+    # killed, loot taken), not a stale deserialized twin of the same map.
+    _cur_wsid = getattr(_game_map, 'wreck_spawn_id', None)
+    if _cur_wsid is not None:
+        _ctx.interiors[_cur_wsid] = _game_map
 
     # --- Restore RNG state ---
     _rng_state = _data.get("rng_state")

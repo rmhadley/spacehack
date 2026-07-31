@@ -147,9 +147,22 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             paint(detail_top, fit(f'Target: {_target_name} ({_target_sys_name}){_squad_str}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
 
+        # Salvage-specific display: the boarded wreck + component status.
+        _salv_wreck = getattr(am, 'salvage_wreck_enemy_id', None)
+        if _salv_wreck is not None:
+            _wreck_name = _salv_wreck.replace('_', ' ').title()
+            _comp = _good_display_name(am.heist_target_good_id)
+            _secured = getattr(am, 'heist_good_secured', False)
+            _status = 'SECURED' if _secured else 'SOMEWHERE IN THE WRECK'
+            _sfg = (120, 220, 120) if _secured else (255, 180, 80)
+            paint(detail_top, fit(f'Recover: {_comp} ({_status})'), fg=_sfg)
+            detail_top += 1
+            paint(detail_top, fit(f'Board the {_wreck_name} to search it'), fg=ui.COLOR_VALUE_DIM)
+            detail_top += 1
+
         # Intercept-specific display: mission cargo secured status.
         _heist_good = getattr(am, 'heist_target_good_id', None)
-        if _heist_good is not None:
+        if _heist_good is not None and _salv_wreck is None:
             _good_name = _good_display_name(_heist_good)
             _secured = getattr(am, 'heist_good_secured', False)
             _status = 'SECURED' if _secured else 'NOT SECURED'

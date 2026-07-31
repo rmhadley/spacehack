@@ -267,6 +267,8 @@ def load_layout(
     layout_id: str,
     *,
     loot_budget: tuple[int, int] | None = None,
+    component_good_id: str | None = None,
+    component_mission_id: str | None = None,
 ) -> tuple[world.GameMap, world.Position]:
     """Parse ``layout_id.layout`` and return ``(game_map, spawn_pos)``.
 
@@ -275,6 +277,12 @@ def load_layout(
     all loot rooms to try to spend the rolled budget — some rooms
     naturally end up with multiple loot containers while others get
     none. When ``None`` (default), old guaranteed behavior is used.
+
+    ``component_good_id`` + ``component_mission_id`` (salvage missions):
+    when both set, ONE loot-marker room is RNG-picked and the
+    mission-tagged ``%`` component entity (``heist_mission`` +
+    ``heist_mission_id``) is placed in it. Placement is decided at
+    layout-build time, so it persists via the caller's interior cache.
 
     Raises:
       FileNotFoundError: if the layout file doesn't exist.
@@ -624,6 +632,30 @@ def load_layout(
         # Budget mode: early exit if nothing was placed this pass
         if _has_budget and not _anything_placed_this_pass:
             break
+
+    # --- Salvage mission component: RNG-pick one loot room, place the
+    # mission-tagged % there. Runs only when a mission owns this wreck
+    # (first board — the caller caches the map, so placement persists).
+    if component_good_id is not None and component_mission_id is not None and loot_markers:
+        _ci = _RNG.randint(0, len(loot_markers) - 1)
+        _room_type, _cmx, _cmy = loot_markers[_ci]
+        _ccells = _flood_room(_cmx, _cmy)
+        if not _ccells:
+            _ccells = [(_cmx, _cmy)]
+        _cx, _cy = _ccells[_RNG.randint(0, len(_ccells) - 1)]
+        _comp = world.Entity(
+            char='%',
+            fg=(255, 215, 0),   # mission gold — distinct from dull-brass debris
+            pos=world.Position(_cx, _cy),
+            name=f"Mission Component: {component_good_id.replace('_', ' ').title()}",
+            width=1, height=1,
+            loot_data={"good_id": component_good_id, "quantity": 1},
+        )
+        # Mission-specific flags — read by trade.open_loot_pickup via
+        # getattr, same pattern as the intercept loot entity.
+        _comp.heist_mission = True
+        _comp.heist_mission_id = component_mission_id
+        entities.append(_comp)
 
     game_map = world.GameMap(
         width=grid_width,

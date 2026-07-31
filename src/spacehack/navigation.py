@@ -356,6 +356,21 @@ def _add_bounty_spawns_to_map(
             width=1, height=1,
             npc_ship_id=_bs.enemy_id,
         )
+        if _bs.salvage_wreck:
+            # Non-combatant mission wreck: boardable, persists until the
+            # component is secured. Tagged with its spawn id so the
+            # boarding flow finds the mission + interior cache. Deliberately
+            # NO bounty_spawn_id / heist_spawn_id / squad linkage — nothing
+            # auto-hails, and killing it can never complete anything.
+            _ent.salvage_wreck_spawn_id = _bs.spawn_id
+            game_map.entities.append(_ent)
+            if _system is not None:
+                _landmark = _nearest_body_name(_bs.pos, _system)
+                ctx.log.add_colored(
+                    f"Sensor ping: derelict wreck detected near {_landmark}.",
+                    message_log.COLOR_IMPORTANT_EVENT,
+                )
+            continue
         # Only the leader (no squad_group_id) gets bounty_spawn_id / heist_spawn_id.
         # Wingmates don't get it so they don't trigger auto-hail or
         # bounty completion on kill.
