@@ -893,6 +893,51 @@ _GUIDE_DERELICT = GuideSection(
 )
 
 # All sections in order. Add new sections here (insert or append).
+_GUIDE_BAR_MISSIONS = GuideSection(
+    title="Bar Missions & Intercept",
+    body=(
+        "The Bartender (b glyph, yellow) in the city bar offers shady "
+        "pirate-aligned contracts. These are criminal jobs — high pay, "
+        "high risk, and they'll damage your reputation with lawful factions."
+        "\n\n"
+        "Intercept missions:"
+        "\n"
+        "- Accept from the Bartender, then travel to the target system."
+        "\n"
+        "- Find the merchant vessel (non-hostile unless you're at enemy rep "
+        "with merchants). Hail them via comms (T key) and choose Attack, "
+        "or fly close to engage if your merchant rep is hostile."
+        "\n"
+        "- Destroy the merchant in combat. A salvage container (%) drops "
+        "at the wreckage site with the mission-specific good."
+        "\n"
+        "- Fly over the % to collect the stolen cargo."
+        "\n"
+        "- Return to the Bartender on the planet where you accepted the "
+        "mission and choose Deliver to hand over the goods."
+        "\n\n"
+        "Reputation impact:"
+        "\n"
+        "- Completing intercept missions: +5 pirate rep, -10 merchant, "
+        "-5 militia, -2 civilian."
+        "\n"
+        "- Killing merchants in combat also applies per-kill rep penalties "
+        "(see NPCs & Factions)."
+        "\n"
+        "- The Bartender is aligned with the Pirate faction — if your pirate "
+        "rep falls to enemy levels, they'll refuse to speak with you."
+        "\n\n"
+        "Tips:"
+        "\n"
+        "- Higher-tier merchants are armed and may have escorts."
+        "\n"
+        "- Early delivery bonus: complete in under half the deadline for "
+        "+25-30% extra credits."
+        "\n"
+        "- Abandoning an intercept mission returns it to the Bartender's board."
+    ),
+)
+
 _GUIDE_GROUND_GEAR = GuideSection(
     title="Ground Gear & Armory",
     body=(
@@ -1108,6 +1153,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_DERELICT,
     _GUIDE_CHARACTER,
     _GUIDE_LEVELING,
+    _GUIDE_BAR_MISSIONS,
     _GUIDE_GROUND_GEAR,
     _GUIDE_NPCS,
 )

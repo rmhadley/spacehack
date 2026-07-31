@@ -812,6 +812,17 @@ def _run_game(
                         return
                     if result is TalkOutcome.DELIVER:
                         if _deliver_mission is not None:
+                            # Intercept delivery: remove the heist good from inventory.
+                            _heist_good = getattr(_deliver_mission, 'heist_target_good_id', None)
+                            if _heist_good is not None and player_owned_ship is not None:
+                                _inv = getattr(player_owned_ship, 'inventory', {}) or {}
+                                _qty = _inv.get(_heist_good, 0)
+                                if _qty > 0:
+                                    if _qty <= 1:
+                                        del _inv[_heist_good]
+                                    else:
+                                        _inv[_heist_good] = _qty - 1
+                                    log.add(f"You hand over the stolen {_heist_good.replace('_', ' ')}.")
                             _today = ctx.time_day + (ctx.time_month - 1) * 30
                             mission_module.complete_mission(
                                 _deliver_mission, player_owned_ship, stats, log,
@@ -901,6 +912,9 @@ def _run_game(
                                                     except (KeyError, ImportError):
                                                         pass
                                                     # Leader BountySpawn.
+                                                    _heist_sid = None
+                                                    if getattr(picked, 'heist_target_good_id', None) is not None:
+                                                        _heist_sid = _bounty_spawn_id
                                                     _bs = BountySpawn(
                                                         spawn_id=_bounty_spawn_id,
                                                         enemy_id=picked.target_enemy_id,
@@ -909,6 +923,7 @@ def _run_game(
                                                         squad_size=_squad_size,
                                                         loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
                                                         comms_warning_range=_bounty_warning_range,
+                                                        heist_spawn_id=_heist_sid,
                                                     )
                                                     if picked.target_system_id not in ctx.bounty_spawns:
                                                         ctx.bounty_spawns[picked.target_system_id] = []
@@ -949,13 +964,20 @@ def _run_game(
                                                     ctx.time_year, _dl_days,
                                                 )
                                             _is_proc = picked.id in ctx.generated_missions
+                                            # For intercept missions, set delivery fields to return to barkeep.
+                                            _del_npc = picked.delivery_target_npc_id
+                                            _del_planet = picked.delivery_target_planet_id
+                                            _heist_good = getattr(picked, 'heist_target_good_id', None)
+                                            if _heist_good is not None:
+                                                _del_npc = npc_obj.id  # return to the barkeep
+                                                _del_planet = current_city_id  # on this planet
                                             _new_active = mission_module.ActiveMission(
                                                 mission_id=picked.id,
                                                 is_procedural=_is_proc,
                                                 title=picked.title,
                                                 required_cargo_size=picked.required_cargo_size,
-                                                delivery_target_npc_id=picked.delivery_target_npc_id,
-                                                delivery_target_planet_id=picked.delivery_target_planet_id,
+                                                delivery_target_npc_id=_del_npc,
+                                                delivery_target_planet_id=_del_planet,
                                                 deadline_days=_dl_days,
                                                 accept_day=ctx.time_day + (ctx.time_month - 1) * 30,
                                                 time_deadline=_deadline,
@@ -969,6 +991,7 @@ def _run_game(
                                                 bounty_target_squad_size=getattr(picked, 'bounty_target_squad_size', 1),
                                                 bounty_target_loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0),
                                                 tier=picked.tier,
+                                                heist_target_good_id=_heist_good,
                                             )
                                             mission_module.commit_accept_mission(
                                                 picked, player_owned_ship, log,

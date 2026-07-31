@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import tcod.event
 
+from .. import world
+from .. import message_log as _ml
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 from ._loop import run_combat
 from . import _rules_space
@@ -132,6 +134,19 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 # Clean up the BountySpawn so re-detect doesn't find it.
                 from ..navigation import _remove_bounty_spawn
                 _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
+
+        # --- Intercept/heist cleanup: remove BountySpawn entries so re-detect doesn't find them.
+        # (Loot entity is spawned in _rules_space.on_kill where the death position is available.)
+        _hei_missions = [
+            _m for _m in (_missions or [])
+            if getattr(_m, 'bounty_spawn_id', None) is not None
+            and getattr(_m, 'heist_target_good_id', None) is not None
+        ]
+        for _hm in _hei_missions:
+            _hm_spawn = getattr(_hm, 'bounty_spawn_id', None)
+            if _hm_spawn is not None and _hm_spawn in _cr.defeated_heist_ids:
+                from ..navigation import _remove_bounty_spawn
+                _remove_bounty_spawn(ctx, _hm_spawn, getattr(_hm, 'target_system_id', None))
 
         # Dead enemies are already removed individually during combat
         # by rules.on_kill() (which calls _remove_dead_entity and cleans

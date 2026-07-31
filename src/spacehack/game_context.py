@@ -125,6 +125,7 @@ class BountySpawn:
     loadout_pct: int = 0
     squad_group_id: str | None = None
     comms_warning_range: int = 0   # distance-based auto-hail; 0 = viewport-based
+    heist_spawn_id: str | None = None  # links to ActiveMission for intercept loot drop
 
 
 @dataclasses.dataclass(frozen=True)

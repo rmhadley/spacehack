@@ -356,11 +356,13 @@ def _add_bounty_spawns_to_map(
             width=1, height=1,
             npc_ship_id=_bs.enemy_id,
         )
-        # Only the leader (no squad_group_id) gets bounty_spawn_id.
+        # Only the leader (no squad_group_id) gets bounty_spawn_id / heist_spawn_id.
         # Wingmates don't get it so they don't trigger auto-hail or
         # bounty completion on kill.
         if _bs.squad_group_id is None:
             _ent.bounty_spawn_id = _bs.spawn_id
+            if _bs.heist_spawn_id is not None:
+                _ent.heist_spawn_id = _bs.heist_spawn_id
         # Propagate warning range to ALL squad members so no one
         # triggers combat before the auto-hail fires.
         _ent.bounty_comms_range = _bs.comms_warning_range

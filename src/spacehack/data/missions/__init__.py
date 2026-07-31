@@ -99,6 +99,9 @@ class MissionSpec:
     bounty_target_squad_size: int = 1
     bounty_target_loadout_pct: int = 0
 
+    # --- Intercept-specific ---
+    heist_target_good_id: str | None = None
+
     # --- Recommendations ---
     recommended_class_id: str | None = None
     recommended_ship_min_cargo: int = 0

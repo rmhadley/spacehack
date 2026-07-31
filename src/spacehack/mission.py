@@ -88,6 +88,9 @@ class ActiveMission:
     bounty_target_loadout_pct: int = 0
     tier: int = 1
 
+    # Intercept fields
+    heist_target_good_id: str | None = None
+
     # Deadline
     time_deadline: tuple[int, int, int] | None = None  # (day, month, year)
     deadline_days: int = 0

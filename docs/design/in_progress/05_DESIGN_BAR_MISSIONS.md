@@ -193,6 +193,65 @@ Works by marking cargo as "hidden" when the scan runs. Only affects cargo scan o
 | `bar_salvage_procyon_core` | Procyon Core | 3 | `fuel_cells` | Procyon | 850$ / 140xp |
 | `bar_salvage_luyten_blackbox` | Luyten Black Box | 4 | `luxury_goods` | Luyten's Star | 2000$ / 320xp |
 
+## Pre-implementation audit (MANDATORY — knowledge.md)
+
+### Existing infrastructure to reuse
+
+| What | Where | How intercept reuses it |
+|------|-------|-------------------------|
+| `MissionSpec` | `data/missions/__init__.py:21` | Add `heist_target_good_id`. Auto-discovery picks up new `bar.py`. |
+| `ActiveMission` | `mission.py:63` | Add `heist_target_good_id`. Reuse `delivery_target_npc_id="barkeep"` + `delivery_target_planet_id` for return tracking. |
+| `BountySpawn` | `game_context.py:107` | Spawn merchant ships via same `ctx.bounty_spawns` dict. No new spawn dataclass needed. |
+| `_add_bounty_spawns_to_map` | `navigation.py` | Places merchant entity on space map on jump/launch. Same code path as bounty targets. |
+| `_detect_combat_encounter` | `navigation.py:421` | Already scans entities by faction proximity. If player has enemy merchant rep, merchant triggers combat on approach. |
+| `_handle_combat_encounter` | `combat/_encounter.py:20` | Post-victory: add parallel `defeated_heist_ids` check to spawn mission loot. |
+| `on_kill` | `combat/_rules_space.py:474` | Already calls `_spawn_loot_drops`. Add check: if entity has `heist_spawn_id`, append to `defeated_heist_ids`. |
+| `_spawn_loot_drops` | `combat/_actions.py` | Existing helper for random cargo loot. Intercept adds mission-specific `%` entity at same position. |
+| `open_loot_pickup` | `trade.py` | Already works for `loot_data` entities in space mode. Player flies over `%` to collect. |
+| `fill_empty_slots` | `mission.py:430` | Static missions from `missions_offered_by("barkeep")` fill before the procedural early-return. No change needed. |
+| `find_deliverable_missions` | `mission.py:226` | Checks `delivery_target_npc_id` + `delivery_target_planet_id`. Intercept sets both to barkeep + accept planet. |
+| `complete_mission` | `mission.py:241` | Drops cargo (looted good), grants credits/XP, applies rep changes. Works as-is. |
+| `merchant_hauler` | `data/npc_ships/core.py:165` | Already exists with `faction="merchant"`, unarmed. Tier 1 ready. |
+| `_COMBAT_KILL_DELTAS` | `faction.py:185` | Already has `"merchant"` deltas. Killing merchants has rep consequences today. |
+| Comms Attack flow | `comms.py:408` | Returns `_attack_data` → `_handle_combat_encounter`. Player hails merchant → Attack → combat. |
+
+### Three duplication hotspots + DRY strategies
+
+#### Hotspot 1: Merchant spawn accept flow duplicates bounty accept
+
+**Risk:** The 40-line bounty accept block in `__main__.py` would be copy-pasted for intercept.
+
+**DRY strategy:** `BountySpawn` already supports any `enemy_id`. Add `heist_spawn_id` field to `BountySpawn` (defaults `None`). The intercept accept flow creates a `BountySpawn` with `heist_spawn_id` set. The entity-placement code in `navigation.py` sets `bounty_spawn_id` on the entity for bounty spawns, or `heist_spawn_id` for intercept spawns. Single code path, attribute-driven.
+
+#### Hotspot 2: Post-kill heist loot spawn duplicates cargo loot spawn
+
+**Risk:** `_rules_space.py::on_kill` already calls `_spawn_loot_drops()`. Adding a second spawn call duplicates entity construction.
+
+**DRY strategy:** In `on_kill`, if the dead entity has `heist_spawn_id`, append it to `cr.defeated_heist_ids` (same pattern as `defeated_bounty_ids`). In `_encounter.py`'s post-victory handler, iterate `defeated_heist_ids` against active missions and spawn one `%` loot entity per match. The loot entity construction reuses the existing `world.Entity(loot_data=...)` pattern.
+
+#### Hotspot 3: Missions catalog module duplicates existing faction modules
+
+**Risk:** Creating `data/missions/bar.py` by copy-pasting `merchants.py`.
+
+**DRY strategy:** `bar.py` only needs a `MISSIONS` tuple of `MissionSpec` entries with `giver_npc_id="barkeep"`. Auto-discovery picks it up. Follow the existing pattern from `data/missions/bounty.py`.
+
+### Files to create / modify
+
+| File | Change |
+|------|--------|
+| `data/missions/bar.py` | **New** — 4 hand-crafted intercept missions |
+| `data/npc_ships/core.py` | Add `merchant_freighter`, `merchant_caravan` |
+| `data/missions/__init__.py` | Add `heist_target_good_id` to `MissionSpec` |
+| `mission.py` | Add `heist_target_good_id` to `ActiveMission` |
+| `game_context.py` | Add `heist_spawn_id` to `BountySpawn` |
+| `combat/_types.py` | Add `defeated_heist_ids` to `CombatResult` |
+| `combat/_rules_space.py` | `on_kill`: if entity has `heist_spawn_id`, append to `cr.defeated_heist_ids` |
+| `combat/_encounter.py` | Post-victory: spawn `%` loot entity for each defeated heist |
+| `__main__.py` | Intercept accept flow: create `BountySpawn` with `heist_spawn_id`, store delivery fields on `ActiveMission` |
+| `saveload.py` | Serialize/deserialize `heist_target_good_id` on `ActiveMission` |
+| `help.py` | Bar missions guide section |
+| `faction.py` | `_MISSION_REP_DELTAS` entry for `"bar_intercept"` |
+
 ## Domain changes
 
 ### Phase 1: Data model — Intercept (the foundation)

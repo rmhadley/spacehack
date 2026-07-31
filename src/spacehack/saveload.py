@@ -356,6 +356,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             bounty_target_squad_size=_am.get("bounty_target_squad_size", 1),
             bounty_target_loadout_pct=_am.get("bounty_target_loadout_pct", 0),
             tier=_am.get("tier", 1),
+            heist_target_good_id=_am.get("heist_target_good_id"),
         ))
 
     # --- Mission boards ---
@@ -385,6 +386,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 loadout_pct=_bs.get("loadout_pct", 0),
                 squad_group_id=_bs.get("squad_group_id"),
                 comms_warning_range=_bs.get("comms_warning_range", 0),
+                heist_spawn_id=_bs.get("heist_spawn_id"),
             ))
 
     # --- Procedural spawns ---

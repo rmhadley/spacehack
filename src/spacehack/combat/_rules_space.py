@@ -512,6 +512,28 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
     if _correct_spec is not None:
         _spawn_loot_drops(game_map, enemy.pos, _correct_spec)
 
+    # Heist/intercept: spawn mission-specific loot entity at death position.
+    _heist_id = getattr(_dead_ent, 'heist_spawn_id', None) if _dead_ent is not None else None
+    if _heist_id is not None:
+        _missions = getattr(ctx, 'player_active_missions', [])
+        for _m in _missions:
+            if getattr(_m, 'bounty_spawn_id', None) == _heist_id:
+                _good_id = getattr(_m, 'heist_target_good_id', '')
+                if _good_id:
+                    _loot_ent = world.Entity(
+                        char='%', fg=(255, 215, 0),
+                        pos=enemy.pos,
+                        name=f'Salvage: {_good_id.replace("_", " ").title()}',
+                        width=1, height=1,
+                        loot_data={"good_id": _good_id, "quantity": 1},
+                    )
+                    game_map.entities.append(_loot_ent)
+                    _state.log.add_colored(
+                        f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
+                        _ml.COLOR_IMPORTANT_EVENT,
+                    )
+                break
+
     from ..data.ships import find_ship as _find_ship_cat
     try:
         _sc = _find_ship_cat(enemy.spec_id)
@@ -529,6 +551,9 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
         _bid = getattr(_dead_ent, 'bounty_spawn_id', None)
         if _bid is not None:
             _state.cr.defeated_bounty_ids.append(_bid)
+        _hid = getattr(_dead_ent, 'heist_spawn_id', None)
+        if _hid is not None:
+            _state.cr.defeated_heist_ids.append(_hid)
 
     if _dead_ent is not None:
         _mid = getattr(_dead_ent, 'procedural_squad_id', None)
