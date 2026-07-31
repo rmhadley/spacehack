@@ -255,7 +255,7 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
     """Apply damage to enemy. Returns hull damage dealt (for log)."""
     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
         weapon_id, enemy.hull, enemy.shields,
-        target_piloting=enemy.pilot_piloting,
+        target_pilot_piloting=enemy.pilot_piloting,
     )
     enemy.shields = max(0, enemy.shields - _sdmg)
     _prev_hull = enemy.hull
