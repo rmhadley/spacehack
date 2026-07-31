@@ -107,24 +107,26 @@ def _run_enemy_turn(
             flee_attempts,
         )
 
+        _cached_path: list[tuple[int, int]] | None = None
+
         while _ei.ap_remaining > 0:
             _edist = _distance(
                 player_state["pos"], _ei.pos,
             )
             _moved = False
             if _edist > _esp.ai_preferred_range:
-                # A* path to player — navigates around obstacles
-                _p_pos = player_state["pos"]
-                _exclude = _enemy_ents.get(_e_idx) if _e_idx >= 0 else None
-                _path = world.find_path(
-                    (_ei.pos.x, _ei.pos.y),
-                    {(_p_pos.x, _p_pos.y)},
-                    game_map,
-                    exclude_entity=_exclude,
-                    max_steps=2000,
-                )
-                if _path:
-                    _nx, _ny = _path[0]
+                # Compute A* path once, follow it step by step.
+                if _cached_path is None:
+                    _p_pos = player_state["pos"]
+                    _exclude = _enemy_ents.get(_e_idx) if _e_idx >= 0 else None
+                    _cached_path = world.find_path(
+                        (_ei.pos.x, _ei.pos.y),
+                        {(_p_pos.x, _p_pos.y)},
+                        game_map,
+                        exclude_entity=_exclude,
+                    )
+                if _cached_path:
+                    _nx, _ny = _cached_path[0]
                 else:
                     _nx, _ny = _ei.pos.x, _ei.pos.y  # no path, stay put
                 _blocked_by_other = any(
@@ -142,6 +144,7 @@ def _run_enemy_turn(
                     if _e_idx >= 0 and _e_idx in _enemy_ents:
                         _enemy_ents[_e_idx].pos = _ei.pos
                     _moved = True
+                    _cached_path.pop(0)  # consume the step
                     # Render a frame so the player sees the enemy move
                     _cam_x, _cam_y = _calc_cam()
                     _render_anim_frame(
@@ -156,6 +159,9 @@ def _run_enemy_turn(
                         player_mode="WAIT",
                     )
                     _responsive_sleep(0.05)
+                else:
+                    # Step blocked — recompute path next iteration
+                    _cached_path = None
 
             if not _moved:
                 if _ei.weapons:

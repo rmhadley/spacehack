@@ -53,6 +53,7 @@ def run_ground_enemy_turn(
     _result_ap = enemy_ap
     _damage_dealt = 0
     _fired = False
+    _cached_path: list[tuple[int, int]] | None = None
 
     while _result_ap > 0:
         _dist = _distance(enemy_entity.pos, player_pos)
@@ -79,18 +80,18 @@ def run_ground_enemy_turn(
             _fired = True
             break  # one shot per enemy turn (matched to player's single [f] action)
 
-        # Out of range — use A* pathfinding to navigate around walls/corners.
-        _path = world.find_path(
-            (enemy_entity.pos.x, enemy_entity.pos.y),
-            {(player_pos.x, player_pos.y)},
-            game_map,
-            exclude_entity=enemy_entity,
-            max_steps=2000,
-        )
-        if _path is None or len(_path) == 0:
+        # Out of range — compute A* path once, follow it step by step.
+        if _cached_path is None:
+            _cached_path = world.find_path(
+                (enemy_entity.pos.x, enemy_entity.pos.y),
+                {(player_pos.x, player_pos.y)},
+                game_map,
+                exclude_entity=enemy_entity,
+            )
+        if _cached_path is None or len(_cached_path) == 0:
             break  # no path to player
 
-        _nx, _ny = _path[0]  # first step along A* path
+        _nx, _ny = _cached_path.pop(0)  # consume next step
 
         # Don't move into the player
         if (_nx, _ny) == (player_pos.x, player_pos.y):
@@ -100,7 +101,8 @@ def run_ground_enemy_turn(
             enemy_entity.pos = world.Position(_nx, _ny)
             _result_ap -= 1
         else:
-            break  # blocked — can't move this turn
+            # Step blocked — recompute path next iteration
+            _cached_path = None
 
     if not _fired:
         ctx.log.add_colored(
