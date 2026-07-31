@@ -25,7 +25,8 @@ def run_ground_enemy_turn(
     armor_defense: int,
     console=None,
     render_callback=None,
-) -> tuple[int, int]:
+    player_dodge: int = 0,
+) -> tuple[int, int, bool]:
     """Execute one enemy turn during ground combat.
 
     While the enemy has AP remaining it either:
@@ -73,6 +74,7 @@ def run_ground_enemy_turn(
             else:
                 _hit = RNG.randint(1, 100) <= _ground_hit_chance_raw(
                     enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
+                    target_dodge_bonus=player_dodge,
                 )
                 if _hit:
                     _damage_dealt = _ground_damage_raw(

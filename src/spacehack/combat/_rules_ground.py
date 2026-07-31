@@ -49,6 +49,7 @@ class GroundEnemyInstance:
     max_hp: int = 30
     ap: int = 4
     ap_total: int = 4
+    cells_moved_this_turn: int = 0
 
     @property
     def alive(self) -> bool:
@@ -83,6 +84,7 @@ class GroundCombatState:
     player_ap: int = 4
     player_ap_total: int = 4
     armor_defense: int = 0
+    cells_moved_this_turn: int = 0
     active_weapon_list: list[bool] = field(default_factory=list)
     target_idx: int = 0
     console: Any = None
@@ -224,10 +226,17 @@ def enemy_alive(enemy: GroundEnemyInstance) -> bool:
 # ---------------------------------------------------------------------------
 
 def _ground_hit_chance_raw(
-    weapon_id: str, attacker_reflexes: int, target_reflexes: int,
+    weapon_id: str,
+    attacker_reflexes: int,
+    target_reflexes: int,
+    target_dodge_bonus: int = 0,
 ) -> int:
+    """Base hit chance before movement dodge.  New param ``target_dodge_bonus``
+    subtracts the target's evade (movement + reflexes) at the end."""
     _ws = _find_gw(weapon_id)
-    return max(5, min(95, _ws.accuracy + attacker_reflexes * 3 - target_reflexes * 2))
+    return max(5, min(95,
+        _ws.accuracy + attacker_reflexes * 3 - target_reflexes * 2 - target_dodge_bonus,
+    ))
 
 
 def _ground_damage_raw(
@@ -238,9 +247,21 @@ def _ground_damage_raw(
     return max(1, _ws.damage + _str_bonus - armor_defense)
 
 
+def _calc_ground_move_dodge(cells_moved: int) -> int:
+    """Movement evade: +5% per cell moved, capped at 30.
+
+    Reflexes are already handled by the ``target_reflexes * 2`` term
+    in :func:`_ground_hit_chance_raw` — this helper is movement-only."""
+    return min(cells_moved * 5, 30)
+
+
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
-    _dodge = (enemy.spec.reflexes if enemy.spec else 10) * 2
-    return _ground_hit_chance_raw(weapon_id, ctx.ground_stats.reflexes, _dodge // 2)
+    _er = enemy.spec.reflexes if enemy.spec else 10
+    _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
+    return _ground_hit_chance_raw(
+        weapon_id, ctx.ground_stats.reflexes, _er,
+        target_dodge_bonus=_move_dodge,
+    )
 
 
 def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
@@ -303,6 +324,7 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
             return False
     ctx.player.pos = world.Position(_nx, _ny)
     _state.player_ap -= 1
+    _state.cells_moved_this_turn += 1
     from ..dungeon import reveal_around as _reveal_around
     _reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
     return True
@@ -387,6 +409,9 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.print(x=_hud_x, y=y, string=f"HP  {_hp_bar} {_hp_pct}%", fg=_COLOR_GROUND_PLAYER)
     y += 1
     console.print(x=_hud_x, y=y, string=f"AP: {_state.player_ap}/{_state.player_ap_total}", fg=_COLOR_GROUND_ACTION)
+    y += 1
+    _eva = _calc_ground_move_dodge(_state.cells_moved_this_turn)
+    console.print(x=_hud_x, y=y, string=f"EVA: {_eva}%", fg=_COLOR_GROUND_ACTION)
     y += 2
 
     if _weapons:
@@ -521,11 +546,14 @@ def handle_defense(ctx) -> None:
 def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai_ground import run_ground_enemy_turn as _enemy_ai
 
+    _player_dodge = _calc_ground_move_dodge(_state.cells_moved_this_turn)
+
     _total_dmg = 0
     for _gei in _state.enemies:
         if not _gei.alive or _gei.ap <= 0 or not _gei.weapon_id:
             continue
 
+        _ap_before = _gei.ap
         _new_ap, _dmg, _fired = _enemy_ai(
             ctx,
             enemy_weapon_id=_gei.weapon_id,
@@ -537,7 +565,17 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
             armor_defense=_state.armor_defense,
             console=_state.console,
             render_callback=render_frame,
+            player_dodge=_player_dodge,
         )
+        _ap_spent = _ap_before - _new_ap
+        if _fired:
+            try:
+                _weapon_ap = _find_gw(_gei.weapon_id).ap_cost
+            except KeyError:
+                _weapon_ap = 1
+            _gei.cells_moved_this_turn += max(0, _ap_spent - _weapon_ap)
+        else:
+            _gei.cells_moved_this_turn += _ap_spent
         _gei.ap = _new_ap
 
         if _dmg > 0:
@@ -563,8 +601,10 @@ def set_player_ap(ctx, ap: int) -> None:
 
 def reset_turn(ctx) -> None:
     _state.player_ap = _state.player_ap_total
+    _state.cells_moved_this_turn = 0
     for _gei in _state.enemies:
         _gei.ap = _gei.ap_total
+        _gei.cells_moved_this_turn = 0
 
 
 def sync_state(ctx) -> None:
