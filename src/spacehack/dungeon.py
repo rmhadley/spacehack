@@ -658,9 +658,9 @@ def generate_dungeon(
     # BSP split — recursively carve rooms and corridors.
     _center = _bsp_split(tiles, 0, 0, w, h, RNG, params)
 
-    # Spawn = exit (same tile, standard roguelike pattern).
-    spawn_pos = world.Position(_center[0], _center[1])
-    tiles[spawn_pos.y][spawn_pos.x] = world.EXIT
+    # Spawn = exit (standard roguelike).  The BSP midpoint can land on
+    # a wall when rooms are sparse — walk outward to find a real floor.
+    spawn_pos = _find_walkable_near(tiles, _center[0], _center[1], params)
 
     game_map = world.GameMap(width=w, height=h, tiles=tiles, entities=[])
     game_map.sight_radius = params.sight_radius
@@ -800,6 +800,44 @@ def _carve_corridor(
             if 0 <= y2 < _h and 0 <= _x < _w:
                 if tiles[y2][_x].kind == 'dungeon_wall':
                     tiles[y2][_x] = params.tile_floor
+
+
+def _find_walkable_near(
+    tiles: list[list[world.Tile]],
+    cx: int, cy: int,
+    params: DungeonParams,
+) -> world.Position:
+    """Find a walkable floor tile near ``(cx, cy)``, spiralling outward.
+
+    Used to pick the spawn/exit position after BSP carving.  The
+    mathematical midpoint can land on a wall when rooms are sparse;
+    this walks outward in expanding Chebyshev rings until it finds
+    floor, then places the EXIT glyph there.
+    """
+    _h = len(tiles)
+    _w = len(tiles[0]) if _h > 0 else 0
+    for _r in range(max(_w, _h)):
+        for _dx in range(-_r, _r + 1):
+            for _dy in range(-_r, _r + 1):
+                if max(abs(_dx), abs(_dy)) != _r:
+                    continue
+                _tx, _ty = cx + _dx, cy + _dy
+                if 0 <= _tx < _w and 0 <= _ty < _h:
+                    if tiles[_ty][_tx].walkable:
+                        tiles[_ty][_tx] = world.EXIT
+                        return world.Position(_tx, _ty)
+    # Fallback: shouldn't happen (BSP always carves rooms), but scan
+    # the entire map for any walkable tile rather than default to the
+    # midpoint (which may be a wall).
+    for _y in range(_h):
+        for _x in range(_w):
+            if tiles[_y][_x].walkable:
+                tiles[_y][_x] = world.EXIT
+                return world.Position(_x, _y)
+    # Truly empty map — place EXIT at midpoint as last resort.
+    if 0 <= cx < _w and 0 <= cy < _h:
+        tiles[cy][cx] = world.EXIT
+    return world.Position(cx, cy)
 
 
 def animate_breach(
