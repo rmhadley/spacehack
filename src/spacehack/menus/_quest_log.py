@@ -73,7 +73,12 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
     if 0 <= selected < len(missions):
         am = missions[selected]
         detail_top = list_top + len(missions) * 2 + 1
-        _is_bounty = am.target_enemy_id is not None and am.target_system_id is not None
+        _salv_wreck = getattr(am, 'salvage_wreck_enemy_id', None)
+        _is_bounty = (
+            am.target_enemy_id is not None
+            and am.target_system_id is not None
+            and _salv_wreck is None  # salvage missions have their own display
+        )
 
         # Delivery-specific fields.
         if not _is_bounty:
@@ -122,7 +127,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             paint(detail_top, fit(f'Danger: {_danger}'), fg=_danger_fg)
             detail_top += 1
             # Target name + system + wingmates.
-            _target_name = am.bounty_target_name or am.target_enemy_id
+            _target_name = am.bounty_target_name or _npc_ship_name(am.target_enemy_id)
             try:
                 from ..data.solar_systems import find_solar_system as _fss_q
                 _target_sys_name = _fss_q(am.target_system_id).name
@@ -134,23 +139,36 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             if _wing_count > 0 and _wing_id and _wing_id != am.target_enemy_id:
                 # Mixed squad (e.g. pirate fighter escort) — name the
                 # wingmate ship type so the player knows what to expect.
-                try:
-                    from ..data.npc_ships import find_npc_ship as _fws_q
-                    _wing_name = _fws_q(_wing_id).name
-                    _wing_label = (
-                        f"{_wing_name} escort" if _wing_count == 1
-                        else f"{_wing_name} escorts"
-                    )
-                except (KeyError, ImportError):
-                    _wing_label = "escorts"
+                _wing_name = _npc_ship_name(_wing_id)
+                _wing_label = (
+                    f"{_wing_name} escort" if _wing_count == 1
+                    else f"{_wing_name} escorts"
+                )
             _squad_str = f" + {_wing_count} {_wing_label}" if _wing_count > 0 else ""
             paint(detail_top, fit(f'Target: {_target_name} ({_target_sys_name}){_squad_str}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
 
-        # Salvage-specific display: the boarded wreck + component status.
-        _salv_wreck = getattr(am, 'salvage_wreck_enemy_id', None)
+        # Salvage-specific display: the patrol, boarded wreck + component status.
         if _salv_wreck is not None:
-            _wreck_name = _salv_wreck.replace('_', ' ').title()
+            # Patrol info (resolved to friendly names from NpcShipSpec catalog).
+            _patrol_name = _npc_ship_name(am.target_enemy_id)
+            _patrol_count = am.bounty_target_squad_size
+            _wing_id = getattr(am, 'bounty_wingmate_enemy_id', None)
+            if _patrol_count > 1:
+                if _wing_id and _wing_id != am.target_enemy_id:
+                    _wing_name = _npc_ship_name(_wing_id)
+                    _wing_label = (
+                        f"{_wing_name}" if _patrol_count - 1 == 1
+                        else f"{_wing_name}s"
+                    )
+                    paint(detail_top, fit(f'Patrol: {_patrol_name} + {_patrol_count - 1} {_wing_label}'), fg=ui.COLOR_VALUE_WHITE)
+                else:
+                    paint(detail_top, fit(f'Patrol: {_patrol_count}x {_patrol_name}'), fg=ui.COLOR_VALUE_WHITE)
+            else:
+                paint(detail_top, fit(f'Patrol: {_patrol_name}'), fg=ui.COLOR_VALUE_WHITE)
+            detail_top += 1
+            # Wreck name.
+            _wreck_name = _npc_ship_name(_salv_wreck)
             _comp = _good_display_name(am.heist_target_good_id)
             _secured = getattr(am, 'heist_good_secured', False)
             _status = 'SECURED' if _secured else 'SOMEWHERE IN THE WRECK'
@@ -236,6 +254,21 @@ _SCAN_RISK_STEPS: tuple[tuple[int, str, tuple[int, int, int]], ...] = (
     (1, "Low",    (120, 220, 120)),
     (2, "Medium", (255, 200, 100)),
 )
+
+
+def _npc_ship_name(ship_id: str | None) -> str:
+    """Resolve an NpcShipSpec id to its display name, with fallback.
+
+    Falls back to a title-cased version of the raw id when the
+    catalog lookup fails. ``None`` resolves to ``"unknown"``.
+    """
+    if not ship_id:
+        return "unknown"
+    try:
+        from ..data.npc_ships import find_npc_ship as _fns
+        return _fns(ship_id).name
+    except (KeyError, ImportError):
+        return ship_id.replace('_', ' ').title()
 
 
 def _good_display_name(good_id: str | None) -> str:
