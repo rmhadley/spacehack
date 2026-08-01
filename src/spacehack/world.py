@@ -60,21 +60,21 @@ ROAD_EW = Tile(kind="road", char="-", walkable=True, fg=(110, 115, 140), bg=(40,
 # centre lane, so the road reads as a defined corridor.
 ROAD_SURFACE = Tile(kind="road", char=".", walkable=True, fg=(135, 140, 160), bg=(48, 50, 63))
 
-# Open paved plaza — light shade block reads as a wide paved square
-PLAZA = Tile(kind="plaza", char="\u2591", walkable=True, fg=(240, 230, 215), bg=(190, 180, 165))  # light shade block on cream base
+# Open paved plaza — period reads as a fine paved square
+PLAZA = Tile(kind="plaza", char=".", walkable=True, fg=(240, 230, 215), bg=(190, 180, 165))  # fine dot on cream base
 
-# Sidewalk edge strips (medium shade block)
-SIDEWALK = Tile(kind="sidewalk", char="\u2592", walkable=True, fg=(140, 145, 170), bg=(75, 80, 100))
+# Sidewalk edge strips (equals sign reads as manufactured strip)
+SIDEWALK = Tile(kind="sidewalk", char="=", walkable=True, fg=(140, 145, 170), bg=(75, 80, 100))
 
-# Grass / green space — full block reads as solid green fields.
-GRASS = Tile(kind="grass", char="\u2588", walkable=True, fg=(115, 200, 95), bg=(40, 80, 35))
+# Grass / green space — tilde reads as vegetation / field.
+GRASS = Tile(kind="grass", char="~", walkable=True, fg=(115, 200, 95), bg=(40, 80, 35))
 
 # Grass accent — comma adds a little texture without overwhelming.
 GRASS_ACCENT = Tile(kind="grass", char=",", walkable=True, fg=(90, 175, 75), bg=(40, 80, 35))
 
 # Landing pad — tarmac with a cool sci-fi blue glow (replaces generic
 # sidewalk south of the spaceport with a dedicated ship-parking area).
-LANDING_PAD = Tile(kind="landing_pad", char="▓", walkable=True, fg=(100, 210, 255), bg=(25, 45, 70))
+LANDING_PAD = Tile(kind="landing_pad", char="=", walkable=True, fg=(100, 210, 255), bg=(25, 45, 70))
 
 # Neon accent — decorative glowing marker outside the spaceport
 # entrance and at plaza edges. Using `*` char (classic sparkle / star)
@@ -83,11 +83,11 @@ LANDING_PAD = Tile(kind="landing_pad", char="▓", walkable=True, fg=(100, 210, 
 # terminal font.
 NEON = Tile(kind="neon", char="*", walkable=True, fg=(255, 220, 100), bg=(40, 25, 12))
 
-# Decorative tree (club suit evokes Brogue-style foliage).
-TREE = Tile(kind="tree", char="\u2663", walkable=True, fg=(90, 180, 85), bg=(30, 65, 25))
+# Decorative tree — T reads as a tree top.
+TREE = Tile(kind="tree", char="T", walkable=True, fg=(90, 180, 85), bg=(30, 65, 25))
 
-# Decorative plaza feature – diamond suit reads as a jewel / fountain core.
-DECOR = Tile(kind="plaza", char="\u2666", walkable=True, fg=(255, 160, 120), bg=(190, 180, 165))
+# Decorative plaza feature — o reads as a fountain / jewel.
+DECOR = Tile(kind="plaza", char="o", walkable=True, fg=(255, 160, 120), bg=(190, 180, 165))
 
 # Interior building floor — warmer, brighter variant so it reads as a
 # clean indoor surface distinct from the outdoor GRASS tiles.
@@ -124,13 +124,13 @@ HULL_WALL = Tile(kind="hull_wall", char="#", walkable=False,
 
 # --- Building-interior furniture tiles ---
 # Bar counter top (warm golden wood).
-BAR_COUNTER = Tile(kind="floor", char="\u2591", walkable=True, fg=(210, 165, 90), bg=(120, 100, 65))
+BAR_COUNTER = Tile(kind="floor", char=".", walkable=True, fg=(210, 165, 90), bg=(120, 100, 65))
 # Bar counter body / front (darker wood grain).
-BAR_BODY = Tile(kind="floor", char="\u2592", walkable=True, fg=(160, 120, 70), bg=(90, 75, 50))
-# Table surface (≈ reads as a wooden table top).
-TABLE = Tile(kind="floor", char="\u2248", walkable=True, fg=(255, 200, 80), bg=(130, 108, 70))
-# Drink glass (♥ bright red for contrast against warm floor).
-DRINK = Tile(kind="floor", char="\u2665", walkable=True, fg=(255, 60, 60), bg=(130, 108, 70))
+BAR_BODY = Tile(kind="floor", char="=", walkable=True, fg=(160, 120, 70), bg=(90, 75, 50))
+# Table surface (= reads as a surface bar).
+TABLE = Tile(kind="floor", char="=", walkable=True, fg=(255, 200, 80), bg=(130, 108, 70))
+# Drink glass (! bright red for contrast against warm floor).
+DRINK = Tile(kind="floor", char="!", walkable=True, fg=(255, 60, 60), bg=(130, 108, 70))
 
 
 # ---------------------------------------------------------------------------
