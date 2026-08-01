@@ -757,9 +757,6 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
     from .faction import get_attitude, sell_price_modifier
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
-    if _attitude in ("enemy", "disliked"):
-        ctx.log.add("The Trade Guild refuses to do business with you.")
-        return
     _sell_mod = sell_price_modifier(_attitude)
 
     if ctx.player_owned_ship is None:
