@@ -8,11 +8,7 @@ accident.
 """
 from __future__ import annotations
 
-import os
 import random as _random
-import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 import tcod.console
@@ -76,15 +72,10 @@ MSG_LOG_HEIGHT: int = 6
 
 WINDOW_TITLE: str = "spacehack"
 
-# The canonical DejaVu 16x16 tilesheet from the libtcod engine's
-# data/fonts/ directory. 16 pixels per glyph makes the text much more
-# readable than the 10x10 default; the URL is derived from the filename
-# so a tilesheet swap is a one-line constant change.
+# The canonical DejaVu 16x16 tilesheet bundled in the source tree.
+# 16 pixels per glyph makes the text much more readable than the
+# 10x10 default.
 TILESHEET_FILENAME: str = "dejavu16x16_gs_tc.png"
-TILESHEET_URL: str = (
-    "https://raw.githubusercontent.com/libtcod/libtcod/main/"
-    f"data/fonts/{TILESHEET_FILENAME}"
-)
 TILESHEET_COLUMNS: int = 32
 TILESHEET_ROWS: int = 8
 
@@ -98,81 +89,34 @@ class EngineError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 
-def default_tilesheet_dir() -> Path:
-    """Return (and create) the per-user directory we cache the tilesheet in."""
-    base = os.environ.get("XDG_DATA_HOME")
-    root = Path(base) if base else Path.home() / ".local" / "share"
-    target_dir = root / "spacehack"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    return target_dir
-
-
-def default_tilesheet_path() -> Path:
-    """Full path to the cached tilesheet PNG on disk."""
-    return default_tilesheet_dir() / TILESHEET_FILENAME
-
-
-def ensure_tilesheet(path: Path | None = None) -> Path:
-    """Download the bundled DejaVu tilesheet if it is not already on disk."""
-    target = path or default_tilesheet_path()
-    if target.is_file():
-        return target
-
-    try:
-        with urllib.request.urlopen(TILESHEET_URL, timeout=15) as response:
-            payload = response.read()
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise EngineError(
-            f"Could not download '{TILESHEET_FILENAME}' from {TILESHEET_URL}: "
-            f"{exc}. Place the file at {target} manually, or check your network."
-        ) from exc
-
-    if not payload:
-        raise EngineError(
-            f"Server returned an empty body for '{TILESHEET_URL}'. "
-            f"Try again later or place {TILESHEET_FILENAME} at {target} manually."
-        )
-
-    target.write_bytes(payload)
-    return target
+def _bundled_tilesheet_path() -> Path:
+    """Full path to the tilesheet bundled in the source tree."""
+    return Path(__file__).resolve().parent / "data" / TILESHEET_FILENAME
 
 
 def load_tileset() -> tcod.tileset.Tileset:
-    """Load the project's default DejaVu tileset (downloading it if needed).
+    """Load the project's bundled DejaVu tilesheet.
 
-    If the cached PNG ever fails to load, we wipe the cached file and
-    try once more. The catch is intentionally narrowed: ``ImportError`` /
-    ``AttributeError`` / ``NameError`` are NOT caught on purpose because
-    those signal an API drift and should surface as a loud traceback,
-    not get masked by a wipe + redownload that can't actually fix
-    the cause.
+    Looks for the tilesheet in ``src/spacehack/data/`` next to this
+    module. No network access required.
     """
-    last_error: BaseException | None = None
-    for attempt in (1, 2):
-        tilesheet_path = ensure_tilesheet()
-        try:
-            return tcod.tileset.load_tilesheet(
-                str(tilesheet_path),
-                columns=TILESHEET_COLUMNS,
-                rows=TILESHEET_ROWS,
-                charmap=tcod.tileset.CHARMAP_TCOD,
-            )
-        except (OSError, RuntimeError, ValueError) as exc:
-            last_error = exc
-            print(
-                f"spacehack: tilesheet at {tilesheet_path} failed to load "
-                f"({type(exc).__name__}: {exc}); re-downloading.",
-                file=sys.stderr,
-            )
-            try:
-                tilesheet_path.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-    raise EngineError(
-        f"Failed to load tilesheet after retrying: {last_error}. "
-        f"Try removing the cached file manually and running again."
-    ) from last_error
+    tilesheet_path = _bundled_tilesheet_path()
+    if not tilesheet_path.is_file():
+        raise EngineError(
+            f"Tilesheet not found at {tilesheet_path}. "
+            f"Expected {TILESHEET_FILENAME} in the data/ directory."
+        )
+    try:
+        return tcod.tileset.load_tilesheet(
+            str(tilesheet_path),
+            columns=TILESHEET_COLUMNS,
+            rows=TILESHEET_ROWS,
+            charmap=tcod.tileset.CHARMAP_TCOD,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise EngineError(
+            f"Failed to load tilesheet from {tilesheet_path}: {exc}"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
