@@ -1089,6 +1089,76 @@ _GUIDE_GROUND_GEAR = GuideSection(
 
 
 _GUIDE_GROUND_COMBAT = GuideSection(
+
+_GUIDE_MILITIA_PATROLS = GuideSection(
+    title="Militia Patrols & Cargo Scans",
+    body=(
+        "Militia patrols are law-enforcement ships that monitor space traffic "
+        "in most star systems. They appear as teal 'B' glyphs on the space map "
+        "and do NOT attack on sight at neutral or better reputation."
+        "\n\n"
+        "Where they patrol:"
+        "\n"
+        "- Sol: 3-4 Militia Patrol cruisers (heavy laser + light missile)"
+        "\n"
+        "- Luyten's Star: 4-5 Militia Enforcer frigates (plasma cannon)"
+        "\n"
+        "- Alpha Centauri: 2-3 standard patrols"
+        "\n"
+        "- Sirius, Tau Ceti: 1-2 Militia Scouts (light laser only)"
+        "\n"
+        "- Frontier systems (Wolf 359, Vega, Barnard's Star): none"
+        "\n\n"
+        "Auto-hail — when you fly within comms range of a militia patrol, "
+        "there is a chance they hail you for a cargo scan. Each patrol rolls "
+        "independently, exactly once per system visit:"
+        "\n"
+        "- Allied militia rep: 0% — they wave you through"
+        "\n"
+        "- Liked: 20% chance"
+        "\n"
+        "- Neutral: 40% chance"
+        "\n"
+        "- Disliked or Enemy: 80% chance"
+        "\n\n"
+        "Interaction options (auto-hail opens comms directly):"
+        "\n"
+        "- Allow Scan: militia inspects your cargo. Clean = +1 rep. "
+        "Contraband found = goods confiscated, fine (50% of value), -5 rep."
+        "\n"
+        "- Flee: attempt to break line of sight. Flee chance = 40% base "
+        "+ (ship speed - 10) x 2% + (piloting - 30) x 0.5%, clamped 15-90%. "
+        "Successful = log message, no consequences. Failed = forced combat."
+        "\n"
+        "- Attack: initiate combat with the patrol. Applies unprovoked attack "
+        "rep penalties and pulls the full squad into combat."
+        "\n\n"
+        "Planet landing scans:"
+        "\n"
+        "- Landing on a planet with a militia building also triggers a "
+        "40% chance cargo scan. The planet menu warns you if you're carrying "
+        "contraband before the roll. Same confiscation/fine logic as space."
+        "\n\n"
+        "Militia Blockade (Luyten's Star):"
+        "\n"
+        "- The blockade picket line in Luyten's Star is a static formation — "
+        "a story element, not a procedural patrol. These ships hail immediately (100% chance) "
+        "with a warning to turn back. The only option is End Transmission. "
+        "Entering their detect radius triggers combat with the full squad "
+        "regardless of reputation."
+        "\n\n"
+        "Contraband:"
+        "\n"
+        "- Black Market Weapons (category contraband) are illegal everywhere. "
+        "A militia scan will always confiscate them unless hidden by a "
+        "Smuggler's Hold module (see Ships & Equipment)."
+        "\n"
+        "- Smuggling missions (see Bar Missions) are also at risk — mission "
+        "cargo with is_smuggle=True counts as contraband for scan purposes."
+    ),
+)
+
+_GUIDE_GROUND_COMBAT = GuideSection(
     title="Ground Combat",
     body=(
         "Ground combat triggers automatically when an enemy on foot spots you "
@@ -1226,6 +1296,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_MISSIONS,
     _GUIDE_SHIPS,
     _GUIDE_NAVIGATION,
+    _GUIDE_MILITIA_PATROLS,
     _GUIDE_DERELICT,
     _GUIDE_CHARACTER,
     _GUIDE_LEVELING,

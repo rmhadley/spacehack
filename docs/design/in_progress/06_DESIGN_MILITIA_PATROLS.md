@@ -264,26 +264,23 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 - [ ] Load 15 units of contraband with Mk1 equipped → scan finds 5 units
 - [ ] Auto-hail chance reduced with smuggler's hold equipped
 
-### Phase 5: Contraband data + system flags
+### Phase 5: Contraband data + system flags — CANCELED
 
-- [ ] Add `contraband_factions: tuple[str, ...]` field to `TradeGood` dataclass in `data/trade_goods/core.py`
-- [ ] Flag existing trade goods as contraband per the table above
-- [ ] Add `contraband_goods: tuple[str, ...] = ()` field to SolarSystem or compute from per-good faction flags
-- [ ] Wire contraband list into scan detection (Phase 2 already references this)
-- [ ] Add `ctx.contraband_goods` — recompute on system entry
-- [ ] Smoke test + commit
+**Status: CANCELED.** Per-system contraband (luxury_goods illegal in Luyten, etc.) was rejected as a feature. The single `category="contraband"` flag on `weapons_blackmarket` is sufficient — all militia scans treat it as contraband everywhere. No new data fields or scan logic changes needed.
 
-#### Playtest checklist
+- [x] (canceled)
 
-- [ ] Load weapons_blackmarket → scan in Sol → flagged as contraband
-- [ ] Load food_rations → scan in any system → never contraband
-- [ ] Load luxury_goods → scan in Sol → clean; scan in Luyten's Star → contraband
+### Phase 6: Guide + code review + contracts audit
 
-### Phase 6: Guide + final polish
-
-- [ ] Update in-game guide with militia patrols, cargo scans, contraband, smuggler's hold
-- [ ] Full DRY/RNG audit on all new code
-- [ ] Final playtest pass
+- [ ] Add `_GUIDE_MILITIA_PATROLS` section to help.py covering:
+  - Militia patrols in space (identification, behavior)
+  - Auto-hail chance (rep-gated table)
+  - Interaction options: Allow Scan / Flee / Attack
+  - Flee chance formula (speed + piloting based)
+  - Blockade behavior (warning only, End Transmission)
+  - Smuggler's hold protection
+- [ ] Append to `GUIDE_SECTIONS` tuple
+- [ ] Contracts audit (see below)
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
