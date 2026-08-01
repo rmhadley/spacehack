@@ -540,13 +540,83 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
 # ---------------------------------------------------------------------------
 # NPC auto-comms warning (before combat triggers)
 # ---------------------------------------------------------------------------
+def _militia_scan_chance(ctx) -> float:
+    """Return the chance [0.0, 1.0] that a militia patrol initiates
+    a cargo scan, based on the player's militia faction reputation.
+
+    Allied = wave through, Liked = 20%, Neutral = 40%,
+    Disliked/Enemy = 80%.
+    """
+    _rep = ctx.faction_reputation.get('militia', 0)
+    _att = _get_attitude(_rep)
+    _table = {
+        'allied': 0.0,
+        'liked': 0.20,
+        'neutral': 0.40,
+        'disliked': 0.80,
+        'enemy': 0.80,
+    }
+    return _table.get(_att, 0.40)
+
+
+def _calc_flee_chance(ctx) -> float:
+    """Return the player's chance [0.0, 1.0] to flee a militia scan.
+
+    Scales with ship effective speed (+2% per point above 10) and
+    piloting skill (+0.5% per point above 30). Clamped to [0.15, 0.90]."""
+    _chance = 0.40
+    if ctx.player_owned_ship is not None:
+        _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id)
+        _speed = ship_module.effective_speed(_ship_cat, ctx.player_owned_ship)
+        _chance += (_speed - 10) * 0.02
+    _chance += (ctx.stats.piloting - 30) * 0.005
+    return max(0.15, min(0.90, _chance))
+
+
+def _run_space_cargo_scan(ctx) -> None:
+    """Run a cargo scan triggered by militia auto-hail in space.
+
+    Reuses the same exposure/confiscation logic as the planet-landing
+    scan but skips the planet check and the 40% roll (the auto-hail
+    already rolled). Always fires when called.
+    """
+    owned = ctx.player_owned_ship
+    if owned is None:
+        ctx.log.add("The militia patrol can't scan an empty hold?")
+        return
+
+    _failed_missions, _confiscated = _compute_scan_exposure(
+        owned, ctx.player_active_missions,
+    )
+
+    ctx.log.add_colored(
+        "A militia patrol scans your cargo...",
+        message_log.COLOR_COMBAT_EVENT,
+    )
+
+    if not _confiscated and not _failed_missions:
+        ctx.log.add("Militia scans your cargo — clean.")
+        from .faction import modify_rep
+        modify_rep(ctx, "militia", +1)
+        return
+
+    for _am in _failed_missions:
+        _fail_smuggle_mission(ctx, owned, _am)
+    if _confiscated:
+        _apply_scan_confiscation(ctx, owned, _confiscated)
+    from .faction import modify_rep
+    modify_rep(ctx, "militia", -5)
+
+
 def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
-    """Mark system warned and open comms with the entity.
+    """Mark entity scanned and open comms with the entity.
 
     Shared by all trigger paths — avoids repeating the
-    ``militia_warned_systems`` add + ``open_comms_direct`` call.
+    ``militia_scanned`` add + ``open_comms_direct`` call.
     """
-    ctx.militia_warned_systems.add(_sys_id)
+    _pid = getattr(_e, 'npc_ship_id', '')
+    _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+    ctx.militia_scanned.add(_key)
     from .comms import open_comms_direct as _ocd
     _attack_data = _ocd(ctx, _e)
     return (True, _attack_data)
@@ -577,9 +647,11 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
          spawn time from ``BountySpawn.comms_warning_range``.
       3. **Spec viewport** — ``comms_trigger_viewport`` (derelicts).
 
-    Fires at most ONCE per system (tracked via
-    ``militia_warned_systems``). After the warning the comms panel
-    opens so the player can attack or turn back.
+    Per-entity tracking (``militia_scanned``) so multiple patrols
+    each get their own roll. Militia blockade (``militia_blockade``)
+    always hails immediately. Procedural militia patrols use a
+    chance-based roll (reputation-gated).
+
     Returns:
 
       * ``(True, attack_data_or_None)`` -- warning was issued.
@@ -587,8 +659,6 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
     """
     _sys_id = getattr(system, 'id', '')
     if not _sys_id:
-        return None
-    if _sys_id in ctx.militia_warned_systems:
         return None
 
     for _e in ctx.game_map.entities:
@@ -609,8 +679,24 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         if _spec_distance <= 0 and not _spec_viewport and _entity_bounty_range <= 0:
             continue
 
-        # --- Spec distance (blockade) ---
+        # --- Spec distance (blockade + militia patrols) ---
         if _spec_distance > 0 and _check_spec_distance(_e, player_pos, _spec_distance):
+            _faction = getattr(_spec, 'faction', '')
+            # Militia blockade: always hail immediately.
+            if _pid == 'militia_blockade':
+                return _fire_warning(ctx, _sys_id, _e)
+            # Militia patrols: chance-based per entity.
+            if _faction == 'militia':
+                _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+                if _key in ctx.militia_scanned:
+                    continue  # already checked this patrol
+                ctx.militia_scanned.add(_key)
+                from . import engine as _engine
+                _chance = _militia_scan_chance(ctx)
+                if _chance <= 0.0 or _engine.RNG.random() >= _chance:
+                    continue  # no scan — wave through
+                return _fire_warning(ctx, _sys_id, _e)
+            # All other auto-hail entities (non-militia).
             return _fire_warning(ctx, _sys_id, _e)
 
         # --- Bounty entity distance ---
@@ -1177,7 +1263,7 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     # player gets a fresh warning on their next visit.
     _src_id = getattr(solar_system_module.current_system(), 'id', '')
     if _src_id:
-        ctx.militia_warned_systems.discard(_src_id)
+        ctx.militia_scanned.clear()
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)

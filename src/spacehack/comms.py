@@ -41,6 +41,8 @@ class _InteractionOutcome(Enum):
     TRADE = auto()
     ATTACK = auto()
     SCAN = auto()
+    ALLOW_SCAN = auto()  # militia: submit to cargo scan
+    FLEE = auto()        # militia: attempt to flee the patrol
     BACK = auto()    # "End Transmission" or ESC
     QUIT = auto()
 
@@ -232,11 +234,14 @@ def _run_interaction_modal(
         getattr(contact_spec, 'faction', ''), 0,
     )
     _contact_attitude = _get_attitude(_contact_rep)
+    _is_militia = getattr(contact_spec, 'faction', '') == 'militia'
 
     # Derelict/boardable ships: only "End Transmission" makes sense.
-    # No crew to trade with, no cargo to scan, no point attacking a wreck.
     if getattr(contact_spec, 'is_boardable', False):
         _options: list[str] = ["End Transmission"]
+    elif _is_militia:
+        # Militia patrol: Allow Scan / Flee / Attack (no End Transmission).
+        _options: list[str] = ["Allow Scan", "Flee", "Attack"]
     else:
         _options: list[str] = ["Attack", "Scan Cargo"]
         # Trade only available for neutral+ attitudes.
@@ -272,14 +277,16 @@ def _run_interaction_modal(
             return _InteractionOutcome.IGNORE
         if event.sym in ui._ENTER_SYMS:
             chosen = _options[_interaction_selected]
-            if chosen == "Open Trade":
-                return _InteractionOutcome.TRADE
-            elif chosen == "Attack":
-                return _InteractionOutcome.ATTACK
-            elif chosen == "Scan Cargo":
-                return _InteractionOutcome.SCAN
-            else:  # "End Transmission"
-                return _InteractionOutcome.BACK
+            # Table-driven dispatch.
+            _DISPATCH = {
+                "Open Trade": _InteractionOutcome.TRADE,
+                "Attack": _InteractionOutcome.ATTACK,
+                "Scan Cargo": _InteractionOutcome.SCAN,
+                "Allow Scan": _InteractionOutcome.ALLOW_SCAN,
+                "Flee": _InteractionOutcome.FLEE,
+                "End Transmission": _InteractionOutcome.BACK,
+            }
+            return _DISPATCH.get(chosen, _InteractionOutcome.BACK)
         return _InteractionOutcome.IGNORE
 
     interaction_outcome = ui.Modal(ctx.context, console).run(
@@ -356,6 +363,56 @@ def _run_interaction_modal(
                         continue
                     _attack_specs.append(_wing_spec)
                     _attack_positions.append(_bs.pos)
+        return (_attack_specs, _attack_positions)
+
+    elif interaction_outcome is _InteractionOutcome.ALLOW_SCAN:
+        # Militia: player submits to a cargo scan.
+        from .navigation import _run_space_cargo_scan as _rscs
+        _rscs(ctx)
+        return None
+
+    elif interaction_outcome is _InteractionOutcome.FLEE:
+        # Militia: player attempts to flee the patrol.
+        from .navigation import _calc_flee_chance as _cfc
+        from . import engine as _engine
+        _chance = _cfc(ctx)
+        if _engine.RNG.random() < _chance:
+            ctx.log.add("You break line of sight and evade the patrol.")
+            return None
+        # Failed flee → forced combat (same squad resolution as Attack).
+        ctx.log.add_colored(
+            "The militia patrol blocks your escape!",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+        from .faction import modify_rep, _COMBAT_UNPROVOKED_DELTAS
+        _target_faction = getattr(contact_spec, 'faction', '')
+        for _fac, _delta in _COMBAT_UNPROVOKED_DELTAS.items():
+            if _fac == 'pirate' and _delta > 0 and _target_faction == 'pirate':
+                continue
+            modify_rep(ctx, _fac, _delta)
+        ctx.log.add_colored(
+            f"You open fire on the {contact_name}!",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+        # Resolve full squad (same logic as Attack handler).
+        _squad_id = getattr(contact_entity, 'procedural_squad_id', '')
+        _attack_specs: list = [contact_spec]
+        _attack_positions: list = [contact_entity.pos]
+        if _squad_id:
+            for _e in ctx.game_map.entities:
+                if _e is contact_entity:
+                    continue
+                if getattr(_e, 'procedural_squad_id', '') != _squad_id:
+                    continue
+                _epid = getattr(_e, 'npc_ship_id', '')
+                if not _epid:
+                    continue
+                try:
+                    _espec = _find_npc_ship(_epid)
+                except (KeyError, ImportError):
+                    continue
+                _attack_specs.append(_espec)
+                _attack_positions.append(_e.pos)
         return (_attack_specs, _attack_positions)
 
     elif interaction_outcome is _InteractionOutcome.SCAN:

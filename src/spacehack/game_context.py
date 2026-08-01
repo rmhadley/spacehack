@@ -238,9 +238,10 @@ class GameContext:
     economy_state: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
     # economy_state[planet_id][good_id] = current_stock; seeded on first visit
     faction_reputation: dict[str, int] = dataclasses.field(default_factory=dict)
-    # Systems where the player has already received an NPC auto-comms
-    # warning. Reset on map change (jump / launch).
-    militia_warned_systems: set[str] = dataclasses.field(default_factory=set)
+    # Per-entity tracking for militia auto-hail scan attempts.
+    # Keyed by "npc_ship_id:x:y" so each patrol gets its own roll.
+    # Reset on jump/launch.
+    militia_scanned: set[str] = dataclasses.field(default_factory=set)
     # Set to True when the player's ship is destroyed in combat.
     # Checked by _run_game to break out of the main loop and return
     # to the title screen for a fresh run.

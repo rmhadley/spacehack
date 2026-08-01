@@ -592,8 +592,7 @@ def _run_game(
                                 # NOW add the player — animation is done, ship is at anchor.
                                 _new_city_map.entities.append(_new_city_player)
                                 # Leaving space mode — reset the comms warning for
-                                # this system so it fires again on the next visit.
-                                ctx.militia_warned_systems.discard(
+                                # this system so it fires again on the next visit.                                 ctx.militia_scanned.discard(
                                     solar_system_module.current_solar_system_id,
                                 )
                                 city_game_map = _new_city_map

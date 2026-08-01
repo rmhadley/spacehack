@@ -116,7 +116,7 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "move_counter": ctx.move_counter,
         "generated_missions": _d(ctx.generated_missions),
         "economy_state": _d(ctx.economy_state),
-        "militia_warned_systems": sorted(ctx.militia_warned_systems),
+        "militia_scanned": sorted(ctx.militia_scanned),
         "ground_stats": _d(ctx.ground_stats),
         "equipped_ground_weapons": list(ctx.equipped_ground_weapons),
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
@@ -836,7 +836,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.mission_boards = _mission_boards
     _ctx.bounty_spawns = _bounty_spawns
     _ctx.faction_reputation = _rep
-    _ctx.militia_warned_systems = set(_data.get("militia_warned_systems", []) or [])
+    _ctx.militia_scanned = set(_data.get("militia_scanned", []) or [])
     # Ground stats: backward-compatible default of 10/10/10.
     _gsd = _data.get("ground_stats", {}) or {}
     from .character import GroundStats
