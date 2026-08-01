@@ -59,7 +59,7 @@ jobs:
 
       - name: Package as .zip
         run: |
-          Compress-Archive -Path dist/spacehack/* -DestinationPath dist/spacehack-windows.zip
+          Compress-Archive -Path dist/spacehack.exe -DestinationPath dist/spacehack-windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
