@@ -16,6 +16,8 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from . import world
+
 if TYPE_CHECKING:
     from .game_context import GameContext
 
