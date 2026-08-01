@@ -37,7 +37,18 @@ class Tile:
     bg: tuple[int, int, int]   # background painted under the glyph (darker than fg so the glyph reads on top)
 
 
-WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))     # dark shade — paneled bulkhead texture
+WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))     # dark shade — paneled bulkhead texture (perimeter)
+
+# Box-drawing wall tiles for building exteriors.  These use
+# single-line box-drawing glyphs that render cleanly in any
+# monospace font (CP437 or TrueType) and connect into continuous
+# architectural frames with proper corners.
+WALL_TL = Tile(kind="wall", char="┌", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-left corner
+WALL_TR = Tile(kind="wall", char="┐", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-right corner
+WALL_BL = Tile(kind="wall", char="└", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # bottom-left corner
+WALL_BR = Tile(kind="wall", char="┘", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # bottom-right corner
+WALL_H  = Tile(kind="wall", char="─", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # horizontal
+WALL_V  = Tile(kind="wall", char="│", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # vertical
 FLOOR = Tile(kind="floor", char="\u00b7", walkable=True, fg=(225, 205, 155), bg=(100, 86, 58)) # middot - reads as polished indoor flooring
 DOOR = Tile(kind="door", char="+", walkable=True, fg=(100, 220, 255), bg=(25, 55, 80))        # glowing cyan glyph on dark port-blue base
 
@@ -376,44 +387,44 @@ def make_building(
 
     tile_changes: list[tuple[Position, Tile]] = []
 
+    # --- Corners (always painted, never replaced by labels or doors) ---
+    tile_changes.append((Position(x_lo, y_lo), WALL_TL))
+    tile_changes.append((Position(x_hi, y_lo), WALL_TR))
+    tile_changes.append((Position(x_lo, y_hi), WALL_BL))
+    tile_changes.append((Position(x_hi, y_hi), WALL_BR))
+
+    # --- Horizontal walls (skip corners, skip label area / door) ---
     if door_north:
-        # --- Flipped layout: door on north wall, label on south wall ---
-
-        # North wall (y = y_lo): door at door_x, WALL elsewhere.
-        for x in range(x_lo, x_hi + 1):
-            tile_changes.append((Position(x, y_lo), DOOR if x == door_x else WALL))
-
-        # South wall (y = y_hi): label carved in, WALL elsewhere.
-        for x in range(x_lo, x_hi + 1):
+        # North wall (y_lo): door at door_x, WALL_H elsewhere.
+        for x in range(x_lo + 1, x_hi):
+            tile_changes.append((Position(x, y_lo), DOOR if x == door_x else WALL_H))
+        # South wall (y_hi): label carved in, WALL_H elsewhere.
+        for x in range(x_lo + 1, x_hi):
             if not (label_x_start <= x < label_x_start + len(label)):
-                tile_changes.append((Position(x, y_hi), WALL))
+                tile_changes.append((Position(x, y_hi), WALL_H))
         for i, ch in enumerate(label):
             tile_changes.append((
                 Position(label_x_start + i, y_hi),
-                Tile(kind="label", char=ch, walkable=False, fg=label_fg, bg=WALL.bg),
+                Tile(kind="label", char=ch, walkable=False, fg=label_fg, bg=WALL_H.bg),
             ))
     else:
-        # --- Default layout: label on north wall, door on south wall ---
-
-        # North wall (y = y_lo): WALL except for the carved label.
-        for x in range(x_lo, x_hi + 1):
+        # North wall (y_lo): label carved in, WALL_H elsewhere.
+        for x in range(x_lo + 1, x_hi):
             if not (label_x_start <= x < label_x_start + len(label)):
-                tile_changes.append((Position(x, y_lo), WALL))
+                tile_changes.append((Position(x, y_lo), WALL_H))
         for i, ch in enumerate(label):
             tile_changes.append((
                 Position(label_x_start + i, y_lo),
-                Tile(kind="label", char=ch, walkable=False, fg=label_fg, bg=WALL.bg),
+                Tile(kind="label", char=ch, walkable=False, fg=label_fg, bg=WALL_H.bg),
             ))
+        # South wall (y_hi): door at door_x, WALL_H elsewhere.
+        for x in range(x_lo + 1, x_hi):
+            tile_changes.append((Position(x, y_hi), DOOR if x == door_x else WALL_H))
 
-        # South wall (y = y_hi): door at door_x, WALL elsewhere.
-        for x in range(x_lo, x_hi + 1):
-            tile_changes.append((Position(x, y_hi), DOOR if x == door_x else WALL))
-
-    # East and west walls, excluding the top and bottom rows we
-    # already wrote above.
+    # --- Vertical walls (between corners) ---
     for y in range(y_lo + 1, y_hi):
-        tile_changes.append((Position(x_lo, y), WALL))
-        tile_changes.append((Position(x_hi, y), WALL))
+        tile_changes.append((Position(x_lo, y), WALL_V))
+        tile_changes.append((Position(x_hi, y), WALL_V))
 
     entities: list[Entity] = []
     if occupant is not None:
