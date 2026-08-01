@@ -196,6 +196,10 @@ class SolarSystem:
     npc_spawn_chance: float = 0.0
     npc_spawn_table: tuple[tuple[str, float], ...] = ()
     npc_density: int = 0
+    # Militia patrol density: (min, max) ships spawned on system entry.
+    # Patrols use pirate-style body-to-body loops, never despawn, and
+    # the ship type is derived from max density (light/patrol/heavy).
+    patrol_density: tuple[int, int] = (0, 0)
     # Chance of a derelict ship spawning in this system (separate roll
     # from the normal NPC spawn table). Derelicts are boardable,
     # non-moving wrecks with interior salvage. Set per-system for

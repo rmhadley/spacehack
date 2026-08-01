@@ -231,6 +231,58 @@ def spawn_npcs(
     # Separate derelict spawn roll (independent of NPC chance)
     _spawn_derelict(ctx, game_map, system_id, _system)
 
+    # --- Militia patrol spawn (separate from NPC table, uses patrol_density) ---
+    _patrol_min, _patrol_max = _system.patrol_density
+    _all_militia: list = []
+    if _patrol_max > 0:
+        _body_goals = _build_body_goals(_system)
+        # Exclude the arrival body so militia don't spawn on top of the player.
+        if player_spawn_exclusion:
+            _body_goals = [
+                g for g in _body_goals
+                if (g[0], g[1]) not in player_spawn_exclusion
+            ]
+        if _body_goals:
+            _patrol_count = _engine.RNG.randint(_patrol_min, _patrol_max)
+            # Derive ship type from max density.
+            _patrol_ship = (
+                "militia_patrol_heavy" if _patrol_max >= 5 else
+                "militia_patrol" if _patrol_max >= 3 else
+                "militia_patrol_light"
+            )
+            try:
+                _patrol_spec = _find_npc_ship(_patrol_ship)
+            except KeyError:
+                _patrol_spec = None
+            if _patrol_spec is not None:
+                for _pi in range(_patrol_count):
+                    _origin = _engine.RNG.choice(_body_goals)
+                    _gcx, _gcy = _origin[0], _origin[1]
+                    _mid = f"patrol_{system_id}_{_pi}_{_engine.RNG.randint(0, 99999)}"
+                    for _attempt in range(50):
+                        _x = _gcx + _engine.RNG.randint(-4, 4)
+                        _y = _gcy + _engine.RNG.randint(-4, 4)
+                        if (0 <= _x < _system.width and 0 <= _y < _system.height):
+                            break
+                    else:
+                        continue
+                    _pos = world.Position(_x, _y)
+                    game_map.entities.append(_make_npc_entity(_patrol_spec, _pos, _mid))
+                    _all_militia.append((_pos, _mid, _patrol_ship))
+                # Register militia spawns.
+                if _all_militia:
+                    if system_id not in ctx.procedural_spawns:
+                        ctx.procedural_spawns[system_id] = []
+                    ctx.procedural_spawns[system_id].extend([
+                        ProceduralSpawn(npc_id=npc_id, pos=pos, squad_id=sid)
+                        for pos, sid, npc_id in _all_militia
+                    ])
+                    ctx.log.add_colored(
+                        f"Sensor ping: {len(_all_militia)} militia patrol(s) "
+                        f"active in the area.",
+                        _ml.COLOR_IMPORTANT_EVENT,
+                    )
+
     if _system.npc_spawn_chance <= 0.0 or not _system.npc_spawn_table or _system.npc_density <= 0:
         return
     if _engine.RNG.random() >= _system.npc_spawn_chance:

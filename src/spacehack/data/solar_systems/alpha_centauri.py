@@ -154,4 +154,5 @@ SYSTEM: SolarSystem = SolarSystem(
     npc_spawn_chance=0.6,
     npc_spawn_table=(("merchant_hauler", 0.7), ("pirate_scout", 0.5)),
     npc_density=2,
+    patrol_density=(2, 3),
 )
