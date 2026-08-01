@@ -20,21 +20,6 @@ spacehack
 
 Press **ESC** or close the window to quit.
 
-## First-run setup
-
-The first launch downloads the bundled **DejaVu 16×16** tilesheet (the same one used in the official python-tcod tutorial) and caches it under the user's data directory:
-
-| Platform | Tilesheet cache path |
-|----------|----------------------|
-| macOS       | `~/.local/share/spacehack/dejavu16x16_gs_tc.png` |
-| Linux       | `~/.local/share/spacehack/dejavu16x16_gs_tc.png` (unless `XDG_DATA_HOME` is set, then `$XDG_DATA_HOME/spacehack/dejavu16x16_gs_tc.png`) |
-
-(If you previously ran an older 10×10 build, the stale `dejavu10x10_gs_tc.png` may still be sitting in the same directory; it's harmless and can be deleted.)
-
-Subsequent launches reuse the cached file. If the cached file ever becomes unreadable (partial download, disk error, etc.), the loader wipes it and re-downloads once before giving up.
-
-If the download fails outright (offline, firewall, etc.), engine init raises a clear `EngineError` instead of silently falling back.
-
 ## Project layout
 
 ```
@@ -184,7 +169,7 @@ TILESHEET_FILENAME   = "dejavu16x16_gs_tc.png"
 
 100 cells × 16 px = 1600 logical-pixel wide window, 50 cells × 16 px = 800 logical-pixel tall -- the default libtcod roguelike starter size. Change the constants and the rest of the codebase picks them up (`make_console()` reads them at call time, so a runtime override is fine).
 
-Swap to a bigger or different bitmap tilesheet by editing `TILESHEET_FILENAME` -- other available filenames in libtcod's `data/fonts/` include `dejavu10x10_gs_tc.png`, `dejavu12x12_gs_tc.png`, `consolas10x10_gs_tc.png`, etc.
+Swap to a different tilesheet by placing the PNG in `src/spacehack/data/` and updating `TILESHEET_FILENAME`. The bundled tilesheet is DejaVu 16x16; the python-tcod repository also ships a 10x10 and 12x12 variant under `data/fonts/`.
 
 ## License
 
