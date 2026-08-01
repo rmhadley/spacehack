@@ -490,13 +490,13 @@ def load_layout(
             if col_idx < len(map_lines[row_idx]):
                 glyph = map_lines[row_idx][col_idx]
                 if glyph in colour_overrides:
-                    # Create a new tile with the overridden fg
-                    # Preserve bracket chars ({/}) so they render as brackets,
-                    # not as the HULL_WALL constant's char (which is #).
-                    _char = glyph if glyph in ('{', '}') else tile.char
+                    # Create a new tile with the overridden fg.
+                    # Bracket chars ({/}) are layout grouping markers —
+                    # always render them using HULL_WALL's char (#), not
+                    # the bracket glyph.
                     tiles[row_idx][col_idx] = world.Tile(
                         kind=tile.kind,
-                        char=_char,
+                        char=tile.char,
                         walkable=tile.walkable,
                         fg=colour_overrides[glyph],
                         bg=tile.bg,
