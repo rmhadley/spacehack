@@ -201,33 +201,44 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 - [x] Arrival zone exclusion → no militia spawn on top of player
 - [x] Save/load → patrols persist across Continue
 
-### Phase 2: Auto-hail + cargo scan flow
+### Phase 2: Auto-hail + cargo scan flow (COMPLETE — playtest passed)
 
-- [ ] Add auto-hail chance calculation to `_detect_combat_encounter` or a new militia-specific detection function
-- [ ] Auto-hail opens `open_comms_direct` with the militia ship
-- [ ] Add scan outcome logic to `comms.py` — `_run_cargo_scan` function that checks contraband and applies consequences
-- [ ] Wire scan outcomes to `modify_rep` (from faction rep system — stub with direct `ctx.faction_reputation` mutation if not implemented yet)
-- [ ] Add contraband detection to scan: check cargo against `contraband_goods` set
-- [ ] Implement fine/confiscation logic on contraband found
-- [ ] Log messages for scan results (clean, contraband found, flee attempt)
-- [ ] Smoke test + commit
+**Implementation:** Renamed `militia_warned_systems` → `militia_scanned` with per-entity tracking (squad-ID based for moving entities, position-based for static). Added `_militia_scan_chance()` (rep-gated table: allied 0%, liked 20%, neutral 40%, disliked/enemy 80%), `_calc_flee_chance()` (speed+piloting formula, clamped 15-90%), and `_run_space_cargo_scan()` (planet-independent scan reusing exposure/confiscation logic). Militia patrols get 3-option modal (Allow Scan / Flee / Attack) in `comms.py`. `militia_blockade` retains its original warning-only behavior (End Transmission only).
 
-#### DRY eval
+**Bugs fixed during playtest:**
+- IndentationError after rename (comment+code merged onto one line)
+- `militia_scanned.discard(system_id)` wrong — set stores per-entity keys, not system IDs; changed to `.clear()`
+- Derelict auto-hail firing every tick (per-entity check only in militia path, missing from viewport/bounty/spec-distance paths)
+- Militia patrol re-rolling every tick (position-based key changed as patrols moved; switched to `procedural_squad_id`)
+- Militia blockade showing wrong options (faction=='militia' caught both blockade and patrols; added `_is_blockade` check by ID)
+- `_wreck_spawn_id` UnboundLocalError for non-combat missions (declared inside target_enemy_id block, referenced outside)
+- Militia spawning inside celestial bodies (no collision check against planets/gates/stations; DRY'd `_blocked` set to share with NPC spawn)
 
-- [ ] Is the auto-hail code shared with bounty auto-hail, or duplicated?
-- [ ] Is the contraband check centralized (one function), or duplicated between scan and other systems?
-- [ ] Are scan consequences using the same `modify_rep` path as other rep changes?
+- [x] Auto-hail chance calculation via `_militia_scan_chance()` — reputation-gated
+- [x] Per-entity tracking via `militia_scanned` (squad-ID key for moving entities)
+- [x] Militia-specific interaction modal (Allow Scan / Flee / Attack, no End Transmission)
+- [x] `_run_space_cargo_scan()` reusing planet-landing scan logic (exposure, confiscation, fines)
+- [x] Flee chance formula: 40% + speed bonus + piloting bonus, clamped [15%, 90%]
+- [x] Blockade retains original warning-only behavior (End Transmission only)
+- [x] Non-militia auto-hails (derelicts, bounty targets) unchanged — once per entity
+- [x] Smoke test + commit
 
-#### Playtest checklist
+#### Playtest checklist (all passed)
 
-- [ ] Fly near a militia patrol → verify auto-hail triggers (~40% chance, may need multiple passes)
-- [ ] Auto-hail opens the interaction modal with correct militia dialogue
-- [ ] "Allow Scan" with no contraband → clean scan message, +militia rep
-- [ ] "Allow Scan" with contraband → contraband confiscated, fine applied, -militia rep
-- [ ] "Flee" → 60% chance escape (log message "You break line of sight..."), failed flee = combat
-- [ ] "Attack" → combat with militia
-- [ ] As Allied with militia → verify no auto-hail
-- [ ] As Disliked/Enemy → verify much higher auto-hail rate
+- [x] Blockade still hails 100% immediately
+- [x] Militia patrol auto-hail at neutral (40% chance, may need multiple passes)
+- [x] Allow Scan — clean: +1 militia rep
+- [x] Allow Scan — contraband: confiscation, fine, -5 militia rep
+- [x] Flee — success: log "You break line of sight"
+- [x] Flee — fail: forced combat with full squad
+- [x] Attack: standard combat with full squad
+- [x] Per-entity tracking: one patrol scanned, another gets its own roll
+- [x] Allied rep → 0% (wave through)
+- [x] Disliked/Enemy → 80% (frequent hails)
+- [x] Save/load preserves scanned entity tracking
+- [x] Jump resets tracking (militia_scanned cleared)
+- [x] Smuggler's hold protects contraband from scan
+- [x] No crash on edge cases
 
 ### Phase 3: Combat + reinforcements — DROPPED
 
