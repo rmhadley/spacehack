@@ -785,9 +785,11 @@ def _run_game(
                                             break
                                 _dungeon_map = None
                                 _spawn = None
+                                _is_reboard = False
                                 if _mission is not None and _wreck_sid in ctx.interiors:
                                     _dungeon_map = ctx.interiors[_wreck_sid]
                                     _spawn = getattr(_dungeon_map, 'entry_spawn', None)
+                                    _is_reboard = True
                                     # Clear the stale player entity from the
                                     # previous visit before placing a fresh one.
                                     for _oe in list(_dungeon_map.entities):
@@ -855,8 +857,9 @@ def _run_game(
                                     pos=_spawn, name='Player',
                                 )
                                 _dungeon_map.entities.append(_dungeon_player)
-                                _animate_breach(ctx, console, _dungeon_map, _spawn,
-                                                region_w=map_w, region_h=map_h)
+                                if not _is_reboard:
+                                    _animate_breach(ctx, console, _dungeon_map, _spawn,
+                                                    region_w=map_w, region_h=map_h)
                                 _dungeon_map.location_name = _npcspec.name
                                 space_game_map = game_map
                                 space_player = player
