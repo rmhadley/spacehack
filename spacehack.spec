@@ -11,14 +11,16 @@ from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Hidden imports — tcod uses cffi + numpy, both of which can be missed by
-# PyInstaller's auto-detection.
+# PyInstaller's auto-detection.  collect_submodules grabs every spacehack
+# submodule so dynamic/delayed imports don't get missed.
 # ---------------------------------------------------------------------------
+from PyInstaller.utils.hooks import collect_submodules
+
 _hidden = [
     'cffi',
     'numpy',
     'tcod',
-    'tcod._lib',
-]
+] + collect_submodules('spacehack')
 
 # ---------------------------------------------------------------------------
 # Data files: bundle the entire data/ tree so tilesheets, fonts, and
@@ -55,7 +57,7 @@ _launcher_path.write_text(_LAUNCHER, encoding='utf-8')
 # ---------------------------------------------------------------------------
 a = Analysis(
     [str(_launcher_path)],
-    pathex=[],
+    pathex=['src'],
     binaries=[],
     datas=_datas,
     hiddenimports=_hidden,
@@ -70,14 +72,19 @@ a = Analysis(
 pyz = PYZ(a.pure, a.zipped_data)
 
 # ---------------------------------------------------------------------------
-# Single-directory executable (a folder with the .exe + all libs).
+# onefile executable — self-contained binary with all Python + libs + data.
+# BUNDLE wraps this into a double-clickable .app on macOS.
+# ---------------------------------------------------------------------------
+# NOTE: PyInstaller emits a deprecation warning about onefile + BUNDLE
+# ("don't make sense") but it works correctly — the .app contains a
+# self-contained executable.  This will only become an error in v7.0.
 # ---------------------------------------------------------------------------
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
+    a.zipfiles,
     a.datas,
-    [],
     name='spacehack',
     debug=False,
     bootloader_ignore_signals=False,
