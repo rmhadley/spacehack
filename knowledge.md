@@ -42,6 +42,38 @@ python -m spacehack           # run the game
 ### Why
 Each new AI session opens from `git status` / `git diff --stat` / `git log`. If changes aren't committed, the agent has no memory of what was done. Commit aggressively so the next turn picks up from a clean diff, not from prose recall.
 
+### Pushing to GitHub (origin: rmhadley/spacehack)
+
+The remote is **HTTPS** — `https://github.com/rmhadley/spacehack.git`.
+gh CLI is logged into **two accounts**:
+
+| Account | Role |
+|---------|------|
+| `rmhadley` | personal — **owns the repo**; repo-local commit identity is `rmhadley <rmhadley@users.noreply.github.com>` |
+| `rhadley-recurly` | work — the usual **active** account |
+
+HTTPS git auth follows the gh **active** account, and the SSH key
+(`~/.ssh/id_rsa`) is registered to `rhadley-recurly` — so **never** push
+via SSH and **never** push while `rhadley-recurly` is active (it would
+authenticate as the wrong account).
+
+**Push sequence (MANDATORY when the user asks to push):**
+
+```bash
+gh auth status                  # confirm the active account
+gh auth switch --user rmhadley  # only if rmhadley is not active
+# commit locally first per the discipline above — then:
+git push origin main
+gh auth switch --user rhadley-recurly  # restore the work default
+```
+
+One-liner: `gh auth switch --user rmhadley && git push origin main && gh auth switch --user rhadley-recurly`
+
+Notes:
+- **Never force-push** (`git push -f`) to origin unless the user explicitly asks.
+- Push is a separate explicit step from committing — never bundle an uncommitted change into a push.
+- Do not change the repo-local git identity; every commit is already attributed to `rmhadley` automatically.
+
 ---
 
 ## Key conventions (always follow)
