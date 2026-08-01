@@ -544,6 +544,7 @@ def fill_empty_slots(
         planet_id=planet_id,
     )
     available_ids = [m.id for m in available]
+    rng.shuffle(available_ids)
     # Track which IDs are already on the board to avoid duplicates.
     existing = set(s for s in board.slots if s is not None)
     for i in range(len(board.slots)):
