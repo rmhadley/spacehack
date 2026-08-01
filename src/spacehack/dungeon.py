@@ -9,7 +9,6 @@ Layout format (DCSS-inspired):
   - ``MAP`` / ``ENDMAP`` delimit the ASCII grid
   - ``TILE: X = type`` maps a glyph to a tile or entity kind
   - ``COLOUR: X = (R, G, B)`` overrides the tile's fg color
-
 The parser finds the hull boundary per row (first/last non-space
 character). Everything between boundaries is interior; everything
 before/after is void.
@@ -21,6 +20,7 @@ room-and-corridor generation instead of hand-authored layouts.
 from __future__ import annotations
 
 import pathlib
+import sys
 from dataclasses import dataclass
 
 from . import world
@@ -223,7 +223,10 @@ _ENEMY_GLYPHS: set[str] = {"r", "R", "S"}
 # Glyphs that place entities rather than tiles.
 _ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
 
-_LAYOUT_DIR = pathlib.Path(__file__).parent / "data" / "layouts"
+if getattr(sys, 'frozen', False):
+    _LAYOUT_DIR = pathlib.Path(sys._MEIPASS) / "spacehack" / "data" / "layouts"
+else:
+    _LAYOUT_DIR = pathlib.Path(__file__).parent / "data" / "layouts"
 
 
 def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:

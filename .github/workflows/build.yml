@@ -1,0 +1,91 @@
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:  # manual trigger from GitHub UI
+
+jobs:
+  # ────────────────────────────────────────────────
+  # macOS .app bundle
+  # ────────────────────────────────────────────────
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build standalone .app
+        run: pyinstaller --clean spacehack.spec
+
+      - name: Package .app as .zip
+        run: |
+          cd dist
+          zip -r spacehack-macos.zip spacehack.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacehack-macos
+          path: dist/spacehack-macos.zip
+
+  # ────────────────────────────────────────────────
+  # Windows .exe
+  # ────────────────────────────────────────────────
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build standalone .exe
+        run: pyinstaller --clean spacehack.spec
+
+      - name: Package as .zip
+        run: |
+          Compress-Archive -Path dist/spacehack/* -DestinationPath dist/spacehack-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacehack-windows
+          path: dist/spacehack-windows.zip
+
+  # ────────────────────────────────────────────────
+  # Create GitHub Release with both platform zips
+  # (only on tag push, not manual dispatch)
+  # ────────────────────────────────────────────────
+  release:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/spacehack-macos/spacehack-macos.zip
+            artifacts/spacehack-windows/spacehack-windows.zip
+          generate_release_notes: true

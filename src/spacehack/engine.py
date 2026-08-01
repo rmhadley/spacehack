@@ -100,7 +100,14 @@ class EngineError(RuntimeError):
 
 
 def _data_path(filename: str) -> Path:
-    """Resolve ``filename`` relative to the ``data/`` directory."""
+    """Resolve ``filename`` relative to the ``data/`` directory.
+
+    When running inside a PyInstaller bundle, assets are extracted to
+    ``sys._MEIPASS`` and laid out under ``spacehack/data/``.
+    Otherwise resolves relative to this source file on disk.
+    """
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS) / "spacehack" / "data" / filename
     return Path(__file__).resolve().parent / "data" / filename
 
 

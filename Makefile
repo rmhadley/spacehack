@@ -66,6 +66,15 @@ zip: dist
 	@echo "─── Zip ready: dist/spacehack-dev-$(ZIP_DATE).zip ───"
 
 # ──────────────────────────────────────────────
+# pyinstaller — build standalone .app (macOS) or .exe (Windows)
+# Requires: pip install pyinstaller
+# ──────────────────────────────────────────────
+pyinstaller:
+	$(PYTHON) -m pip install pyinstaller --quiet 2>/dev/null || true
+	pyinstaller --clean spacehack.spec
+	@echo "─── Standalone build ready in dist/ ───"
+
+# ──────────────────────────────────────────────
 # clean
 # ──────────────────────────────────────────────
 clean:
