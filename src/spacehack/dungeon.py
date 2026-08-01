@@ -206,20 +206,14 @@ _LOOT_POOLS: dict[str, list[tuple[str, int, int]]] = {
     ],
 }
 
-# Map-like: glyph -> (tile, is_entity_marker)
-# tile=None means the glyph places an entity, not a tile
-_GLYPH_TILES: dict[str, world.Tile] = {
-    "#": world.DUNGEON_WALL,
-    ".": world.DUNGEON_FLOOR,
-    "d": world.DUNGEON_DOOR,
-    "a": world.AIRLOCK,
-    "b": world.BREACH,
-    "C": world.COCKPIT,
-    "E": world.ENGINE_TILE,
-    "%": world.DEBRIS,
-    ">": world.EXIT,
-    "{": world.HULL_WALL,
-    "}": world.HULL_WALL,
+# Auto-discovered registry of every world.Tile constant, keyed by
+# Python constant name.  Layout authors reference these in TILE:
+# directives — e.g. ``TILE: # = DUNGEON_WALL`` — so adding a new
+# tile to world.py automatically makes it available to layouts.
+_TILE_BY_NAME: dict[str, world.Tile] = {
+    name: getattr(world, name)
+    for name in dir(world)
+    if isinstance(getattr(world, name), world.Tile)
 }
 
 # Enemy spawn glyphs — placed as NPC char entities, rendered as floor.
@@ -294,8 +288,10 @@ def load_layout(
 
     raw = path.read_text(encoding="utf-8").splitlines()
 
-    # Collect colour overrides, loot zone mappings, and enemy spawn directives
+    # Collect colour overrides, tile mappings, loot zone mappings,
+    # and enemy spawn directives
     colour_overrides: dict[str, tuple[int, int, int]] = {}
+    tile_map: dict[str, world.Tile] = {}  # glyph -> Tile (from TILE: directives)
     loot_zones: dict[str, str] = {}  # glyph -> room_type
     enemy_spawn_specs: dict[str, tuple[str, float, int, int]] = {}  # glyph -> (enemy_id, spawn_chance, squad_min, squad_max)
 
@@ -369,7 +365,19 @@ def load_layout(
                 continue
             # Parse TILE and COLOUR directives
             if stripped.startswith("TILE:"):
-                continue  # TILE directives describe the glyphs, parser uses hardcoded mapping
+                rest = stripped[5:].strip()
+                if "=" in rest:
+                    glyph_part, tile_name = rest.split("=", 1)
+                    glyph = glyph_part.strip()
+                    tile_name = tile_name.strip()
+                    if tile_name in _TILE_BY_NAME:
+                        tile_map[glyph] = _TILE_BY_NAME[tile_name]
+                    else:
+                        raise ValueError(
+                            f"Unknown tile name {tile_name!r} in TILE directive "
+                            f"of layout {layout_id!r}"
+                        )
+                continue
             colour_result = _parse_colour(line)
             if colour_result is not None:
                 glyph, rgb = colour_result
@@ -412,13 +420,14 @@ def load_layout(
                 continue
 
             if ch == " ":
-                # Space inside hull = floor
-                tile_row.append(world.DUNGEON_FLOOR)
+                # Space inside hull — use layout's floor tile
+                tile_row.append(tile_map.get(".", world.DUNGEON_FLOOR))
                 continue
 
             if ch in _ENTITY_GLYPHS:
-                # Entity marker — place underlying floor tile + optional entity
-                tile_row.append(world.DUNGEON_FLOOR)
+                # Entity marker — place layout's floor tile + optional entity
+                _underlay = tile_map.get(".", world.DUNGEON_FLOOR)
+                tile_row.append(_underlay)
                 if ch == "P":
                     if spawn_pos is not None:
                         raise ValueError(
@@ -449,12 +458,12 @@ def load_layout(
 
             # Loot marker — treat as floor, record position for flood-fill
             if ch in loot_zones:
-                tile_row.append(world.DUNGEON_FLOOR)
+                tile_row.append(tile_map.get(".", world.DUNGEON_FLOOR))
                 loot_markers.append((loot_zones[ch], col_idx, row_idx))
                 continue
 
-            # Look up glyph in tile map
-            tile = _GLYPH_TILES.get(ch)
+            # Look up glyph in per-layout tile map
+            tile = tile_map.get(ch)
             if tile is None:
                 # Unknown glyph — treat as void (safety)
                 tile = world.VOID

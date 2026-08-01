@@ -39,16 +39,18 @@ MAP
                ###
 ENDMAP
 
-# Tile mappings
-TILE: # = wall
-TILE: . = floor
-TILE: a = airlock
-TILE: b = breach
-TILE: d = door
-TILE: P = player_spawn
-TILE: C = cockpit
-TILE: E = engine
-TILE: > = exit
+# Tile mappings — glyph -> world.Tile constant name
+# Entity markers (P, C, E, r, R, S) are handled by the parser;
+# only map tiles need TILE directives.
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: d = DUNGEON_DOOR
+TILE: a = AIRLOCK
+TILE: b = BREACH
+TILE: > = EXIT
+TILE: { = HULL_WALL
+TILE: } = HULL_WALL
+TILE: % = DEBRIS
 
 # Enemy spawn markers class@chance#min_num-max_num
 ENEMY: r = pirate_raider@1.0
