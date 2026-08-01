@@ -424,14 +424,18 @@ Reuses the entire boarding + ground-combat framework (board dialog, ``load_layou
 5. `world` import at module level in `saveload.py` for `_dungeon_from_dict` (crash on Continue)
 6. Ground combat stamina HP multiplier 2× → 1× (enemies were damage sponges)
 
-### Phase 5: Procedural generation + polish
+### Phase 5: Procedural generation + polish (COMPLETE)
 
-- [ ] Add `generate_bar_mission` that dispatches to sub-generators by type
-- [ ] Wire into `fill_empty_slots` for `guild == "bar"` (already done in Phase 1)
-- [ ] Help guide section for all bar mission types
-- [ ] Barkeep flavor text variations per mission type
-- [ ] DRY scan across all four bar mission code paths
-- [ ] RNG audit
+**Status: COMPLETE.** Procedural bar mission generation wired into `fill_empty_slots` via table-driven dispatch alongside merchants + bhguild. Missions generate when board slots are empty after static fill (month rollover or accepted/completed missions). Bar missions are faction-gated by pirate reputation — enemy attitude blocks procedural fill.
+
+- [x] `generate_bar_mission` dispatcher — rolls tier + weighted type pick (intercept 35%, smuggling 35%, salvage 30%), delegates to sub-generators
+- [x] `_generate_bar_intercept` — merchant targets, heist goods, pirate escorts at T2+, round-trip deadlines
+- [x] `_generate_bar_smuggling` — one-way contraband delivery, destination NPC lookup, `is_smuggle=True`
+- [x] `_generate_bar_salvage` — pirate patrol + derelict wreck, layout by tier (`scout_a` / `freightliner_a`), round-trip deadlines
+- [x] `fill_empty_slots` refactored from boolean flags (`_is_merchant`, `_is_bh`) to table-driven dispatch (`_PROCEDURAL_GENERATORS` dict) — DRY improvement, adds bar guild
+- [x] Help guide — already covered by `_GUIDE_BAR_MISSIONS` (Phase 4)
+- [x] RNG audit — all sub-generators use shared `_roll_tier`, `_planet_to_system`, seeded RNG
+- [x] DRY scan — three sub-generators follow the same pattern as existing generators; `_BAR_GENERATORS` dict avoids if/elif chains; `_BAR_TYPE_WEIGHTS` dict (not tuple) avoids fragile coupling
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
