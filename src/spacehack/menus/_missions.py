@@ -30,15 +30,32 @@ class MissionOutcome(Enum):
     BACK = auto()
 
 
+def _mission_type_tag(m: mission_module.MissionSpec) -> str:
+    """Return a short category tag for a mission based on its fields.
+
+    Priority: Salvage > Heist > Smuggle > Bounty > Delivery.
+    """
+    if m.salvage_wreck_enemy_id:
+        return "Salvage"
+    if m.heist_target_good_id:
+        return "Heist"
+    if m.is_smuggle:
+        return "Smuggle"
+    if m.target_enemy_id:
+        return "Bounty"
+    return "Delivery"
+
+
 def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...]) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
     """Build an :class:`spacehack.ui.MenuScreen` payload from an
     NPC-mission-list so we can reuse the shared menu primitives.
 
     ``available_options`` is ``(id, label)`` where label is
-    ``"{title} ({reward}gp)"`` so the player sees the reward in
-    the listing. ``descriptions`` is the mission body blurb.
+    ``"[Tag] {title} ({reward}$)"`` so the player sees the
+    mission type tag and reward in the listing.
+    ``descriptions`` is the mission body blurb.
     """
-    available_options = tuple(((str(i), f'{m.title} ({m.reward_credits}$)') for i, m in enumerate(offerings)))
+    available_options = tuple(((str(i), f'[{_mission_type_tag(m)}] {m.title} ({m.reward_credits}$)') for i, m in enumerate(offerings)))
     descriptions = {str(i): m.description for i, m in enumerate(offerings)}
     return (f'{npc.name} - available work', available_options, descriptions)
 
