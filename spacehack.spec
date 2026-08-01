@@ -29,9 +29,17 @@ _hidden = [
 _src_data = Path('src/spacehack/data')
 _datas: list[tuple[str, str]] = []
 
+# Files excluded from frozen bundles — the TrueType Collection can't be
+# read by libtcod's stb_truetype.h when extracted from a PyInstaller
+# archive.  Dev mode uses the TTC directly; frozen bundles use the
+# CP437 tilesheet fallback instead (no warning, no wasted 50 MB).
+_FROZEN_EXCLUDE: set[str] = {'.ttc'}
+
 if _src_data.is_dir():
     for _p in _src_data.rglob('*'):
         if _p.is_dir():
+            continue
+        if _p.suffix in _FROZEN_EXCLUDE:
             continue
         # Compute the destination directory: spacehack/data/<relative_parent>
         _rel = _p.relative_to(_src_data)
