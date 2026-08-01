@@ -608,15 +608,28 @@ def _run_space_cargo_scan(ctx) -> None:
     modify_rep(ctx, "militia", -5)
 
 
+def _entity_hail_key(_e) -> str:
+    """Return a stable key for per-entity hail tracking.
+
+    Uses ``procedural_squad_id`` when available (moving entities like
+    militia patrols and pirates), falling back to a position-based key
+    for static entities (blockade, derelicts). The position-based
+    fallback is safe because static entities never move.
+    """
+    _sq = getattr(_e, 'procedural_squad_id', '')
+    if _sq:
+        return _sq
+    _pid = getattr(_e, 'npc_ship_id', '')
+    return f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+
+
 def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
     """Mark entity scanned and open comms with the entity.
 
     Shared by all trigger paths — avoids repeating the
     ``militia_scanned`` add + ``open_comms_direct`` call.
     """
-    _pid = getattr(_e, 'npc_ship_id', '')
-    _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
-    ctx.militia_scanned.add(_key)
+    ctx.militia_scanned.add(_entity_hail_key(_e))
     from .comms import open_comms_direct as _ocd
     _attack_data = _ocd(ctx, _e)
     return (True, _attack_data)
@@ -684,13 +697,13 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
             _faction = getattr(_spec, 'faction', '')
             # Militia blockade: always hail immediately, but only once.
             if _pid == 'militia_blockade':
-                _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
-                if _key in ctx.militia_scanned:
+                if _entity_hail_key(_e) in ctx.militia_scanned:
                     continue
                 return _fire_warning(ctx, _sys_id, _e)
-            # Militia patrols: chance-based per entity.
+            # Militia patrols: chance-based per entity (keyed by squad id,
+            # NOT position — they move between ticks).
             if _faction == 'militia':
-                _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+                _key = _entity_hail_key(_e)
                 if _key in ctx.militia_scanned:
                     continue  # already checked this patrol
                 ctx.militia_scanned.add(_key)
@@ -700,22 +713,19 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
                     continue  # no scan — wave through
                 return _fire_warning(ctx, _sys_id, _e)
             # All other auto-hail entities (non-militia): once per entity.
-            _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
-            if _key in ctx.militia_scanned:
+            if _entity_hail_key(_e) in ctx.militia_scanned:
                 continue
             return _fire_warning(ctx, _sys_id, _e)
 
         # --- Bounty entity distance (once per entity) ---
         if _entity_bounty_range > 0 and _check_spec_distance(_e, player_pos, _entity_bounty_range):
-            _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
-            if _key in ctx.militia_scanned:
+            if _entity_hail_key(_e) in ctx.militia_scanned:
                 continue
             return _fire_warning(ctx, _sys_id, _e)
 
         # --- Viewport (derelicts) — once per entity ---
         if _spec_viewport and _check_viewport_visible(_e, player_pos, system):
-            _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
-            if _key in ctx.militia_scanned:
+            if _entity_hail_key(_e) in ctx.militia_scanned:
                 continue
             return _fire_warning(ctx, _sys_id, _e)
 
