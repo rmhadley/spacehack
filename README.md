@@ -171,7 +171,9 @@ TILESHEET_FILENAME   = "dejavu16x16_gs_tc.png"
 
 Swap to a different tilesheet by placing the PNG in `src/spacehack/data/` and updating `TILESHEET_FILENAME`. The bundled tilesheet is DejaVu 16x16; the python-tcod repository also ships a 10x10 and 12x12 variant under `data/fonts/`.
 
-For a modern look, drop any monospace `.ttf` or `.otf` into `data/` and set `TRUETYPE_FONT_FILENAME` — the game rasterizes it at 16×16 and automatically falls back to the CP437 tilesheet if the font file is missing.
+For a modern look, drop any monospace `.ttf` or `.otf` into `data/` and set `TRUETYPE_FONT_FILENAME` — the game rasterizes it at 16×16 and automatically falls back to the CP437 tilesheet if the font file is missing. The bundled font is Hack v3.003 (MIT — see `data/Hack-LICENSE.txt`).
+
+**Choosing a font (gotcha):** libtcod 2.2.2 scales a font to the tile height, then shrinks it to fit the tile width if the font's head-bbox width exceeds it — fonts whose head bbox is wider than their em height (e.g. Iosevka, JetBrains Mono, Fira Code, Cascadia Code) render at ~50% size at 16×16. Before adopting a font, verify `head.xMax - head.xMin < hhea.ascent - hhea.descent` (e.g. with fontTools); Hack and Source Code Pro pass.
 
 ## License
 
