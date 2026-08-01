@@ -1419,10 +1419,14 @@ def update_guide(
             if _prev > 0:
                 return GuideOutcome.IGNORE, selected, _prev
             return GuideOutcome.IGNORE, selected, 0
-        if sym_name in ("down", "j") and page_offset + _BODY_AVAIL_ROWS < len(_lines):
-            return GuideOutcome.IGNORE, selected, page_offset + 1
-        if sym_name in ("up", "k") and page_offset > 0:
-            return GuideOutcome.IGNORE, selected, page_offset - 1
+        if sym_name in ("down", "j"):
+            if page_offset + _BODY_AVAIL_ROWS < len(_lines):
+                return GuideOutcome.IGNORE, selected, page_offset + 1
+            return GuideOutcome.IGNORE, selected, page_offset
+        if sym_name in ("up", "k"):
+            if page_offset > 0:
+                return GuideOutcome.IGNORE, selected, page_offset - 1
+            return GuideOutcome.IGNORE, selected, page_offset
         # Any other key closes the page
         return GuideOutcome.BACK_TO_LIST, selected, None
     else:
