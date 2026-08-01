@@ -171,6 +171,8 @@ TILESHEET_FILENAME   = "dejavu16x16_gs_tc.png"
 
 Swap to a different tilesheet by placing the PNG in `src/spacehack/data/` and updating `TILESHEET_FILENAME`. The bundled tilesheet is DejaVu 16x16; the python-tcod repository also ships a 10x10 and 12x12 variant under `data/fonts/`.
 
+For a modern look, drop any monospace `.ttf` or `.otf` into `data/` and set `TRUETYPE_FONT_FILENAME` — the game rasterizes it at 16×16 and automatically falls back to the CP437 tilesheet if the font file is missing.
+
 ## License
 
 MIT (or your choice -- update `pyproject.toml` accordingly).

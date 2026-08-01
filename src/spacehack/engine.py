@@ -9,6 +9,7 @@ accident.
 from __future__ import annotations
 
 import random as _random
+import sys
 from pathlib import Path
 
 import tcod.console
@@ -72,9 +73,18 @@ MSG_LOG_HEIGHT: int = 6
 
 WINDOW_TITLE: str = "spacehack"
 
-# The canonical DejaVu 16x16 tilesheet bundled in the source tree.
-# 16 pixels per glyph makes the text much more readable than the
-# 10x10 default.
+# Glyph size in pixels. Used by both the CP437 tilesheet (implicit in
+# the 32x8 grid) and the TrueType font rasterizer.
+TILE_WIDTH: int = 16
+TILE_HEIGHT: int = 16
+
+# Optional TrueType/OpenType font. If present in the data/ directory,
+# it is loaded in preference to the CP437 tilesheet below. Drop any
+# monospace .ttf or .otf here and the game picks it up automatically.
+TRUETYPE_FONT_FILENAME: str = "DepartureMono-Regular.otf"
+
+# Fallback CP437 tilesheet. Only used when the TrueType font above
+# is missing or fails to load.
 TILESHEET_FILENAME: str = "dejavu16x16_gs_tc.png"
 TILESHEET_COLUMNS: int = 32
 TILESHEET_ROWS: int = 8
@@ -89,33 +99,54 @@ class EngineError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 
-def _bundled_tilesheet_path() -> Path:
-    """Full path to the tilesheet bundled in the source tree."""
-    return Path(__file__).resolve().parent / "data" / TILESHEET_FILENAME
+def _data_path(filename: str) -> Path:
+    """Resolve ``filename`` relative to the ``data/`` directory."""
+    return Path(__file__).resolve().parent / "data" / filename
 
 
 def load_tileset() -> tcod.tileset.Tileset:
-    """Load the project's bundled DejaVu tilesheet.
+    """Load a tileset for the game window.
 
-    Looks for the tilesheet in ``src/spacehack/data/`` next to this
-    module. No network access required.
+    Tries the bundled TrueType font first (see
+    :data:`TRUETYPE_FONT_FILENAME`).  If the file is missing or the
+    rasterizer fails, falls back to the CP437 tilesheet
+    (:data:`TILESHEET_FILENAME`).
+
+    Only raises :class:`EngineError` when **both** loaders fail.
     """
-    tilesheet_path = _bundled_tilesheet_path()
-    if not tilesheet_path.is_file():
+    _ttf_path = _data_path(TRUETYPE_FONT_FILENAME)
+    if _ttf_path.is_file():
+        try:
+            return tcod.tileset.load_truetype_font(
+                str(_ttf_path),
+                tile_width=TILE_WIDTH,
+                tile_height=TILE_HEIGHT,
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            # TTF didn't work — carry on to the tilesheet fallback.
+            print(
+                f"Warning: failed to load {_ttf_path} ({exc}). "
+                f"Falling back to {TILESHEET_FILENAME}.",
+                file=sys.stderr,
+            )
+
+    _tilesheet_path = _data_path(TILESHEET_FILENAME)
+    if not _tilesheet_path.is_file():
         raise EngineError(
-            f"Tilesheet not found at {tilesheet_path}. "
-            f"Expected {TILESHEET_FILENAME} in the data/ directory."
+            f"No tileset found. "
+            f"Expected {TRUETYPE_FONT_FILENAME} or {TILESHEET_FILENAME} "
+            f"in the data/ directory."
         )
     try:
         return tcod.tileset.load_tilesheet(
-            str(tilesheet_path),
+            str(_tilesheet_path),
             columns=TILESHEET_COLUMNS,
             rows=TILESHEET_ROWS,
             charmap=tcod.tileset.CHARMAP_TCOD,
         )
     except (OSError, RuntimeError, ValueError) as exc:
         raise EngineError(
-            f"Failed to load tilesheet from {tilesheet_path}: {exc}"
+            f"Failed to load tilesheet from {_tilesheet_path}: {exc}"
         ) from exc
 
 
