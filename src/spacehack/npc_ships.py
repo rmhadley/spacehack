@@ -231,6 +231,23 @@ def spawn_npcs(
     # Separate derelict spawn roll (independent of NPC chance)
     _spawn_derelict(ctx, game_map, system_id, _system)
 
+    # Build a set of blocked cells (planets, gates, stations) — shared
+    # by militia spawn and regular NPC spawn so neither places ships
+    # inside celestial bodies.
+    _blocked: set[tuple[int, int]] = set()
+    for _p in _system.planets:
+        for _dy in range(_p.height):
+            for _dx in range(_p.width):
+                _blocked.add((_p.pos.x + _dx, _p.pos.y + _dy))
+    for _jp in _system.jump_points:
+        for _dy in range(_jp.height):
+            for _dx in range(_jp.width):
+                _blocked.add((_jp.pos.x + _dx, _jp.pos.y + _dy))
+    for _st in getattr(_system, 'stations', ()) or ():
+        for _dy in range(_st.height):
+            for _dx in range(_st.width):
+                _blocked.add((_st.pos.x + _dx, _st.pos.y + _dy))
+
     # --- Militia patrol spawn (separate from NPC table, uses patrol_density) ---
     _patrol_min, _patrol_max = _system.patrol_density
     _all_militia: list = []
@@ -262,11 +279,13 @@ def spawn_npcs(
                     for _attempt in range(50):
                         _x = _gcx + _engine.RNG.randint(-4, 4)
                         _y = _gcy + _engine.RNG.randint(-4, 4)
-                        if (0 <= _x < _system.width and 0 <= _y < _system.height):
+                        if (0 <= _x < _system.width and 0 <= _y < _system.height
+                                and (_x, _y) not in _blocked):
                             break
                     else:
                         continue
                     _pos = world.Position(_x, _y)
+                    _blocked.add((_x, _y))
                     game_map.entities.append(_make_npc_entity(_patrol_spec, _pos, _mid))
                     _all_militia.append((_pos, _mid, _patrol_ship))
                 # Register militia spawns.
@@ -288,20 +307,7 @@ def spawn_npcs(
     if _engine.RNG.random() >= _system.npc_spawn_chance:
         return
 
-    # Build a set of blocked cells (planets, gates, stations, existing entities).
-    _blocked: set[tuple[int, int]] = set()
-    for _p in _system.planets:
-        for _dy in range(_p.height):
-            for _dx in range(_p.width):
-                _blocked.add((_p.pos.x + _dx, _p.pos.y + _dy))
-    for _jp in _system.jump_points:
-        for _dy in range(_jp.height):
-            for _dx in range(_jp.width):
-                _blocked.add((_jp.pos.x + _dx, _jp.pos.y + _dy))
-    for _st in getattr(_system, 'stations', ()) or ():
-        for _dy in range(_st.height):
-            for _dx in range(_st.width):
-                _blocked.add((_st.pos.x + _dx, _st.pos.y + _dy))
+    # Add existing entities to the blocked set so NPCs don't spawn on them.
     for _e in game_map.entities:
         for _dy in range(_e.height):
             for _dx in range(_e.width):
