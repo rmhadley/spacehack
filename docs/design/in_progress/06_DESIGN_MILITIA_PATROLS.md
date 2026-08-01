@@ -179,23 +179,27 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 
 ## Implementation phases
 
-### Phase 1: Patrol movement + ship specs
+### Phase 1: Patrol movement + ship specs (COMPLETE — playtest passed)
 
-- [ ] Add 3 new militia NpcShipSpec entries to `data/npc_ships/core.py` (light, standard, heavy)
-- [ ] Add `patrol_density: int = 0` field to SolarSystem dataclass
-- [ ] Set patrol_density on all 10 systems per the table above
-- [ ] Add militia-specific movement logic to `npc_ships.spawn_npcs` — patrols spawn from system `patrol_density` (separate from `npc_spawn_chance`)
-- [ ] Add militia patrol movement to `npc_ships.move_npcs` — patrols follow waypoint loops, don't despawn at gates
-- [ ] Militia patrols should appear on a separate faction check: `_faction_of(_e) == 'militia'` gets patrol behavior
-- [ ] Smoke test + commit
+**Implementation:** 3 new ship specs, `patrol_density` tuple field on `SolarSystem`, militia spawn pass in `spawn_npcs()` (separate from NPC table, before early-return so it works in systems with no NPCs). Movement reuses existing pirate-style patrol loops — `faction="militia"` falls through to the non-merchant path in `move_npcs`. Ship type auto-derived from max density: 5+ → heavy, 3+ → patrol, 1-2 → light. `militia_blockade` preserved unchanged for Luyten's storyline.
 
-#### Playtest checklist
+- [x] Add 3 new militia NpcShipSpec entries (`militia_patrol_light`, `militia_patrol`, `militia_patrol_heavy`)
+- [x] Add `patrol_density: tuple[int, int] = (0, 0)` field to SolarSystem dataclass
+- [x] Set patrol_density on all 10 systems: Sol (3,4), AC (2,3), Sirius (1,2), Tau Ceti (1,2), Luyten (4,5), Procyon (0,1), Epsilon Eridani (1,1), Wolf 359/Vega/Barnard's Star (0,0)
+- [x] Militia spawn pass in `spawn_npcs()` — separate from NPC table, uses patrol_density, respects `player_spawn_exclusion`
+- [x] Militia movement reuses pirate-style patrol loops (no new AI needed)
+- [x] Smoke test + commit
 
-- [ ] Jump to Sol → verify 3-4 militia patrols visible on the map
-- [ ] Jump to Wolf 359 → verify 0 militia patrols
-- [ ] Watch militia movement → verify they patrol between bodies, don't despawn
-- [ ] Get close to a militia patrol → verify they don't attack on sight (default: neutral)
-- [ ] Check enemy (pirate) players don't get attacked on sight by militia (use combat to move toward them; they should detect but not engage)
+#### Playtest checklist (all passed)
+
+- [x] Jump to Sol → 3-4 militia patrol cruisers visible (teal `B` glyphs)
+- [x] Jump to Wolf 359 → 0 militia patrols
+- [x] Watch militia movement → patrol between bodies, don't despawn
+- [x] Get close to militia → don't attack on sight at neutral rep
+- [x] Luyten's Star → 4-5 Militia Enforcers + static blockade picket line intact
+- [x] Mid-range systems (Sirius/Tau Ceti) → 1-2 Militia Scouts
+- [x] Arrival zone exclusion → no militia spawn on top of player
+- [x] Save/load → patrols persist across Continue
 
 ### Phase 2: Auto-hail + cargo scan flow
 
