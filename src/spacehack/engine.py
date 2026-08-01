@@ -81,7 +81,7 @@ TILE_HEIGHT: int = 16
 # Optional TrueType/OpenType font. If present in the data/ directory,
 # it is loaded in preference to the CP437 tilesheet below. Drop any
 # monospace .ttf or .otf here and the game picks it up automatically.
-TRUETYPE_FONT_FILENAME: str = "DepartureMono-Regular.otf"
+TRUETYPE_FONT_FILENAME: str = "SGr-IosevkaTerm-Regular.ttc"
 
 # Fallback CP437 tilesheet. Only used when the TrueType font above
 # is missing or fails to load.
