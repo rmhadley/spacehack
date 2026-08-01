@@ -43,12 +43,12 @@ WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50,
 # single-line box-drawing glyphs that render cleanly in any
 # monospace font (CP437 or TrueType) and connect into continuous
 # architectural frames with proper corners.
-WALL_TL = Tile(kind="wall", char="╔", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-left corner (double)
-WALL_TR = Tile(kind="wall", char="╗", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-right corner (double)
-WALL_BL = Tile(kind="wall", char="╚", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # bottom-left corner (double)
-WALL_BR = Tile(kind="wall", char="╝", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # bottom-right corner (double)
-WALL_H  = Tile(kind="wall", char="═", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # horizontal (double)
-WALL_V  = Tile(kind="wall", char="║", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # vertical (double)
+WALL_TL = Tile(kind="wall", char="┌", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-left corner
+WALL_TR = Tile(kind="wall", char="┐", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-right corner
+WALL_BL = Tile(kind="wall", char="└", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # bottom-left corner
+WALL_BR = Tile(kind="wall", char="┘", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # bottom-right corner
+WALL_H  = Tile(kind="wall", char="─", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # horizontal
+WALL_V  = Tile(kind="wall", char="│", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # vertical
 FLOOR = Tile(kind="floor", char="\u00b7", walkable=True, fg=(225, 205, 155), bg=(100, 86, 58)) # middot - reads as polished indoor flooring
 DOOR = Tile(kind="door", char="+", walkable=True, fg=(100, 220, 255), bg=(25, 55, 80))        # glowing cyan glyph on dark port-blue base
 
