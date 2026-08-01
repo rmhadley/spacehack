@@ -270,17 +270,16 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 
 - [x] (canceled)
 
-### Phase 6: Guide + code review + contracts audit
+### Phase 6: Guide + code review + contracts audit (COMPLETE)
 
-- [ ] Add `_GUIDE_MILITIA_PATROLS` section to help.py covering:
-  - Militia patrols in space (identification, behavior)
-  - Auto-hail chance (rep-gated table)
-  - Interaction options: Allow Scan / Flee / Attack
-  - Flee chance formula (speed + piloting based)
-  - Blockade behavior (warning only, End Transmission)
-  - Smuggler's hold protection
-- [ ] Append to `GUIDE_SECTIONS` tuple
-- [ ] Contracts audit (see below)
+- [x] Added `_GUIDE_MILITIA_PATROLS` section to help.py covering patrols, auto-hail chance table, Allow Scan/Flee/Attack, flee formula, planet landing scans, blockade, contraband
+- [x] Appended to `GUIDE_SECTIONS` tuple (between Navigation and Derelicts)
+- [x] Contracts audit:
+  - Save/load: `militia_scanned` serialized in `_ctx_to_dict()` + `load_game()` ✅
+  - Game guide: new section added ✅
+  - Module-level state: no new globals introduced ✅
+  - Code quality: per-entity tracking DRY'd via `_entity_hail_key()`; `_militia_scan_chance()` and `_calc_flee_chance()` are pure; `_run_interaction_modal` uses table-driven dispatch ✅
+  - Performance: `_check_auto_comms_warning` runs only on player move ticks (same pattern as `_detect_combat_encounter`) ✅
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
