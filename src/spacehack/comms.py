@@ -235,9 +235,13 @@ def _run_interaction_modal(
     )
     _contact_attitude = _get_attitude(_contact_rep)
     _is_militia = getattr(contact_spec, 'faction', '') == 'militia'
+    _is_blockade = getattr(contact_spec, 'id', '') == 'militia_blockade'
 
     # Derelict/boardable ships: only "End Transmission" makes sense.
     if getattr(contact_spec, 'is_boardable', False):
+        _options: list[str] = ["End Transmission"]
+    # Militia blockade: warning only — you are approaching restricted space.
+    elif _is_blockade:
         _options: list[str] = ["End Transmission"]
     elif _is_militia:
         # Militia patrol: Allow Scan / Flee / Attack (no End Transmission).
