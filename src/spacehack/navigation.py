@@ -682,8 +682,11 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
         # --- Spec distance (blockade + militia patrols) ---
         if _spec_distance > 0 and _check_spec_distance(_e, player_pos, _spec_distance):
             _faction = getattr(_spec, 'faction', '')
-            # Militia blockade: always hail immediately.
+            # Militia blockade: always hail immediately, but only once.
             if _pid == 'militia_blockade':
+                _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+                if _key in ctx.militia_scanned:
+                    continue
                 return _fire_warning(ctx, _sys_id, _e)
             # Militia patrols: chance-based per entity.
             if _faction == 'militia':
@@ -696,15 +699,24 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
                 if _chance <= 0.0 or _engine.RNG.random() >= _chance:
                     continue  # no scan — wave through
                 return _fire_warning(ctx, _sys_id, _e)
-            # All other auto-hail entities (non-militia).
+            # All other auto-hail entities (non-militia): once per entity.
+            _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+            if _key in ctx.militia_scanned:
+                continue
             return _fire_warning(ctx, _sys_id, _e)
 
-        # --- Bounty entity distance ---
+        # --- Bounty entity distance (once per entity) ---
         if _entity_bounty_range > 0 and _check_spec_distance(_e, player_pos, _entity_bounty_range):
+            _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+            if _key in ctx.militia_scanned:
+                continue
             return _fire_warning(ctx, _sys_id, _e)
 
-        # --- Viewport (derelicts) ---
+        # --- Viewport (derelicts) — once per entity ---
         if _spec_viewport and _check_viewport_visible(_e, player_pos, system):
+            _key = f"{_pid}:{_e.pos.x}:{_e.pos.y}"
+            if _key in ctx.militia_scanned:
+                continue
             return _fire_warning(ctx, _sys_id, _e)
 
     return None
