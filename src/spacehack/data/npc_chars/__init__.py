@@ -30,7 +30,7 @@ class NpcCharSpec:
         fg: foreground colour tuple.
         faction: ``"pirate"`` | ``"merchant"`` | ``"civilian"`` |
             ``"militia"`` — links to faction reputation for hostility.
-        hp: base HP before stamina bonus (total = ``hp + stamina * 2``).
+        hp: base HP before stamina bonus (total = ``hp + stamina``).
         weapons: ground weapon ids the NPC always carries.
         weapon_pick: ground weapon ids for RNG selection at spawn time.
         reflexes: hit/dodge stat (0-100), used in hit-chance formula.

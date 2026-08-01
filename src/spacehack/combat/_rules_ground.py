@@ -116,13 +116,13 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
             _wid = _spec.weapons[0]
         elif _spec.weapon_pick:
             _wid = RNG.choice(_spec.weapon_pick)
-        _max_hp = _spec.hp + _spec.stamina * 2
+        _max_hp = _spec.hp + _spec.stamina
         _enemies.append(GroundEnemyInstance(
             entity=_ent, spec=_spec, weapon_id=_wid,
             hp=_max_hp, max_hp=_max_hp, ap=4, ap_total=4,
         ))
 
-    _player_max_hp = 20 + ctx.ground_stats.stamina * 2
+    _player_max_hp = 20 + ctx.ground_stats.stamina
     _hp_delta = _player_max_hp - ctx.ground_max_hp
     if _hp_delta > 0:
         ctx.ground_hp += _hp_delta
