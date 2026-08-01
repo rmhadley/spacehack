@@ -9,7 +9,9 @@ accident.
 from __future__ import annotations
 
 import random as _random
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import tcod.console
@@ -81,7 +83,7 @@ TILE_HEIGHT: int = 16
 # Optional TrueType/OpenType font. If present in the data/ directory,
 # it is loaded in preference to the CP437 tilesheet below. Drop any
 # monospace .ttf or .otf here and the game picks it up automatically.
-TRUETYPE_FONT_FILENAME: str = "IosevkaTerm-Regular.ttf"
+TRUETYPE_FONT_FILENAME: str = "SGr-IosevkaTerm-Regular.ttc"
 
 # Fallback CP437 tilesheet. Only used when the TrueType font above
 # is missing or fails to load.
@@ -119,20 +121,39 @@ def load_tileset() -> tcod.tileset.Tileset:
     rasterizer fails, falls back to the CP437 tilesheet
     (:data:`TILESHEET_FILENAME`).
 
+    When running inside a PyInstaller bundle, the font is first copied
+    to a standard temp directory — some versions of libtcod's C-level
+    font rasterizer (stb_truetype.h) fail to read large files directly
+    from ``sys._MEIPASS``.
+
     Only raises :class:`EngineError` when **both** loaders fail.
     """
     _ttf_path = _data_path(TRUETYPE_FONT_FILENAME)
     if _ttf_path.is_file():
+        _load_path = _ttf_path
+        if getattr(sys, 'frozen', False):
+            # Copy to a plain temp path — libtcod's stb_truetype.h
+            # sometimes fails on PyInstaller _MEIPASS paths.
+            _tmp = Path(tempfile.gettempdir()) / TRUETYPE_FONT_FILENAME
+            _needs_copy = True
+            if _tmp.is_file():
+                try:
+                    _needs_copy = _tmp.stat().st_size != _ttf_path.stat().st_size
+                except OSError:
+                    pass
+            if _needs_copy:
+                shutil.copy2(_ttf_path, _tmp)
+            _load_path = _tmp
         try:
             return tcod.tileset.load_truetype_font(
-                str(_ttf_path),
+                str(_load_path),
                 tile_width=TILE_WIDTH,
                 tile_height=TILE_HEIGHT,
             )
         except (OSError, RuntimeError, ValueError) as exc:
             # TTF didn't work — carry on to the tilesheet fallback.
             print(
-                f"Warning: failed to load {_ttf_path} ({exc}). "
+                f"Warning: failed to load {_load_path} ({exc}). "
                 f"Falling back to {TILESHEET_FILENAME}.",
                 file=sys.stderr,
             )
