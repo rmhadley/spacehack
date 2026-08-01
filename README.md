@@ -175,6 +175,8 @@ For a modern look, drop any monospace `.ttf` or `.otf` into `data/` and set `TRU
 
 **Choosing a font (gotcha):** libtcod 2.2.2 scales a font to the tile height, then shrinks it to fit the tile width if the font's head-bbox width exceeds it — fonts whose head bbox is wider than their em height (e.g. Iosevka, JetBrains Mono, Fira Code, Cascadia Code) render at ~50% size at 16×16. Before adopting a font, verify `head.xMax - head.xMin < hhea.ascent - hhea.descent` (e.g. with fontTools); Hack and Source Code Pro pass.
 
+**Box drawing (second gotcha):** libtcod centers each TrueType glyph's *ink bounding box* in its tile. Symmetric glyphs (`─ │ ┼`) center fine, but asymmetric box-drawing corners (`┌ ┐ └ ┘`, `╔ ╗ ╚ ╝`) drift off the shared centerline — every font fails this way, so font choice can't fix it. Instead, `engine.py` draws the box-drawing block (U+2500-256C) procedurally at load time: straight strokes anchored to a common center (single: 4px strokes at rows/cols 6-9; double: 4px bars at 2-5 and 10-13), mirroring the CP437 tilesheet geometry. Text glyphs are untouched. If you swap fonts, this keeps walls and menu frames seamless.
+
 ## License
 
 MIT (or your choice -- update `pyproject.toml` accordingly).

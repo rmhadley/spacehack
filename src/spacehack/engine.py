@@ -12,6 +12,7 @@ import random as _random
 import sys
 from pathlib import Path
 
+import numpy as np
 import tcod.console
 import tcod.context
 import tcod.event
@@ -111,6 +112,113 @@ def _data_path(filename: str) -> Path:
     return Path(__file__).resolve().parent / "data" / filename
 
 
+# --- Procedural box drawing -------------------------------------------------
+#
+# libtcod's TrueType loader centers each glyph's ink bounding box inside the
+# tile (see get_glyph_shift in tileset_truetype.c).  Symmetric glyphs (─ │ ┼)
+# center correctly, but asymmetric corners (┌ ┐ └ ┘) have their ink in one
+# corner of the em box, so centering drifts the strokes off the shared
+# centerline — every font fails this way (measured: Hack, DejaVu, Terminus,
+# Source Code Pro all misalign identically).
+#
+# The fix: draw the box-drawing glyphs ourselves, straight strokes anchored
+# to a common center, so every corner lands exactly on the same rows/cols as
+# the lines.  Geometry mirrors the CP437 tilesheet (the look the game
+# shipped with): 4px single strokes at rows/cols 6-9, 4px double bars at
+# 2-5 and 10-13, single corners meeting at the shared center, double
+# corners meeting at the outer-bar block.
+
+_BOX_TOP = 0b0001
+_BOX_BOTTOM = 0b0010
+_BOX_LEFT = 0b0100
+_BOX_RIGHT = 0b1000
+
+# Single-line (light) box drawing, U+2500-253C.  Used for city building
+# walls (world.py WALL_*) and loadout dividers.
+_BOX_SINGLE = {
+    0x2500: _BOX_LEFT | _BOX_RIGHT,        # ─
+    0x2502: _BOX_TOP | _BOX_BOTTOM,        # │
+    0x250C: _BOX_BOTTOM | _BOX_RIGHT,      # ┌
+    0x2510: _BOX_BOTTOM | _BOX_LEFT,       # ┐
+    0x2514: _BOX_TOP | _BOX_RIGHT,         # └
+    0x2518: _BOX_TOP | _BOX_LEFT,          # ┘
+    0x251C: _BOX_TOP | _BOX_BOTTOM | _BOX_RIGHT,   # ├
+    0x2524: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT,    # ┤
+    0x252C: _BOX_LEFT | _BOX_RIGHT | _BOX_BOTTOM,  # ┬
+    0x2534: _BOX_LEFT | _BOX_RIGHT | _BOX_TOP,     # ┴
+    0x253C: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT | _BOX_RIGHT,  # ┼
+}
+
+# Double-line box drawing, U+2550-256C.  Used for UI modal frames
+# (ui.py) and the combat banner.
+_BOX_DOUBLE = {
+    0x2550: _BOX_LEFT | _BOX_RIGHT,        # ═
+    0x2551: _BOX_TOP | _BOX_BOTTOM,        # ║
+    0x2554: _BOX_BOTTOM | _BOX_RIGHT,      # ╔
+    0x2557: _BOX_BOTTOM | _BOX_LEFT,       # ╗
+    0x255A: _BOX_TOP | _BOX_RIGHT,         # ╚
+    0x255D: _BOX_TOP | _BOX_LEFT,          # ╝
+    0x2560: _BOX_TOP | _BOX_BOTTOM | _BOX_RIGHT,   # ╠
+    0x2563: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT,    # ╣
+    0x2566: _BOX_LEFT | _BOX_RIGHT | _BOX_BOTTOM,  # ╦
+    0x2569: _BOX_LEFT | _BOX_RIGHT | _BOX_TOP,     # ╩
+    0x256C: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT | _BOX_RIGHT,  # ╬
+}
+
+
+def _render_box_tile(
+    tw: int, th: int, mask: int, double: bool
+) -> np.ndarray:
+    """Build one box-drawing glyph tile (RGBA) from its stroke mask.
+
+    Horizontal strokes sit on the shared ``h_bands`` rows, vertical
+    strokes on the shared ``v_bands`` columns; each half-stroke extends
+    from the tile edge to the common center (single) or the opposite
+    bar (double).  Because every glyph uses the same bands and center,
+    corners connect with lines seamlessly.
+    """
+    tile = np.zeros((th, tw, 4), dtype=np.uint8)
+    center_lo, center_hi = tw // 2 - 2, tw // 2 + 1
+    if double:
+        h_bands = [(th // 4 - 2, th // 4 + 1), (3 * th // 4 - 2, 3 * th // 4 + 1)]
+        v_bands = [(tw // 4 - 2, tw // 4 + 1), (3 * tw // 4 - 2, 3 * tw // 4 + 1)]
+    else:
+        h_bands = [(center_lo, center_hi)]
+        v_bands = [(center_lo, center_hi)]
+    if double:
+        # Double-line bands are disjoint (2-5 / 10-13), so a half-stroke
+        # must reach the *opposite bar*, not the centre, or the corner
+        # junction stays open.
+        x0 = 0 if mask & _BOX_LEFT else v_bands[0][0]
+        x1 = tw - 1 if mask & _BOX_RIGHT else v_bands[1][1]
+        y0 = 0 if mask & _BOX_TOP else h_bands[0][0]
+        y1 = th - 1 if mask & _BOX_BOTTOM else h_bands[1][1]
+    else:
+        x0 = 0 if mask & _BOX_LEFT else center_lo
+        x1 = tw - 1 if mask & _BOX_RIGHT else center_hi
+        y0 = 0 if mask & _BOX_TOP else center_lo
+        y1 = th - 1 if mask & _BOX_BOTTOM else center_hi
+    for r0, r1 in h_bands:
+        tile[r0 : r1 + 1, x0 : x1 + 1, 3] = 255
+    for c0, c1 in v_bands:
+        tile[y0 : y1 + 1, c0 : c1 + 1, 3] = 255
+    tile[..., :3] = 255  # white; the console tints via fg colour
+    return tile
+
+
+def _procedural_box_drawing(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
+    """Overwrite box-drawing codepoints in ``tileset`` with perfect strokes.
+
+    Returns the (mutated) tileset.  Only the box-drawing block
+    (U+2500-256C) is replaced; text glyphs are untouched.
+    """
+    tw, th = tileset.tile_width, tileset.tile_height
+    for masks, double in ((_BOX_SINGLE, False), (_BOX_DOUBLE, True)):
+        for cp, mask in masks.items():
+            tileset[cp] = _render_box_tile(tw, th, mask, double)
+    return tileset
+
+
 def load_tileset() -> tcod.tileset.Tileset:
     """Load a tileset for the game window.
 
@@ -124,11 +232,12 @@ def load_tileset() -> tcod.tileset.Tileset:
     _ttf_path = _data_path(TRUETYPE_FONT_FILENAME)
     if _ttf_path.is_file():
         try:
-            return tcod.tileset.load_truetype_font(
+            _ts = tcod.tileset.load_truetype_font(
                 str(_ttf_path),
                 tile_width=TILE_WIDTH,
                 tile_height=TILE_HEIGHT,
             )
+            return _procedural_box_drawing(_ts)
         except (OSError, RuntimeError, ValueError) as exc:
             # TTF didn't work — carry on to the tilesheet fallback.
             print(
