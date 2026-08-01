@@ -219,6 +219,161 @@ def _procedural_box_drawing(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tiles
     return tileset
 
 
+# --- Procedural block elements / shades / suits ----------------------------
+#
+# Same root cause as the box drawing: TrueType fonts render the game's
+# texture glyphs badly.  Hack's █ is inset (x3-12) so adjacent grass tiles
+# show seams, its ░▒▓ shades come out as irregular blobs, its · is a tiny
+# off-centre dot, and it has NO card suits at all — so trees (♣), fountains
+# (♦), and drinks (♥) currently render as invisible blanks.
+#
+# The CP437 tilesheet's versions are classic full-bleed patterns (measured
+# from dejavu16x16_gs_tc.png): light ░ = 1px dots at x%4==0 on even rows /
+# x%4==2 on odd rows (25%); medium ▒ = (x+y)%2 checkerboard (50%); dark ▓ =
+# inverse of light (75%); █ = solid.  Replicate that geometry procedurally
+# so textures tile seamlessly and suits are visible again.
+
+_BLOCK_AND_SHADES: dict[int, str] = {
+    0x2588: "full",    # █ full block
+    0x2591: "light",   # ░ light shade
+    0x2592: "medium",  # ▒ medium shade
+    0x2593: "dark",    # ▓ dark shade
+}
+
+
+def _render_shade_tile(tw: int, th: int, kind: str) -> np.ndarray:
+    """Build one block/shade glyph tile (RGBA) matching the tilesheet look.
+
+    ``kind`` is one of ``"full"`` / ``"light"`` / ``"medium"`` / ``"dark"``.
+    All patterns are full-bleed so adjacent tiles read as one continuous
+    surface.
+    """
+    tile = np.zeros((th, tw, 4), dtype=np.uint8)
+    for y in range(th):
+        for x in range(tw):
+            if kind == "full":
+                on = True
+            elif kind == "light":
+                on = x % 4 == (0 if y % 2 == 0 else 2)
+            elif kind == "medium":
+                on = (x + y) % 2 == 0
+            else:  # dark
+                on = x % 4 != (0 if y % 2 == 0 else 2)
+            if on:
+                tile[y, x] = (255, 255, 255, 255)
+    return tile
+
+
+def _render_bitmap_tile(
+    tw: int, th: int, rows: tuple[str, ...]
+) -> np.ndarray:
+    """Build a glyph tile (RGBA) from '#'/'.' bitmap rows."""
+    tile = np.zeros((th, tw, 4), dtype=np.uint8)
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch == "#":
+                tile[y, x] = (255, 255, 255, 255)
+    return tile
+
+
+# Floor middot — a clean 4x4 centred dot (reads as polished indoor floor).
+_MIDDOT_BITMAP: tuple[str, ...] = (
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "......####......",
+    "......####......",
+    "......####......",
+    "......####......",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+)
+
+# Card suits — Hack has none of these glyphs.  Symmetric pixel art sized
+# for the 16x16 tile.
+_SUIT_BITMAPS: dict[int, tuple[str, ...]] = {
+    0x2663: (  # ♣ club — city tree
+        "................",
+        "................",
+        ".......###......",
+        ".......###......",
+        "......#####.....",
+        "......#####.....",
+        "....#########...",
+        "....#########...",
+        "....#########...",
+        "....#########...",
+        ".......###......",
+        ".......###......",
+        ".......###......",
+        ".......###......",
+        "................",
+        "................",
+    ),
+    0x2666: (  # ♦ diamond — plaza fountain
+        "................",
+        "................",
+        ".......##.......",
+        "......####......",
+        ".....######.....",
+        "....########....",
+        "...##########...",
+        "..############..",
+        ".##############.",
+        "..############..",
+        "...##########...",
+        "....########....",
+        ".....######.....",
+        "......####......",
+        ".......##.......",
+        "................",
+    ),
+    0x2665: (  # ♥ heart — bar drink
+        "................",
+        "................",
+        ".....###.###....",
+        ".....#######....",
+        "....#########...",
+        "....#########...",
+        "...###########..",
+        "...###########..",
+        "...###########..",
+        "....#########...",
+        "....#########...",
+        ".....#######....",
+        "......#####.....",
+        ".......###......",
+        "........#.......",
+        "................",
+    ),
+}
+
+
+def _procedural_texture_glyphs(
+    tileset: tcod.tileset.Tileset,
+) -> tcod.tileset.Tileset:
+    """Overwrite texture codepoints in ``tileset`` with tilesheet-style pixels.
+
+    Returns the (mutated) tileset.  Covers the full block, the three
+    shade patterns, the floor middot, and the card suits the game uses
+    for trees / fountains / drinks.
+    """
+    tw, th = tileset.tile_width, tileset.tile_height
+    for cp, kind in _BLOCK_AND_SHADES.items():
+        tileset[cp] = _render_shade_tile(tw, th, kind)
+    tileset[0x00B7] = _render_bitmap_tile(tw, th, _MIDDOT_BITMAP)
+    for cp, rows in _SUIT_BITMAPS.items():
+        tileset[cp] = _render_bitmap_tile(tw, th, rows)
+    return tileset
+
+
 def load_tileset() -> tcod.tileset.Tileset:
     """Load a tileset for the game window.
 
@@ -237,7 +392,7 @@ def load_tileset() -> tcod.tileset.Tileset:
                 tile_width=TILE_WIDTH,
                 tile_height=TILE_HEIGHT,
             )
-            return _procedural_box_drawing(_ts)
+            return _procedural_texture_glyphs(_procedural_box_drawing(_ts))
         except (OSError, RuntimeError, ValueError) as exc:
             # TTF didn't work — carry on to the tilesheet fallback.
             print(
@@ -254,7 +409,7 @@ def load_tileset() -> tcod.tileset.Tileset:
             f"in the data/ directory."
         )
     try:
-        return tcod.tileset.load_tilesheet(
+        _sheet = tcod.tileset.load_tilesheet(
             str(_tilesheet_path),
             columns=TILESHEET_COLUMNS,
             rows=TILESHEET_ROWS,
@@ -264,6 +419,9 @@ def load_tileset() -> tcod.tileset.Tileset:
         raise EngineError(
             f"Failed to load tilesheet from {_tilesheet_path}: {exc}"
         ) from exc
+    # The tilesheet is missing █ · ♣ ♦ ♥ under CHARMAP_TCOD; fill them
+    # in with the same procedural glyphs as the font path.
+    return _procedural_texture_glyphs(_sheet)
 
 
 # ---------------------------------------------------------------------------
