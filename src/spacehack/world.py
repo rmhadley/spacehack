@@ -37,7 +37,7 @@ class Tile:
     bg: tuple[int, int, int]   # background painted under the glyph (darker than fg so the glyph reads on top)
 
 
-WALL = Tile(kind="wall", char="#", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))     # steel-blue glyph on dark metallic base
+WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))     # dark shade — paneled bulkhead texture
 FLOOR = Tile(kind="floor", char="\u00b7", walkable=True, fg=(225, 205, 155), bg=(100, 86, 58)) # middot - reads as polished indoor flooring
 DOOR = Tile(kind="door", char="+", walkable=True, fg=(100, 220, 255), bg=(25, 55, 80))        # glowing cyan glyph on dark port-blue base
 
