@@ -967,10 +967,10 @@ def _run_game(
                                     ):
                                         mission_module.board_remove(_board, picked.id)
                                         _bounty_spawn_id: str | None = None
+                                        _wreck_spawn_id: str | None = None
                                         _spawn_ok = True  # non-bounty missions always proceed
                                         if picked.target_enemy_id is not None and picked.target_system_id is not None:
                                             _bounty_spawn_id = f"bounty_{picked.id}_{int(time.time())}"
-                                            _wreck_spawn_id: str | None = None
                                             _squad_size = getattr(picked, 'bounty_target_squad_size', 1)
                                             # Mixed squads: wingmates may be a DIFFERENT ship type
                                             # (e.g. a merchant leader with pirate fighter escorts).
