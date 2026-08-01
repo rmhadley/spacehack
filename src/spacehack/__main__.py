@@ -392,8 +392,8 @@ def _run_game(
                     _run_combat_loop(ctx, console, player)
                     player_active_missions = ctx.player_active_missions
                 continue
-            # C = open cargo menu (space mode).
-            if current_mode == 'space' and _is_i_press(event):
+            # I = open cargo menu (city or space).
+            if _is_i_press(event):
                 from .trade import open_cargo as _open_cargo
                 _open_cargo(ctx)
                 continue
