@@ -376,7 +376,7 @@ A module that protects up to X volume of contraband from militia scans. Higher-t
 - [ ] (deferred) Add 4 hand-crafted extortion missions to `bar.py`
 - [ ] (deferred) Quest log: show target name, system, "collect what they owe"
 
-### Phase 4: Salvage rights — BOARDING-INTEGRATED (IMPLEMENTED — playtest pending)
+### Phase 4: Salvage rights — BOARDING-INTEGRATED (COMPLETE — playtest passed)
 
 **Player flow:** accept at bar → travel to target system → find the wreck (marked) → clear the space patrol → board the wreck → fight the scavenger crew inside → secure the mission component from the interior → exit to space → return to bar → deliver.
 
@@ -403,24 +403,26 @@ Reuses the entire boarding + ground-combat framework (board dialog, ``load_layou
 - Active-wreck save/load identity: ``load_game`` overwrites ``ctx.interiors[wsid]`` with the freshly-loaded active dungeon map so post-load progress (crew killed, loot taken) isn't lost to a stale deserialized twin.
 - ``_dungeon_to_dict``/``_dungeon_from_dict`` now also preserve ground-combat ``squad_id`` + heist loot flags on the ACTIVE dungeon (strict improvement over the old inline blocks).
 
-**PLAYTEST — Phase 4 (salvage):**
+**PLAYTEST — Phase 4 (salvage): COMPLETE — all steps passed (6 bugs fixed in play).**
 
-*You'll verify: wreck spawn + sensor ping, patrol clear + boarding, component search inside the wreck, intercept-style delivery, interior persistence (anti-farm), wreck despawn, save/load round trips.*
+- [x] 1. Earth bar → accept a salvage mission (shuffle fix: salvage now appears in board slots)
+- [x] 2. Travel to target system → sensor ping + wreck + patrol on the map
+- [x] 3. Destroy the patrol → mission NOT auto-completed; no component drops in space
+- [x] 4. Board the wreck → breach animation (first time only, re-board skips it); explore + fight scavenger crew; gold % hidden in one RNG room
+- [x] 5. Secure the component → MISSION CARGO; quest log shows SECURED (friendly names, no raw IDs)
+- [x] 6. Exit to space → wreck despawns; return to bar → deliver → reward + rep
+- [x] 7. Anti-farm: re-board → dead crew stay dead, loot stays gone, fog stays revealed; no repeated breach animation; no `{`/`}` bracket glyphs rendered
+- [x] 8. Save/load: save inside wreck → Continue → everything identical; exit + deliver works (world import fix for _dungeon_from_dict)
+- [x] 9. Abandon (Q) → wreck + patrol gone; mission returns to bar board
+- [x] Bonus: ground combat HP rebalanced (stamina 2× → 1×, less spongy)
 
-1. **Earth bar → accept a salvage mission** (all 4 tiers offered thanks to Earth's ``mission_tier=4`` playtest config).
-   → Log: "Salvage site marked in <system>: wreck + N-ship patrol."
-2. **Travel to the target system** (T1 Tau Ceti is 3 hops; T2 Epsilon Eridani 1 hop; T3 Procyon 2 hops; T4 Luyten's Star 5 hops).
-   → On entry: "Sensor ping: derelict wreck detected near <landmark>." The wreck glyph is near the patrol.
-3. **Approach the patrol** → auto-hail fires (patrol = bounty-style squad). Destroy the patrol.
-   → Killing the patrol must NOT complete the mission (quest log still shows the salvage objective). No component drops in space.
-4. **Board the wreck** (bump → Board). Play the breach animation, explore the interior, fight the scavenger crew.
-   → A gold % component is hidden in ONE RNG-picked room. Search until you find it (quest log says SOMEWHERE IN THE WRECK).
-5. **Secure the component** (walk over the gold %) → becomes MISSION CARGO, not trade goods, can't be sold.
-   → Quest log flips to SECURED.
-6. **Exit to space** → the secured wreck despawns ("The secured wreck drifts away"). Return to bar → Deliver → reward + rep.
-7. **Anti-farm check:** board, kill 1-2 crew, exit WITHOUT securing → re-board → dead crew stay dead, taken loot stays gone, fog stays revealed.
-8. **Save/load round trip:** accept → travel → save INSIDE the wreck interior → Continue → crew/loot/fog/component placement identical; exit works; deliver still completes.
-9. **Abandon:** accept a second salvage mission, travel, abandon (Q) → wreck + patrol gone from the map, mission returns to bar board.
+**Playtest bug log (6 items fixed):**
+1. Shuffle `available_ids` in `fill_empty_slots` — salvage missions at end of tuple never got board slots
+2. Quest log shows friendly NpcShipSpec names instead of internal IDs (`pirate_raider` → `Pirate Raider`)
+3. Layout bracket markers `{` `}` no longer render as visible glyphs (always show as `#`)
+4. Skip breach animation on re-board (cached interior already breached)
+5. `world` import at module level in `saveload.py` for `_dungeon_from_dict` (crash on Continue)
+6. Ground combat stamina HP multiplier 2× → 1× (enemies were damage sponges)
 
 ### Phase 5: Procedural generation + polish
 
