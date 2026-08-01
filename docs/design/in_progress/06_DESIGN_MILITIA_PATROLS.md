@@ -225,33 +225,13 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 - [ ] As Allied with militia → verify no auto-hail
 - [ ] As Disliked/Enemy → verify much higher auto-hail rate
 
-### Phase 3: Combat + reinforcements
+### Phase 3: Combat + reinforcements — DROPPED
 
-- [ ] When militia patrol is attacked, roll for reinforcement chance per system:
-  - High-security (Sol, Luyten): 80% chance, 2 additional patrols spawn
-  - Standard (Alpha Centauri, Sirius): 50% chance, 1 additional patrol
-  - Light (depots): 20% chance
-- [ ] Reinforcements arrive after 3 combat rounds (give player a window to flee/kill)
-- [ ] Add call-for-help animation/log message: "Militia Patrol: \"Mayday! Hostile engagement at {position}! Requesting backup!\""
-- [ ] Killing a militia ship triggers:
-  - Militia rep: -12 (from faction rep table)
-  - Pirate rep: +8 (pirates respect the defiance)
-  - Smuggler rep (if bar missions exist): +5
-  - If player was Allied/Liked: additional betrayal penalty
-- [ ] Smoke test + commit
+**Status: DROPPED.** The call-for-backup / reinforcement system was deemed unnecessary for v1. Killing a militia ship is already punitive enough through faction rep loss (see `_COMBAT_KILL_DELTAS` in `faction.py`).
 
-#### DRY eval
-
-- [ ] Is reinforcement spawning using the same `spawn_npcs` path, or bespoke code?
-- [ ] Is the rep change for militia kills using the same `modify_rep` helper as missions?
-- [ ] Are the "betrayal" penalties hardcoded or table-driven?
-
-#### Playtest checklist
-
-- [ ] Attack a militia patrol in Sol → verify reinforcements arrive after 3 rounds
-- [ ] Kill a militia patrol → verify rep changes (-12 militia, +8 pirate)
-- [ ] Attack as Allied → verify additional betrayal penalty in log
-- [ ] Attack in Wolf 359 (no patrols) → no reinforcements possible (lone patrol only)
+- [x] (dropped) Reinforcement spawning on militia attack
+- [x] (dropped) Call-for-help messages
+- [x] (dropped) Betrayal penalties for attacking as Allied
 
 ### Phase 4: Smuggler's hold module
 
@@ -306,3 +286,4 @@ No changes needed — `comms_warning_range`, `detect_radius`, and `comms_lines` 
 3. **Can the player bribe militia to avoid a scan?** Not in v1. Would require a bribe mechanic + faction rep check. Defer.
 4. **Dead militia pilots — should they drop loot?** Standard loot rules apply (same as any combat kill). But consequence is severe rep loss.
 5. **Should there be a "disguised smuggler" NpcShipSpec that looks like a merchant but is actually a militia decoy?** Fun idea but out of scope for v1.
+6. **Reinforcements dropped** — Phase 3 (call-for-backup) was removed from scope. Killing a militia ship is already punitive via faction rep.
