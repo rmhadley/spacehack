@@ -1088,8 +1088,6 @@ _GUIDE_GROUND_GEAR = GuideSection(
 )
 
 
-_GUIDE_GROUND_COMBAT = GuideSection(
-
 _GUIDE_MILITIA_PATROLS = GuideSection(
     title="Militia Patrols & Cargo Scans",
     body=(
