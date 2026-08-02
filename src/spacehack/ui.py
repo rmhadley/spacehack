@@ -807,13 +807,25 @@ def screen_header(
     """
     paint_title(console, screen_width, row, title, fg=fg)
     if divider_w is None:
-        from .engine import HUD_WIDTH
-        divider_w = max(1, screen_width - HUD_WIDTH - 2)
+        # Full-width rule: spans to the right edge like the message
+        # log underneath it (modals are full-screen, no HUD band).
+        divider_w = rule_width(screen_width, x=divider_x)
     console.print(
         x=divider_x, y=row + 1,
         string=DIVIDER_CHAR * divider_w, fg=COLOR_DIVIDER,
     )
     return row + 3
+
+
+def rule_width(screen_width: int, *, x: int = 2) -> int:
+    """Return the full-width rule span for ``screen_width``.
+
+    Rules start at the flush-left content column (``x``, default 2)
+    and reach the right edge, matching the message log underneath.
+    Single source for header + section-rule widths so a future
+    margin tweak stays a one-line change.
+    """
+    return max(1, screen_width - x)
 
 
 def paint_rule(

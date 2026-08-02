@@ -19,7 +19,7 @@ from .. import world
 from .. import ship as ship_module
 from .. import message_log
 from ..game_context import GameContext
-from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..input_helpers import _try_open_guide
 
 
@@ -181,8 +181,6 @@ def _run_loadout_view(ctx) -> None:
         from ..data.weapons import find_weapon as _fw
         from ..data.modules import find_module as _fm
 
-        max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-
         # Title + header rule (unified screen header)
         title_text = f"LOADOUT \u2014 {ship_module.ship_display_name(owned).upper()}"
         cy = ui.screen_header(console, SCREEN_WIDTH, title_text)
@@ -201,7 +199,7 @@ def _run_loadout_view(ctx) -> None:
         cy += 2
 
         # Section rule
-        ui.paint_rule(console, 2, cy, max_w)
+        ui.paint_rule(console, 2, cy, ui.rule_width(SCREEN_WIDTH))
         cy += 1
 
         # Weapons section

@@ -14,7 +14,7 @@ import tcod.event
 
 from . import ui
 from . import message_log
-from .engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
 from .hud import _render_xp_bar
 from .input_helpers import _try_open_guide
@@ -195,7 +195,7 @@ def _render_stats(
     # skills. The row matching the current selection is highlighted so
     # the description tracks the skill you're about to spend on.
     _panel_y = _y + 2
-    ui.paint_rule(console, 2, _panel_y, SCREEN_WIDTH - HUD_WIDTH - 2)
+    ui.paint_rule(console, 2, _panel_y, ui.rule_width(SCREEN_WIDTH))
     _panel_y += 1
     console.print(
         x=2, y=_panel_y,

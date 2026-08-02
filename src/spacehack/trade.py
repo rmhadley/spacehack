@@ -22,7 +22,7 @@ import tcod.event
 
 from . import ui
 from . import message_log
-from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
+from .engine import MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
@@ -1070,7 +1070,7 @@ def open_cargo(ctx: GameContext) -> None:
         cy += 2
 
         # Section rule
-        ui.paint_rule(console, 2, cy, SCREEN_WIDTH - HUD_WIDTH - 2)
+        ui.paint_rule(console, 2, cy, ui.rule_width(SCREEN_WIDTH))
         cy += 1
 
         # Trade goods section
