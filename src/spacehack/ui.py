@@ -818,14 +818,15 @@ def screen_header(
 
 
 def rule_width(screen_width: int, *, x: int = 2) -> int:
-    """Return the full-width rule span for ``screen_width``.
+    """Return the rule span for ``screen_width``.
 
     Rules start at the flush-left content column (``x``, default 2)
-    and reach the right edge, matching the message log underneath.
-    Single source for header + section-rule widths so a future
-    margin tweak stays a one-line change.
+    and mirror the same buffer on the right, so the rule sits
+    centered with equal margins both sides.  Single source for
+    header + section-rule widths so a future margin tweak stays
+    a one-line change.
     """
-    return max(1, screen_width - x)
+    return max(1, screen_width - 2 * x)
 
 
 def paint_rule(
