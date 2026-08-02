@@ -359,17 +359,16 @@ def _run_game(
                         abandoned = player_active_missions[abandoned_idx]
                         log.add(f'You abandoned: {abandoned.title}.')
                         mission_module.abort_mission(abandoned, player_owned_ship, log)
-                        # Return static mission to the giver's board if possible.
+                        # Return static mission to the board that offered it
+                        # (per-city boards: find by mission id, not NPC id).
                         if not abandoned.is_procedural:
-                            try:
-                                _spec = mission_module.find_mission(abandoned.mission_id)
-                                _board = ctx.mission_boards.get(_spec.giver_npc_id)
-                                if _board is not None:
-                                    mission_module.board_return_static(
-                                        _board, abandoned.mission_id,
-                                    )
-                            except KeyError:
-                                pass
+                            _board = mission_module.find_board_for_mission(
+                                ctx, abandoned.mission_id,
+                            )
+                            if _board is not None:
+                                mission_module.board_return_static(
+                                    _board, abandoned.mission_id,
+                                )
                         if abandoned.bounty_spawn_id is not None:
                             _remove_bounty_spawn(
                                 ctx,

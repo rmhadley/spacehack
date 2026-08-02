@@ -31,9 +31,10 @@ MAX_ACTIVE_MISSIONS: int = 5
 
 @dataclass
 class MissionBoard:
-    """Per-NPC mission offering state.
+    """Per-NPC, per-city mission offering state.
 
-    Stored on :attr:`GameContext.mission_boards`, keyed by NPC id.
+    Stored on :attr:`GameContext.mission_boards`, keyed by
+    ``(npc_id, planet_id)`` — every city keeps its own mission list.
     Lazy-initialized on first NPC talk. Slots refill on month rollover.
 
     Attributes:
@@ -458,24 +459,72 @@ def _apply_mission_rep(
         modify_rep(ctx, faction, delta)
 
 
+def board_key(npc_id: str, planet_id: str = "") -> str:
+    """Return the composite key for a mission board: NPC + planet.
+
+    Boards are per-city, not per-NPC: the same NPC id (e.g.
+    ``"guild_master"``) is re-skinned on many planets, and each city
+    must keep its own mission list (that's what per-planet
+    ``mission_tier`` scales). Keying by NPC id alone would make every
+    city share the first board that was created for that NPC.
+    """
+    if planet_id:
+        return f"{npc_id}@{planet_id}"
+    return npc_id
+
+
 def ensure_board(
     ctx, npc_id: str, max_slots: int = 5, planet_id: str = "",
 ) -> MissionBoard:
-    """Get or create a :class:`MissionBoard` for ``npc_id``.
+    """Get or create a :class:`MissionBoard` for ``npc_id`` on
+    ``planet_id``.
 
-    If no board exists, creates one with ``max_slots`` empty slots
-    and stores it in ``ctx.mission_boards``. Returns the existing
-    board if one already exists.
+    Boards are keyed by ``(npc_id, planet_id)`` so every city has its
+    own mission list — two cities sharing an NPC id never share a
+    board. If no board exists, creates one with ``max_slots`` empty
+    slots and stores it in ``ctx.mission_boards``. Returns the
+    existing board if one already exists.
     """
-    if npc_id not in ctx.mission_boards:
+    _key = board_key(npc_id, planet_id)
+    if _key not in ctx.mission_boards:
         board = MissionBoard(
             npc_id=npc_id,
             slots=[None] * max_slots,
             max_slots=max_slots,
             planet_id=planet_id,
         )
-        ctx.mission_boards[npc_id] = board
-    return ctx.mission_boards[npc_id]
+        ctx.mission_boards[_key] = board
+    return ctx.mission_boards[_key]
+
+
+def find_board_for_mission(
+    ctx,
+    mission_id: str,
+) -> MissionBoard | None:
+    """Return the board that offered ``mission_id``, or ``None``.
+
+    Used by abandon / smuggle-fail paths to return a static mission to
+    the exact board (NPC + city) that offered it — the board key is no
+    longer derivable from the NPC id alone.
+
+    Two-step lookup:
+      1. Scan board slots first (covers missions still sitting on a
+         board, e.g. planet-agnostic statics).
+      2. Fall back to deriving the key from the static spec's
+         ``giver_npc_id`` + ``origin_planet_id`` — accepted missions
+         are removed from slots on accept, so they're only reachable
+         through their spec. Returns ``None`` if unresolvable.
+    """
+    for _board in ctx.mission_boards.values():
+        if mission_id in _board.slots:
+            return _board
+    try:
+        _spec = find_mission(mission_id)
+        return ctx.mission_boards.get(
+            board_key(_spec.giver_npc_id, _spec.origin_planet_id or ""),
+        )
+    except KeyError:
+        return None
 
 
 def mission_spec_from_dict(raw: dict) -> MissionSpec:
@@ -1545,6 +1594,8 @@ __all__ = [
     "missions_offered_by",
     "try_accept_mission",
     "ensure_board",
+    "board_key",
+    "find_board_for_mission",
     "board_offerings",
     "fill_empty_slots",
     "board_remove",

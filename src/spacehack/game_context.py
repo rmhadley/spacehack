@@ -168,8 +168,9 @@ class GameContext:
     * :attr:`completed_mission_ids` - ``set[str]``; static MissionSpec IDs
       the player has finished. Prevents re-offering the same hand-crafted
       mission.
-    * :attr:`mission_boards` - ``dict[str, MissionBoard]``; per-NPC board
-      state, keyed by NPC id. Lazy-initialized on first talk.
+    * :attr:`mission_boards` - ``dict[str, MissionBoard]``; per-NPC,
+      per-city board state, keyed by ``(npc_id, planet_id)`` so each
+      city keeps its own mission list. Lazy-initialized on first talk.
     * :attr:`bounty_spawns` - mutable registry of dynamic bounty-target
       spawns, keyed by system id. Populated on mission accept, consumed
       by :func:`spacehack.solar_system.make_solar_system` and

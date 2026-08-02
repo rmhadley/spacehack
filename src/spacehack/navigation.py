@@ -1186,13 +1186,11 @@ def _fail_smuggle_mission(ctx, owned, active) -> None:
     except ValueError:
         pass
     if not getattr(active, 'is_procedural', False):
-        try:
-            _spec = mission_module.find_mission(active.mission_id)
-            _board = ctx.mission_boards.get(_spec.giver_npc_id)
-            if _board is not None:
-                mission_module.board_return_static(_board, active.mission_id)
-        except KeyError:
-            pass
+        # Per-city boards: find by mission id, not NPC id (the same NPC
+        # id exists on many planets, each with its own board).
+        _board = mission_module.find_board_for_mission(ctx, active.mission_id)
+        if _board is not None:
+            mission_module.board_return_static(_board, active.mission_id)
 
 
 # ---------------------------------------------------------------------------

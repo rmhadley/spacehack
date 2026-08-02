@@ -486,16 +486,21 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         ))
 
     # --- Mission boards ---
+    # Boards are keyed by (npc_id, planet_id) so every city keeps its
+    # own mission list. Old saves stored plain npc_id keys — re-key from
+    # each board's own fields so pre-fix saves upgrade automatically.
     _mission_boards: dict[str, mission_module.MissionBoard] = {}
     for _npc_id, _bd in (_data.get("mission_boards", {}) or {}).items():
         _board = mission_module.MissionBoard(
-            npc_id=_npc_id,
+            npc_id=_bd.get("npc_id", _npc_id),
             slots=list(_bd.get("slots", []) or []),
             max_slots=_bd.get("max_slots", 5),
             planet_id=_bd.get("planet_id", ""),
         )
         _board.last_refresh_month = _bd.get("last_refresh_month", 1)
-        _mission_boards[_npc_id] = _board
+        _mission_boards[mission_module.board_key(
+            _board.npc_id, _board.planet_id,
+        )] = _board
 
     # --- Bounty spawns ---
     _bounty_spawns: dict[str, list] = {}
