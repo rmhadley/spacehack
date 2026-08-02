@@ -124,6 +124,10 @@ SPEC = PlanetSpec(
     mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo", "armor_plating"),
     tech_level=2,
     mission_tier=1,
+    # The Mars surface is gated behind the prologue signal, so the
+    # explore option reads "Explore signal" rather than a generic
+    # "Explore Surface".
+    explorable_site_name="signal",
     dungeon_params=DungeonParams(
         width=120,
         height=90,

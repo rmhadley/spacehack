@@ -72,6 +72,7 @@ class PlanetSpec:
     mech_modules: tuple[str, ...] = ()
     tech_level: int = 1               # max tech level stocked at this planet
     mission_tier: int = 1             # max mission tier offered at this planet's NPCs
+    explorable_site_name: str = "Surface"  # label for the EXPLORE menu option (e.g. Mars = "signal")
     dungeon_params: object = None      # :class:`~spacehack.dungeon.DungeonParams` for procedural dungeons
 
 
@@ -200,11 +201,15 @@ def resolve_mech_inventory(
 def has_explorable_sites(planet_id: str) -> list[str]:
     """Return a list of explorable site names for ``planet_id``, or
     empty list if the planet has no surface dungeon configured.
+
+    The site name comes from :attr:`PlanetSpec.explorable_site_name`
+    so the menu option can be themed per planet (e.g. Mars offers
+    "Explore signal" instead of "Explore Surface").
     """
     try:
         spec = find_planet_spec(planet_id)
         if getattr(spec, 'dungeon_params', None) is not None:
-            return ["Surface"]
+            return [spec.explorable_site_name]
     except KeyError:
         pass
     return []

@@ -292,6 +292,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 "squad_id": getattr(e, 'squad_id', ''),
                 "heist_mission": bool(getattr(e, 'heist_mission', False)),
                 "heist_mission_id": getattr(e, 'heist_mission_id', None),
+                "main_quest_door": bool(getattr(e, 'main_quest_door', False)),
             }
             for e in gm.entities if e.char != '@'
         ],
@@ -370,6 +371,8 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         _hmid = _ed.get("heist_mission_id")
         if _hmid:
             _e.heist_mission_id = _hmid
+        if _ed.get("main_quest_door", False):
+            _e.main_quest_door = True
         _dungeon_entities.append(_e)
 
     _dungeon_map = world.GameMap(

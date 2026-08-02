@@ -391,7 +391,7 @@ def show_prologue_transmission(ctx) -> None:
 def mars_exploration_unlocked(ctx) -> bool:
     """True once the signal has been received (Mars gate open).
 
-    Gates the planet-menu "Explore Surface" option for Mars (see
+    Gates the planet-menu "Explore signal" option for Mars (see
     :func:`spacehack.menus._planet._run_planet_menu`).
     """
     return step_status(ctx, "prologue_signal") in (STATUS_ACTIVE, STATUS_COMPLETED)
@@ -400,8 +400,9 @@ def mars_exploration_unlocked(ctx) -> bool:
 def place_mars_door(game_map: world.GameMap, spawn: world.Position) -> world.Entity:
     """Place the sealed alien door at the walkable cell farthest from spawn.
 
-    The Mars surface is procedurally generated each visit, so the
-    door must be placed deterministically AFTER generation. A BFS
+    The Mars surface is generated once and cached in ``ctx.interiors``
+    (same persistence as salvage wreck interiors), so the door is
+    placed deterministically AFTER the FIRST generation only. A BFS
     from the spawn over walkable tiles lands on the farthest reachable
     cell — guaranteed findable on any run, no special room tagging.
     """
@@ -444,12 +445,14 @@ def place_mars_door(game_map: world.GameMap, spawn: world.Position) -> world.Ent
 
 
 def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) -> None:
-    """Hook after generating the Mars surface dungeon.
+    """Hook after FIRST generating the Mars surface dungeon.
 
+    Called only on the first visit (the EXPLORE handler caches the
+    surface in ``ctx.interiors`` afterward, so re-entry reuses the
+    same map — door stays where it was found, fog stays revealed).
     Advances the checkpoint step (``prologue_mars_unlocked`` ->
-    ``prologue_mars_entrance``) and places the sealed door while it is
-    still closed (re-placed on every visit — the dungeon regenerates
-    per visit, and the player needs to return to open it).
+    ``prologue_mars_entrance``) and places the sealed door while it
+    is still closed.
     """
     if step_status(ctx, "prologue_mars_unlocked") == STATUS_AVAILABLE:
         complete_step(ctx, "prologue_mars_unlocked")  # auto-advances entrance -> available

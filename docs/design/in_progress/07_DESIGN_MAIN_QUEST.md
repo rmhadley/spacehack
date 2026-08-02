@@ -266,7 +266,7 @@ The player receives a garbled transmission as they jump out of Sol for the first
 | **Bar / pirates** | A rig that brute-forces the seal's power feed (an old smuggler cracked a door like this once). | A cut of whatever's valuable — and the story, for the bar. | "There was a guy got a door like that open once. Cost him a hand. Here's how he did it." |
 | **Lab** | The resonance key — studying a sample of the door's material produced a frequency that opens it. | A sample from inside, for study. | "We analyzed the material you brought. The door responds to a specific resonance. Take the key." |
 
-**Mars exploration gate (implementation note):** `data/planets.has_explorable_sites("mars")` returns `["Surface"]` whenever `dungeon_params` exists, so the planet menu always offers "Explore Surface". Act 0 requires gating this on `prologue_signal`: before the transmission, the Mars planet menu shows no Explore option (or a locked "??" entry). See Phase 1.
+**Mars exploration gate (implementation note):** `data/planets.has_explorable_sites("mars")` returns `["signal"]` (from `PlanetSpec.explorable_site_name`) whenever `dungeon_params` exists, so the planet menu offers "Explore signal" rather than a generic "Explore Surface". Act 0 requires gating this on `prologue_signal`: before the transmission, the Mars planet menu shows no Explore option (or a locked "??" entry). See Phase 1.
 
 ### Act 1: "The Anomaly"
 
@@ -344,21 +344,21 @@ A dead-star system with an alien structure — the source of the signal.
 
 - [x] Write Act 0 steps as data (`prologue_signal` → `prologue_mars_unlocked` → `prologue_mars_entrance` → `prologue_seek_help` → `prologue_open`) with the 4 faction dialogue leads (barkeep / guild_master / militia_captain / research_officer), each with `option_label`, `backing_faction`, and `unlock_item` (the faction's door-opening tool)
 - [x] Wire `prologue_signal` auto-trigger into `navigation._jump_to_system` (first jump OUT of Sol — the outgoing system is checked): log the garbled transmission, mark `prologue_signal` + `prologue_mars_unlocked` active. **The signal arrives as a full-screen incoming-comms overlay** (`main_quest.show_prologue_transmission`) as the player emerges in the destination system — same modal interruption pattern as militia auto-hails.
-- [x] **Gate Mars exploration** on the signal: planet menu must hide "Explore Surface" until the transmission is received (`has_explorable_sites` / menu item filtered by `ctx.main_quest_progress`)
+- [x] **Gate Mars exploration** on the signal: planet menu must hide "Explore signal" until the transmission is received (`has_explorable_sites` / menu item filtered by `ctx.main_quest_progress`)
 - [x] Smoke test + commit
 
-**PLAYTEST (1b):** fresh game → launch into space from Earth → NO transmission yet (fly around Sol freely). Jump a gate out of Sol → an **INCOMING TRANSMISSION comms overlay** appears as you emerge (signal trace static + "They resolve to somewhere on Mars"), ENTER to acknowledge. Open the quest log (Q) — shows the main quest breadcrumb. Jump back to Sol, fly to Mars and bump it — the planet menu shows NO "Explore Surface" option before the signal (verify by loading a pre-jump save), and the option appears after. Save/quit/continue preserves the signal state.
+**PLAYTEST (1b):** fresh game → launch into space from Earth → NO transmission yet (fly around Sol freely). Jump a gate out of Sol → an **INCOMING TRANSMISSION comms overlay** appears as you emerge (signal trace static + "They resolve to somewhere on Mars"), ENTER to acknowledge. Open the quest log (Q) — shows the main quest breadcrumb. Jump back to Sol, fly to Mars and bump it — the planet menu shows NO "Explore signal" option before the signal (verify by loading a pre-jump save), and the option appears after. Save/quit/continue preserves the signal state.
 
 ### Phase 1c: The Door on Mars — sealed entrance, seek-help, prologue_open
 
-- [x] Add the sealed entrance to the Mars surface (deterministic placement AFTER `generate_dungeon` — e.g. farthest walkable cell from spawn, or a landmark room). The door is a `main_quest_door` entity: alien make, unopenable until the player holds the right tool
+- [x] Add the sealed entrance to the Mars surface (deterministic placement AFTER `generate_dungeon` — e.g. farthest walkable cell from spawn, or a landmark room). The door is a `main_quest_door` entity: alien make, unopenable until the player holds the right tool. **The Mars surface dungeon persists across visits** (cached in `ctx.interiors` keyed `surface:mars` — same anti-farm rule as salvage wreck interiors): the door stays exactly where it was found, fog stays revealed, and `prepare_mars_surface` runs only on first generation.
 - [x] Bump interaction on the door: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, plants the claim, Act 1 begins
 - [x] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) plants `backing_faction` + unlocks the tool item
 - [x] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal
 - [x] Minimal quest-log breadcrumb: "MAIN QUEST" section showing current step title + objective (full UI polish stays in Phase 4)
 - [x] Smoke test + commit
 
-**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars → find the sealed door (bump it, can't open) → talk to each faction NPC (each gives a different lead + a quest option row) → pick one faction → return to Mars → bump the door → it opens, prison revealed, Act 1 seeds. Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved.
+**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → find the sealed door (bump it, can't open) → talk to each faction NPC (each gives a different lead + a quest option row) → pick one faction → return to Mars → the SAME surface map reloads (door where you left it, fog still revealed) → bump the door → it opens, prison revealed, Act 1 seeds. Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon).
 
 ### Phase 2: Acts 1-3 story data
 

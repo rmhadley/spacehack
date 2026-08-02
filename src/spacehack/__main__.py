@@ -117,6 +117,37 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False) -> N
 
 # --- End space-mode helpers ---
 
+def _first_walkable(game_map) -> world.Position | None:
+    """Return the first walkable tile in ``game_map``, or ``None``.
+
+    Used as the fallback spawn for cached interiors that predate
+    ``entry_spawn`` recording (salvage wrecks + planet surfaces).
+    """
+    for _yy in range(game_map.height):
+        for _xx in range(game_map.width):
+            if game_map.tiles[_yy][_xx].walkable:
+                return world.Position(_xx, _yy)
+    return None
+
+
+def _prep_cached_dungeon(game_map) -> world.Position | None:
+    """Clear the stale player entity from a cached interior and return
+    its entry spawn (first walkable tile when unrecorded).
+
+    Shared by the salvage-wreck reboard path and the planet-surface
+    re-entry path so both reuse cached maps the same way: no lingering
+    ``@`` from the previous visit, and the player spawns where they
+    entered last time.
+    """
+    for _oe in list(game_map.entities):
+        if _oe.char == '@':
+            game_map.entities.remove(_oe)
+    _spawn = getattr(game_map, 'entry_spawn', None)
+    if _spawn is None:
+        _spawn = _first_walkable(game_map)
+    return _spawn
+
+
 def _bounty_landmarks(system) -> list[world.Position]:
     """Return one spawn position per landmark (planet, gate, station)
     in ``system``, ordered by distance from the system centre."""
@@ -537,23 +568,42 @@ def _run_game(
                                     reveal_around as _reveal_around,
                                     generate_dungeon as _generate_dungeon,
                                 )
-                                try:
-                                    _pspec = _fps(pid)
-                                    _params = getattr(_pspec, 'dungeon_params', None)
-                                    if _params is None:
-                                        log.add(f"Nothing to explore on {planet_obj.name}.")
+                                # Planet-surface dungeons persist in
+                                # ctx.interiors (same anti-farm rule as
+                                # salvage wreck interiors): fog stays
+                                # revealed, loot stays taken, and the
+                                # Mars sealed door stays exactly where it
+                                # was found. First visit generates + caches;
+                                # re-entry reuses the cached map.
+                                _surface_key = f"surface:{pid}"
+                                _dungeon_map = ctx.interiors.get(_surface_key)
+                                if _dungeon_map is not None:
+                                    # Re-entry: reuse the cached surface.
+                                    _spawn = _prep_cached_dungeon(_dungeon_map)
+                                else:
+                                    try:
+                                        _pspec = _fps(pid)
+                                        _params = getattr(_pspec, 'dungeon_params', None)
+                                        if _params is None:
+                                            log.add(f"Nothing to explore on {planet_obj.name}.")
+                                            continue
+                                        _dungeon_map, _spawn = _generate_dungeon(_params)
+                                    except (ValueError, KeyError):
+                                        log.add(f"The surface of {planet_obj.name} is too hazardous to explore.")
                                         continue
-                                    _dungeon_map, _spawn = _generate_dungeon(_params)
-                                except (ValueError, KeyError):
-                                    log.add(f"The surface of {planet_obj.name} is too hazardous to explore.")
-                                    continue
-                                # Main quest: Mars surface carries the sealed
-                                # alien door — place it deterministically and
-                                # advance the checkpoint step (see
-                                # main_quest.prepare_mars_surface).
-                                if pid == "mars":
-                                    main_quest_module.prepare_mars_surface(ctx, _dungeon_map, _spawn)
-                                _init_fog(_dungeon_map)
+                                    _dungeon_map.entry_spawn = _spawn
+                                    # Main quest: Mars surface carries the
+                                    # sealed alien door — place it
+                                    # deterministically and advance the
+                                    # checkpoint step (FIRST visit only; see
+                                    # main_quest.prepare_mars_surface).
+                                    if pid == "mars":
+                                        main_quest_module.prepare_mars_surface(ctx, _dungeon_map, _spawn)
+                                    ctx.interiors[_surface_key] = _dungeon_map
+                                # Initialize fog of war (fresh maps only —
+                                # cached interiors keep their revealed fog).
+                                if _dungeon_map.seen is None:
+                                    _init_fog(_dungeon_map)
                                 _reveal_around(_dungeon_map, _spawn)
                                 _dungeon_player = world.Entity(
                                     char='@', fg=(255, 255, 255),
@@ -810,13 +860,8 @@ def _run_game(
                                 _is_reboard = False
                                 if _mission is not None and _wreck_sid in ctx.interiors:
                                     _dungeon_map = ctx.interiors[_wreck_sid]
-                                    _spawn = getattr(_dungeon_map, 'entry_spawn', None)
+                                    _spawn = _prep_cached_dungeon(_dungeon_map)
                                     _is_reboard = True
-                                    # Clear the stale player entity from the
-                                    # previous visit before placing a fresh one.
-                                    for _oe in list(_dungeon_map.entities):
-                                        if _oe.char == '@':
-                                            _dungeon_map.entities.remove(_oe)
                                 elif _mission is not None and _mission.salvage_layout_id:
                                     try:
                                         _dungeon_map, _spawn = _load_layout(
@@ -861,13 +906,7 @@ def _run_game(
                                 if _spawn is None:
                                     # Cached interior without a recorded entry
                                     # spawn — fall back to the first walkable tile.
-                                    for _yy in range(_dungeon_map.height):
-                                        for _xx in range(_dungeon_map.width):
-                                            if _dungeon_map.tiles[_yy][_xx].walkable:
-                                                _spawn = world.Position(_xx, _yy)
-                                                break
-                                        if _spawn is not None:
-                                            break
+                                    _spawn = _first_walkable(_dungeon_map)
                                 # Initialize fog of war (fresh maps only — cached
                                 # interiors keep their revealed fog).
                                 if _dungeon_map.seen is None:
