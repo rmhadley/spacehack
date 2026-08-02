@@ -58,10 +58,11 @@ def render_planet_menu(
     console.clear()
     title_y = screen_height // 4
     console.print(x=ui.centered_x(planet_obj.name, screen_width), y=title_y, string=planet_obj.name, fg=ui.COLOR_TITLE)
+    _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH)
     desc_y = title_y + 2
-    desc_rows = ui.wrap_text(planet_obj.description, screen_width - 4)
+    desc_rows = ui.wrap_text(planet_obj.description, _desc_w)
     for i, row in enumerate(desc_rows):
-        console.print(x=ui.centered_x(row, screen_width), y=desc_y + i, string=row, fg=ui.COLOR_DESCRIPTION)
+        console.print(x=_content_x, y=desc_y + i, string=row, fg=ui.COLOR_DESCRIPTION)
     _content_bottom = desc_y + max(1, len(desc_rows))
     # Militia checkpoints run cargo scans on landing — warn before the
     # player commits. Teaches the mechanic through gameplay (approach).
@@ -69,7 +70,7 @@ def render_planet_menu(
     if _hmp(planet_obj.id):
         _warn = "MILITIA CHECKPOINT ACTIVE - INBOUND CARGO IS SUBJECT TO SCANS"
         console.print(
-            x=ui.centered_x(_warn, screen_width),
+            x=_content_x,
             y=_content_bottom,
             string=_warn,
             fg=message_log.COLOR_IMPORTANT_EVENT,

@@ -956,14 +956,15 @@ def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target
     title = f'JUMP  -  {jp.name}  ->  {target_system.name}'
     title_y = screen_height // 2 - 4
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
-    desc_lines = ui.wrap_text(jp.description or '', max_width=screen_width - 8)
+    _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH)
+    desc_lines = ui.wrap_text(jp.description or '', max_width=_desc_w)
     _content_bottom = title_y + 2 + len(desc_lines[:3])
     for i, line in enumerate(desc_lines[:3]):
-        console.print(x=ui.centered_x(line, screen_width), y=title_y + 2 + i, string=line, fg=ui.COLOR_DESCRIPTION)
+        console.print(x=_content_x, y=title_y + 2 + i, string=line, fg=ui.COLOR_DESCRIPTION)
     _list_y = _content_bottom + 1
     if current_fuel is not None and max_fuel is not None:
         fuel_str = f'Fuel: {current_fuel} / {max_fuel}  |  Jump cost: {jump_fuel_cost}'
-        console.print(x=ui.centered_x(fuel_str, screen_width), y=_content_bottom + 1, string=fuel_str, fg=ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost else ui.COLOR_VALUE_DIM)
+        console.print(x=_content_x, y=_content_bottom + 1, string=fuel_str, fg=ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost else ui.COLOR_VALUE_DIM)
         _list_y = _content_bottom + 3
     ui.render_selectable_list(
         console, screen_width, screen_height,

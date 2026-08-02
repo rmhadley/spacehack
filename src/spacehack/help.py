@@ -1460,7 +1460,8 @@ def render_guide_list(
         string=_div, fg=ui.COLOR_VALUE_DIM,
     )
 
-    # Section list — numbered, centered, with selection marker
+    # Section list — numbered, left-aligned inside the frame, with
+    # selection marker (character-screen style).
     _list_top = 7
     for i, sec in enumerate(sections):
         _row = _list_top + i
@@ -1470,7 +1471,7 @@ def render_guide_list(
         _text = f"{_marker} {_num}  {sec.title}"
         _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
         console.print(
-            x=ui.centered_x(_text, SCREEN_WIDTH),
+            x=_CONTENT_LEFT,
             y=_row,
             string=_text,
             fg=_fg,
@@ -1479,7 +1480,7 @@ def render_guide_list(
     # Hint
     _hint = "\u2191\u2193 / jk  navigate  \u00b7  ENTER  open  \u00b7  ESC  close"
     console.print(
-        x=ui.centered_x(_hint, SCREEN_WIDTH), y=SCREEN_HEIGHT - 5,
+        x=_CONTENT_LEFT, y=SCREEN_HEIGHT - 5,
         string=_hint, fg=ui.COLOR_INSTRUCTION,
     )
 
@@ -1553,7 +1554,7 @@ def render_guide_page(
     else:
         _hint = "ESC  go back"
     console.print(
-        x=ui.centered_x(_hint, SCREEN_WIDTH), y=_hint_y,
+        x=_CONTENT_LEFT, y=_hint_y,
         string=_hint, fg=ui.COLOR_INSTRUCTION,
     )
 

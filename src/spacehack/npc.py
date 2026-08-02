@@ -70,7 +70,8 @@ def render_npc_talk(
     quest_body: str = "",
     quest_options: list[tuple[str, str]] | None = None,
 ) -> None:
-    """Paint the centered NPC-talk dialog into ``console``.
+    """Paint the NPC-talk dialog — centered title, left-anchored
+    body and option rows (character-screen style).
 
     ``quest_body`` overrides the NPC's ``flavor_text`` when a live
     main-quest dialogue exists (empty = normal flavor).
@@ -85,16 +86,19 @@ def render_npc_talk(
     console.clear()
     title = f"{npc.name} ({npc.guild})"
     body = f'"{quest_body if quest_body else npc.flavor_text}"'
-    max_w = screen_width - HUD_WIDTH - 2
+    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH)
 
     def fit(line: str) -> str:
         return line if len(line) <= max_w else line[:max_w - 1] + "…"
 
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+    def paint_title(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
         console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
 
+    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+        console.print(x=content_x, y=row, string=text, fg=fg)
+
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    paint(center_y - 2, fit(title), fg=ui.COLOR_TITLE)
+    paint_title(center_y - 2, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y + 1, fit(body), fg=ui.COLOR_DESCRIPTION)
 
     _missions = deliver_missions or []
@@ -119,7 +123,7 @@ def render_npc_talk(
             fg = ui.COLOR_OPTION_HIGHLIGHT2 if kind in ("quest", "deliver") else ui.COLOR_OPTION_HIGHLIGHT
         else:
             fg = ui.COLOR_OPTION
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
+        console.print(x=content_x, y=row, string=text, fg=fg)
     hint = "ARROW KEYS / j,k navigate - ENTER select - ESC walk away."
     hint_row = list_top + n * 2
     if hint_row + 1 <= screen_height - MSG_LOG_HEIGHT:

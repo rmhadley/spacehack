@@ -75,7 +75,8 @@ def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Miss
 
 
 def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...], selected: int, *, screen_width: int, screen_height: int) -> None:
-    """Paint the NPC's available missions as a centered menu.
+    """Paint the NPC's available missions as a character-screen style
+    menu — centered title, left-anchored list at a fixed column.
 
     ``selected`` is the index of the highlighted option (clamped
     by caller-supplied modulo wrap, so any int is safe). The list
@@ -84,15 +85,18 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
     console.clear()
     title, options, descriptions = _offerings_to_menu(npc, offerings)
     n = len(options)
-    max_w = screen_width - HUD_WIDTH - 2
+    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH)
 
     def fit(line: str) -> str:
         return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+    def paint_title(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
         console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
+
+    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+        console.print(x=content_x, y=row, string=text, fg=fg)
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    paint(center_y - 6, fit(title), fg=ui.COLOR_TITLE)
+    paint_title(center_y - 6, fit(title), fg=ui.COLOR_TITLE)
     sel = selected % n if n else 0
     list_top = center_y - 4
     for i, (_, label) in enumerate(options):
@@ -101,7 +105,7 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
         marker = '> ' if is_selected else '  '
         end_marker = ' <' if is_selected else '  '
         text = f'{marker}{fit(label)}{end_marker}'
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION)
+        console.print(x=content_x, y=row, string=text, fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION)
     desc = descriptions.get(str(sel), '') if descriptions else ''
     desc_rows = ui.wrap_text(desc, max_w)
     desc_start_row = list_top + n * 2 + 1

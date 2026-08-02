@@ -61,7 +61,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
             f"Credits: {ctx.stats.credits}$",
         ]
         for i, _line in enumerate(_stat_lines):
-            console.print(x=ui.centered_x(_line, SCREEN_WIDTH), y=stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
+            console.print(x=SCREEN_WIDTH // 4, y=stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
         _opt_items = [(opt, "") for opt in _MECH_OPTIONS]
         _list_title_y = stat_y + len(_stat_lines) + 1
         ui.render_selectable_list(
@@ -180,7 +180,7 @@ def _run_ammo_menu(ctx) -> None:
         title_y = SCREEN_HEIGHT // 6
         console.print(x=ui.centered_x("BUY AMMO", SCREEN_WIDTH), y=title_y, string="BUY AMMO", fg=ui.COLOR_TITLE)
         stat_y = title_y + 2
-        console.print(x=ui.centered_x(f"Credits: {ctx.stats.credits}$", SCREEN_WIDTH), y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
+        console.print(x=SCREEN_WIDTH // 4, y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
         _items: list[tuple[str, str]] = []
         for _slot in missile_slots:
             _ws = find_weapon(owned.weapons[_slot])

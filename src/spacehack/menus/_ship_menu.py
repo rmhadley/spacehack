@@ -52,6 +52,7 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     title_y = screen_height // 6
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
     _stat_y = title_y + 2
+    _stat_col = screen_width // 4
     if ctx.player_owned_ship is not None:
         _eff_spd = ship_module.effective_speed(ship, ctx.player_owned_ship)
         _lines = [
@@ -62,9 +63,9 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
             f'Credits: {ctx.stats.credits}$',
         ]
         for i, _line in enumerate(_lines):
-            console.print(x=ui.centered_x(_line, screen_width), y=_stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
+            console.print(x=_stat_col, y=_stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
     else:
-        console.print(x=ui.centered_x(ship.description, screen_width), y=_stat_y, string=ship.description, fg=ui.COLOR_DESCRIPTION)
+        console.print(x=_stat_col, y=_stat_y, string=ship.description, fg=ui.COLOR_DESCRIPTION)
     _stats_height = 6 if ctx.player_owned_ship is not None else 1
     _list_title_y = _stat_y + _stats_height + 1
     _opt_items = [(opt, "") for opt in SHIP_MENU_OPTIONS]
@@ -73,7 +74,7 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
         title="",
         items=_opt_items,
         selected=selected,
-        col_x=screen_width // 3,
+        col_x=screen_width // 4,
         title_y=_list_title_y,
         title_fg=ui.COLOR_TITLE,
         row_spacing=2,

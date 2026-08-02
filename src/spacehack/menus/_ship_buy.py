@@ -34,7 +34,8 @@ class ShipBuyOutcome(Enum):
 
 
 def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, *, screen_width: int, screen_height: int, effective_price: int | None = None) -> None:
-    """Paint the centered ship-buy dialog into ``console``.
+    """Paint the ship-buy dialog into ``console`` — centered title,
+    left-anchored detail lines (character-screen style).
 
     When ``effective_price`` is provided (trade-in scenario) the
     dialog shows the discounted price and uses it for affordability
@@ -55,15 +56,18 @@ def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_
         short = _price - ctx.stats.credits
         afford = f'You cannot afford it. ({short}$ short)'
     back = 'Press ESC to walk away.'
-    max_w = screen_width - HUD_WIDTH - 2
+    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH)
 
     def fit(line: str) -> str:
         return line if len(line) <= max_w else line[:max_w - 1] + '…'
 
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+    def paint_title(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
         console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
+
+    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
+        console.print(x=content_x, y=row, string=text, fg=fg)
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    paint(center_y - 4, fit(title), fg=ui.COLOR_TITLE)
+    paint_title(center_y - 4, fit(title), fg=ui.COLOR_TITLE)
     paint(center_y - 1, fit(body), fg=ui.COLOR_DESCRIPTION)
     paint(center_y + 3, fit(price_line), fg=ui.COLOR_VALUE_WHITE if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
     paint(center_y + 5, fit(afford), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)

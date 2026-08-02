@@ -102,6 +102,20 @@ def centered_x(text: str, screen_width: int) -> int:
     return max(0, (screen_width - len(text)) // 2)
 
 
+def content_metrics(screen_width: int, hud_width: int) -> tuple[int, int]:
+    """Return ``(col_x, max_w)`` for left-anchored modal content.
+
+    ``col_x`` is the fixed content column (character-screen style:
+    ``screen_width // 4``). ``max_w`` caps the line width so
+    ``col_x + max_w`` always fits inside the console — without this
+    cap, long left-anchored lines would clip off the right edge
+    (centered text used to fit by construction).
+    """
+    col_x = screen_width // 4
+    max_w = max(1, min(screen_width - hud_width - 2, screen_width - col_x - 2))
+    return col_x, max_w
+
+
 def paint_rect_border(
     console,
     rect: tuple[int, int, int, int],
@@ -230,6 +244,9 @@ def render_selectable_list(
         desc_fg_normal: Color for unselected items' descriptions.
         hint_fg: Color for the hint at the bottom.
         hint: Hint text shown below the list.  Empty string to skip.
+
+    The hint is left-aligned at the item column (``_col_x``), matching
+    the character-screen layout where all content shares one column.
     """
     _col_x = col_x if col_x is not None else screen_width // 4
     _title_y = title_y if title_y is not None else screen_height // 4
@@ -262,11 +279,12 @@ def render_selectable_list(
                 string=desc, fg=desc_fg,
             )
 
-    # Hint (centered).
+    # Hint (left-aligned with the item column, matching the
+    # character-screen layout).
     if hint:
         hint_y = list_top + n * row_spacing + 1
         console.print(
-            x=centered_x(hint, screen_width), y=hint_y,
+            x=_col_x, y=hint_y,
             string=hint, fg=hint_fg,
         )
 
