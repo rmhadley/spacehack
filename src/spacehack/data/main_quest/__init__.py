@@ -44,8 +44,14 @@ class QuestDialogue:
             triggers (militia / merchants / bar / lab). Read by the
             Act 3 epilogue ("last claim wins").
         unlock_item: item id added to ``main_quest_unlocked_items``
-            when this dialogue triggers (e.g. the faction's
-            door-opening tool).
+            when this dialogue triggers (e.g. a quest-granted tool).
+            NOTE (Act 0 chains): the seek-help fork no longer grants
+            the faction's door tool on accept — the tool comes from
+            the chain's final step (``rewards_item`` on the q5 step).
+        locks_chain: True = accepting this dialogue locks the player
+            into ``backing_faction``'s chain (``ctx.main_quest_chain``)
+            and closes the other factions' offer rows. Used by the
+            Act 0 seek-help fork. Requires ``backing_faction``.
     """
 
     npc_id: str
@@ -57,6 +63,7 @@ class QuestDialogue:
     option_label: str = ""
     backing_faction: str = ""
     unlock_item: str = ""
+    locks_chain: bool = False
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,11 @@ class MainQuestStep:
         rewards_rep: per-faction rep deltas applied on completion.
         rewards_item: item id added to ``main_quest_unlocked_items``
             on completion.
+        unlocks_step: step id made available when this step completes,
+            in addition to the ``requires_step`` auto-advance. Used by
+            chain-final steps (q5) to make ``prologue_open`` available
+            — each faction's q5 sets ``unlocks_step="prologue_open"``
+            and grants its door tool via ``rewards_item``.
     """
 
     id: str
@@ -98,6 +110,7 @@ class MainQuestStep:
     rewards_xp: int = 0
     rewards_rep: dict[str, int] | None = None
     rewards_item: str | None = None
+    unlocks_step: str | None = None
 
     # --- Act 0 faction-chain fields (Phase 1d) ---
     # Faction chain this step belongs to ("militia" / "merchants" /
@@ -179,10 +192,18 @@ def list_main_quest_steps() -> tuple[MainQuestStep, ...]:
     return tuple(_registry().values())
 
 
-def main_quest_step_after(step_id: str) -> MainQuestStep | None:
-    """Return the next step that requires ``step_id`` (for auto-advance)."""
+def main_quest_step_after(step_id: str, *, chain: str = "") -> MainQuestStep | None:
+    """Return the next step that requires ``step_id`` (for auto-advance).
+
+    With ``chain`` set (the locked faction), steps belonging to a
+    DIFFERENT faction chain are skipped — so after the seek-help fork
+    completes, only the locked chain's q1 step advances even though
+    all four q1 steps require ``prologue_seek_help``.
+    """
     for _step in _registry().values():
         if _step.requires_step == step_id:
+            if chain and _step.chain and _step.chain != chain:
+                continue
             return _step
     return None
 

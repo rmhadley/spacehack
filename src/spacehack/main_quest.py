@@ -100,15 +100,36 @@ def complete_step(ctx, step_id: str) -> bool:
     if _step.rewards_item:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
     # Auto-advance: the step that requires this one becomes available.
-    _next = main_quest_step_after(step_id)
+    # Chain-aware: after the seek-help fork, all four q1 steps require
+    # ``prologue_seek_help`` — only the locked faction's q1 advances.
+    _next = main_quest_step_after(step_id, chain=ctx.main_quest_chain)
     if _next is not None and step_status(ctx, _next.id) == "":
         ctx.main_quest_progress[_next.id] = STATUS_AVAILABLE
+    # Chain-final steps unlock a step explicitly (q5 -> prologue_open;
+    # ``requires_step`` can't express per-faction unlocks).
+    if _step.unlocks_step and step_status(ctx, _step.unlocks_step) == "":
+        ctx.main_quest_progress[_step.unlocks_step] = STATUS_AVAILABLE
     return True
 
 
 # ---------------------------------------------------------------------------
 # Quest-aware NPC dialogue
 # ---------------------------------------------------------------------------
+
+
+def _dialogue_is_locked(ctx, dialogue: "QuestDialogue") -> bool:
+    """True when ``dialogue`` belongs to a faction the player did NOT
+    lock in with (post-lock-in, the other three factions' offer rows
+    close and their dialogues resolve to the ``locked`` variant).
+
+    Only dialogues carrying a ``backing_faction`` are affected: chain
+    steps of the chosen faction match the chain, so they stay live.
+    """
+    if not dialogue.backing_faction:
+        return False
+    if not ctx.main_quest_chain:
+        return False
+    return dialogue.backing_faction != ctx.main_quest_chain
 
 
 def _live_dialogue(ctx, npc_id: str) -> tuple[MainQuestStep, "QuestDialogue"] | None:
@@ -156,10 +177,16 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
     ``trigger_on_talk`` — the NPC-talk modal should show its
     ``option_label`` row so the player can advance the step.
     """
+    from .data.npcs import find_npc as _find_npc
     _live = _live_dialogue(ctx, npc_id)
     if _live is not None:
         _step, _dialogue = _live
         _status = ctx.main_quest_progress[_step.id]
+        if _dialogue_is_locked(ctx, _dialogue):
+            # Lock-in closed this faction's offer: show its locked
+            # variant (or the NPC's default flavor) with no trigger.
+            _locked = _dialogue.locked or _find_npc(npc_id).flavor_text
+            return (_locked, None)
         _trigger = (
             _step.id
             if _dialogue.trigger_on_talk and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
@@ -168,7 +195,6 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
         if _trigger is not None:
             # Triggerable: talk modal keeps the NPC's normal flavor;
             # the offer itself lives in the help-offer modal.
-            from .data.npcs import find_npc as _find_npc
             return (_find_npc(npc_id).flavor_text, _trigger)
         _text = (
             _dialogue.active if _status == STATUS_ACTIVE
@@ -176,7 +202,6 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
             else _dialogue.complete
         )
         return (_text, None)
-    from .data.npcs import find_npc as _find_npc
     return (_find_npc(npc_id).flavor_text, None)
 
 
@@ -192,6 +217,8 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
     if _live is None:
         return None
     _step, _dialogue = _live
+    if _dialogue_is_locked(ctx, _dialogue):
+        return None  # lock-in closed this faction's offer row
     if not _dialogue.option_label:
         return None
     if step_status(ctx, _step.id) == STATUS_COMPLETED:
@@ -204,12 +231,23 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
 
     Applies the dialogue entry's ``backing_faction`` (claim planted)
     and ``unlock_item`` (tool / data unlocked), then completes the
-    step. Returns True if the step was advanced.
+    step. When the dialogue is the seek-help fork (``locks_chain``),
+    accepting also locks the player into that faction's chain
+    (``ctx.main_quest_chain``): the other three factions' offer rows
+    close, and the chain's q1 step becomes available via the
+    chain-aware auto-advance. Returns True if the step was advanced.
     """
     _step = find_main_quest_step(step_id)
     _dialogue = _step.dialogues.get(npc_id)
     if _dialogue is None:
         return False
+    if _dialogue.locks_chain and _dialogue.backing_faction and not ctx.main_quest_chain:
+        ctx.main_quest_chain = _dialogue.backing_faction
+        ctx.log.add_colored(
+            f"You've agreed to work with the "
+            f"{_dialogue.backing_faction.capitalize()} — the plan is in motion.",
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
     if _dialogue.backing_faction:
         ctx.main_quest_backing.add(_dialogue.backing_faction)
     if _dialogue.unlock_item:

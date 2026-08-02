@@ -142,6 +142,13 @@ def smoke_test() -> int:
                 file=sys.stderr,
             )
             return 1
+        if _s.unlocks_step and _s.unlocks_step not in _mq_ids:
+            print(
+                f"FAIL: main quest step {_s.id!r} unlocks unknown "
+                f"step {_s.unlocks_step!r}.",
+                file=sys.stderr,
+            )
+            return 1
         for _npc_id, _d in _s.dialogues.items():
             try:
                 find_npc(_npc_id)
@@ -156,6 +163,13 @@ def smoke_test() -> int:
                 print(
                     f"FAIL: main quest step {_s.id!r} dialogue for "
                     f"{_npc_id!r} has option_label but no trigger_on_talk.",
+                    file=sys.stderr,
+                )
+                return 1
+            if _d.locks_chain and not _d.backing_faction:
+                print(
+                    f"FAIL: main quest step {_s.id!r} dialogue for "
+                    f"{_npc_id!r} locks_chain without backing_faction.",
                     file=sys.stderr,
                 )
                 return 1
