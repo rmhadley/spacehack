@@ -47,7 +47,7 @@ from .combat._loop import run_combat as _run_combat_unified
 from .combat import _rules_ground
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
-from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _try_open_guide
+from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -313,6 +313,20 @@ def _run_game(
     while True:
         if ctx.player_dead:
             return
+        # Main quest time gates: flip gated chain steps to "available"
+        # when the world clock passes their gate date, and deliver any
+        # queued one-way summon at the next safe frame (same modal
+        # pattern as the prologue transmission — never interrupts
+        # combat/dungeon, since gates only fire on time advance which
+        # always lands back here between modals).
+        main_quest_module.check_quest_gates(ctx)
+        if ctx.main_quest_pending_message:
+            _summon = ctx.main_quest_pending_message
+            main_quest_module.show_quest_summon(ctx, _summon)
+            # Clear AFTER delivery so an interrupted modal (window
+            # close mid-summon) leaves the message queued for the
+            # next safe frame instead of losing the flavor text.
+            ctx.main_quest_pending_message = ""
         console.clear()
         if current_mode == 'space':
             sys_now = solar_system_module.current_system()
@@ -372,6 +386,17 @@ def _run_game(
                             for _i in range(len(_row)):
                                 _row[_i] = True
                         log.add("Dev: fog of war fully revealed.")
+                continue
+            # Shift+D = dev mode: skip 30 days of world clock so main-
+            # quest time gates can be playtested without real waiting
+            # (gates are 50-120d; the summon fires via check_quest_gates
+            # at the next frame).
+            if _is_shift_d_press(event):
+                import os as _os
+                if _os.environ.get("SPACEHACK_DEV"):
+                    from .time import advance_time as _adv_time
+                    _adv_time(ctx, 30)
+                    log.add("Dev: skipped 30 days.")
                 continue
             # F = faction standings (city or space).
             if _is_f_press(event):

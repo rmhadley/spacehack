@@ -29,10 +29,12 @@ from . import message_log
 from . import ui
 from . import world
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from .time import add_days_to_date as _add_days_to_date
 from .data.main_quest import (
     MainQuestStep,
     QuestDialogue,
     find_main_quest_step,
+    list_main_quest_steps,
     main_quest_step_after,
 )
 
@@ -99,12 +101,23 @@ def complete_step(ctx, step_id: str) -> bool:
             _modify_rep(ctx, _fac, _delta)
     if _step.rewards_item:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
+    if _step.completion_flavor:
+        ctx.log.add(_step.completion_flavor)
     # Auto-advance: the step that requires this one becomes available.
     # Chain-aware: after the seek-help fork, all four q1 steps require
     # ``prologue_seek_help`` — only the locked faction's q1 advances.
+    # Time-gated: a step with ``wait_days`` does NOT unlock its next
+    # step immediately — a gate date is recorded instead, and
+    # :func:`check_quest_gates` flips it to ``available`` when the
+    # world clock passes it (minimum wait, never a deadline).
     _next = main_quest_step_after(step_id, chain=ctx.main_quest_chain)
     if _next is not None and step_status(ctx, _next.id) == "":
-        ctx.main_quest_progress[_next.id] = STATUS_AVAILABLE
+        if _step.wait_days > 0:
+            ctx.main_quest_gate[_next.id] = _add_days_to_date(
+                ctx.time_day, ctx.time_month, ctx.time_year, _step.wait_days,
+            )
+        else:
+            ctx.main_quest_progress[_next.id] = STATUS_AVAILABLE
     # Chain-final steps unlock a step explicitly (q5 -> prologue_open;
     # ``requires_step`` can't express per-faction unlocks).
     if _step.unlocks_step and step_status(ctx, _step.unlocks_step) == "":
@@ -451,7 +464,10 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
     """Return ``(title, description)`` of the current breadcrumb step.
 
     The first step in ``main_quest_progress`` that is available or
-    active. Returns ``None`` when no main quest is in progress.
+    active. When a chain step is waiting on its minimum-wait gate (no
+    live step, but a gate pending), returns the "Awaiting word from
+    the <faction>..." breadcrumb. Returns ``None`` when no main quest
+    is in progress.
     """
     for _step_id, _status in ctx.main_quest_progress.items():
         if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -461,7 +477,81 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
         except KeyError:
             continue
         return (_step.title, _step.description)
+    # No live step — a completed chain step may be running its
+    # minimum-wait gate. Breadcrumb reads "Awaiting word from the
+    # <faction>..." until the summon fires.
+    if ctx.main_quest_gate:
+        _next_id = next(iter(ctx.main_quest_gate))
+        try:
+            _next = find_main_quest_step(_next_id)
+        except KeyError:
+            return None
+        _fac = _next.chain.capitalize() if _next.chain else "faction"
+        return (
+            f"Awaiting word from the {_fac}...",
+            "The faction will contact you when they're ready.",
+        )
     return None
+
+
+# ---------------------------------------------------------------------------
+# Time gating & one-way summons (Act 0 chains — phases 1d/1j)
+#
+# Every chain step carries ``wait_days`` (world clock, ~50-120d). On
+# completion the NEXT step is NOT unlocked immediately: a gate date is
+# recorded in ``ctx.main_quest_gate`` and :func:`check_quest_gates`
+# flips it to ``available`` once the world clock passes it, queueing
+# the gating step's ``ready_message`` as a one-way summon. Minimum
+# wait, never a deadline — ignoring a summon is harmless.
+# ---------------------------------------------------------------------------
+
+
+def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
+    """Return the completed step whose chain-aware auto-advance unlocks
+    ``next_id`` (the step that set the gate), else ``None``.
+
+    Reverse of :func:`main_quest_step_after`: scans the catalog for a
+    step whose next step (under the locked chain) is ``next_id``. Its
+    ``ready_message`` is the summon text fired when the gate elapses.
+    """
+    for _s in list_main_quest_steps():
+        _nxt = main_quest_step_after(_s.id, chain=ctx.main_quest_chain)
+        if _nxt is not None and _nxt.id == next_id:
+            return _s
+    return None
+
+
+def check_quest_gates(ctx) -> bool:
+    """Flip time-gated chain steps to ``available`` once their gate
+    date passes, queueing the faction's one-way summon.
+
+    Runs once per frame from the main loop (safe-frame delivery —
+    same pattern as militia auto-hails). Gates can only fire when the
+    world clock advances (space moves / auto-nav), which always lands
+    back in the main loop between modals, so this never interrupts
+    combat or a dungeon.
+
+    For every ``next_step_id`` in ``ctx.main_quest_gate`` whose gate
+    date has passed, the step flips to ``available`` and the gating
+    step's ``ready_message`` is queued into
+    ``ctx.main_quest_pending_message`` for overlay delivery. Returns
+    True if any gate fired this call.
+    """
+    if not ctx.main_quest_gate:
+        return False
+    _now = (ctx.time_year, ctx.time_month, ctx.time_day)
+    _fired = False
+    for _next_id, (_gd, _gm, _gy) in list(ctx.main_quest_gate.items()):
+        if (_gy, _gm, _gd) > _now:
+            continue  # wait not yet elapsed
+        ctx.main_quest_gate.pop(_next_id, None)
+        if step_status(ctx, _next_id) == "":
+            ctx.main_quest_progress[_next_id] = STATUS_AVAILABLE
+        _gating = _gating_step_for(ctx, _next_id)
+        if _gating is not None and _gating.ready_message:
+            ctx.main_quest_pending_message = _gating.ready_message
+        _fired = True
+    return _fired
 
 
 # ---------------------------------------------------------------------------
@@ -643,6 +733,72 @@ def show_prologue_transmission(ctx) -> None:
             console,
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
+        )
+
+    def _update(event) -> _ModalOutcome:
+        return _modal_dismiss_update(event)
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
+def render_quest_summon(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+    message: str,
+) -> None:
+    """Paint the one-way faction summon overlay.
+
+    Mirrors the incoming-transmission overlay: title, meta, the
+    summon body (word-wrapped), and a dismiss hint. One-way — no
+    reply option. All characters CP437-safe.
+    """
+    _lines = ui.wrap_text(message, 60)
+    _box_h = 14 + len(_lines)
+    _y0 = _overlay_box(
+        console,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        box_w=70,
+        box_h=_box_h,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 1,
+        text="INCOMING MESSAGE", fg=ui.COLOR_TITLE,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 3,
+        text="SOURCE: CHAIN CONTACT    ENCRYPTION: NONE    REPLY: NOT REQUIRED",
+        fg=ui.COLOR_VALUE_DIM,
+    )
+    _body_y = _y0 + 5
+    for _i, _line in enumerate(_lines):
+        _centered_print(
+            console, screen_width=screen_width, y=_body_y + _i,
+            text=_line, fg=ui.COLOR_DESCRIPTION,
+        )
+    _centered_print(
+        console, screen_width=screen_width, y=_body_y + len(_lines) + 2,
+        text="Press ENTER to acknowledge", fg=ui.COLOR_INSTRUCTION,
+    )
+
+
+def show_quest_summon(ctx, message: str) -> None:
+    """Show a one-way faction summon as a full-screen overlay.
+
+    Called from the main loop when :func:`check_quest_gates` fires
+    (safe-frame delivery — same modal pattern as the prologue
+    transmission). Blocks until the player acknowledges (ENTER / ESC).
+    """
+    console = make_console()
+
+    def _render() -> None:
+        render_quest_summon(
+            console,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            message=message,
         )
 
     def _update(event) -> _ModalOutcome:
@@ -1169,6 +1325,8 @@ __all__ = [
     "secure_quest_loot",
     "maybe_complete_visit",
     "maybe_complete_bounty",
+    "check_quest_gates",
+    "show_quest_summon",
     "current_main_quest_objective",
     "maybe_trigger_signal",
     "show_prologue_transmission",

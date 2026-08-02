@@ -105,6 +105,8 @@ def smoke_test() -> int:
         (main_quest, "prepare_delve_site"),
         (main_quest, "delve_site_unlocked"),
         (main_quest, "surface_exploration_unlocked"),
+        (main_quest, "check_quest_gates"),
+        (main_quest, "show_quest_summon"),
     ]
     for mod, attr in _mq_checks:
         if not hasattr(mod, attr):
@@ -241,6 +243,29 @@ def smoke_test() -> int:
                 file=sys.stderr,
             )
             return 1
+
+    # Time-gate data (phase 1d): every step with a minimum-wait gate
+    # must carry the completion flavor + the one-way summon message
+    # that names the NEXT step's location (the check_quest_gates hook
+    # delivers it).
+    for _s in _mq_steps:
+        if _s.wait_days > 0:
+            if not _s.completion_flavor:
+                print(
+                    f"FAIL: gated step {_s.id!r} lacks completion_flavor.",
+                    file=sys.stderr,
+                )
+                return 1
+            if not _s.ready_message:
+                print(
+                    f"FAIL: gated step {_s.id!r} lacks ready_message.",
+                    file=sys.stderr,
+                )
+                return 1
+
+    # Dev skip-days helper (Shift+D) must exist for gate playtests.
+    from src.spacehack.input_helpers import _is_shift_d_press
+    assert callable(_is_shift_d_press)
 
     # Validate the jump-gate graph: every gate's connects_to
     # target must exist and be bidirectional.

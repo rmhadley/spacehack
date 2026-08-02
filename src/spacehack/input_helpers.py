@@ -309,6 +309,24 @@ def _is_shift_r_press(event: tcod.event.Event) -> bool:
     return bool(mod & shift)
 
 
+def _is_shift_d_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+D.
+
+    Dev-mode only (``SPACEHACK_DEV``): skips 30 days of world clock
+    so main-quest time gates can be playtested without waiting real
+    minutes (see docs/design/in_progress/07_DESIGN_MAIN_QUEST.md).
+    Mirrors the Shift+X / Shift+R dev helpers exactly.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    if sym_name != 'D':
+        return False
+    mod = getattr(event, 'mod', 0)
+    shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
+    return bool(mod & shift)
+
+
 def _try_open_guide(event: tcod.event.Event, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.
 

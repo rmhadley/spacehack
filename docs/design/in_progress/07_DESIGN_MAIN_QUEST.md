@@ -454,15 +454,15 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 1d: Chain infrastructure — lock-in, objective types, delve sites
 
-- [ ] Add `main_quest_chain` to `GameContext` + serialize/deserialize in `saveload` (save/load contract)
-- [ ] Add chain objective fields to `MainQuestStep` (`objective_type`, `requires_goods`, `requires_npc_id`, `requires_spawn_id`, `delve_good_ids`)
-- [ ] Implement objective completion in `main_quest.py`: `delve` (secure the quest cache in the planet's surface dungeon → completes), `goods` (cargo check + consume on trigger), `visit` (talk to expert NPC → completes), `bounty` (quest-tagged spawn defeated → completes), `salvage` (quest-tagged loot secured → completes), `bump` (door bump variant)
-- [ ] **Delve site generator:** extract `prepare_mars_surface`'s post-generation placement logic into a shared helper (`prepare_delve_site`) that runs after `generate_dungeon` — places the quest cache (a quest-tagged `loot_data` container with `delve_good_ids`) in a deep room, caches the map in `ctx.interiors` keyed `surface:<planet_id>` (DRY — no copy-paste of the Mars placement block)
-- [ ] Add `dungeon_params` (planet-themed tiles) to the 4 delve planets: Mercury, Wolf 359, Barnard's Star b, Procyon C (pure data, mirroring `data/planets/mars.py`)
-- [ ] Chain-aware planet-menu gate: "Explore <site>" shows only while the chain's delve step is active (extend the Mars signal gate in `menus/_planet.py` to take the active chain into account)
-- [ ] Lock-in flow: Accept help in `show_help_offer` sets `main_quest_chain` (instead of unlocking the tool); the other three factions' "Ask about the Mars door" rows close (locked variant dialogue)
-- [ ] Chain completion: final step's trigger grants the faction tool + makes `prologue_open` available
-- [ ] **Time-gate infra:** add `wait_days` / `completion_flavor` / `ready_message` to `MainQuestStep`; add `main_quest_gate` + `main_quest_pending_message` to `GameContext` + serialize/deserialize in `saveload`; implement `main_quest.check_quest_gates(ctx)` per-frame hook (fires when `ctx.time_*` passes a gate date → next step `"available"` + queue the one-way summon; deliver via the prologue-transmission overlay pattern)
+- [x] Add `main_quest_chain` to `GameContext` + serialize/deserialize in `saveload` (save/load contract)
+- [x] Add chain objective fields to `MainQuestStep` (`objective_type`, `requires_goods`, `requires_npc_id`, `requires_spawn_id`, `delve_good_ids`)
+- [x] Implement objective completion in `main_quest.py`: `delve` (secure the quest cache in the planet's surface dungeon → completes), `goods` (cargo check + consume on trigger), `visit` (talk to expert NPC → completes), `bounty` (quest-tagged spawn defeated → completes), `salvage` (quest-tagged loot secured → completes), `bump` (door bump variant)
+- [x] **Delve site generator:** extract `prepare_mars_surface`'s post-generation placement logic into a shared helper (`prepare_delve_site`) that runs after `generate_dungeon` — places the quest cache (a quest-tagged `loot_data` container with `delve_good_ids`) in a deep room, caches the map in `ctx.interiors` keyed `surface:<planet_id>` (DRY — no copy-paste of the Mars placement block)
+- [x] Add `dungeon_params` (planet-themed tiles) to the 4 delve planets: Mercury, Wolf 359, Barnard's Star b, Procyon C (pure data, mirroring `data/planets/mars.py`)
+- [x] Chain-aware planet-menu gate: "Explore <site>" shows only while the chain's delve step is active (extend the Mars signal gate in `menus/_planet.py` to take the active chain into account)
+- [x] Lock-in flow: Accept help in `show_help_offer` sets `main_quest_chain` (instead of unlocking the tool); the other three factions' "Ask about the Mars door" rows close (locked variant dialogue)
+- [x] Chain completion: final step's trigger grants the faction tool + makes `prologue_open` available
+- [x] **Time-gate infra:** add `wait_days` / `completion_flavor` / `ready_message` to `MainQuestStep`; add `main_quest_gate` + `main_quest_pending_message` to `GameContext` + serialize/deserialize in `saveload`; implement `main_quest.check_quest_gates(ctx)` per-frame hook (fires when `ctx.time_*` passes a gate date → next step `"available"` + queue the one-way summon; deliver via the prologue-transmission overlay pattern). Dev skip-days helper: Shift+D (SPACEHACK_DEV) advances 30 days so gates can be playtested. Quest log shows "Awaiting word from the <faction>..." while a gate is pending.
 - [ ] Add the 4 expert NPCs (`demolitions_expert` / `salvage_specialist` / `old_smuggler` / `xenolinguist`) to `data/npcs` + `PlanetSpec.npc_overrides`; verify target planets have the guild building
 - [ ] Smoke test + commit
 
