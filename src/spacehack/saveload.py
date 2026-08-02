@@ -561,6 +561,16 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     # --- Economy & generated missions ---
     _econ = _data.get("economy_state", {}) or {}
     _gen = _data.get("generated_missions", {}) or {}
+    # Rebuild procedural MissionSpec objects — save/load flattens them
+    # into plain dicts, and the mission-board renderer reads fields like
+    # .salvage_wreck_enemy_id directly (crash without reconstruction).
+    _gen_restored: dict[str, mission_module.MissionSpec] = {}
+    for _mid, _md in _gen.items():
+        try:
+            _gen_restored[_mid] = mission_module.mission_spec_from_dict(_md)
+        except (TypeError, AttributeError):
+            continue  # corrupt/stale entry — board_offerings skips it
+    _gen = _gen_restored
     _rep = _data.get("faction_reputation", {}) or {}
 
     # --- Log ---

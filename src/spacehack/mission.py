@@ -478,6 +478,25 @@ def ensure_board(
     return ctx.mission_boards[npc_id]
 
 
+def mission_spec_from_dict(raw: dict) -> MissionSpec:
+    """Rebuild a :class:`MissionSpec` from a serialized dict.
+
+    Save/load flattens procedural missions (stored in
+    ``ctx.generated_missions``) into plain dicts via ``_d()``.
+    This reconstructs the frozen dataclass so mission-board
+    rendering (``_mission_type_tag`` reads fields like
+    ``salvage_wreck_enemy_id``) and rep/XP resolution get real
+    MissionSpec objects after a Continue. Unknown keys are
+    ignored; missing keys fall back to the dataclass defaults.
+    """
+    _kwargs = {
+        _f.name: raw[_f.name]
+        for _f in dataclasses.fields(MissionSpec)
+        if _f.name in raw
+    }
+    return MissionSpec(**_kwargs)
+
+
 def board_offerings(
     board: MissionBoard,
     generated: dict[str, MissionSpec] | None = None,
