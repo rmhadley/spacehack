@@ -219,12 +219,15 @@ class MainQuestStep:
     requires_level: int = 1
     requires_rep: dict[str, int] | None = None
     # --- chain objective fields (Act 0 faction chains) ---
-    objective_type: str = "talk"       # "talk" | "delve" | "goods" | "visit" | "bounty" | "salvage" | "bump"
+    objective_type: str = "talk"       # "talk" | "delve" | "smuggle" | "goods" | "visit" | "bounty" | "salvage" | "bump"
     requires_goods: tuple[tuple[str, int], ...] = ()  # (trade_good_id, qty) — checked + consumed on trigger
-    requires_npc_id: str | None = None  # expert NPC to recruit ("visit" objectives)
+    requires_npc_id: str | None = None  # expert NPC to recruit ("visit") or deliver hot cargo to ("smuggle")
     requires_spawn_id: str | None = None  # quest-tagged bounty/salvage spawn id ("bounty"/"salvage" objectives)
     delve_good_ids: tuple[str, ...] = ()   # goods placed in the quest cache ("delve" objectives) —
                                              # the cache yields these; securing it completes the step
+    smuggle_good_id: str = ""             # hot cargo id ("smuggle" objectives) — loaded into the mission
+                                             # hold like an is_smuggle mission; militia scans can confiscate it
+    smuggle_cargo_size: int = 0           # volume of the hot crate ("smuggle") — vs. Smuggler's Hold capacity
     dialogues: tuple[QuestDialogue, ...] = ()  # per-NPC dialogue overrides
     rewards_credits: int = 0
     rewards_xp: int = 0
@@ -306,11 +309,13 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
-| `bar_q1_oldhand` | talk | The Barkeep (Earth) names the old smuggler who cracked a door "once. Cost him a hand." | 50 XP |
-| `bar_q2_payment` | visit+goods | Pay the `old_smuggler` at **Barnard's Star b** 2× `luxury_goods` — his price; he draws the cave where the old job went wrong | 100 credits, 80 XP |
-| `bar_q3_rigparts` | delve | Descend into the **Barnard's Star b** surface caves (procedural dungeon) and recover the rig's power cell — still where the old job went wrong (`machine_parts` + `electronics`) | 60 XP |
-| `bar_q4_gauntlet` | bounty | Run the gauntlet: destroy the pirate raider in Barnard's Star proving the rig's power feed holds | 150 credits, 120 XP |
-| `bar_q5_rig` | talk | Return to the Barkeep — the rig is assembled → `bar_brute_rig` + `prologue_open` | 200 credits, 150 XP |
+| `bar_q1_oldhand` | talk | The Barkeep (Earth) names the old smuggler who cracked a door "once. Cost him a hand." **He warns: the militia has been sniffing around the old routes since "the incident" — work with the smuggler and you'll be on their radar.** | 50 XP |
+| `bar_q2_proof` | smuggle | The old smuggler won't deal with strangers. The Barkeep hands you a **hot crate** — `weapons_blackmarket` ×8, loaded into the mission hold exactly like a smuggling mission (`is_smuggle`). Run it to the `old_smuggler` at **Barnard's Star b**. Every militia patrol on the way can scan it (rep-gated chance; Smuggler's Hold conceals it, mission-first). **Confiscated = the step fails — return to the Barkeep to re-claim his last crate (he grumbles).** | 100 credits, 80 XP, +2 pirate / -5 merchant / -5 civilian / -8 militia |
+| `bar_q3_rigparts` | delve | The old smuggler draws the cave where the old job went wrong — the rig's power cell is still there. Descend into the **Barnard's Star b** surface caves (procedural dungeon) and recover it. **MILITIA HEAT (see below): while the cell is in your hold it counts as contraband and scan chance is elevated — it's militia-issue hardware.** | 60 XP |
+| `bar_q4_gauntlet` | bounty | **The militia seals the Barnard's Star gate** — you can't jump out clean with the cell. A militia patrol intercepts you (quest-tagged spawn): fight (destroying militia ships = **-12 militia rep each**) or flee (another scan roll). Survive → the cell's power feed is proven to hold. | 150 credits, 120 XP |
+| `bar_q5_rig` | talk | Return to the Barkeep — the rig is assembled → `bar_brute_rig` + `prologue_open`. "The militia will be watching you from here on, friend. Welcome to the family." | 200 credits, 150 XP |
+
+**Militia heat (bar chain signature risk):** while `ctx.main_quest_chain == "bar"` AND the player is holding hot quest cargo (the `bar_q2` crate or the `bar_q3` cell), `_militia_scan_chance()` applies a **+30% floor** (min 60%, capped 80%) on every militia-patrolled system — the militia knows the player is working the old routes. The hook is one gate in `navigation._militia_scan_chance` on `ctx.main_quest_chain` + a cargo-presence check; it auto-expires at `bar_q5`. Consequences are the real smuggler economy: confiscation (goods lost + fine + -5 militia rep), combat (rep tank), or paying for a Smuggler's Hold to reduce exposure.
 
 #### Lab — "The Resonance" (resonance key)
 
@@ -324,7 +329,7 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 
 **Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is a new entry in the global `data/npcs` catalog placed via `PlanetSpec.npc_overrides` on a planet that already has the matching guild building (`militia_captain` / `guild_master` / `barkeep` / `research_officer` slot) — the override's `id` differs from the replaced slot so quest dialogue keys off the expert id. Verify the target planet has the required guild building (add a `CityBuilding` to the spec if not).
 
-**New objective types** complete steps outside the dialogue path: `delve` (descend into the target planet's **procedural surface cave** and secure the quest-tagged cache — the item is *found*, not bought), `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample). See the data-model section below.
+**New objective types** complete steps outside the dialogue path: `delve` (descend into the target planet's **procedural surface cave** and secure the quest-tagged cache — the item is *found*, not bought), `smuggle` (deliver hot cargo to a target NPC — loaded into the mission hold like a `is_smuggle` mission; militia scans can confiscate it and fail the step), `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample). See the data-model section below.
 
 **Delve sites (reuse the Mars surface dungeon):** each chain's materials step sends the player into a **procedural surface cave** — the same BSP generator that builds the Mars surface (`dungeon.generate_dungeon` + `PlanetSpec.dungeon_params` with a planet-themed tile set, exactly like `data/planets/mars.py`). The four delve planets (Mercury, Wolf 359, Barnard's Star b, Procyon C) currently lack `dungeon_params` — adding it is **pure data** (the generator, `has_explorable_sites`, and planet-menu "Explore" option already exist). The site persists in `ctx.interiors` keyed `surface:<planet_id>` (same anti-farm rule as the Mars surface + salvage wrecks; `saveload` already serializes the whole cache generically). The quest cache is placed by a generic `prepare_delve_site` pass after generation — **extract `prepare_mars_surface`'s placement logic into a shared helper** (no copy-paste). The planet menu shows "Explore <site>" only while the chain's delve step is active (chain-aware gate, same pattern as the Mars signal gate in `menus/_planet.py`).
 
@@ -457,15 +462,17 @@ A dead-star system with an alien structure — the source of the signal.
 
 **PLAYTEST (1f):** full merchant run — sign the contract → fly to Wolf 359, descend into the claim caves, secure the escrow ore (delve completes) → recruit the salvage specialist at Tau Ceti b (visit) → board the Vega derelict, secure the tagged `machine_parts` (salvage completes) → return → cutter granted + door opens. Verify the derelict interior + Wolf 359 cave both persist across visits (anti-farm rule) and the tagged loot only appears while the step is active.
 
-### Phase 1g: Bar chain — "The Old Hand" (brute rig)
+### Phase 1g: Bar chain — "The Old Hand" (brute rig, blackmarket + militia heat)
 
-- [ ] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / visit+goods / delve / bounty / talk)
-- [ ] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell)
-- [ ] Wire `bar_q4_gauntlet` quest-tagged bounty spawn (pirate raider, Barnard's Star)
+- [ ] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / smuggle / delve / bounty / talk)
+- [ ] Implement the `smuggle` objective: hot crate loaded into the mission hold (`is_smuggle` semantics — `smuggle_good_id` + `smuggle_cargo_size`), delivered to the `old_smuggler` NPC; militia scan confiscation fails the step (re-claim from the Barkeep)
+- [ ] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell, flagged as contraband while carried)
+- [ ] **Militia heat hook:** in `navigation._militia_scan_chance`, apply the +30% floor (min 60%, cap 80%) while `ctx.main_quest_chain == "bar"` and hot quest cargo is held; auto-expire at `bar_q5`
+- [ ] Wire `bar_q4_gauntlet` quest-tagged **militia patrol** spawn (not pirate — rep stakes are the point: -12 militia per kill; flee keeps the scan risk)
 - [ ] Wire `bar_q5_rig` trigger → grants `bar_brute_rig` + `prologue_open`
 - [ ] Smoke test + commit
 
-**PLAYTEST (1g):** full bar run — the Barkeep names the old smuggler → fly to Barnard's Star b, pay the smuggler (visit + luxury goods consumed; he draws the cave) → descend into the caves, recover the power cell (delve completes) → destroy the Barnard's Star raider (bounty) → return → rig granted + door opens. Barkeep dialogue stays in-character (tall tales, not exposition).
+**PLAYTEST (1g):** full bar run — the Barkeep names the old smuggler (warns about militia interest) → pick up the hot crate → fly to Barnard's Star b: **militia patrols scan more aggressively than normal** (scan chance floor active — verify vs. a non-bar save) → deliver to the smuggler (smuggle completes) → he draws the cave → descend, recover the power cell (delve completes; cell is hot cargo now) → the Barnard's Star gate is sealed by a **militia patrol** — fight (militia rep tanks) or flee (another scan) → return to the Barkeep → rig granted + door opens. Deliberately fail `bar_q2` once: get scanned, crate confiscated, step fails, Barkeep re-offers his last crate. Barkeep dialogue stays in-character (tall tales, not exposition).
 
 ### Phase 1h: Lab chain — "The Resonance" (resonance key)
 
