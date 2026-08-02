@@ -99,6 +99,37 @@ class MainQuestStep:
     rewards_rep: dict[str, int] | None = None
     rewards_item: str | None = None
 
+    # --- Act 0 faction-chain fields (Phase 1d) ---
+    # Faction chain this step belongs to ("militia" / "merchants" /
+    # "bar" / "lab"). Empty = not part of a chain. The lock-in flow
+    # sets ``ctx.main_quest_chain`` to the chosen faction's id; the
+    # chain's q1 step is identified by ``chain == main_quest_chain``.
+    chain: str = ""
+    # How the step completes outside the dialogue path:
+    #   "talk"    — dialogue trigger (default, existing behaviour)
+    #   "delve"   — secure the quest cache in the planet's surface
+    #               dungeon (see :func:`spacehack.main_quest.prepare_delve_site`)
+    #   "smuggle" — deliver hot cargo to a target NPC (mission-hold
+    #               semantics; militia scans can confiscate + fail it)
+    #   "goods"   — cargo check + consume on trigger
+    #   "visit"   — talk to the expert NPC at the target planet
+    #   "bounty"  — quest-tagged spawn defeated -> completes
+    #   "salvage" — quest-tagged loot secured in a derelict interior
+    #   "bump"    — door-bump variant (e.g. lab sample chip)
+    objective_type: str = "talk"
+    requires_goods: tuple[tuple[str, int], ...] = ()  # (good_id, qty) checked + consumed on trigger
+    requires_npc_id: str | None = None  # expert NPC to recruit ("visit") or hot-cargo delivery target ("smuggle")
+    requires_spawn_id: str | None = None  # quest-tagged bounty/salvage spawn id ("bounty"/"salvage")
+    delve_good_ids: tuple[str, ...] = ()  # goods placed in the quest cache ("delve") — cache yields these
+    smuggle_good_id: str = ""  # hot cargo id ("smuggle")
+    smuggle_cargo_size: int = 0  # volume of the hot crate ("smuggle")
+    # --- Time-gating fields (minimum waits, never deadlines) ---
+    wait_days: int = 0  # world-clock days the faction "works" after this step
+                        # completes before the NEXT step unlocks (0 = no gate)
+    completion_flavor: str = ""  # flavor logged on completion ("We'll be in touch.")
+    ready_message: str = ""  # one-way summon sent when the wait elapses — names
+                              # the next step's system + planet
+
 
 def _build_registry() -> dict[str, MainQuestStep]:
     """Auto-discover every step catalog under this package.

@@ -112,6 +112,9 @@ def smoke_test() -> int:
         "main_quest_unlocked_items",
         "main_quest_path",
         "main_quest_backing",
+        "main_quest_chain",
+        "main_quest_gate",
+        "main_quest_pending_message",
         "main_quest_complete",
     ]
     _ctx_field_names = {f.name for f in _dc.fields(game_context.GameContext)}

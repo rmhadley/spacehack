@@ -301,5 +301,21 @@ class GameContext:
     # Faction claim flags planted by backing quests + the Act 0
     # faction choice. "Last claim wins" decides the Act 3 epilogue.
     main_quest_backing: set[str] = dataclasses.field(default_factory=set)
+    # The faction chain locked in when the player Accepts a faction's
+    # door help ("militia" / "merchants" / "bar" / "lab" / ""). Set by
+    # the accept flow; read to close the other factions' offer rows and
+    # to gate the faction tool. Survives save/load.
+    main_quest_chain: str = ""
+    # next_step_id -> (day, month, year) when its minimum-wait gate
+    # elapses. Set on step completion via time.add_days_to_date; the
+    # per-frame check flips the step to "available" + queues the summon.
+    # Survives save/load.
+    main_quest_gate: dict[str, tuple[int, int, int]] = dataclasses.field(
+        default_factory=dict,
+    )
+    # Queued one-way summon text awaiting delivery at the next safe
+    # frame (same overlay as the prologue transmission). Cleared on
+    # delivery. Survives save/load.
+    main_quest_pending_message: str = ""
     # Set when Act 3 resolves (definitive ending; sandbox continues).
     main_quest_complete: bool = False

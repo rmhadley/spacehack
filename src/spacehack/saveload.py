@@ -128,6 +128,9 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "main_quest_unlocked_items": sorted(ctx.main_quest_unlocked_items),
         "main_quest_path": ctx.main_quest_path,
         "main_quest_backing": sorted(ctx.main_quest_backing),
+        "main_quest_chain": ctx.main_quest_chain,
+        "main_quest_gate": _d(ctx.main_quest_gate),
+        "main_quest_pending_message": ctx.main_quest_pending_message,
         "main_quest_complete": ctx.main_quest_complete,
     }
 
@@ -927,6 +930,17 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.main_quest_unlocked_items = set(_data.get("main_quest_unlocked_items", []) or [])
     _ctx.main_quest_path = _data.get("main_quest_path", "")
     _ctx.main_quest_backing = set(_data.get("main_quest_backing", []) or [])
+    # Act 0 chain state: the locked-in faction chain, pending minimum-wait
+    # gates (next_step_id -> (day, month, year)), and any queued one-way
+    # summon message. Defaults keep old saves loadable.
+    _ctx.main_quest_chain = _data.get("main_quest_chain", "")
+    _gate_raw = _data.get("main_quest_gate", {}) or {}
+    _ctx.main_quest_gate = {
+        str(_k): tuple(int(_v) for _v in _v)
+        for _k, _v in _gate_raw.items()
+        if isinstance(_v, (list, tuple)) and len(_v) == 3
+    }
+    _ctx.main_quest_pending_message = _data.get("main_quest_pending_message", "")
     _ctx.main_quest_complete = _data.get("main_quest_complete", False)
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
     if _mode == "dungeon":
