@@ -63,7 +63,7 @@ SHIPS: tuple[Ship, ...] = (
         ),
         speed=14,
         weapon_slots=4,
-        module_slots=1,
+        module_slots=2,
         max_cargo=30,
         max_fuel=100,
         base_power_gen=3,
