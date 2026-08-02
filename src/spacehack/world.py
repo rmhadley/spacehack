@@ -81,9 +81,10 @@ SIDEWALK = Tile(kind="sidewalk", char="▒", walkable=True, fg=(140, 145, 170), 
 GRASS = Tile(kind="grass", char="█", walkable=True, fg=(115, 200, 95), bg=(40, 80, 35))
 
 # Grass accent — comma adds a little texture without overwhelming.
-# bg matches GRASS's visible fg (the full-bleed block), so the comma
-# reads as a subtle darker mark on the same light-green field.
-GRASS_ACCENT = Tile(kind="grass", char=",", walkable=True, fg=(90, 175, 75), bg=(115, 200, 95))
+# bg matches GRASS's visible fg (the full-bleed block) and the comma
+# glyph itself is darkened (half the field colour) so it reads as a
+# clear texture mark on the same light-green field.
+GRASS_ACCENT = Tile(kind="grass", char=",", walkable=True, fg=(57, 100, 47), bg=(115, 200, 95))
 
 # Landing pad — tarmac with a cool sci-fi blue glow (replaces generic
 # sidewalk south of the spaceport with a dedicated ship-parking area).
