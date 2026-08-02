@@ -608,6 +608,12 @@ def _run_game(
                                 ctx.player = player
                                 current_city_id = pid
                                 current_mode = 'city'
+                                # Cities are safe havens — landing fully
+                                # heals the player (mirrors the dungeon-entry
+                                # heal so the two transitions stay consistent).
+                                if ctx.ground_hp < ctx.ground_max_hp:
+                                    ctx.ground_hp = ctx.ground_max_hp
+                                    log.add('You rest at the city and fully recover.')
                                 # Auto-save after landing.
                                 _save_game(ctx, mode=current_mode, city_id=current_city_id,
                                            system_id=solar_system_module.current_solar_system_id)

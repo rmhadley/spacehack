@@ -1297,6 +1297,8 @@ _GUIDE_GROUND_COMBAT = GuideSection(
         "\n"
         "- HP does NOT reset between fights in the same dungeon — manage your"
         "health carefully across multiple encounters"
+        "\n"
+        "- Landing at a city fully heals your HP (cities are safe havens)"
         "\n\n"
         "Ground vs space combat — key differences:"
         "\n"
