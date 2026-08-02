@@ -179,4 +179,5 @@ For a modern look, drop any monospace `.ttf` or `.otf` into `data/` and set `TRU
 
 ## License
 
-MIT (or your choice -- update `pyproject.toml` accordingly).
+Released under the [MIT License](LICENSE) — Copyright (c) 2026 rmhadley.
+See the `LICENSE` file for the full text.

@@ -4,8 +4,9 @@ version = "0.0.1"
 description = "A terminal-based roguelike built on python-tcod."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
-authors = [{ name = "spacehack" }]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "rmhadley" }]
 dependencies = [
     "tcod>=16",
 ]
@@ -14,7 +15,7 @@ dependencies = [
 spacehack = "spacehack.__main__:main"
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]  # >=77 for PEP 639 license = "MIT" SPDX form
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
