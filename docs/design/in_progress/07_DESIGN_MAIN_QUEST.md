@@ -219,10 +219,12 @@ class MainQuestStep:
     requires_level: int = 1
     requires_rep: dict[str, int] | None = None
     # --- chain objective fields (Act 0 faction chains) ---
-    objective_type: str = "talk"       # "talk" | "goods" | "visit" | "bounty" | "salvage" | "bump"
+    objective_type: str = "talk"       # "talk" | "delve" | "goods" | "visit" | "bounty" | "salvage" | "bump"
     requires_goods: tuple[tuple[str, int], ...] = ()  # (trade_good_id, qty) — checked + consumed on trigger
     requires_npc_id: str | None = None  # expert NPC to recruit ("visit" objectives)
     requires_spawn_id: str | None = None  # quest-tagged bounty/salvage spawn id ("bounty"/"salvage" objectives)
+    delve_good_ids: tuple[str, ...] = ()   # goods placed in the quest cache ("delve" objectives) —
+                                             # the cache yields these; securing it completes the step
     dialogues: tuple[QuestDialogue, ...] = ()  # per-NPC dialogue overrides
     rewards_credits: int = 0
     rewards_xp: int = 0
@@ -276,16 +278,16 @@ The player receives a garbled transmission as they jump out of Sol for the first
 
 ### Faction quest chains — the seek-help fork becomes 20 quests
 
-The tools are not handed out for free anymore. Accepting a faction's help starts that faction's **5-step chain**; the tool (and therefore `prologue_open`) unlocks only when the chain is complete. Every chain mixes the mechanics the game already has — cargo delivery, distant-planet expert recruitment, space combat (bounty spawns), derelict boarding (salvage interiors), and a final assembly beat. Each chain's final step plants the faction tool + makes `prologue_open` available.
+The tools are not handed out for free anymore. Accepting a faction's help starts that faction's **5-step chain**; the tool (and therefore `prologue_open`) unlocks only when the chain is complete. Every chain mixes the mechanics the game already has — **procedural surface dungeons** (cave delves for the materials), distant-planet expert recruitment, space combat (bounty spawns), derelict boarding (salvage interiors), and a final assembly beat. Only the bar chain keeps a small goods payment (a bribe to the old smuggler, not a supply run). Each chain's final step plants the faction tool + makes `prologue_open` available.
 
-**Chain anatomy (5 steps each):** `q1` commitment/lead → `q2` materials (cargo goods) → `q3` expert recruitment (new NPC on a distant planet) → `q4` field test (bounty combat OR salvage boarding) → `q5` assembly (tool unlocked → door opens).
+**Chain anatomy (5 steps each):** `q1` commitment/lead → `q2` materials (delve: secure a quest cache from a planet's procedural surface cave — the item is *found*, not bought) → `q3` expert recruitment (new NPC on a distant planet) → `q4` field test (bounty combat OR derelict salvage) → `q5` assembly (tool unlocked → door opens).
 
 #### Militia — "The Incident" (breach charge)
 
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
-| `mil_q1_report` | talk | Report to the Militia Captain (Earth) — off the books, he admits the patrol saw "the incident" tech before | 50 XP |
-| `mil_q2_requisition` | goods | Deliver 4× `ship_components` + 2× `fuel_cells` (classified requisition, consumed) to the Captain | 100 credits, 80 XP |
+| `mil_q1_report` | talk | Report to the Militia Captain (Earth) — off the books, he admits the patrol saw "the incident" tech before. The requisition is buried in a scrubbed cache. | 50 XP |
+| `mil_q2_cache` | delve | Descend into the **Mercury** surface caves (procedural dungeon) and secure the classified requisition cache: `ship_components` ×4 + `fuel_cells` ×2 (found, not bought) | 100 credits, 80 XP |
 | `mil_q3_demolitions` | visit | Recruit the `demolitions_expert` at **Epsilon Eridani b** (he signs on when the Captain's name is dropped) | 60 XP |
 | `mil_q4_livefire` | bounty | Clear the pirate scout squad in Cygni (quest bounty spawn, 2 scouts) to prove the charge works | 150 credits, 120 XP |
 | `mil_q5_charge` | talk | Return to the Captain — the breach charge is assembled → `militia_breach_charge` + `prologue_open` | 200 credits, 150 XP |
@@ -295,8 +297,8 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
 | `mer_q1_contract` | talk | Sign the contract with the Guild Master (Earth) — first rights to what's inside | 50 XP |
-| `mer_q2_retainer` | goods | Deliver 3× `rare_earth_metals` (escrow for the cutter, consumed) to the Guild Master | 100 credits, 80 XP |
-| `mer_q3_specialist` | visit | Recruit the `salvage_specialist` at **Tau Ceti b** (he signs after the retainer rumor reaches him) | 60 XP |
+| `mer_q2_strike` | delve | The escrow ore is in the Guild's abandoned prospecting claim — descend into the **Wolf 359** surface caves (procedural dungeon) and secure quest-tagged `rare_earth_metals` ×3 | 100 credits, 80 XP |
+| `mer_q3_specialist` | visit | Recruit the `salvage_specialist` at **Tau Ceti b** (he signs after the claim rumor reaches him) | 60 XP |
 | `mer_q4_calibration` | salvage | Calibration run: board a derelict near Vega (`scout_a` layout), recover the quest-tagged `machine_parts` | 150 credits, 120 XP |
 | `mer_q5_cutter` | talk | Return to the Guild Master — the cutter is ready → `merchant_cutter` + `prologue_open` | 200 credits, 150 XP |
 
@@ -305,8 +307,8 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
 | `bar_q1_oldhand` | talk | The Barkeep (Earth) names the old smuggler who cracked a door "once. Cost him a hand." | 50 XP |
-| `bar_q2_payment` | visit+goods | Deliver 2× `luxury_goods` to the `old_smuggler` at **Barnard's Star b** — his price for the story | 100 credits, 80 XP |
-| `bar_q3_rigparts` | goods | Deliver 4× `machine_parts` + 2× `electronics` (rig components, consumed) to the Barkeep | 60 XP |
+| `bar_q2_payment` | visit+goods | Pay the `old_smuggler` at **Barnard's Star b** 2× `luxury_goods` — his price; he draws the cave where the old job went wrong | 100 credits, 80 XP |
+| `bar_q3_rigparts` | delve | Descend into the **Barnard's Star b** surface caves (procedural dungeon) and recover the rig's power cell — still where the old job went wrong (`machine_parts` + `electronics`) | 60 XP |
 | `bar_q4_gauntlet` | bounty | Run the gauntlet: destroy the pirate raider in Barnard's Star proving the rig's power feed holds | 150 credits, 120 XP |
 | `bar_q5_rig` | talk | Return to the Barkeep — the rig is assembled → `bar_brute_rig` + `prologue_open` | 200 credits, 150 XP |
 
@@ -314,15 +316,17 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
-| `lab_q1_sample` | bump | Return to Mars and chip a material sample off the door (chain-aware door bump) | 50 XP |
-| `lab_q2_analysis` | goods | Deliver the sample + 2× `research_data` to the **Mercury** Research Officer for analysis | 100 credits, 80 XP |
+| `lab_q1_sample` | bump | Return to Mars and chip a material sample off the door (chain-aware door bump — the door stays sealed) | 50 XP |
+| `lab_q2_reference` | delve | The Mercury officer needs a reference resonance dataset — it's in a sealed research cache in the **Procyon C** surface caves (procedural dungeon); descend and secure quest-tagged `research_data` ×2 | 100 credits, 80 XP |
 | `lab_q3_xenolinguist` | visit | Recruit the `xenolinguist` at **Alpha Centauri Science Port** (`ac_station`) | 60 XP |
 | `lab_q4_frequency` | salvage | Recover the reference-frequency dataset (`research_data`) from a derelict near Sirius (`scout_a`) | 150 credits, 120 XP |
 | `lab_q5_key` | talk | Return to the Mercury Research Officer — the resonance key is forged → `lab_resonance_key` + `prologue_open` | 200 credits, 150 XP |
 
 **Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is a new entry in the global `data/npcs` catalog placed via `PlanetSpec.npc_overrides` on a planet that already has the matching guild building (`militia_captain` / `guild_master` / `barkeep` / `research_officer` slot) — the override's `id` differs from the replaced slot so quest dialogue keys off the expert id. Verify the target planet has the required guild building (add a `CityBuilding` to the spec if not).
 
-**New objective types** complete steps outside the dialogue path: `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample). See the data-model section below.
+**New objective types** complete steps outside the dialogue path: `delve` (descend into the target planet's **procedural surface cave** and secure the quest-tagged cache — the item is *found*, not bought), `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample). See the data-model section below.
+
+**Delve sites (reuse the Mars surface dungeon):** each chain's materials step sends the player into a **procedural surface cave** — the same BSP generator that builds the Mars surface (`dungeon.generate_dungeon` + `PlanetSpec.dungeon_params` with a planet-themed tile set, exactly like `data/planets/mars.py`). The four delve planets (Mercury, Wolf 359, Barnard's Star b, Procyon C) currently lack `dungeon_params` — adding it is **pure data** (the generator, `has_explorable_sites`, and planet-menu "Explore" option already exist). The site persists in `ctx.interiors` keyed `surface:<planet_id>` (same anti-farm rule as the Mars surface + salvage wrecks; `saveload` already serializes the whole cache generically). The quest cache is placed by a generic `prepare_delve_site` pass after generation — **extract `prepare_mars_surface`'s placement logic into a shared helper** (no copy-paste). The planet menu shows "Explore <site>" only while the chain's delve step is active (chain-aware gate, same pattern as the Mars signal gate in `menus/_planet.py`).
 
 **Mars exploration gate (implementation note):** `data/planets.has_explorable_sites("mars")` returns `["signal"]` (from `PlanetSpec.explorable_site_name`) whenever `dungeon_params` exists, so the planet menu offers "Explore signal" rather than a generic "Explore Surface". Act 0 requires gating this on `prologue_signal`: before the transmission, the Mars planet menu shows no Explore option (or a locked "??" entry). See Phase 1.
 
@@ -418,61 +422,68 @@ A dead-star system with an alien structure — the source of the signal.
 
 **PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → find the sealed door (bump it, can't open — a SEALED ENTRANCE overlay pops up with alien runes + door art, ENTER dismisses) → talk to each faction NPC (talk modal shows normal flavor + the gold "Ask about the Mars door" row — no more truncated/quoted lead in the body; picking the row opens an AN OFFER OF HELP modal with the NPC's full lead, word-wrapped, plus Accept help / Keep looking) → pick Accept on one faction (claim planted, tool unlocked) → return to Mars → the SAME surface map reloads (door where you left it, fog still revealed) → bump the door → THE SEAL GIVES WAY overlay pops up, prison revealed, Act 1 seeds → bump it again (repeat) → log line only, no modal. Also test Keep looking on a second faction (returns to the talk modal; you can walk away). Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon).
 
-### Phase 1d: Chain infrastructure — lock-in, objective types, expert NPCs
+### Phase 1d: Chain infrastructure — lock-in, objective types, delve sites
 
 - [ ] Add `main_quest_chain` to `GameContext` + serialize/deserialize in `saveload` (save/load contract)
-- [ ] Add chain objective fields to `MainQuestStep` (`objective_type`, `requires_goods`, `requires_npc_id`, `requires_spawn_id`)
-- [ ] Implement objective completion in `main_quest.py`: `goods` (cargo check + consume on trigger), `visit` (talk to expert NPC → completes), `bounty` (quest-tagged spawn defeated → completes), `salvage` (quest-tagged loot secured → completes), `bump` (door bump variant)
+- [ ] Add chain objective fields to `MainQuestStep` (`objective_type`, `requires_goods`, `requires_npc_id`, `requires_spawn_id`, `delve_good_ids`)
+- [ ] Implement objective completion in `main_quest.py`: `delve` (secure the quest cache in the planet's surface dungeon → completes), `goods` (cargo check + consume on trigger), `visit` (talk to expert NPC → completes), `bounty` (quest-tagged spawn defeated → completes), `salvage` (quest-tagged loot secured → completes), `bump` (door bump variant)
+- [ ] **Delve site generator:** extract `prepare_mars_surface`'s post-generation placement logic into a shared helper (`prepare_delve_site`) that runs after `generate_dungeon` — places the quest cache (a quest-tagged `loot_data` container with `delve_good_ids`) in a deep room, caches the map in `ctx.interiors` keyed `surface:<planet_id>` (DRY — no copy-paste of the Mars placement block)
+- [ ] Add `dungeon_params` (planet-themed tiles) to the 4 delve planets: Mercury, Wolf 359, Barnard's Star b, Procyon C (pure data, mirroring `data/planets/mars.py`)
+- [ ] Chain-aware planet-menu gate: "Explore <site>" shows only while the chain's delve step is active (extend the Mars signal gate in `menus/_planet.py` to take the active chain into account)
 - [ ] Lock-in flow: Accept help in `show_help_offer` sets `main_quest_chain` (instead of unlocking the tool); the other three factions' "Ask about the Mars door" rows close (locked variant dialogue)
 - [ ] Chain completion: final step's trigger grants the faction tool + makes `prologue_open` available
 - [ ] Add the 4 expert NPCs (`demolitions_expert` / `salvage_specialist` / `old_smuggler` / `xenolinguist`) to `data/npcs` + `PlanetSpec.npc_overrides`; verify target planets have the guild building
 - [ ] Smoke test + commit
 
-**PLAYTEST (1d):** fresh save → discover the door → talk to each faction NPC (all four offers still open, no lock-in yet) → Accept militia help → the other three NPCs now show a locked/"you already have a way in" variant (no quest row) → confirm `main_quest_chain` survives save/quit/continue → start a NEW game and Accept merchants instead (different chain). Test the `goods` objective end-to-end with dev-mode step-skip if available (deliver + consume, step completes).
+**PLAYTEST (1d):** fresh save → discover the door → talk to each faction NPC (all four offers still open, no lock-in yet) → Accept militia help → the other three NPCs now show a locked/"you already have a way in" variant (no quest row) → confirm `main_quest_chain` survives save/quit/continue → start a NEW game and Accept merchants instead (different chain). Test the `delve` objective end-to-end: while `mil_q2_cache` is active the Mercury planet menu shows "Explore <site>" → descend into the procedurally generated Mercury cave (planet-themed tiles, fog works) → find the quest-tagged cache in a deep room → secure it (cargo gained, step completes) → the cave persists in `ctx.interiors` across save/quit/continue (anti-farm).
 
 ### Phase 1e: Militia chain — "The Incident" (breach charge)
 
-- [ ] Write `mil_q1_report` → `mil_q5_charge` as step data (talk / goods / visit / bounty / talk)
+- [ ] Write `mil_q1_report` → `mil_q5_charge` as step data (talk / delve / visit / bounty / talk)
+- [ ] Wire `mil_q2_cache` delve site on Mercury (cache yields `ship_components` ×4 + `fuel_cells` ×2)
 - [ ] Wire `mil_q4_livefire` quest-tagged bounty spawn (Cygni scout squad, 2 scouts)
 - [ ] Wire `mil_q5_charge` trigger → grants `militia_breach_charge` + `prologue_open`
 - [ ] Smoke test + commit
 
-**PLAYTEST (1e):** full militia run — report to the Captain → deliver the requisition (goods consumed) → recruit the demolitions expert at Epsilon Eridani b (visit completes) → clear the Cygni scout squad (bounty completes; verify it spawns only while the step is active) → return to the Captain → charge granted + door opens. Check quest log (Q) tracks each step; save/quit/continue mid-chain preserves progress.
+**PLAYTEST (1e):** full militia run — report to the Captain → fly to Mercury, descend into the caves, secure the requisition cache (delve completes; goods land in cargo) → recruit the demolitions expert at Epsilon Eridani b (visit completes) → clear the Cygni scout squad (bounty completes; verify it spawns only while the step is active) → return to the Captain → charge granted + door opens. Check quest log (Q) tracks each step; save/quit/continue mid-chain preserves progress (including the persisted Mercury cave).
 
 ### Phase 1f: Merchants chain — "The Contract" (cutter)
 
-- [ ] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / goods / visit / salvage / talk)
+- [ ] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / delve / visit / salvage / talk)
+- [ ] Wire `mer_q2_strike` delve site on Wolf 359 (cache yields quest-tagged `rare_earth_metals` ×3)
 - [ ] Wire `mer_q4_calibration` quest-tagged salvage (derelict near Vega, `scout_a` layout, `machine_parts`)
 - [ ] Wire `mer_q5_cutter` trigger → grants `merchant_cutter` + `prologue_open`
 - [ ] Smoke test + commit
 
-**PLAYTEST (1f):** full merchant run — sign the contract → deliver the retainer (goods consumed) → recruit the salvage specialist at Tau Ceti b (visit) → board the Vega derelict, secure the tagged `machine_parts` (salvage completes) → return → cutter granted + door opens. Verify the derelict interior persists across visits (anti-farm rule) and the tagged loot only appears while the step is active.
+**PLAYTEST (1f):** full merchant run — sign the contract → fly to Wolf 359, descend into the claim caves, secure the escrow ore (delve completes) → recruit the salvage specialist at Tau Ceti b (visit) → board the Vega derelict, secure the tagged `machine_parts` (salvage completes) → return → cutter granted + door opens. Verify the derelict interior + Wolf 359 cave both persist across visits (anti-farm rule) and the tagged loot only appears while the step is active.
 
 ### Phase 1g: Bar chain — "The Old Hand" (brute rig)
 
-- [ ] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / visit+goods / goods / bounty / talk)
+- [ ] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / visit+goods / delve / bounty / talk)
+- [ ] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell)
 - [ ] Wire `bar_q4_gauntlet` quest-tagged bounty spawn (pirate raider, Barnard's Star)
 - [ ] Wire `bar_q5_rig` trigger → grants `bar_brute_rig` + `prologue_open`
 - [ ] Smoke test + commit
 
-**PLAYTEST (1g):** full bar run — the Barkeep names the old smuggler → fly to Barnard's Star b, pay the smuggler (visit + luxury goods consumed) → deliver the rig parts to the Barkeep (goods consumed) → destroy the Barnard's Star raider (bounty) → return → rig granted + door opens. Barkeep dialogue stays in-character (tall tales, not exposition).
+**PLAYTEST (1g):** full bar run — the Barkeep names the old smuggler → fly to Barnard's Star b, pay the smuggler (visit + luxury goods consumed; he draws the cave) → descend into the caves, recover the power cell (delve completes) → destroy the Barnard's Star raider (bounty) → return → rig granted + door opens. Barkeep dialogue stays in-character (tall tales, not exposition).
 
 ### Phase 1h: Lab chain — "The Resonance" (resonance key)
 
-- [ ] Write `lab_q1_sample` → `lab_q5_key` as step data (bump / goods / visit / salvage / talk)
+- [ ] Write `lab_q1_sample` → `lab_q5_key` as step data (bump / delve / visit / salvage / talk)
 - [ ] Wire `lab_q1_sample` chain-aware door bump (chip a sample; does NOT open the door)
+- [ ] Wire `lab_q2_reference` delve site on Procyon C (cache yields quest-tagged `research_data` ×2)
 - [ ] Wire `lab_q4_frequency` quest-tagged salvage (derelict near Sirius, `scout_a`, `research_data`)
 - [ ] Wire `lab_q5_key` trigger → grants `lab_resonance_key` + `prologue_open`
 - [ ] Smoke test + commit
 
-**PLAYTEST (1h):** full lab run — bump the door to chip the sample (door stays sealed; no tool yet) → deliver sample + research data to the Mercury officer (goods consumed) → recruit the xenolinguist at Alpha Centauri Science Port (visit) → recover the frequency dataset from the Sirius derelict (salvage) → return to Mercury → key granted + door opens. Verify the sample chip doesn't accidentally open the door early.
+**PLAYTEST (1h):** full lab run — bump the door to chip the sample (door stays sealed; no tool yet) → fly to Procyon C, descend into the caves, secure the reference dataset (delve completes) → recruit the xenolinguist at Alpha Centauri Science Port (visit) → recover the frequency dataset from the Sirius derelict (salvage) → return to Mercury → key granted + door opens. Verify the sample chip doesn't accidentally open the door early.
 
 ### Phase 1i: Act 0 integration + lock-in polish
 
 - [ ] Full 4-chain regression: run all four chains end-to-end on separate saves to `prologue_open`
 - [ ] Verify lock-in exclusivity: after accepting one faction, the other three offer rows stay closed even across save/load
 - [ ] Verify `prologue_open` completion plants the claim + recovers the prison data (existing 1c behavior) on ALL four tool types
-- [ ] Balance pass: goods quantities vs. early-game cargo capacity; bounty difficulty vs. expected level at that point
+- [ ] Balance pass: delve cache yields vs. early-game cargo capacity; cave size/placement difficulty (cache must be reachable without combat gear); bounty difficulty vs. expected level at that point
 - [ ] Smoke test + commit
 
 **PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, claim planted. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
