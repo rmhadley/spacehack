@@ -221,21 +221,34 @@ The player receives a garbled transmission while flying through Sol. It points t
 
 **The Mars door is alien tech — the same kind as the Act 3 structure, but dormant.** The Act 3 structure is the *active, failing* seal; the Mars door is a *sealed, dormant* example of the same technology. It won't open with any human tool. This seeds the through-line: the player learns how the seal tech works here, and understands (and resolves) the failing seal at the end of the story. The two must NOT be conflated mechanically — the Mars door opens only with the right tool; the Act 3 structure opens on a cycle (M4's "door that opens on a cycle" refers to the Act 3 structure, not the Mars door).
 
+**Behind the door: an empty ancient alien prison.** Inside are technology beyond any known human tech and a cache of data that needs to be translated and studied. The cell is **empty** — whatever it held is long gone, or was never there, or got out. This is a deliberate ambiguity the Act 3 reveal pays off (is what's pressing on the failing seal the same thing the prison was built to hold?). The recovered data is the **fuel for Act 1's research trail** — the player carries it to the science stations, which is why the Research Officers take the player seriously.
+
+**Opening the door is a faction choice.** The player picks which faction helps them; *how* the door opens changes with that choice (see the table below). Choosing a faction plants that faction's claim early (the first claim — non-binding, "last claim wins" still decides the Act 3 epilogue), and colors how the rest of the story treats the player. Consistent with the rest of the game, no faction ever *refuses* to help — standing only changes the flavor and side terms, never access.
+
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
 | `prologue_signal` | Auto while flying through Sol (first launch) | None | Garbled transmission on an unknown frequency — static, a burst of coordinates, then cut off. It points to a location on Mars. The player is the only one who seems to have heard it. |
 | `prologue_mars_unlocked` | Signal received (auto) | None (checkpoint) | **Mars surface exploration unlocks.** (Today Mars is *always* explorable — see the gate note below.) |
 | `prologue_mars_entrance` | Explore the Mars surface | Mars (dungeon) | Among the red-dust ruins the player finds the entrance to something — a sealed door of alien make, no visible mechanism, older than the colony. It will not open. |
 | `prologue_seek_help` | Talk to NPCs about the door | Any of several | The player begins looking for help. Each faction NPC gives a DIFFERENT lead (faction fork seeds here): Barkeep (bar): "Heard about the thing in the dust? The militia sealed it — or *someone* did." Trade Marshal (merchants): "Alien tech? That's the most valuable cargo in history. Bring me proof." Mars Patrol (militia): "There is no door. Whatever you saw, forget it." Research Officer (lab): "A sealed structure? I need to study it. Bring me a sample of the material." The lab lead is found at a **science station** (Alpha Centauri Science Port, Mercury, Sirius, Procyon C) — Mars has no lab building, so the lab read is the one that pulls the player off-world (which feeds into Act 1's research trail). Dialogue is keyed by `npc_id`, so seek-help lines surface on whichever planet the player talks to the NPC (Earth or Mars variants of `barkeep`/`guild_master`/`militia_captain` share ids — intended). |
-| `prologue_open` | Return to Mars with the right knowledge/tool | None (auto) | Act 0 ends when the player returns with what they need and opens the entrance — revealing where Act 1 begins. |
+| `prologue_open` | Return to Mars with the chosen faction's key/tool | None (auto) | Act 0 ends when the player returns with the faction-given method and opens the entrance — revealing the empty prison and its data. The chosen faction's claim is planted (first claim). |
 
-**Reward:** The door opens. Act 1 hooks. Faction fork is seeded (each NPC's lead points a different direction).
+**Reward:** The door opens. The prison's data recovered (fuels Act 1). The chosen faction's claim is planted early. Faction fork is seeded (each NPC's lead points a different direction).
+
+**Faction opening methods — "the player picks who helps them":**
+
+| Faction | How the door opens | What they ask in return | Flavor |
+|---------|--------------------|-------------------------|--------|
+| **Militia** | Classified schematics + a military breach charge — they've seen this tech before ("the incident"). | Silence. The operation stays off the books. | The public face (Mars Patrol) denies the door exists; the schematics come from a **ranked contact off the books** — the player must first prove they've seen the door (or earn the patrol's trust) before the real lead opens up. |
+| **Merchants** | A salvager's cutter tuned to alien alloys. | A trade contract — first rights to anything inside. | "Money buys the right tool. Sign here, and the cutter's yours — I want first look at what's inside." |
+| **Bar / pirates** | A rig that brute-forces the seal's power feed (an old smuggler cracked a door like this once). | A cut of whatever's valuable — and the story, for the bar. | "There was a guy got a door like that open once. Cost him a hand. Here's how he did it." |
+| **Lab** | The resonance key — studying a sample of the door's material produced a frequency that opens it. | A sample from inside, for study. | "We analyzed the material you brought. The door responds to a specific resonance. Take the key." |
 
 **Mars exploration gate (implementation note):** `data/planets.has_explorable_sites("mars")` returns `["Surface"]` whenever `dungeon_params` exists, so the planet menu always offers "Explore Surface". Act 0 requires gating this on `prologue_signal`: before the transmission, the Mars planet menu shows no Explore option (or a locked "??" entry). See Phase 1.
 
 ### Act 1: "The Anomaly"
 
-Visit Research Officers at science stations to piece together what the signal is. The research trail is the **breadcrumb**; the faction quests and mysteries are the **dig** content that opens alongside it.
+Visit Research Officers at science stations to piece together what the signal is — carrying the **prison data** recovered on Mars, which is what earns the officers' attention. The research trail is the **breadcrumb**; the faction quests and mysteries are the **dig** content that opens alongside it.
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
@@ -283,7 +296,7 @@ A dead-star system with an alien structure — the source of the signal.
 
 **Epilogue resolution — "last claim wins":** Each faction backing quest (Phase 3) plants a claim flag in `ctx.main_quest_backing`; the blockade path plants its own claim (diplomatic → militia, smuggler → pirates, combat → none). At the finale, the **most recently planted claim** wins — so every faction can win, and the player who serves multiple factions gets the ending of whoever they helped last. If no claims were planted, the player goes alone.
 
-**Lab-ending trigger (explicit):** the research trail completes *before* the blockade, so its lab claim is planted early and gets superseded by any later diplomatic/smuggler claim. The lab ending therefore fires via the combat path: **combat path + research complete → lab ending** (the truth-teller publishes it); **combat path + no research → alone** (the player keeps the secret). This is intentional — the "truth-teller goes alone" pairing — and an implementer should not expect the lab ending to be freely reachable.
+**Lab-ending trigger (explicit):** there are TWO early lab-claim sources — the research trail (completes before the blockade) and the Act 0 Mars faction choice (pick lab to open the door). Either plants a lab claim early, and under "last claim wins" any later diplomatic/smuggler claim supersedes it. The lab ending therefore fires via the combat path: **combat path + (lab claim from research OR Mars choice) → lab ending** (the truth-teller publishes it); **combat path + no lab claim → alone** (the player keeps the secret). This is intentional — the "truth-teller goes alone" pairing — and an implementer should not expect the lab ending to be freely reachable.
 
 - Militia claim: the frontier is sealed; the threat is "contained." The militia thanks the player, quietly.
 - Merchant claim: a new trade route opens; the structure is quietly mined for tech. The Guild Master offers the player a share.
@@ -296,7 +309,7 @@ A dead-star system with an alien structure — the source of the signal.
 ### Phase 1: Data model + Prologue (Act 0 — "The Door on Mars")
 
 - [ ] Add `MainQuestStep` dataclass to `data/main_quest/` module
-- [ ] Add `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_complete` to `GameContext`
+- [ ] Add `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` to `GameContext`
 - [ ] Write Act 0 steps as data (`prologue_signal` → `prologue_mars_unlocked` → `prologue_mars_entrance` → `prologue_seek_help` → `prologue_open`)
 - [ ] Wire `prologue_signal` auto-trigger into `_launch_to_space` (first launch only, in Sol)
 - [ ] **Gate Mars exploration** on `prologue_signal`: `has_explorable_sites` / planet menu must hide "Explore Surface" until the transmission is received
@@ -352,7 +365,7 @@ A dead-star system with an alien structure — the source of the signal.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`
 - [ ] **Game guide:** New main quest overlay → updated `_GUIDE_MISSIONS` or new `_GUIDE_MAIN_QUEST` section
 - [ ] **NPC spawns:** Alien sentinel ships → registered in `ctx.procedural_spawns` with matching `squad_id`
 
@@ -360,9 +373,10 @@ A dead-star system with an alien structure — the source of the signal.
 
 1. ~~What exactly is the warning?~~ **RESOLVED:** The structure is a seal. The signal is the lock failing — something is trying to come through, and the seal is breaking. The builders left the warning so someone would be ready.
 2. ~~Faction questline depth~~ **RESOLVED:** militia + merchants get full backing questlines in v1; bar + lab are dialogue-only backing (claims still reachable via path choice / research completion).
-3. **What is behind the Mars door?** The through-line is that the door is the same alien seal tech as the Act 3 structure — but is it (a) a scout/relay that teaches the player how the seal works (knowledge unlock, no combat), (b) an intact beacon that must not be opened (the player finds a warning inside), or (c) a direct shortcut into the Act 1 research trail (points the player at the Science Port)? — needs the user's call.
-4. **What opens the Mars door?** The "right knowledge/tool" for `prologue_open` — does it come from a faction's help (merchant gives a cutting tool, lab gives the resonance key, militia has the classified schematics), or is it a skill/level check, or a small object quest? — needs the user's call.
-5. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
-6. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
-7. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
-8. **No time pressure, no fail states** — the quest waits forever. Confirmed.
+3. ~~What is behind the Mars door?~~ **RESOLVED:** an empty ancient alien prison — tech beyond any known human tech, and a data cache needing translation/study. The emptiness is deliberate (see Act 0 note).
+4. ~~What opens the Mars door?~~ **RESOLVED:** a faction choice — the player picks which faction helps, and each faction opens it differently (militia breach / merchant cutter / bar brute-force rig / lab resonance key). The chosen faction's claim is planted early.
+5. **The empty cell** — is the prison's prisoner the same threat the Act 3 seal is failing against? (Story payoff for the Act 3 reveal; needs the user's call at Act 3 writing time — kept ambiguous on purpose for now.)
+6. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
+7. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
+8. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
+9. **No time pressure, no fail states** — the quest waits forever. Confirmed.
