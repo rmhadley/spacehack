@@ -30,7 +30,7 @@ Replaces the existing `Mission` dataclass. Lives in `data/missions/__init__.py`.
 @dataclass(frozen=True)
 class MissionSpec:
     id: str                           # "merchants_delivery_earth_mars"
-    title: str                        # "Supply Run: Earth → Mars"
+    title: str                        # "Deliver to Mars in Sol"
     description: str                  # Flavor text
     giver_npc_id: str                 # Which NPC offers this
     faction: str                      # "merchants", "bounty", "militia", "bar"
@@ -214,7 +214,7 @@ if active.deadline_days > 0 and active.accept_day > 0:
 ### HUD changes
 Instead of showing one mission title, show compact indicators:
 ```
-Missions: [1] Supply Run: Earth→Mars     (Due: 3 days)
+Missions: [1] Deliver to Mars in Sol     (Due: 3 days)
           [2] Bounty: Pirate Scout        (Barnard's)
           [+]  2 more...
 ```

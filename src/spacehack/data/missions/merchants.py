@@ -14,7 +14,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
     # Earth → Mars (same system, 0 jumps, beginner-friendly)
     MissionSpec(
         id="merchants_delivery_earth_mars",
-        title="Supply Run: Earth to Mars",
+        title="Deliver to Mars in Sol",
         description=(
             "The Mars colony is short on Earth-grown food rations. "
             "Five crates of hydroponic produce — load them up and "
@@ -39,7 +39,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
     # Earth → AC Station (2 jumps, tier 1 difficulty since it's a well-traveled route)
     MissionSpec(
         id="merchants_delivery_earth_ac",
-        title="Research Supplies: Earth to Science Port",
+        title="Deliver to Science Port in Alpha Centauri",
         description=(
             "The Science Port at Alpha Centauri needs calibration "
             "gear and biologics. Ten crates — hand them to the "
@@ -65,7 +65,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
     # Earth → Barnard's Star b (1 jump, tier 1)
     MissionSpec(
         id="merchants_delivery_earth_barnards",
-        title="Mining Supplies: Earth to Barnard's Star",
+        title="Deliver to Barnard b in Barnard's Star",
         description=(
             "The mining outpost at Barnard's Star needs machine parts "
             "and filtration units. Eight crates, one jump. The depot "
@@ -94,7 +94,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
     # Earth → Sirius Station (3+ jumps, tier 2)
     MissionSpec(
         id="merchants_delivery_earth_sirius",
-        title="Research Equipment: Earth to Sirius Station",
+        title="Deliver to Binary Station in Sirius",
         description=(
             "The research station at Sirius needs precision instruments "
             "from Earth — fifteen crates of spectrometers, lenses, and "
@@ -120,7 +120,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
     # Tau Ceti b → Vega b (tier 2, multi-hop)
     MissionSpec(
         id="merchants_delivery_tau_ceti_vega",
-        title="Luxury Goods: Tau Ceti to Vega Platform",
+        title="Deliver to Vega b in Vega",
         description=(
             "The Cloud Host at Vega b has ordered luxury goods from "
             "the Tau Ceti guild — twelve crates of rare botanicals and "
@@ -150,7 +150,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
     # Tau Ceti b → Wolf 359 b (long haul, tier 3)
     MissionSpec(
         id="merchants_delivery_tau_ceti_wolf",
-        title="Frontier Resupply: Wolf 359",
+        title="Deliver to Wolf 359 b in Wolf 359",
         description=(
             "The listening post at Wolf 359 is running critically low "
             "on food rations, fuel cells, and medical supplies. "

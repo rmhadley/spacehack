@@ -888,13 +888,17 @@ def generate_delivery_mission(
 
     # 7. Reward: credits scale by cargo * 5 * (tier + 1) so tier ranges
     #    match the design doc: T1 50-100, T2 150-300, T3 400-800, T4 1000-1500.
-    credits = cargo * 5 * (tier + 1)
-    xp = cargo * 2 * tier
+    #    A per-jump bonus (+10$/hop) pays more for deliveries picked up
+    #    far from the destination — payout scales with pickup location.
+    credits = cargo * 5 * (tier + 1) + hops * 10
+    xp = cargo * 2 * tier + hops * 4
 
     # 8. Generated ID: unique per run, deterministic from RNG state.
     gen_id = f"proc_delivery_{origin_planet_id}_{dest_planet_id}_{counter}_{tier}"
 
-    # 9. Construct display title and description.
+    # 9. Construct display title and description. Destination-focused:
+    #    "Deliver to <landmark> in <system>" — the pickup planet is
+    #    where the player is standing, so it's not spelled out.
     try:
         from .data.planets import find_planet_spec as _fps_dest
         dest_name = _fps_dest(dest_planet_id).name
@@ -902,17 +906,17 @@ def generate_delivery_mission(
         dest_name = dest_planet_id
 
     try:
-        from .data.planets import find_planet_spec as _fps_origin
-        origin_name = _fps_origin(origin_planet_id).name
+        from .data.solar_systems import find_solar_system as _fss
+        dest_system_name = _fss(dest_system_id).name
     except KeyError:
-        origin_name = origin_planet_id
+        dest_system_name = dest_system_id
 
-    title = f"Delivery: {origin_name} \u2192 {dest_name}"
+    title = f"Deliver to {dest_name} in {dest_system_name}"
     # Build a simple description mentioning cargo and jumps.
     _hop_desc = "same system" if hops == 0 else f"{hops} jump(s)"
     description = (
-        f"A {cargo}-unit cargo shipment from {origin_name} to "
-        f"{dest_name}. ({_hop_desc}, tier {tier})."
+        f"Deliver {cargo} units to {dest_name} in "
+        f"{dest_system_name}. ({_hop_desc}, tier {tier})."
     )
 
     # 10. Determine faction + giver NPC from the board.
