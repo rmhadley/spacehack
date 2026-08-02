@@ -116,13 +116,13 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
             _wid = _spec.weapons[0]
         elif _spec.weapon_pick:
             _wid = RNG.choice(_spec.weapon_pick)
-        _max_hp = _spec.hp + _spec.stamina
+        _max_hp = _spec.hp + _spec.stamina // 3
         _enemies.append(GroundEnemyInstance(
             entity=_ent, spec=_spec, weapon_id=_wid,
             hp=_max_hp, max_hp=_max_hp, ap=4, ap_total=4,
         ))
 
-    _player_max_hp = 20 + ctx.ground_stats.stamina
+    _player_max_hp = 20 + ctx.ground_stats.stamina // 3
     _hp_delta = _player_max_hp - ctx.ground_max_hp
     if _hp_delta > 0:
         ctx.ground_hp += _hp_delta
@@ -232,11 +232,15 @@ def _ground_hit_chance_raw(
     target_reflexes: int,
     target_dodge_bonus: int = 0,
 ) -> int:
-    """Base hit chance before movement dodge.  New param ``target_dodge_bonus``
-    subtracts the target's evade (movement + reflexes) at the end."""
+    """Base hit chance before movement dodge.
+
+    Half-rate convention shared with ship combat (Gunnery * 0.5):
+    each point of attacker Reflexes adds +0.5% accuracy and each
+    point of target Reflexes subtracts 0.5% (dodge). All six stats
+    live on the same 0-100 scale."""
     _ws = _find_gw(weapon_id)
     return max(5, min(95,
-        _ws.accuracy + attacker_reflexes * 3 - target_reflexes * 2 - target_dodge_bonus,
+        _ws.accuracy + attacker_reflexes // 2 - target_reflexes // 2 - target_dodge_bonus,
     ))
 
 
@@ -244,20 +248,20 @@ def _ground_damage_raw(
     weapon_id: str, strength: int, armor_defense: int,
 ) -> int:
     _ws = _find_gw(weapon_id)
-    _str_bonus = strength // 4 if _ws.damage_type == 'melee' else 0
+    _str_bonus = strength // 10 if _ws.damage_type == 'melee' else 0
     return max(1, _ws.damage + _str_bonus - armor_defense)
 
 
 def _calc_ground_move_dodge(cells_moved: int) -> int:
     """Movement evade: +5% per cell moved, capped at 30.
 
-    Reflexes are already handled by the ``target_reflexes * 2`` term
+    Reflexes are already handled by the ``target_reflexes // 2`` term
     in :func:`_ground_hit_chance_raw` — this helper is movement-only."""
     return min(cells_moved * 5, 30)
 
 
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
-    _er = enemy.spec.reflexes if enemy.spec else 10
+    _er = enemy.spec.reflexes if enemy.spec else 30
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
@@ -267,7 +271,7 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
 
 def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _ws = _find_gw(weapon_id)
-    _str_bonus = ctx.ground_stats.strength // 4 if _ws.damage_type == 'melee' else 0
+    _str_bonus = ctx.ground_stats.strength // 10 if _ws.damage_type == 'melee' else 0
     _dmg = max(1, _ws.damage + _str_bonus)
     enemy.hp -= _dmg
     return _dmg

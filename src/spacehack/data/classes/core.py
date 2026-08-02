@@ -22,7 +22,7 @@ CLASSES: tuple[GameClass, ...] = (
         hp_base=9,
         credits=1000,
         skill_bonus=PilotSkills(gunnery=8, piloting=0, engineering=0),
-        ground_bonus=GroundStats(reflexes=0, strength=3, stamina=0),
+        ground_bonus=GroundStats(reflexes=0, strength=8, stamina=0),
     ),
     GameClass(
         id="merchant",
@@ -31,7 +31,7 @@ CLASSES: tuple[GameClass, ...] = (
         hp_base=7,
         credits=1000,
         skill_bonus=PilotSkills(gunnery=0, piloting=0, engineering=8),
-        ground_bonus=GroundStats(reflexes=0, strength=0, stamina=3),
+        ground_bonus=GroundStats(reflexes=0, strength=0, stamina=8),
     ),
     GameClass(
         id="bounty_hunter",
@@ -40,6 +40,6 @@ CLASSES: tuple[GameClass, ...] = (
         hp_base=10,
         credits=1000,
         skill_bonus=PilotSkills(gunnery=3, piloting=3, engineering=3),
-        ground_bonus=GroundStats(reflexes=1, strength=1, stamina=1),
+        ground_bonus=GroundStats(reflexes=3, strength=3, stamina=3),
     ),
 )

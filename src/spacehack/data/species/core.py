@@ -20,7 +20,7 @@ SPECIES: tuple[Species, ...] = (
         description="Native to Earth. Versatile and adaptable.",
         hp_bonus=0,
         skill_bonus=PilotSkills(gunnery=2, piloting=0, engineering=2),
-        ground_bonus=GroundStats(reflexes=1, strength=1, stamina=1),
+        ground_bonus=GroundStats(reflexes=2, strength=0, stamina=2),
     ),
     Species(
         id="martian",
@@ -28,6 +28,6 @@ SPECIES: tuple[Species, ...] = (
         description="Native to Mars. Hardy in extremes, adapted to low-gravity.",
         hp_bonus=1,
         skill_bonus=PilotSkills(gunnery=0, piloting=5, engineering=0),
-        ground_bonus=GroundStats(reflexes=2, strength=0, stamina=1),
+        ground_bonus=GroundStats(reflexes=5, strength=0, stamina=0),
     ),
 )

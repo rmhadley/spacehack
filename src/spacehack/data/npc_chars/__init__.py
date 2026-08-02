@@ -30,7 +30,7 @@ class NpcCharSpec:
         fg: foreground colour tuple.
         faction: ``"pirate"`` | ``"merchant"`` | ``"civilian"`` |
             ``"militia"`` — links to faction reputation for hostility.
-        hp: base HP before stamina bonus (total = ``hp + stamina``).
+        hp: base HP before stamina bonus (total = ``hp + stamina // 3``).
         weapons: ground weapon ids the NPC always carries.
         weapon_pick: ground weapon ids for RNG selection at spawn time.
         reflexes: hit/dodge stat (0-100), used in hit-chance formula.
@@ -50,9 +50,9 @@ class NpcCharSpec:
     hp: int = 20
     weapons: tuple[str, ...] = ()
     weapon_pick: tuple[str, ...] = ()
-    reflexes: int = 10
-    strength: int = 10
-    stamina: int = 10
+    reflexes: int = 30
+    strength: int = 30
+    stamina: int = 30
     detect_radius: int = 4
     loot_pool: tuple[str, ...] = ()
     loot_count: tuple[int, int] = (1, 2)

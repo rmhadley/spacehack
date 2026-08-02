@@ -38,7 +38,7 @@ class PilotSkills:
 
 @dataclass(frozen=True)
 class GroundStats:
-    """Per-character ground combat stat bonuses — additive to the base 10.
+    """Per-character ground combat stat bonuses — additive to the base 30.
 
     Each field corresponds to one ground-combat stat:
 

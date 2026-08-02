@@ -28,7 +28,9 @@ from .data.pilot_skills import GroundStats as _GroundStats
 PILOT_SKILL_BASE = 30
 
 # Base ground-stat rating before species or class bonuses are added.
-GROUND_STAT_BASE = 10
+# All six skills (ship + ground) share the same 0-100 scale so the
+# Character screen, skill points, and combat formulas stay symmetric.
+GROUND_STAT_BASE = 30
 
 
 @dataclass
@@ -46,7 +48,7 @@ class PilotSkills:
 
 @dataclass
 class GroundStats:
-    """Per-character ground combat stats (0-30).
+    """Per-character ground combat stats (0-100).
 
     ``reflexes`` affects ranged accuracy and dodge bonus.
     ``strength`` affects melee damage and heavy-weapon efficiency.
