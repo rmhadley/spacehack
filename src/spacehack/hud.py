@@ -259,7 +259,7 @@ def render_hud(
 
     if mode == "space" and owned_ship is not None and ship_catalog is not None:
         # ---- Space mode: ship stats + keybinding help ----
-        ship_name = getattr(ship_catalog, 'name', 'Ship')
+        ship_name = _ship_cat_mod.ship_display_name(owned_ship)
         fuel = getattr(owned_ship, 'fuel', 0)
         max_fuel = getattr(ship_catalog, 'max_fuel', 1)
         hull_damage = getattr(owned_ship, 'hull_damage_pct', 0)

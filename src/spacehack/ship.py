@@ -62,6 +62,11 @@ class OwnedShip:
     wrapper type or ``dataclasses.replace`` everywhere.
     """
     ship_id: str
+    # Player-facing name. The free starting ship rolls a colorful name
+    # from data/ships/core.STARTER_NAMES at new-game setup; bought ships
+    # leave this None and fall back to the catalog name. Stored here so
+    # the name survives save/load (see saveload.OwnedShip round-trip).
+    display_name: str | None = None
     hull_damage_pct: int = 0
     weapons: tuple[str, ...] = field(default_factory=tuple)
     modules: tuple[str, ...] = field(default_factory=tuple)
@@ -87,6 +92,25 @@ class OwnedShip:
 # ---------------------------------------------------------------------------
 # Effective stat helpers (used by mechanic UI, trade, HUD, missions)
 # ---------------------------------------------------------------------------
+
+
+def ship_display_name(owned: OwnedShip | None) -> str:
+    """Player-facing ship name: the rolled display name, else the
+    catalog class name.
+
+    The free starting ship gets a colorful per-run name (rolled from
+    ``data/ships/core.STARTER_NAMES`` at new-game setup and stored on
+    :attr:`OwnedShip.display_name`). Bought ships leave ``display_name``
+    ``None`` and read their class name from the catalog. All player-
+    facing UI (HUD, hangar menu, cargo screen, loadout) should call
+    this instead of reading ``Ship.name`` directly so the rolled name
+    is honoured everywhere. ``None`` (no ship) falls back to "Ship".
+    """
+    if owned is None:
+        return "Ship"
+    if owned.display_name:
+        return owned.display_name
+    return find_ship(owned.ship_id).name
 
 
 def effective_speed(ship_spec: Ship, owned: OwnedShip) -> int:

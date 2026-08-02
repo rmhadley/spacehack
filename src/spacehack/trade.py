@@ -952,7 +952,7 @@ def open_cargo(ctx: GameContext) -> None:
 
     # Cache static ship stats.
     from . import ship as _ship_mod
-    ship_name = ship_spec.name
+    ship_name = ship_module.ship_display_name(owned)
     max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned)
     hull_damage = owned.hull_damage_pct
     weapons_n = len(owned.weapons)

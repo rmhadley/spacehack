@@ -47,7 +47,8 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     directly above the list.
     """
     console.clear()
-    title = f'Your {ship.name.upper()}'
+    _disp = ship_module.ship_display_name(ctx.player_owned_ship)
+    title = f'Your {_disp.upper()}'
     title_y = screen_height // 6
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
     _stat_y = title_y + 2
@@ -186,7 +187,7 @@ def _run_loadout_view(ctx) -> None:
 
         cy = 2
         # Title (centered)
-        title_text = f"LOADOUT \u2014 {ship_spec.name.upper()}"
+        title_text = f"LOADOUT \u2014 {ship_module.ship_display_name(owned).upper()}"
         paint_text(console, ui.centered_x(title_text, SCREEN_WIDTH), cy, title_text, fg=ui.COLOR_TITLE)
         cy += 2
 

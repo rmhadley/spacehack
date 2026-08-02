@@ -438,6 +438,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     if _osh is not None and _osh.get("ship_id"):
         _owned_ship = ship_module.OwnedShip(
             ship_id=_osh["ship_id"],
+            display_name=_osh.get("display_name"),
             fuel=_osh.get("fuel", 0),
             hull_damage_pct=_osh.get("hull_damage_pct", 0),
             weapons=tuple(_osh.get("weapons", ()) or ()),
@@ -653,7 +654,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 _player_ent = world.Entity(
                     char=_ship_spec.char, fg=_ship_spec.fg,
                     pos=world.Position(_pos_x, _pos_y),
-                    name=f"Your Ship: {_ship_spec.name}",
+                    name=f"Your Ship: {ship_module.ship_display_name(_owned_ship)}",
                     ship_id=_owned_ship.ship_id, owned=True,
                 )
             else:
@@ -749,7 +750,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 _space_player_ent = world.Entity(
                     char=_ship_spec.char, fg=_ship_spec.fg,
                     pos=world.Position(_space_px, _space_py),
-                    name=f"Your Ship: {_ship_spec.name}",
+                    name=f"Your Ship: {ship_module.ship_display_name(_owned_ship)}",
                     ship_id=_owned_ship.ship_id, owned=True,
                 )
             else:
@@ -795,7 +796,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             _hangar = world.Entity(
                 char=_ship_spec.char, fg=_ship_spec.fg,
                 pos=_planet_anchor(_city_id),
-                name=f"Your Ship: {_ship_spec.name}",
+                name=f"Your Ship: {ship_module.ship_display_name(_owned_ship)}",
                 ship_id=_owned_ship.ship_id, owned=True,
             )
             _game_map.entities.append(_hangar)

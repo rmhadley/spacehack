@@ -2,7 +2,9 @@
 
 Six-ship progression:
 
-  * **Starter** — given free at game start; basic stats, few slots.
+  * **Skiff** — given free at game start; basic stats, few slots. Its
+    hull class is fixed, but each new run rolls a colorful name from
+    :data:`STARTER_NAMES` (see ``__main__.py`` new-game setup).
   * **Scout** — early upgrade; better combat, light shields.
   * **Hauler** — cargo specialist; big holds, light weapons.
   * **Cruiser** — combat mid-tier; heavy guns, good shields.
@@ -12,6 +14,10 @@ Six-ship progression:
 Extracted from ``ship.py`` during the data-first migration.
 Rebalanced to give the player a free starter ship and a clear
 progression path to earn better ships.
+
+``STARTER_NAMES`` lives here (data-first) so the pool is content,
+not code. The rolled name is stored on ``OwnedShip.display_name``
+and survives save/load; ``Ship.name`` is only the fallback.
 """
 
 from . import Ship
@@ -19,11 +25,11 @@ from . import Ship
 
 SHIPS: tuple[Ship, ...] = (
     # ------------------------------------------------------------------- #
-    # Tier 1 — Starter (free, given at game start)
+    # Tier 1 — Skiff (free, given at game start; name rolled per run)
     # ------------------------------------------------------------------- #
     Ship(
         id="starter",
-        name="Starter",
+        name="Skiff",
         char="t",
         fg=(180, 200, 220),                                              # muted steel-blue
         price=0,
@@ -167,4 +173,27 @@ SHIPS: tuple[Ship, ...] = (
         start_weapons=('light_laser',),
         start_modules=('expanded_cargo', 'compact_reactor'),
     ),
+)
+
+
+# Colorful names rolled at new-game start for the free starting ship.
+# The pool is deliberately scrappy-frontier in tone — these are hand-
+# me-downs and workhorses, not showroom cruisers. All CP437-safe ASCII.
+STARTER_NAMES: tuple[str, ...] = (
+    "Corvid",
+    "Mule",
+    "Tramp",
+    "Sparrow",
+    "Rustbucket",
+    "Lady Luck",
+    "Old Bess",
+    "Second Wind",
+    "Honey Badger",
+    "Gnat",
+    "Wanderer",
+    "Drifter",
+    "Husk",
+    "Barnacle",
+    "Tinker",
+    "Patchwork",
 )

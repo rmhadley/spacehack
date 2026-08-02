@@ -216,25 +216,32 @@ def _run_game(
         log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
         log.add("The cobblestones are damp from last night's rain.")
         log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
-        log.add('Your starter ship is docked at the space port.')
+
         log.add('Buildings: North-West space port, South-West merchant guild,')
         log.add('Bar in the plaza, militia + bounty guild on the South-East.')
         log.add('Visit the guild halls to find work or the port to upgrade your ship.')
-        # Give the player a free starter ship.
+        # Give the player a free starter ship, with a colorful per-run
+        # name rolled from the catalog pool (stored on OwnedShip so it
+        # survives save/load; Ship.name "Skiff" is only the fallback).
         starter_ship = ship_module.find_ship("starter")
+        from .data.ships.core import STARTER_NAMES as _starter_names
+        from .engine import RNG as _rng
+        _ship_name = _rng.choice(_starter_names)
         starter_entity = world.Entity(
             char=starter_ship.char, fg=starter_ship.fg,
             pos=world.HANGAR_ANCHOR,
-            name=f'Your Ship: {starter_ship.name}',
+            name=f'Your Ship: {_ship_name}',
             ship_id=starter_ship.id, owned=True,
         )
         game_map.entities.append(starter_entity)
         player_owned_ship: ship_module.OwnedShip = ship_module.OwnedShip(
             ship_id=starter_ship.id,
+            display_name=_ship_name,
             weapons=starter_ship.start_weapons,
             modules=starter_ship.start_modules,
             fuel=starter_ship.max_fuel,
         )
+        log.add(f'Your {_ship_name} is docked at the space port.')
         # --- Dev mode: super-powered frigate for playtesting ---
         from .dev_mode import apply_dev_overrides as _apply_dev_overrides
         starter_ship, starter_entity, player_owned_ship = _apply_dev_overrides(
@@ -583,7 +590,7 @@ def _run_game(
                                     _hangar_ship = world.Entity(
                                         char=_ship_spec.char, fg=_ship_spec.fg,
                                         pos=world.Position(_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1),
-                                        name=f'Your Ship: {_ship_spec.name}',
+                                        name=f'Your Ship: {ship_module.ship_display_name(player_owned_ship)}',
                                         ship_id=_ship_spec.id, owned=True,
                                     )
                                     _new_city_map.entities.append(_hangar_ship)
