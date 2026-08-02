@@ -304,6 +304,7 @@ def render_confirm(
     line_top = f"You are a {species.name.upper()} {klass.name.upper()}."
     line_sub = species.description
     line_sub2 = klass.description
+    line_credits = f"Starting credits: {klass.credits}$"
     line_prompt1 = "Press ENTER to begin your journey."
     line_prompt2 = "Press ESC to start over."
 
@@ -311,7 +312,7 @@ def render_confirm(
     center_y = screen_height // 2
     title_y = center_y - 5
 
-    for i, line in enumerate((line_top, "", line_sub, line_sub2, "", line_prompt1, line_prompt2)):
+    for i, line in enumerate((line_top, "", line_sub, line_sub2, "", line_credits, "", line_prompt1, line_prompt2)):
         row = title_y + i
         fg = COLOR_TITLE if i == 0 else COLOR_INSTRUCTION
         if not line:

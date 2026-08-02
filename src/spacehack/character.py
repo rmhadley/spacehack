@@ -123,7 +123,7 @@ def starting_stats(species_id: str, class_id: str):
     sp = _safe_lookup_species(species_id)
     cl = _safe_lookup_class(class_id)
     hp_base = cl.hp_base if cl is not None else 10
-    credits = cl.credits if cl is not None else 1000
+    credits = cl.credits if cl is not None else 50
     hp_bonus = sp.hp_bonus if sp is not None else 0
     
     # Compute pilot skills — reuse starting_pilot_skills internally
