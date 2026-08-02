@@ -1110,7 +1110,7 @@ def render_world_view(
 # roguelike layout is h/j/k/l for cardinals and y/u/b/n for diagonals.
 # tcod's KeySym reports physical letter key presses as UPPERCASE
 # members (KeySym.H, KeySym.J, ...) which we lowercase for lookup, see
-# ``spacehack.__main__._vim_action``.
+# ``spacehack.input_helpers._movement_action``.
 VIM_DELTAS: dict[str, tuple[int, int]] = {
     "h": (-1,  0),  # west
     "j": ( 0,  1),  # south
@@ -1120,6 +1120,38 @@ VIM_DELTAS: dict[str, tuple[int, int]] = {
     "u": ( 1, -1),  # north-east
     "b": (-1,  1),  # south-west
     "n": ( 1,  1),  # south-east
+}
+
+# Arrow-key movement: same lowercase KeySym-name convention
+# ("up" / "down" / "left" / "right").
+ARROW_DELTAS: dict[str, tuple[int, int]] = {
+    "up":    ( 0, -1),  # north
+    "down":  ( 0,  1),  # south
+    "left":  (-1,  0),  # west
+    "right": ( 1,  0),  # east
+}
+
+# Numpad movement: KP_1..KP_9 lowercased to "kp_1".."kp_9". Gives
+# non-vim players full 8-direction movement. KP_5 (centre) is
+# deliberately excluded — "." is the wait key.
+NUMPAD_DELTAS: dict[str, tuple[int, int]] = {
+    "kp_7": (-1, -1),  # north-west
+    "kp_8": ( 0, -1),  # north
+    "kp_9": ( 1, -1),  # north-east
+    "kp_4": (-1,  0),  # west
+    "kp_6": ( 1,  0),  # east
+    "kp_1": (-1,  1),  # south-west
+    "kp_2": ( 0,  1),  # south
+    "kp_3": ( 1,  1),  # south-east
+}
+
+# Everything that moves the player, merged into one lookup table so
+# every movement path (exploration, combat, auto-nav abort) accepts
+# the same three key families.
+MOVE_KEYS: dict[str, tuple[int, int]] = {
+    **VIM_DELTAS,
+    **ARROW_DELTAS,
+    **NUMPAD_DELTAS,
 }
 
 

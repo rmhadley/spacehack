@@ -8,10 +8,11 @@ Flow on a new game:
        ^ ESC = quit       ^ ESC = back     ^ ESC = back        ^ ESC = quit
 
 The game screen is a small city + space-port + 4 guild halls.
-Movement uses the standard roguelike vim keys
-(``h`` / ``j`` / ``k`` / ``l`` for cardinals, ``y`` / ``u`` / ``b`` / ``n``
-for diagonals). Walking into a wall logs a short message. Walking
-onto a tile holding another entity opens a context dialog:
+Movement accepts three key families (see ``world.MOVE_KEYS``):
+vim keys (``h`` / ``j`` / ``k`` / ``l`` for cardinals, ``y`` / ``u`` /
+``b`` / ``n`` for diagonals), arrow keys, and the numpad. Walking
+into a wall logs a short message. Walking onto a tile holding
+another entity opens a context dialog:
 
     * ship at the space port -> ship-buy modal (Enter / ESC)
     * guild NPC -> flavor dialog (ESC to leave)
@@ -45,7 +46,7 @@ from .combat._loop import run_combat as _run_combat_unified
 from .combat import _rules_ground
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
-from .input_helpers import Outcome, _run_pick, _run_confirm, _vim_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _try_open_guide
+from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -215,7 +216,7 @@ def _run_game(
         log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
         log.add(f'You arrive in a quiet Earth city as a {species.name} {klass.name}.')
         log.add("The cobblestones are damp from last night's rain.")
-        log.add('Walk with h / j / k / l; diagonals y / u / b / n.')
+        log.add('Move with arrow keys, h/j/k/l, or numpad; diagonals y/u/b/n.')
 
         log.add('Buildings: North-West space port, South-West merchant guild,')
         log.add('Bar in the plaza, militia + bounty guild on the South-East.')
@@ -422,7 +423,7 @@ def _run_game(
                 ctx.log.add('You wait.')
                 continue
 
-            delta = _vim_action(event)
+            delta = _movement_action(event)
             if delta is None:
                 continue
             dx, dy = delta

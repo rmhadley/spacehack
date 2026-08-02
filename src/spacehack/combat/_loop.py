@@ -18,7 +18,7 @@ import tcod.event
 from .. import ui
 from .. import world
 from ..engine import RNG
-from ..world import VIM_DELTAS as _VIM_KEYS
+from ..world import MOVE_KEYS as _MOVE_KEYS
 from ..data.pilot_skills import PilotSkills
 from ..data.weapons import find_weapon as _fw
 from ..input_helpers import _try_open_guide
@@ -48,12 +48,12 @@ from ._animations import (
 # Shared helpers + unified loop
 # ---------------------------------------------------------------------------
 
-# Numeric key mapping for weapon toggle (1-9, numpad 1-9).
+# Numeric key mapping for weapon toggle — top-row 1-9 only. Numpad
+# keys (kp_1..kp_9) are movement now (see world.MOVE_KEYS), so they
+# must NOT double as weapon toggles.
 _NUM_KEYS: dict[str, int] = {
     "n1": 0, "n2": 1, "n3": 2, "n4": 3, "n5": 4,
     "n6": 5, "n7": 6, "n8": 7, "n9": 8,
-    "kp_1": 0, "kp_2": 1, "kp_3": 2, "kp_4": 3, "kp_5": 4,
-    "kp_6": 5, "kp_7": 6, "kp_8": 7, "kp_9": 8,
 }
 
 
@@ -287,16 +287,16 @@ def run_combat(
             sym_name: str = getattr(event.sym, "name", "").lower()
             sym = event.sym
 
-            # [Tab] / [Left] / [Right] -> Cycle target
-            if sym_name in ("tab", "left", "right"):
-                _dir = -1 if sym_name == "left" else 1
-                _target_idx = _cycle_target(_target_idx, len(_enemies), _dir)
+            # [Tab] -> Cycle target. (Arrow keys are movement now, so
+            # target cycling is TAB-only; LEFT/RIGHT move instead.)
+            if sym_name == "tab":
+                _target_idx = _cycle_target(_target_idx, len(_enemies), 1)
                 rules.set_target_idx(ctx, _target_idx)
                 break
 
-            # Vim movement
-            if sym_name in _VIM_KEYS and rules.player_ap(ctx) > 0:
-                _dx, _dy = _VIM_KEYS[sym_name]
+            # Movement (vim keys, arrows, or numpad)
+            if sym_name in _MOVE_KEYS and rules.player_ap(ctx) > 0:
+                _dx, _dy = _MOVE_KEYS[sym_name]
                 _moved = rules.try_move(ctx, game_map, _dx, _dy)
                 if not _moved:
                     ctx.log.add("Blocked.")

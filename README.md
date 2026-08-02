@@ -82,9 +82,9 @@ Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
 
 1. **Create a character** — pick a species, then a class. Your choices set
    your starting skills, reputation, and credits.
-2. **Explore the city** — move with the **vim keys** (`h j k l` for
-   cardinal directions, `y u b n` for diagonals). Walk into buildings and
-   NPCs to interact.
+2. **Explore the city** — move with the **arrow keys**, the **vim keys**
+   (`h j k l` cardinals, `y u b n` diagonals), or the **numpad**. Walk
+   into buildings and NPCs to interact.
 3. **Find work** — the guild halls and the bar have mission boards
    (deliveries, bounties, smuggling, salvage). You can hold up to 5 missions.
 4. **Launch** — walk into your ship at the spaceport, then fly the system.
@@ -96,7 +96,7 @@ Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
 
 | Key | Action |
 |-----|--------|
-| `h j k l` / `y u b n` | Move (cardinals / diagonals) |
+| `Arrows` / `h j k l` / `numpad` | Move (cardinals / diagonals) |
 | `G` | Auto-navigate to a selected target (space) |
 | `M` | Navigation map (space) |
 | `T` | Comms panel — hail nearby ships (space) |
@@ -109,7 +109,8 @@ Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
 | `ESC` | Quit / back |
 
 **Combat:** `TAB` cycles targets · `F` fires all active weapons · `1-9`
-toggles weapons on/off · `S` cycles shield regen · `W` waits.
+toggles weapons on/off · `S` cycles shield regen · `W` waits. Move with
+arrows, vim keys, or numpad.
 
 **Tip:** press `?` in-game for a complete guide covering combat math, trade
 formulas, missions, and more.

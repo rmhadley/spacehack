@@ -235,7 +235,8 @@ if handler:
 
 **What this project already does right (table-driven data):**
 - Every ``data/`` catalog — ``_BY_ID: dict[str, Spec]`` with ``find_*(id)``
-- ``world.VIM_DELTAS: dict[str, tuple[int, int]]`` — key name → dx,dy
+- ``world.MOVE_KEYS: dict[str, tuple[int, int]]`` — key name → dx,dy
+  (vim letters + arrows + numpad; ``VIM_DELTAS`` is the vim-only subset)
 - ``faction._SPECIES_REP`` / ``faction._CLASS_REP`` — species/class → rep delta
 - ``world.BUILDING_LABEL_COLORS: dict[str, tuple]`` — building label → colour
 

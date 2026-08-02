@@ -99,7 +99,8 @@ _GUIDE_GAME_OVERVIEW = GuideSection(
 _GUIDE_CONTROLS = GuideSection(
     title="Controls & Keybindings",
     body=(
-        "Movement: h/j/k/l for cardinal directions, y/u/b/n for diagonals."
+        "Movement: arrow keys, h/j/k/l, or numpad for cardinals; "
+        "y/u/b/n (or numpad 7/9/1/3) for diagonals."
         "\n\n"
         "City mode:"
         "\n"
@@ -136,7 +137,7 @@ _GUIDE_CONTROLS = GuideSection(
         "\n\n"
         "Combat keys:"
         "\n"
-        "- h/j/k/l, y/u/b/n: move on the tactical grid"
+        "- Arrow keys, h/j/k/l, or numpad: move on the tactical grid"
         "\n"
         "- TAB: cycle targets"
         "\n"
@@ -920,7 +921,8 @@ _GUIDE_DERELICT = GuideSection(
         "Structural hull walls ({##}) block movement but not vision — they "
         "reveal the ship's silhouette even in fog."
         "\n"
-        "- Walk with h/j/k/l and diagonals y/u/b/n. Exit the way you "
+        "- Walk with arrow keys, h/j/k/l, or numpad (diagonals "
+        "y/u/b/n). Exit the way you "
         "entered (the breach point marked with X)."
         "\n\n"
         "Loot:"
@@ -1223,7 +1225,7 @@ _GUIDE_GROUND_COMBAT = GuideSection(
         "\n"
         "- 4 AP per turn for both you and enemies"
         "\n"
-        "- Move: 1 AP per cell (h/j/k/l/y/u/b/n)"
+        "- Move: 1 AP per cell (arrows, h/j/k/l, or numpad)"
         "\n"
         "- Fire: AP cost varies by weapon (1 AP for fists, 2-4 for guns)"
         "\n"

@@ -2,9 +2,9 @@
 
 Contains the :class:`Outcome` enum, :func:`_run_pick`,
 :func:`_run_confirm`, key-press predicates (``_is_q_press``,
-``_is_m_press``, etc.), and the :func:`_vim_action` movement
-mapper.  Everything here is a pure function or a short Modal
-wrapper — no game state, no event-loop internals.
+``_is_m_press``, etc.), and the :func:`_movement_action`
+movement mapper.  Everything here is a pure function or a short
+Modal wrapper — no game state, no event-loop internals.
 """
 
 from __future__ import annotations
@@ -75,12 +75,17 @@ def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) 
     return ui.Modal(context, console).run(_render, _update)
 
 
-def _vim_action(event: tcod.event.Event) -> tuple[int, int] | None:
-    """If ``event`` is a vim-movement KeyDown, return (dx, dy); else None.
+def _movement_action(event: tcod.event.Event) -> tuple[int, int] | None:
+    """If ``event`` is a movement KeyDown, return (dx, dy); else None.
 
-    SDL/tcod reports physical letter key presses as UPPERCASE
-    ``KeySym`` members (``KeySym.H.name`` is ``"H"``, not ``"h"`` -
-    and ``KeySym.h`` is a Python alias whose ``.name`` is also
+    Accepts all three movement key families from
+    :data:`world.MOVE_KEYS`: vim keys (``h``/``j``/``k``/``l``,
+    ``y``/``u``/``b``/``n``), arrow keys, and the numpad
+    (``KP_1``-``KP_9``).
+
+    SDL/tcod reports physical key presses as UPPERCASE ``KeySym``
+    members (``KeySym.H.name`` is ``"H"``, not ``"h"`` - and
+    ``KeySym.h`` is a Python alias whose ``.name`` is also
     ``"H"``). Without ``.lower()`` every press would miss the
     lowercase-keyed dispatch table and the player would not move.
 
@@ -93,7 +98,7 @@ def _vim_action(event: tcod.event.Event) -> tuple[int, int] | None:
     if not isinstance(event, tcod.event.KeyDown):
         return None
     sym_name: str = getattr(event.sym, 'name', '').lower()
-    return world.VIM_DELTAS.get(sym_name)
+    return world.MOVE_KEYS.get(sym_name)
 
 
 def _is_q_press(event: tcod.event.Event) -> bool:
@@ -101,7 +106,7 @@ def _is_q_press(event: tcod.event.Event) -> bool:
 
     Routes Q through a module-level helper so the smoke test can
     regression-guard the KeySym name lookup. Mirrors
-    :func:`_vim_action`'s pattern of being a pure no-side-effect
+    :func:`_movement_action`'s pattern of being a pure no-side-effect
     helper, so the dispatcher in :func:`_run_game` stays
     declarative. ``getattr(..., "name", "")`` belt-and-suspenders
     against a hypothetical tcod build whose ``sym`` lacks ``.name``.

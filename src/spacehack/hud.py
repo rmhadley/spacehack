@@ -346,8 +346,9 @@ def render_hud(
             ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
+            ("Arrows", "Move"),
             ("h/j/k/l", "Move"),
-            ("y/u/b/n", "Diag"),
+            ("numpad", "Move"),
         ])
 
         # XP progress bar — between key hints and footer.
@@ -445,8 +446,9 @@ def render_hud(
             ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
+            ("Arrows", "Move"),
             ("h/j/k/l", "Move"),
-            ("y/u/b/n", "Diag"),
+            ("numpad", "Move"),
         ])
 
         # XP progress bar — between key hints and footer.

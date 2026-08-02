@@ -914,7 +914,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         for _ev in tcod.event.get():
                             if isinstance(_ev, tcod.event.KeyDown):
                                 _name = getattr(_ev.sym, 'name', '').lower()
-                                if _name in world.VIM_DELTAS or _name == 'period':
+                                if _name in world.MOVE_KEYS or _name == 'period':
                                     _aborted = True
                                     break
                         if _aborted:

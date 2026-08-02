@@ -75,11 +75,31 @@ def smoke_test() -> int:
         (combat, "run_combat"),
         (game_context, "GameContext"),
         (world, "GameMap"),
+        (world, "MOVE_KEYS"),
         (ui, "Modal"),
     ]
     for mod, attr in checks:
         if not hasattr(mod, attr):
             print(f"FAIL: {mod.__name__}.{attr} is missing.", file=sys.stderr)
+            return 1
+
+    # Verify the merged movement table covers vim + arrows + numpad
+    # and that each maps to the expected delta.
+    _move_checks = {
+        "h": (-1, 0), "j": (0, 1), "k": (0, -1), "l": (1, 0),  # vim cardinals
+        "y": (-1, -1), "u": (1, -1), "b": (-1, 1), "n": (1, 1),  # vim diagonals
+        "up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0),  # arrows
+        "kp_7": (-1, -1), "kp_8": (0, -1), "kp_9": (1, -1),       # numpad NW/N/NE
+        "kp_4": (-1, 0), "kp_6": (1, 0),                            # numpad W/E
+        "kp_1": (-1, 1), "kp_2": (0, 1), "kp_3": (1, 1),           # numpad SW/S/SE
+    }
+    for _key, _expected in _move_checks.items():
+        if world.MOVE_KEYS.get(_key) != _expected:
+            print(
+                f"FAIL: world.MOVE_KEYS[{_key!r}] = "
+                f"{world.MOVE_KEYS.get(_key)!r}, expected {_expected!r}.",
+                file=sys.stderr,
+            )
             return 1
 
     # Validate the jump-gate graph: every gate's connects_to
