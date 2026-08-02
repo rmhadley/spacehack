@@ -327,7 +327,9 @@ _GUIDE_MISSIONS = GuideSection(
     title="Missions",
     body=(
         "Talk to NPCs in guild halls (walk into them) and choose 'View "
-        "available work' to see their current mission board. You can hold "
+        "available work' to see their current mission board. Each row "
+        "shows the mission type, reward, and the destination solar "
+        "system (unless the title already names it). You can hold "
         "up to 5 active missions — press Q to open the quest log."
         "\n\n"
         "Mission types:"

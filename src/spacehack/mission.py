@@ -781,6 +781,53 @@ def _planet_to_system() -> dict[str, str]:
     return mapping
 
 
+def system_display_name(system_id: str | None) -> str:
+    """Resolve a solar-system id to its display name, with fallback.
+
+    Falls back to a title-cased version of the raw id when the
+    catalog lookup fails. ``None`` resolves to ``"unknown"``.
+    """
+    if not system_id:
+        return "unknown"
+    try:
+        from .data.solar_systems import find_solar_system as _fss
+        return _fss(system_id).name
+    except (KeyError, ImportError):
+        return system_id.replace('_', ' ').title()
+
+
+def system_name_for_planet(planet_id: str | None) -> str | None:
+    """Resolve a planet id to its solar system's display name.
+
+    Uses the cached planet-to-system mapping from
+    :func:`_planet_to_system`, so callers always agree with the
+    procedural generators. Returns ``None`` for unknown planets.
+    """
+    if not planet_id:
+        return None
+    _sys_id = _planet_to_system().get(planet_id)
+    if _sys_id is None:
+        return None
+    return system_display_name(_sys_id)
+
+
+def destination_system_name(mission) -> str | None:
+    """Resolve a mission's destination solar system's display name.
+
+    Uses ``target_system_id`` when set (bounties, intercepts,
+    salvage); otherwise falls back to the delivery target planet's
+    system (deliveries, smuggling). Returns ``None`` when neither
+    is resolvable.
+    """
+    _sys_id = getattr(mission, 'target_system_id', None)
+    if not _sys_id:
+        _sys_id = system_name_for_planet(
+            getattr(mission, 'delivery_target_planet_id', None),
+        )
+        return _sys_id
+    return system_display_name(_sys_id)
+
+
 def _planet_npc_ids(planet_id: str) -> list[str]:
     """Return the NPC IDs present on ``planet_id`` (non-empty npc_ids
     from the planet's building specs).
@@ -1606,4 +1653,7 @@ __all__ = [
     "generate_bar_mission",
     "_planet_npc_ids",
     "_planet_to_system",
+    "system_display_name",
+    "system_name_for_planet",
+    "destination_system_name",
 ]

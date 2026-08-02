@@ -46,16 +46,30 @@ def _mission_type_tag(m: mission_module.MissionSpec) -> str:
     return "Delivery"
 
 
+def _mission_board_label(m: mission_module.MissionSpec) -> str:
+    """One board row: ``[Tag] {title} ({reward}$)``.
+
+    Appends the destination solar system (``@{system}``) unless the
+    title already names it — e.g. "Deliver to Mars in Sol" carries
+    the system, while "Wanted: Crimson Jack" gets "@ Sirius".
+    """
+    _tag = _mission_type_tag(m)
+    _sys = mission_module.destination_system_name(m)
+    _suffix = f" @ {_sys}" if _sys and _sys.lower() not in m.title.lower() else ""
+    return f'[{_tag}] {m.title}{_suffix} ({m.reward_credits}$)'
+
+
 def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...]) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
     """Build an :class:`spacehack.ui.MenuScreen` payload from an
     NPC-mission-list so we can reuse the shared menu primitives.
 
     ``available_options`` is ``(id, label)`` where label is
-    ``"[Tag] {title} ({reward}$)"`` so the player sees the
-    mission type tag and reward in the listing.
+    ``"[Tag] {title} @ {system} ({reward}$)"`` so the player sees
+    the mission type tag, destination system, and reward in the
+    listing.
     ``descriptions`` is the mission body blurb.
     """
-    available_options = tuple(((str(i), f'[{_mission_type_tag(m)}] {m.title} ({m.reward_credits}$)') for i, m in enumerate(offerings)))
+    available_options = tuple(((str(i), _mission_board_label(m)) for i, m in enumerate(offerings)))
     descriptions = {str(i): m.description for i, m in enumerate(offerings)}
     return (f'{npc.name} - available work', available_options, descriptions)
 
