@@ -528,7 +528,7 @@ _GUIDE_SHIPS = GuideSection(
         "\n"
         "- Heavy Laser (TL2): 12 dmg, 68% acc, 1 AP, 2 power"
         "\n"
-        "- Plasma Cannon (TL3): 16 dmg, 70% acc, 2 AP, 4 power"
+        "- Plasma Cannon (TL3): 24 dmg, 70% acc, 2 AP, 4 power"
         "\n"
         "- Light Missile (TL1): 10 dmg, 75% acc, 2 AP, 5 ammo"
         "\n"
