@@ -800,6 +800,21 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     else:
         # --- City mode: load planet map ---
         from .data.planets import load_planet as planets_load_planet, hangar_anchor as _planet_anchor
+        from .data.solar_systems import find_solar_system as _find_sys
+
+        # Restore module-level current-system state (save/load contract —
+        # the space and dungeon branches both restore it; without this a
+        # city save on a non-Sol planet would rebuild the WRONG system on
+        # launch: _launch_to_space -> find_planet('barnards_b') in 'sol'
+        # raises KeyError). Fall back to Earth city on an unknown system,
+        # mirroring the space/dungeon branches' error handling.
+        try:
+            _find_sys(_system_id)
+        except KeyError:
+            _log.add(f"Save references unknown system '{_system_id}' — loading Earth city.")
+            _city_id = "earth"
+            _system_id = "sol"
+        solar_system_module.current_solar_system_id = _system_id
 
         _game_map = planets_load_planet(_city_id)
         _player_ent = world.Entity(
