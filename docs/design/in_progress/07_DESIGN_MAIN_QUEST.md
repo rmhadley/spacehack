@@ -249,7 +249,7 @@ The player receives a garbled transmission while flying through Sol. It points t
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
-| `prologue_signal` | Auto while flying through Sol (first launch) | None | Garbled transmission on an unknown frequency — static, a burst of coordinates, then cut off. It points to a location on Mars. The player is the only one who seems to have heard it. |
+| `prologue_signal` | Auto while flying through Sol (first launch) | None | Garbled transmission on an unknown frequency — static, a burst of coordinates, then cut off. It points to a location on Mars. The player is the only one who seems to have heard it. **Delivered as a full-screen "INCOMING TRANSMISSION" comms overlay** (ENTER to acknowledge) right after launch — the signal arrives through the comms, not just log lines. |
 | `prologue_mars_unlocked` | Signal received (auto) | None (checkpoint) | **Mars surface exploration unlocks.** (Today Mars is *always* explorable — see the gate note below.) |
 | `prologue_mars_entrance` | Explore the Mars surface | Mars (dungeon) | Among the red-dust ruins the player finds the entrance to something — a sealed door of alien make, no visible mechanism, older than the colony. It will not open. |
 | `prologue_seek_help` | Talk to NPCs about the door | Any of several | The player begins looking for help. Each faction NPC gives a DIFFERENT lead (faction fork seeds here): Barkeep (bar): "Heard about the thing in the dust? The militia sealed it — or *someone* did." Trade Marshal (merchants): "Alien tech? That's the most valuable cargo in history. Bring me proof." Mars Patrol (militia): "There is no door. Whatever you saw, forget it." Research Officer (lab): "A sealed structure? I need to study it. Bring me a sample of the material." The lab lead is found at a **science station** (Alpha Centauri Science Port, Mercury, Sirius, Procyon C) — Mars has no lab building, so the lab read is the one that pulls the player off-world (which feeds into Act 1's research trail). Dialogue is keyed by `npc_id`, so seek-help lines surface on whichever planet the player talks to the NPC (Earth or Mars variants of `barkeep`/`guild_master`/`militia_captain` share ids — intended). |
@@ -343,11 +343,11 @@ A dead-star system with an alien structure — the source of the signal.
 ### Phase 1b: Act 0 steps data + signal trigger + Mars gate
 
 - [x] Write Act 0 steps as data (`prologue_signal` → `prologue_mars_unlocked` → `prologue_mars_entrance` → `prologue_seek_help` → `prologue_open`) with the 4 faction dialogue leads (barkeep / guild_master / militia_captain / research_officer), each with `option_label`, `backing_faction`, and `unlock_item` (the faction's door-opening tool)
-- [x] Wire `prologue_signal` auto-trigger into `_launch_to_space` (first launch only, in Sol): log the garbled transmission, mark `prologue_signal` + `prologue_mars_unlocked` active
+- [x] Wire `prologue_signal` auto-trigger into `_launch_to_space` (first launch only, in Sol): log the garbled transmission, mark `prologue_signal` + `prologue_mars_unlocked` active. **The signal arrives as a full-screen incoming-comms overlay** (`main_quest.show_prologue_transmission`) — same modal interruption pattern as militia auto-hails.
 - [x] **Gate Mars exploration** on the signal: planet menu must hide "Explore Surface" until the transmission is received (`has_explorable_sites` / menu item filtered by `ctx.main_quest_progress`)
 - [x] Smoke test + commit
 
-**PLAYTEST (1b):** fresh game → launch into space from Earth → you receive the garbled transmission. Fly to Mars and bump it — the planet menu shows NO "Explore Surface" option before the signal (verify by loading a pre-signal save), and the option appears after. Save/quit/continue preserves the signal state.
+**PLAYTEST (1b):** fresh game → launch into space from Earth → an **INCOMING TRANSMISSION comms overlay** appears (signal trace static + "They resolve to somewhere on Mars"), ENTER to acknowledge, then the space map loads. Open the quest log (Q) — shows the main quest breadcrumb. Fly to Mars and bump it — the planet menu shows NO "Explore Surface" option before the signal (verify by loading a pre-signal save), and the option appears after. Save/quit/continue preserves the signal state.
 
 ### Phase 1c: The Door on Mars — sealed entrance, seek-help, prologue_open
 

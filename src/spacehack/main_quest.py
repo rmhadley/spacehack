@@ -21,9 +21,14 @@ Design doc: ``docs/design/in_progress/07_DESIGN_MAIN_QUEST.md``.
 from __future__ import annotations
 
 from collections import deque
+from enum import Enum, auto
+
+import tcod.event
 
 from . import message_log
+from . import ui
 from . import world
+from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .data.main_quest import (
     MainQuestStep,
     QuestDialogue,
@@ -254,6 +259,132 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
     return True
 
 
+# ---------------------------------------------------------------------------
+# Incoming-transmission overlay (the signal arrives through the comms)
+# ---------------------------------------------------------------------------
+
+class _TransmissionOutcome(Enum):
+    """Outcome for the incoming-transmission overlay."""
+    IGNORE = auto()
+    CLOSE = auto()
+    QUIT = auto()
+
+
+# Garbled signal noise — CP437-safe (dots + dashes only, no Unicode
+# block chars that can garble on the tilesheet fallback).
+_SIGNAL_STATIC: tuple[str, ...] = (
+    "...--.-.-..--...-..-.-.--.....-.-..--.-..",
+    "-.--..-.-..--.-..-...--..-.-..--...--...-",
+    "..-.-.--.....-.-..--.-..--...--.-..---.-.",
+)
+
+# Dim green — reads as a weak signal trace, distinct from the
+# palette's bright player-action green.
+_SIGNAL_TRACE_FG: tuple[int, int, int] = (90, 150, 90)
+
+
+def render_incoming_transmission(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Paint the garbled-signal overlay: a centered box with the
+    transmission title, unknown-source metadata, signal static, and
+    the coordinate reveal.
+
+    Idempotent (clears first). All characters are CP437-safe.
+    """
+    console.clear()
+    box_w = 64
+    box_h = 18
+    x0 = max(0, (screen_width - box_w) // 2)
+    y0 = max(0, (screen_height - box_h) // 2 - 2)
+    ui.paint_rect_border(console, (x0, y0, box_w, box_h), fg=ui.COLOR_VALUE_DIM)
+
+    console.print(
+        x=ui.centered_x("INCOMING TRANSMISSION", screen_width),
+        y=y0 + 1,
+        string="INCOMING TRANSMISSION",
+        fg=ui.COLOR_TITLE,
+    )
+    console.print(
+        x=ui.centered_x("FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE", screen_width),
+        y=y0 + 3,
+        string="FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE",
+        fg=ui.COLOR_VALUE_DIM,
+    )
+    for _i, _line in enumerate(_SIGNAL_STATIC):
+        console.print(
+            x=ui.centered_x(_line, screen_width),
+            y=y0 + 5 + _i,
+            string=_line,
+            fg=_SIGNAL_TRACE_FG,
+        )
+    console.print(
+        x=ui.centered_x("A burst of coordinates cuts through the static -", screen_width),
+        y=y0 + 9,
+        string="A burst of coordinates cuts through the static -",
+        fg=ui.COLOR_DESCRIPTION,
+    )
+    console.print(
+        x=ui.centered_x("then silence.", screen_width),
+        y=y0 + 10,
+        string="then silence.",
+        fg=ui.COLOR_DESCRIPTION,
+    )
+    console.print(
+        x=ui.centered_x("They resolve to somewhere on Mars.", screen_width),
+        y=y0 + 12,
+        string="They resolve to somewhere on Mars.",
+        fg=ui.COLOR_OPTION_HIGHLIGHT,
+    )
+    console.print(
+        x=ui.centered_x("Press ENTER to acknowledge", screen_width),
+        y=y0 + 14,
+        string="Press ENTER to acknowledge",
+        fg=ui.COLOR_INSTRUCTION,
+    )
+
+
+def update_incoming_transmission(event: tcod.event.Event) -> _TransmissionOutcome:
+    """Map a single event for the transmission overlay.
+
+    ENTER / ESC closes (:attr:`CLOSE`), window-close quits
+    (:attr:`QUIT`), everything else is :attr:`IGNORE`.
+    """
+    if isinstance(event, tcod.event.Quit):
+        return _TransmissionOutcome.QUIT
+    if not isinstance(event, tcod.event.KeyDown):
+        return _TransmissionOutcome.IGNORE
+    if event.sym in ui._ENTER_SYMS or event.sym in ui._ESCAPE_SYMS:
+        return _TransmissionOutcome.CLOSE
+    return _TransmissionOutcome.IGNORE
+
+
+def show_prologue_transmission(ctx) -> None:
+    """Show the garbled prologue signal as an incoming-comms overlay.
+
+    Called from :func:`spacehack.city._launch_to_space` right after
+    :func:`maybe_trigger_signal` fires, so the signal arrives as a
+    full-screen transmission readout rather than only log lines.
+    Blocks until the player acknowledges (ENTER / ESC).
+    """
+    console = make_console()
+
+    def _render() -> None:
+        render_incoming_transmission(
+            console,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+        )
+
+    def _update(event) -> _TransmissionOutcome:
+        return update_incoming_transmission(event)
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
 def mars_exploration_unlocked(ctx) -> bool:
     """True once the signal has been received (Mars gate open).
 
@@ -374,6 +505,7 @@ __all__ = [
     "trigger_dialogue",
     "current_main_quest_objective",
     "maybe_trigger_signal",
+    "show_prologue_transmission",
     "mars_exploration_unlocked",
     "place_mars_door",
     "prepare_mars_surface",
