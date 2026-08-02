@@ -37,7 +37,7 @@ Design: long range, scarce ammo, high per-shot damage, per-round ammo cost.
 | Weapon | dmg | acc | AP | pow | ammo | cr/rd | range | ammo_price | price | TL |
 |--------|-----|-----|----|-----|------|-------|-------|-----------|-------|-----|
 | Light Missile | 14 | 72 | 2 | 0 | 4 | 2 | 2–9 | 8$ | 40$ | 1 |
-| Heavy Missile | 28 | 65 | 2 | 0 | 3 | 3 | 3–11 | 20$ | 90$ | 3 |
+| Heavy Missile | 32 | 72 | 2 | 0 | 3 | 3 | 3–13 | 20$ | 90$ | 3 |
 | EMP Missile | 0 | 75 | 2 | 0 | 2 | 2 | 2–10 | 25$ | 120$ | 4 (shield_strip=20) |
 
 Rationale:
@@ -45,8 +45,12 @@ Rationale:
   are the only way to open a fight from extreme range; min_range 2-3 means
   point-blank firing eats the min-range accuracy penalty (you must kite).
 - **Big punch**: Light 14×72% = 10.1 expected/shot vs Medium Laser 4.32;
-  Heavy 28×65% = 18.2 vs Plasma 16.8 — heavier per shot than the same-tier
-  energy option, earned because ammo is scarce (4/3/2 rounds).
+  Heavy 32×72% = 23.0 vs Plasma 16.8 — clearly heavier per shot than the
+  same-tier energy option, earned because ammo is scarce (4/3/2 rounds) and
+  costs 20$/rd to rebuy. Accuracy was raised 65→72 after playtests reported
+  heavy missiles missing more often than plasma while only matching its
+  damage — now the punch is real and the range edge (3–13) is the widest
+  in the game.
 - **High cost (ammo)**: ammo is now *persistent* (spent rounds stay spent) and
   costs credits to rebuy at the mechanic (8$/20$/25$ per round). Cargo tax also
   rises (2/3/2 cr per round × mag = 8/9/4 cargo permanently reserved).

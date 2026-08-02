@@ -20,9 +20,9 @@ WEAPONS: tuple[WeaponSpec, ...] = (
     ),
     WeaponSpec(
         id="heavy_missile", name="Heavy Missile", slot_type="missile",
-        damage=28, accuracy=65, ap_cost=2, power_cost=0,
+        damage=32, accuracy=72, ap_cost=2, power_cost=0,
         ammo_capacity=3, ammo_per_shot=1, cargo_per_round=3,
-        ammo_price=20, price=90, min_range=3, max_range=11,
+        ammo_price=20, price=90, min_range=3, max_range=13,
         tech_level=3,
     ),
     WeaponSpec(

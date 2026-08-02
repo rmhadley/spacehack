@@ -550,7 +550,7 @@ _GUIDE_SHIPS = GuideSection(
         "- Light Missile (TL1): 14 dmg, 72% acc, 2 AP, 4 ammo, range 2-9,"
         "8$/rd to rebuy"
         "\n"
-        "- Heavy Missile (TL3): 28 dmg, 65% acc, 2 AP, 3 ammo, range 3-11,"
+        "- Heavy Missile (TL3): 32 dmg, 72% acc, 2 AP, 3 ammo, range 3-13,"
         "20$/rd to rebuy"
         "\n"
         "- EMP Missile (TL4): 0 dmg (strips 20 shields per hit), 75% acc,"
