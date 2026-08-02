@@ -12,6 +12,7 @@ Layout (40x24, compact):
 from __future__ import annotations
 
 from ... import world
+from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import DESERT
 
@@ -51,4 +52,24 @@ SPEC = PlanetSpec(
         ("fuel_cells", 15),
     ),
     tech_level=1,
+    # Militia chain delve site (mil_q2_cache): the classified requisition
+    # cache sits deep in the scorched cave system under the research
+    # station. Same BSP generator as the Mars surface — planet-themed
+    # tiles (charred dark rock + ember floor).
+    explorable_site_name="caves",
+    dungeon_params=DungeonParams(
+        width=80,
+        height=60,
+        min_room_size=4,
+        max_room_size=14,
+        room_fill_pct=0.6,
+        tile_wall=world.Tile(
+            kind="dungeon_wall", char="#", walkable=False,
+            fg=(110, 90, 80), bg=(25, 18, 12),
+        ),
+        tile_floor=world.Tile(
+            kind="dungeon_floor", char=".", walkable=True,
+            fg=(200, 140, 90), bg=(60, 35, 18),
+        ),
+    ),
 )

@@ -291,15 +291,18 @@ def _active_objective_step(
     *,
     npc_id: str = "",
     spawn_id: str = "",
+    planet_id: str = "",
 ) -> str | None:
     """First available/active step matching ``objective_type`` (and,
-    when given, ``npc_id`` / ``spawn_id`` targets), else None.
+    when given, ``npc_id`` / ``spawn_id`` / ``planet_id`` targets),
+    else None.
 
     Single iteration + status/chain filter shared by all objective
-    hooks (bump / visit / bounty). Only steps of the locked chain
-    count (``_step.chain`` empty steps like the prologue beats are
-    never objective-type chain steps, so the filter is a no-op for
-    them).
+    hooks (bump / visit / bounty / delve). Only steps of the locked
+    chain count (``_step.chain`` empty steps like the prologue beats
+    are never objective-type chain steps, so the filter is a no-op
+    for them). ``planet_id`` matches ``trigger_planet_id`` — used by
+    the delve gate to find the step targeting a specific planet.
     """
     for _step_id, _st in ctx.main_quest_progress.items():
         if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -315,6 +318,8 @@ def _active_objective_step(
         if npc_id and _step.requires_npc_id != npc_id:
             continue
         if spawn_id and _step.requires_spawn_id != spawn_id:
+            continue
+        if planet_id and _step.trigger_planet_id != planet_id:
             continue
         return _step_id
     return None
@@ -960,18 +965,82 @@ def mars_exploration_unlocked(ctx) -> bool:
     return step_status(ctx, "prologue_signal") in (STATUS_ACTIVE, STATUS_COMPLETED)
 
 
-def place_mars_door(game_map: world.GameMap, spawn: world.Position) -> world.Entity:
-    """Place the sealed alien door at the walkable cell farthest from spawn.
+def delve_site_unlocked(ctx, planet_id: str) -> bool:
+    """True while a ``delve`` step targeting ``planet_id`` is live.
 
-    The Mars surface is generated once and cached in ``ctx.interiors``
-    (same persistence as salvage wreck interiors), so the door is
-    placed deterministically AFTER the FIRST generation only. A BFS
-    from the spawn over walkable tiles lands on the farthest reachable
-    cell — guaranteed findable on any run, no special room tagging.
+    Gates the planet-menu "Explore <site>" option for the delve
+    planets: the surface caves stay hidden until the locked chain's
+    delve step sends the player there (see
+    :func:`spacehack.menus._planet._run_planet_menu`).
+    """
+    return _active_objective_step(ctx, "delve", planet_id=planet_id) is not None
+
+
+def surface_exploration_unlocked(ctx, planet_id: str) -> bool:
+    """True when ``planet_id``'s surface explore option may be shown.
+
+    Mars gates on the prologue signal (existing behaviour); the delve
+    planets gate on a live ``delve`` step targeting the planet. Any
+    other planet returns False — deliberate: today the ONLY planets
+    with ``dungeon_params`` are Mars + the four delve planets, so a
+    non-Mars planet with a surface dungeon is quest-gated by design.
+    (A future freely-explorable planet would need a free-explore
+    escape hatch here.)
+    """
+    if planet_id == "mars":
+        return mars_exploration_unlocked(ctx)
+    return delve_site_unlocked(ctx, planet_id)
+
+
+def prepare_delve_site(
+    ctx,
+    game_map: world.GameMap,
+    spawn: world.Position,
+    planet_id: str,
+) -> bool:
+    """Place the quest cache for ``planet_id``'s active delve step.
+
+    Called from the EXPLORE handler right after FIRST generating a
+    delve planet's surface. The planet-menu gate guarantees a live
+    delve step exists at that point (the surface can only be explored
+    while the step is available/active), so this always finds one.
+    Plants a quest-tagged loot container (``loot_data["goods"]`` =
+    the step's ``delve_good_ids`` pairs, ``main_quest_step_id`` = the
+    step) at the deepest reachable cell. Securing it via
+    :func:`secure_quest_loot` completes the step.
+
+    Returns True if a cache was placed. On False (no live delve step)
+    the map is still cached — re-entry reuses it, so a cache is never
+    respawned (anti-farm).
+    """
+    _step_id = _active_objective_step(ctx, "delve", planet_id=planet_id)
+    if _step_id is None:
+        return False
+    _step = find_main_quest_step(_step_id)
+    _cache = world.Entity(
+        char="%",
+        fg=(255, 215, 0),  # quest gold — matches mission component loot
+        pos=_farthest_walkable(game_map, spawn),
+        name="Quest Cache",
+        width=1, height=1,
+        loot_data={"goods": list(_step.delve_good_ids)},
+    )
+    _cache.main_quest_step_id = _step_id
+    game_map.entities.append(_cache)
+    return True
+
+
+def _farthest_walkable(game_map: world.GameMap, spawn: world.Position) -> world.Position:
+    """Walkable cell farthest from ``spawn`` (BFS over walkable tiles).
+
+    Lands on the deepest reachable room — guaranteed findable on any
+    generated dungeon with no special room tagging. Shared by
+    :func:`place_mars_door` and :func:`prepare_delve_site` so both
+    landmarks are placed identically (one BFS, not two).
     """
     _start = (spawn.x, spawn.y)
     # Guard: the spawn must be walkable (BSP centers always are, but a
-    # non-walkable spawn would otherwise place the door under the player).
+    # non-walkable spawn would otherwise place the landmark under the player).
     if not game_map.tiles[_start[1]][_start[0]].walkable:
         for _yy in range(game_map.height):
             for _xx in range(game_map.width):
@@ -996,10 +1065,22 @@ def place_mars_door(game_map: world.GameMap, spawn: world.Position) -> world.Ent
             if game_map.tiles[_ny][_nx].walkable:
                 _dist[(_nx, _ny)] = _d + 1
                 _queue.append((_nx, _ny))
+    return world.Position(_far[0], _far[1])
+
+
+def place_mars_door(game_map: world.GameMap, spawn: world.Position) -> world.Entity:
+    """Place the sealed alien door at the walkable cell farthest from spawn.
+
+    The Mars surface is generated once and cached in ``ctx.interiors``
+    (same persistence as salvage wreck interiors), so the door is
+    placed deterministically AFTER the FIRST generation only. Uses the
+    shared farthest-walkable BFS (see :func:`_farthest_walkable`) so
+    the door is always reachable on any run.
+    """
     _door = world.Entity(
         char="=",
         fg=(140, 80, 255),  # alien violet — distinct from any Mars tile
-        pos=world.Position(_far[0], _far[1]),
+        pos=_farthest_walkable(game_map, spawn),
         name="Sealed Entrance",
         main_quest_door=True,
     )
@@ -1095,6 +1176,9 @@ __all__ = [
     "OfferOutcome",
     "show_help_offer",
     "mars_exploration_unlocked",
+    "delve_site_unlocked",
+    "surface_exploration_unlocked",
+    "prepare_delve_site",
     "place_mars_door",
     "prepare_mars_surface",
     "bump_mars_door",

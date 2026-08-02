@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
+from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import DESERT
 
@@ -78,4 +79,24 @@ SPEC = PlanetSpec(
     ),
     tech_level=3,
     mission_tier=2,
+    # Bar chain delve site (bar_q3_rigparts): the old smuggler's lost
+    # job went wrong in the cave network under the mining outpost —
+    # the rig's power cell is still there. Planet-themed tiles
+    # (burnt dust rock + ember-charred floor).
+    explorable_site_name="caves",
+    dungeon_params=DungeonParams(
+        width=80,
+        height=60,
+        min_room_size=4,
+        max_room_size=14,
+        room_fill_pct=0.6,
+        tile_wall=world.Tile(
+            kind="dungeon_wall", char="#", walkable=False,
+            fg=(120, 85, 70), bg=(30, 20, 14),
+        ),
+        tile_floor=world.Tile(
+            kind="dungeon_floor", char=".", walkable=True,
+            fg=(210, 150, 95), bg=(65, 38, 20),
+        ),
+    ),
 )

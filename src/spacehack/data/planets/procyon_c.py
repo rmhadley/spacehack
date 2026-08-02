@@ -17,6 +17,7 @@ but with the frozen-outpost context).
 from __future__ import annotations
 
 from ... import world
+from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import ICE
 
@@ -57,4 +58,23 @@ SPEC = PlanetSpec(
     ),
     tech_level=2,
     mission_tier=2,
+    # Lab chain delve site (lab_q2_reference): the sealed research
+    # cache holds the reference resonance dataset in the ice caves
+    # beneath the outpost. Planet-themed tiles (deep ice blue).
+    explorable_site_name="caves",
+    dungeon_params=DungeonParams(
+        width=80,
+        height=60,
+        min_room_size=4,
+        max_room_size=14,
+        room_fill_pct=0.6,
+        tile_wall=world.Tile(
+            kind="dungeon_wall", char="#", walkable=False,
+            fg=(120, 150, 195), bg=(25, 35, 55),
+        ),
+        tile_floor=world.Tile(
+            kind="dungeon_floor", char=".", walkable=True,
+            fg=(200, 220, 245), bg=(55, 70, 95),
+        ),
+    ),
 )

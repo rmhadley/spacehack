@@ -599,6 +599,11 @@ def _run_game(
                                     # main_quest.prepare_mars_surface).
                                     if pid == "mars":
                                         main_quest_module.prepare_mars_surface(ctx, _dungeon_map, _spawn)
+                                    else:
+                                        # Delve planets: place the chain's
+                                        # quest cache deep in the caves
+                                        # (no-op when no delve step is live).
+                                        main_quest_module.prepare_delve_site(ctx, _dungeon_map, _spawn, pid)
                                     ctx.interiors[_surface_key] = _dungeon_map
                                 # Initialize fog of war (fresh maps only —
                                 # cached interiors keep their revealed fog).

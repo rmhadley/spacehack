@@ -102,6 +102,9 @@ def smoke_test() -> int:
         (main_quest, "secure_quest_loot"),
         (main_quest, "maybe_complete_visit"),
         (main_quest, "maybe_complete_bounty"),
+        (main_quest, "prepare_delve_site"),
+        (main_quest, "delve_site_unlocked"),
+        (main_quest, "surface_exploration_unlocked"),
     ]
     for mod, attr in _mq_checks:
         if not hasattr(mod, attr):
@@ -192,6 +195,49 @@ def smoke_test() -> int:
             print(
                 f"FAIL: world.MOVE_KEYS[{_key!r}] = "
                 f"{world.MOVE_KEYS.get(_key)!r}, expected {_expected!r}.",
+                file=sys.stderr,
+            )
+            return 1
+
+    # Delve-site data (phase 1d): the four delve planets must carry
+    # planet-themed dungeon_params (the chain-aware planet-menu gate
+    # hides their "Explore caves" option otherwise).
+    # Future-proof (vacuous until 1e-1h authors the q2 steps): any
+    # ``delve`` step must name its planet via trigger_planet_id and
+    # hold well-formed (good_id, qty) delve_good_ids that resolve.
+    from src.spacehack.data.trade_goods import find_trade_good as _ftg
+    for _s in _mq_steps:
+        if _s.objective_type != "delve":
+            continue
+        if not _s.trigger_planet_id:
+            print(
+                f"FAIL: delve step {_s.id!r} lacks trigger_planet_id.",
+                file=sys.stderr,
+            )
+            return 1
+        for _gid, _qty in _s.delve_good_ids:
+            try:
+                _ftg(_gid)
+            except KeyError:
+                print(
+                    f"FAIL: delve step {_s.id!r} cache good {_gid!r} "
+                    "is not a trade good.",
+                    file=sys.stderr,
+                )
+                return 1
+    from src.spacehack.data.planets import find_planet_spec as _fps
+    for _pid in ("mercury", "wolf_b", "barnards_b", "proc_planet_2"):
+        try:
+            _pspec = _fps(_pid)
+        except KeyError:
+            print(
+                f"FAIL: delve planet {_pid!r} missing from planet registry.",
+                file=sys.stderr,
+            )
+            return 1
+        if getattr(_pspec, "dungeon_params", None) is None:
+            print(
+                f"FAIL: delve planet {_pid!r} has no dungeon_params.",
                 file=sys.stderr,
             )
             return 1

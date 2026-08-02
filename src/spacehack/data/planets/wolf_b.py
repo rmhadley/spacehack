@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
+from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import ICE
 
@@ -79,4 +80,24 @@ SPEC = PlanetSpec(
     ),
     tech_level=2,
     mission_tier=3,
+    # Merchant chain delve site (mer_q2_strike): the Guild's abandoned
+    # prospecting claim sits in the dark caves beneath the listening
+    # post — quest-tagged rare_earth_metals deep inside. Planet-themed
+    # tiles (cold dark rock, faint mineral glint on the floor).
+    explorable_site_name="caves",
+    dungeon_params=DungeonParams(
+        width=80,
+        height=60,
+        min_room_size=4,
+        max_room_size=14,
+        room_fill_pct=0.6,
+        tile_wall=world.Tile(
+            kind="dungeon_wall", char="#", walkable=False,
+            fg=(95, 105, 120), bg=(22, 26, 32),
+        ),
+        tile_floor=world.Tile(
+            kind="dungeon_floor", char=".", walkable=True,
+            fg=(170, 185, 200), bg=(45, 52, 62),
+        ),
+    ),
 )

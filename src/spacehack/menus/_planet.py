@@ -127,12 +127,13 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> PlanetMenuO
     from ..data.planets import has_landable_port, has_explorable_sites
     has_port = has_landable_port(planet_obj.id)
     explorable_sites = has_explorable_sites(planet_obj.id)
-    # Main quest gate: Mars surface exploration stays locked until the
-    # prologue signal is received (see main_quest.mars_exploration_unlocked).
-    if planet_obj.id == "mars":
-        from .. import main_quest as main_quest_module
-        if not main_quest_module.mars_exploration_unlocked(ctx):
-            explorable_sites = []
+    # Main quest gate: surface exploration stays locked until its
+    # quest beat unlocks it — Mars until the prologue signal; the
+    # delve planets only while a chain delve step targets them (see
+    # main_quest.surface_exploration_unlocked).
+    from .. import main_quest as main_quest_module
+    if not main_quest_module.surface_exploration_unlocked(ctx, planet_obj.id):
+        explorable_sites = []
     items = _build_menu_items(planet_obj, has_port, explorable_sites)
     console = make_console()
     selected = 0
