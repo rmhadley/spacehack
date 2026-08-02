@@ -11,6 +11,10 @@ pip install -e .
 python -m spacehack           # run the game
 ```
 
+Launcher scripts (no venv handling — just `python3 run.py`):
+`run.py` (cross-platform entry), `run_spacehack` (Linux/macOS shell
+launcher), `run_spacehack.bat` (Windows).
+
 ## Git workflow (MANDATORY — aggressive local commits)
 
 **Commit after every logical change.** Do not batch changes. Do not wait until the end of a session. The working tree, not the chat log, is the source of truth.
@@ -153,6 +157,30 @@ The tilesheet `dejavu16x16_gs_tc.png` uses CP437 encoding. Only characters in th
 | Horizontal line | `-` (0x2D) or `=` (0x3D) | `─` (U+2500) |
 
 Pre-existing violations (faction bars were fixed; `═` in some titles remains but renders on the tilesheet — double-check before using box-drawing chars).
+
+### Fonts & rendering (engine.py)
+
+- **TrueType is preferred**: `TRUETYPE_FONT_FILENAME` (Hack-Regular.ttf) is
+  rasterized at 16×16 and used if present. Falls back to the CP437 tilesheet
+  (`dejavu16x16_gs_tc.png`) only when the TTF is missing or fails to load.
+- **Font gotcha**: libtcod scales a TTF to the tile height, then *shrinks* it
+  to tile width when the font's head-bbox width exceeds its em height —
+  Iosevka / JetBrains Mono / Fira Code / Cascadia Code render at ~50% size
+  at 16×16. Before adopting a font verify
+  `head.xMax - head.xMin < hhea.ascent - hhea.descent` (fontTools).
+  Hack and Source Code Pro pass.
+- **Box-drawing gotcha**: libtcod centers each glyph's *ink bounding box* in
+  its tile. Symmetric glyphs (─ │ ┼) center fine, but asymmetric corners
+  (┌ ┐ └ ┘, ╔ ╗ ╚ ╝) drift off the shared centerline — every font fails
+  this way, so font choice can't fix it. Instead, `engine.py` draws the
+  box-drawing block (U+2500-256C) **procedurally at load time**: single
+  strokes are 4px bands at rows/cols 6-9, double bars at 2-5 and 10-13,
+  mirroring the CP437 tilesheet geometry. `_procedural_texture_glyphs`
+  similarly patches shades / block / dot / card-suit glyphs.
+- `load_tileset()`: TTF first → apply procedural box/texture glyphs →
+  else CP437 tilesheet fallback. Only raises `EngineError` when both fail.
+- `pyproject.toml` package-data ships `data/*.png|ttf|otf|ttc` + `layouts/`
+  so frozen bundles (PyInstaller, `spacehack.spec`) include them.
 
 ### Code quality guardrails
 
@@ -541,7 +569,9 @@ Continue.** Neither path is optional.
 SCREEN_WIDTH   = 100
 SCREEN_HEIGHT  = 50
 WINDOW_TITLE   = "spacehack"
-TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"
+TILE_WIDTH, TILE_HEIGHT = 16, 16
+TRUETYPE_FONT_FILENAME = "Hack-Regular.ttf"   # preferred (TTF)
+TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"  # CP437 fallback only
 ```
 
 ## Modal UI pattern
