@@ -246,8 +246,10 @@ def render_hud(
     _xp_total_for_level = _xp_for_level(player_level) if player_level > 1 else 0
     _xp_into_level = max(0, player_xp - _xp_total_for_level)
     _xp_needed = _xp_to_next(player_level)
-    _xp_bar = _render_xp_bar(_xp_into_level, _xp_needed)
-    _xp_line = f"LV {player_level:>2} [{_xp_bar}]"
+    _xp_line, _xp_fg = _xp_hud_line(
+        player_level, _xp_into_level, _xp_needed,
+        getattr(ctx, 'player_skill_points', 0),
+    )
 
     # Title — always at row 0
     console.print(
@@ -349,7 +351,7 @@ def render_hud(
         ])
 
         # XP progress bar — between key hints and footer.
-        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=_xp_fg)
 
         # Bottom hint.
         y = hud_view_height - 2
@@ -448,7 +450,7 @@ def render_hud(
         ])
 
         # XP progress bar — between key hints and footer.
-        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=_xp_fg)
 
         # Footer hint at the bottom of the HUD
         y = hud_view_height - 2
@@ -502,6 +504,31 @@ def _render_xp_bar(current: int, needed: int, width: int = 10) -> str:
         return "#" * width
     filled = max(0, min(width, current * width // needed))
     return "#" * filled + "-" * (width - filled)
+
+
+def _xp_hud_line(
+    player_level: int,
+    xp_into: int,
+    xp_needed: int,
+    points: int,
+) -> tuple[str, tuple[int, int, int]]:
+    """Return ``(line, fg)`` for the HUD XP row.
+
+    When ``points > 0`` (unspent skill points) the row renders in
+    gold and appends the count (``LV 3 [####-] +9 PTS``) so the
+    player remembers to open the Character screen (C) and spend
+    them. The bar shrinks to 5 cells to fit within ``HUD_WIDTH``.
+    """
+    if points > 0:
+        # Shrink the bar so the full "+N PTS" suffix always fits within
+        # HUD_WIDTH, even for 2-3 digit point counts (9/level adds up).
+        _base = f"LV {player_level:>2} ["
+        _suffix = f" +{points} PTS"
+        _bar_width = max(1, HUD_WIDTH - len(_base) - len("]") - len(_suffix))
+        _bar = _render_xp_bar(xp_into, xp_needed, width=_bar_width)
+        return (f"{_base}{_bar}]{_suffix}")[:HUD_WIDTH], COLOR_HUD_TITLE
+    _bar = _render_xp_bar(xp_into, xp_needed)
+    return f"LV {player_level:>2} [{_bar}]"[:HUD_WIDTH], COLOR_VALUE_DIM
 
 
 def _hull_bar_color(pct: float) -> tuple[int, int, int]:
