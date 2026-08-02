@@ -244,6 +244,60 @@ def smoke_test() -> int:
             )
             return 1
 
+    # Expert NPCs (phase 1d): the four faction-chain experts must
+    # resolve in the global NPC catalog AND be placed via
+    # PlanetSpec.npc_overrides on a planet that already has the
+    # matching guild building (the override's id differs from the
+    # replaced slot so quest dialogue + the visit objective key off
+    # the expert id).
+    _expert_placements = (
+        ("eri_b", "militia_captain", "demolitions_expert"),
+        ("tc_b", "guild_master", "salvage_specialist"),
+        ("barnards_b", "barkeep", "old_smuggler"),
+        ("ac_station", "research_officer", "xenolinguist"),
+    )
+    for _epid, _slot_id, _expert_id in _expert_placements:
+        try:
+            _ep_npc = find_npc(_expert_id)
+        except KeyError:
+            print(
+                f"FAIL: expert npc {_expert_id!r} missing from catalog.",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            _epspec = _fps(_epid)
+        except KeyError:
+            print(
+                f"FAIL: expert planet {_epid!r} missing from registry.",
+                file=sys.stderr,
+            )
+            return 1
+        if not any(b.npc_id == _slot_id for b in _epspec.buildings):
+            print(
+                f"FAIL: expert planet {_epid!r} lacks the {_slot_id!r} "
+                "guild building for its expert override.",
+                file=sys.stderr,
+            )
+            return 1
+        if not any(
+            oid == _slot_id and npc_obj.id == _expert_id
+            for oid, npc_obj in _epspec.npc_overrides
+        ):
+            print(
+                f"FAIL: expert {_expert_id!r} not placed on {_epid!r} "
+                f"via the {_slot_id!r} slot override.",
+                file=sys.stderr,
+            )
+            return 1
+        if _ep_npc.guild not in ("militia", "merchants", "bar", "lab"):
+            print(
+                f"FAIL: expert {_expert_id!r} has unexpected guild "
+                f"{_ep_npc.guild!r}.",
+                file=sys.stderr,
+            )
+            return 1
+
     # Time-gate data (phase 1d): every step with a minimum-wait gate
     # must carry the completion flavor + the one-way summon message
     # that names the NEXT step's location (the check_quest_gates hook
@@ -259,6 +313,26 @@ def smoke_test() -> int:
             if not _s.ready_message:
                 print(
                     f"FAIL: gated step {_s.id!r} lacks ready_message.",
+                    file=sys.stderr,
+                )
+                return 1
+
+    # Mission-integrity (phase 1d): every static mission's giver and
+    # delivery-target NPC ids must resolve in the catalog. Slot
+    # replacements (expert NPCs) change board keys — a stale
+    # giver/delivery id silently orphans the mission or makes it
+    # uncompletable, so resolve them all here.
+    from src.spacehack.data.missions import list_missions as _list_missions
+    for _m in _list_missions():
+        for _role, _nid in (("giver", _m.giver_npc_id), ("delivery target", _m.delivery_target_npc_id)):
+            if not _nid:
+                continue
+            try:
+                find_npc(_nid)
+            except KeyError:
+                print(
+                    f"FAIL: mission {_m.id!r} {_role} npc {_nid!r} "
+                    "missing from catalog.",
                     file=sys.stderr,
                 )
                 return 1

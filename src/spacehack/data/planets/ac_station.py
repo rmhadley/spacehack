@@ -33,6 +33,7 @@ modules panel, station-only quest flow).
 from __future__ import annotations
 
 from ... import world
+from ...data import npcs as npc_module
 from . import PlanetSpec
 from .themes import STATION
 
@@ -68,7 +69,26 @@ SPEC = PlanetSpec(
         ("scout",  3, 2),
         ("hauler", 7, 4),
     ),
-    npc_overrides=(),        # reuse the global NPCS catalog for research_officer.
+    # The lab slot hosts the xenolinguist (Act 0 lab-chain expert) —
+    # the override's id differs from the replaced slot so quest
+    # dialogue + the visit objective key off the expert id.
+    npc_overrides=(
+        (
+            "research_officer",
+            npc_module.NPC(
+                id="xenolinguist",
+                name="Xenolinguist",
+                guild="lab",
+                char="S",
+                fg=(190, 170, 230),
+                flavor_text=(
+                    "The station says the signal isn't human. If "
+                    "there's a reference dataset out there, it could "
+                    "crack the whole thing open. Bring it to me."
+                ),
+            ),
+        ),
+    ),
     produces=(
         ("research_data", 20),
     ),

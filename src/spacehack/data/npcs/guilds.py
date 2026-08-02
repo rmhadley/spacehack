@@ -106,4 +106,58 @@ NPCS: tuple[NPC, ...] = (
             "no patrols, no beacons, no backup. Turn back while you still can."
         ),
     ),
+    # --- Act 0 expert NPCs (faction-chain recruitment, Phase 1d) ---
+    # Recruited via ``visit`` chain objectives: talking to the expert
+    # completes the step (requires_npc_id == expert id). Each is
+    # placed on a distant planet via PlanetSpec.npc_overrides on a
+    # planet that already has the matching guild building — the
+    # override's id differs from the replaced slot so quest dialogue
+    # keys off the expert id.
+    NPC(
+        id="demolitions_expert",
+        name="Demolitions Expert",
+        guild="militia",
+        char="K",
+        fg=(255, 170, 80),                          # ember orange
+        flavor_text=(
+            "Breach charges, cutting torches, doors that don't want "
+            "to open. If the patrol captain vouched for you, then "
+            "the work is off the books — understand?"
+        ),
+    ),
+    NPC(
+        id="salvage_specialist",
+        name="Salvage Specialist",
+        guild="merchants",
+        char="G",
+        fg=(200, 230, 130),                         # pale gold-green
+        flavor_text=(
+            "I've stripped more claims than the guild keeps records "
+            "of. Word of the abandoned claim reached me — if the "
+            "escrow ore's still there, I want my cut."
+        ),
+    ),
+    NPC(
+        id="old_smuggler",
+        name="Old Smuggler",
+        guild="bar",
+        char="b",
+        fg=(210, 150, 90),                          # dusty tan
+        flavor_text=(
+            "Cracked a door like that once. Cost me a hand and a "
+            "good ship. You bring something worth the risk, we talk."
+        ),
+    ),
+    NPC(
+        id="xenolinguist",
+        name="Xenolinguist",
+        guild="lab",
+        char="S",
+        fg=(190, 170, 230),                         # pale violet
+        flavor_text=(
+            "The station says the signal isn't human. If there's a "
+            "reference dataset out there, it could crack the whole "
+            "thing open. Bring it to me."
+        ),
+    ),
 )

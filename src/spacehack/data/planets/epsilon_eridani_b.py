@@ -11,8 +11,13 @@ Layout (60x40):
   * merchants, SW corner — the colony's trade hall.
   * militia, S row — frontier law enforcement.
 
-NPC overrides: barkeep, guild master + militia captain get
-frontier-pioneer flavour.
+NPC overrides: barkeep + guild master get frontier-pioneer
+flavour; the militia building hosts the Act 0 ``demolitions_expert``
+(its id differs from the replaced ``militia_captain`` slot so quest
+dialogue + the visit objective key off the expert id). With the
+slot occupied by the expert, the militia seek-help lead surfaces
+only on Earth/Mars militia captains (intended — the design doc lists
+Earth/Mars id-sharing variants for the seek-help fork).
 """
 from __future__ import annotations
 
@@ -90,17 +95,18 @@ SPEC = PlanetSpec(
         (
             "militia_captain",
             npc_module.NPC(
-                id="militia_captain",
-                name="Range Marshal",
+                id="demolitions_expert",
+                name="Demolitions Expert",
                 guild="militia",
                 char="K",
-                fg=(170, 140, 120),
+                fg=(255, 170, 80),
                 flavor_text=(
-                    "This far from Sol, we make our own law. "
-                    "Keep your nose clean and your drive hot."
+                    "Breach charges, cutting torches, doors that "
+                    "don't want to open. If the patrol captain "
+                    "vouched for you, the work is off the books."
                 ),
             ),
-        ),
+        ),  # militia seek-help lead stays Earth/Mars-only (expert id differs)
     ),
     produces=(
         ("ore_processed", 30),

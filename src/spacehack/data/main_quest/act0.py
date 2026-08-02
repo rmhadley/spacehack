@@ -202,6 +202,36 @@ STEPS: tuple[MainQuestStep, ...] = (
                 backing_faction="lab",
                 locks_chain=True,
             ),
+            # The Science Port lab slot hosts the xenolinguist (Act 0
+            # lab-chain expert) — the lab seek-help lead keys off the
+            # expert id so it still surfaces at Alpha Centauri.
+            "xenolinguist": QuestDialogue(
+                npc_id="xenolinguist",
+                trigger_on_talk=True,
+                intro=(
+                    "A sealed structure on Mars? The signal isn't "
+                    "human — and that door may be the same make. Bring "
+                    "me a sample of its material. A resonance key "
+                    "from the analysis would open it."
+                ),
+                active=(
+                    "The material analysis is promising. Bring the "
+                    "sample back and the key is yours — we want a "
+                    "specimen from inside for study."
+                ),
+                complete=(
+                    "The work has begun, then. Return to Mars and chip "
+                    "a sample off the door — we'll take it from there. "
+                    "The truth deserves to be published, not buried."
+                ),
+                locked=(
+                    "You've found other help. Very well — if you "
+                    "recover anything, the station will study it."
+                ),
+                option_label=_ASK_LABEL,
+                backing_faction="lab",
+                locks_chain=True,
+            ),
         },
         rewards_xp=20,
     ),

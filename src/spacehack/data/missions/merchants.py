@@ -43,7 +43,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         description=(
             "The Science Port at Alpha Centauri needs calibration "
             "gear and biologics. Ten crates — hand them to the "
-            "Research Officer on arrival. A two-jump trip through "
+            "xenolinguist on arrival. A two-jump trip through "
             "Barnard's Star."
         ),
         giver_npc_id="guild_master",
@@ -55,7 +55,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         deadline_days=50,
         early_bonus_pct=25,
         required_cargo_size=10,
-        delivery_target_npc_id="research_officer",
+        delivery_target_npc_id="xenolinguist",
         delivery_target_planet_id="ac_station",
         origin_planet_id="earth",
         recommended_class_id="merchant",
@@ -127,7 +127,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
             "artisan electronics. The floating platform above the gas "
             "giant is a long but rewarding run."
         ),
-        giver_npc_id="guild_master",
+        giver_npc_id="salvage_specialist",
         faction="merchants",
         mission_type="delivery",
         tier=2,
@@ -157,7 +157,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
             "Twenty-five crates — the biggest haul the guild offers. "
             "The Frontier Operator will be grateful. Long trip, big payout."
         ),
-        giver_npc_id="guild_master",
+        giver_npc_id="salvage_specialist",
         faction="merchants",
         mission_type="delivery",
         tier=3,

@@ -68,14 +68,15 @@ SPEC = PlanetSpec(
         (
             "guild_master",
             npc_module.NPC(
-                id="guild_master",
-                name="Trade Commissioner",
+                id="salvage_specialist",
+                name="Salvage Specialist",
                 guild="merchants",
                 char="G",
-                fg=(220, 210, 130),
+                fg=(200, 230, 130),
                 flavor_text=(
-                    "This colony runs on trade. If you've got cargo "
-                    "and a working drive, I've got credits."
+                    "I've stripped more claims than the guild keeps "
+                    "records of. Word of the abandoned claim reached "
+                    "me — if the escrow ore's still there, I want my cut."
                 ),
             ),
         ),

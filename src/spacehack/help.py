@@ -1340,6 +1340,59 @@ _GUIDE_GROUND_COMBAT = GuideSection(
 )
 
 
+_GUIDE_MAIN_QUEST = GuideSection(
+    title="Main Quest",
+    body=(
+        "The main quest is a story line that runs alongside the "
+        "sandbox. Open the quest log (Q) to see the current step; "
+        "nothing about it expires or fails — it waits for you."
+        "\n\n"
+        "Act 0 — The Door on Mars:"
+        "\n"
+        "- On your first jump out of Sol, a garbled transmission "
+        "arrives through the comms (a full-screen INCOMING "
+        "TRANSMISSION overlay). It points to a location on Mars."
+        "\n"
+        "- Land on Mars and choose 'Explore signal' to search the "
+        "surface. Among the ruins you find a sealed door of alien "
+        "make. It will not open with any human tool."
+        "\n"
+        "- Ask around about the door: the Barkeep, the Guild Master, "
+        "the Militia Captain, and the Research Officers each have a "
+        "different way in. Talk to them and pick 'Ask about the "
+        "Mars door'."
+        "\n"
+        "- Accepting a faction's help commits you to that faction's "
+        "5-step chain; the other three offers close. The door opens "
+        "only when the chain is complete."
+        "\n\n"
+        "Faction chains:"
+        "\n"
+        "- Each chain mixes the game's mechanics: report to a "
+        "faction NPC, descend into a planet's surface caves to "
+        "secure a quest cache (delve), recruit an expert on a "
+        "distant planet (visit), clear a quest-tagged bounty or "
+        "salvage a derelict, and return for the final assembly."
+        "\n"
+        "- Expert NPCs live on distant planets: the Demolitions "
+        "Expert (Epsilon Eridani b), the Salvage Specialist (Tau "
+        "Ceti b), the Old Smuggler (Barnard's Star b), and the "
+        "Xenolinguist (Alpha Centauri Science Port)."
+        "\n\n"
+        "Time gates:"
+        "\n"
+        "- Between chain steps the faction works: the next step "
+        "unlocks only after a minimum wait on the world clock (a "
+        "few in-game months). The quest log reads 'Awaiting word "
+        "from the <faction>...' while a gate is pending."
+        "\n"
+        "- When the wait elapses, the faction sends a one-way comms "
+        "message naming the next step's system and planet. Answer "
+        "it whenever you like — the step stays available forever."
+    ),
+)
+
+
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_GAME_OVERVIEW,
     _GUIDE_CONTROLS,
@@ -1356,6 +1409,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_BAR_MISSIONS,
     _GUIDE_GROUND_GEAR,
     _GUIDE_NPCS,
+    _GUIDE_MAIN_QUEST,
 )
 
 

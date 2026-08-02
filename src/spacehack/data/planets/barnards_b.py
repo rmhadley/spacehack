@@ -56,14 +56,15 @@ SPEC = PlanetSpec(
         (
             "barkeep",
             npc_module.NPC(
-                id="barkeep",
-                name="Miner",
+                id="old_smuggler",
+                name="Old Smuggler",
                 guild="bar",
                 char="b",
-                fg=(220, 140, 70),
+                fg=(210, 150, 90),
                 flavor_text=(
-                    "The rock here is mean and the pay is lean. "
-                    "But a pilot with a fast ship can always find work."
+                    "Cracked a door like that once. Cost me a hand "
+                    "and a good ship. You bring something worth the "
+                    "risk, we talk."
                 ),
             ),
         ),
