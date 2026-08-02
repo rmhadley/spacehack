@@ -492,14 +492,14 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 1g: Bar chain — "The Old Hand" (brute rig, blackmarket + militia heat)
 
-- [ ] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / smuggle / delve / bounty / talk)
-- [ ] Implement the `smuggle` objective: hot crate loaded into the mission hold (`is_smuggle` semantics — `smuggle_good_id` + `smuggle_cargo_size`), delivered to the `old_smuggler` NPC; militia scan confiscation fails the step (re-claim from the Barkeep)
-- [ ] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell, flagged as contraband while carried)
-- [ ] Write the bar gates (`wait_days` 65/85/110/80, completion flavor, summons per the chain table)
-- [ ] **Militia heat hook:** in `navigation._militia_scan_chance`, apply the +30% floor (min 60%, cap 80%) while `ctx.main_quest_chain == "bar"` and hot quest cargo is held; auto-expire at `bar_q5`
-- [ ] Wire `bar_q4_gauntlet` quest-tagged **militia patrol** spawn (not pirate — rep stakes are the point: -12 militia per kill; flee keeps the scan risk)
-- [ ] Wire `bar_q5_rig` trigger → grants `bar_brute_rig` + `prologue_open`
-- [ ] Smoke test + commit
+- [x] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / smuggle / delve / bounty / talk)
+- [x] Implement the `smuggle` objective: hot crate loaded into the mission hold (`is_smuggle` semantics — `smuggle_good_id` + `smuggle_cargo_size`), delivered to the `old_smuggler` NPC; militia scan confiscation fails the step (re-claim from the Barkeep)
+- [x] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell, flagged as contraband while carried)
+- [x] Write the bar gates (`wait_days` 65/85/110/80, completion flavor, summons per the chain table)
+- [x] **Militia heat hook:** in `navigation._militia_scan_chance`, apply the +30% floor (min 60%, cap 80%) while `ctx.main_quest_chain == "bar"` and hot quest cargo is held; auto-expire at `bar_q5`
+- [x] Wire `bar_q4_gauntlet` quest-tagged **militia patrol** spawn (not pirate — rep stakes are the point: -12 militia per kill; flee keeps the scan risk)
+- [x] Wire `bar_q5_rig` trigger → grants `bar_brute_rig` + `prologue_open`
+- [x] Smoke test + commit
 
 **PLAYTEST (1g):** full bar run — the Barkeep names the old smuggler (warns about militia interest) → pick up the hot crate → fly to Barnard's Star b: **militia patrols scan more aggressively than normal** (scan chance floor active — verify vs. a non-bar save) → deliver to the smuggler (smuggle completes) → he draws the cave → descend, recover the power cell (delve completes; cell is hot cargo now) → the Barnard's Star gate is sealed by a **militia patrol** — fight (militia rep tanks) or flee (another scan) → return to the Barkeep → rig granted + door opens. Deliberately fail `bar_q2` once: get scanned, crate confiscated, step fails, Barkeep re-offers his last crate. Barkeep dialogue stays in-character (tall tales, not exposition).
 

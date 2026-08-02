@@ -518,6 +518,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             salvage_wreck_spawn_id=_am.get("salvage_wreck_spawn_id"),
             is_smuggle=_am.get("is_smuggle", False),
             smuggle_good_id=_am.get("smuggle_good_id"),
+            main_quest_step_id=_am.get("main_quest_step_id", ""),
         ))
 
     # --- Mission boards ---

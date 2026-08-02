@@ -66,6 +66,7 @@ from .navigation import (
     _nearest_body_name,
     _add_bounty_spawns_to_map,
     _remove_bounty_spawn,
+    _pick_bounty_spawn_pos,
     _detect_combat_encounter,
     _check_auto_comms_warning,
     _run_goto,
@@ -146,52 +147,6 @@ def _prep_cached_dungeon(game_map) -> world.Position | None:
     if _spawn is None:
         _spawn = _first_walkable(game_map)
     return _spawn
-
-
-def _bounty_landmarks(system) -> list[world.Position]:
-    """Return one spawn position per landmark (planet, gate, station)
-    in ``system``, ordered by distance from the system centre."""
-    _positions: list[world.Position] = []
-    # Non-sun planets — offset east of each planet.
-    for p in system.planets:
-        if getattr(p, 'sun', False):
-            continue
-        sx = p.pos.x + p.width + 3
-        sy = p.pos.y + p.height // 2
-        if 0 <= sx < system.width and 0 <= sy < system.height:
-            _positions.append(world.Position(sx, sy))
-    # Jump gates — offset east of each gate.
-    for jp in system.jump_points:
-        sx = jp.pos.x + jp.width + 6
-        sy = jp.pos.y + jp.height // 2
-        if 0 <= sx < system.width and 0 <= sy < system.height:
-            _positions.append(world.Position(sx, sy))
-    # Stations — offset east of each station.
-    for st in getattr(system, 'stations', ()) or ():
-        sx = st.pos.x + st.width + 3
-        sy = st.pos.y + st.height // 2
-        if 0 <= sx < system.width and 0 <= sy < system.height:
-            _positions.append(world.Position(sx, sy))
-    # Sort by distance from system centre for deterministic order.
-    _cx, _cy = system.width // 2, system.height // 2
-    _positions.sort(key=lambda p: (p.x - _cx) ** 2 + (p.y - _cy) ** 2)
-    return _positions
-
-
-def _pick_bounty_spawn_pos(
-    system, *,
-    used_positions: frozenset = frozenset(),
-) -> world.Position | None:
-    """Return a free-space position in ``system`` for placing a bounty
-    target enemy. Picks the first unused landmark position (sorted by
-    distance from system centre). Returns ``None`` if all landmarks in
-    the system are already occupied by other bounty spawns — the
-    player must clear an existing bounty before another can spawn here.
-    """
-    for _pos in _bounty_landmarks(system):
-        if (_pos.x, _pos.y) not in used_positions:
-            return _pos
-    return None
 
 
 def _run_game(
@@ -417,6 +372,11 @@ def _run_game(
                         abandoned = player_active_missions[abandoned_idx]
                         log.add(f'You abandoned: {abandoned.title}.')
                         mission_module.abort_mission(abandoned, player_owned_ship, log)
+                        # Main-quest smuggle crate: abandoning the run resets
+                        # the chain step so the Barkeep re-offers his last
+                        # crate (the hold volume was released by abort).
+                        if getattr(abandoned, 'main_quest_step_id', ''):
+                            main_quest_module.fail_smuggle_step(ctx, abandoned)
                         # Return static mission to the board that offered it
                         # (per-city boards: find by mission id, not NPC id).
                         if not abandoned.is_procedural:
@@ -1010,6 +970,11 @@ def _run_game(
                             except ValueError:
                                 pass
                             ctx.player_active_missions = player_active_missions
+                            # Main-quest smuggle crate (Act 0 bar chain): a
+                            # successful delivery completes the chain step.
+                            main_quest_module.maybe_complete_smuggle_delivery(
+                                ctx, _deliver_mission,
+                            )
                     if result is TalkOutcome.WORK:
                         # Missions are offered at every reputation level —
                         # faction standing only scales pay (see

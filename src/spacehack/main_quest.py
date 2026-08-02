@@ -202,7 +202,13 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
             return (_locked, None)
         _trigger = (
             _step.id
-            if _dialogue.trigger_on_talk and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
+            if _dialogue.trigger_on_talk
+            and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
+            # Smuggle steps: the "take the crate" row only opens while
+            # the crate is still with the giver (available). Once it's
+            # in the hold (active) the option must not re-trigger.
+            and not (_step.objective_type == "smuggle"
+                     and _smuggle_crate_held(ctx, _step.id))
             else None
         )
         if _trigger is not None:
@@ -235,6 +241,10 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
     if not _dialogue.option_label:
         return None
     if step_status(ctx, _step.id) == STATUS_COMPLETED:
+        return None
+    # Smuggle steps: the crate is only offered while available — once
+    # it's in the hold (active) the row closes so it can't be re-taken.
+    if _step.objective_type == "smuggle" and _smuggle_crate_held(ctx, _step.id):
         return None
     return (_dialogue.option_label, _step.id)
 
@@ -276,6 +286,11 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
         ctx.main_quest_backing.add(_dialogue.backing_faction)
     if _dialogue.unlock_item:
         ctx.main_quest_unlocked_items.add(_dialogue.unlock_item)
+    if _step.objective_type == "smuggle":
+        # The dialogue hands the hot crate over: load it into the
+        # mission hold (is_smuggle semantics) and START the step —
+        # delivery completes it (maybe_complete_smuggle_delivery).
+        return _trigger_smuggle_crate(ctx, _step)
     return complete_step(ctx, step_id)
 
 
@@ -403,11 +418,216 @@ def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
         if _step_id is None:
             continue
         ctx.log.add_colored(
-            "The quest target is destroyed — the field test is a success.",
+            "The quest target is destroyed — the way is clear.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
-        return complete_step(ctx, _step_id)
+        if not complete_step(ctx, _step_id):
+            return False
+        # Remove the quest-tagged BountySpawn so it doesn't
+        # re-materialize on the next visit to this system.
+        _step = find_main_quest_step(_step_id)
+        if _step.trigger_system_id:
+            from .navigation import _remove_bounty_spawn as _rbs
+            _rbs(ctx, _spawn_id, _step.trigger_system_id)
+        return True
     return False
+
+
+def _smuggle_crate_held(ctx, step_id: str) -> bool:
+    """True when the smuggle step's hot crate is already in the mission hold.
+
+    Guards the Barkeep's "Take the hot crate" row: while the crate is
+    in the hold (step active), the option must not re-trigger.
+    """
+    for _am in ctx.player_active_missions:
+        if getattr(_am, "main_quest_step_id", "") == step_id:
+            return True
+    return False
+
+
+def _trigger_smuggle_crate(ctx, _step) -> bool:
+    """Hand the hot crate to the player: load it into the mission hold
+    (``is_smuggle`` semantics, exactly like a smuggling mission) and
+    START the step. Delivery completes it
+    (:func:`maybe_complete_smuggle_delivery`); a militia scan
+    confiscating it resets it (:func:`fail_smuggle_step`) so the
+    Barkeep can re-offer his last crate.
+
+    Returns False (with a log reason) when the step isn't takeable or
+    the hold can't carry the crate — the step stays available.
+    """
+    if step_status(ctx, _step.id) != STATUS_AVAILABLE:
+        return False
+    from . import mission as _mission
+    from . import ship as _ship
+    _owned = ctx.player_owned_ship
+    if _owned is None:
+        ctx.log.add("You don't have a ship to carry the crate.")
+        return False
+    if len(ctx.player_active_missions) >= _mission.MAX_ACTIVE_MISSIONS:
+        ctx.log.add(
+            f"Your mission log is full "
+            f"({_mission.MAX_ACTIVE_MISSIONS}/{_mission.MAX_ACTIVE_MISSIONS}). "
+            "Abandon one first (Q)."
+        )
+        return False
+    _size = _step.smuggle_cargo_size
+    if _size > 0:
+        _spec = _ship.find_ship(_owned.ship_id)
+        _cap = _ship.effective_max_cargo(_spec, _owned)
+        # Free hold = capacity minus trade goods AND already-reserved
+        # mission cargo (mirrors the mission-accept flow's semantics).
+        _used = _owned.cargo_used + _owned.mission_reserved
+        if _used + _size > _cap:
+            ctx.log.add(
+                f"Your {_spec.name} can't carry the hot crate — "
+                f"{_used + _size - _cap} cargo unit(s) over capacity "
+                f"({_used}/{_cap})."
+            )
+            return False
+        _owned.mission_reserved += _size
+    _am = _mission.ActiveMission(
+        mission_id=f"mq:{_step.id}",
+        is_procedural=True,
+        status=_mission.MissionStatus.IN_PROGRESS,
+        title=_step.title,
+        required_cargo_size=_size,
+        delivery_target_npc_id=_step.requires_npc_id,
+        delivery_target_planet_id=_step.trigger_planet_id,
+        target_system_id=_step.trigger_system_id,
+        is_smuggle=True,
+        smuggle_good_id=_step.smuggle_good_id,
+        main_quest_step_id=_step.id,
+        # Rewards intentionally left 0: the STEP pays (credits/XP/rep
+        # via complete_step). Mirroring them here would double-pay,
+        # since the DELIVER flow runs complete_mission first.
+    )
+    ctx.player_active_missions.append(_am)
+    start_step(ctx, _step.id)
+    _good = _step.smuggle_good_id.replace('_', ' ')
+    ctx.log.add_colored(
+        f"Hot cargo ({_good}) loaded into your mission hold. Deliver "
+        "it — and watch the militia patrols.",
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    return True
+
+
+def maybe_complete_smuggle_delivery(ctx, active) -> bool:
+    """Complete a ``smuggle`` step whose hot crate was delivered.
+
+    Called from the mission DELIVER flow (in
+    :func:`spacehack.__main__._run_game`) right after the crate's
+    ActiveMission completes. Matches the mission's
+    ``main_quest_step_id`` back to its step; returns True if a step
+    was completed.
+    """
+    _step_id = getattr(active, "main_quest_step_id", "")
+    if not _step_id:
+        return False
+    if step_status(ctx, _step_id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+        return False
+    _step = find_main_quest_step(_step_id)
+    if _step.objective_type != "smuggle":
+        return False
+    # The step's own completion_flavor (in act0.py) carries the
+    # chain-specific text — this generic hook just completes it.
+    return complete_step(ctx, _step_id)
+
+
+def fail_smuggle_step(ctx, active) -> bool:
+    """Reset a ``smuggle`` step whose crate was confiscated by a
+    militia scan (or abandoned from the quest log).
+
+    Called from :func:`spacehack.navigation._fail_smuggle_mission` and
+    the abandon flow. Resets the step to ``available`` so the Barkeep
+    re-offers his last crate; the mission itself is already removed
+    and its hold volume released by the caller.
+    """
+    _step_id = getattr(active, "main_quest_step_id", "")
+    if not _step_id:
+        return False
+    if step_status(ctx, _step_id) != STATUS_ACTIVE:
+        return False
+    ctx.main_quest_progress[_step_id] = STATUS_AVAILABLE
+    ctx.log.add_colored(
+        "The Barkeep grumbles and digs out his last crate. Don't lose "
+        "this one.",
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    return True
+
+
+def bar_heat_active(ctx) -> bool:
+    """True while the bar chain's hot cargo is in the player's hold.
+
+    The bar chain's signature risk: while ``main_quest_chain == "bar"``
+    AND the player is carrying hot quest cargo (the ``bar_q2`` crate
+    mission in the hold, or the ``bar_q3`` power cell carried after the
+    delve), militia scan chance applies a +30% floor. Auto-expires at
+    ``bar_q5`` (the rig is assembled — the hardware is gone).
+    """
+    if ctx.main_quest_chain != "bar":
+        return False
+    if step_status(ctx, "bar_q5_rig") == STATUS_COMPLETED:
+        return False
+    for _am in ctx.player_active_missions:
+        if getattr(_am, "main_quest_step_id", "") == "bar_q2_proof":
+            return True
+    # Heat persists while the militia-issue cell is in the hold: through
+    # the q3 delve, the q4 gauntlet, AND the q5 return trip — it only
+    # ends when the cell is handed over at q5 (rig collected).
+    return (
+        step_status(ctx, "bar_q3_rigparts") in (STATUS_ACTIVE, STATUS_COMPLETED)
+        or step_status(ctx, "bar_q4_gauntlet") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        or step_status(ctx, "bar_q5_rig") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+    )
+
+
+def ensure_quest_spawns(ctx, system_id: str) -> bool:
+    """Create quest-tagged bounty spawns for live ``bounty`` steps
+    targeting ``system_id`` (idempotent — skips spawns already placed).
+
+    Only records the ``BountySpawn`` — the caller
+    (:func:`spacehack.navigation._add_bounty_spawns_to_map`) materializes
+    quest spawns as entities through the same ``_bounty_leader_entity``
+    path as mission spawns (one materialization path, not two).
+    Returns True if any spawn was created.
+    """
+    _created = False
+    for _step_id, _st in list(ctx.main_quest_progress.items()):
+        if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+            continue
+        try:
+            _step = find_main_quest_step(_step_id)
+        except KeyError:
+            continue
+        if _step.objective_type != "bounty" or not _step.requires_spawn_id:
+            continue
+        if _step.trigger_system_id != system_id or not _step.bounty_enemy_id:
+            continue
+        _spawns = ctx.bounty_spawns.setdefault(system_id, [])
+        if any(_bs.spawn_id == _step.requires_spawn_id for _bs in _spawns):
+            continue  # already placed (survives save/load)
+        from .data.solar_systems import find_solar_system as _fss
+        from .navigation import _pick_bounty_spawn_pos as _pick
+        try:
+            _system = _fss(system_id)
+        except KeyError:
+            continue
+        _used = frozenset((_bs.pos.x, _bs.pos.y) for _bs in _spawns)
+        _pos = _pick(_system, used_positions=_used)
+        if _pos is None:
+            continue  # no free landmark — retry next frame
+        from .game_context import BountySpawn
+        _spawns.append(BountySpawn(
+            spawn_id=_step.requires_spawn_id,
+            enemy_id=_step.bounty_enemy_id,
+            pos=_pos,
+            comms_warning_range=12,
+        ))
+        _created = True
+    return _created
 
 
 def _complete_bump_objective(ctx) -> bool:

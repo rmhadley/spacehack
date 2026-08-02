@@ -325,6 +325,85 @@ def _nearest_body_name(pos: world.Position, system) -> str:
 # Bounty spawn helpers (needed by jump/system transition)
 # ---------------------------------------------------------------------------
 
+def _bounty_landmarks(system) -> list[world.Position]:
+    """Return one spawn position per landmark (planet, gate, station)
+    in ``system``, ordered by distance from the system centre."""
+    _positions: list[world.Position] = []
+    # Non-sun planets — offset east of each planet.
+    for p in system.planets:
+        if getattr(p, 'sun', False):
+            continue
+        sx = p.pos.x + p.width + 3
+        sy = p.pos.y + p.height // 2
+        if 0 <= sx < system.width and 0 <= sy < system.height:
+            _positions.append(world.Position(sx, sy))
+    # Jump gates — offset east of each gate.
+    for jp in system.jump_points:
+        sx = jp.pos.x + jp.width + 6
+        sy = jp.pos.y + jp.height // 2
+        if 0 <= sx < system.width and 0 <= sy < system.height:
+            _positions.append(world.Position(sx, sy))
+    # Stations — offset east of each station.
+    for st in getattr(system, 'stations', ()) or ():
+        sx = st.pos.x + st.width + 3
+        sy = st.pos.y + st.height // 2
+        if 0 <= sx < system.width and 0 <= sy < system.height:
+            _positions.append(world.Position(sx, sy))
+    # Sort by distance from system centre for deterministic order.
+    _cx, _cy = system.width // 2, system.height // 2
+    _positions.sort(key=lambda p: (p.x - _cx) ** 2 + (p.y - _cy) ** 2)
+    return _positions
+
+
+def _pick_bounty_spawn_pos(
+    system, *,
+    used_positions: frozenset = frozenset(),
+) -> world.Position | None:
+    """Return a free-space position in ``system`` for placing a bounty
+    target enemy. Picks the first unused landmark position (sorted by
+    distance from system centre). Returns ``None`` if all landmarks in
+    the system are already occupied by other bounty spawns — the
+    player must clear an existing bounty before another can spawn here.
+    """
+    for _pos in _bounty_landmarks(system):
+        if (_pos.x, _pos.y) not in used_positions:
+            return _pos
+    return None
+
+
+def _bounty_leader_entity(_bs, _espec) -> world.Entity:
+    """Build the space entity for a bounty leader/wingmate spawn.
+
+    Shared by :func:`_add_bounty_spawns_to_map` and
+    :func:`spacehack.main_quest.ensure_quest_spawns` so quest and
+    mission spawns construct identical entities (one place, not two).
+    Only the leader (no ``squad_group_id``) gets ``bounty_spawn_id`` /
+    ``heist_spawn_id`` — wingmates don't so they can't trigger
+    auto-hail or bounty completion on kill. Squad linkage + warning
+    range propagate to every member.
+    """
+    _ent = world.Entity(
+        char=_espec.char,
+        fg=_espec.fg,
+        pos=_bs.pos,
+        name=_bs.bounty_target_name or _espec.name,
+        width=1, height=1,
+        npc_ship_id=_bs.enemy_id,
+    )
+    if _bs.squad_group_id is None:
+        _ent.bounty_spawn_id = _bs.spawn_id
+        if _bs.heist_spawn_id is not None:
+            _ent.heist_spawn_id = _bs.heist_spawn_id
+    # Squad linkage: EVERY member (leader + wingmates) carries the
+    # leader's spawn id so comms Attack on ANY member — merchant
+    # leader OR pirate escort — pulls the whole squad into combat.
+    _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
+    # Propagate warning range to ALL squad members so no one
+    # triggers combat before the auto-hail fires.
+    _ent.bounty_comms_range = _bs.comms_warning_range
+    return _ent
+
+
 def _add_bounty_spawns_to_map(
     ctx, game_map: world.GameMap, system_id: str,
 ) -> None:
@@ -333,10 +412,12 @@ def _add_bounty_spawns_to_map(
 
     Called after :func:`solar_system_module.make_solar_system` so
     dynamically-spawned bounty targets appear on the map alongside
-    the system's static enemies. Logs a sensor ping with the nearest
-    landmark so the player knows where to look. No-op when the system
-    has no active bounty spawns.
+    the system's static enemies. Also ensures quest-tagged bounty
+    spawns (Act 0 chains — e.g. the bar chain's militia gauntlet)
+    exist for live bounty steps targeting this system. Logs a sensor
+    ping with the nearest landmark so the player knows where to look.
     """
+    main_quest_module.ensure_quest_spawns(ctx, system_id)
     _spawns = ctx.bounty_spawns.get(system_id, [])
     if not _spawns:
         return
@@ -346,21 +427,20 @@ def _add_bounty_spawns_to_map(
             _espec = find_npc_ship(_bs.enemy_id)
         except (KeyError, ImportError):
             continue
-        _display_name = _bs.bounty_target_name or _espec.name
-        _ent = world.Entity(
-            char=_espec.char,
-            fg=_espec.fg,
-            pos=_bs.pos,
-            name=_display_name,
-            width=1, height=1,
-            npc_ship_id=_bs.enemy_id,
-        )
         if _bs.salvage_wreck:
             # Non-combatant mission wreck: boardable, persists until the
             # component is secured. Tagged with its spawn id so the
             # boarding flow finds the mission + interior cache. Deliberately
             # NO bounty_spawn_id / heist_spawn_id / squad linkage — nothing
             # auto-hails, and killing it can never complete anything.
+            _ent = world.Entity(
+                char=_espec.char,
+                fg=_espec.fg,
+                pos=_bs.pos,
+                name=_espec.name,
+                width=1, height=1,
+                npc_ship_id=_bs.enemy_id,
+            )
             _ent.salvage_wreck_spawn_id = _bs.spawn_id
             game_map.entities.append(_ent)
             if _system is not None:
@@ -370,21 +450,7 @@ def _add_bounty_spawns_to_map(
                     message_log.COLOR_IMPORTANT_EVENT,
                 )
             continue
-        # Only the leader (no squad_group_id) gets bounty_spawn_id / heist_spawn_id.
-        # Wingmates don't get it so they don't trigger auto-hail or
-        # bounty completion on kill.
-        if _bs.squad_group_id is None:
-            _ent.bounty_spawn_id = _bs.spawn_id
-            if _bs.heist_spawn_id is not None:
-                _ent.heist_spawn_id = _bs.heist_spawn_id
-        # Squad linkage: EVERY member (leader + wingmates) carries the
-        # leader's spawn id so comms Attack on ANY member — merchant
-        # leader OR pirate escort — pulls the whole squad into combat.
-        _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
-        # Propagate warning range to ALL squad members so no one
-        # triggers combat before the auto-hail fires.
-        _ent.bounty_comms_range = _bs.comms_warning_range
-        game_map.entities.append(_ent)
+        game_map.entities.append(_bounty_leader_entity(_bs, _espec))
         if _system is not None and _bs.squad_group_id is None:
             _landmark = _nearest_body_name(_bs.pos, _system)
             ctx.log.add_colored(f"Sensor ping: bounty target detected near {_landmark}.",
@@ -545,6 +611,12 @@ def _militia_scan_chance(ctx) -> float:
 
     Allied = wave through, Liked = 20%, Neutral = 40%,
     Disliked/Enemy = 80%.
+
+    Bar-chain militia heat (Act 0): while the player is carrying hot
+    quest cargo (``bar_q2`` crate / ``bar_q3`` cell) the militia knows
+    they're working the old routes — a +30% floor applies (min 60%,
+    capped 80%) on every militia-patrolled system. Auto-expires at
+    ``bar_q5`` (see :func:`spacehack.main_quest.bar_heat_active`).
     """
     _rep = ctx.faction_reputation.get('militia', 0)
     _att = _get_attitude(_rep)
@@ -555,7 +627,10 @@ def _militia_scan_chance(ctx) -> float:
         'disliked': 0.80,
         'enemy': 0.80,
     }
-    return _table.get(_att, 0.40)
+    _chance = _table.get(_att, 0.40)
+    if main_quest_module.bar_heat_active(ctx):
+        _chance = max(0.60, min(0.80, _chance + 0.30))
+    return _chance
 
 
 def _calc_flee_chance(ctx) -> float:
@@ -1196,6 +1271,11 @@ def _fail_smuggle_mission(ctx, owned, active) -> None:
         _board = mission_module.find_board_for_mission(ctx, active.mission_id)
         if _board is not None:
             mission_module.board_return_static(_board, active.mission_id)
+    # Main-quest smuggle crate (Act 0 bar chain): a confiscation fails
+    # the quest step — reset it so the Barkeep can re-offer his last
+    # crate (the crate's ActiveMission is already removed above).
+    if getattr(active, 'main_quest_step_id', ''):
+        main_quest_module.fail_smuggle_step(ctx, active)
 
 
 # ---------------------------------------------------------------------------

@@ -133,6 +133,8 @@ class MainQuestStep:
     requires_goods: tuple[tuple[str, int], ...] = ()  # (good_id, qty) checked + consumed on trigger
     requires_npc_id: str | None = None  # expert NPC to recruit ("visit") or hot-cargo delivery target ("smuggle")
     requires_spawn_id: str | None = None  # quest-tagged bounty/salvage spawn id ("bounty"/"salvage")
+    bounty_enemy_id: str = ""  # enemy ship id for the quest-tagged "bounty" spawn
+                                # (e.g. "militia_patrol" — the bar chain's gauntlet)
     # (good_id, qty) pairs placed in the quest cache ("delve") — the
     # cache yields these. ``trigger_planet_id`` names the delve planet.
     delve_good_ids: tuple[tuple[str, int], ...] = ()

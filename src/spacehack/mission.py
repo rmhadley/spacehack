@@ -103,6 +103,12 @@ class ActiveMission:
     is_smuggle: bool = False       # cargo is hot — militia scans can confiscate it
     smuggle_good_id: str | None = None  # flavor good id for quest log display
 
+    # Main-quest link (Act 0 chains): the chain step this mission
+    # belongs to (e.g. the bar chain's hot crate → "bar_q2_proof").
+    # Empty = ordinary mission. Read by the smuggle objective hooks
+    # (delivery completes the step; confiscation/abandon resets it).
+    main_quest_step_id: str = ""
+
     # Deadline
     time_deadline: tuple[int, int, int] | None = None  # (day, month, year)
     deadline_days: int = 0

@@ -332,6 +332,14 @@ STEPS: tuple[MainQuestStep, ...] = (
         trigger_system_id="sol",
         requires_step="prologue_seek_help",
         chain="bar",
+        objective_type="talk",
+        wait_days=65,
+        completion_flavor="The old man is cagey — he'll see you for the right price.",
+        ready_message=(
+            "The old man will see you for the right price. Come by the "
+            "bar first — I've got a crate that'll get you in the door. "
+            "Then run it to Barnard's Star b."
+        ),
         dialogues={
             "barkeep": QuestDialogue(
                 npc_id="barkeep",
@@ -357,6 +365,207 @@ STEPS: tuple[MainQuestStep, ...] = (
             ),
         },
         rewards_xp=50,
+    ),
+    MainQuestStep(
+        id="bar_q2_proof",
+        title="The Proof Run",
+        description=(
+            "The old smuggler won't deal with strangers. The Barkeep "
+            "hands you a hot crate of black-market weapons — run it to "
+            "the Old Smuggler at Barnard's Star b. Every militia "
+            "patrol on the way can scan it."
+        ),
+        trigger_planet_id="barnards_b",
+        trigger_system_id="barnards_star",
+        requires_step="bar_q1_oldhand",
+        chain="bar",
+        objective_type="smuggle",
+        requires_npc_id="old_smuggler",
+        smuggle_good_id="weapons_blackmarket",
+        smuggle_cargo_size=8,
+        wait_days=85,
+        completion_flavor="He drew the cave. Meet him at the dig.",
+        ready_message=(
+            "He drew the cave where the old job went wrong — the rig's "
+            "power cell is still down there. Meet him at the dig on "
+            "Barnard's Star b."
+        ),
+        dialogues={
+            "barkeep": QuestDialogue(
+                npc_id="barkeep",
+                trigger_on_talk=True,
+                intro=(
+                    "The old man won't deal with strangers — but he "
+                    "owes the bar. I've got one crate left: black-market "
+                    "weapons, hot as they come. Run it to him at "
+                    "Barnard's Star b and he'll draw you the cave."
+                ),
+                active=(
+                    "The crate's in your hold. Get it to the old man "
+                    "on Barnard's Star b before a patrol sniffs it."
+                ),
+                complete=(
+                    "He took the crate, then? Good — now he's got to "
+                    "draw you the cave. The story's worth a round when "
+                    "you're back."
+                ),
+                locked=(
+                    "Already running that crate, are you? The old man "
+                    "is a patient sort. So's the militia."
+                ),
+                option_label="Take the hot crate",
+                backing_faction="bar",
+            ),
+            "old_smuggler": QuestDialogue(
+                npc_id="old_smuggler",
+                intro=(
+                    "The bar sent word. You got the crate, or are we "
+                    "wasting both our times?"
+                ),
+                active=(
+                    "Crate's here, good. Now the part you came for: the "
+                    "cave where the old job went wrong is up the ridge. "
+                    "The rig's power cell is still down there. Fetch it, "
+                    "and the bar gets its story."
+                ),
+                complete=(
+                    "Cell's out, then? Good. The militia's got a nose "
+                    "for that hardware — don't let them catch you "
+                    "carrying it."
+                ),
+                backing_faction="bar",
+            ),
+        },
+        rewards_credits=100,
+        rewards_xp=80,
+        rewards_rep={"pirate": +2, "merchant": -5, "civilian": -5, "militia": -8},
+    ),
+    MainQuestStep(
+        id="bar_q3_rigparts",
+        title="The Power Cell",
+        description=(
+            "The old smuggler drew the cave where the old job went "
+            "wrong. Descend into the Barnard's Star b surface caves "
+            "and recover the rig's power cell — militia-issue "
+            "hardware. While you carry it, the militia is watching."
+        ),
+        trigger_planet_id="barnards_b",
+        trigger_system_id="barnards_star",
+        requires_step="bar_q2_proof",
+        chain="bar",
+        objective_type="delve",
+        delve_good_ids=(("machine_parts", 1), ("electronics", 1)),
+        wait_days=110,
+        completion_flavor="The militia is sealing the gate. Run now.",
+        ready_message=(
+            "The militia is sealing the Barnard's Star gate — they "
+            "know you're carrying that cell. Run the gauntlet before "
+            "it closes."
+        ),
+        dialogues={
+            "old_smuggler": QuestDialogue(
+                npc_id="old_smuggler",
+                intro=(
+                    "The cave's up the ridge, past the old dig markers. "
+                    "The cell is down in the dark — watch your step, "
+                    "and watch the sky. The militia's been circling."
+                ),
+                active=(
+                    "The cave's up the ridge. The power cell is down "
+                    "in the dark — and the militia knows you're "
+                    "looking for it."
+                ),
+                complete=(
+                    "You got it out? Good. Now get it off this moon "
+                    "before the gate seals shut."
+                ),
+                backing_faction="bar",
+            ),
+        },
+        rewards_xp=60,
+    ),
+    MainQuestStep(
+        id="bar_q4_gauntlet",
+        title="The Gauntlet",
+        description=(
+            "The militia has sealed the Barnard's Star gate — you "
+            "can't jump out clean with the cell. A militia patrol "
+            "intercepts you: fight through, or flee and risk another "
+            "scan."
+        ),
+        trigger_system_id="barnards_star",
+        requires_step="bar_q3_rigparts",
+        chain="bar",
+        objective_type="bounty",
+        requires_spawn_id="bar_q4_patrol",
+        bounty_enemy_id="militia_patrol",
+        wait_days=80,
+        completion_flavor="The rig's assembled. Come raise a glass.",
+        ready_message=(
+            "The rig's assembled — a brute-force harness that'll crack "
+            "that seal like the old man's door. Come raise a glass at "
+            "the bar on Earth."
+        ),
+        dialogues={
+            "barkeep": QuestDialogue(
+                npc_id="barkeep",
+                intro=(
+                    "Heard you ran the gauntlet — the militia's still "
+                    "picking splinters out of the gate. The cell made "
+                    "it out, then? The rig's almost done."
+                ),
+                active=(
+                    "The militia's sealing the gate out of Barnard's "
+                    "Star. Run the cell through before it closes."
+                ),
+                complete=(
+                    "The rig's assembled. Come raise a glass."
+                ),
+                backing_faction="bar",
+            ),
+        },
+        rewards_credits=150,
+        rewards_xp=120,
+    ),
+    MainQuestStep(
+        id="bar_q5_rig",
+        title="The Rig",
+        description=(
+            "Return to the Barkeep on Earth. The brute-force rig is "
+            "assembled — it will crack the door's power feed."
+        ),
+        trigger_planet_id="earth",
+        trigger_system_id="sol",
+        requires_step="bar_q4_gauntlet",
+        chain="bar",
+        objective_type="talk",
+        unlocks_step="prologue_open",
+        rewards_item=_BAR_RIG,
+        dialogues={
+            "barkeep": QuestDialogue(
+                npc_id="barkeep",
+                trigger_on_talk=True,
+                intro=(
+                    "There she is — the brute-force rig. Cracks the "
+                    "seal's power feed, just like the old man's door. "
+                    "The militia will be watching you from here on, "
+                    "friend. Welcome to the family."
+                ),
+                active=(
+                    "The rig's here when you're ready. After that door "
+                    "opens, the story's worth a round."
+                ),
+                complete=(
+                    "Take the rig and open that door. The bar wants "
+                    "the story when you're done — and the militia will "
+                    "be watching."
+                ),
+                option_label="Collect the rig",
+                backing_faction="bar",
+            ),
+        },
+        rewards_credits=200,
+        rewards_xp=150,
     ),
     MainQuestStep(
         id="lab_q1_sample",
