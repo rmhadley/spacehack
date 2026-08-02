@@ -107,7 +107,11 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                 _label = "Return to" if _is_out_and_back else "Deliver to"
                 _secured = _is_out_and_back and getattr(am, 'heist_good_secured', False)
                 _fg = (120, 220, 120) if _secured else ui.COLOR_VALUE_WHITE
-                paint(detail_top, fit(f'{_label}: {_planet_name}{_npc_name}'), fg=_fg)
+                # Always spell out the destination system so the player
+                # knows where to fly, even for same-system deliveries.
+                _sys_name = _planet_system_name(am.delivery_target_planet_id)
+                _sys_txt = f" in {_sys_name}" if _sys_name else ""
+                paint(detail_top, fit(f'{_label}: {_planet_name}{_sys_txt}{_npc_name}'), fg=_fg)
                 detail_top += 1
             # Smuggling missions render their own cargo line (with the
             # contraband type + scan risk) below — skip the generic row.
@@ -139,11 +143,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             detail_top += 1
             # Target name + system + wingmates.
             _target_name = am.bounty_target_name or _npc_ship_name(am.target_enemy_id)
-            try:
-                from ..data.solar_systems import find_solar_system as _fss_q
-                _target_sys_name = _fss_q(am.target_system_id).name
-            except (KeyError, ImportError):
-                _target_sys_name = am.target_system_id
+            _target_sys_name = _system_display_name(am.target_system_id)
             _wing_count = am.bounty_target_squad_size - 1
             _wing_id = getattr(am, 'bounty_wingmate_enemy_id', None)
             _wing_label = "wingmates"
@@ -161,7 +161,8 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
 
         # Salvage-specific display: the patrol, boarded wreck + component status.
         if _salv_wreck is not None:
-            # Patrol info (resolved to friendly names from NpcShipSpec catalog).
+            # Patrol info (resolved to friendly names from NpcShipSpec catalog),
+            # with the patrol's system appended (same convention as bounties).
             _patrol_name = _npc_ship_name(am.target_enemy_id)
             _patrol_count = am.bounty_target_squad_size
             _wing_id = getattr(am, 'bounty_wingmate_enemy_id', None)
@@ -172,11 +173,13 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                         f"{_wing_name}" if _patrol_count - 1 == 1
                         else f"{_wing_name}s"
                     )
-                    paint(detail_top, fit(f'Patrol: {_patrol_name} + {_patrol_count - 1} {_wing_label}'), fg=ui.COLOR_VALUE_WHITE)
+                    _patrol_label = f'{_patrol_name} + {_patrol_count - 1} {_wing_label}'
                 else:
-                    paint(detail_top, fit(f'Patrol: {_patrol_count}x {_patrol_name}'), fg=ui.COLOR_VALUE_WHITE)
+                    _patrol_label = f'{_patrol_count}x {_patrol_name}'
             else:
-                paint(detail_top, fit(f'Patrol: {_patrol_name}'), fg=ui.COLOR_VALUE_WHITE)
+                _patrol_label = _patrol_name
+            _sys_txt = f" ({_system_display_name(am.target_system_id)})"
+            paint(detail_top, fit(f'Patrol: {_patrol_label}{_sys_txt}'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
             # Wreck name.
             _wreck_name = _npc_ship_name(_salv_wreck)
@@ -193,11 +196,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         _heist_good = getattr(am, 'heist_target_good_id', None)
         if _heist_good is not None and _salv_wreck is None:
             _target_name = _npc_ship_name(am.target_enemy_id)
-            try:
-                from ..data.solar_systems import find_solar_system as _fss_i
-                _target_sys = _fss_i(am.target_system_id).name
-            except (KeyError, ImportError):
-                _target_sys = (am.target_system_id or "unknown").replace('_', ' ').title()
+            _target_sys = _system_display_name(am.target_system_id)
             paint(detail_top, fit(f'Target: {_target_name} ({_target_sys})'), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
             _good_name = _good_display_name(_heist_good)
@@ -273,6 +272,37 @@ _SCAN_RISK_STEPS: tuple[tuple[int, str, tuple[int, int, int]], ...] = (
     (1, "Low",    (120, 220, 120)),
     (2, "Medium", (255, 200, 100)),
 )
+
+
+def _system_display_name(system_id: str | None) -> str:
+    """Resolve a solar-system id to its display name, with fallback.
+
+    Falls back to a title-cased version of the raw id when the
+    catalog lookup fails. ``None`` resolves to ``"unknown"``.
+    """
+    if not system_id:
+        return "unknown"
+    try:
+        from ..data.solar_systems import find_solar_system as _fss
+        return _fss(system_id).name
+    except (KeyError, ImportError):
+        return system_id.replace('_', ' ').title()
+
+
+def _planet_system_name(planet_id: str | None) -> str | None:
+    """Resolve a planet id to its solar system's display name.
+
+    Uses the cached planet-to-system mapping from
+    :func:`mission._planet_to_system` (already built for procedural
+    generation), so the quest log always agrees with the generators.
+    Returns ``None`` for unknown planets / bare ids.
+    """
+    if not planet_id:
+        return None
+    _sys_id = mission_module._planet_to_system().get(planet_id)
+    if _sys_id is None:
+        return None
+    return _system_display_name(_sys_id)
 
 
 def _npc_ship_name(ship_id: str | None) -> str:
