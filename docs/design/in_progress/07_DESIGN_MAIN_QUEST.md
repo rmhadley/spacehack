@@ -123,27 +123,26 @@ The existing `render_npc_talk` function in `npc.py` already accepts an `NPC` obj
 ### Example flow
 
 ```
-# After first launch, player talks to Earth Guild Master:
-# ctx.main_quest_progress = {"prologue_launch": "completed"}
-# Guild Master has quest_dialogues for "prologue_sol":
-#   intro = "Heard that transmission? Something's happening past Luyten's Star."
+# After receiving the transmission, player talks to Earth Guild Master:
+# ctx.main_quest_progress = {"prologue_mars_entrance": "completed"}
+# Guild Master has quest_dialogues for "prologue_seek_help":
+#   intro = "Alien tech on Mars? That's the most valuable cargo in history."
 #
 # NPC talk renders:
 #   ┌─────────────────────────────────────────┐
 #   │        Guild Master (merchants)          │
 #   │                                          │
-#   │ "Heard that transmission? Something's    │
-#   │  happening past Luyten's Star. You might │
-#   │  start at the Science Port near Alpha    │
-#   │  Centauri."                              │
+#   │ "Alien tech on Mars? That's the most     │
+#   │  valuable cargo in history. Bring me     │
+#   │  proof it's real."                       │
 #   │                                          │
-#   │ > Discuss the signal <                   │
+#   │ > Tell me about the door <               │
 #   │   View available work                    │
 #   └─────────────────────────────────────────┘
 #
-# Player selects "Discuss the signal" -> step "prologue_sol" completes
-# ctx.main_quest_progress["prologue_sol"] = "completed"
-# ctx.main_quest_progress["research_alpha"] = "available"
+# Player selects "Tell me about the door" -> step "prologue_seek_help" completes
+# ctx.main_quest_progress["prologue_seek_help"] = "completed"
+# ctx.main_quest_progress["prologue_open"] = "available"
 ```
 
 ### Resolve dialogue helper
@@ -216,14 +215,23 @@ class MainQuestStep:
 
 ## Story outline (3 acts)
 
-### Act 0: Prologue — "First Flight"
+### Act 0: Prologue — "The Door on Mars"
+
+The player receives a garbled transmission while flying through Sol. It points to a location on Mars. They explore Mars, find a sealed entrance to *something*, and can't get it open — then they seek help from NPCs across the sector. Act 0 ends when the player returns with the right knowledge/tools to open it.
+
+**The Mars door is alien tech — the same kind as the Act 3 structure, but dormant.** The Act 3 structure is the *active, failing* seal; the Mars door is a *sealed, dormant* example of the same technology. It won't open with any human tool. This seeds the through-line: the player learns how the seal tech works here, and understands (and resolves) the failing seal at the end of the story. The two must NOT be conflated mechanically — the Mars door opens only with the right tool; the Act 3 structure opens on a cycle (M4's "door that opens on a cycle" refers to the Act 3 structure, not the Mars door).
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
-| `prologue_launch` | Auto on first launch | None | Garbled transmission on an unknown frequency — "…they opened it. The door is…" static, "…this is the last warning…" cut off. The player is the only one who seems to have heard it. |
-| `prologue_sol` | Talk to Guild Master, Barkeep, or Captain on Earth | Any of the three | **Breadcrumb** (but each giver shows a DIFFERENT read, seeding the faction fork early): Barkeep: "Half the port says it's militia jamming. The other half says what they're jamming is real." Guild Master: "A signal past the Line? There are people who would pay a fortune for proof." Captain (militia): "There is no signal. Fly safe." |
+| `prologue_signal` | Auto while flying through Sol (first launch) | None | Garbled transmission on an unknown frequency — static, a burst of coordinates, then cut off. It points to a location on Mars. The player is the only one who seems to have heard it. |
+| `prologue_mars_unlocked` | Signal received (auto) | None (checkpoint) | **Mars surface exploration unlocks.** (Today Mars is *always* explorable — see the gate note below.) |
+| `prologue_mars_entrance` | Explore the Mars surface | Mars (dungeon) | Among the red-dust ruins the player finds the entrance to something — a sealed door of alien make, no visible mechanism, older than the colony. It will not open. |
+| `prologue_seek_help` | Talk to NPCs about the door | Any of several | The player begins looking for help. Each faction NPC gives a DIFFERENT lead (faction fork seeds here): Barkeep (bar): "Heard about the thing in the dust? The militia sealed it — or *someone* did." Trade Marshal (merchants): "Alien tech? That's the most valuable cargo in history. Bring me proof." Mars Patrol (militia): "There is no door. Whatever you saw, forget it." Research Officer (lab): "A sealed structure? I need to study it. Bring me a sample of the material." The lab lead is found at a **science station** (Alpha Centauri Science Port, Mercury, Sirius, Procyon C) — Mars has no lab building, so the lab read is the one that pulls the player off-world (which feeds into Act 1's research trail). Dialogue is keyed by `npc_id`, so seek-help lines surface on whichever planet the player talks to the NPC (Earth or Mars variants of `barkeep`/`guild_master`/`militia_captain` share ids — intended). |
+| `prologue_open` | Return to Mars with the right knowledge/tool | None (auto) | Act 0 ends when the player returns with what they need and opens the entrance — revealing where Act 1 begins. |
 
-**Reward:** None (sets the hook + plants the faction choice).
+**Reward:** The door opens. Act 1 hooks. Faction fork is seeded (each NPC's lead points a different direction).
+
+**Mars exploration gate (implementation note):** `data/planets.has_explorable_sites("mars")` returns `["Surface"]` whenever `dungeon_params` exists, so the planet menu always offers "Explore Surface". Act 0 requires gating this on `prologue_signal`: before the transmission, the Mars planet menu shows no Explore option (or a locked "??" entry). See Phase 1.
 
 ### Act 1: "The Anomaly"
 
@@ -285,13 +293,16 @@ A dead-star system with an alien structure — the source of the signal.
 
 ## Implementation phases
 
-### Phase 1: Data model + Prologue
+### Phase 1: Data model + Prologue (Act 0 — "The Door on Mars")
 
 - [ ] Add `MainQuestStep` dataclass to `data/main_quest/` module
 - [ ] Add `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_complete` to `GameContext`
-- [ ] Write Act 0 steps as data
-- [ ] Wire prologue auto-trigger into `_launch_to_space` (first launch only)
-- [ ] Wire prologue NPC dialogue into guild master, barkeep, and militia captain talk modals (3 faction reads)
+- [ ] Write Act 0 steps as data (`prologue_signal` → `prologue_mars_unlocked` → `prologue_mars_entrance` → `prologue_seek_help` → `prologue_open`)
+- [ ] Wire `prologue_signal` auto-trigger into `_launch_to_space` (first launch only, in Sol)
+- [ ] **Gate Mars exploration** on `prologue_signal`: `has_explorable_sites` / planet menu must hide "Explore Surface" until the transmission is received
+- [ ] Add the sealed entrance to the Mars surface (a distinct tile/entity — alien make, unopenable until `prologue_open`). The Mars surface is procedurally generated via `dungeon_params`/`generate_dungeon` (random each visit), so the entrance needs a deterministic placement strategy: e.g. place the sealed-door entity at a fixed position AFTER generation, or tag a landmark room so the player can find it on any run
+- [ ] Wire `prologue_seek_help` dialogue into bar / merchant / militia / lab NPCs (4 faction reads)
+- [ ] Wire `prologue_open` — returning with the right knowledge/tool opens the door, Act 1 begins
 - [ ] Smoke test + commit
 
 ### Phase 2: Acts 1-3 story data
@@ -349,7 +360,9 @@ A dead-star system with an alien structure — the source of the signal.
 
 1. ~~What exactly is the warning?~~ **RESOLVED:** The structure is a seal. The signal is the lock failing — something is trying to come through, and the seal is breaking. The builders left the warning so someone would be ready.
 2. ~~Faction questline depth~~ **RESOLVED:** militia + merchants get full backing questlines in v1; bar + lab are dialogue-only backing (claims still reachable via path choice / research completion).
-3. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
-4. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
-5. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
-6. **No time pressure, no fail states** — the quest waits forever. Confirmed.
+3. **What is behind the Mars door?** The through-line is that the door is the same alien seal tech as the Act 3 structure — but is it (a) a scout/relay that teaches the player how the seal works (knowledge unlock, no combat), (b) an intact beacon that must not be opened (the player finds a warning inside), or (c) a direct shortcut into the Act 1 research trail (points the player at the Science Port)? — needs the user's call.
+4. **What opens the Mars door?** The "right knowledge/tool" for `prologue_open` — does it come from a faction's help (merchant gives a cutting tool, lab gives the resonance key, militia has the classified schematics), or is it a skill/level check, or a small object quest? — needs the user's call.
+5. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
+6. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
+7. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
+8. **No time pressure, no fail states** — the quest waits forever. Confirmed.
