@@ -89,8 +89,8 @@ def render_npc_talk(
     body = f'"{quest_body if quest_body else npc.flavor_text}"'
     content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
-    ui.screen_header(console, screen_width, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
-    ui.paint_line(console, content_x, 4, ui.fit_text(body, max_w), fg=ui.COLOR_DESCRIPTION)
+    content_y = ui.screen_header(console, screen_width, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
+    ui.paint_line(console, content_x, content_y, ui.fit_text(body, max_w), fg=ui.COLOR_DESCRIPTION)
 
     _missions = deliver_missions or []
     options: list[tuple[str, str]] = []  # (label, kind: quest/deliver/work)
@@ -101,7 +101,7 @@ def render_npc_talk(
     options.append(("View available work", "work"))
     n = len(options)
     sel = selected % n
-    list_top = 6
+    list_top = content_y + 2
     for i, (label, kind) in enumerate(options):
         row = list_top + i * 2
         is_selected = i == sel

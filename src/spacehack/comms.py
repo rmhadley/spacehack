@@ -137,14 +137,16 @@ def _render_comms_panel(
         _flavor = spec.comms_lines[0] if spec.comms_lines else "..."
         _items.append((_display_name, _flavor))
 
-    ui.screen_header(console, SCREEN_WIDTH, title, fg=_CONTACTS_TITLE_COLOR)
+    content_y = ui.screen_header(console, SCREEN_WIDTH, title, fg=_CONTACTS_TITLE_COLOR)
     ui.render_selectable_list(
         console, SCREEN_WIDTH, SCREEN_HEIGHT,
         title="",
         items=_items,
         selected=selected,
         col_x=2,
-        title_y=2,
+        # render_selectable_list starts items at title_y + 2, so
+        # title_y = content_y - 2 puts the list at content_y.
+        title_y=content_y - 2,
         row_spacing=3,
         item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
         item_fg_normal=ui.COLOR_OPTION,

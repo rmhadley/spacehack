@@ -59,11 +59,11 @@ def render_ship_buy(console: tcod.console.Console, ctx: GameContext, ship: ship_
     back = 'Press ESC to walk away.'
     content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
-    ui.screen_header(console, screen_width, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
-    ui.paint_line(console, content_x, 4, ui.fit_text(body, max_w), fg=ui.COLOR_DESCRIPTION)
-    ui.paint_line(console, content_x, 7, ui.fit_text(price_line, max_w), fg=ui.COLOR_VALUE_WHITE if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
-    ui.paint_line(console, content_x, 9, ui.fit_text(afford, max_w), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
-    ui.paint_line(console, content_x, 11, ui.fit_text(back, max_w), fg=ui.COLOR_INSTRUCTION)
+    content_y = ui.screen_header(console, screen_width, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
+    ui.paint_line(console, content_x, content_y, ui.fit_text(body, max_w), fg=ui.COLOR_DESCRIPTION)
+    ui.paint_line(console, content_x, content_y + 3, ui.fit_text(price_line, max_w), fg=ui.COLOR_VALUE_WHITE if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
+    ui.paint_line(console, content_x, content_y + 5, ui.fit_text(afford, max_w), fg=ui.COLOR_OPTION_HIGHLIGHT if ctx.stats.credits >= _price else ui.COLOR_VALUE_DIM)
+    ui.paint_line(console, content_x, content_y + 7, ui.fit_text(back, max_w), fg=ui.COLOR_INSTRUCTION)
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 

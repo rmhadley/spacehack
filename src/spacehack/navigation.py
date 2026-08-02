@@ -206,13 +206,13 @@ def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen
     if system is None:
         system = solar_system_module.current_system()
     title = f'NAVIGATION - {system.name.upper()} SYSTEM'
-    ui.screen_header(console, screen_width, title)
+    content_y = ui.screen_header(console, screen_width, title)
     inner_view_w = screen_width - HUD_WIDTH
     inner_view_h = screen_height - MSG_LOG_HEIGHT
     nav_map_w = 40
     nav_map_h = 30
     map_off_x = (inner_view_w - nav_map_w) // 2
-    map_off_y = 4
+    map_off_y = content_y
     sample_x = system.width / nav_map_w
     sample_y = system.height / nav_map_h
     bodies_for_overlay = list(system.planets) + list(system.jump_points)
@@ -247,7 +247,7 @@ def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen
     if hasattr(system, 'stations'):
         aoi_w = 28
         aoi_x = screen_width - aoi_w - 2
-        aoi_y = 4
+        aoi_y = content_y
         aoi_h = max(8, screen_height - 12)
         aoi_x = max(0, min(aoi_x, screen_width - aoi_w - 1))
         _render_aoi_panel(console, system, ship_pos, x=aoi_x, y=aoi_y, width=aoi_w, height=aoi_h)
@@ -765,14 +765,16 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
     while True:
         console.clear()
         _goto_items = [(label, "") for label, _body in destinations]
-        ui.screen_header(console, SCREEN_WIDTH, "GO TO")
+        content_y = ui.screen_header(console, SCREEN_WIDTH, "GO TO")
         ui.render_selectable_list(
             console, SCREEN_WIDTH, SCREEN_HEIGHT,
             title="",
             items=_goto_items,
             selected=selected,
             col_x=2,
-            title_y=2,
+            # render_selectable_list starts items at title_y + 2, so
+            # title_y = content_y - 2 puts the list at content_y.
+            title_y=content_y - 2,
             hint='ARROW KEYS / j,k navigate - ENTER go - ESC cancel',
         )
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)

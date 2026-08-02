@@ -799,10 +799,11 @@ def screen_header(
 ) -> int:
     """Paint the unified screen header: centered title + divider rule.
 
-    Returns the first content row (``row + 2``) so callers anchor
-    content directly beneath the header.  Every full-screen menu
-    routes its title through this function — change the divider char,
-    colour, or width here and all of them follow.
+    Returns the first content row (``row + 3``) so callers anchor
+    content one blank row below the divider — the header's breathing
+    room.  Every full-screen menu routes its title through this
+    function — change the divider char, colour, width, or the
+    header-to-content gap here and all of them follow.
     """
     paint_title(console, screen_width, row, title, fg=fg)
     if divider_w is None:
@@ -812,7 +813,7 @@ def screen_header(
         x=divider_x, y=row + 1,
         string=DIVIDER_CHAR * divider_w, fg=COLOR_DIVIDER,
     )
-    return row + 2
+    return row + 3
 
 
 def paint_rule(
