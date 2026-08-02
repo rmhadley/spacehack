@@ -573,41 +573,37 @@ def fill_empty_slots(
     if _generator_fn is None:
         return  # no procedural missions for this guild
 
-    # --- Faction reputation gating ---
-    _eff_tier: int | None = None
-    _board_attitude: str = "neutral"
+    # --- Faction reputation: pay scaling only (never gates access) ---
+    # Every guild offers missions at any reputation; standing only
+    # adjusts pay (disliked -15%, liked +10%, allied +20%). The hard
+    # gates (enemy refusal, tier cuts) were removed by design.
+    _pay_pct = 0
     if ctx is not None:
-        from .faction import guild_to_faction, adjust_mission_tier, get_attitude
+        from .faction import guild_to_faction, adjust_reward_pct, get_attitude
         _board_faction = guild_to_faction(_guild)
         _board_rep = ctx.faction_reputation.get(_board_faction, 0)
         _board_attitude = get_attitude(_board_rep)
-        if _board_attitude == "enemy":
-            return  # no procedural missions at enemy attitude
-        _eff_tier = adjust_mission_tier(planet_tier, _board_attitude)
+        _pay_pct = adjust_reward_pct(_board_attitude)
 
     # Fill remaining empty slots with procedural missions.
     _proc_counter = 0
     for i in range(len(board.slots)):
         if board.slots[i] is not None:
             continue
-        _max_tier = _eff_tier if _eff_tier is not None else planet_tier
         _proc = _generator_fn(
             origin_planet_id=planet_id,
-            max_tier=_max_tier,
+            max_tier=planet_tier,
             rng=rng,
             counter=_proc_counter,
             giver_npc_id=board.npc_id,
         )
         if _proc is not None:
-            # Apply faction attitude pay scaling.
-            if ctx is not None and _eff_tier is not None:
-                from .faction import adjust_reward_pct
-                _pay_pct = adjust_reward_pct(_board_attitude)
-                if _pay_pct != 0:
-                    _proc = dataclasses.replace(
-                        _proc,
-                        reward_credits=max(1, _proc.reward_credits * (100 + _pay_pct) // 100),
-                    )
+            # Apply faction attitude pay scaling (never blocks the mission).
+            if _pay_pct != 0:
+                _proc = dataclasses.replace(
+                    _proc,
+                    reward_credits=max(1, _proc.reward_credits * (100 + _pay_pct) // 100),
+                )
             generated[_proc.id] = _proc
             board.slots[i] = _proc.id
             existing.add(_proc.id)

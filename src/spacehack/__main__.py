@@ -921,15 +921,9 @@ def _run_game(
                                 pass
                             ctx.player_active_missions = player_active_missions
                     if result is TalkOutcome.WORK:
-                        # --- Faction reputation gating: enemy NPCs refuse work ---
-                        _guild_name = getattr(npc_obj, 'guild', '')
-                        if _guild_name:
-                            from .faction import guild_to_faction, get_attitude
-                            _npc_faction = guild_to_faction(_guild_name)
-                            _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
-                            if get_attitude(_npc_rep) == 'enemy':
-                                log.add(f'{npc_obj.name} refuses to speak with you.')
-                                continue
+                        # Missions are offered at every reputation level —
+                        # faction standing only scales pay (see
+                        # mission.fill_empty_slots), never access.
 
                         if len(player_active_missions) >= mission_module.MAX_ACTIVE_MISSIONS:
                             log.add(

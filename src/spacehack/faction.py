@@ -98,9 +98,9 @@ _CLASS_REP: dict[str, dict[str, int]] = {
 # for any faction not covered by the adjustment tables).
 _ALL_FACTIONS: tuple[str, ...] = ("pirate", "merchant", "civilian", "militia")
 
-# Guild → faction mapping for mission board attitude gating.
+# Guild → faction mapping for mission board pay scaling.
 # When a player talks to an NPC from guild X, the board's faction
-# reputation determines tier/pay adjustments.
+# reputation determines the pay adjustment (never access).
 _GUILD_FACTION: dict[str, str] = {
     "merchants": "merchant",
     "bhguild": "militia",   # bounty hunters work with militia/patrols
@@ -228,7 +228,7 @@ _COMBAT_UNPROVOKED_DELTAS: dict[str, int] = {
 
 
 # ---------------------------------------------------------------------------
-# Mission gating — tier + pay adjustment
+# Mission pay adjustment
 # ---------------------------------------------------------------------------
 
 def guild_to_faction(guild: str) -> str:
@@ -240,36 +240,14 @@ def guild_to_faction(guild: str) -> str:
     return _GUILD_FACTION.get(guild, "civilian")
 
 
-def adjust_mission_tier(planet_tier: int, attitude: str) -> int:
-    """Return the effective mission tier for a planet given the player's
-    faction attitude.
-
-    Pure function — no I/O, no context dependency.
-
-    * enemy  → 0 (no missions)
-    * disliked → -1 tier (min 1)
-    * neutral → unchanged
-    * liked → +1 tier
-    * allied → +2 tier
-    """
-    _offsets = {
-        "enemy": -planet_tier,   # zeroes out — no missions
-        "disliked": -1,
-        "neutral": 0,
-        "liked": +1,
-        "allied": +2,
-    }
-    _offset = _offsets.get(attitude, 0)
-    return max(1, min(4, planet_tier + _offset))
-
-
 def adjust_reward_pct(attitude: str) -> int:
     """Return the percentage modifier (can be negative) to apply to
     mission reward credits based on faction attitude.
 
-    Pure function — no I/O, no context dependency.
+    Pure function — no I/O, no context dependency. Mission ACCESS is
+    never gated by reputation — standing only scales pay:
 
-    * enemy → N/A (no missions offered)
+    * enemy → 0% (base pay — missions still offered)
     * disliked → -15%
     * neutral → 0%
     * liked → +10%

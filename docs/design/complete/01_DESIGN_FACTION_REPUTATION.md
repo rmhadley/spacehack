@@ -37,11 +37,17 @@ These four cover all existing NPC ship specs and guild NPCs. No new factions nee
 
 | Zone | Range | Label | Effects |
 |------|-------|-------|---------|
-| **Enemy** | -100 to -76 | `"enemy"` | Attacks on sight. No missions, no trade, no docking at faction stations. |
-| **Disliked** | -75 to -26 | `"disliked"` | Won't attack unless provoked. Fewer missions, worse pay. Higher scan chance. |
-| **Neutral** | -25 to +25 | `"neutral"` | Default state. Standard missions, standard trade prices. |
-| **Liked** | +26 to +75 | `"liked"` | Better missions, better pay, 5% trade discount. |
-| **Allied** | +76 to +100 | `"allied"` | Best missions, bonus rewards, 10% trade discount, unique dialogue. |
+| **Enemy** | -100 to -76 | `"enemy"` | Attacks on sight. No trade, no docking at faction stations. |
+| **Disliked** | -75 to -26 | `"disliked"` | Won't attack unless provoked. Lower pay, higher scan chance. |
+| **Neutral** | -25 to +25 | `"neutral"` | Default state. Standard pay, standard trade prices. |
+| **Liked** | +26 to +75 | `"liked"` | Better pay, 5% trade discount. |
+| **Allied** | +76 to +100 | `"allied"` | Bonus rewards, 10% trade discount, unique dialogue. |
+
+> **Update (2026-08):** Mission *access* is never gated by reputation —
+> every faction offers work at any standing. Reputation only scales
+> mission *pay* (disliked -15%, liked +10%, allied +20%). The old
+> mission-tier / enemy-refusal gates were removed; see "Mission gating"
+> below for the current design.
 
 **Upgrade path:** Current 3-zone threshold was -51:hostile / -50 to 50:neutral / 51+:friendly. The new 5-zone model keeps the same outer bounds but splits the mid-range for more granular progression.
 
@@ -122,19 +128,28 @@ Reputation can never cross from positive to negative (or vice versa) from monthl
 
 ## Consequences
 
-### Mission gating
+### Mission access — never gated
 
-Mission boards check the player's reputation with that faction when deciding what to offer:
+**Design decision (2026-08):** Mission *access* is not gated by reputation.
+Every guild hall offers work at any standing — enemy NPCs still offer
+missions, and procedural missions always generate at the planet's full
+`mission_tier` range. Being at war with a faction does not lock you out
+of their work.
 
-| Attitude | Mission quality | Effect |
-|----------|----------------|--------|
-| Enemy | None | No missions offered. NPC refuses to talk. |
-| Disliked | Reduced | -1 effective tier (T3 planet offers T2 max). 10-20% pay cut. |
-| Neutral | Standard | Full mission pool. |
-| Liked | Improved | +1 effective tier (T2 planet offers T3). 5-10% pay bonus. |
-| Allied | Premium | +2 effective tier. 15-25% pay bonus. Rare special missions. |
+Reputation only scales mission **pay**:
 
-**Implementation:** `fill_empty_slots()` checks `ctx.faction_reputation[guild]` and adjusts `planet_tier` and reward scaling before generating/assigning procedural missions.
+| Attitude | Pay effect |
+|----------|------------|
+| Enemy | 0% (base pay — missions still offered) |
+| Disliked | -15% |
+| Neutral | 0% |
+| Liked | +10% |
+| Allied | +20% |
+
+**Implementation:** `fill_empty_slots()` computes `adjust_reward_pct(attitude)`
+once per board fill and applies it to each generated procedural mission's
+`reward_credits`. Tier is always `planet_tier` (never adjusted by rep).
+The `TalkOutcome.WORK` handler in `__main__.py` has no enemy refusal gate.
 
 ### NPC hostility on sight
 
@@ -389,11 +404,11 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 ---
 
 - [x] Add ``guild_to_faction()``, ``adjust_mission_tier()``, ``adjust_reward_pct()`` to ``faction.py``
-- [x] Wire tier adjustment into ``fill_empty_slots()`` (enemy=no missions, disliked=-1 tier, liked=+1, allied=+2)
-- [x] Wire pay scaling into ``fill_empty_slots()`` (disliked -15%, liked +10%, allied +20%)
+- [x] Wire tier adjustment into ``fill_empty_slots()`` (enemy=no missions, disliked=-1 tier, liked=+1, allied=+2) — **LATER REMOVED (2026-08): mission access is never gated; see "Mission access" above**
+- [x] Wire pay scaling into ``fill_empty_slots()`` (disliked -15%, liked +10%, allied +20%) — retained
 - [x] Add enemy hostility to ``move_npcs()`` — enemy factions chase player (deterministic)
-- [x] Gate NPC talk in ``__main__.py`` — enemy NPCs refuse to speak
-- [x] Fix DRY: compute ``_board_attitude`` once, reuse for tier + pay
+- [x] Gate NPC talk in ``__main__.py`` — enemy NPCs refuse to speak — **LATER REMOVED (2026-08)**
+- [x] Fix DRY: compute ``_board_attitude`` once, reuse for tier + pay — pay scaling retains the single-computation
 - [x] Smoke test + commit (`8d4f11e`)
 
 #### DRY eval
@@ -403,11 +418,11 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 
 #### Playtest checklist *(living — update as implementation reveals edge cases)*
 
-**Mission gating:**
-- [ ] As Human Merchant (militia **Liked** +55): visit Earth → militia mission board offers **+1 tier** better missions (if planet tier supports it)
-- [ ] As Human Pirate (militia **Disliked** -30): militia missions are **penalized** (reduced tier/pay)
-- [ ] As Human Merchant (pirate **Enemy** -90): no pirate-faction missions offered *(bar missions not yet gated — future)*
-- [ ] As Human Bounty Hunter (militia **Liked** +65): verify +1 tier on militia bounty boards
+**Mission access (updated 2026-08 — access no longer gated):**
+- [ ] As Human Merchant (militia **Liked** +55): militia mission board pays **+10%**
+- [ ] As Human Pirate (militia **Disliked** -30): militia missions pay **-15%**
+- [ ] As Human Merchant (pirate **Enemy** -90): pirate bar missions are **still offered** at base pay (no lockout)
+- [ ] As Human Bounty Hunter (militia **Liked** +65): bounty board pays **+10%**
 
 **NPC hostility (deterministic):**
 - [ ] Pirate NPCs as Human Bounty Hunter (pirate **Enemy** -100): pirates **attack on sight** — they move toward you and engage at detect range
