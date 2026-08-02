@@ -864,6 +864,12 @@ def _dest_candidates_in_system(
         return []
 
     result: list[tuple[str, str, int]] = []
+    # Track planet ids already added so a station's city_planet_id that
+    # is ALSO listed as a planet body (or shared by multiple stations,
+    # e.g. the two Luyten blockade stations) is only counted once.
+    # Without this, such landmarks get double weight in the rng.choice
+    # pool and show up ~2x more often than any other destination.
+    _seen: set[str] = set()
     # Planets.
     for _p in _sys.planets:
         if getattr(_p, 'sun', False):
@@ -874,6 +880,7 @@ def _dest_candidates_in_system(
             continue
         if not _planet_npc_ids(_p.id):
             continue
+        _seen.add(_p.id)
         result.append((_p.id, system_id, hops))
     # Stations (city_planet_id points to the planet spec).
     for _st in getattr(_sys, 'stations', ()) or ():
@@ -881,10 +888,13 @@ def _dest_candidates_in_system(
             continue
         if not _st.city_planet_id:
             continue
+        if _st.city_planet_id in _seen:
+            continue
         if not has_landable_port(_st.city_planet_id):
             continue
         if not _planet_npc_ids(_st.city_planet_id):
             continue
+        _seen.add(_st.city_planet_id)
         result.append((_st.city_planet_id, system_id, hops))
     return result
 
@@ -932,10 +942,10 @@ def generate_delivery_mission(
 
     # Tier → hop range: same-system deliveries are allowed for tier 1.
     _hop_ranges = {
-        1: (0, 1),   # same system or neighbor
-        2: (1, 2),   # regional
-        3: (2, 4),   # sector
-        4: (3, 6),   # frontier
+        1: (0, 2),   # local: same system, neighbor, or 2 hops
+        2: (1, 3),   # regional
+        3: (2, 5),   # sector
+        4: (3, 7),   # frontier
     }
     min_hops, max_hops = _hop_ranges.get(tier, (0, 10))
 
@@ -1185,10 +1195,10 @@ def generate_bounty_mission(
 
     # Bounty hop ranges: slightly longer than delivery.
     _hop_ranges = {
-        1: (1, 2),
-        2: (1, 3),
-        3: (2, 5),
-        4: (3, 7),
+        1: (1, 3),
+        2: (1, 4),
+        3: (2, 6),
+        4: (3, 8),
     }
     min_hops, max_hops = _hop_ranges.get(tier, (1, 10))
 
@@ -1313,13 +1323,13 @@ _WRECK_LAYOUTS: dict[int, tuple[str, str]] = {
 
 # Hop-range tables for bar mission types.
 _INTERCEPT_HOP_RANGES: dict[int, tuple[int, int]] = {
-    1: (1, 2), 2: (1, 3), 3: (2, 5), 4: (3, 7),
+    1: (1, 3), 2: (1, 4), 3: (2, 6), 4: (3, 8),
 }
 _SMUGGLE_HOP_RANGES: dict[int, tuple[int, int]] = {
-    1: (0, 1), 2: (1, 2), 3: (2, 4), 4: (3, 6),
+    1: (0, 2), 2: (1, 3), 3: (2, 5), 4: (3, 7),
 }
 _SALVAGE_HOP_RANGES: dict[int, tuple[int, int]] = {
-    1: (1, 2), 2: (1, 3), 3: (2, 5), 4: (3, 7),
+    1: (1, 3), 2: (1, 4), 3: (2, 6), 4: (3, 8),
 }
 
 

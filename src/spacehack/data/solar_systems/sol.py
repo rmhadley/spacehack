@@ -139,6 +139,22 @@ _jump_points: tuple[JumpPoint, ...] = (
         connects_to=(("epsilon_eridani", "jump_sol"),),
         description="A humming FTL gate facing Epsilon Eridani — the deep-space corridor.",
     ),
+    # 61 Cygni Gate: a FOURTH gate from Sol, opening the North Arm
+    # (61 Cygni -> Epsilon Indi -> Groombridge 34). Positioned at the
+    # far north edge (100, 5) so it reads as a separate direction from
+    # the three east-edge gates. Amber-orange fg matches the K-type
+    # palette of the arm's first star. Up-pointing chevron ('^')
+    # signals a northward route.
+    JumpPoint(
+        id="jump_61_cygni",
+        name="61 Cygni Gate",
+        char="^",
+        fg=(255, 180, 90),                          # amber-orange (K-type palette)
+        pos=world.Position(100, 5),
+        width=2, height=2,
+        connects_to=(("cygni", "jump_sol"),),
+        description="A humming FTL gate ringing the northern edge of Sol — the North Arm.",
+    ),
 )
 
 
