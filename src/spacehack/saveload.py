@@ -145,6 +145,9 @@ def _save_loot(game_map) -> list[dict]:
                 'loot_data': _e.loot_data,
                 'heist_mission': bool(getattr(_e, 'heist_mission', False)),
                 'heist_mission_id': getattr(_e, 'heist_mission_id', None),
+                # Quest cache / salvage loot — which main-quest step
+                # securing it completes (delve/salvage objectives).
+                'main_quest_step_id': getattr(_e, 'main_quest_step_id', ''),
             })
     return _result
 
@@ -296,6 +299,10 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 "heist_mission": bool(getattr(e, 'heist_mission', False)),
                 "heist_mission_id": getattr(e, 'heist_mission_id', None),
                 "main_quest_door": bool(getattr(e, 'main_quest_door', False)),
+                # Quest cache / salvage loot (delve/salvage objectives):
+                # the main-quest step id whose completion this loot
+                # triggers. Lives in dungeon interiors (persisted here).
+                "main_quest_step_id": getattr(e, 'main_quest_step_id', ''),
             }
             for e in gm.entities if e.char != '@'
         ],
@@ -376,6 +383,9 @@ def _dungeon_from_dict(dd: dict) -> tuple:
             _e.heist_mission_id = _hmid
         if _ed.get("main_quest_door", False):
             _e.main_quest_door = True
+        _qsid = _ed.get("main_quest_step_id")
+        if _qsid:
+            _e.main_quest_step_id = _qsid
         _dungeon_entities.append(_e)
 
     _dungeon_map = world.GameMap(
@@ -875,6 +885,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             _lmid = _ld.get("heist_mission_id")
             if _lmid:
                 _loot_e.heist_mission_id = _lmid
+            _qsid = _ld.get("main_quest_step_id")
+            if _qsid:
+                _loot_e.main_quest_step_id = _qsid
             _game_map.entities.append(_loot_e)
 
     # --- Assemble GameContext ---

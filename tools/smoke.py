@@ -99,6 +99,9 @@ def smoke_test() -> int:
         (main_quest, "prepare_mars_surface"),
         (main_quest, "bump_mars_door"),
         (main_quest, "current_main_quest_objective"),
+        (main_quest, "secure_quest_loot"),
+        (main_quest, "maybe_complete_visit"),
+        (main_quest, "maybe_complete_bounty"),
     ]
     for mod, attr in _mq_checks:
         if not hasattr(mod, attr):

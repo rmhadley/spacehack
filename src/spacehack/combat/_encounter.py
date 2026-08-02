@@ -143,6 +143,12 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 from ..navigation import _remove_bounty_spawn
                 _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
 
+        # Main-quest bounty objective (Act 0 chains): a quest-tagged
+        # spawn defeated completes the matching chain step. Runs AFTER
+        # the mission-bounty loop so mission spawns don't double-trigger.
+        from .. import main_quest as _mq_module
+        _mq_module.maybe_complete_bounty(ctx, _cr.defeated_bounty_ids)
+
         # --- Intercept/heist cleanup: remove BountySpawn entries so re-detect doesn't find them.
         # (Loot entity is spawned in _rules_space.on_kill where the death position is available.)
         _hei_missions = [

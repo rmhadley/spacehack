@@ -240,6 +240,7 @@ class Entity:
     npc_char_id: str = ""  # references NpcCharSpec.id for ground-combat NPCs
     squad_id: str = ""  # groups ground enemies into squads (shared across scatter-spawned entities)
     main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
+    main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
 
 
 # Anchor where the player's bought ship is parked outside the

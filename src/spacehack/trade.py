@@ -427,11 +427,36 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     inventory, and never sellable. The mission only completes when
     that specific cargo is secured; buying the same good at a
     terminal does not count.
+
+    Quest cache / salvage loot (``main_quest_step_id`` set) is
+    handled by :func:`spacehack.main_quest.secure_quest_loot`: the
+    goods authored in ``loot_data["goods"]`` are granted to the hold
+    and the main-quest step completes in the same action.
     """
-    good_id = loot_entity.loot_data.get("good_id", "")
-    quantity = loot_entity.loot_data.get("quantity", 1)
-    if not good_id:
-        return
+    _quest_step_id = getattr(loot_entity, 'main_quest_step_id', '')
+    _is_quest = bool(_quest_step_id)
+    if _is_quest:
+        # Quest cache / salvage loot: goods are a [(good_id, qty)] list.
+        # Validate EVERY id up front so a typo'd secondary good can't
+        # silently land in the hold via secure_quest_loot's grant loop.
+        _goods: list[tuple[str, int]] = []
+        for _g in (loot_entity.loot_data.get("goods") or []):
+            try:
+                find_trade_good(str(_g[0]))
+            except KeyError:
+                ctx.log.add("The quest cache contains unknown goods — ignored.")
+                continue
+            _goods.append((str(_g[0]), int(_g[1])))
+        if not _goods:
+            ctx.log.add("An empty quest cache.")
+            return
+        good_id, quantity = _goods[0]
+    else:
+        _goods = []
+        good_id = loot_entity.loot_data.get("good_id", "")
+        quantity = loot_entity.loot_data.get("quantity", 1)
+        if not good_id:
+            return
     try:
         good = find_trade_good(good_id)
     except KeyError:
@@ -448,7 +473,16 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         ctx.log.add("You need a ship with cargo space to pick up cargo.")
         return
 
-    volume = good.volume * quantity
+    if _is_quest:
+        # Total volume across all quest goods.
+        volume = 0
+        for _gid, _qty in _goods:
+            try:
+                volume += find_trade_good(_gid).volume * _qty
+            except KeyError:
+                continue
+    else:
+        volume = good.volume * quantity
     free_cargo = _free_cargo(owned)
 
     if free_cargo < volume:
@@ -463,11 +497,35 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
 
     def _render() -> None:
         console.clear()
-        title = "MISSION CARGO" if _is_heist else "CARGO DEBRIS"
-        label = "Secured mission cargo:" if _is_heist else f"You found {good.name} x{quantity}"
-        take_label = "Secure" if _is_heist else "Take"
-        hint = "ENTER to secure  |  ESC to leave" if _is_heist else "ENTER to take  |  ESC to leave"
-        line2 = f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
+        if _is_quest:
+            title = "QUEST CACHE"
+            _parts = []
+            for _gid, _qty in _goods:
+                try:
+                    _parts.append(f"{find_trade_good(_gid).name} x{_qty}")
+                except KeyError:
+                    _parts.append(f"{_gid} x{_qty}")
+            label = "Secured quest contents:"
+            contents = ", ".join(_parts)
+            take_label = "Secure"
+            hint = "ENTER to secure  |  ESC to leave"
+        elif _is_heist:
+            title = "MISSION CARGO"
+            label = "Secured mission cargo:"
+            contents = f"{good.name} x{quantity}"
+            take_label = "Secure"
+            hint = "ENTER to secure  |  ESC to leave"
+        else:
+            title = "CARGO DEBRIS"
+            label = f"You found {good.name} x{quantity}"
+            contents = ""
+            take_label = "Take"
+            hint = "ENTER to take  |  ESC to leave"
+        line2 = (
+            contents
+            if contents
+            else f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
+        )
 
         cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
         paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
@@ -498,17 +556,27 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
 
     _outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if _outcome is _LootOutcome.TAKE:
-        _secured = False
-        if getattr(loot_entity, 'heist_mission', False):
-            _secured = _secure_heist_cargo(ctx, loot_entity, good_id, quantity)
-        if _secured:
-            ctx.log.add(
-                f"Secured mission cargo: {good.name} x{quantity} "
-                f"(reserved in hold). Do not sell!"
-            )
+        if _is_quest:
+            from .. import main_quest as _mq
+            _secured = _mq.secure_quest_loot(ctx, loot_entity, _goods)
+            if not _secured:
+                # Quest step not active (stale cache from an aborted run) —
+                # grant the goods anyway so the find isn't wasted.
+                for _gid, _qty in _goods:
+                    owned.inventory[_gid] = owned.inventory.get(_gid, 0) + _qty
+                ctx.log.add("Picked up leftover quest cache goods.")
         else:
-            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-            ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
+            _secured = False
+            if getattr(loot_entity, 'heist_mission', False):
+                _secured = _secure_heist_cargo(ctx, loot_entity, good_id, quantity)
+            if _secured:
+                ctx.log.add(
+                    f"Secured mission cargo: {good.name} x{quantity} "
+                    f"(reserved in hold). Do not sell!"
+                )
+            else:
+                owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+                ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
         if loot_entity in ctx.game_map.entities:
             try:
                 ctx.game_map.entities.remove(loot_entity)

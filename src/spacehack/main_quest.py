@@ -241,6 +241,17 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     _dialogue = _step.dialogues.get(npc_id)
     if _dialogue is None:
         return False
+    # ``goods`` objective: cargo check + consume on trigger. Guard runs
+    # BEFORE the claim/item side effects so a failed trigger (missing
+    # goods) leaves zero partial state — no claim planted, no item
+    # granted, step stays active for a retry.
+    if _step.objective_type == "goods" and _step.requires_goods:
+        if step_status(ctx, step_id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+            return False
+        if not _hold_has_goods(ctx, _step.requires_goods):
+            ctx.log.add("You don't have the required goods for this task.")
+            return False
+        _consume_goods(ctx, _step.requires_goods)
     if _dialogue.locks_chain and _dialogue.backing_faction and not ctx.main_quest_chain:
         ctx.main_quest_chain = _dialogue.backing_faction
         ctx.log.add_colored(
@@ -253,6 +264,177 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     if _dialogue.unlock_item:
         ctx.main_quest_unlocked_items.add(_dialogue.unlock_item)
     return complete_step(ctx, step_id)
+
+
+# ---------------------------------------------------------------------------
+# Objective completion hooks (Act 0 chains — phases 1d/1e-1h)
+#
+# Chain steps complete OUTSIDE the dialogue path. Each hook matches an
+# available/active step whose ``objective_type`` + optional target id
+# match the triggering event, then calls :func:`complete_step`:
+#
+#   * ``delve``  — quest cache secured in a planet's surface cave
+#     (secure_quest_loot, called from trade.open_loot_pickup).
+#   * ``salvage`` — quest-tagged loot secured in a derelict interior
+#     (same hook — the cache/loot entity carries main_quest_step_id).
+#   * ``visit``  — talking to the required expert NPC completes it.
+#   * ``bounty`` — quest-tagged BountySpawn defeated in space combat.
+#   * ``bump``   — chain-aware door bump (lab sample chip; door stays
+#     sealed), wired into bump_mars_door.
+#   * ``goods``  — handled in trigger_dialogue (cargo check + consume).
+# ---------------------------------------------------------------------------
+
+
+def _active_objective_step(
+    ctx,
+    objective_type: str,
+    *,
+    npc_id: str = "",
+    spawn_id: str = "",
+) -> str | None:
+    """First available/active step matching ``objective_type`` (and,
+    when given, ``npc_id`` / ``spawn_id`` targets), else None.
+
+    Single iteration + status/chain filter shared by all objective
+    hooks (bump / visit / bounty). Only steps of the locked chain
+    count (``_step.chain`` empty steps like the prologue beats are
+    never objective-type chain steps, so the filter is a no-op for
+    them).
+    """
+    for _step_id, _st in ctx.main_quest_progress.items():
+        if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+            continue
+        try:
+            _step = find_main_quest_step(_step_id)
+        except KeyError:
+            continue
+        if _step.objective_type != objective_type:
+            continue
+        if _step.chain and _step.chain != ctx.main_quest_chain:
+            continue
+        if npc_id and _step.requires_npc_id != npc_id:
+            continue
+        if spawn_id and _step.requires_spawn_id != spawn_id:
+            continue
+        return _step_id
+    return None
+
+
+def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
+    """Complete a delve/salvage objective whose quest-tagged loot was
+    secured (``loot_entity.main_quest_step_id``).
+
+    ``goods`` is the resolved ``[(good_id, qty)]`` list the caller
+    (:func:`spacehack.trade.open_loot_pickup`) read from the loot
+    entity's ``loot_data``. Each good is granted to the player's hold,
+    then the step completes. Returns True if a step was completed.
+    """
+    _step_id = getattr(loot_entity, "main_quest_step_id", "")
+    if not _step_id:
+        return False
+    if step_status(ctx, _step_id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+        return False
+    _step = find_main_quest_step(_step_id)
+    if _step.objective_type not in ("delve", "salvage"):
+        return False
+    _owned = ctx.player_owned_ship
+    if _owned is not None:
+        for _gid, _qty in goods:
+            _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
+    _is_salvage = _step.objective_type == "salvage"
+    ctx.log.add_colored(
+        (
+            "Quest salvage secured — the component is in your hold."
+            if _is_salvage else
+            "Quest cache secured — the goods are in your hold."
+        ),
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    return complete_step(ctx, _step_id)
+
+
+def maybe_complete_visit(ctx, npc_id: str) -> bool:
+    """Complete an active ``visit`` step when the player talks to the
+    required expert NPC (``requires_npc_id == npc_id``).
+
+    Called at the top of :func:`spacehack.npc._run_npc_talk` so the
+    talk modal resolves the completed step's dialogue variant. Returns
+    True if a step was completed.
+    """
+    _step_id = _active_objective_step(ctx, "visit", npc_id=npc_id)
+    if _step_id is None:
+        return False
+    ctx.log.add_colored(
+        "The specialist signs on — another piece of the plan falls "
+        "into place.",
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    return complete_step(ctx, _step_id)
+
+
+def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
+    """Complete an active ``bounty`` step whose quest-tagged
+    BountySpawn was defeated in space combat.
+
+    Called from :func:`spacehack.combat._encounter` after victory
+    with the combat result's ``defeated_bounty_ids``. Returns True if
+    a step was completed.
+    """
+    for _spawn_id in (defeated_spawn_ids or ()):
+        _step_id = _active_objective_step(ctx, "bounty", spawn_id=_spawn_id)
+        if _step_id is None:
+            continue
+        ctx.log.add_colored(
+            "The quest target is destroyed — the field test is a success.",
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
+        return complete_step(ctx, _step_id)
+    return False
+
+
+def _complete_bump_objective(ctx) -> bool:
+    """Complete an active ``bump`` objective on this door bump.
+
+    Chain-aware (only the locked chain's bump step matches) — e.g.
+    ``lab_q1_sample``: the player chips a material sample off the
+    door's surface; the door itself stays sealed. Returns True if a
+    step was completed.
+    """
+    _step_id = _active_objective_step(ctx, "bump")
+    if _step_id is None:
+        return False
+    ctx.log.add_colored(
+        "You chip a fragment of the alien material off the door's "
+        "surface. The seal holds.",
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    complete_step(ctx, _step_id)
+    return True
+
+
+def _hold_has_goods(ctx, requires_goods) -> bool:
+    """True when the player's hold holds every (good_id, qty) pair."""
+    _owned = ctx.player_owned_ship
+    if _owned is None:
+        return False
+    for _gid, _qty in requires_goods:
+        if _owned.inventory.get(_gid, 0) < _qty:
+            return False
+    return True
+
+
+def _consume_goods(ctx, requires_goods) -> None:
+    """Remove every (good_id, qty) pair from the player's hold."""
+    _owned = ctx.player_owned_ship
+    if _owned is None:
+        return
+    for _gid, _qty in requires_goods:
+        _remaining = _owned.inventory.get(_gid, 0) - _qty
+        if _remaining <= 0:
+            _owned.inventory.pop(_gid, None)
+        else:
+            _owned.inventory[_gid] = _remaining
+    ctx.log.add("The required goods are handed over.")
 
 
 # ---------------------------------------------------------------------------
@@ -846,6 +1028,8 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
 def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars.
 
+    * Chain ``bump`` objective active (e.g. lab q1): chip a material
+      sample off the door's surface — the door stays sealed.
     * Before the door is found (entrance step active): discover it —
       completes ``prologue_mars_entrance``, making ``prologue_seek_help``
       available. Logs the "won't open with any human tool" flavor and
@@ -855,7 +1039,14 @@ def bump_mars_door(ctx) -> None:
       tool): open it — completes ``prologue_open``, plants the claim,
       recovers the prison data (fuels Act 1), shows the opening overlay.
     * Otherwise (repeat bumps): log line only — no modal nag.
+
+    Invariant: the bump-objective check runs BEFORE the door-open
+    check, which is safe because chain design guarantees bump steps
+    (q1) never coexist with an available ``prologue_open`` (q5) — a
+    bump objective completes early in its chain and can't reappear.
     """
+    if _complete_bump_objective(ctx):
+        return
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
         complete_step(ctx, "prologue_open")
@@ -894,6 +1085,9 @@ __all__ = [
     "resolve_npc_dialogue",
     "quest_option_for",
     "trigger_dialogue",
+    "secure_quest_loot",
+    "maybe_complete_visit",
+    "maybe_complete_bounty",
     "current_main_quest_objective",
     "maybe_trigger_signal",
     "show_prologue_transmission",
