@@ -352,13 +352,13 @@ A dead-star system with an alien structure — the source of the signal.
 ### Phase 1c: The Door on Mars — sealed entrance, seek-help, prologue_open
 
 - [x] Add the sealed entrance to the Mars surface (deterministic placement AFTER `generate_dungeon` — e.g. farthest walkable cell from spawn, or a landmark room). The door is a `main_quest_door` entity: alien make, unopenable until the player holds the right tool. **The Mars surface dungeon persists across visits** (cached in `ctx.interiors` keyed `surface:mars` — same anti-farm rule as salvage wreck interiors): the door stays exactly where it was found, fog stays revealed, and `prepare_mars_surface` runs only on first generation.
-- [x] Bump interaction on the door: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, plants the claim, Act 1 begins
+- [x] Bump interaction on the door: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, plants the claim, Act 1 begins. **The two quest-beat bumps (discover + open) surface as full-screen overlays** (`main_quest.show_sealed_door_overlay`) — the same `ui.Modal` interruption pattern as the incoming transmission, with alien-rune static and ASCII door art. Repeat bumps stay as log lines only (no modal nag).
 - [x] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) plants `backing_faction` + unlocks the tool item
 - [x] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal
 - [x] Minimal quest-log breadcrumb: "MAIN QUEST" section showing current step title + objective (full UI polish stays in Phase 4)
 - [x] Smoke test + commit
 
-**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → find the sealed door (bump it, can't open) → talk to each faction NPC (each gives a different lead + a quest option row) → pick one faction → return to Mars → the SAME surface map reloads (door where you left it, fog still revealed) → bump the door → it opens, prison revealed, Act 1 seeds. Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon).
+**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → find the sealed door (bump it, can't open — a SEALED ENTRANCE overlay pops up with alien runes + door art, ENTER dismisses) → talk to each faction NPC (each gives a different lead + a quest option row) → pick one faction → return to Mars → the SAME surface map reloads (door where you left it, fog still revealed) → bump the door → THE SEAL GIVES WAY overlay pops up, prison revealed, Act 1 seeds → bump it again (repeat) → log line only, no modal. Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon).
 
 ### Phase 2: Acts 1-3 story data
 

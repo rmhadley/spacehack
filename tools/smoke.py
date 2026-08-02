@@ -92,6 +92,7 @@ def smoke_test() -> int:
         (main_quest, "quest_option_for"),
         (main_quest, "maybe_trigger_signal"),
         (main_quest, "show_prologue_transmission"),
+        (main_quest, "show_sealed_door_overlay"),
         (main_quest, "mars_exploration_unlocked"),
         (main_quest, "prepare_mars_surface"),
         (main_quest, "bump_mars_door"),

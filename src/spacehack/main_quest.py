@@ -262,18 +262,72 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Incoming-transmission overlay (the signal arrives through the comms)
+# Full-screen quest overlays (the ui.Modal interruption pattern)
+#
+# Both the incoming transmission and the sealed Mars door surface as a
+# centered full-screen modal — the same interruption pattern as militia
+# auto-hails. Shared plumbing (outcome enum, dismiss handler, box +
+# centered-print helpers) lives here; each overlay picks its own content.
+# All characters are CP437-safe (dots, dashes, #, =, + only — no Unicode
+# block chars that can garble on the tilesheet fallback).
 # ---------------------------------------------------------------------------
 
-class _TransmissionOutcome(Enum):
-    """Outcome for the incoming-transmission overlay."""
+class _ModalOutcome(Enum):
+    """Outcome for a full-screen quest overlay modal."""
     IGNORE = auto()
     CLOSE = auto()
     QUIT = auto()
 
 
-# Garbled signal noise — CP437-safe (dots + dashes only, no Unicode
-# block chars that can garble on the tilesheet fallback).
+def _overlay_box(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+    box_w: int,
+    box_h: int,
+) -> int:
+    """Clear the console, draw a centered bordered box, return ``y0``.
+
+    Callers render every line via :func:`_centered_print`, which
+    centers on the full screen width, so ``x0`` is never needed.
+    """
+    console.clear()
+    y0 = max(0, (screen_height - box_h) // 2 - 2)
+    ui.paint_rect_border(
+        console,
+        (max(0, (screen_width - box_w) // 2), y0, box_w, box_h),
+        fg=ui.COLOR_VALUE_DIM,
+    )
+    return y0
+
+
+def _centered_print(console, *, screen_width: int, y: int, text: str, fg) -> None:
+    """Print ``text`` centered on row ``y`` with foreground ``fg``."""
+    console.print(
+        x=ui.centered_x(text, screen_width),
+        y=y,
+        string=text,
+        fg=fg,
+    )
+
+
+def _modal_dismiss_update(event: tcod.event.Event) -> _ModalOutcome:
+    """Map a single event for any quest overlay.
+
+    ENTER / ESC closes (:attr:`CLOSE`), window-close quits
+    (:attr:`QUIT`), everything else is :attr:`IGNORE`.
+    """
+    if isinstance(event, tcod.event.Quit):
+        return _ModalOutcome.QUIT
+    if not isinstance(event, tcod.event.KeyDown):
+        return _ModalOutcome.IGNORE
+    if event.sym in ui._ENTER_SYMS or event.sym in ui._ESCAPE_SYMS:
+        return _ModalOutcome.CLOSE
+    return _ModalOutcome.IGNORE
+
+
+# Garbled signal noise — CP437-safe (dots + dashes only).
 _SIGNAL_STATIC: tuple[str, ...] = (
     "...--.-.-..--...-..-.-.--.....-.-..--.-..",
     "-.--..-.-..--.-..-...--..-.-..--...--...-",
@@ -297,71 +351,44 @@ def render_incoming_transmission(
 
     Idempotent (clears first). All characters are CP437-safe.
     """
-    console.clear()
-    box_w = 64
-    box_h = 18
-    x0 = max(0, (screen_width - box_w) // 2)
-    y0 = max(0, (screen_height - box_h) // 2 - 2)
-    ui.paint_rect_border(console, (x0, y0, box_w, box_h), fg=ui.COLOR_VALUE_DIM)
-
-    console.print(
-        x=ui.centered_x("INCOMING TRANSMISSION", screen_width),
-        y=y0 + 1,
-        string="INCOMING TRANSMISSION",
-        fg=ui.COLOR_TITLE,
+    _y0 = _overlay_box(
+        console,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        box_w=64,
+        box_h=18,
     )
-    console.print(
-        x=ui.centered_x("FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE", screen_width),
-        y=y0 + 3,
-        string="FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE",
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 1,
+        text="INCOMING TRANSMISSION", fg=ui.COLOR_TITLE,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 3,
+        text="FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE",
         fg=ui.COLOR_VALUE_DIM,
     )
     for _i, _line in enumerate(_SIGNAL_STATIC):
-        console.print(
-            x=ui.centered_x(_line, screen_width),
-            y=y0 + 5 + _i,
-            string=_line,
-            fg=_SIGNAL_TRACE_FG,
+        _centered_print(
+            console, screen_width=screen_width, y=_y0 + 5 + _i,
+            text=_line, fg=_SIGNAL_TRACE_FG,
         )
-    console.print(
-        x=ui.centered_x("A burst of coordinates cuts through the static -", screen_width),
-        y=y0 + 9,
-        string="A burst of coordinates cuts through the static -",
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 9,
+        text="A burst of coordinates cuts through the static -",
         fg=ui.COLOR_DESCRIPTION,
     )
-    console.print(
-        x=ui.centered_x("then silence.", screen_width),
-        y=y0 + 10,
-        string="then silence.",
-        fg=ui.COLOR_DESCRIPTION,
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 10,
+        text="then silence.", fg=ui.COLOR_DESCRIPTION,
     )
-    console.print(
-        x=ui.centered_x("They resolve to somewhere on Mars.", screen_width),
-        y=y0 + 12,
-        string="They resolve to somewhere on Mars.",
-        fg=ui.COLOR_OPTION_HIGHLIGHT,
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 12,
+        text="They resolve to somewhere on Mars.", fg=ui.COLOR_OPTION_HIGHLIGHT,
     )
-    console.print(
-        x=ui.centered_x("Press ENTER to acknowledge", screen_width),
-        y=y0 + 14,
-        string="Press ENTER to acknowledge",
-        fg=ui.COLOR_INSTRUCTION,
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 14,
+        text="Press ENTER to acknowledge", fg=ui.COLOR_INSTRUCTION,
     )
-
-
-def update_incoming_transmission(event: tcod.event.Event) -> _TransmissionOutcome:
-    """Map a single event for the transmission overlay.
-
-    ENTER / ESC closes (:attr:`CLOSE`), window-close quits
-    (:attr:`QUIT`), everything else is :attr:`IGNORE`.
-    """
-    if isinstance(event, tcod.event.Quit):
-        return _TransmissionOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return _TransmissionOutcome.IGNORE
-    if event.sym in ui._ENTER_SYMS or event.sym in ui._ESCAPE_SYMS:
-        return _TransmissionOutcome.CLOSE
-    return _TransmissionOutcome.IGNORE
 
 
 def show_prologue_transmission(ctx) -> None:
@@ -382,8 +409,176 @@ def show_prologue_transmission(ctx) -> None:
             screen_height=SCREEN_HEIGHT,
         )
 
-    def _update(event) -> _TransmissionOutcome:
-        return update_incoming_transmission(event)
+    def _update(event) -> _ModalOutcome:
+        return _modal_dismiss_update(event)
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
+# ---------------------------------------------------------------------------
+# Sealed-door overlay (the door bump surfaces as a full-screen modal)
+# ---------------------------------------------------------------------------
+
+# Alien rune noise — the door's answer to the signal static: carved
+# glyphs of # / = / + (CP437-safe). All rows are 30 wide.
+_DOOR_RUNES: tuple[str, ...] = (
+    "##=+==#=+==#=+==#=+==##=+==#=+",
+    "=+==#=+==#=+==#=+==#=+==#=+==#",
+    "+==#=+==#=+==#=+==#=+==#=+==#=",
+)
+
+# Alien violet — matches the door entity's fg on the Mars surface.
+_DOOR_RUNE_FG: tuple[int, int, int] = (150, 95, 255)
+_DOOR_ART_FG: tuple[int, int, int] = (140, 80, 255)
+
+# ASCII door art for the two beats (equal-width rows, CP437-safe).
+# Every row is 32 wide: two-space margin, pipe/equal frame, 26-char
+# interior. The middle block is the door itself; #-marks are rune
+# carvings, === is the seal seam (open beat shows the broken seam
+# with a dark gap of dots).
+_DOOR_ART_SEALED: tuple[str, ...] = (
+    "  .==========================.  ",
+    "  |  #    #   #   #   #   #  |  ",
+    "  |   #   #   #   #   #   #  |  ",
+    "  |  #    #   #   #   #   #  |  ",
+    "  |   #   #   #   #   #   #  |  ",
+    "  |                          |  ",
+    "  |      ==============      |  ",
+    "  |      |            |      |  ",
+    "  |      |     ===    |      |  ",
+    "  |      |            |      |  ",
+    "  |      ==============      |  ",
+    "  |                          |  ",
+    "  '=========================='  ",
+)
+
+_DOOR_ART_OPEN: tuple[str, ...] = (
+    "  .==========================.  ",
+    "  |  #    #   #   #   #   #  |  ",
+    "  |   #   #   #   #   #   #  |  ",
+    "  |  #    #   #   #   #   #  |  ",
+    "  |   #   #   #   #   #   #  |  ",
+    "  |                          |  ",
+    "  |      ==============      |  ",
+    "  |      |    ...     |      |  ",
+    "  |      |   .....    |      |  ",
+    "  |      |    ...     |      |  ",
+    "  |      ==============      |  ",
+    "  |                          |  ",
+    "  '=========================='  ",
+)
+
+# Table-driven content per beat (state-table guardrail: no chained
+# if/elif over the two beats — a dict lookup instead).
+_DOOR_OVERLAYS: dict[str, dict[str, object]] = {
+    "discover": {
+        "title": "SEALED ENTRANCE",
+        "meta": "MAKE: ALIEN    MECHANISM: NONE VISIBLE    AGE: UNKNOWN",
+        "art": _DOOR_ART_SEALED,
+        "body": (
+            "A door of alien make, set into the red dust.",
+            "No visible mechanism - older than the colony.",
+        ),
+        "highlight": "It will not open with any human tool.",
+        "instruction": "Press ENTER to acknowledge",
+    },
+    "open": {
+        "title": "THE SEAL GIVES WAY",
+        "meta": "SEAL: BROKEN    CHAMBER: EMPTY    DATA: RECOVERED",
+        "art": _DOOR_ART_OPEN,
+        "body": (
+            "The seal gives way - cleanly, as if it were waiting.",
+            "Inside: an empty cell of alien make -",
+            "and a cache of data beyond any human technology.",
+        ),
+        "highlight": "The prison data is recovered. Someone will want to study this.",
+        "instruction": "Press ENTER to continue",
+    },
+}
+
+
+def render_sealed_door_overlay(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+    beat: str,
+) -> None:
+    """Paint the sealed-door overlay for a quest beat.
+
+    ``beat`` selects the content table: ``"discover"`` (first bump —
+    the door refuses to open) or ``"open"`` (the seal gives way and
+    the empty prison is revealed). Mirrors the transmission overlay:
+    title, metadata, alien rune static, ASCII door art, description,
+    highlight, and a dismiss hint.
+    """
+    _content = _DOOR_OVERLAYS[beat]
+    _art = _content["art"]
+    _body = _content["body"]
+    _box_h = 15 + len(_art) + len(_body)
+    _y0 = _overlay_box(
+        console,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        box_w=66,
+        box_h=_box_h,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 1,
+        text=_content["title"], fg=ui.COLOR_TITLE,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 3,
+        text=_content["meta"], fg=ui.COLOR_VALUE_DIM,
+    )
+    for _i, _line in enumerate(_DOOR_RUNES):
+        _centered_print(
+            console, screen_width=screen_width, y=_y0 + 5 + _i,
+            text=_line, fg=_DOOR_RUNE_FG,
+        )
+    _art_y = _y0 + 9
+    for _i, _line in enumerate(_art):
+        _centered_print(
+            console, screen_width=screen_width, y=_art_y + _i,
+            text=_line, fg=_DOOR_ART_FG,
+        )
+    _body_y = _art_y + len(_art) + 1
+    for _i, _line in enumerate(_body):
+        _centered_print(
+            console, screen_width=screen_width, y=_body_y + _i,
+            text=_line, fg=ui.COLOR_DESCRIPTION,
+        )
+    _centered_print(
+        console, screen_width=screen_width,
+        y=_body_y + len(_body) + 1,
+        text=_content["highlight"], fg=ui.COLOR_OPTION_HIGHLIGHT,
+    )
+    _centered_print(
+        console, screen_width=screen_width,
+        y=_body_y + len(_body) + 3,
+        text=_content["instruction"], fg=ui.COLOR_INSTRUCTION,
+    )
+
+
+def show_sealed_door_overlay(ctx, beat: str) -> None:
+    """Show the sealed-door overlay as a full-screen modal.
+
+    Called from :func:`bump_mars_door` on the two quest-beat bumps
+    (first contact + opening with a faction tool). Blocks until the
+    player dismisses (ENTER / ESC).
+    """
+    console = make_console()
+
+    def _render() -> None:
+        render_sealed_door_overlay(
+            console,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            beat=beat,
+        )
+
+    def _update(event) -> _ModalOutcome:
+        return _modal_dismiss_update(event)
 
     ui.Modal(ctx.context, console).run(_render, _update)
 
@@ -467,11 +662,13 @@ def bump_mars_door(ctx) -> None:
 
     * Before the door is found (entrance step active): discover it —
       completes ``prologue_mars_entrance``, making ``prologue_seek_help``
-      available. Logs the "won't open with any human tool" flavor.
+      available. Logs the "won't open with any human tool" flavor and
+      shows the SEALED ENTRANCE overlay (the two quest-beat bumps
+      surface as full-screen modals, mirroring the incoming signal).
     * After ``prologue_open`` is available (player holds a faction
       tool): open it — completes ``prologue_open``, plants the claim,
-      recovers the prison data (fuels Act 1).
-    * Otherwise: the door stays sealed.
+      recovers the prison data (fuels Act 1), shows the opening overlay.
+    * Otherwise (repeat bumps): log line only — no modal nag.
     """
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -483,6 +680,7 @@ def bump_mars_door(ctx) -> None:
             message_log.COLOR_IMPORTANT_EVENT,
         )
         ctx.log.add("The prison data is recovered. Someone will want to study this.")
+        show_sealed_door_overlay(ctx, "open")
         return
     _entrance_status = step_status(ctx, "prologue_mars_entrance")
     if _entrance_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -492,6 +690,7 @@ def bump_mars_door(ctx) -> None:
             "mechanism — older than the colony. It will not open.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
+        show_sealed_door_overlay(ctx, "discover")
         return
     if step_status(ctx, "prologue_open") == STATUS_COMPLETED:
         ctx.log.add("The opened entrance gapes dark and empty.")
@@ -512,6 +711,7 @@ __all__ = [
     "current_main_quest_objective",
     "maybe_trigger_signal",
     "show_prologue_transmission",
+    "show_sealed_door_overlay",
     "mars_exploration_unlocked",
     "place_mars_door",
     "prepare_mars_surface",
