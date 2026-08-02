@@ -1446,18 +1446,10 @@ def render_guide_list(
     # Border frame (subtle dot-border)
     ui.paint_rect_border(console, _BORDER_RECT, fg=ui.COLOR_VALUE_DIM, char=".")
 
-    # Title
-    _title = "GAME GUIDE"
-    console.print(
-        x=ui.centered_x(_title, SCREEN_WIDTH), y=3,
-        string=_title, fg=ui.COLOR_TITLE,
-    )
-
-    # Divider below title
-    _div = "\u2500" * (SCREEN_WIDTH - 8)
-    console.print(
-        x=ui.centered_x(_div, SCREEN_WIDTH), y=4,
-        string=_div, fg=ui.COLOR_VALUE_DIM,
+    # Title + divider (unified screen header, inside the frame)
+    ui.screen_header(
+        console, SCREEN_WIDTH, "GAME GUIDE",
+        row=3, divider_x=_CONTENT_LEFT, divider_w=_CONTENT_WIDTH,
     )
 
     # Section list — numbered, left-aligned inside the frame, with
@@ -1502,17 +1494,10 @@ def render_guide_page(
     # Border frame
     ui.paint_rect_border(console, _BORDER_RECT, fg=ui.COLOR_VALUE_DIM, char=".")
 
-    # Title
-    console.print(
-        x=ui.centered_x(section.title, SCREEN_WIDTH), y=3,
-        string=section.title, fg=ui.COLOR_TITLE,
-    )
-
-    # Divider below title
-    _div = "\u2500" * min(len(section.title) + 4, _CONTENT_WIDTH)
-    console.print(
-        x=ui.centered_x(_div, SCREEN_WIDTH), y=4,
-        string=_div, fg=ui.COLOR_VALUE_DIM,
+    # Title + divider (unified screen header, inside the frame)
+    ui.screen_header(
+        console, SCREEN_WIDTH, section.title,
+        row=3, divider_x=_CONTENT_LEFT, divider_w=_CONTENT_WIDTH,
     )
 
     # Body text — word-wrapped, left-aligned, starting at row 6
@@ -1535,11 +1520,7 @@ def render_guide_page(
     # Bottom divider (same width as body text)
     _hint_y = _start_y + _BODY_AVAIL_ROWS + 1
     if _hint_y < SCREEN_HEIGHT - 2:
-        _bd = "\u2500" * _CONTENT_WIDTH
-        console.print(
-            x=_CONTENT_LEFT, y=_hint_y,
-            string=_bd, fg=ui.COLOR_VALUE_DIM,
-        )
+        ui.paint_rule(console, _CONTENT_LEFT, _hint_y, _CONTENT_WIDTH)
         _hint_y += 1
 
     # Hint — scroll indicator with page counter for multi-page sections

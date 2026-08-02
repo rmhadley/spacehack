@@ -88,7 +88,7 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
     n = len(options)
     content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
-    ui.paint_title(console, screen_width, 2, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
+    ui.screen_header(console, screen_width, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
     sel = selected % n if n else 0
     list_top = 4
     for i, (_, label) in enumerate(options):

@@ -52,9 +52,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
     def _render() -> None:
         nonlocal selected
         console.clear()
-        title_y = 2
-        console.print(x=ui.centered_x("MECHANIC TERMINAL", SCREEN_WIDTH), y=title_y, string="MECHANIC TERMINAL", fg=ui.COLOR_TITLE)
-        stat_y = title_y + 2
+        stat_y = ui.screen_header(console, SCREEN_WIDTH, "MECHANIC TERMINAL")
         _stat_lines = [
             f"Ship: {ship_rec.name}",
             f"Fuel: {owned.fuel} / {ship_rec.max_fuel}  |  Hull: {owned.hull_damage_pct}% damage",
@@ -177,9 +175,7 @@ def _run_ammo_menu(ctx) -> None:
     def _render() -> None:
         nonlocal selected
         console.clear()
-        title_y = 2
-        console.print(x=ui.centered_x("BUY AMMO", SCREEN_WIDTH), y=title_y, string="BUY AMMO", fg=ui.COLOR_TITLE)
-        stat_y = title_y + 2
+        stat_y = ui.screen_header(console, SCREEN_WIDTH, "BUY AMMO")
         console.print(x=2, y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
         _items: list[tuple[str, str]] = []
         for _slot in missile_slots:

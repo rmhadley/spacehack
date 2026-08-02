@@ -45,6 +45,11 @@ COLOR_DESCRIPTION: tuple[int, int, int] = (175, 170, 210)           # muted lave
 COLOR_VALUE_WHITE: tuple[int, int, int] = (250, 250, 250)
 COLOR_VALUE_DIM: tuple[int, int, int] = (150, 150, 150)           # neutral silver (de-saturated so it doesn't echo SIDEWALK)
 
+# Unified screen-header rule. Single source of truth for the divider
+# drawn under every menu title — change these and every screen follows.
+DIVIDER_CHAR: str = "="                       # CP437-safe rule char
+COLOR_DIVIDER: tuple[int, int, int] = (90, 90, 90)   # dim grey rule
+
 
 class MenuAction(Enum):
     """What a single key event means for a menu screen."""
@@ -258,10 +263,7 @@ def render_selectable_list(
     _title_y = title_y if title_y is not None else screen_height // 4
 
     # Title (centered).
-    console.print(
-        x=centered_x(title, screen_width), y=_title_y,
-        string=title, fg=title_fg,
-    )
+    paint_title(console, screen_width, _title_y, title, fg=title_fg)
 
     # Items with consistent-width markers.
     n = len(items)
@@ -785,6 +787,49 @@ def paint_line(console, x: int, y: int, text: str, *, fg) -> None:
     console.print(x=x, y=y, string=text, fg=fg)
 
 
+def screen_header(
+    console,
+    screen_width: int,
+    title: str,
+    *,
+    fg=COLOR_TITLE,
+    row: int = 2,
+    divider_x: int = 2,
+    divider_w: int | None = None,
+) -> int:
+    """Paint the unified screen header: centered title + divider rule.
+
+    Returns the first content row (``row + 2``) so callers anchor
+    content directly beneath the header.  Every full-screen menu
+    routes its title through this function — change the divider char,
+    colour, or width here and all of them follow.
+    """
+    paint_title(console, screen_width, row, title, fg=fg)
+    if divider_w is None:
+        from .engine import HUD_WIDTH
+        divider_w = max(1, screen_width - HUD_WIDTH - 2)
+    console.print(
+        x=divider_x, y=row + 1,
+        string=DIVIDER_CHAR * divider_w, fg=COLOR_DIVIDER,
+    )
+    return row + 2
+
+
+def paint_rule(
+    console,
+    x: int, y: int, width: int,
+    *,
+    fg=COLOR_DIVIDER,
+    char: str = DIVIDER_CHAR,
+) -> None:
+    """Paint a horizontal rule — shared section separator (not a header).
+
+    Used for mid-content dividers (stat blocks, panels) so their
+    style also updates from one place.
+    """
+    console.print(x=x, y=y, string=char * max(1, width), fg=fg)
+
+
 def format_split_row(
     name: str, label: str, suffix: str,
     selected: bool, col_w: int,
@@ -832,9 +877,7 @@ def render_split_frame(
     console.clear()
     max_w = SCREEN_WIDTH - HUD_WIDTH - 2
     col_w = max_w // 2 - 2
-    cy = 2
-    paint_text(console, centered_x(title, SCREEN_WIDTH), cy, title, fg=COLOR_TITLE)
-    cy += 2
+    cy = screen_header(console, SCREEN_WIDTH, title)
     left_fg = COLOR_TITLE if focus == 0 else COLOR_OPTION
     right_fg = COLOR_TITLE if focus == 1 else COLOR_OPTION
     paint_text(console, 2, cy, left_label, fg=left_fg)

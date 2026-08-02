@@ -14,7 +14,7 @@ import tcod.event
 
 from . import ui
 from . import message_log
-from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from .engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
 from .hud import _render_xp_bar
 from .input_helpers import _try_open_guide
@@ -75,19 +75,7 @@ def open_character_screen(ctx: GameContext) -> None:
             string=_tab_str,
             fg=ui.COLOR_OPTION_HIGHLIGHT if _tab == 1 else ui.COLOR_OPTION,
         )
-        console.print(
-            x=ui.centered_x(_title, SCREEN_WIDTH),
-            y=2,
-            string=_title,
-            fg=ui.COLOR_TITLE,
-        )
-        _div = "=" * 50
-        console.print(
-            x=ui.centered_x(_div, SCREEN_WIDTH),
-            y=3,
-            string=_div,
-            fg=ui.COLOR_TITLE,
-        )
+        ui.screen_header(console, SCREEN_WIDTH, _title)
 
         if _tab == 0:
             _render_stats(ctx, console, _sel, _level, _into_level, _needed)
@@ -207,11 +195,7 @@ def _render_stats(
     # skills. The row matching the current selection is highlighted so
     # the description tracks the skill you're about to spend on.
     _panel_y = _y + 2
-    _pdiv = "=" * 50
-    console.print(
-        x=2, y=_panel_y,
-        string=_pdiv, fg=ui.COLOR_VALUE_DIM,
-    )
+    ui.paint_rule(console, 2, _panel_y, SCREEN_WIDTH - HUD_WIDTH - 2)
     _panel_y += 1
     console.print(
         x=2, y=_panel_y,

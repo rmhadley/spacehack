@@ -206,7 +206,7 @@ def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen
     if system is None:
         system = solar_system_module.current_system()
     title = f'NAVIGATION - {system.name.upper()} SYSTEM'
-    console.print(x=ui.centered_x(title, screen_width), y=2, string=title, fg=ui.COLOR_TITLE)
+    ui.screen_header(console, screen_width, title)
     inner_view_w = screen_width - HUD_WIDTH
     inner_view_h = screen_height - MSG_LOG_HEIGHT
     nav_map_w = 40
@@ -765,9 +765,10 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
     while True:
         console.clear()
         _goto_items = [(label, "") for label, _body in destinations]
+        ui.screen_header(console, SCREEN_WIDTH, "GO TO")
         ui.render_selectable_list(
             console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="GO TO",
+            title="",
             items=_goto_items,
             selected=selected,
             col_x=2,
@@ -954,13 +955,12 @@ def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target
     target_system = solar_systems_module.find_solar_system(target_system_id)
     console.clear()
     title = f'JUMP  -  {jp.name}  ->  {target_system.name}'
-    title_y = 2
-    console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
+    title_y = ui.screen_header(console, screen_width, title)
     _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
     desc_lines = ui.wrap_text(jp.description or '', max_width=_desc_w)
-    _content_bottom = title_y + 2 + len(desc_lines[:3])
+    _content_bottom = title_y + len(desc_lines[:3])
     for i, line in enumerate(desc_lines[:3]):
-        console.print(x=_content_x, y=title_y + 2 + i, string=line, fg=ui.COLOR_DESCRIPTION)
+        console.print(x=_content_x, y=title_y + i, string=line, fg=ui.COLOR_DESCRIPTION)
     _list_y = _content_bottom + 1
     if current_fuel is not None and max_fuel is not None:
         fuel_str = f'Fuel: {current_fuel} / {max_fuel}  |  Jump cost: {jump_fuel_cost}'

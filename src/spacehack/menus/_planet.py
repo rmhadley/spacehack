@@ -56,10 +56,8 @@ def render_planet_menu(
 ) -> None:
     """Paint the planet-bump dialog with a selectable list of actions."""
     console.clear()
-    title_y = 2
-    console.print(x=ui.centered_x(planet_obj.name, screen_width), y=title_y, string=planet_obj.name, fg=ui.COLOR_TITLE)
     _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
-    desc_y = title_y + 2
+    desc_y = ui.screen_header(console, screen_width, planet_obj.name)
     desc_rows = ui.wrap_text(planet_obj.description, _desc_w)
     for i, row in enumerate(desc_rows):
         console.print(x=_content_x, y=desc_y + i, string=row, fg=ui.COLOR_DESCRIPTION)

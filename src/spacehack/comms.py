@@ -137,14 +137,14 @@ def _render_comms_panel(
         _flavor = spec.comms_lines[0] if spec.comms_lines else "..."
         _items.append((_display_name, _flavor))
 
+    ui.screen_header(console, SCREEN_WIDTH, title, fg=_CONTACTS_TITLE_COLOR)
     ui.render_selectable_list(
         console, SCREEN_WIDTH, SCREEN_HEIGHT,
-        title=title,
+        title="",
         items=_items,
         selected=selected,
         col_x=2,
         title_y=2,
-        title_fg=_CONTACTS_TITLE_COLOR,
         row_spacing=3,
         item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
         item_fg_normal=ui.COLOR_OPTION,
@@ -176,17 +176,10 @@ def _render_interaction_modal(
     """
     console.clear()
     title = f"{contact_name} — Hailing"
-    title_y = 2
-    console.print(
-        x=ui.centered_x(title, SCREEN_WIDTH),
-        y=title_y,
-        string=title,
-        fg=_INTERACTION_TITLE,
-    )
+    _COL_X = 2
+    flavor_y = ui.screen_header(console, SCREEN_WIDTH, title, fg=_INTERACTION_TITLE)
 
     # Flavor text — left-aligned from the fixed content column.
-    _COL_X = 2
-    flavor_y = title_y + 2
     for line in spec.comms_lines:
         wrapped = ui.wrap_text(line, max_width=SCREEN_WIDTH - _COL_X * 2)
         for wl in wrapped:

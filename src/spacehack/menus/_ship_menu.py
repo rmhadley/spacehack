@@ -49,9 +49,7 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     console.clear()
     _disp = ship_module.ship_display_name(ctx.player_owned_ship)
     title = f'Your {_disp.upper()}'
-    title_y = 2
-    console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
-    _stat_y = title_y + 2
+    _stat_y = ui.screen_header(console, screen_width, title)
     _stat_col = 2
     if ctx.player_owned_ship is not None:
         _eff_spd = ship_module.effective_speed(ship, ctx.player_owned_ship)
@@ -184,13 +182,10 @@ def _run_loadout_view(ctx) -> None:
         from ..data.modules import find_module as _fm
 
         max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-        div = "-" * max_w
 
-        cy = 2
-        # Title (centered)
+        # Title + header rule (unified screen header)
         title_text = f"LOADOUT \u2014 {ship_module.ship_display_name(owned).upper()}"
-        paint_text(console, ui.centered_x(title_text, SCREEN_WIDTH), cy, title_text, fg=ui.COLOR_TITLE)
-        cy += 2
+        cy = ui.screen_header(console, SCREEN_WIDTH, title_text)
 
         # Ship stats header — effective values with module bonuses.
         eff_spd = ship_module.effective_speed(ship_spec, owned)
@@ -205,8 +200,8 @@ def _run_loadout_view(ctx) -> None:
         paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
         cy += 2
 
-        # Divider
-        paint_text(console, 2, cy, div, fg=(90, 90, 90))
+        # Section rule
+        ui.paint_rule(console, 2, cy, max_w)
         cy += 1
 
         # Weapons section
@@ -311,23 +306,8 @@ def _run_faction_view(ctx) -> None:
 
     def _render() -> None:
         console.clear()
-        # Title
-        _title = "FACTION STANDINGS"
-        _div = "═" * 48
-        console.print(
-            x=ui.centered_x(_title, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 6,
-            string=_title,
-            fg=ui.COLOR_TITLE,
-        )
-        console.print(
-            x=ui.centered_x(_div, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 6 + 1,
-            string=_div,
-            fg=ui.COLOR_TITLE,
-        )
-
-        _start_y = SCREEN_HEIGHT // 6 + 3
+        # Title + header rule (unified screen header)
+        _start_y = ui.screen_header(console, SCREEN_WIDTH, "FACTION STANDINGS")
         for _i, _faction in enumerate(_ALL_FACTIONS):
             _rep = ctx.faction_reputation.get(_faction, 0)
             _attitude = get_attitude(_rep)
@@ -342,7 +322,7 @@ def _run_faction_view(ctx) -> None:
             # Progress bar
             _line = f"{_name} {_score}  {_bar}  {_attitude.title()}"
             console.print(
-                x=SCREEN_WIDTH // 4,
+                x=2,
                 y=_y,
                 string=_line,
                 fg=_color,
@@ -351,7 +331,7 @@ def _run_faction_view(ctx) -> None:
         # Hint
         _hint_y = _start_y + len(_ALL_FACTIONS) * 3 + 2
         console.print(
-            x=SCREEN_WIDTH // 4,
+            x=2,
             y=_hint_y,
             string="ENTER / ESC — back",
             fg=ui.COLOR_INSTRUCTION,

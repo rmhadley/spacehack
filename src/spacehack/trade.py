@@ -1060,19 +1060,17 @@ def open_cargo(ctx: GameContext) -> None:
         _ammo = owned.cargo_ammo
         _mission_res = owned.mission_reserved
 
-        cy = 2
-        # Title
+        # Title + header rule (unified screen header)
         title = f"CARGO \u2014 {ship_name.upper()} ({_cargo_used}/{max_cargo})"
-        paint_text(console, ui.centered_x(title, SCREEN_WIDTH), cy, title, fg=ui.COLOR_TITLE)
-        cy += 2
+        cy = ui.screen_header(console, SCREEN_WIDTH, title)
 
         # Ship stats header
         header = f"Hull: {hull_damage}% damage  |  Wpn: {weapons_n}/{weapon_slots}  |  Mod: {modules_n}/{module_slots}"
         paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
         cy += 2
 
-        # Divider
-        paint_text(console, 2, cy, "-" * (SCREEN_WIDTH - HUD_WIDTH - 2), fg=(90, 90, 90))
+        # Section rule
+        ui.paint_rule(console, 2, cy, SCREEN_WIDTH - HUD_WIDTH - 2)
         cy += 1
 
         # Trade goods section

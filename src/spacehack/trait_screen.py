@@ -46,19 +46,7 @@ def open_trait_selection(ctx: GameContext) -> None:
         console.clear()
 
         _title = f"TRAIT SELECTION — Level {ctx.player_level}"
-        console.print(
-            x=ui.centered_x(_title, SCREEN_WIDTH),
-            y=2,
-            string=_title,
-            fg=ui.COLOR_TITLE,
-        )
-        _div = "=" * 50
-        console.print(
-            x=ui.centered_x(_div, SCREEN_WIDTH),
-            y=3,
-            string=_div,
-            fg=ui.COLOR_TITLE,
-        )
+        ui.screen_header(console, SCREEN_WIDTH, _title)
 
         _y = 5
         for _i, _trait in enumerate(_candidates):
