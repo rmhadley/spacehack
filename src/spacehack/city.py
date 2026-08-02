@@ -12,7 +12,6 @@ from . import message_log
 from . import mission as mission_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
-from . import main_quest as main_quest_module
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, MSG_LOG_HEIGHT
 from .navigation import _add_bounty_spawns_to_map, _responsive_sleep
 
@@ -66,14 +65,6 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
     if hangar_ship_ent.pos.y > offscreen_y:
         _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y, location=current_city_id.replace('_', ' ').title())
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
-    # Main quest prologue: the garbled transmission fires on the first
-    # launch through Sol (see main_quest.maybe_trigger_signal). When it
-    # fires, it arrives as a full-screen incoming-comms overlay (ENTER
-    # to acknowledge) before the space map is presented.
-    if main_quest_module.maybe_trigger_signal(
-        ctx, solar_system_module.current_solar_system_id,
-    ):
-        main_quest_module.show_prologue_transmission(ctx)
     space_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
     # Exclude a radius around the origin planet so the player

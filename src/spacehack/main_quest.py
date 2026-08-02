@@ -41,8 +41,9 @@ STATUS_AVAILABLE = "available"
 STATUS_ACTIVE = "active"
 STATUS_COMPLETED = "completed"
 
-# The signal only fires on the first launch through Sol (the game
-# starts on Earth, so the first launch IS the first Sol flight).
+# The signal only fires on the first jump OUT of Sol (the game
+# starts on Earth, so the first jump away from Sol IS the first
+# departure — launching into Sol space alone doesn't trigger it).
 _SIGNAL_SYSTEM_ID = "sol"
 
 
@@ -233,10 +234,11 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
 
 
 def maybe_trigger_signal(ctx, system_id: str) -> bool:
-    """Fire the prologue signal on the first launch through Sol.
+    """Fire the prologue signal on the first jump out of Sol.
 
-    Called from :func:`spacehack.city._launch_to_space` after the
-    launch animation. Only fires once: completes ``prologue_signal``
+    Called from :func:`spacehack.navigation._jump_to_system` with the
+    OUTGOING system id, right after the player emerges in the
+    destination system. Only fires once: completes ``prologue_signal``
     (via :func:`complete_step`, which auto-advances
     ``prologue_mars_unlocked`` to available — the Mars exploration
     gate). Returns True if the signal just fired.
@@ -365,10 +367,11 @@ def update_incoming_transmission(event: tcod.event.Event) -> _TransmissionOutcom
 def show_prologue_transmission(ctx) -> None:
     """Show the garbled prologue signal as an incoming-comms overlay.
 
-    Called from :func:`spacehack.city._launch_to_space` right after
-    :func:`maybe_trigger_signal` fires, so the signal arrives as a
-    full-screen transmission readout rather than only log lines.
-    Blocks until the player acknowledges (ENTER / ESC).
+    Called from :func:`spacehack.navigation._jump_to_system` right
+    after :func:`maybe_trigger_signal` fires, so the signal arrives
+    as a full-screen transmission readout as the player emerges in
+    the destination system — not just log lines. Blocks until the
+    player acknowledges (ENTER / ESC).
     """
     console = make_console()
 

@@ -15,6 +15,7 @@ from . import ui
 from . import world
 from . import hud
 from . import message_log
+from . import main_quest as main_quest_module
 from . import mission as mission_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
@@ -1301,4 +1302,10 @@ def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tup
     new_ship_ent = world.Entity(char=ship_record.char, fg=ship_record.fg, pos=new_pos, name=f'Your Ship: {ship_record.name}', ship_id=ship_record.id, width=ship_record.width, height=ship_record.height, owned=True)
     new_map.entities.append(new_ship_ent)
     ctx.log.add(f'You emerge near {target_system.name}.')
+    # Main quest prologue: the garbled transmission fires on the first
+    # jump OUT of Sol (see main_quest.maybe_trigger_signal). When it
+    # fires, it arrives as a full-screen incoming-comms overlay (ENTER
+    # to acknowledge) as the player emerges in the destination system.
+    if main_quest_module.maybe_trigger_signal(ctx, _src_id):
+        main_quest_module.show_prologue_transmission(ctx)
     return (new_map, new_ship_ent)
