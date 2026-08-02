@@ -52,7 +52,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
     def _render() -> None:
         nonlocal selected
         console.clear()
-        title_y = SCREEN_HEIGHT // 6
+        title_y = 2
         console.print(x=ui.centered_x("MECHANIC TERMINAL", SCREEN_WIDTH), y=title_y, string="MECHANIC TERMINAL", fg=ui.COLOR_TITLE)
         stat_y = title_y + 2
         _stat_lines = [
@@ -61,7 +61,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
             f"Credits: {ctx.stats.credits}$",
         ]
         for i, _line in enumerate(_stat_lines):
-            console.print(x=SCREEN_WIDTH // 4, y=stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
+            console.print(x=2, y=stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
         _opt_items = [(opt, "") for opt in _MECH_OPTIONS]
         _list_title_y = stat_y + len(_stat_lines) + 1
         ui.render_selectable_list(
@@ -69,7 +69,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
             title="",
             items=_opt_items,
             selected=selected,
-            col_x=SCREEN_WIDTH // 4,
+            col_x=2,
             title_y=_list_title_y,
             row_spacing=2,
             item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
@@ -177,10 +177,10 @@ def _run_ammo_menu(ctx) -> None:
     def _render() -> None:
         nonlocal selected
         console.clear()
-        title_y = SCREEN_HEIGHT // 6
+        title_y = 2
         console.print(x=ui.centered_x("BUY AMMO", SCREEN_WIDTH), y=title_y, string="BUY AMMO", fg=ui.COLOR_TITLE)
         stat_y = title_y + 2
-        console.print(x=SCREEN_WIDTH // 4, y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
+        console.print(x=2, y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
         _items: list[tuple[str, str]] = []
         for _slot in missile_slots:
             _ws = find_weapon(owned.weapons[_slot])
@@ -194,7 +194,7 @@ def _run_ammo_menu(ctx) -> None:
             title="",
             items=_items,
             selected=selected,
-            col_x=SCREEN_WIDTH // 4,
+            col_x=2,
             title_y=stat_y + 2,
             row_spacing=2,
             item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,

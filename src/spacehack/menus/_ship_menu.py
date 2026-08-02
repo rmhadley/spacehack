@@ -49,10 +49,10 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
     console.clear()
     _disp = ship_module.ship_display_name(ctx.player_owned_ship)
     title = f'Your {_disp.upper()}'
-    title_y = screen_height // 6
+    title_y = 2
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
     _stat_y = title_y + 2
-    _stat_col = screen_width // 4
+    _stat_col = 2
     if ctx.player_owned_ship is not None:
         _eff_spd = ship_module.effective_speed(ship, ctx.player_owned_ship)
         _lines = [
@@ -74,7 +74,7 @@ def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship
         title="",
         items=_opt_items,
         selected=selected,
-        col_x=screen_width // 4,
+        col_x=2,
         title_y=_list_title_y,
         title_fg=ui.COLOR_TITLE,
         row_spacing=2,

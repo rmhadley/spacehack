@@ -142,8 +142,8 @@ def _render_comms_panel(
         title=title,
         items=_items,
         selected=selected,
-        col_x=SCREEN_WIDTH // 4,
-        title_y=SCREEN_HEIGHT // 4,
+        col_x=2,
+        title_y=2,
         title_fg=_CONTACTS_TITLE_COLOR,
         row_spacing=3,
         item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
@@ -153,10 +153,16 @@ def _render_comms_panel(
         hint="UP/DOWN / j,k navigate - ENTER hail - ESC close",
         hint_fg=_INTERACTION_INSTRUCTION,
     )
+    _ml.render_message_log(
+        console, ctx.log,
+        screen_width=SCREEN_WIDTH,
+        screen_height=SCREEN_HEIGHT,
+    )
 
 
 def _render_interaction_modal(
     console: tcod.console.Console,
+    ctx: GameContext,
     contact_name: str,
     spec: object,
     options: list[str],
@@ -166,10 +172,11 @@ def _render_interaction_modal(
 
     Flavor text rendered directly; options delegated to
     :func:`ui.render_selectable_list` for consistent markers.
+    ``ctx`` is needed for the message-log footer.
     """
     console.clear()
     title = f"{contact_name} — Hailing"
-    title_y = SCREEN_HEIGHT // 4
+    title_y = 2
     console.print(
         x=ui.centered_x(title, SCREEN_WIDTH),
         y=title_y,
@@ -177,8 +184,8 @@ def _render_interaction_modal(
         fg=_INTERACTION_TITLE,
     )
 
-    # Flavor text — left-aligned from a fixed column.
-    _COL_X = SCREEN_WIDTH // 4
+    # Flavor text — left-aligned from the fixed content column.
+    _COL_X = 2
     flavor_y = title_y + 2
     for line in spec.comms_lines:
         wrapped = ui.wrap_text(line, max_width=SCREEN_WIDTH - _COL_X * 2)
@@ -206,6 +213,11 @@ def _render_interaction_modal(
         item_fg_normal=_INTERACTION_OPTION,
         hint="UP/DOWN navigate - ENTER select - ESC back",
         hint_fg=_INTERACTION_INSTRUCTION,
+    )
+    _ml.render_message_log(
+        console, ctx.log,
+        screen_width=SCREEN_WIDTH,
+        screen_height=SCREEN_HEIGHT,
     )
 
 
@@ -258,7 +270,7 @@ def _run_interaction_modal(
 
     def _render_interaction() -> None:
         _render_interaction_modal(
-            console, contact_name, contact_spec,
+            console, ctx, contact_name, contact_spec,
             _options, _interaction_selected,
         )
 

@@ -102,18 +102,24 @@ def centered_x(text: str, screen_width: int) -> int:
     return max(0, (screen_width - len(text)) // 2)
 
 
-def content_metrics(screen_width: int, hud_width: int) -> tuple[int, int]:
+def content_metrics(
+    screen_width: int,
+    hud_width: int,
+    col_x: int | None = None,
+) -> tuple[int, int]:
     """Return ``(col_x, max_w)`` for left-anchored modal content.
 
-    ``col_x`` is the fixed content column (character-screen style:
-    ``screen_width // 4``). ``max_w`` caps the line width so
+    ``col_x`` is the fixed content column — defaults to the
+    character-screen style (``screen_width // 4``); pass a custom
+    column for the terminal look (``2``, flush-left like the ship
+    loadout and cargo screens). ``max_w`` caps the line width so
     ``col_x + max_w`` always fits inside the console — without this
     cap, long left-anchored lines would clip off the right edge
     (centered text used to fit by construction).
     """
-    col_x = screen_width // 4
-    max_w = max(1, min(screen_width - hud_width - 2, screen_width - col_x - 2))
-    return col_x, max_w
+    _col_x = screen_width // 4 if col_x is None else col_x
+    max_w = max(1, min(screen_width - hud_width - 2, screen_width - _col_x - 2))
+    return _col_x, max_w
 
 
 def paint_rect_border(

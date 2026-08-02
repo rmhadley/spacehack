@@ -70,8 +70,9 @@ def render_npc_talk(
     quest_body: str = "",
     quest_options: list[tuple[str, str]] | None = None,
 ) -> None:
-    """Paint the NPC-talk dialog — centered title, left-anchored
-    body and option rows (character-screen style).
+    """Paint the NPC-talk dialog — terminal look: centered title at
+    the top, body and option rows flush-left at x=2, message log
+    pinned at the bottom.
 
     ``quest_body`` overrides the NPC's ``flavor_text`` when a live
     main-quest dialogue exists (empty = normal flavor).
@@ -86,7 +87,7 @@ def render_npc_talk(
     console.clear()
     title = f"{npc.name} ({npc.guild})"
     body = f'"{quest_body if quest_body else npc.flavor_text}"'
-    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH)
+    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
     def fit(line: str) -> str:
         return line if len(line) <= max_w else line[:max_w - 1] + "…"
@@ -97,9 +98,8 @@ def render_npc_talk(
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
         console.print(x=content_x, y=row, string=text, fg=fg)
 
-    center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    paint_title(center_y - 2, fit(title), fg=ui.COLOR_TITLE)
-    paint(center_y + 1, fit(body), fg=ui.COLOR_DESCRIPTION)
+    paint_title(2, fit(title), fg=ui.COLOR_TITLE)
+    paint(4, fit(body), fg=ui.COLOR_DESCRIPTION)
 
     _missions = deliver_missions or []
     options: list[tuple[str, str]] = []  # (label, kind: quest/deliver/work)
@@ -110,7 +110,7 @@ def render_npc_talk(
     options.append(("View available work", "work"))
     n = len(options)
     sel = selected % n
-    list_top = center_y + 3
+    list_top = 6
     for i, (label, kind) in enumerate(options):
         row = list_top + i * 2
         is_selected = i == sel

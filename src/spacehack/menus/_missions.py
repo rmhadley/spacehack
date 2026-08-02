@@ -13,7 +13,7 @@ from .. import ui
 from .. import mission as mission_module
 from .. import npc as npc_module
 from ..game_context import GameContext
-from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from ..engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..data.classes import find_class
 from ..input_helpers import _try_open_guide
 
@@ -75,8 +75,9 @@ def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Miss
 
 
 def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...], selected: int, *, screen_width: int, screen_height: int) -> None:
-    """Paint the NPC's available missions as a character-screen style
-    menu — centered title, left-anchored list at a fixed column.
+    """Paint the NPC's available missions — terminal look: centered
+    title at the top, content flush-left at x=2, message log pinned
+    at the bottom.
 
     ``selected`` is the index of the highlighted option (clamped
     by caller-supplied modulo wrap, so any int is safe). The list
@@ -85,7 +86,7 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
     console.clear()
     title, options, descriptions = _offerings_to_menu(npc, offerings)
     n = len(options)
-    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH)
+    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
     def fit(line: str) -> str:
         return line if len(line) <= max_w else line[:max_w - 1] + '…'
@@ -95,10 +96,9 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
 
     def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
         console.print(x=content_x, y=row, string=text, fg=fg)
-    center_y = (screen_height - MSG_LOG_HEIGHT) // 2
-    paint_title(center_y - 6, fit(title), fg=ui.COLOR_TITLE)
+    paint_title(2, fit(title), fg=ui.COLOR_TITLE)
     sel = selected % n if n else 0
-    list_top = center_y - 4
+    list_top = 4
     for i, (_, label) in enumerate(options):
         row = list_top + i * 2
         is_selected = i == sel
@@ -122,6 +122,9 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
             hint_lines.append(f'Ship cargo recommended: {picked.recommended_ship_min_cargo}+')
     for i, line in enumerate(hint_lines):
         paint(desc_start_row + max(len(desc_rows), 1) + 1 + i, fit(line), fg=ui.COLOR_INSTRUCTION)
+
+    from .. import message_log
+    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 
 def update_mission_offerings(event: tcod.event.Event) -> MissionOutcome:

@@ -954,9 +954,9 @@ def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target
     target_system = solar_systems_module.find_solar_system(target_system_id)
     console.clear()
     title = f'JUMP  -  {jp.name}  ->  {target_system.name}'
-    title_y = screen_height // 2 - 4
+    title_y = 2
     console.print(x=ui.centered_x(title, screen_width), y=title_y, string=title, fg=ui.COLOR_TITLE)
-    _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH)
+    _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
     desc_lines = ui.wrap_text(jp.description or '', max_width=_desc_w)
     _content_bottom = title_y + 2 + len(desc_lines[:3])
     for i, line in enumerate(desc_lines[:3]):
@@ -971,6 +971,7 @@ def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target
         title="",
         items=[(f"Jump to {target_system.name}", "")],
         selected=0,
+        col_x=2,
         title_y=_list_y,
         hint="ENTER to jump - ESC to fly past",
     )

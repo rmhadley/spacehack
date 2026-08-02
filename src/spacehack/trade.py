@@ -21,6 +21,7 @@ import tcod.console
 import tcod.event
 
 from . import ui
+from . import message_log
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from .game_context import GameContext
 from .data.planets import find_planet_spec
@@ -1125,6 +1126,13 @@ def open_cargo(ctx: GameContext) -> None:
         else:
             hint = "[C/ESC] close"
         paint_text(console, 2, cy, hint, fg=ui.COLOR_INSTRUCTION)
+
+        # Message log pinned at the bottom (terminal look).
+        message_log.render_message_log(
+            console, ctx.log,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+        )
 
     def _update(event: tcod.event.Event) -> _COut:
         nonlocal _sel
