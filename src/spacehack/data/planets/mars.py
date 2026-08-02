@@ -8,6 +8,8 @@ Three buildings the player can visit on the first iteration:
                     same ``barkeep`` npc_id reads differently here
                     than on Earth without touching the global
                     :class:`spacehack.data.npcs.NPCS` catalog.
+  * ``merchants`` - the Trade Marshal (override of the global
+                    ``guild_master`` id) — the colony's commerce hub.
   * ``militia``   - the Mars Patrol (override of the global
                     ``militia_captain`` id). Same pattern as the
                     bar override.
@@ -48,6 +50,11 @@ SPEC = PlanetSpec(
             door_x=37, npc_id="barkeep",
         ),
         world.CityBuilding(
+            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
+            door_x=14, npc_id="guild_master",
+            door_north=True,
+        ),
+        world.CityBuilding(
             label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35,
             door_x=47, npc_id="militia_captain",
             door_north=True,
@@ -72,6 +79,21 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "The dust here dries a throat to dust. Sit, drink, "
                     "tell me what you flew in for."
+                ),
+            ),
+        ),
+        (
+            "guild_master",
+            npc_module.NPC(
+                id="guild_master",
+                name="Trade Marshal",
+                guild="merchants",
+                char="G",
+                fg=(220, 190, 90),
+                flavor_text=(
+                    "The colony ships ore out and imports everything "
+                    "else. A pilot who hauls steady keeps both ends "
+                    "of that deal honest."
                 ),
             ),
         ),

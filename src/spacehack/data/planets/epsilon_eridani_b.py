@@ -8,9 +8,11 @@ Layout (60x40):
 
   * spaceport, NW corner.
   * bar, NE corner — "The Dusty Glass" saloon.
+  * merchants, SW corner — the colony's trade hall.
   * militia, S row — frontier law enforcement.
 
-NPC overrides: barkeep + militia captain get frontier-pioneer flavour.
+NPC overrides: barkeep, guild master + militia captain get
+frontier-pioneer flavour.
 """
 from __future__ import annotations
 
@@ -40,6 +42,11 @@ SPEC = PlanetSpec(
             door_x=37, npc_id="barkeep",
         ),
         world.CityBuilding(
+            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
+            door_x=14, npc_id="guild_master",
+            door_north=True,
+        ),
+        world.CityBuilding(
             label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35,
             door_x=47, npc_id="militia_captain",
             door_north=True,
@@ -62,6 +69,21 @@ SPEC = PlanetSpec(
                     "Dust gets in everything out here. Sit, "
                     "wet your throat, and tell me what brought "
                     "you past the beacon."
+                ),
+            ),
+        ),
+        (
+            "guild_master",
+            npc_module.NPC(
+                id="guild_master",
+                name="Settlement Trader",
+                guild="merchants",
+                char="G",
+                fg=(210, 170, 100),
+                flavor_text=(
+                    "First settlement past Sol runs on what gets "
+                    "hauled in. Electronics, meds, machine parts — "
+                    "bring them and I'll make it worth your fuel."
                 ),
             ),
         ),

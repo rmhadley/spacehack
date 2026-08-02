@@ -2,10 +2,11 @@
 
 The user asked for Alpha Centauri as the first non-Sol system, so
 v1 ships the real-world triple: Alpha Centauri A + B (the binary
-stars) and Proxima Centauri (the red dwarf third star). Bodies
-are NOT landable in v1 (no :class:`spacehack.data.planets.PlanetSpec`
-entries yet) — they're for visual flavour + the Jump Point back
-to Sol, which is the required behaviour.
+stars) and Proxima Centauri (the red dwarf third star). Three
+bodies are landable (AC-I's prospecting outpost, AC-II's research
+outpost, AC-III's refinery deck) plus the Science Port station
+orbiting Proxima — the Jump Points back to Sol round out the
+required behaviour.
 
 A single Jump Point at the western edge of the map connects to
 :data:`spacehack.data.solar_systems.sol`'s Jump Point at its
@@ -57,11 +58,11 @@ _planets: tuple[solar_module.Planet, ...] = (
         pos=PROXIMA_POS, width=3, height=3, sun=True,
         description="A small red dwarf — distant third member of the system.",
     ),
-    # A few non-landable flavour planets (no planet-spec entries) —
-    # gives the system some visual depth beyond the three stars.
-    # Same warm/gas-giant palette as Sol's outer planets so the
-    # two systems feel related (Mars-like rusty, ringed Saturn-
-    # like, cool Uranus-like).
+    # AC-I + AC-III are landable via their PlanetSpecs
+    # (data/planets/ac_planet_1.py, ac_planet_3.py); the comments
+    # here keep their in-space flavour. Same warm/gas-giant palette
+    # as Sol's outer planets so the two systems feel related
+    # (Mars-like rusty, ringed Saturn-like, cool Uranus-like).
     solar_module.Planet(
         id="ac_planet_1", name="AC-I", char="p", fg=(180, 165, 130),
         pos=world.Position(45, 110), width=2, height=2,

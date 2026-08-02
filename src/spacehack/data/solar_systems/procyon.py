@@ -40,7 +40,9 @@ _planets: tuple[solar_module.Planet, ...] = (
         sun=True,
         description="A faint white dwarf companion.",
     ),
-    # A few flavour planets for visual depth.
+    # Procyon b — scorched rocky waypoint outpost, landable via
+    # data/planets/proc_planet_1.py. Procyon c's icy research
+    # outpost is also landable (data/planets/procyon_c.py).
     solar_module.Planet(
         id="proc_planet_1", name="Procyon b",
         char="p", fg=(180, 160, 130),

@@ -9,9 +9,11 @@ Layout (60x40):
   * spaceport (arrival deck), NW corner.
   * bar (observation lounge), NE corner — "The Veil" — floor-to-ceiling
     windows overlooking the gas giant's cloudscape.
+  * merchants, SW corner — the hub's trade hall.
 
 NPC overrides: the barkeep becomes the "Cloud Host" — a sleek,
-welcoming figure who knows the gossip of the deep-space routes.
+welcoming figure who knows the gossip of the deep-space routes —
+and the guild master becomes the "Freight Broker".
 """
 from __future__ import annotations
 
@@ -40,6 +42,11 @@ SPEC = PlanetSpec(
             label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
             door_x=37, npc_id="barkeep",
         ),
+        world.CityBuilding(
+            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
+            door_x=14, npc_id="guild_master",
+            door_north=True,
+        ),
     ),
     showroom_ships=(
         ("cruiser",   11, 4),
@@ -57,6 +64,21 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "Welcome to the Veil. Drink in the view — "
                     "the clouds below shift faster than the politics above."
+                ),
+            ),
+        ),
+        (
+            "guild_master",
+            npc_module.NPC(
+                id="guild_master",
+                name="Freight Broker",
+                guild="merchants",
+                char="G",
+                fg=(200, 210, 220),
+                flavor_text=(
+                    "Every route in the sector threads through Vega. "
+                    "You haul cargo between the lanes, I find you "
+                    "a buyer at the other end."
                 ),
             ),
         ),

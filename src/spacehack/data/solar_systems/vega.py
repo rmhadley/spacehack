@@ -20,9 +20,10 @@ Barnard's or south to Sirius. The N/S separation makes the map
 read 'strategic crossroads' rather than a single-direction
 corridor.
 
-No landable bodies in v1 — Vega is a transit hub only. Map
-dims MATCH the other 200x140 systems so all system map renders
-share one viewport sizing contract.
+Vega b hosts a floating observation deck (data/planets/vega_b.py)
+— the system's single landable port and its trade hall. Map dims
+MATCH the other 200x140 systems so all system map renders share
+one viewport sizing contract.
 """
 from __future__ import annotations
 

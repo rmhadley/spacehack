@@ -4,19 +4,15 @@ Alpha Centauri and the gateway to Vega.
 The fourth-nearest star system to Sol at ~6 ly. v1 ships the
 star + two planets + a western gate to Alpha Centauri
 (reciprocal of alpha_centauri/jump_barnards_star) + an eastern
-gate to Vega (reciprocal of vega/jump_barnards_star). No
-landable bodies yet — Barnard's is a transit system only.
+gate to Vega (reciprocal of vega/jump_barnards_star). Both
+bodies are landable: Barnard b's mining outpost and Barnard c's
+helium-3 deck (data/planets/barnards_b.py, barnards_c.py).
 
 The star is a small red dwarf (9x9 footprint) so the visual
 contrast vs. Sol's 13x13 G-type main-sequence star is obvious
-when the player lands here for the first time. The cool red
-fg (255, 100, 70) reads as 'cold ember' against the navy void
-vs. Sol's warm yellow.
-
-Bodies intentionally NOT landable in v1 (no
-:class:`spacehack.data.planets.PlanetSpec` entries) — they're
-for visual flavour + the connectivity hubs the navigation
-graph needs.
+when the player arrives here. The cool red fg (255, 100, 70)
+reads as 'cold ember' against the navy void vs. Sol's warm
+yellow.
 
 Map dims intentionally MATCH Sol's 200x140 footprint so the
 systems feel like the same size class. Jump-point positions
@@ -52,7 +48,8 @@ _planets: tuple[solar_module.Planet, ...] = (
         description="A scorched rocky super-Earth.",
     ),
     # Barnard c — cold gas giant (3x3). Outer-orbit cold tones
-    # so it reads as the system's slow, far companion.
+    # so it reads as the system's slow, far companion. Landable
+    # via data/planets/barnards_c.py.
     solar_module.Planet(
         id="barnards_c", name="Barnard c",
         char="P", fg=(120, 150, 200),

@@ -761,6 +761,8 @@ _GUIDE_NPCS = GuideSection(
         "\n"
         "- Merchant guild: trade contacts and delivery missions"
         "\n"
+        "  Found on Earth, Tau Cet b, Mars, Vega b, and ε Eri b"
+        "\n"
         "- Militia guild: law enforcement missions"
         "\n"
         "- Bounty guild: bounty hunting missions"
