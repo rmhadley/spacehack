@@ -74,10 +74,15 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
         am = missions[selected]
         detail_top = list_top + len(missions) * 2 + 1
         _salv_wreck = getattr(am, 'salvage_wreck_enemy_id', None)
+        # Out-and-back missions (intercept, salvage) carry heist_target_good_id
+        # — loot the player must bring BACK to the giver. They are NOT bounties
+        # (which complete on kill); exclude them so the "Return to" line renders.
+        _is_out_and_back = getattr(am, 'heist_target_good_id', None) is not None
         _is_bounty = (
             am.target_enemy_id is not None
             and am.target_system_id is not None
             and _salv_wreck is None  # salvage missions have their own display
+            and not _is_out_and_back  # intercept missions have their own display
         )
 
         # Delivery-specific fields.
@@ -91,12 +96,18 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                     pass
                 _npc_name = ""
                 if am.delivery_target_npc_id:
-                    try:
-                        from ..data.npcs import find_npc as _fnpc_q
-                        _npc_name = f" ({_fnpc_q(am.delivery_target_npc_id).name})"
-                    except (KeyError, ImportError):
-                        pass
-                paint(detail_top, fit(f'Deliver to: {_planet_name}{_npc_name}'), fg=ui.COLOR_VALUE_WHITE)
+                    _local = _npc_display_name(
+                        am.delivery_target_planet_id,
+                        am.delivery_target_npc_id,
+                    )
+                    if _local:
+                        _npc_name = f" ({_local})"
+                # Out-and-back missions return the loot to the giver — say
+                # "Return to" and highlight once the cargo is secured.
+                _label = "Return to" if _is_out_and_back else "Deliver to"
+                _secured = _is_out_and_back and getattr(am, 'heist_good_secured', False)
+                _fg = (120, 220, 120) if _secured else ui.COLOR_VALUE_WHITE
+                paint(detail_top, fit(f'{_label}: {_planet_name}{_npc_name}'), fg=_fg)
                 detail_top += 1
             # Smuggling missions render their own cargo line (with the
             # contraband type + scan risk) below — skip the generic row.
@@ -178,9 +189,17 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             paint(detail_top, fit(f'Board the {_wreck_name} to search it'), fg=ui.COLOR_VALUE_DIM)
             detail_top += 1
 
-        # Intercept-specific display: mission cargo secured status.
+        # Intercept-specific display: target merchant + cargo secured status.
         _heist_good = getattr(am, 'heist_target_good_id', None)
         if _heist_good is not None and _salv_wreck is None:
+            _target_name = _npc_ship_name(am.target_enemy_id)
+            try:
+                from ..data.solar_systems import find_solar_system as _fss_i
+                _target_sys = _fss_i(am.target_system_id).name
+            except (KeyError, ImportError):
+                _target_sys = (am.target_system_id or "unknown").replace('_', ' ').title()
+            paint(detail_top, fit(f'Target: {_target_name} ({_target_sys})'), fg=ui.COLOR_VALUE_WHITE)
+            detail_top += 1
             _good_name = _good_display_name(_heist_good)
             _secured = getattr(am, 'heist_good_secured', False)
             _status = 'SECURED' if _secured else 'NOT SECURED'
@@ -269,6 +288,28 @@ def _npc_ship_name(ship_id: str | None) -> str:
         return _fns(ship_id).name
     except (KeyError, ImportError):
         return ship_id.replace('_', ' ').title()
+
+
+def _npc_display_name(planet_id: str, npc_id: str) -> str:
+    """Resolve the planet-local NPC display name (e.g. 'Mars Barkeep').
+
+    Checks the planet's ``npc_overrides`` first so a bartender on Mars
+    shows as "Mars Barkeep" rather than the generic "Barkeep", then
+    falls back to the global NPC catalog. Returns "" if unresolvable.
+    """
+    try:
+        from ..data.planets import find_planet_spec as _fps_dn
+        _spec = _fps_dn(planet_id)
+        for _oid, _npc in getattr(_spec, 'npc_overrides', ()) or ():
+            if _oid == npc_id:
+                return _npc.name
+    except (KeyError, ImportError):
+        pass
+    try:
+        from ..data.npcs import find_npc as _fnpc_dn
+        return _fnpc_dn(npc_id).name
+    except (KeyError, ImportError):
+        return ""
 
 
 def _good_display_name(good_id: str | None) -> str:
