@@ -381,11 +381,15 @@ def render_hud(
         y += 1
         _render_divider(console, hud_x, y)
 
-        # HP (color depends on ratio)
+        # HP (color depends on ratio) — ground HP is the LIVE value in
+        # city/dungeon: ground combat's sync_state writes damage back to
+        # ctx.ground_hp / ctx.ground_max_hp, while HudStats.hp is the
+        # character-creation snapshot and never updates. GameContext
+        # always defines these (defaults 23/23), so read them directly.
         y += 2
         console.print(x=hud_x, y=y, string="HP", fg=COLOR_LABEL)
-        hp = max(0, stats.hp)
-        max_hp = max(1, stats.max_hp)
+        hp = max(0, ctx.ground_hp)
+        max_hp = max(1, ctx.ground_max_hp)
         hp_str = f"{hp}/{max_hp}"
         hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
         console.print(x=hud_x + 3, y=y, string=hp_str, fg=hp_fg)
