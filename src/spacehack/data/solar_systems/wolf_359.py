@@ -1,13 +1,15 @@
 """Wolf 359 — a dim red dwarf system on the frontier of charted
-space. Quiet, empty, the last gate before the edge.
+space. The cluster is overrun with pirates: its single barren
+world (Wolf 359 b) hosts a pirate-run listening post where
+smuggler's holds are sold openly (see ``data/planets/wolf_b.py``).
 
 Wolf 359 is one of the faintest stars in Earth's night sky at
 ~7.8 ly distance. The star is a small dim red dwarf (7x7
 footprint). Only a single barren rocky world orbits here.
 
-Despite its grim reputation, no pirates patrol these empty
-reaches — the real danger lies beyond Luyten's Star, in the
-uncharted void past the militia blockade.
+Pirates patrol these reaches heavily (90% pirate_scout / 70%
+pirate_raider spawn odds) — smugglers gear up here before
+running the Luyten's Star blockade.
 
 Map dims match the other 200x140 systems.
 """

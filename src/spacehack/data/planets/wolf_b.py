@@ -23,7 +23,7 @@ SPEC = PlanetSpec(
     name="Wolf 359 b",
     char="p",
     fg=(80, 60, 50),
-    description="A dark, airless rock — a lone listening post watches the frontier.",
+    description="A dark, airless rock — a pirate-run listening post on the frontier. No questions asked.",
     width=40,
     height=24,
     hangar_anchor=world.Position(7, 14),
@@ -54,8 +54,9 @@ SPEC = PlanetSpec(
                 char="A",
                 fg=(180, 180, 160),
                 flavor_text=(
-                    "Not many ships come this far out. Fuel's short, "
-                    "supplies are shorter. Make it count."
+                    "Pirates run this rock, but they pay in credits like "
+                    "anyone else. Fuel's short, smuggler's holds aren't. "
+                    "Make it count."
                 ),
             ),
         ),
@@ -65,6 +66,16 @@ SPEC = PlanetSpec(
         ("food_rations", 12),
         ("fuel_cells", 10),
         ("medical_supplies", 8),
+    ),
+    # Pirate-run frontier post: the cluster is overrun with pirates
+    # (90% pirate_scout / 70% pirate_raider spawn), so the mechanic
+    # openly stocks smuggler's holds of every tier — this is where
+    # smugglers gear up before running the Luyten's Star blockade.
+    # Explicit list (not RNG) so the black-market gear is always here.
+    mech_modules=(
+        "compact_reactor", "shield_mk1", "expanded_cargo",
+        "smuggler_hold_mk1", "smuggler_hold_mk2",
+        "smuggler_hold_mk3", "smuggler_hold_mk4",
     ),
     tech_level=2,
     mission_tier=3,
