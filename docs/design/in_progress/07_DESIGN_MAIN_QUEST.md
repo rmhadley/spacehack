@@ -330,33 +330,33 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 1a: Main-quest infrastructure (build first — everything depends on it)
 
-- [ ] Add `MainQuestStep` + `QuestDialogue` dataclasses to `data/main_quest/` module (auto-discovered catalog, `find_main_quest_step` / `list_main_quest_steps`)
-- [ ] Add `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` to `GameContext` (all defaulted)
-- [ ] Serialize + deserialize all 5 fields in `saveload._ctx_to_dict()` AND `load_game()` (save/load contract)
-- [ ] Build `main_quest.py` runtime: step lifecycle (`start_step` / `complete_step` / `advance_step`), `resolve_npc_dialogue`, quest-log objective helper
-- [ ] Wire quest-aware dialogue into `npc.py`: `TalkOutcome.QUEST`, quest body text + `option_label` menu row in `render_npc_talk`, trigger advancement in `_run_npc_talk`
-- [ ] Add `main_quest_door` flag to `world.Entity` (sealed-door entity marker)
-- [ ] Smoke test + commit
+- [x] Add `MainQuestStep` + `QuestDialogue` dataclasses to `data/main_quest/` module (auto-discovered catalog, `find_main_quest_step` / `list_main_quest_steps`)
+- [x] Add `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` to `GameContext` (all defaulted)
+- [x] Serialize + deserialize all 5 fields in `saveload._ctx_to_dict()` AND `load_game()` (save/load contract)
+- [x] Build `main_quest.py` runtime: step lifecycle (`start_step` / `complete_step` / `advance_step`), `resolve_npc_dialogue`, quest-log objective helper
+- [x] Wire quest-aware dialogue into `npc.py`: `TalkOutcome.QUEST`, quest body text + `option_label` menu row in `render_npc_talk`, trigger advancement in `_run_npc_talk`
+- [x] Add `main_quest_door` flag to `world.Entity` (sealed-door entity marker)
+- [x] Smoke test + commit
 
 **PLAYTEST (1a):** start a new game; open the quest log (Q) — shows "no main quest" state cleanly; talk to a few NPCs — their normal flavor text still works (no quest dialogue should leak). Save → quit → continue — game loads without error.
 
 ### Phase 1b: Act 0 steps data + signal trigger + Mars gate
 
-- [ ] Write Act 0 steps as data (`prologue_signal` → `prologue_mars_unlocked` → `prologue_mars_entrance` → `prologue_seek_help` → `prologue_open`) with the 4 faction dialogue leads (barkeep / guild_master / militia_captain / research_officer), each with `option_label`, `backing_faction`, and `unlock_item` (the faction's door-opening tool)
-- [ ] Wire `prologue_signal` auto-trigger into `_launch_to_space` (first launch only, in Sol): log the garbled transmission, mark `prologue_signal` + `prologue_mars_unlocked` active
-- [ ] **Gate Mars exploration** on the signal: planet menu must hide "Explore Surface" until the transmission is received (`has_explorable_sites` / menu item filtered by `ctx.main_quest_progress`)
-- [ ] Smoke test + commit
+- [x] Write Act 0 steps as data (`prologue_signal` → `prologue_mars_unlocked` → `prologue_mars_entrance` → `prologue_seek_help` → `prologue_open`) with the 4 faction dialogue leads (barkeep / guild_master / militia_captain / research_officer), each with `option_label`, `backing_faction`, and `unlock_item` (the faction's door-opening tool)
+- [x] Wire `prologue_signal` auto-trigger into `_launch_to_space` (first launch only, in Sol): log the garbled transmission, mark `prologue_signal` + `prologue_mars_unlocked` active
+- [x] **Gate Mars exploration** on the signal: planet menu must hide "Explore Surface" until the transmission is received (`has_explorable_sites` / menu item filtered by `ctx.main_quest_progress`)
+- [x] Smoke test + commit
 
 **PLAYTEST (1b):** fresh game → launch into space from Earth → you receive the garbled transmission. Fly to Mars and bump it — the planet menu shows NO "Explore Surface" option before the signal (verify by loading a pre-signal save), and the option appears after. Save/quit/continue preserves the signal state.
 
 ### Phase 1c: The Door on Mars — sealed entrance, seek-help, prologue_open
 
-- [ ] Add the sealed entrance to the Mars surface (deterministic placement AFTER `generate_dungeon` — e.g. farthest walkable cell from spawn, or a landmark room). The door is a `main_quest_door` entity: alien make, unopenable until the player holds the right tool
-- [ ] Bump interaction on the door: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, plants the claim, Act 1 begins
-- [ ] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) plants `backing_faction` + unlocks the tool item
-- [ ] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal
-- [ ] Minimal quest-log breadcrumb: "MAIN QUEST" section showing current step title + objective (full UI polish stays in Phase 4)
-- [ ] Smoke test + commit
+- [x] Add the sealed entrance to the Mars surface (deterministic placement AFTER `generate_dungeon` — e.g. farthest walkable cell from spawn, or a landmark room). The door is a `main_quest_door` entity: alien make, unopenable until the player holds the right tool
+- [x] Bump interaction on the door: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, plants the claim, Act 1 begins
+- [x] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) plants `backing_faction` + unlocks the tool item
+- [x] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal
+- [x] Minimal quest-log breadcrumb: "MAIN QUEST" section showing current step title + objective (full UI polish stays in Phase 4)
+- [x] Smoke test + commit
 
 **PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars → find the sealed door (bump it, can't open) → talk to each faction NPC (each gives a different lead + a quest option row) → pick one faction → return to Mars → bump the door → it opens, prison revealed, Act 1 seeds. Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved.
 
