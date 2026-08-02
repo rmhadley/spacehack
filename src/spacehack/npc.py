@@ -253,14 +253,24 @@ def _run_npc_talk(
             return TalkOutcome.DELIVER
         return TalkOutcome.WORK
 
-    outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if outcome is TalkOutcome.QUEST and _quest_options:
-        _label, _step_id = _quest_options[selected % len(_quest_options)]
-        main_quest_module.trigger_dialogue(ctx, npc.id, _step_id)
+    while True:
+        outcome = ui.Modal(ctx.context, console).run(_render, _update)
+        if outcome is TalkOutcome.QUEST and _quest_options:
+            _step_id = _quest_options[selected % len(_quest_options)][1]
+            # The faction's detailed offer surfaces in its own modal:
+            # Accept help plants the claim + unlocks the tool; Keep
+            # looking returns to the talk modal (loop) so the player can
+            # walk away or browse another lead. Window-close propagates.
+            _offer = main_quest_module.show_help_offer(ctx, npc.id, _step_id)
+            if _offer is main_quest_module.OfferOutcome.QUIT:
+                return (TalkOutcome.QUIT, None)
+            if _offer is main_quest_module.OfferOutcome.ACCEPT:
+                main_quest_module.trigger_dialogue(ctx, npc.id, _step_id)
+                return (outcome, None)
+            continue  # keep looking — re-show the talk modal
+        if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:
+            return (outcome, _missions[selected])
         return (outcome, None)
-    if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:
-        return (outcome, _missions[selected])
-    return (outcome, None)
 
 
 # IDENTITY GUARANTEE: ``npc_module.NPC is NPC`` (and ditto for

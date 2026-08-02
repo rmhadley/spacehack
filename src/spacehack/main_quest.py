@@ -144,6 +144,14 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
 
     Scans quest progress for a live :class:`QuestDialogue` entry;
     falls back to the NPC's default ``flavor_text`` with no trigger.
+
+    For a triggerable step (``trigger_on_talk`` + available/active), the
+    body returned is the NPC's normal ``flavor_text`` — the offer detail
+    lives in the help-offer modal (:func:`show_help_offer`) that the
+    quest option row kicks off, so the talk modal stays short. For a
+    completed step, the ``complete`` variant is shown as the body with
+    no trigger.
+
     ``trigger_step_id`` is non-None when the live entry has
     ``trigger_on_talk`` — the NPC-talk modal should show its
     ``option_label`` row so the player can advance the step.
@@ -152,19 +160,22 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
     if _live is not None:
         _step, _dialogue = _live
         _status = ctx.main_quest_progress[_step.id]
-        _text = (
-            _dialogue.active if _status == STATUS_ACTIVE
-            else _dialogue.intro if _status == STATUS_AVAILABLE
-            else _dialogue.complete
-        )
-        # Only triggerable (available/active) steps can advance via the
-        # talk modal — a completed step's trigger is never offered.
         _trigger = (
             _step.id
             if _dialogue.trigger_on_talk and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
             else None
         )
-        return (_text, _trigger)
+        if _trigger is not None:
+            # Triggerable: talk modal keeps the NPC's normal flavor;
+            # the offer itself lives in the help-offer modal.
+            from .data.npcs import find_npc as _find_npc
+            return (_find_npc(npc_id).flavor_text, _trigger)
+        _text = (
+            _dialogue.active if _status == STATUS_ACTIVE
+            else _dialogue.intro if _status == STATUS_AVAILABLE
+            else _dialogue.complete
+        )
+        return (_text, None)
     from .data.npcs import find_npc as _find_npc
     return (_find_npc(npc_id).flavor_text, None)
 
@@ -583,6 +594,143 @@ def show_sealed_door_overlay(ctx, beat: str) -> None:
     ui.Modal(ctx.context, console).run(_render, _update)
 
 
+# ---------------------------------------------------------------------------
+# Faction help-offer modal (the seek-help fork surfaces here)
+# ---------------------------------------------------------------------------
+
+class OfferOutcome(Enum):
+    """Outcome for the faction help-offer modal."""
+    IGNORE = auto()
+    ACCEPT = auto()
+    DECLINE = auto()
+    QUIT = auto()
+
+
+# Offer body wraps at 62 chars so even the longest lead (the militia's
+# "There is no door..." ~200 chars) fits in ~4 lines inside the box.
+_OFFER_BODY_WIDTH = 62
+
+
+def render_help_offer(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+    npc_name: str,
+    offer_text: str,
+    selected: int,
+) -> None:
+    """Paint the faction help-offer overlay: who's speaking, the
+    detailed offer message (word-wrapped), and Accept help / Keep
+    looking options.
+
+    ``npc_name`` heads the meta line; ``offer_text`` is the dialogue's
+    ``intro``/``active`` variant (full, wrapped — never truncated).
+    ``selected`` is 0 = Accept help, 1 = Keep looking. Reuses the
+    shared overlay plumbing from the transmission/door overlays.
+    """
+    _title = "AN OFFER OF HELP"
+    _lines = ui.wrap_text(offer_text, _OFFER_BODY_WIDTH)
+    # Title + meta + wrap-gap + body + options + hint, with margins.
+    _box_h = 14 + len(_lines)
+    _y0 = _overlay_box(
+        console,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        box_w=70,
+        box_h=_box_h,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 1,
+        text=_title, fg=ui.COLOR_TITLE,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 3,
+        text=f"OFFERED BY: {npc_name.upper()}", fg=ui.COLOR_VALUE_DIM,
+    )
+    _body_y = _y0 + 5
+    for _i, _line in enumerate(_lines):
+        _centered_print(
+            console, screen_width=screen_width, y=_body_y + _i,
+            text=_line, fg=ui.COLOR_DESCRIPTION,
+        )
+    _opt_y = _body_y + len(_lines) + 1
+    for _i, _label in enumerate(("Accept help", "Keep looking")):
+        _is_sel = _i == selected
+        _marker_open = "> " if _is_sel else "  "
+        _marker_close = " <" if _is_sel else "  "
+        _centered_print(
+            console, screen_width=screen_width, y=_opt_y + _i,
+            text=f"{_marker_open}{_label}{_marker_close}",
+            fg=ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION,
+        )
+    _centered_print(
+        console, screen_width=screen_width, y=_opt_y + 3,
+        text="ARROW KEYS / j,k navigate - ENTER select - ESC keep looking",
+        fg=ui.COLOR_INSTRUCTION,
+    )
+
+
+def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
+    """Show the faction's help-offer modal; return the player's choice.
+
+    Pulls the live dialogue for ``npc_id`` on ``step_id`` and shows its
+    full ``intro``/``active`` offer text in a modal with two options:
+    **Accept help** (returns :attr:`OfferOutcome.ACCEPT` — the caller
+    then runs :func:`trigger_dialogue`) and **Keep looking** (returns
+    :attr:`OfferOutcome.DECLINE` — back to the talk modal). Window
+    close returns :attr:`OfferOutcome.QUIT`.
+
+    Falls back to :attr:`OfferOutcome.DECLINE` when the dialogue is
+    missing or has no offer text (shouldn't happen — callers gate on
+    ``quest_option_for`` first).
+    """
+    _step = find_main_quest_step(step_id)
+    _dialogue = _step.dialogues.get(npc_id)
+    if _dialogue is None:
+        return OfferOutcome.DECLINE
+    _status = ctx.main_quest_progress.get(step_id, "")
+    _offer_text = _dialogue.active if _status == STATUS_ACTIVE else _dialogue.intro
+    if not _offer_text:
+        return OfferOutcome.DECLINE
+    from .data.npcs import find_npc as _find_npc
+    _npc_name = _find_npc(npc_id).name
+    _selected = 0
+    console = make_console()
+
+    def _render() -> None:
+        render_help_offer(
+            console,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            npc_name=_npc_name,
+            offer_text=_offer_text,
+            selected=_selected,
+        )
+
+    def _update(event) -> OfferOutcome:
+        nonlocal _selected
+        if isinstance(event, tcod.event.Quit):
+            return OfferOutcome.QUIT
+        if not isinstance(event, tcod.event.KeyDown):
+            return OfferOutcome.IGNORE
+        sym = event.sym
+        sym_name: str = getattr(sym, "name", "").lower()
+        if sym in ui._UP_SYMS or sym_name == "k":
+            _selected = 0
+            return OfferOutcome.IGNORE
+        if sym in ui._DOWN_SYMS or sym_name == "j":
+            _selected = 1
+            return OfferOutcome.IGNORE
+        if sym in ui._ENTER_SYMS:
+            return OfferOutcome.ACCEPT if _selected == 0 else OfferOutcome.DECLINE
+        if sym in ui._ESCAPE_SYMS:
+            return OfferOutcome.DECLINE
+        return OfferOutcome.IGNORE
+
+    return ui.Modal(ctx.context, console).run(_render, _update)
+
+
 def mars_exploration_unlocked(ctx) -> bool:
     """True once the signal has been received (Mars gate open).
 
@@ -712,6 +860,8 @@ __all__ = [
     "maybe_trigger_signal",
     "show_prologue_transmission",
     "show_sealed_door_overlay",
+    "OfferOutcome",
+    "show_help_offer",
     "mars_exploration_unlocked",
     "place_mars_door",
     "prepare_mars_surface",

@@ -91,19 +91,19 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "\"Heard about the thing in the dust? The militia "
+                    "Heard about the thing in the dust? The militia "
                     "sealed it — or someone did. There was a guy got a "
                     "door like that open once. Cost him a hand. Here's "
-                    "how he did it.\""
+                    "how he did it."
                 ),
                 active=(
-                    "\"Still stuck on that door? The rig's yours when "
+                    "Still stuck on that door? The rig's yours when "
                     "you want it — a cut of whatever's inside, and the "
-                    "story for the bar.\""
+                    "story for the bar."
                 ),
                 complete=(
-                    "\"You got it open. What was behind it? Tell me "
-                    "everything — the bar pays in drinks.\""
+                    "You got it open. What was behind it? Tell me "
+                    "everything — the bar pays in drinks."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="bar",
@@ -113,18 +113,18 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="guild_master",
                 trigger_on_talk=True,
                 intro=(
-                    "\"Alien tech on Mars? That's the most valuable "
+                    "Alien tech on Mars? That's the most valuable "
                     "cargo in history. A salvager's cutter tuned to "
                     "alien alloys — sign the contract and it's yours. "
-                    "First rights to what's inside.\""
+                    "First rights to what's inside."
                 ),
                 active=(
-                    "\"The cutter's waiting. Sign here — first look at "
-                    "anything inside, and the tool's yours.\""
+                    "The cutter's waiting. Sign here — first look at "
+                    "anything inside, and the tool's yours."
                 ),
                 complete=(
-                    "\"You're back from the dust. What did you find in "
-                    "there? The guild will pay handsomely for a look.\""
+                    "You're back from the dust. What did you find in "
+                    "there? The guild will pay handsomely for a look."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="merchants",
@@ -134,20 +134,20 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="militia_captain",
                 trigger_on_talk=True,
                 intro=(
-                    "\"There is no door. Whatever you saw out there, "
+                    "There is no door. Whatever you saw out there, "
                     "forget it. ...Quietly, off the books, the patrol "
                     "has seen this tech before. The 'incident'. We have "
                     "schematics and a breach charge that will open it. "
-                    "You say nothing. Understood?\""
+                    "You say nothing. Understood?"
                 ),
                 active=(
-                    "\"The schematics are ready. One condition: this "
+                    "The schematics are ready. One condition: this "
                     "never happened. Bring back proof of what's behind "
-                    "it, and the patrol remembers nothing.\""
+                    "it, and the patrol remembers nothing."
                 ),
                 complete=(
-                    "\"You opened it. What was in the cell? Speak — and "
-                    "then we never speak of it again.\""
+                    "You opened it. What was in the cell? Speak — and "
+                    "then we never speak of it again."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="militia",
@@ -157,20 +157,20 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="research_officer",
                 trigger_on_talk=True,
                 intro=(
-                    "\"A sealed structure on Mars? I need to study it. "
+                    "A sealed structure on Mars? I need to study it. "
                     "Bring me a sample of the door's material — we'll "
                     "analyze it, and the resonance key it unlocks will "
-                    "open the way.\""
+                    "open the way."
                 ),
                 active=(
-                    "\"The material analysis is promising. Bring the "
+                    "The material analysis is promising. Bring the "
                     "sample back and the key is yours — we want a "
-                    "specimen from inside for study.\""
+                    "specimen from inside for study."
                 ),
                 complete=(
-                    "\"You recovered data from inside? Extraordinary. "
+                    "You recovered data from inside? Extraordinary. "
                     "We must study it — the truth deserves to be "
-                    "published, not buried.\""
+                    "published, not buried."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="lab",
