@@ -35,20 +35,20 @@ T = TypeVar("T", bound=Enum)
 # accents in HUD add color elsewhere where escape from pure white
 # is desired.
 COLOR_TITLE: tuple[int, int, int] = (130, 220, 255)              # bright cyan
-COLOR_INSTRUCTION: tuple[int, int, int] = (110, 130, 175)        # muted periwinkle
-COLOR_OPTION: tuple[int, int, int] = (200, 200, 220)             # pale lavender-grey
+COLOR_INSTRUCTION: tuple[int, int, int] = (160, 180, 220)        # periwinkle (brightened for dark-bg pop)
+COLOR_OPTION: tuple[int, int, int] = (215, 215, 235)             # pale lavender-grey
 COLOR_OPTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)      # pure white (brightest)
-COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (150, 200, 220)     # steel-cyan, used for science ports + station glyphs in AoI panel
-COLOR_DESCRIPTION: tuple[int, int, int] = (175, 170, 210)           # muted lavender
+COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (175, 215, 235)     # steel-cyan, used for science ports + station glyphs in AoI panel
+COLOR_DESCRIPTION: tuple[int, int, int] = (205, 200, 235)           # lavender (brightened for dark-bg pop)
 # Value cells (numbers, prices) - kept here so dialogs in __main__
 # (e.g. the ship-buy modal) can use the same near-white/dim pair.
-COLOR_VALUE_WHITE: tuple[int, int, int] = (250, 250, 250)
-COLOR_VALUE_DIM: tuple[int, int, int] = (150, 150, 150)           # neutral silver (de-saturated so it doesn't echo SIDEWALK)
+COLOR_VALUE_WHITE: tuple[int, int, int] = (255, 255, 255)        # pure white (brightest)
+COLOR_VALUE_DIM: tuple[int, int, int] = (185, 185, 195)           # silver (brightened but still receded from white)
 
 # Unified screen-header rule. Single source of truth for the divider
 # drawn under every menu title — change these and every screen follows.
 DIVIDER_CHAR: str = "="                       # CP437-safe rule char
-COLOR_DIVIDER: tuple[int, int, int] = (90, 90, 90)   # dim grey rule
+COLOR_DIVIDER: tuple[int, int, int] = (110, 110, 115)   # dim grey rule (brightened for visibility)
 
 
 class MenuAction(Enum):

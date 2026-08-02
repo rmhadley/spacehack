@@ -51,6 +51,7 @@ from typing import TYPE_CHECKING
 import tcod.console
 
 from .engine import HUD_WIDTH
+from .ui import COLOR_DIVIDER, COLOR_VALUE_DIM, COLOR_VALUE_WHITE  # shared palette (single source)
 
 if TYPE_CHECKING:
     from .game_context import GameContext
@@ -59,23 +60,21 @@ if TYPE_CHECKING:
 # Vivid HUD palette: gold title, bright near-white values, blue-tinted
 # labels (replaces the old flat greys), saturated green/red for HP
 # depending on ratio, and a cool dark-slate divider so the headline
-# fields pop.
+# fields pop.  The white/dim/divider colors are imported from ui.py —
+# the single source — so a global brightness pass never drifts.
 COLOR_HUD_TITLE: tuple[int, int, int] = (255, 195, 80)            # vivid orange-gold
-COLOR_VALUE_WHITE: tuple[int, int, int] = (255, 255, 255)         # pure white (brightest)
-COLOR_VALUE_DIM: tuple[int, int, int] = (150, 150, 150)           # neutral silver (de-saturated so it doesn't echo SIDEWALK)
-COLOR_LABEL: tuple[int, int, int] = (155, 180, 215)               # muted ice-blue
+COLOR_LABEL: tuple[int, int, int] = (185, 205, 235)               # ice-blue (brightened for dark-bg pop)
 COLOR_HP_GOOD: tuple[int, int, int] = (100, 235, 115)             # bright grass-green
 COLOR_HP_LOW: tuple[int, int, int] = (255, 95, 95)                # bright crimson
 COLOR_EVADE: tuple[int, int, int] = (120, 220, 140)               # soft green positive-buff accent
-COLOR_DIVIDER: tuple[int, int, int] = (90, 90, 90)                # flat neutral grey (stops the divider from echoing ROAD hue)
 
 # Space-mode HUD palette — cooler, more technical feel.
 COLOR_SHIP_NAME: tuple[int, int, int] = (100, 220, 255)           # bright cyan for ship name
 COLOR_SHIP_VALUE: tuple[int, int, int] = (255, 255, 255)          # white stat values
-COLOR_SHIP_LABEL: tuple[int, int, int] = (140, 180, 215)          # muted ice-blue labels (slightly dimmer than COLOR_LABEL)
+COLOR_SHIP_LABEL: tuple[int, int, int] = (170, 195, 230)          # ice-blue labels (brightened; slightly dimmer than COLOR_LABEL)
 COLOR_FUEL_OK: tuple[int, int, int] = (100, 235, 115)            # green when fuel is adequate
 COLOR_FUEL_LOW: tuple[int, int, int] = (255, 180, 60)            # amber when fuel is low (< jump cost)
-COLOR_HELP_DESC: tuple[int, int, int] = (180, 180, 180)          # silver for key descriptions
+COLOR_HELP_DESC: tuple[int, int, int] = (205, 205, 210)          # silver for key descriptions
 
 
 @dataclass

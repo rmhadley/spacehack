@@ -16,7 +16,7 @@ import tcod.console
 # log lines. Replaces the previous flat greys so the message log no
 # longer blends into the HUD on a black background.
 COLOR_MESSAGE: tuple[int, int, int] = (230, 230, 240)
-COLOR_MESSAGE_DIM: tuple[int, int, int] = (100, 140, 150)         # desaturated teal (distinct from COLOR_INSTRUCTION's periwinkle)
+COLOR_MESSAGE_DIM: tuple[int, int, int] = (145, 180, 190)         # desaturated teal (brightened; distinct from COLOR_INSTRUCTION's periwinkle)
 
 # Combat log colors
 COLOR_PLAYER_ACTION: tuple[int, int, int] = (100, 235, 115)       # bright green for player actions
