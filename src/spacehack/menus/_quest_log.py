@@ -48,6 +48,25 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
 
     center_y = (screen_height - MSG_LOG_HEIGHT) // 2
 
+    # --- Main quest breadcrumb (minimal — full UI polish is Phase 4) ---
+    # Painted at fixed top rows so it never collides with the centered
+    # mission list (which spans ~14-38 for up to 5 missions).
+    from .. import main_quest as _mq
+    _mq_obj = _mq.current_main_quest_objective(ctx)
+    _mq_started = bool(ctx.main_quest_progress)
+    _mq_row = 5
+    if _mq_obj is not None:
+        _mq_title, _mq_desc = _mq_obj
+        paint(_mq_row, fit('MAIN QUEST'), fg=ui.COLOR_TITLE)
+        paint(_mq_row + 1, fit(_mq_title), fg=ui.COLOR_OPTION_HIGHLIGHT)
+        for _i, _line in enumerate(ui.wrap_text(_mq_desc, max_w)):
+            if _mq_row + 2 + _i > _mq_row + 8:
+                break
+            paint(_mq_row + 2 + _i, fit(_line), fg=ui.COLOR_VALUE_DIM)
+    elif _mq_started:
+        paint(_mq_row, fit('MAIN QUEST'), fg=ui.COLOR_TITLE)
+        paint(_mq_row + 1, fit('(main quest complete)'), fg=ui.COLOR_VALUE_DIM)
+
     if not missions:
         paint(center_y - 2, fit('QUEST LOG'), fg=ui.COLOR_TITLE)
         paint(center_y + 1, fit('(no active missions)'), fg=ui.COLOR_DESCRIPTION)

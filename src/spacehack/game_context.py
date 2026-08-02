@@ -287,3 +287,19 @@ class GameContext:
     # planet landing; used by the title-menu Continue path to
     # restore the correct city map.
     current_city_id: str = "earth"
+    # --- Main quest state (docs/design/in_progress/07_DESIGN_MAIN_QUEST.md) ---
+    # step_id -> "available" / "active" / "completed" for the main
+    # quest line. Breadcrumbs are shown in the quest log; steps are
+    # never on mission boards.
+    main_quest_progress: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Items + dialogue flags unlocked by main quest steps (e.g. the
+    # faction's door-opening tool, the recovered prison data).
+    main_quest_unlocked_items: set[str] = dataclasses.field(default_factory=set)
+    # Which blockade path was taken ("diplomatic" / "smuggler" /
+    # "combat" / ""), read by the Act 3 epilogue.
+    main_quest_path: str = ""
+    # Faction claim flags planted by backing quests + the Act 0
+    # faction choice. "Last claim wins" decides the Act 3 epilogue.
+    main_quest_backing: set[str] = dataclasses.field(default_factory=set)
+    # Set when Act 3 resolves (definitive ending; sandbox continues).
+    main_quest_complete: bool = False

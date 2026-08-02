@@ -39,6 +39,7 @@ from . import npc as npc_module
 from .data.species import find_species
 from .data.classes import find_class
 from .npc import TalkOutcome, _run_npc_talk
+from . import main_quest as main_quest_module
 from . import world
 from . import combat
 from .combat._rules_ground import init as _ground_init
@@ -546,6 +547,12 @@ def _run_game(
                                 except (ValueError, KeyError):
                                     log.add(f"The surface of {planet_obj.name} is too hazardous to explore.")
                                     continue
+                                # Main quest: Mars surface carries the sealed
+                                # alien door — place it deterministically and
+                                # advance the checkpoint step (see
+                                # main_quest.prepare_mars_surface).
+                                if pid == "mars":
+                                    main_quest_module.prepare_mars_surface(ctx, _dungeon_map, _spawn)
                                 _init_fog(_dungeon_map)
                                 _reveal_around(_dungeon_map, _spawn)
                                 _dungeon_player = world.Entity(
@@ -692,6 +699,10 @@ def _run_game(
                 elif blocker.armory_terminal:
                     from .menus._armory import _run_armory_menu
                     _run_armory_menu(ctx, current_city_id)
+                    continue
+                elif blocker.main_quest_door:
+                    # Sealed alien door on Mars (main quest Act 0).
+                    main_quest_module.bump_mars_door(ctx)
                     continue
                 elif blocker.computer_terminal:
                     if current_mode == 'dungeon':
@@ -905,6 +916,10 @@ def _run_game(
                     )
                     if result is TalkOutcome.QUIT:
                         return
+                    if result is TalkOutcome.QUEST:
+                        # Main quest dialogue option selected — the step was
+                        # advanced inside _run_npc_talk (claim + tool planted).
+                        continue
                     if result is TalkOutcome.DELIVER:
                         if _deliver_mission is not None:
                             # Intercept delivery: the looted cargo is mission

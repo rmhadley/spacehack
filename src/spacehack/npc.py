@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 import tcod.console
 import tcod.event
 
+from . import main_quest as main_quest_module
 from . import message_log
 from . import ui
 from .data.npcs import NPC, find_npc, list_npcs
@@ -54,6 +55,7 @@ class TalkOutcome(Enum):
     WORK = auto()
     DELIVER = auto()
     QUIT = auto()
+    QUEST = auto()  # player picked the main-quest dialogue option row
 
 
 def render_npc_talk(
@@ -65,16 +67,24 @@ def render_npc_talk(
     screen_height: int,
     deliver_missions: list | None = None,
     selected: int = 0,
+    quest_body: str = "",
+    quest_options: list[tuple[str, str]] | None = None,
 ) -> None:
     """Paint the centered NPC-talk dialog into ``console``.
 
-    The menu shows one "Deliver: <title>" row per deliverable
-    mission, then "View available work" at the bottom. When no
-    missions are deliverable, only "View available work" appears.
+    ``quest_body`` overrides the NPC's ``flavor_text`` when a live
+    main-quest dialogue exists (empty = normal flavor).
+    ``quest_options`` is ``(label, step_id)`` pairs rendered as
+    selectable rows ABOVE the deliver/work rows; picking one returns
+    :attr:`TalkOutcome.QUEST` so :func:`_run_npc_talk` can advance
+    the main quest step.
+
+    Otherwise the menu shows one "Deliver: <title>" row per
+    deliverable mission, then "View available work" at the bottom.
     """
     console.clear()
     title = f"{npc.name} ({npc.guild})"
-    body = f'"{npc.flavor_text}"'
+    body = f'"{quest_body if quest_body else npc.flavor_text}"'
     max_w = screen_width - HUD_WIDTH - 2
 
     def fit(line: str) -> str:
@@ -88,21 +98,25 @@ def render_npc_talk(
     paint(center_y + 1, fit(body), fg=ui.COLOR_DESCRIPTION)
 
     _missions = deliver_missions or []
-    options: list[tuple[str, bool]] = []
+    options: list[tuple[str, str]] = []  # (label, kind: quest/deliver/work)
+    for label, _step_id in (quest_options or []):
+        options.append((label, "quest"))
     for m in _missions:
-        options.append(("Deliver: " + m.title, True))
-    options.append(("View available work", False))
+        options.append(("Deliver: " + m.title, "deliver"))
+    options.append(("View available work", "work"))
     n = len(options)
     sel = selected % n
     list_top = center_y + 3
-    for i, (label, is_deliver) in enumerate(options):
+    for i, (label, kind) in enumerate(options):
         row = list_top + i * 2
         is_selected = i == sel
         marker_open = "> " if is_selected else "  "
         marker_close = " <" if is_selected else "  "
         text = f"{marker_open}{fit(label)}{marker_close}"
         if is_selected:
-            fg = ui.COLOR_OPTION_HIGHLIGHT2 if is_deliver else ui.COLOR_OPTION_HIGHLIGHT
+            # Quest + deliver rows share the gold "action" highlight;
+            # work stays the standard highlight.
+            fg = ui.COLOR_OPTION_HIGHLIGHT2 if kind in ("quest", "deliver") else ui.COLOR_OPTION_HIGHLIGHT
         else:
             fg = ui.COLOR_OPTION
         console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
@@ -174,6 +188,13 @@ def _run_npc_talk(
 ) -> tuple[TalkOutcome, Mission | None]:
     """Show the talk modal for ``npc`` and return the chosen outcome.
 
+    Resolves main-quest dialogue for this NPC: the body text
+    overrides ``flavor_text`` when a live quest dialogue exists, and
+    a ``quest_options`` row appears when the entry has an
+    ``option_label`` + ``trigger_on_talk``. Picking the quest row
+    calls :func:`main_quest.trigger_dialogue` (plants the faction
+    claim + unlocks the tool) and returns :attr:`TalkOutcome.QUEST`.
+
     Menu has one "Deliver: <title>" row per deliverable mission
     (highlighted gold), then "View available work" at the bottom.
     ENTER on a deliver row returns DELIVER with that mission;
@@ -187,7 +208,16 @@ def _run_npc_talk(
     selected = 0
     _missions = deliver_missions or []
     n_deliver = len(_missions)
-    n_options = n_deliver + 1  # deliver rows + "View available work"
+
+    # Main-quest dialogue resolution (read-only lookups).
+    _quest_body, _trigger_step = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
+    _quest_options: list[tuple[str, str]] = []
+    if _trigger_step is not None:
+        _opt = main_quest_module.quest_option_for(ctx, npc.id)
+        if _opt is not None:
+            _quest_options.append(_opt)
+    n_quest = len(_quest_options)
+    n_options = n_quest + n_deliver + 1  # quest rows + deliver rows + work
 
     def _render() -> None:
         render_npc_talk(
@@ -198,6 +228,8 @@ def _run_npc_talk(
             screen_height=SCREEN_HEIGHT,
             deliver_missions=_missions,
             selected=selected,
+            quest_body=_quest_body,
+            quest_options=_quest_options,
         )
 
     def _update(event: tcod.event.Event) -> TalkOutcome:
@@ -215,11 +247,17 @@ def _run_npc_talk(
             return TalkOutcome.QUIT
         if result is TalkOutcome.BACK:
             return TalkOutcome.BACK
-        if selected < n_deliver:
+        if selected < n_quest:
+            return TalkOutcome.QUEST
+        if selected < n_quest + n_deliver:
             return TalkOutcome.DELIVER
         return TalkOutcome.WORK
 
     outcome = ui.Modal(ctx.context, console).run(_render, _update)
+    if outcome is TalkOutcome.QUEST and _quest_options:
+        _label, _step_id = _quest_options[selected % len(_quest_options)]
+        main_quest_module.trigger_dialogue(ctx, npc.id, _step_id)
+        return (outcome, None)
     if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:
         return (outcome, _missions[selected])
     return (outcome, None)

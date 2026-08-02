@@ -57,6 +57,7 @@ def smoke_test() -> int:
             combat,
             game_context,
             hud,
+            main_quest,
             message_log,
             mission,
             npc,
@@ -82,6 +83,75 @@ def smoke_test() -> int:
         if not hasattr(mod, attr):
             print(f"FAIL: {mod.__name__}.{attr} is missing.", file=sys.stderr)
             return 1
+
+    # Main quest infra (docs/design/in_progress/07_DESIGN_MAIN_QUEST.md):
+    # runtime entry points + the data catalog's step chain integrity.
+    _mq_checks = [
+        (main_quest, "resolve_npc_dialogue"),
+        (main_quest, "trigger_dialogue"),
+        (main_quest, "quest_option_for"),
+        (main_quest, "maybe_trigger_signal"),
+        (main_quest, "mars_exploration_unlocked"),
+        (main_quest, "prepare_mars_surface"),
+        (main_quest, "bump_mars_door"),
+        (main_quest, "current_main_quest_objective"),
+    ]
+    for mod, attr in _mq_checks:
+        if not hasattr(mod, attr):
+            print(f"FAIL: main_quest.{attr} is missing.", file=sys.stderr)
+            return 1
+    # Dataclass fields with default_factory are NOT set as class
+    # attributes, so use dataclasses.fields() rather than hasattr.
+    import dataclasses as _dc
+    _mq_fields = [
+        "main_quest_progress",
+        "main_quest_unlocked_items",
+        "main_quest_path",
+        "main_quest_backing",
+        "main_quest_complete",
+    ]
+    _ctx_field_names = {f.name for f in _dc.fields(game_context.GameContext)}
+    for _f in _mq_fields:
+        if _f not in _ctx_field_names:
+            print(
+                f"FAIL: GameContext.{_f} is missing (save/load contract).",
+                file=sys.stderr,
+            )
+            return 1
+    # Step-chain integrity: every requires_step must exist; every
+    # dialogue npc_id must resolve; option rows need trigger_on_talk.
+    from src.spacehack.data.main_quest import list_main_quest_steps
+    from src.spacehack.data.npcs import find_npc
+    _mq_steps = list_main_quest_steps()
+    _mq_ids = {s.id for s in _mq_steps}
+    if not _mq_steps:
+        print("FAIL: main quest catalog is empty.", file=sys.stderr)
+        return 1
+    for _s in _mq_steps:
+        if _s.requires_step and _s.requires_step not in _mq_ids:
+            print(
+                f"FAIL: main quest step {_s.id!r} requires unknown "
+                f"step {_s.requires_step!r}.",
+                file=sys.stderr,
+            )
+            return 1
+        for _npc_id, _d in _s.dialogues.items():
+            try:
+                find_npc(_npc_id)
+            except KeyError:
+                print(
+                    f"FAIL: main quest step {_s.id!r} dialogue references "
+                    f"unknown npc {_npc_id!r}.",
+                    file=sys.stderr,
+                )
+                return 1
+            if _d.option_label and not _d.trigger_on_talk:
+                print(
+                    f"FAIL: main quest step {_s.id!r} dialogue for "
+                    f"{_npc_id!r} has option_label but no trigger_on_talk.",
+                    file=sys.stderr,
+                )
+                return 1
 
     # Verify the merged movement table covers vim + arrows + numpad
     # and that each maps to the expected delta.

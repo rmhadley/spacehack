@@ -122,6 +122,13 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
         "ground_hp": ctx.ground_hp,
         "ground_max_hp": ctx.ground_max_hp,
+        # Main quest state (save/load contract — see
+        # docs/design/in_progress/07_DESIGN_MAIN_QUEST.md).
+        "main_quest_progress": _d(ctx.main_quest_progress),
+        "main_quest_unlocked_items": sorted(ctx.main_quest_unlocked_items),
+        "main_quest_path": ctx.main_quest_path,
+        "main_quest_backing": sorted(ctx.main_quest_backing),
+        "main_quest_complete": ctx.main_quest_complete,
     }
 
 
@@ -911,6 +918,13 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.npc_targets = _npc_targets
     _ctx.npc_paths = _npc_paths
     _ctx.current_city_id = _city_id
+    # Main quest state (save/load contract). Defaults keep old saves
+    # loadable — a pre-main-quest save simply resumes with no quest.
+    _ctx.main_quest_progress = dict(_data.get("main_quest_progress", {}) or {})
+    _ctx.main_quest_unlocked_items = set(_data.get("main_quest_unlocked_items", []) or [])
+    _ctx.main_quest_path = _data.get("main_quest_path", "")
+    _ctx.main_quest_backing = set(_data.get("main_quest_backing", []) or [])
+    _ctx.main_quest_complete = _data.get("main_quest_complete", False)
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
     if _mode == "dungeon":
         _ctx._space_game_map = _saved_space_map  # type: ignore[attr-defined]

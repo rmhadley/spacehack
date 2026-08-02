@@ -234,6 +234,7 @@ class Entity:
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
     npc_char_id: str = ""  # references NpcCharSpec.id for ground-combat NPCs
     squad_id: str = ""  # groups ground enemies into squads (shared across scatter-spawned entities)
+    main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
 
 
 # Anchor where the player's bought ship is parked outside the
