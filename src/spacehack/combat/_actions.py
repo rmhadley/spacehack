@@ -108,9 +108,18 @@ def _spawn_loot_drops(
 
 def can_afford_action(
     player_state: dict,
-    weapon_id: str,
+    slot_idx: int,
 ) -> tuple[bool, str]:
-    """Check if the player can fire weapon_id. Returns (ok, reason)."""
+    """Check if the player can fire the weapon in ``slot_idx``.
+
+    Ammo is keyed by weapon SLOT index (not weapon id) so two
+    launchers of the same type keep independent magazines. Returns
+    ``(ok, reason)``.
+    """
+    _weapons = player_state.get("weapons", ())
+    if not (0 <= slot_idx < len(_weapons)):
+        return False, "Unknown weapon"
+    weapon_id = _weapons[slot_idx]
     try:
         ws = find_weapon(weapon_id)
     except KeyError:
@@ -123,7 +132,7 @@ def can_afford_action(
         if player_state["power_pool"] < ws.power_cost:
             return False, f"Need {ws.power_cost} power (have {player_state['power_pool']})"
     elif ws.slot_type == "missile":
-        ammo = player_state["weapon_ammo"].get(weapon_id, 0)
+        ammo = player_state["weapon_ammo"].get(slot_idx, 0)
         if ammo <= 0:
             return False, "Out of ammo"
         if ammo < ws.ammo_per_shot:
@@ -287,9 +296,10 @@ def _sync_back_ammo(player_state: dict, player_owned_ship: OwnedShip | None) -> 
     _owned_ammo = getattr(player_owned_ship, 'weapon_ammo', None)
     if _owned_ammo is None:
         return
-    for _wid, _ammo in player_state.get("weapon_ammo", {}).items():
+    # Keys are weapon slot indices (matches OwnedShip.weapon_ammo).
+    for _slot, _ammo in player_state.get("weapon_ammo", {}).items():
         if _ammo >= 0:
-            _owned_ammo[_wid] = _ammo
+            _owned_ammo[_slot] = _ammo
 
 
 def move_entity(

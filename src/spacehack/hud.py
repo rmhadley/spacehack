@@ -738,8 +738,9 @@ def render_combat_hud(
                 ws = _fw(wid)
             except KeyError:
                 continue
-            # Check if can fire
-            wammo = player_state.get("weapon_ammo", {}).get(wid, 0)
+            # Check if can fire — ammo is keyed by weapon SLOT index so
+            # two launchers of the same type show independent magazines.
+            wammo = player_state.get("weapon_ammo", {}).get(i, 0)
             ap_req = ws.ap_cost
             pow_req = ws.power_cost if ws.slot_type in ("energy", "plasma") else 0
             has_ap = pap >= ap_req

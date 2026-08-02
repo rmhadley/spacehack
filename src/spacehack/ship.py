@@ -48,37 +48,40 @@ def _seed_missile_ammo(owned: OwnedShip) -> None:
     are never added (-1 capacity means infinite).
     """
     from .data.weapons import find_weapon as _fw
-    for wid in owned.weapons:
+    for i, wid in enumerate(owned.weapons):
         try:
             ws = _fw(wid)
         except KeyError:
             continue
-        if ws.slot_type == "missile" and wid not in owned.weapon_ammo:
-            owned.weapon_ammo[wid] = ws.ammo_capacity
+        if ws.slot_type == "missile" and i not in owned.weapon_ammo:
+            owned.weapon_ammo[i] = ws.ammo_capacity
 
 
 def buy_ammo(
     owned: OwnedShip,
-    weapon_id: str,
+    slot_index: int,
     rounds: int,
     credits: int,
 ) -> tuple[bool, int, str]:
-    """Buy ``rounds`` of ammo for an installed missile weapon.
+    """Buy ``rounds`` of ammo for the missile launcher in ``slot_index``.
 
-    Mutates ``owned.weapon_ammo`` and returns ``(ok, cost, reason)``.
-    Caps rounds at magazine capacity minus current, and clamps to
-    what the player can afford. ``credits`` is the player's current
-    balance (read-only — the caller deducts the returned cost so the
-    credits mutation stays with the caller).
+    Mutates ``owned.weapon_ammo`` (keyed by slot) and returns
+    ``(ok, cost, reason)``. Caps rounds at magazine capacity minus
+    current, and clamps to what the player can afford. ``credits`` is
+    the player's current balance (read-only — the caller deducts the
+    returned cost so the credits mutation stays with the caller).
     """
     from .data.weapons import find_weapon as _fw
+    if not (0 <= slot_index < len(owned.weapons)):
+        return False, 0, "Unknown weapon slot."
+    weapon_id = owned.weapons[slot_index]
     try:
         ws = _fw(weapon_id)
     except KeyError:
         return False, 0, "Unknown weapon."
     if ws.slot_type != "missile":
         return False, 0, f"{ws.name} doesn't use ammo."
-    current = owned.weapon_ammo.get(weapon_id, 0)
+    current = owned.weapon_ammo.get(slot_index, 0)
     room = ws.ammo_capacity - current
     if room <= 0:
         return False, 0, f"{ws.name} magazine is already full."
@@ -90,7 +93,7 @@ def buy_ammo(
     if buy <= 0:
         return False, 0, f"Need {ws.ammo_price}$ for 1 round."
     cost = buy * ws.ammo_price
-    owned.weapon_ammo[weapon_id] = current + buy
+    owned.weapon_ammo[slot_index] = current + buy
     return True, cost, ""
 
 
@@ -129,11 +132,13 @@ class OwnedShip:
     cargo_ammo: int = 0           # cargo consumed by missile ammo (mutated by combat)
     mission_reserved: int = 0     # cargo reserved by active delivery missions
     inventory: dict[str, int] = field(default_factory=dict)  # trade_good_id -> crate count
-    # Persistent missile ammo: weapon_id -> rounds remaining. Spent rounds
-    # stay spent after combat until rebought at the mechanic. Seeded to a
-    # full magazine for every installed missile weapon (see __post_init__)
-    # so old saves / newly bought ships start topped off.
-    weapon_ammo: dict[str, int] = field(default_factory=dict)
+    # Persistent missile ammo: weapon SLOT index -> rounds remaining.
+    # Keyed by installed slot (not weapon id) so two launchers of the
+    # same type keep independent magazines. Spent rounds stay spent after
+    # combat until rebought at the mechanic. Seeded to a full magazine
+    # for every installed missile weapon (see __post_init__) so old
+    # saves / newly bought ships start topped off.
+    weapon_ammo: dict[int, int] = field(default_factory=dict)
 
     @property
     def cargo_used(self) -> int:
@@ -243,7 +248,8 @@ def _install_weapon(owned: OwnedShip, weapon_id: str, ship_spec: Ship) -> bool:
     except KeyError:
         _ws = None
     if _ws is not None and _ws.slot_type == "missile":
-        owned.weapon_ammo[weapon_id] = _ws.ammo_capacity
+        # New launcher lives in the last slot; give it a fresh magazine.
+        owned.weapon_ammo[len(owned.weapons) - 1] = _ws.ammo_capacity
     return True
 
 
@@ -259,6 +265,16 @@ def _remove_weapon(owned: OwnedShip, index: int) -> tuple[str, ...]:
     new = owned.weapons[:index] + owned.weapons[index + 1:]
     owned.weapons = new
     owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    # Re-index ammo: slots above the removed one shift down by one so
+    # each launcher's magazine stays attached to the right slot.
+    _ammo: dict[int, int] = {}
+    for _k, _v in owned.weapon_ammo.items():
+        if _k < index:
+            _ammo[_k] = _v
+        elif _k > index:
+            _ammo[_k - 1] = _v
+        # _k == index: the sold weapon's magazine goes with it.
+    owned.weapon_ammo = _ammo
     return new
 
 

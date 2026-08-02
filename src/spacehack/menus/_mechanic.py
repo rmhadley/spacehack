@@ -161,11 +161,13 @@ def _run_ammo_menu(ctx) -> None:
         return
 
     owned = ctx.player_owned_ship
-    missile_wids = [
-        wid for wid in owned.weapons
+    # Ammo is keyed by weapon SLOT index, so two launchers of the same
+    # type keep independent magazines — list slot indices, not ids.
+    missile_slots = [
+        i for i, wid in enumerate(owned.weapons)
         if find_weapon(wid).slot_type == "missile"
     ]
-    if not missile_wids:
+    if not missile_slots:
         ctx.log.add("No missile weapons installed.")
         return
 
@@ -180,11 +182,11 @@ def _run_ammo_menu(ctx) -> None:
         stat_y = title_y + 2
         console.print(x=ui.centered_x(f"Credits: {ctx.stats.credits}$", SCREEN_WIDTH), y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
         _items: list[tuple[str, str]] = []
-        for _wid in missile_wids:
-            _ws = find_weapon(_wid)
-            _cur = owned.weapon_ammo.get(_wid, _ws.ammo_capacity)
+        for _slot in missile_slots:
+            _ws = find_weapon(owned.weapons[_slot])
+            _cur = owned.weapon_ammo.get(_slot, _ws.ammo_capacity)
             _items.append((
-                f"{_ws.name}: {_cur}/{_ws.ammo_capacity} rounds",
+                f"[{_slot + 1}] {_ws.name}: {_cur}/{_ws.ammo_capacity} rounds",
                 f"{_ws.ammo_price}$/round  ENTER=+1  SPACE=fill",
             ))
         ui.render_selectable_list(
@@ -212,31 +214,31 @@ def _run_ammo_menu(ctx) -> None:
         sym = event.sym
         sym_name: str = getattr(sym, 'name', '').lower()
         if sym in ui._UP_SYMS or sym_name == 'k':
-            selected = (selected - 1) % len(missile_wids)
+            selected = (selected - 1) % len(missile_slots)
             return _MechanicOutcome.IGNORE
         if sym in ui._DOWN_SYMS or sym_name == 'j':
-            selected = (selected + 1) % len(missile_wids)
+            selected = (selected + 1) % len(missile_slots)
             return _MechanicOutcome.IGNORE
         if sym in ui._ESCAPE_SYMS:
             return _MechanicOutcome.BACK
         if sym in ui._ENTER_SYMS:
-            _buy(ctx, owned, missile_wids[selected], 1)
+            _buy(ctx, owned, missile_slots[selected], 1)
             return _MechanicOutcome.IGNORE
         if sym_name in ('space', 's'):
-            _buy(ctx, owned, missile_wids[selected], 999)
+            _buy(ctx, owned, missile_slots[selected], 999)
             return _MechanicOutcome.IGNORE
         return _MechanicOutcome.IGNORE
 
-    def _buy(_ctx, _owned, _wid, _rounds) -> None:
-        _before = _owned.weapon_ammo.get(_wid, 0)
-        _ok, _cost, _reason = ship_module.buy_ammo(_owned, _wid, _rounds, _ctx.stats.credits)
+    def _buy(_ctx, _owned, _slot, _rounds) -> None:
+        _before = _owned.weapon_ammo.get(_slot, 0)
+        _ok, _cost, _reason = ship_module.buy_ammo(_owned, _slot, _rounds, _ctx.stats.credits)
         if not _ok:
             _ctx.log.add(_reason)
             return
-        _ws = find_weapon(_wid)
-        _rounds_bought = _owned.weapon_ammo.get(_wid, 0) - _before
+        _ws = find_weapon(_owned.weapons[_slot])
+        _rounds_bought = _owned.weapon_ammo.get(_slot, 0) - _before
         _ctx.stats.credits -= _cost
         _ctx.log.add(f"Bought {_rounds_bought}x {_ws.name} ammo for {_cost}$. "
-                     f"{_owned.weapon_ammo.get(_wid, 0)}/{_ws.ammo_capacity} rounds left.")
+                     f"{_owned.weapon_ammo.get(_slot, 0)}/{_ws.ammo_capacity} rounds left.")
 
     ui.Modal(ctx.context, console).run(_render, _update)

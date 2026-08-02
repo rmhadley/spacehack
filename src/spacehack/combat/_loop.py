@@ -102,11 +102,13 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
 
     _weapons = rules.player_weapons(ctx)
     _active = rules.active_weapons(ctx)
-    _fire_ids = [
-        _weapons[i] for i in range(len(_weapons))
+    # Fire by SLOT index, not weapon id: ammo is tracked per installed
+    # launcher, so two of the same missile type keep separate magazines.
+    _fire_slots = [
+        i for i in range(len(_weapons))
         if i < len(_active) and _active[i]
     ]
-    if not _fire_ids:
+    if not _fire_slots:
         ctx.log.add("No active weapons to fire.")
         return False
 
@@ -123,11 +125,12 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     _max_ap_cost = 0
     _any_fired = False
 
-    for _wid in _fire_ids:
+    for _slot in _fire_slots:
         if not rules.enemy_alive(_target):
             break
 
-        _ok, _reason = rules.can_fire(_wid, ctx)
+        _wid = _weapons[_slot]
+        _ok, _reason = rules.can_fire(_slot, ctx)
         if not _ok:
             try:
                 _wname = rules.weapon_name(_wid, ctx)
@@ -191,7 +194,7 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
                 _ml.COLOR_PLAYER_ACTION,
             )
 
-        rules.consume_shot(_wid, ctx)
+        rules.consume_shot(_slot, ctx)
 
     # Charge max AP once for the entire burst (only if something fired)
     if _any_fired:

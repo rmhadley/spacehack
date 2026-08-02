@@ -281,8 +281,11 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
 # Weapon actions
 # ---------------------------------------------------------------------------
 
-def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
-    _ws = _find_gw(weapon_id)
+def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
+    _weapons = player_weapons(ctx)
+    if not (0 <= slot_idx < len(_weapons)):
+        return False, "Unknown weapon"
+    _ws = _find_gw(_weapons[slot_idx])
     _alive = get_enemies(ctx)
     if _state.target_idx >= len(_alive):
         return False, "No valid target"
@@ -309,7 +312,7 @@ def weapon_name(weapon_id: str, ctx) -> str:
     return _find_gw(weapon_id).name
 
 
-def consume_shot(weapon_id: str, ctx) -> None:
+def consume_shot(slot_idx: int, ctx) -> None:
     pass
 
 

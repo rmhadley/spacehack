@@ -286,8 +286,8 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
 # Weapon actions
 # ---------------------------------------------------------------------------
 
-def can_fire(weapon_id: str, ctx) -> tuple[bool, str]:
-    _ok, _reason = _space_can_afford(_state.player_state, weapon_id)
+def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
+    _ok, _reason = _space_can_afford(_state.player_state, slot_idx)
     if not _ok:
         return _ok, _reason
     _target = _alive_target()
@@ -311,14 +311,17 @@ def weapon_name(weapon_id: str, ctx) -> str:
     return _fw(weapon_id).name
 
 
-def consume_shot(weapon_id: str, ctx) -> None:
+def consume_shot(slot_idx: int, ctx) -> None:
     from ..data.weapons import find_weapon as _fw
-    _ws = _fw(weapon_id)
+    _weapons = _state.player_state.get("weapons", ())
+    if not (0 <= slot_idx < len(_weapons)):
+        return
+    _ws = _fw(_weapons[slot_idx])
     if _ws.slot_type in ("energy", "plasma"):
         _state.player_state["power_pool"] -= _ws.power_cost
     elif _ws.slot_type == "missile":
-        old = _state.player_state["weapon_ammo"][weapon_id]
-        _state.player_state["weapon_ammo"][weapon_id] = old - _ws.ammo_per_shot
+        old = _state.player_state["weapon_ammo"].get(slot_idx, 0)
+        _state.player_state["weapon_ammo"][slot_idx] = max(0, old - _ws.ammo_per_shot)
 
 
 # ---------------------------------------------------------------------------

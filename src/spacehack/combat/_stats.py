@@ -195,19 +195,22 @@ def init_combat_state(
 
     # Build weapon ammo dict — player ammo is PERSISTENT across fights:
     # the rounds remaining on the owned ship (weapon_ammo) carry into
-    # combat and spent rounds are written back by sync_state. Enemies
-    # keep full magazines below (they're per-encounter spawns).
+    # combat and spent rounds are written back by sync_state. Keyed by
+    # weapon SLOT index (not weapon id) so two launchers of the same
+    # type keep independent magazines. Enemies keep full magazines
+    # below (they're per-encounter spawns).
+    _owned_weapons = tuple(getattr(player_owned_ship, 'weapons', ()) or ())
     _owned_ammo = getattr(player_owned_ship, 'weapon_ammo', None) or {}
-    w_ammo: dict[str, int] = {}
-    for wid in getattr(player_owned_ship, 'weapons', ()) or ():
+    w_ammo: dict[int, int] = {}
+    for i, wid in enumerate(_owned_weapons):
         try:
             ws = find_weapon(wid)
             if ws.ammo_capacity > 0:
-                w_ammo[wid] = _owned_ammo.get(wid, ws.ammo_capacity)
+                w_ammo[i] = _owned_ammo.get(i, ws.ammo_capacity)
             else:
-                w_ammo[wid] = -1
+                w_ammo[i] = -1
         except KeyError:
-            w_ammo[wid] = -1
+            w_ammo[i] = -1
 
     player_state = {
         "hull": hull,
@@ -227,6 +230,7 @@ def init_combat_state(
         "cells_moved_this_turn": 0,
         "shield_regen_rate": 0,
         "shield_recharge_bonus": shield_recharge_bonus,
+        "weapons": _owned_weapons,       # slot-ordered ids (ammo keyed by index)
         "weapon_ammo": w_ammo,
     }
 

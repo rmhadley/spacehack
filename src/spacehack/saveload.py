@@ -436,6 +436,17 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _osh = _data.get("player_owned_ship")
     _owned_ship: ship_module.OwnedShip | None = None
     if _osh is not None and _osh.get("ship_id"):
+        # weapon_ammo migration: new saves key ammo by weapon SLOT index
+        # (ints serialized as strings by _d). Pre-fix saves keyed it by
+        # weapon id (shared magazine bug) — those entries are dropped so
+        # __post_init__ seeds each installed launcher a fresh full mag.
+        _ammo_raw = _osh.get("weapon_ammo", {}) or {}
+        _ammo: dict[int, int] = {}
+        for _k, _v in _ammo_raw.items():
+            try:
+                _ammo[int(_k)] = int(_v)
+            except (TypeError, ValueError):
+                continue  # legacy weapon-id key — discard
         _owned_ship = ship_module.OwnedShip(
             ship_id=_osh["ship_id"],
             display_name=_osh.get("display_name"),
@@ -445,9 +456,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             modules=tuple(_osh.get("modules", ()) or ()),
             inventory=_osh.get("inventory", {}) or {},
             mission_reserved=_osh.get("mission_reserved", 0),
-            # weapon_ammo round-trips through the dataclass field; old
-            # saves lack it and get a full magazine seeded by __post_init__.
-            weapon_ammo=_osh.get("weapon_ammo", {}) or {},
+            weapon_ammo=_ammo,
         )
 
     # --- Active missions ---

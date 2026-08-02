@@ -224,9 +224,12 @@ _GUIDE_COMBAT = GuideSection(
         "\n"
         "- Power cost = sum of all active energy weapons' power costs"
         "\n"
-        "- Ammo is consumed per missile weapon fired — and ammo is"
+        "- Ammo is consumed per missile launcher fired — and ammo is"
         "PERSISTENT: rounds spent in combat stay spent until you rebuy"
         "them at the mechanic (Buy Ammo)"
+        "\n"
+        "- Each launcher keeps its own magazine: two heavy missile"
+        "launchers fire and deplete independently"
         "\n"
         "- Each weapon rolls hit/damage independently"
         "\n"
@@ -598,7 +601,8 @@ _GUIDE_SHIPS = GuideSection(
         "- Manage Loadout: buy and sell weapons and modules"
         "\n"
         "- Buy Ammo: replenish missile magazines (8-25$ per round);"
-        "ammo spent in combat stays spent until rebought"
+        "ammo spent in combat stays spent until rebought. Each launcher"
+        "is listed separately with its own magazine"
     ),
 )
 
