@@ -48,26 +48,26 @@ def open_trait_selection(ctx: GameContext) -> None:
         _title = f"TRAIT SELECTION — Level {ctx.player_level}"
         console.print(
             x=ui.centered_x(_title, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 5,
+            y=2,
             string=_title,
             fg=ui.COLOR_TITLE,
         )
         _div = "=" * 50
         console.print(
             x=ui.centered_x(_div, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 5 + 1,
+            y=3,
             string=_div,
             fg=ui.COLOR_TITLE,
         )
 
-        _y = SCREEN_HEIGHT // 5 + 3
+        _y = 5
         for _i, _trait in enumerate(_candidates):
             _is_sel = _i == _sel
             _marker = ">" if _is_sel else " "
             _name_line = f"{_marker} {_trait.name}"
             _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
             console.print(
-                x=SCREEN_WIDTH // 4,
+                x=2,
                 y=_y,
                 string=_name_line,
                 fg=_fg,
@@ -75,7 +75,7 @@ def open_trait_selection(ctx: GameContext) -> None:
             _y += 1
             # Description (dimmer).
             console.print(
-                x=SCREEN_WIDTH // 4 + 2,
+                x=4,
                 y=_y,
                 string=_trait.description,
                 fg=ui.COLOR_VALUE_DIM,
@@ -84,7 +84,7 @@ def open_trait_selection(ctx: GameContext) -> None:
 
         _y += 1
         console.print(
-            x=SCREEN_WIDTH // 4,
+            x=2,
             y=_y,
             string="TAB cycle  |  ENTER choose",
             fg=ui.COLOR_INSTRUCTION,

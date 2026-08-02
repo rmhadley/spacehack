@@ -772,6 +772,8 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
             title="GO TO",
             items=_goto_items,
             selected=selected,
+            col_x=2,
+            title_y=2,
             hint='ARROW KEYS / j,k navigate - ENTER go - ESC cancel',
         )
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)

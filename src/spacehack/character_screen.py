@@ -61,7 +61,7 @@ def open_character_screen(ctx: GameContext) -> None:
         _class_name = ctx.character_info.get("class_name", "").title()
         _title = f"CHARACTER -- Level {_level} {_class_name}"
 
-        # Tab bar.
+        # Tab bar (top).
         _tab_labels = ["  Stats  ", "  Equipment  "]
         _tab_str = ""
         for i, _tl in enumerate(_tab_labels):
@@ -71,20 +71,20 @@ def open_character_screen(ctx: GameContext) -> None:
                 _tab_str += f" {_tl} "
         console.print(
             x=ui.centered_x(_tab_str, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 6 - 2,
+            y=0,
             string=_tab_str,
             fg=ui.COLOR_OPTION_HIGHLIGHT if _tab == 1 else ui.COLOR_OPTION,
         )
         console.print(
             x=ui.centered_x(_title, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 6,
+            y=2,
             string=_title,
             fg=ui.COLOR_TITLE,
         )
         _div = "=" * 50
         console.print(
             x=ui.centered_x(_div, SCREEN_WIDTH),
-            y=SCREEN_HEIGHT // 6 + 1,
+            y=3,
             string=_div,
             fg=ui.COLOR_TITLE,
         )
@@ -145,13 +145,13 @@ def _render_stats(
         f"XP: {_into_level} / {_total_for_level + _needed}  "
         f"[{_bar}]  Next: {_needed - _into_level} XP"
     )
-    _y = SCREEN_HEIGHT // 6 + 3
-    console.print(x=SCREEN_WIDTH // 4, y=_y, string=_xp_line, fg=ui.COLOR_VALUE_WHITE)
+    _y = 5
+    console.print(x=2, y=_y, string=_xp_line, fg=ui.COLOR_VALUE_WHITE)
     _y += 2
 
     _pts = ctx.player_skill_points
     console.print(
-        x=SCREEN_WIDTH // 4, y=_y,
+        x=2, y=_y,
         string=f"Skill Points Available: {_pts}",
         fg=ui.COLOR_VALUE_WHITE,
     )
@@ -174,7 +174,7 @@ def _render_stats(
         _plus = "[+]" if _pts > 0 and _val < _max_val else "MAX" if _val >= _max_val else "   "
         _line = f"{_marker} {_skill.title():<12} {_val:>3}  {_plus}"
         _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
-        console.print(x=SCREEN_WIDTH // 4, y=_y, string=_line, fg=_fg)
+        console.print(x=2, y=_y, string=_line, fg=_fg)
         _y += 2
 
     _y += 1
@@ -193,12 +193,12 @@ def _render_stats(
     else:
         _trait_str = "(no traits chosen)"
     console.print(
-        x=SCREEN_WIDTH // 4, y=_y,
+        x=2, y=_y,
         string=f"Traits: {_trait_str}", fg=ui.COLOR_VALUE_DIM,
     )
     _y += 2
     console.print(
-        x=SCREEN_WIDTH // 4, y=_y,
+        x=2, y=_y,
         string="TAB cycle tabs  |  ENTER spend  |  ESC close",
         fg=ui.COLOR_INSTRUCTION,
     )
@@ -209,12 +209,12 @@ def _render_stats(
     _panel_y = _y + 2
     _pdiv = "=" * 50
     console.print(
-        x=SCREEN_WIDTH // 4, y=_panel_y,
+        x=2, y=_panel_y,
         string=_pdiv, fg=ui.COLOR_VALUE_DIM,
     )
     _panel_y += 1
     console.print(
-        x=SCREEN_WIDTH // 4, y=_panel_y,
+        x=2, y=_panel_y,
         string="What each skill does:",
         fg=ui.COLOR_VALUE_DIM,
     )
@@ -224,7 +224,7 @@ def _render_stats(
         _row = f"{_skill.title():<12} {_desc}"
         _is_sel = i == _sel
         _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
-        console.print(x=SCREEN_WIDTH // 4, y=_panel_y, string=_row, fg=_fg)
+        console.print(x=2, y=_panel_y, string=_row, fg=_fg)
         _panel_y += 1
 
 
@@ -233,7 +233,7 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
     from .data.ground_weapons import find_ground_weapon as _fgw
     from .data.ground_armor import find_ground_armor as _fga
 
-    _y = SCREEN_HEIGHT // 6 + 3
+    _y = 5
 
     _weapons = list(ctx.equipped_ground_weapons)
     while len(_weapons) < 2:
@@ -247,7 +247,7 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
                 _label += _wid
         else:
             _label += "Fists"
-        console.print(x=SCREEN_WIDTH // 4, y=_y, string=_label, fg=ui.COLOR_OPTION_HIGHLIGHT)
+        console.print(x=2, y=_y, string=_label, fg=ui.COLOR_OPTION_HIGHLIGHT)
         _y += 1
     _y += 1
 
@@ -262,12 +262,12 @@ def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
         else:
             _name = "None"
         _pad = max(1, 10 - len(_slot_label))
-        console.print(x=SCREEN_WIDTH // 4, y=_y, string=f"{_slot_label}:{' ' * _pad}{_name}", fg=ui.COLOR_OPTION)
+        console.print(x=2, y=_y, string=f"{_slot_label}:{' ' * _pad}{_name}", fg=ui.COLOR_OPTION)
         _y += 1
     _y += 1
 
     console.print(
-        x=SCREEN_WIDTH // 4, y=_y,
+        x=2, y=_y,
         string="Use the Armory terminal (A) on the city map to manage gear.",
         fg=ui.COLOR_INSTRUCTION,
     )
