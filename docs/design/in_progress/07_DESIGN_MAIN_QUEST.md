@@ -2,7 +2,18 @@
 
 ## Overview
 
-A **non-linear main quest** the player follows alongside sandbox play. Builds toward the blockade at Luyten's Star and what lies beyond: research the anomaly, find a way past the blockade, explore beyond charted space through alien tech, and survive a final battle against an ancient force.
+A **non-linear main quest** the player follows alongside sandbox play. Builds toward the blockade at Luyten's Star and what lies beyond: research the anomaly, find a way past the blockade, and discover the truth — a warning that has been broadcasting for a thousand years.
+
+**The premise is a blend of alien mystery and faction politics.** The signal from beyond the blockade is real, ancient, and non-human. But the *story* the player experiences is driven by what the four factions want to do with that discovery — and the player's choices decide who wins.
+
+## Design decisions (locked with the user)
+
+| Decision | Choice |
+|----------|--------|
+| **Core premise** | Alien mystery as the outer frame; faction politics as the engine. Each faction wants the discovery for its own reasons. Player choices decide who wins. |
+| **Pacing** | Hybrid: main-quest breadcrumbs are visible in the quest log, but mysteries and faction quests are *dig content* — the player finds them by exploring and talking to the right people. |
+| **Ending** | Definitive resolution at the end of Act 3 (a real conclusion), then the sandbox continues. |
+| **Time pressure** | None. No deadlines, no fail states. The quest waits forever. |
 
 ### Existing story hooks
 
@@ -10,15 +21,41 @@ A **non-linear main quest** the player follows alongside sandbox play. Builds to
 - **Research Officers** at 5+ science stations (Mercury, Sirius, Alpha Centauri, Procyon C, AC Planet 2)
 - **Vega's hidden Sol Gate**: commented in `data/solar_systems/vega.py` — a story-side shortcut
 - **The Science Port** at Alpha Centauri (near Proxima) — lab building with research officer
-- **Luyten's Star blockcade**: the frontier — what lies beyond?
+- **Luyten's Star blockade**: the frontier — what lies beyond?
 - **Depot Attendant** flavor: "The deep-space run is long — make sure your tanks are topped."
 
 ### Design goals
 
-- Discovery-driven: quest steps found by exploring and talking to NPCs
-- No fail states: story adapts to player choices
-- Replayable: different species/class combos see different angles
+- Discovery-driven, but with enough breadcrumb so the player is never lost
+- Mysteries + special quests that the player must *dig* for (talk to the right NPC, fly to the odd place)
+- No fail states, no time pressure — story adapts to player choices, never expires
+- Replayable: species/class combos + faction allegiances see different angles and endings
+- Definitive ending with a real payoff; sandbox continues afterward
 - 3-path blockade breach: diplomatic / smuggler / combat
+
+## Faction politics — the engine of the story
+
+Each faction believes the signal is something different, and each wants the player to serve their version. This is the *politics* layer: the alien mystery is the same for everyone, but the factions' competing claims turn it into a story about people.
+
+| Faction | Believes the signal is… | Wants | How they help the player | If they "win" the discovery |
+|---------|------------------------|-------|--------------------------|------------------------------|
+| **Militia** | A threat beacon. Something is out there and the frontier must be held. | To quarantine it, keep it secret, keep order. | Blockade clearance (diplomatic path). Intel on the "incident." | Ending: the frontier is sealed; the threat is "contained." |
+| **Merchants** | The next frontier. Alien tech is the biggest trade route in history. | To exploit it, open the route. | Funding, modules, ship discounts, intel. | Ending: a new trade route opens; the structure is quietly mined for tech. |
+| **Bar / pirates** | The motherlode. The militia is just hoarding it. | To plunder it before anyone locks it down. | The back route (smuggler path). Partial intel. | Ending: the structure is stripped; the warning is lost/buried. |
+| **Lab / civilians** | The truth. It must be understood before anyone does anything stupid. | To study it, publish it, warn humanity. | The research trail itself — every Research Officer. | Ending: the truth is published; humanity hears the warning. |
+
+The player is never forced to pick a side. They can serve one faction, play all four against each other, or go it alone. The **ending epilogue** reflects who (if anyone) backed the player through the blockade.
+
+## Mysteries & dig content
+
+Main-quest breadcrumbs are visible in the quest log. These mysteries are **not** — the player finds them by digging: talking to the right NPC, flying to the odd system, boarding the strange derelict.
+
+| # | Mystery | How to find it | Payoff |
+|---|---------|----------------|--------|
+| M1 | **The Jamming** — the signal has been jammed for six months. By whom? | Find a classified militia comms log (derelict, lab terminal, or a trusted captain). | Reveals the militia already knew something was out there — since "the incident." |
+| M2 | **The Lost Scouts** — three militia scouts vanished beyond the Line. | Salvage the one derelict still drifting near the frontier (boarding + black box). | The scouts saw the structure. Their black box names it. |
+| M3 | **The Vega Gate** — decommissioned decades ago, officially. Still in use. | Fly to Vega's hidden gate (per `vega.py` comment). | A way past the blockade that isn't the Line. |
+| M4 | **The Lost Expedition** — a merchant-funded science crew went beyond. Its last transmission mentioned "a door that opens on a cycle." | Unlock via merchant faction questline. | Seeds Act 3's truth: the structure opens on a cycle. |
 
 ## Quest-aware NPC dialogue system
 
@@ -32,12 +69,7 @@ Currently NPC talk (`npc.py`) shows a static `npc.flavor_text` string and a fixe
 
 ### How it works
 
-Each NPC gets an optional `quest_dialogues` mapping that overrides their `flavor_text` based on quest progress. The mapping is keyed by the quest step ID the dialogue is for.
-
-```python
-# NPC has a new field:
-quest_dialogues: dict[str, str] = {}  # step_id -> dialogue_line
-```
+Quest dialogue lives **on the step**, keyed by NPC id (see `MainQuestStep.dialogues` below). When the player talks to an NPC, the system scans the player's quest progress and finds the first step that has a `QuestDialogue` entry for that NPC. The entry overrides the NPC's `flavor_text` based on quest progress.
 
 When the player talks to an NPC with quest dialogue configured:
 
@@ -119,7 +151,7 @@ The existing `render_npc_talk` function in `npc.py` already accepts an `NPC` obj
 ```python
 def resolve_npc_dialogue(ctx: GameContext, npc_id: str) -> tuple[str, str | None]:
     """Return (dialogue_text, trigger_step_id or None) for this NPC.
-    
+
     Scans all defined main quest steps. Returns the first match
     where the NPC has a dialogue entry for the current step state.
     If no match, returns (default_flavor_text, None).
@@ -175,6 +207,9 @@ class MainQuestStep:
 ### New fields on `GameContext`
 - `main_quest_progress: dict[str, str]` — step_id → `"available"`, `"active"`, `"completed"`
 - `main_quest_unlocked_items: set[str]` — items and dialogue unlocked by quest steps
+- `main_quest_path: str = ""` — which blockade path was taken (`"diplomatic"` / `"smuggler"` / `"combat"` / `""`), read by the Act 3 epilogue
+- `main_quest_backing: set[str]` — faction claim flags planted by backing quests (see Act 3 epilogue resolution)
+- `main_quest_complete: bool = False` — set when Act 3 resolves (definitive ending; sandbox continues)
 
 ### New fields on `PlanetSpec`
 - `main_quest_flavor: str = ""` — lore line shown on landing
@@ -185,14 +220,14 @@ class MainQuestStep:
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
-| `prologue_launch` | Auto on first launch | None | Garbled transmission on an unknown frequency — "The signal from beyond... the gate at Vega... they found something." Cut off. |
-| `prologue_sol` | Talk to Guild Master or Barkeep on Earth/Mars | Guild Master / Barkeep | "Something's happening past Luyten's Star. Start at the Science Port near Alpha Centauri — they study this kind of thing." |
+| `prologue_launch` | Auto on first launch | None | Garbled transmission on an unknown frequency — "…they opened it. The door is…" static, "…this is the last warning…" cut off. The player is the only one who seems to have heard it. |
+| `prologue_sol` | Talk to Guild Master, Barkeep, or Captain on Earth | Any of the three | **Breadcrumb** (but each giver shows a DIFFERENT read, seeding the faction fork early): Barkeep: "Half the port says it's militia jamming. The other half says what they're jamming is real." Guild Master: "A signal past the Line? There are people who would pay a fortune for proof." Captain (militia): "There is no signal. Fly safe." |
 
-**Reward:** None (sets the hook).
+**Reward:** None (sets the hook + plants the faction choice).
 
 ### Act 1: "The Anomaly"
 
-Visit Research Officers at science stations to piece together what the signal is.
+Visit Research Officers at science stations to piece together what the signal is. The research trail is the **breadcrumb**; the faction quests and mysteries are the **dig** content that opens alongside it.
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
@@ -201,42 +236,55 @@ Visit Research Officers at science stations to piece together what the signal is
 | `research_mercury` | Talk to Research Officer on Mercury | Research Officer (Mercury) | "Vega's gate was decommissioned decades ago — officially. Our scans show it's still in use." |
 | `research_procyon` | Talk to Research Officer on Procyon C | Research Officer (Procyon) | "To get through, you'll need the nav key. It's in the blockade commander's safe at Luyten's Star." |
 
-**Reward:** Credits, XP, lab faction rep.
+**Alongside the trail (dig content, not in the quest log):**
+- **Faction quests open** — each faction offers a special quest that earns their backing (militia patrol duty, merchant supply run, bar probe of the blockade's weak point, lab sample runs). Completing them shapes which path is available and which epilogue plays.
+- **M1 The Jamming** (classified militia comms log) — reveals the militia knew about "the incident" six months ago.
+- **M2 The Lost Scouts** (salvage derelict + black box) — the scouts saw the structure and named it.
 
-**Choice fork:** Diplomatic (build militia rep to Allied), Smuggler (pay the barkeep at Luyten), Combat (fight through).
+**Reward:** Credits, XP, lab faction rep, and the faction-politics fork.
+
+**Choice fork:** Diplomatic (build militia rep to Allied), Smuggler (pay the barkeep at Luyten), Combat (fight through). The chosen path is recorded in `ctx.main_quest_path` and shapes the Act 3 epilogue.
 
 ### Act 2: "The Blockade"
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
-| `blockade_diplomatic` | Talk to Blockade Officer (militia rep >= 76) | Blockade Officer | "Cleared for passage. The gate beyond has been active for six months. We've lost three scouts." |
+| `blockade_diplomatic` | Talk to Blockade Officer (militia rep >= 76) | Blockade Officer | "Cleared for passage. Whatever's out there, you represent the Line now. The gate beyond has been active for six months. We've lost three scouts." |
 | `blockade_smuggler` | Visit bar at Luyten's Star (rep < 76) | Barkeep | "There's a back route through an old debris field. Risky. Costs credits + hull damage." |
 | `blockade_combat` | Defeat the blockade in combat | None (auto) | "Blockade Nav Key" drops from the commanding officer's ship. |
 
-**Reward:** Nav key or clearance → unlocks uncharted system beyond Luyten's Star.
+**Reward:** Nav key or clearance → unlocks uncharted system beyond Luyten's Star. The blockade path plants its own claim (diplomatic → militia, smuggler → pirates, combat → none).
 
-### Act 3: "Beyond the Chart"
+### Act 3: "The Warning"
 
 A dead-star system with an alien structure — the source of the signal.
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
 | `beyond_arrival` | Enter uncharted system | None (auto) | "The signal is here. A massive alien structure orbits the dead star at the system's heart." |
-| `beyond_exploration` | Approach the structure | None (auto) | "Scans show it's dormant — but something inside is still active." |
-| `beyond_core` | Board the structure (special encounter) | None | Gauntlet inside: combat with alien constructs ("Ancient Sentinel"). At the core: a data beacon containing the full message — a warning about a threat that returns. The cycle is ending. |
-| `beyond_finale` | Survive the gauntlet | None (auto) | "The wave breaks against you. The structure goes dark. You are the first human to stand here and return." |
+| `beyond_exploration` | Approach the structure | None (auto) | "Scans show it's dormant — but something inside is still active. A door that opens on a cycle." |
+| `beyond_core` | Board the structure (special encounter) | None | Gauntlet inside: combat with alien constructs ("Ancient Sentinel"). At the core: a data beacon containing the full message — a warning broadcast for a thousand years, aimed at every system with life. The builders are gone — destroyed by what the warning warns of. The cycle is ending: the structure was waiting for someone to answer. |
+| `beyond_finale` | Survive the gauntlet | None (auto) | The message is delivered. The structure goes dark, its work done. The player returns through the now-open frontier — the first human to stand there and come back. |
 
-**Reward:** "Alien Resonator" ship module (unique, powerful). Massive XP. The truth.
+**Reward:** "Alien Resonator" ship module (unique, powerful). Massive XP. The truth. `main_quest_complete = True` — sandbox continues.
+
+**Epilogue resolution — "last claim wins":** Each faction backing quest (Phase 3) plants a claim flag in `ctx.main_quest_backing`; the blockade path plants its own claim (diplomatic → militia, smuggler → pirates, combat → none). At the finale, the **most recently planted claim** wins — so every faction can win, and the player who serves multiple factions gets the ending of whoever they helped last. If no claims were planted, the player goes alone.
+
+- Militia claim: the frontier is sealed; the threat is "contained." The militia thanks the player, quietly.
+- Merchant claim: a new trade route opens; the structure is mined for tech. The Guild Master offers the player a share.
+- Pirate/bar claim: the structure is stripped; the warning is buried in a bar story. The Barkeep raises a glass.
+- Lab claim: the truth is published; humanity hears the warning. The Research Officers study the data beacon openly.
+- Alone (no claim): the player keeps the secret. The frontier stays open and wild.
 
 ## Implementation phases
 
 ### Phase 1: Data model + Prologue
 
 - [ ] Add `MainQuestStep` dataclass to `data/main_quest/` module
-- [ ] Add `main_quest_progress` and `main_quest_unlocked_items` to `GameContext`
+- [ ] Add `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_complete` to `GameContext`
 - [ ] Write Act 0 steps as data
 - [ ] Wire prologue auto-trigger into `_launch_to_space` (first launch only)
-- [ ] Wire prologue NPC dialogue into guild master and barkeep talk modals
+- [ ] Wire prologue NPC dialogue into guild master, barkeep, and militia captain talk modals (3 faction reads)
 - [ ] Smoke test + commit
 
 ### Phase 2: Acts 1-3 story data
@@ -250,39 +298,49 @@ A dead-star system with an alien structure — the source of the signal.
 - [ ] Add `main_quest_flavor` to key planets
 - [ ] Smoke test + commit
 
-### Phase 3: Main quest log UI
+### Phase 3: Mysteries & faction quests (dig content)
+
+- [ ] M1 The Jamming: classified militia comms log findable on a derelict / lab terminal
+- [ ] M2 The Lost Scouts: salvage derelict with black box near the frontier
+- [ ] M3 The Vega Gate: activate the hidden gate in `vega.py`
+- [ ] M4 The Lost Expedition: merchant faction questline
+- [ ] Faction backing quests (militia / merchant / bar / lab) — one special quest each
+- [ ] Smoke test + commit
+
+### Phase 4: Main quest log UI
 
 - [ ] Add "Main Quest" section to quest log (Q key) — separate from active missions
 - [ ] Show status: completed (checkmark), active (highlighted), locked (grayed)
+- [ ] Mysteries are NOT listed — only breadcrumb steps
 - [ ] Smoke test + commit
 
-### Phase 4: Rewards + unique items
+### Phase 5: Rewards + unique items + ending
 
 - [ ] Wire rewards_credits / rewards_xp into step completion
 - [ ] Wire rewards_rep into `modify_rep`
 - [ ] Add "Alien Resonator" module to `data/modules/systems.py`
 - [ ] Add "Blockade Nav Key" as a quest item
+- [ ] Wire Act 3 epilogue variants by `main_quest_path`
+- [ ] Set `main_quest_complete` and confirm sandbox continues
 - [ ] Smoke test + commit
 
-### Phase 5: Guide + final polish
+### Phase 6: Guide + final polish
 
 - [ ] Add main quest section to in-game guide
-- [ ] Full playtest: prologue → research → blockade breach → beyond → finale
+- [ ] Full playtest: prologue → research → mysteries → blockade breach → beyond → finale
 - [ ] DRY/RNG audit
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items` → added to both `_ctx_to_dict()` AND `load_game()`
+- [ ] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_path`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`
 - [ ] **Game guide:** New main quest overlay → updated `_GUIDE_MISSIONS` or new `_GUIDE_MAIN_QUEST` section
 - [ ] **NPC spawns:** Alien sentinel ships → registered in `ctx.procedural_spawns` with matching `squad_id`
 
 ## Open questions
 
-1. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
-2. **Game continues after Act 3** — the story loop closes, sandbox continues.
-3. **"Ancient Sentinel"** is a unique T4+ enemy type — alien tech, no faction, unyielding.
-4. **No fail states** — quest stays available regardless of rep or time.
-
-## Story tone
-
-Mystery-driven. The core question is "What is the signal?" The answer unfolds through exploration, not exposition. The player is "the one who went to look" — not a chosen one, just the person who followed the thread.
+1. **What exactly is the warning?** The structure broadcast for a thousand years. Against what? (Options: an ancient enemy that returns on a cycle; the dead star's own cycle; a door that calls something inward.) — **STORY FORK, needs the user's call.**
+2. **Faction questline depth** — do all four factions get a full backing questline in v1, or ship two (militia + one other) and let the rest be dialogue-only?
+3. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
+4. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
+5. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
+6. **No time pressure, no fail states** — the quest waits forever. Confirmed.
