@@ -146,11 +146,9 @@ def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, 
 
     def _row(label, dist=None):
         if dist is None:
-            return fit(label)
-        return fit(f'{_clamp_label(label)} - {dist}u')
+            return ui.fit_text(label, inner_w)
+        return ui.fit_text(f'{_clamp_label(label)} - {dist}u', inner_w)
 
-    def fit(line):
-        return line if len(line) <= inner_w else line[:inner_w - 1] + chr(8230)
     rows = []
     rows.append(('AREAS OF INTEREST', ui.COLOR_TITLE))
     rows.append(('', ui.COLOR_VALUE_DIM))
@@ -183,7 +181,7 @@ def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, 
         for sys_id, hops in sorted(reachable_counts.items(), key=lambda kv: (kv[1], kv[0])):
             dest_sys = solar_systems_module.find_solar_system(sys_id)
             row_text = f"{dest_sys.name:<{name_w}} - {hops} hop{('s' if hops > 1 else '')}"
-            rows.append((fit(row_text), COLOR_JUMP))
+            rows.append((ui.fit_text(row_text, inner_w), COLOR_JUMP))
         rows.append(('', COLOR_JUMP))
     cx, cy = (x + 2, y + 1)
     for label, fg in rows:

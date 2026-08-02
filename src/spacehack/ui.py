@@ -765,6 +765,26 @@ def paint_centered(
     console.print(x=centered_x(text, SCREEN_WIDTH), y=y, string=text, fg=fg)
 
 
+def fit_text(text: str, max_w: int) -> str:
+    """Truncate ``text`` to ``max_w`` columns, appending ``…`` when cut.
+
+    Shared by the terminal-look menu family (mission board, quest log,
+    NPC talk, ship buy) so the truncation behaviour lives in one place.
+    """
+    return text if len(text) <= max_w else text[:max_w - 1] + "…"
+
+
+def paint_title(console, screen_width: int, row: int, text: str, *, fg) -> None:
+    """Print ``text`` horizontally centered at ``row`` — the terminal-look
+    title row shared by every menu screen."""
+    console.print(x=centered_x(text, screen_width), y=row, string=text, fg=fg)
+
+
+def paint_line(console, x: int, y: int, text: str, *, fg) -> None:
+    """Print ``text`` left-anchored at ``(x, y)`` — terminal-look content."""
+    console.print(x=x, y=y, string=text, fg=fg)
+
+
 def format_split_row(
     name: str, label: str, suffix: str,
     selected: bool, col_w: int,

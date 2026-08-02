@@ -89,17 +89,8 @@ def render_npc_talk(
     body = f'"{quest_body if quest_body else npc.flavor_text}"'
     content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
-    def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[:max_w - 1] + "…"
-
-    def paint_title(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
-
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=content_x, y=row, string=text, fg=fg)
-
-    paint_title(2, fit(title), fg=ui.COLOR_TITLE)
-    paint(4, fit(body), fg=ui.COLOR_DESCRIPTION)
+    ui.paint_title(console, screen_width, 2, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
+    ui.paint_line(console, content_x, 4, ui.fit_text(body, max_w), fg=ui.COLOR_DESCRIPTION)
 
     _missions = deliver_missions or []
     options: list[tuple[str, str]] = []  # (label, kind: quest/deliver/work)
@@ -116,7 +107,7 @@ def render_npc_talk(
         is_selected = i == sel
         marker_open = "> " if is_selected else "  "
         marker_close = " <" if is_selected else "  "
-        text = f"{marker_open}{fit(label)}{marker_close}"
+        text = f"{marker_open}{ui.fit_text(label, max_w)}{marker_close}"
         if is_selected:
             # Quest + deliver rows share the gold "action" highlight;
             # work stays the standard highlight.
@@ -127,7 +118,7 @@ def render_npc_talk(
     hint = "ARROW KEYS / j,k navigate - ENTER select - ESC walk away."
     hint_row = list_top + n * 2
     if hint_row + 1 <= screen_height - MSG_LOG_HEIGHT:
-        paint(hint_row, fit(hint), fg=ui.COLOR_INSTRUCTION)
+        ui.paint_line(console, content_x, hint_row, ui.fit_text(hint, max_w), fg=ui.COLOR_INSTRUCTION)
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
 

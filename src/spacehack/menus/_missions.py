@@ -88,15 +88,7 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
     n = len(options)
     content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
-    def fit(line: str) -> str:
-        return line if len(line) <= max_w else line[:max_w - 1] + '…'
-
-    def paint_title(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=ui.centered_x(text, screen_width), y=row, string=text, fg=fg)
-
-    def paint(row: int, text: str, *, fg: tuple[int, int, int]) -> None:
-        console.print(x=content_x, y=row, string=text, fg=fg)
-    paint_title(2, fit(title), fg=ui.COLOR_TITLE)
+    ui.paint_title(console, screen_width, 2, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
     sel = selected % n if n else 0
     list_top = 4
     for i, (_, label) in enumerate(options):
@@ -104,13 +96,13 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
         is_selected = i == sel
         marker = '> ' if is_selected else '  '
         end_marker = ' <' if is_selected else '  '
-        text = f'{marker}{fit(label)}{end_marker}'
+        text = f'{marker}{ui.fit_text(label, max_w)}{end_marker}'
         console.print(x=content_x, y=row, string=text, fg=ui.COLOR_OPTION_HIGHLIGHT if is_selected else ui.COLOR_OPTION)
     desc = descriptions.get(str(sel), '') if descriptions else ''
     desc_rows = ui.wrap_text(desc, max_w)
     desc_start_row = list_top + n * 2 + 1
     for j, line in enumerate(desc_rows):
-        paint(desc_start_row + j, line, fg=ui.COLOR_DESCRIPTION)
+        ui.paint_line(console, content_x, desc_start_row + j, line, fg=ui.COLOR_DESCRIPTION)
     hint_lines: list[str] = ['ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.']
     if offerings:
         picked = offerings[sel]
@@ -121,7 +113,7 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
         if picked.recommended_ship_min_cargo > 0:
             hint_lines.append(f'Ship cargo recommended: {picked.recommended_ship_min_cargo}+')
     for i, line in enumerate(hint_lines):
-        paint(desc_start_row + max(len(desc_rows), 1) + 1 + i, fit(line), fg=ui.COLOR_INSTRUCTION)
+        ui.paint_line(console, content_x, desc_start_row + max(len(desc_rows), 1) + 1 + i, ui.fit_text(line, max_w), fg=ui.COLOR_INSTRUCTION)
 
     from .. import message_log
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
