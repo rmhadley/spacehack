@@ -439,7 +439,13 @@ def open_terminal(tileset: tcod.tileset.Tileset) -> tcod.context.Context:
     # identical at integer scales and complete at fractional ones
     # (tcod 19.5.0 note: "Scaling defaults to nearest, set
     # SDL_RENDER_SCALE_QUALITY=linear if linear scaling was preferred").
-    # Must be set before SDL initialises.
+    #
+    # NOTE: this setdefault alone does NOT work — SDL3 snapshots env vars
+    # into hints during the first ``import tcod``, which happens before
+    # this function runs (verified: SDL_GetHint returns NULL here even
+    # after setting the var). The authoritative set lives in
+    # ``spacehack/__init__.py`` (package init, before any tcod import);
+    # this one is kept as a harmless fallback for direct-engine callers.
     _os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
     return tcod.context.new_terminal(
         columns=SCREEN_WIDTH,
