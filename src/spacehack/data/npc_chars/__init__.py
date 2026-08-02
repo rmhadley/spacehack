@@ -50,9 +50,9 @@ class NpcCharSpec:
     hp: int = 20
     weapons: tuple[str, ...] = ()
     weapon_pick: tuple[str, ...] = ()
-    reflexes: int = 30
-    strength: int = 30
-    stamina: int = 30
+    reflexes: int = 10
+    strength: int = 10
+    stamina: int = 10
     detect_radius: int = 4
     loot_pool: tuple[str, ...] = ()
     loot_count: tuple[int, int] = (1, 2)

@@ -25,12 +25,18 @@ from .data.pilot_skills import GroundStats as _GroundStats
 # retroactively re-tunes every existing pilot without touching data
 # files. Mirrors the convention elsewhere in the project where
 # tunable defaults live close to the formula.
-PILOT_SKILL_BASE = 30
+#
+# A fresh character starts as a "nobody" on the 0-100 scale: the
+# level cap (30) x 9 skill points per level = 261 points, which lets
+# a dedicated L30 specialist max out 3 of the 6 stats. Starting at
+# base 10 keeps the growth arc long and makes species/class bonuses
+# (flagship +12) land as 2.5-3x the base.
+PILOT_SKILL_BASE = 10
 
 # Base ground-stat rating before species or class bonuses are added.
 # All six skills (ship + ground) share the same 0-100 scale so the
 # Character screen, skill points, and combat formulas stay symmetric.
-GROUND_STAT_BASE = 30
+GROUND_STAT_BASE = 10
 
 
 @dataclass

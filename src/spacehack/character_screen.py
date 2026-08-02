@@ -158,7 +158,7 @@ def _render_stats(
         if i < 3:
             _val = getattr(ctx.stats, _skill, 0)
         else:
-            _val = getattr(ctx.ground_stats, _skill, 30)
+            _val = getattr(ctx.ground_stats, _skill, 10)
         _max_val = 100
 
         _plus = "[+]" if _pts > 0 and _val < _max_val else "MAX" if _val >= _max_val else "   "

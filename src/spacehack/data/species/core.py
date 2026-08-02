@@ -27,7 +27,7 @@ SPECIES: tuple[Species, ...] = (
         name="Martian",
         description="Native to Mars. Hardy in extremes, adapted to low-gravity.",
         hp_bonus=1,
-        skill_bonus=PilotSkills(gunnery=0, piloting=5, engineering=0),
-        ground_bonus=GroundStats(reflexes=5, strength=0, stamina=0),
+        skill_bonus=PilotSkills(gunnery=0, piloting=4, engineering=0),
+        ground_bonus=GroundStats(reflexes=4, strength=0, stamina=0),
     ),
 )

@@ -3,7 +3,7 @@
 Owns the single entry point for all XP gains (:func:`add_xp`) and
 the level-up logic (thresholds, skill point grants, trait triggers).
 
-Design doc: ``docs/design/in_progress/02_DESIGN_XP_LEVELING.md``
+Design doc: ``docs/design/complete/02_DESIGN_XP_LEVELING.md``
 """
 
 from __future__ import annotations
@@ -23,6 +23,12 @@ from . import message_log as _ml
 # player hits this, XP still accumulates (for display) but no further
 # level-ups or skill points are awarded.
 MAX_PLAYER_LEVEL: int = 30
+
+# Skill points granted per level-up. Sized for six stats on the 0-100
+# scale: 9 points x 29 levels = 261 total, enough for a dedicated
+# L30 specialist to max out 3 of the 6 stats from a base-10 start
+# (3 stats x ~85 points each).
+SKILL_POINTS_PER_LEVEL: int = 9
 
 
 def xp_for_level(level: int) -> int:
@@ -61,9 +67,9 @@ def add_xp(ctx: GameContext, amount: int) -> None:
         if ctx.player_xp < xp_for_level(ctx.player_level) + _needed:
             break
         ctx.player_level += 1
-        ctx.player_skill_points += 2
+        ctx.player_skill_points += SKILL_POINTS_PER_LEVEL
 
-        _msg = f"Level {ctx.player_level}! 2 skill points earned."
+        _msg = f"Level {ctx.player_level}! {SKILL_POINTS_PER_LEVEL} skill points earned."
         if ctx.player_level in (20, 30):
             _msg += " Choose a trait (C key)."
         ctx.log.add_colored(_msg, _ml.COLOR_COMBAT_EVENT)

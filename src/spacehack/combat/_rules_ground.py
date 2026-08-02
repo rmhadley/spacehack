@@ -261,7 +261,7 @@ def _calc_ground_move_dodge(cells_moved: int) -> int:
 
 
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
-    _er = enemy.spec.reflexes if enemy.spec else 30
+    _er = enemy.spec.reflexes if enemy.spec else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,

@@ -6,7 +6,9 @@ Add a leveling system that gives meaning to the XP already being awarded by miss
 
 ### What levels unlock
 
-Leveling grants **2 skill points per level** (each point adds +1 to one pilot skill — finer control, simpler math). Skills are viewed and points spent via the **Character screen** (`C` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 20 and 30 — both draw from the **same shared pool**. No hull/fuel/cargo/shield/slot bonuses — progression is purely about pilot skill growth.
+Leveling grants **9 skill points per level** (each point adds +1 to any of the six skills — ship or ground). Skills are viewed and points spent via the **Character screen** (`C` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 20 and 30 — both draw from the **same shared pool**. No hull/fuel/cargo/shield/slot bonuses — progression is purely about stat growth.
+
+> **Update (base-10 rebalance):** The original design shipped with base 30 stats and 2 skill points per level (sized for the then-3-stat pilot-skill system). With six stats sharing the budget, the start was lowered to **base 10** (fresh nobody) and the grant raised to **9 SP/level** (29 levels × 9 = 261 total), so a dedicated L30 specialist can **max out 3 of the 6 stats** at the 100 cap.
 
 **Keybinding:** `C` opens the Character screen. Cargo was moved to `I` (Inventory) to free up `C`. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
@@ -16,7 +18,7 @@ Leveling grants **2 skill points per level** (each point adds +1 to one pilot sk
 
 | Level | Unlock |
 |-------|--------|
-| Every level | +2 skill points (+2 to distribute across skills at +1 each) |
+| Every level | +9 skill points (+9 to distribute across the six skills at +1 each) |
 | 20 | **Trait choice** — pick one from the shared pool |
 | 30 | **Trait choice** — pick another from the SAME pool (cannot repeat) |
 
@@ -38,47 +40,47 @@ These 4 traits test 4 different counter types: skill value, delivery count, flee
 | **ctx-first** | XP total and level tracked on `GameContext` as `player_xp: int` and `player_level: int` |
 | **Data-first** | Level thresholds live in a simple table, not scattered logic |
 | **Live-by-side-effect** | XP earned via `add_xp(ctx, amount)` that levels up and applies bonuses immediately |
-| **Simple > clever** | Max level 30, 2 skill points per level, playstyle-gated traits at 20 and 30 |
+| **Simple > clever** | Max level 30, 9 skill points per level, playstyle-gated traits at 20 and 30 |
 
-## Starting skill rebalance
+## Starting skill rebalance (base 10)
 
-Currently species and class skill bonuses are inflated to feel impactful because they're static (Pirate: gunnery+15; Merchant: engineering+15; Bounty Hunter: gunnery+10, piloting+10). With leveling, these need to leave ~60 points of headroom to the 100 soft cap (58 skill points from leveling 1→30).
+Starting stats sit low (a fresh nobody) so the growth arc is long and species/class bonuses land with real weight — a flagship +12 is 2.5-3x the base 10. With 261 skill points over a full run, a dedicated specialist can **max 3 of the 6 stats**; the rest stay partial.
 
 ### Design target
 
-Level 1 skills sit in the 30-40 range. At level 30 with focused investment, a specialist reaches ~98 (just shy of cap). Class identity is clear but not overpowered — a Merchant has noticeably better engineering than a Pirate, but the gap narrows with leveling as the player chooses where to invest.
+Level 1 stats sit in the 10-26 range. At level 30 with focused investment, a specialist maxes out 3 stats at the 100 cap. Class identity is unmistakable at creation — a Pirate's Gunnery is ~2.4x a Merchant's — and the gap narrows with leveling as the player chooses where to invest.
 
-### Proposed rebalance (done during Phase 1)
+### Rebalance (applied with the base-10 change)
 
-**Species bonuses** (small flavor adjustments):
+**Species bonuses** (small flavor adjustments; total ~4 across each domain):
 
-| Species | G | P | E |
-|---------|---|---|---|
-| Human | +2 | 0 | +2 |
-| Martian | 0 | +5 | 0 |
+| Species | G | P | E | REF | STR | STA |
+|---------|---|---|---|-----|-----|-----|
+| Human | +2 | 0 | +2 | +2 | 0 | +2 |
+| Martian | 0 | +4 | 0 | +4 | 0 | 0 |
 
 **Class bonuses** (clear identity, no negatives):
 
-| Class | G | P | E |
-|-------|---|---|---|
-| Pirate | +8 | 0 | 0 |
-| Merchant | 0 | 0 | +8 |
-| Bounty Hunter | +3 | +3 | +3 |
+| Class | G | P | E | REF | STR | STA |
+|-------|---|---|---|-----|-----|-----|
+| Pirate | +12 | 0 | 0 | 0 | +12 | 0 |
+| Merchant | 0 | 0 | +12 | 0 | 0 | +12 |
+| Bounty Hunter | +4 | +4 | +4 | +4 | +4 | +4 |
 
-**Resulting starting totals** (base 30 + species + class):
+**Resulting starting totals** (base 10 + species + class):
 
-| Combo | Gunnery | Piloting | Engineering |
-|-------|---------|----------|-------------|
-| Human Pirate | **40** | 30 | 32 |
-| Human Merchant | 32 | 30 | **40** |
-| Human BH | 35 | 33 | 35 |
-| Martian Pirate | 38 | **35** | 30 |
-| Martian Merchant | 30 | 35 | 38 |
-| Martian BH | 33 | 38 | 33 |
+| Combo | G | P | E | REF | STR | STA |
+|-------|---|---|---|-----|-----|-----|
+| Human Pirate | **24** | 10 | 12 | 12 | **22** | 12 |
+| Human Merchant | 12 | 10 | **24** | 12 | 10 | **22** |
+| Human BH | 16 | 14 | 16 | 16 | 14 | 16 |
+| Martian Pirate | **22** | 14 | 10 | 14 | **22** | 10 |
+| Martian Merchant | 10 | 14 | 22 | 14 | 10 | 22 |
+| Martian BH | 14 | **18** | 14 | **18** | 14 | 14 |
 
-At level 30: a Pirate dumping all 58 points in gunnery hits 98 (just shy of 100). A balanced BH reaches ~60-65 all around. A Merchant maxing engineering hits 98.
+At level 30: a Human Pirate dumping all 261 points maxes 3 stats (e.g. Gunnery 100, Strength 100, Engineering 100: 76 + 78 + 88 = 242 ≤ 261). A balanced BH reaches ~85-90 in three stats. The remaining three stats stay at base 10 — every point spent is a real tradeoff.
 
-This rebalance is applied in **Phase 1** alongside the XP tracking so the new starting values go live at the same time as the leveling system.
+This rebalance was applied alongside the XP tracking update so the new starting values went live with the leveling system.
 
 ## Data model
 
@@ -121,15 +123,15 @@ Incremented via: `ctx.player_counters.total_kills += 1`. One field on ctx. Exten
 
 ### Upgrade from reading
 
-The current skill formula is: `PILOT_SKILL_BASE (30) + species_bonus + class_bonus + module_bonuses`
+The current skill formula is: `PILOT_SKILL_BASE (10) + species_bonus + class_bonus + module_bonuses`
 
-With leveling it becomes: `PILOT_SKILL_BASE (30) + species_bonus + class_bonus + module_bonuses + level_bonus + skill_point_bonus`
+With leveling it becomes: `PILOT_SKILL_BASE (10) + species_bonus + class_bonus + module_bonuses + level_bonus + skill_point_bonus`
 
 Where:
-- `level_bonus` = `(player_level - 1) * 2` (2 skill points per level)
+- `level_bonus` = `(player_level - 1) * 9` (9 skill points per level)
 - `skill_point_bonus` = manually assigned bonus from `player_*_bonus` fields
 
-Note: `level_bonus` is auto-assigned — each level gives 2 skill points, spent via the UI. The formula above shows total growth from leveling.
+Note: `level_bonus` is auto-assigned — each level gives 9 skill points, spent via the UI. The formula above shows total growth from leveling.
 
 ### XP rewards
 
@@ -142,22 +144,22 @@ Note: `level_bonus` is auto-assigned — each level gives 2 skill points, spent 
 
 Each level costs `50 + level * 20` XP:
 
-| Level | XP to reach | Cumulative XP | Skill points (2/level) | Stat points earned | Trait choice |
-|-------|------------|---------------|----------------------|-------------------|--------------|
-| 1 | 0 | 0 | 0 | 0 | |
-| 2 | 90 | 90 | 2 | 4 | |
-| 3 | 110 | 200 | 4 | 8 | |
-| 4 | 130 | 330 | 6 | 12 | |
-| 5 | 150 | 480 | 8 | 16 | |
-| 6 | 170 | 650 | 10 | 20 | |
-| 7 | 190 | 840 | 12 | 24 | |
-| 8 | 210 | 1,050 | 14 | 28 | |
-| 9 | 230 | 1,280 | 16 | 32 | |
-| 10 | 250 | 1,530 | 18 | 36 | |
-| 11-19 | 270-430 | 2,070-6,930 | 20-36 | 40-72 | |
-| 20 | 450 | 7,380 | 38 | 76 | **Major trait** |
-| 21-29 | 470-630 | 7,850-12,210 | 40-56 | 80-112 | |
-| 30 | 650 | 12,860 | 58 | 116 | **Capstone trait** |
+| Level | XP to reach | Cumulative XP | Skill points (9/level) | Trait choice |
+|-------|------------|---------------|------------------------|--------------|
+| 1 | 0 | 0 | 0 | |
+| 2 | 90 | 90 | 9 | |
+| 3 | 110 | 200 | 18 | |
+| 4 | 130 | 330 | 27 | |
+| 5 | 150 | 480 | 36 | |
+| 6 | 170 | 650 | 45 | |
+| 7 | 190 | 840 | 54 | |
+| 8 | 210 | 1,050 | 63 | |
+| 9 | 230 | 1,280 | 72 | |
+| 10 | 250 | 1,530 | 81 | |
+| 11-19 | 270-430 | 2,070-6,930 | 90-162 | |
+| 20 | 450 | 7,380 | 171 | **Major trait** |
+| 21-29 | 470-630 | 7,850-12,210 | 180-252 | |
+| 30 | 650 | 12,860 | 261 | **Capstone trait** |
 
 Formula: `xp_for_level(n) = 50 + n * 20` for n > 1.
 
@@ -169,7 +171,7 @@ Formula: `xp_for_level(n) = 50 + n * 20` for n > 1.
 
 A T1 mission gives ~20 XP. A T4 mission gives ~300 XP. A combat kill gives ~30-200 XP.
 
-At level 20, the player has earned **38 skill points (76 stat points invested)** and must choose their major trait. A Human Pirate who invested everything in gunnery would have gunnery = 41 + 76 = 117 (but soft-capped at 100), with piloting=5 and engineering=3. A balanced build would be roughly gunnery=79, piloting=43, engineering=41.
+At level 20, the player has earned **171 skill points** and must choose their major trait. A Human Pirate who funnels them into gunnery and strength would cap both (24 + 76 → 100, 22 + 78 → 100) with a little left over — a real tradeoff, since 171 points can't stretch across all six stats.
 
 ### Character screen (C hotkey)
 
@@ -190,11 +192,14 @@ The screen is NOT in the ship menu — it's a global hotkey like `F` for Faction
 
   XP: 320 / 480  [████████░░░░]  Next: 160 XP
 
-  Skill Points Available: 2
+  Skill Points Available: 9
 
-  > Gunnery:     42  [+]
-    Piloting:    37  [+]
-    Engineering: 35  [+]
+  > Gunnery:     24  [+]
+    Piloting:    10  [+]
+    Engineering: 12  [+]
+    Reflexes:    12  [+]
+    Strength:    22  [+]
+    Stamina:     12  [+]
 
   Traits: (none yet — unlock at level 20)
 
@@ -291,7 +296,7 @@ ALL_TRAITS: tuple[Trait, ...] = (
 
 ### XP gain notification
 
-When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level 4! 2 skill points earned."` At level 20/30: `"Level 20! Choose a major trait."`
+When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level 4! 9 skill points earned."` At level 20/30: `"Level 20! Choose a major trait."`
 
 ### Phase 1: XP tracking + skill rebalance
 
@@ -333,10 +338,10 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 
 #### Playtest checklist
 
-- [ ] Start new game → verify starting skills match rebalance table (e.g. Human Pirate: 40/30/32)
+- [ ] Start new game → verify starting skills match rebalance table (e.g. Human Pirate: 24/10/12)
 - [ ] Complete a delivery mission → XP gain logged, level-up if threshold crossed
 - [ ] Kill an enemy in combat → XP gain logged
-- [ ] Level up → "Level N! 2 skill points earned." message
+- [ ] Level up → "Level N! 9 skill points earned." message
 - [ ] Press C → Character screen opens (shows level/XP, skills section with available points)
 - [ ] Character screen accessible from both city and space modes
 
@@ -407,7 +412,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - [x] Add compact XP bar to city HUD: `"LV 4 [#####-----]"` between key hints and footer
 - [x] Add compact XP bar to space HUD: same format, same position
 - [x] Extract `_render_xp_bar(value, max_val, width)` helper in `hud.py`
-- [x] `add_xp()` logs `"+N XP"` on gain, `"Level N! 2 skill points earned."` on level-up
+- [x] `add_xp()` logs `"+N XP"` on gain, `"Level N! 9 skill points earned."` on level-up
 - [x] Character screen shows detailed XP progress bar using same helper
 - [x] Add `C` to HUD key hints in both city and space modes
 - [x] Verify XP bar renders with CP437-safe `#`/`-` chars on the tilesheet

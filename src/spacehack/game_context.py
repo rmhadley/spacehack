@@ -278,9 +278,10 @@ class GameContext:
     # Slots: head, body, hands, legs, feet.
     equipped_ground_armor: dict[str, str] = dataclasses.field(default_factory=dict)
     # Ground combat HP — set on dungeon entry, persisted across
-    # combat encounters in the same dungeon visit.
-    ground_hp: int = 30
-    ground_max_hp: int = 30
+    # combat encounters in the same dungeon visit. Default matches
+    # the new-game formula 20 + stamina//3 at the base-10 start.
+    ground_hp: int = 23
+    ground_max_hp: int = 23
     # Current city the player is on (for save/load).  Updated on
     # planet landing; used by the title-menu Continue path to
     # restore the correct city map.
