@@ -237,9 +237,14 @@ Visit Research Officers at science stations to piece together what the signal is
 | `research_procyon` | Talk to Research Officer on Procyon C | Research Officer (Procyon) | "To get through, you'll need the nav key. It's in the blockade commander's safe at Luyten's Star." |
 
 **Alongside the trail (dig content, not in the quest log):**
-- **Faction quests open** — each faction offers a special quest that earns their backing (militia patrol duty, merchant supply run, bar probe of the blockade's weak point, lab sample runs). Completing them shapes which path is available and which epilogue plays.
-- **M1 The Jamming** (classified militia comms log) — reveals the militia knew about "the incident" six months ago.
+- **Faction backing (v1 depth: militia + merchants get full questlines; bar + lab are dialogue-only):**
+  - Militia (full questline): patrol duty → earns trust → unlocks the diplomatic blockade path + plants a militia claim. Includes the classified comms log (M1).
+  - Merchants (full questline): supply run → the Lost Expedition (M4) → unlocks intel on the structure + plants a merchant claim.
+  - Bar (dialogue-only): the barkeep offers the smuggler path + plants a bar claim if taken (no separate questline).
+  - Lab (dialogue-only): completing the research trail plants a lab claim when the player reports back to any Research Officer (no separate questline).
+- **M1 The Jamming** (classified militia comms log, from the militia questline or a lab terminal) — reveals the militia knew about "the incident" six months ago.
 - **M2 The Lost Scouts** (salvage derelict + black box) — the scouts saw the structure and named it.
+- **M3 The Vega Gate** (dialogue hint from the Mercury officer; fly there to activate) — a way past the blockade that isn't the Line.
 
 **Reward:** Credits, XP, lab faction rep, and the faction-politics fork.
 
@@ -263,15 +268,17 @@ A dead-star system with an alien structure — the source of the signal.
 |------|---------|-------|-------------|
 | `beyond_arrival` | Enter uncharted system | None (auto) | "The signal is here. A massive alien structure orbits the dead star at the system's heart." |
 | `beyond_exploration` | Approach the structure | None (auto) | "Scans show it's dormant — but something inside is still active. A door that opens on a cycle." |
-| `beyond_core` | Board the structure (special encounter) | None | Gauntlet inside: combat with alien constructs ("Ancient Sentinel"). At the core: a data beacon containing the full message — a warning broadcast for a thousand years, aimed at every system with life. The builders are gone — destroyed by what the warning warns of. The cycle is ending: the structure was waiting for someone to answer. |
-| `beyond_finale` | Survive the gauntlet | None (auto) | The message is delivered. The structure goes dark, its work done. The player returns through the now-open frontier — the first human to stand there and come back. |
+| `beyond_core` | Board the structure (special encounter) | None | Gauntlet inside: combat with alien constructs ("Ancient Sentinel"). At the core: a data beacon containing the full message — the structure is a **seal**, not a beacon. The signal is the lock failing. Something is trying to come through, and it has been pressing for a thousand years. The builders sealed it knowing the seal would eventually break — and left the warning so someone would be ready. The cycle is ending: the seal is failing now. |
+| `beyond_finale` | Survive the gauntlet | None (auto) | The message is delivered. The seal holds — for now — and the structure goes dark, its warning delivered. The player returns through the now-open frontier — the first human to stand there and come back. |
 
 **Reward:** "Alien Resonator" ship module (unique, powerful). Massive XP. The truth. `main_quest_complete = True` — sandbox continues.
 
 **Epilogue resolution — "last claim wins":** Each faction backing quest (Phase 3) plants a claim flag in `ctx.main_quest_backing`; the blockade path plants its own claim (diplomatic → militia, smuggler → pirates, combat → none). At the finale, the **most recently planted claim** wins — so every faction can win, and the player who serves multiple factions gets the ending of whoever they helped last. If no claims were planted, the player goes alone.
 
+**Lab-ending trigger (explicit):** the research trail completes *before* the blockade, so its lab claim is planted early and gets superseded by any later diplomatic/smuggler claim. The lab ending therefore fires via the combat path: **combat path + research complete → lab ending** (the truth-teller publishes it); **combat path + no research → alone** (the player keeps the secret). This is intentional — the "truth-teller goes alone" pairing — and an implementer should not expect the lab ending to be freely reachable.
+
 - Militia claim: the frontier is sealed; the threat is "contained." The militia thanks the player, quietly.
-- Merchant claim: a new trade route opens; the structure is mined for tech. The Guild Master offers the player a share.
+- Merchant claim: a new trade route opens; the structure is quietly mined for tech. The Guild Master offers the player a share.
 - Pirate/bar claim: the structure is stripped; the warning is buried in a bar story. The Barkeep raises a glass.
 - Lab claim: the truth is published; humanity hears the warning. The Research Officers study the data beacon openly.
 - Alone (no claim): the player keeps the secret. The frontier stays open and wild.
@@ -300,11 +307,13 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 3: Mysteries & faction quests (dig content)
 
-- [ ] M1 The Jamming: classified militia comms log findable on a derelict / lab terminal
+- [ ] M1 The Jamming: classified militia comms log findable via the militia questline / a lab terminal
 - [ ] M2 The Lost Scouts: salvage derelict with black box near the frontier
 - [ ] M3 The Vega Gate: activate the hidden gate in `vega.py`
 - [ ] M4 The Lost Expedition: merchant faction questline
-- [ ] Faction backing quests (militia / merchant / bar / lab) — one special quest each
+- [ ] Militia backing questline (full): patrol duty + comms log
+- [ ] Merchant backing questline (full): supply run + Lost Expedition
+- [ ] Bar + lab: dialogue-only backing (claims planted by path choice / research completion)
 - [ ] Smoke test + commit
 
 ### Phase 4: Main quest log UI
@@ -338,8 +347,8 @@ A dead-star system with an alien structure — the source of the signal.
 
 ## Open questions
 
-1. **What exactly is the warning?** The structure broadcast for a thousand years. Against what? (Options: an ancient enemy that returns on a cycle; the dead star's own cycle; a door that calls something inward.) — **STORY FORK, needs the user's call.**
-2. **Faction questline depth** — do all four factions get a full backing questline in v1, or ship two (militia + one other) and let the rest be dialogue-only?
+1. ~~What exactly is the warning?~~ **RESOLVED:** The structure is a seal. The signal is the lock failing — something is trying to come through, and the seal is breaking. The builders left the warning so someone would be ready.
+2. ~~Faction questline depth~~ **RESOLVED:** militia + merchants get full backing questlines in v1; bar + lab are dialogue-only backing (claims still reachable via path choice / research completion).
 3. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
 4. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
 5. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
