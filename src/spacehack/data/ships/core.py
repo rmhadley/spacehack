@@ -50,7 +50,7 @@ SHIPS: tuple[Ship, ...] = (
         name="Scout",
         char="s",
         fg=(130, 220, 255),
-        price=80,
+        price=5000,
         width=1, height=1,
         description=(
             "A small, fast scoutship — quick on cargo runs, lightly armed."
@@ -75,7 +75,7 @@ SHIPS: tuple[Ship, ...] = (
         name="Hauler",
         char="H",
         fg=(140, 210, 140),
-        price=140,
+        price=12000,
         width=1, height=1,
         description=(
             "A long-range cargo hauler with roomy cargo bays."
@@ -100,7 +100,7 @@ SHIPS: tuple[Ship, ...] = (
         name="Cruiser",
         char="C",
         fg=(235, 130, 130),
-        price=350,
+        price=25000,
         width=1, height=1,
         description=(
             "A well-armed cruiser — capable in a fight, well-shielded."
@@ -125,7 +125,7 @@ SHIPS: tuple[Ship, ...] = (
         name="Frigate",
         char="F",
         fg=(200, 100, 255),                                              # purple — distinct from cruiser red
-        price=600,
+        price=50000,
         width=1, height=1,
         description=(
             "Heavy warship with overwhelming firepower and thick armour."
@@ -150,7 +150,7 @@ SHIPS: tuple[Ship, ...] = (
         name="Freighter",
         char="F",
         fg=(255, 180, 80),                                               # gold — distinct from hauler green
-        price=500,
+        price=40000,
         width=1, height=1,
         description=(
             "Massive cargo hauler for the serious trader."

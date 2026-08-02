@@ -25,9 +25,9 @@ class GameClass:
         hp_base: starting HP that this class sets before the picked
             species adds its :attr:`spacehack.data.species.Species.hp_bonus`.
         credits: starting credits this class grants on a new game.
-            Kept below the cheapest ship (Scout, 80$) so turn-1 ship
-            purchases are impossible; differentiated per class
-            (Pirate 25$, Bounty Hunter 50$, Merchant 75$).
+            Kept far below the cheapest ship (Scout, 5,000$) so
+            turn-1 ship purchases are impossible; differentiated
+            per class (Pirate 25$, Bounty Hunter 50$, Merchant 75$).
         skill_bonus: per-skill additive bonuses added at character
             creation (see :func:`spacehack.character.starting_pilot_skills`).
         ground_bonus: per-stat additive bonuses for ground combat

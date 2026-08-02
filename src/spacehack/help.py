@@ -646,7 +646,7 @@ _GUIDE_CHARACTER = GuideSection(
         "- Bounty Hunter: +4 Gunnery, +4 Piloting, +4 Engineering; "
         "ground +4 all three stats; starts with 50$"
         "\n\n"
-        "Starting credits sit below the cheapest ship (Scout, 80$) — "
+        "Starting credits sit far below the cheapest ship (Scout, 5,000$) — "
         "earn your first upgrade from missions and trade."
         "\n\n"
         "Ship skills (affect space combat):"
