@@ -24,6 +24,16 @@ _SKILLS: tuple[str, ...] = (
     "gunnery", "piloting", "engineering",
     "reflexes", "strength", "stamina",
 )
+# One-line general description per skill, shown at the bottom of the
+# Stats tab. Kept in sync with the guide's Character & Skills section.
+_SKILL_DESCRIPTIONS: dict[str, str] = {
+    "gunnery": "+0.5% hit chance per point in space combat",
+    "piloting": "AP per turn (3 + Piloting//20) and dodge (cap 60%)",
+    "engineering": "shield regen costs -1 power per 20 pts; +1 max power per 5",
+    "reflexes": "ranged accuracy and dodge bonus on foot",
+    "strength": "melee damage and two-handed weapon efficiency",
+    "stamina": "HP pool (20 + Stamina//3) and damage resistance",
+}
 _ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
 _ARMOR_SLOT_LABELS: dict[str, str] = {
     "head": "Head", "body": "Body", "hands": "Hands",
@@ -192,6 +202,30 @@ def _render_stats(
         string="TAB cycle tabs  |  ENTER spend  |  ESC close",
         fg=ui.COLOR_INSTRUCTION,
     )
+
+    # Skill reference panel — general description for each of the six
+    # skills. The row matching the current selection is highlighted so
+    # the description tracks the skill you're about to spend on.
+    _panel_y = _y + 2
+    _pdiv = "=" * 50
+    console.print(
+        x=SCREEN_WIDTH // 4, y=_panel_y,
+        string=_pdiv, fg=ui.COLOR_VALUE_DIM,
+    )
+    _panel_y += 1
+    console.print(
+        x=SCREEN_WIDTH // 4, y=_panel_y,
+        string="What each skill does:",
+        fg=ui.COLOR_VALUE_DIM,
+    )
+    _panel_y += 1
+    for i, _skill in enumerate(_SKILLS):
+        _desc = _SKILL_DESCRIPTIONS.get(_skill, "")
+        _row = f"{_skill.title():<12} {_desc}"
+        _is_sel = i == _sel
+        _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
+        console.print(x=SCREEN_WIDTH // 4, y=_panel_y, string=_row, fg=_fg)
+        _panel_y += 1
 
 
 def _render_equipment(ctx: GameContext, console: tcod.console.Console) -> None:
