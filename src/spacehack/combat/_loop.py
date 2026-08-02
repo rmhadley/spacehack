@@ -153,9 +153,11 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
             _wname = _wid
 
         if _hit:
-            _pre_shields = _target.shields
+            # Ground enemies (GroundEnemyInstance) have no shields field;
+            # getattr keeps the strip check safe across both combat modes.
+            _pre_shields = getattr(_target, 'shields', 0)
             _dmg = rules.damage(_wid, _target, ctx)
-            _stripped = max(0, _pre_shields - _target.shields)
+            _stripped = max(0, _pre_shields - getattr(_target, 'shields', 0))
             _is_strip = False
             # Only EMP weapons produce a shield strip; ground weapons
             # aren't in the ship-weapon catalog (mirrors the HUD's
