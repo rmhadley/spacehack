@@ -179,6 +179,14 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   similarly patches shades / block / dot / card-suit glyphs.
 - `load_tileset()`: TTF first → apply procedural box/texture glyphs →
   else CP437 tilesheet fallback. Only raises `EngineError` when both fail.
+- **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to
+  **NEAREST** texture scaling. On displays where the window backing scale
+  is not an exact integer multiple of the console (fractional Retina /
+  macOS "scaled" display modes), NEAREST drops pixel rows/columns and
+  glyphs render with missing pixels — same repo, same font, different
+  Macs, different result. Fix: `open_terminal()` sets
+  `SDL_RENDER_SCALE_QUALITY=linear` before SDL init (effectively
+  identical at integer scales).
 - `pyproject.toml` package-data ships `data/*.png|ttf|otf|ttc` + `layouts/`
   so frozen bundles (PyInstaller, `spacehack.spec`) include them.
 

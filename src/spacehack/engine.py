@@ -9,6 +9,7 @@ accident.
 from __future__ import annotations
 
 import random as _random
+import os as _os
 import sys
 from pathlib import Path
 
@@ -431,6 +432,15 @@ def load_tileset() -> tcod.tileset.Tileset:
 
 def open_terminal(tileset: tcod.tileset.Tileset) -> tcod.context.Context:
     """Open the libtcod terminal-window context for the game."""
+    # SDL3 defaults to NEAREST texture scaling. On displays whose backing
+    # scale is not an exact integer multiple of the console (fractional
+    # Retina / "scaled" display modes), NEAREST drops pixel rows/columns
+    # and glyphs come out with missing pixels. LINEAR is effectively
+    # identical at integer scales and complete at fractional ones
+    # (tcod 19.5.0 note: "Scaling defaults to nearest, set
+    # SDL_RENDER_SCALE_QUALITY=linear if linear scaling was preferred").
+    # Must be set before SDL initialises.
+    _os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
     return tcod.context.new_terminal(
         columns=SCREEN_WIDTH,
         rows=SCREEN_HEIGHT,
