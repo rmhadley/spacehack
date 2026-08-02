@@ -8,7 +8,7 @@
 ####### ##   ## ##   ##  #####  ####### ##   ## ##   ##  #####  ##   ##
 ```
 
-**A terminal-based sci-fi roguelike.** The year is 2200. Humankind has spread
+**A traditional ASCII-art sci-fi roguelike.** The year is 2200. Humankind has spread
 across more than a dozen star systems linked by jump gates of unknown origin —
 and you're a freelance pilot trying to make a living on the frontier.
 

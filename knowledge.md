@@ -1,6 +1,6 @@
 # spacehack — Agent knowledge
 
-A terminal-based sci-fi roguelike built on [python-tcod](https://github.com/HexDecimal/python-tcod).
+A traditional ASCII-art sci-fi roguelike built on [python-tcod](https://github.com/HexDecimal/python-tcod).
 
 ## Quick start
 

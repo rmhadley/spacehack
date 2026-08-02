@@ -1,7 +1,7 @@
 [project]
 name = "spacehack"
 version = "0.0.1"
-description = "A terminal-based roguelike built on python-tcod."
+description = "A traditional ASCII-art roguelike built on python-tcod."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

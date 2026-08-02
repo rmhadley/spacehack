@@ -1,4 +1,4 @@
-"""spacehack - a terminal-based roguelike built on python-tcod.
+"""spacehack - a traditional ASCII-art roguelike built on python-tcod.
 
 The actual libtcod wiring lives in :mod:`spacehack.engine`. The package
 entry point is :mod:`spacehack.__main__` (run with ``python -m spacehack``).
