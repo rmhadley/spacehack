@@ -12,6 +12,7 @@ import tcod.event
 from .. import ui
 from .. import message_log
 from .. import ship as ship_module
+from ..data.weapons import find_weapon
 from ..game_context import GameContext
 from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..input_helpers import _try_open_guide
@@ -25,6 +26,7 @@ class _MechanicOutcome(Enum):
     REFUEL = auto()
     REPAIR = auto()
     LOADOUT = auto()
+    AMMO = auto()
 
 
 def _run_mech_menu(ctx, planet_id: str = "") -> None:
@@ -45,7 +47,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
     selected = 0
     owned = ctx.player_owned_ship
     ship_rec = ship_module.find_ship(owned.ship_id)
-    _MECH_OPTIONS = ["Refuel", "Repair", "Manage Loadout"]
+    _MECH_OPTIONS = ["Refuel", "Repair", "Manage Loadout", "Buy Ammo"]
 
     def _render() -> None:
         nonlocal selected
@@ -99,8 +101,10 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
                 return _MechanicOutcome.REFUEL
             elif selected == 1:
                 return _MechanicOutcome.REPAIR
-            else:
+            elif selected == 2:
                 return _MechanicOutcome.LOADOUT
+            else:
+                return _MechanicOutcome.AMMO
         return _MechanicOutcome.IGNORE
 
     while True:
@@ -137,4 +141,102 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
             from ._loadout import _run_loadout_menu
             _run_loadout_menu(ctx, planet_id)
             continue
+        if action is _MechanicOutcome.AMMO:
+            _run_ammo_menu(ctx)
+            continue
         return  # BACK or QUIT
+
+
+def _run_ammo_menu(ctx) -> None:
+    """Buy missile ammo for installed missile weapons.
+
+    Lists each installed missile weapon with current/max rounds and
+    the per-round price. UP/DOWN selects a weapon, ENTER buys one
+    round, SPACE buys up to a full magazine, ESC backs out. Persistent
+    ammo (spent rounds stay spent until rebought) makes this the
+    only way to replenish magazines.
+    """
+    if ctx.player_owned_ship is None:
+        ctx.log.add("You need a ship to use the mechanic terminal.")
+        return
+
+    owned = ctx.player_owned_ship
+    missile_wids = [
+        wid for wid in owned.weapons
+        if find_weapon(wid).slot_type == "missile"
+    ]
+    if not missile_wids:
+        ctx.log.add("No missile weapons installed.")
+        return
+
+    console = make_console()
+    selected = 0
+
+    def _render() -> None:
+        nonlocal selected
+        console.clear()
+        title_y = SCREEN_HEIGHT // 6
+        console.print(x=ui.centered_x("BUY AMMO", SCREEN_WIDTH), y=title_y, string="BUY AMMO", fg=ui.COLOR_TITLE)
+        stat_y = title_y + 2
+        console.print(x=ui.centered_x(f"Credits: {ctx.stats.credits}$", SCREEN_WIDTH), y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
+        _items: list[tuple[str, str]] = []
+        for _wid in missile_wids:
+            _ws = find_weapon(_wid)
+            _cur = owned.weapon_ammo.get(_wid, _ws.ammo_capacity)
+            _items.append((
+                f"{_ws.name}: {_cur}/{_ws.ammo_capacity} rounds",
+                f"{_ws.ammo_price}$/round  ENTER=+1  SPACE=fill",
+            ))
+        ui.render_selectable_list(
+            console, SCREEN_WIDTH, SCREEN_HEIGHT,
+            title="",
+            items=_items,
+            selected=selected,
+            col_x=SCREEN_WIDTH // 4,
+            title_y=stat_y + 2,
+            row_spacing=2,
+            item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
+            item_fg_normal=ui.COLOR_OPTION,
+            hint="UP/DOWN / j,k navigate - ENTER buy 1 - SPACE fill - ESC back",
+        )
+        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
+    def _update(event) -> _MechanicOutcome:
+        nonlocal selected
+        if _try_open_guide(event, ctx):
+            return _MechanicOutcome.IGNORE
+        if isinstance(event, tcod.event.Quit):
+            return _MechanicOutcome.QUIT
+        if not isinstance(event, tcod.event.KeyDown):
+            return _MechanicOutcome.IGNORE
+        sym = event.sym
+        sym_name: str = getattr(sym, 'name', '').lower()
+        if sym in ui._UP_SYMS or sym_name == 'k':
+            selected = (selected - 1) % len(missile_wids)
+            return _MechanicOutcome.IGNORE
+        if sym in ui._DOWN_SYMS or sym_name == 'j':
+            selected = (selected + 1) % len(missile_wids)
+            return _MechanicOutcome.IGNORE
+        if sym in ui._ESCAPE_SYMS:
+            return _MechanicOutcome.BACK
+        if sym in ui._ENTER_SYMS:
+            _buy(ctx, owned, missile_wids[selected], 1)
+            return _MechanicOutcome.IGNORE
+        if sym_name in ('space', 's'):
+            _buy(ctx, owned, missile_wids[selected], 999)
+            return _MechanicOutcome.IGNORE
+        return _MechanicOutcome.IGNORE
+
+    def _buy(_ctx, _owned, _wid, _rounds) -> None:
+        _before = _owned.weapon_ammo.get(_wid, 0)
+        _ok, _cost, _reason = ship_module.buy_ammo(_owned, _wid, _rounds, _ctx.stats.credits)
+        if not _ok:
+            _ctx.log.add(_reason)
+            return
+        _ws = find_weapon(_wid)
+        _rounds_bought = _owned.weapon_ammo.get(_wid, 0) - _before
+        _ctx.stats.credits -= _cost
+        _ctx.log.add(f"Bought {_rounds_bought}x {_ws.name} ammo for {_cost}$. "
+                     f"{_owned.weapon_ammo.get(_wid, 0)}/{_ws.ammo_capacity} rounds left.")
+
+    ui.Modal(ctx.context, console).run(_render, _update)

@@ -224,7 +224,9 @@ _GUIDE_COMBAT = GuideSection(
         "\n"
         "- Power cost = sum of all active energy weapons' power costs"
         "\n"
-        "- Ammo is consumed per missile weapon fired"
+        "- Ammo is consumed per missile weapon fired — and ammo is"
+        "PERSISTENT: rounds spent in combat stay spent until you rebuy"
+        "them at the mechanic (Buy Ammo)"
         "\n"
         "- Each weapon rolls hit/damage independently"
         "\n"
@@ -272,7 +274,11 @@ _GUIDE_COMBAT = GuideSection(
         "\n"
         "- Energy (lasers): cost power, unlimited ammo"
         "\n"
-        "- Missile: no power cost, limited ammo (takes cargo space)"
+        "- Missile: no power cost, long range, scarce ammo (takes cargo"
+        "space). Spent rounds persist until rebought at the mechanic"
+        "\n"
+        "- EMP Missile: 0 hull damage but strips 20 shields per hit"
+        "(ignore armor/hull entirely)"
     ),
 )
 
@@ -312,7 +318,8 @@ _GUIDE_TRADE = GuideSection(
         "- You cannot buy more than the planet has in stock"
         "\n\n"
         "The mechanic terminal (% on the city map) handles refueling,"
-        "repairs, and loadout management, not trading."
+        "repairs, loadout management, and missile-ammo purchases,"
+        "not trading."
     ),
 )
 
@@ -530,12 +537,14 @@ _GUIDE_SHIPS = GuideSection(
         "\n"
         "- Plasma Cannon (TL3): 24 dmg, 70% acc, 2 AP, 4 power"
         "\n"
-        "- Light Missile (TL1): 10 dmg, 75% acc, 2 AP, 5 ammo"
+        "- Light Missile (TL1): 14 dmg, 72% acc, 2 AP, 4 ammo, range 2-9,"
+        "8$/rd to rebuy"
         "\n"
-        "- Heavy Missile (TL3): 20 dmg, 60% acc, 2 AP, 3 ammo"
+        "- Heavy Missile (TL3): 28 dmg, 65% acc, 2 AP, 3 ammo, range 3-11,"
+        "20$/rd to rebuy"
         "\n"
-        "- EMP Missile (TL4): 0 dmg (disables systems), 70% acc,"
-        "2 AP, 2 ammo"
+        "- EMP Missile (TL4): 0 dmg (strips 20 shields per hit), 75% acc,"
+        "2 AP, 2 ammo, range 2-10, 25$/rd to rebuy"
         "\n\n"
         "Modules (Mk.1-Mk.4 progression available at mechanic):"
         "\n"
@@ -580,6 +589,9 @@ _GUIDE_SHIPS = GuideSection(
         "damage)"
         "\n"
         "- Manage Loadout: buy and sell weapons and modules"
+        "\n"
+        "- Buy Ammo: replenish missile magazines (8-25$ per round);"
+        "ammo spent in combat stays spent until rebought"
     ),
 )
 

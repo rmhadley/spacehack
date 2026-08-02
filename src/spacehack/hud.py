@@ -738,7 +738,7 @@ def render_combat_hud(
             if ws.slot_type in ("energy", "plasma"):
                 cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
             else:
-                ammo_str = f"{wammo}" if wammo >= 0 else "∞"
+                ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else "∞"
                 cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
             console.print(x=hud_x, y=y, string=cost_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
             y += 1

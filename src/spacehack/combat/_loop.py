@@ -20,6 +20,7 @@ from .. import world
 from ..engine import RNG
 from ..world import VIM_DELTAS as _VIM_KEYS
 from ..data.pilot_skills import PilotSkills
+from ..data.weapons import find_weapon as _fw
 from ..input_helpers import _try_open_guide
 
 from ._ai import _run_enemy_turn
@@ -152,11 +153,29 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
             _wname = _wid
 
         if _hit:
+            _pre_shields = _target.shields
             _dmg = rules.damage(_wid, _target, ctx)
-            ctx.log.add_colored(
-                f"{_wname} hits {rules.enemy_name(_target)} for {_dmg}!",
-                _ml.COLOR_PLAYER_ACTION,
-            )
+            _stripped = max(0, _pre_shields - _target.shields)
+            _is_strip = False
+            # Only EMP weapons produce a shield strip; ground weapons
+            # aren't in the ship-weapon catalog (mirrors the HUD's
+            # guarded lookup), so skip the lookup when nothing stripped.
+            if _stripped > 0:
+                try:
+                    _is_strip = _fw(_wid).shield_strip > 0
+                except KeyError:
+                    pass
+            if _is_strip:
+                ctx.log.add_colored(
+                    f"{_wname} strips {_stripped} shields from "
+                    f"{rules.enemy_name(_target)}!",
+                    _ml.COLOR_PLAYER_ACTION,
+                )
+            else:
+                ctx.log.add_colored(
+                    f"{_wname} hits {rules.enemy_name(_target)} for {_dmg}!",
+                    _ml.COLOR_PLAYER_ACTION,
+                )
             if not rules.enemy_alive(_target):
                 ctx.log.add_colored(
                     f"{rules.enemy_name(_target)} destroyed!",

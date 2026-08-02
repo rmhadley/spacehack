@@ -39,6 +39,61 @@ def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
     return total
 
 
+def _seed_missile_ammo(owned: OwnedShip) -> None:
+    """Top off :attr:`OwnedShip.weapon_ammo` for installed missiles.
+
+    Every installed missile weapon with no recorded ammo gets a full
+    magazine. Weapons already tracked keep their remaining rounds
+    (persistent ammo survives save/load and combat). Energy weapons
+    are never added (-1 capacity means infinite).
+    """
+    from .data.weapons import find_weapon as _fw
+    for wid in owned.weapons:
+        try:
+            ws = _fw(wid)
+        except KeyError:
+            continue
+        if ws.slot_type == "missile" and wid not in owned.weapon_ammo:
+            owned.weapon_ammo[wid] = ws.ammo_capacity
+
+
+def buy_ammo(
+    owned: OwnedShip,
+    weapon_id: str,
+    rounds: int,
+    credits: int,
+) -> tuple[bool, int, str]:
+    """Buy ``rounds`` of ammo for an installed missile weapon.
+
+    Mutates ``owned.weapon_ammo`` and returns ``(ok, cost, reason)``.
+    Caps rounds at magazine capacity minus current, and clamps to
+    what the player can afford. ``credits`` is the player's current
+    balance (read-only — the caller deducts the returned cost so the
+    credits mutation stays with the caller).
+    """
+    from .data.weapons import find_weapon as _fw
+    try:
+        ws = _fw(weapon_id)
+    except KeyError:
+        return False, 0, "Unknown weapon."
+    if ws.slot_type != "missile":
+        return False, 0, f"{ws.name} doesn't use ammo."
+    current = owned.weapon_ammo.get(weapon_id, 0)
+    room = ws.ammo_capacity - current
+    if room <= 0:
+        return False, 0, f"{ws.name} magazine is already full."
+    if ws.ammo_price <= 0:
+        return False, 0, f"{ws.name} ammo isn't sold here."
+    buy = min(rounds, room)
+    affordable = credits // ws.ammo_price
+    buy = min(buy, affordable)  # clamp to what the player can actually pay
+    if buy <= 0:
+        return False, 0, f"Need {ws.ammo_price}$ for 1 round."
+    cost = buy * ws.ammo_price
+    owned.weapon_ammo[weapon_id] = current + buy
+    return True, cost, ""
+
+
 @dataclass
 class OwnedShip:
     """Mutable state of a ship the player owns.
@@ -74,6 +129,11 @@ class OwnedShip:
     cargo_ammo: int = 0           # cargo consumed by missile ammo (mutated by combat)
     mission_reserved: int = 0     # cargo reserved by active delivery missions
     inventory: dict[str, int] = field(default_factory=dict)  # trade_good_id -> crate count
+    # Persistent missile ammo: weapon_id -> rounds remaining. Spent rounds
+    # stay spent after combat until rebought at the mechanic. Seeded to a
+    # full magazine for every installed missile weapon (see __post_init__)
+    # so old saves / newly bought ships start topped off.
+    weapon_ammo: dict[str, int] = field(default_factory=dict)
 
     @property
     def cargo_used(self) -> int:
@@ -87,6 +147,7 @@ class OwnedShip:
 
     def __post_init__(self) -> None:
         self.cargo_ammo = total_ammo_cargo(self.weapons)
+        _seed_missile_ammo(self)
 
 
 # ---------------------------------------------------------------------------
@@ -166,13 +227,23 @@ def _install_weapon(owned: OwnedShip, weapon_id: str, ship_spec: Ship) -> bool:
     """Install ``weapon_id`` into the first empty weapon slot.
 
     Returns True on success. Recalculates ``cargo_ammo`` if the
-    weapon is a missile type (the caller must also sync).
-    Returns False if all weapon slots are full.
+    weapon is a missile type (the caller must also sync) and seeds
+    a FRESH full magazine — a newly installed missile launcher
+    never inherits stale ammo left behind by a previously sold
+    launcher of the same type. Returns False if all weapon slots
+    are full.
     """
     if len(owned.weapons) >= ship_spec.weapon_slots:
         return False
     owned.weapons = owned.weapons + (weapon_id,)
     owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    from .data.weapons import find_weapon as _fw
+    try:
+        _ws = _fw(weapon_id)
+    except KeyError:
+        _ws = None
+    if _ws is not None and _ws.slot_type == "missile":
+        owned.weapon_ammo[weapon_id] = _ws.ammo_capacity
     return True
 
 

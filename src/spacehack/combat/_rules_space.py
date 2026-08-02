@@ -32,6 +32,7 @@ from ._actions import (
     resolve_damage,
     can_afford_action as _space_can_afford,
     _sync_back_hull,
+    _sync_back_ammo,
     _remove_dead_entity,
     _spawn_loot_drops,
 )
@@ -717,6 +718,7 @@ def reset_turn(ctx) -> None:
 
 def sync_state(ctx) -> None:
     _sync_back_hull(_state.player_state, ctx.player_owned_ship)
+    _sync_back_ammo(_state.player_state, ctx.player_owned_ship)
 
 
 def get_combat_result() -> CombatResult:

@@ -27,9 +27,13 @@ class WeaponSpec:
         ammo_capacity: -1 = no ammo (energy weapon); >0 = max rounds.
         ammo_per_shot: rounds consumed per shot (missile weapons).
         cargo_per_round: cargo space consumed per round of ammo.
+        ammo_price: credits per round to rebuy ammo at the mechanic
+            (missiles; 0 = not sold per-round).
         price: credits cost to buy from a mechanic.
         min_range: minimum cell distance to target.
         max_range: maximum cell distance to target.
+        shield_strip: shields stripped on hit instead of hull damage
+            (EMP); 0 = normal damage weapon.
     """
     id: str
     name: str
@@ -41,10 +45,12 @@ class WeaponSpec:
     ammo_capacity: int = -1            # -1 = energy weapon (no ammo)
     ammo_per_shot: int = 1
     cargo_per_round: int = 0
+    ammo_price: int = 0               # credits per round to rebuy ammo
     price: int = 0                    # credits cost to buy
     min_range: int = 1
     max_range: int = 5
     tech_level: int = 1               # minimum planet tech level to stock this
+    shield_strip: int = 0             # shields stripped on hit (EMP); 0 = normal
 
 
 # Lazy-built registry

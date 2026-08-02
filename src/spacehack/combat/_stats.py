@@ -193,12 +193,19 @@ def init_combat_state(
     hull = _calc_hull(player_ship_catalog, player_owned_ship)
     max_hull = _calc_max_hull(player_ship_catalog, player_owned_ship)
 
-    # Build weapon ammo dict
+    # Build weapon ammo dict — player ammo is PERSISTENT across fights:
+    # the rounds remaining on the owned ship (weapon_ammo) carry into
+    # combat and spent rounds are written back by sync_state. Enemies
+    # keep full magazines below (they're per-encounter spawns).
+    _owned_ammo = getattr(player_owned_ship, 'weapon_ammo', None) or {}
     w_ammo: dict[str, int] = {}
     for wid in getattr(player_owned_ship, 'weapons', ()) or ():
         try:
             ws = find_weapon(wid)
-            w_ammo[wid] = ws.ammo_capacity if ws.ammo_capacity > 0 else -1
+            if ws.ammo_capacity > 0:
+                w_ammo[wid] = _owned_ammo.get(wid, ws.ammo_capacity)
+            else:
+                w_ammo[wid] = -1
         except KeyError:
             w_ammo[wid] = -1
 

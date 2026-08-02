@@ -14,6 +14,7 @@ from __future__ import annotations
 from .. import world
 from ..engine import RNG
 from ..message_log import COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
+from ..data.weapons import find_weapon
 
 from ._types import EnemyInstance
 from ._stats import (
@@ -175,6 +176,7 @@ def _run_enemy_turn(
                         flee_chance=_flee_chance,
                     )
                     if _e_hit:
+                        _e_ws = find_weapon(_wid)
                         _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
                             _wid, state.player_state["hull"],
                             state.player_state["shields"],
@@ -186,8 +188,11 @@ def _run_enemy_turn(
                         state.player_state["hull"] = _fh
                         if ctx is not None:
                             ctx.player_counters.total_damage_taken += _dmg
-                        _verb = "glancing hit" if _is_glancing else "hits"
-                        _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!", state.log)
+                        if _e_ws.shield_strip > 0 and _sdmg > 0:
+                            _e_log(f"{_ei.name} strips {_sdmg} of your shields!", state.log)
+                        else:
+                            _verb = "glancing hit" if _is_glancing else "hits"
+                            _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!", state.log)
                         if _fh <= 0:
                             _e_log("Your ship has been destroyed!", state.log)
                             _ecx, _ecy = calc_cam()

@@ -163,6 +163,14 @@ def resolve_damage(
     to be updated once.
     """
     ws = find_weapon(weapon_id)
+
+    # EMP shield-stripper: on hit, strip shields instead of dealing
+    # hull damage. Ignores armor/hull entirely; runs before the normal
+    # damage path so 0-damage EMPs never fall into the 1-damage floor.
+    if ws.shield_strip > 0:
+        strip = min(ws.shield_strip, target_shields)
+        return 0, strip, target_hull, False
+
     q = RNG.randint(1, 100)
     glancing_threshold = int(target_pilot_piloting * 0.5)
     is_glancing = q <= glancing_threshold
@@ -265,6 +273,23 @@ def _sync_back_hull(player_state: dict, player_owned_ship: OwnedShip | None) -> 
     current_hull = player_state.get("hull", max_hull)
     new_dmg_pct = 100 - (current_hull * 100 // max(max_hull, 1))
     player_owned_ship.hull_damage_pct = max(0, min(100, new_dmg_pct))
+
+
+def _sync_back_ammo(player_state: dict, player_owned_ship: OwnedShip | None) -> None:
+    """Persist remaining missile ammo back to the player's OwnedShip.
+
+    Spent rounds stay spent: combat consumes from ``player_state["weapon_ammo"]``
+    and this writes the survivors back so the next fight starts with the
+    same depleted magazines. Energy weapons (ammo -1) are left untouched.
+    """
+    if player_owned_ship is None:
+        return
+    _owned_ammo = getattr(player_owned_ship, 'weapon_ammo', None)
+    if _owned_ammo is None:
+        return
+    for _wid, _ammo in player_state.get("weapon_ammo", {}).items():
+        if _ammo >= 0:
+            _owned_ammo[_wid] = _ammo
 
 
 def move_entity(

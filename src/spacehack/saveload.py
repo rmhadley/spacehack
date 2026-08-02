@@ -445,6 +445,9 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             modules=tuple(_osh.get("modules", ()) or ()),
             inventory=_osh.get("inventory", {}) or {},
             mission_reserved=_osh.get("mission_reserved", 0),
+            # weapon_ammo round-trips through the dataclass field; old
+            # saves lack it and get a full magazine seeded by __post_init__.
+            weapon_ammo=_osh.get("weapon_ammo", {}) or {},
         )
 
     # --- Active missions ---
