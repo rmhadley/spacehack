@@ -13,7 +13,7 @@ A **non-linear main quest** the player follows alongside sandbox play. Builds to
 | **Core premise** | Alien mystery as the outer frame; faction politics as the engine. Each faction wants the discovery for its own reasons. Player choices decide who wins. |
 | **Pacing** | Hybrid: main-quest breadcrumbs are visible in the quest log, but mysteries and faction quests are *dig content* — the player finds them by exploring and talking to the right people. |
 | **Ending** | Definitive resolution at the end of Act 3 (a real conclusion), then the sandbox continues. |
-| **Time pressure** | None. No deadlines, no fail states — nothing expires. The quest waits forever. Chain steps add a **minimum-wait gate** on the world clock: the next step unlocks only after N days, but ignoring a summon never fails anything. |
+| **Time pressure** | None. No deadlines, no fail states — nothing expires. The quest waits forever. Chain steps add a **minimum-wait gate** on the world clock: the next step unlocks only after N days, but ignoring a summon never fails anything. **Gates are tuned LONG (~2-4 in-game weeks each) so the player has sandbox room to explore, build XP/credits, and gear up between summons.** |
 
 ### Existing story hooks
 
@@ -305,7 +305,7 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 | `mil_q4_livefire` | bounty | Clear the pirate scout squad in Cygni (quest bounty spawn, 2 scouts) to prove the charge works | 150 credits, 120 XP |
 | `mil_q5_charge` | talk | Return to the Captain — the breach charge is assembled → `militia_breach_charge` + `prologue_open` | 200 credits, 150 XP |
 
-**Gating:** q1→q2 7d · q2→q3 10d · q3→q4 14d · q4→q5 10d (minimum waits — see Time gating). Completion flavor: "We'll be in touch. Requisition takes time to clear." / "Inspection underway." / "The charge needs a live-fire test." / "Return to base — the charge is assembled." Summons: Mercury (q2), Epsilon Eridani b (q3), Cygni (q4), Earth (q5).
+**Gating:** q1→q2 14d · q2→q3 20d · q3→q4 28d · q4→q5 20d (minimum waits — see Time gating; tuned long for sandbox play). Completion flavor: "We'll be in touch. Requisition takes time to clear." / "Inspection underway." / "The charge needs a live-fire test." / "Return to base — the charge is assembled." Summons: Mercury (q2), Epsilon Eridani b (q3), Cygni (q4), Earth (q5).
 
 #### Merchants — "The Contract" (cutter)
 
@@ -317,7 +317,7 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 | `mer_q4_calibration` | salvage | Calibration run: board a derelict near Vega (`scout_a` layout), recover the quest-tagged `machine_parts` | 150 credits, 120 XP |
 | `mer_q5_cutter` | talk | Return to the Guild Master — the cutter is ready → `merchant_cutter` + `prologue_open` | 200 credits, 150 XP |
 
-**Gating:** q1→q2 7d · q2→q3 10d · q3→q4 12d · q4→q5 8d. Completion flavor: "Contract filed. We need time to arrange the escrow." / "Ore appraised. The specialist wants to hear it from you." / "The cutter needs a calibration run." / "The cutter is ready." Summons: Wolf 359 (q2), Tau Ceti b (q3), Vega (q4), Earth (q5).
+**Gating:** q1→q2 14d · q2→q3 20d · q3→q4 24d · q4→q5 16d (minimum waits — tuned long for sandbox play). Completion flavor: "Contract filed. We need time to arrange the escrow." / "Ore appraised. The specialist wants to hear it from you." / "The cutter needs a calibration run." / "The cutter is ready." Summons: Wolf 359 (q2), Tau Ceti b (q3), Vega (q4), Earth (q5).
 
 #### Bar — "The Old Hand" (brute rig)
 
@@ -331,7 +331,7 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 
 **Militia heat (bar chain signature risk):** while `ctx.main_quest_chain == "bar"` AND the player is holding hot quest cargo (the `bar_q2` crate or the `bar_q3` cell), `_militia_scan_chance()` applies a **+30% floor** (min 60%, capped 80%) on every militia-patrolled system — the militia knows the player is working the old routes. The hook is one gate in `navigation._militia_scan_chance` on `ctx.main_quest_chain` + a cargo-presence check; it auto-expires at `bar_q5`. Consequences are the real smuggler economy: confiscation (goods lost + fine + -5 militia rep), combat (rep tank), or paying for a Smuggler's Hold to reduce exposure.
 
-**Gating:** q1→q2 6d · q2→q3 8d · q3→q4 10d · q4→q5 7d. Completion flavor: "The old man is cagey — he'll see you for the right price." / "He drew the cave. Meet him at the dig." / "The militia is sealing the gate. Run now." / "The rig's assembled. Come raise a glass." Summons: Barnard's Star b (q2), Barnard's Star b — the caves (q3), Barnard's Star gate (q4), Earth (q5).
+**Gating:** q1→q2 12d · q2→q3 16d · q3→q4 20d · q4→q5 14d (minimum waits — tuned long for sandbox play). Completion flavor: "The old man is cagey — he'll see you for the right price." / "He drew the cave. Meet him at the dig." / "The militia is sealing the gate. Run now." / "The rig's assembled. Come raise a glass." Summons: Barnard's Star b (q2), Barnard's Star b — the caves (q3), Barnard's Star gate (q4), Earth (q5).
 
 #### Lab — "The Resonance" (resonance key)
 
@@ -343,7 +343,7 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 | `lab_q4_frequency` | salvage | Recover the reference-frequency dataset (`research_data`) from a derelict near Sirius (`scout_a`) | 150 credits, 120 XP |
 | `lab_q5_key` | talk | Return to the Mercury Research Officer — the resonance key is forged → `lab_resonance_key` + `prologue_open` | 200 credits, 150 XP |
 
-**Gating:** q1→q2 5d · q2→q3 12d · q3→q4 10d · q4→q5 8d. Completion flavor: "Sample received. We need time to analyze it." / "Reference dataset locked. The linguist wants in." / "The frequency map is incomplete — one more dataset." / "The key is forged." Summons: Mercury (q2), Alpha Centauri Science Port (q3), Sirius (q4), Mercury (q5).
+**Gating:** q1→q2 10d · q2→q3 24d · q3→q4 20d · q4→q5 16d (minimum waits — tuned long for sandbox play). Completion flavor: "Sample received. We need time to analyze it." / "Reference dataset locked. The linguist wants in." / "The frequency map is incomplete — one more dataset." / "The key is forged." Summons: Mercury (q2), Alpha Centauri Science Port (q3), Sirius (q4), Mercury (q5).
 
 **Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is a new entry in the global `data/npcs` catalog placed via `PlanetSpec.npc_overrides` on a planet that already has the matching guild building (`militia_captain` / `guild_master` / `barkeep` / `research_officer` slot) — the override's `id` differs from the replaced slot so quest dialogue keys off the expert id. Verify the target planet has the required guild building (add a `CityBuilding` to the spec if not).
 
@@ -351,7 +351,7 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 
 **Delve sites (reuse the Mars surface dungeon):** each chain's materials step sends the player into a **procedural surface cave** — the same BSP generator that builds the Mars surface (`dungeon.generate_dungeon` + `PlanetSpec.dungeon_params` with a planet-themed tile set, exactly like `data/planets/mars.py`). The four delve planets (Mercury, Wolf 359, Barnard's Star b, Procyon C) currently lack `dungeon_params` — adding it is **pure data** (the generator, `has_explorable_sites`, and planet-menu "Explore" option already exist). The site persists in `ctx.interiors` keyed `surface:<planet_id>` (same anti-farm rule as the Mars surface + salvage wrecks; `saveload` already serializes the whole cache generically). The quest cache is placed by a generic `prepare_delve_site` pass after generation — **extract `prepare_mars_surface`'s placement logic into a shared helper** (no copy-paste). The planet menu shows "Explore <site>" only while the chain's delve step is active (chain-aware gate, same pattern as the Mars signal gate in `menus/_planet.py`).
 
-**Time gating & one-way summons (the world-clock hook):** every chain step gets `wait_days` (world clock, ~5-15d — pacing, not padding). Mechanics:
+**Time gating & one-way summons (the world-clock hook):** every chain step gets `wait_days` (world clock, ~10-28d ≈ 2-4 in-game weeks per gate — deliberately long so each gap is a sandbox window: missions, trade, XP, ship upgrades). Mechanics:
 
 1. **On step completion:** log the `completion_flavor` ("We'll be in touch.", "We need time to research this.") and record a gate date via the pure helper `time.add_days_to_date(ctx.time_day, ctx.time_month, ctx.time_year, wait_days)` into `ctx.main_quest_gate[next_step_id]`.
 2. **Per-frame check:** `main_quest.check_quest_gates(ctx)` runs in the main loop (same delivery pattern as militia auto-hails): when `ctx.time_*` >= a gate date, the next step flips to `"available"` and the faction's `ready_message` (one-way summon naming the next step's `trigger_system_id` + `trigger_planet_id`) is queued as a **one-way incoming-comms overlay** (reuse the `show_prologue_transmission` modal — no reply option).
@@ -472,7 +472,7 @@ A dead-star system with an alien structure — the source of the signal.
 
 - [ ] Write `mil_q1_report` → `mil_q5_charge` as step data (talk / delve / visit / bounty / talk)
 - [ ] Wire `mil_q2_cache` delve site on Mercury (cache yields `ship_components` ×4 + `fuel_cells` ×2)
-- [ ] Write the militia gates (`wait_days` 7/10/14/10, completion flavor, summons per the chain table)
+- [ ] Write the militia gates (`wait_days` 14/20/28/20, completion flavor, summons per the chain table)
 - [ ] Wire `mil_q4_livefire` quest-tagged bounty spawn (Cygni scout squad, 2 scouts)
 - [ ] Wire `mil_q5_charge` trigger → grants `militia_breach_charge` + `prologue_open`
 - [ ] Smoke test + commit
@@ -483,7 +483,7 @@ A dead-star system with an alien structure — the source of the signal.
 
 - [ ] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / delve / visit / salvage / talk)
 - [ ] Wire `mer_q2_strike` delve site on Wolf 359 (cache yields quest-tagged `rare_earth_metals` ×3)
-- [ ] Write the merchant gates (`wait_days` 7/10/12/8, completion flavor, summons per the chain table)
+- [ ] Write the merchant gates (`wait_days` 14/20/24/16, completion flavor, summons per the chain table)
 - [ ] Wire `mer_q4_calibration` quest-tagged salvage (derelict near Vega, `scout_a` layout, `machine_parts`)
 - [ ] Wire `mer_q5_cutter` trigger → grants `merchant_cutter` + `prologue_open`
 - [ ] Smoke test + commit
@@ -495,7 +495,7 @@ A dead-star system with an alien structure — the source of the signal.
 - [ ] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / smuggle / delve / bounty / talk)
 - [ ] Implement the `smuggle` objective: hot crate loaded into the mission hold (`is_smuggle` semantics — `smuggle_good_id` + `smuggle_cargo_size`), delivered to the `old_smuggler` NPC; militia scan confiscation fails the step (re-claim from the Barkeep)
 - [ ] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell, flagged as contraband while carried)
-- [ ] Write the bar gates (`wait_days` 6/8/10/7, completion flavor, summons per the chain table)
+- [ ] Write the bar gates (`wait_days` 12/16/20/14, completion flavor, summons per the chain table)
 - [ ] **Militia heat hook:** in `navigation._militia_scan_chance`, apply the +30% floor (min 60%, cap 80%) while `ctx.main_quest_chain == "bar"` and hot quest cargo is held; auto-expire at `bar_q5`
 - [ ] Wire `bar_q4_gauntlet` quest-tagged **militia patrol** spawn (not pirate — rep stakes are the point: -12 militia per kill; flee keeps the scan risk)
 - [ ] Wire `bar_q5_rig` trigger → grants `bar_brute_rig` + `prologue_open`
@@ -508,7 +508,7 @@ A dead-star system with an alien structure — the source of the signal.
 - [ ] Write `lab_q1_sample` → `lab_q5_key` as step data (bump / delve / visit / salvage / talk)
 - [ ] Wire `lab_q1_sample` chain-aware door bump (chip a sample; does NOT open the door)
 - [ ] Wire `lab_q2_reference` delve site on Procyon C (cache yields quest-tagged `research_data` ×2)
-- [ ] Write the lab gates (`wait_days` 5/12/10/8, completion flavor, summons per the chain table)
+- [ ] Write the lab gates (`wait_days` 10/24/20/16, completion flavor, summons per the chain table)
 - [ ] Wire `lab_q4_frequency` quest-tagged salvage (derelict near Sirius, `scout_a`, `research_data`)
 - [ ] Wire `lab_q5_key` trigger → grants `lab_resonance_key` + `prologue_open`
 - [ ] Smoke test + commit
@@ -534,7 +534,7 @@ A dead-star system with an alien structure — the source of the signal.
 - [ ] Verify save/quit/continue mid-gate: gate date + pending message survive
 - [ ] Smoke test + commit
 
-**PLAYTEST (1j):** complete militia q1 → "We'll be in touch. Requisition takes time to clear." in the log → quest log reads "Awaiting word from the Militia..." → skip 7+ days (dev-mode) → a one-way comms overlay arrives: "Report to Mercury. The cache is mapped." → q2 unlocks and the Mercury delve site appears. Deliberately ignore a summon for 30+ days on a separate save → nothing fails; answering late works normally. Save during a pending gate → continue → gate intact, summon re-delivers. 
+**PLAYTEST (1j):** complete militia q1 → "We'll be in touch. Requisition takes time to clear." in the log → quest log reads "Awaiting word from the Militia..." → skip 14+ days (dev-mode) → a one-way comms overlay arrives: "Report to Mercury. The cache is mapped." → q2 unlocks and the Mercury delve site appears. Deliberately ignore a summon for 60+ days on a separate save → nothing fails; answering late works normally — the long gate should comfortably cover a few sandbox sessions. Save during a pending gate → continue → gate intact, summon re-delivers. 
 
 ### Phase 2: Acts 1-3 story data
 
