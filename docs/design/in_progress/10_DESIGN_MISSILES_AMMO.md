@@ -37,7 +37,7 @@ Design: long range, scarce ammo, high per-shot damage, per-round ammo cost.
 | Weapon | dmg | acc | AP | pow | ammo | cr/rd | range | ammo_price | price | TL |
 |--------|-----|-----|----|-----|------|-------|-------|-----------|-------|-----|
 | Light Missile | 14 | 72 | 2 | 0 | 4 | 2 | 2–9 | 8$ | 40$ | 1 |
-| Heavy Missile | 32 | 72 | 2 | 0 | 3 | 3 | 3–13 | 20$ | 90$ | 3 |
+| Heavy Missile | 32 | 72 | 2 | 0 | 3 | 1 | 3–13 | 20$ | 90$ | 3 |
 | EMP Missile | 0 | 75 | 2 | 0 | 2 | 2 | 2–10 | 25$ | 120$ | 4 (shield_strip=20) |
 
 Rationale:
@@ -53,7 +53,9 @@ Rationale:
   in the game.
 - **High cost (ammo)**: ammo is now *persistent* (spent rounds stay spent) and
   costs credits to rebuy at the mechanic (8$/20$/25$ per round). Cargo tax also
-  rises (2/3/2 cr per round × mag = 8/9/4 cargo permanently reserved).
+  rises (2/1/2 cr per round × mag = 8/3/4 cargo permanently reserved) — heavy
+  missile cargo was cut 3→1 cr/rd after playtests: the 20$/rd credit cost is
+  already the real price, so a 9-cargo magazine double-punished it.
 - **EMP shield-stripper**: 0 hull damage, strips 20 shields per hit (2 rounds =
   40 strip — enough to gut a cruiser's shields). Ignores armor/hull entirely.
 
