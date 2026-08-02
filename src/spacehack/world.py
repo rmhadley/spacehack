@@ -105,7 +105,12 @@ DECOR = Tile(kind="plaza", char="♦", walkable=True, fg=(255, 160, 120), bg=(19
 
 # Interior building floor — warmer, brighter variant so it reads as a
 # clean indoor surface distinct from the outdoor GRASS tiles.
-INTERIOR = Tile(kind="floor", char="\u00b7", walkable=True, fg=(245, 225, 175), bg=(130, 108, 70))
+#
+# The char is a BLANK: a flat, smooth floor with no dot texture so
+# ships, NPCs and furniture glyphs stay easy to read. (A middot like
+# FLOOR's was tried first — the dotted pattern visually drowned out
+# entities standing on it.) The warm bg still marks the indoor look.
+INTERIOR = Tile(kind="floor", char=" ", walkable=True, fg=(245, 225, 175), bg=(130, 108, 70))
 
 # --- Dungeon tiles (ship interiors) ---
 DUNGEON_WALL = Tile(kind="dungeon_wall", char="#", walkable=False,
@@ -524,8 +529,8 @@ def _decorate_bar(
 
         y=9:  \u2591 \u2591 \u2591 \u2591 \u2591 \u2591   counter top
         y=10: \u2592 \u2592 b \u2592 \u2592 \u2592   counter body, barkeep at x=37
-        y=11: \u2665 \u00d6 \u2665 \u00d6 \u00b7 \u00b7   drinks + table
-        y=12: \u00b7 \u00b7 \u00b7 \u00b7 \u00b7 \u00b7   open walk to door
+        y=11: \u2665 \u00d6 \u2665 \u00d6 \u00b7 \u00b7   drinks + table (right half = blank INTERIOR)
+        y=12: (blank INTERIOR x6)   open walk to door
     """
     bar = next((b for b in buildings if b.label == "bar"), None)
     if bar is None:
