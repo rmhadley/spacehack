@@ -1767,12 +1767,16 @@ def spawn_quest_npcs(ctx, game_map: world.GameMap, planet_id: str) -> None:
     """
     if planet_id != "barnards_b" or ctx.main_quest_chain != "bar":
         return
-    # Old smuggler: appears in the bar when the player needs him —
-    # during the smuggle run (bar_q2_proof) or the cave delve
-    # (bar_q3_rigparts). Not present before the chain is active.
+    # Old smuggler: appears in the bar from the smuggle run
+    # through the cave delve — stays after the handover completes
+    # (bar_q2_proof completed, bar_q3_rigparts gated) so the player
+    # can still find him when they return for the cave directions.
     _need_smuggler = any(
         step_status(ctx, _sid) in (STATUS_AVAILABLE, STATUS_ACTIVE)
         for _sid in ("bar_q2_proof", "bar_q3_rigparts")
+    ) or (
+        step_status(ctx, "bar_q2_proof") == STATUS_COMPLETED
+        and step_status(ctx, "bar_q3_rigparts") not in (STATUS_COMPLETED,)
     )
     if not _need_smuggler:
         return
