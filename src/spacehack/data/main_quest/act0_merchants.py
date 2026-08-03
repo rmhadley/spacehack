@@ -108,9 +108,11 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "unregulated. Watch for rival prospectors."
                 ),
                 complete=(
-                    "You got the ore out? Good — but it's raw. It "
-                    "needs smelting, and the guild knows one "
-                    "specialist who can handle it. Tau Ceti b."
+                    "You got the ore out? Good — but it's raw. "
+                    "It needs smelting, and the guild knows one "
+                    "specialist who can handle it. He runs the "
+                    "merchants guild on Tau Ceti b — show him "
+                    "the ore and he'll fire up the rig."
                 ),
                 backing_faction="merchants",
             ),

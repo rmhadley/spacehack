@@ -85,11 +85,11 @@ def _spawn_consortium_squad(
     system,
     body_goals: list,
 ) -> bool:
-    """Spawn a consortium squad: pirate leader + merchant escorts.
+    """Spawn a consortium squad: merchant hauler + 2-5 pirate escorts.
 
-    The pirate leads (triggers consortium aggro), and the merchant
-    members follow via squad cohesion — the visual effect is a
-    rival merchant operation with hired muscle.
+    A pirate leads the squad (triggers consortium aggro); the merchant
+    and remaining pirates follow via cohesion — the visual effect is
+    a rival merchant operation with hired muscle.
 
     Returns True if at least one entity was spawned.
     """
@@ -132,9 +132,25 @@ def _spawn_consortium_squad(
     _npc_ids.append(_pirate_spec.id)
     _spawned += 1
 
-    # 1-2 merchant escorts.
-    _escort_count = _engine.RNG.randint(1, 2)
-    for _ei in range(_escort_count):
+    # Merchant hauler (consortium front).
+    for _attempt in range(50):
+        _mx = _gcx + _engine.RNG.randint(-4, 4)
+        _my = _gcy + _engine.RNG.randint(-4, 4)
+        if (0 <= _mx < system.width and 0 <= _my < system.height
+                and (_mx, _my) not in _blocked):
+            break
+    else:
+        return _spawned > 0
+    _mpos = world.Position(_mx, _my)
+    _blocked.add((_mx, _my))
+    game_map.entities.append(_make_npc_entity(_merchant_spec, _mpos, _mid))
+    _positions.append(_mpos)
+    _npc_ids.append(_merchant_spec.id)
+    _spawned += 1
+
+    # 1-4 additional pirate escorts.
+    _extra_pirates = _engine.RNG.randint(1, 4)
+    for _ in range(_extra_pirates):
         for _attempt in range(50):
             _ex = _gcx + _engine.RNG.randint(-4, 4)
             _ey = _gcy + _engine.RNG.randint(-4, 4)
@@ -145,9 +161,9 @@ def _spawn_consortium_squad(
             continue
         _epos = world.Position(_ex, _ey)
         _blocked.add((_ex, _ey))
-        game_map.entities.append(_make_npc_entity(_merchant_spec, _epos, _mid))
+        game_map.entities.append(_make_npc_entity(_pirate_spec, _epos, _mid))
         _positions.append(_epos)
-        _npc_ids.append(_merchant_spec.id)
+        _npc_ids.append(_pirate_spec.id)
         _spawned += 1
 
     # Register spawns.
@@ -158,13 +174,13 @@ def _spawn_consortium_squad(
             ProceduralSpawn(npc_id=_nid, pos=_ppos, squad_id=_mid)
         )
 
-    if _spawned >= 2:
-        ctx.log.add_colored(
-            f"Sensor ping: consortium operation detected — "
-            f"pirate scout with {_escort_count} merchant escort"
-            f"{('s' if _escort_count != 1 else '')}.",
-            _ml.COLOR_IMPORTANT_EVENT,
-        )
+    _total_pirates = _spawned - 1  # minus the merchant
+    ctx.log.add_colored(
+        f"Sensor ping: consortium operation detected — "
+        f"merchant hauler with {_total_pirates} pirate "
+        f"escort{('s' if _total_pirates != 1 else '')}.",
+        _ml.COLOR_IMPORTANT_EVENT,
+    )
     return True
 
 
