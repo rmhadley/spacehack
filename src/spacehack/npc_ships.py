@@ -614,23 +614,27 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         else:
             _dist_to_target = 999
 
+        # --- Compute aggro state once per squad (shared by target + movement).
+        _is_aggro_militia = (
+            main_quest_module.charged_cell_in_sol(
+                ctx, getattr(_system, 'id', ''))
+            and _faction_of(_leader) == 'militia'
+        )
+
         # --- Refresh target when None or within 2 cells (merchant: despawn) ---
         if _target is None or _dist_to_target <= 2:
+            # Merchant: despawn on arrival.
             if _faction == 'merchant' and _target_goal is not None:
-                # Merchant reached destination — despawn.
                 _body_type, _body_name = _target_goal[2], _target_goal[3]
                 _spec = _npc_spec_of(_leader)
                 _ship_name = getattr(_spec, 'name', 'Merchant') if _spec else 'Merchant'
                 if _body_type == 'gate':
                     ctx.log.add(f"{_ship_name} jumps through {_body_name}.")
-                    # Push a flash event at the despawn position for the
-                    # space-mode render loop. Only visible in the viewport.
                     ctx.npc_flash_events.append(
                         NpcFlashEvent(pos=world.Position(_lx, _ly), lifetime=4)
                     )
                 else:
                     ctx.log.add(f"{_ship_name} docks at {_body_name}.")
-                # Remove all members from the map.
                 for _m in _members:
                     try:
                         game_map.entities.remove(_m)
@@ -638,9 +642,6 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         pass
                 ctx.npc_targets.pop(_sid, None)
                 ctx.npc_paths.pop(_sid, None)
-                # Clean up procedural_spawns for the despawned entities.
-                # Match by both NPC type and position so we don't
-                # accidentally remove a different NPC type at the same spot.
                 _cur_sys_id = getattr(_system, 'id', '')
                 _leader_npc = getattr(_leader, 'npc_ship_id', '')
                 _despawned_positions = {(m.pos.x, m.pos.y) for m in _members}
@@ -651,40 +652,74 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                                 and (_ps.pos.x, _ps.pos.y) in _despawned_positions)
                     ]
                 continue
-            # Charged cell aggro: militia in Sol hunt the player.
-            # Override ANY current target — drop patrol routes instantly.
-            if (main_quest_module.charged_cell_in_sol(
-                    ctx, getattr(_system, 'id', ''))
-                    and _faction_of(_leader) == 'militia'):
+
+            # Aggro militia: pick player as target.
+            if _is_aggro_militia:
                 _target = (ctx.player.pos.x, ctx.player.pos.y)
                 _target_goal = None
+            # Normal NPC with existing target: keep it.
             elif _target is not None:
-                # NPC still has a current patrol target — keep it.
                 pass
+            # Normal NPC with no target: pick a new body goal.
             else:
-                # Normal (pirate) or merchant with no current target: pick new.
                 _candidates = [g for g in _goals if (g[0], g[1]) != _target]
                 if not _candidates:
                     _candidates = _goals
                 _chosen = _engine.RNG.choice(_candidates)
                 _target = (_chosen[0], _chosen[1])
                 _target_goal = _chosen
+
+        # --- Store target + compute path (throttled for aggro militia) ---
+        if _target is not None:
             ctx.npc_targets[_sid] = _target
-            _end_set: set[tuple[int, int]] = {_target}
-            _path = world.find_path(
-                (_lx, _ly), _end_set, game_map,
-                exclude_entity=_leader,
-            )
-            ctx.npc_paths[_sid] = _path or []
-            # Aggro militia: force a fresh path every tick so they
-            # constantly adjust to the player's movement.
-            if _target_goal is None:
-                ctx.npc_targets.pop(_sid, None)  # force repick next tick
+            if _is_aggro_militia:
+                # Throttle A*: far-away militia drift (no path);
+                # close militia recompute at ~33% per tick.
+                _dist_to_player = math.hypot(
+                    _lx - ctx.player.pos.x, _ly - ctx.player.pos.y,
+                )
+                if _dist_to_player > 50:
+                    ctx.npc_paths[_sid] = []  # drift mode
+                elif _engine.RNG.random() < 0.33:
+                    _end_set: set[tuple[int, int]] = {_target}
+                    _path = world.find_path(
+                        (_lx, _ly), _end_set, game_map,
+                        exclude_entity=_leader,
+                    )
+                    ctx.npc_paths[_sid] = _path or []
+                # else: keep existing path
+            elif ctx.npc_paths.get(_sid) is None:
+                # Normal NPC: compute path once (no throttling).
+                _end_set: set[tuple[int, int]] = {_target}
+                _path = world.find_path(
+                    (_lx, _ly), _end_set, game_map,
+                    exclude_entity=_leader,
+                )
+                ctx.npc_paths[_sid] = _path or []
 
         # Move most ticks for consistent progress (80% chance).
         if _engine.RNG.random() >= 0.8:
             continue
         _path = ctx.npc_paths.get(_sid)
+        # Aggro militia with no A* path (far away): drift toward player.
+        if (not _path
+                and _is_aggro_militia
+                and ctx.npc_targets.get(_sid) is not None):
+            _tx, _ty = ctx.npc_targets[_sid]
+            _drift_dx = 1 if _lx < _tx else -1 if _lx > _tx else 0
+            _drift_dy = 1 if _ly < _ty else -1 if _ly > _ty else 0
+            if _drift_dx != 0 and _drift_dy != 0:
+                # Diagonal: pick one axis randomly (50/50).
+                if _engine.RNG.random() < 0.5:
+                    _drift_dy = 0
+                else:
+                    _drift_dx = 0
+            _nx = _lx + _drift_dx
+            _ny = _ly + _drift_dy
+            if (game_map.is_walkable(_nx, _ny)
+                    and game_map.entity_at(_nx, _ny, exclude=_leader) is None):
+                _leader.pos = world.Position(_nx, _ny)
+            continue
         if not _path:
             ctx.npc_targets.pop(_sid, None)
             continue
