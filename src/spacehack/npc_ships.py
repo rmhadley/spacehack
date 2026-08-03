@@ -78,6 +78,96 @@ def _set_npc_path(
     ctx.npc_paths[movement_id] = _path or []
 
 
+def _spawn_consortium_squad(
+    ctx: GameContext,
+    game_map: world.GameMap,
+    system_id: str,
+    system,
+    body_goals: list,
+) -> bool:
+    """Spawn a consortium squad: pirate leader + merchant escorts.
+
+    The pirate leads (triggers consortium aggro), and the merchant
+    members follow via squad cohesion — the visual effect is a
+    rival merchant operation with hired muscle.
+
+    Returns True if at least one entity was spawned.
+    """
+    if not body_goals:
+        return False
+    try:
+        _pirate_spec = _find_npc_ship("pirate_scout")
+        _merchant_spec = _find_npc_ship("merchant_hauler")
+    except KeyError:
+        return False
+
+    _origin = _engine.RNG.choice(body_goals)
+    _gcx, _gcy = _origin[0], _origin[1]
+    _mid = f"consortium_{system_id}_{_engine.RNG.randint(0, 99999)}"
+
+    # Build blocked set from existing entities to avoid overlap.
+    _blocked: set[tuple[int, int]] = set()
+    for _e in game_map.entities:
+        for _dy in range(_e.height):
+            for _dx in range(_e.width):
+                _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
+
+    _spawned = 0
+    _positions: list[world.Position] = []
+    _npc_ids: list[str] = []
+
+    # Pirate leader first (drives aggro).
+    for _attempt in range(50):
+        _x = _gcx + _engine.RNG.randint(-4, 4)
+        _y = _gcy + _engine.RNG.randint(-4, 4)
+        if (0 <= _x < system.width and 0 <= _y < system.height
+                and (_x, _y) not in _blocked):
+            break
+    else:
+        return False
+    _pos = world.Position(_x, _y)
+    _blocked.add((_x, _y))
+    game_map.entities.append(_make_npc_entity(_pirate_spec, _pos, _mid))
+    _positions.append(_pos)
+    _npc_ids.append(_pirate_spec.id)
+    _spawned += 1
+
+    # 1-2 merchant escorts.
+    _escort_count = _engine.RNG.randint(1, 2)
+    for _ei in range(_escort_count):
+        for _attempt in range(50):
+            _ex = _gcx + _engine.RNG.randint(-4, 4)
+            _ey = _gcy + _engine.RNG.randint(-4, 4)
+            if (0 <= _ex < system.width and 0 <= _ey < system.height
+                    and (_ex, _ey) not in _blocked):
+                break
+        else:
+            continue
+        _epos = world.Position(_ex, _ey)
+        _blocked.add((_ex, _ey))
+        game_map.entities.append(_make_npc_entity(_merchant_spec, _epos, _mid))
+        _positions.append(_epos)
+        _npc_ids.append(_merchant_spec.id)
+        _spawned += 1
+
+    # Register spawns.
+    if system_id not in ctx.procedural_spawns:
+        ctx.procedural_spawns[system_id] = []
+    for _pi, (_ppos, _nid) in enumerate(zip(_positions, _npc_ids)):
+        ctx.procedural_spawns[system_id].append(
+            ProceduralSpawn(npc_id=_nid, pos=_ppos, squad_id=_mid)
+        )
+
+    if _spawned >= 2:
+        ctx.log.add_colored(
+            f"Sensor ping: consortium operation detected — "
+            f"pirate scout with {_escort_count} merchant escort"
+            f"{('s' if _escort_count != 1 else '')}.",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Initial spawn (on jump / launch)
 # ---------------------------------------------------------------------------
@@ -303,6 +393,18 @@ def spawn_npcs(
                         _ml.COLOR_IMPORTANT_EVENT,
                     )
 
+    # --- Consortium squad spawn (quest: merchant q3/q4 heat) ---
+    if main_quest_module.consortium_heat_active(ctx):
+        _body_goals = _build_body_goals(_system)
+        if player_spawn_exclusion:
+            _body_goals = [
+                g for g in _body_goals
+                if (g[0], g[1]) not in player_spawn_exclusion
+            ]
+        _consortium_count = _engine.RNG.randint(1, 2)
+        for _ in range(_consortium_count):
+            _spawn_consortium_squad(ctx, game_map, system_id, _system, _body_goals)
+
     if _system.npc_spawn_chance <= 0.0 or not _system.npc_spawn_table or _system.npc_density <= 0:
         return
     if _engine.RNG.random() >= _system.npc_spawn_chance:
@@ -515,6 +617,23 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                             f"Sensor ping: 1 signal detected in the area ({_tick_spec.name}).",
                             _ml.COLOR_IMPORTANT_EVENT,
                         )
+
+    # --- Per-tick consortium squad spawn (quest: merchant q3/q4 heat) ---
+    if main_quest_module.consortium_heat_active(ctx):
+        _consortium_cap = _system.npc_density * 2
+        # Re-count after regular per-tick spawn may have added entities.
+        _live_count = sum(
+            1 for _e in game_map.entities
+            if not getattr(_e, 'owned', False)
+            and getattr(_e, 'procedural_squad_id', '') != ''
+        )
+        if _live_count < _consortium_cap:
+            if _engine.RNG.random() < 0.02:  # ~2% per tick
+                _tick_body_goals = _build_body_goals(_system)
+                _spawn_consortium_squad(
+                    ctx, game_map, getattr(_system, 'id', ''),
+                    _system, _tick_body_goals,
+                )
 
     # --- Build goal list with body type + name ---
     _goals = _build_body_goals(_system)

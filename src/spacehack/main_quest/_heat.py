@@ -40,8 +40,12 @@ def consortium_heat_active(ctx) -> bool:
     """True while the merchant chain's contested cargo is in play.
 
     During q3 (smuggle — raw ore) and q4 (bounty — smelted alloy),
-    the consortium hires every pirate in the sector to hunt the
-    player. Mirrors the bar chain's militia heat but with pirate
+    the consortium hires pirates to hunt the player.  All existing
+    pirate ships auto-aggro, and new consortium squads (pirate
+    leader + merchant escorts) spawn on system entry and randomly
+    per tick.
+
+    Mirrors the bar chain's militia heat but with organised-crime
     flavour: economic warfare, not criminal heat.
     """
     if ctx.main_quest_chain != "merchants":
