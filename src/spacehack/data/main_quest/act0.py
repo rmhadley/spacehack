@@ -370,9 +370,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q2_proof",
         title="The Proof Run",
         description=(
-            "The old smuggler won't deal with strangers. The Barkeep "
-            "hands you a hot crate of black-market weapons — run it to "
-            "the Old Smuggler at Barnard's Star b. Every militia "
+            "The old smuggler won't deal with strangers. See the "
+            "Barkeep on Earth — he has a hot crate to get you in the "
+            "door. Then run it to Barnard's Star b. Every militia "
             "patrol on the way can scan it."
         ),
         trigger_planet_id="barnards_b",
