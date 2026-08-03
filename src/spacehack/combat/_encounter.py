@@ -65,6 +65,26 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.log.add("Ship catalog mismatch — cannot start combat.")
         return "FLEE"
 
+    # Militia live-fire test (mil_q5_livefire): temporarily mount the
+    # breach charge prototype as a ship weapon for this combat only.
+    # Dismounted after combat (win/flee/defeat) so it never persists.
+    _breach_mounted = False
+    _breach_wid = "breach_charge_test"
+    if (_breach_wid not in (ctx.player_owned_ship.weapons or ())
+            and ctx.main_quest_chain == "militia"):
+        from .. import main_quest as _mq_check
+        if _mq_check.step_status(ctx, "mil_q5_livefire") in ("available", "active"):
+            from .. import solar_system as _ss
+            if _ss.current_solar_system_id == "cygni":
+                ctx.player_owned_ship.weapons = (
+                    ctx.player_owned_ship.weapons + (_breach_wid,)
+                )
+                _breach_mounted = True
+                ctx.log.add_colored(
+                    "BREACH CHARGE ARMED — prototype mounted for live-fire test.",
+                    _ml.COLOR_IMPORTANT_EVENT,
+                )
+
     from ._rules_space import init as _rs_init
     _rs_init(
         ctx, console,
@@ -74,6 +94,18 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.game_map, ctx.log,
     )
     _cr = run_combat(console, ctx, ctx.game_map, _rules_space)
+
+    # Dismount the breach charge prototype if it was temporarily
+    # mounted for the militia live-fire test (mil_q5_livefire).
+    if _breach_mounted and _breach_wid in (ctx.player_owned_ship.weapons or ()):
+        ctx.player_owned_ship.weapons = tuple(
+            w for w in ctx.player_owned_ship.weapons
+            if w != _breach_wid
+        )
+        ctx.log.add_colored(
+            "BREACH CHARGE DISARMED — prototype test complete.",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
 
     if _cr.outcome == "VICTORY":
         if len(_cr.defeated_names) == 1:
