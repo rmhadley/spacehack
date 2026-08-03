@@ -14,6 +14,7 @@ from typing import Any
 import tcod.console
 
 from . import engine as _engine
+from . import main_quest as main_quest_module
 from . import message_log as _ml
 from . import solar_system as _solar_module
 from . import world
