@@ -650,20 +650,32 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                                 and (_ps.pos.x, _ps.pos.y) in _despawned_positions)
                     ]
                 continue
-            # Normal (pirate) or merchant with no current target: pick new.
-            _candidates = [g for g in _goals if (g[0], g[1]) != _target]
-            if not _candidates:
-                _candidates = _goals
-            _chosen = _engine.RNG.choice(_candidates)
-            _target = (_chosen[0], _chosen[1])
-            ctx.npc_targets[_sid] = _target
-            _target_goal = _chosen
+            # Charged cell aggro: militia in Sol hunt the player.
+            if (main_quest_module.charged_cell_in_sol(
+                    ctx, getattr(_system, 'id', ''))
+                    and _faction_of(_leader) == 'militia'):
+                _target = (ctx.player.pos.x, ctx.player.pos.y)
+                ctx.npc_targets[_sid] = _target
+                _target_goal = None
+            else:
+                # Normal (pirate) or merchant with no current target: pick new.
+                _candidates = [g for g in _goals if (g[0], g[1]) != _target]
+                if not _candidates:
+                    _candidates = _goals
+                _chosen = _engine.RNG.choice(_candidates)
+                _target = (_chosen[0], _chosen[1])
+                ctx.npc_targets[_sid] = _target
+                _target_goal = _chosen
             _end_set: set[tuple[int, int]] = {_target}
             _path = world.find_path(
                 (_lx, _ly), _end_set, game_map,
                 exclude_entity=_leader,
             )
             ctx.npc_paths[_sid] = _path or []
+            # Aggro militia: force a fresh path every tick so they
+            # constantly adjust to the player's movement.
+            if _target_goal is None:
+                ctx.npc_targets.pop(_sid, None)  # force repick next tick
 
         # Move most ticks for consistent progress (80% chance).
         if _engine.RNG.random() >= 0.8:

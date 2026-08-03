@@ -536,10 +536,11 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_spawn, _espec))
         _dist = math.hypot(player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y)
         _radius = _espec.detect_radius
-        # Charged cell aggro: militia hunts you across Sol.
+        # Charged cell aggro: militia hunts you across Sol —
+        # system-wide detection, bypass rep gate.
         if (main_quest_module.charged_cell_in_sol(ctx, _system_id)
                 and getattr(_espec, 'faction', '') == 'militia'):
-            _radius = max(_radius, 25)
+            _radius = max(_radius, 200)
         if _dist > 0 and _dist <= _radius:
             # Static system enemies (blockade, zone defenders) always
             # engage regardless of reputation — they are territorial.
@@ -561,12 +562,18 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_bs, _espec))
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         _radius2 = _espec.detect_radius
-        if (main_quest_module.charged_cell_in_sol(ctx, _system_id)
-                and getattr(_espec, 'faction', '') == 'militia'):
-            _radius2 = max(_radius2, 25)
+        _aggro2 = (
+            main_quest_module.charged_cell_in_sol(ctx, _system_id)
+            and getattr(_espec, 'faction', '') == 'militia'
+        )
+        if _aggro2:
+            _radius2 = max(_radius2, 200)
         if _dist > 0 and _dist <= _radius2:
             # Reputation gate: only hostile factions trigger combat
-            if _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
+            # (militia aggro bypasses rep — they attack on sight).
+            if not _aggro2 and _get_attitude(
+                ctx.faction_reputation.get(_espec.faction, 0),
+            ) not in ("enemy", "disliked"):
                 continue
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
             # Squad grouping: if ANY squad member triggers, add ALL
