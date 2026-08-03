@@ -589,6 +589,10 @@ def _run_game(
                                         # quest cache deep in the caves
                                         # (no-op when no delve step is live).
                                         main_quest_module.prepare_delve_site(ctx, _dungeon_map, _spawn, pid)
+                                    # Quest-conditional NPCs for dungeon
+                                    # surfaces (e.g. old smuggler near the
+                                    # cave entrance on Barnard's Star b).
+                                    main_quest_module.spawn_quest_npcs(ctx, _dungeon_map, pid, spawn_pos=_spawn)
                                     ctx.interiors[_surface_key] = _dungeon_map
                                 # Initialize fog of war (fresh maps only —
                                 # cached interiors keep their revealed fog).

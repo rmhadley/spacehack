@@ -1757,13 +1757,24 @@ def bump_mars_door(ctx) -> None:
     ctx.log.add("The sealed door holds fast. It needs a tool you don't have.")
 
 
-def spawn_quest_npcs(ctx, game_map: world.GameMap, planet_id: str) -> None:
-    """Add quest-conditional NPCs to ``game_map`` after loading a city.
+def spawn_quest_npcs(
+    ctx,
+    game_map: world.GameMap,
+    planet_id: str,
+    *,
+    spawn_pos: world.Position | None = None,
+) -> None:
+    """Add quest-conditional NPCs to ``game_map`` after loading a city
+    or entering a dungeon surface.
 
-    Called from :func:`spacehack.__main__._run_game` right after
-    :func:`spacehack.data.planets.load_planet` builds the city map,
-    before the player takes control. Each conditional NPC is a
-    separate entity (not a slot override) — the regular NPCs stay.
+    Called from :func:`spacehack.__main__._run_game` right after the
+    map is built, before the player takes control. Each conditional
+    NPC is a separate entity (not a slot override) — the regular NPCs
+    stay.
+
+    When ``spawn_pos`` is provided (dungeon-surface entry), the NPC is
+    placed one tile to the right of that position (near the entrance).
+    Otherwise the city bar coordinates are used.
     """
     if planet_id != "barnards_b" or ctx.main_quest_chain != "bar":
         return
@@ -1786,12 +1797,16 @@ def spawn_quest_npcs(ctx, game_map: world.GameMap, planet_id: str) -> None:
         return
     from .data.npcs import find_npc as _find_npc
     _npc = _find_npc("old_smuggler")
-    # Place near the bar counter on Barnard's Star b — just inside
-    # the building, offset from the barkeep at the door.
+    if spawn_pos is not None:
+        _pos = world.Position(x=spawn_pos.x + 2, y=spawn_pos.y)
+    else:
+        # City bar counter on Barnard's Star b — just inside
+        # the building, offset from the barkeep at the door.
+        _pos = world.Position(x=38, y=10)
     game_map.entities.append(world.Entity(
         char=_npc.char,
         fg=_npc.fg,
-        pos=world.Position(x=38, y=10),
+        pos=_pos,
         name=_npc.name,
         npc_id=_npc.id,
         width=1, height=1,
