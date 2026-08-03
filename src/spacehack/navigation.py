@@ -520,6 +520,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     Also checks :attr:`ctx.bounty_spawns` so dynamically-placed
     bounty targets trigger combat the same way as static enemies.
     """
+    _system_id = getattr(system, 'id', '')
     _enemy_spawns = getattr(system, 'enemies', ()) or ()
     _alive_spawns: list = []
     _triggered_squad_ids: set = set()
@@ -549,7 +550,6 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             else:
                 _triggered_solo_positions.add((_spawn.pos.x, _spawn.pos.y))
     # Also check bounty spawns (dynamic targets placed on accept).
-    _system_id = getattr(system, 'id', '')
     _bounty_spawns = ctx.bounty_spawns.get(_system_id, [])
     for _bs in _bounty_spawns:
         try:
@@ -597,9 +597,19 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             continue
         _alive_spawns.append((_pe, _espec))
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
-        if _dist > 0 and _dist <= _espec.detect_radius:
+        _radius3 = _espec.detect_radius
+        # Charged cell aggro: militia hunts you across Sol —
+        # system-wide detection, bypass rep gate.
+        _aggro3 = (
+            main_quest_module.charged_cell_in_sol(ctx, _system_id)
+            and getattr(_espec, 'faction', '') == 'militia'
+        )
+        if _aggro3:
+            _radius3 = max(_radius3, 200)
+        if _dist > 0 and _dist <= _radius3:
             # Reputation gate: only hostile factions trigger combat
-            if _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
+            # (militia aggro bypasses rep — they attack on sight).
+            if not _aggro3 and _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
                 continue
             _triggered_squad_ids.add(_pe.procedural_squad_id)
     _nearby_specs: list = []
