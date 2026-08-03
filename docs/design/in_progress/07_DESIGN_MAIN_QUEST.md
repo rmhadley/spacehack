@@ -291,7 +291,7 @@ The player receives a garbled transmission as they jump out of Sol for the first
 
 The tools are not handed out for free anymore. Accepting a faction's help starts that faction's **5-step chain**; the tool (and therefore `prologue_open`) unlocks only when the chain is complete. Every chain mixes the mechanics the game already has — **procedural surface dungeons** (cave delves for the materials), distant-planet expert recruitment, space combat (bounty spawns), derelict boarding (salvage interiors), and a final assembly beat. Only the bar chain keeps a small goods payment (a bribe to the old smuggler, not a supply run). Each chain's final step plants the faction tool + makes `prologue_open` available.
 
-**Chain anatomy (5 steps each):** `q1` commitment/lead → `q2` materials (delve: secure a quest cache from a planet's procedural surface cave — the item is *found*, not bought) → `q3` expert recruitment (new NPC on a distant planet) → `q4` field test (bounty combat OR derelict salvage) → `q5` assembly (tool unlocked → door opens).
+**Chain anatomy (5 steps each):** `q1` commitment/lead → `q2` materials (delve: secure a quest cache from a planet's procedural surface cave — the item is *found*, not bought) → `q3` transport or recruitment (militia + lab: `visit` an expert NPC on a distant planet; **merchants: `smuggle` — transport the raw ore through contested space to the specialist**; bar: `smuggle` — deliver a hot crate to prove yourself) → `q4` field test (bounty combat OR derelict salvage, often with faction-specific heat) → `q5` assembly (tool unlocked → door opens). Each chain's q3-q4 pair is where the faction's flavor lives: militia is by-the-book (visit → live-fire test), merchants is economic warfare (smuggle → blockade salvage), bar is criminal heat (smuggle → militia gauntlet), lab is academic (visit → frequency salvage).
 
 **Time gating between every step:** each completed step logs faction flavor ("We'll be in touch." / "We need time to research this.") and starts a **minimum-wait gate** (`wait_days`, world clock — see the Time gating section). When the clock passes the gate, the faction sends a **one-way auto-message summoning the player** to the NEXT step's system + planet (each step picks its own location — never a requirement to repeat the previous one). **Chain pacing target (locked): one chain ≈ 425 in-game days total (gates ~340d + travel ~85d) = 5× the 85-day Earth→Luyten one-way trip.**
 
@@ -307,17 +307,37 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 
 **Gating:** q1→q2 60d · q2→q3 80d · q3→q4 120d · q4→q5 80d (sum 340d ≈ 5× the 85d Earth→Luyten trip incl. travel; see Time gating). Completion flavor: "We'll be in touch. Requisition takes time to clear." / "Inspection underway." / "The charge needs a live-fire test." / "Return to base — the charge is assembled." Summons: Mercury (q2), Epsilon Eridani b (q3), Cygni (q4), Earth (q5).
 
-#### Merchants — "The Contract" (cutter)
+#### Merchants — "The Contract" (cutter) — REVISED with bar-chain lessons
+
+**Physical through-line:** the rare alloy ore → smelted alloy → cutter. One object, escalating value, moving through contested space. Every step advances the same stake.
+
+**Signature risk — consortium heat:** a competing merchant syndicate wants the Wolf 359 claim. They field merchant ships with **pirate escorts** (squads — the escorts are the teeth, the merchant ships are the flag). During q3 (raw ore transport) and q4 (smelted alloy recovery), consortium-tagged ships spawn in the route systems as quest-tagged BountySpawns. As the ore gains value, the consortium commits heavier forces:
+
+- **q3:** merchant leader + 1-2 pirate scouts per squad (the ore is raw, worth something but not everything)
+- **q4:** merchant leader + 2-3 pirate raiders per squad (the smelted alloy is worth 10× more — they're serious now)
+
+Consortium heat mirrors the bar chain's militia heat mechanically (quest-tagged BountySpawns, 30-cell detect radius, 33% A* recompute, drift past 50 cells) but with different flavor: economic warfare, not criminal heat. Rep stakes: -5 merchant per consortium ship killed, -2 pirate per escort killed.
 
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
-| `mer_q1_contract` | talk | Sign the contract with the Guild Master (Earth) — first rights to what's inside | 50 XP |
-| `mer_q2_strike` | delve | The escrow ore is in the Guild's abandoned prospecting claim — descend into the **Wolf 359** surface caves (procedural dungeon) and secure quest-tagged `rare_earth_metals` ×3 | 100 credits, 80 XP |
-| `mer_q3_specialist` | visit | Recruit the `salvage_specialist` at **Tau Ceti b** (he signs after the claim rumor reaches him) | 60 XP |
-| `mer_q4_calibration` | salvage | Calibration run: board a derelict near Vega (`scout_a` layout), recover the quest-tagged `machine_parts` | 150 credits, 120 XP |
-| `mer_q5_cutter` | talk | Return to the Guild Master — the cutter is ready → `merchant_cutter` + `prologue_open` | 200 credits, 150 XP |
+| `mer_q1_contract` | talk | Sign the contract with the Guild Master (Earth) — first rights to what's inside the door, hazard pay, and the cutter when the work is done. The first clause stakes the Wolf 359 claim. | 50 XP |
+| `mer_q2_strike` | delve | The claim is deep in the **Wolf 359** surface caves (procedural dungeon). Rival prospectors from a competing consortium got there first — clear them out (ground combat). Secure quest-tagged `rare_earth_metals` ×3. **Raw ore is now in your hold — valuable but unrefined.** | 100 credits, 80 XP |
+| `mer_q3_transport` | **smuggle** | The ore needs smelting. Transport it to the `salvage_specialist` at **Tau Ceti b**. **Consortium ships + pirate escorts patrol the route — they know about the strike and want the ore.** Scan → combat. Deliver the ore → the specialist begins the smelt. | 100 credits, 90 XP |
+| `mer_q4_calibrate` | salvage | The specialist finishes the smelt (time gate). **The smelted alloy is loaded into your hold — worth 10× the raw ore.** The cutter needs calibration data from a derelict near **Vega** (`scout_a` layout) — but the consortium has escalated: **ships + pirate raiders are guarding the wreck. Fight through the blockade to board it.** Recover quest-tagged `machine_parts`. | 150 credits, 120 XP |
+| `mer_q5_cutter` | talk | Return to Earth with the smelted alloy + calibration data. The Guild Master assembles the cutter. Sign the final addendum → `merchant_cutter` + `prologue_open`. | 200 credits, 150 XP |
 
-**Gating:** q1→q2 60d · q2→q3 90d · q3→q4 110d · q4→q5 80d (sum 340d ≈ 5× the 85d Earth→Luyten trip incl. travel; see Time gating). Completion flavor: "Contract filed. We need time to arrange the escrow." / "Ore appraised. The specialist wants to hear it from you." / "The cutter needs a calibration run." / "The cutter is ready." Summons: Wolf 359 (q2), Tau Ceti b (q3), Vega (q4), Earth (q5).
+**Risk escalation:**
+```
+q1: talk      ░░░░  No risk
+q2: delve     ██░░  Ground combat (rival prospectors)
+q3: smuggle   ████  Space combat + scan risk (consortium ships + pirate escorts en route)
+q4: salvage   ████  INTENSE space gauntlet (consortium blockade at wreck) + ground combat (scavengers)
+q5: talk      ░░░░  Resolution
+```
+
+**Gating (every gate has an in-universe reason):** q1→q2 60d ("The guild needs time to file the escrow paperwork and transfer the claim deed.") · q2→q3 0d (auto-advance — the ore is raw, needs smelting now) · q3→q4 130d ("The specialist hooks the ore into his smelting rig. 'High-grade stuff. Give me a few months — I'll call when it's ready.'") · q4→q5 0d (auto-advance — get the parts back to Earth). Sum 190d gate time (vs. the 340d chain target, giving the player ~150d of sandbox room between summons — slightly faster than the bar chain, reflecting the merchant chain's "time is money" flavor). Completion flavor: "Contract filed. We need time to arrange the escrow." / "The specialist smelts the ore — this takes months." / "The cutter needs calibration data from a derelict near Vega — the consortium's guarding it." / "The cutter is ready." Summons: Wolf 359 (q2), Tau Ceti b (q3 — trigger_planet_id; no gate, auto-advance from q2), Tau Ceti b (q4 — pick up the smelted alloy + head to Vega), Earth (q5).
+
+**q4 intensity detail:** the derelict near Vega is a two-phase gauntlet. Phase 1: space — fight through the consortium blockade (quest-tagged BountySpawn: merchant leader + 2-3 pirate raiders). Phase 2: ground — board the derelict, fight scavengers inside, secure the calibration data. Only the merchant leader counts for objective completion; escorts are bonus kills + rep. This mirrors the salvage rights bar missions but the space patrol is quest-tagged for the chain (no random generation — it's always there while the step is active).
 
 #### Bar — "The Old Hand" (brute rig)
 
@@ -346,6 +366,20 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 **Gating:** q1→q2 50d · q2→q3 115d · q3→q4 95d · q4→q5 80d (sum 340d ≈ 5× the 85d Earth→Luyten trip incl. travel; see Time gating). Completion flavor: "Sample received. We need time to analyze it." / "Reference dataset locked. The linguist wants in." / "The frequency map is incomplete — one more dataset." / "The key is forged." Summons: Mercury (q2), Alpha Centauri Science Port (q3), Sirius (q4), Mercury (q5).
 
 **Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is a new entry in the global `data/npcs` catalog placed via `PlanetSpec.npc_overrides` on a planet that already has the matching guild building (`militia_captain` / `guild_master` / `barkeep` / `research_officer` slot) — the override's `id` differs from the replaced slot so quest dialogue keys off the expert id. Verify the target planet has the required guild building (add a `CityBuilding` to the spec if not).
+
+**Bar-chain lessons applied to the merchant chain:**
+
+| Lesson (from bar implementation) | How the merchant chain applies it |
+|------|----------------------------------|
+| **Physical through-line is everything.** The bar chain works because ONE object (the power cell) travels through space. | The rare alloy ore → smelted alloy → cutter is the through-line. q2 digs it up, q3 transports it, q4 recovers it post-smelt, q5 delivers it. |
+| **The "smuggle" objective type creates real tension.** Hot cargo in the mission hold, scan risk, delivery to a named NPC. | q3 changed from a flat `visit` to a `smuggle`: transport the ore through contested space with consortium ships + pirate escorts. |
+| **Every handover NPC needs dialogue entries on BOTH ends.** Missing the Earth Barkeep dialogue on `bar_q5_charged` caused a silent delivery failure. | q3 has `guild_master` (giver) AND `salvage_specialist` (receiver) dialogues. q5 has `guild_master` dialogue. |
+| **Smuggle guards must gate giver AND receiver.** Giver closes when crate held; receiver closes when crate NOT held. | Same pattern: the Guild Master's "Take the ore" closes once held; the specialist's "Hand over" only shows when ore is in the hold. |
+| **Escalating risk across steps.** Bar: talk → smuggle → delve → smuggle (dangerous system) → return with aggro → resolution. | Merchant: talk → delve → smuggle (consortium en route) → salvage with blockade gauntlet → resolution. |
+| **One signature mechanic, not many.** Bar: militia heat (one hook, escalating). | Merchant: consortium heat (one hook — `consortium_heat_active` — escalating from scouts to raiders). |
+| **Performance tuning for per-tick NPCs.** 30-cell detect, 33% A* recompute, drift past 50 cells. | Consortium BountySpawns use identical tuning. |
+| **Time gates need in-universe reasons.** "The guild files paperwork" (60d), "The specialist smelts the ore" (130d). | Every gate has a world-clock reason the player can read in the completion flavor. |
+| **6 steps, not a strict 5.** The bar chain grew organically to 6 steps to support the through-line. | The merchant chain stays at 5 because the smelt happens during a time gate (q3→q4) rather than as a separate step — but if playtesting shows the flow needs a dedicated pickup step, a 6th step can be added (same as the bar chain grew). |
 
 **New objective types** complete steps outside the dialogue path: `delve` (descend into the target planet's **procedural surface cave** and secure the quest-tagged cache — the item is *found*, not bought), `smuggle` (deliver hot cargo to a target NPC — loaded into the mission hold like a `is_smuggle` mission; militia scans can confiscate it and fail the step), `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample). See the data-model section below.
 
@@ -479,16 +513,19 @@ A dead-star system with an alien structure — the source of the signal.
 
 **PLAYTEST (1e):** full militia run — report to the Captain → fly to Mercury, descend into the caves, secure the requisition cache (delve completes; goods land in cargo) → recruit the demolitions expert at Epsilon Eridani b (visit completes) → clear the Cygni scout squad (bounty completes; verify it spawns only while the step is active) → return to the Captain → charge granted + door opens. Check quest log (Q) tracks each step; save/quit/continue mid-chain preserves progress (including the persisted Mercury cave).
 
-### Phase 1f: Merchants chain — "The Contract" (cutter)
+### Phase 1f: Merchants chain — "The Contract" (cutter, revised per bar-chain lessons)
 
-- [ ] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / delve / visit / salvage / talk)
+- [ ] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / delve / **smuggle** / salvage / talk). q3 changed from `visit` to `smuggle` — the raw ore is loaded into the mission hold as hot cargo (``smuggle_good_id="rare_earth_metals"``, ``smuggle_cargo_size=15``) and must be delivered to the ``salvage_specialist`` at Tau Ceti b.
+- [ ] **Every handover NPC gets dialogue entries on BOTH ends** (bar-chain lesson). q3 needs ``guild_master`` dialogue (giver — "Take the ore") AND ``salvage_specialist`` dialogue (receiver — "Hand over the ore"). q5 needs ``guild_master`` dialogue ("Collect the cutter").
+- [ ] **Smuggle guards** (bar-chain lesson): the ``guild_master``'s "Take the ore" option closes once the crate is held; the ``salvage_specialist``'s "Hand over the ore" option closes when the crate is NOT held (same ``_smuggle_crate_held`` / giver-receiver pattern as the bar chain).
 - [ ] Wire `mer_q2_strike` delve site on Wolf 359 (cache yields quest-tagged `rare_earth_metals` ×3)
-- [ ] Write the merchant gates (`wait_days` 60/90/110/80, completion flavor, summons per the chain table)
-- [ ] Wire `mer_q4_calibration` quest-tagged salvage (derelict near Vega, `scout_a` layout, `machine_parts`)
+- [ ] Write the merchant gates (`wait_days` 60/0/130/0, completion flavor, summons per the chain table — see revised gating section above)
+- [ ] **Consortium heat mechanic:** a new hook ``main_quest.consortium_heat_active(ctx) → bool`` returns True while ``main_quest_chain == "merchants"`` AND the player is on q3 or q4 (ore/alloy in hold). When active, ``ensure_quest_spawns`` creates quest-tagged BountySpawns (merchant leader + pirate escorts) in relevant systems. q3 spawns: merchant + 1-2 pirate scouts. q4 spawns: merchant + 2-3 pirate raiders. Uses the existing ``BountySpawn`` infrastructure (same as bar chain militia patrols). 30-cell detect radius, 33% A* recompute, drift past 50 cells (same performance tuning as bar chain).
+- [ ] Wire `mer_q4_calibration` quest-tagged salvage: derelict near Vega (`scout_a` layout, `machine_parts`) guarded by consortium blockade (quest-tagged BountySpawn — see intensity detail above). The merchant leader must be defeated for the step to complete; escorts are bonus kills.
 - [ ] Wire `mer_q5_cutter` trigger → grants `merchant_cutter` + `prologue_open`
 - [ ] Smoke test + commit
 
-**PLAYTEST (1f):** full merchant run — sign the contract → fly to Wolf 359, descend into the claim caves, secure the escrow ore (delve completes) → recruit the salvage specialist at Tau Ceti b (visit) → board the Vega derelict, secure the tagged `machine_parts` (salvage completes) → return → cutter granted + door opens. Verify the derelict interior + Wolf 359 cave both persist across visits (anti-farm rule) and the tagged loot only appears while the step is active.
+**PLAYTEST (1f):** full merchant run — sign the contract ("Contract filed. We need time to arrange the escrow." → time gate 60d) → summon: "The claim is ready. Get to Wolf 359" → descend into the claim caves, clear rival prospectors, secure the ore (delve completes) → auto-advance to q3 (no gate): transport the raw ore to Tau Ceti b — **verify consortium ships + pirate escorts spawn and engage en route** → deliver to the salvage specialist (smuggle completes; "The specialist smelts the ore — this takes months." → time gate 130d) → summon: "Smelt's done. Come get the alloy. The cutter needs calibration data from a derelict near Vega — the consortium's guarding it. Be ready." → pick up smelted alloy at Tau Ceti b → fly to Vega → **fight through the consortium blockade at the wreck (merchant + 2-3 pirate raiders)** → board the derelict → fight scavengers → secure `machine_parts` (salvage completes) → auto-advance to q5 → return to Earth → Guild Master assembles the cutter → sign the addendum → cutter granted + door opens. Verify the derelict interior + Wolf 359 cave persist across visits. Verify consortium spawns only trigger while the step is active. Verify the ``guild_master``'s q3 "Take the ore" row closes after accepting (no re-offer) and the ``salvage_specialist``'s "Hand over" row only shows when the ore is actually in the hold.
 
 ### Phase 1g: Bar chain — "The Old Hand" (brute rig, blackmarket + militia heat)
 
