@@ -625,8 +625,13 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
             and _faction_of(_leader) == 'pirate'
         )
 
+        # --- Aggro militia / consortium: always chase player (every tick). ---
+        if _is_aggro_militia or _is_aggro_consortium:
+            _target = (ctx.player.pos.x, ctx.player.pos.y)
+            _target_goal = None
+
         # --- Refresh target when None or within 2 cells (merchant: despawn) ---
-        if _target is None or _dist_to_target <= 2:
+        elif _target is None or _dist_to_target <= 2:
             # Merchant: despawn on arrival.
             if _faction == 'merchant' and _target_goal is not None:
                 _body_type, _body_name = _target_goal[2], _target_goal[3]
@@ -657,12 +662,8 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     ]
                 continue
 
-            # Aggro militia / consortium: pick player as target.
-            if _is_aggro_militia or _is_aggro_consortium:
-                _target = (ctx.player.pos.x, ctx.player.pos.y)
-                _target_goal = None
             # Normal NPC with existing target: keep it.
-            elif _target is not None:
+            if _target is not None:
                 pass
             # Normal NPC with no target: pick a new body goal.
             else:
