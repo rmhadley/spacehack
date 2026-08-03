@@ -203,18 +203,40 @@ def _run_npc_talk(
     # expert NPC completes the step BEFORE dialogue resolution, so the
     # modal shows the completed step's ``complete`` variant.
     main_quest_module.maybe_complete_visit(ctx, npc.id)
+
+    # --- Quest dialogue overlay ---
+    # When an NPC has active quest dialogue, show it in a full-screen
+    # overlay FIRST — the quest text gets room to breathe (full
+    # word-wrapping, no cut-off). For triggerable steps, the player
+    # picks Accept / I need more time; for read-only dialogue, just
+    # ENTER to dismiss. On decline/dismiss we fall through to the
+    # normal NPC talk modal (Deliver / Work still available).
+    _quest_body, _trigger_step = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
+    if _trigger_step is not None:
+        _offer = main_quest_module.show_help_offer(ctx, npc.id, _trigger_step)
+        if _offer is main_quest_module.OfferOutcome.QUIT:
+            return (TalkOutcome.QUIT, None)
+        if _offer is main_quest_module.OfferOutcome.ACCEPT:
+            main_quest_module.trigger_dialogue(ctx, npc.id, _trigger_step)
+            return (TalkOutcome.QUEST, None)
+        # Decline — fall through to normal NPC talk for Deliver/Work
+    elif _quest_body != npc.flavor_text:
+        # Non-triggerable quest dialogue: show as a read-only overlay
+        # so the full text is visible (the NPC talk body is single-line
+        # and truncates).
+        main_quest_module.show_quest_readout(ctx, npc, _quest_body)
+        # After dismissing, fall through to normal NPC talk
+
     console = make_console()
     selected = 0
     _missions = deliver_missions or []
     n_deliver = len(_missions)
 
     # Main-quest dialogue resolution (read-only lookups).
-    _quest_body, _trigger_step = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
     _quest_options: list[tuple[str, str]] = []
-    if _trigger_step is not None:
-        _opt = main_quest_module.quest_option_for(ctx, npc.id)
-        if _opt is not None:
-            _quest_options.append(_opt)
+    _opt = main_quest_module.quest_option_for(ctx, npc.id)
+    if _opt is not None:
+        _quest_options.append(_opt)
     n_quest = len(_quest_options)
     n_options = n_quest + n_deliver + 1  # quest rows + deliver rows + work
 
@@ -256,17 +278,13 @@ def _run_npc_talk(
         outcome = ui.Modal(ctx.context, console).run(_render, _update)
         if outcome is TalkOutcome.QUEST and _quest_options:
             _step_id = _quest_options[selected % len(_quest_options)][1]
-            # The faction's detailed offer surfaces in its own modal:
-            # Accept help plants the claim + unlocks the tool; Keep
-            # looking returns to the talk modal (loop) so the player can
-            # walk away or browse another lead. Window-close propagates.
             _offer = main_quest_module.show_help_offer(ctx, npc.id, _step_id)
             if _offer is main_quest_module.OfferOutcome.QUIT:
                 return (TalkOutcome.QUIT, None)
             if _offer is main_quest_module.OfferOutcome.ACCEPT:
                 main_quest_module.trigger_dialogue(ctx, npc.id, _step_id)
                 return (outcome, None)
-            continue  # keep looking — re-show the talk modal
+            continue
         if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:
             return (outcome, _missions[selected])
         return (outcome, None)

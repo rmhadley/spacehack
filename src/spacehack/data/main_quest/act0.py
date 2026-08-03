@@ -334,7 +334,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="bar",
         objective_type="talk",
         wait_days=65,
-        completion_flavor="The old man is cagey — he'll see you for the right price.",
+        completion_flavor="Word's been sent to Barnard's Star. The old man is cagey — give him time to come around.",
         ready_message=(
             "The old man will see you for the right price. Come by the "
             "bar first — I've got a crate that'll get you in the door. "
@@ -384,7 +384,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_good_id="weapons_blackmarket",
         smuggle_cargo_size=8,
         wait_days=85,
-        completion_flavor="He drew the cave. Meet him at the dig.",
+        completion_flavor="The old man needs time to survey the dig site. His hand doesn't work like it used to.",
         ready_message=(
             "He drew the cave where the old job went wrong — the rig's "
             "power cell is still down there. Meet him at the dig on "
@@ -456,7 +456,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="delve",
         delve_good_ids=(("machine_parts", 1), ("electronics", 1)),
         wait_days=110,
-        completion_flavor="The militia is sealing the gate. Run now.",
+        completion_flavor="The militia is locking down the Barnard's Star gate. They know the power cell is missing — you've got a few months before it seals.",
         ready_message=(
             "The militia is sealing the Barnard's Star gate — they "
             "know you're carrying that cell. Run the gauntlet before "
@@ -500,7 +500,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_spawn_id="bar_q4_patrol",
         bounty_enemy_id="militia_patrol",
         wait_days=80,
-        completion_flavor="The rig's assembled. Come raise a glass.",
+        completion_flavor="The rig is being assembled from the cell and the old man's notes. The Barkeep will send word when it's ready.",
         ready_message=(
             "The rig's assembled — a brute-force harness that'll crack "
             "that seal like the old man's door. Come raise a glass at "

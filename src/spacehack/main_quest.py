@@ -1338,6 +1338,65 @@ def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
     return ui.Modal(ctx.context, console).run(_render, _update)
 
 
+def render_quest_readout(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+    npc_name: str,
+    body_text: str,
+) -> None:
+    """Paint a read-only quest dialogue overlay.
+
+    Shows the NPC's name and the quest dialogue text (word-wrapped)
+    in a centered bordered box. Dismiss-only — no accept/decline.
+    Used when the dialogue is informational (not triggerable).
+    """
+    _lines = ui.wrap_text(body_text, _OFFER_BODY_WIDTH)
+    _box_h = 10 + len(_lines)
+    _y0 = _overlay_box(
+        console,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        box_w=70,
+        box_h=_box_h,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 1,
+        text=npc_name.upper(), fg=ui.COLOR_TITLE,
+    )
+    _body_y = _y0 + 3
+    for _i, _line in enumerate(_lines):
+        _centered_print(
+            console, screen_width=screen_width, y=_body_y + _i,
+            text=_line, fg=ui.COLOR_DESCRIPTION,
+        )
+    _centered_print(
+        console, screen_width=screen_width,
+        y=_body_y + len(_lines) + 2,
+        text="Press ENTER to continue", fg=ui.COLOR_INSTRUCTION,
+    )
+
+
+def show_quest_readout(ctx, npc, body_text: str) -> None:
+    """Show a read-only quest dialogue overlay and block until dismissed."""
+    console = make_console()
+
+    def _render() -> None:
+        render_quest_readout(
+            console,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            npc_name=npc.name,
+            body_text=body_text,
+        )
+
+    def _update(event) -> _ModalOutcome:
+        return _modal_dismiss_update(event)
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
 def mars_exploration_unlocked(ctx) -> bool:
     """True once the signal has been received (Mars gate open).
 
