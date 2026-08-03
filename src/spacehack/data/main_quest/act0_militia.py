@@ -199,6 +199,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="bounty",
         requires_spawn_id="mil_livefire_test",
         bounty_enemy_id="pirate_scout",
+        bounty_escort_ids=("pirate_scout",),
         wait_days=80,
         completion_flavor=(
             "Live-fire test complete — the charge holds. The "
