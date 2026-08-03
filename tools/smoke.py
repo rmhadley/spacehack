@@ -287,14 +287,8 @@ def smoke_test() -> int:
             return 1
         # old_smuggler is placed dynamically via spawn_quest_npcs
         # (not npc_override), so skip the override check for barnards_b.
+        # Its guild is empty (quest-conditional NPC, no board/work).
         if _epid == "barnards_b":
-            if _ep_npc.guild not in ("militia", "merchants", "bar", "lab"):
-                print(
-                    f"FAIL: expert {_expert_id!r} has unexpected guild "
-                    f"{_ep_npc.guild!r}.",
-                    file=sys.stderr,
-                )
-                return 1
             continue
         if not any(
             oid == _slot_id and npc_obj.id == _expert_id

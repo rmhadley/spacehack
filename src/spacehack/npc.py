@@ -85,7 +85,7 @@ def render_npc_talk(
     deliverable mission, then "View available work" at the bottom.
     """
     console.clear()
-    title = f"{npc.name} ({npc.guild})"
+    title = f"{npc.name} ({npc.guild})" if npc.guild else npc.name
     body = f'"{quest_body if quest_body else npc.flavor_text}"'
     content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
 
@@ -98,7 +98,8 @@ def render_npc_talk(
         options.append((label, "quest"))
     for m in _missions:
         options.append(("Deliver: " + m.title, "deliver"))
-    options.append(("View available work", "work"))
+    if npc.guild:
+        options.append(("View available work", "work"))
     n = len(options)
     sel = selected % n
     list_top = content_y + 2
@@ -221,7 +222,8 @@ def _run_npc_talk(
     if _opt is not None:
         _quest_options.append(_opt)
     n_quest = len(_quest_options)
-    n_options = n_quest + n_deliver + 1  # quest rows + deliver rows + work
+    n_work = 1 if npc.guild else 0
+    n_options = n_quest + n_deliver + n_work  # quest rows + deliver rows + work
 
     def _render() -> None:
         render_npc_talk(

@@ -974,6 +974,12 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     if _cur_wsid is not None:
         _ctx.interiors[_cur_wsid] = _game_map
 
+    # --- Restore quest-conditional NPCs ---
+    # The city map was rebuilt from the planet spec; add any dynamic
+    # NPCs that aren't in the static layout (e.g. old smuggler).
+    from . import main_quest as _mq
+    _mq.spawn_quest_npcs(_ctx, _game_map, _city_id)
+
     # --- Restore RNG state ---
     _rng_state = _data.get("rng_state")
     if _rng_state is not None:

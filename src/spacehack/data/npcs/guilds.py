@@ -140,7 +140,7 @@ NPCS: tuple[NPC, ...] = (
     NPC(
         id="old_smuggler",
         name="Old Smuggler",
-        guild="bar",
+        guild="",  # quest-conditional NPC — no board, no work
         char="b",
         fg=(210, 150, 90),                          # dusty tan
         flavor_text=(

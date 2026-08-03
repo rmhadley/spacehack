@@ -1776,6 +1776,10 @@ def spawn_quest_npcs(ctx, game_map: world.GameMap, planet_id: str) -> None:
     )
     if not _need_smuggler:
         return
+    # Idempotent — don't add twice (load path may call this when
+    # the entity already exists from a fresh city build).
+    if any(getattr(_e, 'npc_id', '') == 'old_smuggler' for _e in game_map.entities):
+        return
     from .data.npcs import find_npc as _find_npc
     _npc = _find_npc("old_smuggler")
     # Place near the bar counter on Barnard's Star b — just inside
