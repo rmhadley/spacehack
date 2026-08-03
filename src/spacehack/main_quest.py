@@ -405,13 +405,30 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     _flavor = _step.completion_flavor
     _result = complete_step(ctx, _step_id)
     if _result and _flavor:
-        # Find the quest NPC to attribute the popup to (first dialogue
-        # entry — delve steps always have at least one).
+        # Build an actionable popup: what was found + what comes next.
         _npc_id = next(iter(_step.dialogues)) if _step.dialogues else ""
         if _npc_id:
             from .data.npcs import find_npc as _fn
             _npc = _fn(_npc_id)
-            show_quest_readout(ctx, _npc, _flavor)
+            _next_step = main_quest_step_after(
+                _step_id, chain=ctx.main_quest_chain,
+            )
+            # Is the next step waiting on a time gate?
+            if (_next_step is not None
+                    and _next_step.id in ctx.main_quest_gate):
+                _what_next = (
+                    f"The {_next_step.chain.capitalize()} will contact "
+                    "you when they're ready for the next step. "
+                    "Check your quest log (Q) for updates."
+                )
+            elif _next_step is not None:
+                _what_next = _next_step.description
+            else:
+                _what_next = ""
+            _body = _flavor
+            if _what_next:
+                _body = f"{_flavor}\n\n{_what_next}"
+            show_quest_readout(ctx, _npc, _body)
     return _result
 
 
