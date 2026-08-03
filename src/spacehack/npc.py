@@ -232,8 +232,13 @@ def _run_npc_talk(
     n_work = 1 if npc.guild else 0
     n_options = n_quest + n_deliver + n_work  # quest rows + deliver rows + work
     if n_options == 0:
-        # Nothing to offer — just a chat. Don't open the modal.
-        ctx.log.add(f'{npc.name} has nothing more to say right now.')
+        # No menu items — but if there's quest dialogue text that
+        # differs from the NPC's standard flavor, show it as a
+        # read-only overlay so the player can read it.
+        if _quest_body != npc.flavor_text:
+            main_quest_module.show_quest_readout(ctx, npc, _quest_body)
+        else:
+            ctx.log.add(f'{npc.name} has nothing more to say right now.')
         return (TalkOutcome.BACK, None)
 
     def _render() -> None:
