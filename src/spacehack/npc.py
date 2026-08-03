@@ -101,6 +101,13 @@ def render_npc_talk(
     if npc.guild:
         options.append(("View available work", "work"))
     n = len(options)
+    if n == 0:
+        # No menu items — just dismiss (ESC walks away).
+        hint = "ESC to walk away."
+        hint_row = content_y + 2
+        ui.paint_line(console, content_x, hint_row, ui.fit_text(hint, max_w), fg=ui.COLOR_INSTRUCTION)
+        message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
+        return
     sel = selected % n
     list_top = content_y + 2
     for i, (label, kind) in enumerate(options):
@@ -224,6 +231,10 @@ def _run_npc_talk(
     n_quest = len(_quest_options)
     n_work = 1 if npc.guild else 0
     n_options = n_quest + n_deliver + n_work  # quest rows + deliver rows + work
+    if n_options == 0:
+        # Nothing to offer — just a chat. Don't open the modal.
+        ctx.log.add(f'{npc.name} has nothing more to say right now.')
+        return (TalkOutcome.BACK, None)
 
     def _render() -> None:
         render_npc_talk(
