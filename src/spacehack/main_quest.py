@@ -402,15 +402,17 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
         for _gid, _qty in goods:
             _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
     _is_salvage = _step.objective_type == "salvage"
-    ctx.log.add_colored(
-        (
-            "Quest salvage secured — the component is in your hold."
-            if _is_salvage else
-            "Quest cache secured — the goods are in your hold."
-        ),
-        message_log.COLOR_IMPORTANT_EVENT,
-    )
-    return complete_step(ctx, _step_id)
+    _flavor = _step.completion_flavor
+    _result = complete_step(ctx, _step_id)
+    if _result and _flavor:
+        # Find the quest NPC to attribute the popup to (first dialogue
+        # entry — delve steps always have at least one).
+        _npc_id = next(iter(_step.dialogues)) if _step.dialogues else ""
+        if _npc_id:
+            from .data.npcs import find_npc as _fn
+            _npc = _fn(_npc_id)
+            show_quest_readout(ctx, _npc, _flavor)
+    return _result
 
 
 def maybe_complete_visit(ctx, npc_id: str) -> bool:
