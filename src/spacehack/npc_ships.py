@@ -727,12 +727,13 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
             continue
         if not _path:
             ctx.npc_targets.pop(_sid, None)
+            ctx.npc_paths.pop(_sid, None)
             continue
         _next = _path[0]
         _dx = _next[0] - _lx
         _dy = _next[1] - _ly
         if abs(_dx) > 1 or abs(_dy) > 1:
-            ctx.npc_paths[_sid] = []
+            ctx.npc_paths.pop(_sid, None)
             continue
         # Try the squad direction for each member.
         _leader_moved = False
