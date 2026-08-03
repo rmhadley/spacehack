@@ -97,6 +97,14 @@ def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
         if _step.trigger_system_id:
             from ..navigation import _remove_bounty_spawn as _rbs
             _rbs(ctx, _spawn_id, _step.trigger_system_id)
+            # Also clean up any escort spawns (derived IDs like
+            # ``mer_consortium_leader_esc_0``) left behind when
+            # the leader was killed.
+            _esc_prefix = f"{_step.requires_spawn_id}_esc_"
+            _spawns = ctx.bounty_spawns.get(_step.trigger_system_id, [])
+            for _esc_bs in list(_spawns):
+                if _esc_bs.spawn_id.startswith(_esc_prefix):
+                    _rbs(ctx, _esc_bs.spawn_id, _step.trigger_system_id)
         return True
     return False
 

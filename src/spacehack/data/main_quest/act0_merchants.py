@@ -199,11 +199,12 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="bounty",
         requires_spawn_id="mer_consortium_leader",
         bounty_enemy_id="pirate_captain",
+        bounty_escort_ids=("pirate_raider", "pirate_raider"),
         wait_days=0,
         completion_flavor=(
-            "The consortium leader's ship breaks apart — the "
-            "calibration data is recovered from the wreck. The "
-            "cutter is ready."
+            "The consortium leader's ship breaks apart — the pirate "
+            "raiders scatter. The calibration data is recovered from "
+            "the wreck. The cutter is ready."
         ),
         dialogues={
             "salvage_specialist": QuestDialogue(
