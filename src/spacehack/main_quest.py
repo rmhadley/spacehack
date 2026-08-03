@@ -654,14 +654,32 @@ def charged_cell_in_sol(ctx, system_id: str) -> bool:
     Earth (``bar_q5_charged``). The cell must actually be in the mission
     hold (ActiveMission present), not just the step being available.
     """
+    import os as _os
+    _is_dev = bool(_os.environ.get("SPACEHACK_DEV"))
     if ctx.main_quest_chain != "bar":
+        if _is_dev:
+            ctx.log.add(
+                f"[DEBUG] charged_cell_in_sol: chain={ctx.main_quest_chain!r} != 'bar'"
+            )
         return False
     if system_id != "sol":
+        if _is_dev:
+            ctx.log.add(
+                f"[DEBUG] charged_cell_in_sol: system={system_id!r} != 'sol'"
+            )
         return False
-    return (
-        _smuggle_crate_held(ctx, "bar_q4_blackmarket")
-        or _smuggle_crate_held(ctx, "bar_q5_charged")
-    )
+    _q4 = _smuggle_crate_held(ctx, "bar_q4_blackmarket")
+    _q5 = _smuggle_crate_held(ctx, "bar_q5_charged")
+    if _is_dev:
+        _mission_ids = [
+            getattr(_am, 'main_quest_step_id', '?')
+            for _am in ctx.player_active_missions
+        ]
+        ctx.log.add(
+            f"[DEBUG] charged_cell_in_sol: q4={_q4} q5={_q5} "
+            f"missions={_mission_ids}"
+        )
+    return _q4 or _q5
 
 
 def bar_heat_active(ctx) -> bool:
