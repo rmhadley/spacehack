@@ -1,12 +1,14 @@
 """Wolf 359 b — a dark, airless rock on the frontier of charted space.
 
-A small listening post — just a landing bay and a supply depot —
-serves as the last rest stop before the Luyten's Star blockade.
-Quiet, cold, and utterly dark outside the station walls.
+A small listening post — a landing bay, a supply depot, and a
+black-market bar that serves as the last rest stop before the
+Luyten's Star blockade. Quiet, cold, and utterly dark outside the
+station walls.
 
 Layout (40x24, compact):
 
   * spaceport, NW corner.
+  * bar, SW corner — black-market refuge, no questions asked.
   * depot, NE corner — supplies and emergency shelter.
 """
 from __future__ import annotations
@@ -35,6 +37,11 @@ SPEC = PlanetSpec(
             door_x=8, npc_id="",
         ),
         world.CityBuilding(
+            label="bar",
+            x_lo=2,  x_hi=17, y_lo=13, y_hi=22,
+            door_x=9, npc_id="wolf_barkeep",
+        ),
+        world.CityBuilding(
             label="depot",
             x_lo=22, x_hi=37, y_lo=8,  y_hi=18,
             door_x=29, npc_id="depot_attendant",
@@ -46,6 +53,22 @@ SPEC = PlanetSpec(
         ("cruiser", 11, 4),
     ),
     npc_overrides=(
+        (
+            "wolf_barkeep",
+            npc_module.NPC(
+                id="wolf_barkeep",
+                name="Black-Market Operator",
+                guild="bar",
+                char="B",
+                fg=(200, 160, 80),
+                flavor_text=(
+                    "The lights are low and the patrons don't ask questions. "
+                    "A scratched sign above the bar reads NO MILITIA. The "
+                    "operator sizes you up — 'You got something for me, or "
+                    "are you just thirsty?'"
+                ),
+            ),
+        ),
         (
             "depot_attendant",
             npc_module.NPC(

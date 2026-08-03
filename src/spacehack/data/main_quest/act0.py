@@ -450,8 +450,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         description=(
             "The old smuggler drew the cave where the old job went "
             "wrong. Descend into the Barnard's Star b surface caves "
-            "and recover the rig's power cell — militia-issue "
-            "hardware. While you carry it, the militia is watching."
+            "and recover the rig's power cell — decades-old "
+            "militia-issue hardware."
         ),
         trigger_planet_id="barnards_b",
         trigger_system_id="barnards_star",
@@ -459,13 +459,12 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="bar",
         objective_type="delve",
         delve_good_ids=(("machine_parts", 1), ("electronics", 1)),
-        wait_days=110,
-        completion_flavor="The militia is locking down the Barnard's Star gate. They know the power cell is missing — you've got a few months before it seals.",
-        ready_message=(
-            "The militia is sealing the Barnard's Star gate — "
-            "they know you're carrying that cell. Launch into "
-            "Barnard's Star space and fight through the patrol "
-            "before the gate closes for good."
+        # No time gate — auto-advances to the delivery step.
+        wait_days=0,
+        completion_flavor=(
+            "The power cell is decades old and unstable. It needs "
+            "a recharge — and there's only one black-market rig "
+            "that can handle it: the Wolf 359 listening post."
         ),
         dialogues={
             "old_smuggler": QuestDialogue(
@@ -481,8 +480,11 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "looking for it."
                 ),
                 complete=(
-                    "You got it out? Good. Now get it off this moon "
-                    "before the gate seals shut."
+                    "You got it out? Good. That cell's older than "
+                    "both of us — it needs a recharge before it'll "
+                    "power anything. There's a black-market rig at "
+                    "the Wolf 359 listening post. Pirate country — "
+                    "no militia, no questions. Run it there."
                 ),
                 backing_faction="bar",
             ),
@@ -490,57 +492,115 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=60,
     ),
     MainQuestStep(
-        id="bar_q4_gauntlet",
-        title="The Gauntlet",
+        id="bar_q4_blackmarket",
+        title="Black-Market Recharge",
         description=(
-            "The militia has sealed the Barnard's Star gate — you "
-            "can't jump out clean with the cell. A militia patrol "
-            "intercepts you: fight through, or flee and risk another "
-            "scan."
+            "The power cell is in your hold — unstable and hot. "
+            "Take it to the Wolf 359 listening post. The black-market "
+            "operator there has the only rig that can recharge it."
         ),
-        trigger_system_id="barnards_star",
+        trigger_planet_id="wolf_b",
+        trigger_system_id="wolf_359",
         requires_step="bar_q3_rigparts",
         chain="bar",
-        objective_type="bounty",
-        requires_spawn_id="bar_q4_patrol",
-        bounty_enemy_id="militia_patrol",
-        wait_days=80,
-        completion_flavor="The rig is being assembled from the cell and the old man's notes. The Barkeep will send word when it's ready.",
+        objective_type="smuggle",
+        requires_npc_id="wolf_barkeep",
+        smuggle_good_id="power_cell",
+        smuggle_cargo_size=5,
+        wait_days=90,
+        completion_flavor=(
+            "The operator hooks the cell up to the rig. 'This "
+            "thing's been sitting in the dark since before the "
+            "incident. Give me a few months — I'll call when "
+            "it's charged.'"
+        ),
         ready_message=(
-            "The rig's assembled — a brute-force harness that'll crack "
-            "that seal like the old man's door. Come raise a glass at "
-            "the bar on Earth."
+            "The cell's charged and ready. Come pick it up at the "
+            "Wolf 359 bar — and be careful on the way back. Every "
+            "militia scanner between here and Earth will light up "
+            "the moment you jump into Sol."
         ),
         dialogues={
-            "barkeep": QuestDialogue(
-                npc_id="barkeep",
+            "wolf_barkeep": QuestDialogue(
+                npc_id="wolf_barkeep",
+                trigger_on_talk=True,
                 intro=(
-                    "Heard you ran the gauntlet — the militia's still "
-                    "picking splinters out of the gate. The cell made "
-                    "it out, then? The rig's almost done."
+                    "You got something for me, or are you just "
+                    "thirsty? ...That's militia-issue. Old model, "
+                    "but the serial's still clean. I can recharge "
+                    "it — no questions — but it'll take time."
                 ),
                 active=(
-                    "The militia's sealing the gate out of Barnard's "
-                    "Star. Run the cell through before it closes."
+                    "The cell's on the rig now. Couple months, "
+                    "maybe less. I'll send word."
                 ),
                 complete=(
-                    "The rig's assembled. Come raise a glass."
+                    "Cell's charged. Word's ahead — the Earth "
+                    "barkeep knows you're coming. Watch the "
+                    "militia on the way back."
                 ),
+                option_label="Hand over the power cell",
                 backing_faction="bar",
             ),
         },
-        rewards_credits=150,
-        rewards_xp=120,
+        rewards_credits=50,
+        rewards_xp=60,
     ),
     MainQuestStep(
-        id="bar_q5_rig",
+        id="bar_q5_charged",
+        title="The Return Run",
+        description=(
+            "The cell is charged and hot — every militia scanner "
+            "in Sol will hunt you. Return to the Wolf 359 bar, "
+            "collect the charged cell, and run it back to the "
+            "Barkeep on Earth."
+        ),
+        trigger_planet_id="earth",
+        trigger_system_id="sol",
+        requires_step="bar_q4_blackmarket",
+        chain="bar",
+        objective_type="smuggle",
+        requires_npc_id="barkeep",
+        smuggle_good_id="power_cell_charged",
+        smuggle_cargo_size=5,
+        wait_days=0,
+        completion_flavor=(
+            "The cell is back on Earth. The rig can be assembled now."
+        ),
+        dialogues={
+            "wolf_barkeep": QuestDialogue(
+                npc_id="wolf_barkeep",
+                trigger_on_talk=True,
+                intro=(
+                    "There it is — fully charged and hot enough to "
+                    "melt a scanner. Take it back to the Earth "
+                    "barkeep. And stay sharp in Sol — every militia "
+                    "patrol will be on you the moment you jump in."
+                ),
+                active=(
+                    "The cell's in your hold. Run it to Earth — "
+                    "the militia won't give you a choice."
+                ),
+                complete=(
+                    "The cell made it. The Earth barkeep will have "
+                    "the rig ready."
+                ),
+                option_label="Take the charged cell",
+                backing_faction="bar",
+            ),
+        },
+        rewards_credits=100,
+        rewards_xp=80,
+    ),
+    MainQuestStep(
+        id="bar_q6_rig",
         title="The Rig",
         description=(
             "Return to the Barkeep on Earth. The rig is assembled."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
-        requires_step="bar_q4_gauntlet",
+        requires_step="bar_q5_charged",
         chain="bar",
         objective_type="talk",
         unlocks_step="prologue_open",

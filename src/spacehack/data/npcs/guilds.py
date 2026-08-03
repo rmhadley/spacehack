@@ -27,6 +27,18 @@ NPCS: tuple[NPC, ...] = (
         ),
     ),
     NPC(
+        id="wolf_barkeep",
+        name="Black-Market Operator",
+        guild="bar",
+        char="B",
+        fg=(200, 160, 80),                             # dim amber
+        flavor_text=(
+            "The lights are low and the patrons don't ask questions. "
+            "A scratched sign above the bar reads NO MILITIA. The "
+            "operator sizes you up."
+        ),
+    ),
+    NPC(
         id="guild_master",
         name="Guild Master",
         guild="merchants",

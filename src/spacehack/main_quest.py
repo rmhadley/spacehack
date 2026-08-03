@@ -404,6 +404,19 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     _is_salvage = _step.objective_type == "salvage"
     _flavor = _step.completion_flavor
     _result = complete_step(ctx, _step_id)
+    # When a delve step auto-advances to a smuggle delivery step,
+    # immediately create the mission cargo so the cell appears in
+    # the player's hold (no separate NPC acceptance needed — they
+    # just picked it up in the dungeon).
+    if _result:
+        _next = main_quest_step_after(
+            _step_id, chain=ctx.main_quest_chain,
+        )
+        if (_next is not None
+                and _next.objective_type == "smuggle"
+                and step_status(ctx, _next.id) == STATUS_AVAILABLE
+                and not _smuggle_crate_held(ctx, _next.id)):
+            _trigger_smuggle_crate(ctx, _next)
     if _result and _flavor:
         # Build an actionable popup: what was found + what comes next.
         _npc_id = next(iter(_step.dialogues)) if _step.dialogues else ""
@@ -632,6 +645,22 @@ def fail_smuggle_step(ctx, active) -> bool:
     return True
 
 
+def charged_cell_in_sol(ctx, system_id: str) -> bool:
+    """True while the player is carrying the charged power cell in
+    ``system_id`` — militia will auto-aggro on sight.
+
+    Only active during the bar_q5_charged smuggle run (cell collected
+    from Wolf 359, being delivered to Earth). The cell must actually
+    be in the mission hold (ActiveMission present), not just the step
+    being available.
+    """
+    if ctx.main_quest_chain != "bar":
+        return False
+    if system_id != "sol":
+        return False
+    return _smuggle_crate_held(ctx, "bar_q5_charged")
+
+
 def bar_heat_active(ctx) -> bool:
     """True while the bar chain's hot cargo is in the player's hold.
 
@@ -639,22 +668,20 @@ def bar_heat_active(ctx) -> bool:
     AND the player is carrying hot quest cargo (the ``bar_q2`` crate
     mission in the hold, or the ``bar_q3`` power cell carried after the
     delve), militia scan chance applies a +30% floor. Auto-expires at
-    ``bar_q5`` (the rig is assembled — the hardware is gone).
+    ``bar_q6`` (the rig is assembled — the hardware is gone).
     """
     if ctx.main_quest_chain != "bar":
         return False
-    if step_status(ctx, "bar_q5_rig") == STATUS_COMPLETED:
+    if step_status(ctx, "bar_q6_rig") == STATUS_COMPLETED:
         return False
     for _am in ctx.player_active_missions:
         if getattr(_am, "main_quest_step_id", "") == "bar_q2_proof":
             return True
-    # Heat persists while the militia-issue cell is in the hold: through
-    # the q3 delve, the q4 gauntlet, AND the q5 return trip — it only
-    # ends when the cell is handed over at q5 (rig collected).
+    # Heat persists while the power cell is in the hold: through
+    # the black-market delivery AND the charged return run.
     return (
-        step_status(ctx, "bar_q3_rigparts") in (STATUS_ACTIVE, STATUS_COMPLETED)
-        or step_status(ctx, "bar_q4_gauntlet") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-        or step_status(ctx, "bar_q5_rig") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        step_status(ctx, "bar_q4_blackmarket") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        or step_status(ctx, "bar_q5_charged") in (STATUS_AVAILABLE, STATUS_ACTIVE)
     )
 
 

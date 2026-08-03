@@ -535,7 +535,12 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             continue
         _alive_spawns.append((_spawn, _espec))
         _dist = math.hypot(player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y)
-        if _dist > 0 and _dist <= _espec.detect_radius:
+        _radius = _espec.detect_radius
+        # Charged cell aggro: militia hunts you across Sol.
+        if (main_quest_module.charged_cell_in_sol(ctx, _system_id)
+                and getattr(_espec, 'faction', '') == 'militia'):
+            _radius = max(_radius, 25)
+        if _dist > 0 and _dist <= _radius:
             # Static system enemies (blockade, zone defenders) always
             # engage regardless of reputation — they are territorial.
             if _spawn.squad_id is not None:
@@ -555,7 +560,11 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             continue
         _alive_spawns.append((_bs, _espec))
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
-        if _dist > 0 and _dist <= _espec.detect_radius:
+        _radius2 = _espec.detect_radius
+        if (main_quest_module.charged_cell_in_sol(ctx, _system_id)
+                and getattr(_espec, 'faction', '') == 'militia'):
+            _radius2 = max(_radius2, 25)
+        if _dist > 0 and _dist <= _radius2:
             # Reputation gate: only hostile factions trigger combat
             if _get_attitude(ctx.faction_reputation.get(_espec.faction, 0)) not in ("enemy", "disliked"):
                 continue
