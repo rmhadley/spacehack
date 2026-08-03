@@ -1,8 +1,9 @@
-"""Act 0 militia chain: "The Incident" — breach charge (mil_q1 → mil_q5).
+"""Act 0 militia chain: "The Incident" — breach charge (mil_q1 → mil_q6).
 
-Physical through-line: requisition cache → inspection → demolition
-expert → live-fire test → breach charge.  One classified operation,
-escalating clearance, moving through frontier space.
+Physical through-line: requisition cache → delivery to blockade
+inspector → demolitions expert → live-fire test → breach charge.
+One classified operation, escalating clearance, moving from Mercury
+all the way to the edge of mapped space.
 
 Design doc: docs/design/in_progress/07_DESIGN_MAIN_QUEST.md
 """
@@ -20,8 +21,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         description=(
             "Report to the Militia Captain on Earth — off the books, "
             "he admits the patrol saw 'the incident' tech before. The "
-            "requisition is buried in a scrubbed cache. Bring him "
-            "proof it's intact, and the schematics are yours."
+            "requisition is buried in a scrubbed cache on Mercury. "
+            "Bring him proof it's intact, and the schematics are yours."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -61,9 +62,10 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "ago."
                 ),
                 complete=(
-                    "The requisition is secured. We'll be in touch — "
-                    "every component needs to be inspected before the "
-                    "charge can be built."
+                    "The cache is waiting on Mercury. Once you've "
+                    "secured it, you'll need to get the components "
+                    "to the blockade for inspection. The Captain "
+                    "will brief you on the next step."
                 ),
                 option_label="Report to the Captain",
                 backing_faction="militia",
@@ -79,7 +81,8 @@ STEPS: tuple[MainQuestStep, ...] = (
             "The requisition cache is buried deep in the Mercury "
             "surface caves — a classified stockpile the official "
             "logs scrubbed years ago. Descend into the caves and "
-            "secure the ship components and fuel cells."
+            "secure the ship components and fuel cells. Then get "
+            "them to the blockade at Luyten's Star for inspection."
         ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
@@ -87,18 +90,13 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="militia",
         objective_type="delve",
         delve_good_ids=(("ship_components", 4), ("fuel_cells", 2)),
-        wait_days=80,
+        wait_days=0,
         completion_flavor=(
-            "The requisition cache is secured. The Captain's "
-            "demolition expert needs to inspect every component "
-            "before the charge can be assembled. They'll contact "
-            "you when the inspection is done."
-        ),
-        ready_message=(
-            "Inspection's complete and every component checks out. "
-            "Recruit the demolitions expert at Epsilon Eridani b — "
-            "the militia building on the colony. Drop the Captain's "
-            "name and he'll sign on."
+            "The requisition cache is secured — ship components and "
+            "fuel cells, still sealed. They need to be delivered to "
+            "the blockade inspector at Luyten's Star. The Captain's "
+            "already sent word ahead — the inspector is expecting "
+            "you at the northern checkpoint."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
@@ -116,10 +114,10 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The requisition was scrubbed for a reason."
                 ),
                 complete=(
-                    "The cache is intact. Every component will be "
-                    "inspected before the charge can be assembled. "
-                    "The expert is at Epsilon Eridani b — drop my "
-                    "name and he'll know the work is off the books."
+                    "The cache is intact. Now get those components "
+                    "to the blockade at Luyten's Star — the inspector "
+                    "at the northern checkpoint is expecting you. "
+                    "Five jumps through frontier space. Stay sharp."
                 ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
@@ -129,7 +127,67 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=80,
     ),
     MainQuestStep(
-        id="mil_q3_demolitions",
+        id="mil_q3_inspection",
+        title="The Inspection",
+        description=(
+            "The requisition components are in your hold — "
+            "classified hardware with scrubbed serial numbers. "
+            "Deliver them to the blockade inspector at Luyten's "
+            "Star. Five jumps through frontier space — Wolf 359, "
+            "pirates, the edge of mapped space. Every system "
+            "between here and there is a potential threat."
+        ),
+        trigger_planet_id="blockade",
+        trigger_system_id="luyten_star",
+        requires_step="mil_q2_cache",
+        chain="militia",
+        objective_type="goods",
+        requires_goods=(("ship_components", 4), ("fuel_cells", 2)),
+        wait_days=80,
+        completion_flavor=(
+            "The blockade inspector signs off on every component — "
+            "the serials are scrubbed, the seals are intact, and "
+            "the requisition checks out. Every component needs to "
+            "be inspected before the charge can be assembled. The "
+            "Captain will call when the demolitions expert is ready."
+        ),
+        ready_message=(
+            "Inspection's complete — every component checks out. "
+            "Recruit the demolitions expert at Epsilon Eridani b — "
+            "the militia building on the frontier colony. Drop the "
+            "Captain's name and he'll sign on."
+        ),
+        dialogues={
+            "blockade_officer": QuestDialogue(
+                npc_id="blockade_officer",
+                trigger_on_talk=True,
+                intro=(
+                    "The Captain sent word. Scratched requisition, "
+                    "scrubbed serials — I know the drill. Hand over "
+                    "the components. I'll log them as routine supply "
+                    "transfer, and no one asks questions. The Captain "
+                    "will call when the inspection clears."
+                ),
+                active=(
+                    "Still carrying those components? The Captain's "
+                    "inspector is here at the northern checkpoint. "
+                    "Hand them over and I'll make the paperwork "
+                    "disappear."
+                ),
+                complete=(
+                    "The components check out. The inspection report "
+                    "is filed under a routine supply transfer — no "
+                    "flags, no questions. The Captain will contact "
+                    "you when the demolitions expert is ready."
+                ),
+                option_label="Hand over the requisition",
+                backing_faction="militia",
+            ),
+        },
+        rewards_xp=60,
+    ),
+    MainQuestStep(
+        id="mil_q4_demolitions",
         title="The Expert",
         description=(
             "Recruit the demolitions expert at Epsilon Eridani b — "
@@ -139,7 +197,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         ),
         trigger_planet_id="eri_b",
         trigger_system_id="epsilon_eridani",
-        requires_step="mil_q2_cache",
+        requires_step="mil_q3_inspection",
         chain="militia",
         objective_type="visit",
         requires_npc_id="demolitions_expert",
@@ -185,7 +243,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=60,
     ),
     MainQuestStep(
-        id="mil_q4_livefire",
+        id="mil_q5_livefire",
         title="Live-Fire Test",
         description=(
             "The breach charge is built — now it needs a field "
@@ -194,7 +252,7 @@ STEPS: tuple[MainQuestStep, ...] = (
             "touches an alien door."
         ),
         trigger_system_id="cygni",
-        requires_step="mil_q3_demolitions",
+        requires_step="mil_q4_demolitions",
         chain="militia",
         objective_type="bounty",
         requires_spawn_id="mil_livefire_test",
@@ -239,7 +297,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=120,
     ),
     MainQuestStep(
-        id="mil_q5_charge",
+        id="mil_q6_charge",
         title="The Charge",
         description=(
             "Return to the Militia Captain on Earth. The breach "
@@ -248,7 +306,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
-        requires_step="mil_q4_livefire",
+        requires_step="mil_q5_livefire",
         chain="militia",
         objective_type="talk",
         unlocks_step="prologue_open",
