@@ -241,6 +241,11 @@ def active_is_deliverable_at(
             return False
         return getattr(active, 'heist_good_secured', False)
 
+    # Main-quest smuggle crates are handled through the quest
+    # dialogue overlay ("Hand over the crate"), not the standard
+    # Deliver flow — showing both is confusing.
+    if getattr(active, 'main_quest_step_id', ''):
+        return False
     # Standard delivery path: must have reserved cargo.
     if active.required_cargo_size <= 0:
         return False
