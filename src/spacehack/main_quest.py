@@ -1256,7 +1256,7 @@ def render_help_offer(
             text=_line, fg=ui.COLOR_DESCRIPTION,
         )
     _opt_y = _body_y + len(_lines) + 1
-    for _i, _label in enumerate(("Accept help", "Keep looking")):
+    for _i, _label in enumerate(("Accept", "I need more time")):
         _is_sel = _i == selected
         _marker_open = "> " if _is_sel else "  "
         _marker_close = " <" if _is_sel else "  "
@@ -1267,7 +1267,7 @@ def render_help_offer(
         )
     _centered_print(
         console, screen_width=screen_width, y=_opt_y + 3,
-        text="ARROW KEYS / j,k navigate - ENTER select - ESC keep looking",
+        text="ARROW KEYS / j,k navigate - ENTER select - ESC go back",
         fg=ui.COLOR_INSTRUCTION,
     )
 
