@@ -620,6 +620,10 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                 ctx, getattr(_system, 'id', ''))
             and _faction_of(_leader) == 'militia'
         )
+        _is_aggro_consortium = (
+            main_quest_module.consortium_heat_active(ctx)
+            and _faction_of(_leader) == 'pirate'
+        )
 
         # --- Refresh target when None or within 2 cells (merchant: despawn) ---
         if _target is None or _dist_to_target <= 2:
@@ -653,8 +657,8 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     ]
                 continue
 
-            # Aggro militia: pick player as target.
-            if _is_aggro_militia:
+            # Aggro militia / consortium: pick player as target.
+            if _is_aggro_militia or _is_aggro_consortium:
                 _target = (ctx.player.pos.x, ctx.player.pos.y)
                 _target_goal = None
             # Normal NPC with existing target: keep it.
@@ -672,9 +676,9 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         # --- Store target + compute path (throttled for aggro militia) ---
         if _target is not None:
             ctx.npc_targets[_sid] = _target
-            if _is_aggro_militia:
-                # Throttle A*: far-away militia drift (no path);
-                # close militia recompute at ~33% per tick.
+            if _is_aggro_militia or _is_aggro_consortium:
+                # Throttle A*: far-away ships drift (no path);
+                # close ships recompute at ~33% per tick.
                 _dist_to_player = math.hypot(
                     _lx - ctx.player.pos.x, _ly - ctx.player.pos.y,
                 )
@@ -701,9 +705,9 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         if _engine.RNG.random() >= 0.8:
             continue
         _path = ctx.npc_paths.get(_sid)
-        # Aggro militia with no A* path (far away): drift toward player.
+        # Aggro ships with no A* path (far away): drift toward player.
         if (not _path
-                and _is_aggro_militia
+                and (_is_aggro_militia or _is_aggro_consortium)
                 and ctx.npc_targets.get(_sid) is not None):
             _tx, _ty = ctx.npc_targets[_sid]
             _drift_dx = 1 if _lx < _tx else -1 if _lx > _tx else 0

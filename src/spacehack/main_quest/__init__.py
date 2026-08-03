@@ -36,6 +36,7 @@ from ._objectives import (
 from ._heat import (
     charged_cell_in_sol,
     bar_heat_active,
+    consortium_heat_active,
 )
 from ._gates import (
     check_quest_gates,

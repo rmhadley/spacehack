@@ -1,4 +1,4 @@
-"""Main quest faction heat hooks: bar militia heat, future consortium heat."""
+"""Main quest faction heat hooks: bar militia heat, consortium heat."""
 
 from __future__ import annotations
 
@@ -33,4 +33,22 @@ def bar_heat_active(ctx) -> bool:
     return (
         step_status(ctx, "bar_q4_blackmarket") in (STATUS_AVAILABLE, STATUS_ACTIVE)
         or step_status(ctx, "bar_q5_charged") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+    )
+
+
+def consortium_heat_active(ctx) -> bool:
+    """True while the merchant chain's contested cargo is in play.
+
+    During q3 (smuggle — raw ore) and q4 (bounty — smelted alloy),
+    the consortium hires every pirate in the sector to hunt the
+    player. Mirrors the bar chain's militia heat but with pirate
+    flavour: economic warfare, not criminal heat.
+    """
+    if ctx.main_quest_chain != "merchants":
+        return False
+    if step_status(ctx, "mer_q5_cutter") == STATUS_COMPLETED:
+        return False
+    return (
+        step_status(ctx, "mer_q3_transport") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        or step_status(ctx, "mer_q4_calibrate") in (STATUS_AVAILABLE, STATUS_ACTIVE)
     )

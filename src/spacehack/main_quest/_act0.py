@@ -232,21 +232,33 @@ def spawn_quest_npcs(
     spawn_pos: world.Position | None = None,
 ) -> None:
     """Add quest-conditional NPCs to game_map after loading a city or dungeon."""
-    if planet_id != "barnards_b" or ctx.main_quest_chain != "bar":
+    _need_npc: str | None = None
+    if planet_id == "barnards_b" and ctx.main_quest_chain == "bar":
+        _need = any(
+            step_status(ctx, _sid) in (STATUS_AVAILABLE, STATUS_ACTIVE)
+            for _sid in ("bar_q2_proof", "bar_q3_rigparts")
+        ) or (
+            step_status(ctx, "bar_q2_proof") == STATUS_COMPLETED
+            and step_status(ctx, "bar_q3_rigparts") not in (STATUS_COMPLETED,)
+        )
+        if _need:
+            _need_npc = "old_smuggler"
+    elif planet_id == "tc_b" and ctx.main_quest_chain == "merchants":
+        _need = (
+            step_status(ctx, "mer_q3_transport") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+            or (
+                step_status(ctx, "mer_q3_transport") == STATUS_COMPLETED
+                and step_status(ctx, "mer_q4_calibrate") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+            )
+        )
+        if _need:
+            _need_npc = "salvage_specialist"
+    if _need_npc is None:
         return
-    _need_smuggler = any(
-        step_status(ctx, _sid) in (STATUS_AVAILABLE, STATUS_ACTIVE)
-        for _sid in ("bar_q2_proof", "bar_q3_rigparts")
-    ) or (
-        step_status(ctx, "bar_q2_proof") == STATUS_COMPLETED
-        and step_status(ctx, "bar_q3_rigparts") not in (STATUS_COMPLETED,)
-    )
-    if not _need_smuggler:
-        return
-    if any(getattr(_e, 'npc_id', '') == 'old_smuggler' for _e in game_map.entities):
+    if any(getattr(_e, 'npc_id', '') == _need_npc for _e in game_map.entities):
         return
     from ..data.npcs import find_npc as _find_npc
-    _npc = _find_npc("old_smuggler")
+    _npc = _find_npc(_need_npc)
     if spawn_pos is not None:
         _pos = _wall_adjacent_tile(game_map, spawn_pos)
     else:
