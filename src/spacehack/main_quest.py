@@ -1757,6 +1757,47 @@ def bump_mars_door(ctx) -> None:
     ctx.log.add("The sealed door holds fast. It needs a tool you don't have.")
 
 
+def _wall_adjacent_tile(
+    game_map: world.GameMap,
+    near: world.Position,
+) -> world.Position:
+    """Return the nearest walkable tile to ``near`` that has at least
+    one non-walkable neighbour — an NPC placed here leans against a
+    wall instead of blocking a corridor.
+
+    Scans in expanding Chebyshev rings; prefers tiles with more wall
+    neighbours (corners / nooks). Falls back to ``near`` if the whole
+    map is open.
+    """
+    _best = near
+    _best_walls = -1
+    for _r in range(1, 10):
+        for _dy in range(-_r, _r + 1):
+            for _dx in range(-_r, _r + 1):
+                if max(abs(_dx), abs(_dy)) != _r:
+                    continue
+                _x, _y = near.x + _dx, near.y + _dy
+                if not (0 <= _x < game_map.width and 0 <= _y < game_map.height):
+                    continue
+                if not game_map.tiles[_y][_x].walkable:
+                    continue
+                _walls = 0
+                for _nx, _ny in ((_x + 1, _y), (_x - 1, _y),
+                                 (_x, _y + 1), (_x, _y - 1)):
+                    if not (0 <= _nx < game_map.width
+                            and 0 <= _ny < game_map.height):
+                        _walls += 1
+                        continue
+                    if not game_map.tiles[_ny][_nx].walkable:
+                        _walls += 1
+                if _walls > _best_walls:
+                    _best_walls = _walls
+                    _best = world.Position(_x, _y)
+        if _best_walls >= 1:
+            return _best
+    return _best
+
+
 def spawn_quest_npcs(
     ctx,
     game_map: world.GameMap,
@@ -1798,7 +1839,7 @@ def spawn_quest_npcs(
     from .data.npcs import find_npc as _find_npc
     _npc = _find_npc("old_smuggler")
     if spawn_pos is not None:
-        _pos = world.Position(x=spawn_pos.x + 2, y=spawn_pos.y)
+        _pos = _wall_adjacent_tile(game_map, spawn_pos)
     else:
         # City bar counter on Barnard's Star b — just inside
         # the building, offset from the barkeep at the door.
