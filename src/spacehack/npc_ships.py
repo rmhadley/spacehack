@@ -652,12 +652,15 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     ]
                 continue
             # Charged cell aggro: militia in Sol hunt the player.
+            # Override ANY current target — drop patrol routes instantly.
             if (main_quest_module.charged_cell_in_sol(
                     ctx, getattr(_system, 'id', ''))
                     and _faction_of(_leader) == 'militia'):
                 _target = (ctx.player.pos.x, ctx.player.pos.y)
-                ctx.npc_targets[_sid] = _target
                 _target_goal = None
+            elif _target is not None:
+                # NPC still has a current patrol target — keep it.
+                pass
             else:
                 # Normal (pirate) or merchant with no current target: pick new.
                 _candidates = [g for g in _goals if (g[0], g[1]) != _target]
@@ -665,8 +668,8 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     _candidates = _goals
                 _chosen = _engine.RNG.choice(_candidates)
                 _target = (_chosen[0], _chosen[1])
-                ctx.npc_targets[_sid] = _target
                 _target_goal = _chosen
+            ctx.npc_targets[_sid] = _target
             _end_set: set[tuple[int, int]] = {_target}
             _path = world.find_path(
                 (_lx, _ly), _end_set, game_map,
