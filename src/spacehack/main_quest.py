@@ -224,13 +224,18 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
             _step.id
             if _dialogue.trigger_on_talk
             and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            # Smuggle steps: the giver (Barkeep) only offers the crate
-            # while it's still available. Once held (active), the giver
-            # must not re-trigger — but the DELIVERY target (old smuggler)
-            # triggers to hand it over.
-            and not (_step.objective_type == "smuggle"
-                     and _smuggle_crate_held(ctx, _step.id)
-                     and _step.requires_npc_id != npc_id)
+            # Smuggle steps: close the giver's trigger when the crate
+            # is held (no re-offer), close the receiver's trigger when
+            # the crate is NOT held (nothing to deliver yet).
+            and not (
+                _step.objective_type == "smuggle"
+                and (
+                    (_held := _smuggle_crate_held(ctx, _step.id))
+                    and _step.requires_npc_id != npc_id
+                    or (not _held
+                        and _step.requires_npc_id == npc_id)
+                )
+            )
             else None
         )
         if _trigger is not None:
@@ -264,12 +269,14 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
         return None
     if step_status(ctx, _step.id) == STATUS_COMPLETED:
         return None
-    # Smuggle steps: the giver's option closes once the crate is held,
-    # but the delivery NPC's option opens so the handover can trigger.
-    if (_step.objective_type == "smuggle"
-            and _smuggle_crate_held(ctx, _step.id)
-            and _step.requires_npc_id != npc_id):
-        return None
+    # Smuggle steps: close the giver's option when the crate is
+    # held (no re-offer), close the receiver's option when the crate
+    # is NOT held (nothing to deliver yet).
+    if _step.objective_type == "smuggle":
+        _held = _smuggle_crate_held(ctx, _step.id)
+        _is_receiver = _step.requires_npc_id == npc_id
+        if (_held and not _is_receiver) or (not _held and _is_receiver):
+            return None
     return (_dialogue.option_label, _step.id)
 
 

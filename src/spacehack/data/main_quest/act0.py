@@ -588,6 +588,25 @@ STEPS: tuple[MainQuestStep, ...] = (
                 option_label="Take the charged cell",
                 backing_faction="bar",
             ),
+            "barkeep": QuestDialogue(
+                npc_id="barkeep",
+                trigger_on_talk=True,
+                intro=(
+                    "You made it — and you brought the cell. "
+                    "Give it here. The rig's half-assembled already."
+                ),
+                active=(
+                    "There she is — the charged cell. Hand it over. "
+                    "The rig is waiting."
+                ),
+                complete=(
+                    "Cell's in, rig's on. One more step and that "
+                    "door comes open."
+                ),
+                option_label="Hand over the charged cell",
+                backing_faction="bar",
+                dialogue_planet_id="earth",
+            ),
         },
         rewards_credits=100,
         rewards_xp=80,
