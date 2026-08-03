@@ -444,7 +444,26 @@ def _run_game(
             if delta is None:
                 continue
             dx, dy = delta
-            code, blocker = world.try_move(player, game_map, dx, dy)
+            # Dungeon wall-NPC bump: quest NPCs placed on wall tiles
+            # (like the old smuggler in the cave) must be interactable
+            # when the player bumps the wall they're embedded in.
+            if current_mode == 'dungeon':
+                _tx, _ty = player.pos.x + dx, player.pos.y + dy
+                if game_map.in_bounds(_tx, _ty):
+                    _wall_blocker = next(
+                        (_e for _e in game_map.entities
+                         if _e.pos.x == _tx and _e.pos.y == _ty
+                         and _e.npc_id),
+                        None,
+                    )
+                    if _wall_blocker is not None:
+                        code, blocker = 'occupied', _wall_blocker
+                    else:
+                        code, blocker = world.try_move(player, game_map, dx, dy)
+                else:
+                    code, blocker = world.try_move(player, game_map, dx, dy)
+            else:
+                code, blocker = world.try_move(player, game_map, dx, dy)
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
                 _run_combat_loop(ctx, console, player, also_move_npcs=True)
                 player_active_missions = ctx.player_active_missions

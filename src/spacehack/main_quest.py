@@ -1761,16 +1761,13 @@ def _wall_adjacent_tile(
     game_map: world.GameMap,
     near: world.Position,
 ) -> world.Position:
-    """Return the nearest walkable tile to ``near`` that has at least
-    one non-walkable neighbour — an NPC placed here leans against a
-    wall instead of blocking a corridor.
+    """Return a non-walkable (wall) tile adjacent to a walkable tile
+    near ``near`` — an NPC placed here sits inside the wall like the
+    dungeon exit marker, never blocking a corridor.
 
-    Scans in expanding Chebyshev rings; prefers tiles with more wall
-    neighbours (corners / nooks). Falls back to ``near`` if the whole
-    map is open.
+    The NPC entity lives on the wall tile; the caller must handle
+    wall-bump detection so the player can still interact.
     """
-    _best = near
-    _best_walls = -1
     for _r in range(1, 10):
         for _dy in range(-_r, _r + 1):
             for _dx in range(-_r, _r + 1):
@@ -1779,23 +1776,18 @@ def _wall_adjacent_tile(
                 _x, _y = near.x + _dx, near.y + _dy
                 if not (0 <= _x < game_map.width and 0 <= _y < game_map.height):
                     continue
-                if not game_map.tiles[_y][_x].walkable:
+                if game_map.tiles[_y][_x].walkable:
                     continue
-                _walls = 0
+                # Check at least one orthogonal neighbour is walkable
+                # so the player can stand next to the NPC.
                 for _nx, _ny in ((_x + 1, _y), (_x - 1, _y),
                                  (_x, _y + 1), (_x, _y - 1)):
-                    if not (0 <= _nx < game_map.width
-                            and 0 <= _ny < game_map.height):
-                        _walls += 1
-                        continue
-                    if not game_map.tiles[_ny][_nx].walkable:
-                        _walls += 1
-                if _walls > _best_walls:
-                    _best_walls = _walls
-                    _best = world.Position(_x, _y)
-        if _best_walls >= 1:
-            return _best
-    return _best
+                    if (0 <= _nx < game_map.width
+                            and 0 <= _ny < game_map.height
+                            and game_map.tiles[_ny][_nx].walkable):
+                        return world.Position(_x, _y)
+    # Fallback: return near itself (shouldn't happen on any real map).
+    return near
 
 
 def spawn_quest_npcs(
