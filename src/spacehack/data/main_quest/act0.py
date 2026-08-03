@@ -531,8 +531,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q5_rig",
         title="The Rig",
         description=(
-            "Return to the Barkeep on Earth. The brute-force rig is "
-            "assembled — it will crack the door's power feed."
+            "Return to the Barkeep on Earth. The rig is assembled."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
