@@ -12,6 +12,7 @@ dist/
 
 # --- Virtual environments ---
 .venv/
+.docker_venv/
 venv/
 env/
 ENV/
