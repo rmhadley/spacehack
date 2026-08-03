@@ -30,8 +30,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         wait_days=60,
         completion_flavor=(
             "The Guild files the escrow paperwork and transfers the "
-            "claim deed. The claim at Wolf 359 is yours to stake — "
-            "but the consortium has been sniffing around."
+            "claim deed. They'll contact you when it clears — "
+            "then head to Wolf 359 b and stake the claim before "
+            "the consortium gets there first."
         ),
         ready_message=(
             "The claim is ready. Get to Wolf 359 b and stake it — "
@@ -52,7 +53,11 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 active=(
                     "Contract's filed. We need time to arrange the "
-                    "escrow paperwork and transfer the claim deed."
+                    "escrow paperwork and transfer the claim deed. "
+                    "Once it clears, head to Wolf 359 b — the caves "
+                    "beneath the listening post hold the Guild's "
+                    "abandoned escrow ore. Watch for rival "
+                    "prospectors."
                 ),
                 complete=(
                     "The claim's yours to stake. The ore is "
