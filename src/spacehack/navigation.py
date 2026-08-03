@@ -520,8 +520,6 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
     Also checks :attr:`ctx.bounty_spawns` so dynamically-placed
     bounty targets trigger combat the same way as static enemies.
     """
-    import os as _os
-    _is_dev = bool(_os.environ.get("SPACEHACK_DEV"))
     _system_id = getattr(system, 'id', '')
     _enemy_spawns = getattr(system, 'enemies', ()) or ()
     _alive_spawns: list = []
@@ -591,28 +589,33 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         if not getattr(_e, 'owned', False)
         and getattr(_e, 'procedural_squad_id', '') != ''
     ]
-    if _is_dev:
-        _all_militia = [
-            _e for _e in ctx.game_map.entities
-            if not getattr(_e, 'owned', False)
-            and getattr(_e, 'npc_ship_id', '') in (
+    _all_militia = [
+        _e for _e in ctx.game_map.entities
+        if not getattr(_e, 'owned', False)
+        and getattr(_e, 'npc_ship_id', '') in (
+            'militia_patrol_light', 'militia_patrol', 'militia_patrol_heavy',
+        )
+    ]
+    _charged = main_quest_module.charged_cell_in_sol(ctx, _system_id)
+    if _all_militia or _charged:
+        _seen_proc_militia = sum(
+            1 for _e in _procedural_entities
+            if getattr(_e, 'npc_ship_id', '') in (
                 'militia_patrol_light', 'militia_patrol', 'militia_patrol_heavy',
             )
-        ]
-        _charged = main_quest_module.charged_cell_in_sol(ctx, _system_id)
-        if _all_militia or _charged:
+        )
+        ctx.log.add(
+            f"[DEBUG] sys={_system_id} charged={_charged} "
+            f"militia_on_map={len(_all_militia)} in_proc_list={_seen_proc_militia} "
+            f"total_proc={len(_procedural_entities)} chain={ctx.main_quest_chain!r}"
+        )
+        for _me in _all_militia:
+            _msq = getattr(_me, 'procedural_squad_id', '')
+            _mid = getattr(_me, 'npc_ship_id', '?')
             ctx.log.add(
-                f"[DEBUG] system={_system_id} charged_cell={_charged} "
-                f"militia_ents={len(_all_militia)} "
-                f"proc_ents={len(_procedural_entities)} "
-                f"chain={ctx.main_quest_chain}"
+                f"[DEBUG]   {_mid} @({_me.pos.x},{_me.pos.y}) "
+                f"squad={_msq!r} dist={math.hypot(player_pos.x - _me.pos.x, player_pos.y - _me.pos.y):.1f}"
             )
-            for _me in _all_militia:
-                _msq = getattr(_me, 'procedural_squad_id', '')
-                ctx.log.add(
-                    f"[DEBUG]   militia @ ({_me.pos.x},{_me.pos.y}) "
-                    f"squad={_msq!r} dist={math.hypot(player_pos.x - _me.pos.x, player_pos.y - _me.pos.y):.1f}"
-                )
     for _pe in _procedural_entities:
         _pid = getattr(_pe, 'npc_ship_id', '') or "pirate_scout"
         try:
@@ -630,9 +633,9 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         )
         if _aggro3:
             _radius3 = max(_radius3, 200)
-        if _is_dev and getattr(_espec, 'faction', '') == 'militia':
+        if getattr(_espec, 'faction', '') == 'militia':
             ctx.log.add(
-                f"[DEBUG] proc militia {_pid} dist={_dist:.1f} "
+                f"[DEBUG] proc {_pid} dist={_dist:.1f} "
                 f"radius={_radius3} aggro={_aggro3} "
                 f"triggered={_dist > 0 and _dist <= _radius3}"
             )

@@ -646,8 +646,8 @@ def fail_smuggle_step(ctx, active) -> bool:
 
 
 def charged_cell_in_sol(ctx, system_id: str) -> bool:
-    """True while the player is carrying the power cell in Sol —
-    militia will auto-aggro on sight.
+    """True while the player is carrying the power cell —
+    militia will auto-aggro on sight in ANY system.
 
     Covers the full power-cell lifecycle: the uncharged cell heading to
     Wolf 359 (``bar_q4_blackmarket``) and the charged cell returning to
@@ -659,13 +659,7 @@ def charged_cell_in_sol(ctx, system_id: str) -> bool:
     if ctx.main_quest_chain != "bar":
         if _is_dev:
             ctx.log.add(
-                f"[DEBUG] charged_cell_in_sol: chain={ctx.main_quest_chain!r} != 'bar'"
-            )
-        return False
-    if system_id != "sol":
-        if _is_dev:
-            ctx.log.add(
-                f"[DEBUG] charged_cell_in_sol: system={system_id!r} != 'sol'"
+                f"[DEBUG] charged_cell: chain={ctx.main_quest_chain!r} != 'bar'"
             )
         return False
     _q4 = _smuggle_crate_held(ctx, "bar_q4_blackmarket")
@@ -676,7 +670,7 @@ def charged_cell_in_sol(ctx, system_id: str) -> bool:
             for _am in ctx.player_active_missions
         ]
         ctx.log.add(
-            f"[DEBUG] charged_cell_in_sol: q4={_q4} q5={_q5} "
+            f"[DEBUG] charged_cell: sys={system_id!r} q4={_q4} q5={_q5} "
             f"missions={_mission_ids}"
         )
     return _q4 or _q5
