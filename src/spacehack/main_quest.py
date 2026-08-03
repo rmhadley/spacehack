@@ -204,11 +204,13 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
             _step.id
             if _dialogue.trigger_on_talk
             and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            # Smuggle steps: the "take the crate" row only opens while
-            # the crate is still with the giver (available). Once it's
-            # in the hold (active) the option must not re-trigger.
+            # Smuggle steps: the giver (Barkeep) only offers the crate
+            # while it's still available. Once held (active), the giver
+            # must not re-trigger — but the DELIVERY target (old smuggler)
+            # triggers to hand it over.
             and not (_step.objective_type == "smuggle"
-                     and _smuggle_crate_held(ctx, _step.id))
+                     and _smuggle_crate_held(ctx, _step.id)
+                     and _step.requires_npc_id != npc_id)
             else None
         )
         if _trigger is not None:
@@ -242,9 +244,11 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
         return None
     if step_status(ctx, _step.id) == STATUS_COMPLETED:
         return None
-    # Smuggle steps: the crate is only offered while available — once
-    # it's in the hold (active) the row closes so it can't be re-taken.
-    if _step.objective_type == "smuggle" and _smuggle_crate_held(ctx, _step.id):
+    # Smuggle steps: the giver's option closes once the crate is held,
+    # but the delivery NPC's option opens so the handover can trigger.
+    if (_step.objective_type == "smuggle"
+            and _smuggle_crate_held(ctx, _step.id)
+            and _step.requires_npc_id != npc_id):
         return None
     return (_dialogue.option_label, _step.id)
 
@@ -287,9 +291,12 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     if _dialogue.unlock_item:
         ctx.main_quest_unlocked_items.add(_dialogue.unlock_item)
     if _step.objective_type == "smuggle":
+        if step_status(ctx, step_id) == STATUS_ACTIVE:
+            # Crate is already in the hold — the delivery NPC (old
+            # smuggler) is taking it. Clean up the mission + complete.
+            return _complete_smuggle_handover(ctx, _step)
         # The dialogue hands the hot crate over: load it into the
-        # mission hold (is_smuggle semantics) and START the step —
-        # delivery completes it (maybe_complete_smuggle_delivery).
+        # mission hold (is_smuggle semantics) and START the step.
         return _trigger_smuggle_crate(ctx, _step)
     return complete_step(ctx, step_id)
 
@@ -511,6 +518,34 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
         message_log.COLOR_IMPORTANT_EVENT,
     )
     return True
+
+
+def _complete_smuggle_handover(ctx, _step) -> bool:
+    """Complete a smuggle step whose crate is already in the hold.
+
+    Called from :func:`trigger_dialogue` when the delivery NPC accepts
+    the crate (step is active, crate in hold). Removes the mission-cargo
+    reservation, cleans up the ActiveMission, and completes the step.
+    """
+    # Release the mission cargo reservation.
+    _owned = ctx.player_owned_ship
+    if _owned is not None and _step.smuggle_cargo_size > 0:
+        _owned.mission_reserved = max(
+            0, (_owned.mission_reserved or 0) - _step.smuggle_cargo_size,
+        )
+    # Remove the ActiveMission tracking this step.
+    _am = None
+    for _m in ctx.player_active_missions:
+        if getattr(_m, "main_quest_step_id", "") == _step.id:
+            _am = _m
+            break
+    if _am is not None:
+        ctx.player_active_missions.remove(_am)
+    ctx.log.add_colored(
+        "The crate is handed over — the old man nods once.",
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    return complete_step(ctx, _step.id)
 
 
 def maybe_complete_smuggle_delivery(ctx, active) -> bool:

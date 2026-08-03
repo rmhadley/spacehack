@@ -418,6 +418,7 @@ STEPS: tuple[MainQuestStep, ...] = (
             ),
             "old_smuggler": QuestDialogue(
                 npc_id="old_smuggler",
+                trigger_on_talk=True,
                 intro=(
                     "The bar sent word. You got the crate, or are we "
                     "wasting both our times?"
@@ -433,6 +434,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "for that hardware — don't let them catch you "
                     "carrying it."
                 ),
+                option_label="Hand over the crate",
                 backing_faction="bar",
             ),
         },
