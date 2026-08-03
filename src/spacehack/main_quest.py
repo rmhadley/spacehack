@@ -165,12 +165,32 @@ def _live_dialogue(ctx, npc_id: str) -> tuple[MainQuestStep, "QuestDialogue"] | 
             if _dialogue is None:
                 continue
             if _status == STATUS_ACTIVE and _dialogue.active:
-                return (_step, _dialogue)
+                if _dialogue_planet_ok(ctx, _dialogue):
+                    return (_step, _dialogue)
+                continue
             if _status == STATUS_AVAILABLE and _dialogue.intro:
-                return (_step, _dialogue)
+                if _dialogue_planet_ok(ctx, _dialogue):
+                    return (_step, _dialogue)
+                continue
             if _status == STATUS_COMPLETED and _dialogue.complete:
-                return (_step, _dialogue)
+                if _dialogue_planet_ok(ctx, _dialogue):
+                    return (_step, _dialogue)
+                continue
     return None
+
+
+def _dialogue_planet_ok(ctx, dialogue: "QuestDialogue") -> bool:
+    """True when ``dialogue`` has no planet restriction or the player
+    is on the named planet (``ctx.current_city_id`` matches
+    ``dialogue_planet_id``).
+
+    Shared by :func:`_live_dialogue` and :func:`quest_option_for`
+    so both the talk modal body AND the quest option row respect
+    the planet gate.
+    """
+    if not dialogue.dialogue_planet_id:
+        return True
+    return ctx.current_city_id == dialogue.dialogue_planet_id
 
 
 def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:

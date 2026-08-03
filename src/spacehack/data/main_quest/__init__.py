@@ -52,6 +52,10 @@ class QuestDialogue:
             into ``backing_faction``'s chain (``ctx.main_quest_chain``)
             and closes the other factions' offer rows. Used by the
             Act 0 seek-help fork. Requires ``backing_faction``.
+        dialogue_planet_id: when non-empty, this dialogue only
+            resolves when the player is on the named planet
+            (checked against ``ctx.current_city_id``). Empty =
+            available on any planet the NPC appears on.
     """
 
     npc_id: str
@@ -64,6 +68,7 @@ class QuestDialogue:
     backing_faction: str = ""
     unlock_item: str = ""
     locks_chain: bool = False
+    dialogue_planet_id: str = ""
 
 
 @dataclass(frozen=True)

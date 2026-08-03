@@ -362,6 +362,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 option_label="Ask about the old smuggler",
                 backing_faction="bar",
+                dialogue_planet_id="earth",
             ),
         },
         rewards_xp=50,
@@ -415,6 +416,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 option_label="You asked to see me?",
                 backing_faction="bar",
+                dialogue_planet_id="earth",
             ),
             "old_smuggler": QuestDialogue(
                 npc_id="old_smuggler",
@@ -563,6 +565,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 option_label="Collect the rig",
                 backing_faction="bar",
+                dialogue_planet_id="earth",
             ),
         },
         rewards_credits=200,
