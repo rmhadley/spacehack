@@ -303,20 +303,30 @@ def render_menu(
     screen_width: int,
     screen_height: int,
 ) -> None:
-    """Paint ``menu`` centered on ``console``. Idempotent (clears first).
-
-    Delegates to :func:`render_selectable_list` with the menu's title
-    serving as the instruction line and its options as the item list.
-    """
+    """Paint ``menu`` — unified terminal look: centered title + divider
+    rule at the top, content flush-left at x=2, hint at the bottom."""
     console.clear()
-    _items = [(label, menu.descriptions.get(id_, "")) for id_, label in menu.options]
-    render_selectable_list(
-        console, screen_width, screen_height,
-        title=menu.title,
-        items=_items,
-        selected=menu.selected,
-        hint=menu.instruction,
-    )
+    content_y = screen_header(console, screen_width, menu.title)
+
+    _col_x = 2
+    n = len(menu.options)
+    for i, (opt_id, label) in enumerate(menu.options):
+        row = content_y + i * 2
+        is_selected = i == menu.selected
+        marker = "> " if is_selected else "  "
+        end_marker = " <" if is_selected else "  "
+        text = f"{marker}{label}{end_marker}"
+        fg = COLOR_OPTION_HIGHLIGHT if is_selected else COLOR_OPTION
+        console.print(x=_col_x, y=row, string=text, fg=fg)
+
+        desc = menu.descriptions.get(opt_id, "")
+        if desc:
+            desc_fg = COLOR_DESCRIPTION if is_selected else COLOR_VALUE_DIM
+            console.print(x=_col_x + 4, y=row + 1, string=desc, fg=desc_fg)
+
+    if menu.instruction:
+        hint_y = content_y + n * 2 + 1
+        console.print(x=_col_x, y=hint_y, string=menu.instruction, fg=COLOR_INSTRUCTION)
 
 
 def render_confirm(
@@ -326,29 +336,30 @@ def render_confirm(
     screen_width: int,
     screen_height: int,
 ) -> None:
-    """Paint the confirmation screen. Idempotent (clears first)."""
-    line_top = f"You are a {species.name.upper()} {klass.name.upper()}."
-    line_sub = species.description
-    line_sub2 = klass.description
-    line_credits = f"Starting credits: {klass.credits}$"
-    line_prompt1 = "Press ENTER to begin your journey."
-    line_prompt2 = "Press ESC to start over."
-
+    """Paint the confirmation screen — unified terminal look."""
     console.clear()
-    center_y = screen_height // 2
-    title_y = center_y - 5
+    content_y = screen_header(console, screen_width, "CHARACTER CREATION")
 
-    for i, line in enumerate((line_top, "", line_sub, line_sub2, "", line_credits, "", line_prompt1, line_prompt2)):
-        row = title_y + i
-        fg = COLOR_TITLE if i == 0 else COLOR_INSTRUCTION
-        if not line:
-            continue
-        console.print(
-            x=centered_x(line, screen_width),
-            y=row,
-            string=line,
-            fg=fg,
-        )
+    _col_x = 2
+    line_top = f"You are a {species.name.upper()} {klass.name.upper()}."
+
+    _lines: list[tuple[str, tuple[int, int, int]]] = [
+        (line_top, COLOR_TITLE),
+        ("", COLOR_TITLE),
+        (species.description, COLOR_DESCRIPTION),
+        (klass.description, COLOR_DESCRIPTION),
+        ("", COLOR_DESCRIPTION),
+        (f"Starting credits: {klass.credits}$", COLOR_VALUE_WHITE),
+        ("", COLOR_VALUE_WHITE),
+        ("Press ENTER to begin your journey.", COLOR_OPTION_HIGHLIGHT),
+        ("Press ESC to start over.", COLOR_INSTRUCTION),
+    ]
+
+    _dy = 0
+    for _line, _fg in _lines:
+        if _line:
+            console.print(x=_col_x, y=content_y + _dy, string=_line, fg=_fg)
+        _dy += 1
 
 
 # ---------------------------------------------------------------------------
