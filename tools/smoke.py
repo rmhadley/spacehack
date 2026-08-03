@@ -108,6 +108,9 @@ def smoke_test() -> int:
         (main_quest, "check_quest_gates"),
         (main_quest, "show_quest_summon"),
         (main_quest, "show_quest_readout"),
+        (main_quest, "show_gate_popup"),
+        (main_quest, "render_gate_popup"),
+        (main_quest, "maybe_continue_chain"),
     ]
     for mod, attr in _mq_checks:
         if not hasattr(mod, attr):

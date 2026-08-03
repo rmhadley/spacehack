@@ -413,7 +413,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "Already running that crate, are you? The old man "
                     "is a patient sort. So's the militia."
                 ),
-                option_label="Take the hot crate",
+                option_label="You asked to see me?",
                 backing_faction="bar",
             ),
             "old_smuggler": QuestDialogue(

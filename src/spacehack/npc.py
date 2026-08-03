@@ -204,28 +204,11 @@ def _run_npc_talk(
     # modal shows the completed step's ``complete`` variant.
     main_quest_module.maybe_complete_visit(ctx, npc.id)
 
-    # --- Quest dialogue overlay ---
-    # When an NPC has active quest dialogue, show it in a full-screen
-    # overlay FIRST — the quest text gets room to breathe (full
-    # word-wrapping, no cut-off). For triggerable steps, the player
-    # picks Accept / I need more time; for read-only dialogue, just
-    # ENTER to dismiss. On decline/dismiss we fall through to the
-    # normal NPC talk modal (Deliver / Work still available).
-    _quest_body, _trigger_step = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
-    if _trigger_step is not None:
-        _offer = main_quest_module.show_help_offer(ctx, npc.id, _trigger_step)
-        if _offer is main_quest_module.OfferOutcome.QUIT:
-            return (TalkOutcome.QUIT, None)
-        if _offer is main_quest_module.OfferOutcome.ACCEPT:
-            main_quest_module.trigger_dialogue(ctx, npc.id, _trigger_step)
-            return (TalkOutcome.QUEST, None)
-        # Decline — fall through to normal NPC talk for Deliver/Work
-    elif _quest_body != npc.flavor_text:
-        # Non-triggerable quest dialogue: show as a read-only overlay
-        # so the full text is visible (the NPC talk body is single-line
-        # and truncates).
-        main_quest_module.show_quest_readout(ctx, npc, _quest_body)
-        # After dismissing, fall through to normal NPC talk
+    # Resolve quest dialogue for the talk modal body: when the NPC has
+    # live quest dialogue, the body text shows the appropriate variant
+    # (intro / active / complete). The quest option row (below) is the
+    # only way to trigger the full-screen overlay — no auto-trigger.
+    _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
 
     console = make_console()
     selected = 0
@@ -283,6 +266,10 @@ def _run_npc_talk(
                 return (TalkOutcome.QUIT, None)
             if _offer is main_quest_module.OfferOutcome.ACCEPT:
                 main_quest_module.trigger_dialogue(ctx, npc.id, _step_id)
+                # Multi-step chain: after seek-help lock-in, show the
+                # chain q1 popup immediately; after any step with a
+                # wait_days, show the time-gate explanation.
+                main_quest_module.maybe_continue_chain(ctx, npc.id, _step_id)
                 return (outcome, None)
             continue
         if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:

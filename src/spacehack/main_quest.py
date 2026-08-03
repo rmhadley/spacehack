@@ -1432,6 +1432,111 @@ def show_quest_readout(ctx, npc, body_text: str) -> None:
     ui.Modal(ctx.context, console).run(_render, _update)
 
 
+def render_gate_popup(
+    console,
+    *,
+    screen_width: int,
+    screen_height: int,
+    faction: str,
+    body_text: str,
+) -> None:
+    """Paint a dismiss-only time-gate explanation popup.
+
+    Shows the faction name as title, the completion_flavor as body
+    text (word-wrapped), and a dismiss hint. Mirrors
+    :func:`render_quest_summon` but with a distinct title.
+    """
+    _lines = ui.wrap_text(body_text, _OFFER_BODY_WIDTH)
+    _box_h = 10 + len(_lines)
+    _y0 = _overlay_box(
+        console,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        box_w=70,
+        box_h=_box_h,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 1,
+        text="THE WORK BEGINS", fg=ui.COLOR_TITLE,
+    )
+    _centered_print(
+        console, screen_width=screen_width, y=_y0 + 3,
+        text=f"FACTION: {faction.upper()}", fg=ui.COLOR_VALUE_DIM,
+    )
+    _body_y = _y0 + 5
+    for _i, _line in enumerate(_lines):
+        _centered_print(
+            console, screen_width=screen_width, y=_body_y + _i,
+            text=_line, fg=ui.COLOR_DESCRIPTION,
+        )
+    _centered_print(
+        console, screen_width=screen_width,
+        y=_body_y + len(_lines) + 2,
+        text="Press ENTER to continue", fg=ui.COLOR_INSTRUCTION,
+    )
+
+
+def show_gate_popup(ctx, faction: str, body_text: str) -> None:
+    """Show a time-gate explanation popup and block until dismissed."""
+    console = make_console()
+
+    def _render() -> None:
+        render_gate_popup(
+            console,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            faction=faction,
+            body_text=body_text,
+        )
+
+    def _update(event) -> _ModalOutcome:
+        return _modal_dismiss_update(event)
+
+    ui.Modal(ctx.context, console).run(_render, _update)
+
+
+def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
+    """After :func:`trigger_dialogue` completes ``step_id``, handle
+    any follow-up popups: the multi-step lock-in chain (prologue
+    seek-help -> chain q1) and time-gate explanations.
+
+    Called from the QUEST outcome handler in
+    :func:`spacehack.npc._run_npc_talk` after a successful accept.
+    """
+    _step = find_main_quest_step(step_id)
+    # --- Multi-step lock-in chain ---
+    # After prologue_seek_help locks the chain, the chain q1 step
+    # is now available. Show its intro popup immediately so the
+    # player commits to the chain AND its first task in one flow.
+    # The q1 dialogue is with the same NPC who just offered help
+    # (all four faction chains place their q1 at the same NPC).
+    if step_id == "prologue_seek_help" and ctx.main_quest_chain:
+        _q1 = main_quest_step_after("prologue_seek_help", chain=ctx.main_quest_chain)
+        if _q1 is not None \
+                and step_status(ctx, _q1.id) == STATUS_AVAILABLE \
+                and npc_id in _q1.dialogues:
+            _offer = show_help_offer(ctx, npc_id, _q1.id)
+            if _offer is OfferOutcome.QUIT:
+                return
+            if _offer is OfferOutcome.ACCEPT:
+                trigger_dialogue(ctx, npc_id, _q1.id)
+                _step = find_main_quest_step(_q1.id)
+            else:
+                # Decline — chain q1 stays available, option row
+                # persists on next talk. No gate popup needed.
+                return
+    # --- Time-gate explanation ---
+    # When the just-completed step has a wait period, show a dismiss-
+    # only popup explaining why there's a wait. Smuggle steps that
+    # only START (crate loaded, not completed) skip this — the player
+    # has an active task, not a gate.
+    if _step.wait_days > 0 and _step.completion_flavor:
+        if _step.objective_type == "smuggle" and step_status(ctx, _step.id) == STATUS_ACTIVE:
+            return  # crate loaded but not delivered yet — no gate popup
+        _fac = (_step.chain or "faction").capitalize()
+        show_gate_popup(ctx, _fac, _step.completion_flavor)
+
+
 def mars_exploration_unlocked(ctx) -> bool:
     """True once the signal has been received (Mars gate open).
 
