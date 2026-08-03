@@ -143,6 +143,10 @@ class MainQuestStep:
     bounty_escort_ids: tuple[str, ...] = ()  # extra enemy_ids for escort spawns
                                 # alongside the leader (e.g. ("pirate_raider", "pirate_raider"))
                                 # — escorts don't trigger step completion
+    salvage_wreck_enemy_id: str = ""  # NpcShipSpec id for the boarded wreck ("salvage")
+                                # (e.g. "derelict_scout") — non-combatant, boardable
+    salvage_layout_id: str = ""  # interior layout for the wreck ("salvage")
+                                # (e.g. "scout_a") — quest-tagged loot placed inside
     # (good_id, qty) pairs placed in the quest cache ("delve") — the
     # cache yields these. ``trigger_planet_id`` names the delve planet.
     delve_good_ids: tuple[tuple[str, int], ...] = ()

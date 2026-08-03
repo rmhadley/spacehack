@@ -31,6 +31,22 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
             _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
     _flavor = _step.completion_flavor
     _result = complete_step(ctx, _step_id)
+    # Salvage wrecks: remove the derelict BountySpawn so it doesn't
+    # respawn on re-entry.  The exit handler (__main__.py) removes
+    # the wreck entity from space_map; this removes the spawn record.
+    if _result and _step.objective_type == "salvage" and _step.requires_spawn_id:
+        _wreck_id = f"{_step.requires_spawn_id}_wreck"
+        if _step.trigger_system_id:
+            from ..navigation import _remove_bounty_spawn as _rbs
+            _rbs(ctx, _wreck_id, _step.trigger_system_id)
+            # Also remove the leader + escort bounty spawns (they
+            # were guarding the wreck; quest is complete now).
+            _rbs(ctx, _step.requires_spawn_id, _step.trigger_system_id)
+            _esc_prefix = f"{_step.requires_spawn_id}_esc_"
+            _spawns = ctx.bounty_spawns.get(_step.trigger_system_id, [])
+            for _esc_bs in list(_spawns):
+                if _esc_bs.spawn_id.startswith(_esc_prefix):
+                    _rbs(ctx, _esc_bs.spawn_id, _step.trigger_system_id)
     if _result:
         _next = main_quest_step_after(
             _step_id, chain=ctx.main_quest_chain,

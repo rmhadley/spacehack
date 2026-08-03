@@ -12,6 +12,7 @@ from ._core import (
     STATUS_AVAILABLE,
     STATUS_COMPLETED,
     step_status,
+    start_step,
     complete_step,
     _smuggle_crate_held,
     _trigger_smuggle_crate,
@@ -150,4 +151,19 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
         if step_status(ctx, step_id) == STATUS_ACTIVE:
             return _complete_smuggle_handover(ctx, _step)
         return _trigger_smuggle_crate(ctx, _step)
+    if _step.objective_type == "salvage":
+        # Salvage steps: talking to the NPC starts the step (loads
+        # cargo, marks active) — completion happens later when the
+        # quest-tagged loot is secured from the derelict interior.
+        if step_status(ctx, step_id) == STATUS_ACTIVE:
+            return False
+        _started = start_step(ctx, step_id)
+        if _started and _step.smuggle_good_id:
+            _owned = ctx.player_owned_ship
+            if _owned is not None and _step.smuggle_cargo_size > 0:
+                _owned.inventory[_step.smuggle_good_id] = (
+                    _owned.inventory.get(_step.smuggle_good_id, 0)
+                    + _step.smuggle_cargo_size
+                )
+        return _started
     return complete_step(ctx, step_id)

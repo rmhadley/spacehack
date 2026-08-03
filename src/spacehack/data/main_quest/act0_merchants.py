@@ -187,48 +187,58 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mer_q4_calibrate",
         title="The Calibration",
         description=(
-            "The smelted alloy is ready. Head to Vega — a derelict "
-            "near the gas giant holds calibration data the cutter "
-            "needs. But the consortium has escalated: a merchant "
-            "leader and pirate raiders are guarding the wreck. "
-            "Fight through them and recover the data."
+            "The smelted alloy is loaded into your hold — the "
+            "consortium will hunt you while you carry it. Fly to "
+            "Vega, fight through the pirate captain and raiders "
+            "guarding the derelict, then board the wreck and "
+            "recover the calibration data inside."
         ),
         trigger_system_id="vega",
         requires_step="mer_q3_transport",
         chain="merchants",
-        objective_type="bounty",
+        objective_type="salvage",
         requires_spawn_id="mer_consortium_leader",
         bounty_enemy_id="pirate_captain",
         bounty_escort_ids=("pirate_raider", "pirate_raider"),
+        salvage_wreck_enemy_id="derelict_scout",
+        salvage_layout_id="scout_a",
+        smuggle_good_id="rare_earth_metals",
+        smuggle_cargo_size=3,
         wait_days=0,
         completion_flavor=(
-            "The consortium leader's ship breaks apart — the pirate "
-            "raiders scatter. The calibration data is recovered from "
-            "the wreck. The cutter is ready."
+            "The calibration data is secured — the cutter's frequency "
+            "map is complete. The consortium leader's ship breaks "
+            "apart behind you, and the pirate raiders scatter. The "
+            "cutter can be assembled now."
         ),
         dialogues={
             "salvage_specialist": QuestDialogue(
                 npc_id="salvage_specialist",
+                trigger_on_talk=True,
                 intro=(
                     "There she is — the smelted alloy. Worth ten "
-                    "times what you dug out of that cave. The "
+                    "times what you dug out of that cave. It's "
+                    "loaded into your hold — the consortium will "
+                    "be all over you the moment you undock. The "
                     "cutter needs calibration data from a derelict "
-                    "near Vega — but the consortium got there first. "
-                    "Ships and raiders guarding the wreck. Take the "
-                    "alloy and clear them out."
+                    "near Vega. Fight through the blockade, board "
+                    "the wreck, and recover the data."
                 ),
                 active=(
-                    "The wreck is near Vega b's observation deck. "
-                    "Fight through the consortium blockade and "
-                    "recover the calibration data — the cutter "
-                    "won't work without it."
+                    "The alloy's in your hold — keep it safe. The "
+                    "wreck is near Vega's observation deck. Fight "
+                    "through the consortium blockade, board the "
+                    "derelict, and recover the calibration data "
+                    "inside. The cutter won't work without it."
                 ),
                 complete=(
-                    "You fought through the blockade? Good. The "
-                    "calibration data will dial in the cutter's "
-                    "frequency — take the alloy and head back to "
-                    "Earth. The Guild Master's waiting."
+                    "You fought through the blockade AND boarded "
+                    "the wreck? Good. The calibration data will "
+                    "dial in the cutter's frequency — take the "
+                    "alloy and head back to Earth. The Guild "
+                    "Master's waiting."
                 ),
+                option_label="Take the smelted alloy",
                 backing_faction="merchants",
             ),
         },

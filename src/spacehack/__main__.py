@@ -515,11 +515,26 @@ def _run_game(
                         _wsid = getattr(game_map, 'wreck_spawn_id', None)
                         if _wsid is not None:
                             _secured = False
+                            # Mission wrecks: check heist_good_secured flag.
                             for _am in player_active_missions:
                                 if (getattr(_am, 'salvage_wreck_spawn_id', None) == _wsid
                                         and getattr(_am, 'heist_good_secured', False)):
                                     _secured = True
                                     break
+                            # Main-quest salvage wrecks: check if the quest
+                            # step is completed (secure_quest_loot set it).
+                            if not _secured and _wsid.endswith("_wreck"):
+                                _mq_sid = _wsid[:-6]  # strip _wreck suffix
+                                for _sid, _st in ctx.main_quest_progress.items():
+                                    try:
+                                        _cs = main_quest_module.find_main_quest_step(_sid)
+                                    except KeyError:
+                                        continue
+                                    if (_cs.objective_type == "salvage"
+                                            and _cs.requires_spawn_id == _mq_sid
+                                            and _st == "completed"):
+                                        _secured = True
+                                        break
                             if _secured:
                                 _sys_id = solar_system_module.current_solar_system_id
                                 for _e in list(space_game_map.entities):
@@ -878,7 +893,7 @@ def _run_game(
                                 _dungeon_map = None
                                 _spawn = None
                                 _is_reboard = False
-                                if _mission is not None and _wreck_sid in ctx.interiors:
+                                if _wreck_sid is not None and _wreck_sid in ctx.interiors:
                                     _dungeon_map = ctx.interiors[_wreck_sid]
                                     _spawn = _prep_cached_dungeon(_dungeon_map)
                                     _is_reboard = True
@@ -896,7 +911,76 @@ def _run_game(
                                     _dungeon_map.wreck_spawn_id = _wreck_sid
                                     _dungeon_map.entry_spawn = _spawn
                                     ctx.interiors[_wreck_sid] = _dungeon_map
-                                else:
+                                elif (_wreck_sid is not None
+                                        and _wreck_sid.endswith("_wreck")):
+                                    # Main-quest salvage wreck: the wreck id is
+                                    # ``{requires_spawn_id}_wreck``.  Look up
+                                    # the live salvage step and load its layout
+                                    # with quest-tagged loot.
+                                    _mq_spawn_id = _wreck_sid[:-6]  # strip _wreck
+                                    _mq_step_id = None
+                                    _mq_step = None
+                                    for _sid, _st in ctx.main_quest_progress.items():
+                                        if _st not in ("available", "active"):
+                                            continue
+                                        try:
+                                            _candidate = main_quest_module.find_main_quest_step(_sid)
+                                        except KeyError:
+                                            continue
+                                        if (_candidate.objective_type == "salvage"
+                                                and _candidate.requires_spawn_id == _mq_spawn_id
+                                                and _candidate.salvage_layout_id):
+                                            _mq_step_id = _sid
+                                            _mq_step = _candidate
+                                            break
+                                    if _mq_step is not None:
+                                        try:
+                                            _dungeon_map, _spawn = _load_layout(
+                                                _mq_step.salvage_layout_id,
+                                                loot_budget=_npcspec.loot_budget,
+                                            )
+                                        except (FileNotFoundError, ValueError):
+                                            log.add("The derelict's interior is too damaged to explore.")
+                                            continue
+                                        # Place quest-tagged loot near an existing
+                                        # loot entity (separate room, not same cell).
+                                        _mq_candidates = []
+                                        for _e in _dungeon_map.entities:
+                                            if getattr(_e, 'loot_data', None) is None:
+                                                continue
+                                            for _dy in (-2, 0, 2):
+                                                for _dx in (-2, 0, 2):
+                                                    _nx = _e.pos.x + _dx
+                                                    _ny = _e.pos.y + _dy
+                                                    if (0 <= _nx < _dungeon_map.width
+                                                            and 0 <= _ny < _dungeon_map.height
+                                                            and _dungeon_map.tiles[_ny][_nx].walkable
+                                                            and not any(
+                                                                _oe.pos.x == _nx and _oe.pos.y == _ny
+                                                                for _oe in _dungeon_map.entities)):
+                                                        _mq_candidates.append((_nx, _ny))
+                                        if not _mq_candidates:
+                                            _mq_candidates = [(_spawn.x, _spawn.y)]
+                                        from .engine import RNG as _RNG
+                                        _lr = _mq_candidates[_RNG.randint(0, len(_mq_candidates) - 1)]
+                                        _mq_loot = world.Entity(
+                                            char='%',
+                                            fg=(255, 215, 0),
+                                            pos=world.Position(_lr[0], _lr[1]),
+                                            name="Quest Component: Calibration Data",
+                                            width=1, height=1,
+                                            loot_data={"goods": [("research_data", 1)]},
+                                        )
+                                        _mq_loot.main_quest_step_id = _mq_step_id
+                                        _dungeon_map.entities.append(_mq_loot)
+                                        _dungeon_map.wreck_spawn_id = _wreck_sid
+                                        _dungeon_map.entry_spawn = _spawn
+                                        ctx.interiors[_wreck_sid] = _dungeon_map
+                                    # Fall through to random derelict only for
+                                    # non-quest wrecks (quest wrecks with no
+                                    # matching step stay on the map).
+                                if (_dungeon_map is None and _mission is None
+                                        and not (_wreck_sid or "").endswith("_wreck")):
                                     # Random derelict: consume-on-board behavior.
                                     try:
                                         _dungeon_map, _spawn = _load_layout(
