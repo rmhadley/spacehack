@@ -646,19 +646,22 @@ def fail_smuggle_step(ctx, active) -> bool:
 
 
 def charged_cell_in_sol(ctx, system_id: str) -> bool:
-    """True while the player is carrying the charged power cell in
-    ``system_id`` — militia will auto-aggro on sight.
+    """True while the player is carrying the power cell in Sol —
+    militia will auto-aggro on sight.
 
-    Only active during the bar_q5_charged smuggle run (cell collected
-    from Wolf 359, being delivered to Earth). The cell must actually
-    be in the mission hold (ActiveMission present), not just the step
-    being available.
+    Covers the full power-cell lifecycle: the uncharged cell heading to
+    Wolf 359 (``bar_q4_blackmarket``) and the charged cell returning to
+    Earth (``bar_q5_charged``). The cell must actually be in the mission
+    hold (ActiveMission present), not just the step being available.
     """
     if ctx.main_quest_chain != "bar":
         return False
     if system_id != "sol":
         return False
-    return _smuggle_crate_held(ctx, "bar_q5_charged")
+    return (
+        _smuggle_crate_held(ctx, "bar_q4_blackmarket")
+        or _smuggle_crate_held(ctx, "bar_q5_charged")
+    )
 
 
 def bar_heat_active(ctx) -> bool:
