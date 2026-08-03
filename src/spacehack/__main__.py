@@ -277,11 +277,15 @@ def _run_game(
         main_quest_module.check_quest_gates(ctx)
         if ctx.main_quest_pending_message:
             _summon = ctx.main_quest_pending_message
-            main_quest_module.show_quest_summon(ctx, _summon)
+            _objective = ctx.main_quest_pending_objective
+            main_quest_module.show_quest_summon(
+                ctx, _summon, objective=_objective,
+            )
             # Clear AFTER delivery so an interrupted modal (window
             # close mid-summon) leaves the message queued for the
             # next safe frame instead of losing the flavor text.
             ctx.main_quest_pending_message = ""
+            ctx.main_quest_pending_objective = ""
         console.clear()
         if current_mode == 'space':
             sys_now = solar_system_module.current_system()

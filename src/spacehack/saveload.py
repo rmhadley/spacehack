@@ -131,6 +131,7 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "main_quest_chain": ctx.main_quest_chain,
         "main_quest_gate": _d(ctx.main_quest_gate),
         "main_quest_pending_message": ctx.main_quest_pending_message,
+        "main_quest_pending_objective": ctx.main_quest_pending_objective,
         "main_quest_complete": ctx.main_quest_complete,
     }
 
@@ -957,6 +958,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         if isinstance(_v, (list, tuple)) and len(_v) == 3
     }
     _ctx.main_quest_pending_message = _data.get("main_quest_pending_message", "")
+    _ctx.main_quest_pending_objective = _data.get("main_quest_pending_objective", "")
     _ctx.main_quest_complete = _data.get("main_quest_complete", False)
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
     if _mode == "dungeon":

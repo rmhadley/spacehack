@@ -850,6 +850,11 @@ def check_quest_gates(ctx) -> bool:
         _gating = _gating_step_for(ctx, _next_id)
         if _gating is not None and _gating.ready_message:
             ctx.main_quest_pending_message = _gating.ready_message
+            try:
+                _next_step = find_main_quest_step(_next_id)
+                ctx.main_quest_pending_objective = _next_step.description
+            except KeyError:
+                ctx.main_quest_pending_objective = ""
         _fired = True
     return _fired
 
@@ -1047,15 +1052,17 @@ def render_quest_summon(
     screen_width: int,
     screen_height: int,
     message: str,
+    objective: str = "",
 ) -> None:
     """Paint the one-way faction summon overlay.
 
     Mirrors the incoming-transmission overlay: title, meta, the
-    summon body (word-wrapped), and a dismiss hint. One-way — no
-    reply option. All characters CP437-safe.
+    summon body (word-wrapped), an optional objective line, and a
+    dismiss hint. One-way — no reply option. All characters CP437-safe.
     """
     _lines = ui.wrap_text(message, 60)
-    _box_h = 14 + len(_lines)
+    _obj_lines = ui.wrap_text(objective, 60) if objective else []
+    _box_h = 14 + len(_lines) + len(_obj_lines) + (1 if _obj_lines else 0)
     _y0 = _overlay_box(
         console,
         screen_width=screen_width,
@@ -1078,18 +1085,30 @@ def render_quest_summon(
             console, screen_width=screen_width, y=_body_y + _i,
             text=_line, fg=ui.COLOR_DESCRIPTION,
         )
+    _hint_y = _body_y + len(_lines) + 2
+    if _obj_lines:
+        for _i, _line in enumerate(_obj_lines):
+            _centered_print(
+                console, screen_width=screen_width, y=_hint_y + _i,
+                text=_line, fg=ui.COLOR_OPTION_HIGHLIGHT,
+            )
+        _hint_y += len(_obj_lines) + 1
     _centered_print(
-        console, screen_width=screen_width, y=_body_y + len(_lines) + 2,
+        console, screen_width=screen_width, y=_hint_y,
         text="Press ENTER to acknowledge", fg=ui.COLOR_INSTRUCTION,
     )
 
 
-def show_quest_summon(ctx, message: str) -> None:
+def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
     """Show a one-way faction summon as a full-screen overlay.
 
     Called from the main loop when :func:`check_quest_gates` fires
     (safe-frame delivery — same modal pattern as the prologue
     transmission). Blocks until the player acknowledges (ENTER / ESC).
+
+    When ``objective`` is provided, it is shown as a highlighted
+    directive below the message body — telling the player exactly
+    what to do next.
     """
     console = make_console()
 
@@ -1099,6 +1118,7 @@ def show_quest_summon(ctx, message: str) -> None:
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             message=message,
+            objective=objective,
         )
 
     def _update(event) -> _ModalOutcome:

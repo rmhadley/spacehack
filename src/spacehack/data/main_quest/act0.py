@@ -462,9 +462,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         wait_days=110,
         completion_flavor="The militia is locking down the Barnard's Star gate. They know the power cell is missing — you've got a few months before it seals.",
         ready_message=(
-            "The militia is sealing the Barnard's Star gate — they "
-            "know you're carrying that cell. Run the gauntlet before "
-            "it closes."
+            "The militia is sealing the Barnard's Star gate — "
+            "they know you're carrying that cell. Launch into "
+            "Barnard's Star space and fight through the patrol "
+            "before the gate closes for good."
         ),
         dialogues={
             "old_smuggler": QuestDialogue(

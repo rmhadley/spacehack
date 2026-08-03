@@ -317,5 +317,6 @@ class GameContext:
     # frame (same overlay as the prologue transmission). Cleared on
     # delivery. Survives save/load.
     main_quest_pending_message: str = ""
+    main_quest_pending_objective: str = ""
     # Set when Act 3 resolves (definitive ending; sandbox continues).
     main_quest_complete: bool = False
