@@ -699,7 +699,10 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
         return (_step.title, _step.description)
     # No live step — a completed chain step may be running its
     # minimum-wait gate. Breadcrumb reads "Awaiting word from the
-    # <faction>..." until the summon fires.
+    # <faction>..." until the summon fires. The description comes
+    # from the gating step's completion_flavor (e.g. "We'll be in
+    # touch. Requisition takes time to clear.") so the player knows
+    # WHY they're waiting, not just THAT they're waiting.
     if ctx.main_quest_gate:
         _next_id = next(iter(ctx.main_quest_gate))
         try:
@@ -707,10 +710,13 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
         except KeyError:
             return None
         _fac = _next.chain.capitalize() if _next.chain else "faction"
-        return (
-            f"Awaiting word from the {_fac}...",
-            "The faction will contact you when they're ready.",
+        _gating = _gating_step_for(ctx, _next_id)
+        _desc = (
+            _gating.completion_flavor
+            if _gating is not None and _gating.completion_flavor
+            else "The faction will contact you when they're ready."
         )
+        return (f"Awaiting word from the {_fac}...", _desc)
     return None
 
 
