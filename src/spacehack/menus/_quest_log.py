@@ -13,7 +13,7 @@ import tcod.event
 from .. import ui
 from .. import mission as mission_module
 from ..game_context import GameContext
-from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..input_helpers import _try_open_guide
 
 
@@ -31,58 +31,60 @@ class QuestLogOutcome(Enum):
 
 
 def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
-    """Paint the city quest-log overlay.
-
-    Shows a list of up to 5 active missions. Arrow keys navigate,
-    Enter to view details (future), A to abandon, ESC to close.
-    """
+    """Paint the quest-log overlay — unified terminal look."""
     console.clear()
     missions = ctx.player_active_missions
-    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH)
+    col_x = 2
+    max_w = ui.rule_width(screen_width)
 
-    center_y = (screen_height - MSG_LOG_HEIGHT) // 2
+    # --- Screen header ---
+    cy = ui.screen_header(console, screen_width, "QUEST LOG")
 
-    # --- Main quest breadcrumb (minimal — full UI polish is Phase 4) ---
-    # Painted at fixed top rows so it never collides with the mission
-    # list below (which spans ~14-38 for up to 5 missions).
+    # --- Main quest breadcrumb ---
     from .. import main_quest as _mq
     _mq_obj = _mq.current_main_quest_objective(ctx)
     _mq_started = bool(ctx.main_quest_progress)
-    _mq_row = 5
     if _mq_obj is not None:
         _mq_title, _mq_desc = _mq_obj
-        ui.paint_title(console, screen_width, _mq_row, ui.fit_text('MAIN QUEST', max_w), fg=ui.COLOR_TITLE)
-        ui.paint_line(console, content_x, _mq_row + 1, ui.fit_text(_mq_title, max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
-        for _i, _line in enumerate(ui.wrap_text(_mq_desc, max_w)):
-            if _mq_row + 2 + _i > _mq_row + 8:
+        ui.paint_line(console, col_x, cy, "MAIN QUEST", fg=ui.COLOR_TITLE)
+        cy += 1
+        ui.paint_line(console, col_x, cy, ui.fit_text(_mq_title, max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
+        cy += 1
+        for _line in ui.wrap_text(_mq_desc, max_w):
+            if cy >= screen_height - MSG_LOG_HEIGHT - 3:
                 break
-            ui.paint_line(console, content_x, _mq_row + 2 + _i, ui.fit_text(_line, max_w), fg=ui.COLOR_VALUE_DIM)
+            ui.paint_line(console, col_x, cy, ui.fit_text(_line, max_w), fg=ui.COLOR_VALUE_DIM)
+            cy += 1
     elif _mq_started:
-        ui.paint_title(console, screen_width, _mq_row, ui.fit_text('MAIN QUEST', max_w), fg=ui.COLOR_TITLE)
-        ui.paint_line(console, content_x, _mq_row + 1, ui.fit_text('(main quest complete)', max_w), fg=ui.COLOR_VALUE_DIM)
+        ui.paint_line(console, col_x, cy, "MAIN QUEST", fg=ui.COLOR_TITLE)
+        cy += 1
+        ui.paint_line(console, col_x, cy, "(main quest complete)", fg=ui.COLOR_VALUE_DIM)
+        cy += 1
 
+    cy += 1
+
+    # --- Active missions ---
     if not missions:
-        ui.paint_title(console, screen_width, center_y - 2, ui.fit_text('QUEST LOG', max_w), fg=ui.COLOR_TITLE)
-        ui.paint_line(console, content_x, center_y + 1, ui.fit_text('(no active missions)', max_w), fg=ui.COLOR_DESCRIPTION)
-        ui.paint_line(console, content_x, center_y + 5, ui.fit_text('Press ESC to close.', max_w), fg=ui.COLOR_INSTRUCTION)
+        ui.paint_line(console, col_x, cy, "(no active missions)", fg=ui.COLOR_DESCRIPTION)
+        cy += 2
+        ui.paint_line(console, col_x, cy, "Press ESC to close.", fg=ui.COLOR_INSTRUCTION)
         from .. import message_log
         message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
         return
 
-    ui.paint_title(console, screen_width, center_y - 8, ui.fit_text('QUEST LOG', max_w), fg=ui.COLOR_TITLE)
-    ui.paint_line(console, content_x, center_y - 6, ui.fit_text(f'{len(missions)} / {mission_module.MAX_ACTIVE_MISSIONS} missions', max_w), fg=ui.COLOR_VALUE_DIM)
+    ui.paint_line(console, col_x, cy, f'{len(missions)} / {mission_module.MAX_ACTIVE_MISSIONS} missions', fg=ui.COLOR_VALUE_DIM)
+    cy += 1
 
-    list_top = center_y - 4
+    list_top = cy
     for i, am in enumerate(missions):
         row = list_top + i * 2
         is_sel = i == selected
         marker = '> ' if is_sel else '  '
         end_marker = ' <' if is_sel else '  '
-        text = f'{marker}{am.title}{end_marker}'
         console.print(
-            x=content_x, y=row, string=text,
+            x=col_x, y=row, string=f'{marker}{am.title}{end_marker}',
             fg=ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION,
-        )        # Detail pane for selected mission
+        )
     if 0 <= selected < len(missions):
         am = missions[selected]
         detail_top = list_top + len(missions) * 2 + 1
@@ -96,9 +98,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             and am.target_system_id is not None
             and _salv_wreck is None  # salvage missions have their own display
             and not _is_out_and_back  # intercept missions have their own display
-        )
-
-        # Delivery-specific fields.
+        )            # Delivery-specific fields.
         if not _is_bounty:
             if am.delivery_target_planet_id:
                 _planet_name = am.delivery_target_planet_id
@@ -115,27 +115,21 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                     )
                     if _local:
                         _npc_name = f" ({_local})"
-                # Out-and-back missions return the loot to the giver — say
-                # "Return to" and highlight once the cargo is secured.
                 _label = "Return to" if _is_out_and_back else "Deliver to"
                 _secured = _is_out_and_back and getattr(am, 'heist_good_secured', False)
                 _fg = (120, 220, 120) if _secured else ui.COLOR_VALUE_WHITE
-                # Always spell out the destination system so the player
-                # knows where to fly, even for same-system deliveries.
                 _sys_name = mission_module.system_name_for_planet(am.delivery_target_planet_id)
                 _sys_txt = f" in {_sys_name}" if _sys_name else ""
-                ui.paint_line(console, content_x, detail_top, ui.fit_text(f'{_label}: {_planet_name}{_sys_txt}{_npc_name}', max_w), fg=_fg)
+                ui.paint_line(console, col_x, detail_top, ui.fit_text(f'{_label}: {_planet_name}{_sys_txt}{_npc_name}', max_w), fg=_fg)
                 detail_top += 1
-            # Smuggling missions render their own cargo line (with the
-            # contraband type + scan risk) below — skip the generic row.
             if am.required_cargo_size > 0 and not getattr(am, 'is_smuggle', False):
-                ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Cargo: {am.required_cargo_size} units', max_w), fg=ui.COLOR_VALUE_WHITE)
+                ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Cargo: {am.required_cargo_size} units', max_w), fg=ui.COLOR_VALUE_WHITE)
                 detail_top += 1
 
         # Bounty-specific display.
         if _is_bounty:
             # Status: Hunting (gold accent).
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Hunting', max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
+            ui.paint_line(console, col_x, detail_top, 'Hunting', fg=ui.COLOR_OPTION_HIGHLIGHT)
             detail_top += 1
             # Danger level based on tier.
             # NOTE: Keep in sync with _bounty_danger_text() in mission.py.
@@ -152,30 +146,24 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             else:
                 _danger = "Low"
                 _danger_fg = (140, 200, 140)
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Danger: {_danger}', max_w), fg=_danger_fg)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Danger: {_danger}', max_w), fg=_danger_fg)
             detail_top += 1
-            # Target name + system + wingmates.
             _target_name = am.bounty_target_name or _npc_ship_name(am.target_enemy_id)
             _target_sys_name = mission_module.system_display_name(am.target_system_id)
             _wing_count = am.bounty_target_squad_size - 1
             _wing_id = getattr(am, 'bounty_wingmate_enemy_id', None)
             _wing_label = "wingmates"
             if _wing_count > 0 and _wing_id and _wing_id != am.target_enemy_id:
-                # Mixed squad (e.g. pirate fighter escort) — name the
-                # wingmate ship type so the player knows what to expect.
                 _wing_name = _npc_ship_name(_wing_id)
                 _wing_label = (
                     f"{_wing_name} escort" if _wing_count == 1
                     else f"{_wing_name} escorts"
                 )
             _squad_str = f" + {_wing_count} {_wing_label}" if _wing_count > 0 else ""
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Target: {_target_name} ({_target_sys_name}){_squad_str}', max_w), fg=ui.COLOR_VALUE_WHITE)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Target: {_target_name} ({_target_sys_name}){_squad_str}', max_w), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
 
-        # Salvage-specific display: the patrol, boarded wreck + component status.
         if _salv_wreck is not None:
-            # Patrol info (resolved to friendly names from NpcShipSpec catalog),
-            # with the patrol's system appended (same convention as bounties).
             _patrol_name = _npc_ship_name(am.target_enemy_id)
             _patrol_count = am.bounty_target_squad_size
             _wing_id = getattr(am, 'bounty_wingmate_enemy_id', None)
@@ -192,62 +180,57 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             else:
                 _patrol_label = _patrol_name
             _sys_txt = f" ({mission_module.system_display_name(am.target_system_id)})"
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Patrol: {_patrol_label}{_sys_txt}', max_w), fg=ui.COLOR_VALUE_WHITE)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Patrol: {_patrol_label}{_sys_txt}', max_w), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
-            # Wreck name.
             _wreck_name = _npc_ship_name(_salv_wreck)
             _comp = _good_display_name(am.heist_target_good_id)
             _secured = getattr(am, 'heist_good_secured', False)
             _status = 'SECURED' if _secured else 'SOMEWHERE IN THE WRECK'
             _sfg = (120, 220, 120) if _secured else (255, 180, 80)
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Recover: {_comp} ({_status})', max_w), fg=_sfg)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Recover: {_comp} ({_status})', max_w), fg=_sfg)
             detail_top += 1
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Board the {_wreck_name} to search it', max_w), fg=ui.COLOR_VALUE_DIM)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Board the {_wreck_name} to search it', max_w), fg=ui.COLOR_VALUE_DIM)
             detail_top += 1
 
-        # Intercept-specific display: target merchant + cargo secured status.
         _heist_good = getattr(am, 'heist_target_good_id', None)
         if _heist_good is not None and _salv_wreck is None:
             _target_name = _npc_ship_name(am.target_enemy_id)
             _target_sys = mission_module.system_display_name(am.target_system_id)
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Target: {_target_name} ({_target_sys})', max_w), fg=ui.COLOR_VALUE_WHITE)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Target: {_target_name} ({_target_sys})', max_w), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
             _good_name = _good_display_name(_heist_good)
             _secured = getattr(am, 'heist_good_secured', False)
             _status = 'SECURED' if _secured else 'NOT SECURED'
             _sfg = (120, 220, 120) if _secured else (255, 180, 80)
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Cargo: {_good_name} ({_status})', max_w), fg=_sfg)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Cargo: {_good_name} ({_status})', max_w), fg=_sfg)
             detail_top += 1
 
-        # Smuggling-specific display: contraband type + scan-risk warning.
         if getattr(am, 'is_smuggle', False):
             _sgid = getattr(am, 'smuggle_good_id', None)
             _sgood = _good_display_name(_sgid)
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Cargo: {_sgood} ({am.required_cargo_size} units)', max_w), fg=ui.COLOR_VALUE_WHITE)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Cargo: {_sgood} ({am.required_cargo_size} units)', max_w), fg=ui.COLOR_VALUE_WHITE)
             detail_top += 1
             _risk, _risk_fg = _smuggle_scan_risk(ctx, am)
-            ui.paint_line(console, content_x, detail_top, ui.fit_text(f'SCAN RISK: {_risk}', max_w), fg=_risk_fg)
+            ui.paint_line(console, col_x, detail_top, ui.fit_text(f'SCAN RISK: {_risk}', max_w), fg=_risk_fg)
             detail_top += 1
 
-        ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp', max_w), fg=ui.COLOR_VALUE_WHITE)
+        ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Reward: {am.reward_credits}$ + {am.reward_xp}xp', max_w), fg=ui.COLOR_VALUE_WHITE)
         detail_top += 1
         if am.time_deadline is not None:
             _d, _m, _y = am.time_deadline
             _total_days = (_y - ctx.time_year) * 360 + (_m - ctx.time_month) * 30 + (_d - ctx.time_day)
             _date_str = f'{_y}{_m:02d}{_d:02d}'
-            # Show EXPIRED only when strictly past the deadline.
-            # _total_days == 0 means due TODAY — still deliverable at full pay.
             if _total_days >= 0:
-                ui.paint_line(console, content_x, detail_top, ui.fit_text(f'Due: {_date_str} ({_total_days} days)', max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
+                ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Due: {_date_str} ({_total_days} days)', max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
             else:
-                ui.paint_line(console, content_x, detail_top, ui.fit_text(f'EXPIRED — Due: {_date_str}', max_w), fg=(255, 80, 80))
+                ui.paint_line(console, col_x, detail_top, ui.fit_text(f'EXPIRED — Due: {_date_str}', max_w), fg=(255, 80, 80))
             detail_top += 1
 
-    button_row = max(list_top + len(missions) * 2 + 8, center_y + 10)
+    detail_top += 2
     if confirm_abandon:
-        ui.paint_line(console, content_x, button_row, ui.fit_text('Press ENTER to abandon. ESC cancels.', max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
+        ui.paint_line(console, col_x, detail_top, 'Press ENTER to abandon. ESC cancels.', fg=ui.COLOR_OPTION_HIGHLIGHT)
     else:
-        ui.paint_line(console, content_x, button_row, ui.fit_text('ARROW KEYS navigate - A abandon - ESC close.', max_w), fg=ui.COLOR_INSTRUCTION)
+        ui.paint_line(console, col_x, detail_top, 'ARROW KEYS navigate - A abandon - ESC close.', fg=ui.COLOR_INSTRUCTION)
 
     from .. import message_log
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
