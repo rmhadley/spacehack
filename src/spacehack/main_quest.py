@@ -1757,6 +1757,39 @@ def bump_mars_door(ctx) -> None:
     ctx.log.add("The sealed door holds fast. It needs a tool you don't have.")
 
 
+def spawn_quest_npcs(ctx, game_map: world.GameMap, planet_id: str) -> None:
+    """Add quest-conditional NPCs to ``game_map`` after loading a city.
+
+    Called from :func:`spacehack.__main__._run_game` right after
+    :func:`spacehack.data.planets.load_planet` builds the city map,
+    before the player takes control. Each conditional NPC is a
+    separate entity (not a slot override) — the regular NPCs stay.
+    """
+    if planet_id != "barnards_b" or ctx.main_quest_chain != "bar":
+        return
+    # Old smuggler: appears in the bar when the player needs him —
+    # during the smuggle run (bar_q2_proof) or the cave delve
+    # (bar_q3_rigparts). Not present before the chain is active.
+    _need_smuggler = any(
+        step_status(ctx, _sid) in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        for _sid in ("bar_q2_proof", "bar_q3_rigparts")
+    )
+    if not _need_smuggler:
+        return
+    from .data.npcs import find_npc as _find_npc
+    _npc = _find_npc("old_smuggler")
+    # Place near the bar counter on Barnard's Star b — just inside
+    # the building, offset from the barkeep at the door.
+    game_map.entities.append(world.Entity(
+        char=_npc.char,
+        fg=_npc.fg,
+        pos=world.Position(x=38, y=10),
+        name=_npc.name,
+        npc_id=_npc.id,
+        width=1, height=1,
+    ))
+
+
 __all__ = [
     "STATUS_AVAILABLE",
     "STATUS_ACTIVE",
@@ -1785,4 +1818,5 @@ __all__ = [
     "place_mars_door",
     "prepare_mars_surface",
     "bump_mars_door",
+    "spawn_quest_npcs",
 ]

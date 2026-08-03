@@ -111,6 +111,7 @@ def smoke_test() -> int:
         (main_quest, "show_gate_popup"),
         (main_quest, "render_gate_popup"),
         (main_quest, "maybe_continue_chain"),
+        (main_quest, "spawn_quest_npcs"),
     ]
     for mod, attr in _mq_checks:
         if not hasattr(mod, attr):
@@ -257,7 +258,7 @@ def smoke_test() -> int:
     _expert_placements = (
         ("eri_b", "militia_captain", "demolitions_expert"),
         ("tc_b", "guild_master", "salvage_specialist"),
-        ("barnards_b", "barkeep", "old_smuggler"),
+        ("barnards_b", "barkeep", "old_smuggler"),  # dynamic via spawn_quest_npcs, not npc_override
         ("ac_station", "research_officer", "xenolinguist"),
     )
     for _epid, _slot_id, _expert_id in _expert_placements:
@@ -284,6 +285,17 @@ def smoke_test() -> int:
                 file=sys.stderr,
             )
             return 1
+        # old_smuggler is placed dynamically via spawn_quest_npcs
+        # (not npc_override), so skip the override check for barnards_b.
+        if _epid == "barnards_b":
+            if _ep_npc.guild not in ("militia", "merchants", "bar", "lab"):
+                print(
+                    f"FAIL: expert {_expert_id!r} has unexpected guild "
+                    f"{_ep_npc.guild!r}.",
+                    file=sys.stderr,
+                )
+                return 1
+            continue
         if not any(
             oid == _slot_id and npc_obj.id == _expert_id
             for oid, npc_obj in _epspec.npc_overrides

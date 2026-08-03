@@ -620,6 +620,7 @@ def _run_game(
                                     continue
                                 # Always build the city map fresh — no cache needed.
                                 _new_city_map = _plp(pid)
+                                main_quest_module.spawn_quest_npcs(ctx, _new_city_map, pid)
                                 _anchor = _phang(pid)
                                 # Create fresh city player.
                                 _new_city_player = world.Entity(

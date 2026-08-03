@@ -17,7 +17,6 @@ for that id can offer salvage runs here.
 from __future__ import annotations
 
 from ... import world
-from ...data import npcs as npc_module
 from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import DESERT
@@ -52,23 +51,7 @@ SPEC = PlanetSpec(
         ("cruiser", 11, 4),
         ("frigate", 15, 2),
     ),
-    npc_overrides=(
-        (
-            "barkeep",
-            npc_module.NPC(
-                id="old_smuggler",
-                name="Old Smuggler",
-                guild="bar",
-                char="b",
-                fg=(210, 150, 90),
-                flavor_text=(
-                    "Cracked a door like that once. Cost me a hand "
-                    "and a good ship. You bring something worth the "
-                    "risk, we talk."
-                ),
-            ),
-        ),
-    ),
+    npc_overrides=(),
     produces=(
         ("ore_processed", 35),
     ),
