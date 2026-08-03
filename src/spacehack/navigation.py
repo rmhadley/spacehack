@@ -537,11 +537,11 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_spawn, _espec))
         _dist = math.hypot(player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y)
         _radius = _espec.detect_radius
-        # Charged cell aggro: militia hunts you across Sol —
-        # system-wide detection, bypass rep gate.
+        # Charged cell aggro: militia detects you from far away,
+        # paths toward you (move_npcs), and starts combat at close range.
         if (main_quest_module.charged_cell_in_sol(ctx, _system_id)
                 and getattr(_espec, 'faction', '') == 'militia'):
-            _radius = max(_radius, 200)
+            _radius = max(_radius, 30)
         if _dist > 0 and _dist <= _radius:
             # Static system enemies (blockade, zone defenders) always
             # engage regardless of reputation — they are territorial.
@@ -567,7 +567,7 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             and getattr(_espec, 'faction', '') == 'militia'
         )
         if _aggro2:
-            _radius2 = max(_radius2, 200)
+            _radius2 = max(_radius2, 30)
         if _dist > 0 and _dist <= _radius2:
             # Reputation gate: only hostile factions trigger combat
             # (militia aggro bypasses rep — they attack on sight).
@@ -589,33 +589,6 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         if not getattr(_e, 'owned', False)
         and getattr(_e, 'procedural_squad_id', '') != ''
     ]
-    _all_militia = [
-        _e for _e in ctx.game_map.entities
-        if not getattr(_e, 'owned', False)
-        and getattr(_e, 'npc_ship_id', '') in (
-            'militia_patrol_light', 'militia_patrol', 'militia_patrol_heavy',
-        )
-    ]
-    _charged = main_quest_module.charged_cell_in_sol(ctx, _system_id)
-    if _all_militia or _charged:
-        _seen_proc_militia = sum(
-            1 for _e in _procedural_entities
-            if getattr(_e, 'npc_ship_id', '') in (
-                'militia_patrol_light', 'militia_patrol', 'militia_patrol_heavy',
-            )
-        )
-        ctx.log.add(
-            f"[DEBUG] sys={_system_id} charged={_charged} "
-            f"militia_on_map={len(_all_militia)} in_proc_list={_seen_proc_militia} "
-            f"total_proc={len(_procedural_entities)} chain={ctx.main_quest_chain!r}"
-        )
-        for _me in _all_militia:
-            _msq = getattr(_me, 'procedural_squad_id', '')
-            _mid = getattr(_me, 'npc_ship_id', '?')
-            ctx.log.add(
-                f"[DEBUG]   {_mid} @({_me.pos.x},{_me.pos.y}) "
-                f"squad={_msq!r} dist={math.hypot(player_pos.x - _me.pos.x, player_pos.y - _me.pos.y):.1f}"
-            )
     for _pe in _procedural_entities:
         _pid = getattr(_pe, 'npc_ship_id', '') or "pirate_scout"
         try:
@@ -625,20 +598,14 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         _alive_spawns.append((_pe, _espec))
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
         _radius3 = _espec.detect_radius
-        # Charged cell aggro: militia hunts you across Sol —
-        # system-wide detection, bypass rep gate.
+        # Charged cell aggro: militia detects you from far away,
+        # paths toward you (move_npcs), and starts combat at close range.
         _aggro3 = (
             main_quest_module.charged_cell_in_sol(ctx, _system_id)
             and getattr(_espec, 'faction', '') == 'militia'
         )
         if _aggro3:
-            _radius3 = max(_radius3, 200)
-        if getattr(_espec, 'faction', '') == 'militia':
-            ctx.log.add(
-                f"[DEBUG] proc {_pid} dist={_dist:.1f} "
-                f"radius={_radius3} aggro={_aggro3} "
-                f"triggered={_dist > 0 and _dist <= _radius3}"
-            )
+            _radius3 = max(_radius3, 30)
         if _dist > 0 and _dist <= _radius3:
             # Reputation gate: only hostile factions trigger combat
             # (militia aggro bypasses rep — they attack on sight).
