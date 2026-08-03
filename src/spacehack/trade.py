@@ -558,7 +558,7 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     _outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if _outcome is _LootOutcome.TAKE:
         if _is_quest:
-            from .. import main_quest as _mq
+            from . import main_quest as _mq
             _secured = _mq.secure_quest_loot(ctx, loot_entity, _goods)
             if not _secured:
                 # Quest step not active (stale cache from an aborted run) —
