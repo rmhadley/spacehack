@@ -3,18 +3,14 @@
 from __future__ import annotations
 
 from ..data.main_quest import find_main_quest_step
-from ._core import STATUS_ACTIVE, STATUS_AVAILABLE
+from ._core import STATUS_ACTIVE, STATUS_AVAILABLE, _iter_known_steps
 from ._gates import _gating_step_for
 
 
 def current_main_quest_objective(ctx) -> tuple[str, str] | None:
     """Return (title, description) of the current breadcrumb step."""
-    for _step_id, _status in ctx.main_quest_progress.items():
-        if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
-            continue
-        try:
-            _step = find_main_quest_step(_step_id)
-        except KeyError:
+    for _step_id, _st, _step in _iter_known_steps(ctx):
+        if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
             continue
         return (_step.title, _step.description)
     if ctx.main_quest_gate:

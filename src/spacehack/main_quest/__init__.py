@@ -1,14 +1,14 @@
 """Main quest runtime: step lifecycle, NPC dialogue, objectives, overlays.
 
 Package split (per knowledge.md ~1,000-line guardrail):
-  _core.py       — step lifecycle + smuggle crate mechanics (~210 lines)
-  _dialogue.py   — NPC talk integration + quest option resolution (~130 lines)
-  _objectives.py — delve / visit / bounty / smuggle delivery hooks (~130 lines)
-  _heat.py       — faction-specific heat hooks (~50 lines)
-  _gates.py      — time gating + one-way summons (~50 lines)
-  _spawns.py     — quest-tagged bounty/salvage spawn management (~50 lines)
+  _core.py       — step lifecycle + smuggle crate mechanics (~250 lines)
+  _dialogue.py   — NPC talk integration + quest option resolution (~180 lines)
+  _objectives.py — delve / visit / bounty / salvage delivery hooks (~200 lines)
+  _heat.py       — faction-specific heat hooks (~60 lines)
+  _gates.py      — time gating + one-way summons (~45 lines)
+  _spawns.py     — quest-tagged bounty/salvage spawn management (~95 lines)
   _breadcrumb.py — quest-log objective display (~35 lines)
-  _act0.py       — signal trigger, Mars door, full-screen overlays (~350 lines)
+  _act0.py       — signal trigger, Mars door, full-screen overlays (~720 lines)
 
 All well under the 1,000-line threshold.
 """
@@ -30,7 +30,7 @@ from ._objectives import (
     secure_quest_loot,
     maybe_complete_visit,
     maybe_complete_bounty,
-    maybe_complete_smuggle_delivery,
+    find_salvage_step_for_spawn,
     fail_smuggle_step,
     show_step_readout,
 )

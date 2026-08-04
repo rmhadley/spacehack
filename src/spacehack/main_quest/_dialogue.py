@@ -14,6 +14,7 @@ from ._core import (
     step_status,
     start_step,
     complete_step,
+    _iter_known_steps,
     _smuggle_crate_held,
     _trigger_smuggle_crate,
     _complete_smuggle_handover,
@@ -42,12 +43,8 @@ def _dialogue_planet_ok(ctx, dialogue: "QuestDialogue") -> bool:
 def _live_dialogue(ctx, npc_id: str) -> tuple[MainQuestStep, "QuestDialogue"] | None:
     """Return (step, dialogue) for the highest-priority live entry."""
     for _status in (STATUS_ACTIVE, STATUS_AVAILABLE, STATUS_COMPLETED):
-        for _step_id, _st in ctx.main_quest_progress.items():
+        for _step_id, _st, _step in _iter_known_steps(ctx):
             if _st != _status:
-                continue
-            try:
-                _step = find_main_quest_step(_step_id)
-            except KeyError:
                 continue
             _dialogue = _step.dialogues.get(npc_id)
             if _dialogue is None:

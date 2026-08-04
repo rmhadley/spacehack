@@ -8,11 +8,44 @@ from ._core import (
     STATUS_AVAILABLE,
     step_status,
     complete_step,
-    _smuggle_crate_held,
+    _iter_known_steps,
     _trigger_smuggle_crate,
     _active_objective_step,
+    _maybe_auto_trigger_next_smuggle,
 )
 from .. import message_log
+
+
+def _remove_quest_spawn_group(ctx, step) -> None:
+    """Remove the leader + escort BountySpawns for a completed quest step.
+
+    Escort ids are derived as ``{requires_spawn_id}_esc_<n>`` (see
+    :func:`spacehack.main_quest.ensure_quest_spawns`) — sweeping the
+    prefix keeps the system clean when the leader is defeated or the
+    salvage wreck is secured.
+    """
+    if not step.trigger_system_id or not step.requires_spawn_id:
+        return
+    from ..navigation import _remove_bounty_spawn as _rbs
+    _esc_prefix = f"{step.requires_spawn_id}_esc_"
+    for _bs in list(ctx.bounty_spawns.get(step.trigger_system_id, [])):
+        if (_bs.spawn_id == step.requires_spawn_id
+                or _bs.spawn_id.startswith(_esc_prefix)):
+            _rbs(ctx, _bs.spawn_id, step.trigger_system_id)
+
+
+def find_salvage_step_for_spawn(ctx, spawn_id: str):
+    """Return the salvage step targeting ``spawn_id`` (any status).
+
+    Callers check the step's live status via ``step_status`` (a
+    completed step means the wreck was already secured; an
+    available/active one means the wreck may still be boarded).
+    """
+    for _step_id, _st, _step in _iter_known_steps(ctx):
+        if (_step.objective_type == "salvage"
+                and _step.requires_spawn_id == spawn_id):
+            return _step
+    return None
 
 
 def show_step_readout(ctx, _step) -> bool:
@@ -66,29 +99,15 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     _result = complete_step(ctx, _step_id)
     # Salvage wrecks: remove the derelict BountySpawn so it doesn't
     # respawn on re-entry.  The exit handler (__main__.py) removes
-    # the wreck entity from space_map; this removes the spawn record.
+    # the wreck entity from space_map; this removes the spawn record
+    # plus the leader + escort spawns that were guarding it.
     if _result and _step.objective_type == "salvage" and _step.requires_spawn_id:
-        _wreck_id = f"{_step.requires_spawn_id}_wreck"
         if _step.trigger_system_id:
             from ..navigation import _remove_bounty_spawn as _rbs
-            _rbs(ctx, _wreck_id, _step.trigger_system_id)
-            # Also remove the leader + escort bounty spawns (they
-            # were guarding the wreck; quest is complete now).
-            _rbs(ctx, _step.requires_spawn_id, _step.trigger_system_id)
-            _esc_prefix = f"{_step.requires_spawn_id}_esc_"
-            _spawns = ctx.bounty_spawns.get(_step.trigger_system_id, [])
-            for _esc_bs in list(_spawns):
-                if _esc_bs.spawn_id.startswith(_esc_prefix):
-                    _rbs(ctx, _esc_bs.spawn_id, _step.trigger_system_id)
+            _rbs(ctx, f"{_step.requires_spawn_id}_wreck", _step.trigger_system_id)
+            _remove_quest_spawn_group(ctx, _step)
     if _result:
-        _next = main_quest_step_after(
-            _step_id, chain=ctx.main_quest_chain,
-        )
-        if (_next is not None
-                and _next.objective_type == "smuggle"
-                and step_status(ctx, _next.id) == STATUS_AVAILABLE
-                and not _smuggle_crate_held(ctx, _next.id)):
-            _trigger_smuggle_crate(ctx, _next)
+        _maybe_auto_trigger_next_smuggle(ctx, _step_id)
         show_step_readout(ctx, _step)
     return _result
 
@@ -116,32 +135,9 @@ def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
         _step = find_main_quest_step(_step_id)
         # Show the quest readout popup with completion flavor + next-step guidance.
         show_step_readout(ctx, _step)
-        if _step.trigger_system_id:
-            from ..navigation import _remove_bounty_spawn as _rbs
-            _rbs(ctx, _spawn_id, _step.trigger_system_id)
-            # Also clean up any escort spawns (derived IDs like
-            # ``mer_consortium_leader_esc_0``) left behind when
-            # the leader was killed.
-            _esc_prefix = f"{_step.requires_spawn_id}_esc_"
-            _spawns = ctx.bounty_spawns.get(_step.trigger_system_id, [])
-            for _esc_bs in list(_spawns):
-                if _esc_bs.spawn_id.startswith(_esc_prefix):
-                    _rbs(ctx, _esc_bs.spawn_id, _step.trigger_system_id)
+        _remove_quest_spawn_group(ctx, _step)
         return True
     return False
-
-
-def maybe_complete_smuggle_delivery(ctx, active) -> bool:
-    """Complete a smuggle step whose hot crate was delivered via the mission DELIVER flow."""
-    _step_id = getattr(active, "main_quest_step_id", "")
-    if not _step_id:
-        return False
-    if step_status(ctx, _step_id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
-        return False
-    _step = find_main_quest_step(_step_id)
-    if _step.objective_type != "smuggle":
-        return False
-    return complete_step(ctx, _step_id)
 
 
 def fail_smuggle_step(ctx, active) -> bool:

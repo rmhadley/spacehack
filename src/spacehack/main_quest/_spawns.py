@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from .. import world
-from ..data.main_quest import find_main_quest_step
-from ._core import STATUS_ACTIVE, STATUS_AVAILABLE
+from ._core import STATUS_ACTIVE, STATUS_AVAILABLE, _iter_known_steps
 
 
 def ensure_quest_spawns(ctx, system_id: str) -> bool:
@@ -19,12 +18,8 @@ def ensure_quest_spawns(ctx, system_id: str) -> bool:
     whose interior contains the quest-tagged loot.
     """
     _created = False
-    for _step_id, _st in list(ctx.main_quest_progress.items()):
+    for _step_id, _st, _step in _iter_known_steps(ctx):
         if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
-            continue
-        try:
-            _step = find_main_quest_step(_step_id)
-        except KeyError:
             continue
         if _step.objective_type not in ("bounty", "salvage"):
             continue

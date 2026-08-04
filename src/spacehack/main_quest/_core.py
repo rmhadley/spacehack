@@ -22,6 +22,21 @@ def step_status(ctx, step_id: str) -> str:
     return ctx.main_quest_progress.get(step_id, "")
 
 
+def _iter_known_steps(ctx):
+    """Yield ``(step_id, status, step)`` for every progress entry.
+
+    Entries whose id no longer resolves in the data catalog (stale
+    saves, renamed steps) are skipped instead of crashing callers.
+    Shared by every progress-scanning loop in the package.
+    """
+    for _step_id, _st in ctx.main_quest_progress.items():
+        try:
+            _step = find_main_quest_step(_step_id)
+        except KeyError:
+            continue
+        yield _step_id, _st, _step
+
+
 def start_step(ctx, step_id: str) -> bool:
     """Move an ``available`` step to ``active``. Returns True if started."""
     if step_status(ctx, step_id) != STATUS_AVAILABLE:
@@ -186,12 +201,8 @@ def _active_objective_step(
     planet_id: str = "",
 ) -> str | None:
     """First available/active step matching ``objective_type``, else None."""
-    for _step_id, _st in ctx.main_quest_progress.items():
+    for _step_id, _st, _step in _iter_known_steps(ctx):
         if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
-            continue
-        try:
-            _step = find_main_quest_step(_step_id)
-        except KeyError:
             continue
         if _step.objective_type != objective_type:
             continue
@@ -225,10 +236,21 @@ def _complete_bump_objective(ctx) -> str:
         message_log.COLOR_IMPORTANT_EVENT,
     )
     complete_step(ctx, _step_id)
-    _next = main_quest_step_after(_step_id, chain=ctx.main_quest_chain)
+    _maybe_auto_trigger_next_smuggle(ctx, _step_id)
+    return _step_id
+
+
+def _maybe_auto_trigger_next_smuggle(ctx, step_id: str) -> None:
+    """Auto-load the next step's crate when it is a smuggle delivery.
+
+    Called right after a step completes (delve / bump / salvage): if
+    the next step is an immediately-available ``smuggle`` and its
+    crate isn't already held, load it so the player can deliver it
+    straight away (bar_q3 → bar_q4, lab_q5 → lab_q6_return, ...).
+    """
+    _next = main_quest_step_after(step_id, chain=ctx.main_quest_chain)
     if (_next is not None
             and _next.objective_type == "smuggle"
             and step_status(ctx, _next.id) == STATUS_AVAILABLE
             and not _smuggle_crate_held(ctx, _next.id)):
         _trigger_smuggle_crate(ctx, _next)
-    return _step_id

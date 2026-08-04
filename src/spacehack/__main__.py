@@ -38,7 +38,6 @@ from .data import solar_systems as solar_systems_module
 from . import npc as npc_module
 from .data.species import find_species
 from .data.classes import find_class
-from .data.main_quest import find_main_quest_step
 from .npc import TalkOutcome, _run_npc_talk
 from . import main_quest as main_quest_module
 from . import world
@@ -526,16 +525,12 @@ def _run_game(
                             # step is completed (secure_quest_loot set it).
                             if not _secured and _wsid.endswith("_wreck"):
                                 _mq_sid = _wsid[:-6]  # strip _wreck suffix
-                                for _sid, _st in ctx.main_quest_progress.items():
-                                    try:
-                                        _cs = find_main_quest_step(_sid)
-                                    except KeyError:
-                                        continue
-                                    if (_cs.objective_type == "salvage"
-                                            and _cs.requires_spawn_id == _mq_sid
-                                            and _st == "completed"):
-                                        _secured = True
-                                        break
+                                _mq_cs = main_quest_module.find_salvage_step_for_spawn(
+                                    ctx, _mq_sid,
+                                )
+                                if (_mq_cs is not None
+                                        and ctx.main_quest_progress.get(_mq_cs.id) == "completed"):
+                                    _secured = True
                             if _secured:
                                 _sys_id = solar_system_module.current_solar_system_id
                                 for _e in list(space_game_map.entities):
@@ -920,21 +915,15 @@ def _run_game(
                                     # with quest-tagged loot.
                                     _mq_spawn_id = _wreck_sid[:-6]  # strip _wreck
                                     _mq_step_id = None
-                                    _mq_step = None
-                                    for _sid, _st in ctx.main_quest_progress.items():
-                                        if _st not in ("available", "active"):
-                                            continue
-                                        try:
-                                            _candidate = find_main_quest_step(_sid)
-                                        except KeyError:
-                                            continue
-                                        if (_candidate.objective_type == "salvage"
-                                                and _candidate.requires_spawn_id == _mq_spawn_id
-                                                and _candidate.salvage_layout_id):
-                                            _mq_step_id = _sid
-                                            _mq_step = _candidate
-                                            break
-                                    if _mq_step is not None:
+                                    _mq_step = main_quest_module.find_salvage_step_for_spawn(
+                                        ctx, _mq_spawn_id,
+                                    )
+                                    if (_mq_step is not None
+                                            and ctx.main_quest_progress.get(_mq_step.id)
+                                            in ("available", "active")
+                                            and _mq_step.salvage_layout_id):
+                                        _mq_step_id = _mq_step.id
+                                    if _mq_step_id is not None:
                                         try:
                                             _dungeon_map, _spawn = _load_layout(
                                                 _mq_step.salvage_layout_id,
@@ -1100,11 +1089,6 @@ def _run_game(
                             except ValueError:
                                 pass
                             ctx.player_active_missions = player_active_missions
-                            # Main-quest smuggle crate (Act 0 bar chain): a
-                            # successful delivery completes the chain step.
-                            main_quest_module.maybe_complete_smuggle_delivery(
-                                ctx, _deliver_mission,
-                            )
                     if result is TalkOutcome.WORK:
                         # Missions are offered at every reputation level —
                         # faction standing only scales pay (see
