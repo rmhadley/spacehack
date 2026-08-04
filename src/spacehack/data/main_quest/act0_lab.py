@@ -28,12 +28,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="prologue_seek_help",
         chain="lab",
         objective_type="bump",
-        wait_days=50,
+        wait_days=0,
         completion_flavor=(
             "Sample chipped — a hand-sized fragment of the door's "
-            "material, unlike anything in the human catalogue. The "
-            "Research Officer begins the resonance analysis. They'll "
-            "contact you when the first results are in."
+            "material. It's loaded into your mission hold. Deliver "
+            "it to the Research Officer on Mercury for analysis."
         ),
         ready_message=(
             "The resonance analysis is complete — and the results point "
@@ -73,7 +72,62 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=50,
     ),
     MainQuestStep(
-        id="lab_q2_reference",
+        id="lab_q2_delivery",
+        title="The Delivery",
+        description=(
+            "The door sample is in your mission hold. Deliver it to "
+            "the Research Officer on Mercury for resonance analysis."
+        ),
+        trigger_planet_id="mercury",
+        trigger_system_id="sol",
+        requires_step="lab_q1_sample",
+        chain="lab",
+        objective_type="smuggle",
+        requires_npc_id="research_officer",
+        smuggle_good_id="door_sample",
+        smuggle_cargo_size=1,
+        wait_days=50,
+        completion_flavor=(
+            "Sample received — the material is unlike anything in the "
+            "human catalogue. The Research Officer begins the resonance "
+            "analysis. They'll contact you when the first results are "
+            "in."
+        ),
+        ready_message=(
+            "The resonance analysis is complete — and the results point "
+            "to Procyon C. A sealed research cache in the ice caves "
+            "beneath the outpost holds a reference dataset. Report to "
+            "the Research Officer on Mercury — the lab has the details."
+        ),
+        dialogues={
+            "research_officer": QuestDialogue(
+                npc_id="research_officer",
+                trigger_on_talk=True,
+                intro=(
+                    "You chipped a sample? Good — hand it over and the "
+                    "resonance analysis begins. If the signature is "
+                    "stable, we can forge a key."
+                ),
+                active=(
+                    "The sample is in your mission hold. Hand it over "
+                    "and the analysis begins — it shouldn't take long "
+                    "to get the first resonance readings."
+                ),
+                complete=(
+                    "Sample received — remarkable material. The "
+                    "resonance analysis is running; give us time. "
+                    "The initial results should point us to the "
+                    "next phase."
+                ),
+                option_label="Hand over the sample",
+                backing_faction="lab",
+                dialogue_planet_id="mercury",
+            ),
+        },
+        rewards_xp=50,
+    ),
+    MainQuestStep(
+        id="lab_q3_reference",
         title="The Reference",
         description=(
             "The resonance analysis points to Procyon C — a sealed "
@@ -83,7 +137,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         ),
         trigger_planet_id="proc_planet_2",
         trigger_system_id="procyon",
-        requires_step="lab_q1_sample",
+        requires_step="lab_q2_delivery",
         chain="lab",
         objective_type="delve",
         delve_good_ids=(("research_data", 2),),
@@ -136,7 +190,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=80,
     ),
     MainQuestStep(
-        id="lab_q3_xenolinguist",
+        id="lab_q4_xenolinguist",
         title="The Xenolinguist",
         description=(
             "The xenolinguist at Alpha Centauri's Science Port needs "
@@ -146,7 +200,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         ),
         trigger_planet_id="ac_station",
         trigger_system_id="alpha_centauri",
-        requires_step="lab_q2_reference",
+        requires_step="lab_q3_reference",
         chain="lab",
         objective_type="visit",
         requires_npc_id="xenolinguist",
@@ -196,7 +250,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=60,
     ),
     MainQuestStep(
-        id="lab_q4_frequency",
+        id="lab_q5_frequency",
         title="The Frequency",
         description=(
             "A derelict scout vessel near Sirius carries a reference-"
@@ -205,7 +259,7 @@ STEPS: tuple[MainQuestStep, ...] = (
             "guarding the wreck and recover the research data."
         ),
         trigger_system_id="sirius",
-        requires_step="lab_q3_xenolinguist",
+        requires_step="lab_q4_xenolinguist",
         chain="lab",
         objective_type="bounty",
         requires_spawn_id="lab_derelict_guardian",
@@ -254,7 +308,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=120,
     ),
     MainQuestStep(
-        id="lab_q5_key",
+        id="lab_q6_key",
         title="The Key",
         description=(
             "Return to the Research Officer on Mercury. The resonance "
@@ -263,7 +317,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
-        requires_step="lab_q4_frequency",
+        requires_step="lab_q5_frequency",
         chain="lab",
         objective_type="talk",
         unlocks_step="prologue_open",

@@ -125,8 +125,8 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
     start_step(ctx, _step.id)
     _good = _step.smuggle_good_id.replace('_', ' ')
     ctx.log.add_colored(
-        f"Hot cargo ({_good}) loaded into your mission hold. Deliver "
-        "it — and watch the militia patrols.",
+        f"{_good} loaded into your mission hold. Deliver it to "
+        "complete the job.",
         message_log.COLOR_IMPORTANT_EVENT,
     )
     return True
@@ -217,7 +217,10 @@ def _complete_bump_objective(ctx) -> str:
     """Complete an active ``bump`` objective on this door bump.
 
     Returns the completed step id, or ``""`` if no bump objective is
-    live (e.g. the Mars door is just being opened normally).
+    live (e.g. the Mars door is just being opened normally).  When
+    the next chain step is a smuggle (e.g. lab_q2_delivery), the
+    sample is auto-loaded into the mission hold so the player can
+    deliver it — same pattern as :func:`secure_quest_loot`.
     """
     _step_id = _active_objective_step(ctx, "bump")
     if _step_id is None:
@@ -228,4 +231,10 @@ def _complete_bump_objective(ctx) -> str:
         message_log.COLOR_IMPORTANT_EVENT,
     )
     complete_step(ctx, _step_id)
+    _next = main_quest_step_after(_step_id, chain=ctx.main_quest_chain)
+    if (_next is not None
+            and _next.objective_type == "smuggle"
+            and step_status(ctx, _next.id) == STATUS_AVAILABLE
+            and not _smuggle_crate_held(ctx, _next.id)):
+        _trigger_smuggle_crate(ctx, _next)
     return _step_id
