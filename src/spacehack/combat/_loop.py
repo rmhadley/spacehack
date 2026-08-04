@@ -124,6 +124,7 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     # Pay max(ap_cost) once after the loop, but consume ammo/energy per weapon.
     _max_ap_cost = 0
     _any_fired = False
+    _hit = False
 
     for _slot in _fire_slots:
         if not rules.enemy_alive(_target):
