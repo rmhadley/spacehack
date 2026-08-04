@@ -1009,6 +1009,35 @@ def render_world(
                 )
 
 
+def camera_for_view(
+    game_map: GameMap,
+    player_pos: Position,
+    *,
+    region_w: int,
+    region_h: int,
+) -> tuple[int, int, int, int]:
+    """Return ``(camera_x, camera_y, region_x, region_y)`` for a viewport.
+
+    Maps that fit inside ``region_w`` x ``region_h`` are centred in the
+    viewport via a region offset (camera stays at ``(0, 0)``) — the
+    same layout :func:`render_world` produces.  Maps larger than the
+    viewport scroll with a player-centred camera across the full
+    region, mirroring space combat.  Shared by ground combat and
+    out-of-combat dungeon exploration so both frame the map identically.
+    """
+    if game_map.width <= region_w and game_map.height <= region_h:
+        return (
+            0, 0,
+            (region_w - game_map.width) // 2,
+            (region_h - game_map.height) // 2,
+        )
+    _cw = max(0, game_map.width - region_w)
+    _ch = max(0, game_map.height - region_h)
+    _cx = max(0, min(player_pos.x - region_w // 2, _cw))
+    _cy = max(0, min(player_pos.y - region_h // 2, _ch))
+    return (_cx, _cy, 0, 0)
+
+
 def render_world_view(
     console: tcod.console.Console,
     game_map: GameMap,

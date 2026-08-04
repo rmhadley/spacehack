@@ -351,29 +351,6 @@ _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
 
 
-def _ground_view(game_map: world.GameMap, player_pos: world.Position) -> tuple[int, int, int, int]:
-    """Return ``(camera_x, camera_y, region_x, region_y)`` for ground combat.
-
-    Maps that fit inside the combat viewport (dungeons) keep the
-    legacy centred layout — camera at ``(0, 0)`` with the region
-    origin shifted to centre the map, pixel-identical to the old
-    :func:`world.render_world` path.  Maps larger than the viewport
-    (e.g. the 120x90 Mars surface) scroll with a player-centred
-    camera across the full region, mirroring space combat.
-    """
-    if game_map.width <= _RENDER_WIDTH and game_map.height <= _RENDER_HEIGHT:
-        return (
-            0, 0,
-            (_RENDER_WIDTH - game_map.width) // 2,
-            (_RENDER_HEIGHT - game_map.height) // 2,
-        )
-    _cw = max(0, game_map.width - _RENDER_WIDTH)
-    _ch = max(0, game_map.height - _RENDER_HEIGHT)
-    _cx = max(0, min(player_pos.x - _RENDER_WIDTH // 2, _cw))
-    _cy = max(0, min(player_pos.y - _RENDER_HEIGHT // 2, _ch))
-    return (_cx, _cy, 0, 0)
-
-
 def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y, region_x, region_y, *, color_override=None):
     try:
         _ws = _find_gw(weapon_id)
@@ -390,7 +367,10 @@ def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y,
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
-    _cam_x, _cam_y, _rx, _ry = _ground_view(game_map, ctx.player.pos)
+    _cam_x, _cam_y, _rx, _ry = world.camera_for_view(
+        game_map, ctx.player.pos,
+        region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
+    )
     world.render_world_view(
         console, game_map,
         region_x=_rx, region_y=_ry,
@@ -505,7 +485,10 @@ def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
 ) -> None:
-    _cam_x, _cam_y, _rx, _ry = _ground_view(game_map, from_pos)
+    _cam_x, _cam_y, _rx, _ry = world.camera_for_view(
+        game_map, from_pos,
+        region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
+    )
     cells = list(_bresenham_line(from_pos.x, from_pos.y, to_pos.x, to_pos.y))
     if not cells or cells[-1] != (to_pos.x, to_pos.y):
         cells.append((to_pos.x, to_pos.y))
