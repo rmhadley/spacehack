@@ -289,9 +289,9 @@ The player receives a garbled transmission as they jump out of Sol for the first
 
 ### Faction quest chains — the seek-help fork becomes 20 quests
 
-The tools are not handed out for free anymore. Accepting a faction's help starts that faction's **5-step chain**; the tool (and therefore `prologue_open`) unlocks only when the chain is complete. Every chain mixes the mechanics the game already has — **procedural surface dungeons** (cave delves for the materials), distant-planet expert recruitment, space combat (bounty spawns), derelict boarding (salvage interiors), and a final assembly beat. Only the bar chain keeps a small goods payment (a bribe to the old smuggler, not a supply run). Each chain's final step plants the faction tool + makes `prologue_open` available.
+The tools are not handed out for free anymore. Accepting a faction's help starts that faction's **multi-step chain** (5-7 steps, bar + militia grew to 6, lab to 7); the tool (and therefore `prologue_open`) unlocks only when the chain is complete. Every chain mixes the mechanics the game already has — **procedural surface dungeons** (cave delves for the materials), distant-planet expert recruitment, space combat (bounty spawns), derelict boarding (salvage interiors), and a final assembly beat. Only the bar chain keeps a small goods payment (a bribe to the old smuggler, not a supply run). Each chain's final step plants the faction tool + makes `prologue_open` available.
 
-**Chain anatomy (5 steps each):** `q1` commitment/lead → `q2` materials (delve: secure a quest cache from a planet's procedural surface cave — the item is *found*, not bought) → `q3` transport or recruitment (militia + lab: `visit` an expert NPC on a distant planet; **merchants: `smuggle` — transport the raw ore through contested space to the specialist**; bar: `smuggle` — deliver a hot crate to prove yourself) → `q4` field test (bounty combat OR derelict salvage, often with faction-specific heat) → `q5` assembly (tool unlocked → door opens). Each chain's q3-q4 pair is where the faction's flavor lives: militia is by-the-book (visit → live-fire test), merchants is economic warfare (smuggle → blockade salvage), bar is criminal heat (smuggle → militia gauntlet), lab is academic (visit → frequency salvage).
+**Chain anatomy (5-7 steps each):** `q1` commitment/lead → `q2` materials (delve: secure a quest cache from a planet's procedural surface cave — the item is *found*, not bought) → `q3+` transport or recruitment (militia: `smuggle` the requisition to the blockade; merchants: `smuggle` — transport the raw ore through contested space to the specialist; bar: `smuggle` — deliver a hot crate to prove yourself; lab: `smuggle` — deliver the door sample) → field test (bounty combat OR derelict salvage, often with faction-specific heat) → final assembly (tool unlocked → door opens). Each chain's mid-game is where the faction's flavor lives: militia is by-the-book (smuggle → visit → live-fire), merchants is economic warfare (smuggle → blockade salvage), bar is criminal heat (smuggle → recharge → charged return run), lab is academic (smuggle → salvage → recorder return).
 
 **Time gating between every step:** each completed step logs faction flavor ("We'll be in touch." / "We need time to research this.") and starts a **minimum-wait gate** (`wait_days`, world clock — see the Time gating section). When the clock passes the gate, the faction sends a **one-way auto-message summoning the player** to the NEXT step's system + planet (each step picks its own location — never a requirement to repeat the previous one). **Chain pacing target (locked): one chain ≈ 425 in-game days total (gates ~340d + travel ~85d) = 5× the 85-day Earth→Luyten one-way trip.**
 
@@ -301,11 +301,12 @@ The tools are not handed out for free anymore. Accepting a faction's help starts
 |------|-----------|-------------------------|---------|
 | `mil_q1_report` | talk | Report to the Militia Captain (Earth) — off the books, he admits the patrol saw "the incident" tech before. The requisition is buried in a scrubbed cache. | 50 XP |
 | `mil_q2_cache` | delve | Descend into the **Mercury** surface caves (procedural dungeon) and secure the classified requisition cache: `ship_components` ×4 + `fuel_cells` ×2 (found, not bought) | 100 credits, 80 XP |
-| `mil_q3_demolitions` | visit | Recruit the `demolitions_expert` at **Epsilon Eridani b** (he signs on when the Captain's name is dropped) | 60 XP |
-| `mil_q4_livefire` | bounty | Clear the pirate scout squad in Cygni (quest bounty spawn, 2 scouts) to prove the charge works | 150 credits, 120 XP |
-| `mil_q5_charge` | talk | Return to the Captain — the breach charge is assembled → `militia_breach_charge` + `prologue_open` | 200 credits, 150 XP |
+| `mil_q3_inspection` | **smuggle** | Run the requisition to the `blockade_officer` at **Luyten's Star** — five jumps through frontier space. Non-confiscatable (militia's own hardware). | 60 XP |
+| `mil_q4_demolitions` | visit | Recruit the `demolitions_expert` at **Epsilon Eridani b** (he signs on when the Captain's name is dropped) | 60 XP |
+| `mil_q5_livefire` | bounty | **Live-fire test:** clear **5 pirate captains** at Cygni (quest bounty spawn — the breach-charge prototype is mounted to your ship for this fight) | 150 credits, 120 XP |
+| `mil_q6_charge` | talk | Return to the Captain — the breach charge is assembled → `militia_breach_charge` + `prologue_open` | 200 credits, 150 XP |
 
-**Gating:** q1→q2 60d · q2→q3 80d · q3→q4 120d · q4→q5 80d (sum 340d ≈ 5× the 85d Earth→Luyten trip incl. travel; see Time gating). Completion flavor: "We'll be in touch. Requisition takes time to clear." / "Inspection underway." / "The charge needs a live-fire test." / "Return to base — the charge is assembled." Summons: Mercury (q2), Epsilon Eridani b (q3), Cygni (q4), Earth (q5).
+**Gating (implemented):** q1→q2 60d · q2→q3 0d (auto-advance) · q3→q4 80d · q4→q5 120d · q5→q6 80d (sum 340d). Completion flavor per step in the data. Summons: Mercury (q2), Luyten's Star (q3 — delivery), Epsilon Eridani b (q4), Cygni (q5), Earth (q6).
 
 #### Merchants — "The Contract" (cutter) — REVISED with bar-chain lessons
 
@@ -323,7 +324,7 @@ Consortium heat mirrors the bar chain's militia heat mechanically (quest-tagged 
 | `mer_q1_contract` | talk | Sign the contract with the Guild Master (Earth) — first rights to what's inside the door, hazard pay, and the cutter when the work is done. The first clause stakes the Wolf 359 claim. | 50 XP |
 | `mer_q2_strike` | delve | The claim is deep in the **Wolf 359** surface caves (procedural dungeon). Rival prospectors from a competing consortium got there first — clear them out (ground combat). Secure quest-tagged `rare_earth_metals` ×3. **Raw ore is now in your hold — valuable but unrefined.** | 100 credits, 80 XP |
 | `mer_q3_transport` | **smuggle** | The ore needs smelting. Transport it to the `salvage_specialist` at **Tau Ceti b**. **Consortium ships + pirate escorts patrol the route — they know about the strike and want the ore.** Scan → combat. Deliver the ore → the specialist begins the smelt. | 100 credits, 90 XP |
-| `mer_q4_calibrate` | salvage | The specialist finishes the smelt (time gate). **The smelted alloy is loaded into your hold — worth 10× the raw ore.** The cutter needs calibration data from a derelict near **Vega** (`scout_a` layout) — but the consortium has escalated: **ships + pirate raiders are guarding the wreck. Fight through the blockade to board it.** Recover quest-tagged `machine_parts`. | 150 credits, 120 XP |
+| `mer_q4_calibrate` | salvage | The specialist finishes the smelt (time gate). **The smelted alloy is loaded into your hold — worth 10× the raw ore.** The cutter needs calibration data from a derelict near **Vega** (`scout_a` layout) — but the consortium has escalated: **ships + pirate raiders are guarding the wreck. Fight through the blockade to board it.** Recover quest-tagged `calibration_data` from the wreck interior. | 150 credits, 120 XP |
 | `mer_q5_cutter` | talk | Return to Earth with the smelted alloy + calibration data. The Guild Master assembles the cutter. Sign the final addendum → `merchant_cutter` + `prologue_open`. | 200 credits, 150 XP |
 
 **Risk escalation:**
@@ -344,26 +345,29 @@ q5: talk      ░░░░  Resolution
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
 | `bar_q1_oldhand` | talk | The Barkeep (Earth) names the old smuggler who cracked a door "once. Cost him a hand." **He warns: the militia has been sniffing around the old routes since "the incident" — work with the smuggler and you'll be on their radar.** | 50 XP |
-| `bar_q2_proof` | smuggle | The old smuggler won't deal with strangers. The Barkeep hands you a **hot crate** — `weapons_blackmarket` ×8, loaded into the mission hold exactly like a smuggling mission (`is_smuggle`). Run it to the `old_smuggler` at **Barnard's Star b**. Every militia patrol on the way can scan it (rep-gated chance; Smuggler's Hold conceals it, mission-first). **Confiscated = the step fails — return to the Barkeep to re-claim his last crate (he grumbles).** | 100 credits, 80 XP, +2 pirate / -5 merchant / -5 civilian / -8 militia |
-| `bar_q3_rigparts` | delve | The old smuggler draws the cave where the old job went wrong — the rig's power cell is still there. Descend into the **Barnard's Star b** surface caves (procedural dungeon) and recover it. **MILITIA HEAT (see below): while the cell is in your hold it counts as contraband and scan chance is elevated — it's militia-issue hardware.** | 60 XP |
-| `bar_q4_gauntlet` | bounty | **The militia seals the Barnard's Star gate** — you can't jump out clean with the cell. A militia patrol intercepts you (quest-tagged spawn): fight (destroying militia ships = **-12 militia rep each**) or flee (another scan roll). Survive → the cell's power feed is proven to hold. | 150 credits, 120 XP |
-| `bar_q5_rig` | talk | Return to the Barkeep — the rig is assembled → `bar_brute_rig` + `prologue_open`. "The militia will be watching you from here on, friend. Welcome to the family." | 200 credits, 150 XP |
+| `bar_q2_proof` | smuggle | The old smuggler won't deal with strangers. The Barkeep hands you a **hot crate** — `weapons_blackmarket` ×8, loaded into the mission hold exactly like a smuggling mission (`is_smuggle`). Run it to the `old_smuggler` at **Barnard's Star b**. Every militia patrol on the way can scan it (rep-gated chance; Smuggler's Hold conceals it, mission-first). **Confiscated = the step fails — the Barkeep re-issues his last crate.** | 100 credits, 80 XP, +2 pirate / -5 merchant / -5 civilian / -8 militia |
+| `bar_q3_rigparts` | delve | The old smuggler draws the cave where the old job went wrong — the rig's power cell is still there. Descend into the **Barnard's Star b** surface caves (procedural dungeon) and recover it. | 60 XP |
+| `bar_q4_blackmarket` | smuggle | **The cell is in your hold and hot.** Run it to the `wolf_barkeep` at the **Wolf 359 listening post** — the only black-market rig that can recharge it. **Confiscated = the Old Smuggler re-issues a spare casing.** | 50 credits, 60 XP |
+| `bar_q5_charged` | smuggle | The cell is charged — **hotter than ever.** Collect it from Wolf 359 and run it back to the Earth `barkeep`. **In Sol, every militia patrol actively hunts you while you carry it (auto-aggro).** | 100 credits, 80 XP |
+| `bar_q6_rig` | talk | Return to the Barkeep — the rig is assembled → `bar_brute_rig` + `prologue_open`. "The militia will be watching you from here on, friend. Welcome to the family." | 200 credits, 150 XP |
 
-**Militia heat (bar chain signature risk):** while `ctx.main_quest_chain == "bar"` AND the player is holding hot quest cargo (the `bar_q2` crate or the `bar_q3` cell), `_militia_scan_chance()` applies a **+30% floor** (min 60%, capped 80%) on every militia-patrolled system — the militia knows the player is working the old routes. The hook is one gate in `navigation._militia_scan_chance` on `ctx.main_quest_chain` + a cargo-presence check; it auto-expires at `bar_q5`. Consequences are the real smuggler economy: confiscation (goods lost + fine + -5 militia rep), combat (rep tank), or paying for a Smuggler's Hold to reduce exposure.
+**Militia heat (bar chain signature risk):** while `ctx.main_quest_chain == "bar"` AND the player is holding hot quest cargo (the `bar_q2` crate or the `bar_q4`/`bar_q5` power cell), `_militia_scan_chance()` applies a **+30% floor** (min 60%, capped 80%) on every militia-patrolled system — the militia knows the player is working the old routes. With the **charged** cell (q5) the militia doesn't just scan — they actively hunt the player in Sol (`charged_cell_in_sol`). The hook is one gate in `navigation._militia_scan_chance` on `ctx.main_quest_chain` + a cargo-presence check; it auto-expires at `bar_q6`. Consequences are the real smuggler economy: confiscation (goods lost + fine + -5 militia rep), combat (rep tank), or paying for a Smuggler's Hold to reduce exposure.
 
-**Gating:** q1→q2 65d · q2→q3 85d · q3→q4 110d · q4→q5 80d (sum 340d ≈ 5× the 85d Earth→Luyten trip incl. travel; see Time gating). Completion flavor: "The old man is cagey — he'll see you for the right price." / "He drew the cave. Meet him at the dig." / "The militia is sealing the gate. Run now." / "The rig's assembled. Come raise a glass." Summons: Barnard's Star b (q2), Barnard's Star b — the caves (q3), Barnard's Star gate (q4), Earth (q5).
+**Gating (implemented):** q1→q2 65d · q2→q3 85d · q3→q4 0d (auto-advance) · q4→q5 90d (the recharge) · q5→q6 0d (auto-advance). Completion flavor per step in the data. Summons: Barnard's Star b (q2 — the cave), Wolf 359 (q4 — recharge done), Earth (q6 — rig ready).
 
 #### Lab — "The Resonance" (resonance key)
 
 | Step | Objective | What the player must do | Rewards |
 |------|-----------|-------------------------|---------|
-| `lab_q1_sample` | bump | Return to Mars and chip a material sample off the door (chain-aware door bump — the door stays sealed) | 50 XP |
-| `lab_q2_reference` | delve | The Mercury officer needs a reference resonance dataset — it's in a sealed research cache in the **Procyon C** surface caves (procedural dungeon); descend and secure quest-tagged `research_data` ×2 | 100 credits, 80 XP |
-| `lab_q3_xenolinguist` | visit | Recruit the `xenolinguist` at **Alpha Centauri Science Port** (`ac_station`) | 60 XP |
-| `lab_q4_frequency` | salvage | Recover the reference-frequency dataset (`research_data`) from a derelict near Sirius (`scout_a`) | 150 credits, 120 XP |
-| `lab_q5_key` | talk | Return to the Mercury Research Officer — the resonance key is forged → `lab_resonance_key` + `prologue_open` | 200 credits, 150 XP |
+| `lab_q1_sample` | bump | Return to Mars and chip a material sample off the door (chain-aware door bump — the door stays sealed; pirate ambush springs in the door room) | 50 XP |
+| `lab_q2_delivery` | **smuggle** | The door sample is in your mission hold. Deliver it to the `research_officer` on **Mercury** for resonance analysis (non-confiscatable). | 50 XP |
+| `lab_q3_reference` | delve | The analysis points to **Procyon C** — a sealed research cache in the ice caves holds a reference dataset: quest-tagged `research_data` ×2 | 100 credits, 80 XP |
+| `lab_q4_xenolinguist` | **smuggle** | Deliver the dataset to the `xenolinguist` at **Alpha Centauri Science Port** (`ac_station`) — she maps the resonance frequency (non-confiscatable; the Mercury officer re-issues a lost copy) | 60 XP |
+| `lab_q5_frequency` | salvage | Recover the `reference_recorder` from a derelict near **Sirius** (`scout_a` — pirate captain + raiders guard the wreck) | 150 credits, 120 XP |
+| `lab_q6_return` | **smuggle** | The recorder is in your mission hold. Fly it back to the `research_officer` on **Mercury** — the resonance map is complete (non-confiscatable). | 100 credits, 80 XP |
+| `lab_q7_key` | talk | Return to the Mercury Research Officer — the resonance key is forged → `lab_resonance_key` + `prologue_open` | 200 credits, 150 XP |
 
-**Gating:** q1→q2 50d · q2→q3 115d · q3→q4 95d · q4→q5 80d (sum 340d ≈ 5× the 85d Earth→Luyten trip incl. travel; see Time gating). Completion flavor: "Sample received. We need time to analyze it." / "Reference dataset locked. The linguist wants in." / "The frequency map is incomplete — one more dataset." / "The key is forged." Summons: Mercury (q2), Alpha Centauri Science Port (q3), Sirius (q4), Mercury (q5).
+**Gating (implemented):** q1→q2 0d (bump auto-loads the delivery) · q2→q3 50d (analysis) · q3→q4 0d (auto-advance) · q4→q5 95d (frequency map) · q5→q6 0d (auto-advance) · q6→q7 80d (key forgery). Summons: Mercury (q3), Alpha Centauri Science Port (q4), Mercury (q7).
 
 **Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is a new entry in the global `data/npcs` catalog placed via `PlanetSpec.npc_overrides` on a planet that already has the matching guild building (`militia_captain` / `guild_master` / `barkeep` / `research_officer` slot) — the override's `id` differs from the replaced slot so quest dialogue keys off the expert id. Verify the target planet has the required guild building (add a `CityBuilding` to the spec if not).
 
@@ -504,51 +508,57 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 1e: Militia chain — "The Incident" (breach charge)
 
-- [ ] Write `mil_q1_report` → `mil_q5_charge` as step data (talk / delve / visit / bounty / talk)
-- [ ] Wire `mil_q2_cache` delve site on Mercury (cache yields `ship_components` ×4 + `fuel_cells` ×2)
-- [ ] Write the militia gates (`wait_days` 60/80/120/80, completion flavor, summons per the chain table)
-- [ ] Wire `mil_q4_livefire` quest-tagged bounty spawn (Cygni scout squad, 2 scouts)
-- [ ] Wire `mil_q5_charge` trigger → grants `militia_breach_charge` + `prologue_open`
-- [ ] Smoke test + commit
+- [x] Write `mil_q1_report` → `mil_q6_charge` as step data (talk / delve / **smuggle** / visit / bounty / talk)
+- [x] Wire `mil_q2_cache` delve site on Mercury (cache yields `ship_components` ×4 + `fuel_cells` ×2)
+- [x] Wire `mil_q3_inspection` **smuggle** — requisition runs to the `blockade_officer` at Luyten's Star (non-confiscatable, 80d gate)
+- [x] Wire `mil_q4_demolitions` **visit** — recruit the `demolitions_expert` at Epsilon Eridani b (120d gate)
+- [x] Wire `mil_q5_livefire` quest-tagged bounty spawn (Cygni — **5 pirate captains**; breach-charge prototype mounted to the ship for this fight, dismounted after)
+- [x] Wire `mil_q6_charge` trigger → grants `militia_breach_charge` + `prologue_open`
+- [x] Write the militia gates (`wait_days` 60/0/80/120/80, completion flavor, summons per the chain table)
+- [x] Smoke test + commit
 
 **PLAYTEST (1e):** full militia run — report to the Captain → fly to Mercury, descend into the caves, secure the requisition cache (delve completes; goods land in cargo) → recruit the demolitions expert at Epsilon Eridani b (visit completes) → clear the Cygni scout squad (bounty completes; verify it spawns only while the step is active) → return to the Captain → charge granted + door opens. Check quest log (Q) tracks each step; save/quit/continue mid-chain preserves progress (including the persisted Mercury cave).
 
 ### Phase 1f: Merchants chain — "The Contract" (cutter, revised per bar-chain lessons)
 
-- [ ] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / delve / **smuggle** / salvage / talk). q3 changed from `visit` to `smuggle` — the raw ore is loaded into the mission hold as hot cargo (``smuggle_good_id="rare_earth_metals"``, ``smuggle_cargo_size=15``) and must be delivered to the ``salvage_specialist`` at Tau Ceti b.
-- [ ] **Every handover NPC gets dialogue entries on BOTH ends** (bar-chain lesson). q3 needs ``guild_master`` dialogue (giver — "Take the ore") AND ``salvage_specialist`` dialogue (receiver — "Hand over the ore"). q5 needs ``guild_master`` dialogue ("Collect the cutter").
-- [ ] **Smuggle guards** (bar-chain lesson): the ``guild_master``'s "Take the ore" option closes once the crate is held; the ``salvage_specialist``'s "Hand over the ore" option closes when the crate is NOT held (same ``_smuggle_crate_held`` / giver-receiver pattern as the bar chain).
-- [ ] Wire `mer_q2_strike` delve site on Wolf 359 (cache yields quest-tagged `rare_earth_metals` ×3)
-- [ ] Write the merchant gates (`wait_days` 60/0/130/0, completion flavor, summons per the chain table — see revised gating section above)
-- [ ] **Consortium heat mechanic:** a new hook ``main_quest.consortium_heat_active(ctx) → bool`` returns True while ``main_quest_chain == "merchants"`` AND the player is on q3 or q4 (ore/alloy in hold). When active, ``ensure_quest_spawns`` creates quest-tagged BountySpawns (merchant leader + pirate escorts) in relevant systems. q3 spawns: merchant + 1-2 pirate scouts. q4 spawns: merchant + 2-3 pirate raiders. Uses the existing ``BountySpawn`` infrastructure (same as bar chain militia patrols). 30-cell detect radius, 33% A* recompute, drift past 50 cells (same performance tuning as bar chain).
-- [ ] Wire `mer_q4_calibration` quest-tagged salvage: derelict near Vega (`scout_a` layout, `machine_parts`) guarded by consortium blockade (quest-tagged BountySpawn — see intensity detail above). The merchant leader must be defeated for the step to complete; escorts are bonus kills.
-- [ ] Wire `mer_q5_cutter` trigger → grants `merchant_cutter` + `prologue_open`
-- [ ] Smoke test + commit
+- [x] Write `mer_q1_contract` → `mer_q5_cutter` as step data (talk / delve / **smuggle** / salvage / talk). q3 is a `smuggle` — the raw ore is loaded into the mission hold (``smuggle_good_id="rare_earth_metals"``, ``smuggle_cargo_size=3``, non-confiscatable) and must be delivered to the ``salvage_specialist`` at Tau Ceti b.
+- [x] **Every handover NPC gets dialogue entries on BOTH ends** (bar-chain lesson). q3 has ``guild_master`` dialogue (giver) AND ``salvage_specialist`` dialogue (receiver — "Hand over the ore"). q5 has ``guild_master`` dialogue ("Collect the cutter").
+- [x] **Smuggle guards** (bar-chain lesson): the giver's option closes once the crate is held; the receiver's "Hand over" only shows when the crate is in the hold (``_smuggle_crate_held`` giver-receiver pattern).
+- [x] Wire `mer_q2_strike` delve site on Wolf 359 (cache yields quest-tagged `rare_earth_metals` ×3)
+- [x] Write the merchant gates (`wait_days` 60/0/130/0, completion flavor, summons per the chain table)
+- [x] **Consortium heat mechanic:** ``main_quest.consortium_heat_active(ctx)`` returns True while ``main_quest_chain == "merchants"`` and the player is on q3 or q4. Existing pirates auto-aggro and new consortium squads spawn on system entry + per-tick (reuses the BountySpawn infra; 30-cell detect, 33% A* recompute, drift past 50 cells).
+- [x] Wire `mer_q4_calibrate` quest-tagged salvage: derelict near Vega (`scout_a` layout, `calibration_data` interior loot) guarded by a consortium blockade (pirate captain + 2 raiders). Only the leader counts for step completion; escorts are bonus kills.
+- [x] Wire `mer_q5_cutter` trigger → grants `merchant_cutter` + `prologue_open`
+- [x] Smoke test + commit
 
 **PLAYTEST (1f):** full merchant run — sign the contract ("Contract filed. We need time to arrange the escrow." → time gate 60d) → summon: "The claim is ready. Get to Wolf 359" → descend into the claim caves, clear rival prospectors, secure the ore (delve completes) → auto-advance to q3 (no gate): transport the raw ore to Tau Ceti b — **verify consortium ships + pirate escorts spawn and engage en route** → deliver to the salvage specialist (smuggle completes; "The specialist smelts the ore — this takes months." → time gate 130d) → summon: "Smelt's done. Come get the alloy. The cutter needs calibration data from a derelict near Vega — the consortium's guarding it. Be ready." → pick up smelted alloy at Tau Ceti b → fly to Vega → **fight through the consortium blockade at the wreck (merchant + 2-3 pirate raiders)** → board the derelict → fight scavengers → secure `machine_parts` (salvage completes) → auto-advance to q5 → return to Earth → Guild Master assembles the cutter → sign the addendum → cutter granted + door opens. Verify the derelict interior + Wolf 359 cave persist across visits. Verify consortium spawns only trigger while the step is active. Verify the ``guild_master``'s q3 "Take the ore" row closes after accepting (no re-offer) and the ``salvage_specialist``'s "Hand over" row only shows when the ore is actually in the hold.
 
 ### Phase 1g: Bar chain — "The Old Hand" (brute rig, blackmarket + militia heat)
 
-- [x] Write `bar_q1_oldhand` → `bar_q5_rig` as step data (talk / smuggle / delve / bounty / talk)
-- [x] Implement the `smuggle` objective: hot crate loaded into the mission hold (`is_smuggle` semantics — `smuggle_good_id` + `smuggle_cargo_size`), delivered to the `old_smuggler` NPC; militia scan confiscation fails the step (re-claim from the Barkeep)
-- [x] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell, flagged as contraband while carried)
-- [x] Write the bar gates (`wait_days` 65/85/110/80, completion flavor, summons per the chain table)
-- [x] **Militia heat hook:** in `navigation._militia_scan_chance`, apply the +30% floor (min 60%, cap 80%) while `ctx.main_quest_chain == "bar"` and hot quest cargo is held; auto-expire at `bar_q5`
-- [x] Wire `bar_q4_gauntlet` quest-tagged **militia patrol** spawn (not pirate — rep stakes are the point: -12 militia per kill; flee keeps the scan risk)
-- [x] Wire `bar_q5_rig` trigger → grants `bar_brute_rig` + `prologue_open`
+- [x] Write `bar_q1_oldhand` → `bar_q6_rig` as step data (talk / smuggle / delve / smuggle / smuggle / talk)
+- [x] Implement the `smuggle` objective: hot crate loaded into the mission hold (`is_smuggle` semantics — `smuggle_good_id` + `smuggle_cargo_size`), delivered to a named NPC; militia scan confiscation fails the step (giver re-issues)
+- [x] Wire `bar_q3_rigparts` delve site on Barnard's Star b (cache yields `machine_parts` + `electronics` — the rig's power cell)
+- [x] Wire `bar_q4_blackmarket` smuggle — power cell to the `wolf_barkeep` at Wolf 359 (90d recharge gate; the Old Smuggler re-issues a lost cell)
+- [x] Wire `bar_q5_charged` smuggle — charged cell back to the Earth `barkeep`; **Sol militia auto-aggro while carried**
+- [x] **Militia heat hook:** in `navigation._militia_scan_chance`, apply the +30% floor (min 60%, cap 80%) while `ctx.main_quest_chain == "bar"` and hot quest cargo is held; auto-expire at `bar_q6`
+- [x] Write the bar gates (`wait_days` 65/85/0/90/0, completion flavor, summons per the chain table)
+- [x] Wire `bar_q6_rig` trigger → grants `bar_brute_rig` + `prologue_open`
 - [x] Smoke test + commit
 
 **PLAYTEST (1g):** full bar run — the Barkeep names the old smuggler (warns about militia interest) → pick up the hot crate → fly to Barnard's Star b: **militia patrols scan more aggressively than normal** (scan chance floor active — verify vs. a non-bar save) → deliver to the smuggler (smuggle completes) → he draws the cave → descend, recover the power cell (delve completes; cell is hot cargo now) → the Barnard's Star gate is sealed by a **militia patrol** — fight (militia rep tanks) or flee (another scan) → return to the Barkeep → rig granted + door opens. Deliberately fail `bar_q2` once: get scanned, crate confiscated, step fails, Barkeep re-offers his last crate. Barkeep dialogue stays in-character (tall tales, not exposition).
 
 ### Phase 1h: Lab chain — "The Resonance" (resonance key)
 
-- [ ] Write `lab_q1_sample` → `lab_q5_key` as step data (bump / delve / visit / salvage / talk)
-- [ ] Wire `lab_q1_sample` chain-aware door bump (chip a sample; does NOT open the door)
-- [ ] Wire `lab_q2_reference` delve site on Procyon C (cache yields quest-tagged `research_data` ×2)
-- [ ] Write the lab gates (`wait_days` 50/115/95/80, completion flavor, summons per the chain table)
-- [ ] Wire `lab_q4_frequency` quest-tagged salvage (derelict near Sirius, `scout_a`, `research_data`)
-- [ ] Wire `lab_q5_key` trigger → grants `lab_resonance_key` + `prologue_open`
-- [ ] Smoke test + commit
+- [x] Write `lab_q1_sample` → `lab_q7_key` as step data (bump / **smuggle** / delve / **smuggle** / salvage / **smuggle** / talk)
+- [x] Wire `lab_q1_sample` chain-aware door bump (chip a sample; does NOT open the door; pirate ambush springs in the door room)
+- [x] Wire `lab_q2_delivery` smuggle — door sample to the `research_officer` on Mercury (non-confiscatable)
+- [x] Wire `lab_q3_reference` delve site on Procyon C (cache yields quest-tagged `research_data` ×2)
+- [x] Wire `lab_q4_xenolinguist` smuggle — dataset to the `xenolinguist` at Alpha Centauri Science Port (non-confiscatable; Mercury officer re-issues a lost copy)
+- [x] Wire `lab_q5_frequency` quest-tagged salvage (derelict near Sirius, `scout_a`, `reference_recorder` interior loot, pirate captain + raiders guarding)
+- [x] Wire `lab_q6_return` smuggle — recorder back to the Mercury `research_officer` (the fetch has a return leg)
+- [x] Wire `lab_q7_key` trigger → grants `lab_resonance_key` + `prologue_open`
+- [x] Write the lab gates (`wait_days` 0/50/0/95/0/80, completion flavor, summons per the chain table)
+- [x] Smoke test + commit
 
 **PLAYTEST (1h):** full lab run — bump the door to chip the sample (door stays sealed; no tool yet) → fly to Procyon C, descend into the caves, secure the reference dataset (delve completes) → recruit the xenolinguist at Alpha Centauri Science Port (visit) → recover the frequency dataset from the Sirius derelict (salvage) → return to Mercury → key granted + door opens. Verify the sample chip doesn't accidentally open the door early.
 
@@ -614,15 +624,15 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 6: Guide + final polish
 
-- [ ] Add main quest section to in-game guide
+- [x] Add main quest section to in-game guide (`_GUIDE_MAIN_QUEST` — rewritten to match the shipped act 0 chains)
 - [ ] Full playtest: prologue → research → mysteries → blockade breach → beyond → finale
 - [ ] DRY/RNG audit
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_chain`, `main_quest_gate`, `main_quest_pending_message`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`
-- [ ] **Game guide:** New main quest overlay → updated `_GUIDE_MISSIONS` or new `_GUIDE_MAIN_QUEST` section
-- [ ] **NPC spawns:** Alien sentinel ships → registered in `ctx.procedural_spawns` with matching `squad_id`
+- [x] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_chain`, `main_quest_gate`, `main_quest_pending_message`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`; entity flags (`main_quest_door`, `main_quest_step_id`) + quest NPC respawn covered
+- [x] **Game guide:** `_GUIDE_MAIN_QUEST` section updated for the shipped act 0 chains (bar / merchants / militia / lab)
+- [x] **NPC spawns:** Quest-tagged bounty/salvage spawns via `BountySpawn` (leader + escorts + wreck) with cleanup on completion
 
 ## Open questions
 
