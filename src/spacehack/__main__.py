@@ -953,21 +953,20 @@ def _run_game(
                                             _mq_candidates = [(_spawn.x, _spawn.y)]
                                         from .engine import RNG as _RNG
                                         _lr = _mq_candidates[_RNG.randint(0, len(_mq_candidates) - 1)]
-                                        # Quest-tagged loot for the wreck: goods come
-                                        # from the step (delve_good_ids), with the
-                                        # merchant chain's calibration data as the
-                                        # legacy fallback.
-                                        if _mq_step.delve_good_ids:
-                                            _mq_goods = list(_mq_step.delve_good_ids)
-                                            from .data.trade_goods import find_trade_good as _ftg
-                                            try:
-                                                _gname = _ftg(_mq_goods[0][0]).name
-                                            except (KeyError, ImportError):
-                                                _gname = _mq_goods[0][0].replace('_', ' ').title()
-                                            _mq_loot_name = f"Quest Component: {_gname}"
-                                        else:
-                                            _mq_goods = [("research_data", 1)]
-                                            _mq_loot_name = "Quest Component: Calibration Data"
+                                        # Quest-tagged loot for the wreck comes from
+                                        # the step's data (delve_good_ids) — no
+                                        # hardcoded fallback: a salvage step without
+                                        # loot data is a data bug, not a runtime case.
+                                        _mq_goods = list(_mq_step.delve_good_ids)
+                                        if not _mq_goods:
+                                            log.add("The derelict holds no quest data.")
+                                            continue
+                                        from .data.trade_goods import find_trade_good as _ftg
+                                        try:
+                                            _gname = _ftg(_mq_goods[0][0]).name
+                                        except (KeyError, ImportError):
+                                            _gname = _mq_goods[0][0].replace('_', ' ').title()
+                                        _mq_loot_name = f"Quest Component: {_gname}"
                                         _mq_loot = world.Entity(
                                             char='%',
                                             fg=(255, 215, 0),

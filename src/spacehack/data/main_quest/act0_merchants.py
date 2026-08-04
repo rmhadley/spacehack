@@ -203,6 +203,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         bounty_escort_ids=("pirate_raider", "pirate_raider"),
         salvage_wreck_enemy_id="derelict_scout",
         salvage_layout_id="scout_a",
+        delve_good_ids=(("calibration_data", 1),),
         smuggle_good_id="rare_earth_metals",
         smuggle_cargo_size=3,
         wait_days=0,

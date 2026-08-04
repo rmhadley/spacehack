@@ -1,4 +1,4 @@
-"""Trade goods catalog: the 13 initial goods for v1.
+"""Trade goods catalog: the initial goods for v1.
 
 Each entry is a :class:`TradeGood` frozen dataclass. Goods are grouped
 by category: biological, industrial, raw_material, luxury, tech, contraband.
@@ -138,6 +138,19 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
             "resonance frequency readings from the Sirius patrol."
         ),
         base_price=200,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
+        id="calibration_data",
+        name="Cutter Calibration Data",
+        description=(
+            "Frequency-alignment telemetry recovered from a derelict "
+            "near Vega — the last thing the cutter needs before it "
+            "can be assembled."
+        ),
+        base_price=250,
         category="tech",
         volume=1,
         rarity=0.1,
