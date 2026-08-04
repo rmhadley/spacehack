@@ -169,9 +169,9 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     if _step.objective_type == "visit":
         # Visit steps: talking to the expert NPC completes the step
         # (fires the quest popup).  No trigger_on_talk needed — the
-        # player selects the option_label from the NPC menu.
-        if step_status(ctx, step_id) != STATUS_ACTIVE:
-            return False
+        # player selects the option_label from the NPC menu.  The step
+        # may be AVAILABLE (never started) or ACTIVE — complete_step
+        # handles both.
         from ._objectives import maybe_complete_visit as _maybe_visit
         return _maybe_visit(ctx, _step.requires_npc_id)
     return complete_step(ctx, step_id)
