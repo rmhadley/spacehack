@@ -139,6 +139,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="salvage_specialist",
         smuggle_good_id="rare_earth_metals",
         smuggle_cargo_size=3,
+        smuggle_hot=False,  # ore — never confiscatable (consortium heat is pirates, not scans)
         wait_days=130,
         completion_flavor=(
             "The specialist hooks the ore into his smelting rig. "

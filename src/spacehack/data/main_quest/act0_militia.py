@@ -143,6 +143,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="blockade_officer",
         smuggle_good_id="ship_components",
         smuggle_cargo_size=6,
+        smuggle_hot=False,  # militia's own requisition — never confiscatable
         wait_days=80,
         completion_flavor=(
             "The blockade inspector signs off on every component — "

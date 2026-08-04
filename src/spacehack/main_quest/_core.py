@@ -111,7 +111,7 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
         delivery_target_npc_id=_step.requires_npc_id,
         delivery_target_planet_id=_step.trigger_planet_id,
         target_system_id=_step.trigger_system_id,
-        is_smuggle=True,
+        is_smuggle=_step.smuggle_hot,
         smuggle_good_id=_step.smuggle_good_id,
         main_quest_step_id=_step.id,
     )

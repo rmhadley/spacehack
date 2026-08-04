@@ -151,10 +151,24 @@ def fail_smuggle_step(ctx, active) -> bool:
         return False
     if step_status(ctx, _step_id) != STATUS_ACTIVE:
         return False
+    _step = find_main_quest_step(_step_id)
+    _good = _step.smuggle_good_id.replace('_', ' ')
     ctx.main_quest_progress[_step_id] = STATUS_AVAILABLE
-    ctx.log.add_colored(
-        "The Barkeep grumbles and digs out his last crate. Don't lose "
-        "this one.",
-        message_log.COLOR_IMPORTANT_EVENT,
-    )
+    if _step.smuggle_hot:
+        # Contraband (bar chain): the giver NPC re-offers the crate
+        # via their quest dialogue option.
+        ctx.log.add_colored(
+            "The crate is lost. Talk to the quest giver for another "
+            "one.",
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
+        return True
+    # Non-contraband payload (lab/militia/merchant): story-required
+    # mission cargo auto-reloads so the chain never strands the
+    # player with a live step and no delivery target.
+    if _trigger_smuggle_crate(ctx, _step):
+        ctx.log.add_colored(
+            f"The {_good} is re-secured in your mission hold.",
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
     return True

@@ -152,6 +152,16 @@ class MainQuestStep:
     delve_good_ids: tuple[tuple[str, int], ...] = ()
     smuggle_good_id: str = ""  # hot cargo id ("smuggle")
     smuggle_cargo_size: int = 0  # volume of the hot crate ("smuggle")
+    smuggle_hot: bool = True  # True = militia scans can confiscate the
+                              # crate (bar chain: every patrol is a
+                              # risk). False = plain mission cargo that
+                              # must NEVER be confiscatable (lab
+                              # datasets, militia requisition, merchant
+                              # ore) — a single scan would softlock the
+                              # chain, since the receiver's quest option
+                              # is suppressed while the crate isn't held
+                              # and a confiscated crate had no re-issue
+                              # path.
     # --- Time-gating fields (minimum waits, never deadlines) ---
     wait_days: int = 0  # world-clock days the faction "works" after this step
                         # completes before the NEXT step unlocks (0 = no gate)

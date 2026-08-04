@@ -86,6 +86,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="research_officer",
         smuggle_good_id="door_sample",
         smuggle_cargo_size=1,
+        smuggle_hot=False,  # a scientific sample — never confiscatable
         wait_days=50,
         completion_flavor=(
             "Sample received — the material is unlike anything in the "
@@ -198,6 +199,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="xenolinguist",
         smuggle_good_id="research_data",
         smuggle_cargo_size=2,
+        smuggle_hot=False,  # research data — never confiscatable
         wait_days=95,
         completion_flavor=(
             "The xenolinguist cross-references the dataset with the "
@@ -240,6 +242,23 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 option_label="Hand over the dataset",
                 backing_faction="lab",
+            ),
+            # Giver recovery: the Research Officer re-issues a lost
+            # dataset copy so a confiscated/abandoned crate never
+            # strands the chain (option only surfaces while the
+            # crate is NOT in the mission hold).
+            "research_officer": QuestDialogue(
+                npc_id="research_officer",
+                trigger_on_talk=True,
+                intro=(
+                    "If that dataset copy goes missing, the lab keeps "
+                    "a backup of the Procyon reference files — I can "
+                    "issue another. Get it straight to the Science "
+                    "Port."
+                ),
+                option_label="Request another copy of the dataset",
+                backing_faction="lab",
+                dialogue_planet_id="mercury",
             ),
         },
         rewards_xp=60,
