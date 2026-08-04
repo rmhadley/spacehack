@@ -32,6 +32,7 @@ from ._objectives import (
     maybe_complete_bounty,
     maybe_complete_smuggle_delivery,
     fail_smuggle_step,
+    show_step_readout,
 )
 from ._heat import (
     charged_cell_in_sol,

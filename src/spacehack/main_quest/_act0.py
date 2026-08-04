@@ -117,8 +117,11 @@ def bump_mars_door(ctx) -> None:
     _bumped_step = _complete_bump_objective(ctx)
     if _bumped_step:
         # A quest bump objective was chipped (e.g. lab_q1_sample):
-        # fire the gate popup so the wait is communicated.
-        maybe_continue_chain(ctx, "", _bumped_step)
+        # show the quest readout modal (completion flavor + next step)
+        # instead of a bare console-log line.
+        from ._objectives import show_step_readout as _ssr
+        _step = find_main_quest_step(_bumped_step)
+        _ssr(ctx, _step)
         return
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):

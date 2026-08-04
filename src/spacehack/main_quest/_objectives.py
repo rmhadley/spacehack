@@ -15,6 +15,40 @@ from ._core import (
 from .. import message_log
 
 
+def show_step_readout(ctx, _step) -> bool:
+    """Show the quest readout popup for a just-completed step.
+
+    Body = completion flavor + next-step guidance (a time-gate hint
+    or the next objective's description).  No-op when the step has no
+    completion flavor or no dialogue NPC to portrait.
+    """
+    _flavor = _step.completion_flavor
+    if not _flavor or not _step.dialogues:
+        return False
+    from ..data.npcs import find_npc as _fn
+    _npc = _fn(next(iter(_step.dialogues)))
+    _next_step = main_quest_step_after(
+        _step.id, chain=ctx.main_quest_chain,
+    )
+    if (_next_step is not None
+            and _next_step.id in ctx.main_quest_gate):
+        _what_next = (
+            f"The {_next_step.chain.capitalize()} will contact "
+            "you when they're ready for the next step. "
+            "Check your quest log (Q) for updates."
+        )
+    elif _next_step is not None:
+        _what_next = _next_step.description
+    else:
+        _what_next = ""
+    _body = _flavor
+    if _what_next:
+        _body = f"{_flavor}\n\n{_what_next}"
+    from ._act0 import show_quest_readout
+    show_quest_readout(ctx, _npc, _body)
+    return True
+
+
 def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     """Complete a delve/salvage objective whose quest-tagged loot was secured."""
     _step_id = getattr(loot_entity, "main_quest_step_id", "")
@@ -29,7 +63,6 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     if _owned is not None:
         for _gid, _qty in goods:
             _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
-    _flavor = _step.completion_flavor
     _result = complete_step(ctx, _step_id)
     # Salvage wrecks: remove the derelict BountySpawn so it doesn't
     # respawn on re-entry.  The exit handler (__main__.py) removes
@@ -56,31 +89,7 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
                 and step_status(ctx, _next.id) == STATUS_AVAILABLE
                 and not _smuggle_crate_held(ctx, _next.id)):
             _trigger_smuggle_crate(ctx, _next)
-    if _result and _flavor:
-        _npc_id = next(iter(_step.dialogues)) if _step.dialogues else ""
-        if _npc_id:
-            from ..data.npcs import find_npc as _fn
-            _npc = _fn(_npc_id)
-            _next_step = main_quest_step_after(
-                _step_id, chain=ctx.main_quest_chain,
-            )
-            if (_next_step is not None
-                    and _next_step.id in ctx.main_quest_gate):
-                _what_next = (
-                    f"The {_next_step.chain.capitalize()} will contact "
-                    "you when they're ready for the next step. "
-                    "Check your quest log (Q) for updates."
-                )
-            elif _next_step is not None:
-                _what_next = _next_step.description
-            else:
-                _what_next = ""
-            _body = _flavor
-            if _what_next:
-                _body = f"{_flavor}\n\n{_what_next}"
-            # Lazy import to avoid circular dependency with _act0
-            from ._act0 import show_quest_readout
-            show_quest_readout(ctx, _npc, _body)
+        show_step_readout(ctx, _step)
     return _result
 
 
@@ -90,32 +99,9 @@ def maybe_complete_visit(ctx, npc_id: str) -> bool:
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
-    _flavor = _step.completion_flavor
     _result = complete_step(ctx, _step_id)
-    if _result and _flavor:
-        _npc_id = next(iter(_step.dialogues)) if _step.dialogues else ""
-        if _npc_id:
-            from ..data.npcs import find_npc as _fn
-            _npc = _fn(_npc_id)
-            _next_step = main_quest_step_after(
-                _step_id, chain=ctx.main_quest_chain,
-            )
-            if (_next_step is not None
-                    and _next_step.id in ctx.main_quest_gate):
-                _what_next = (
-                    f"The {_next_step.chain.capitalize()} will contact "
-                    "you when they're ready for the next step. "
-                    "Check your quest log (Q) for updates."
-                )
-            elif _next_step is not None:
-                _what_next = _next_step.description
-            else:
-                _what_next = ""
-            _body = _flavor
-            if _what_next:
-                _body = f"{_flavor}\n\n{_what_next}"
-            from ._act0 import show_quest_readout
-            show_quest_readout(ctx, _npc, _body)
+    if _result:
+        show_step_readout(ctx, _step)
     return _result
 
 
@@ -128,32 +114,8 @@ def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
         if not complete_step(ctx, _step_id):
             return False
         _step = find_main_quest_step(_step_id)
-        _flavor = _step.completion_flavor
         # Show the quest readout popup with completion flavor + next-step guidance.
-        if _flavor:
-            _npc_id = next(iter(_step.dialogues)) if _step.dialogues else ""
-            if _npc_id:
-                from ..data.npcs import find_npc as _fn
-                _npc = _fn(_npc_id)
-                _next_step = main_quest_step_after(
-                    _step_id, chain=ctx.main_quest_chain,
-                )
-                if (_next_step is not None
-                        and _next_step.id in ctx.main_quest_gate):
-                    _what_next = (
-                        f"The {_next_step.chain.capitalize()} will contact "
-                        "you when they're ready for the next step. "
-                        "Check your quest log (Q) for updates."
-                    )
-                elif _next_step is not None:
-                    _what_next = _next_step.description
-                else:
-                    _what_next = ""
-                _body = _flavor
-                if _what_next:
-                    _body = f"{_flavor}\n\n{_what_next}"
-                from ._act0 import show_quest_readout
-                show_quest_readout(ctx, _npc, _body)
+        show_step_readout(ctx, _step)
         if _step.trigger_system_id:
             from ..navigation import _remove_bounty_spawn as _rbs
             _rbs(ctx, _spawn_id, _step.trigger_system_id)
