@@ -112,6 +112,73 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
         place_mars_door(game_map, spawn)
 
 
+def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40) -> list[world.Position]:
+    """BFS through walkable cells from the door — the door's room.
+
+    Walls and doors stop expansion; cells are returned nearest-first,
+    so the first entries surround the door itself.
+    """
+    _queue: deque[tuple[int, int]] = deque([(door_pos.x, door_pos.y)])
+    _seen: set[tuple[int, int]] = {(door_pos.x, door_pos.y)}
+    _cells: list[world.Position] = []
+    while _queue and len(_cells) < cap:
+        _x, _y = _queue.popleft()
+        _cells.append(world.Position(_x, _y))
+        for _nx, _ny in ((_x + 1, _y), (_x - 1, _y), (_x, _y + 1), (_x, _y - 1)):
+            if not (0 <= _nx < game_map.width and 0 <= _ny < game_map.height):
+                continue
+            if (_nx, _ny) in _seen:
+                continue
+            _tile = game_map.tiles[_ny][_nx]
+            if not _tile.walkable or _tile.kind in ("dungeon_door", "breach"):
+                continue
+            _seen.add((_nx, _ny))
+            _queue.append((_nx, _ny))
+    return _cells
+
+
+def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
+    """Spawn pirate raiders in the room around the Mars door.
+
+    Returns True if raiders were placed.  The squad shares one
+    ``squad_id`` so the whole group joins a single ground-combat
+    encounter.  Spawns on the current map (the cached Mars surface),
+    so the raiders persist across save/load and re-entry.
+    """
+    _door = next(
+        (_e for _e in ctx.game_map.entities
+         if getattr(_e, "main_quest_door", False)),
+        None,
+    )
+    if _door is None:
+        return False
+    _room = _door_room_cells(ctx.game_map, _door.pos)
+    if not _room:
+        return False
+    from ..engine import RNG as _RNG
+    _RNG.shuffle(_room)
+    _occupied = {(e.pos.x, e.pos.y) for e in ctx.game_map.entities}
+    _squad_id = f"door_ambush_{_RNG.randint(10000, 99999)}"
+    _placed = 0
+    for _cell in _room:
+        if _placed >= count:
+            break
+        if (_cell.x, _cell.y) in _occupied:
+            continue
+        ctx.game_map.entities.append(world.Entity(
+            char="r",
+            fg=(220, 120, 80),
+            pos=_cell,
+            name="",
+            width=1, height=1,
+            npc_char_id="pirate_raider",
+            squad_id=_squad_id,
+        ))
+        _occupied.add((_cell.x, _cell.y))
+        _placed += 1
+    return _placed > 0
+
+
 def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars."""
     _bumped_step = _complete_bump_objective(ctx)
@@ -122,6 +189,16 @@ def bump_mars_door(ctx) -> None:
         from ._objectives import show_step_readout as _ssr
         _step = find_main_quest_step(_bumped_step)
         _ssr(ctx, _step)
+        # The lab sample draws attention: pirates watching the dig
+        # spring an ambush in the door's room the moment it's chipped.
+        if _bumped_step == "lab_q1_sample" and _spawn_door_ambush(ctx):
+            show_gate_popup(
+                ctx, "Pirate Raiders",
+                "Raiders pour out of the shadows around the sealed "
+                "door — they were watching the dig site, waiting for "
+                "someone to come back for the sample. They want it.",
+                title="AMBUSH!",
+            )
         return
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -397,12 +474,12 @@ def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
 _OFFER_BODY_WIDTH = 62
 
 
-def render_gate_popup(console, *, screen_width, screen_height, faction, body_text) -> None:
-    """Paint a dismiss-only time-gate explanation popup."""
+def render_gate_popup(console, *, screen_width, screen_height, faction, body_text, title="THE WORK BEGINS") -> None:
+    """Paint a dismiss-only modal (time-gate explanation, ambush, etc.)."""
     _lines = ui.wrap_text(body_text, _OFFER_BODY_WIDTH)
     _box_h = 10 + len(_lines)
     _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=70, box_h=_box_h)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text="THE WORK BEGINS", fg=ui.COLOR_TITLE)
+    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text=title, fg=ui.COLOR_TITLE)
     _centered_print(console, screen_width=screen_width, y=_y0 + 3,
                     text=f"FACTION: {faction.upper()}", fg=ui.COLOR_VALUE_DIM)
     _body_y = _y0 + 5
@@ -412,10 +489,10 @@ def render_gate_popup(console, *, screen_width, screen_height, faction, body_tex
                     text="Press ENTER to continue", fg=ui.COLOR_INSTRUCTION)
 
 
-def show_gate_popup(ctx, faction: str, body_text: str) -> None:
-    """Show a time-gate explanation popup and block until dismissed."""
+def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "THE WORK BEGINS") -> None:
+    """Show a dismiss-only modal popup (time-gate explanation, ambush, etc.)."""
     console = make_console()
-    def _render(): render_gate_popup(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, faction=faction, body_text=body_text)
+    def _render(): render_gate_popup(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, faction=faction, body_text=body_text, title=title)
     def _update(event): return _modal_dismiss_update(event)
     ui.Modal(ctx.context, console).run(_render, _update)
 
