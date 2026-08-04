@@ -213,15 +213,19 @@ def _active_objective_step(
     return None
 
 
-def _complete_bump_objective(ctx) -> bool:
-    """Complete an active ``bump`` objective on this door bump."""
+def _complete_bump_objective(ctx) -> str:
+    """Complete an active ``bump`` objective on this door bump.
+
+    Returns the completed step id, or ``""`` if no bump objective is
+    live (e.g. the Mars door is just being opened normally).
+    """
     _step_id = _active_objective_step(ctx, "bump")
     if _step_id is None:
-        return False
+        return ""
     ctx.log.add_colored(
         "You chip a fragment of the alien material off the door's "
         "surface. The seal holds.",
         message_log.COLOR_IMPORTANT_EVENT,
     )
     complete_step(ctx, _step_id)
-    return True
+    return _step_id

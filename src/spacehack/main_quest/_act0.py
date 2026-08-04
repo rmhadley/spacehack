@@ -114,7 +114,11 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
 
 def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars."""
-    if _complete_bump_objective(ctx):
+    _bumped_step = _complete_bump_objective(ctx)
+    if _bumped_step:
+        # A quest bump objective was chipped (e.g. lab_q1_sample):
+        # fire the gate popup so the wait is communicated.
+        maybe_continue_chain(ctx, "", _bumped_step)
         return
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -435,9 +439,8 @@ def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
                 _step = find_main_quest_step(_q1.id)
             else:
                 return
-    if _step.wait_days > 0 and _step.completion_flavor:
-        if _step.objective_type == "smuggle" and step_status(ctx, _step.id) == STATUS_ACTIVE:
-            return
+    if (_step.wait_days > 0 and _step.completion_flavor
+            and step_status(ctx, _step.id) == STATUS_COMPLETED):
         _fac = (_step.chain or "faction").capitalize()
         show_gate_popup(ctx, _fac, _step.completion_flavor)
 

@@ -174,4 +174,11 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
         # handles both.
         from ._objectives import maybe_complete_visit as _maybe_visit
         return _maybe_visit(ctx, _step.requires_npc_id)
+    if _step.objective_type == "bump":
+        # Bump steps (e.g. lab_q1_sample): accepting the assignment
+        # does NOT complete the step — the player must physically chip
+        # the sample from the Mars door (bump_mars_door →
+        # _complete_bump_objective).  Return True so the dialogue is
+        # consumed; the step stays available until the bump.
+        return True
     return complete_step(ctx, step_id)

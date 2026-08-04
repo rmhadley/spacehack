@@ -18,22 +18,22 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="lab_q1_sample",
         title="The Sample",
         description=(
-            "Return to Mars and chip a hand-sized fragment of the door's "
-            "material — the door stays sealed. Bring the sample to the "
-            "Research Officer on Mercury for analysis. The resonance "
-            "signature will be the key to opening it."
+            "The Research Officer wants a hand-sized fragment of the "
+            "door's material. Return to Mars, chip a sample off the "
+            "sealed door — it stays sealed — and bring it back for "
+            "resonance analysis."
         ),
-        trigger_planet_id="mercury",
+        trigger_planet_id="mars",
         trigger_system_id="sol",
         requires_step="prologue_seek_help",
         chain="lab",
-        objective_type="talk",
+        objective_type="bump",
         wait_days=50,
         completion_flavor=(
-            "Sample received — the material is unlike anything in the "
-            "human catalogue. The Research Officer begins the resonance "
-            "analysis. They'll contact you when the first results are "
-            "in — then head to Mercury for the next phase."
+            "Sample chipped — a hand-sized fragment of the door's "
+            "material, unlike anything in the human catalogue. The "
+            "Research Officer begins the resonance analysis. They'll "
+            "contact you when the first results are in."
         ),
         ready_message=(
             "The resonance analysis is complete — and the results point "
@@ -46,22 +46,24 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="research_officer",
                 trigger_on_talk=True,
                 intro=(
-                    "Return to Mars and chip a hand-sized fragment off "
-                    "the door's material. The door itself stays sealed "
-                    "— we only need the surface. Bring it here and I'll "
-                    "run the resonance analysis. If the resonance "
-                    "signature is stable, we can forge a key."
+                    "Good — you found the door. Now we need proof of what "
+                    "it's made of. Return to Mars and chip a hand-sized "
+                    "fragment off its surface. The door itself stays "
+                    "sealed. Bring the sample here and I'll run the "
+                    "resonance analysis — if the signature is stable, "
+                    "we can forge a key."
                 ),
                 active=(
-                    "A hand-sized fragment of the door's material is "
-                    "all we need. The door stays sealed — chip a sample "
-                    "and bring it to the Mercury lab. The analysis "
-                    "will give us the resonance signature."
+                    "The sample is still on the door. Return to Mars, "
+                    "chip a fragment off the sealed door, and bring it "
+                    "to the Mercury lab. The door stays sealed — we "
+                    "only need the surface."
                 ),
                 complete=(
-                    "Sample received. The resonance analysis is running "
-                    "— give us time. The initial results should point "
-                    "us to the next phase."
+                    "Sample received — remarkable material. The "
+                    "resonance analysis is running; give us time. The "
+                    "initial results should point us to the next "
+                    "phase."
                 ),
                 option_label="Accept the assignment",
                 backing_faction="lab",
