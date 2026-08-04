@@ -290,13 +290,12 @@ def _run_game(
         console.clear()
         if current_mode == 'space':
             sys_now = solar_system_module.current_system()
-            sol_w = sys_now.width
-            sol_h = sys_now.height
             view_w = solar_system_module.SOL_VIEW_W
             view_h = solar_system_module.SOL_VIEW_H
-            cam_x = max(0, min(player.pos.x - view_w // 2, sol_w - view_w))
-            cam_y = max(0, min(player.pos.y - view_h // 2, sol_h - view_h))
-            world.render_world_view(console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
+            cam_x, cam_y, rx, ry = world.camera_for_view(
+                game_map, player.pos, region_w=view_w, region_h=view_h,
+            )
+            world.render_world_view(console, game_map, region_x=rx, region_y=ry, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
             render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
         elif current_mode == 'dungeon':
             cam_x, cam_y, rx, ry = world.camera_for_view(
