@@ -38,6 +38,7 @@ from .data import solar_systems as solar_systems_module
 from . import npc as npc_module
 from .data.species import find_species
 from .data.classes import find_class
+from .data.main_quest import find_main_quest_step
 from .npc import TalkOutcome, _run_npc_talk
 from . import main_quest as main_quest_module
 from . import world
@@ -527,7 +528,7 @@ def _run_game(
                                 _mq_sid = _wsid[:-6]  # strip _wreck suffix
                                 for _sid, _st in ctx.main_quest_progress.items():
                                     try:
-                                        _cs = main_quest_module.find_main_quest_step(_sid)
+                                        _cs = find_main_quest_step(_sid)
                                     except KeyError:
                                         continue
                                     if (_cs.objective_type == "salvage"
@@ -924,7 +925,7 @@ def _run_game(
                                         if _st not in ("available", "active"):
                                             continue
                                         try:
-                                            _candidate = main_quest_module.find_main_quest_step(_sid)
+                                            _candidate = find_main_quest_step(_sid)
                                         except KeyError:
                                             continue
                                         if (_candidate.objective_type == "salvage"
