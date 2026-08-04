@@ -173,12 +173,16 @@ def smoke_test() -> int:
                 )
                 return 1
             if _d.option_label and not _d.trigger_on_talk:
-                print(
-                    f"FAIL: main quest step {_s.id!r} dialogue for "
-                    f"{_npc_id!r} has option_label but no trigger_on_talk.",
-                    file=sys.stderr,
-                )
-                return 1
+                # Visit steps are an exception: they use the quest option
+                # row but the step is completed inside trigger_dialogue
+                # (via the visit/complete path), not via trigger_on_talk.
+                if _s.objective_type != "visit":
+                    print(
+                        f"FAIL: main quest step {_s.id!r} dialogue for "
+                        f"{_npc_id!r} has option_label but no trigger_on_talk.",
+                        file=sys.stderr,
+                    )
+                    return 1
             if _d.locks_chain and not _d.backing_faction:
                 print(
                     f"FAIL: main quest step {_s.id!r} dialogue for "

@@ -207,11 +207,6 @@ def _run_npc_talk(
     when DELIVER, ``None`` otherwise.
     """
     ctx.log.add(f"You chat briefly with {npc.name}.")
-    # ``visit`` objective (Act 0 chains): talking to the required
-    # expert NPC completes the step BEFORE dialogue resolution, so the
-    # modal shows the completed step's ``complete`` variant.
-    main_quest_module.maybe_complete_visit(ctx, npc.id)
-
     # Resolve quest dialogue for the talk modal body: when the NPC has
     # live quest dialogue, the body text shows the appropriate variant
     # (intro / active / complete). The quest option row (below) is the

@@ -242,7 +242,6 @@ STEPS: tuple[MainQuestStep, ...] = (
         dialogues={
             "demolitions_expert": QuestDialogue(
                 npc_id="demolitions_expert",
-                trigger_on_talk=True,
                 intro=(
                     "The Captain sent you? Then the work is off the "
                     "books — good, I prefer it that way. Breach "

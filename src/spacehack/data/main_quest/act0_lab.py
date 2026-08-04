@@ -166,7 +166,6 @@ STEPS: tuple[MainQuestStep, ...] = (
         dialogues={
             "xenolinguist": QuestDialogue(
                 npc_id="xenolinguist",
-                trigger_on_talk=True,
                 intro=(
                     "You brought the reference dataset — good. The "
                     "signal we've been tracking shares a resonance "
