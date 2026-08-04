@@ -318,12 +318,13 @@ def spawn_quest_npcs(
     """Add quest-conditional NPCs to game_map after loading a city or dungeon."""
     _need_npc: str | None = None
     if planet_id == "barnards_b" and ctx.main_quest_chain == "bar":
-        _need = any(
-            step_status(ctx, _sid) in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            for _sid in ("bar_q2_proof", "bar_q3_rigparts")
-        ) or (
-            step_status(ctx, "bar_q2_proof") == STATUS_COMPLETED
-            and step_status(ctx, "bar_q3_rigparts") not in (STATUS_COMPLETED,)
+        # The old smuggler is on the map from the proof run (q2)
+        # through the power-cell handover (q4) — he draws the cave
+        # and re-issues a lost cell — and leaves once the cell is on
+        # its way to Wolf 359 (q4 complete).
+        _need = (
+            step_status(ctx, "bar_q2_proof") != ""
+            and step_status(ctx, "bar_q4_blackmarket") != STATUS_COMPLETED
         )
         if _need:
             _need_npc = "old_smuggler"

@@ -232,6 +232,24 @@ STEPS: tuple[MainQuestStep, ...] = (
                 option_label="Hand over the power cell",
                 backing_faction="bar",
             ),
+            # Giver recovery: the old smuggler re-issues a lost power
+            # cell so a confiscated/abandoned crate never strands the
+            # chain (option only surfaces while the crate is NOT in
+            # the mission hold).
+            "old_smuggler": QuestDialogue(
+                npc_id="old_smuggler",
+                trigger_on_talk=True,
+                intro=(
+                    "Lost the cell to a patrol? That's militia-issue "
+                    "hardware — it never travels quiet. I've got one "
+                    "spare casing left from the old job. I'll load "
+                    "another for you. Get it to the listening post "
+                    "at Wolf 359."
+                ),
+                option_label="Request another power cell",
+                backing_faction="bar",
+                dialogue_planet_id="barnards_b",
+            ),
         },
         rewards_credits=50,
         rewards_xp=60,
