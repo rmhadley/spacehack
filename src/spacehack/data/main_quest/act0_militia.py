@@ -271,17 +271,17 @@ STEPS: tuple[MainQuestStep, ...] = (
         title="Live-Fire Test",
         description=(
             "The breach charge is built — now it needs a field "
-            "test. Clear the pirate scouts at Cygni b. The Captain "
-            "wants proof the charge holds under fire before it "
-            "touches an alien door."
+            "test. Five pirate captains at Cygni b. The Captain "
+            "wants a real stress-test — mount the prototype and "
+            "show them what the charge can do."
         ),
         trigger_system_id="cygni",
         requires_step="mil_q4_demolitions",
         chain="militia",
         objective_type="bounty",
         requires_spawn_id="mil_livefire_test",
-        bounty_enemy_id="pirate_scout",
-        bounty_escort_ids=("pirate_scout",),
+        bounty_enemy_id="pirate_captain",
+        bounty_escort_ids=("pirate_captain", "pirate_captain", "pirate_captain", "pirate_captain"),
         wait_days=80,
         completion_flavor=(
             "Live-fire test complete — the charge holds. The "
@@ -289,29 +289,29 @@ STEPS: tuple[MainQuestStep, ...] = (
             "to Earth when you get the word."
         ),
         ready_message=(
-            "Well done. The charge held under fire — exactly what "
-            "the Captain needed to see. Return to Earth. The breach "
+            "Unbelievable. Five pirate captains — and the charge "
+            "turned them to scrap. Return to Earth. The breach "
             "charge is assembled and waiting for you."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
                 intro=(
-                    "The charge needs a field test before it goes "
-                    "near an alien door. Two pirate scouts at Cygni "
-                    "b — clear them and prove the charge holds under "
-                    "fire. Report back when it's done."
+                    "The charge needs a real stress-test before it "
+                    "goes near an alien door. Five pirate captains "
+                    "at Cygni b. We're mounting the prototype to your "
+                    "ship — fire it, watch them burn, report back."
                 ),
                 active=(
-                    "The scouts are at Cygni b. Clear them and "
-                    "prove the charge works. This isn't about glory "
-                    "— it's about knowing the charge won't fail "
-                    "when it matters."
+                    "Five captains at Cygni b. The prototype's on "
+                    "your ship — one shot, one kill. Show them what "
+                    "the militia's been building off the books."
                 ),
                 complete=(
-                    "The charge held. Good — the Captain was right "
-                    "about you. The final package is being assembled "
-                    "on Earth. Report in when you're ready."
+                    "Five pirate captains — and the charge held. "
+                    "Good. The Captain was right about you. The final "
+                    "package is being assembled on Earth. Report in "
+                    "when you're ready."
                 ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
