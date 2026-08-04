@@ -282,17 +282,16 @@ STEPS: tuple[MainQuestStep, ...] = (
         salvage_wreck_enemy_id="derelict_scout",
         salvage_layout_id="scout_a",
         delve_good_ids=(("reference_recorder", 1),),
-        wait_days=80,
+        wait_days=0,
         completion_flavor=(
             "The reference-frequency recorder is recovered from the "
-            "wreck — the final piece of the resonance map slides into "
-            "place. The Research Officer will call when the key is "
-            "forged."
+            "wreck — the final piece of the resonance map. Fly it "
+            "back to the Research Officer on Mercury for calibration."
         ),
         ready_message=(
-            "The key is forged — a resonance frequency that matches "
-            "the door's material perfectly. Report to the Research "
-            "Officer on Mercury. The key is waiting for you."
+            "The recorder is recovered — the final piece of the "
+            "resonance map. Get it back to the Research Officer on "
+            "Mercury."
         ),
         dialogues={
             "research_officer": QuestDialogue(
@@ -314,10 +313,9 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 complete=(
                     "The frequency recorder — intact! This is the "
-                    "final piece. The resonance map is complete, and "
-                    "the key can be forged. Give us time to assemble "
-                    "it — the Research Officer will call when it's "
-                    "ready."
+                    "final piece of the resonance map. Get it back "
+                    "to Mercury — the Research Officer will calibrate "
+                    "the key."
                 ),
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
@@ -325,6 +323,61 @@ STEPS: tuple[MainQuestStep, ...] = (
         },
         rewards_credits=150,
         rewards_xp=120,
+    ),
+    MainQuestStep(
+        id="lab_q6_return",
+        title="The Return",
+        description=(
+            "The reference-frequency recorder is in your mission "
+            "hold. Fly back to Mercury and deliver it to the "
+            "Research Officer — the final piece of the resonance "
+            "map."
+        ),
+        trigger_planet_id="mercury",
+        trigger_system_id="sol",
+        requires_step="lab_q5_frequency",
+        chain="lab",
+        objective_type="smuggle",
+        requires_npc_id="research_officer",
+        smuggle_good_id="reference_recorder",
+        smuggle_cargo_size=1,
+        smuggle_hot=False,  # a scientific instrument — never confiscatable
+        wait_days=80,
+        completion_flavor=(
+            "The recorder is handed over — intact. The resonance map "
+            "is complete, and the key can be forged. The Research "
+            "Officer will call when it's ready."
+        ),
+        ready_message=(
+            "The key is forged — a resonance frequency that matches "
+            "the door's material perfectly. Report to the Research "
+            "Officer on Mercury. The key is waiting for you."
+        ),
+        dialogues={
+            "research_officer": QuestDialogue(
+                npc_id="research_officer",
+                trigger_on_talk=True,
+                intro=(
+                    "The recorder — intact! This is the final piece. "
+                    "The resonance map is complete, and the key can "
+                    "be forged. Hand it over and we'll get to work."
+                ),
+                active=(
+                    "The recorder is in your mission hold. Hand it "
+                    "over and the resonance map is complete — the "
+                    "key can be forged."
+                ),
+                complete=(
+                    "The key is forged. Take it to Mars and open "
+                    "that door — the truth deserves to be published."
+                ),
+                option_label="Hand over the recorder",
+                backing_faction="lab",
+                dialogue_planet_id="mercury",
+            ),
+        },
+        rewards_credits=100,
+        rewards_xp=80,
     ),
     MainQuestStep(
         id="lab_q6_key",
@@ -336,7 +389,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
-        requires_step="lab_q5_frequency",
+        requires_step="lab_q6_return",
         chain="lab",
         objective_type="talk",
         unlocks_step="prologue_open",
