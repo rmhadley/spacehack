@@ -578,8 +578,10 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
             # Squad grouping: if ANY squad member triggers, add ALL
             # squad members so the entire squad joins combat together.
-            if _bs.squad_size > 1:
-                _squad_ref = _bs.spawn_id if _bs.squad_group_id is None else _bs.squad_group_id
+            # Two cases: squad_size > 1 (mission bounties) or
+            # squad_group_id is set (quest bounty escorts).
+            _squad_ref = _bs.spawn_id if _bs.squad_group_id is None else _bs.squad_group_id
+            if _bs.squad_size > 1 or _bs.squad_group_id is not None:
                 for _other in _bounty_spawns:
                     if _other.spawn_id == _squad_ref or _other.squad_group_id == _squad_ref:
                         _triggered_solo_positions.add((_other.pos.x, _other.pos.y))
