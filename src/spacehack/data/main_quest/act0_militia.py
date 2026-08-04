@@ -89,6 +89,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mil_q1_report",
         chain="militia",
         objective_type="delve",
+        delve_good_ids=(("ship_components", 4), ("fuel_cells", 2)),
         wait_days=0,
         completion_flavor=(
             "The requisition cache is secured — ship components and "
