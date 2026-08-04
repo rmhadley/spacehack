@@ -73,6 +73,7 @@ def ensure_quest_spawns(ctx, system_id: str) -> bool:
                     spawn_id=f"{_step.requires_spawn_id}_esc_{_ei}",
                     enemy_id=_enemy_id,
                     pos=_epos,
+                    squad_group_id=_step.requires_spawn_id,
                     comms_warning_range=0,
                 ))
 
