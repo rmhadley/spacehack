@@ -351,11 +351,30 @@ _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
 
 
-def _ground_offsets(game_map: world.GameMap) -> tuple[int, int]:
-    return ((_RENDER_WIDTH - game_map.width) // 2, (_RENDER_HEIGHT - game_map.height) // 2)
+def _ground_view(game_map: world.GameMap, player_pos: world.Position) -> tuple[int, int, int, int]:
+    """Return ``(camera_x, camera_y, region_x, region_y)`` for ground combat.
+
+    Maps that fit inside the combat viewport (dungeons) keep the
+    legacy centred layout — camera at ``(0, 0)`` with the region
+    origin shifted to centre the map, pixel-identical to the old
+    :func:`world.render_world` path.  Maps larger than the viewport
+    (e.g. the 120x90 Mars surface) scroll with a player-centred
+    camera across the full region, mirroring space combat.
+    """
+    if game_map.width <= _RENDER_WIDTH and game_map.height <= _RENDER_HEIGHT:
+        return (
+            0, 0,
+            (_RENDER_WIDTH - game_map.width) // 2,
+            (_RENDER_HEIGHT - game_map.height) // 2,
+        )
+    _cw = max(0, game_map.width - _RENDER_WIDTH)
+    _ch = max(0, game_map.height - _RENDER_HEIGHT)
+    _cx = max(0, min(player_pos.x - _RENDER_WIDTH // 2, _cw))
+    _cy = max(0, min(player_pos.y - _RENDER_HEIGHT // 2, _ch))
+    return (_cx, _cy, 0, 0)
 
 
-def _ground_range_line(console, player_pos, target_pos, weapon_id, ox, oy, *, color_override=None):
+def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y, region_x, region_y, *, color_override=None):
     try:
         _ws = _find_gw(weapon_id)
     except KeyError:
@@ -363,25 +382,26 @@ def _ground_range_line(console, player_pos, target_pos, weapon_id, ox, oy, *, co
     _draw_range_colored_line(
         console, player_pos, target_pos,
         _ws.max_range, _ws.min_range,
-        0, 0, _RENDER_WIDTH, _RENDER_HEIGHT,
-        region_x=ox, region_y=oy,
+        cam_x, cam_y, _RENDER_WIDTH, _RENDER_HEIGHT,
+        region_x=region_x, region_y=region_y,
         color_override=color_override,
     )
 
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
-    _ox, _oy = _ground_offsets(game_map)
-    world.render_world(
+    _cam_x, _cam_y, _rx, _ry = _ground_view(game_map, ctx.player.pos)
+    world.render_world_view(
         console, game_map,
-        region_x=0, region_y=0,
+        region_x=_rx, region_y=_ry,
         region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
+        camera_x=_cam_x, camera_y=_cam_y,
     )
 
     _alive = get_enemies(ctx)
     if _state.target_idx < len(_alive):
         _paint_target_highlight(
-            console, 0, 0, _RENDER_WIDTH, _RENDER_HEIGHT, _ox, _oy,
+            console, _cam_x, _cam_y, _RENDER_WIDTH, _RENDER_HEIGHT, _rx, _ry,
             _alive[_state.target_idx].entity,
         )
 
@@ -401,7 +421,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         )
         _ground_range_line(
             console, ctx.player.pos, _tgt.pos,
-            _active_w[0], _ox, _oy,
+            _active_w[0], _cam_x, _cam_y, _rx, _ry,
             color_override=(255, 60, 60) if _los_blocked else None,
         )
 
@@ -485,7 +505,7 @@ def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
 ) -> None:
-    _ox, _oy = _ground_offsets(game_map)
+    _cam_x, _cam_y, _rx, _ry = _ground_view(game_map, from_pos)
     cells = list(_bresenham_line(from_pos.x, from_pos.y, to_pos.x, to_pos.y))
     if not cells or cells[-1] != (to_pos.x, to_pos.y):
         cells.append((to_pos.x, to_pos.y))
@@ -495,7 +515,7 @@ def animate_fire(
         brightness = min(255, 130 + frame * 30)
         color = (brightness, brightness - 20, 100 + frame * 20)
         for i, (bx, by) in enumerate(cells):
-            sx, sy = bx + _ox, by + _oy
+            sx, sy = _rx + bx - _cam_x, _ry + by - _cam_y
             if 0 <= sx < _RENDER_WIDTH and 0 <= sy < _RENDER_HEIGHT:
                 char = "*" if i == len(cells) - 1 else ("+" if i == 0 else ("=" if i % 2 == 0 else "-"))
                 console.print(x=sx, y=sy, string=char, fg=color)
@@ -505,7 +525,7 @@ def animate_fire(
     if is_hit:
         for flash in range(2):
             render_frame(console, ctx, game_map)
-            tx, ty = to_pos.x + _ox, to_pos.y + _oy
+            tx, ty = _rx + to_pos.x - _cam_x, _ry + to_pos.y - _cam_y
             if 0 <= tx < _RENDER_WIDTH and 0 <= ty < _RENDER_HEIGHT:
                 fg = (255, 255, 255) if flash == 0 else (255, 200, 100)
                 console.print(x=tx, y=ty, string="*", fg=fg)
