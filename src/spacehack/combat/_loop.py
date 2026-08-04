@@ -181,13 +181,6 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
                     f"{_wname} hits {rules.enemy_name(_target)} for {_dmg}!",
                     _ml.COLOR_PLAYER_ACTION,
                 )
-            if not rules.enemy_alive(_target):
-                ctx.log.add_colored(
-                    f"{rules.enemy_name(_target)} destroyed!",
-                    _ml.COLOR_COMBAT_EVENT,
-                )
-                rules.on_kill(game_map, _target, ctx)
-                return True
         else:
             ctx.log.add_colored(
                 f"{_wname} misses {rules.enemy_name(_target)}!",
@@ -200,6 +193,17 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     if _any_fired:
         _ap_now = rules.player_ap(ctx)
         rules.set_player_ap(ctx, _ap_now - _max_ap_cost)
+
+    # Kill handling AFTER AP deduction so killing the target still
+    # costs the full AP for the burst.  Must be outside the weapon
+    # loop (we don't want to return mid-burst before the AP deduction).
+    if _hit and not rules.enemy_alive(_target):
+        ctx.log.add_colored(
+            f"{rules.enemy_name(_target)} destroyed!",
+            _ml.COLOR_COMBAT_EVENT,
+        )
+        rules.on_kill(game_map, _target, ctx)
+        return True
 
     return False
 
