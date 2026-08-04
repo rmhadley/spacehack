@@ -141,21 +141,13 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="lab",
         objective_type="delve",
         delve_good_ids=(("research_data", 2),),
-        wait_days=115,
+        wait_days=0,
         completion_flavor=(
             "The reference dataset is secured — decades of ice-core "
-            "resonance readings. The xenolinguist at Alpha Centauri's "
-            "Science Port needs to cross-reference it with the signal "
-            "data before the key can be calibrated. The Research "
-            "Officer will call when the xenolinguist is ready to "
-            "receive you."
-        ),
-        ready_message=(
-            "The xenolinguist is standing by at Alpha Centauri's "
-            "Science Port — the reference dataset is exactly what "
-            "she needs. Head to the Science Port and find her in "
-            "the lab. She'll cross-reference the resonance data with "
-            "the signal."
+            "resonance readings. It's loaded into your mission hold. "
+            "The xenolinguist at Alpha Centauri's Science Port is the "
+            "only one who can cross-reference it with the signal — "
+            "fly there and hand it over."
         ),
         dialogues={
             "research_officer": QuestDialogue(
@@ -193,17 +185,19 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="lab_q4_xenolinguist",
         title="The Xenolinguist",
         description=(
-            "The xenolinguist at Alpha Centauri's Science Port needs "
-            "to cross-reference the reference dataset with the signal "
-            "data. Visit her in the lab — she'll decode the resonance "
-            "pattern and map the frequency."
+            "The reference dataset is in your mission hold. Fly to "
+            "Alpha Centauri's Science Port and deliver it to the "
+            "xenolinguist — she'll cross-reference it with the signal "
+            "and map the resonance frequency."
         ),
         trigger_planet_id="ac_station",
         trigger_system_id="alpha_centauri",
         requires_step="lab_q3_reference",
         chain="lab",
-        objective_type="visit",
+        objective_type="smuggle",
         requires_npc_id="xenolinguist",
+        smuggle_good_id="research_data",
+        smuggle_cargo_size=2,
         wait_days=95,
         completion_flavor=(
             "The xenolinguist cross-references the dataset with the "
@@ -222,13 +216,14 @@ STEPS: tuple[MainQuestStep, ...] = (
         dialogues={
             "xenolinguist": QuestDialogue(
                 npc_id="xenolinguist",
+                trigger_on_talk=True,
                 intro=(
                     "You brought the reference dataset — good. The "
                     "signal we've been tracking shares a resonance "
                     "pattern with your door sample. If I can cross-"
                     "reference the Procyon data with the signal, I "
                     "can map the frequency — and that's your key. "
-                    "Give me the dataset."
+                    "Hand it over."
                 ),
                 active=(
                     "The cross-reference is promising. The resonance "
@@ -243,7 +238,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "the key can be forged. The Research Officer on "
                     "Mercury has the coordinates."
                 ),
-                option_label="Share the dataset",
+                option_label="Hand over the dataset",
                 backing_faction="lab",
             ),
         },
