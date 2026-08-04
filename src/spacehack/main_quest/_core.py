@@ -83,7 +83,6 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
     if step_status(ctx, _step.id) != STATUS_AVAILABLE:
         return False
     from .. import mission as _mission
-    from .. import ship as _ship
     _owned = ctx.player_owned_ship
     if _owned is None:
         ctx.log.add("You don't have a ship to carry the crate.")
@@ -97,16 +96,11 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
         return False
     _size = _step.smuggle_cargo_size
     if _size > 0:
-        _spec = _ship.find_ship(_owned.ship_id)
-        _cap = _ship.effective_max_cargo(_spec, _owned)
-        _used = _owned.cargo_used + _owned.mission_reserved
-        if _used + _size > _cap:
-            ctx.log.add(
-                f"Your {_spec.name} can't carry the hot crate — "
-                f"{_used + _size - _cap} cargo unit(s) over capacity "
-                f"({_used}/{_cap})."
-            )
-            return False
+        # Mission cargo is virtual hold space (``mission_reserved``), not
+        # trade inventory — a main-quest crate is story-required, so it
+        # always loads regardless of current trade cargo.  No capacity
+        # rejection here: failing silently would strand the player with
+        # the step AVAILABLE and no delivery target (and no retry path).
         _owned.mission_reserved += _size
     _am = _mission.ActiveMission(
         mission_id=f"mq:{_step.id}",
