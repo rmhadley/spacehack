@@ -284,14 +284,13 @@ STEPS: tuple[MainQuestStep, ...] = (
         bounty_escort_ids=("pirate_captain", "pirate_captain", "pirate_captain", "pirate_captain"),
         wait_days=80,
         completion_flavor=(
-            "Live-fire test complete — the charge holds. The "
-            "Captain's ready to assemble the final package. Report "
-            "to Earth when you get the word."
+            "Live-fire test complete — the charge held. The Captain "
+            "needs time to assemble the final package from the test "
+            "data. He'll contact you when it's ready."
         ),
         ready_message=(
-            "Unbelievable. Five pirate captains — and the charge "
-            "turned them to scrap. Return to Earth. The breach "
-            "charge is assembled and waiting for you."
+            "The charge is assembled and ready. Report to the Captain "
+            "on Earth to collect the final package."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
@@ -310,8 +309,8 @@ STEPS: tuple[MainQuestStep, ...] = (
                 complete=(
                     "Five pirate captains — and the charge held. "
                     "Good. The Captain was right about you. The final "
-                    "package is being assembled on Earth. Report in "
-                    "when you're ready."
+                    "package is being assembled. He'll contact you "
+                    "when it's ready for collection."
                 ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
