@@ -73,7 +73,9 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     if (_breach_wid not in (ctx.player_owned_ship.weapons or ())
             and ctx.main_quest_chain == "militia"):
         from .. import main_quest as _mq_check
-        if _mq_check.step_status(ctx, "mil_q5_livefire") in ("available", "active"):
+        if _mq_check.step_status(ctx, "mil_q5_livefire") in (
+            _mq_check.STATUS_AVAILABLE, _mq_check.STATUS_ACTIVE,
+        ):
             from .. import solar_system as _ss
             if _ss.current_solar_system_id == "cygni":
                 ctx.player_owned_ship.weapons = (

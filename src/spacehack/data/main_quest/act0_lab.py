@@ -1,8 +1,9 @@
-"""Act 0 lab chain: "The Resonance" — resonance key (lab_q1 → lab_q5).
+"""Act 0 lab chain: "The Resonance" — resonance key (lab_q1 → lab_q7).
 
 Physical through-line: door sample → reference dataset → xenolinguist →
-derelict frequency → resonance key.  One scientific process, escalating
-understanding, moving through frontier research stations.
+derelict frequency → recorder return → resonance key.  One scientific
+process, escalating understanding, moving through frontier research
+stations.
 
 Design doc: docs/design/in_progress/07_DESIGN_MAIN_QUEST.md
 """
@@ -380,7 +381,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=80,
     ),
     MainQuestStep(
-        id="lab_q6_key",
+        id="lab_q7_key",
         title="The Key",
         description=(
             "Return to the Research Officer on Mercury. The resonance "

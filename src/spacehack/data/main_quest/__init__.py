@@ -96,9 +96,10 @@ class MainQuestStep:
             on completion.
         unlocks_step: step id made available when this step completes,
             in addition to the ``requires_step`` auto-advance. Used by
-            chain-final steps (q5) to make ``prologue_open`` available
-            — each faction's q5 sets ``unlocks_step="prologue_open"``
-            and grants its door tool via ``rewards_item``.
+            chain-final steps (q5–q7) to make ``prologue_open``
+            available — each faction's final step sets
+            ``unlocks_step="prologue_open"`` and grants its door tool
+            via ``rewards_item``.
     """
 
     id: str
