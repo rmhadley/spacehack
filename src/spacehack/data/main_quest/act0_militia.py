@@ -89,14 +89,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mil_q1_report",
         chain="militia",
         objective_type="delve",
-        delve_good_ids=(("ship_components", 4), ("fuel_cells", 2)),
         wait_days=0,
         completion_flavor=(
             "The requisition cache is secured — ship components and "
-            "fuel cells, still sealed. They need to be delivered to "
-            "the blockade inspector at Luyten's Star. The Captain's "
-            "already sent word ahead — the inspector is expecting "
-            "you at the northern checkpoint."
+            "fuel cells, still sealed. The Captain's already sent "
+            "word ahead — report to him for the delivery details."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
@@ -141,8 +138,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         trigger_system_id="luyten_star",
         requires_step="mil_q2_cache",
         chain="militia",
-        objective_type="goods",
-        requires_goods=(("ship_components", 4), ("fuel_cells", 2)),
+        objective_type="smuggle",
+        requires_npc_id="blockade_officer",
+        smuggle_good_id="ship_components",
+        smuggle_cargo_size=6,
         wait_days=80,
         completion_flavor=(
             "The blockade inspector signs off on every component — "
@@ -158,6 +157,31 @@ STEPS: tuple[MainQuestStep, ...] = (
             "Captain's name and he'll sign on."
         ),
         dialogues={
+            "militia_captain": QuestDialogue(
+                npc_id="militia_captain",
+                trigger_on_talk=True,
+                intro=(
+                    "The cache is intact? Good work in those caves. "
+                    "Now get it to the blockade at Luyten's Star — "
+                    "the inspector at the northern checkpoint is "
+                    "expecting you. Five jumps through frontier space. "
+                    "Don't lose those components."
+                ),
+                active=(
+                    "The blockade inspector is waiting at Luyten's "
+                    "Star — northern checkpoint. Hand over the "
+                    "components. He'll log them as routine supply "
+                    "and keep it quiet."
+                ),
+                complete=(
+                    "The inspection cleared? Good. Now we wait for "
+                    "the demolitions expert — the Captain will call "
+                    "when he's ready."
+                ),
+                option_label="Take on the delivery",
+                backing_faction="militia",
+                dialogue_planet_id="earth",
+            ),
             "blockade_officer": QuestDialogue(
                 npc_id="blockade_officer",
                 trigger_on_talk=True,
