@@ -250,21 +250,25 @@ STEPS: tuple[MainQuestStep, ...] = (
         description=(
             "A derelict scout vessel near Sirius carries a reference-"
             "frequency recorder — the final dataset needed to forge "
-            "the resonance key. Defeat the automated derelict defenses "
-            "guarding the wreck and recover the research data."
+            "the resonance key. Fight through the pirates guarding "
+            "the wreck, board it, and recover the recorder inside."
         ),
         trigger_system_id="sirius",
         requires_step="lab_q4_xenolinguist",
         chain="lab",
-        objective_type="bounty",
+        objective_type="salvage",
         requires_spawn_id="lab_derelict_guardian",
-        bounty_enemy_id="pirate_scout",
+        bounty_enemy_id="pirate_captain",
+        bounty_escort_ids=("pirate_raider", "pirate_raider"),
+        salvage_wreck_enemy_id="derelict_scout",
+        salvage_layout_id="scout_a",
+        delve_good_ids=(("reference_recorder", 1),),
         wait_days=80,
         completion_flavor=(
-            "The derelict's defenses are neutralized — the reference-"
-            "frequency recorder is recovered. The final piece of the "
-            "resonance map slides into place. The Research Officer "
-            "will call when the key is forged."
+            "The reference-frequency recorder is recovered from the "
+            "wreck — the final piece of the resonance map slides into "
+            "place. The Research Officer will call when the key is "
+            "forged."
         ),
         ready_message=(
             "The key is forged — a resonance frequency that matches "
@@ -278,15 +282,16 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The xenolinguist's map is nearly complete — one "
                     "more dataset and we can forge the key. A derelict "
                     "scout vessel near Sirius carried a reference-"
-                    "frequency recorder. Recover it — but the automated "
-                    "defenses are still active. Be ready for a fight."
+                    "frequency recorder — and word is a pirate captain "
+                    "and his raiders are already picking it over. "
+                    "Fight through them, board the wreck, and recover "
+                    "the recorder."
                 ),
                 active=(
                     "The derelict is near Sirius — a scout vessel lost "
-                    "decades ago. The frequency recorder is still "
-                    "onboard, but the automated defenses won't "
-                    "distinguish friend from foe. Clear them and "
-                    "recover the data."
+                    "decades ago. A pirate captain and his raiders are "
+                    "guarding the wreck. Clear them, board it, and "
+                    "recover the frequency recorder from inside."
                 ),
                 complete=(
                     "The frequency recorder — intact! This is the "

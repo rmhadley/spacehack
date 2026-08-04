@@ -963,13 +963,28 @@ def _run_game(
                                             _mq_candidates = [(_spawn.x, _spawn.y)]
                                         from .engine import RNG as _RNG
                                         _lr = _mq_candidates[_RNG.randint(0, len(_mq_candidates) - 1)]
+                                        # Quest-tagged loot for the wreck: goods come
+                                        # from the step (delve_good_ids), with the
+                                        # merchant chain's calibration data as the
+                                        # legacy fallback.
+                                        if _mq_step.delve_good_ids:
+                                            _mq_goods = list(_mq_step.delve_good_ids)
+                                            from .data.trade_goods import find_trade_good as _ftg
+                                            try:
+                                                _gname = _ftg(_mq_goods[0][0]).name
+                                            except (KeyError, ImportError):
+                                                _gname = _mq_goods[0][0].replace('_', ' ').title()
+                                            _mq_loot_name = f"Quest Component: {_gname}"
+                                        else:
+                                            _mq_goods = [("research_data", 1)]
+                                            _mq_loot_name = "Quest Component: Calibration Data"
                                         _mq_loot = world.Entity(
                                             char='%',
                                             fg=(255, 215, 0),
                                             pos=world.Position(_lr[0], _lr[1]),
-                                            name="Quest Component: Calibration Data",
+                                            name=_mq_loot_name,
                                             width=1, height=1,
-                                            loot_data={"goods": [("research_data", 1)]},
+                                            loot_data={"goods": _mq_goods},
                                         )
                                         _mq_loot.main_quest_step_id = _mq_step_id
                                         _dungeon_map.entities.append(_mq_loot)

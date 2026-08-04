@@ -130,6 +130,18 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         volume=1,
         rarity=0.3,
     ),
+    TradeGood(
+        id="reference_recorder",
+        name="Reference Frequency Recorder",
+        description=(
+            "A sealed recorder from a derelict scout — decades of "
+            "resonance frequency readings from the Sirius patrol."
+        ),
+        base_price=200,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
     # --- Contraband ---
     TradeGood(
         id="weapons_blackmarket",
