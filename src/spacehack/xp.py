@@ -130,6 +130,16 @@ def has_trait(ctx: GameContext, trait_id: str) -> bool:
     return trait_id in ctx.player_traits
 
 
+def sharpshooter_hit_bonus(ctx: GameContext) -> int:
+    """Sharpshooter trait: +10% hit chance in combat."""
+    return 10 if has_trait(ctx, "sharpshooter") else 0
+
+
+def ace_pilot_ap_bonus(ctx: GameContext) -> int:
+    """Ace Pilot trait: +1 AP per turn in combat."""
+    return 1 if has_trait(ctx, "ace_pilot") else 0
+
+
 # ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------

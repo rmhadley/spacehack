@@ -60,6 +60,18 @@ def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
         return int(base_price * (1.0 - (ratio - 0.5) * 0.8))
 
 
+def _trait_buy_mult(ctx: GameContext) -> float:
+    """Trade Route trait: -5% buy prices."""
+    from .xp import has_trait
+    return 0.95 if has_trait(ctx, "trade_route") else 1.0
+
+
+def _trait_sell_mult(ctx: GameContext) -> float:
+    """Trade Route trait: +5% sell prices."""
+    from .xp import has_trait
+    return 1.05 if has_trait(ctx, "trade_route") else 1.0
+
+
 # ---------------------------------------------------------------------------
 # Economy seeding
 # ---------------------------------------------------------------------------
@@ -222,13 +234,8 @@ def _sell_good(
         ctx.log.add(f"You only have {held} crates of {good.name}.")
         return False
 
-    # Compute sell price (75% of buy price, adjusted by faction rep).
-    buy_price = _unit_price(ctx, planet_id, good_id)
-    from .faction import get_attitude, sell_price_modifier
-    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
-    _attitude = get_attitude(_merchant_rep)
-    _sell_mod = sell_price_modifier(_attitude)
-    sell_price = max(1, int(buy_price * 3 // 4 * _sell_mod))
+    # Compute sell price (75% of buy price, rep + trait adjusted).
+    sell_price = _sell_price(ctx, planet_id, good_id)
     revenue = sell_price * quantity
 
     # Add to stock.
@@ -263,12 +270,28 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     current = stocks.get(good_id, 0)
     target = _target_stock_for(planet_id, good_id)
     price = trade_price(good.base_price, current, target)
-    # Apply faction rep discount.
+    # Apply faction rep discount + Trade Route trait discount.
     from .faction import get_attitude, buy_price_modifier
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
-    _mod = buy_price_modifier(_attitude)
+    _mod = buy_price_modifier(_attitude) * _trait_buy_mult(ctx)
     return max(1, int(price * _mod))
+
+
+def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
+    """Terminal sell price for one unit of ``good_id`` on ``planet_id``.
+
+    75% of the buy price, adjusted by merchant faction reputation and
+    the Trade Route trait's +5% sell bonus. Shared by the actual sale
+    and the trade-modal display so the price shown always equals the
+    credits received.
+    """
+    buy_price = _unit_price(ctx, planet_id, good_id)
+    from .faction import get_attitude, sell_price_modifier
+    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _attitude = get_attitude(_merchant_rep)
+    _sell_mod = sell_price_modifier(_attitude)
+    return max(1, int(buy_price * 3 // 4 * _sell_mod * _trait_sell_mult(ctx)))
 
 
 def _free_cargo(owned) -> int:
@@ -640,9 +663,9 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     _BUY_MULT = 1.2   # player buys from NPC at markup
     _SELL_MULT = 0.5  # player sells to NPC at discount
 
-    # Apply faction rep modifier on top of NPC trade base rates.
-    _BUY_MULT *= buy_price_modifier(_npc_attitude)
-    _SELL_MULT *= sell_price_modifier(_npc_attitude)
+    # Apply faction rep + Trade Route trait modifier on top of NPC trade base rates.
+    _BUY_MULT *= buy_price_modifier(_npc_attitude) * _trait_buy_mult(ctx)
+    _SELL_MULT *= sell_price_modifier(_npc_attitude) * _trait_sell_mult(ctx)
 
     _npc_goods: list[str] = list(_npc_stock.keys())
     _focus: int = 0        # 0 = NPC panel, 1 = player panel
@@ -823,10 +846,9 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         return
 
     # Faction rep gating: enemy/disliked can't use trade terminals.
-    from .faction import get_attitude, sell_price_modifier
+    from .faction import get_attitude
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
-    _sell_mod = sell_price_modifier(_attitude)
 
     if ctx.player_owned_ship is None:
         ctx.log.add("You need a ship with cargo space to use this terminal.")
@@ -864,7 +886,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
             if i >= SCREEN_HEIGHT - 12:
                 break
             good = find_trade_good(gid)
-            sell_price = max(1, int(_unit_price(ctx, planet_id, gid) * 3 // 4 * _sell_mod))
+            sell_price = _sell_price(ctx, planet_id, gid)
             price_label = f"{sell_price:>5}$"
             _contra = good.category == "contraband" and not _can_sell_here(planet_id, gid)
             if _contra:
@@ -977,8 +999,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
                     if 0 <= _sel < len(inv_items):
                         gid, qty = inv_items[_sel]
                         max_qty = min(qty, 9999)
-                        price = _unit_price(ctx, planet_id, gid)
-                        sell_p = max(1, price * 3 // 4)
+                        sell_p = _sell_price(ctx, planet_id, gid)
                         q = _run_quantity_prompt(ctx, f"Sell {find_trade_good(gid).name}", max_qty, sell_p)
                         if q is not None:
                             _sell_good(ctx, planet_id, gid, q)

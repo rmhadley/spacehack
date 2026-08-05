@@ -43,6 +43,10 @@ from ._animations import (
     _paint_target_highlight,
     _paint_range_line,
 )
+from ..xp import (
+    sharpshooter_hit_bonus as _sharpshooter_bonus,
+    ace_pilot_ap_bonus as _ace_pilot_bonus,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -99,12 +103,16 @@ def init(
     _enemy_specs = list(enemy_specs)
     _player_state: dict = {}
 
+    # Ace Pilot trait: +1 AP per turn in combat.
+    _ap_bonus = _ace_pilot_bonus(ctx)
+
     for _i in range(len(enemy_specs)):
         if _i == 0:
             _ps, _ei = init_combat_state(
                 player_ship_catalog, player_owned_ship,
                 player_pos, player_pilot_skills,
                 enemy_specs[_i], enemy_positions[_i],
+                ap_bonus=_ap_bonus,
             )
             _player_state = _ps
         else:
@@ -112,6 +120,7 @@ def init(
                 player_ship_catalog, player_owned_ship,
                 player_pos, player_pilot_skills,
                 enemy_specs[_i], enemy_positions[_i],
+                ap_bonus=_ap_bonus,
             )
         _enemy_insts.append(_ei)
 
@@ -264,8 +273,11 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
         enemy.cells_moved_this_turn,
         int(enemy.pilot_piloting * 0.5),
     )
+    # Sharpshooter trait: +10% hit chance in combat.
+    _hit_bonus = _sharpshooter_bonus(ctx)
     return _space_hit_chance(
         weapon_id, _state.player_state["gunnery"], _dist, _dodge,
+        hit_bonus=_hit_bonus,
     )
 
 
@@ -353,10 +365,13 @@ def _build_hit_chances(target) -> dict[str, int]:
         target.cells_moved_this_turn,
         int(target.pilot_piloting * 0.5),
     )
+    # Sharpshooter trait: +10% hit chance in combat.
+    _hit_bonus = _sharpshooter_bonus(_state.ctx)
     for _wid in _state.weapons_list:
         try:
             _result[_wid] = _space_hit_chance(
                 _wid, _state.player_state["gunnery"], _dist, _target_dodge,
+                hit_bonus=_hit_bonus,
             )
         except KeyError:
             pass
@@ -690,10 +705,12 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
             engineering=_state.player_state.get("engineering", 30),
         )
 
+        _ap_bonus = _ace_pilot_bonus(_state.ctx)
         _ps_dummy, _new_ei = init_combat_state(
             _ship_cat, _state.ctx.player_owned_ship,
             _state.player_state["pos"], _pilot,
             _ns, _np,
+            ap_bonus=_ap_bonus,
         )
         _state.enemy_insts.append(_new_ei)
         _state.enemy_specs.append(_ns)

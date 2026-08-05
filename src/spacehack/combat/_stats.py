@@ -79,8 +79,13 @@ def _calc_max_shields(ship_catalog: Ship | NpcShipSpec, owned_ship: OwnedShip | 
     return max(0, base)
 
 
-def _calc_ap(piloting: int) -> int:
-    return max(1, 3 + (piloting // 20))
+def _calc_ap(piloting: int, ap_bonus: int = 0) -> int:
+    """Action points per turn: ``3 + Piloting//20`` plus a flat bonus.
+
+    ``ap_bonus`` carries permanent bonuses (e.g. the Ace Pilot trait's
+    +1 AP) into the pure formula so callers don't mutate the result.
+    """
+    return max(1, 3 + (piloting // 20)) + ap_bonus
 
 
 def _calc_dodge_bonus(cells_moved: int, piloting_bonus: int = 0) -> int:
@@ -110,6 +115,7 @@ def calc_hit_chance(
     gunnery: int,
     distance: float,
     target_dodge_bonus: int,
+    hit_bonus: int = 0,
 ) -> int:
     """Return 0-100 hit probability.
 
@@ -120,6 +126,7 @@ def calc_hit_chance(
                - int(overshoot) * 10      # dist_penalty
                - max(0, ws.min_range - math.ceil(distance)) * 5  # min_penalty
                - target_dodge_bonus       # movement + piloting
+               + hit_bonus                # permanent bonuses (Sharpshooter)
 
     ``dist_penalty`` and ``min_penalty`` use ``math.ceil`` so
     fractional distances (Euclidean) don't silently round down
@@ -139,6 +146,7 @@ def calc_hit_chance(
         - dist_penalty
         - min_penalty
         - target_dodge_bonus
+        + hit_bonus
     )
     return max(5, min(95, chance))
 
@@ -166,6 +174,7 @@ def init_combat_state(
     player_pilot_skills: PilotSkills,
     enemy_spec: NpcShipSpec,
     enemy_pos: world.Position,
+    ap_bonus: int = 0,
 ) -> tuple[dict, EnemyInstance]:
     """Create initial combat state dict for the player and EnemyInstance.
 
@@ -187,7 +196,7 @@ def init_combat_state(
         except KeyError:
             pass
 
-    ap = _calc_ap(piloting)
+    ap = _calc_ap(piloting, ap_bonus)
     pwr_gen = _calc_power_gen(player_ship_catalog, player_owned_ship)
     max_shield = _calc_max_shields(player_ship_catalog, player_owned_ship)
     hull = _calc_hull(player_ship_catalog, player_owned_ship)

@@ -21,6 +21,10 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
 from ..hud import _bar_str
+from ..xp import (
+    sharpshooter_hit_bonus as _sharpshooter_bonus,
+    ace_pilot_ap_bonus as _ace_pilot_bonus,
+)
 
 from ._types import CombatResult
 from ._stats import _distance
@@ -140,11 +144,14 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     if not _weapons:
         _weapons = ["fists"]
 
+    # Ace Pilot trait: +1 AP per turn in combat.
+    _player_ap_total = 4 + _ace_pilot_bonus(ctx)
+
     _state = GroundCombatState(
         ctx=ctx, game_map=game_map,
         enemies=_enemies,
         player_hp=_player_hp, player_max_hp=_player_max_hp,
-        player_ap=4, player_ap_total=4,
+        player_ap=_player_ap_total, player_ap_total=_player_ap_total,
         armor_defense=_armor_defense,
         active_weapon_list=[True] * len(_weapons),
         console=console,
@@ -231,16 +238,18 @@ def _ground_hit_chance_raw(
     attacker_reflexes: int,
     target_reflexes: int,
     target_dodge_bonus: int = 0,
+    hit_bonus: int = 0,
 ) -> int:
     """Base hit chance before movement dodge.
 
     Half-rate convention shared with ship combat (Gunnery * 0.5):
     each point of attacker Reflexes adds +0.5% accuracy and each
     point of target Reflexes subtracts 0.5% (dodge). All six stats
-    live on the same 0-100 scale."""
+    live on the same 0-100 scale. ``hit_bonus`` carries permanent
+    bonuses (e.g. the Sharpshooter trait's +10%)."""
     _ws = _find_gw(weapon_id)
     return max(5, min(95,
-        _ws.accuracy + attacker_reflexes // 2 - target_reflexes // 2 - target_dodge_bonus,
+        _ws.accuracy + attacker_reflexes // 2 - target_reflexes // 2 - target_dodge_bonus + hit_bonus,
     ))
 
 
@@ -263,9 +272,11 @@ def _calc_ground_move_dodge(cells_moved: int) -> int:
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _er = enemy.spec.reflexes if enemy.spec else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
+    # Sharpshooter trait: +10% hit chance in combat.
+    _hit_bonus = _sharpshooter_bonus(ctx)
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
-        target_dodge_bonus=_move_dodge,
+        target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
     )
 
 

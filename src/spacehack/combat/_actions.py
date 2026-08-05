@@ -146,6 +146,7 @@ def resolve_damage(
     target_hull: int,
     target_shields: int,
     target_pilot_piloting: int = 0,
+    damage_taken_mult: float = 1.0,
 ) -> tuple[int, int, int, bool]:
     """Apply weapon damage to a target. Returns (hull_dmg, shield_dmg, final_hull, is_glancing).
 
@@ -188,6 +189,10 @@ def resolve_damage(
     else:
         damage_mult = 0.5 + (q - glancing_threshold) / max(1, 100 - glancing_threshold)
     raw_dmg = ws.damage * damage_mult * RNG.uniform(0.8, 1.2)
+    # Damage-reduction mult (e.g. the Juggernaut trait's -50% missile
+    # damage) applies to the raw roll BEFORE the 1-damage floor, so
+    # heavy hits are halved but small glancing hits aren't pinned at 1.
+    raw_dmg *= damage_taken_mult
     dmg = max(1, int(raw_dmg))
 
     if target_shields > 0:

@@ -34,6 +34,7 @@ from ._animations import (
     _render_anim_frame,
     _responsive_sleep,
 )
+from ..xp import has_trait as _has_trait
 
 
 def _e_log(msg: str, log) -> None:
@@ -177,10 +178,16 @@ def _run_enemy_turn(
                     )
                     if _e_hit:
                         _e_ws = find_weapon(_wid)
+                        # Juggernaut trait: -50% missile damage taken.
+                        _dmg_mult = 1.0
+                        if (_e_ws.slot_type == "missile" and ctx is not None
+                                and _has_trait(ctx, "juggernaut")):
+                            _dmg_mult = 0.5
                         _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
                             _wid, state.player_state["hull"],
                             state.player_state["shields"],
                             target_pilot_piloting=state.player_state.get("piloting", 0),
+                            damage_taken_mult=_dmg_mult,
                         )
                         state.player_state["shields"] = max(
                             0, state.player_state["shields"] - _sdmg,
