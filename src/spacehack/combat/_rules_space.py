@@ -42,6 +42,7 @@ from ._animations import (
     _has_los,
     _paint_target_highlight,
     _paint_range_line,
+    DamagePopup,
 )
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
@@ -458,6 +459,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
 def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
+    damage: DamagePopup = None,
 ) -> None:
     _cam_x, _cam_y = _calc_camera()
 
@@ -472,6 +474,7 @@ def animate_fire(
         console, ctx.context, game_map,
         from_pos, to_pos,
         is_hit=is_hit,
+        damage=damage,
         cam_x=_cam_x, cam_y=_cam_y,
         view_w=_state.view_w, view_h=_state.view_h,
         player_state=_state.player_state,

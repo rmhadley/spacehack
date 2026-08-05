@@ -81,6 +81,70 @@ _COMBAT_EXPLOSION_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (
     ("#", (180, 180, 255)),   # ring 4      - dimmer edge
 )
 
+# Floating damage popup: how many extra frames the number keeps
+# drifting up + fading after the impact flash. 2 flash frames + this
+# many = total popup lifetime (~0.45s at 0.05s/frame).
+_DAMAGE_POPUP_FRAMES: int = 7
+
+# Damage popup colors: orange-red for hull damage, cyan for shield
+# strip. Kept module-level so callers and the drawing helper agree.
+_COLOR_DAMAGE_HULL: tuple[int, int, int] = (255, 140, 70)
+_COLOR_DAMAGE_SHIELDS: tuple[int, int, int] = (120, 220, 255)
+
+
+# Damage text shorthand: (label, color). ``None`` = no popup (miss).
+DamagePopup = tuple[str, tuple[int, int, int]] | None
+
+
+def _damage_popup_for(
+    damage: int, strip: int, is_strip: bool,
+) -> DamagePopup:
+    """Build a damage popup tuple for a resolved hit, or ``None``.
+
+    Shield-strip hits (EMP) show the stripped amount in cyan; hull
+    damage shows in orange-red. A hit that did nothing (e.g. an EMP
+    against a shieldless target) shows no popup. Single factory so
+    the player-fire and enemy-fire call sites can't drift apart.
+    """
+    if is_strip and strip > 0:
+        return (f"-{strip}", _COLOR_DAMAGE_SHIELDS)
+    if damage > 0:
+        return (f"-{damage}", _COLOR_DAMAGE_HULL)
+    return None
+
+
+def _draw_damage_popup(
+    console,
+    target_pos: world.Position,
+    damage: DamagePopup,
+    age: int,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Draw one frame of a floating damage number at ``target_pos``.
+
+    The text starts one row above the impact cell (so it doesn't
+    cover the impact star), climbs one row every 2 frames, and fades
+    toward dim grey as ``age`` grows toward the popup lifetime.
+    Cells outside the viewport are silently skipped so camera-edge
+    targets never crash tcod. ``damage`` is ``(text, color)``;
+    ``None`` draws nothing (a miss).
+    """
+    if damage is None:
+        return
+    text, color = damage
+    tx = target_pos.x - cam_x
+    ty = target_pos.y - 1 - age // 2 - cam_y
+    if not (0 <= tx < view_w and 0 <= ty < view_h):
+        return
+    frac = max(0.0, 1.0 - age / (2 + _DAMAGE_POPUP_FRAMES))
+    fg = tuple(int(c * frac + 70 * (1 - frac)) for c in color)
+    console.print(x=region_x + tx, y=region_y + ty, string=text, fg=fg)
+
 
 # ---------------------------------------------------------------------------
 # Target highlighting
@@ -371,12 +435,15 @@ def _animate_laser_shot(
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
+    damage: DamagePopup = None,
 ) -> None:
     """Animate a laser beam from shooter to target over 4 frames.
 
     Draws a bright line of characters along the Bresenham path from
     shooter to target, then (if ``is_hit``) two impact-flash frames
-    at the target position.
+    at the target position. When ``damage`` is a ``(text, color)``
+    tuple (i.e. a hit that dealt damage), the number floats up and
+    fades out over the flash + ``_DAMAGE_POPUP_FRAMES`` frames.
     """
     cells = list(_bresenham_line(
         shooter_pos.x, shooter_pos.y,
@@ -416,7 +483,8 @@ def _animate_laser_shot(
         context.present(console)
         _responsive_sleep(0.05)
 
-    # Impact flash (if hit): two quick bright pulses at target
+    # Impact flash (if hit): two quick bright pulses at target,
+    # with the damage number riding on top from the first frame.
     if is_hit:
         for flash in range(2):
             _render_anim_frame(
@@ -434,8 +502,36 @@ def _animate_laser_shot(
             if 0 <= tx < view_w and 0 <= ty < view_h:
                 fg = (255, 255, 255) if flash == 0 else (255, 200, 100)
                 console.print(x=tx, y=ty, string="*", fg=fg)
+            if damage is not None:
+                _draw_damage_popup(
+                    console, target_pos, damage, age=flash,
+                    cam_x=cam_x, cam_y=cam_y,
+                    view_w=view_w, view_h=view_h,
+                )
             context.present(console)
             _responsive_sleep(0.06)
+
+    # Damage number drift + fade frames after the impact. Ages 0-1
+    # were the flash frames above, so the drift starts at age 2.
+    if is_hit and damage is not None:
+        for _age in range(_DAMAGE_POPUP_FRAMES):
+            _render_anim_frame(
+                console, context, game_map,
+                cam_x, cam_y, view_w, view_h,
+                player_state, enemies, target_idx, log,
+                weapon_list=weapon_list,
+                active_weapons=active_weapons,
+                evade_bonus=evade_bonus,
+                hit_chances=hit_chances,
+                flee_chance=flee_chance,
+            )
+            _draw_damage_popup(
+                console, target_pos, damage, age=2 + _age,
+                cam_x=cam_x, cam_y=cam_y,
+                view_w=view_w, view_h=view_h,
+            )
+            context.present(console)
+            _responsive_sleep(0.05)
 
 
 def _animate_explosion(

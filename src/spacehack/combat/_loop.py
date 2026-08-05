@@ -40,6 +40,7 @@ from ._animations import (
     _resolve_target,
     _paint_target_highlight,
     _paint_range_line,
+    _damage_popup_for,
 )
 
 
@@ -145,24 +146,19 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
         _any_fired = True
         _max_ap_cost = max(_max_ap_cost, rules.weapon_ap_cost(_wid, ctx))
 
-        rules.animate_fire(
-            console, ctx, game_map,
-            _player_pos, rules.enemy_pos(_target),
-            is_hit=_hit,
-        )
-
-        try:
-            _wname = rules.weapon_name(_wid, ctx)
-        except KeyError:
-            _wname = _wid
-
+        # Resolve damage BEFORE animating so the floating damage
+        # number can ride the shot's impact frames. ``rules.damage``
+        # mutates the target (hull/hp), which the animation only
+        # reads for position — safe to apply first.
+        _dmg_popup = None
+        _is_strip = False
+        _dmg = 0
         if _hit:
             # Ground enemies (GroundEnemyInstance) have no shields field;
             # getattr keeps the strip check safe across both combat modes.
             _pre_shields = getattr(_target, 'shields', 0)
             _dmg = rules.damage(_wid, _target, ctx)
             _stripped = max(0, _pre_shields - getattr(_target, 'shields', 0))
-            _is_strip = False
             # Only EMP weapons produce a shield strip; ground weapons
             # aren't in the ship-weapon catalog (mirrors the HUD's
             # guarded lookup), so skip the lookup when nothing stripped.
@@ -171,6 +167,21 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
                     _is_strip = _fw(_wid).shield_strip > 0
                 except KeyError:
                     pass
+            _dmg_popup = _damage_popup_for(_dmg, _stripped, _is_strip)
+
+        rules.animate_fire(
+            console, ctx, game_map,
+            _player_pos, rules.enemy_pos(_target),
+            is_hit=_hit,
+            damage=_dmg_popup,
+        )
+
+        try:
+            _wname = rules.weapon_name(_wid, ctx)
+        except KeyError:
+            _wname = _wid
+
+        if _hit:
             if _is_strip:
                 ctx.log.add_colored(
                     f"{_wname} strips {_stripped} shields from "

@@ -35,6 +35,9 @@ from ._animations import (
     _responsive_sleep,
     _paint_target_highlight,
     _draw_range_colored_line,
+    _draw_damage_popup,
+    _DAMAGE_POPUP_FRAMES,
+    DamagePopup,
 )
 
 
@@ -495,6 +498,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
 def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
+    damage: DamagePopup = None,
 ) -> None:
     _cam_x, _cam_y, _rx, _ry = world.camera_for_view(
         game_map, from_pos,
@@ -516,6 +520,8 @@ def animate_fire(
         ctx.context.present(console)
         _responsive_sleep(0.05)
 
+    # Impact flash (if hit): two quick bright pulses with the damage
+    # number riding on top, then extra drift + fade frames.
     if is_hit:
         for flash in range(2):
             render_frame(console, ctx, game_map)
@@ -523,8 +529,26 @@ def animate_fire(
             if 0 <= tx < _RENDER_WIDTH and 0 <= ty < _RENDER_HEIGHT:
                 fg = (255, 255, 255) if flash == 0 else (255, 200, 100)
                 console.print(x=tx, y=ty, string="*", fg=fg)
+            if damage is not None:
+                _draw_damage_popup(
+                    console, to_pos, damage, age=flash,
+                    cam_x=_cam_x, cam_y=_cam_y,
+                    view_w=_RENDER_WIDTH, view_h=_RENDER_HEIGHT,
+                    region_x=_rx, region_y=_ry,
+                )
             ctx.context.present(console)
             _responsive_sleep(0.06)
+        if damage is not None:
+            for _age in range(_DAMAGE_POPUP_FRAMES):
+                render_frame(console, ctx, game_map)
+                _draw_damage_popup(
+                    console, to_pos, damage, age=2 + _age,
+                    cam_x=_cam_x, cam_y=_cam_y,
+                    view_w=_RENDER_WIDTH, view_h=_RENDER_HEIGHT,
+                    region_x=_rx, region_y=_ry,
+                )
+                ctx.context.present(console)
+                _responsive_sleep(0.05)
 
 
 # ---------------------------------------------------------------------------

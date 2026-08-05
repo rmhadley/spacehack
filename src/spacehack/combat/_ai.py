@@ -33,6 +33,7 @@ from ._animations import (
     _has_los,
     _render_anim_frame,
     _responsive_sleep,
+    _damage_popup_for,
 )
 from ..xp import has_trait as _has_trait
 
@@ -160,11 +161,35 @@ def _run_enemy_turn(
                         _wid, _ei.pilot_gunnery, _dist, _dodge,
                     )
                     _e_hit = RNG.randint(1, 100) <= _chance
+                    # Resolve damage BEFORE animating so the floating
+                    # damage number rides the shot's impact frames.
+                    _e_dmg_popup = None
+                    _e_dmg = 0
+                    _e_sdmg = 0
+                    _e_fh = state.player_state["hull"]
+                    _e_is_strip = False
+                    _is_glancing = False
+                    if _e_hit:
+                        _e_ws = find_weapon(_wid)
+                        # Juggernaut trait: -50% missile damage taken.
+                        _dmg_mult = 1.0
+                        if (_e_ws.slot_type == "missile" and ctx is not None
+                                and _has_trait(ctx, "juggernaut")):
+                            _dmg_mult = 0.5
+                        _e_dmg, _e_sdmg, _e_fh, _is_glancing = resolve_damage(
+                            _wid, state.player_state["hull"],
+                            state.player_state["shields"],
+                            target_pilot_piloting=state.player_state.get("piloting", 0),
+                            damage_taken_mult=_dmg_mult,
+                        )
+                        _e_is_strip = _e_ws.shield_strip > 0 and _e_sdmg > 0
+                        _e_dmg_popup = _damage_popup_for(_e_dmg, _e_sdmg, _e_is_strip)
                     _ecx, _ecy = calc_cam()
                     _animate_laser_shot(
                         state.console, state.ctx.context, state.game_map,
                         _ei.pos, state.player_state["pos"],
                         is_hit=_e_hit,
+                        damage=_e_dmg_popup,
                         cam_x=_ecx, cam_y=_ecy,
                         view_w=state.view_w, view_h=state.view_h,
                         player_state=state.player_state,
@@ -177,30 +202,18 @@ def _run_enemy_turn(
                         flee_chance=_flee_chance,
                     )
                     if _e_hit:
-                        _e_ws = find_weapon(_wid)
-                        # Juggernaut trait: -50% missile damage taken.
-                        _dmg_mult = 1.0
-                        if (_e_ws.slot_type == "missile" and ctx is not None
-                                and _has_trait(ctx, "juggernaut")):
-                            _dmg_mult = 0.5
-                        _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
-                            _wid, state.player_state["hull"],
-                            state.player_state["shields"],
-                            target_pilot_piloting=state.player_state.get("piloting", 0),
-                            damage_taken_mult=_dmg_mult,
-                        )
                         state.player_state["shields"] = max(
-                            0, state.player_state["shields"] - _sdmg,
+                            0, state.player_state["shields"] - _e_sdmg,
                         )
-                        state.player_state["hull"] = _fh
+                        state.player_state["hull"] = _e_fh
                         if ctx is not None:
-                            ctx.player_counters.total_damage_taken += _dmg
-                        if _e_ws.shield_strip > 0 and _sdmg > 0:
-                            _e_log(f"{_ei.name} strips {_sdmg} of your shields!", state.log)
+                            ctx.player_counters.total_damage_taken += _e_dmg
+                        if _e_is_strip:
+                            _e_log(f"{_ei.name} strips {_e_sdmg} of your shields!", state.log)
                         else:
                             _verb = "glancing hit" if _is_glancing else "hits"
-                            _e_log(f"{_ei.name} {_verb} for {_dmg} hull damage!", state.log)
-                        if _fh <= 0:
+                            _e_log(f"{_ei.name} {_verb} for {_e_dmg} hull damage!", state.log)
+                        if _e_fh <= 0:
                             _e_log("Your ship has been destroyed!", state.log)
                             _ecx, _ecy = calc_cam()
                             _animate_explosion(
