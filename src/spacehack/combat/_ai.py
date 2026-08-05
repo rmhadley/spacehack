@@ -212,7 +212,7 @@ def _run_enemy_turn(
                             _e_log(f"{_ei.name} strips {_e_sdmg} of your shields!", state.log)
                         else:
                             _verb = "glancing hit" if _is_glancing else "hits"
-                            _e_log(f"{_ei.name} {_verb} for {_e_dmg} hull damage!", state.log)
+                            _e_log(f"{_ei.name} {_verb} for {_e_dmg + _e_sdmg} damage!", state.log)
                         if _e_fh <= 0:
                             _e_log("Your ship has been destroyed!", state.log)
                             _ecx, _ecy = calc_cam()

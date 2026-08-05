@@ -101,15 +101,18 @@ def _damage_popup_for(
 ) -> DamagePopup:
     """Build a damage popup tuple for a resolved hit, or ``None``.
 
-    Shield-strip hits (EMP) show the stripped amount in cyan; hull
-    damage shows in orange-red. A hit that did nothing (e.g. an EMP
-    against a shieldless target) shows no popup. Single factory so
-    the player-fire and enemy-fire call sites can't drift apart.
+    EMP shield-strip hits show the stripped amount in cyan; all
+    other hits show TOTAL damage dealt (hull + shields absorbed) in
+    orange-red, so the floating number always matches the total the
+    log reports. A hit that did nothing (e.g. an EMP against a
+    shieldless target) shows no popup. Single factory so the
+    player-fire and enemy-fire call sites can't drift apart.
     """
     if is_strip and strip > 0:
         return (f"-{strip}", _COLOR_DAMAGE_SHIELDS)
-    if damage > 0:
-        return (f"-{damage}", _COLOR_DAMAGE_HULL)
+    total = damage + strip
+    if total > 0:
+        return (f"-{total}", _COLOR_DAMAGE_HULL)
     return None
 
 

@@ -190,7 +190,7 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
                 )
             else:
                 ctx.log.add_colored(
-                    f"{_wname} hits {rules.enemy_name(_target)} for {_dmg}!",
+                    f"{_wname} hits {rules.enemy_name(_target)} for {_dmg + _stripped}!",
                     _ml.COLOR_PLAYER_ACTION,
                 )
         else:
