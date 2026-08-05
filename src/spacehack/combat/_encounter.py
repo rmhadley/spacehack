@@ -45,12 +45,19 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         ctx.log.add("Corrupted encounter data.")
         return "FLEE"
 
-    # Resolve pilot skills — use ctx defaults if available, else
-    # hard-coded 30/30/30 as a fallback for test/legacy callers.
-    _pilot_skills = getattr(ctx, 'pilot_skills', None)
-    if _pilot_skills is None:
-        from ..data.pilot_skills import PilotSkills
-        _pilot_skills = PilotSkills(gunnery=30, piloting=30, engineering=30)
+    # Resolve the player's live pilot skills from ctx.stats — the
+    # source of truth that already folds in species/class base and
+    # XP skill-point growth.  (ctx.pilot_skills was never set on
+    # GameContext, so the old code silently fell back to a hard-
+    # coded 30/30/30 and AP never grew past 4 no matter how high
+    # the player raised piloting.)  Module bonuses are layered on
+    # inside init_combat_state, so don't add them here.
+    from ..data.pilot_skills import PilotSkills
+    _pilot_skills = PilotSkills(
+        gunnery=ctx.stats.gunnery,
+        piloting=ctx.stats.piloting,
+        engineering=ctx.stats.engineering,
+    )
 
     # Sanity: player must have a ship catalog and owned ship.
     if ctx.player_owned_ship is None:
