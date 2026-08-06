@@ -251,10 +251,37 @@ punished. Damage must stick to the map entity:
   by `reveal_around` (cleared per frame), NOT serialized (recomputed
   on Continue + entry); Shift+R dev reveal sets both grids; guide +
   doc updated
-- [ ] Bar → merchant → militia → lab + derelicts under the new model —
+- [x] Bar → merchant → militia → lab + derelicts under the new model —
   quest caches, ambushes, guardian fights all still work
-- [ ] Peek-a-boo cheese audit (see Open questions) + balance
-- [ ] Save/load sniff test (wound → save → continue → re-engage)
+  (**verified headlessly**, 2026-08-06): for every chain, generate
+  the planet dungeon → `populate_dungeon` → `prepare_mars_surface` /
+  `prepare_delve_site` with the step live. Mars places the sealed
+  door + 1 sentry guardian beside it; bar (Barnard's B) / militia
+  (Mercury) / merchants (Wolf 359) / lab (Procyon C) each place the
+  gold quest cache + the planet's guardian squad (assault/sentry
+  drones, or 2 ice worms on Procyon) with correct counts, from the
+  right pool, in ONE squad, never overlapping cache/spawn. The
+  lab_q1_sample Mars door ambush places 3 pirate raiders (one squad)
+  in the door room. Manual playtest of the FIGHT FEEL remains open
+  below.
+- [x] Peek-a-boo cheese audit + balance: allowed (decision #5), and
+  the remembered-fog change strengthens the posture — a mob that
+  breaks LOS now **vanishes from the render** (not just from
+  aggro), so re-acquiring a target requires a genuine re-peek; you
+  can no longer track an engaged mob's position through a wall on
+  the seen grid. Wounds persist (no heal-on-retrigger), hunters
+  roam, re-peeks cost AP. Noise stays the documented future
+  anti-cheese lever.
+- [x] Save/load sniff test: `_dungeon_to_dict`/`_dungeon_from_dict`
+  roundtrip preserves a wounded mob (`hp=7`) + `guard_post`;
+  `_build_enemy_instance` on the reloaded entity re-engages at the
+  persisted 7 HP (no heal-on-continue). `visible` deliberately not
+  serialized.
+
+**Phase 3 verification (automated, 2026-08-06):** chain-generation
+script above plus perf — `reveal_around` on the largest site
+(80×60, radius 8) = **0.48 ms/call** (200-call mean), so the new
+per-frame `visible`-grid clear is negligible; smoke green.
 
 **PLAYTEST (Phase 3)**
 1. Full branch runthrough; no chain softlocks from the combat change
@@ -262,12 +289,22 @@ punished. Damage must stick to the map entity:
 
 ## Acceptance criteria
 
-- [ ] No squad linkage in ground combat; packs fight as individuals
-- [ ] Mobs join only when the player sees them; nothing auto-reveals
-- [ ] Combat ends when nothing hostile is in view; leftovers re-trigger
-- [ ] Wounds persist across LOS-break, save/load, re-engagement
-- [ ] Space combat behavior identical (untouched)
-- [ ] Guide accurate; smoke green; no perf regression on Mars map
+- [x] No squad linkage in ground combat; packs fight as individuals
+  (`detect_ground_combat` = `visible_hostiles` only — no squad_id,
+  no assist radius, no auto-reveal)
+- [x] Mobs join only when the player sees them; nothing auto-reveals
+  (`refresh_engaged` joins from `visible_hostiles` at round top)
+- [x] Combat ends when nothing hostile is in view; leftovers re-trigger
+  (`combat_should_end` = not `visible_hostiles`)
+- [x] Wounds persist across LOS-break, save/load, re-engagement
+  (entity.hp sync + sniff test above)
+- [x] Space combat behavior identical (untouched — feature commits
+  touched only world/dungeon/__main__/help/doc)
+- [x] Guide accurate; smoke green; no perf regression on Mars map
+  (0.48 ms/call reveal_around; smoke PASS)
+
+Remaining: the in-game PLAYTEST items below need a human run —
+then move this doc to `complete/`.
 
 ## Decisions (user-approved, 2026-08-06)
 
