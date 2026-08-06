@@ -34,6 +34,9 @@ class GroundWeaponSpec:
         ammo_per_shot: rounds consumed per attack.
         price: credits cost to buy from an armory.
         tech_level: minimum planet tech level to stock this item.
+        shop_available: False hides the weapon from armories entirely
+            (monster/enemy-only weapons — the armory lists every
+            registered weapon, so this flag is the shop-leak guard).
     """
     id: str
     name: str
@@ -48,6 +51,7 @@ class GroundWeaponSpec:
     ammo_per_shot: int = 1
     price: int = 0
     tech_level: int = 1
+    shop_available: bool = True
 
 
 # ---------------------------------------------------------------------------

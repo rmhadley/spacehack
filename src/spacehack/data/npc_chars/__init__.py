@@ -41,6 +41,14 @@ class NpcCharSpec:
         loot_pool: trade good ids the NPC may drop on death.
         loot_count: (min, max) number of loot items per kill.
         xp_reward: XP awarded on kill.
+        always_hostile: True = ignore faction reputation entirely;
+            combat on sight (used for dungeon monsters — non-sentient
+            creatures/drones that never grant or cost faction rep).
+        behavior: out-of-combat movement mode — ``"hunter"`` patrols
+            the map, ``"ambusher"`` holds still until the player gets
+            close, ``"guard"`` holds a position without roaming.
+        squad_size: (min, max) squad members when procedurally
+            spawned (dungeon population / layout ENEMY scatter).
     """
     id: str
     name: str
@@ -57,6 +65,9 @@ class NpcCharSpec:
     loot_pool: tuple[str, ...] = ()
     loot_count: tuple[int, int] = (1, 2)
     xp_reward: int = 20
+    always_hostile: bool = False
+    behavior: str = "hunter"
+    squad_size: tuple[int, int] = (1, 1)
 
 
 # ---------------------------------------------------------------------------

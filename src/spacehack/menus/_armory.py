@@ -61,6 +61,9 @@ def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     _left_items: list[tuple[str, str, str, tuple, str, str | None]] = []
     _left_items.append(("--- WEAPONS ---", "", "", ui.COLOR_VALUE_DIM, "divider", None))
     for w in _all_weapons:
+        # Monster/enemy-only weapons (shop_available=False) never stock.
+        if not getattr(w, 'shop_available', True):
+            continue
         _left_items.append((w.name, f"{w.price:>4}$", "", ui.COLOR_OPTION, "weapon", w.id))
     _left_items.append(("--- ARMOUR ---", "", "", ui.COLOR_VALUE_DIM, "divider", None))
     for a in _all_armor:

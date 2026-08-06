@@ -46,6 +46,9 @@ class DungeonParams:
         tile_floor:                Tile used for floors + corridors
                                    (default :data:`world.DUNGEON_FLOOR`).
         sight_radius:              Fog-of-war reveal radius.
+        monster_pool:              ``npc_char`` ids allowed to spawn here
+                                   (empty = no monsters).
+        monster_density:           Average monsters per 100 floor cells.
     """
     width: int = 50
     height: int = 40
@@ -55,6 +58,8 @@ class DungeonParams:
     tile_wall: world.Tile = world.DUNGEON_WALL
     tile_floor: world.Tile = world.DUNGEON_FLOOR
     sight_radius: int = 4
+    monster_pool: tuple[str, ...] = ()
+    monster_density: float = 0.0
 
 
 # Sight radius for dungeon fog of war (Chebyshev distance).
@@ -222,6 +227,184 @@ _ENEMY_GLYPHS: set[str] = {"r", "R", "S"}
 
 # Glyphs that place entities rather than tiles.
 _ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
+
+
+# ---------------------------------------------------------------------------
+# Shared scatter helpers (layouts + procedural dungeon population)
+# ---------------------------------------------------------------------------
+
+# Chebyshev radius kept clear around the player spawn (entry room).
+_SPAWN_CLEAR_RADIUS: int = 5
+# Max Chebyshev distance of squad members from their anchor cell.
+_SQUAD_SPREAD: int = 3
+# Hard cap on monsters per procedural dungeon — keeps early game fair.
+_MONSTER_CAP: int = 16
+
+
+def _room_cells(
+    tiles: list[list[world.Tile]],
+    width: int,
+    height: int,
+    mx: int,
+    my: int,
+    occupied: set[tuple[int, int]],
+) -> list[tuple[int, int]]:
+    """BFS from ``(mx, my)`` through walkable cells; returns unoccupied cells.
+
+    Walls and doors stop expansion. Breach tiles are the hull entry —
+    interior spawns (enemies/loot/monsters) must not cross them into
+    the entry shaft outside a ship. Shared by layout enemy/loot scatter
+    and procedural dungeon monster population.
+    """
+    from collections import deque
+    _visited: set[tuple[int, int]] = {(mx, my)}
+    _queue: deque[tuple[int, int]] = deque([(mx, my)])
+    _cells: list[tuple[int, int]] = []
+    while _queue:
+        _cx, _cy = _queue.popleft()
+        if (_cx, _cy) not in occupied:
+            _cells.append((_cx, _cy))
+        for _ndx, _ndy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            _nx, _ny = _cx + _ndx, _cy + _ndy
+            if (_nx, _ny) in _visited:
+                continue
+            if not (0 <= _nx < width and 0 <= _ny < height):
+                continue
+            _nt = tiles[_ny][_nx]
+            if not _nt.walkable or _nt.kind in ('dungeon_door', 'breach'):
+                continue
+            _visited.add((_nx, _ny))
+            _queue.append((_nx, _ny))
+    return _cells
+
+
+def _scatter_squad(
+    entities: list[world.Entity],
+    occupied: set[tuple[int, int]],
+    *,
+    enemy_id: str,
+    cells: list[tuple[int, int]],
+    count: int,
+    squad_id: str,
+    char: str,
+    fg: tuple[int, int, int],
+) -> int:
+    """Place up to ``count`` enemy entities on distinct cells from ``cells``.
+
+    Appends to ``entities`` and marks ``occupied``. Returns the number
+    actually placed (fewer when the area is too small). Callers build
+    ``cells`` via :func:`_room_cells` (layouts) or an anchor-neighbour
+    spread (procedural dungeons).
+    """
+    from .engine import RNG as _RNG
+    if not cells:
+        return 0
+    _RNG.shuffle(cells)
+    _placed = 0
+    for _cx, _cy in cells:
+        if _placed >= count:
+            break
+        if (_cx, _cy) in occupied:
+            continue
+        entities.append(world.Entity(
+            char=char,
+            fg=fg,
+            pos=world.Position(_cx, _cy),
+            name="",
+            width=1, height=1,
+            npc_char_id=enemy_id,
+            squad_id=squad_id,
+        ))
+        occupied.add((_cx, _cy))
+        _placed += 1
+    return _placed
+
+
+def populate_dungeon(
+    game_map: world.GameMap,
+    params: DungeonParams,
+    spawn_pos: world.Position,
+) -> None:
+    """Scatter monster squads into a freshly generated dungeon.
+
+    Runs ONCE at generation time, BEFORE the map is cached in
+    ``ctx.interiors`` — monsters are part of the map, so they survive
+    save/load and re-entry deterministically (no duplication, no
+    respawn-on-load).
+
+    Placement rules:
+      - never on the spawn landing zone (radius
+        :data:`_SPAWN_CLEAR_RADIUS` around the player spawn)
+      - never on cells already occupied (quest caches, the Mars door,
+        loot) or on EXIT tiles (the leave marker stays reachable)
+      - squad sizes come from each monster's ``squad_size``
+
+    No-op when the planet has no monster pool or zero density.
+    """
+    if not params.monster_pool or params.monster_density <= 0:
+        return
+    from .engine import RNG
+    from .data.npc_chars import find_npc_char as _find_nc
+
+    _floor: list[tuple[int, int]] = []
+    for _y in range(game_map.height):
+        for _x in range(game_map.width):
+            _t = game_map.tiles[_y][_x]
+            if not _t.walkable or _t.kind == "exit":
+                continue
+            if max(abs(_x - spawn_pos.x), abs(_y - spawn_pos.y)) <= _SPAWN_CLEAR_RADIUS:
+                continue
+            _floor.append((_x, _y))
+    if not _floor:
+        return
+
+    _target = int(len(_floor) * params.monster_density / 100.0)
+    _target = min(_target, _MONSTER_CAP)
+    if _target <= 0:
+        return
+
+    _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    RNG.shuffle(_floor)
+    _squad_counter = 0
+    _placed = 0
+    for _fx, _fy in _floor:
+        if _placed >= _target:
+            break
+        if (_fx, _fy) in _occupied:
+            continue
+        _eid = RNG.choice(params.monster_pool)
+        try:
+            _spec = _find_nc(_eid)
+        except KeyError:
+            continue
+        # Anchor-neighbour spread: the squad clusters within a small
+        # radius of the anchor cell instead of spreading map-wide.
+        _cells = [(_fx, _fy)]
+        for _dy in range(-_SQUAD_SPREAD, _SQUAD_SPREAD + 1):
+            for _dx in range(-_SQUAD_SPREAD, _SQUAD_SPREAD + 1):
+                if max(abs(_dx), abs(_dy)) > _SQUAD_SPREAD or (_dx, _dy) == (0, 0):
+                    continue
+                _nx, _ny = _fx + _dx, _fy + _dy
+                if not (0 <= _nx < game_map.width and 0 <= _ny < game_map.height):
+                    continue
+                _nt = game_map.tiles[_ny][_nx]
+                if _nt.walkable and _nt.kind != "exit" and (_nx, _ny) not in _occupied:
+                    _cells.append((_nx, _ny))
+        _squad_id = f"dungeon_{_eid}_{_squad_counter}"
+        _squad_counter += 1
+        _smin, _smax = _spec.squad_size
+        # Honor the per-dungeon cap (_MONSTER_CAP) without truncating
+        # a squad below its minimum size: skip this anchor when the
+        # remaining budget can't fit the monster's smallest squad.
+        _budget_left = _target - _placed
+        if _budget_left < _smin:
+            continue
+        _squad_n = min(RNG.randint(_smin, _smax), _budget_left)
+        _placed += _scatter_squad(
+            game_map.entities, _occupied,
+            enemy_id=_eid, cells=_cells, count=_squad_n,
+            squad_id=_squad_id, char=_spec.char, fg=_spec.fg,
+        )
 
 if getattr(sys, 'frozen', False):
     _LAYOUT_DIR = pathlib.Path(sys._MEIPASS) / "spacehack" / "data" / "layouts"
@@ -515,39 +698,19 @@ def load_layout(
                     )
 
     # --- Shared room flood-fill helper (reused by enemy scatter + loot scatter) ---
-    from collections import deque
     from .engine import RNG as _RNG
     from .data.trade_goods import find_trade_good as _find_good
 
     def _flood_room(mx: int, my: int) -> list[tuple[int, int]]:
         """BFS from (mx, my) through walkable cells. Returns unoccupied cells.
 
-        Walls and doors stop room expansion. Already-occupied positions
-        (by entities) are excluded from the returned cell list.
+        Walls and doors stop expansion; occupied positions are
+        excluded. Delegates to the shared module-level
+        :func:`_room_cells` (also used by procedural dungeon
+        population).
         """
         _occupied = {(e.pos.x, e.pos.y) for e in entities}
-        visited: set[tuple[int, int]] = {(mx, my)}
-        queue: deque[tuple[int, int]] = deque([(mx, my)])
-        room_cells: list[tuple[int, int]] = []
-        while queue:
-            cx, cy = queue.popleft()
-            if (cx, cy) not in _occupied:
-                room_cells.append((cx, cy))
-            for ndx, ndy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                nx, ny = cx + ndx, cy + ndy
-                if (nx, ny) in visited:
-                    continue
-                if not (0 <= nx < grid_width and 0 <= ny < grid_height):
-                    continue
-                nt = tiles[ny][nx]
-                # Breach tiles are the hull entry — interior spawns
-                # (enemies/loot) must not cross them into the entry
-                # shaft outside the ship.
-                if not nt.walkable or nt.kind in ('dungeon_door', 'breach'):
-                    continue
-                visited.add((nx, ny))
-                queue.append((nx, ny))
-        return room_cells
+        return _room_cells(tiles, grid_width, grid_height, mx, my, _occupied)
 
     # --- Scatter-spawn enemies via room flood-fill ---
     _squad_counter = 0
@@ -561,20 +724,15 @@ def load_layout(
         _cells = _flood_room(mx, my)
         if not _cells:
             _cells = [(mx, my)]
-        _RNG.shuffle(_cells)
         _squad_id = f"{layout_id}_{glyph}_{_squad_counter}"
         _squad_counter += 1
-        for _i in range(min(_squad_size, len(_cells))):
-            _cx, _cy = _cells[_i]
-            entities.append(world.Entity(
-                char=glyph,
-                fg=colour_overrides.get(glyph, (255, 100, 100)),
-                pos=world.Position(_cx, _cy),
-                name="",
-                width=1, height=1,
-                npc_char_id=_eid,
-                squad_id=_squad_id,
-            ))
+        _occupied = {(e.pos.x, e.pos.y) for e in entities}
+        _scatter_squad(
+            entities, _occupied,
+            enemy_id=_eid, cells=_cells, count=_squad_size,
+            squad_id=_squad_id, char=glyph,
+            fg=colour_overrides.get(glyph, (255, 100, 100)),
+        )
 
     # --- Scatter loot via flood-fill ---
     # If no budget provided, fall back to old guaranteed behavior

@@ -250,9 +250,7 @@ def detect_ground_combat(
             _spec = _fnc(_eid)
         except KeyError:
             continue
-        _rep = ctx.faction_reputation.get(_spec.faction, 0)
-        _attitude = _faction.get_attitude(_rep)
-        if _attitude not in ("enemy", "disliked"):
+        if not _faction.spec_is_hostile(ctx, _spec):
             continue
         _dist = _m.hypot(player_pos.x - _e.pos.x, player_pos.y - _e.pos.y)
         if _dist <= 0 or _dist > _spec.detect_radius:

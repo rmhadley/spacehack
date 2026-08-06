@@ -1434,11 +1434,40 @@ _GUIDE_MAIN_QUEST = GuideSection(
 )
 
 
+_GUIDE_DUNGEON_MONSTERS = GuideSection(
+    title="Dungeon Monsters",
+    body=(
+        "Planet surface sites — the Mars signal, Mercury's caves, and other "
+        "delve sites — are home to hostile creatures and security drones."
+        "\n\n"
+        "Unlike pirates and patrols, monsters ignore faction reputation: they "
+        "attack on sight no matter your standing, and killing them never "
+        "changes how factions view you. They still drop loot and award XP."
+        "\n\n"
+        "Behaviors:"
+        "\n"
+        "- Hunters (rock scavengers) patrol the caves and close in when they "
+        "spot you. Many hunt in packs."
+        "\n"
+        "- Guards (sentry drones) hold their position until they spot you, "
+        "then open fire at range. They do not roam while undetected."
+        "\n"
+        "- Ambushers (ice worms) lie still until you approach, then burst out "
+        "in melee. Watch the floor in ice caves."
+        "\n\n"
+        "Fighting monsters uses the exact same rules as Ground Combat — cover, "
+        "line of sight, AP, and armor all work identically. A sentry drone's "
+        "laser is not a weapon you can buy: monsters use attacks of their own."
+    ),
+)
+
+
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_GAME_OVERVIEW,
     _GUIDE_CONTROLS,
     _GUIDE_COMBAT,
     _GUIDE_GROUND_COMBAT,
+    _GUIDE_DUNGEON_MONSTERS,
     _GUIDE_TRADE,
     _GUIDE_MISSIONS,
     _GUIDE_SHIPS,

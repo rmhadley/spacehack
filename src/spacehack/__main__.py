@@ -586,6 +586,7 @@ def _run_game(
                                     init_fog as _init_fog,
                                     reveal_around as _reveal_around,
                                     generate_dungeon as _generate_dungeon,
+                                    populate_dungeon as _populate_dungeon,
                                 )
                                 # Planet-surface dungeons persist in
                                 # ctx.interiors (same anti-farm rule as
@@ -623,6 +624,13 @@ def _run_game(
                                         # quest cache deep in the caves
                                         # (no-op when no delve step is live).
                                         main_quest_module.prepare_delve_site(ctx, _dungeon_map, _spawn, pid)
+                                    # Dungeon monsters: scatter AFTER quest
+                                    # content (sealed door / delve cache) so
+                                    # squads never overlap them. Runs at
+                                    # generation time, so the population is
+                                    # cached + saved with the map and never
+                                    # duplicates on re-entry or Continue.
+                                    _populate_dungeon(_dungeon_map, _params, _spawn)
                                     ctx.interiors[_surface_key] = _dungeon_map
                                 # Quest-conditional NPCs: runs on every
                                 # entry (fresh or cached) so the old

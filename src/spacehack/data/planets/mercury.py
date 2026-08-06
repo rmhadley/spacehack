@@ -71,5 +71,8 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(200, 140, 90), bg=(60, 35, 18),
         ),
+        # Phase 1 prototype pool — scorched-cave scavengers only.
+        monster_pool=("rock_scavenger",),
+        monster_density=1.5,
     ),
 )

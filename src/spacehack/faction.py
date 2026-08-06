@@ -111,6 +111,25 @@ _GUILD_FACTION: dict[str, str] = {
 }
 
 
+def spec_is_hostile(ctx, spec) -> bool:
+    """True if a ground NPC char spec is hostile toward the player.
+
+    Monsters (``always_hostile=True``) are always hostile regardless
+    of faction reputation — killing them must never touch rep. Everyone
+    else follows the faction attitude zones (enemy/disliked).
+
+    Duck-typed: callers may pass any spec object with
+    ``always_hostile`` / ``faction`` attributes (e.g. an
+    :class:`~spacehack.data.npc_chars.NpcCharSpec`). Shared by
+    ``combat._encounter.detect_ground_combat`` and
+    ``ground_npcs._is_hostile``.
+    """
+    if getattr(spec, "always_hostile", False):
+        return True
+    _rep = ctx.faction_reputation.get(getattr(spec, "faction", ""), 0)
+    return get_attitude(_rep) in ("enemy", "disliked")
+
+
 def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
     """Return the starting ``{faction: reputation}`` dict for a
     given species + class combo.

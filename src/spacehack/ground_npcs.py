@@ -21,7 +21,7 @@ from __future__ import annotations
 from . import world
 from .engine import RNG
 from .data.npc_chars import find_npc_char as _find_nc
-from .faction import get_attitude as _get_attitude
+from .faction import spec_is_hostile as _spec_is_hostile
 
 
 # Per-squad path cache: {squad_id: (target_x, target_y, path_list)}
@@ -31,8 +31,24 @@ _paths: dict[str, tuple[int, int, list[tuple[int, int]]]] = {}
 _MOVE_CHANCE: float = 0.8
 
 
+def _spec_behavior(ctx, entity: world.Entity) -> str:
+    """Out-of-combat behavior for this NPC ("hunter" when unknown)."""
+    _eid = getattr(entity, 'npc_char_id', '')
+    if not _eid:
+        return "hunter"
+    try:
+        return _find_nc(_eid).behavior
+    except KeyError:
+        return "hunter"
+
+
 def _is_hostile(ctx, entity: world.Entity) -> bool:
-    """True if this NPC's faction is hostile toward the player."""
+    """True if this NPC's faction is hostile toward the player.
+
+    Monsters (``always_hostile``) are always hostile; everyone else
+    follows faction reputation. Shares logic with
+    ``combat._encounter.detect_ground_combat``.
+    """
     _eid = getattr(entity, 'npc_char_id', '')
     if not _eid:
         return False
@@ -40,8 +56,7 @@ def _is_hostile(ctx, entity: world.Entity) -> bool:
         _spec = _find_nc(_eid)
     except KeyError:
         return False
-    _rep = ctx.faction_reputation.get(_spec.faction, 0)
-    return _get_attitude(_rep) in ('enemy', 'disliked')
+    return _spec_is_hostile(ctx, _spec)
 
 
 def _random_walkable(game_map: world.GameMap) -> tuple[int, int] | None:
@@ -221,6 +236,10 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
         if _e is ctx.player:
             continue
         if not getattr(_e, 'npc_char_id', ''):
+            continue
+        # Guards and ambushers hold their position out of combat —
+        # only hunters patrol (and neutrals wander).
+        if _spec_behavior(ctx, _e) in ("guard", "ambusher"):
             continue
         if RNG.random() >= _MOVE_CHANCE:
             continue
