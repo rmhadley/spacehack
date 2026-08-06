@@ -138,14 +138,21 @@ punished. Damage must stick to the map entity:
 
 ### Phase 1 — LOS aggro core + wound persistence
 
-- [ ] Extract shared `visible_hostiles()` predicate; `detect_ground_combat`
-  returns the full visible set (no squad, no assist, no auto-reveal)
-- [ ] `check_reinforcements` join scan + "joins the fight!" log
-  (ambushers burst-out on join)
-- [ ] End condition: empty `visible_hostiles()` → VICTORY / DISENGAGED
-- [ ] `Entity.hp` + `init`/`damage` sync + saveload both sites
-- [ ] Rep rework (per-kill only); DISENGAGED return path
-- [ ] Guide update; smoke + behavior verification (join/end/wound)
+- [x] Extract shared `visible_hostiles()` predicate (in `_encounter.py`);
+  `detect_ground_combat` returns the full visible set — no squad
+  linkage, no 20-tile assist, no auto-reveal (fog untouched)
+- [x] `check_reinforcements` join scan (visible − engaged) + announce:
+  ambushers "burst out of hiding!", others "joins the fight!" — joined
+  mobs act next round (loop order identical to space)
+- [x] End condition: `combat_should_end()` rules hook — ground = no
+  visible hostiles (VICTORY / DISENGAGED), space = no enemies
+  (behavior-preserving)
+- [x] `Entity.hp` field + `_build_enemy_instance` reads/stamps it +
+  `damage()` syncs it + saveload both sites
+- [x] Rep rework: per-kill deltas only (squad bonus removed); rep
+  applies on VICTORY and DISENGAGED; DISENGAGED returns cleanly
+- [x] Guide update (LOS aggro, no squads, ends on broken sight, wounds
+  persist); 12-check behavior script green + smoke green
 
 **PLAYTEST (Phase 1)**
 1. Clear a Mars room: only visible scavengers engage; a packmate around
