@@ -238,7 +238,8 @@ class Entity:
     computer_terminal: bool = False  # dungeon ship computer — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
     npc_char_id: str = ""  # references NpcCharSpec.id for ground-combat NPCs
-    squad_id: str = ""  # groups ground enemies into squads (shared across scatter-spawned entities)
+    squad_id: str = ""  # groups spawned enemies into packs (movement/spawns only — combat uses LOS aggro, not squads)
+    hp: int = 0  # ground-combat wound persistence: 0 = unengaged (full HP at first fight)
     main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
     main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
 

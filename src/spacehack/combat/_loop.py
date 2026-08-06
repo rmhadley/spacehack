@@ -274,10 +274,13 @@ def run_combat(
         )
 
     while True:
-        # ---- Victory check ----
+        # ---- End check ----
+        # Ground: the fight ends when the player sees no hostile (LOS
+        # aggro) — all engaged dead = VICTORY, survivors out of view =
+        # DISENGAGED. Space: VICTORY when no enemies remain.
         _enemies = rules.get_enemies(ctx)
-        if not _enemies:
-            _result = "VICTORY"
+        if rules.combat_should_end(ctx, game_map, _enemies):
+            _result = "VICTORY" if not _enemies else "DISENGAGED"
             break
 
         # ---- Re-target if current target is dead ----

@@ -108,30 +108,43 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
+def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
+    """Build one enemy instance from a map entity (init + mid-fight joins).
+
+    Reads/stamps ``entity.hp`` so wounds persist across combat sessions:
+    LOS aggro ends fights with survivors, and re-engaging must continue
+    at the same HP — never a heal-on-retrigger. Guards also get their
+    ``guard_post`` stamped here (the leash anchor).
+    """
+    try:
+        _spec = _find_nc(_ent.npc_char_id)
+    except KeyError:
+        return None
+    _wid = ""
+    if _spec.weapons:
+        _wid = _spec.weapons[0]
+    elif _spec.weapon_pick:
+        _wid = RNG.choice(_spec.weapon_pick)
+    _max_hp = _spec.hp + _spec.stamina // 3
+    if _spec.behavior == "guard":
+        _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
+    _cur_hp = getattr(_ent, "hp", 0) or _max_hp
+    _ent.hp = _cur_hp
+    return GroundEnemyInstance(
+        entity=_ent, spec=_spec, weapon_id=_wid,
+        hp=_cur_hp, max_hp=_max_hp, ap=4, ap_total=4,
+    )
+
+
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
 
     _enemies: list[GroundEnemyInstance] = []
     for _ent in enemy_entities:
-        try:
-            _spec = _find_nc(_ent.npc_char_id)
-        except KeyError:
-            continue
-        _wid = ""
-        if _spec.weapons:
-            _wid = _spec.weapons[0]
-        elif _spec.weapon_pick:
-            _wid = RNG.choice(_spec.weapon_pick)
-        _max_hp = _spec.hp + _spec.stamina // 3
-        # Guards defend a post: record the spawn position so the combat
-        # AI can leash back to it instead of chasing across the map.
-        if _spec.behavior == "guard":
-            _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
-        _enemies.append(GroundEnemyInstance(
-            entity=_ent, spec=_spec, weapon_id=_wid,
-            hp=_max_hp, max_hp=_max_hp, ap=4, ap_total=4,
-        ))
+        _inst = _build_enemy_instance(_ent)
+        if _inst is not None:
+            _enemies.append(_inst)
 
     _player_max_hp = 20 + ctx.ground_stats.stamina // 3
     _hp_delta = _player_max_hp - ctx.ground_max_hp
@@ -190,6 +203,14 @@ def _log_ambush_reveals(
                 f"{_inst.spec.name} bursts out of hiding!",
                 _ml.COLOR_IMPORTANT_EVENT,
             )
+
+
+def _announce_joins(ctx, joined: list[GroundEnemyInstance]) -> None:
+    """Log newly joined mobs — ambushers burst out, others join in."""
+    for _inst in joined:
+        if _inst.spec.behavior != "ambusher":
+            ctx.log.add(f"{_inst.spec.name} joins the fight!")
+    _log_ambush_reveals(ctx, joined)
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +334,10 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _str_bonus = ctx.ground_stats.strength // 10 if _ws.damage_type == 'melee' else 0
     _dmg = max(1, _ws.damage + _str_bonus)
     enemy.hp -= _dmg
+    # Wound persistence: sync to the map entity so a fight that ends
+    # with survivors (LOS aggro) keeps their wounds on re-engagement.
+    if enemy.entity is not None:
+        enemy.entity.hp = max(0, enemy.hp)
     return _dmg
 
 
@@ -659,9 +684,45 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 
 
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
-    """Move non-combat ground NPCs during combat (matches space behaviour)."""
+    """Mid-fight join scan: mobs newly visible to the player join.
+
+    Recomputes the player-LOS predicate each round (design doc 12).
+    Newly visible hostiles are added as individual enemies — they act
+    next round, keeping the loop's enemy-turns-then-reinforcements
+    order identical to space. Idle ground NPCs keep moving so the
+    dungeon stays alive around the fight.
+    """
+    from ._encounter import visible_hostiles as _vh
+    _radius = getattr(game_map, "sight_radius", 8)
+    _visible = _vh(ctx, game_map, ctx.player.pos, _radius)
+    _engaged = {id(_e.entity) for _e in _state.enemies}
+    _joined: list[GroundEnemyInstance] = []
+    for _ent in _visible:
+        if id(_ent) in _engaged:
+            continue
+        _inst = _build_enemy_instance(_ent)
+        if _inst is not None:
+            _joined.append(_inst)
+    if _joined:
+        _state.enemies.extend(_joined)
+        _announce_joins(ctx, _joined)
     from ..ground_npcs import move_ground_npcs as _move_ground_npcs
     _move_ground_npcs(ctx, game_map)
+
+
+def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
+    """True when the player sees no hostile — LOS aggro end condition.
+
+    The fight ends when nothing hostile is in view: all engaged dead
+    (VICTORY) or survivors out of sight (DISENGAGED — they revert to
+    map behavior and re-trigger if spotted again). ``enemies`` is kept
+    for the rules-module contract (space uses it); ground derives the
+    end purely from the map, so a freshly visible-but-unjoined mob
+    keeps the fight going instead of declaring victory over it.
+    """
+    from ._encounter import visible_hostiles as _vh
+    _radius = getattr(game_map, "sight_radius", 8)
+    return not _vh(ctx, game_map, ctx.player.pos, _radius)
 
 
 # ---------------------------------------------------------------------------

@@ -1212,11 +1212,18 @@ _GUIDE_MILITIA_PATROLS = GuideSection(
 _GUIDE_GROUND_COMBAT = GuideSection(
     title="Ground Combat",
     body=(
-        "Ground combat triggers automatically when an enemy on foot spots you "
-        "in a dungeon — planet surface exploration, derelict ship interiors, "
-        "or other boarded locations. "
-        "Enemies detect you by line-of-sight within their detection radius — walls "
-        "and closed doors block sight, so you can use cover to avoid or surprise them."
+        "Ground combat triggers automatically when a hostile you can see is in "
+        "a dungeon — planet surface exploration, derelict ship interiors, or "
+        "other boarded locations. "
+        "Aggro is your line of sight: a mob joins the fight only when YOU can "
+        "see it, within your sight radius, and only a clear ray counts — walls "
+        "and closed doors block it. No squads, no shared telepathy: each mob "
+        "fights as an individual, and mobs that wander into view mid-fight "
+        "join the battle (\"joins the fight!\"). "
+        "The fight ends when nothing hostile is in view — kill them all, or "
+        "break sight to disengage. Survivors keep their wounds and revert to "
+        "their map behavior, so re-engaging continues the fight at the same "
+        "HP, never a heal-on-retrigger."
         "\n\n"
         "The combat loop is the same turn-based system as space combat, adapted for "
         "personal weapons and armor:"

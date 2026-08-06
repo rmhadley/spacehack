@@ -223,25 +223,30 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     return _cr.outcome
 
 
-def detect_ground_combat(
-    ctx, game_map, player_pos,
+def visible_hostiles(
+    ctx,
+    game_map,
+    player_pos,
+    radius: int,
 ) -> list:
-    """Check for hostile NPC chars within detect radius + LOS.
+    """Hostiles the player can currently see: within ``radius`` + clear LOS.
 
-    If any hostile entity spots the player, all entities with the
-    same ``squad_id`` within a 20-tile assist radius are pulled into
-    combat.  Fog is revealed around all combatants.
-    Returns a list of hostile :class:`world.Entity` (may be empty).
+    The single player-LOS aggro predicate (design doc 12) shared by the
+    combat trigger, the mid-fight join scan, and the end-of-combat
+    check. Side-effect free: no squad linkage, no assist radius, no
+    auto-reveal — the fight is exactly what the player sees. A future
+    noise scan can OR its results into this list without touching any
+    consumer.
     """
-    import math as _m
     from ..data.npc_chars import find_npc_char as _fnc
     from .. import faction as _faction
-    from ..dungeon import reveal_around as _reveal_around
+    from ._animations import _has_los
 
-    _ASSIST_RADIUS = 20
-
+    _result: list = []
     for _e in game_map.entities:
-        if _e is ctx.player:
+        if (_e.pos.x, _e.pos.y) == (player_pos.x, player_pos.y):
+            continue
+        if max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y)) > radius:
             continue
         _eid = getattr(_e, 'npc_char_id', '')
         if not _eid:
@@ -252,45 +257,24 @@ def detect_ground_combat(
             continue
         if not _faction.spec_is_hostile(ctx, _spec):
             continue
-        _dist = _m.hypot(player_pos.x - _e.pos.x, player_pos.y - _e.pos.y)
-        if _dist <= 0 or _dist > _spec.detect_radius:
+        if not _has_los(game_map, player_pos.x, player_pos.y, _e.pos.x, _e.pos.y):
             continue
-        _steps = max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y))
-        _los_blocked = False
-        for _si in range(1, _steps):
-            _t = _si / max(_steps, 1)
-            _lx = round(player_pos.x + (_e.pos.x - player_pos.x) * _t)
-            _ly = round(player_pos.y + (_e.pos.y - player_pos.y) * _t)
-            if game_map.in_bounds(_lx, _ly):
-                _tile = game_map.tiles[_ly][_lx]
-                if not _tile.walkable:
-                    _los_blocked = True
-                    break
-        if _los_blocked:
-            continue
+        _result.append(_e)
+    return _result
 
-        _squad_id = getattr(_e, 'squad_id', '')
-        _result = [_e]
-        if _squad_id:
-            for _oe in game_map.entities:
-                if _oe is _e or _oe is ctx.player:
-                    continue
-                if getattr(_oe, 'squad_id', '') != _squad_id:
-                    continue
-                if not getattr(_oe, 'npc_char_id', ''):
-                    continue
-                _od = _m.hypot(
-                    player_pos.x - _oe.pos.x, player_pos.y - _oe.pos.y,
-                )
-                if _od <= _ASSIST_RADIUS:
-                    _result.append(_oe)
 
-        for _ce in _result:
-            _reveal_around(game_map, _ce.pos, radius=3)
+def detect_ground_combat(
+    ctx, game_map, player_pos,
+) -> list:
+    """Hostiles currently visible to the player — LOS-based aggro.
 
-        return _result
-
-    return []
+    Returns the full visible set (no squad linkage, no assist radius,
+    no auto-reveal). The player fights exactly what they see; mobs
+    that wander into view mid-fight join via
+    ``_rules_ground.check_reinforcements``.
+    """
+    _radius = getattr(game_map, 'sight_radius', 8)
+    return visible_hostiles(ctx, game_map, player_pos, _radius)
 
 
 def _render_death_screen(console, context, log) -> None:

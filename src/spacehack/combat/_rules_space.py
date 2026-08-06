@@ -244,6 +244,11 @@ def get_enemies(ctx) -> list[EnemyInstance]:
     return [e for e in _state.enemy_insts if e.alive]
 
 
+def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
+    """Space keeps the classic end: VICTORY when no enemies remain."""
+    return not enemies
+
+
 def enemy_pos(enemy: EnemyInstance) -> world.Position:
     return enemy.pos
 

@@ -298,6 +298,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 "npc_char_id": e.npc_char_id,
                 "npc_id": getattr(e, 'npc_id', ''),
                 "squad_id": getattr(e, 'squad_id', ''),
+                "hp": getattr(e, 'hp', 0),
                 "heist_mission": bool(getattr(e, 'heist_mission', False)),
                 "heist_mission_id": getattr(e, 'heist_mission_id', None),
                 "main_quest_door": bool(getattr(e, 'main_quest_door', False)),
@@ -378,6 +379,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
             npc_char_id=_ed.get("npc_char_id", ""),
             npc_id=_ed.get("npc_id", ""),
             squad_id=_ed.get("squad_id", ""),
+            hp=_ed.get("hp", 0),
         )
         if _ed.get("heist_mission", False):
             _e.heist_mission = True
