@@ -267,7 +267,14 @@ class GameMap:
     height: int
     tiles: list[list[Tile]]
     entities: list[Entity]
-    seen: list[list[bool]] | None = None  # fog-of-war: True = revealed; None = no fog
+    # Fog-of-war. ``seen`` is permanent memory (True = explored / revealed
+    # at some point); ``visible`` is the CURRENT line-of-sight frame
+    # (True = in LOS right now). Both are ``None`` on maps without fog
+    # (city, space). ``visible`` is derived state — recomputed by
+    # ``dungeon.reveal_around`` on every player move / entry / load, so
+    # it is NOT serialized (see the save/load contract).
+    seen: list[list[bool]] | None = None
+    visible: list[list[bool]] | None = None
     sight_radius: int = 8  # dungeon fog sight radius; increased by power restore (20)
 
     def in_bounds(self, x: int, y: int) -> bool:
@@ -297,16 +304,30 @@ class GameMap:
         self.tiles[y][x] = tile
 
     def is_revealed(self, x: int, y: int) -> bool:
-        """Whether a cell is revealed by fog of war.
+        """Whether a cell is revealed by fog of war (remembered).
 
         Returns ``True`` if there's no fog (city/space maps) or the
-        cell has been explored.
+        cell has been explored at some point.
         """
         if self.seen is None:
             return True
         if not self.in_bounds(x, y):
             return False
         return self.seen[y][x]
+
+    def is_visible(self, x: int, y: int) -> bool:
+        """Whether a cell is in the CURRENT line of sight.
+
+        Returns ``True`` if there's no fog, or when the LOS grid is
+        missing (a freshly deserialized dungeon before its first
+        ``reveal_around``) — in both cases every revealed cell counts
+        as visible, matching the no-fog fallback.
+        """
+        if self.visible is not None:
+            if not self.in_bounds(x, y):
+                return False
+            return self.visible[y][x]
+        return self.is_revealed(x, y)
 
 
 # ---------------------------------------------------------------------------
@@ -858,6 +879,69 @@ def make_city(width: int = 60, height: int = 40) -> GameMap:
 # ---------------------------------------------------------------------------
 
 
+# Remembered-tile dimming factor: previously-seen cells that are no
+# longer in line of sight render at this fraction of their normal
+# colour — dark enough to read as "remembered", bright enough to
+# navigate by (design doc 04: "explored-out-of-sight = dim").
+_DIM_FACTOR: float = 0.35
+
+
+def _dim_color(color: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Scale an (r, g, b) colour down to remembered-sight brightness."""
+    return tuple(
+        max(0, min(255, int(c * _DIM_FACTOR))) for c in color
+    )
+
+
+def _is_static_entity(e: Entity) -> bool:
+    """Whether ``e`` never moves — safe to remember on explored tiles.
+
+    Mobs (``npc_char_id``), NPCs (``npc_id``), ships (``npc_ship_id``),
+    and anything squad-linked can move, so they render only while in
+    the current line of sight. Static furniture — loot containers,
+    terminals, the sealed alien door — is remembered and renders
+    dimmed on explored-but-out-of-LOS cells.
+    """
+    return not (
+        e.npc_char_id or e.npc_id or e.npc_ship_id
+        or e.procedural_squad_id or e.squad_id
+    )
+
+
+def _tile_render_colors(
+    game_map: GameMap,
+    x: int,
+    y: int,
+    tile: Tile,
+) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+    """Return ``(fg, bg)`` for a revealed tile.
+
+    Full brightness when in the current line of sight; dimmed when
+    the tile is only remembered (previously seen).
+    """
+    if game_map.is_visible(x, y):
+        return tile.fg, tile.bg
+    return _dim_color(tile.fg), _dim_color(tile.bg)
+
+
+def _entity_render_fg(game_map: GameMap, e: Entity) -> tuple[int, int, int] | None:
+    """Return the fg to draw ``e`` with, or ``None`` to skip it.
+
+    Moving entities render only while in the current line of sight —
+    out of LOS they vanish (no stale ghosts). Static furniture (loot,
+    terminals) is remembered and renders dimmed on explored cells.
+
+    The entity's ANCHOR cell (``e.pos``) is authoritative for both
+    checks — every dungeon entity is 1x1, so the footprint never
+    straddles a visibility boundary.
+    """
+    if game_map.is_visible(e.pos.x, e.pos.y):
+        return e.fg
+    if game_map.is_revealed(e.pos.x, e.pos.y) and _is_static_entity(e):
+        return _dim_color(e.fg)
+    return None
+
+
 # ---------------------------------------------------------------------------
 # A* pathfinding
 # ---------------------------------------------------------------------------
@@ -983,20 +1067,24 @@ def render_world(
 
     for ty in range(game_map.height):
         for tx in range(game_map.width):
-            # Fog of war: skip unseen tiles (renders as black)
+            # Fog of war: unseen tiles render as black.
             if not game_map.is_revealed(tx, ty):
                 continue
             tile = game_map.tiles[ty][tx]
+            # In-LOS tiles render bright; remembered tiles render dimmed.
+            _fg, _bg = _tile_render_colors(game_map, tx, ty, tile)
             console.print(
                 x=region_x + off_x + tx,
                 y=region_y + off_y + ty,
                 string=tile.char,
-                fg=tile.fg,
-                bg=tile.bg,
+                fg=_fg,
+                bg=_bg,
             )
     for e in game_map.entities:
-        # Skip entities on unseen tiles
-        if not game_map.is_revealed(e.pos.x, e.pos.y):
+        # Moving entities render only in LOS; remembered static
+        # furniture renders dimmed. ``None`` = don't draw.
+        _efg = _entity_render_fg(game_map, e)
+        if _efg is None:
             continue
         for dx in range(e.width):
             for dy in range(e.height):
@@ -1006,7 +1094,7 @@ def render_world(
                     x=region_x + off_x + ex,
                     y=region_y + off_y + ey,
                     string=e.char,
-                    fg=e.fg,
+                    fg=_efg,
                 )
 
 
@@ -1087,16 +1175,18 @@ def render_world_view(
             map_x = cam_x + tx
             map_y = cam_y + ty
             if 0 <= map_x < game_map.width and 0 <= map_y < game_map.height:
-                # Fog of war: skip unseen tiles (renders as black).
+                # Fog of war: unseen tiles render as black.
                 if not game_map.is_revealed(map_x, map_y):
                     continue
                 tile = game_map.tiles[map_y][map_x]
+                # In-LOS tiles render bright; remembered tiles dimmed.
+                _fg, _bg = _tile_render_colors(game_map, map_x, map_y, tile)
                 console.print(
                     x=region_x + tx,
                     y=region_y + ty,
                     string=tile.char,
-                    fg=tile.fg,
-                    bg=tile.bg,
+                    fg=_fg,
+                    bg=_bg,
                 )
 
     # Draw loot entities first (cargo debris), then ships/entities
@@ -1113,8 +1203,10 @@ def render_world_view(
             and _e.pos.y < cam_y + region_h and _e.pos.y + _e.height > cam_y)
     ]
     for e in sorted(_visible, key=lambda _e: _e.loot_data is None):
-        # Fog of war: skip entities on unrevealed cells.
-        if not game_map.is_revealed(e.pos.x, e.pos.y):
+        # Moving entities render only in LOS; remembered static
+        # furniture renders dimmed. ``None`` = don't draw.
+        _efg = _entity_render_fg(game_map, e)
+        if _efg is None:
             continue
         for dx in range(e.width):
             for dy in range(e.height):
@@ -1133,7 +1225,7 @@ def render_world_view(
                         x=sx_screen,
                         y=sy_screen,
                         string=e.char,
-                        fg=e.fg,
+                        fg=_efg,
                     )
 
 

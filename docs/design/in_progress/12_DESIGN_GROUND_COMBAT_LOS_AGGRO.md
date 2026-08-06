@@ -63,8 +63,16 @@ baseline the design was built against.
 | Enemy turns | `_rules_ground.run_enemy_turns` → `_ai_ground` | Move toward player; fire iff in weapon range **and** LOS; guards leash to post |
 | Mid-fight hook | `_rules_ground.check_reinforcements` | Currently only moves idle ground NPCs — the natural join hook |
 | End condition | `run_combat` loop top: `not get_enemies()` → VICTORY | Fixed list; nothing joins; nothing ends early |
-| Fog render | `world.render_world_view` | Skips unseen tiles **and entities on unseen tiles** ✓ |
+| Fog render | `world.render_world_view` | Skips unseen tiles **and entities on unseen tiles** ✓. Now also distinguishes **current LOS** from remembered: `GameMap.visible` grid (recomputed by `dungeon.reveal_around` each move) — in-LOS tiles render full brightness, remembered tiles render dim (35%), moving entities render only in LOS, static objects (loot/terminals) render dimmed when remembered ✓ |
 | LOS ray | `combat/_animations._has_los` | Symmetric Bresenham ✓ |
+
+> **Renderer-vs-aggro ray note:** `reveal_around`/`_cast_ray` (the
+> `visible` grid) uses interpolation with `round()`, while
+> `visible_hostiles`/`_has_los` (aggro) uses Bresenham. In rare
+> corner geometries they can disagree — an enemy the aggro predicate
+> considers visible may sit just outside the rendered `visible` grid
+> (acts/fires without being drawn). Rare and symmetric, but if it
+> ever shows up in playtest, align both on one ray function.
 | Ground rep on win | `__main__.py` ground-victory block | Per-kill deltas + **`_squad_bonus`** (+1 when the whole init squad died) |
 | Entity save/load | `saveload._ctx_to_dict` / `load_game` | Explicit field list — a new entity field needs both sites |
 
@@ -237,6 +245,12 @@ punished. Damage must stick to the map entity:
 
 ### Phase 3 — Full act-0 pass + polish
 
+- [x] LOS vs remembered sight: `GameMap.visible` grid — in-LOS tiles
+  full brightness, remembered tiles dim (35%), moving entities
+  LOS-only, static objects remembered dimmed; `visible` recomputed
+  by `reveal_around` (cleared per frame), NOT serialized (recomputed
+  on Continue + entry); Shift+R dev reveal sets both grids; guide +
+  doc updated
 - [ ] Bar → merchant → militia → lab + derelicts under the new model —
   quest caches, ambushes, guardian fights all still work
 - [ ] Peek-a-boo cheese audit (see Open questions) + balance

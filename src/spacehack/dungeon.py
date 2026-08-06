@@ -83,12 +83,17 @@ _LOOT_MAX_PASSES: int = 4
 
 
 def init_fog(game_map: world.GameMap) -> None:
-    """Initialize fog-of-war ``seen`` array on ``game_map`` (all unseen).
+    """Initialize fog-of-war on ``game_map`` (all unseen, nothing in LOS).
 
     Call after loading a layout and before the player takes control.
-    All cells start unrevealed.
+    ``seen`` is permanent memory; ``visible`` is the current-LOS frame
+    recomputed by :func:`reveal_around` on every player move.
     """
     game_map.seen = [
+        [False for _ in range(game_map.width)]
+        for _ in range(game_map.height)
+    ]
+    game_map.visible = [
         [False for _ in range(game_map.width)]
         for _ in range(game_map.height)
     ]
@@ -115,7 +120,10 @@ def _cast_ray(game_map: world.GameMap, ox: int, oy: int, dx: int, dy: int) -> No
         sy = round(oy + dy * t)
         if not game_map.in_bounds(sx, sy):
             return
+        # Mark remembered (seen) AND current-LOS (visible).
         game_map.seen[sy][sx] = True
+        if game_map.visible is not None:
+            game_map.visible[sy][sx] = True
         # Stop at solid walls and closed doors, but NOT hull_wall
         # (structural hull groups are transparent to FOV)
         _tile = game_map.tiles[sy][sx]
@@ -125,49 +133,60 @@ def _cast_ray(game_map: world.GameMap, ox: int, oy: int, dx: int, dy: int) -> No
             return
 
 
-def _propagate_hull_groups(game_map: world.GameMap) -> None:
-    """Propagate visibility through adjacent ``hull_wall`` cells.
+def _propagate_flags(game_map: world.GameMap, flags: list[list[bool]]) -> None:
+    """Propagate ``flags`` through adjacent ``hull_wall`` cells.
 
     After FOV rays reveal individual cells, any hull_wall cell that
-    was hit by a ray propagates its ``seen`` state to all connected
-    hull_wall cells (4-directional). This makes structural hull
-    groups like ``{##}`` always fully visible together — if any
-    cell in the group is seen, all are seen.
+    was hit by a ray propagates its state to all connected hull_wall
+    cells (4-directional). This makes structural hull groups like
+    ``{##}`` always fully revealed/visible together — if any cell in
+    the group is set, all are set.
     """
-    if game_map.seen is None:
-        return
     w, h = game_map.width, game_map.height
-    # Find all hull_wall cells that are already seen (seed cells)
-    _seeds: list[tuple[int, int]] = []
-    for y in range(h):
-        for x in range(w):
-            if game_map.tiles[y][x].kind == 'hull_wall' and game_map.seen[y][x]:
-                _seeds.append((x, y))
+    _seeds: list[tuple[int, int]] = [
+        (x, y)
+        for y in range(h) for x in range(w)
+        if game_map.tiles[y][x].kind == 'hull_wall' and flags[y][x]
+    ]
     if not _seeds:
         return
-    # BFS from each seed through adjacent hull_wall cells
     from collections import deque
     _visited: set[tuple[int, int]] = set()
     _queue: deque[tuple[int, int]] = deque()
     for sx, sy in _seeds:
-        if (sx, sy) not in _visited:
-            # Collect one connected group
-            _group: list[tuple[int, int]] = []
-            _queue.append((sx, sy))
-            _visited.add((sx, sy))
-            while _queue:
-                cx, cy = _queue.popleft()
-                _group.append((cx, cy))
-                for ndx, ndy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-                    nx, ny = cx + ndx, cy + ndy
-                    if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in _visited:
-                        if game_map.tiles[ny][nx].kind == 'hull_wall':
-                            _visited.add((nx, ny))
-                            _queue.append((nx, ny))
-            # If any cell in this group is seen, all are seen
-            if any(game_map.seen[gy][gx] for gx, gy in _group):
-                for gx, gy in _group:
-                    game_map.seen[gy][gx] = True
+        if (sx, sy) in _visited:
+            continue
+        # Collect one connected group
+        _group: list[tuple[int, int]] = []
+        _queue.append((sx, sy))
+        _visited.add((sx, sy))
+        while _queue:
+            cx, cy = _queue.popleft()
+            _group.append((cx, cy))
+            for ndx, ndy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                nx, ny = cx + ndx, cy + ndy
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in _visited:
+                    if game_map.tiles[ny][nx].kind == 'hull_wall':
+                        _visited.add((nx, ny))
+                        _queue.append((nx, ny))
+        # If any cell in this group is set, all are set
+        if any(flags[gy][gx] for gx, gy in _group):
+            for gx, gy in _group:
+                flags[gy][gx] = True
+
+
+def _propagate_hull_groups(game_map: world.GameMap) -> None:
+    """Propagate visibility through adjacent ``hull_wall`` cells.
+
+    Applies :func:`_propagate_flags` to both the remembered (``seen``)
+    and current-LOS (``visible``) grids so a structural hull group is
+    either fully remembered and fully in view together.
+    """
+    if game_map.seen is None:
+        return
+    _propagate_flags(game_map, game_map.seen)
+    if game_map.visible is not None:
+        _propagate_flags(game_map, game_map.visible)
 
 
 def reveal_around(game_map: world.GameMap, pos: world.Position, radius: int = DUNGEON_SIGHT_RADIUS) -> None:
@@ -179,12 +198,28 @@ def reveal_around(game_map: world.GameMap, pos: world.Position, radius: int = DU
     if any cell in a group is seen, all connected hull wall cells
     are revealed.
     No-op if the map has no fog (``seen`` is ``None``).
+
+    Every call recomputes the **current-LOS frame**: the ``visible``
+    grid is cleared first, then marked along the rays, so it always
+    reflects exactly what ``pos`` can see right now. The ``seen``
+    grid (permanent memory) only grows.
     """
     if game_map.seen is None:
         return
+    # Reset the current-LOS frame (init if missing, e.g. after load).
+    if game_map.visible is None:
+        game_map.visible = [
+            [False for _ in range(game_map.width)]
+            for _ in range(game_map.height)
+        ]
+    else:
+        for _row in game_map.visible:
+            for _i in range(len(_row)):
+                _row[_i] = False
     # Always reveal the player's own cell
     if game_map.in_bounds(pos.x, pos.y):
         game_map.seen[pos.y][pos.x] = True
+        game_map.visible[pos.y][pos.x] = True
     # Cast rays to all cells within radius
     for dy in range(-radius, radius + 1):
         for dx in range(-radius, radius + 1):

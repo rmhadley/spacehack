@@ -186,6 +186,13 @@ def _run_game(
             # Restore space map/player for exit path back to ship.
             space_game_map = getattr(ctx, '_space_game_map', None)
             space_player = getattr(ctx, '_space_player', None)
+            # Recompute the transient current-LOS grid for the loaded
+            # position. ``visible`` is derived state (player pos + static
+            # map) and is deliberately NOT serialized; ``reveal_around``
+            # rebuilds it and only grows the remembered ``seen`` grid.
+            from .dungeon import reveal_around as _load_reveal
+            if game_map.seen is not None:
+                _load_reveal(game_map, player.pos, radius=game_map.sight_radius)
         elif current_mode == 'space':
             pass  # city map is built fresh on landing — no cache needed
         else:
@@ -344,6 +351,12 @@ def _run_game(
                         for _row in game_map.seen:
                             for _i in range(len(_row)):
                                 _row[_i] = True
+                        # Current-LOS frame too, so the whole map renders
+                        # at full brightness, not dimmed.
+                        if game_map.visible is not None:
+                            for _row in game_map.visible:
+                                for _i in range(len(_row)):
+                                    _row[_i] = True
                         log.add("Dev: fog of war fully revealed.")
                 continue
             # Shift+D = dev mode: skip 30 days of world clock so main-
