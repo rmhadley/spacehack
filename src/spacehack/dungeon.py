@@ -45,7 +45,9 @@ class DungeonParams:
                                    :data:`world.DUNGEON_WALL`).
         tile_floor:                Tile used for floors + corridors
                                    (default :data:`world.DUNGEON_FLOOR`).
-        sight_radius:              Fog-of-war reveal radius.
+        sight_radius:              Fog-of-war reveal radius (8 default —
+                                   covers every ground weapon's full range;
+                                   derelict power restore raises it to 20).
         monster_pool:              ``npc_char`` ids allowed to spawn here
                                    (empty = no monsters).
         monster_density:           Average monsters per 100 floor cells.
@@ -60,7 +62,7 @@ class DungeonParams:
     room_fill_pct: float = 0.65
     tile_wall: world.Tile = world.DUNGEON_WALL
     tile_floor: world.Tile = world.DUNGEON_FLOOR
-    sight_radius: int = 4
+    sight_radius: int = 8
     monster_pool: tuple[str, ...] = ()
     monster_density: float = 0.0
     cache_guardian_pool: tuple[str, ...] = ()
@@ -68,7 +70,11 @@ class DungeonParams:
 
 
 # Sight radius for dungeon fog of war (Chebyshev distance).
-DUNGEON_SIGHT_RADIUS: int = 4
+# 8 = a full room (17x17) — covers every ground weapon's full range
+# (rifles reach 7, drone lasers 6). Derelict power restore raises it
+# to 20 (map-wide on wrecks), which keeps "turning the lights on"
+# meaningful. See docs/design/in_progress/12_DESIGN_GROUND_COMBAT_LOS_AGGRO.md
+DUNGEON_SIGHT_RADIUS: int = 8
 
 # Maximum passes through loot markers when spending a ship's budget.
 # Multiple passes let some rooms end up with more than one loot

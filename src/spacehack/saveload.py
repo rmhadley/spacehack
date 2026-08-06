@@ -397,7 +397,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         entities=_dungeon_entities,
     )
     _dungeon_map.seen = dd.get("seen")
-    _dungeon_map.sight_radius = dd.get("sight_radius", 4)
+    _dungeon_map.sight_radius = dd.get("sight_radius", 8)
     _dungeon_map.location_name = dd.get("location_name", "")
     if dd.get("power_restored", False):
         _dungeon_map.power_restored = True

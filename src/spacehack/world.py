@@ -267,7 +267,7 @@ class GameMap:
     tiles: list[list[Tile]]
     entities: list[Entity]
     seen: list[list[bool]] | None = None  # fog-of-war: True = revealed; None = no fog
-    sight_radius: int = 4  # dungeon fog sight radius; increased by power restore
+    sight_radius: int = 8  # dungeon fog sight radius; increased by power restore (20)
 
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
