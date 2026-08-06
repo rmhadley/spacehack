@@ -141,20 +141,24 @@ punished. Damage must stick to the map entity:
 
 1. **`combat/_encounter.py`** — replace the squad/assist/reveal logic
    in `detect_ground_combat` with a call to the shared
-   `visible_hostiles()` predicate; remove `reveal_around(radius=3)`.
+   `visible_hostiles()` predicate; remove `reveal_around(radius=3)`;
+   `noise_hostiles()` stub OR'd in (Phase 2 noise seam).
 2. **`combat/_rules_ground.py`** — `visible_hostiles()` (pure, moved
    here or `_encounter`); `check_reinforcements` = join scan + move
    idle NPCs; `init` reads/stamps `entity.hp`; `damage()` syncs
    `entity.hp`; new `get_combat_result` handles DISENGAGED;
-   `_log_ambush_reveals` reused for join lines.
+   `_log_ambush_reveals` reused for join lines; guard_post
+   stamp-if-unset (Phase 2).
 3. **`combat/_loop.py`** — end check becomes "no visible hostiles";
    `CombatResult.outcome` gains `"DISENGAGED"`.
 4. **`world.py`** — `Entity.hp: int = 0`.
-5. **`saveload.py`** — serialize/restore `hp` at both entity sites.
+5. **`saveload.py`** — serialize/restore `hp` at both entity sites;
+   `guard_post` added to the dungeon entity dict (Phase 2).
 6. **`__main__.py`** — ground-victory block: per-kill rep only;
    DISENGAGED returns cleanly.
 7. **`help.py`** — Ground Combat section: LOS aggro, no squads,
-   fights end on broken sight, wounds persist.
+   fights end on broken sight, wounds persist, sight radius numbers
+   + ambusher corner note (Phase 2).
 8. **`data/npc_chars/monsters.py` (+ pirates)** — no changes
    (`detect_radius` becomes descriptive).
 
@@ -191,27 +195,33 @@ punished. Damage must stick to the map entity:
 
 ### Phase 2 — Feel + balance (LOS-model tuning)
 
-- [ ] Sight-radius consequences at 8: engagement == sight radius —
-  verify fights aren't too hot (more simultaneous joins). If so, tune
-  per-planet `DungeonParams.sight_radius`, NOT the global default
-- [ ] Ambusher read (positional ambush, decision #6): ice worms /
-  parasites placed near corners — rounding the corner onto one should
-  burst (reveal line) + act the same round. Adjust spawn placement if
-  it reads flat
-- [ ] Guard read: drones hold until seen; verify the leash + posture
-  under the LOS model
-- [ ] Pack feel: packs spawn clustered but fight as individuals —
-  trickle-in should read as "they heard the fight", not "they forgot
-  each other". Tune `monster_density` if fights feel too empty/hot
-- [ ] Peek-a-boo audit (allowed, decision #5): corner-peek + fire +
-  break sight is legitimate — verify wounds make it fair and it never
-  feels degenerate
-- [ ] Noise seam: spec + stub `noise_hostiles()` proving
-  `visible_hostiles()` is the only OR-in point (trigger,
-  refresh_engaged, combat_should_end) — the documented future
-  anti-cheese lever
-- [ ] Guide numbers final; perf check (join scan every round on the
-  120×90 Mars map)
+- [x] Sight-radius consequences at 8: engagement == sight radius —
+  verified fine; fights run at room scale with all weapons usable.
+  Per-planet `DungeonParams.sight_radius` lever confirmed wired
+  (``generate_dungeon`` applies ``params.sight_radius``); no planet
+  overrides it in v1
+- [x] Ambusher read (positional ambush, decision #6): verified —
+  parasites sit in engine-room corners behind doorways in both
+  derelict layouts; rounding the corner onto one bursts it (reveal
+  line) and it acts the same round
+- [x] Guard read: drones hold until seen; leash verified. FIXED a
+  drift bug: `_build_enemy_instance` re-stamped `guard_post` on every
+  re-engagement, dragging a guard's defense area toward the player
+  peek-by-peek. Now stamp-if-unset + serialized in saveload
+- [x] Pack feel: packs spawn clustered (`_SQUAD_SPREAD` anchor
+  spread) but fight as individuals; trickle-in reads as "they heard
+  the fight". `monster_density` untouched (1.2-1.6 per planet) —
+  playtest verdict: feels right
+- [x] Peek-a-boo audit (allowed, decision #5): corner-peek + fire +
+  break sight is legitimate; wounds persist so it's fair; the guard
+  fix removes the one degenerate case (post dragging)
+- [x] Noise seam: `noise_hostiles()` stub OR'd into
+  `visible_hostiles()` — the single OR-in point shared by trigger,
+  refresh_engaged, and combat_should_end. A real noise scan changes
+  only this function (doc'd seam contract)
+- [x] Guide numbers final; perf check: two `visible_hostiles()`
+  passes per round on a 120×90 map with 120 mobs = **0.114 ms/round**
+  (measured, 300 rounds) — no regression risk
 
 **PLAYTEST (Phase 2)**
 1. Each biome under LOS aggro: worms, drones, prowlers read right
@@ -313,6 +323,7 @@ punished. Damage must stick to the map entity:
 - [x] Phase 0: doc approved by user
 - [x] Phase 1 → implementation (+ immediate-join fix); playtest folded
   into the Phase 2 checklist
-- [ ] Phase 2 → implementation + playtest
+- [x] Phase 2 → implementation (guard-post fix, noise seam, guide
+  numbers, perf verified); playtest in progress
 - [ ] Phase 3 → implementation + playtest
 - [ ] Move to `complete/` when all checkboxes checked
