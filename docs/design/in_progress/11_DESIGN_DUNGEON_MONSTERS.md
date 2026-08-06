@@ -214,15 +214,24 @@ formula; Phase 1 lands the base config above).
 
 ### Phase 3 — Quest interplay + polish
 
-- [ ] Quest-site guardians: optional stronger monster guarding the
-  quest cache/loot in delve dungeons (signal site, Mercury cache,
-  Procyon C cache) — reuse `prepare_*` hooks
-- [ ] Monster loot tuning (exotic trade goods: `research_data`,
-  `scrap_metal`, `electronics`)
-- [ ] XP/rep balance; guide numbers final
-- [ ] Derelict ships: `hull_parasite` stowaway — `ENEMY: m = hull_parasite@0.15#2-4`
-  in `scout_a.layout` + `freightliner_a.layout`, so infested wrecks are
-  a rare (~15%) alien threat amid the usual pirates
+- [x] Quest-site guardians: every quest site is guarded via
+  `prepare_mars_surface` + `prepare_delve_site` (shared
+  `_spawn_squad_near` helper, refactored from the door-ambush copy):
+  Mars door = sentry drone ×1; Mercury cache = assault drone ×1;
+  Barnard's B = assault drone ×1; Wolf 359 = 2 drones; Procyon C =
+  ice-worm pack ×2. `DungeonParams` gained `cache_guardian_pool` +
+  `cache_guardian_count` (data-first, per-planet). Placed at
+  generation time → persists via interior cache (save/load safe)
+- [x] Monster loot tuning — confirmed all drops use trade goods
+  (`research_data`, `scrap_metal`, `electronics`, `machine_parts`,
+  `ship_components`); XP ≈ 0.5× pirates (10–30 vs 20–35)
+- [x] XP/rep balance + guide numbers final — guide updated with cache
+  guardians + derelict parasite; reveal-line flavor matches
+- [x] Derelict ships: `hull_parasite` stowaway landed in both layouts
+  (`ENEMY: m = hull_parasite@0.15#2-4`) with a hardcoded-glyph fix —
+  the parser now treats ANY glyph with an `ENEMY:` directive as an
+  enemy marker, so future enemy types need no glyph-set entry.
+  Verified: ~15% infested, 2-4 per wreck, one squad
 
 **PLAYTEST (Phase 3)**
 1. Full act-0 branch playthrough (bar → merchant → militia → lab) with
@@ -253,14 +262,17 @@ formula; Phase 1 lands the base config above).
 4. **Difficulty:** scale off the **planet tier level** (`tech_level` +
    `mission_tier`, both already on `PlanetSpec`) ✓
 
-## Open questions
+## Open questions (resolved)
 
-1. **Monster loot flavor** — reuse pirate-style trade-good drops
-   (`scrap_metal`, `electronics`, `research_data`) as proposed, or a
-   dedicated "monster parts" good line? (Proposal: trade goods, v1)
-2. **Ambusher reveal** — ice worm bursts out with a message + damage
-   popup on the approach step (proposed), or a pre-telegraph "the floor
-   shifts" warning one step earlier?
+1. **Monster loot flavor** — RESOLVED: pirate-style trade goods
+   (`scrap_metal`, `electronics`, `research_data`, `machine_parts`,
+   `ship_components`). No "monster parts" line — reused the existing
+   goods so drops feed straight into the existing trade economy.
+2. **Ambusher reveal** — RESOLVED: the burst message lands at combat
+   start (one colored log line per ambusher — "Ice Worm bursts out of
+   hiding!"). The pre-telegraph "floor shifts" step was dropped: the
+   worm's first hit already carries the surprise, and a telegraph
+   would tip off the player one step early for little gain.
 
 ## Pre-implementation audit
 
@@ -314,8 +326,9 @@ formula; Phase 1 lands the base config above).
 
 ## Design doc lifecycle
 
-- [ ] Phase 0: doc approved by user
-- [ ] Phase 1 → implementation + playtest
-- [ ] Phase 2 → implementation + playtest
-- [ ] Phase 3 → implementation + playtest
-- [ ] Move to `complete/` when all checkboxes checked
+- [x] Phase 0: doc approved by user
+- [x] Phase 1 → implementation + playtest (passed)
+- [x] Phase 2 → implementation + playtest (passed)
+- [x] Phase 3 → implementation + playtest
+- [ ] Move to `complete/` when all checkboxes checked (pending the
+  full act-0 playtest: bar → merchant → militia → lab + derelicts)
