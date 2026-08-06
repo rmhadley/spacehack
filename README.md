@@ -15,6 +15,41 @@ and you're a freelance pilot trying to make a living on the frontier.
 Trade, smuggle, hunt bounties, and upgrade your ship across 13 star systems.
 Death is permanent.
 
+## Disclaimer
+
+This project has been an experiment/resarch project of mine to learn/explore
+using 100% free AI tools to design and build a playable game.
+
+- I know python enough to follow the code generally, but I accepted that the AI
+  will generate code that I do not understand fully.
+- I modifed very little code, but I reviewed code and forced coding architecture
+  where I thought it mattered.
+- I modified through AI design docs which you can see in the repo. Then had the
+  AI execute the design docs in phases.
+- AI slop is most present in the stroy/plot/lore text. I'm enjoying this process
+  enough that I do plan on replacing 99% of that AI slop output.
+- Cloning the repo and using freebuff or your favorite free AI codign platform
+  should allow any new features/modifications to your personal desires with ease
+- I run freebuff in a docker jail to help protect it from accessing anything
+  outside of the repo.
+
+## Docker jail for freebuff
+
+1. build the docker cache image
+2. make a function in your rc file (example is from my .zshrc)
+3. call `freejail`
+
+```
+docker run -it --name freebuff_builder node:18-slim sh -c "apt-get update && apt-get install -y git python3 python3-venv python3-pip && npm install -g freebuff"
+docker commit freebuff_builder freejail-cached:latest
+
+freejail () {
+	docker run -it -v ~/code/spacehack:/workspace -w /workspace freejail-cached:latest sh -c "apt-get update && apt-get install -y git python3 python3-venv python3-pip && npm install -g freebuff && python3 -m venv --copies .docker_venv && . ./.docker_venv/bin/activate && pip install -e . && freebuff"
+}
+```
+
+Then you can just call `freejail` to launch the editor.
+
 ## Features
 
 - **A living universe** — 13 star systems connected by jump gates, each with
