@@ -249,6 +249,11 @@ def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
     return not enemies
 
 
+def refresh_engaged(ctx, game_map: world.GameMap) -> None:
+    """Space has no mid-fight joins — the enemy set is fixed at init."""
+    pass
+
+
 def enemy_pos(enemy: EnemyInstance) -> world.Position:
     return enemy.pos
 

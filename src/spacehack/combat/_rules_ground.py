@@ -683,14 +683,13 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     return _total_dmg
 
 
-def check_reinforcements(ctx, game_map: world.GameMap) -> None:
-    """Mid-fight join scan: mobs newly visible to the player join.
+def refresh_engaged(ctx, game_map: world.GameMap) -> None:
+    """Join scan: any hostile now visible to the player joins immediately.
 
-    Recomputes the player-LOS predicate each round (design doc 12).
-    Newly visible hostiles are added as individual enemies — they act
-    next round, keeping the loop's enemy-turns-then-reinforcements
-    order identical to space. Idle ground NPCs keep moving so the
-    dungeon stays alive around the fight.
+    Runs at the top of every combat round (design doc 12) so a mob
+    that walks into view — or was on screen when the last engaged
+    enemy died — is part of the fight right away: targetable and
+    acting this round. Joined mobs keep their wounds (``entity.hp``).
     """
     from ._encounter import visible_hostiles as _vh
     _radius = getattr(game_map, "sight_radius", 8)
@@ -706,6 +705,15 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     if _joined:
         _state.enemies.extend(_joined)
         _announce_joins(ctx, _joined)
+
+
+def check_reinforcements(ctx, game_map: world.GameMap) -> None:
+    """Move non-combat ground NPCs during combat (matches space behaviour).
+
+    Combat joins no longer live here — :func:`refresh_engaged` handles
+    them at loop top so new mobs are engaged immediately. Idle mobs
+    keep wandering so the dungeon stays alive around the fight.
+    """
     from ..ground_npcs import move_ground_npcs as _move_ground_npcs
     _move_ground_npcs(ctx, game_map)
 

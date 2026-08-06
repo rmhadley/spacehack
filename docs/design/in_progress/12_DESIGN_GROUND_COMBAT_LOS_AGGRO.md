@@ -83,11 +83,13 @@ def visible_hostiles(game_map, player_pos, radius) -> list[Entity]:
 
 1. **Trigger** (no combat): dungeon move → `visible_hostiles()` non-empty
    → `_ground_init` with the full visible set → `run_combat`.
-2. **Mid-fight joins**: each round, `check_reinforcements` recomputes
-   `visible_hostiles()` and appends any not already engaged (one
-   "X joins the fight!" line; ambushers reuse the burst-out helper).
-   Joined mobs act **next round** (keeps `_end_turn` order — enemy
-   turns then reinforcements — identical for space).
+2. **Mid-fight joins**: at the **top of every round** the new
+   `refresh_engaged()` hook recomputes `visible_hostiles()` and appends
+   any not already engaged (one "X joins the fight!" line; ambushers
+   reuse the burst-out helper). A mob that walks into view — or was on
+   screen when the last engaged enemy died — is part of combat
+   **immediately**: targetable and acting the same round. Space gets a
+   no-op hook (its enemy set stays fixed).
 3. **End**: when `visible_hostiles()` is empty after a round → combat
    ends. Outcome **VICTORY** if every engaged mob died, else the new
    **DISENGAGED** outcome (leftovers revert to patrol/hold, re-trigger
@@ -141,9 +143,11 @@ punished. Damage must stick to the map entity:
 - [x] Extract shared `visible_hostiles()` predicate (in `_encounter.py`);
   `detect_ground_combat` returns the full visible set — no squad
   linkage, no 20-tile assist, no auto-reveal (fog untouched)
-- [x] `check_reinforcements` join scan (visible − engaged) + announce:
-  ambushers "burst out of hiding!", others "joins the fight!" — joined
-  mobs act next round (loop order identical to space)
+- [x] `refresh_engaged` join scan at the top of every round (visible −
+  engaged) + announce: ambushers "burst out of hiding!", others
+  "joins the fight!" — mobs on screen are engaged immediately,
+  targetable and acting the same round; space gets a no-op hook;
+  `check_reinforcements` keeps only idle-NPC movement
 - [x] End condition: `combat_should_end()` rules hook — ground = no
   visible hostiles (VICTORY / DISENGAGED), space = no enemies
   (behavior-preserving)

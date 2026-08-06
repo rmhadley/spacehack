@@ -274,6 +274,11 @@ def run_combat(
         )
 
     while True:
+        # ---- Refresh the engaged set: ground joins any mob now in the
+        # player's view so it is part of combat immediately (targetable
+        # and acting this round) — space has no mid-fight joins -------
+        rules.refresh_engaged(ctx, game_map)
+
         # ---- End check ----
         # Ground: the fight ends when the player sees no hostile (LOS
         # aggro) — all engaged dead = VICTORY, survivors out of view =
