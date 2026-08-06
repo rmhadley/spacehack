@@ -1,6 +1,8 @@
 # 12 — Ground Combat: LOS-based Aggro (no squads)
 
-Status: **in_progress** · Phase 1 shipped — Phase 2 (feel/balance) next.
+Status: **complete** · shipped 2026-08-06 — LOS aggro, wound
+persistence, remembered-sight fog; all phases implemented and
+playtested.
 
 ## Overview
 
@@ -283,9 +285,9 @@ script above plus perf — `reveal_around` on the largest site
 (80×60, radius 8) = **0.48 ms/call** (200-call mean), so the new
 per-frame `visible`-grid clear is negligible; smoke green.
 
-**PLAYTEST (Phase 3)**
-1. Full branch runthrough; no chain softlocks from the combat change
-2. Ground fights feel "alive" (trickle-in) without being unfair
+**PLAYTEST (Phase 3)** — PASSED (user, 2026-08-06)
+1. Full branch runthrough; no chain softlocks from the combat change ✓
+2. Ground fights feel "alive" (trickle-in) without being unfair ✓
 
 ## Acceptance criteria
 
@@ -303,8 +305,7 @@ per-frame `visible`-grid clear is negligible; smoke green.
 - [x] Guide accurate; smoke green; no perf regression on Mars map
   (0.48 ms/call reveal_around; smoke PASS)
 
-Remaining: the in-game PLAYTEST items below need a human run —
-then move this doc to `complete/`.
+
 
 ## Decisions (user-approved, 2026-08-06)
 
@@ -376,5 +377,6 @@ then move this doc to `complete/`.
   into the Phase 2 checklist
 - [x] Phase 2 → implementation (guard-post fix, noise seam, guide
   numbers, perf verified); playtest in progress
-- [ ] Phase 3 → implementation + playtest
-- [ ] Move to `complete/` when all checkboxes checked
+- [x] Phase 3 → implementation (chain-gen + sniff + fog) + playtest
+  PASSED (user, 2026-08-06)
+- [x] Moved to `complete/` (2026-08-06)
