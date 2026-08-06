@@ -1,6 +1,6 @@
 # 11 — Dungeon Monsters: populating procedural dungeons
 
-Status: **in_progress** · Phase 0 (design) — no code written yet.
+Status: **in_progress** · all phases + acceptance sweep done — final feel-playtest items pending.
 
 ## Overview
 
@@ -234,23 +234,47 @@ formula; Phase 1 lands the base config above).
   Verified: ~15% infested, 2-4 per wreck, one squad
 
 **PLAYTEST (Phase 3)**
-1. Full act-0 branch playthrough (bar → merchant → militia → lab) with
-   monsters active — quest chains still completable, caches reachable
-2. Kill-a-monster pace vs. ammo/AP economy feels fair
-3. Guide matches implementation exactly
+1. [x] Full act-0 branch playthrough (bar → merchant → militia → lab)
+   with monsters active — quest chains still completable, caches
+   reachable. Covered by the doc-12 Phase 3 playtest (chains + fights
+   felt good with monsters live in every dungeon).
+2. [ ] Kill-a-monster pace vs. ammo/AP economy feels fair — needs the
+   final feel pass (guidance: watch scavenger swarms on Mars, spitter
+   kiting on Wolf 359 b, guardian-room fights on caches)
+3. [x] Guide matches implementation exactly — verified headlessly
+   against the monster catalog + behavior dispatch.
 
 ## Acceptance criteria
 
-- [ ] Every procedural dungeon with a non-empty `monster_pool` has
+- [x] Every procedural dungeon with a non-empty `monster_pool` has
   monsters on first explore; derelicts keep pirate squads plus the
   rare `hull_parasite` roll
-- [ ] Monsters are always hostile regardless of faction reputation;
+  - Headless sweep (2026-08-06): Mars 16, Mercury 15, Barnard's B 22,
+    Wolf 359 b 24, Procyon C 20 — all within tier caps, never on the
+    spawn cell. 60-seed derelict sweep: scout_a 17% infested,
+    freightliner_a 10% (target ~15%), parasite squads of 2-4, pirate
+    squads always present alongside.
+- [x] Monsters are always hostile regardless of faction reputation;
   killing them changes no rep score
-- [ ] Save → quit → Continue reproduces monster state exactly (no dupes,
+  - `spec_is_hostile` returns True for all 7 monsters at rep +100 with
+    every faction; pirate control returns False at +100. Ground kill
+    path (`_rules_ground.on_kill`) awards XP only — no `modify_rep`
+    call anywhere in the ground path.
+- [x] Save → quit → Continue reproduces monster state exactly (no dupes,
   no resets) — sniff test passes
-- [ ] Ambusher/guard/hunter behaviors match their descriptions
-- [ ] Guide section accurate; smoke test green
-- [ ] No movement/perf regression on the 120×90 Mars map
+  - 16 monsters on Mars: `_dungeon_to_dict` → `_dungeon_from_dict`
+    roundtrip identical (id, position, squad_id, hp).
+- [x] Ambusher/guard/hunter behaviors match their descriptions
+  - ice_worm/hull_parasite = ambusher, sentry_drone = guard,
+    rock_scavenger = hunter; `move_ground_npcs` skips guard/ambusher
+    movement (they hold still out of combat).
+- [x] Guide section accurate; smoke test green
+  - "Dungeon Monsters" section matches implementation: hunters patrol,
+    guards hold + fire at range, ambushers burst out, monsters ignore
+    faction rep, derelict parasite roll. `tools/smoke.py` green.
+- [x] No movement/perf regression on the 120×90 Mars map
+  - `move_ground_npcs` 4.5 ms/tick (16 entities incl. non-pathing
+    guards/ambushers), `reveal_around` 0.88 ms/call — both smooth.
 
 ## Decisions (user-approved, 2026-08-06)
 
@@ -329,6 +353,6 @@ formula; Phase 1 lands the base config above).
 - [x] Phase 0: doc approved by user
 - [x] Phase 1 → implementation + playtest (passed)
 - [x] Phase 2 → implementation + playtest (passed)
-- [x] Phase 3 → implementation + playtest
+- [x] Phase 3 → implementation + playtest (act-0 chains + guide verified)
 - [ ] Move to `complete/` when all checkboxes checked (pending the
-  full act-0 playtest: bar → merchant → militia → lab + derelicts)
+  single open item: kill-pace vs ammo/AP economy feel verdict)
