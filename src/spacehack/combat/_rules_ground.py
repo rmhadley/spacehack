@@ -169,6 +169,27 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
         f"Combat starts! {_names} engage!",
         _ml.COLOR_COMBAT_EVENT,
     )
+    _log_ambush_reveals(ctx, _enemies)
+
+
+def _log_ambush_reveals(
+    ctx,
+    enemy_instances: list[GroundEnemyInstance],
+) -> None:
+    """Log a burst-out-of-hiding line for every ambusher in the fight.
+
+    Ambushers (ice worms, hull parasites) hold still out of combat;
+    the moment combat starts they "burst out" — one colored log line
+    per ambusher makes the ambush read clearly in the feed. Reuses the
+    already-resolved spec on each :class:`GroundEnemyInstance` (no
+    second lookup pass).
+    """
+    for _inst in enemy_instances:
+        if _inst.spec.behavior == "ambusher":
+            ctx.log.add_colored(
+                f"{_inst.spec.name} bursts out of hiding!",
+                _ml.COLOR_IMPORTANT_EVENT,
+            )
 
 
 # ---------------------------------------------------------------------------

@@ -109,7 +109,10 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
     if step_status(ctx, "prologue_mars_entrance") == STATUS_AVAILABLE:
         start_step(ctx, "prologue_mars_entrance")
     if step_status(ctx, "prologue_open") != STATUS_COMPLETED:
-        place_mars_door(game_map, spawn)
+        _door = place_mars_door(game_map, spawn)
+        # A sentry drone stands watch over the sealed entrance — placed
+        # once at generation time so it persists via the interior cache.
+        _spawn_cache_guardian(game_map, _door.pos, "mars")
 
 
 def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40) -> list[world.Position]:
@@ -137,6 +140,89 @@ def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: 
     return _cells
 
 
+def _spawn_squad_near(
+    game_map: world.GameMap,
+    near_pos: world.Position,
+    *,
+    enemy_id: str,
+    count: int,
+    label: str,
+    room_cap: int = 40,
+) -> int:
+    """Scatter ``count`` copies of ``enemy_id`` in the room around ``near_pos``.
+
+    Shared by the Mars door ambush and the quest-cache guardians: a
+    nearest-first BFS from ``near_pos`` (``room_cap`` cells), occupied
+    cells excluded, all members sharing one ``squad_id`` so the group
+    joins a single ground-combat encounter. Spawns on the given map —
+    cached interiors keep the squad across save/load and re-entry.
+    Returns how many were placed.
+    """
+    from ..data.npc_chars import find_npc_char as _fnc
+    try:
+        _spec = _fnc(enemy_id)
+    except KeyError:
+        return 0
+    _room = _door_room_cells(game_map, near_pos, cap=room_cap)
+    if not _room:
+        return 0
+    from ..engine import RNG as _RNG
+    _RNG.shuffle(_room)
+    _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    _squad_id = f"{label}_{_RNG.randint(10000, 99999)}"
+    _placed = 0
+    for _cell in _room:
+        if _placed >= count:
+            break
+        if (_cell.x, _cell.y) in _occupied:
+            continue
+        game_map.entities.append(world.Entity(
+            char=_spec.char,
+            fg=_spec.fg,
+            pos=_cell,
+            name="",
+            width=1, height=1,
+            npc_char_id=enemy_id,
+            squad_id=_squad_id,
+        ))
+        _occupied.add((_cell.x, _cell.y))
+        _placed += 1
+    return _placed
+
+
+def _spawn_cache_guardian(
+    game_map: world.GameMap,
+    near_pos: world.Position,
+    planet_id: str,
+) -> int:
+    """Spawn the planet's quest-cache guardian squad near ``near_pos``.
+
+    Reads the guardian pool + count from the planet's ``dungeon_params``
+    (empty pool = no guardian). Called at generation time, so the
+    guardian persists via the interior cache (save/load safe).
+    """
+    from ..data.planets import find_planet_spec as _fps
+    try:
+        _pspec = _fps(planet_id)
+    except KeyError:
+        return 0
+    _params = getattr(_pspec, "dungeon_params", None)
+    _pool = tuple(getattr(_params, "cache_guardian_pool", ()) or ())
+    if not _pool:
+        return 0
+    from ..engine import RNG as _RNG
+    _eid = _RNG.choice(_pool)
+    _count = getattr(_params, "cache_guardian_count", 1)
+    # The 10 cells nearest the cache keep the squad in the cache room
+    # (a wide BFS can leak it far down a corridor, away from what it
+    # is guarding).
+    return _spawn_squad_near(
+        game_map, near_pos,
+        enemy_id=_eid, count=_count, label="cache_guardian",
+        room_cap=10,
+    )
+
+
 def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
     """Spawn pirate raiders in the room around the Mars door.
 
@@ -152,31 +238,10 @@ def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
     )
     if _door is None:
         return False
-    _room = _door_room_cells(ctx.game_map, _door.pos)
-    if not _room:
-        return False
-    from ..engine import RNG as _RNG
-    _RNG.shuffle(_room)
-    _occupied = {(e.pos.x, e.pos.y) for e in ctx.game_map.entities}
-    _squad_id = f"door_ambush_{_RNG.randint(10000, 99999)}"
-    _placed = 0
-    for _cell in _room:
-        if _placed >= count:
-            break
-        if (_cell.x, _cell.y) in _occupied:
-            continue
-        ctx.game_map.entities.append(world.Entity(
-            char="r",
-            fg=(220, 120, 80),
-            pos=_cell,
-            name="",
-            width=1, height=1,
-            npc_char_id="pirate_raider",
-            squad_id=_squad_id,
-        ))
-        _occupied.add((_cell.x, _cell.y))
-        _placed += 1
-    return _placed > 0
+    return _spawn_squad_near(
+        ctx.game_map, _door.pos,
+        enemy_id="pirate_raider", count=count, label="door_ambush",
+    ) > 0
 
 
 def bump_mars_door(ctx) -> None:
@@ -244,16 +309,20 @@ def prepare_delve_site(
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
+    _cache_pos = _farthest_walkable(game_map, spawn)
     _cache = world.Entity(
         char="%",
         fg=(255, 215, 0),
-        pos=_farthest_walkable(game_map, spawn),
+        pos=_cache_pos,
         name="Quest Cache",
         width=1, height=1,
         loot_data={"goods": list(_step.delve_good_ids)},
     )
     _cache.main_quest_step_id = _step_id
     game_map.entities.append(_cache)
+    # The planet's guardian holds the cache room — one squad, placed at
+    # generation time so it persists via the interior cache.
+    _spawn_cache_guardian(game_map, _cache_pos, planet_id)
     return True
 
 

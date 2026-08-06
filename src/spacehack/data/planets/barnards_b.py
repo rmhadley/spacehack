@@ -86,5 +86,7 @@ SPEC = PlanetSpec(
         # tier 2 — scavengers + prowlers, denser than the tier 1 sites.
         monster_pool=("rock_scavenger", "dust_prowler"),
         monster_density=1.5,
+        cache_guardian_pool=("assault_drone",),
+        cache_guardian_count=1,
     ),
 )

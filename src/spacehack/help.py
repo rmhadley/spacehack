@@ -1458,6 +1458,14 @@ _GUIDE_DUNGEON_MONSTERS = GuideSection(
         "Fighting monsters uses the exact same rules as Ground Combat — cover, "
         "line of sight, AP, and armor all work identically. A sentry drone's "
         "laser is not a weapon you can buy: monsters use attacks of their own."
+        "\n\n"
+        "Some quest caches are guarded: a sentry or assault drone — or, in "
+        "Procyon C's caves, a pack of ice worms — holds the room where a "
+        "chain's cache is hidden."
+        "\n\n"
+        "Derelict ships are another matter. Most carry only pirates, but a "
+        "rare few are infested: hull parasites lurk in the dark and burst out "
+        "when you board. Keep your weapon ready on derelicts."
     ),
 )
 

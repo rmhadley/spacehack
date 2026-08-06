@@ -79,5 +79,7 @@ SPEC = PlanetSpec(
         # Deep ice caves (lab chain delve): tier 2 — worms + spitters.
         monster_pool=("ice_worm", "frost_spitter"),
         monster_density=1.6,
+        cache_guardian_pool=("ice_worm",),
+        cache_guardian_count=2,
     ),
 )

@@ -49,6 +49,9 @@ class DungeonParams:
         monster_pool:              ``npc_char`` ids allowed to spawn here
                                    (empty = no monsters).
         monster_density:           Average monsters per 100 floor cells.
+        cache_guardian_pool:       ``npc_char`` ids for the squad guarding
+                                   the quest cache/door (empty = unguarded).
+        cache_guardian_count:      Size of the guardian squad.
     """
     width: int = 50
     height: int = 40
@@ -60,6 +63,8 @@ class DungeonParams:
     sight_radius: int = 4
     monster_pool: tuple[str, ...] = ()
     monster_density: float = 0.0
+    cache_guardian_pool: tuple[str, ...] = ()
+    cache_guardian_count: int = 1
 
 
 # Sight radius for dungeon fog of war (Chebyshev distance).
@@ -221,8 +226,10 @@ _TILE_BY_NAME: dict[str, world.Tile] = {
     if isinstance(getattr(world, name), world.Tile)
 }
 
-# Enemy spawn glyphs — placed as NPC char entities, rendered as floor.
-# Using distinct glyphs so they don't conflict with engine (E) or other markers.
+# Standard enemy spawn glyphs — placed as NPC char entities, rendered as
+# floor. The parser ALSO treats any glyph with an ``ENEMY:`` directive as
+# an enemy marker (e.g. hull_parasite's ``m``), so new enemy types need
+# only a directive line — no glyph-set entry required.
 _ENEMY_GLYPHS: set[str] = {"r", "R", "S"}
 
 # Glyphs that place entities rather than tiles.
@@ -624,7 +631,7 @@ def load_layout(
                 tile_row.append(tile_map.get(".", world.DUNGEON_FLOOR))
                 continue
 
-            if ch in _ENTITY_GLYPHS:
+            if ch in _ENTITY_GLYPHS or ch in enemy_spawn_specs:
                 # Entity marker — place layout's floor tile + optional entity
                 _underlay = tile_map.get(".", world.DUNGEON_FLOOR)
                 tile_row.append(_underlay)

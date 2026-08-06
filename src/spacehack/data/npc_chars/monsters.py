@@ -126,4 +126,23 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         loot_count=(1, 2),
         xp_reward=25,
     ),
+    NpcCharSpec(
+        id="hull_parasite",
+        name="Hull Parasite",
+        char="m",
+        fg=(175, 140, 190),       # sickly mauve — alien stowaway
+        faction="",
+        hp=16,
+        weapons=("parasite_mandibles",),
+        reflexes=12,
+        strength=12,
+        stamina=10,
+        detect_radius=4,
+        behavior="ambusher",      # lurks in derelicts, bursts out on approach
+        squad_size=(2, 4),
+        always_hostile=True,
+        loot_pool=("scrap_metal", "research_data"),
+        loot_count=(1, 1),
+        xp_reward=15,
+    ),
 )

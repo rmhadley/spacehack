@@ -53,7 +53,7 @@ MAP
   ######d#################d##################d#######
   #............#......................#.............#
   #............#......................#.............#
-  #..r..4......#....S.....4......%....#......3......#
+  #..r..4......#....S.....4......%....#.m....3......#
   #............#......................#.............#
   #............#......................#.............#
   ######d#################d##################d#######
@@ -85,6 +85,7 @@ TILE: % = DEBRIS
 ENEMY: r = pirate_raider@1.0
 ENEMY: R = pirate_rifleman@1.0#1-1
 ENEMY: S = pirate_raider@1.0#2-2
+ENEMY: m = hull_parasite@0.15#2-4
 
 # Loot mappings (digit -> room loot table)
 LOOT: 1 = engine_room
@@ -106,4 +107,5 @@ COLOUR: > = (100, 255, 120)     # exit — bright green arrow
 COLOUR: % = (140, 130, 100)     # debris — dull brass
 COLOUR: r = (220, 120, 80)      # pirate raider — rust-orange
 COLOUR: R = (200, 80, 80)       # pirate rifleman — faded red
+COLOUR: m = (175, 140, 190)     # hull parasite — sickly mauve
 COLOUR: S = (220, 120, 80)      # pirate raider squad — rust-orange

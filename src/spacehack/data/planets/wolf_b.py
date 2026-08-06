@@ -126,5 +126,7 @@ SPEC = PlanetSpec(
         # frost spitters, the heaviest dungeon in act 0.
         monster_pool=("ice_worm", "frost_spitter"),
         monster_density=1.5,
+        cache_guardian_pool=("assault_drone", "sentry_drone"),
+        cache_guardian_count=2,
     ),
 )

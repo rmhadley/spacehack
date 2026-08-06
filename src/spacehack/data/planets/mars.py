@@ -147,5 +147,7 @@ SPEC = PlanetSpec(
         # keeps the first-combat dive light.
         monster_pool=("rock_scavenger", "dust_prowler", "sentry_drone", "assault_drone"),
         monster_density=1.2,
+        cache_guardian_pool=("sentry_drone",),
+        cache_guardian_count=1,
     ),
 )
