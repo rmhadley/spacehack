@@ -76,5 +76,8 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(200, 220, 245), bg=(55, 70, 95),
         ),
+        # Deep ice caves (lab chain delve): tier 2 — worms + spitters.
+        monster_pool=("ice_worm", "frost_spitter"),
+        monster_density=1.6,
     ),
 )

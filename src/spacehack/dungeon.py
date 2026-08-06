@@ -237,8 +237,14 @@ _ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
 _SPAWN_CLEAR_RADIUS: int = 5
 # Max Chebyshev distance of squad members from their anchor cell.
 _SQUAD_SPREAD: int = 3
-# Hard cap on monsters per procedural dungeon — keeps early game fair.
-_MONSTER_CAP: int = 16
+# Tier scaling: (density multiplier, monster cap) per dungeon tier.
+# Tier comes from PlanetSpec.mission_tier via the EXPLORE handler —
+# higher-tier sites (mid/late quest dungeons) get more + denser monsters.
+_MONSTER_TIERS: tuple[tuple[float, int], ...] = (
+    (1.0, 16),   # tier 1 — light (Mars signal, Mercury caves)
+    (1.4, 22),   # tier 2 — moderate (Barnard's B, Procyon C ice caves)
+    (1.8, 28),   # tier 3 — heavy (Wolf 359 claim caves)
+)
 
 
 def _room_cells(
@@ -324,6 +330,8 @@ def populate_dungeon(
     game_map: world.GameMap,
     params: DungeonParams,
     spawn_pos: world.Position,
+    *,
+    tier: int = 1,
 ) -> None:
     """Scatter monster squads into a freshly generated dungeon.
 
@@ -338,6 +346,8 @@ def populate_dungeon(
       - never on cells already occupied (quest caches, the Mars door,
         loot) or on EXIT tiles (the leave marker stays reachable)
       - squad sizes come from each monster's ``squad_size``
+      - density × tier (``tier`` = the planet's ``mission_tier``)
+        with a per-tier hard cap (:data:`_MONSTER_TIERS`)
 
     No-op when the planet has no monster pool or zero density.
     """
@@ -358,8 +368,10 @@ def populate_dungeon(
     if not _floor:
         return
 
-    _target = int(len(_floor) * params.monster_density / 100.0)
-    _target = min(_target, _MONSTER_CAP)
+    _tier = min(max(tier, 1), len(_MONSTER_TIERS))
+    _tier_mult, _tier_cap = _MONSTER_TIERS[_tier - 1]
+    _target = int(len(_floor) * params.monster_density * _tier_mult / 100.0)
+    _target = min(_target, _tier_cap)
     if _target <= 0:
         return
 
@@ -387,14 +399,16 @@ def populate_dungeon(
                 _nx, _ny = _fx + _dx, _fy + _dy
                 if not (0 <= _nx < game_map.width and 0 <= _ny < game_map.height):
                     continue
+                if max(abs(_nx - spawn_pos.x), abs(_ny - spawn_pos.y)) <= _SPAWN_CLEAR_RADIUS:
+                    continue
                 _nt = game_map.tiles[_ny][_nx]
                 if _nt.walkable and _nt.kind != "exit" and (_nx, _ny) not in _occupied:
                     _cells.append((_nx, _ny))
         _squad_id = f"dungeon_{_eid}_{_squad_counter}"
         _squad_counter += 1
         _smin, _smax = _spec.squad_size
-        # Honor the per-dungeon cap (_MONSTER_CAP) without truncating
-        # a squad below its minimum size: skip this anchor when the
+        # Honor the per-tier cap (_MONSTER_TIERS) without truncating a
+        # squad below its minimum size: skip this anchor when the
         # remaining budget can't fit the monster's smallest squad.
         _budget_left = _target - _placed
         if _budget_left < _smin:

@@ -82,5 +82,9 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(210, 150, 95), bg=(65, 38, 20),
         ),
+        # Hot rocky caves beneath the mining outpost (bar chain delve):
+        # tier 2 — scavengers + prowlers, denser than the tier 1 sites.
+        monster_pool=("rock_scavenger", "dust_prowler"),
+        monster_density=1.5,
     ),
 )

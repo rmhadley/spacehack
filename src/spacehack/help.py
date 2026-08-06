@@ -1450,7 +1450,7 @@ _GUIDE_DUNGEON_MONSTERS = GuideSection(
         "spot you. Many hunt in packs."
         "\n"
         "- Guards (sentry drones) hold their position until they spot you, "
-        "then open fire at range. They do not roam while undetected."
+        "then open fire at range — they won't chase you far from their post."
         "\n"
         "- Ambushers (ice worms) lie still until you approach, then burst out "
         "in melee. Watch the floor in ice caves."

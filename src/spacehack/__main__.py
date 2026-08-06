@@ -630,7 +630,12 @@ def _run_game(
                                     # generation time, so the population is
                                     # cached + saved with the map and never
                                     # duplicates on re-entry or Continue.
-                                    _populate_dungeon(_dungeon_map, _params, _spawn)
+                                    # Tier = planet's mission_tier, which
+                                    # scales density + the per-dungeon cap.
+                                    _populate_dungeon(
+                                        _dungeon_map, _params, _spawn,
+                                        tier=_pspec.mission_tier,
+                                    )
                                     ctx.interiors[_surface_key] = _dungeon_map
                                 # Quest-conditional NPCs: runs on every
                                 # entry (fresh or cached) so the old

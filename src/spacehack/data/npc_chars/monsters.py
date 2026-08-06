@@ -59,7 +59,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=26,
         weapons=("monster_claws",),
         reflexes=12,
-        strength=28,
+        strength=32,              # claws 3 + 3 = 6 per hit
         stamina=14,
         detect_radius=5,
         behavior="ambusher",      # holds still, bursts out on approach
@@ -68,5 +68,62 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         loot_pool=("scrap_metal", "research_data"),
         loot_count=(1, 1),
         xp_reward=20,
+    ),
+    NpcCharSpec(
+        id="dust_prowler",
+        name="Dust Prowler",
+        char="p",
+        fg=(215, 130, 90),        # red-brown — fast desert predator
+        faction="",
+        hp=22,
+        weapons=("monster_claws",),
+        reflexes=13,
+        strength=18,
+        stamina=12,
+        detect_radius=5,
+        behavior="hunter",        # fast, aggressive single/duo hunter
+        squad_size=(1, 2),
+        always_hostile=True,
+        loot_pool=("scrap_metal", "food_rations"),
+        loot_count=(1, 2),
+        xp_reward=18,
+    ),
+    NpcCharSpec(
+        id="assault_drone",
+        name="Assault Drone",
+        char="D",
+        fg=(200, 170, 110),       # bronze armor — heavy security frame
+        faction="",
+        hp=34,
+        weapons=("monster_claws",),
+        reflexes=10,
+        strength=25,              # slow but hits hard (claws 3 + 2 = 5)
+        stamina=16,
+        detect_radius=5,
+        behavior="guard",         # armored bruiser — holds its post
+        squad_size=(1, 1),
+        always_hostile=True,
+        loot_pool=("electronics", "machine_parts", "ship_components"),
+        loot_count=(1, 2),
+        xp_reward=30,
+    ),
+    NpcCharSpec(
+        id="frost_spitter",
+        name="Frost Spitter",
+        char="f",
+        fg=(170, 210, 250),       # pale frost blue — ice-cave harasser
+        faction="",
+        hp=20,
+        weapons=("frost_bolt",),
+        reflexes=13,
+        strength=10,
+        stamina=12,
+        detect_radius=6,
+        behavior="hunter",        # ranged harasser, hunts in pairs/trios
+        squad_size=(2, 3),
+        always_hostile=True,
+        loot_pool=("research_data", "electronics"),
+        loot_count=(1, 2),
+        xp_reward=25,
     ),
 )

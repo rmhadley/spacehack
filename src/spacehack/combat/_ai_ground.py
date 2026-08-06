@@ -12,6 +12,10 @@ from .. import message_log as _ml
 from ..engine import RNG
 from ._animations import _has_los, _responsive_sleep
 
+# Guards defend a post: beyond this euclidean distance from their
+# spawn position they disengage and return instead of chasing.
+_GUARD_LEASH_RADIUS: int = 8
+
 
 def run_ground_enemy_turn(
     ctx,
@@ -58,6 +62,10 @@ def run_ground_enemy_turn(
     _damage_dealt = 0
     _fired = False
     _cached_path: list[tuple[int, int]] | None = None
+    _path_goal: tuple[int, int] | None = None
+    # Guards defend a post: once the player leaves the leash radius,
+    # the guard disengages and heads back instead of chasing forever.
+    _post = getattr(enemy_entity, 'guard_post', None)
 
     while _result_ap > 0:
         _dist = _distance(enemy_entity.pos, player_pos)
@@ -93,16 +101,26 @@ def run_ground_enemy_turn(
                 _fired = True
                 break  # one shot per enemy turn (matched to player's single [f] action)
 
-        # Out of range — compute A* path once, follow it step by step.
-        if _cached_path is None:
+        # Chase goal: the player, or (for guards) the post once the
+        # player has left the leash radius measured FROM THE POST (not
+        # enemy->player — that never grows during a chase).
+        _goal = (player_pos.x, player_pos.y)
+        if _post is not None and _distance(player_pos, _post) > _GUARD_LEASH_RADIUS:
+            _goal = (_post.x, _post.y)
+
+        # Out of range — compute A* path once per goal, follow it step
+        # by step. Recomputing only when the goal changes keeps guards
+        # from walking a stale chase path back to their post.
+        if _cached_path is None or _path_goal != _goal:
             _cached_path = world.find_path(
                 (enemy_entity.pos.x, enemy_entity.pos.y),
-                {(player_pos.x, player_pos.y)},
+                {_goal},
                 game_map,
                 exclude_entity=enemy_entity,
             )
+            _path_goal = _goal
         if _cached_path is None or len(_cached_path) == 0:
-            break  # no path to player
+            break  # no path to goal
 
         _nx, _ny = _cached_path.pop(0)  # consume next step
 

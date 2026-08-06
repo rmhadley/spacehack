@@ -124,6 +124,10 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
         elif _spec.weapon_pick:
             _wid = RNG.choice(_spec.weapon_pick)
         _max_hp = _spec.hp + _spec.stamina // 3
+        # Guards defend a post: record the spawn position so the combat
+        # AI can leash back to it instead of chasing across the map.
+        if _spec.behavior == "guard":
+            _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
         _enemies.append(GroundEnemyInstance(
             entity=_ent, spec=_spec, weapon_id=_wid,
             hp=_max_hp, max_hp=_max_hp, ap=4, ap_total=4,

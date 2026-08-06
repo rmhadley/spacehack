@@ -122,5 +122,9 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(170, 185, 200), bg=(45, 52, 62),
         ),
+        # Cold claim caves (merchant chain delve): tier 3 — ice worms +
+        # frost spitters, the heaviest dungeon in act 0.
+        monster_pool=("ice_worm", "frost_spitter"),
+        monster_density=1.5,
     ),
 )

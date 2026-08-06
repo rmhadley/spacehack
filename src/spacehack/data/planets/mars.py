@@ -142,9 +142,10 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(200, 160, 120), bg=(50, 35, 20),
         ),
-        # Phase 1 prototype pool — desert fauna + a drone sentry at the
-        # signal ruins. Density tuned for a light first-combat dive.
-        monster_pool=("rock_scavenger", "sentry_drone"),
+        # Desert fauna + signal-ruins security: scavenger packs and
+        # prowlers, with sentry + assault drones at the ruins. Tier 1
+        # keeps the first-combat dive light.
+        monster_pool=("rock_scavenger", "dust_prowler", "sentry_drone", "assault_drone"),
         monster_density=1.2,
     ),
 )

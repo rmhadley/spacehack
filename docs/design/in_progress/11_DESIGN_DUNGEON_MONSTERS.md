@@ -116,8 +116,8 @@ Per-planet config in `data/planets/*.py`:
 | mars (signal) | `rock_scavenger`, `dust_prowler`, `sentry_drone`, `assault_drone` | 1.2 | 1 | ruins + fauna; prologue site stays light |
 | mercury (caves) | `rock_scavenger`, `dust_prowler` | 1.5 | 1 | wild scorched caves |
 | barnards_b | `rock_scavenger`, `dust_prowler` | 1.5 | 2 | hostile world (bar chain) |
-| wolf_b | `frost_spitter`, `ice_worm` | 1.5 | 2 | cold claim site (merchant chain) |
-| procyon_c (ice caves) | `ice_worm`, `frost_spitter` | 1.6 | 2 | lab chain delve — highest early-game density |
+| wolf_b | `frost_spitter`, `ice_worm` | 1.5 | 3 | cold claim site (merchant chain) — heaviest in act 0 |
+| procyon_c (ice caves) | `ice_worm`, `frost_spitter` | 1.6 | 2 | lab chain delve |
 
 Density × floor-cell count → target monster count, then scaled by
 the planet's tier (`tech_level` + `mission_tier` — both fields already
@@ -191,15 +191,19 @@ formula; Phase 1 lands the base config above).
 
 ### Phase 2 — Full catalog, behaviors, biomes
 
-- [ ] All 6 monsters + all weapons; per-planet pools (table above)
+- [x] All 6 monsters + all weapons; per-planet pools (table above)
 - [x] Ambusher: no out-of-combat movement (landed early in Phase 1);
   joins combat when detected ✓
 - [x] Guard: no out-of-combat movement (landed early in Phase 1);
-  in-combat **leash** still to land in this phase
-- [ ] Difficulty scaling: **planet-tier driven** (user-confirmed) —
-  density × tier factor using the existing `tech_level` + `mission_tier`
-  `PlanetSpec` fields
-- [ ] Balance pass vs. ground weapons/armor (survival_axe, vests)
+  in-combat **leash** — `guard_post` stamped at `_rules_ground.init`,
+  `_ai_ground` disengages past 8 cells and returns to post ✓
+- [x] Difficulty scaling: **planet-tier driven** (user-confirmed) —
+  `populate_dungeon(..., tier=mission_tier)`; per-tier (density mult,
+  cap) table: t1 (1.0, 16), t2 (1.4, 22), t3 (1.8, 28). Verified
+  counts: Mars 16, Mercury 13, Barnard's B 18, Procyon C 19, Wolf 22
+- [x] Balance pass: stats tuned relative to pirates (prowler 4 dmg
+  melee, assault drone 34 hp bruiser, spitter ranged 4); playtest
+  verdict still pending
 
 **PLAYTEST (Phase 2)**
 1. Each dungeon biome → correct monster mix (no ice worms on Mercury)
