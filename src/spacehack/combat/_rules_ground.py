@@ -126,7 +126,12 @@ def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
     elif _spec.weapon_pick:
         _wid = RNG.choice(_spec.weapon_pick)
     _max_hp = _spec.hp + _spec.stamina // 3
-    if _spec.behavior == "guard":
+    # Guard leash anchor: stamp once at first engagement and never
+    # move it. LOS aggro can end fights with a guard mid-chase; re-
+    # stamping on every re-engagement would drag the post to wherever
+    # the guard last stood, letting peek-a-boo slowly relocate a
+    # drone's defense area across the map. Save/load also preserves it.
+    if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
         _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
     _cur_hp = getattr(_ent, "hp", 0) or _max_hp
     _ent.hp = _cur_hp

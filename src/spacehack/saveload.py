@@ -299,6 +299,10 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 "npc_id": getattr(e, 'npc_id', ''),
                 "squad_id": getattr(e, 'squad_id', ''),
                 "hp": getattr(e, 'hp', 0),
+                "guard_post": (
+                    [e.guard_post.x, e.guard_post.y]
+                    if getattr(e, 'guard_post', None) is not None else None
+                ),
                 "heist_mission": bool(getattr(e, 'heist_mission', False)),
                 "heist_mission_id": getattr(e, 'heist_mission_id', None),
                 "main_quest_door": bool(getattr(e, 'main_quest_door', False)),
@@ -381,6 +385,12 @@ def _dungeon_from_dict(dd: dict) -> tuple:
             squad_id=_ed.get("squad_id", ""),
             hp=_ed.get("hp", 0),
         )
+        _gp = _ed.get("guard_post")
+        if isinstance(_gp, (list, tuple)) and len(_gp) >= 2:
+            # Guard leash anchor (LOS aggro): preserved across
+            # save/load so a guard re-engaging after Continue defends
+            # its ORIGINAL post, not the spot it happened to be at.
+            _e.guard_post = world.Position(int(_gp[0]), int(_gp[1]))
         if _ed.get("heist_mission", False):
             _e.heist_mission = True
         _hmid = _ed.get("heist_mission_id")
