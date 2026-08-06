@@ -45,6 +45,7 @@ from . import combat
 from .combat._rules_ground import init as _ground_init
 from .combat._loop import run_combat as _run_combat_unified
 from .combat import _rules_ground
+from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
 from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _try_open_guide
@@ -117,6 +118,59 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False) -> N
 
 
 # --- End space-mode helpers ---
+
+# ---------------------------------------------------------------------------
+# Ground-mode helpers (dungeon move + wait share one combat tick)
+# ---------------------------------------------------------------------------
+
+def _apply_ground_combat_rep(ctx, ground_result) -> None:
+    """Apply per-kill ground-combat rep deltas from a combat result.
+
+    No squads under LOS aggro — the old "killed the whole squad"
+    bonus is gone. Kills award their faction deltas whether the fight
+    ended in victory or disengagement (monsters: faction "" → no-op).
+    """
+    if ground_result.outcome not in ("VICTORY", "DISENGAGED") or not ground_result.defeated_spec_ids:
+        return
+    from .data.npc_chars import find_npc_char as _fnc
+    from .faction import modify_rep, _COMBAT_KILL_DELTAS
+    for _dsid in ground_result.defeated_spec_ids:
+        try:
+            _npc = _fnc(_dsid)
+            _deltas = _COMBAT_KILL_DELTAS.get(_npc.faction, {})
+            for _fac, _delta in _deltas.items():
+                modify_rep(ctx, _fac, _delta)
+        except (KeyError, ImportError):
+            pass
+
+
+def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
+    """Move ground NPCs, refresh the LOS frame, then detect + run
+    ground combat if any hostile is now visible.
+
+    Shared by the dungeon move and wait handlers so both keep the
+    current-LOS ``visible`` grid in sync with NPC movement (waiting
+    previously left it stale, so a pirate that stepped onto a
+    not-yet-revealed cell vanished from the render even though it was
+    genuinely in line of sight) and both honour LOS aggro (combat
+    triggers on sight, not just on movement).
+
+    Returns the :class:`CombatResult` when combat ran, else ``None``.
+    Callers check ``outcome == "DEFEAT"`` to exit the game loop.
+    """
+    from .ground_npcs import move_ground_npcs as _move_ground_npcs
+    _move_ground_npcs(ctx, game_map)
+    from .dungeon import reveal_around as _reveal_around
+    _reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
+    from .combat._encounter import detect_ground_combat as _dgc
+    _hostiles = _dgc(ctx, game_map, ctx.player.pos)
+    if not _hostiles:
+        return None
+    _ground_init(ctx, _hostiles, game_map, console=console)
+    _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
+    _apply_ground_combat_rep(ctx, _ground_result)
+    return _ground_result
+
 
 def _first_walkable(game_map) -> world.Position | None:
     """Return the first walkable tile in ``game_map``, or ``None``.
@@ -452,8 +506,16 @@ def _run_game(
                     _run_combat_loop(ctx, console, player, also_move_npcs=True)
                     player_active_missions = ctx.player_active_missions
                 elif current_mode == 'dungeon':
-                    from .ground_npcs import move_ground_npcs as _move_ground_npcs
-                    _move_ground_npcs(ctx, game_map)
+                    # Full dungeon tick: move NPCs, refresh the LOS
+                    # frame, and honor LOS aggro — waiting next to a
+                    # visible hostile starts the fight, and a pirate
+                    # that steps while you wait stays on screen if
+                    # still in sight (no stale-grid vanish).
+                    _ground_result = _run_ground_combat_tick(ctx, console, game_map)
+                    if _ground_result is not None:
+                        if _ground_result.outcome == "DEFEAT":
+                            return
+                        continue
                 ctx.log.add('You wait.')
                 continue
 
@@ -486,36 +548,12 @@ def _run_game(
                 player_active_missions = ctx.player_active_missions
                 tick_move(ctx)
             if code == 'moved' and current_mode == 'dungeon':
-                # Move ground NPCs (patrol / wander), then reveal fog.
-                from .ground_npcs import move_ground_npcs as _move_ground_npcs
-                _move_ground_npcs(ctx, game_map)
-                # Reveal fog around new position (using current sight radius)
-                from .dungeon import reveal_around as _reveal_around
-                _reveal_around(game_map, player.pos, radius=game_map.sight_radius)
-                # Check for ground combat (sight-based detection)
-                from .combat._encounter import detect_ground_combat as _dgc
-                _hostiles = _dgc(ctx, game_map, player.pos)
-                if _hostiles:
-                    _ground_init(ctx, _hostiles, game_map, console=console)
-                    _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
+                # Move ground NPCs, refresh the LOS frame, then check
+                # for ground combat (shared with the wait handler).
+                _ground_result = _run_ground_combat_tick(ctx, console, game_map)
+                if _ground_result is not None:
                     if _ground_result.outcome == "DEFEAT":
                         return
-                    # --- Ground combat rep changes: per-kill only ---
-                    # No squads under LOS aggro — the old "killed the
-                    # whole squad" bonus is gone. Kills award their
-                    # faction deltas whether the fight ended in victory
-                    # or disengagement (monsters: faction "" → no-op).
-                    if _ground_result.outcome in ("VICTORY", "DISENGAGED") and _ground_result.defeated_spec_ids:
-                        from .data.npc_chars import find_npc_char as _fnc
-                        from .faction import modify_rep, _COMBAT_KILL_DELTAS
-                        for _dsid in _ground_result.defeated_spec_ids:
-                            try:
-                                _npc = _fnc(_dsid)
-                                _deltas = _COMBAT_KILL_DELTAS.get(_npc.faction, {})
-                                for _fac, _delta in _deltas.items():
-                                    modify_rep(ctx, _fac, _delta)
-                            except (KeyError, ImportError):
-                                pass
                     # After combat, refresh the map render
                     continue
                 # Check if player walked onto the exit tile
