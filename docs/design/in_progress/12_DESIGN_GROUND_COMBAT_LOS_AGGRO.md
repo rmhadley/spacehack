@@ -1,6 +1,6 @@
 # 12 — Ground Combat: LOS-based Aggro (no squads)
 
-Status: **in_progress** · Phase 0 (design) — no code written yet.
+Status: **in_progress** · Phase 1 shipped — Phase 2 (feel/balance) next.
 
 ## Overview
 
@@ -28,6 +28,28 @@ This doc replaces squad linkage with **player-LOS aggro**:
 Noise (gunfire attracts mobs) is deliberately deferred: v1 is pure
 LOS, but the detection predicate is built as a single hook so noise
 can be OR'd in later without redesign.
+
+## Phase 1 shipped (delta)
+
+Implemented + committed 2026-08-06 (`4115cc4`, `704372c`):
+
+- `visible_hostiles()` predicate (sight radius + clear ray) feeds the
+  trigger, the join scan, and the end check — the noise seam
+- `detect_ground_combat` returns the full visible set — no squad
+  assist through walls, no auto-reveal
+- `refresh_engaged()` at the top of every round: mobs on screen join
+  immediately — targetable and acting the same round; space gets a
+  no-op hook
+- LOS end condition: VICTORY (all engaged dead) / DISENGAGED
+  (survivors out of view); `combat_should_end` rules hook
+- `Entity.hp` wound persistence + saveload (breaking sight never
+  heals enemies)
+- Per-kill rep only (squad bonus removed); rep applies on VICTORY and
+  DISENGAGED
+- Guide updated; 13-check behavior script + smoke green
+
+The "Current state (verified)" table below records the PRE-change
+baseline the design was built against.
 
 ## Current state (verified)
 
@@ -167,22 +189,41 @@ punished. Damage must stick to the map entity:
 4. Wound a scavenger, break LOS, re-engage → it has the same HP
 5. Kill-a-monster: rep log unchanged (zero for monsters)
 
-### Phase 2 — Feel + balance
+### Phase 2 — Feel + balance (LOS-model tuning)
 
-- [ ] Sight-radius tuning (4 vs 5-6): ranged enemies/player rifles feel
-  dead if engagement == sight radius; decide via playtest
-- [ ] Ambush/guard behavior under LOS model (guard holds until seen —
-  already correct; ambusher burst on join)
-- [ ] Pack spawns vs. individual combat: density still feels right?
-- [ ] Noise hook verified: `visible_hostiles()` is the single seam a
-  future `noise_hostiles()` ORs into
-- [ ] Guide numbers final
+- [ ] Sight-radius consequences at 8: engagement == sight radius —
+  verify fights aren't too hot (more simultaneous joins). If so, tune
+  per-planet `DungeonParams.sight_radius`, NOT the global default
+- [ ] Ambusher read (positional ambush, decision #6): ice worms /
+  parasites placed near corners — rounding the corner onto one should
+  burst (reveal line) + act the same round. Adjust spawn placement if
+  it reads flat
+- [ ] Guard read: drones hold until seen; verify the leash + posture
+  under the LOS model
+- [ ] Pack feel: packs spawn clustered but fight as individuals —
+  trickle-in should read as "they heard the fight", not "they forgot
+  each other". Tune `monster_density` if fights feel too empty/hot
+- [ ] Peek-a-boo audit (allowed, decision #5): corner-peek + fire +
+  break sight is legitimate — verify wounds make it fair and it never
+  feels degenerate
+- [ ] Noise seam: spec + stub `noise_hostiles()` proving
+  `visible_hostiles()` is the only OR-in point (trigger,
+  refresh_engaged, combat_should_end) — the documented future
+  anti-cheese lever
+- [ ] Guide numbers final; perf check (join scan every round on the
+  120×90 Mars map)
 
 **PLAYTEST (Phase 2)**
-1. Each biome: ice worms, drones, prowlers read correctly under LOS aggro
-2. Ranged enemies (spitter, drone) still threaten — or is engagement
-   range too short?
-3. Performance: 120×90 Mars map with the per-round join scan stays smooth
+1. Each biome under LOS aggro: worms, drones, prowlers read right
+2. Ranged enemies (spitter, drone) still threaten at radius 8
+3. Corner ambush: round a corner onto an ice worm — burst + same-round
+   act? Does it read as an ambush?
+4. Kite a sentry drone out of its room — leash turns it back
+5. Pack trickle-in: clear a scavenger room — does the rest of the pack
+   arrive naturally?
+6. Peek-a-boo: corner-peek, fire, break sight, re-peek — fair and
+   clever, not degenerate
+7. Perf: Mars map smooth with the per-round join scan
 
 ### Phase 3 — Full act-0 pass + polish
 
@@ -217,21 +258,24 @@ punished. Damage must stick to the map entity:
    full range (rifles 7, drone lasers 6). Derelict power restore stays
    at 20 (map-wide on wrecks), so "turning the lights on" remains a
    real upgrade ✓ (landed standalone ahead of Phase 1)
+5. **Peek-a-boo:** allowed — corner-peeking is a legitimate roguelike
+   quirk (stair-dancing vibes); let players get clever. Mobs never
+   heal (wounds persist), hunters keep roaming, re-peeking costs AP.
+   No rep penalty on LOS-break. Noise is the documented future lever
+   if it ever feels degenerate ✓
+6. **Ambushers:** positional — player-LOS purity kept (no
+   behind-the-back surprise). Ice worms / parasites ambush by
+   placement: near corners/doorways, bursting (reveal line) and acting
+   the same round when the player rounds the corner onto them ✓
 
-## Open questions
+## Open questions (resolved)
 
-1. **Peek-a-boo cheese** — with "LOS ends it", corner-peeking is a
-   legit tactic (spend AP to peek, fire, break sight). Proposal: allow
-   it — mobs don't heal (wounds persist) and hunters keep roaming;
-   monsters path toward your last position. If it feels exploitative
-   after playtest: (a) mobs keep a short alerted-chase after LOS break,
-   or (b) ship the noise system. No rep penalty on LOS-break — it's
-   normal play, not the flee action.
-2. **Sight radius** — RESOLVED: raised to 8 (covers every weapon's
-   full range; room-scale engagement). Lights-on stays 20. If Phase 2
-   playtest shows fights are too hot (more simultaneous joins at
-   radius 8), the lever is per-planet `DungeonParams.sight_radius`
-   tuning rather than the global default.
+1. **Peek-a-boo cheese** — RESOLVED: allowed (decision #5). Corner-peek
+   is a legitimate quirk; wounds persist, hunters roam, re-peeks cost
+   AP. Noise stays the documented future anti-cheese lever.
+2. **Sight radius** — RESOLVED: 8 (decision #4); the per-planet
+   `DungeonParams.sight_radius` lever stays ready if Phase 2 playtest
+   shows fights running too hot.
 
 ## Pre-implementation audit
 
@@ -266,8 +310,9 @@ punished. Damage must stick to the map entity:
 
 ## Design doc lifecycle
 
-- [ ] Phase 0: doc approved by user
-- [ ] Phase 1 → implementation + playtest
+- [x] Phase 0: doc approved by user
+- [x] Phase 1 → implementation (+ immediate-join fix); playtest folded
+  into the Phase 2 checklist
 - [ ] Phase 2 → implementation + playtest
 - [ ] Phase 3 → implementation + playtest
 - [ ] Move to `complete/` when all checkboxes checked
