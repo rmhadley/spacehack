@@ -197,7 +197,8 @@ def _resolve_tile(
         char=_theme.char,
         walkable=_theme.walkable,
         fg=tile.fg,
-        bg=_theme.bg,
+        bg=tile.bg if tile.bg_override else _theme.bg,
+        bg_override=tile.bg_override,
     )
 
 

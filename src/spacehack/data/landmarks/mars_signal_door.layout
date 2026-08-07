@@ -38,11 +38,13 @@ TILE: ~ = UNDULATING_DOOR_B
 
 # Optional color overrides.  Omit a generic dungeon tile here to
 # inherit the destination cave's themed tile when this landmark is stamped.
-# COLOUR changes only the foreground color; the destination theme supplies
-# the generic tile's glyph, background, and collision behavior.
-COLOUR: + = (120, 130, 150)      # alien wall
-COLOUR: . = (200, 200, 210)      # alien floor
-COLOUR: = = (46, 219, 211)      # alien door a
-COLOUR: ~ = (46, 99, 219)       # alien door b
-COLOUR: d = (100, 220, 255)     # door — cyan glow
-COLOUR: C = (255, 200, 80)      # door console — warm gold
+# COLOUR always overrides the foreground. With no second tuple, the
+# destination theme supplies the generic tile's background and collision
+# behavior. Add `/ (R, G, B)` to override the background too:
+# COLOUR: glyph = fg / bg
+COLOUR: + = (120, 130, 150) / (18, 28, 48)      # alien wall
+COLOUR: . = (200, 200, 210) / (42, 58, 88)       # alien floor
+COLOUR: = = (46, 219, 211) / (24, 72, 96)        # alien door a
+COLOUR: ~ = (46, 99, 219) / (24, 42, 96)          # alien door b
+COLOUR: d = (100, 220, 255) / (36, 72, 112)      # door - cyan glow
+COLOUR: C = (255, 200, 80) / (48, 52, 92)        # door console - warm gold

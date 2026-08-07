@@ -35,6 +35,7 @@ class Tile:
     walkable: bool       # can an entity stand on this tile?
     fg: tuple[int, int, int]
     bg: tuple[int, int, int]   # background painted under the glyph (darker than fg so the glyph reads on top)
+    bg_override: bool = False  # layout-authored background, not a theme default
 
 
 WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))     # dark shade — paneled bulkhead (perimeter)

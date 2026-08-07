@@ -9,6 +9,8 @@ Layout format (DCSS-inspired):
   - ``MAP`` / ``ENDMAP`` delimit the ASCII grid
   - ``TILE: X = type`` maps a glyph to a tile or entity kind
   - ``COLOUR: X = (R, G, B)`` overrides the tile's fg color
+  - ``COLOUR: X = (R, G, B) / (R, G, B)`` overrides fg and bg
+    (omitting the second tuple inherits the tile's existing background)
 The parser finds the hull boundary per row (first/last non-space
 character). Everything between boundaries is interior; everything
 before/after is void.
@@ -485,14 +487,32 @@ def _split_directive(rest: str) -> tuple[str, str] | None:
     return None
 
 
-def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:
-    """Parse a ``COLOUR: X = (R, G, B)`` line.
+@dataclass(frozen=True)
+class _ColourOverride:
+    """Optional foreground/background override from a layout directive."""
 
-    Trailing ``#`` comments are stripped (the ``(R, G, B)`` tuple is
-    decimal, so ``#`` can never appear inside it).
+    fg: tuple[int, int, int]
+    bg: tuple[int, int, int] | None = None
 
-    Returns ``(glyph, (r, g, b))`` or ``None`` if the line isn't a
-    colour directive.
+
+def _parse_rgb(value: str) -> tuple[int, int, int] | None:
+    """Parse one ``(R, G, B)`` tuple."""
+    _parts = [part.strip() for part in value.strip().strip("()").split(",")]
+    if len(_parts) != 3:
+        return None
+    try:
+        return tuple(int(part) for part in _parts)  # type: ignore[return-value]
+    except ValueError:
+        return None
+
+
+def _parse_colour(line: str) -> tuple[str, _ColourOverride] | None:
+    """Parse a foreground-only or foreground/background COLOUR line.
+
+    Supported forms are ``COLOUR: X = (R, G, B)`` and
+    ``COLOUR: X = (R, G, B) / (R, G, B)``. Trailing ``#`` comments are
+    stripped. The optional second tuple overrides the background; when
+    omitted, the tile's existing background is inherited.
     """
     line = line.strip()
     if not line.startswith("COLOUR:"):
@@ -505,16 +525,14 @@ def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:
     if "#" in rgb_part:
         rgb_part = rgb_part.split("#", 1)[0].strip()
     glyph = glyph_part.strip()
-    # Parse (R, G, B)
-    rgb_str = rgb_part.strip().strip("()")
-    parts = [p.strip() for p in rgb_str.split(",")]
-    if len(parts) != 3:
+    _fg_text, _, _bg_text = rgb_part.partition("/")
+    _fg = _parse_rgb(_fg_text)
+    if _fg is None:
         return None
-    try:
-        r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
-    except ValueError:
+    _bg = _parse_rgb(_bg_text) if _bg_text else None
+    if _bg_text and _bg is None:
         return None
-    return (glyph, (r, g, b))
+    return glyph, _ColourOverride(fg=_fg, bg=_bg)
 
 
 def load_layout(
@@ -557,7 +575,7 @@ def load_layout(
 
     # Collect colour overrides, tile mappings, loot zone mappings,
     # and enemy spawn directives
-    colour_overrides: dict[str, tuple[int, int, int]] = {}
+    colour_overrides: dict[str, _ColourOverride] = {}
     tile_map: dict[str, world.Tile] = {}  # glyph -> Tile (from TILE: directives)
     loot_zones: dict[str, str] = {}  # glyph -> room_type
     enemy_spawn_specs: dict[str, tuple[str, float, int, int]] = {}  # glyph -> (enemy_id, spawn_chance, squad_min, squad_max)
@@ -653,8 +671,8 @@ def load_layout(
                 continue
             colour_result = _parse_colour(line)
             if colour_result is not None:
-                glyph, rgb = colour_result
-                colour_overrides[glyph] = rgb
+                glyph, override = colour_result
+                colour_overrides[glyph] = override
 
     if not map_lines:
         raise ValueError(f"Layout {layout_id!r} has no MAP section")
@@ -714,7 +732,10 @@ def load_layout(
                     # maps it to the alien console tile.
                     _is_quest_console = tile_map.get("C") is world.DOOR_CONSOLE
                     entities.append(world.Entity(
-                        char="C", fg=colour_overrides.get("C", (255, 200, 80)),
+                        char="C", fg=(
+                            colour_overrides["C"].fg
+                            if "C" in colour_overrides else (255, 200, 80)
+                        ),
                         pos=world.Position(col_idx, row_idx),
                         name=("Alien Door Console" if _is_quest_console else "Ship Computer"),
                         width=1, height=1,
@@ -724,7 +745,10 @@ def load_layout(
                 elif ch == "E":
                     # Engine — flavor entity (placeholder)
                     entities.append(world.Entity(
-                        char="E", fg=colour_overrides.get("E", (180, 200, 220)),
+                        char="E", fg=(
+                            colour_overrides["E"].fg
+                            if "E" in colour_overrides else (180, 200, 220)
+                        ),
                         pos=world.Position(col_idx, row_idx),
                         name="Engine Terminal", width=1, height=1,
                     ))
@@ -780,12 +804,14 @@ def load_layout(
                     # Bracket chars ({/}) are layout grouping markers —
                     # always render them using HULL_WALL's char (#), not
                     # the bracket glyph.
+                    _override = colour_overrides[glyph]
                     tiles[row_idx][col_idx] = world.Tile(
                         kind=tile.kind,
                         char=tile.char,
                         walkable=tile.walkable,
-                        fg=colour_overrides[glyph],
-                        bg=tile.bg,
+                        fg=_override.fg,
+                        bg=_override.bg if _override.bg is not None else tile.bg,
+                        bg_override=_override.bg is not None,
                     )
 
     # --- Shared room flood-fill helper (reused by enemy scatter + loot scatter) ---
@@ -822,7 +848,10 @@ def load_layout(
             entities, _occupied,
             enemy_id=_eid, cells=_cells, count=_squad_size,
             squad_id=_squad_id, char=glyph,
-            fg=colour_overrides.get(glyph, (255, 100, 100)),
+            fg=(
+                colour_overrides[glyph].fg
+                if glyph in colour_overrides else (255, 100, 100)
+            ),
         )
 
     # --- Scatter loot via flood-fill ---
@@ -866,7 +895,10 @@ def load_layout(
                     if _value <= _remaining:
                         entities.append(world.Entity(
                             char="%",
-                            fg=colour_overrides.get("%", (180, 220, 140)),
+                            fg=(
+                                colour_overrides["%"].fg
+                                if "%" in colour_overrides else (180, 220, 140)
+                            ),
                             pos=world.Position(cx, cy),
                             name="Salvage Container",
                             width=1, height=1,
@@ -883,7 +915,10 @@ def load_layout(
                 qty = _RNG.randint(min_qty, max_qty)
                 entities.append(world.Entity(
                     char="%",
-                    fg=colour_overrides.get("%", (180, 220, 140)),
+                    fg=(
+                        colour_overrides["%"].fg
+                        if "%" in colour_overrides else (180, 220, 140)
+                    ),
                     pos=world.Position(cx, cy),
                     name="Salvage Container",
                     width=1, height=1,

@@ -96,21 +96,16 @@ def test_landmark_inherits_destination_wall_and_floor_theme():
     seed_rng(11)
     _params = find_planet_spec("mars").dungeon_params
     _game_map, _spawn = dungeon.generate_dungeon(_params)
-    _asset = landmark.load_landmark("mars_signal_door")
+    _asset = copy.deepcopy(landmark.load_landmark("mars_signal_door"))
     _wall_pos = next(
         (x, y)
         for y, row in enumerate(_asset.tiles)
         for x, tile in enumerate(row)
         if tile.kind == "dungeon_wall"
+        and _asset.tiles[y][x].fg == world.DUNGEON_WALL.fg
     )
-    _floor_pos = next(
-        (x, y)
-        for y, row in enumerate(_asset.tiles)
-        for x, tile in enumerate(row)
-        if tile.kind == "dungeon_floor"
-        and y > 0
-        and x > 0
-    )
+    _floor_pos = (17, 2)
+    _asset.tiles[_floor_pos[1]][_floor_pos[0]] = world.DUNGEON_FLOOR
 
     _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
 
@@ -148,7 +143,9 @@ def test_mars_landmark_preserves_authored_wall_and_floor_colors():
     _stamped_floor = _game_map.tiles[_stamp.origin.y + _floor_pos[1]][_stamp.origin.x + _floor_pos[0]]
 
     assert _stamped_wall.fg == (120, 130, 150)
+    assert _stamped_wall.bg == (18, 28, 48)
     assert _stamped_floor.fg == (200, 200, 210)
+    assert _stamped_floor.bg == (42, 58, 88)
 
 
 def test_layout_colour_override_is_parsed_for_generic_tiles(tmp_path):
@@ -157,7 +154,7 @@ def test_layout_colour_override_is_parsed_for_generic_tiles(tmp_path):
         "MAP\n###\n#.#\n###\nENDMAP\n"
         "TILE: # = DUNGEON_WALL\n"
         "TILE: . = DUNGEON_FLOOR\n"
-        "COLOUR: # = (1, 2, 3)\n"
+        "COLOUR: # = (1, 2, 3) / (7, 8, 9)\n"
         "COLOUR: . = (4, 5, 6)\n",
         encoding="utf-8",
     )
@@ -170,12 +167,16 @@ def test_layout_colour_override_is_parsed_for_generic_tiles(tmp_path):
 
     assert _loaded.tiles[0][0] is not world.DUNGEON_WALL
     assert _loaded.tiles[0][0].fg == (1, 2, 3)
+    assert _loaded.tiles[0][0].bg == (7, 8, 9)
+    assert _loaded.tiles[0][0].bg_override
     assert _loaded.tiles[1][1] is not world.DUNGEON_FLOOR
     assert _loaded.tiles[1][1].fg == (4, 5, 6)
+    assert _loaded.tiles[1][1].bg == world.DUNGEON_FLOOR.bg
+    assert not _loaded.tiles[1][1].bg_override
 
 
 def test_landmark_colour_override_keeps_theme_shape_and_background():
-    """An explicit layout color changes fg without replacing dungeon theming."""
+    """A foreground-only layout color keeps the destination background."""
     seed_rng(13)
     _params = find_planet_spec("mars").dungeon_params
     _game_map, _spawn = dungeon.generate_dungeon(_params)
@@ -192,6 +193,7 @@ def test_landmark_colour_override_keeps_theme_shape_and_background():
     assert _tile.char == _params.tile_wall.char
     assert _tile.walkable == _params.tile_wall.walkable
     assert _tile.bg == _params.tile_wall.bg
+    assert not _tile.bg_override
     assert _tile.fg == (1, 2, 3)
 
 

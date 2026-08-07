@@ -286,7 +286,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
     return {
         "width": gm.width,
         "height": gm.height,
-        "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg)} for c in row] for row in gm.tiles],
+        "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg), "bg_override": c.bg_override} for c in row] for row in gm.tiles],
         "entities": [
             {
                 "char": e.char,
@@ -374,6 +374,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
                     walkable=t.get("walkable", False),
                     fg=tuple(t.get("fg", [0, 0, 0])),
                     bg=tuple(t.get("bg", [0, 0, 0])),
+                    bg_override=t.get("bg_override", False),
                 ))
         _dungeon_tiles.append(_tile_row)
     _dungeon_entities: list[world.Entity] = []
