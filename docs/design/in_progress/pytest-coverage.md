@@ -308,9 +308,9 @@ command chain.
 
 ### Phase 4: Save/load round-trip (stretch)
 
-- [ ] `tests/test_saveload.py`: round-trip test — build GameContext, save,
+- [x] `tests/test_saveload.py`: round-trip test — build GameContext, save,
       load, assert field-level equality for all serialized fields
-- [ ] Requires: mock tcod context (or a real one from `tcod.context.new()`)
+- [x] Requires: mock tcod context (or a real one from `tcod.context.new()`)
 
 **PLAYTEST:** `tools/test.py` green, `tools/smoke.py` green. Additionally,
 run a manual sniff test: start new game → play a few turns → save/quit →
