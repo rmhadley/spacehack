@@ -101,7 +101,7 @@ def test_landmark_inherits_destination_wall_and_floor_theme():
         (x, y)
         for y, row in enumerate(_asset.tiles)
         for x, tile in enumerate(row)
-        if tile is world.DUNGEON_WALL
+        if tile.kind == "dungeon_wall"
     )
     _floor_pos = next(
         (x, y)
@@ -114,8 +114,41 @@ def test_landmark_inherits_destination_wall_and_floor_theme():
 
     _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
 
-    assert _game_map.tiles[_stamp.origin.y + _wall_pos[1]][_stamp.origin.x + _wall_pos[0]] is _params.tile_wall
-    assert _game_map.tiles[_stamp.origin.y + _floor_pos[1]][_stamp.origin.x + _floor_pos[0]] is _params.tile_floor
+    _stamped_wall = _game_map.tiles[_stamp.origin.y + _wall_pos[1]][_stamp.origin.x + _wall_pos[0]]
+    _stamped_floor = _game_map.tiles[_stamp.origin.y + _floor_pos[1]][_stamp.origin.x + _floor_pos[0]]
+    assert _stamped_wall.kind == _params.tile_wall.kind
+    assert _stamped_wall.char == _params.tile_wall.char
+    assert _stamped_wall.walkable == _params.tile_wall.walkable
+    assert _stamped_wall.bg == _params.tile_wall.bg
+    assert _stamped_floor.kind == _params.tile_floor.kind
+    assert _stamped_floor.char == _params.tile_floor.char
+    assert _stamped_floor.walkable == _params.tile_floor.walkable
+    assert _stamped_floor.bg == _params.tile_floor.bg
+
+
+def test_mars_landmark_preserves_authored_wall_and_floor_colors():
+    """Mars landmark overrides remain active when stamped into the cave theme."""
+    seed_rng(29)
+    _params = find_planet_spec("mars").dungeon_params
+    _game_map, _spawn = dungeon.generate_dungeon(_params)
+    _asset = landmark.load_landmark("mars_signal_door")
+    _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
+
+    # Use coordinates authored as '+' and '.' in the layout. Both glyphs
+    # resolve to generic dungeon kinds, so their original glyph identity is
+    # not available after parsing.
+    _wall_pos = (16, 1)
+    _floor_pos = (17, 2)
+    assert _asset.tiles[_wall_pos[1]][_wall_pos[0]].kind == "dungeon_wall"
+    assert _asset.tiles[_wall_pos[1]][_wall_pos[0]].fg == (120, 130, 150)
+    assert _asset.tiles[_floor_pos[1]][_floor_pos[0]].kind == "dungeon_floor"
+    assert _asset.tiles[_floor_pos[1]][_floor_pos[0]].fg == (200, 200, 210)
+
+    _stamped_wall = _game_map.tiles[_stamp.origin.y + _wall_pos[1]][_stamp.origin.x + _wall_pos[0]]
+    _stamped_floor = _game_map.tiles[_stamp.origin.y + _floor_pos[1]][_stamp.origin.x + _floor_pos[0]]
+
+    assert _stamped_wall.fg == (120, 130, 150)
+    assert _stamped_floor.fg == (200, 200, 210)
 
 
 def test_layout_colour_override_is_parsed_for_generic_tiles(tmp_path):
