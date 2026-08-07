@@ -591,11 +591,31 @@ A pure function without a test — or a test that hasn't been updated to
 match a changed function — is a regression waiting to happen: its
 correctness is invisible to the smoke test AND to manual playtesting.
 
-This applies to all new and modified code. Existing untested pure
-functions are backfilled on the schedule in
+**Mutation-wrapper functions carry the same obligation.** A
+mutation-wrapper is a function that mutates domain state (``ctx``, a
+``GameMap``, an ``OwnedShip``, or similar data structure) but whose
+*logic* is deterministic and testable in isolation — clamping,
+re-indexing, boundary crossing, stock drift, LOS propagation, etc.
+These are the functions that produced real silent bugs in the past
+(guard-post drift, stale LOS frames, negative prices, ammo off-by-one).
+Test them by constructing the data structure they mutate, calling them,
+and asserting the resulting state.
+
+Examples:
+- ``faction.modify_rep`` — mutates ``ctx.faction_reputation``;
+  test the clamping and boundary-crossing logic directly
+- ``ship._install_weapon`` / ``ship._remove_weapon`` — mutate
+  ``OwnedShip``; test slot re-indexing and ammo seeding
+- ``trade.tick_economy`` — mutates planet stock dicts; test drift
+- ``dungeon.reveal_around`` — mutates ``GameMap.visible``/``seen``;
+  test LOS propagation
+
+This applies to all new and modified code. Existing untested functions
+are backfilled on the schedule in
 ``docs/design/in_progress/pytest-coverage.md``.
 
-**Checklist before shipping any new or modified pure function:**
+**Checklist before shipping any new or modified pure or
+mutation-wrapper function:**
 - [ ] Is there a corresponding test in ``tests/``?
 - [ ] If the function was modified, was the test updated to match?
 - [ ] Does the test cover the function's key edge cases (boundaries,
