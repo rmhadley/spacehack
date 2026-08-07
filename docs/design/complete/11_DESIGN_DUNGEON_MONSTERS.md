@@ -1,6 +1,6 @@
 # 11 — Dungeon Monsters: populating procedural dungeons
 
-Status: **in_progress** · all phases + acceptance sweep done — final feel-playtest items pending.
+Status: **complete** · shipped 2026-08-07 — monster catalog, biome spawns, quest-site guardians, derelict parasites; all phases implemented and playtested.
 
 ## Overview
 
@@ -238,9 +238,9 @@ formula; Phase 1 lands the base config above).
    with monsters active — quest chains still completable, caches
    reachable. Covered by the doc-12 Phase 3 playtest (chains + fights
    felt good with monsters live in every dungeon).
-2. [ ] Kill-a-monster pace vs. ammo/AP economy feels fair — needs the
-   final feel pass (guidance: watch scavenger swarms on Mars, spitter
-   kiting on Wolf 359 b, guardian-room fights on caches)
+2. [x] Kill-a-monster pace vs. ammo/AP economy feels fair — user
+   verdict (2026-08-07): "feels good for now" — tune per-planet
+   stats/density as future playtests show issues
 3. [x] Guide matches implementation exactly — verified headlessly
    against the monster catalog + behavior dispatch.
 
@@ -354,5 +354,4 @@ formula; Phase 1 lands the base config above).
 - [x] Phase 1 → implementation + playtest (passed)
 - [x] Phase 2 → implementation + playtest (passed)
 - [x] Phase 3 → implementation + playtest (act-0 chains + guide verified)
-- [ ] Move to `complete/` when all checkboxes checked (pending the
-  single open item: kill-pace vs ammo/AP economy feel verdict)
+- [x] Moved to `complete/` (2026-08-07)
