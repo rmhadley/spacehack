@@ -326,20 +326,28 @@ save/load / guide / module-state contracts:
 ### Pure function test contract
 
 > **Every new pure function added to the codebase must ship with a pytest
-> test in the same commit.** "Pure" follows the existing guardrail: no I/O,
-> no mutation of arguments, no side effects, deterministic given its inputs.
+> test in the same commit. Any modification to an existing pure function
+> that changes its behavior or signature must update its corresponding
+> test in the same commit.**
 >
-> A pure function without a test is a regression waiting to happen — its
+> "Pure" follows the existing guardrail: no I/O, no mutation of
+> arguments, no side effects, deterministic given its inputs.
+>
+> A pure function without a test — or a test that hasn't been updated
+> to match a changed function — is a regression waiting to happen: its
 > correctness is invisible to the smoke test AND to manual playtesting.
 >
-> This applies to all new code. Existing untested pure functions are
-> backfilled on the schedule in the pytest coverage design doc.
+> This applies to all new and modified code. Existing untested pure
+> functions are backfilled on the schedule in the pytest coverage
+> design doc.
 
 This is what stops the gap from reopening. Everything else in this doc
-only backfills the past — the contract is the ongoing enforcement mechanism.
+only backfills the past — the contract is the ongoing enforcement
+mechanism.
 
-**Checklist before shipping any new pure function:**
+**Checklist before shipping any new or modified pure function:**
 - [ ] Is there a corresponding test in `tests/`?
+- [ ] If the function was modified, was the test updated to match?
 - [ ] Does the test cover the function's key edge cases (boundaries, min/max,
       zero/empty inputs)?
 - [ ] Does `tools/test.py` pass?
