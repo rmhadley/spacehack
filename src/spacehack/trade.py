@@ -54,10 +54,10 @@ def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
     ratio = current_stock / target
     if ratio < 0.5:
         # Shortage zone: 2.0\u00d7 linearly down to 1.0\u00d7 at 50%.
-        return int(base_price * (2.0 - ratio * 2.0))
+        return max(1, int(base_price * (2.0 - ratio * 2.0)))
     else:
         # Surplus zone: 1.0\u00d7 linearly down to 0.6\u00d7 at 100%.
-        return int(base_price * (1.0 - (ratio - 0.5) * 0.8))
+        return max(1, int(base_price * (1.0 - (ratio - 0.5) * 0.8)))
 
 
 def _trait_buy_mult(ctx: GameContext) -> float:

@@ -50,14 +50,10 @@ class TestTradePrice:
         assert trade_price(100, 8, 8) == 60
 
     def test_overstocked(self):
-        """>100% stock (2× target) — still surplus zone, ratio=2.0."""
-        # price = 100 * (1.0 - 1.5*0.8) = 100 * (1.0 - 1.2) = -20
-        # Wait: formula is int(base * (1.0 - (ratio - 0.5) * 0.8))
-        # ratio = 16/8 = 2.0 → 100 * (1.0 - 1.5*0.8) = 100 * (1.0 - 1.2) = -20
-        # No floor in the formula — this is a pre-existing behavior.
-        # Test it as-is so we catch if anyone adds a floor without
-        # being intentional.
-        assert trade_price(100, 16, 8) == -20
+        """>100% stock (2× target) — floor at 1 prevents negative prices."""
+        # ratio = 16/8 = 2.0, raw = 100 * (1.0 - 1.5*0.8) = -20
+        # max(1, -20) = 1
+        assert trade_price(100, 16, 8) == 1
 
     # --- Edge cases ---
 
