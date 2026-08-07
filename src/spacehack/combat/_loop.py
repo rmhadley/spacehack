@@ -9,37 +9,16 @@ here and receive a ``CombatResult`` back.
 
 from __future__ import annotations
 
-from typing import Any
-
-import tcod.console
-import tcod.context
 import tcod.event
 
-from .. import ui
 from .. import world
 from ..engine import RNG
 from ..world import MOVE_KEYS as _MOVE_KEYS
-from ..data.pilot_skills import PilotSkills
 from ..data.weapons import find_weapon as _fw
 from ..input_helpers import _try_open_guide
 
-from ._ai import _run_enemy_turn
-from ._actions import (
-    start_player_turn,
-    move_entity,
-    _sync_back_hull,
-)
-from ._types import EnemyInstance, CombatResult
-from ._stats import (
-    init_combat_state,
-    calc_hit_chance,
-    _calc_dodge_bonus,
-    _distance,
-)
+from ._types import CombatResult
 from ._animations import (
-    _resolve_target,
-    _paint_target_highlight,
-    _paint_range_line,
     _damage_popup_for,
 )
 
@@ -258,7 +237,6 @@ def run_combat(
         enemies.
     """
     from .. import message_log as _ml
-    from ..input_helpers import _try_open_guide
 
     _target_idx: int = 0
     _turn: int = 1

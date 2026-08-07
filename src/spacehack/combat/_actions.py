@@ -312,10 +312,27 @@ def move_entity(
     dx: int,
     dy: int,
     game_map: world.GameMap,
+    *,
+    exclude: world.Entity | None = None,
 ) -> tuple[world.Position, bool]:
-    """Try to move an entity by (dx, dy). Returns (new_pos, success)."""
+    """Try to move an entity by (dx, dy). Returns (new_pos, success).
+
+    Blocks on walls and on any entity footprint other than ``exclude``
+    (the mover) — combatants can't stack on each other, matching
+    :func:`world.try_move` collision semantics used everywhere else.
+
+    .. note::
+
+        Only the single target cell at ``(nx, ny)`` is validated.
+        Multi-cell entities (width > 1 or height > 1) would need
+        a full-footprint collision sweep. Currently all combatants
+        are 1×1 so this is sufficient; revisit when multi-cell
+        ships ever move in combat.
+    """
     nx = pos.x + dx
     ny = pos.y + dy
     if not game_map.is_walkable(nx, ny):
+        return pos, False
+    if game_map.entity_at(nx, ny, exclude=exclude) is not None:
         return pos, False
     return world.Position(nx, ny), True
