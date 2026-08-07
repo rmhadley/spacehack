@@ -171,6 +171,8 @@ _GUIDE_CONTROLS = GuideSection(
         "- Shift+D: advance the clock by 30 days"
         "\n"
         "- Shift+X: award 200 XP"
+        "\n"
+        "- New dev games start with two kinetic rifles and the best armor in every slot"
     ),
 )
 

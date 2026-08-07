@@ -11,7 +11,11 @@ import tcod.event
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.dev_mode import advance_main_quest
+from src.spacehack.dev_mode import (
+    advance_main_quest,
+    apply_dev_ground_loadout,
+    _best_ground_armor,
+)
 from src.spacehack.input_helpers import _is_shift_o_press
 
 
@@ -53,6 +57,57 @@ def test_advance_main_quest_unlocks_mars_door_interaction():
     _ctx.log.add.assert_called_once_with(
         "[DEV MODE] Act 0 skipped - the Mars door can now be opened."
     )
+
+
+def test_best_ground_armor_selects_highest_defense_per_slot():
+    """Developer armor selection covers every slot with strongest gear."""
+    assert _best_ground_armor() == {
+        "head": "heavy_helmet",
+        "body": "heavy_vest",
+        "hands": "tactical_gloves",
+        "legs": "heavy_legs",
+        "feet": "combat_boots",
+    }
+
+
+def test_dev_ground_loadout_equips_two_rifles_and_best_armor(monkeypatch):
+    """Dev mode grants the complete ground loadout and logs it."""
+    monkeypatch.setenv("SPACEHACK_DEV", "1")
+    _ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        log=MagicMock(),
+    )
+
+    apply_dev_ground_loadout(_ctx)
+
+    assert _ctx.equipped_ground_weapons == ["kinetic_rifle", "kinetic_rifle"]
+    assert _ctx.equipped_ground_armor == {
+        "head": "heavy_helmet",
+        "body": "heavy_vest",
+        "hands": "tactical_gloves",
+        "legs": "heavy_legs",
+        "feet": "combat_boots",
+    }
+    _ctx.log.add.assert_called_once_with(
+        "[DEV MODE] Two kinetic rifles + best armor equipped."
+    )
+
+
+def test_dev_ground_loadout_does_nothing_without_dev_flag(monkeypatch):
+    """Normal new games retain their default empty ground loadout."""
+    monkeypatch.delenv("SPACEHACK_DEV", raising=False)
+    _ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        log=MagicMock(),
+    )
+
+    apply_dev_ground_loadout(_ctx)
+
+    assert _ctx.equipped_ground_weapons == []
+    assert _ctx.equipped_ground_armor == {}
+    _ctx.log.add.assert_not_called()
 
 
 def test_advance_main_quest_does_not_reopen_completed_door():

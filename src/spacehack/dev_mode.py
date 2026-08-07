@@ -1,10 +1,10 @@
 """Dev-mode overrides for playtesting.
 
 When the ``SPACEHACK_DEV`` environment variable is set, the player
-starts with a super-powered frigate, maxed modules, and 999,999
-credits. Call :func:`apply_dev_overrides` right before building
-:class:`GameContext` so the overrides are in place before the
-game loop starts.
+starts with a super-powered frigate, maxed modules, 999,999 credits,
+two kinetic rifles, and the best available armor in every slot. Call
+:func:`apply_dev_overrides` and :func:`apply_dev_ground_loadout` during
+new-game setup so the overrides are in place before the game loop starts.
 
 Extracted from ``__main__.py`` to keep the entry point clean and
 make dev-mode easy to extend (debug overlay, god-mode toggle, etc.)
@@ -15,6 +15,41 @@ from __future__ import annotations
 from typing import Any
 
 from . import ship as ship_module
+from .data.ground_armor import list_ground_armor
+
+
+_GROUND_ARMOR_SLOTS = ("head", "body", "hands", "legs", "feet")
+
+
+def _best_ground_armor() -> dict[str, str]:
+    """Return the strongest registered armor id for every armor slot."""
+    _by_slot: dict[str, list] = {slot: [] for slot in _GROUND_ARMOR_SLOTS}
+    for _armor in list_ground_armor():
+        if _armor.slot in _by_slot:
+            _by_slot[_armor.slot].append(_armor)
+    return {
+        _slot: max(
+            _items,
+            key=lambda _item: (_item.defense, _item.tech_level, _item.price),
+        ).id
+        for _slot, _items in _by_slot.items()
+        if _items
+    }
+
+
+def _dev_ground_loadout() -> tuple[list[str], dict[str, str]]:
+    """Return the standard developer starting ground loadout."""
+    return ["kinetic_rifle", "kinetic_rifle"], _best_ground_armor()
+
+
+def apply_dev_ground_loadout(ctx) -> None:
+    """Equip developer ground weapons and armor when dev mode is enabled."""
+    import os as _os
+
+    if not _os.environ.get("SPACEHACK_DEV"):
+        return
+    ctx.equipped_ground_weapons, ctx.equipped_ground_armor = _dev_ground_loadout()
+    ctx.log.add("[DEV MODE] Two kinetic rifles + best armor equipped.")
 
 
 def advance_main_quest(ctx) -> None:

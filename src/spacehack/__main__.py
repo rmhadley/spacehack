@@ -303,6 +303,8 @@ def _run_game(
         ctx.ground_stats = character.starting_ground_stats(species_id, class_id)
         ctx.ground_max_hp = 20 + ctx.ground_stats.stamina // 3
         ctx.ground_hp = ctx.ground_max_hp
+        from .dev_mode import apply_dev_ground_loadout as _apply_dev_ground_loadout
+        _apply_dev_ground_loadout(ctx)
         city_game_map = game_map
         city_player = player
         current_mode: str = 'city'
