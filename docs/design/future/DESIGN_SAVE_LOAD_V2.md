@@ -55,13 +55,23 @@ remember, on every future change, forever. This is the **highest-leverage gap**
 — a `GameContext` field auto-discovery mechanism eliminates the most common
 silent-bug category in a few dozen lines.
 
-The other three rows (module globals, entity spawning, game modes) have
-**not** produced bugs since the current system was built. The entity paths
-(bounty spawns, procedural spawns, dungeon entities, loot) all serialize
-correctly today. Module globals are only 2 (`current_solar_system_id`, `RNG`)
-and both work. New game modes have a clear pattern (space/dungeon branches in
-`load_game`). These are lower-leverage than the ctx-field gap — worth
-improving but not the primary target.
+The other three rows have produced bugs, but at low volume:
+
+| Bug commit | Date | What | Root cause |
+|-----------|------|------|-----------|
+| `54e6dc0` | Aug 3 | Dungeon entity duplicated on Continue (old smuggler) | `npc_id` missing from `_dungeon_to_dict` + `_dungeon_from_dict` field lists — same manual-list-sync failure as the ctx problem |
+| `70f16df` | Aug 1 | City-mode launch from non-Sol planet crashed after Continue | `current_solar_system_id` not restored in city branch — a module-global-missing bug |
+| `1ab4d61` | Aug 1 | Mission board crashed after Continue | Procedural `MissionSpec` objects flattened to dicts on save but not reconstructed on load — no inverse for `_d()` |
+
+All three are the same failure class: a hand-maintained list (of fields, of globals, of types-to-reconstruct) where the human forgets one entry. The ctx-field gap is the largest instance (45+ fields), but the entity gap (`_dungeon_to_dict` has ~20 fields) and the module-global gap (2 globals, 1 branch missed) both produced real bugs in the last week.
+
+The entity duplication bug (`54e6dc0`) is exactly the pattern an EntityRegistry
+would prevent — but it was a 2-line fix. An EntityRegistry would be ~80 lines
+of framework code touching ~30 entity construction sites. The same bug at the
+ctx level is 100+ lines of manual field sync, so auto-discovery there is a
+clear win. For entities, the math is different: the cost of the registry
+outweighs the cost of the bugs so far. This is a judgment call that should
+be revisited if another entity-field bug lands.
 
 ### What the pytest suite changed
 
@@ -322,22 +332,24 @@ migration to test the loop; merging them tests it on real data.
    `dataclasses.fields(ctx)` and feed each through `_d()`, replacing the
    manual field list.
 
-2. **EntityRegistry** — **Defer. Entity paths already work.**
-   Bounty spawns, procedural spawns, dungeon entities, and map loot all
-   serialize correctly through their respective paths (`_dungeon_to_dict`,
-   `_save_loot`, procedural/bounty spawn sync in `save_game`). No entity
-   despawn/duplication bugs have been reported since these paths landed.
-   A generic EntityRegistry would touch every entity construction site
-   (~30+ across the codebase) for a problem that doesn't currently exist.
-   Revisit if a new entity-spawning feature introduces the bug this was
-   designed to prevent.
+2. **EntityRegistry** — **Defer (one known bug, judged not worth a full registry yet).**
+   `54e6dc0` (Aug 3) was a real entity duplication bug: `npc_id` was
+   missing from `_dungeon_to_dict` + `_dungeon_from_dict`, causing the old
+   smuggler to duplicate on Continue. Two-line fix. The same manual-list
+   failure mode exists in every entity serialization path, but the total
+   bug count is 1 over the project's lifetime, and each fix has been small.
+   An EntityRegistry would be ~80 lines touching ~30 construction sites —
+   the cost currently outweighs the risk. **Revisit if a second entity-field
+   bug lands** — two bugs in the same class strengthens the case for a
+   structural fix.
 
-3. **Module state registration** — **Defer. Manual contract is fine for 2 globals.**
-   Only `current_solar_system_id` and `RNG` need save/load as module globals.
-   Both already work correctly (verified by the round-trip test). A
-   `register_module_state()` framework would be more lines of framework
-   code than the total lines currently handling the 2 globals. Add it only
-   if a third module global is introduced.
+3. **Module state registration** — **Defer despite one known bug.**
+   `70f16df` (Aug 1): `current_solar_system_id` wasn't restored in the
+   city-mode branch of `load_game()`, crashing on launch from non-Sol
+   planets after Continue. 15-line fix adding the restore to a branch
+   that already existed for space/dungeon. Only 2 globals exist and both
+   now work. A framework would be heavier than the current code. Add it
+   only if a third module global is introduced.
 
 4. **`IncompatibleSaveError` behavior** — **Hard refuse with a message.**
    Standard roguelike answer: "This save is from a newer / incompatible
