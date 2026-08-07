@@ -132,9 +132,11 @@ directly from:
   - Loading a save with an unrecognized/unsupported version fails loudly and
     cleanly ("incompatible save, starting fresh") — never a silent partial
     load or crash.
-- **Migrations themselves are not written yet.** The trigger to start
-  writing real migrations is a future decision point (roughly: first
-  external playtester, or a v1.0 cut) — not part of this doc's scope.
+- **Migrations are written when the schema changes, not deferred.**
+  Phase 1 ships with one real migration (v1→v2: manual field list →
+  auto-discovered fields). The dispatch loop is tested on this first
+  real use, not on a synthetic example. Future schema changes add new
+  entries to `MIGRATIONS` and bump `CURRENT_SAVE_VERSION`.
 
 ---
 
@@ -215,54 +217,71 @@ a third module global is introduced.
 saveload.register_module_state("navigation", get=lambda: current_solar_system_id, set=...)
 ```
 
-### Migration dispatch (empty for now)
+### Migration dispatch (tested on first real use)
+
+The migration dispatch loop lands in Phase 1 alongside the auto-discovery
+change, and is tested immediately on the v1→v2 format migration:
 
 ```python
-CURRENT_SAVE_VERSION = 1
-MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
+CURRENT_SAVE_VERSION = 2   # bumped from 1 by auto-discovery
+MIGRATIONS: dict[int, Callable[[dict], dict]] = {
+    1: _migrate_v1_to_v2,  # old manual field list → auto-discovered format
+}
 
 def load_save(raw: dict) -> SaveEnvelope:
     version = raw.get("save_version")
     if version is None or version > CURRENT_SAVE_VERSION:
-        raise IncompatibleSaveError(...)
+        raise IncompatibleSaveError(
+            f"Save version {version} is incompatible with game version "
+            f"{CURRENT_SAVE_VERSION}. Starting a new game."
+        )
     while version < CURRENT_SAVE_VERSION:
         raw = MIGRATIONS[version](raw)
         version += 1
     return SaveEnvelope(**raw)
 ```
 
+The empty-table approach from the original draft ("dispatch loop exists now,
+no real migrations") is skipped — testing the loop on a fake migration is
+worse than testing it on the first real one. Phase 1 ships with one real
+migration (`v1→v2`) and the test to prove it works.
+
 ---
 
 ## Implementation Plan (re-scoped 2026-08-07)
 
-### Phase 1: SaveEnvelope scaffolding + version stamping
+### Phase 1: Envelope + auto-discover ctx fields (the high-leverage change)
+
+These are merged into one implementation session because the migration
+dispatch loop is only tested on its first real use — the v1→v2 format
+change auto-discovery introduces. Separating them would require a fake
+migration to test the loop; merging them tests it on real data.
+
 - [ ] Add `SaveEnvelope` dataclass, `CURRENT_SAVE_VERSION = 1`, empty
       `MIGRATIONS` table, `IncompatibleSaveError` (hard refuse).
 - [ ] Stamp `save_version` on every save; validate on load.
-- [ ] **Existing behavior preserved** — no serialization changes yet, just
-      the envelope. All current tests must pass.
-- [ ] → **Playtest**: save/quit/continue works unchanged.
-
-### Phase 2: Auto-discover GameContext fields (the high-leverage change)
 - [ ] Replace the manual field list in `_ctx_to_dict()` with
       `dataclasses.fields(ctx)` iteration, feeding each field through `_d()`.
 - [ ] Replace the manual field restoration in `load_game()` with the inverse
-      (iterate saved fields, set on the new ctx).
-- [ ] Handle the special cases: `GameMap`/`player`/`tcod.context` are
-      reconstructed, not serialized (already skipped today); `mission_boards`
-      and `bounty_spawns` need their custom restoration logic.
-- [ ] → **Playtest**: full sniff test across city/space/dungeon mode
-      transitions. The existing round-trip test (`tests/test_saveload.py`)
-      must pass with its 25+ field assertions.
-- [ ] **This phase alone eliminates the primary silent-bug category.**
-      After this, adding a new `GameContext` field requires zero save/load
-      code — it's picked up automatically.
+      (iterate saved keys, set on the new ctx).
+- [ ] Handle the special cases: `GameMap`/`player`/`context`/`log` are
+      reconstructed, not serialized (skip via `_SKIP_FIELDS`);
+      `mission_boards` and `bounty_spawns` need their custom restoration
+      helpers.
+- [ ] Bump to `save_version: 2`, add `MIGRATIONS[1]` to transform the old
+      manual-field-list save format into the auto-discovered format.
+- [ ] Add a migration test: build a v1 save, run it through the dispatch
+      loop, assert the loaded ctx matches a fresh v2 save.
+- [ ] → **Playtest**: save/quit/continue in city, space, and dungeon modes.
+      Existing round-trip test must pass with its 25+ field assertions.
+- [ ] **After this phase, adding a new `GameContext` field requires zero
+      save/load code — it's picked up automatically.**
 
-### Phase 3: Retire old code + update contracts
+### Phase 2: Retire old code + update contracts
 - [ ] Delete the old manual `_ctx_to_dict()` field list and the mirror
       restoration block in `load_game()`.
 - [ ] Update `knowledge.md`'s save/load contract to describe the new
-      auto-discovery mechanism.
+      auto-discovery mechanism and the migration dispatch pattern.
 - [ ] → **Final playtest**: full regression pass across every game system.
 
 ### Deferred (not in scope)
@@ -282,8 +301,11 @@ def load_save(raw: dict) -> SaveEnvelope:
   to be persisted correctly — auto-discovered via `dataclasses.fields()`.
 - The existing round-trip test (`tests/test_saveload.py`) passes with its
   25+ field assertions, plus any new fields added during implementation.
+- A migration test proves the dispatch loop works: build a v1-format save,
+  run it through `MIGRATIONS[1]`, load it, assert it matches a fresh v2 save.
 - `knowledge.md`'s save/load contract section is updated to describe the
-  auto-discovery mechanism; the old per-field checklist is removed.
+  auto-discovery mechanism and migration dispatch pattern; the old per-field
+  checklist is removed.
 - Save files carry a `save_version` stamp; loading an incompatible version
   fails loudly with a clear message.
 
