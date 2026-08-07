@@ -9,6 +9,8 @@ import tcod.event
 
 from .. import message_log
 from .. import ui
+from .. import dungeon
+from .. import landmark
 from .. import world
 from ..engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..data.main_quest import find_main_quest_step, main_quest_step_after
@@ -89,30 +91,19 @@ def _farthest_walkable(game_map: world.GameMap, spawn: world.Position) -> world.
 # ---------------------------------------------------------------------------
 
 
-def place_mars_door(game_map: world.GameMap, spawn: world.Position) -> world.Entity:
-    """Place the sealed alien door at the farthest walkable cell from spawn."""
-    _door = world.Entity(
-        char="=",
-        fg=(140, 80, 255),
-        pos=_farthest_walkable(game_map, spawn),
-        name="Sealed Entrance",
-        main_quest_door=True,
-    )
-    game_map.entities.append(_door)
-    return _door
-
-
 def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) -> None:
-    """Hook after FIRST generating the Mars surface dungeon."""
+    """Stamp the Mars signal landmark into the fresh surface dungeon."""
     if step_status(ctx, "prologue_mars_unlocked") == STATUS_AVAILABLE:
         complete_step(ctx, "prologue_mars_unlocked")
     if step_status(ctx, "prologue_mars_entrance") == STATUS_AVAILABLE:
         start_step(ctx, "prologue_mars_entrance")
     if step_status(ctx, "prologue_open") != STATUS_COMPLETED:
-        _door = place_mars_door(game_map, spawn)
-        # A sentry drone stands watch over the sealed entrance — placed
-        # once at generation time so it persists via the interior cache.
-        _spawn_cache_guardian(game_map, _door.pos, "mars")
+        _landmark = landmark.load_landmark("mars_signal_door")
+        _stamp = landmark.stamp_landmark(game_map, _landmark, spawn)
+        # The landmark's console replaces the old abstract one-tile door.
+        # Guardians are placed after the stamp so they stay near the actual
+        # console/entrance and the finished map can be cached unchanged.
+        _spawn_cache_guardian(game_map, _stamp.console, "mars")
 
 
 def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40) -> list[world.Position]:
@@ -167,27 +158,18 @@ def _spawn_squad_near(
     if not _room:
         return 0
     from ..engine import RNG as _RNG
-    _RNG.shuffle(_room)
     _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
     _squad_id = f"{label}_{_RNG.randint(10000, 99999)}"
-    _placed = 0
-    for _cell in _room:
-        if _placed >= count:
-            break
-        if (_cell.x, _cell.y) in _occupied:
-            continue
-        game_map.entities.append(world.Entity(
-            char=_spec.char,
-            fg=_spec.fg,
-            pos=_cell,
-            name="",
-            width=1, height=1,
-            npc_char_id=enemy_id,
-            squad_id=_squad_id,
-        ))
-        _occupied.add((_cell.x, _cell.y))
-        _placed += 1
-    return _placed
+    return dungeon._scatter_squad(
+        game_map.entities,
+        _occupied,
+        enemy_id=enemy_id,
+        cells=[(_cell.x, _cell.y) for _cell in _room],
+        count=count,
+        squad_id=_squad_id,
+        char=_spec.char,
+        fg=_spec.fg,
+    )
 
 
 def _spawn_cache_guardian(
@@ -231,15 +213,25 @@ def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
     encounter.  Spawns on the current map (the cached Mars surface),
     so the raiders persist across save/load and re-entry.
     """
-    _door = next(
-        (_e for _e in ctx.game_map.entities
-         if getattr(_e, "main_quest_door", False)),
+    _anchor = next(
+        (
+            _e.pos for _e in ctx.game_map.entities
+            if getattr(_e, "main_quest_console", False)
+        ),
         None,
     )
-    if _door is None:
+    if _anchor is None:
+        _anchor = next(
+            (
+                _e.pos for _e in ctx.game_map.entities
+                if getattr(_e, "main_quest_door", False)
+            ),
+            None,
+        )
+    if _anchor is None:
         return False
     return _spawn_squad_near(
-        ctx.game_map, _door.pos,
+        ctx.game_map, _anchor,
         enemy_id="pirate_raider", count=count, label="door_ambush",
     ) > 0
 

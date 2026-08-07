@@ -53,7 +53,6 @@ from ._act0 import (
     maybe_trigger_signal,
     prepare_mars_surface,
     bump_mars_door,
-    place_mars_door,
     prepare_delve_site,
     mars_exploration_unlocked,
     delve_site_unlocked,

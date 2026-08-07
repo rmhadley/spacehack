@@ -273,7 +273,9 @@ _TILE_BY_NAME: dict[str, world.Tile] = {
 # only a directive line — no glyph-set entry required.
 _ENEMY_GLYPHS: set[str] = {"r", "R", "S"}
 
-# Glyphs that place entities rather than tiles.
+# Glyphs that place entities rather than tiles.  ``C`` remains the generic
+# ship computer marker for existing wreck layouts; landmark-specific
+# semantics are selected by the tile mapping below.
 _ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
 
 
@@ -474,6 +476,15 @@ else:
     _LAYOUT_DIR = pathlib.Path(__file__).parent / "data" / "layouts"
 
 
+def _split_directive(rest: str) -> tuple[str, str] | None:
+    """Split a ``glyph = value`` directive, including ``=`` as a glyph."""
+    if " = " in rest:
+        return rest.split(" = ", 1)
+    if "=" in rest:
+        return rest.split("=", 1)
+    return None
+
+
 def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:
     """Parse a ``COLOUR: X = (R, G, B)`` line.
 
@@ -487,11 +498,12 @@ def _parse_colour(line: str) -> tuple[str, tuple[int, int, int]] | None:
     if not line.startswith("COLOUR:"):
         return None
     rest = line[7:].strip()
-    if "#" in rest:
-        rest = rest.split("#", 1)[0].strip()
-    if "=" not in rest:
+    _parts = _split_directive(rest)
+    if _parts is None:
         return None
-    glyph_part, rgb_part = rest.split("=", 1)
+    glyph_part, rgb_part = _parts
+    if "#" in rgb_part:
+        rgb_part = rgb_part.split("#", 1)[0].strip()
     glyph = glyph_part.strip()
     # Parse (R, G, B)
     rgb_str = rgb_part.strip().strip("()")
@@ -511,8 +523,15 @@ def load_layout(
     loot_budget: tuple[int, int] | None = None,
     component_good_id: str | None = None,
     component_mission_id: str | None = None,
-) -> tuple[world.GameMap, world.Position]:
+    layout_dir: pathlib.Path | None = None,
+    require_spawn: bool = True,
+) -> tuple[world.GameMap, world.Position | None]:
     """Parse ``layout_id.layout`` and return ``(game_map, spawn_pos)``.
+
+    The default layout directory contains boardable ship interiors.
+    ``layout_dir`` lets callers load hand-authored assets from a separate
+    data directory, such as ``data/landmarks``.  Landmark layouts do not
+    need a player ``P`` marker, so they may pass ``require_spawn=False``.
 
     ``loot_budget`` is the ship's ``(min_credits, max_credits)`` for
     interior salvage. When provided, up to 4 passes are made through
@@ -530,7 +549,7 @@ def load_layout(
       FileNotFoundError: if the layout file doesn't exist.
       ValueError: if the layout file is malformed.
     """
-    path = _LAYOUT_DIR / f"{layout_id}.layout"
+    path = (layout_dir or _LAYOUT_DIR) / f"{layout_id}.layout"
     if not path.exists():
         raise FileNotFoundError(f"Layout not found: {path}")
 
@@ -570,61 +589,67 @@ def load_layout(
             # Parse LOOT directives
             if stripped.startswith("LOOT:"):
                 rest = stripped[5:].strip()
-                if "=" in rest:
-                    glyph_part, room_part = rest.split("=", 1)
-                    glyph = glyph_part.strip()
-                    room_type = room_part.strip()
-                    loot_zones[glyph] = room_type
+                _parts = _split_directive(rest)
+                if _parts is None:
+                    continue
+                glyph_part, room_part = _parts
+                glyph = glyph_part.strip()
+                room_type = room_part.strip()
+                loot_zones[glyph] = room_type
                 continue
             # Parse ENEMY directives:  ENEMY: r = pirate_raider@0.6
             # Squad notation:           ENEMY: S = pirate_raider@1.0#3-3
             if stripped.startswith("ENEMY:"):
                 rest = stripped[6:].strip()
-                if "=" in rest:
-                    glyph_part, spec_part = rest.split("=", 1)
-                    glyph = glyph_part.strip()
-                    spec_str = spec_part.strip()
-                    squad_min, squad_max = 1, 1
-                    # Parse squad suffix: #min-max (e.g. #3-3 or #2-5)
-                    if "#" in spec_str:
-                        spec_str, squad_str = spec_str.rsplit("#", 1)
-                        if "-" in squad_str:
-                            parts = squad_str.split("-")
-                            try:
-                                squad_min = int(parts[0])
-                                squad_max = int(parts[1])
-                            except ValueError:
-                                pass
-                        else:
-                            try:
-                                squad_min = squad_max = int(squad_str)
-                            except ValueError:
-                                pass
-                    if "@" in spec_str:
-                        enemy_id, chance_str = spec_str.rsplit("@", 1)
+                _parts = _split_directive(rest)
+                if _parts is None:
+                    continue
+                glyph_part, spec_part = _parts
+                glyph = glyph_part.strip()
+                spec_str = spec_part.strip()
+                squad_min, squad_max = 1, 1
+                # Parse squad suffix: #min-max (e.g. #3-3 or #2-5)
+                if "#" in spec_str:
+                    spec_str, squad_str = spec_str.rsplit("#", 1)
+                    if "-" in squad_str:
+                        parts = squad_str.split("-")
                         try:
-                            chance = float(chance_str)
+                            squad_min = int(parts[0])
+                            squad_max = int(parts[1])
                         except ValueError:
-                            chance = 1.0
+                            pass
                     else:
-                        enemy_id = spec_str
+                        try:
+                            squad_min = squad_max = int(squad_str)
+                        except ValueError:
+                            pass
+                if "@" in spec_str:
+                    enemy_id, chance_str = spec_str.rsplit("@", 1)
+                    try:
+                        chance = float(chance_str)
+                    except ValueError:
                         chance = 1.0
-                    enemy_spawn_specs[glyph] = (enemy_id.strip(), chance, squad_min, squad_max)
+                else:
+                    enemy_id = spec_str
+                    chance = 1.0
+                enemy_spawn_specs[glyph] = (enemy_id.strip(), chance, squad_min, squad_max)
                 continue
             # Parse TILE and COLOUR directives
             if stripped.startswith("TILE:"):
                 rest = stripped[5:].strip()
-                if "=" in rest:
-                    glyph_part, tile_name = rest.split("=", 1)
-                    glyph = glyph_part.strip()
-                    tile_name = tile_name.strip()
-                    if tile_name in _TILE_BY_NAME:
-                        tile_map[glyph] = _TILE_BY_NAME[tile_name]
-                    else:
-                        raise ValueError(
-                            f"Unknown tile name {tile_name!r} in TILE directive "
-                            f"of layout {layout_id!r}"
-                        )
+                _parts = _split_directive(rest)
+                if _parts is None:
+                    continue
+                glyph_part, tile_name = _parts
+                glyph = glyph_part.strip()
+                tile_name = tile_name.strip()
+                if tile_name in _TILE_BY_NAME:
+                    tile_map[glyph] = _TILE_BY_NAME[tile_name]
+                else:
+                    raise ValueError(
+                        f"Unknown tile name {tile_name!r} in TILE directive "
+                        f"of layout {layout_id!r}"
+                    )
                 continue
             colour_result = _parse_colour(line)
             if colour_result is not None:
@@ -685,12 +710,16 @@ def load_layout(
                         )
                     spawn_pos = world.Position(col_idx, row_idx)
                 elif ch == "C":
-                    # Cockpit computer — interactable terminal
+                    # ``C`` is a generic ship computer unless this layout
+                    # maps it to the alien console tile.
+                    _is_quest_console = tile_map.get("C") is world.DOOR_CONSOLE
                     entities.append(world.Entity(
                         char="C", fg=colour_overrides.get("C", (255, 200, 80)),
                         pos=world.Position(col_idx, row_idx),
-                        name="Ship Computer", width=1, height=1,
-                        computer_terminal=True,
+                        name=("Alien Door Console" if _is_quest_console else "Ship Computer"),
+                        width=1, height=1,
+                        computer_terminal=not _is_quest_console,
+                        main_quest_console=_is_quest_console,
                     ))
                 elif ch == "E":
                     # Engine — flavor entity (placeholder)
@@ -719,7 +748,7 @@ def load_layout(
 
         tiles.append(tile_row)
 
-    if spawn_pos is None:
+    if spawn_pos is None and require_spawn:
         raise ValueError(f"Layout {layout_id!r} has no player spawn marker (P)")
 
     # --- Convert {…} hull wall groups: replace # between { and } with HULL_WALL ---

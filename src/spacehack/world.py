@@ -133,6 +133,15 @@ DEBRIS = Tile(kind="debris", char="%", walkable=True,
               fg=(140, 130, 100), bg=(60, 55, 40))
 EXIT = Tile(kind="exit", char=">", walkable=True,
             fg=(100, 255, 120), bg=(20, 60, 25))
+# Alien landmark tiles.  The landmark parser resolves these names from
+# ``TILE:`` directives; the console itself is an entity so bumping it can
+# run the Act 0 interaction without conflating it with a generic computer.
+DOOR_CONSOLE = Tile(kind="door_console", char="C", walkable=True,
+                     fg=(255, 200, 80), bg=(50, 35, 20))
+UNDULATING_DOOR_A = Tile(kind="alien_door", char="=", walkable=False,
+                         fg=(120, 130, 150), bg=(30, 35, 45))
+UNDULATING_DOOR_B = Tile(kind="alien_door", char="~", walkable=False,
+                         fg=(120, 130, 150), bg=(30, 35, 45))
 
 # Hull wall — blocks movement like DUNGEON_WALL but does NOT block
 # FOV raycasting, so structural groups ({##}) on the ship exterior
@@ -236,6 +245,7 @@ class Entity:
     mech_terminal: bool = False
     armory_terminal: bool = False
     computer_terminal: bool = False  # dungeon ship computer — interactable
+    main_quest_console: bool = False  # Act 0 alien-door console — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
     npc_char_id: str = ""  # references NpcCharSpec.id for ground-combat NPCs
     squad_id: str = ""  # groups spawned enemies into packs (movement/spawns only — combat uses LOS aggro, not squads)

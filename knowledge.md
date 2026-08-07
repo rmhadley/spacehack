@@ -191,7 +191,7 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   Macs, different result. Fix: `open_terminal()` sets
   `SDL_RENDER_SCALE_QUALITY=linear` before SDL init (effectively
   identical at integer scales).
-- `pyproject.toml` package-data ships `data/*.png|ttf|otf|ttc` + `layouts/`
+- `pyproject.toml` package-data ships `data/*.png|ttf|otf|ttc` + `layouts/` + `landmarks/`
   so frozen bundles (PyInstaller, `spacehack.spec`) include them.
 
 ### Code quality guardrails

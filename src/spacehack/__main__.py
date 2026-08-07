@@ -845,8 +845,10 @@ def _run_game(
                     from .menus._armory import _run_armory_menu
                     _run_armory_menu(ctx, current_city_id)
                     continue
-                elif blocker.main_quest_door:
-                    # Sealed alien door on Mars (main quest Act 0).
+                elif blocker.main_quest_console or blocker.main_quest_door:
+                    # The landmark console is the Act 0 interaction target.
+                    # Keep main_quest_door for old saves created before the
+                    # landmark migration.
                     main_quest_module.bump_mars_door(ctx)
                     continue
                 elif blocker.computer_terminal:
