@@ -31,6 +31,7 @@ class LandmarkStamp:
     origin: world.Position
     entrance: world.Position
     console: world.Position
+    stairs: world.Position
 
 
 def load_landmark(layout_id: str) -> world.GameMap:
@@ -43,8 +44,10 @@ def load_landmark(layout_id: str) -> world.GameMap:
     return game_map
 
 
-def _landmark_markers(landmark: world.GameMap) -> tuple[world.Position, world.Position]:
-    """Return the landmark's door tile and quest-console position."""
+def _landmark_markers(
+    landmark: world.GameMap,
+) -> tuple[world.Position, world.Position, world.Position]:
+    """Return the landmark's entrance, console, and stairs positions."""
     _doors = [
         world.Position(x, y)
         for y, row in enumerate(landmark.tiles)
@@ -56,11 +59,17 @@ def _landmark_markers(landmark: world.GameMap) -> tuple[world.Position, world.Po
         for entity in landmark.entities
         if getattr(entity, "main_quest_console", False)
     ]
-    if len(_doors) != 1 or len(_consoles) != 1:
+    _stairs = [
+        world.Position(x, y)
+        for y, row in enumerate(landmark.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "stairs_down"
+    ]
+    if len(_doors) != 1 or len(_consoles) != 1 or len(_stairs) != 1:
         raise ValueError(
-            "Landmark must contain exactly one dungeon door and one quest console"
+            "Landmark must contain exactly one dungeon door, console, and stairs"
         )
-    return _doors[0], _consoles[0]
+    return _doors[0], _consoles[0], _stairs[0]
 
 
 def _candidate_origins(
@@ -69,7 +78,7 @@ def _candidate_origins(
     spawn: world.Position,
 ) -> list[tuple[int, int, int]]:
     """Return valid origins ranked by entrance distance from ``spawn``."""
-    _door, _console = _landmark_markers(landmark)
+    _door, _console, _stairs = _landmark_markers(landmark)
     _max_x = game_map.width - landmark.width - 1
     _max_y = game_map.height - landmark.height - 2
     if _max_x < 1 or _max_y < 1:
@@ -245,7 +254,7 @@ def stamp_landmark(
     spawn: world.Position,
 ) -> LandmarkStamp:
     """Stamp ``landmark`` into ``game_map`` and carve a route to its door."""
-    _door, _console = _landmark_markers(landmark)
+    _door, _console, _stairs = _landmark_markers(landmark)
     _ranked = _candidate_origins(game_map, landmark, spawn)
     if not _ranked:
         raise ValueError("Landmark does not fit in the generated dungeon")
@@ -260,4 +269,5 @@ def stamp_landmark(
         origin=_origin,
         entrance=_entrance,
         console=world.Position(_origin.x + _console.x, _origin.y + _console.y),
+        stairs=world.Position(_origin.x + _stairs.x, _origin.y + _stairs.y),
     )

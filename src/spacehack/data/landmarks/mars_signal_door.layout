@@ -8,10 +8,10 @@ MAP
 ################+.......+################
 #++++++++++++++++~=~=~=~++++++++++++++++#
 #+.....................................+#
-#+.................###.................+#
-#+.................#C#.................+#
 #+.....................................+#
 #+.....................................+#
+#+.....................................+#
+#+.................+C+.................+#
 #+.....................................+#
 #+.....................................+#
 #+.....................................+#
@@ -31,6 +31,7 @@ TILE: + = DUNGEON_WALL
 TILE: # = DUNGEON_WALL
 TILE: . = DUNGEON_FLOOR
 TILE: d = DUNGEON_DOOR
+TILE: > = STAIRS_DOWN
 TILE: C = DOOR_CONSOLE
 TILE: = = UNDULATING_DOOR_A
 TILE: ~ = UNDULATING_DOOR_B
@@ -39,8 +40,8 @@ TILE: ~ = UNDULATING_DOOR_B
 # inherit the destination cave's themed tile when this landmark is stamped.
 # COLOUR changes only the foreground color; the destination theme supplies
 # the generic tile's glyph, background, and collision behavior.
-COLOUR: + = (120, 130, 150)     # alien wall
-COLOUR: . = (200, 200, 210)     # alien floor
+# COLOUR: + = (120, 130, 150)     # uncomment to override wall fg
+# COLOUR: . = (200, 200, 210)     # uncomment to override floor fg
 COLOUR: = = (46, 219, 211)      # alien door a
 COLOUR: ~ = (46, 99, 219)       # alien door b
 COLOUR: d = (100, 220, 255)     # door — cyan glow

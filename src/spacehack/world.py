@@ -133,6 +133,11 @@ DEBRIS = Tile(kind="debris", char="%", walkable=True,
               fg=(140, 130, 100), bg=(60, 55, 40))
 EXIT = Tile(kind="exit", char=">", walkable=True,
             fg=(100, 255, 120), bg=(20, 60, 25))
+# Act 0's revealed Mars stairs are deliberately distinct from EXIT: they
+# are a persistent story marker for now and must not return the player to
+# space until the Act 1 transition is implemented.
+STAIRS_DOWN = Tile(kind="stairs_down", char=">", walkable=True,
+                   fg=(130, 255, 180), bg=(20, 55, 35))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.

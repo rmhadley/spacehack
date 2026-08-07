@@ -12,7 +12,13 @@ from .. import ui
 from .. import dungeon
 from .. import landmark
 from .. import world
-from ..engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from ..engine import (
+    HUD_WIDTH,
+    MSG_LOG_HEIGHT,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    make_console,
+)
 from ..data.main_quest import find_main_quest_step, main_quest_step_after
 from ._core import (
     STATUS_ACTIVE,
@@ -26,6 +32,38 @@ from ._core import (
 )
 
 _SIGNAL_SYSTEM_ID = "sol"
+
+_SIGNAL_DOOR_WAVE_FRAMES: tuple[str, ...] = (
+    "~=~=~=~",
+    "=~=~=~=",
+    "~=~=~=~",
+    "=~=~=~=",
+    "~=~=~=~",
+)
+
+
+def _signal_door_frames(width: int) -> tuple[str, ...]:
+    """Build wave and center-split frames for an alien door barrier."""
+    if width < 1:
+        return ()
+    if width == len(_SIGNAL_DOOR_WAVE_FRAMES[0]):
+        _wave = _SIGNAL_DOOR_WAVE_FRAMES
+        _base = _wave[0]
+    else:
+        _base = "".join("=" if _i % 2 else "~" for _i in range(width))
+        _wave = tuple(
+            _base if _i % 2 == 0 else _base.translate(str.maketrans("=~", "~="))
+            for _i in range(len(_SIGNAL_DOOR_WAVE_FRAMES))
+        )
+    _centre = width // 2
+    _split = tuple(
+        "".join(
+            " " if abs(_i - _centre) < _radius else _base[_i]
+            for _i in range(width)
+        )
+        for _radius in range(1, _centre + 2)
+    )
+    return _wave + _split
 
 
 # ---------------------------------------------------------------------------
@@ -100,10 +138,162 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
     if step_status(ctx, "prologue_open") != STATUS_COMPLETED:
         _landmark = landmark.load_landmark("mars_signal_door")
         _stamp = landmark.stamp_landmark(game_map, _landmark, spawn)
+        game_map.mars_stairs_pos = _stamp.stairs
+        _conceal_mars_stairs(game_map, _stamp.stairs)
         # The landmark's console replaces the old abstract one-tile door.
         # Guardians are placed after the stamp so they stay near the actual
         # console/entrance and the finished map can be cached unchanged.
         _spawn_cache_guardian(game_map, _stamp.console, "mars")
+
+
+def _conceal_mars_stairs(
+    game_map: world.GameMap,
+    stairs: world.Position,
+) -> None:
+    """Hide the Mars stairs behind a themed wall until the seal opens."""
+    if not game_map.in_bounds(stairs.x, stairs.y):
+        return
+    _wall = next(
+        (
+            _tile
+            for _row in game_map.tiles
+            for _tile in _row
+            if _tile.kind == "dungeon_wall"
+        ),
+        world.DUNGEON_WALL,
+    )
+    game_map.tiles[stairs.y][stairs.x] = _wall
+
+
+def _signal_door_barrier(game_map: world.GameMap) -> list[world.Position]:
+    """Return one contiguous authored alien barrier, ordered left-to-right."""
+    _positions = sorted(
+        (
+            world.Position(x, y)
+            for y, row in enumerate(game_map.tiles)
+            for x, tile in enumerate(row)
+            if tile.kind == "alien_door"
+        ),
+        key=lambda _pos: (_pos.y, _pos.x),
+    )
+    if not _positions:
+        return []
+    _row = _positions[0].y
+    if any(_position.y != _row for _position in _positions):
+        return []
+    if any(
+        _left.x + 1 != _right.x
+        for _left, _right in zip(_positions, _positions[1:])
+    ):
+        return []
+    return _positions
+
+
+def _signal_door_screen_pos(
+    position: world.Position,
+    camera_x: int,
+    camera_y: int,
+    region_x: int,
+    region_y: int,
+) -> tuple[int, int]:
+    """Translate a map position into the current dungeon viewport."""
+    return (
+        region_x + position.x - camera_x,
+        region_y + position.y - camera_y,
+    )
+
+
+def _render_signal_door_frame(
+    ctx,
+    console,
+    game_map: world.GameMap,
+    player_pos: world.Position,
+    barrier: list[world.Position],
+    frame: str,
+) -> None:
+    """Render one signal-door animation frame and present it."""
+    _map_w = SCREEN_WIDTH - HUD_WIDTH
+    _map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
+    _camera_x, _camera_y, _region_x, _region_y = world.camera_for_view(
+        game_map,
+        player_pos,
+        region_w=_map_w,
+        region_h=_map_h,
+    )
+    console.clear()
+    world.render_world_view(
+        console,
+        game_map,
+        region_x=_region_x,
+        region_y=_region_y,
+        region_w=_map_w,
+        region_h=_map_h,
+        camera_x=_camera_x,
+        camera_y=_camera_y,
+    )
+    for _position, _glyph in zip(barrier, frame):
+        _screen_x, _screen_y = _signal_door_screen_pos(
+            _position, _camera_x, _camera_y, _region_x, _region_y,
+        )
+        if 0 <= _screen_x < _map_w and 0 <= _screen_y < _map_h:
+            _tile = game_map.tiles[_position.y][_position.x]
+            console.print(
+                x=_screen_x,
+                y=_screen_y,
+                string=_glyph,
+                fg=_tile.fg,
+                bg=_tile.bg,
+            )
+    ctx.context.present(console)
+
+
+def _open_signal_door_tiles(
+    game_map: world.GameMap,
+    barrier: list[world.Position],
+    stairs: world.Position,
+) -> None:
+    """Commit the opened barrier and reveal its walkable stairs marker."""
+    _floor = next(
+        (
+            _tile
+            for _row in game_map.tiles
+            for _tile in _row
+            if _tile.kind == "dungeon_floor" and _tile.walkable
+        ),
+        world.DUNGEON_FLOOR,
+    )
+    for _position in barrier:
+        game_map.tiles[_position.y][_position.x] = _floor
+    if game_map.in_bounds(stairs.x, stairs.y):
+        game_map.tiles[stairs.y][stairs.x] = world.STAIRS_DOWN
+
+
+def animate_signal_door_opening(
+    ctx,
+    console,
+    game_map: world.GameMap,
+    player_pos: world.Position,
+) -> bool:
+    """Undulate the Mars barrier, split it from the middle, and reveal stairs."""
+    _stairs = getattr(game_map, "mars_stairs_pos", None)
+    _barrier = _signal_door_barrier(game_map)
+    if not isinstance(_stairs, world.Position) or not _barrier:
+        return False
+    from ..navigation import _responsive_sleep
+    for _frame in _signal_door_frames(len(_barrier)):
+        _render_signal_door_frame(ctx, console, game_map, player_pos, _barrier, _frame)
+        _responsive_sleep(0.10)
+    _open_signal_door_tiles(game_map, _barrier, _stairs)
+    _render_signal_door_frame(
+        ctx,
+        console,
+        game_map,
+        player_pos,
+        _barrier,
+        " " * len(_barrier),
+    )
+    _responsive_sleep(0.18)
+    return True
 
 
 def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40) -> list[world.Position]:
@@ -267,6 +457,7 @@ def bump_mars_door(ctx) -> None:
             message_log.COLOR_IMPORTANT_EVENT,
         )
         ctx.log.add("The prison data is recovered. Someone will want to study this.")
+        animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
         show_sealed_door_overlay(ctx, "open")
         return
     _entrance_status = step_status(ctx, "prologue_mars_entrance")

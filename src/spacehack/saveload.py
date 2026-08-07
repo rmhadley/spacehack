@@ -328,6 +328,10 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
             [gm.entry_spawn.x, gm.entry_spawn.y]
             if getattr(gm, 'entry_spawn', None) is not None else None
         ),
+        "mars_stairs_pos": (
+            [gm.mars_stairs_pos.x, gm.mars_stairs_pos.y]
+            if getattr(gm, 'mars_stairs_pos', None) is not None else None
+        ),
     }
 
 
@@ -349,6 +353,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         "engine": world.ENGINE_TILE,
         "debris": world.DEBRIS,
         "exit": world.EXIT,
+        "stairs_down": world.STAIRS_DOWN,
         "hull_wall": world.HULL_WALL,
     }
     _dw = dd.get("width", 1)
@@ -421,6 +426,9 @@ def _dungeon_from_dict(dd: dict) -> tuple:
     _es = dd.get("entry_spawn")
     if isinstance(_es, (list, tuple)) and len(_es) >= 2:
         _dungeon_map.entry_spawn = world.Position(int(_es[0]), int(_es[1]))
+    _msp = dd.get("mars_stairs_pos")
+    if isinstance(_msp, (list, tuple)) and len(_msp) >= 2:
+        _dungeon_map.mars_stairs_pos = world.Position(int(_msp[0]), int(_msp[1]))
     _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
     return _dungeon_map, _space_pos
 

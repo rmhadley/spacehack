@@ -54,11 +54,18 @@ def test_mars_landmark_layout_parses_console_and_bottom_door():
 
     assert len(_consoles) == 1
     assert _consoles[0].name == "Alien Door Console"
+    _stairs = [
+        (x, y)
+        for y, row in enumerate(_asset.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "stairs_down"
+    ]
     assert len(_doors) == 1
     assert _doors[0] == (
         _asset.width // 2,
         _asset.height - 1,
     )
+    assert _stairs == [(_asset.width // 2, 3)]
 
 
 def test_landmark_console_survives_dungeon_serialization():
@@ -79,6 +86,7 @@ def test_landmark_console_survives_dungeon_serialization():
         if tile.kind == "dungeon_door"
     )
     assert _restored.tiles[_door[1]][_door[0]].kind == "dungeon_door"
+    assert _restored.tiles[3][20].kind == "stairs_down"
     assert _restored.tiles[0][1].kind == "dungeon_wall"
     assert _restored.tiles[2][18].kind == "dungeon_floor"
 
@@ -99,8 +107,9 @@ def test_landmark_inherits_destination_wall_and_floor_theme():
         (x, y)
         for y, row in enumerate(_asset.tiles)
         for x, tile in enumerate(row)
-        if tile is world.DUNGEON_FLOOR
-        and _asset.tiles[y - 1][x].kind == "dungeon_floor"
+        if tile.kind == "dungeon_floor"
+        and y > 0
+        and x > 0
     )
 
     _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
@@ -193,13 +202,88 @@ def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
     """The console's open path grants prison data and uses the open overlay."""
     _ctx = _quest_ctx({"prologue_open": "active"})
     _beats = []
+    _animations = []
     monkeypatch.setattr(act0, "show_sealed_door_overlay", lambda ctx, beat: _beats.append(beat))
+    monkeypatch.setattr(act0, "animate_signal_door_opening", lambda *args: _animations.append(args))
 
     bump_mars_door(_ctx)
 
     assert _ctx.main_quest_progress["prologue_open"] == "completed"
     assert "prison_data" in _ctx.main_quest_unlocked_items
     assert _beats == ["open"]
+    assert len(_animations) == 1
+
+
+def test_mars_door_animation_reveals_stairs_on_real_map(monkeypatch):
+    """A successful real-map opening replaces the barrier and reveals stairs."""
+    seed_rng(19)
+    _params = find_planet_spec("mars").dungeon_params
+    _game_map, _spawn = dungeon.generate_dungeon(_params)
+    _asset = landmark.load_landmark("mars_signal_door")
+    _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
+    _game_map.mars_stairs_pos = _stamp.stairs
+    _ctx = _quest_ctx({"prologue_open": "active"})
+    _ctx.game_map = _game_map
+    _barrier_positions = act0._signal_door_barrier(_game_map)
+    monkeypatch.setattr(act0, "_render_signal_door_frame", lambda *args: None)
+    monkeypatch.setattr(act0, "show_sealed_door_overlay", lambda *args: None)
+    import src.spacehack.navigation as navigation
+    monkeypatch.setattr(navigation, "_responsive_sleep", lambda seconds: None)
+
+    bump_mars_door(_ctx)
+
+    assert _game_map.tiles[_stamp.stairs.y][_stamp.stairs.x] is world.STAIRS_DOWN
+    assert all(
+        _game_map.tiles[pos.y][pos.x].kind == "dungeon_floor"
+        for pos in _barrier_positions
+    )
+
+
+def test_opened_mars_stairs_survive_dungeon_serialization():
+    """The deferred Act 1 stairs state survives save/load."""
+    seed_rng(23)
+    _params = find_planet_spec("mars").dungeon_params
+    _game_map, _spawn = dungeon.generate_dungeon(_params)
+    _asset = landmark.load_landmark("mars_signal_door")
+    _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
+    _game_map.mars_stairs_pos = _stamp.stairs
+    _game_map.tiles[_stamp.stairs.y][_stamp.stairs.x] = world.STAIRS_DOWN
+
+    _restored, _space_pos = _dungeon_from_dict(
+        _dungeon_to_dict(_game_map, None),
+    )
+
+    assert _restored.mars_stairs_pos == _stamp.stairs
+    assert _restored.tiles[_stamp.stairs.y][_stamp.stairs.x] is not world.EXIT
+    assert _restored.tiles[_stamp.stairs.y][_stamp.stairs.x].kind == "stairs_down"
+
+
+def test_signal_door_animation_undulates_then_splits(monkeypatch):
+    """Opening frames wave first, then clear progressively from center."""
+    seed_rng(17)
+    _params = find_planet_spec("mars").dungeon_params
+    _game_map, _spawn = dungeon.generate_dungeon(_params)
+    _asset = landmark.load_landmark("mars_signal_door")
+    _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
+    _game_map.mars_stairs_pos = _stamp.stairs
+    _barrier_positions = act0._signal_door_barrier(_game_map)
+    _frames = []
+    _ctx = MagicMock()
+    monkeypatch.setattr(act0, "_render_signal_door_frame", lambda *args: _frames.append(args[-1]))
+    import src.spacehack.navigation as navigation
+    monkeypatch.setattr(navigation, "_responsive_sleep", lambda seconds: None)
+
+    assert act0.animate_signal_door_opening(_ctx, MagicMock(), _game_map, _spawn)
+
+    assert tuple(_frames[:5]) == act0._SIGNAL_DOOR_WAVE_FRAMES
+    assert _frames[5][3] == " "
+    assert _frames[6][2:5] == "   "
+    assert _frames[-1] == " " * 7
+    assert _game_map.tiles[_stamp.stairs.y][_stamp.stairs.x] is world.STAIRS_DOWN
+    assert all(
+        _game_map.tiles[pos.y][pos.x].kind == "dungeon_floor"
+        for pos in _barrier_positions
+    )
 
 
 def test_mars_landmark_stamp_rejects_undersized_map():
