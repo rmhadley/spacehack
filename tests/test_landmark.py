@@ -272,6 +272,11 @@ def test_mars_door_animation_reveals_stairs_on_real_map(monkeypatch):
         _game_map.tiles[pos.y][pos.x].kind == "dungeon_floor"
         for pos in _barrier_positions
     )
+    assert all(
+        _game_map.tiles[pos.y][pos.x].fg == (200, 200, 210)
+        and _game_map.tiles[pos.y][pos.x].bg == (42, 58, 88)
+        for pos in _barrier_positions
+    )
 
 
 def test_opened_mars_stairs_survive_dungeon_serialization():
@@ -317,6 +322,11 @@ def test_signal_door_animation_undulates_then_splits(monkeypatch):
     assert _game_map.tiles[_stamp.stairs.y][_stamp.stairs.x] is world.STAIRS_DOWN
     assert all(
         _game_map.tiles[pos.y][pos.x].kind == "dungeon_floor"
+        for pos in _barrier_positions
+    )
+    assert all(
+        _game_map.tiles[pos.y][pos.x].fg == (200, 200, 210)
+        and _game_map.tiles[pos.y][pos.x].bg == (42, 58, 88)
         for pos in _barrier_positions
     )
 

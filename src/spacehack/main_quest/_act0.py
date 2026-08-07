@@ -247,21 +247,30 @@ def _render_signal_door_frame(
     ctx.context.present(console)
 
 
+def _landmark_floor_near_barrier(
+    game_map: world.GameMap,
+    barrier: list[world.Position],
+) -> world.Tile:
+    """Find the floor style immediately adjacent to the alien barrier."""
+    for _position in barrier:
+        for _dx, _dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            _x = _position.x + _dx
+            _y = _position.y + _dy
+            if not game_map.in_bounds(_x, _y):
+                continue
+            _tile = game_map.tiles[_y][_x]
+            if _tile.kind == "dungeon_floor" and _tile.walkable:
+                return _tile
+    return world.DUNGEON_FLOOR
+
+
 def _open_signal_door_tiles(
     game_map: world.GameMap,
     barrier: list[world.Position],
     stairs: world.Position,
 ) -> None:
     """Commit the opened barrier and reveal its walkable stairs marker."""
-    _floor = next(
-        (
-            _tile
-            for _row in game_map.tiles
-            for _tile in _row
-            if _tile.kind == "dungeon_floor" and _tile.walkable
-        ),
-        world.DUNGEON_FLOOR,
-    )
+    _floor = _landmark_floor_near_barrier(game_map, barrier)
     for _position in barrier:
         game_map.tiles[_position.y][_position.x] = _floor
     if game_map.in_bounds(stairs.x, stairs.y):
