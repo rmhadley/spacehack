@@ -287,9 +287,9 @@ command chain.
 
 ### Phase 2: Economy + faction
 
-- [ ] `tests/test_trade.py`: cover `trade_price` (shortage zone, equilibrium,
+- [x] `tests/test_trade.py`: cover `trade_price` (shortage zone, equilibrium,
       surplus zone, edge cases at 0/target stock)
-- [ ] `tests/test_faction.py`: cover `get_attitude` (boundary values at -76,
+- [x] `tests/test_faction.py`: cover `get_attitude` (boundary values at -76,
       -26, +26, +76), `starting_reputation` (all species×class combos from
       design doc), `adjust_reward_pct`, `decay_rate`, `buy_price_modifier`,
       `sell_price_modifier`, `guild_to_faction`
