@@ -1,8 +1,11 @@
 # DESIGN: Save/Load System Rewrite (v2)
 
-> **Status: future.** This is a starting draft for the user to refine before
-> promoting to `in_progress/`. Do not implement from this doc as-is — it needs
-> a decision pass first (see Open Questions).
+> **Status: future.** Updated 2026-08-07 after pytest-coverage work.
+> The pytest suite now includes a round-trip test (`tests/test_saveload.py`),
+> and `knowledge.md`'s pure-function test contract covers mutation-wrappers.
+> This doc's open questions have been resolved; phases re-scoped to focus
+> on the highest-leverage change (auto-discovering ctx fields) rather than
+> a full reflection + entity-registry rewrite.
 
 ## Overview
 
@@ -35,7 +38,7 @@ system.
 
 ---
 
-## Current State — Why It's Brittle
+## Current State — Why It's Brittle (updated 2026-08-07)
 
 From the existing save/load contract in `knowledge.md`:
 
@@ -46,9 +49,38 @@ From the existing save/load contract in `knowledge.md`:
 | Spawning entities without registering them for save/load sync | Entities despawn on load, or respawn duplicated on top of existing ones. |
 | Adding a new game mode without wiring its map into the save file | Loading produces the wrong map with the old mode's entities scattered on it. |
 
-Root cause in all four rows: there is no single mechanism that *guarantees*
-new state gets picked up. Each is a manual step a human has to remember, on
-every future change, forever.
+Root cause in the first row: there is no single mechanism that *guarantees*
+new `GameContext` fields get picked up. Each is a manual step a human has to
+remember, on every future change, forever. This is the **highest-leverage gap**
+— a `GameContext` field auto-discovery mechanism eliminates the most common
+silent-bug category in a few dozen lines.
+
+The other three rows (module globals, entity spawning, game modes) have
+**not** produced bugs since the current system was built. The entity paths
+(bounty spawns, procedural spawns, dungeon entities, loot) all serialize
+correctly today. Module globals are only 2 (`current_solar_system_id`, `RNG`)
+and both work. New game modes have a clear pattern (space/dungeon branches in
+`load_game`). These are lower-leverage than the ctx-field gap — worth
+improving but not the primary target.
+
+### What the pytest suite changed
+
+`tests/test_saveload.py` now has a round-trip test (`test_round_trip_city_mode`)
+that builds a `GameContext`, saves to a temp path, loads back, and asserts
+25+ fields survived. This test **already catches the silent-field-regression
+bug**: if a new `GameContext` field is added without updating `_ctx_to_dict()`
+and `load_game()`, the test would fail because the loaded value would be the
+default, not the known test value. The gap is that no one runs this test
+*before* they forget — the contract is still manual.
+
+### What `_d()` already does well
+
+The current `_d()` helper (the recursive serialization primitive) already
+handles dataclass recursion, sets, enums, and Position objects. It's
+well-tested and stable. The fragility is NOT in the serialization primitives
+— it's in the manual field list in `_ctx_to_dict()` (~45 fields) and the
+mirror restoration block in `load_game()` (~55 lines). Replacing `_d()`
+is unnecessary; replacing the manual field list is high-leverage.
 
 ---
 
@@ -69,14 +101,18 @@ directly from:
 3. **Generic entity registry keyed by stable ID** — one save/load code path
    for all entities (same idea underlying ECS serialization), instead of
    per-entity-type special casing. Eliminates the "forgot to register this
-   entity" bug category entirely.
+   entity" bug category entirely. **Deferred:** the current per-path entity
+   serialization (dungeon entities, bounty/procedural spawns, map loot) works
+   correctly — revisit if a new entity type introduces the bug this was
+   designed to prevent.
 4. **Explicit persisted-vs-transient boundary** — state that must round-trip
    is visually distinct in code from session/UI/animation state that's safe
    to reset, rather than relying on memory.
 5. **Memento pattern (GoF) + round-trip test as acceptance criterion** —
    "save → load → assert deep-equal to pre-save state" is the standard
-   verification technique for any serialization system. Write this test
-   first; build the system to pass it.
+   verification technique for any serialization system. **Already done:**
+   `tests/test_saveload.py` has a round-trip test with 25+ field assertions
+   that passes as part of the pre-commit gate.
 
 ---
 
@@ -117,24 +153,41 @@ class SaveEnvelope:
 
 ### Reflection-based `GameContext` (de)serialization
 
-Replace `_ctx_to_dict()` / `load_game()`'s manual field lists with:
+Replace the manual field list in `_ctx_to_dict()` / `load_game()` with
+auto-discovery via `dataclasses.fields()`:
 
 ```python
-def serialize_ctx(ctx: GameContext) -> dict:
-    return dataclasses.asdict(ctx)   # or cattrs.unstructure(ctx)
-
-def deserialize_ctx(data: dict) -> GameContext:
-    return GameContext(**data)       # or cattrs.structure(data, GameContext)
+def _ctx_to_dict_v2(ctx: GameContext) -> dict:
+    """Serialize all ctx fields, skipping non-serializable ones."""
+    result = {}
+    for f in dataclasses.fields(ctx):
+        if f.name in _SKIP_FIELDS:  # context, game_map, player, log
+            continue
+        result[f.name] = _d(getattr(ctx, f.name))
+    return result
 ```
 
-Open question: `dataclasses.asdict` is stdlib and zero-dependency but has
-rough edges around non-dataclass nested types (enums, custom classes). May
-be worth adopting `cattrs` for the nested-type handling alone. Decide during
-Phase 1.
+The inverse in `load_game()` iterates the saved keys and sets them on the
+new `GameContext` instance. Special-case restoration (mission boards,
+bounty spawns, procedural spawns) stays as explicit `_restore_*()` helpers
+— these aren't field-level assignments, they're complex domain objects
+that need construction logic.
 
-### Entity registry (stable ID, single path)
+Keep `_d()` as the recursive serialization primitive (no new dependency).
+It already handles dataclasses, sets, enums, Position objects — all the
+types `GameContext` fields use.
+
+### Entity registry (stable ID, single path) — deferred
+
+The original proposal was a single `EntityRegistry` that every spawn path
+registers through. **Deferred** — the current per-path serialization
+(dungeon entities via `_dungeon_to_dict`, bounty/procedural spawn sync
+in `save_game`, map loot via `_save_loot`) works correctly with no known
+bugs. Revisit if a new entity-spawning feature introduces serialization
+bugs that the per-path approach doesn't catch.
 
 ```python
+# Original proposal (retained for reference if/when needed):
 @dataclass
 class EntityRecord:
     stable_id: str
@@ -142,28 +195,25 @@ class EntityRecord:
     data: dict
 
 class EntityRegistry:
-    def register(self, entity) -> str: ...   # assigns/returns stable_id
+    def register(self, entity) -> str: ...
     def serialize_all(self) -> dict[str, dict]: ...
     def deserialize_all(self, data: dict) -> None: ...
 ```
 
-Every spawn path (missions, dungeons, NPC ships, wrecks, …) registers
-through this one registry instead of each feature wiring its own save
-support. This is the part of the rewrite that most directly prevents the
-"forgot to register this entity type" bug class.
-
-### Module-level state contract, formalized
+### Module-level state contract, formalized — deferred
 
 Currently module globals rely on the "Module-level state contract" section
-of `knowledge.md` being followed by hand. Replace with an explicit
-registration call each module makes at import time:
+of `knowledge.md` being followed by hand. Only 2 globals exist
+(`current_solar_system_id`, `RNG`) and both work correctly.
+
+**Deferred** — the proposed `register_module_state()` framework would be
+more lines of framework code than the current manual handling. Revisit if
+a third module global is introduced.
 
 ```python
+# Original proposal (retained for reference):
 saveload.register_module_state("navigation", get=lambda: current_solar_system_id, set=...)
 ```
-
-The save/load system iterates registered module state generically instead
-of `saveload.py` needing to know about every module by name.
 
 ### Migration dispatch (empty for now)
 
@@ -183,72 +233,100 @@ def load_save(raw: dict) -> SaveEnvelope:
 
 ---
 
-## Implementation Plan (draft phases — refine before promoting to in_progress)
+## Implementation Plan (re-scoped 2026-08-07)
 
-### Phase 1: Round-trip test + envelope scaffolding
-- [ ] Write the save/load round-trip test first (populate representative
-      state across every current system, save, load, assert equality). This
-      test defines "done" for every later phase.
-- [ ] Add `SaveEnvelope`, `save_version` stamping, empty `MIGRATIONS` table,
-      `IncompatibleSaveError` handling.
-- [ ] → **Playtest 1**: save/quit/continue still works for the current game,
-      unchanged behavior, now version-stamped.
+### Phase 1: SaveEnvelope scaffolding + version stamping
+- [ ] Add `SaveEnvelope` dataclass, `CURRENT_SAVE_VERSION = 1`, empty
+      `MIGRATIONS` table, `IncompatibleSaveError` (hard refuse).
+- [ ] Stamp `save_version` on every save; validate on load.
+- [ ] **Existing behavior preserved** — no serialization changes yet, just
+      the envelope. All current tests must pass.
+- [ ] → **Playtest**: save/quit/continue works unchanged.
 
-### Phase 2: Reflection-based GameContext serialization
-- [ ] Replace `_ctx_to_dict()` / manual `load_game()` field restoration with
-      introspection-based (de)serialization.
-- [ ] Decide stdlib `dataclasses.asdict` vs `cattrs` (see open question
-      above) and resolve any nested-type gaps found.
-- [ ] → **Playtest 2**: full sniff test across every current game mode.
+### Phase 2: Auto-discover GameContext fields (the high-leverage change)
+- [ ] Replace the manual field list in `_ctx_to_dict()` with
+      `dataclasses.fields(ctx)` iteration, feeding each field through `_d()`.
+- [ ] Replace the manual field restoration in `load_game()` with the inverse
+      (iterate saved fields, set on the new ctx).
+- [ ] Handle the special cases: `GameMap`/`player`/`tcod.context` are
+      reconstructed, not serialized (already skipped today); `mission_boards`
+      and `bounty_spawns` need their custom restoration logic.
+- [ ] → **Playtest**: full sniff test across city/space/dungeon mode
+      transitions. The existing round-trip test (`tests/test_saveload.py`)
+      must pass with its 25+ field assertions.
+- [ ] **This phase alone eliminates the primary silent-bug category.**
+      After this, adding a new `GameContext` field requires zero save/load
+      code — it's picked up automatically.
 
-### Phase 3: Entity registry
-- [ ] Introduce `EntityRegistry`; migrate one existing entity-spawning path
-      (e.g. bounty spawns) onto it as a proof of concept.
-- [ ] Migrate remaining spawn paths (dungeons, NPC ships, heist loot, wrecks).
-- [ ] → **Playtest 3**: spawn/save/load/continue for every entity-producing
-      system; verify no duplication, no despawn.
-
-### Phase 4: Module-level state registration
-- [ ] Replace manual module-global handling with the
-      `register_module_state()` pattern; migrate every global currently
-      listed under the module-level state contract.
-- [ ] → **Playtest 4**: full sniff test, focused on mode transitions
-      (city/space/dungeon) that depend on module globals.
-
-### Phase 5: Retire old system + update contracts
-- [ ] Delete `_ctx_to_dict()` and the old `load_game()` field-restoration
-      code.
-- [ ] Rewrite the "Save/load contract" section of `knowledge.md` to describe
-      the new system (reflection-based, registry-based) instead of the old
-      manual checklist.
+### Phase 3: Retire old code + update contracts
+- [ ] Delete the old manual `_ctx_to_dict()` field list and the mirror
+      restoration block in `load_game()`.
+- [ ] Update `knowledge.md`'s save/load contract to describe the new
+      auto-discovery mechanism.
 - [ ] → **Final playtest**: full regression pass across every game system.
 
----
+### Deferred (not in scope)
 
-## Acceptance Criteria
-
-- Adding a new `GameContext` field requires zero save/load code changes to
-  be persisted correctly.
-- Adding a new entity type requires only registering it with
-  `EntityRegistry` — no bespoke save/load wiring.
-- The round-trip test from Phase 1 passes and is run as part of the regular
-  pre-commit/self-audit gate going forward.
-- `knowledge.md`'s save/load contract section reflects the new system, and
-  its old manual checklist is removed (it should no longer be needed).
+| Item | Why deferred |
+|------|-------------|
+| EntityRegistry | Entity paths already serialize correctly; no bugs reported |
+| Module-state registration | Only 2 globals; framework would be heavier than current code |
+| `cattrs` / `pydantic` dependency | `_d()` already handles all needed types |
+| Migration dispatch with real migrations | No backward-compat burden yet; dispatch loop exists for when needed |
 
 ---
 
-## Open Questions (resolve before promoting to `in_progress/`)
+## Acceptance Criteria (re-scoped)
 
-1. `dataclasses.asdict` vs adopting `cattrs`/`pydantic` as a dependency —
-   decide based on how much nested-type pain Phase 1/2 actually surfaces.
-2. Does `EntityRegistry` replace `world.Entity`'s existing identity handling,
-   or wrap it? Needs a pre-implementation audit against the current entity
-   code before Phase 3 is scoped for real.
-3. Should `module_state` registration happen at import time or at
-   `GameContext` construction time? Affects ordering/circular-import risk.
-4. Exact player-facing behavior for `IncompatibleSaveError` — hard refuse
-   with a message, or offer to discard and start fresh from the same menu?
-5. Where does RNG state fit in `SaveEnvelope` — part of `ctx`, or its own
-   top-level field? (Currently a `GameContext` field per the old contract;
-   confirm that still holds under the new model.)
+- Adding a new `GameContext` field requires **zero** save/load code changes
+  to be persisted correctly — auto-discovered via `dataclasses.fields()`.
+- The existing round-trip test (`tests/test_saveload.py`) passes with its
+  25+ field assertions, plus any new fields added during implementation.
+- `knowledge.md`'s save/load contract section is updated to describe the
+  auto-discovery mechanism; the old per-field checklist is removed.
+- Save files carry a `save_version` stamp; loading an incompatible version
+  fails loudly with a clear message.
+
+---
+
+## Open Questions (resolved 2026-08-07)
+
+1. **`dataclasses.asdict` vs `cattrs`** — **Neither. Keep `_d()`.**
+   `_d()` already handles dataclass recursion, sets→sorted-list, enums→name,
+   Position→[x,y]. It's zero-dependency, well-tested, and handles all the
+   edge cases the project needs. `dataclasses.asdict` would lose the custom
+   enum/set/Position handling. `cattrs` is overkill for a single-dataclass
+   serialization task. Instead: auto-discover GameContext fields via
+   `dataclasses.fields(ctx)` and feed each through `_d()`, replacing the
+   manual field list.
+
+2. **EntityRegistry** — **Defer. Entity paths already work.**
+   Bounty spawns, procedural spawns, dungeon entities, and map loot all
+   serialize correctly through their respective paths (`_dungeon_to_dict`,
+   `_save_loot`, procedural/bounty spawn sync in `save_game`). No entity
+   despawn/duplication bugs have been reported since these paths landed.
+   A generic EntityRegistry would touch every entity construction site
+   (~30+ across the codebase) for a problem that doesn't currently exist.
+   Revisit if a new entity-spawning feature introduces the bug this was
+   designed to prevent.
+
+3. **Module state registration** — **Defer. Manual contract is fine for 2 globals.**
+   Only `current_solar_system_id` and `RNG` need save/load as module globals.
+   Both already work correctly (verified by the round-trip test). A
+   `register_module_state()` framework would be more lines of framework
+   code than the total lines currently handling the 2 globals. Add it only
+   if a third module global is introduced.
+
+4. **`IncompatibleSaveError` behavior** — **Hard refuse with a message.**
+   Standard roguelike answer: "This save is from a newer / incompatible
+   version of the game. Starting a new game." No partial load, no silent
+   corruption. The migration dispatch loop handles forward-compatible
+   upgrades; unrecognized versions fail loudly.
+
+5. **RNG state in SaveEnvelope** — **Keep it top-level.**
+   RNG is module-level state on `engine.RNG`, not a `GameContext` field.
+   Keeping it top-level in the save JSON matches the module-level state
+   contract in `knowledge.md`. Don't force it onto `ctx` just to satisfy
+   a reflection-based serialization model — the `SaveEnvelope` can carry
+   both `ctx` (auto-discovered fields) and `rng_state` (explicit top-level)
+   without conflict.
