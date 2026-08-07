@@ -236,6 +236,7 @@ def _paint_range_line(
     region_y: int = 0,
     *,
     color_override: tuple[int, int, int] | None = None,
+    game_map: world.GameMap | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by weapon range bands.
 
@@ -255,7 +256,11 @@ def _paint_range_line(
 
     The line updates immediately when the player switches weapons.    Uses ``~`` (tilde) as the line character so it's visible but
     doesn't fully obscure glyphs underneath. Tilde is a safe
-    choice for CP437-based tilesets (``CHARMAP_TCOD``)."""
+    choice for CP437-based tilesets (``CHARMAP_TCOD``).
+
+    ``game_map`` (when provided) keeps the line from painting over
+    other entities — cells occupied by a non-target (another enemy,
+    loot, a terminal) are skipped so their glyphs stay readable."""
     try:
         ws = find_weapon(weapon_id)
     except KeyError:
@@ -268,6 +273,7 @@ def _paint_range_line(
         cam_x, cam_y, view_w, view_h,
         region_x, region_y,
         color_override=color_override,
+        game_map=game_map,
     )
 
 
@@ -290,6 +296,7 @@ def _draw_range_colored_line(
     region_y: int = 0,
     *,
     color_override: tuple[int, int, int] | None = None,
+    game_map: world.GameMap | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by
     distance from the player and the weapon's range profile.
@@ -305,6 +312,11 @@ def _draw_range_colored_line(
 
     When ``color_override`` is set, all cells use that color instead
     (e.g. solid red ``(255, 60, 60)`` when LOS is blocked).
+
+    ``game_map`` (when provided) makes the line yield to entities:
+    any cell occupied by a non-target (another enemy, loot, a
+    terminal) is skipped so those glyphs stay visible instead of
+    being painted over by ``~``.
     """
     half_range = weapon_max_range // 2
     has_min_range = weapon_min_range > 0
@@ -320,6 +332,11 @@ def _draw_range_colored_line(
     ):
         # Skip the target's own cell — the highlight/bg handles that
         if bx == target_pos.x and by == target_pos.y:
+            continue
+
+        # Skip cells occupied by other entities so the line never
+        # draws over a non-target enemy, loot, or terminal glyph.
+        if game_map is not None and game_map.entity_at(bx, by) is not None:
             continue
 
         sx = bx - cam_x

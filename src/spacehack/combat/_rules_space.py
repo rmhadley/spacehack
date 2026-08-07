@@ -352,7 +352,10 @@ def consume_shot(slot_idx: int, ctx) -> None:
 # ---------------------------------------------------------------------------
 
 def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
-    new_pos, ok = move_entity(_state.player_state["pos"], dx, dy, game_map)
+    new_pos, ok = move_entity(
+        _state.player_state["pos"], dx, dy, game_map,
+        exclude=_state.player_ent,
+    )
     if ok:
         _state.player_state["pos"] = new_pos
         _state.player_state["ap_remaining"] -= 1
@@ -431,6 +434,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
                 _range_wid,
                 _cam_x, _cam_y, _state.view_w, _state.view_h, 0, 0,
                 color_override=None if _los_ok else (255, 60, 60),
+                game_map=game_map,
             )
 
     _tgt = _alive_target()

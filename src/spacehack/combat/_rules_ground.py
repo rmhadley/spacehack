@@ -28,7 +28,10 @@ from ..xp import (
 
 from ._types import CombatResult
 from ._stats import _distance
-from ._actions import _spawn_loot_at_position as _shared_loot
+from ._actions import (
+    move_entity,
+    _spawn_loot_at_position as _shared_loot,
+)
 from ._animations import (
     _bresenham_line,
     _has_los,
@@ -390,16 +393,15 @@ def consume_shot(slot_idx: int, ctx) -> None:
 # ---------------------------------------------------------------------------
 
 def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
-    _nx = ctx.player.pos.x + dx
-    _ny = ctx.player.pos.y + dy
-    if not game_map.is_walkable(_nx, _ny):
+    # Solid collision via the shared primitive: enemies, loot, and
+    # furniture all block — a combatant can't stack on another
+    # combatant (melee attacks fire at range 1, there is no bump-attack).
+    _new_pos, ok = move_entity(
+        ctx.player.pos, dx, dy, game_map, exclude=ctx.player,
+    )
+    if not ok:
         return False
-    _blocker = game_map.entity_at(_nx, _ny, exclude=ctx.player)
-    if _blocker is not None:
-        _enemy_ids = {id(_e.entity) for _e in _state.enemies if _e.alive}
-        if id(_blocker) not in _enemy_ids:
-            return False
-    ctx.player.pos = world.Position(_nx, _ny)
+    ctx.player.pos = _new_pos
     _state.player_ap -= 1
     _state.cells_moved_this_turn += 1
     from ..dungeon import reveal_around as _reveal_around
@@ -420,7 +422,7 @@ _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
 
 
-def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y, region_x, region_y, *, color_override=None):
+def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y, region_x, region_y, game_map, *, color_override=None):
     try:
         _ws = _find_gw(weapon_id)
     except KeyError:
@@ -431,6 +433,7 @@ def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y,
         cam_x, cam_y, _RENDER_WIDTH, _RENDER_HEIGHT,
         region_x=region_x, region_y=region_y,
         color_override=color_override,
+        game_map=game_map,
     )
 
 
@@ -470,7 +473,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         )
         _ground_range_line(
             console, ctx.player.pos, _tgt.pos,
-            _active_w[0], _cam_x, _cam_y, _rx, _ry,
+            _active_w[0], _cam_x, _cam_y, _rx, _ry, game_map,
             color_override=(255, 60, 60) if _los_blocked else None,
         )
 
