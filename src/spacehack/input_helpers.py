@@ -249,21 +249,23 @@ def _is_f_press(event: tcod.event.Event) -> bool:
     return sym_name in ('F', 'f')
 
 
-def _is_shift_x_press(event: tcod.event.Event) -> bool:
-    """True iff ``event`` is a ``KeyDown`` with Shift+X.
-
-    Pressing Shift+X sends ``KeySym.X`` with the shift modifier.
-    Plain ``x`` sends ``KeySym.X`` without the modifier.  Used in
-    dev mode (``SPACEHACK_DEV``) to award bonus XP.
-    """
+def _is_shift_press(event: tcod.event.Event, key_name: str) -> bool:
+    """Return whether a key event has the requested key plus Shift."""
     if not isinstance(event, tcod.event.KeyDown):
         return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    if sym_name != 'X':
+    if getattr(event.sym, 'name', '') != key_name:
         return False
     mod = getattr(event, 'mod', 0)
     shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
     return bool(mod & shift)
+
+
+def _is_shift_x_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+X.
+
+    Used in dev mode (``SPACEHACK_DEV``) to award bonus XP.
+    """
+    return _is_shift_press(event, 'X')
 
 
 def _is_question_press(event: tcod.event.Event) -> bool:
@@ -299,14 +301,7 @@ def _is_shift_r_press(event: tcod.event.Event) -> bool:
 
     Dev-mode only (``SPACEHACK_DEV``): fully reveals dungeon fog.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    if sym_name != 'R':
-        return False
-    mod = getattr(event, 'mod', 0)
-    shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
-    return bool(mod & shift)
+    return _is_shift_press(event, 'R')
 
 
 def _is_shift_d_press(event: tcod.event.Event) -> bool:
@@ -315,16 +310,18 @@ def _is_shift_d_press(event: tcod.event.Event) -> bool:
     Dev-mode only (``SPACEHACK_DEV``): skips 30 days of world clock
     so main-quest time gates can be playtested without waiting real
     minutes (see docs/design/in_progress/07_DESIGN_MAIN_QUEST.md).
-    Mirrors the Shift+X / Shift+R dev helpers exactly.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    if sym_name != 'D':
-        return False
-    mod = getattr(event, 'mod', 0)
-    shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
-    return bool(mod & shift)
+    return _is_shift_press(event, 'D')
+
+
+def _is_shift_o_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+O.
+
+    Dev-mode only (``SPACEHACK_DEV``): advances Act 0 to the state
+    where the Mars door can be opened. The caller applies the
+    environment-variable gate and mutates the quest context.
+    """
+    return _is_shift_press(event, 'O')
 
 
 def _try_open_guide(event: tcod.event.Event, ctx) -> bool:

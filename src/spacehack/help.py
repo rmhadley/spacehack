@@ -161,6 +161,16 @@ _GUIDE_CONTROLS = GuideSection(
         "- TAB: switch between panels (buy/sell in loadout)"
         "\n"
         "- +/-: adjust quantities"
+        "\n\n"
+        "Developer mode (SPACEHACK_DEV=1):"
+        "\n"
+        "- Shift+O: skip Act 0 to the Mars door-opening interaction"
+        "\n"
+        "- Shift+R: reveal all dungeon fog"
+        "\n"
+        "- Shift+D: advance the clock by 30 days"
+        "\n"
+        "- Shift+X: award 200 XP"
     ),
 )
 

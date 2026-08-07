@@ -17,6 +17,26 @@ from typing import Any
 from . import ship as ship_module
 
 
+def advance_main_quest(ctx) -> None:
+    """Put Act 0 immediately before the Mars door-opening interaction.
+
+    This helper intentionally skips rewards and faction-chain details: it
+    only creates the prerequisite story state needed to test the Mars
+    landmark and its opening animation. The caller must gate this action
+    behind ``SPACEHACK_DEV``.
+    """
+    _progress = ctx.main_quest_progress
+    _progress.update({
+        "prologue_signal": "completed",
+        "prologue_mars_unlocked": "completed",
+        "prologue_mars_entrance": "completed",
+        "prologue_seek_help": "completed",
+    })
+    if _progress.get("prologue_open") != "completed":
+        _progress["prologue_open"] = "active"
+    ctx.log.add("[DEV MODE] Act 0 skipped - the Mars door can now be opened.")
+
+
 def apply_dev_overrides(
     starter_ship: Any,
     starter_entity: Any,

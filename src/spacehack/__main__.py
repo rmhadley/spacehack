@@ -48,7 +48,7 @@ from .combat import _rules_ground
 from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
-from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _try_open_guide
+from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -423,6 +423,13 @@ def _run_game(
                     from .time import advance_time as _adv_time
                     _adv_time(ctx, 30)
                     log.add("Dev: skipped 30 days.")
+                continue
+            # Shift+O = dev mode: skip Act 0 to the Mars door-opening state.
+            if _is_shift_o_press(event):
+                import os as _os
+                if _os.environ.get("SPACEHACK_DEV"):
+                    from .dev_mode import advance_main_quest as _advance_main_quest
+                    _advance_main_quest(ctx)
                 continue
             # F = faction standings (city or space).
             if _is_f_press(event):

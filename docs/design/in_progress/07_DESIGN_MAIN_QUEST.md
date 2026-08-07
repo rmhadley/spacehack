@@ -501,6 +501,7 @@ A dead-star system with an alien structure — the source of the signal.
 - [x] Lock-in flow: Accept help in `show_help_offer` sets `main_quest_chain` (instead of unlocking the tool); the other three factions' "Ask about the Mars door" rows close (locked variant dialogue)
 - [x] Chain completion: final step's trigger grants the faction tool + makes `prologue_open` available
 - [x] **Time-gate infra:** add `wait_days` / `completion_flavor` / `ready_message` to `MainQuestStep`; add `main_quest_gate` + `main_quest_pending_message` to `GameContext` + serialize/deserialize in `saveload`; implement `main_quest.check_quest_gates(ctx)` per-frame hook (fires when `ctx.time_*` passes a gate date → next step `"available"` + queue the one-way summon; deliver via the prologue-transmission overlay pattern). Dev skip-days helper: Shift+D (SPACEHACK_DEV) advances 30 days so gates can be playtested. Quest log shows "Awaiting word from the <faction>..." while a gate is pending.
+- [x] **Act 0 dev shortcut:** Shift+O (SPACEHACK_DEV) skips directly to the Mars door-opening interaction for animation playtesting; it is a test shortcut only and does not grant faction-chain rewards.
 - [x] Add the 4 expert NPCs (`demolitions_expert` / `salvage_specialist` / `old_smuggler` / `xenolinguist`) to `data/npcs` + `PlanetSpec.npc_overrides`; verify target planets have the guild building
 - [x] Smoke test + commit
 
