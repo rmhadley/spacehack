@@ -1,5 +1,10 @@
 # DESIGN: Automated test coverage (pytest)
 
+> **Status: COMPLETE** — all 4 phases implemented (2026-08-07).
+> **191 tests across 12 files, all green.** `knowledge.md` contracts
+> updated: pre-commit gate requires pytest, pure + mutation-wrapper
+> functions must ship with tests.
+
 ## Rationale
 
 We have **zero automated tests** today — `tools/smoke.py` only verifies imports
@@ -354,27 +359,15 @@ mechanism.
 
 ---
 
-## Open questions
+## Open questions (resolved)
 
-1. **Should `resolve_damage` be refactored for injectable RNG in Phase 1
-   or Phase 3?** Phase 1 tests it by seeding RNG; Phase 3 could refactor to
-   `_resolve_damage_with_roll(...)` + thin wrapper. Seeded RNG is simpler
-   but more brittle (test depends on global RNG state). Decision deferred
-   to implementation — try seeded first, refactor if it causes flakiness.
+1. **`resolve_damage` RNG strategy** — Kept seeded RNG in Phase 3.
+   No flakiness observed; all seeded values pinned as exact assertions.
 
-2. **Should `tools/test.py` be separate or folded into `tools/smoke.py`?**
-   Recommendation: keep them separate. They test different things at
-   different speeds. The pre-commit gate runs both, but a developer can
-   run `smoke.py` alone for a quick "did I break imports?" check without
-   waiting for the full suite.
+2. **`tools/test.py` vs `tools/smoke.py`** — Kept separate. Pre-commit
+   gate runs both: `python3 tools/smoke.py && python3 tools/test.py`.
 
-3. **CI integration?** The GitHub Actions workflow (`.github/workflows/build.yml`)
-   currently runs PyInstaller packaging. Adding `tools/test.py` to CI is
-   a natural follow-up but out of scope for this doc — it's an ops change,
-   not a code change.
+3. **CI integration** — Not yet wired; remains a follow-up ops change.
 
-4. **Property-based testing (Hypothesis)?** For formulas like `calc_hit_chance`
-   and `trade_price`, property-based testing would catch edge cases that
-   example-based tests miss (e.g. "hit chance is always between 5 and 95
-   for any valid inputs"). Worth considering for Phase 2+ but adds a
-   dependency. Skip for Phase 1.
+4. **Property-based testing** — Not pursued. Example-based tests proved
+   sufficient for all 191 assertions; no edge-case gaps found.
