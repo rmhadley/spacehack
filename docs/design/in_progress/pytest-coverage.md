@@ -298,10 +298,10 @@ command chain.
 
 ### Phase 3: Ship stats + resolve_damage
 
-- [ ] `tests/test_ship.py`: cover `total_ammo_cargo`, `effective_speed`,
+- [x] `tests/test_ship.py`: cover `total_ammo_cargo`, `effective_speed`,
       `effective_max_cargo`, `smuggler_hold_capacity`, `_sell_price`,
       `ship_display_name`
-- [ ] `tests/combat/test_actions.py`: cover `resolve_damage` (seed RNG,
+- [x] `tests/combat/test_actions.py`: cover `resolve_damage` (seed RNG,
       verify damage output for known weapon + quality roll values)
 
 **PLAYTEST:** `tools/test.py` green, `tools/smoke.py` green.
