@@ -131,10 +131,14 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 
 ### Pre-commit gate
 ```bash
-python3 tools/smoke.py
+python3 tools/smoke.py && python3 tools/test.py
 ```
 
 The smoke test auto-mounts `.venv/bin/python3` so tcod is always resolved. It verifies all major modules import correctly and key entry points survived signature changes.
+
+The test runner (`tools/test.py`) also auto-mounts the venv and runs the
+pytest suite — formula-correctness tests for pure computation functions.
+Never commit without both passing.
 
 ### Refactor philosophy
 - **Data-first.** New content is a file in `data/` backed by a frozen dataclass. No content lives in `__main__.py` or runtime modules.
@@ -570,6 +574,33 @@ Continue.** Neither path is optional.
 - [ ] Reset in ``__main__.py`` new-game setup block
 - [ ] Serialize in ``saveload.save_game()``
 - [ ] Deserialize + restore in ``saveload.load_game()``
+
+---
+
+### Pure function test contract
+
+**Every new pure function added to the codebase must ship with a pytest
+test in the same commit. Any modification to an existing pure function
+that changes its behavior or signature must update its corresponding
+test in the same commit.**
+
+"Pure" follows the existing guardrail: no I/O, no mutation of arguments,
+no side effects, deterministic given its inputs.
+
+A pure function without a test — or a test that hasn't been updated to
+match a changed function — is a regression waiting to happen: its
+correctness is invisible to the smoke test AND to manual playtesting.
+
+This applies to all new and modified code. Existing untested pure
+functions are backfilled on the schedule in
+``docs/design/in_progress/pytest-coverage.md``.
+
+**Checklist before shipping any new or modified pure function:**
+- [ ] Is there a corresponding test in ``tests/``?
+- [ ] If the function was modified, was the test updated to match?
+- [ ] Does the test cover the function's key edge cases (boundaries,
+      min/max, zero/empty inputs)?
+- [ ] Does ``tools/test.py`` pass?
 
 ---
 

@@ -11,6 +11,9 @@ dependencies = [
     "tcod>=16",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.scripts]
 spacehack = "spacehack.__main__:main"
 

@@ -267,18 +267,18 @@ tcod context). Flag it as a stretch item; it doesn't fit in early phases.
 
 ### Phase 1: Infra + combat math (highest risk)
 
-- [ ] Add `pytest` as dev dependency (document in pyproject.toml or README)
-- [ ] Create `tests/` directory layout mirroring `src/spacehack/`
-- [ ] Create `tools/test.py` with venv auto-mount pattern
-- [ ] `tests/combat/test_stats.py`: cover `calc_hit_chance`, `calc_flee_chance`,
+- [x] Add `pytest` as dev dependency (document in pyproject.toml or README)
+- [x] Create `tests/` directory layout mirroring `src/spacehack/`
+- [x] Create `tools/test.py` with venv auto-mount pattern
+- [x] `tests/combat/test_stats.py`: cover `calc_hit_chance`, `calc_flee_chance`,
       `_calc_dodge_bonus`, `_calc_ap`, `_calc_hull`, `_calc_max_hull`,
       `_calc_hull_for_enemy`, `_calc_power_gen`, `_calc_max_shields`, `_distance`
-- [ ] `tests/combat/test_rules_ground.py`: cover `_ground_hit_chance_raw`,
+- [x] `tests/combat/test_rules_ground.py`: cover `_ground_hit_chance_raw`,
       `_ground_damage_raw`, `_calc_ground_move_dodge`
-- [ ] `tests/test_xp.py`: cover `xp_for_level`, `_xp_to_next` (verify all
+- [x] `tests/test_xp.py`: cover `xp_for_level`, `_xp_to_next` (verify all
       30 threshold values against the design doc table)
-- [ ] Update `knowledge.md` Pre-commit gate section to require pytest
-- [ ] Add "Pure function test contract" to `knowledge.md` (see section 6)
+- [x] Update `knowledge.md` Pre-commit gate section to require pytest
+- [x] Add "Pure function test contract" to `knowledge.md` (see section 6)
 
 **PLAYTEST:** Run `tools/test.py` — confirm all tests green. Run
 `tools/smoke.py` — confirm no regressions. Then run `python3 tools/smoke.py &&
