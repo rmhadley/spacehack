@@ -29,7 +29,7 @@ Space mode (when ``owned_ship`` is provided):
     |                 | Mod 0/1  |
     |                 | -------- |
     |                 | G - Go To|
-    |                 | P - Loot  |
+    |                 | P - Pickup|
     |                 | M - Map  |
     |                 | ESC Quit |
     +-----------------+----------+
@@ -340,7 +340,7 @@ def render_hud(
         # Keybinding help
         y = _render_help_lines(console, hud_x, y, [
             ("G", "Go To"),
-            ("P", "Loot"),
+            ("P", "Pickup"),
             ("M", "Map"),
             ("I", "Cargo"),
             ("T", "Comms"),
@@ -452,7 +452,7 @@ def render_hud(
             ("numpad", "Move"),
         ]
         if mode == "dungeon":
-            _help_lines.insert(0, ("P", "Loot"))
+            _help_lines.insert(0, ("P", "Pickup"))
         y = _render_help_lines(console, hud_x, y, _help_lines)
 
         # XP progress bar — between key hints and footer.
