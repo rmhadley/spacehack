@@ -104,9 +104,10 @@ _STEP_BODIES: dict[str, str] = {
     ),
     "launched": (
         "You're in space around Sol. The bounty target message is in "
-        "the log — Crimson Jack is near Mercury.\n\n"
-        "Press 'G' for auto-navigation and pick Crimson Jack from the "
-        "list. Your ship will fly itself there."
+        "the log — Crimson Jack is lurking near Mercury.\n\n"
+        "Press 'G' for auto-navigation and select Mercury from the "
+        "list. Your ship will fly itself there — the pirate is holed "
+        "up nearby."
     ),
     "space_combat_intro": (
         "Combat is turn-based. Each turn you have AP (action points) "
