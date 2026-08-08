@@ -243,10 +243,20 @@ starter fuel 80 covers 2 jumps + travel).
 
 ### Phase 4 — Mars, ground combat & finale
 
-- [ ] `earth_armory` + `armed_ground` steps.
-- [ ] `maybe_ground_combat_intro` hook in `_run_ground_combat_tick`.
-- [ ] `finale` (sets `tutorial_complete`; `tick` stops).
-- [ ] Guide section + full test suite.
+- [x] `earth_armory` + `armed_ground` steps.
+- [x] `maybe_ground_combat_intro` hook in `_run_ground_combat_tick`.
+- [x] `finale` (sets `tutorial_complete`; `tick` stops).
+- [x] Guide section + full test suite.
+
+**Playtest notes:** the armory equips purchases straight into
+`ctx.equipped_ground_weapons`, so `armed_ground` fires on the first
+armory buy. Added `TestMarsAndFinale`: armory popup fires only after
+the signal beat and only on Earth; armed popup follows the armory
+beat (buying early still gets the armory popup first); ground-combat
+intro fires once; the finale fires once, sets `tutorial_complete`, and
+silences every hook + tick afterwards; a stray combat resolution before
+the ground intro cannot end the script. All acceptance-criteria items
+are now implemented; the full playtest below is the remaining gate.
 
 **PLAYTEST:** Land on Earth → armory popup → buy kinetic rifle → popup →
 launch → `G` to Mars → explore signal source → first ground combat opens

@@ -310,6 +310,108 @@ class TestSpaceCombatAndLoot:
         assert "signal_triggered" not in ctx.tutorial_steps
 
 
+class TestMarsAndFinale:
+    """Phase 4 — armory, Mars, ground-combat intro, and the finale."""
+
+    @staticmethod
+    def _tutorial_ctx() -> _StubCtx:
+        ctx = _StubCtx()
+        ctx.tutorial_mode = True
+        # Every beat through the signal already delivered.
+        for _s in ("intro", "first_move", "accepted_crimson",
+                   "equipped_loadout", "launched", "space_combat_intro",
+                   "loot_dropped", "picked_up_loot", "signal_triggered"):
+            tutorial.mark_step(ctx, _s)
+        ctx.main_quest_progress = {"prologue_signal": "completed"}
+        return ctx
+
+    def _run(self, ctx, mode: str):
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.tick(ctx, mode=mode)
+        return fired
+
+    def test_earth_armory_fires_on_earth_after_signal(self):
+        ctx = self._tutorial_ctx()
+        assert self._run(ctx, "city") == ["earth_armory"]
+        # One shot only.
+        assert self._run(ctx, "city") == []
+
+    def test_earth_armory_gated_on_signal(self):
+        """Early city frames (no signal yet) must not fire the popup."""
+        ctx = self._tutorial_ctx()
+        # Withdraw the signal beat: mark everything but the signal step.
+        ctx.tutorial_steps.discard("signal_triggered")
+        ctx.main_quest_progress = {}
+        assert self._run(ctx, "city") == []
+        assert "earth_armory" not in ctx.tutorial_steps
+        # Signal arrives → the signal popup leads, then the armory popup.
+        ctx.main_quest_progress = {"prologue_signal": "completed"}
+        assert self._run(ctx, "city") == ["signal_triggered"]
+        assert self._run(ctx, "city") == ["earth_armory"]
+
+    def test_armed_ground_fires_after_armory_buy(self):
+        ctx = self._tutorial_ctx()
+        assert self._run(ctx, "city") == ["earth_armory"]
+        ctx.equipped_ground_weapons = ["kinetic_rifle"]
+        assert self._run(ctx, "city") == ["armed_ground"]
+
+    def test_armed_ground_gated_on_armory_beat(self):
+        ctx = self._tutorial_ctx()
+        ctx.equipped_ground_weapons = ["kinetic_rifle"]  # bought early
+        assert self._run(ctx, "city") == ["earth_armory"]  # armory first
+        assert self._run(ctx, "city") == ["armed_ground"]
+
+    def test_ground_combat_intro_fires_once(self):
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "earth_armory")
+        tutorial.mark_step(ctx, "armed_ground")
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.maybe_ground_combat_intro(ctx)
+            tutorial.maybe_ground_combat_intro(ctx)
+
+        assert fired == ["mars_ground_combat_intro"]
+
+    def test_finale_fires_and_completes_tutorial(self):
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "earth_armory")
+        tutorial.mark_step(ctx, "armed_ground")
+        tutorial.mark_step(ctx, "mars_ground_combat_intro")
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.notify_ground_combat_ended(ctx)
+            # After completion every hook and tick must be silent.
+            tutorial.notify_ground_combat_ended(ctx)
+            tutorial.maybe_ground_combat_intro(ctx)
+            tutorial.tick(ctx, mode="city")
+
+        assert fired == ["finale"]
+        assert ctx.tutorial_complete is True
+
+    def test_finale_gated_on_ground_intro(self):
+        """A stray combat resolution before the intro beat cannot end it."""
+        ctx = self._tutorial_ctx()
+        tutorial.notify_ground_combat_ended(ctx)
+        assert "finale" not in ctx.tutorial_steps
+        assert ctx.tutorial_complete is False
+
+
 class TestStepState:
     def test_mark_step_idempotent(self):
         ctx = _StubCtx()
