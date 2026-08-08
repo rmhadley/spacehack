@@ -11,6 +11,10 @@ from __future__ import annotations
 from collections import deque
 
 from . import dungeon, world
+from .dungeon_extension_layout import (
+    _preferred_interaction_cells,
+    _separate_room_cells,
+)
 from .game_context import DungeonExtensionState
 
 
@@ -251,13 +255,28 @@ def _stamp_floor_features(
 def _free_interaction_position(
     game_map: world.GameMap,
     cells: list[tuple[int, int]],
+    *,
+    forbidden_positions: tuple[world.Position, ...] = (),
+    min_path_distance: int = 0,
+    ignore_entity: world.Entity | None = None,
 ) -> world.Position | None:
-    """Choose the first walkable cell not already occupied by an entity."""
-    _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    """Choose an unoccupied cell separated from other key anchors."""
+    _occupied = {
+        (e.pos.x, e.pos.y) for e in game_map.entities if e is not ignore_entity
+    }
+    _distances = {
+        (_anchor.x, _anchor.y): _walkable_distances(game_map, _anchor)
+        for _anchor in forbidden_positions
+    }
     for _x, _y in cells:
         if (_x, _y) in _occupied:
             continue
         if game_map.tiles[_y][_x].kind in {"stairs_up", "stairs_down"}:
+            continue
+        if any(
+            _dist.get((_x, _y), -1) < min_path_distance
+            for _dist in _distances.values()
+        ):
             continue
         return world.Position(_x, _y)
     return None
@@ -289,13 +308,52 @@ def _stamp_interactions(
     if not _interactions:
         return
     _cells = _feature_cells(game_map, origin)
-    _used: set[tuple[int, int]] = set()
-    for _interaction in _interactions:
+    _used: set[tuple[int, int]] = {
+        (_position.x, _position.y)
+        for _position in (
+            getattr(game_map, "up_stair_pos", None),
+            getattr(game_map, "down_stair_pos", None),
+        )
+        if _position is not None
+    }
+    _ordered_interactions = sorted(
+        _interactions,
+        key=lambda _item: _item.action != "transition_floor",
+    )
+    for _interaction in _ordered_interactions:
         if _interaction.action == "transition_floor":
             _position = getattr(game_map, "down_stair_pos", None)
         else:
-            _position = _free_interaction_position(game_map, _cells)
-        if _position is None or (_position.x, _position.y) in _used:
+            _down = getattr(game_map, "down_stair_pos", None)
+            _anchors = (_down,) if _down is not None else ()
+            _interaction_cells = _preferred_interaction_cells(
+                game_map, _cells, _down, _walkable_distances,
+            )
+            _position = _free_interaction_position(
+                game_map,
+                cells=_interaction_cells,
+                forbidden_positions=_anchors,
+                min_path_distance=8,
+            )
+            if _position is None:
+                _position = _free_interaction_position(
+                    game_map,
+                    cells=_interaction_cells,
+                    forbidden_positions=_anchors,
+                    min_path_distance=1,
+                )
+            if _position is None:
+                _position = _free_interaction_position(
+                    game_map,
+                    cells=_cells,
+                    forbidden_positions=(),
+                )
+        if _position is None:
+            continue
+        if (
+            _interaction.action != "transition_floor"
+            and (_position.x, _position.y) in _used
+        ):
             continue
         _used.add((_position.x, _position.y))
         _entity = world.Entity(
@@ -331,6 +389,50 @@ def _ensure_floor_interactions(
                 _missing.append(_interaction)
         elif _existing is None:
             _missing.append(_interaction)
+        else:
+            _down = getattr(game_map, "down_stair_pos", None)
+            _cells = _feature_cells(game_map, origin)
+            _separate_cells = (
+                _separate_room_cells(game_map, _down, _walkable_distances)
+                if _down is not None else []
+            )
+            _interaction_cells = _separate_cells or _cells
+            _distance = (
+                _walkable_distances(game_map, _down).get(
+                    (_existing.pos.x, _existing.pos.y), -1,
+                )
+                if _down is not None else -1
+            )
+            _wrong_room = bool(
+                _separate_cells
+                and (_existing.pos.x, _existing.pos.y) not in _separate_cells
+            )
+            if _distance < 8 or _wrong_room:
+                _existing.pos = (
+                    _free_interaction_position(
+                        game_map,
+                        _interaction_cells,
+                        forbidden_positions=(_down,) if _down is not None else (),
+                        min_path_distance=8,
+                        ignore_entity=_existing,
+                    )
+                    or _free_interaction_position(
+                        game_map,
+                        _interaction_cells,
+                        forbidden_positions=(_down,) if _down is not None else (),
+                        min_path_distance=1,
+                        ignore_entity=_existing,
+                    )
+                    or _free_interaction_position(
+                        game_map,
+                        _cells,
+                        forbidden_positions=(),
+                        ignore_entity=_existing,
+                    )
+                    or _existing.pos
+                )
+            if _interaction.feature_theme == "engineering_room":
+                _stamp_engineering_room(game_map, _existing.pos)
     if _missing:
         _stamp_interactions(game_map, spec, origin, interactions=tuple(_missing))
 

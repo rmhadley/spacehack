@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from src.spacehack import dungeon_extension_layout
 from src.spacehack import dungeon_extensions
 from src.spacehack import message_log
 from src.spacehack import world
@@ -368,8 +369,14 @@ def test_phase_two_floors_have_expected_stair_connections_and_population():
 
 
 def test_phase_three_floor_four_has_engineering_and_elevator_anchors():
-    seed_rng(304)
-    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 4)
+    for seed in (304, 307, 308, 309, 310):
+        seed_rng(seed)
+        game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 4)
+
+        _assert_floor_four_interactions_are_separate(game_map)
+
+
+def _assert_floor_four_interactions_are_separate(game_map):
 
     assert game_map.location_name == "Alien Prison F4"
     assert game_map.feature_theme == "high_risk_quarters"
@@ -386,6 +393,33 @@ def test_phase_three_floor_four_has_engineering_and_elevator_anchors():
     }
     assert {"engineering_console", "deep_elevator"} <= _interactions
     assert game_map.down_stair_pos is not None
+    _console = next(
+        entity for entity in game_map.entities
+        if entity.dungeon_interaction == "engineering_console"
+    )
+    _elevator = next(
+        entity for entity in game_map.entities
+        if entity.dungeon_interaction == "deep_elevator"
+    )
+    _distance = dungeon_extensions._walkable_distances(
+        game_map, _elevator.pos,
+    ).get((_console.pos.x, _console.pos.y), -1)
+    assert _distance >= 8
+    _rooms = dungeon_extension_layout._room_core_components(game_map)
+    _distances = dungeon_extensions._walkable_distances(
+        game_map, _elevator.pos,
+    )
+    _elevator_room = min(
+        _rooms,
+        key=lambda room: min(
+            _distances.get(cell, float("inf")) for cell in room
+        ),
+    )
+    assert not any(
+        (_console.pos.x, _console.pos.y) in room
+        for room in _rooms
+        if room is _elevator_room
+    )
 
 
 def test_phase_three_elevator_requires_power_then_reaches_floor_five():
@@ -451,10 +485,16 @@ def test_floor_four_repair_reanchors_existing_elevator_to_repaired_stairs():
         entity for entity in game_map.entities
         if entity.dungeon_interaction == "deep_elevator"
     )
+    _console = next(
+        entity for entity in game_map.entities
+        if entity.dungeon_interaction == "engineering_console"
+    )
     _old_down = game_map.down_stair_pos
+    _stale_console_pos = world.Position(1, 1)
     game_map.tiles[_old_down.y][_old_down.x] = world.DUNGEON_FLOOR
     game_map.down_stair_pos = world.Position(1, 1)
     game_map.tiles[1][1] = world.DUNGEON_FLOOR
+    _console.pos = _stale_console_pos
 
     dungeon_extensions._ensure_floor_connections(
         game_map, "mars_alien_prison", 4,
@@ -465,6 +505,51 @@ def test_floor_four_repair_reanchors_existing_elevator_to_repaired_stairs():
     assert game_map.tiles[
         game_map.down_stair_pos.y
     ][game_map.down_stair_pos.x].kind == "stairs_down"
+    assert _console.pos != _stale_console_pos
+    _distance = dungeon_extensions._walkable_distances(
+        game_map, _elevator.pos,
+    ).get((_console.pos.x, _console.pos.y), -1)
+    assert _distance >= 8
+    assert game_map.tiles[
+        _console.pos.y
+    ][_console.pos.x].kind == "engineering_floor"
+
+
+def test_interaction_placement_has_unrestricted_fallback(monkeypatch):
+    seed_rng(307)
+    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 4)
+    spec = dungeon_extensions._floor_spec("mars_alien_prison", 4)
+    console = next(
+        interaction for interaction in spec.interactions
+        if interaction.id == "engineering_console"
+    )
+    game_map.entities[:] = [
+        entity for entity in game_map.entities
+        if entity.dungeon_interaction != "engineering_console"
+    ]
+    calls = []
+
+    def _fallback(game_map, cells, **kwargs):
+        calls.append(kwargs.get("forbidden_positions", ()))
+        if kwargs.get("forbidden_positions"):
+            return None
+        return world.Position(2, 2)
+
+    monkeypatch.setattr(
+        "src.spacehack.dungeon_extensions._free_interaction_position",
+        _fallback,
+    )
+    dungeon_extensions._stamp_interactions(
+        game_map, spec, game_map.entry_spawn, interactions=(console,),
+    )
+
+    assert calls[-1] == ()
+    _consoles = [
+        entity for entity in game_map.entities
+        if entity.dungeon_interaction == "engineering_console"
+    ]
+    assert len(_consoles) == 1
+    assert _consoles[0].pos == world.Position(2, 2)
 
 
 def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
