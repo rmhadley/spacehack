@@ -8,8 +8,9 @@ guide and HUD hints — both passive. This adds an **active, scripted
 tutorial**: a menu option that drops the player into a guided first run
 as a **Human Merchant** on Earth, walking them through their first
 bounty, first ship loadout, first space combat, first loot pickup, first
-jump (which triggers the main quest signal), gearing up for Mars, and
-their first ground combat — via a sequence of dismiss-only modal popups
+jump (which triggers the main quest signal), gearing up for Mars, their
+first ground combat, and their first level-up (spending skill points on
+the `C` character screen) — via a sequence of dismiss-only modal popups
 that fire exactly when the player reaches each beat.
 
 The tutorial **is** the real game, not a separate mode: the player keeps
@@ -116,7 +117,7 @@ so the first Sol bounty (Crimson Jack) already spawns just east of
 Mercury with zero changes. The tutorial's "press G and auto-nav toward
 Crimson Jack near Mercury" teaching is accurate out of the box.
 
-## The step script (the user's 12 beats)
+## The step script (the user's 14 beats)
 
 All modals are dismiss-only (ENTER/ESC), styled like the existing
 gate popup. Text is short — one idea per popup.
@@ -247,7 +248,8 @@ starter fuel 80 covers 2 jumps + travel).
 
 - [x] `earth_armory` + `armed_ground` steps.
 - [x] `maybe_ground_combat_intro` hook in `_run_ground_combat_tick`.
-- [x] `finale` (sets `tutorial_complete`; `tick` stops).
+- [x] `level_up` step + `_ensure_level_up` XP top-up (guaranteed L2).
+- [x] `finale` moved to a tick step gated on all skill points spent.
 - [x] Guide section + full test suite.
 
 **Playtest notes:** the armory equips purchases straight into
@@ -257,26 +259,36 @@ the signal beat and only on Earth; armed popup follows the armory
 beat (buying early still gets the armory popup first); ground-combat
 intro fires once; the finale fires once, sets `tutorial_complete`, and
 silences every hook + tick afterwards; a stray combat resolution before
-the ground intro cannot end the script. All acceptance-criteria items
-are now implemented; the full playtest below is the remaining gate.
+the ground intro cannot end the script.
 
-**PLAYTEST:** Land on Earth → armory popup → buy kinetic rifle → popup →
-launch → `G` to Mars → explore signal source → first ground combat opens
-with intro popup → win → finale popup → no further popups; run continues
-as normal sandbox (main quest door chain intact). Save/Continue through
-the whole arc.
+Post-playtest refinement: the finale originally fired immediately at
+combat end, but the player should also learn leveling. `level_up` now
+fires at combat end (XP topped up to guarantee level 2 — a single
+Mars cave fight may not reach the 90 XP threshold), teaching `C` =
+character screen + skill point allocation; the finale is gated on
+`level_up` shown **and** `player_skill_points <= 0`, so the script
+ends only after the points are actually spent. Verify on the final
+playtest: LEVEL UP popup → `C` → spend all 9 points → YOU'RE READY →
+tutorial complete. 272 total tests pass.
+
+**PLAYTEST (final, passed):** Land on Earth → armory popup → buy kinetic
+rifle → popup → launch → `G` to Mars → explore signal source → first
+ground combat opens with intro popup → win → LEVEL UP popup → `C` →
+spend all skill points → YOU'RE READY finale → no further popups; run
+continues as normal sandbox (main quest door chain intact).
+Save/Continue through the whole arc.
 
 ## Acceptance criteria
 
-- [ ] Tutorial accessible from the title menu, below Continue.
-- [ ] Forces Human Merchant; skips species/class/confirm screens.
-- [ ] Only Crimson Jack is offered on Earth; credits suffice for laser +
+- [x] Tutorial accessible from the title menu, below Continue.
+- [x] Forces Human Merchant; skips species/class/confirm screens.
+- [x] Only Crimson Jack is offered on Earth; credits suffice for laser +
       shield + rifle.
-- [ ] All 12 user beats fire exactly once, in order, at the right moment.
-- [ ] Combat intros appear before the combat UI, not during/after.
-- [ ] Tutorial autosaves + Continue resumes mid-script.
-- [ ] After `finale`, no more popups; sandbox continues (main quest live).
-- [ ] Non-tutorial New Game behavior is byte-for-byte unchanged.
+- [x] All user beats fire exactly once, in order, at the right moment.
+- [x] Combat intros appear before the combat UI, not during/after.
+- [x] Tutorial autosaves + Continue resumes mid-script.
+- [x] After `finale`, no more popups; sandbox continues (main quest live).
+- [x] Non-tutorial New Game behavior is byte-for-byte unchanged.
 
 ## Decisions (confirmed)
 
