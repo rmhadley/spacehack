@@ -66,6 +66,7 @@ _STEP_TITLES: dict[str, str] = {
     "earth_armory": "GROUND GEAR",
     "armed_ground": "HEAD TO MARS",
     "mars_ground_combat_intro": "GROUND COMBAT 101",
+    "level_up": "LEVEL UP",
     "finale": "YOU'RE READY",
 }
 
@@ -168,6 +169,15 @@ _STEP_BODIES: dict[str, str] = {
         "keys.\n\n"
         "Win this fight and the tutorial's core is done — the galaxy "
         "is yours."
+    ),
+    "level_up": (
+        "Victory! That fight pushed you to the next level — you "
+        "earned skill points.\n\n"
+        "Press 'C' to open your character screen and spend them. "
+        "Points boost your ship skills (Gunnery, Piloting, "
+        "Engineering) or your ground stats (Reflexes, Strength, "
+        "Stamina) — +1 per point, capped at 100.\n\n"
+        "Spend your points, and the tutorial wraps up."
     ),
     "finale": (
         "That's the tutorial! You know the core loop: take missions, "
@@ -322,6 +332,13 @@ _TICK_STEPS: tuple[tuple[str, Callable[[Any, str], bool]], ...] = (
             and bool(ctx.equipped_ground_weapons)
         ),
     ),
+    (
+        "finale",
+        lambda ctx, mode: (
+            "level_up" in ctx.tutorial_steps
+            and getattr(ctx, "player_skill_points", 0) <= 0
+        ),
+    ),
 )
 
 
@@ -342,6 +359,8 @@ def tick(ctx, mode: str = "city") -> None:
             continue
         if _condition(ctx, mode):
             _show_step(ctx, _step_id)
+            if _step_id == "finale":
+                ctx.tutorial_complete = True
             return
 
 
@@ -384,11 +403,30 @@ def maybe_ground_combat_intro(ctx) -> None:
 
 
 def notify_ground_combat_ended(ctx) -> None:
-    """First ground combat resolved — fire the finale and end the script."""
+    """First ground combat resolved — guarantee a level-up, then teach
+    the character screen (C + skill points).
+
+    The finale is a tick step gated on the player having spent their
+    points, so the script ends only after the leveling lesson lands.
+    """
     if (
         _active(ctx)
-        and "finale" not in ctx.tutorial_steps
+        and "level_up" not in ctx.tutorial_steps
         and "mars_ground_combat_intro" in ctx.tutorial_steps
     ):
-        _show_step(ctx, "finale")
-        ctx.tutorial_complete = True
+        _ensure_level_up(ctx)
+        _show_step(ctx, "level_up")
+
+
+def _ensure_level_up(ctx) -> None:
+    """Guarantee the player reaches level 2 after the first ground combat.
+
+    Level 2 needs 90 XP; a single Mars cave fight may not reach it, so
+    the tutorial tops the player up so the skill-point lesson is real.
+    """
+    if getattr(ctx, "player_level", 1) >= 2:
+        return
+    from .xp import add_xp, xp_for_level
+    _needed = xp_for_level(2) - getattr(ctx, "player_xp", 0)
+    if _needed > 0:
+        add_xp(ctx, _needed)

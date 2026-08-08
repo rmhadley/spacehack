@@ -135,10 +135,12 @@ gate popup. Text is short — one idea per popup.
 | 10 | `earth_armory` | land on Earth while signal completed | Visit the Armory terminal (`A`) and buy a Kinetic Rifle for ground combat. |
 | 11 | `armed_ground` | a ground weapon is equipped | Launch and press `G` to auto-nav to Mars; explore the signal source. |
 | 12 | `mars_ground_combat_intro` | first ground combat, before the combat UI | Ground combat 101: AP, LOS-based aggro, range, cover, weapons/armor, loot. |
-| 13 | `finale` | first ground combat ends | Final tips (trade, other guilds, `?` guide, permadeath) + "the galaxy is yours". Sets `tutorial_complete`. |
+| 13 | `level_up` | first ground combat ends | Guarantees the player reaches level 2 (topped-up XP if needed), then teaches `C` = character screen and spending skill points (+1/point, cap 100). |
+| 14 | `finale` | `level_up` shown **and** all skill points spent | Final tips (trade, other guilds, `?` guide, permadeath) + "the galaxy is yours". Sets `tutorial_complete`. |
 
-Steps 1–5, 7, 9–11, 13 fire from `tick()`; steps 6 and 12 fire from the
-two combat hooks; step 8 fires from `notify_pickup`.
+Steps 1–5, 7, 9–11, 14 fire from `tick()`; steps 6 and 12 fire from the
+two combat hooks; step 8 fires from `notify_pickup`; step 13 fires from
+`notify_ground_combat_ended`.
 
 ### Setup tweaks in `_run_game` (tutorial only)
 

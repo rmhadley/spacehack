@@ -59,6 +59,9 @@ class _StubCtx:
         self.main_quest_progress: dict = {}
         self.faction_reputation: dict = {}
         self.game_map = None
+        self.player_xp = 0
+        self.player_level = 1
+        self.player_skill_points = 0
 
 
 class TestSetupTutorial:
@@ -383,7 +386,8 @@ class TestMarsAndFinale:
 
         assert fired == ["mars_ground_combat_intro"]
 
-    def test_finale_fires_and_completes_tutorial(self):
+    def test_ground_combat_end_teaches_level_up_first(self):
+        """After ground combat the player is levelled up and taught C."""
         ctx = self._tutorial_ctx()
         tutorial.mark_step(ctx, "earth_armory")
         tutorial.mark_step(ctx, "armed_ground")
@@ -396,20 +400,76 @@ class TestMarsAndFinale:
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
             tutorial.notify_ground_combat_ended(ctx)
+
+        # The level-up lesson fires (not the finale), and the player is
+        # guaranteed at least level 2 with skill points to spend.
+        assert fired == ["level_up"]
+        assert ctx.player_level >= 2
+        assert ctx.player_skill_points > 0
+        assert "finale" not in ctx.tutorial_steps
+        assert ctx.tutorial_complete is False
+
+    def test_finale_waits_for_skill_points_spent(self):
+        """The finale fires only after the player spends their points."""
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "earth_armory")
+        tutorial.mark_step(ctx, "armed_ground")
+        tutorial.mark_step(ctx, "mars_ground_combat_intro")
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.notify_ground_combat_ended(ctx)
+            # Points still unspent → tick stays silent.
+            tutorial.tick(ctx, mode="dungeon")
+            assert fired == ["level_up"]
+
+            # Player spends all points via the C character screen.
+            ctx.player_skill_points = 0
+            tutorial.tick(ctx, mode="dungeon")
+            assert fired == ["level_up", "finale"]
+            assert ctx.tutorial_complete is True
+
             # After completion every hook and tick must be silent.
             tutorial.notify_ground_combat_ended(ctx)
             tutorial.maybe_ground_combat_intro(ctx)
             tutorial.tick(ctx, mode="city")
+            assert fired == ["level_up", "finale"]
 
-        assert fired == ["finale"]
-        assert ctx.tutorial_complete is True
-
-    def test_finale_gated_on_ground_intro(self):
-        """A stray combat resolution before the intro beat cannot end it."""
+    def test_level_up_gated_on_ground_intro(self):
+        """A stray combat resolution before the intro beat cannot level up."""
         ctx = self._tutorial_ctx()
         tutorial.notify_ground_combat_ended(ctx)
+        assert "level_up" not in ctx.tutorial_steps
         assert "finale" not in ctx.tutorial_steps
         assert ctx.tutorial_complete is False
+
+    def test_level_up_skips_xp_topup_when_already_leveled(self):
+        """Players who levelled earlier keep their XP untouched."""
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "earth_armory")
+        tutorial.mark_step(ctx, "armed_ground")
+        tutorial.mark_step(ctx, "mars_ground_combat_intro")
+        ctx.player_level = 3
+        ctx.player_xp = 500
+        ctx.player_skill_points = 12
+
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.notify_ground_combat_ended(ctx)
+
+        assert fired == ["level_up"]
+        assert ctx.player_level == 3
+        assert ctx.player_xp == 500
+        assert ctx.player_skill_points == 12
 
 
 class TestStepState:
