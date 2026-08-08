@@ -29,6 +29,7 @@ Space mode (when ``owned_ship`` is provided):
     |                 | Mod 0/1  |
     |                 | -------- |
     |                 | G - Go To|
+    |                 | P - Loot  |
     |                 | M - Map  |
     |                 | ESC Quit |
     +-----------------+----------+
@@ -339,6 +340,7 @@ def render_hud(
         # Keybinding help
         y = _render_help_lines(console, hud_x, y, [
             ("G", "Go To"),
+            ("P", "Loot"),
             ("M", "Map"),
             ("I", "Cargo"),
             ("T", "Comms"),
