@@ -163,6 +163,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=3,
             location_name="Alien Prison F3",
+            has_down_stairs=True,
             feature_theme="defensive_layer",
             params=dungeon.DungeonParams(
                 width=50,

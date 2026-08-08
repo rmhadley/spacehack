@@ -360,7 +360,10 @@ def test_phase_two_floors_have_expected_stair_connections_and_population():
                 tile.kind == "security_node"
                 for row in game_map.tiles for tile in row
             ) >= 1
-            assert not hasattr(game_map, "down_stair_pos")
+            assert game_map.down_stair_pos is not None
+            assert game_map.tiles[
+                game_map.down_stair_pos.y
+            ][game_map.down_stair_pos.x] is world.STAIRS_DOWN
         assert any(entity.npc_char_id for entity in game_map.entities)
 
 
@@ -492,11 +495,19 @@ def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
     floor_three, _ = dungeon_extensions.transition_floor(ctx, 1)
     assert ctx.dungeon_extension.current_floor == 3
     assert floor_three.location_name == "Alien Prison F3"
-    assert not hasattr(floor_three, "down_stair_pos")
+    assert floor_three.down_stair_pos is not None
 
-    returned_two, returned_player = dungeon_extensions.transition_floor(ctx, -1)
+    floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
+    assert ctx.dungeon_extension.current_floor == 4
+    assert floor_four.location_name == "Alien Prison F4"
+
+    returned_three, returned_player = dungeon_extensions.transition_floor(ctx, -1)
+    assert returned_three is floor_three
+    assert returned_player.pos == floor_three.down_stair_pos
+    assert ctx.dungeon_extension.current_floor == 3
+
+    returned_two, _ = dungeon_extensions.transition_floor(ctx, -1)
     assert returned_two is floor_two
-    assert returned_player.pos == floor_two.down_stair_pos
     assert ctx.dungeon_extension.current_floor == 2
 
     returned_one, _ = dungeon_extensions.transition_floor(ctx, -1)
