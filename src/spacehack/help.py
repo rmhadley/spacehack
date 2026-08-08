@@ -213,8 +213,8 @@ _GUIDE_DUNGEON_EXTENSIONS = GuideSection(
         "dead terminals are set dressing — only the single live terminal (T)"
         "responds"
         "\n"
-        "- Extracting the terminal's data completes the prison objective and"
-        "begins Act 1's research trail"
+        "- Extracting the terminal's data completes the opening Act 1 prison "
+        "objective; the post-prison research trail comes later"
     ),
 )
 
@@ -1439,8 +1439,8 @@ _GUIDE_MAIN_QUEST = GuideSection(
         "\n"
         "- When the door-opening chain is complete, bump the C console "
         "again. The barrier undulates, parts from the middle, and reveals "
-        "a green > marking stairs down. The stairs are a story marker for "
-        "now; Act 1's descent will be wired in later."
+        "a green > marking stairs down. Opening the door completes Act 0; "
+        "step onto the marker to begin Act 1's prison descent."
         "\n"
         "- Ask around about the door after using the console: the Barkeep, the Guild Master, "
         "the Militia Captain, and the Research Officers each have a "

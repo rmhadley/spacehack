@@ -258,11 +258,11 @@ class MainQuestStep:
 
 ### Act 0: Prologue — "The Door on Mars"
 
-The player receives a garbled transmission as they jump out of Sol for the first time. It points to a location on Mars. They explore Mars, find a sealed entrance to *something*, and can't get it open — then they seek help from NPCs across the sector. Act 0 ends when the player returns with the right knowledge/tools to open it.
+The player receives a garbled transmission as they jump out of Sol for the first time. It points to a location on Mars. They explore Mars, find a sealed entrance to *something*, and can't get it open — then they seek help from NPCs across the sector. Act 0 ends when the player returns with the right knowledge/tools and opens the door. Act 1 begins immediately on the other side, with the descent into the prison below Mars.
 
 **The Mars door is alien tech — the same kind as the Act 3 structure, but dormant.** The Act 3 structure is the *active, failing* seal; the Mars door is a *sealed, dormant* example of the same technology. It won't open with any human tool. This seeds the through-line: the player learns how the seal tech works here, and understands (and resolves) the failing seal at the end of the story. The two must NOT be conflated mechanically — the Mars door opens only with the right tool; the Act 3 structure opens on a cycle (M4's "door that opens on a cycle" refers to the Act 3 structure, not the Mars door).
 
-**Behind the door: an empty ancient alien prison.** Inside are technology beyond any known human tech and a cache of data that needs to be translated and studied. The cell is **empty** — whatever it held is long gone, or was never there, or got out. This is a deliberate ambiguity the Act 3 reveal pays off (is what's pressing on the failing seal the same thing the prison was built to hold?). The recovered data is the **fuel for Act 1's research trail** — the player carries it to the science stations, which is why the Research Officers take the player seriously.
+**Behind the door: an empty ancient alien prison.** Inside are technology beyond any known human tech and a cache of data that needs to be translated and studied. The cell is **empty** — whatever it held is long gone, or was never there, or got out. This is a deliberate ambiguity the Act 3 reveal pays off (is what's pressing on the failing seal the same thing the prison was built to hold?). The prison descent is the opening of Act 1; the recovered data becomes the foundation for the later research trail, which branches after the prison objective is complete.
 
 **Opening the door is a faction choice.** The player picks which faction helps them; *how* the door opens changes with that choice (see the table below). Choosing a faction plants that faction's claim early (the first claim — non-binding, "last claim wins" still decides the Act 3 epilogue), and colors how the rest of the story treats the player. Consistent with the rest of the game, no faction ever *refuses* to help — standing only changes the flavor and side terms, never access.
 
@@ -271,12 +271,12 @@ The player receives a garbled transmission as they jump out of Sol for the first
 | `prologue_signal` | First jump out of Sol | None | Garbled transmission on an unknown frequency — static, a burst of coordinates, then cut off. It points to a location on Mars. The player is the only one who seems to have heard it. **Delivered as a full-screen "INCOMING TRANSMISSION" comms overlay** (ENTER to acknowledge) as the player emerges in the destination system — the signal arrives through the comms, not just log lines. |
 | `prologue_mars_unlocked` | Signal received (auto) | None (checkpoint) | **Mars surface exploration unlocks.** (Today Mars is *always* explorable — see the gate note below.) |
 | `prologue_mars_entrance` | Explore the Mars surface | Mars (dungeon) | Among the red-dust ruins the player finds the entrance to something — a sealed door of alien make, no visible mechanism, older than the colony. It will not open. |
-| `prologue_seek_help` | Talk to NPCs about the door | Any of several | The player begins looking for help. Each faction NPC gives a DIFFERENT lead (faction fork seeds here): Barkeep (bar): "Heard about the thing in the dust? The militia sealed it — or *someone* did." Trade Marshal (merchants): "Alien tech? That's the most valuable cargo in history. Bring me proof." Mars Patrol (militia): "There is no door. Whatever you saw, forget it." Research Officer (lab): "A sealed structure? I need to study it. Bring me a sample of the material." The lab lead is found at a **science station** (Alpha Centauri Science Port, Mercury, Sirius, Procyon C) — Mars has no lab building, so the lab read is the one that pulls the player off-world (which feeds into Act 1's research trail). Dialogue is keyed by `npc_id`, so seek-help lines surface on whichever planet the player talks to the NPC (Earth or Mars variants of `barkeep`/`guild_master`/`militia_captain` share ids — intended).
+| `prologue_seek_help` | Talk to NPCs about the door | Any of several | The player begins looking for help. Each faction NPC gives a DIFFERENT lead (faction fork seeds here): Barkeep (bar): "Heard about the thing in the dust? The militia sealed it — or *someone* did." Trade Marshal (merchants): "Alien tech? That's the most valuable cargo in history. Bring me proof." Mars Patrol (militia): "There is no door. Whatever you saw, forget it." Research Officer (lab): "A sealed structure? I need to study it. Bring me a sample of the material." The lab lead is found at a **science station** (Alpha Centauri Science Port, Mercury, Sirius, Procyon C) — Mars has no lab building, so the lab read remains a later post-prison Act 1 branch. Dialogue is keyed by `npc_id`, so seek-help lines surface on whichever planet the player talks to the NPC (Earth or Mars variants of `barkeep`/`guild_master`/`militia_captain` share ids — intended).
 
   **LOCK-IN on accept (user decision):** accepting a faction's help commits the player to that faction's chain — `ctx.main_quest_chain` is set, the faction's tool is NOT yet granted, and the other three factions' "Ask about the Mars door" option rows close (their dialogues resolve to a locked/"you already have a way in" variant; they still offer normal work). The chain's 5 steps must ALL be completed before the door can open. |
-| `prologue_open` | Return to Mars after completing the chosen faction's 5-step chain | None (auto) | Act 0 ends when the player completes the faction chain (final step unlocks the faction's tool) and opens the entrance — revealing the empty prison and its data. The chosen faction's claim is planted (first claim). |
+| `prologue_open` | Return to Mars after completing the chosen faction's chain | None (auto) | Act 0 ends when the player completes the faction chain, receives the faction's tool, and opens the entrance. The empty prison is revealed; `act1_prison` becomes available and the chosen faction's claim is planted. The deeper terminal data is extracted during the Act 1 prison objective. |
 
-**Reward:** The door opens. The prison's data recovered (fuels Act 1). The chosen faction's claim is planted early. Faction fork is seeded (each NPC's lead points a different direction).
+**Reward:** The door opens and Act 0 closes. The prison descent becomes the opening Act 1 objective. The prison's data is recovered at the end of that descent, and the chosen faction's claim is seeded early. Faction fork is seeded (each NPC's lead points a different direction).
 
 **Faction opening methods — "the player picks who helps them":**
 
@@ -400,14 +400,24 @@ q5: talk      ░░░░  Resolution
 
 ### Act 1: "The Anomaly"
 
-Visit Research Officers at science stations to piece together what the signal is — carrying the **prison data** recovered on Mars, which is what earns the officers' attention. The research trail is the **breadcrumb**; the faction quests and mysteries are the **dig** content that opens alongside it.
+**Current story structure:** Act 1 begins when the Mars door opens and the player descends into the alien prison. The prison is not a side dungeon or a prelude to Act 1; it is the opening Act 1 chapter. The player restores power, crosses all five floors, reaches the deep cell, and extracts the one live terminal's incomprehensible data. The `act1_prison` objective completes on extraction.
+
+The earlier research-first opening (`research_alpha` → `research_sirius` → `research_mercury` → `research_procyon`) is **superseded** by the prison-first structure and is not current runtime scope. The research trail remains a later Act 1 branch: it should begin from the recovered prison data once the prison content is finished and its next steps are designed. Research Officers remain important, but they are not the player's first Act 1 objective.
+
+**Current Act 1 opening:**
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
-| `research_alpha` | Talk to Research Officer at Alpha Centauri Science Port | Research Officer | "The signal isn't human. The encryption is too clean, too old. Take this datacube to Sirius for analysis." |
-| `research_sirius` | Deliver datacube to Sirius Research Officer | Research Officer (Sirius) | "Confirmed. The signal originates beyond Luyten's Star. The blockade officer won't let anyone through — but Vega's old gate is still active." |
-| `research_mercury` | Talk to Research Officer on Mercury | Research Officer (Mercury) | "Vega's gate was decommissioned decades ago — officially. Our scans show it's still in use." |
-| `research_procyon` | Talk to Research Officer on Procyon C | Research Officer (Procyon) | "To get through, you'll need the nav key. It's in the blockade commander's safe at Luyten's Star." |
+| `act1_prison` | Enter the alien-prison extension through the opened Mars stairs; complete on Floor 5 extraction | None (auto) | Descend the five-floor facility, restore power to the deep elevator, reach the giant empty cell, and extract the data from the one terminal that still works. The result is incomprehensible, but proves the prison held something and that the evidence belongs to a larger anomaly. |
+
+**Next Act 1 branch — planned, not yet implemented:**
+
+| Step | Trigger | Giver | Description |
+|------|---------|-------|-------------|
+| `research_alpha` | Talk to Research Officer at Alpha Centauri Science Port after completing `act1_prison` | Research Officer | The recovered prison data establishes the reason to investigate. The officer begins translating the material and points the player toward the next station. |
+| `research_sirius` | Deliver the follow-up data to Sirius Research Officer | Research Officer (Sirius) | The analysis places the signal beyond Luyten's Star and points toward the hidden Vega gate. |
+| `research_mercury` | Talk to Research Officer on Mercury | Research Officer (Mercury) | The officer confirms that Vega's officially decommissioned gate is still in use. |
+| `research_procyon` | Talk to Research Officer on Procyon C | Research Officer (Procyon) | The officer identifies the nav key needed to pass the blockade. |
 
 **Alongside the trail (dig content, not in the quest log):**
 - **Faction backing (v1 depth: militia + merchants get full questlines; bar + lab are dialogue-only):**
@@ -482,13 +492,13 @@ A dead-star system with an alien structure — the source of the signal.
 ### Phase 1c: The Door on Mars — sealed entrance, seek-help, prologue_open
 
 - [x] Add the authored `data/landmarks/mars_signal_door.layout` landmark to the fresh Mars surface after `generate_dungeon`. Its lower `d` tile is the reachable entrance; stamping carves a protected route from the dungeon spawn to the approach cell and places the `C` door console entity. **The Mars surface dungeon persists across visits** (cached in `ctx.interiors` keyed `surface:mars` — same anti-farm rule as salvage wreck interiors): the landmark stays exactly where it was found, fog stays revealed, and `prepare_mars_surface` runs only on first generation. The legacy `main_quest_door` entity remains load-compatible for old saves.
-- [x] Bump interaction on the landmark's `C` console: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, plants the claim, Act 1 begins. **The two quest-beat bumps (discover + open) surface as full-screen overlays** (`main_quest.show_sealed_door_overlay`) — the same `ui.Modal` interruption pattern as the incoming transmission, with alien-rune static and ASCII door art. Repeat bumps stay as log lines only (no modal nag).
+- [x] Bump interaction on the landmark's `C` console: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, completes Act 0, and makes `act1_prison` available. **The two quest-beat bumps (discover + open) surface as full-screen overlays** (`main_quest.show_sealed_door_overlay`) — the same `ui.Modal` interruption pattern as the incoming transmission, with alien-rune static and ASCII door art. Repeat bumps stay as log lines only (no modal nag).
 - [x] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) plants `backing_faction` + unlocks the tool item. **The offer surfaces as its own full-screen modal** (`main_quest.show_help_offer`) when the player picks the "Ask about the Mars door" option row — the talk modal stays short (normal flavor + the option row), and the offer modal shows the NPC's full lead (word-wrapped, never truncated) with **Accept help** / **Keep looking** options. Keep looking loops back to the talk modal; Accept runs `trigger_dialogue`.
-- [x] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal
+- [x] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal, completes Act 0, and makes the Act 1 prison objective available
 - [x] Minimal quest-log breadcrumb: "MAIN QUEST" section showing current step title + objective (full UI polish stays in Phase 4)
 - [x] Smoke test + commit
 
-**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → follow the carved path to the landmark's lower `d` entrance → bump the `C` console (can't open — a SEALED ENTRANCE overlay pops up with alien runes + door art, ENTER dismisses) → talk to each faction NPC (talk modal shows normal flavor + the gold "Ask about the Mars door" row — no more truncated/quoted lead in the body; picking the row opens an AN OFFER OF HELP modal with the NPC's full lead, word-wrapped, plus Accept help / Keep looking) → pick Accept on one faction (claim planted, tool unlocked) → return to Mars → the SAME surface landmark reloads (console and entrance where you left them, fog still revealed) → bump the console → the barrier undulates, splits from the middle, and reveals the green `>` stairs-down marker; THE SEAL GIVES WAY overlay pops up, prison revealed, Act 1 seeds → bump it again (repeat) → log line only, no modal. The stairs remain a story marker until Act 1's descent is wired. Also test Keep looking on a second faction (returns to the talk modal; you can walk away). Verify quest log (Q) tracks each step. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon and console entity).
+**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → follow the carved path to the landmark's lower `d` entrance → bump the `C` console (can't open — a SEALED ENTRANCE overlay pops up with alien runes + door art, ENTER dismisses) → talk to each faction NPC (talk modal shows normal flavor + the gold "Ask about the Mars door" row — no more truncated/quoted lead in the body; picking the row opens an AN OFFER OF HELP modal with the NPC's full lead, word-wrapped, plus Accept help / Keep looking) → pick Accept on one faction (claim planted, chain locked in) → return to Mars → the SAME surface landmark reloads (console and entrance where you left them, fog still revealed) → complete the chosen chain → bump the console → the barrier undulates, splits from the middle, and reveals the green `>` stairs-down marker; THE SEAL GIVES WAY overlay pops up, prison revealed, Act 0 completes, and `act1_prison` becomes available → bump it again (repeat) → log line only, no modal. The stairs now enter the Act 1 prison content. Also test Keep looking on a second faction (returns to the talk modal; you can walk away). Verify quest log (Q) tracks the boundary. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon and console entity).
 
 ### Phase 1d: Chain infrastructure — lock-in, objective types, delve sites
 
@@ -567,7 +577,7 @@ A dead-star system with an alien structure — the source of the signal.
 
 - [ ] Full 4-chain regression: run all four chains end-to-end on separate saves to `prologue_open`
 - [ ] Verify lock-in exclusivity: after accepting one faction, the other three offer rows stay closed even across save/load
-- [ ] Verify `prologue_open` completion plants the claim + recovers the prison data (existing 1c behavior) on ALL four tool types
+- [ ] Verify `prologue_open` completion plants the claim, closes Act 0, reveals the prison, and makes `act1_prison` available for ALL four tool types; prison data extraction is verified in the separate prison-content pass
 - [ ] Balance pass: delve cache yields vs. early-game cargo capacity; cave size/placement difficulty (cache must be reachable without combat gear); bounty difficulty vs. expected level at that point; gate lengths feel like pacing, not padding
 - [ ] Smoke test + commit
 
@@ -584,12 +594,13 @@ A dead-star system with an alien structure — the source of the signal.
 
 **PLAYTEST (1j):** complete militia q1 → "We'll be in touch. Requisition takes time to clear." in the log → quest log reads "Awaiting word from the Militia..." → skip 60+ days (dev-mode) → a one-way comms overlay arrives: "Report to Mercury. The cache is mapped." → q2 unlocks and the Mercury delve site appears. Deliberately ignore a summon for 200+ days on a separate save → nothing fails; answering late works normally — the long gate (2-4 in-game months) should cover several sandbox sessions. Save during a pending gate → continue → gate intact, summon re-delivers. 
 
-### Phase 2: Acts 1-3 story data
+### Phase 2: Post-prison Acts 1-3 story data
 
-- [ ] Write Acts 1-3 as data (all steps, triggers, rewards)
-- [ ] Wire Research Officer conversations as quest step triggers
-- [ ] Wire Blockade Officer and Luyten bar as blockade breach triggers
-- [ ] Wire uncharted system entry as Act 3 trigger
+- [ ] Finish and playtest the alien-prison content before extending the post-prison story.
+- [ ] Write the post-prison Act 1 research branch as data (all steps, triggers, rewards); `act1_prison` is already implemented as the opening step.
+- [ ] Wire Research Officer conversations as quest-step triggers after `act1_prison`.
+- [ ] Wire Blockade Officer and Luyten bar as blockade-breach triggers.
+- [ ] Wire uncharted system entry as the Act 3 trigger.
 - [ ] Add "Ancient Sentinel" NpcShipSpec to `data/npc_ships/core.py` (T4+ challenge)
 - [ ] Wire `beyond_core` combat gauntlet
 - [ ] Add `main_quest_flavor` to key planets
@@ -625,14 +636,14 @@ A dead-star system with an alien structure — the source of the signal.
 
 ### Phase 6: Guide + final polish
 
-- [x] Add main quest section to in-game guide (`_GUIDE_MAIN_QUEST` — rewritten to match the shipped act 0 chains)
-- [ ] Full playtest: prologue → research → mysteries → blockade breach → beyond → finale
+- [x] Add main quest section to in-game guide (`_GUIDE_MAIN_QUEST` — updated for the shipped Act 0 chains and Act 1 prison entry)
+- [ ] Full playtest: prologue → Mars door opening → prison descent/extraction → post-prison research → mysteries → blockade breach → beyond → finale
 - [ ] DRY/RNG audit
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
 - [x] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_chain`, `main_quest_gate`, `main_quest_pending_message`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`; entity flags (`main_quest_door`, `main_quest_step_id`) + quest NPC respawn covered
-- [x] **Game guide:** `_GUIDE_MAIN_QUEST` section updated for the shipped act 0 chains (bar / merchants / militia / lab)
+- [x] **Game guide:** `_GUIDE_MAIN_QUEST` section updated for the shipped Act 0 chains (bar / merchants / militia / lab) and the Act 1 prison descent/extraction
 - [x] **NPC spawns:** Quest-tagged bounty/salvage spawns via `BountySpawn` (leader + escorts + wreck) with cleanup on completion
 
 ## Open questions

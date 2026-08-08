@@ -901,22 +901,27 @@ def _activation_cells(
     game_map: world.GameMap,
     position: world.Position,
     occupied: set[tuple[int, int]],
+    needed_count: int,
 ) -> list[tuple[int, int]]:
-    """Find the nearest ring of free floor cells around an activation."""
+    """Find the nearest free floor cells around an activation."""
     _max_radius = max(game_map.width, game_map.height)
+    _found: list[tuple[int, int]] = []
     for _radius in range(_max_radius):
-        _cells = [
+        _found.extend(
             (_x, _y)
             for _y in range(position.y - _radius, position.y + _radius + 1)
             for _x in range(position.x - _radius, position.x + _radius + 1)
             if max(abs(_x - position.x), abs(_y - position.y)) == _radius
             and game_map.in_bounds(_x, _y)
             and game_map.tiles[_y][_x].walkable
+            and game_map.tiles[_y][_x].kind not in {
+                "stairs_up", "stairs_down",
+            }
             and (_x, _y) not in occupied
-        ]
-        if _cells:
-            return _cells
-    return []
+        )
+        if len(_found) >= needed_count:
+            return _found[:needed_count]
+    return _found
 
 
 def _spawn_activation_group(
@@ -924,7 +929,7 @@ def _spawn_activation_group(
     position: world.Position,
     event,
 ) -> int:
-    """Spawn one capped security group around an activation anchor."""
+    """Spawn one capped security group around the player's position."""
     from .data.npc_chars import find_npc_char
 
     try:
@@ -932,9 +937,11 @@ def _spawn_activation_group(
     except KeyError:
         return 0
     _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
-    _cells = _activation_cells(game_map, position, _occupied)
     _count = max(0, min(event.count, event.max_count))
-    if not _cells or _count == 0:
+    if _count == 0:
+        return 0
+    _cells = _activation_cells(game_map, position, _occupied, _count)
+    if not _cells:
         return 0
     return dungeon._scatter_squad(
         game_map.entities,
@@ -948,11 +955,60 @@ def _spawn_activation_group(
     )
 
 
-def tick_activation(ctx) -> bool:
-    """Activate any reached extension security events once per run.
+def _progress_reached(
+    game_map: world.GameMap,
+    player_pos: world.Position,
+    event,
+    event_position: world.Position | None,
+) -> bool:
+    """Return whether the player crossed an event's progress threshold.
 
-    Returns ``True`` when at least one event fired. Player-facing flavor is
-    intentionally delivered through the existing main-quest gate popup.
+    Floor 1 security is staged along the route to the next floor, not at
+    arbitrary map coordinates. A shortest-path distance to the down stairs
+    makes the trigger monotonic: once the player reaches a threshold, taking
+    a side corridor or stepping back cannot make the event unreliable.
+    ``event_position`` remains a compatibility fallback for old/corrupt maps
+    that have no usable stair connection.
+    """
+    _entry = getattr(game_map, "up_stair_pos", None)
+    _down = getattr(game_map, "down_stair_pos", None)
+    if (
+        not isinstance(_entry, world.Position)
+        or not isinstance(_down, world.Position)
+        or not game_map.in_bounds(_entry.x, _entry.y)
+        or not game_map.in_bounds(_down.x, _down.y)
+    ):
+        return _within_trigger_radius(player_pos, event_position, event.trigger_radius)
+    _to_down = _walkable_distances(game_map, _down)
+    _total = _to_down.get((_entry.x, _entry.y))
+    _remaining = _to_down.get((player_pos.x, player_pos.y))
+    if _total is None or _remaining is None:
+        return _within_trigger_radius(player_pos, event_position, event.trigger_radius)
+    _threshold = _total * (1.0 - min(max(event.distance_fraction, 0.0), 1.0))
+    return _remaining <= _threshold
+
+
+def _within_trigger_radius(
+    player_pos: world.Position,
+    event_position: world.Position | None,
+    radius: int,
+) -> bool:
+    """Preserve proximity activation for legacy maps without stairs."""
+    if event_position is None:
+        return False
+    return max(
+        abs(player_pos.x - event_position.x),
+        abs(player_pos.y - event_position.y),
+    ) <= radius
+
+
+def tick_activation(ctx) -> bool:
+    """Activate security as the player progresses toward the next floor.
+
+    Events are checked after each dungeon move or wait. They no longer depend
+    on the player crossing a generated coordinate: reaching an event's
+    monotonic route-progress threshold fires it, and the security group is
+    spawned beside the player so the facility visibly powers up around them.
     """
     _state = ctx.dungeon_extension
     if _state is None or not _state.active:
@@ -963,16 +1019,11 @@ def tick_activation(ctx) -> bool:
         if _event.id in _state.activated_events:
             continue
         _position = _event_position(ctx, _event.id)
-        if _position is None:
+        if not _progress_reached(
+            ctx.game_map, ctx.player.pos, _event, _position,
+        ):
             continue
-        if max(
-            abs(ctx.player.pos.x - _position.x),
-            abs(ctx.player.pos.y - _position.y),
-        ) > _event.trigger_radius:
-            continue
-        _spawned = _spawn_activation_group(ctx.game_map, _position, _event)
-        if _spawned == 0:
-            continue
+        _spawned = _spawn_activation_group(ctx.game_map, ctx.player.pos, _event)
         _state.activated_events.add(_event.id)
         _fired = True
         from .main_quest import show_gate_popup
@@ -984,5 +1035,9 @@ def tick_activation(ctx) -> bool:
             title=_event.title,
         )
         if _spawned:
-            ctx.log.add(f"Security systems online: {_spawned} hostile unit(s) activated.")
+            ctx.log.add(
+                f"Security systems online: {_spawned} hostile unit(s) activated."
+            )
+        else:
+            ctx.log.add("Security systems online; no deployable unit detected.")
     return _fired

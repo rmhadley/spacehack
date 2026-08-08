@@ -47,6 +47,91 @@ def _parent_map() -> tuple[world.GameMap, world.Entity]:
     return game_map, player
 
 
+def _position_between_security_thresholds(game_map: world.GameMap) -> world.Position:
+    """Find a reachable cell after alpha but before beta progress."""
+    _entry = game_map.up_stair_pos
+    _down = game_map.down_stair_pos
+    _distances = dungeon_extensions._walkable_distances(game_map, _down)
+    _total = _distances[(_entry.x, _entry.y)]
+    _alpha = _total * (1.0 - 0.42)
+    _beta = _total * (1.0 - 0.76)
+    _cells = [
+        _cell for _cell, _remaining in _distances.items()
+        if _beta < _remaining <= _alpha
+    ]
+    assert _cells
+    return world.Position(*_cells[0])
+
+
+def test_activation_cells_collect_multiple_rings_without_stairs():
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(7)] for _ in range(7)]
+    _tiles[3][2] = world.STAIRS_DOWN
+    _game_map = world.GameMap(7, 7, _tiles, [])
+    _position = world.Position(3, 3)
+    _occupied = {
+        (x, y)
+        for y in range(7)
+        for x in range(7)
+        if max(abs(x - 3), abs(y - 3)) <= 1
+    }
+    _occupied.remove((2, 3))
+
+    _cells = dungeon_extensions._activation_cells(
+        _game_map, _position, _occupied, needed_count=3,
+    )
+
+    assert len(_cells) == 3
+    assert (2, 3) not in _cells
+    assert all(max(abs(x - 3), abs(y - 3)) >= 2 for x, y in _cells)
+
+
+def test_activation_cells_return_empty_when_only_stair_is_free():
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(5)] for _ in range(5)]
+    _tiles[2][1] = world.STAIRS_UP
+    _game_map = world.GameMap(5, 5, _tiles, [])
+    _position = world.Position(2, 2)
+    _occupied = {
+        (x, y)
+        for y in range(5)
+        for x in range(5)
+        if (x, y) != (1, 2)
+    }
+
+    assert dungeon_extensions._activation_cells(
+        _game_map, _position, _occupied, needed_count=1,
+    ) == []
+
+
+def test_activation_threshold_resolves_when_no_deployment_cell_exists(monkeypatch):
+    seed_rng(15)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    extension_map, extension_player = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "src.spacehack.dungeon_extensions._spawn_activation_group",
+        lambda *args, **kwargs: 0,
+    )
+    extension_player.pos = _position_between_security_thresholds(extension_map)
+
+    assert dungeon_extensions.tick_activation(ctx)
+    assert "prison_floor1_security_alpha" in ctx.dungeon_extension.activated_events
+    assert not dungeon_extensions.tick_activation(ctx)
+    assert any(
+        "no deployable unit" in entry.text
+        for entry in ctx.log.recent(n=len(ctx.log))
+    )
+
+
 def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
     seed_rng(7)
     game_map, spawn = dungeon_extensions._generate_floor("mars_alien_prison", 1)
@@ -188,17 +273,16 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
         lambda _ctx, faction, message, *, title: shown.append((faction, title)),
     )
     event_id = "prison_floor1_security_alpha"
-    event_pos = dungeon_extensions._event_position(ctx, event_id)
-    assert event_pos is not None
-    extension_player.pos = event_pos
+    extension_player.pos = _position_between_security_thresholds(extension_map)
 
     assert dungeon_extensions.tick_activation(ctx)
     assert event_id in ctx.dungeon_extension.activated_events
+    assert "prison_floor1_security_beta" not in ctx.dungeon_extension.activated_events
     assert any(
         entity.npc_char_id == "sentry_drone"
         and max(
-            abs(entity.pos.x - event_pos.x),
-            abs(entity.pos.y - event_pos.y),
+            abs(entity.pos.x - extension_player.pos.x),
+            abs(entity.pos.y - extension_player.pos.y),
         ) <= 3
         for entity in extension_map.entities
     )
@@ -225,19 +309,49 @@ def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
         lambda *args, **kwargs: None,
     )
     event_id = "prison_floor1_security_beta"
-    event_pos = dungeon_extensions._event_position(ctx, event_id)
-    assert event_pos is not None
-    extension_player.pos = event_pos
+    ctx.dungeon_extension.activated_events.add(
+        "prison_floor1_security_alpha",
+    )
+    extension_player.pos = extension_map.down_stair_pos
 
     assert dungeon_extensions.tick_activation(ctx)
+    assert event_id in ctx.dungeon_extension.activated_events
     assert any(
         entity.npc_char_id == "assault_drone"
         and max(
-            abs(entity.pos.x - event_pos.x),
-            abs(entity.pos.y - event_pos.y),
+            abs(entity.pos.x - extension_player.pos.x),
+            abs(entity.pos.y - extension_player.pos.y),
         ) <= 3
         for entity in extension_map.entities
     )
+
+
+def test_progress_trigger_fires_when_anchor_is_skipped(monkeypatch):
+    seed_rng(13)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    extension_map, extension_player = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    extension_player.pos = extension_map.down_stair_pos
+
+    assert dungeon_extensions.tick_activation(ctx)
+    assert {
+        "prison_floor1_security_alpha",
+        "prison_floor1_security_beta",
+    } <= ctx.dungeon_extension.activated_events
+    assert sum(
+        entity.npc_char_id in {"sentry_drone", "assault_drone"}
+        for entity in extension_map.entities
+    ) == 2
 
 
 def test_cached_floor_repairs_pre_phase_two_missing_down_stairs():

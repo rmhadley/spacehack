@@ -135,8 +135,8 @@ DEBRIS = Tile(kind="debris", char="%", walkable=True,
 EXIT = Tile(kind="exit", char=">", walkable=True,
             fg=(100, 255, 120), bg=(20, 60, 25))
 # Act 0's revealed Mars stairs are deliberately distinct from EXIT: they
-# are a persistent story marker for now and must not return the player to
-# space until the Act 1 transition is implemented.
+# are a persistent story marker that enters the Act 1 alien-prison extension,
+# rather than returning the player to space.
 STAIRS_DOWN = Tile(kind="stairs_down", char=">", walkable=True,
                    fg=(130, 255, 180), bg=(20, 55, 35))
 STAIRS_UP = Tile(kind="stairs_up", char="<", walkable=True,

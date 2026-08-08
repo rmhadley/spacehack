@@ -39,7 +39,8 @@ Floor order:
 5. **Deep cell** — the elevator arrives inside a giant empty cell. Its doors
    have been torn out by something massive and unknown. Terminals are scattered
    around the cell; only one still powers up. Extracting its incomprehensible
-   data completes the Mars prison objective and begins Act 1's research trail.
+   data completes the opening Act 1 prison objective. The later research trail
+   branches from the recovered data after the prison content is finished.
 
 ## Design decisions (locked)
 
@@ -48,7 +49,7 @@ Floor order:
 | **Generation strategy** | Procedural-first: generate each floor from reusable dungeon parameters, then reserve stable structural anchors for objectives and future landmark stamping. |
 | **Authored content** | No required hand-authored floor map in the first vertical slice. Handcrafted landmarks remain a later extension point, not a prerequisite for the framework. |
 | **Floor travel** | Backtrack freely between visited floors; preserve each floor as a persistent interior. |
-| **Floor 5 outcome** | Extracting the data starts Act 1 research by unlocking the existing Alpha Centauri research step. |
+| **Floor 5 outcome** | Extracting the data completes the opening Act 1 prison objective. The post-prison research branch is intentionally deferred until the prison content is finished. |
 | **Prison population** | Cells remain empty. Security defenses and random pests provide danger without populating prisoners. |
 | **Narrative tone** | The facility is ancient, technologically superior, and ambiguous. The deep cell shows evidence of an unknown escape, not a direct monster reveal. |
 
@@ -127,10 +128,16 @@ powers up and becomes hostile. Each activation should:
 - use the existing ground-combat entity model and save/load fields
 
 The activation schedule is generic (`activation_events` / thresholds); the
-alien-prison data supplies the warning text and security enemy IDs. Player-facing
-activation flavor uses the existing main-quest modal popup pattern, such as
-`show_gate_popup`, rather than introducing a second notification system. The
-ordinary message log may still receive a concise follow-up state update.
+alien-prison data supplies the warning text and security enemy IDs. Floor 1
+thresholds are measured by reachable progress toward the Floor 2 stairs, so a
+player cannot permanently miss an event by taking a side route or skipping an
+old anchor cell. When a threshold is crossed, the event is persisted exactly
+once; security deploys near the player when a free floor cell exists, while a
+fully occupied area still records the systems as online and reports that no
+unit could deploy. Player-facing activation flavor uses the existing main-quest
+modal popup pattern, such as `show_gate_popup`, rather than introducing a
+second notification system. The ordinary message log may still receive a
+concise follow-up state update.
 
 ## Domain changes
 
@@ -153,8 +160,7 @@ ordinary message log may still receive a concise follow-up state update.
 - Replace the current story-only Mars `>` endpoint with entry into prison Floor 1.
 - Add prison objectives for reaching the engineering room, restoring power,
   reaching the deep cell, and extracting the data.
-- On successful Floor 5 extraction, mark the prison objective complete and unlock
-  the existing Act 1 `research_alpha` step (or its registered equivalent).
+- On successful Floor 5 extraction, complete the Act 1 `act1_prison` objective. Do not unlock the old research-first handoff here; the post-prison research branch will be designed and wired after the prison content is finished.
 - Preserve the empty-cell ambiguity and do not reveal the escaped entity yet.
 
 ### Game loop / transitions
@@ -219,8 +225,8 @@ activation sequence.
 - `src/spacehack/saveload.py`: `_dungeon_to_dict`, `_dungeon_from_dict`, and
   persistent `ctx.interiors` serialization can be reused for each prison floor.
 - `src/spacehack/data/main_quest/`: the registered `MainQuestStep` data and
-  `main_quest_progress`/gate helpers already support unlocking the Act 1
-  research trail.
+  `main_quest_progress`/gate helpers already support the `act1_prison` objective
+  and the later post-prison research branch.
 - `tests/test_dungeon.py` and `tests/test_saveload.py`: existing generation,
   mutation, and round-trip tests are the regression anchors.
 
@@ -340,15 +346,17 @@ extraction, and re-enter the floor without duplicating terminals.
 
 ### Phase 5 — Tuning, landmarks, guide, and final regression pass
 
-- [ ] Tune security/pest populations and encounter pacing.
+- [ ] Tune security/pest populations and encounter pacing; Floor 1 security now fires from monotonic progress toward the Floor 2 stairs and spawns beside the player rather than requiring an exact generated anchor. Thresholds resolve once even if every nearby floor cell is occupied, and stair tiles are never used as deployment cells.
 - [ ] Add optional hand-authored landmarks stamped into generated anchors.
-- [ ] Update the in-game guide and main-quest design references.
+- [x] Update the in-game guide and main-quest design references; the guide now explains that the opened door ends Act 0 and the stairs begin the Act 1 prison descent.
 - [ ] Add generation, transition, activation, mutation, and save/load regression tests.
 - [ ] Run smoke and the full test suite.
 
-**PLAYTEST:** Complete the full five-floor run, return to Mars, visit Alpha
-Centauri, and confirm the Act 1 research trail starts with the incomprehensible
-data rather than a human-readable explanation.
+**PLAYTEST:** Complete the full five-floor run, confirm `act1_prison` becomes
+active on prison entry and completes on Floor 5 extraction, save/Continue before
+and after extraction, and re-enter the floor without duplicating terminals or
+security. The later Alpha Centauri research handoff is intentionally out of
+scope for this prison-content pass.
 
 ## Acceptance criteria
 
@@ -365,14 +373,21 @@ data rather than a human-readable explanation.
 - Free backtracking works between visited floors and back to Mars.
 - The Floor 4 elevator cannot be used before engineering power is restored.
 - Floor 5 contains one usable data terminal and incomprehensible extracted data.
-- Extraction completes the Act 1 prison objective; the research trail branches
-  from the recovered data (Act structure: door = end of Act 0, descent = start
-  of Act 1).
+- Extraction completes the opening Act 1 prison objective; the post-prison
+  research trail branches from the recovered data later (Act structure: door =
+  end of Act 0, descent = start of Act 1).
 - Every mutable prison/floor state survives save/load without duplication.
 - The guide explains the new player-facing mechanics.
 - Smoke and the full test suite pass.
 
-## Open questions
+## Current status and remaining prison work
+
+The Act boundary is now explicit: opening the Mars door completes Act 0;
+entering the prison starts Act 1; Floor 5 extraction completes the opening
+`act1_prison` objective. The old research-first handoff is superseded and is
+not a prerequisite for finishing this content pack.
+
+### Open questions
 
 - Exact prison enemy IDs and security mix should be selected during Phase 5
   tuning from the existing NPC catalog.
@@ -380,3 +395,14 @@ data rather than a human-readable explanation.
   but it must support future themes without prison-specific branches.
 - The final terminal's one-line immediate flavor text can be refined during
   implementation, but it must not decode the data or reveal the escaped entity.
+- Whether Phase 5's optional authored landmarks materially improve the prison
+  run should be decided after the full five-floor playtest, not assumed as a
+  prerequisite for the current content pass.
+
+### Current completion target
+
+Finish and validate the prison as a self-contained Act 1 opening: tune enemy
+populations and pacing, decide whether to add optional landmarks, validate the
+player guide and cross-references, add the remaining regression coverage, and
+complete the full five-floor save/load playtest. Only then should the post-prison
+research branch be implemented.
