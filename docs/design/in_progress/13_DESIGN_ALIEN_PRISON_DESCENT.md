@@ -266,15 +266,24 @@ activation sequence.
 
 **PLAYTEST:** Open the Mars door, step onto `>`, confirm a procedural
 `Alien Prison F1` loads; explore until a main-quest modal popup warns
-that security systems are powering up; quit and Continue inside Floor 1; return
-to Mars; re-enter without generating a second facility; verify activated
-security stays activated and does not show the popup again.
+that security systems are powering up; verify that one nearby security unit
+appears. Continue exploring until the second popup fires and the other nearby
+security unit appears; either unit may come first because the route is
+procedural. Quit and Continue inside Floor 1; return to Mars; re-enter without
+generating a second facility; verify activated security stays activated and
+does not show the popup again.
 
 **Implementation checkpoint:** The generic extension runtime, procedural Floor 1,
 Mars entry/return, persistent activation events, guide section, and save/load
 coverage are implemented. Automated validation: `python3 tools/smoke.py` passes
-and `python3 tools/test.py` passes with 224 tests. Manual playtest remains the
+and `python3 tools/test.py` passes with 225 tests. Manual playtest remains the
 next checkpoint before Phase 2.
+
+**Playtest result:** The Floor 1 HUD label remained readable as `Alien Prison F1`.
+Both security activations fired and spawned nearby enemies; the deeper trigger
+was reached first in this procedural run, spawning the assault drone before the
+sentry drone. Save/Continue, return to Mars, and re-entry all worked. Encounter
+order is intentionally route-dependent rather than tied to enemy type.
 
 ### Phase 2 — Floors 2-3 and free backtracking
 
