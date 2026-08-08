@@ -440,7 +440,7 @@ def render_hud(
 
         # Movement key hints (below terminals, above footer)
         y += 2
-        y = _render_help_lines(console, hud_x, y, [
+        _help_lines = [
             ("Q", "Quest Log"),
             ("C", "Character"),
             ("F", "Factions"),
@@ -448,7 +448,10 @@ def render_hud(
             ("Arrows", "Move"),
             ("h/j/k/l", "Move"),
             ("numpad", "Move"),
-        ])
+        ]
+        if mode == "dungeon":
+            _help_lines.insert(0, ("G", "Loot"))
+        y = _render_help_lines(console, hud_x, y, _help_lines)
 
         # XP progress bar — between key hints and footer.
         console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=_xp_fg)
