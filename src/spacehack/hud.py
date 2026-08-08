@@ -442,6 +442,7 @@ def render_hud(
         y += 2
         _help_lines = [
             ("Q", "Quest Log"),
+            ("I", "Cargo"),
             ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
