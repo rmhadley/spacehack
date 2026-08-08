@@ -134,6 +134,10 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "main_quest_pending_objective": ctx.main_quest_pending_objective,
         "main_quest_complete": ctx.main_quest_complete,
         "dungeon_extension": _d(ctx.dungeon_extension),
+        # Tutorial mode (design doc 14): resume mid-script on Continue.
+        "tutorial_mode": ctx.tutorial_mode,
+        "tutorial_steps": sorted(ctx.tutorial_steps),
+        "tutorial_complete": ctx.tutorial_complete,
     }
 
 
@@ -1038,6 +1042,10 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.main_quest_pending_message = _data.get("main_quest_pending_message", "")
     _ctx.main_quest_pending_objective = _data.get("main_quest_pending_objective", "")
     _ctx.main_quest_complete = _data.get("main_quest_complete", False)
+    # Tutorial mode — defaults keep non-tutorial saves loadable.
+    _ctx.tutorial_mode = bool(_data.get("tutorial_mode", False))
+    _ctx.tutorial_steps = set(_data.get("tutorial_steps", []) or [])
+    _ctx.tutorial_complete = bool(_data.get("tutorial_complete", False))
     _extension_data = _data.get("dungeon_extension")
     if isinstance(_extension_data, dict) and _extension_data.get("extension_id"):
         _parent_position = _extension_data.get("parent_position")

@@ -1555,7 +1555,30 @@ _GUIDE_DUNGEON_MONSTERS = GuideSection(
 )
 
 
+_GUIDE_TUTORIAL = GuideSection(
+    title="Tutorial Mode",
+    body=(
+        "The Tutorial option on the title menu drops you straight into a "
+        "guided first run as a Human Merchant — no character creation."
+        "\n\n"
+        "It walks you through your first bounty (Crimson Jack), your first "
+        "ship loadout, space combat, loot pickup, jumping (which triggers "
+        "the main quest), and ground combat on Mars, using popups that "
+        "fire exactly when each moment arrives."
+        "\n\n"
+        "It is the real game, not a demo: you keep the credits, XP, the "
+        "bounty, and the main quest. When the final popup fires, the "
+        "tutorial is over and the run continues as a normal sandbox."
+        "\n\n"
+        "The game autosaves as usual, so ESC and Continue resume your "
+        "tutorial run mid-script. Starting a Tutorial (or a New Game) "
+        "replaces the previous save."
+    ),
+)
+
+
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
+    _GUIDE_TUTORIAL,
     _GUIDE_GAME_OVERVIEW,
     _GUIDE_CONTROLS,
     _GUIDE_DUNGEON_EXTENSIONS,

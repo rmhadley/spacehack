@@ -95,6 +95,10 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 )
 
     from ._rules_space import init as _rs_init
+    # Tutorial: explain space combat before the combat UI takes over
+    # (fires once, only in tutorial runs).
+    from ..tutorial import maybe_space_combat_intro as _tut_space_intro
+    _tut_space_intro(ctx)
     _rs_init(
         ctx, console,
         _ship_cat, ctx.player_owned_ship,

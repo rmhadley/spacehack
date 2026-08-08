@@ -405,6 +405,7 @@ class TitleMenuOutcome(Enum):
     """Terminal outcomes for the title menu."""
     NEW_GAME = auto()
     CONTINUE = auto()
+    TUTORIAL = auto()
     EXIT = auto()
     IGNORE = auto()
 
@@ -417,7 +418,7 @@ def render_title_menu(
     selected: int = 0,
     save_available: bool = False,
 ) -> None:
-    """Render the title menu with New Game / Continue / Exit.
+    """Render the title menu with New Game / Continue / Tutorial / Exit.
 
     ``Continue`` is dimmed (and unselectable via update) when no
     save file exists.
@@ -434,6 +435,7 @@ def render_title_menu(
     _options: list[tuple[str, tuple]] = [
         ("New Game", COLOR_OPTION),
         ("Continue", COLOR_OPTION if save_available else COLOR_VALUE_DIM),
+        ("Tutorial", COLOR_OPTION),
         ("Exit", COLOR_OPTION),
     ]
     _menu_y = _title_y + len(_TITLE_ART) + 3
@@ -465,10 +467,10 @@ def update_title_menu(
 ) -> tuple[TitleMenuOutcome, int]:
     """Handle a key event for the title menu.
 
-    Returns ``(outcome, new_selected)``. ``Continue`` skips to Exit
+    Returns ``(outcome, new_selected)``. ``Continue`` skips to Tutorial
     when no save is available.
     """
-    _max = 2  # 0=New Game, 1=Continue, 2=Exit
+    _max = 3  # 0=New Game, 1=Continue, 2=Tutorial, 3=Exit
     _sel = selected
 
     if isinstance(event, tcod.event.KeyDown):
@@ -479,7 +481,7 @@ def update_title_menu(
             _sel = (_sel - 1) % (_max + 1)
             # Skip Continue if no save.
             if _sel == 1 and not save_available:
-                _sel = 0 if _sel == 1 else _sel - 1
+                _sel = 0
             return TitleMenuOutcome.IGNORE, _sel
 
         if sym in _DOWN_SYMS or sym_name == 'j':
@@ -494,6 +496,8 @@ def update_title_menu(
             if _sel == 1 and save_available:
                 return TitleMenuOutcome.CONTINUE, _sel
             if _sel == 2:
+                return TitleMenuOutcome.TUTORIAL, _sel
+            if _sel == 3:
                 return TitleMenuOutcome.EXIT, _sel
             return TitleMenuOutcome.IGNORE, _sel
 

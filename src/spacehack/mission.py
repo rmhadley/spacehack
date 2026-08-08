@@ -622,6 +622,12 @@ def fill_empty_slots(
         active_ids=active_ids,
         planet_id=planet_id,
     )
+    # Tutorial mode (design doc 14): only the tutorial's single contract
+    # is ever offered, and procedural generation is suppressed below so
+    # the guided first run isn't flooded with extra work.
+    if ctx is not None and getattr(ctx, "tutorial_mode", False):
+        from .tutorial import TUTORIAL_MISSION_IDS as _tutorial_ids
+        available = [_m for _m in available if _m.id in _tutorial_ids]
     available_ids = [m.id for m in available]
     rng.shuffle(available_ids)
     # Track which IDs are already on the board to avoid duplicates.
@@ -633,6 +639,12 @@ def fill_empty_slots(
                     board.slots[i] = mid
                     existing.add(mid)
                     break
+
+    # Tutorial mode: never generate procedural missions (the guided run
+    # teaches one contract at a time). Static whitelist fill above is all
+    # the tutorial board shows.
+    if ctx is not None and getattr(ctx, "tutorial_mode", False):
+        return
 
     # Resolve guild for procedural generation dispatch.
     _guild = ""

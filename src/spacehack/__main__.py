@@ -82,6 +82,7 @@ from .city import _animate_ship_to_y, _launch_to_space
 from .time import tick_move, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
+from . import tutorial as tutorial_module
 
 
 # ---------------------------------------------------------------------------
@@ -178,9 +179,13 @@ def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
     _hostiles = _dgc(ctx, game_map, ctx.player.pos)
     if not _hostiles:
         return None
+    # Tutorial: explain ground combat before the combat UI takes over,
+    # and fire the finale once the first fight resolves.
+    tutorial_module.maybe_ground_combat_intro(ctx)
     _ground_init(ctx, _hostiles, game_map, console=console)
     _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
     _apply_ground_combat_rep(ctx, _ground_result)
+    tutorial_module.notify_ground_combat_ended(ctx)
     return _ground_result
 
 
@@ -228,6 +233,7 @@ def _run_game(
     class_id: str = "",
     *,
     loaded_ctx: GameContext | None = None,
+    tutorial: bool = False,
 ) -> None:
     """Render the small city + HUD + msg log and handle vim movement.
 
@@ -324,6 +330,11 @@ def _run_game(
         ctx.ground_hp = ctx.ground_max_hp
         from .dev_mode import apply_dev_ground_loadout as _apply_dev_ground_loadout
         _apply_dev_ground_loadout(ctx)
+        # Tutorial mode (title menu → Tutorial): forced Human Merchant,
+        # credit bonus + board pre-seed, scripted popups fire from here on.
+        if tutorial:
+            from .tutorial import setup_tutorial as _setup_tutorial
+            _setup_tutorial(ctx)
         city_game_map = game_map
         city_player = player
         current_mode: str = 'city'
@@ -357,6 +368,8 @@ def _run_game(
         # combat/dungeon, since gates only fire on time advance which
         # always lands back here between modals).
         main_quest_module.check_quest_gates(ctx)
+        # Tutorial script: at most one guided popup per frame.
+        tutorial_module.tick(ctx, mode=current_mode)
         if ctx.main_quest_pending_message:
             _summon = ctx.main_quest_pending_message
             _objective = ctx.main_quest_pending_objective
@@ -509,7 +522,10 @@ def _run_game(
                     return
                 continue
             if current_mode in ('dungeon', 'space') and _is_p_press(event):
-                _pickup_loot_near(ctx)
+                if _pickup_loot_near(ctx) and current_mode == 'space':
+                    # Tutorial: interacting with space loot moves the
+                    # script on to the jump lesson.
+                    tutorial_module.notify_pickup(ctx)
                 continue
             if current_mode == 'space' and _is_g_press(event):
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
@@ -576,6 +592,10 @@ def _run_game(
                     code, blocker = world.try_move(player, game_map, dx, dy)
             else:
                 code, blocker = world.try_move(player, game_map, dx, dy)
+            if code == 'moved' and current_mode == 'city':
+                # Tutorial: the first city move points the player at the
+                # bounty guild.
+                tutorial_module.notify_move(ctx)
             if code == 'moved' and current_mode == 'space' and (player_owned_ship is not None):
                 _run_combat_loop(ctx, console, player, also_move_npcs=True)
                 player_active_missions = ctx.player_active_missions
@@ -1538,6 +1558,13 @@ def run(context: tcod.context.Context) -> None:
                     break
         if _menu_outcome is ui.TitleMenuOutcome.EXIT:
             return
+        if _menu_outcome is ui.TitleMenuOutcome.TUTORIAL:
+            # Guided first run: forced Human Merchant, no character
+            # creation screens. Fresh seed like any new game.
+            _seed = struct.unpack('I', os.urandom(4))[0]
+            seed_rng(_seed)
+            _run_game(context, "human", "merchant", tutorial=True)
+            continue
         if _menu_outcome is ui.TitleMenuOutcome.CONTINUE:
             _ctx = _load(context)
             if _ctx is not None:

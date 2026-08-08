@@ -336,3 +336,12 @@ class GameContext:
     main_quest_pending_objective: str = ""
     # Set when Act 3 resolves (definitive ending; sandbox continues).
     main_quest_complete: bool = False
+    # --- Tutorial mode (docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md) ---
+    # True for tutorial runs (started from the title menu); gates the
+    # scripted popup flow in spacehack.tutorial. Survives save/load so
+    # Continue resumes a tutorial run mid-script.
+    tutorial_mode: bool = False
+    # Step ids already shown (idempotent popups — each fires once).
+    tutorial_steps: set[str] = dataclasses.field(default_factory=set)
+    # True after the final popup; the tutorial tick then stops firing.
+    tutorial_complete: bool = False

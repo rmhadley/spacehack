@@ -66,6 +66,11 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
+    # Tutorial state (design doc 14) — non-default so the round-trip
+    # proves the fields survive a save/continue cycle.
+    ctx.tutorial_mode = True
+    ctx.tutorial_steps = {"intro", "accepted_crimson"}
+    ctx.tutorial_complete = False
     ctx.dungeon_extension = DungeonExtensionState(
         extension_id="mars_alien_prison",
         current_floor=1,
@@ -157,6 +162,11 @@ class TestSaveLoadRoundTrip:
 
         # Militia
         assert loaded.militia_scanned == original.militia_scanned
+
+        # Tutorial mode
+        assert loaded.tutorial_mode == original.tutorial_mode
+        assert loaded.tutorial_steps == original.tutorial_steps
+        assert loaded.tutorial_complete == original.tutorial_complete
 
         # Themed dungeon extension state
         assert loaded.dungeon_extension == original.dungeon_extension
