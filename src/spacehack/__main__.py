@@ -742,6 +742,7 @@ def _run_game(
                                 _dungeon_map = ctx.interiors.get(_surface_key)
                                 if _dungeon_map is not None:
                                     # Re-entry: reuse the cached surface.
+                                    _dungeon_map.interior_cache_key = _surface_key
                                     _spawn = _prep_cached_dungeon(_dungeon_map)
                                 else:
                                     try:
@@ -755,6 +756,7 @@ def _run_game(
                                         log.add(f"The surface of {planet_obj.name} is too hazardous to explore.")
                                         continue
                                     _dungeon_map.entry_spawn = _spawn
+                                    _dungeon_map.interior_cache_key = _surface_key
                                     # Main quest: Mars surface carries the
                                     # sealed alien door — place it
                                     # deterministically and advance the

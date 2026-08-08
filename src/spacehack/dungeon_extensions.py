@@ -234,6 +234,7 @@ def _generate_floor(extension_id: str, floor: int):
     """Generate one procedural floor and its stable extension anchors."""
     _spec = _floor_spec(extension_id, floor)
     _game_map, _spawn = dungeon.generate_dungeon(_spec.params)
+    _game_map.interior_cache_key = floor_key(extension_id, floor)
     # The generic generator creates an EXIT at its spawn wall. An extension
     # floor uses an explicit up-connection marker instead.
     _game_map.tiles[_spawn.y][_spawn.x] = world.STAIRS_UP
@@ -287,8 +288,6 @@ def enter_extension(
     parent_map_key: str = "",
 ) -> tuple[world.GameMap, world.Entity]:
     """Enter or re-enter floor 1 from a parent dungeon connection."""
-    _state = _ensure_state(ctx, extension_id)
-    _state.active = True
     if not parent_map_key:
         parent_map_key = next(
             (
@@ -297,8 +296,10 @@ def enter_extension(
             ),
             "",
         )
-    if not parent_map_key:
+    if not parent_map_key or ctx.interiors.get(parent_map_key) is not parent_map:
         raise ValueError("Dungeon extension parent map is not cached")
+    _state = _ensure_state(ctx, extension_id)
+    _state.active = True
     _state.parent_map_key = parent_map_key
     _state.parent_position = parent_player.pos
     _floor = _state.current_floor

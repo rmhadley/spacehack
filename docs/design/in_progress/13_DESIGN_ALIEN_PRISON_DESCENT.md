@@ -304,7 +304,7 @@ procedural defensive barriers, security nodes, a defensive security/pest mix,
 and no deeper connection yet. Each visited floor is cached under its stable
 extension key, with `<`/`>` connection metadata and feature-theme metadata
 serialized alongside the map. Automated validation: `python3 tools/smoke.py`
-passes and `python3 tools/test.py` passes with 232 tests. Manual playtest is
+passes and `python3 tools/test.py` passes with 235 tests. Manual playtest is
 the next checkpoint.
 
 ### Phase 3 — Floor 4 engineering and powered elevator

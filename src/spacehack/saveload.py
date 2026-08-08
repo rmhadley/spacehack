@@ -346,6 +346,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
         "feature_theme": getattr(gm, 'feature_theme', ''),
         "activation_positions": _d(getattr(gm, 'activation_positions', {})),
         "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
+        "interior_cache_key": getattr(gm, 'interior_cache_key', ''),
     }
 
 
@@ -470,6 +471,9 @@ def _dungeon_from_dict(dd: dict) -> tuple:
     _extension_entry_id = dd.get("extension_entry_id", "")
     if _extension_entry_id:
         _dungeon_map.extension_entry_id = str(_extension_entry_id)
+    _interior_cache_key = dd.get("interior_cache_key", "")
+    if _interior_cache_key:
+        _dungeon_map.interior_cache_key = str(_interior_cache_key)
     _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
     return _dungeon_map, _space_pos
 
@@ -1057,6 +1061,32 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     for _k, _idict in (_data.get("interiors", {}) or {}).items():
         _imap, _ = _dungeon_from_dict(_idict)
         _ctx.interiors[str(_k)] = _imap
+    # The active dungeon is authoritative when Continue resumes inside a
+    # cached interior. Rebind the corresponding cache key to that exact
+    # object so identity-based transition lookup works after deserialization.
+    if _mode == "dungeon":
+        _active_cache_key = getattr(_game_map, "interior_cache_key", "")
+        if not _active_cache_key and getattr(_game_map, "wreck_spawn_id", None) is not None:
+            _active_cache_key = _game_map.wreck_spawn_id
+        if not _active_cache_key and (
+            _ctx.dungeon_extension is not None
+            and _ctx.dungeon_extension.active
+        ):
+            from .dungeon_extensions import floor_key as _extension_floor_key
+            _active_cache_key = _extension_floor_key(
+                _ctx.dungeon_extension.extension_id,
+                _ctx.dungeon_extension.current_floor,
+            )
+        # Legacy planet-surface saves predate interior_cache_key. Restrict
+        # migration to maps carrying an unambiguous extension marker; a
+        # normal derelict has neither marker and is never rebound to a surface.
+        if not _active_cache_key and (
+            getattr(_game_map, "extension_entry_id", "")
+            or getattr(_game_map, "mars_stairs_pos", None) is not None
+        ):
+            _active_cache_key = f"surface:{_city_id}"
+        if _active_cache_key:
+            _ctx.interiors[_active_cache_key] = _game_map
     # If the player is INSIDE a wreck (mode=dungeon), the active dungeon
     # map is the authoritative copy — overwrite the restored cache entry
     # with it so re-boarding after exit sees post-load progress (crew

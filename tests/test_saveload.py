@@ -277,6 +277,109 @@ class TestSaveLoadRoundTrip:
 
         delete_save()
 
+    def test_loaded_surface_dungeon_reuses_active_map_for_extension_entry(
+        self, monkeypatch, tmp_path,
+    ):
+        """Continue on Mars keeps the surface cache linked to the active map."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(45)
+        ctx = _build_test_ctx()
+        parent_map = GameMap(
+            12, 12,
+            [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)],
+            [],
+        )
+        stairs = Position(6, 6)
+        parent_map.tiles[stairs.y][stairs.x] = world.STAIRS_DOWN
+        parent_map.extension_entry_id = "mars_alien_prison"
+        parent_map.mars_stairs_pos = stairs
+        parent_player = Entity("@", (255, 255, 255), stairs, "Player")
+        parent_map.entities.append(parent_player)
+        ctx.game_map = parent_map
+        ctx.player = parent_player
+        ctx.interiors = {"surface:mars": parent_map}
+        ctx.dungeon_extension.active = False
+        ctx.dungeon_extension.current_floor = 1
+
+        save_game(
+            ctx,
+            mode="dungeon",
+            city_id="mars",
+            system_id="sol",
+            space_player_pos=(3, 4),
+        )
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.interiors["surface:mars"] is loaded.game_map
+        assert getattr(loaded.game_map, "interior_cache_key", "") == ""
+        monkeypatch.setattr(
+            "src.spacehack.main_quest.show_gate_popup",
+            lambda *args, **kwargs: None,
+        )
+        extension_map, _ = dungeon_extensions.enter_extension(
+            loaded,
+            loaded.game_map,
+            loaded.player,
+            extension_id="mars_alien_prison",
+        )
+        assert extension_map.extension_floor == 1
+        assert loaded.dungeon_extension.active
+
+        delete_save()
+
+    def test_derelict_round_trip_does_not_rebind_surface_cache(
+        self, monkeypatch, tmp_path,
+    ):
+        """A non-extension dungeon save cannot masquerade as a surface cache."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(46)
+        ctx = _build_test_ctx()
+        surface_map = GameMap(
+            12, 12,
+            [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)],
+            [],
+        )
+        surface_map.interior_cache_key = "surface:mars"
+        wreck_map = GameMap(
+            8, 8,
+            [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(8)],
+            [],
+        )
+        wreck_map.wreck_spawn_id = "wreck:test"
+        wreck_map.entry_spawn = Position(2, 2)
+        wreck_map.interior_cache_key = "wreck:test"
+        wreck_player = Entity("@", (255, 255, 255), Position(2, 2), "Player")
+        wreck_map.entities.append(wreck_player)
+        ctx.game_map = wreck_map
+        ctx.player = wreck_player
+        ctx.interiors = {
+            "surface:mars": surface_map,
+            "wreck:test": wreck_map,
+        }
+
+        save_game(
+            ctx,
+            mode="dungeon",
+            city_id="mars",
+            system_id="sol",
+            space_player_pos=(3, 4),
+        )
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.interiors["surface:mars"] is not loaded.game_map
+        assert loaded.interiors["wreck:test"] is loaded.game_map
+        delete_save()
+
     def test_phase_two_floor_round_trip_preserves_links_and_cache(
         self, monkeypatch, tmp_path,
     ):

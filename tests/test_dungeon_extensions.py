@@ -46,6 +46,26 @@ def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
                for pos in game_map.activation_positions.values())
 
 
+def test_enter_extension_rejects_invalid_parent_key_without_activation():
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+
+    try:
+        dungeon_extensions.enter_extension(
+            ctx,
+            parent_map,
+            parent_player,
+            extension_id="mars_alien_prison",
+            parent_map_key="surface:missing",
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invalid parent key should fail")
+
+    assert ctx.dungeon_extension is None
+
+
 def test_first_entry_flavor_shows_once_on_reentry(monkeypatch):
     seed_rng(81)
     parent_map, parent_player = _parent_map()
