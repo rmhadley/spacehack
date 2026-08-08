@@ -111,15 +111,18 @@ _STEP_BODIES: dict[str, str] = {
     ),
     "space_combat_intro": (
         "Combat is turn-based. Each turn you have AP (action points) "
-        "to spend.\n\n"
-        "FIRE: select a weapon and a target — you can fire multiple "
-        "weapons in one turn if AP allows. ENERGY: weapons and systems "
-        "draw energy each turn and your reactor generates it back, so "
-        "balance your loadout. SHIELDS: the HUD shows your shield pool "
-        "and regen — set your desired regen, it refills each turn. "
-        "MOVEMENT: moving within your AP makes you harder to hit — "
-        "dodge chance scales with speed and piloting.\n\n"
-        "Defeat Crimson Jack to claim the bounty."
+        "that decide how much you can do before the enemy moves. "
+        "Moving always costs 1 AP.\n\n"
+        "FIRE: select a weapon and a target. Firing costs the MAX AP "
+        "of the weapons you enable — four light lasers still cost just "
+        "1 AP, not 4. But every weapon that fires pays its full power "
+        "cost, so firing everything every turn burns through your "
+        "energy fast.\n\n"
+        "MOVEMENT: moving is good beyond positioning — each cell you "
+        "travel raises your dodge chance. SHIELDS: press 'S' to cycle "
+        "how much power your shields drain for regen each turn.\n\n"
+        "AP, energy, shields, and movement are all finite — it's a "
+        "balancing act. Spend them wisely and defeat Crimson Jack."
     ),
     "loot_dropped": (
         "Crimson Jack was destroyed — and dropped loot (%).\n\n"
