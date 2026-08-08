@@ -450,7 +450,7 @@ def render_hud(
             ("numpad", "Move"),
         ]
         if mode == "dungeon":
-            _help_lines.insert(0, ("G", "Loot"))
+            _help_lines.insert(0, ("P", "Loot"))
         y = _render_help_lines(console, hud_x, y, _help_lines)
 
         # XP progress bar — between key hints and footer.

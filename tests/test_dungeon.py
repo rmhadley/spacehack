@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+import tcod.event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -19,6 +21,7 @@ from src.spacehack.world import (
     DUNGEON_WALL, DUNGEON_FLOOR, HULL_WALL, VOID, DUNGEON_DOOR,
     Entity, try_move, find_loot_near, find_path,
 )
+from src.spacehack.input_helpers import _is_p_press
 from src.spacehack.dungeon import (
     init_fog,
     _cast_ray,
@@ -46,6 +49,22 @@ def _hull_at(gm: GameMap, x: int, y: int) -> None:
 # ---------------------------------------------------------------------------
 
 class TestSoftLoot:
+    def test_p_predicate_accepts_both_key_aliases(self):
+        """Pickup is bound to P without stealing G from navigation."""
+        _left_shift = tcod.event.Modifier.LSHIFT.value
+        _event = tcod.event.KeyDown(
+            scancode=tcod.event.Scancode.P,
+            sym=tcod.event.KeySym.P,
+            mod=_left_shift,
+        )
+
+        assert _is_p_press(_event)
+        assert not _is_p_press(tcod.event.KeyDown(
+            scancode=tcod.event.Scancode.G,
+            sym=tcod.event.KeySym.G,
+            mod=0,
+        ))
+
     def test_loot_does_not_block_world_movement(self):
         """A player can walk through a loot pile instead of being trapped."""
         gm = _make_map(3, 1)
@@ -65,7 +84,7 @@ class TestSoftLoot:
         assert gm.loot_at(1, 0) is loot
 
     def test_find_loot_near_prefers_current_then_cardinal_cells(self):
-        """G pickup can collect loot on the player or one step away."""
+        """P pickup can collect loot on the player or one step away."""
         gm = _make_map(5, 5)
         player_pos = Position(2, 2)
         adjacent = Entity(
@@ -94,8 +113,8 @@ class TestSoftLoot:
 
         assert path == [(1, 0), (2, 0)]
 
-    def test_dungeon_g_pickup_routes_to_existing_loot_modal(self, monkeypatch):
-        """The dungeon G action keeps mission-aware pickup centralized."""
+    def test_dungeon_p_pickup_routes_to_existing_loot_modal(self, monkeypatch):
+        """The dungeon P action keeps mission-aware pickup centralized."""
         from src.spacehack import __main__ as game_main
 
         gm = _make_map(3, 3)

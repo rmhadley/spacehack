@@ -33,7 +33,7 @@ No classes, no state, no refactoring of the logic itself — purely mechanical e
 | `_is_q_press()` | 205 | Q key check |
 | `_is_m_press()` | 219 | M key check |
 | `_is_period_press()` | 243 | `.` (wait) key check |
-| `_is_g_press()` | 255 | G key check |
+| `_is_g_press()` | 255 | G (Go To) key check |
 | `_is_c_press()` | 276 | C key check |
 | `_is_t_press()` | 297 | T key check |
 | `_render_aoi_panel()` | 318 | Area-of-interest overlay in space mode |

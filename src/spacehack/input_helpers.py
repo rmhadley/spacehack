@@ -174,6 +174,20 @@ def _is_g_press(event: tcod.event.Event) -> bool:
     return sym_name in ('G', 'g')
 
 
+def _is_p_press(event: tcod.event.Event) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``P`` key (or its
+    lowercase alias).
+
+    Routes P (pickup) through a module-level helper. Lowercase ``p``
+    and uppercase ``P`` both pick up nearby loot; anything else
+    returns False so space-mode G remains dedicated to Go To.
+    """
+    if not isinstance(event, tcod.event.KeyDown):
+        return False
+    sym_name: str = getattr(event.sym, 'name', '')
+    return sym_name in ('P', 'p')
+
+
 def _is_i_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``I`` key (or its
     lowercase alias).

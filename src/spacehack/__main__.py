@@ -16,7 +16,7 @@ another solid entity opens a context dialog:
 
     * ship at the space port -> ship-buy modal (Enter / ESC)
     * guild NPC -> flavor dialog (ESC to leave)
-    * loot -> soft floor object; press G in dungeons to pick it up
+    * loot -> soft floor object; press P to pick it up
     * anything else -> "You bump into X" log line
 """
 from __future__ import annotations
@@ -49,7 +49,7 @@ from .combat import _rules_ground
 from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
-from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
+from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_p_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -501,12 +501,10 @@ def _run_game(
                 if outcome is NavigationOutcome.QUIT:
                     return
                 continue
-            if current_mode == 'dungeon' and _is_g_press(event):
+            if current_mode in ('dungeon', 'space') and _is_p_press(event):
                 _pickup_loot_near(ctx)
                 continue
             if current_mode == 'space' and _is_g_press(event):
-                if _pickup_loot_near(ctx):
-                    continue
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
