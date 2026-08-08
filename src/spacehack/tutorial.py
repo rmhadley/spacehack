@@ -119,8 +119,9 @@ _STEP_BODIES: dict[str, str] = {
         "cost, so firing everything every turn burns through your "
         "energy fast.\n\n"
         "MOVEMENT: moving is good beyond positioning — each cell you "
-        "travel raises your dodge chance. SHIELDS: press 'S' to cycle "
-        "how much power your shields drain for regen each turn.\n\n"
+        "travel raises your dodge chance.\n\n"
+        "SHIELDS: press 'S' to cycle how much power your shields drain "
+        "for regen each turn.\n\n"
         "AP, energy, shields, and movement are all finite — it's a "
         "balancing act. Spend them wisely and defeat Crimson Jack."
     ),
