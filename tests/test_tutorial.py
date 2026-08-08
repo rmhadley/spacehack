@@ -13,6 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from src.spacehack import mission
 from src.spacehack import tutorial
 from src.spacehack.ship import OwnedShip
@@ -134,6 +137,87 @@ class TestLoadoutPredicate:
             modules=("shield_mk1",),
         )
         assert tutorial._has_loadout(with_shield) is True
+
+
+class TestTickOrder:
+    """Phase 2 — the mission → loadout → launch script sequence.
+
+    ``_show_step`` is monkeypatched to a recorder that marks steps done
+    (mimicking the real dismiss-then-mark flow) so the tick's gating
+    and ordering are testable without a tcod context.
+    """
+
+    @staticmethod
+    def _tutorial_ctx() -> _StubCtx:
+        ctx = _StubCtx()
+        ctx.tutorial_mode = True
+        # Phase 1 popups already shown — skip to the mission flow.
+        tutorial.mark_step(ctx, "intro")
+        tutorial.mark_step(ctx, "first_move")
+        return ctx
+
+    def _run(self, ctx, mode: str):
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.tick(ctx, mode=mode)
+        return fired
+
+    def test_accept_then_loadout_then_launch(self):
+        ctx = self._tutorial_ctx()
+        ctx.player_active_missions = [
+            SimpleNamespace(mission_id="bhguild_sol_scout"),
+        ]
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="starter",
+            weapons=("light_laser", "light_laser"),
+            modules=("shield_mk1",),
+        )
+
+        assert self._run(ctx, "city") == ["accepted_crimson"]
+        assert self._run(ctx, "city") == ["equipped_loadout"]
+        assert self._run(ctx, "space") == ["launched"]
+        # All three consumed; nothing left to fire in city/space.
+        assert self._run(ctx, "space") == []
+
+    def test_equipped_loadout_gated_on_accepted_contract(self):
+        """Buying the loadout early must not skip the contract popup."""
+        ctx = self._tutorial_ctx()
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="starter",
+            weapons=("light_laser", "light_laser"),
+            modules=("shield_mk1",),
+        )
+
+        assert self._run(ctx, "city") == []  # no contract yet — nothing fires
+        ctx.player_active_missions = [
+            SimpleNamespace(mission_id="bhguild_sol_scout"),
+        ]
+        assert self._run(ctx, "city") == ["accepted_crimson"]
+        assert self._run(ctx, "city") == ["equipped_loadout"]
+
+    def test_launched_gated_on_equipped_loadout(self):
+        """Launching without the suggested loadout skips the launch popup
+        (the script self-heals from the combat beat onward)."""
+        ctx = self._tutorial_ctx()
+        ctx.player_active_missions = [
+            SimpleNamespace(mission_id="bhguild_sol_scout"),
+        ]
+
+        assert self._run(ctx, "city") == ["accepted_crimson"]
+        assert self._run(ctx, "space") == []  # not equipped — no launch popup
+
+    def test_accept_only_fires_once(self):
+        ctx = self._tutorial_ctx()
+        ctx.player_active_missions = [
+            SimpleNamespace(mission_id="bhguild_sol_scout"),
+        ]
+        assert self._run(ctx, "city") == ["accepted_crimson"]
+        assert self._run(ctx, "city") == []
 
 
 class TestStepState:

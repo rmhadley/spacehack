@@ -198,9 +198,20 @@ ESC-quit + Continue resumes with tutorial state intact.
 
 ### Phase 2 — Mission & loadout flow
 
-- [ ] `accepted_crimson` (fires on accepting Crimson Jack).
-- [ ] `equipped_loadout` (predicate on weapons+modules).
-- [ ] `launched` (first frame in space).
+- [x] `accepted_crimson` (fires on accepting Crimson Jack).
+- [x] `equipped_loadout` (predicate on weapons+modules).
+- [x] `launched` (first frame in space).
+
+**Playtest notes:** the three steps shipped in the Phase 1 step table;
+Phase 2 verified the trigger chain end-to-end. Loadout purchases
+mutate `ctx.player_owned_ship` via `ship._install_weapon` /
+`_install_module`, so the predicate sees them next tick. Added
+`TestTickOrder` (monkeypatched `_show_step` recorder): accept →
+loadout → launch fire in order, each once; buying early is gated on
+having accepted the contract; launching un-equipped skips the launch
+popup and the script self-heals from the combat beat onward. Other
+Earth boards stay empty (whitelist filter + no procedural). 258 total
+tests pass.
 
 **PLAYTEST:** Talk to Bounty Master → only Crimson Jack offered → accept
 → popup teaches `Q` + mech terminal → buy 2nd light laser + Shield Mk.1
