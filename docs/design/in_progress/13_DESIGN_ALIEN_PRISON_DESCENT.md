@@ -322,14 +322,21 @@ hand-authored deep-cell/data-extraction content.
 
 ### Phase 4 — Floor 5 deep cell and data extraction
 
-- [ ] Add the giant empty cell, torn doors, scattered terminals, and one live
+- [x] Add the giant empty cell, torn doors, scattered terminals, and one live
   terminal.
-- [ ] Add data extraction interaction and incomprehensible result.
-- [ ] Complete the prison objective and unlock Act 1 `research_alpha`.
+- [x] Add data extraction interaction and incomprehensible result.
+- [x] Complete the prison objective and begin Act 1 with the descent itself.
 
-**PLAYTEST:** Reach Floor 5, inspect inactive terminals, extract from the one live
-terminal, verify the objective completes and Alpha research becomes available;
-save/Continue before and after extraction.
+**Act-structure note:** Act 0 ends with the Mars door opening (`prologue_open`);
+Act 1 starts with the descent — a new `act1_prison` step is made available when
+`prologue_open` completes, flips to active on first prison entry, and completes
+on the Floor 5 extraction. The original `research_alpha` handoff is superseded;
+the research trail will branch from the recovered prison data later.
+
+**PLAYTEST:** Reach Floor 5, inspect inactive terminals (flavor bumps only),
+extract from the one live terminal, verify the prison objective completes in the
+quest log and Act 1's breadcrumb appears; save/Continue before and after
+extraction, and re-enter the floor without duplicating terminals.
 
 ### Phase 5 — Tuning, landmarks, guide, and final regression pass
 
@@ -358,7 +365,9 @@ data rather than a human-readable explanation.
 - Free backtracking works between visited floors and back to Mars.
 - The Floor 4 elevator cannot be used before engineering power is restored.
 - Floor 5 contains one usable data terminal and incomprehensible extracted data.
-- Extraction unlocks the existing Act 1 research trail at Alpha Centauri.
+- Extraction completes the Act 1 prison objective; the research trail branches
+  from the recovered data (Act structure: door = end of Act 0, descent = start
+  of Act 1).
 - Every mutable prison/floor state survives save/load without duplication.
 - The guide explains the new player-facing mechanics.
 - Smoke and the full test suite pass.

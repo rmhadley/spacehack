@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import deque
 
 from . import dungeon, world
+from .dungeon_extension_deep_cell import stamp_deep_cell
 from .dungeon_extension_layout import (
     _preferred_interaction_cells,
     _separate_room_cells,
@@ -238,6 +239,12 @@ _FEATURE_STAMPERS = {
     "prisoner_quarters": _stamp_prisoner_quarters,
     "defensive_layer": _stamp_defensive_layer,
     "high_risk_quarters": _stamp_high_risk_quarters,
+    "deep_cell": lambda _game_map, _origin: stamp_deep_cell(
+        _game_map,
+        _origin,
+        feature_cells=_feature_cells,
+        stamp_features=_stamp_features,
+    ),
 }
 
 
@@ -305,6 +312,16 @@ def _stamp_interactions(
 ) -> None:
     """Place data-defined interactive anchors after procedural population."""
     _interactions = spec.interactions if interactions is None else interactions
+    if not _interactions:
+        return
+    _existing_interaction_ids = {
+        getattr(_entity, "dungeon_interaction", "")
+        for _entity in game_map.entities
+    }
+    _interactions = tuple(
+        _interaction for _interaction in _interactions
+        if _interaction.id not in _existing_interaction_ids
+    )
     if not _interactions:
         return
     _cells = _feature_cells(game_map, origin)
@@ -498,6 +515,14 @@ def enter_extension(
     parent_map_key: str = "",
 ) -> tuple[world.GameMap, world.Entity]:
     """Enter or re-enter floor 1 from a parent dungeon connection."""
+    # Lightweight test contexts omit main-quest state; real GameContext
+    # instances always carry it. Only the prison content pack advances the
+    # Act 1 step on entry; other extensions are unaffected.
+    if (extension_id == ALIEN_PRISON_EXTENSION_ID
+            and getattr(ctx, "main_quest_progress", None) is not None):
+        from .main_quest import start_prison_objective
+
+        start_prison_objective(ctx)
     if not parent_map_key:
         parent_map_key = next(
             (
@@ -694,6 +719,12 @@ def activate_interaction_state(ctx, interaction_id: str) -> bool:
     if _interaction.state_key == "engineering_power":
         _state.power_restored = True
         ctx.game_map.power_restored = True
+    # Interactions that carry a main-quest objective type complete that
+    # step on activation (generic — the runtime never names a step id).
+    if _interaction.objective_type:
+        from .main_quest import complete_step_by_type
+
+        complete_step_by_type(ctx, _interaction.objective_type)
     return True
 
 

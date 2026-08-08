@@ -947,6 +947,10 @@ def _run_game(
                     # landmark migration.
                     main_quest_module.bump_mars_door(ctx)
                     continue
+                elif blocker.interaction_flavor:
+                    # Non-interactive set-dressing (dead terminals): a
+                    # one-line flavor bump, no state change.
+                    log.add(blocker.interaction_flavor)
                 elif blocker.dungeon_interaction:
                     from .dungeon_extensions import (
                         activate_interaction_state,
@@ -966,10 +970,16 @@ def _run_game(
                                 _interaction.popup_message,
                                 title=_interaction.popup_title,
                             )
-                            log.add_colored(
-                                f"{_interaction.name} activated. The gated system is online.",
-                                message_log.COLOR_IMPORTANT_EVENT,
-                            )
+                            if _interaction.objective_type:
+                                log.add_colored(
+                                    f"{_interaction.name}: data extracted. Incomprehensible.",
+                                    message_log.COLOR_IMPORTANT_EVENT,
+                                )
+                            else:
+                                log.add_colored(
+                                    f"{_interaction.name} activated. The gated system is online.",
+                                    message_log.COLOR_IMPORTANT_EVENT,
+                                )
                         else:
                             log.add(f"{_interaction.name} is already active.")
                     elif _interaction.action == "transition_floor":

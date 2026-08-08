@@ -313,6 +313,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 # triggers. Lives in dungeon interiors (persisted here).
                 "main_quest_step_id": getattr(e, 'main_quest_step_id', ''),
                 "dungeon_interaction": getattr(e, 'dungeon_interaction', ''),
+                "interaction_flavor": getattr(e, 'interaction_flavor', ''),
             }
             for e in gm.entities if e.char != '@'
         ],
@@ -429,6 +430,9 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         _interaction = _ed.get("dungeon_interaction", "")
         if _interaction:
             _e.dungeon_interaction = str(_interaction)
+        _flavor = _ed.get("interaction_flavor", "")
+        if _flavor:
+            _e.interaction_flavor = str(_flavor)
         _dungeon_entities.append(_e)
 
     _dungeon_map = world.GameMap(

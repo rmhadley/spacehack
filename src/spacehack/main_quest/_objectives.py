@@ -112,6 +112,23 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     return _result
 
 
+def complete_step_by_type(ctx, objective_type: str) -> bool:
+    """Complete the first available/active step matching ``objective_type``.
+
+    Generic hook used by dungeon-extension interactions (e.g. the Floor 5
+    data terminal completes the ``"prison"`` objective). Returns True when
+    a step was completed. No-op when no such step is live.
+    """
+    _step_id = _active_objective_step(ctx, objective_type)
+    if _step_id is None:
+        return False
+    _step = find_main_quest_step(_step_id)
+    _result = complete_step(ctx, _step_id)
+    if _result:
+        show_step_readout(ctx, _step)
+    return _result
+
+
 def maybe_complete_visit(ctx, npc_id: str) -> bool:
     """Complete an active visit step when the player talks to the expert NPC."""
     _step_id = _active_objective_step(ctx, "visit", npc_id=npc_id)

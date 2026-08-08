@@ -207,7 +207,14 @@ _GUIDE_DUNGEON_EXTENSIONS = GuideSection(
         "\n"
         "- The deeper > stairs on Floor 2 lead to the defensive Floor 3"
         "\n"
-        "- The powered elevator currently stages the future deep-cell floor"
+        "- The powered elevator on Floor 4 descends to the deep cell"
+        "\n"
+        "- Floor 5 is a vast, empty holding cell: torn-out doors and dark,"
+        "dead terminals are set dressing — only the single live terminal (T)"
+        "responds"
+        "\n"
+        "- Extracting the terminal's data completes the prison objective and"
+        "begins Act 1's research trail"
     ),
 )
 

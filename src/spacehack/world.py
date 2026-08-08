@@ -157,6 +157,13 @@ ALIEN_ELEVATOR = Tile(kind="alien_elevator", char="E", walkable=True,
                       fg=(160, 240, 255), bg=(35, 70, 95))
 ENGINEERING_FLOOR = Tile(kind="engineering_floor", char="=", walkable=True,
                          fg=(180, 220, 240), bg=(45, 60, 75))
+# Deep-cell (Floor 5) set dressing. Walkable visual markers so they
+# never block pathfinding or movement, matching the other extension
+# feature tiles.
+DEEP_CELL_FLOOR = Tile(kind="deep_cell_floor", char=".", walkable=True,
+                       fg=(190, 200, 215), bg=(35, 45, 60))
+TORN_DOOR = Tile(kind="torn_door", char="#", walkable=False,
+                 fg=(200, 130, 90), bg=(60, 35, 30))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.
@@ -277,6 +284,7 @@ class Entity:
     main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
     main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
     dungeon_interaction: str = ""  # reusable themed-extension interaction id
+    interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)
 
 
 # Anchor where the player's bought ship is parked outside the

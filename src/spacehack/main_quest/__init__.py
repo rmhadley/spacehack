@@ -33,6 +33,7 @@ from ._objectives import (
     find_salvage_step_for_spawn,
     fail_smuggle_step,
     show_step_readout,
+    complete_step_by_type,
 )
 from ._heat import (
     charged_cell_in_sol,
@@ -53,6 +54,7 @@ from ._act0 import (
     maybe_trigger_signal,
     prepare_mars_surface,
     bump_mars_door,
+    start_prison_objective,
     prepare_delve_site,
     mars_exploration_unlocked,
     delve_site_unlocked,

@@ -205,6 +205,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         trigger_planet_id="mars",
         trigger_system_id="sol",
         rewards_xp=30,
+        # Act 0 ends with the door; Act 1 begins with the descent.
+        unlocks_step="act1_prison",
     ),
 )
 

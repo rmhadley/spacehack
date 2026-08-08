@@ -405,6 +405,21 @@ def _spawn_cache_guardian(
     )
 
 
+def start_prison_objective(ctx) -> None:
+    """Start the Act 1 prison step when the player enters the extension.
+
+    Called on the first descent into the alien prison each run. The step
+    is made available when ``prologue_open`` completes (Act 0's end); this
+    flips it to active on entry and completes on the Floor 5 extraction.
+    """
+    if step_status(ctx, "act1_prison") == STATUS_AVAILABLE:
+        start_step(ctx, "act1_prison")
+        ctx.log.add_colored(
+            "[MAIN QUEST] Act 1: The Prison Below — descend the facility.",
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
+
+
 def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
     """Spawn pirate raiders in the room around the Mars door.
 

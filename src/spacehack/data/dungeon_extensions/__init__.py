@@ -51,6 +51,10 @@ class DungeonInteractionSpec:
     popup_title: str = "SYSTEM UPDATE"
     popup_message: str = "A dormant system responds."
     feature_theme: str = ""
+    # When set, activating this interaction also completes the live
+    # main-quest step with this objective type (generic — the runtime
+    # never hardcodes a step id).
+    objective_type: str = ""
 
 
 @dataclass(frozen=True)
@@ -216,23 +220,48 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 monster_density=2.4,
             ),
         ),
-        # Phase 4 will replace this procedural staging floor with the giant
-        # deep cell, torn doors, and the live data terminal. Keeping the
-        # connection real now lets Phase 3 test the powered elevator end to
-        # end without coupling the runtime to hand-authored content.
         ExtensionFloorSpec(
             floor=5,
             location_name="Alien Prison F5",
-            feature_theme="deep_cell_staging",
+            feature_theme="deep_cell",
+            entry_flavor=EntryFlavor(
+                faction_label="ALIEN FACILITY",
+                title="THE DEEP CELL",
+                message=(
+                    "The elevator opens onto a chamber so vast it swallows "
+                    "the light. A prison cell built for something enormous — "
+                    "and the doors that once held it have been torn from "
+                    "their frames. Terminals dot the floor, dark and silent. "
+                    "Somewhere in the dark, one of them still answers."
+                ),
+            ),
+            interactions=(
+                DungeonInteractionSpec(
+                    id="deep_cell_data_terminal",
+                    char="T",
+                    name="Data Terminal",
+                    action="activate_state",
+                    state_key="prison_data_extracted",
+                    objective_type="prison",
+                    faction_label="ALIEN FACILITY",
+                    popup_title="DATA STREAM",
+                    popup_message=(
+                        "The terminal floods the cell with light. A torrent of "
+                        "data pours out — coordinates, schematics, structures "
+                        "built for something far larger than a human frame. "
+                        "None of it decodes. The data is alien beyond any "
+                        "human language or logic, but the sheer volume is "
+                        "proof enough: something was here, and it escaped."
+                    ),
+                ),
+            ),
             params=dungeon.DungeonParams(
-                width=56,
-                height=44,
-                min_room_size=7,
-                max_room_size=16,
-                room_fill_pct=0.55,
-                sight_radius=10,
-                monster_pool=("assault_drone", "hull_parasite"),
-                monster_density=1.4,
+                width=58,
+                height=46,
+                min_room_size=8,
+                max_room_size=18,
+                room_fill_pct=0.60,
+                sight_radius=11,
             ),
         ),
     ),

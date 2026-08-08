@@ -22,6 +22,20 @@ def _ctx(parent_map: world.GameMap, parent_player: world.Entity):
         player=parent_player,
         current_city_id="mars",
         log=message_log.MessageLog(capacity=6),
+        main_quest_progress={},
+        main_quest_unlocked_items=set(),
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        player_traits=[],
+        player_counters=SimpleNamespace(
+            laser_shots=0, missile_shots=0, plasma_shots=0,
+            merchant_kills=0, total_kills=0, bounties_completed=0,
+            deliveries_completed=0, total_damage_taken=0, combat_flees=0,
+        ),
+        faction_reputation={},
+        main_quest_gate={},
+        main_quest_chain="",
     )
 
 
@@ -550,6 +564,138 @@ def test_interaction_placement_has_unrestricted_fallback(monkeypatch):
     ]
     assert len(_consoles) == 1
     assert _consoles[0].pos == world.Position(2, 2)
+
+
+def test_phase_four_deep_cell_floor_has_set_dressing_and_live_terminal():
+    for seed in (401, 402, 403):
+        seed_rng(seed)
+        game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 5)
+
+        assert game_map.location_name == "Alien Prison F5"
+        assert game_map.feature_theme == "deep_cell"
+        assert sum(
+            tile.kind == "deep_cell_floor"
+            for row in game_map.tiles for tile in row
+        ) >= 1
+        assert sum(
+            tile.kind == "torn_door"
+            for row in game_map.tiles for tile in row
+        ) >= 1
+        _dead = [
+            entity for entity in game_map.entities
+            if entity.interaction_flavor
+        ]
+        assert len(_dead) >= 3
+        _live = [
+            entity for entity in game_map.entities
+            if entity.dungeon_interaction == "deep_cell_data_terminal"
+        ]
+        assert len(_live) == 1
+
+
+def test_phase_four_deep_cell_keeps_up_stair_after_theme_stamp():
+    for seed in (407, 408):
+        seed_rng(seed)
+        game_map, spawn = dungeon_extensions._generate_floor(
+            "mars_alien_prison", 5,
+        )
+
+        # The deep-cell theme pass converts walkable tiles to alien
+        # flooring but must never clobber the connection markers — a
+        # clobbered up-stair would relocate F5's exit to an arbitrary
+        # cell on re-entry (elevator continuity break).
+        assert game_map.tiles[spawn.y][spawn.x] is world.STAIRS_UP
+        assert game_map.up_stair_pos == spawn
+        assert sum(
+            tile.kind == "deep_cell_floor"
+            for row in game_map.tiles for tile in row
+        ) >= 1
+
+
+def test_phase_four_extraction_completes_prison_objective(monkeypatch):
+    seed_rng(404)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    ctx.context = object()
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    from src.spacehack.main_quest import start_step
+
+    ctx.main_quest_progress["act1_prison"] = "available"
+    start_step(ctx, "act1_prison")
+    dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    dungeon_extensions.transition_floor(ctx, 1)
+    dungeon_extensions.transition_floor(ctx, 1)
+    _floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
+    assert ctx.dungeon_extension.current_floor == 4
+    assert dungeon_extensions.restore_power(ctx)
+    assert dungeon_extensions.elevator_is_powered(ctx)
+    _floor_five, _ = dungeon_extensions.transition_floor(ctx, 1)
+
+    assert ctx.main_quest_progress.get("act1_prison") == "active"
+    assert dungeon_extensions.activate_interaction_state(
+        ctx, "deep_cell_data_terminal",
+    )
+    assert "prison_data_extracted" in ctx.dungeon_extension.state_flags
+    assert ctx.main_quest_progress.get("act1_prison") == "completed"
+    assert ctx.player_xp >= 120
+
+    assert not dungeon_extensions.activate_interaction_state(
+        ctx, "deep_cell_data_terminal",
+    )
+
+
+def test_phase_four_entry_activates_prison_objective(monkeypatch):
+    seed_rng(405)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    ctx.context = object()
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    ctx.main_quest_progress["act1_prison"] = "available"
+
+    dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+
+    assert ctx.main_quest_progress.get("act1_prison") == "active"
+
+
+def test_phase_four_deep_cell_floor_round_trips():
+    seed_rng(406)
+    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 5)
+    payload = _dungeon_to_dict(game_map, None)
+
+    restored, _ = _dungeon_from_dict(payload)
+
+    assert restored.extension_floor == 5
+    assert sum(
+        tile.kind == "deep_cell_floor"
+        for row in restored.tiles for tile in row
+    ) >= 1
+    assert sum(
+        tile.kind == "torn_door"
+        for row in restored.tiles for tile in row
+    ) >= 1
+    assert any(
+        entity.dungeon_interaction == "deep_cell_data_terminal"
+        for entity in restored.entities
+    )
+    assert any(entity.interaction_flavor for entity in restored.entities)
 
 
 def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
