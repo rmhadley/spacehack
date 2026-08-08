@@ -91,10 +91,11 @@ _STEP_BODIES: dict[str, str] = {
         "Wanted: Crimson Jack — a pirate scout in Sol, near Mercury. "
         "'Q' opens your quest log whenever you want to review active "
         "work.\n\n"
-        "Before you launch, visit the Mechanic terminal in the space "
-        "port. Buy a second Light Laser and a Shield Mk. 1 from the "
-        "Loadout screen — you have enough credits. A shield and a spare "
-        "laser make your first fight much safer."
+        "Before you launch, visit the Mechanic terminal (the '%' icon "
+        "just outside the space port door). Buy a second Light Laser "
+        "and a Shield Mk. 1 from the Loadout screen — you have enough "
+        "credits. A shield and a spare laser make your first fight much "
+        "safer."
     ),
     "equipped_loadout": (
         "Nice loadout — two lasers and a shield generator. Your ship is "
