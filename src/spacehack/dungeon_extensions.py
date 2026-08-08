@@ -241,6 +241,28 @@ def _event_position(ctx, event_id: str) -> world.Position | None:
     return None
 
 
+def _activation_cells(
+    game_map: world.GameMap,
+    position: world.Position,
+    occupied: set[tuple[int, int]],
+) -> list[tuple[int, int]]:
+    """Find the nearest ring of free floor cells around an activation."""
+    _max_radius = max(game_map.width, game_map.height)
+    for _radius in range(_max_radius):
+        _cells = [
+            (_x, _y)
+            for _y in range(position.y - _radius, position.y + _radius + 1)
+            for _x in range(position.x - _radius, position.x + _radius + 1)
+            if max(abs(_x - position.x), abs(_y - position.y)) == _radius
+            and game_map.in_bounds(_x, _y)
+            and game_map.tiles[_y][_x].walkable
+            and (_x, _y) not in occupied
+        ]
+        if _cells:
+            return _cells
+    return []
+
+
 def _spawn_activation_group(
     game_map: world.GameMap,
     position: world.Position,
@@ -254,18 +276,9 @@ def _spawn_activation_group(
     except KeyError:
         return 0
     _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
-    _cells = dungeon._room_cells(
-        game_map.tiles,
-        game_map.width,
-        game_map.height,
-        position.x,
-        position.y,
-        _occupied,
-    )
-    if not _cells:
-        _cells = [(position.x, position.y)]
+    _cells = _activation_cells(game_map, position, _occupied)
     _count = max(0, min(event.count, event.max_count))
-    if _count == 0:
+    if not _cells or _count == 0:
         return 0
     return dungeon._scatter_squad(
         game_map.entities,
@@ -302,6 +315,8 @@ def tick_activation(ctx) -> bool:
         ) > _event.trigger_radius:
             continue
         _spawned = _spawn_activation_group(ctx.game_map, _position, _event)
+        if _spawned == 0:
+            continue
         _state.activated_events.add(_event.id)
         _fired = True
         from .main_quest import show_gate_popup

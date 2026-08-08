@@ -57,7 +57,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
     floors=(
         ExtensionFloorSpec(
             floor=1,
-            location_name="Alien Prison - Floor 1",
+            # Compact HUD-safe label; the full floor description lives in
+            # the guide and modal flavor text.
+            location_name="Alien Prison F1",
             params=dungeon.DungeonParams(
                 width=50,
                 height=40,

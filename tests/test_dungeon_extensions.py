@@ -5,10 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import dungeon_extensions
-from src.spacehack import dungeon
 from src.spacehack import message_log
 from src.spacehack import world
-from src.spacehack.data.dungeon_extensions import find_extension
 from src.spacehack.game_context import DungeonExtensionState
 from src.spacehack.engine import seed_rng
 from src.spacehack.saveload import _dungeon_from_dict, _dungeon_to_dict
@@ -38,6 +36,7 @@ def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
     game_map, spawn = dungeon_extensions._generate_floor("mars_alien_prison", 1)
 
     assert game_map.tiles[spawn.y][spawn.x] is world.STAIRS_UP
+    assert game_map.location_name == "Alien Prison F1"
     assert set(game_map.activation_positions) == {
         "prison_floor1_security_alpha",
         "prison_floor1_security_beta",
@@ -97,11 +96,50 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
 
     assert dungeon_extensions.tick_activation(ctx)
     assert event_id in ctx.dungeon_extension.activated_events
+    assert any(
+        entity.npc_char_id == "sentry_drone"
+        and max(
+            abs(entity.pos.x - event_pos.x),
+            abs(entity.pos.y - event_pos.y),
+        ) <= 3
+        for entity in extension_map.entities
+    )
     assert shown == [("ALIEN SECURITY", "SECURITY POWER RISING")]
     entity_count = len(extension_map.entities)
 
     assert not dungeon_extensions.tick_activation(ctx)
     assert len(extension_map.entities) == entity_count
+
+
+def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
+    seed_rng(12)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    extension_map, extension_player = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    event_id = "prison_floor1_security_beta"
+    event_pos = dungeon_extensions._event_position(ctx, event_id)
+    assert event_pos is not None
+    extension_player.pos = event_pos
+
+    assert dungeon_extensions.tick_activation(ctx)
+    assert any(
+        entity.npc_char_id == "assault_drone"
+        and max(
+            abs(entity.pos.x - event_pos.x),
+            abs(entity.pos.y - event_pos.y),
+        ) <= 3
+        for entity in extension_map.entities
+    )
 
 
 def test_cached_floor_repairs_missing_activation_positions():

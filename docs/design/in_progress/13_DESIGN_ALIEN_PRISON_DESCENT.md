@@ -265,7 +265,7 @@ activation sequence.
 - [x] Keep old Act 0 saves/load behavior compatible.
 
 **PLAYTEST:** Open the Mars door, step onto `>`, confirm a procedural
-`Alien Prison - Floor 1` loads; explore until a main-quest modal popup warns
+`Alien Prison F1` loads; explore until a main-quest modal popup warns
 that security systems are powering up; quit and Continue inside Floor 1; return
 to Mars; re-enter without generating a second facility; verify activated
 security stays activated and does not show the popup again.
