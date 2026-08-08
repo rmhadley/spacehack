@@ -220,6 +220,96 @@ class TestTickOrder:
         assert self._run(ctx, "city") == []
 
 
+class TestSpaceCombatAndLoot:
+    """Phase 3 — combat intro, loot popups, and the signal beat."""
+
+    @staticmethod
+    def _tutorial_ctx() -> _StubCtx:
+        ctx = _StubCtx()
+        ctx.tutorial_mode = True
+        # Everything through launch done; the fight is next.
+        for _s in ("intro", "first_move", "accepted_crimson",
+                   "equipped_loadout", "launched"):
+            tutorial.mark_step(ctx, _s)
+        return ctx
+
+    @staticmethod
+    def _loot_entity():
+        return SimpleNamespace(loot_data={"good_id": "scrap_metal", "quantity": 1})
+
+    def _run(self, ctx, mode: str):
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.tick(ctx, mode=mode)
+        return fired
+
+    def test_space_combat_intro_fires_once(self):
+        ctx = self._tutorial_ctx()
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.maybe_space_combat_intro(ctx)
+            tutorial.maybe_space_combat_intro(ctx)
+
+        assert fired == ["space_combat_intro"]
+
+    def test_loot_dropped_then_pickup_fallback(self):
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "space_combat_intro")
+        ctx.game_map = SimpleNamespace(entities=[self._loot_entity()])
+
+        assert self._run(ctx, "space") == ["loot_dropped"]
+        # Loot cleared (picked up or left the field) → the jump lesson
+        # fires as the tick fallback.
+        ctx.game_map = SimpleNamespace(entities=[])
+        assert self._run(ctx, "space") == ["picked_up_loot"]
+
+    def test_notify_pickup_fires_only_after_loot_cleared(self):
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "space_combat_intro")
+        ctx.game_map = SimpleNamespace(entities=[self._loot_entity()])
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            # P pressed but loot remains → the beat waits for actual pickup.
+            tutorial.notify_pickup(ctx)
+            assert fired == []
+            ctx.game_map = SimpleNamespace(entities=[])
+            tutorial.notify_pickup(ctx)
+
+        assert fired == ["picked_up_loot"]
+
+    def test_signal_triggered_after_jump(self):
+        ctx = self._tutorial_ctx()
+        tutorial.mark_step(ctx, "space_combat_intro")
+        tutorial.mark_step(ctx, "picked_up_loot")
+        ctx.main_quest_progress = {"prologue_signal": "completed"}
+
+        assert self._run(ctx, "space") == ["signal_triggered"]
+        assert self._run(ctx, "space") == []
+
+    def test_signal_triggered_gated_on_pickup_lesson(self):
+        """The signal popup waits until the jump lesson was delivered."""
+        ctx = self._tutorial_ctx()
+        ctx.main_quest_progress = {"prologue_signal": "completed"}
+        # No loot on the space map and no combat yet → nothing fires.
+        assert self._run(ctx, "space") == []
+        assert "signal_triggered" not in ctx.tutorial_steps
+
+
 class TestStepState:
     def test_mark_step_idempotent(self):
         ctx = _StubCtx()

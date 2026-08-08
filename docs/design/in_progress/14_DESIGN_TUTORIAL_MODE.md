@@ -220,10 +220,20 @@ Verify credits cover the purchases. Verify other NPCs have no work.
 
 ### Phase 3 — Space combat & loot
 
-- [ ] `maybe_space_combat_intro` hook in `_handle_combat_encounter`.
-- [ ] `loot_dropped` (space loot entity present).
-- [ ] `picked_up_loot` + `notify_pickup` hook in `P` handler.
-- [ ] `signal_triggered` (on `prologue_signal` completion).
+- [x] `maybe_space_combat_intro` hook in `_handle_combat_encounter`.
+- [x] `loot_dropped` (space loot entity present).
+- [x] `picked_up_loot` + `notify_pickup` hook in `P` handler.
+- [x] `signal_triggered` (on `prologue_signal` completion).
+
+**Playtest notes:** all hooks/steps shipped with the Phase 1 table;
+Phase 3 added `TestSpaceCombatAndLoot`: the combat intro fires once
+before the battle UI; loot popup → jump-lesson fallback once the space
+map clears; `notify_pickup` waits for actual loot removal (P on loot
+that stays on the map does nothing); the signal popup fires after the
+jump lesson and is gated on it. `maybe_trigger_signal` is confirmed
+wired in `navigation._jump_to_system` (jump out of Sol), so the
+signal beat uses the existing main quest — no changes needed. 263
+total tests pass.
 
 **PLAYTEST:** Auto-nav to Crimson Jack near Mercury → first combat opens
 with the combat-intro popup BEFORE the battle UI → win → loot popup →
