@@ -132,9 +132,9 @@ _STEP_BODIES: dict[str, str] = {
         "diagonal squares too."
     ),
     "picked_up_loot": (
-        "Loot secured. Now try a jump: fly to a jump gate (the 'J' "
-        "marker) and bump it, then choose to jump to the connected "
-        "system.\n\n"
+        "Loot secured. Now try a jump: press 'G' for auto-navigation "
+        "and fly to the 61 Cygni Gate. Bump it and choose to jump to "
+        "the connected system.\n\n"
         "Each jump costs 10 fuel — keep an eye on the fuel gauge in the "
         "HUD. Jumping out of Sol triggers the main quest: a strange "
         "signal with coordinates to Mars. After the transmission, jump "
