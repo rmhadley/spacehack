@@ -15,6 +15,13 @@ and you're a freelance pilot trying to make a living on the frontier.
 Trade, smuggle, hunt bounties, and upgrade your ship across 13 star systems.
 Death is permanent.
 
+## Gameplay
+
+<a href="docs/space_combat.gif"><img src="docs/space_combat.gif" alt="Space combat" width="400"></a>
+<a href="docs/boarding_ground_combat.gif"><img src="docs/boarding_ground_combat.gif" alt="Boarding a derelict scout and ground combat" width="400"></a>
+
+*Space combat (left) and boarding a derelict scout for ground combat (right).*
+
 ## Disclaimer
 
 This project has been an experiment/resarch project of mine to learn/explore
