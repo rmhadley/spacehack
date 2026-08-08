@@ -14,6 +14,7 @@ from src.spacehack.saveload import _dungeon_from_dict, _dungeon_to_dict
 
 def _ctx(parent_map: world.GameMap, parent_player: world.Entity):
     return SimpleNamespace(
+        context=None,
         interiors={"surface:mars": parent_map},
         dungeon_extension=None,
         game_map=parent_map,
@@ -43,6 +44,65 @@ def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
     }
     assert all(game_map.is_walkable(pos.x, pos.y)
                for pos in game_map.activation_positions.values())
+
+
+def test_first_entry_flavor_shows_once_on_reentry(monkeypatch):
+    seed_rng(81)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    ctx.context = object()
+    shown: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda _ctx, faction, message, *, title: shown.append(
+            (faction, title, message),
+        ),
+    )
+
+    extension_map, extension_player = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+
+    assert len(shown) == 1
+    assert shown[0][0:2] == ("ALIEN FACILITY", "THE PRISON BELOW")
+    assert "technology humanity never reached" in shown[0][2]
+    assert "__entry_flavor__" in ctx.dungeon_extension.activated_events
+    assert ctx.dungeon_extension.activated_events == {"__entry_flavor__"}
+
+    dungeon_extensions.leave_extension(ctx, extension_map)
+    dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+
+    assert len(shown) == 1
+
+
+def test_floor_without_entry_flavor_does_not_mark_state(monkeypatch):
+    ctx = _ctx(*_parent_map())
+    ctx.context = object()
+    state = DungeonExtensionState(extension_id="future_extension")
+    shown = []
+    monkeypatch.setattr(
+        "src.spacehack.dungeon_extensions._floor_spec",
+        lambda _extension_id, _floor: SimpleNamespace(entry_flavor=None),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: shown.append((args, kwargs)),
+    )
+
+    dungeon_extensions._show_first_entry_flavor(ctx, state, 1)
+
+    assert not shown
+    assert "__entry_flavor__" not in state.activated_events
 
 
 def test_extension_entry_and_leave_preserve_parent_position():

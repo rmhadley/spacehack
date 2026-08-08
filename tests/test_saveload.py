@@ -72,7 +72,7 @@ def _build_test_ctx() -> GameContext:
         active=True,
         parent_map_key="surface:mars",
         parent_position=Position(4, 4),
-        activated_events={"security_alpha"},
+        activated_events={"security_alpha", "__entry_flavor__"},
         event_positions={"security_alpha": [7, 8]},
     )
     return ctx
@@ -160,6 +160,7 @@ class TestSaveLoadRoundTrip:
 
         # Themed dungeon extension state
         assert loaded.dungeon_extension == original.dungeon_extension
+        assert "__entry_flavor__" in loaded.dungeon_extension.activated_events
 
         # OwnedShip — default None for a new character
         assert loaded.player_owned_ship is None
@@ -232,7 +233,7 @@ class TestSaveLoadRoundTrip:
             active=True,
             parent_map_key="surface:mars",
             parent_position=parent_position,
-            activated_events={"security_alpha"},
+            activated_events={"security_alpha", "__entry_flavor__"},
             event_positions={"security_alpha": [7, 8]},
         )
 
@@ -252,7 +253,27 @@ class TestSaveLoadRoundTrip:
         assert loaded.interiors[floor_key] is loaded.game_map
         assert loaded.interiors["surface:mars"].width == 12
         assert loaded.dungeon_extension.parent_position == parent_position
-        assert loaded.dungeon_extension.activated_events == {"security_alpha"}
+        assert loaded.dungeon_extension.activated_events == {
+            "security_alpha", "__entry_flavor__",
+        }
+
+        shown = []
+        monkeypatch.setattr(
+            "src.spacehack.main_quest.show_gate_popup",
+            lambda *args, **kwargs: shown.append((args, kwargs)),
+        )
+        restored_parent = loaded.interiors["surface:mars"]
+        restored_parent_player = Entity(
+            "@", (255, 255, 255), parent_position, "Player",
+        )
+        dungeon_extensions.enter_extension(
+            loaded,
+            restored_parent,
+            restored_parent_player,
+            extension_id="mars_alien_prison",
+            parent_map_key="surface:mars",
+        )
+        assert not shown
 
         delete_save()
 

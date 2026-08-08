@@ -16,6 +16,7 @@ from .game_context import DungeonExtensionState
 
 _EXTENSION_KEY_PREFIX = "extension:"
 ALIEN_PRISON_EXTENSION_ID = "mars_alien_prison"
+_ENTRY_FLAVOR_KEY = "__entry_flavor__"
 
 
 def floor_key(extension_id: str, floor: int) -> str:
@@ -178,7 +179,34 @@ def enter_extension(
     if _game_map.seen is None:
         dungeon.init_fog(_game_map)
     dungeon.reveal_around(_game_map, _spawn)
+    _show_first_entry_flavor(ctx, _state, _floor)
     return _game_map, _player
+
+
+def _show_first_entry_flavor(
+    ctx,
+    state: DungeonExtensionState,
+    floor: int,
+) -> None:
+    """Show and persist a floor's one-time entry flavor, if defined."""
+    if _ENTRY_FLAVOR_KEY in state.activated_events:
+        return
+    # Lightweight test contexts may omit the terminal context; real
+    # GameContext instances always provide it for modal presentation.
+    if getattr(ctx, "context", None) is None:
+        return
+    _flavor = _floor_spec(state.extension_id, floor).entry_flavor
+    if _flavor is None:
+        return
+    from .main_quest import show_gate_popup
+
+    show_gate_popup(
+        ctx,
+        _flavor.faction_label,
+        _flavor.message,
+        title=_flavor.title,
+    )
+    state.activated_events.add(_ENTRY_FLAVOR_KEY)
 
 
 def leave_extension(

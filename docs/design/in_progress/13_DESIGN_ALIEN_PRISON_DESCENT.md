@@ -257,6 +257,7 @@ activation sequence.
 - [x] Add procedural floor generation parameters plus deterministic entry/return
   anchors; do not require a hand-authored floor layout.
 - [x] Connect Mars `>` to the alien-prison extension's generated Floor 1.
+- [x] Show a one-time first-entry flavor popup for the extension.
 - [x] Add a small capped set of dormant alien security encounters and one or two
   persistent activation events that use main-quest modal popups to warn the
   player, with flavor as the systems power up.
@@ -265,7 +266,8 @@ activation sequence.
 - [x] Keep old Act 0 saves/load behavior compatible.
 
 **PLAYTEST:** Open the Mars door, step onto `>`, confirm a procedural
-`Alien Prison F1` loads; explore until a main-quest modal popup warns
+`Alien Prison F1` loads and shows a one-time first-entry flavor popup;
+explore until a main-quest modal popup warns
 that security systems are powering up; verify that one nearby security unit
 appears. Continue exploring until the second popup fires and the other nearby
 security unit appears; either unit may come first because the route is
@@ -276,7 +278,7 @@ does not show the popup again.
 **Implementation checkpoint:** The generic extension runtime, procedural Floor 1,
 Mars entry/return, persistent activation events, guide section, and save/load
 coverage are implemented. Automated validation: `python3 tools/smoke.py` passes
-and `python3 tools/test.py` passes with 225 tests. Manual playtest remains the
+and `python3 tools/test.py` passes with 227 tests. Manual playtest remains the
 next checkpoint before Phase 2.
 
 **Playtest result:** The Floor 1 HUD label remained readable as `Alien Prison F1`.

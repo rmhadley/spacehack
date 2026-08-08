@@ -13,6 +13,15 @@ from ... import dungeon
 
 
 @dataclass(frozen=True)
+class EntryFlavor:
+    """One-time narrative popup shown on first entry to a floor."""
+
+    faction_label: str
+    title: str
+    message: str
+
+
+@dataclass(frozen=True)
 class ActivationEvent:
     """One exploration-triggered dormant encounter."""
 
@@ -34,6 +43,7 @@ class ExtensionFloorSpec:
     floor: int
     location_name: str
     params: dungeon.DungeonParams
+    entry_flavor: EntryFlavor | None = None
     activation_events: tuple[ActivationEvent, ...] = ()
 
 
@@ -57,9 +67,19 @@ _ALIEN_PRISON = DungeonExtensionSpec(
     floors=(
         ExtensionFloorSpec(
             floor=1,
-            # Compact HUD-safe label; the full floor description lives in
-            # the guide and modal flavor text.
             location_name="Alien Prison F1",
+            # The entry narration is data-driven and shown once per run.
+            entry_flavor=EntryFlavor(
+                faction_label="ALIEN FACILITY",
+                title="THE PRISON BELOW",
+                message=(
+                    "The stairs descend into a facility built beneath Mars. "
+                    "The walls are seamless, the air is still, and every "
+                    "surface suggests a technology humanity never reached. "
+                    "There are no voices. No prisoners. Only dormant systems "
+                    "waiting in the dark."
+                ),
+            ),
             params=dungeon.DungeonParams(
                 width=50,
                 height=40,
