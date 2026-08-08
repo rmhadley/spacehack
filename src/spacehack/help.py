@@ -178,6 +178,28 @@ _GUIDE_CONTROLS = GuideSection(
     ),
 )
 
+_GUIDE_DUNGEON_EXTENSIONS = GuideSection(
+    title="Themed Dungeon Extensions",
+    body=(
+        "Some dungeon sites lead into deeper themed extensions. The Mars "
+        "signal door opens onto a procedural alien-prison floor."
+        "\n\n"
+        "- Step onto the green > stairs marker to enter"
+        "\n"
+        "- Explore normally; the extension floor is persistent"
+        "\n"
+        "- Dormant security may power up as you travel deeper"
+        "\n"
+        "- Main-quest popups explain major systems waking up"
+        "\n"
+        "- Return to the < entrance stairs to go back to the parent dungeon"
+        "\n"
+        "- The full prison descent will add more floors, an elevator, and a "
+        "deep data terminal"
+    ),
+)
+
+
 _GUIDE_COMBAT = GuideSection(
     title="Combat System",
     body=(
@@ -1517,6 +1539,7 @@ _GUIDE_DUNGEON_MONSTERS = GuideSection(
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_GAME_OVERVIEW,
     _GUIDE_CONTROLS,
+    _GUIDE_DUNGEON_EXTENSIONS,
     _GUIDE_COMBAT,
     _GUIDE_GROUND_COMBAT,
     _GUIDE_DUNGEON_MONSTERS,

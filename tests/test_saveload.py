@@ -11,14 +11,17 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.game_context import GameContext
+from src.spacehack.game_context import GameContext, DungeonExtensionState
 from src.spacehack.hud import HudStats
 from src.spacehack.message_log import MessageLog
 from src.spacehack.world import GameMap, Entity, Position
+from src.spacehack import world
 from src.spacehack.saveload import save_game, load_game, delete_save
+from src.spacehack import dungeon_extensions
 
 
 def _build_test_ctx() -> GameContext:
@@ -63,6 +66,15 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
+    ctx.dungeon_extension = DungeonExtensionState(
+        extension_id="mars_alien_prison",
+        current_floor=1,
+        active=True,
+        parent_map_key="surface:mars",
+        parent_position=Position(4, 4),
+        activated_events={"security_alpha"},
+        event_positions={"security_alpha": [7, 8]},
+    )
     return ctx
 
 
@@ -146,11 +158,103 @@ class TestSaveLoadRoundTrip:
         # Militia
         assert loaded.militia_scanned == original.militia_scanned
 
+        # Themed dungeon extension state
+        assert loaded.dungeon_extension == original.dungeon_extension
+
         # OwnedShip — default None for a new character
         assert loaded.player_owned_ship is None
 
         # Active missions — default empty
         assert loaded.player_active_missions == []
+
+    def test_legacy_save_without_extension_state_loads(self, monkeypatch, tmp_path):
+        """Pre-extension saves load with no active extension state."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(42)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("dungeon_extension", None)
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.dungeon_extension is None
+        delete_save()
+
+    def test_active_extension_round_trip_restores_floor_cache_and_parent(
+        self, monkeypatch, tmp_path,
+    ):
+        """Continue inside Floor 1 preserves the active floor and Mars return."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(43)
+        ctx = _build_test_ctx()
+        parent_tiles = [
+            [world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)
+        ]
+        parent_map = GameMap(12, 12, parent_tiles, [])
+        parent_position = Position(4, 5)
+        extension_map, extension_player = dungeon_extensions.enter_extension(
+            SimpleNamespace(
+                interiors={"surface:mars": parent_map},
+                dungeon_extension=None,
+                game_map=parent_map,
+                player=Entity("@", (255, 255, 255), parent_position, "Player"),
+                current_city_id="mars",
+                log=ctx.log,
+            ),
+            parent_map,
+            Entity("@", (255, 255, 255), parent_position, "Player"),
+            extension_id="mars_alien_prison",
+            parent_map_key="surface:mars",
+        )
+        # Reuse the state created by enter_extension on a real GameContext.
+        ctx.game_map = extension_map
+        ctx.player = extension_player
+        ctx.interiors = {
+            "surface:mars": parent_map,
+            dungeon_extensions.floor_key("mars_alien_prison", 1): extension_map,
+        }
+        ctx.dungeon_extension = DungeonExtensionState(
+            extension_id="mars_alien_prison",
+            current_floor=1,
+            active=True,
+            parent_map_key="surface:mars",
+            parent_position=parent_position,
+            activated_events={"security_alpha"},
+            event_positions={"security_alpha": [7, 8]},
+        )
+
+        save_game(
+            ctx,
+            mode="dungeon",
+            city_id="mars",
+            system_id="sol",
+            space_player_pos=(3, 4),
+        )
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.dungeon_extension == ctx.dungeon_extension
+        assert loaded.dungeon_extension.active
+        floor_key = dungeon_extensions.floor_key("mars_alien_prison", 1)
+        assert loaded.interiors[floor_key] is loaded.game_map
+        assert loaded.interiors["surface:mars"].width == 12
+        assert loaded.dungeon_extension.parent_position == parent_position
+        assert loaded.dungeon_extension.activated_events == {"security_alpha"}
+
+        delete_save()
 
     def test_round_trip_owned_ship(self, monkeypatch, tmp_path):
         """Ship state (hull damage, fuel, weapons, name) survives round-trip."""

@@ -139,6 +139,8 @@ EXIT = Tile(kind="exit", char=">", walkable=True,
 # space until the Act 1 transition is implemented.
 STAIRS_DOWN = Tile(kind="stairs_down", char=">", walkable=True,
                    fg=(130, 255, 180), bg=(20, 55, 35))
+STAIRS_UP = Tile(kind="stairs_up", char="<", walkable=True,
+                 fg=(150, 220, 255), bg=(20, 45, 65))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.

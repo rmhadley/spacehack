@@ -133,6 +133,7 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "main_quest_pending_message": ctx.main_quest_pending_message,
         "main_quest_pending_objective": ctx.main_quest_pending_objective,
         "main_quest_complete": ctx.main_quest_complete,
+        "dungeon_extension": _d(ctx.dungeon_extension),
     }
 
 
@@ -332,6 +333,10 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
             [gm.mars_stairs_pos.x, gm.mars_stairs_pos.y]
             if getattr(gm, 'mars_stairs_pos', None) is not None else None
         ),
+        "extension_id": getattr(gm, 'extension_id', ''),
+        "extension_floor": getattr(gm, 'extension_floor', 0),
+        "activation_positions": _d(getattr(gm, 'activation_positions', {})),
+        "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
     }
 
 
@@ -354,6 +359,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         "debris": world.DEBRIS,
         "exit": world.EXIT,
         "stairs_down": world.STAIRS_DOWN,
+        "stairs_up": world.STAIRS_UP,
         "hull_wall": world.HULL_WALL,
     }
     _dw = dd.get("width", 1)
@@ -430,6 +436,22 @@ def _dungeon_from_dict(dd: dict) -> tuple:
     _msp = dd.get("mars_stairs_pos")
     if isinstance(_msp, (list, tuple)) and len(_msp) >= 2:
         _dungeon_map.mars_stairs_pos = world.Position(int(_msp[0]), int(_msp[1]))
+    _extension_id = dd.get("extension_id", "")
+    if _extension_id:
+        _dungeon_map.extension_id = _extension_id
+    _extension_floor = dd.get("extension_floor", 0)
+    if _extension_floor:
+        _dungeon_map.extension_floor = int(_extension_floor)
+    _activation_positions = dd.get("activation_positions", {}) or {}
+    if _activation_positions:
+        _dungeon_map.activation_positions = {
+            str(_event_id): world.Position(int(_point[0]), int(_point[1]))
+            for _event_id, _point in _activation_positions.items()
+            if isinstance(_point, (list, tuple)) and len(_point) >= 2
+        }
+    _extension_entry_id = dd.get("extension_entry_id", "")
+    if _extension_entry_id:
+        _dungeon_map.extension_entry_id = str(_extension_entry_id)
     _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
     return _dungeon_map, _space_pos
 
@@ -467,7 +489,10 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
 
     from . import hud, message_log, mission as mission_module
     from . import ship as ship_module, world, solar_system as solar_system_module
-    from .game_context import GameContext, PlayerCounters, BountySpawn, ProceduralSpawn
+    from .game_context import (
+        GameContext, PlayerCounters, BountySpawn, ProceduralSpawn,
+        DungeonExtensionState,
+    )
 
     # --- character_info ---
     _ci = _data["character_info"]
@@ -983,6 +1008,27 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.main_quest_pending_message = _data.get("main_quest_pending_message", "")
     _ctx.main_quest_pending_objective = _data.get("main_quest_pending_objective", "")
     _ctx.main_quest_complete = _data.get("main_quest_complete", False)
+    _extension_data = _data.get("dungeon_extension")
+    if isinstance(_extension_data, dict) and _extension_data.get("extension_id"):
+        _parent_position = _extension_data.get("parent_position")
+        _parent_pos = None
+        if isinstance(_parent_position, (list, tuple)) and len(_parent_position) >= 2:
+            _parent_pos = world.Position(
+                int(_parent_position[0]), int(_parent_position[1]),
+            )
+        _ctx.dungeon_extension = DungeonExtensionState(
+            extension_id=str(_extension_data["extension_id"]),
+            current_floor=int(_extension_data.get("current_floor", 1)),
+            active=bool(_extension_data.get("active", False)),
+            parent_map_key=str(_extension_data.get("parent_map_key", "")),
+            parent_position=_parent_pos,
+            activated_events=set(_extension_data.get("activated_events", []) or []),
+            event_positions={
+                str(_event_id): [int(_point[0]), int(_point[1])]
+                for _event_id, _point in (_extension_data.get("event_positions", {}) or {}).items()
+                if isinstance(_point, (list, tuple)) and len(_point) >= 2
+            },
+        )
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
     if _mode == "dungeon":
         _ctx._space_game_map = _saved_space_map  # type: ignore[attr-defined]
@@ -1000,6 +1046,13 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _cur_wsid = getattr(_game_map, 'wreck_spawn_id', None)
     if _cur_wsid is not None:
         _ctx.interiors[_cur_wsid] = _game_map
+    _extension_state = _ctx.dungeon_extension
+    if _extension_state is not None and _extension_state.active:
+        from .dungeon_extensions import floor_key as _extension_floor_key
+        _ctx.interiors[_extension_floor_key(
+            _extension_state.extension_id,
+            _extension_state.current_floor,
+        )] = _game_map
 
     # --- Restore quest-conditional NPCs ---
     # The city map was rebuilt from the planet spec; add any dynamic

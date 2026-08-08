@@ -275,6 +275,7 @@ def _open_signal_door_tiles(
         game_map.tiles[_position.y][_position.x] = _floor
     if game_map.in_bounds(stairs.x, stairs.y):
         game_map.tiles[stairs.y][stairs.x] = world.STAIRS_DOWN
+        game_map.extension_entry_id = "mars_alien_prison"
 
 
 def animate_signal_door_opening(

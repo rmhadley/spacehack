@@ -540,6 +540,8 @@ def _run_game(
                         if _ground_result.outcome == "DEFEAT":
                             return
                         continue
+                    from .dungeon_extensions import tick_activation
+                    tick_activation(ctx)
                 ctx.log.add('You wait.')
                 continue
 
@@ -580,8 +582,60 @@ def _run_game(
                         return
                     # After combat, refresh the map render
                     continue
-                # Check if player walked onto the exit tile
+                if current_mode == 'dungeon':
+                    from .dungeon_extensions import tick_activation
+                    tick_activation(ctx)
+                # Themed dungeon extensions attach to ordinary dungeon
+                # connections. Entering from a parent surface keeps the
+                # existing outer-space return context unchanged.
                 _tile = game_map.tiles[player.pos.y][player.pos.x]
+                if _tile.kind == 'stairs_down' and not (
+                        ctx.dungeon_extension is not None
+                        and ctx.dungeon_extension.active):
+                    from .dungeon_extensions import enter_extension, extension_id_at
+                    _extension_id = extension_id_at(game_map, player.pos)
+                    _parent_key = next(
+                        (
+                            _key for _key, _cached_map in ctx.interiors.items()
+                            if _cached_map is game_map
+                        ),
+                        "",
+                    )
+                    try:
+                        if _extension_id is None:
+                            raise ValueError("No dungeon extension is attached here")
+                        _extension_map, _extension_player = enter_extension(
+                            ctx,
+                            game_map,
+                            player,
+                            extension_id=_extension_id,
+                            parent_map_key=_parent_key,
+                        )
+                    except (KeyError, ValueError):
+                        log.add("The stairs lead nowhere yet.")
+                    else:
+                        game_map = _extension_map
+                        player = _extension_player
+                        ctx.game_map = game_map
+                        ctx.player = player
+                        current_mode = 'dungeon'
+                        ctx.ground_hp = ctx.ground_max_hp
+                        log.add("You descend into the alien facility.")
+                    continue
+                if _tile.kind == 'stairs_up':
+                    from .dungeon_extensions import leave_extension
+                    try:
+                        _parent_map, _parent_player = leave_extension(ctx, game_map)
+                    except ValueError:
+                        log.add("The stairs are sealed.")
+                    else:
+                        game_map = _parent_map
+                        player = _parent_player
+                        ctx.game_map = game_map
+                        ctx.player = player
+                        log.add("You return to the Mars surface.")
+                    continue
+                # Check if player walked onto the ordinary exit tile
                 if _tile.kind == 'exit':
                     if space_game_map is not None and space_player is not None:
                         # Salvage wreck lifecycle: once the mission component is

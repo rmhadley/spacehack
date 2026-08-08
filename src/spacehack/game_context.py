@@ -144,6 +144,19 @@ class ProceduralSpawn:
 
 
 @dataclasses.dataclass
+class DungeonExtensionState:
+    """Persistent state for one themed dungeon extension run."""
+
+    extension_id: str
+    current_floor: int = 1
+    active: bool = False
+    parent_map_key: str = ""
+    parent_position: world.Position | None = None
+    activated_events: set[str] = dataclasses.field(default_factory=set)
+    event_positions: dict[str, list[int]] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass
 class GameContext:
     """Bundles the universally-shared game state for modals + render functions.
 
@@ -233,6 +246,7 @@ class GameContext:
     # First board caches the layout; exit keeps it; re-board reuses it so
     # crew stay dead, loot stays taken, fog stays revealed (anti-farm).
     interiors: dict[str, world.GameMap] = dataclasses.field(default_factory=dict)
+    dungeon_extension: DungeonExtensionState | None = None
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     npc_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     npc_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)
