@@ -95,6 +95,18 @@ class TestSoftLoot:
 
         assert find_loot_near(gm, player_pos) is adjacent
 
+    def test_find_loot_near_finds_diagonal_cells(self):
+        """P pickup also reaches loot on a diagonal neighbor."""
+        gm = _make_map(5, 5)
+        player_pos = Position(2, 2)
+        diagonal = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(3, 3),
+            loot_data={"good_id": "scrap_metal", "quantity": 1},
+        )
+        gm.entities.append(diagonal)
+
+        assert find_loot_near(gm, player_pos) is diagonal
+
     def test_find_loot_near_returns_none_without_loot(self):
         gm = _make_map(3, 3)
 

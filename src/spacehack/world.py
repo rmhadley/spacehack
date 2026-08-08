@@ -1339,13 +1339,22 @@ def find_loot_near(
     game_map: GameMap,
     position: Position,
 ) -> Entity | None:
-    """Find loot on the current cell or an adjacent cardinal cell."""
+    """Find loot on the current cell or any adjacent cell.
+
+    The current cell and cardinal neighbors are checked first, followed
+    by diagonals, so the original pickup preference remains stable while
+    diagonal loot is also reachable.
+    """
     _positions = (
         position,
         Position(position.x, position.y - 1),
         Position(position.x + 1, position.y),
         Position(position.x, position.y + 1),
         Position(position.x - 1, position.y),
+        Position(position.x - 1, position.y - 1),
+        Position(position.x + 1, position.y - 1),
+        Position(position.x - 1, position.y + 1),
+        Position(position.x + 1, position.y + 1),
     )
     for _position in _positions:
         _loot = game_map.loot_at(_position.x, _position.y)
