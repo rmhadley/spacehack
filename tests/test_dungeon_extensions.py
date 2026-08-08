@@ -70,8 +70,8 @@ def test_first_entry_flavor_shows_once_on_reentry(monkeypatch):
     assert len(shown) == 1
     assert shown[0][0:2] == ("ALIEN FACILITY", "THE PRISON BELOW")
     assert "technology humanity never reached" in shown[0][2]
-    assert "__entry_flavor__" in ctx.dungeon_extension.activated_events
-    assert ctx.dungeon_extension.activated_events == {"__entry_flavor__"}
+    assert "__entry_flavor__:floor:1" in ctx.dungeon_extension.activated_events
+    assert ctx.dungeon_extension.activated_events == {"__entry_flavor__:floor:1"}
 
     dungeon_extensions.leave_extension(ctx, extension_map)
     dungeon_extensions.enter_extension(
@@ -102,7 +102,10 @@ def test_floor_without_entry_flavor_does_not_mark_state(monkeypatch):
     dungeon_extensions._show_first_entry_flavor(ctx, state, 1)
 
     assert not shown
-    assert "__entry_flavor__" not in state.activated_events
+    assert not any(
+        marker.startswith("__entry_flavor__")
+        for marker in state.activated_events
+    )
 
 
 def test_extension_entry_and_leave_preserve_parent_position():
@@ -202,6 +205,61 @@ def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
     )
 
 
+def test_cached_floor_repairs_pre_phase_two_missing_down_stairs():
+    seed_rng(14)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    floor_one, _ = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    _down = floor_one.down_stair_pos
+    floor_one.tiles[_down.y][_down.x] = world.DUNGEON_FLOOR
+    del floor_one.down_stair_pos
+    dungeon_extensions.leave_extension(ctx, floor_one)
+
+    repaired, _ = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+
+    assert repaired.down_stair_pos is not None
+    assert repaired.tiles[
+        repaired.down_stair_pos.y
+    ][repaired.down_stair_pos.x].kind == "stairs_down"
+
+
+def test_cached_floor_repairs_invalid_stair_metadata():
+    seed_rng(13)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    floor_two, _ = dungeon_extensions.transition_floor(ctx, 1)
+    floor_two.up_stair_pos = world.Position(999, 999)
+    floor_two.down_stair_pos = world.Position(-1, -1)
+
+    returned_one, _ = dungeon_extensions.transition_floor(ctx, -1)
+    assert returned_one.extension_floor == 1
+    restored_two, _ = dungeon_extensions.transition_floor(ctx, 1)
+    assert restored_two.up_stair_pos is not None
+    assert restored_two.down_stair_pos is not None
+    assert restored_two.tiles[
+        restored_two.down_stair_pos.y
+    ][restored_two.down_stair_pos.x].kind == "stairs_down"
+
+
 def test_cached_floor_repairs_missing_activation_positions():
     seed_rng(11)
     parent_map, parent_player = _parent_map()
@@ -239,4 +297,95 @@ def test_extension_map_metadata_round_trips():
     assert restored.extension_floor == 1
     assert restored.activation_positions == game_map.activation_positions
     assert restored.extension_entry_id == getattr(game_map, "extension_entry_id", "")
+    assert getattr(restored, "feature_theme", "") == getattr(
+        game_map, "feature_theme", "",
+    )
+    assert restored.up_stair_pos == game_map.up_stair_pos
+    assert restored.down_stair_pos == game_map.down_stair_pos
     assert restored.tiles[game_map.entry_spawn.y][game_map.entry_spawn.x].kind == "stairs_up"
+
+
+def test_phase_two_floors_have_expected_stair_connections_and_population():
+    for floor in (2, 3):
+        seed_rng(100 + floor)
+        game_map, spawn = dungeon_extensions._generate_floor(
+            "mars_alien_prison", floor,
+        )
+
+        assert game_map.extension_floor == floor
+        assert game_map.location_name == f"Alien Prison F{floor}"
+        assert game_map.up_stair_pos == spawn
+        assert game_map.tiles[spawn.y][spawn.x] is world.STAIRS_UP
+        if floor == 2:
+            assert game_map.feature_theme == "prisoner_quarters"
+            assert sum(
+                tile.kind == "prison_cell_door"
+                for row in game_map.tiles for tile in row
+            ) >= 1
+            assert sum(
+                tile.kind == "security_post"
+                for row in game_map.tiles for tile in row
+            ) >= 1
+            assert game_map.down_stair_pos is not None
+            assert game_map.tiles[
+                game_map.down_stair_pos.y
+            ][game_map.down_stair_pos.x] is world.STAIRS_DOWN
+        else:
+            assert game_map.feature_theme == "defensive_layer"
+            assert sum(
+                tile.kind == "defense_barrier"
+                for row in game_map.tiles for tile in row
+            ) >= 1
+            assert sum(
+                tile.kind == "security_node"
+                for row in game_map.tiles for tile in row
+            ) >= 1
+            assert not hasattr(game_map, "down_stair_pos")
+        assert any(entity.npc_char_id for entity in game_map.entities)
+
+
+def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
+    seed_rng(202)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+
+    floor_one, _ = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    floor_one_marker = world.Entity(
+        "!", (255, 255, 255), floor_one.entry_spawn, "Test marker",
+    )
+    floor_one.entities.append(floor_one_marker)
+    floor_two, floor_two_player = dungeon_extensions.transition_floor(ctx, 1)
+
+    assert ctx.dungeon_extension.current_floor == 2
+    assert floor_two.location_name == "Alien Prison F2"
+    assert floor_two.tiles[
+        floor_two.up_stair_pos.y
+    ][floor_two.up_stair_pos.x] is world.STAIRS_UP
+    assert floor_two.down_stair_pos is not None
+
+    floor_three, _ = dungeon_extensions.transition_floor(ctx, 1)
+    assert ctx.dungeon_extension.current_floor == 3
+    assert floor_three.location_name == "Alien Prison F3"
+    assert not hasattr(floor_three, "down_stair_pos")
+
+    returned_two, returned_player = dungeon_extensions.transition_floor(ctx, -1)
+    assert returned_two is floor_two
+    assert returned_player.pos == floor_two.down_stair_pos
+    assert ctx.dungeon_extension.current_floor == 2
+
+    returned_one, _ = dungeon_extensions.transition_floor(ctx, -1)
+    assert returned_one is floor_one
+    assert returned_one.entity_at(
+        floor_one_marker.pos.x, floor_one_marker.pos.y,
+    ) is floor_one_marker
+    assert ctx.dungeon_extension.current_floor == 1
+
+    surface_map, _ = dungeon_extensions.leave_extension(ctx, returned_one)
+    assert surface_map is parent_map
+    assert not ctx.dungeon_extension.active

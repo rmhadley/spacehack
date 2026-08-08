@@ -412,7 +412,9 @@ def populate_dungeon(
     for _y in range(game_map.height):
         for _x in range(game_map.width):
             _t = game_map.tiles[_y][_x]
-            if not _t.walkable or _t.kind == "exit":
+            if not _t.walkable or _t.kind in {
+                "exit", "stairs_up", "stairs_down",
+            }:
                 continue
             if max(abs(_x - spawn_pos.x), abs(_y - spawn_pos.y)) <= _SPAWN_CLEAR_RADIUS:
                 continue
@@ -454,7 +456,11 @@ def populate_dungeon(
                 if max(abs(_nx - spawn_pos.x), abs(_ny - spawn_pos.y)) <= _SPAWN_CLEAR_RADIUS:
                     continue
                 _nt = game_map.tiles[_ny][_nx]
-                if _nt.walkable and _nt.kind != "exit" and (_nx, _ny) not in _occupied:
+                if (
+                    _nt.walkable
+                    and _nt.kind not in {"exit", "stairs_up", "stairs_down"}
+                    and (_nx, _ny) not in _occupied
+                ):
                     _cells.append((_nx, _ny))
         _squad_id = f"dungeon_{_eid}_{_squad_counter}"
         _squad_counter += 1

@@ -141,6 +141,16 @@ STAIRS_DOWN = Tile(kind="stairs_down", char=">", walkable=True,
                    fg=(130, 255, 180), bg=(20, 55, 35))
 STAIRS_UP = Tile(kind="stairs_up", char="<", walkable=True,
                  fg=(150, 220, 255), bg=(20, 45, 65))
+# Procedural extension feature tiles. They are walkable visual markers rather
+# than entities, so cell doors, posts, and barriers never block pathfinding.
+PRISON_CELL_DOOR = Tile(kind="prison_cell_door", char="|", walkable=True,
+                        fg=(170, 230, 255), bg=(35, 55, 75))
+SECURITY_POST = Tile(kind="security_post", char="+", walkable=True,
+                     fg=(120, 255, 220), bg=(25, 65, 65))
+DEFENSE_BARRIER = Tile(kind="defense_barrier", char="=", walkable=True,
+                       fg=(255, 180, 100), bg=(75, 45, 30))
+SECURITY_NODE = Tile(kind="security_node", char="*", walkable=True,
+                     fg=(255, 100, 100), bg=(70, 25, 30))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.

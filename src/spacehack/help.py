@@ -192,10 +192,19 @@ _GUIDE_DUNGEON_EXTENSIONS = GuideSection(
         "\n"
         "- Main-quest popups explain major systems waking up"
         "\n"
-        "- Return to the < entrance stairs to go back to the parent dungeon"
+        "- Use < to climb back toward the previous floor; on Floor 1 it "
+        "returns to the parent Mars dungeon"
         "\n"
-        "- The full prison descent will add more floors, an elevator, and a "
-        "deep data terminal"
+        "- Floors 2-3 are persistent procedural areas with low-risk "
+        "quarters and a defensive layer"
+        "\n"
+        "- Defeated enemies, collected loot, and revealed fog remain when "
+        "you backtrack"
+        "\n"
+        "- The deeper > stairs on Floor 2 lead to the defensive Floor 3"
+        "\n"
+        "- The full prison descent will add an elevator and a deep data "
+        "terminal"
     ),
 )
 

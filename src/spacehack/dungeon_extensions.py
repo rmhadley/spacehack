@@ -19,6 +19,11 @@ ALIEN_PRISON_EXTENSION_ID = "mars_alien_prison"
 _ENTRY_FLAVOR_KEY = "__entry_flavor__"
 
 
+def _entry_flavor_key(floor: int) -> str:
+    """Return the per-floor key for one-time entry flavor."""
+    return f"{_ENTRY_FLAVOR_KEY}:floor:{floor}"
+
+
 def floor_key(extension_id: str, floor: int) -> str:
     """Return the stable interior-cache key for one extension floor."""
     return f"{_EXTENSION_KEY_PREFIX}{extension_id}:floor:{floor}"
@@ -91,22 +96,177 @@ def _activation_positions(
     return _positions
 
 
+def _farthest_free_cell(
+    game_map: world.GameMap,
+    origin: world.Position,
+) -> world.Position | None:
+    """Return the farthest reachable, unoccupied floor cell from ``origin``."""
+    _distances = _walkable_distances(game_map, origin)
+    _occupied = {(entity.pos.x, entity.pos.y) for entity in game_map.entities}
+    _cells = sorted(
+        _distances,
+        key=lambda _cell: (-_distances[_cell], _cell[1], _cell[0]),
+    )
+    for _x, _y in _cells:
+        if (_x, _y) not in _occupied and (_x, _y) != (origin.x, origin.y):
+            return world.Position(_x, _y)
+    return None
+
+
+def _set_floor_metadata(
+    game_map: world.GameMap,
+    extension_id: str,
+    floor: int,
+    spec,
+    entry: world.Position,
+) -> None:
+    """Attach generic extension metadata and connection markers to a floor."""
+    game_map.entry_spawn = entry
+    game_map.up_stair_pos = entry
+    game_map.location_name = spec.location_name
+    game_map.extension_id = extension_id
+    game_map.extension_floor = floor
+    game_map.extension_entry_id = extension_id
+    game_map.feature_theme = spec.feature_theme
+
+
+def _feature_cells(
+    game_map: world.GameMap,
+    origin: world.Position,
+    *,
+    adjacent_to_wall: bool = False,
+) -> list[tuple[int, int]]:
+    """Return deterministic walkable cells suitable for visual features."""
+    _distances = _walkable_distances(game_map, origin)
+    _cells = sorted(
+        _distances,
+        key=lambda _cell: (-_distances[_cell], _cell[1], _cell[0]),
+    )
+    if not adjacent_to_wall:
+        return _cells
+    return [
+        _cell for _cell in _cells
+        if any(
+            not game_map.is_walkable(_cell[0] + _dx, _cell[1] + _dy)
+            for _dx, _dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+        )
+    ]
+
+
+def _stamp_features(
+    game_map: world.GameMap,
+    cells: list[tuple[int, int]],
+    tile: world.Tile,
+    count: int,
+    used: set[tuple[int, int]],
+) -> None:
+    """Paint up to ``count`` non-stair feature markers."""
+    _placed = 0
+    for _x, _y in cells:
+        if _placed >= count:
+            return
+        if (_x, _y) in used:
+            continue
+        if game_map.tiles[_y][_x].kind in {"stairs_up", "stairs_down"}:
+            continue
+        game_map.tiles[_y][_x] = tile
+        used.add((_x, _y))
+        _placed += 1
+
+
+def _stamp_prisoner_quarters(
+    game_map: world.GameMap,
+    origin: world.Position,
+) -> None:
+    """Add empty-cell doors and security posts to a quarters floor."""
+    _used: set[tuple[int, int]] = set()
+    _stamp_features(
+        game_map,
+        _feature_cells(game_map, origin, adjacent_to_wall=True),
+        world.PRISON_CELL_DOOR,
+        8,
+        _used,
+    )
+    _stamp_features(
+        game_map,
+        _feature_cells(game_map, origin),
+        world.SECURITY_POST,
+        3,
+        _used,
+    )
+
+
+def _stamp_defensive_layer(
+    game_map: world.GameMap,
+    origin: world.Position,
+) -> None:
+    """Add non-blocking barriers and active security nodes to Floor 3."""
+    _used: set[tuple[int, int]] = set()
+    _cells = _feature_cells(game_map, origin)
+    _stamp_features(game_map, _cells, world.DEFENSE_BARRIER, 5, _used)
+    _stamp_features(
+        game_map,
+        list(reversed(_cells)),
+        world.SECURITY_NODE,
+        4,
+        _used,
+    )
+
+
+_FEATURE_STAMPERS = {
+    "prisoner_quarters": _stamp_prisoner_quarters,
+    "defensive_layer": _stamp_defensive_layer,
+}
+
+
+def _stamp_floor_features(
+    game_map: world.GameMap,
+    spec,
+    origin: world.Position,
+) -> None:
+    """Apply a data-selected procedural feature theme to a floor."""
+    _feature_stamper = _FEATURE_STAMPERS.get(spec.feature_theme)
+    if _feature_stamper is not None:
+        _feature_stamper(game_map, origin)
+
+
 def _generate_floor(extension_id: str, floor: int):
-    """Generate one procedural floor and its stable activation anchors."""
+    """Generate one procedural floor and its stable extension anchors."""
     _spec = _floor_spec(extension_id, floor)
     _game_map, _spawn = dungeon.generate_dungeon(_spec.params)
     # The generic generator creates an EXIT at its spawn wall. An extension
     # floor uses an explicit up-connection marker instead.
     _game_map.tiles[_spawn.y][_spawn.x] = world.STAIRS_UP
-    _game_map.entry_spawn = _spawn
-    _game_map.location_name = _spec.location_name
-    _game_map.extension_id = extension_id
-    _game_map.extension_floor = floor
-    _game_map.extension_entry_id = extension_id
+    _set_floor_metadata(_game_map, extension_id, floor, _spec, _spawn)
+    _stamp_floor_features(_game_map, _spec, _spawn)
+    # Populate before selecting the deeper connection so the stair tile is
+    # guaranteed not to overlap a procedural enemy.
+    dungeon.populate_dungeon(_game_map, _spec.params, _spawn)
+    if _spec.has_down_stairs:
+        _down = _farthest_free_cell(_game_map, _spawn)
+        if _down is not None:
+            _game_map.tiles[_down.y][_down.x] = world.STAIRS_DOWN
+            _game_map.down_stair_pos = _down
     _game_map.activation_positions = _activation_positions(
         _game_map, _spawn, _spec.activation_events,
     )
     return _game_map, _spawn
+
+
+def _sync_event_positions(
+    state: DungeonExtensionState,
+    game_map: world.GameMap,
+) -> None:
+    """Refresh current-floor activation anchors from its cached map."""
+    state.event_positions = {
+        _event_id: [_position.x, _position.y]
+        if isinstance(_position, world.Position) else [
+            int(_position[0]), int(_position[1]),
+        ]
+        for _event_id, _position in getattr(
+            game_map, "activation_positions", {},
+        ).items()
+    }
 
 
 def _ensure_state(ctx, extension_id: str) -> DungeonExtensionState:
@@ -147,26 +307,13 @@ def enter_extension(
     if _game_map is None:
         _game_map, _spawn = _generate_floor(extension_id, _floor)
         ctx.interiors[_key] = _game_map
-        _state.event_positions = {
-            _event_id: [_position.x, _position.y]
-            for _event_id, _position in getattr(
-                _game_map, "activation_positions", {},
-            ).items()
-        }
+        _sync_event_positions(_state, _game_map)
     else:
+        _ensure_floor_connections(_game_map, extension_id, _floor)
         _spawn = getattr(_game_map, "entry_spawn", None)
         if _spawn is None:
             _spawn = _first_walkable(_game_map)
-        _cached_positions = getattr(_game_map, "activation_positions", {})
-        if _cached_positions:
-            _state.event_positions.update({
-                _event_id: [_position.x, _position.y]
-                if isinstance(_position, world.Position) else [
-                    int(_position[0]), int(_position[1]),
-                ]
-                for _event_id, _position in _cached_positions.items()
-                if _event_id not in _state.event_positions
-            })
+        _sync_event_positions(_state, _game_map)
     if _spawn is None:
         raise ValueError("Dungeon extension floor has no walkable entry")
 
@@ -189,7 +336,10 @@ def _show_first_entry_flavor(
     floor: int,
 ) -> None:
     """Show and persist a floor's one-time entry flavor, if defined."""
-    if _ENTRY_FLAVOR_KEY in state.activated_events:
+    _flavor_key = _entry_flavor_key(floor)
+    if _flavor_key in state.activated_events or (
+        floor == 1 and _ENTRY_FLAVOR_KEY in state.activated_events
+    ):
         return
     # Lightweight test contexts may omit the terminal context; real
     # GameContext instances always provide it for modal presentation.
@@ -206,7 +356,138 @@ def _show_first_entry_flavor(
         _flavor.message,
         title=_flavor.title,
     )
-    state.activated_events.add(_ENTRY_FLAVOR_KEY)
+    state.activated_events.add(_flavor_key)
+
+
+def _valid_stair_position(
+    game_map: world.GameMap,
+    position,
+    kind: str,
+) -> bool:
+    """Return whether metadata points to a matching in-bounds stair tile."""
+    return (
+        isinstance(position, world.Position)
+        and game_map.in_bounds(position.x, position.y)
+        and game_map.tiles[position.y][position.x].kind == kind
+    )
+
+
+def _find_stair_position(
+    game_map: world.GameMap,
+    kind: str,
+) -> world.Position | None:
+    """Find the first stair tile of ``kind`` in map order."""
+    for _y, _row in enumerate(game_map.tiles):
+        for _x, _tile in enumerate(_row):
+            if _tile.kind == kind:
+                return world.Position(_x, _y)
+    return None
+
+
+def _ensure_floor_connections(
+    game_map: world.GameMap,
+    extension_id: str,
+    floor: int,
+) -> None:
+    """Repair connection metadata on a cached floor from an older save."""
+    _spec = _floor_spec(extension_id, floor)
+    _entry = getattr(game_map, "entry_spawn", None)
+    if not _valid_stair_position(game_map, _entry, "stairs_up"):
+        _entry = _find_stair_position(game_map, "stairs_up")
+    if _entry is None:
+        _entry = getattr(game_map, "up_stair_pos", None)
+    if not _valid_stair_position(game_map, _entry, "stairs_up"):
+        _entry = _first_walkable(game_map)
+    if _entry is None or not game_map.in_bounds(_entry.x, _entry.y):
+        return
+    if game_map.tiles[_entry.y][_entry.x].kind != "stairs_up":
+        game_map.tiles[_entry.y][_entry.x] = world.STAIRS_UP
+    _set_floor_metadata(game_map, extension_id, floor, _spec, _entry)
+    if not _spec.has_down_stairs:
+        return
+    _down = getattr(game_map, "down_stair_pos", None)
+    if not _valid_stair_position(game_map, _down, "stairs_down"):
+        _down = _find_stair_position(game_map, "stairs_down")
+    if _valid_stair_position(game_map, _down, "stairs_down"):
+        game_map.down_stair_pos = _down
+        return
+    _down = _farthest_free_cell(game_map, _entry)
+    if _down is not None:
+        game_map.tiles[_down.y][_down.x] = world.STAIRS_DOWN
+        game_map.down_stair_pos = _down
+
+
+def _connection_position(
+    game_map: world.GameMap,
+    kind: str,
+) -> world.Position | None:
+    """Return a validated connection position from metadata or tile scan."""
+    _position = getattr(
+        game_map,
+        "up_stair_pos" if kind == "stairs_up" else "down_stair_pos",
+        None,
+    )
+    if _valid_stair_position(game_map, _position, kind):
+        return _position
+    return _find_stair_position(game_map, kind)
+
+
+def _get_or_generate_floor(
+    ctx,
+    extension_id: str,
+    floor: int,
+) -> world.GameMap:
+    """Return a cached extension floor, generating and caching it if absent."""
+    _key = floor_key(extension_id, floor)
+    _game_map = ctx.interiors.get(_key)
+    if _game_map is None:
+        _game_map, _ = _generate_floor(extension_id, floor)
+        ctx.interiors[_key] = _game_map
+    else:
+        _ensure_floor_connections(_game_map, extension_id, floor)
+    return _game_map
+
+
+def transition_floor(
+    ctx,
+    direction: int,
+) -> tuple[world.GameMap, world.Entity]:
+    """Move one floor up or down inside the active extension."""
+    _state = ctx.dungeon_extension
+    if _state is None or not _state.active:
+        raise ValueError("No active dungeon extension to traverse")
+    if direction not in (-1, 1):
+        raise ValueError("Floor transition direction must be -1 or 1")
+    _target_floor = _state.current_floor + direction
+    if _target_floor < 1:
+        raise ValueError("Already at the extension entrance")
+    try:
+        _target_map = _get_or_generate_floor(
+            ctx, _state.extension_id, _target_floor,
+        )
+    except KeyError:
+        raise ValueError("No extension floor at that depth") from None
+    _source_map = ctx.game_map
+    _ensure_floor_connections(
+        _target_map, _state.extension_id, _target_floor,
+    )
+    _target_kind = "stairs_up" if direction > 0 else "stairs_down"
+    _target_pos = _connection_position(_target_map, _target_kind)
+    if _target_pos is None:
+        raise ValueError("Extension floor connection is unavailable")
+    _remove_player(_source_map)
+    _remove_player(_target_map)
+    _player = _make_player(_target_pos)
+    _target_map.entities.append(_player)
+    _state.current_floor = _target_floor
+    _sync_event_positions(_state, _target_map)
+    ctx.game_map = _target_map
+    ctx.player = _player
+    if _target_map.seen is None:
+        dungeon.init_fog(_target_map)
+    dungeon.reveal_around(_target_map, _target_pos)
+    _show_first_entry_flavor(ctx, _state, _target_floor)
+    return _target_map, _player
 
 
 def leave_extension(

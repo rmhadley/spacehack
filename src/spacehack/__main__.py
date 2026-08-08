@@ -589,43 +589,57 @@ def _run_game(
                 # connections. Entering from a parent surface keeps the
                 # existing outer-space return context unchanged.
                 _tile = game_map.tiles[player.pos.y][player.pos.x]
-                if _tile.kind == 'stairs_down' and not (
-                        ctx.dungeon_extension is not None
-                        and ctx.dungeon_extension.active):
-                    from .dungeon_extensions import enter_extension, extension_id_at
-                    _extension_id = extension_id_at(game_map, player.pos)
-                    _parent_key = next(
-                        (
-                            _key for _key, _cached_map in ctx.interiors.items()
-                            if _cached_map is game_map
-                        ),
-                        "",
+                if _tile.kind == 'stairs_down':
+                    from .dungeon_extensions import (
+                        enter_extension, extension_id_at, transition_floor,
                     )
                     try:
-                        if _extension_id is None:
-                            raise ValueError("No dungeon extension is attached here")
-                        _extension_map, _extension_player = enter_extension(
-                            ctx,
-                            game_map,
-                            player,
-                            extension_id=_extension_id,
-                            parent_map_key=_parent_key,
-                        )
+                        if ctx.dungeon_extension is not None and ctx.dungeon_extension.active:
+                            _next_map, _next_player = transition_floor(ctx, 1)
+                            _transition_message = "You descend deeper into the facility."
+                        else:
+                            _extension_id = extension_id_at(game_map, player.pos)
+                            _parent_key = next(
+                                (
+                                    _key for _key, _cached_map in ctx.interiors.items()
+                                    if _cached_map is game_map
+                                ),
+                                "",
+                            )
+                            if _extension_id is None:
+                                raise ValueError("No dungeon extension is attached here")
+                            _next_map, _next_player = enter_extension(
+                                ctx,
+                                game_map,
+                                player,
+                                extension_id=_extension_id,
+                                parent_map_key=_parent_key,
+                            )
+                            _transition_message = "You descend into the alien facility."
                     except (KeyError, ValueError):
                         log.add("The stairs lead nowhere yet.")
                     else:
-                        game_map = _extension_map
-                        player = _extension_player
+                        game_map = _next_map
+                        player = _next_player
                         ctx.game_map = game_map
                         ctx.player = player
                         current_mode = 'dungeon'
                         ctx.ground_hp = ctx.ground_max_hp
-                        log.add("You descend into the alien facility.")
+                        log.add(_transition_message)
                     continue
                 if _tile.kind == 'stairs_up':
-                    from .dungeon_extensions import leave_extension
+                    from .dungeon_extensions import leave_extension, transition_floor
                     try:
-                        _parent_map, _parent_player = leave_extension(ctx, game_map)
+                        if (
+                            ctx.dungeon_extension is not None
+                            and ctx.dungeon_extension.active
+                            and ctx.dungeon_extension.current_floor > 1
+                        ):
+                            _parent_map, _parent_player = transition_floor(ctx, -1)
+                            _transition_message = "You climb back toward the upper prison."
+                        else:
+                            _parent_map, _parent_player = leave_extension(ctx, game_map)
+                            _transition_message = "You return to the Mars surface."
                     except ValueError:
                         log.add("The stairs are sealed.")
                     else:
@@ -633,7 +647,7 @@ def _run_game(
                         player = _parent_player
                         ctx.game_map = game_map
                         ctx.player = player
-                        log.add("You return to the Mars surface.")
+                        log.add(_transition_message)
                     continue
                 # Check if player walked onto the ordinary exit tile
                 if _tile.kind == 'exit':

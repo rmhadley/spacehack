@@ -329,12 +329,21 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
             [gm.entry_spawn.x, gm.entry_spawn.y]
             if getattr(gm, 'entry_spawn', None) is not None else None
         ),
+        "up_stair_pos": (
+            [gm.up_stair_pos.x, gm.up_stair_pos.y]
+            if getattr(gm, 'up_stair_pos', None) is not None else None
+        ),
+        "down_stair_pos": (
+            [gm.down_stair_pos.x, gm.down_stair_pos.y]
+            if getattr(gm, 'down_stair_pos', None) is not None else None
+        ),
         "mars_stairs_pos": (
             [gm.mars_stairs_pos.x, gm.mars_stairs_pos.y]
             if getattr(gm, 'mars_stairs_pos', None) is not None else None
         ),
         "extension_id": getattr(gm, 'extension_id', ''),
         "extension_floor": getattr(gm, 'extension_floor', 0),
+        "feature_theme": getattr(gm, 'feature_theme', ''),
         "activation_positions": _d(getattr(gm, 'activation_positions', {})),
         "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
     }
@@ -433,6 +442,12 @@ def _dungeon_from_dict(dd: dict) -> tuple:
     _es = dd.get("entry_spawn")
     if isinstance(_es, (list, tuple)) and len(_es) >= 2:
         _dungeon_map.entry_spawn = world.Position(int(_es[0]), int(_es[1]))
+    _usp = dd.get("up_stair_pos")
+    if isinstance(_usp, (list, tuple)) and len(_usp) >= 2:
+        _dungeon_map.up_stair_pos = world.Position(int(_usp[0]), int(_usp[1]))
+    _dsp = dd.get("down_stair_pos")
+    if isinstance(_dsp, (list, tuple)) and len(_dsp) >= 2:
+        _dungeon_map.down_stair_pos = world.Position(int(_dsp[0]), int(_dsp[1]))
     _msp = dd.get("mars_stairs_pos")
     if isinstance(_msp, (list, tuple)) and len(_msp) >= 2:
         _dungeon_map.mars_stairs_pos = world.Position(int(_msp[0]), int(_msp[1]))
@@ -442,6 +457,9 @@ def _dungeon_from_dict(dd: dict) -> tuple:
     _extension_floor = dd.get("extension_floor", 0)
     if _extension_floor:
         _dungeon_map.extension_floor = int(_extension_floor)
+    _feature_theme = dd.get("feature_theme", "")
+    if _feature_theme:
+        _dungeon_map.feature_theme = str(_feature_theme)
     _activation_positions = dd.get("activation_positions", {}) or {}
     if _activation_positions:
         _dungeon_map.activation_positions = {
@@ -1048,7 +1066,15 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         _ctx.interiors[_cur_wsid] = _game_map
     _extension_state = _ctx.dungeon_extension
     if _extension_state is not None and _extension_state.active:
-        from .dungeon_extensions import floor_key as _extension_floor_key
+        from .dungeon_extensions import (
+            _ensure_floor_connections,
+            floor_key as _extension_floor_key,
+        )
+        _ensure_floor_connections(
+            _game_map,
+            _extension_state.extension_id,
+            _extension_state.current_floor,
+        )
         _ctx.interiors[_extension_floor_key(
             _extension_state.extension_id,
             _extension_state.current_floor,

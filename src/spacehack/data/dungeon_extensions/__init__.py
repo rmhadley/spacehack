@@ -43,6 +43,8 @@ class ExtensionFloorSpec:
     floor: int
     location_name: str
     params: dungeon.DungeonParams
+    has_down_stairs: bool = False
+    feature_theme: str = ""
     entry_flavor: EntryFlavor | None = None
     activation_events: tuple[ActivationEvent, ...] = ()
 
@@ -80,6 +82,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     "waiting in the dark."
                 ),
             ),
+            has_down_stairs=True,
             params=dungeon.DungeonParams(
                 width=50,
                 height=40,
@@ -121,6 +124,37 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                         "surface systems."
                     ),
                 ),
+            ),
+        ),
+        ExtensionFloorSpec(
+            floor=2,
+            location_name="Alien Prison F2",
+            has_down_stairs=True,
+            feature_theme="prisoner_quarters",
+            params=dungeon.DungeonParams(
+                width=50,
+                height=40,
+                min_room_size=4,
+                max_room_size=10,
+                room_fill_pct=0.58,
+                sight_radius=8,
+                monster_pool=("hull_parasite", "rock_scavenger"),
+                monster_density=1.8,
+            ),
+        ),
+        ExtensionFloorSpec(
+            floor=3,
+            location_name="Alien Prison F3",
+            feature_theme="defensive_layer",
+            params=dungeon.DungeonParams(
+                width=50,
+                height=40,
+                min_room_size=5,
+                max_room_size=11,
+                room_fill_pct=0.62,
+                sight_radius=8,
+                monster_pool=("sentry_drone", "hull_parasite", "assault_drone"),
+                monster_density=2.0,
             ),
         ),
     ),

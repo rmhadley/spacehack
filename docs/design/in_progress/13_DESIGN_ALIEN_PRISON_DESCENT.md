@@ -289,13 +289,23 @@ order is intentionally route-dependent rather than tied to enemy type.
 
 ### Phase 2 — Floors 2-3 and free backtracking
 
-- [ ] Add low-risk quarters with empty cells and security posts.
-- [ ] Add the defensive floor with capped security/pest encounters.
-- [ ] Add up/down links and preserve each floor's mutations.
+- [x] Add low-risk quarters with empty cells and security posts.
+- [x] Add the defensive floor with capped security/pest encounters.
+- [x] Add up/down links and preserve each floor's mutations.
 
 **PLAYTEST:** Descend through Floor 3, defeat or bypass a defense, backtrack to
 Floor 1, verify defeated enemies/loot/fog remain changed, save on each floor,
 and Continue from each floor.
+
+**Implementation checkpoint:** Floors 2-3 now use the generic procedural
+extension runtime. Floor 2 has low-risk quarters with procedural empty-cell
+doors, security posts, alien pests, and a deeper `>` connection. Floor 3 has
+procedural defensive barriers, security nodes, a defensive security/pest mix,
+and no deeper connection yet. Each visited floor is cached under its stable
+extension key, with `<`/`>` connection metadata and feature-theme metadata
+serialized alongside the map. Automated validation: `python3 tools/smoke.py`
+passes and `python3 tools/test.py` passes with 232 tests. Manual playtest is
+the next checkpoint.
 
 ### Phase 3 — Floor 4 engineering and powered elevator
 

@@ -72,7 +72,7 @@ def _build_test_ctx() -> GameContext:
         active=True,
         parent_map_key="surface:mars",
         parent_position=Position(4, 4),
-        activated_events={"security_alpha", "__entry_flavor__"},
+        activated_events={"security_alpha", "__entry_flavor__:floor:1"},
         event_positions={"security_alpha": [7, 8]},
     )
     return ctx
@@ -160,7 +160,7 @@ class TestSaveLoadRoundTrip:
 
         # Themed dungeon extension state
         assert loaded.dungeon_extension == original.dungeon_extension
-        assert "__entry_flavor__" in loaded.dungeon_extension.activated_events
+        assert "__entry_flavor__:floor:1" in loaded.dungeon_extension.activated_events
 
         # OwnedShip — default None for a new character
         assert loaded.player_owned_ship is None
@@ -233,7 +233,7 @@ class TestSaveLoadRoundTrip:
             active=True,
             parent_map_key="surface:mars",
             parent_position=parent_position,
-            activated_events={"security_alpha", "__entry_flavor__"},
+            activated_events={"security_alpha", "__entry_flavor__:floor:1"},
             event_positions={"security_alpha": [7, 8]},
         )
 
@@ -254,7 +254,7 @@ class TestSaveLoadRoundTrip:
         assert loaded.interiors["surface:mars"].width == 12
         assert loaded.dungeon_extension.parent_position == parent_position
         assert loaded.dungeon_extension.activated_events == {
-            "security_alpha", "__entry_flavor__",
+            "security_alpha", "__entry_flavor__:floor:1",
         }
 
         shown = []
@@ -274,6 +274,70 @@ class TestSaveLoadRoundTrip:
             parent_map_key="surface:mars",
         )
         assert not shown
+
+        delete_save()
+
+    def test_phase_two_floor_round_trip_preserves_links_and_cache(
+        self, monkeypatch, tmp_path,
+    ):
+        """Continue on Floor 2 preserves both visited floors and stair links."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(44)
+        ctx = _build_test_ctx()
+        parent_map = GameMap(
+            12, 12,
+            [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)],
+            [],
+        )
+        parent_player = Entity("@", (255, 255, 255), Position(4, 5), "Player")
+        parent_map.entities.append(parent_player)
+        ctx.interiors = {"surface:mars": parent_map}
+        ctx.game_map = parent_map
+        ctx.player = parent_player
+        floor_one, _ = dungeon_extensions.enter_extension(
+            ctx,
+            parent_map,
+            parent_player,
+            extension_id="mars_alien_prison",
+            parent_map_key="surface:mars",
+        )
+        floor_two, _ = dungeon_extensions.transition_floor(ctx, 1)
+
+        save_game(
+            ctx,
+            mode="dungeon",
+            city_id="mars",
+            system_id="sol",
+            space_player_pos=(3, 4),
+        )
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.dungeon_extension.current_floor == 2
+        assert loaded.interiors[dungeon_extensions.floor_key(
+            "mars_alien_prison", 1,
+        )].extension_floor == 1
+        loaded_floor_two = loaded.interiors[dungeon_extensions.floor_key(
+            "mars_alien_prison", 2,
+        )]
+        assert loaded_floor_two is loaded.game_map
+        assert loaded_floor_two.up_stair_pos == floor_two.up_stair_pos
+        assert loaded_floor_two.down_stair_pos == floor_two.down_stair_pos
+        assert loaded_floor_two.tiles[
+            loaded_floor_two.down_stair_pos.y
+        ][loaded_floor_two.down_stair_pos.x].kind == "stairs_down"
+        assert sum(
+            tile.kind == "prison_cell_door"
+            for row in loaded_floor_two.tiles for tile in row
+        ) == sum(
+            tile.kind == "prison_cell_door"
+            for row in floor_two.tiles for tile in row
+        )
+        assert floor_one is not floor_two
 
         delete_save()
 
