@@ -124,7 +124,7 @@ def _run_enemy_turn(
                 )
                 if not _blocked_by_other and (
                     state.game_map.is_walkable(_nx, _ny)
-                    and state.game_map.entity_at(_nx, _ny, exclude=_exclude) is None
+                    and state.game_map.blocking_entity_at(_nx, _ny, exclude=_exclude) is None
                 ):
                     _ei.pos = world.Position(_nx, _ny)
                     _ei.cells_moved_this_turn += 1

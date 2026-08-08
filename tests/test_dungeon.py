@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.world import (
     GameMap, Tile, Position,
     DUNGEON_WALL, DUNGEON_FLOOR, HULL_WALL, VOID, DUNGEON_DOOR,
+    Entity, try_move, find_loot_near, find_path,
 )
 from src.spacehack.dungeon import (
     init_fog,
@@ -36,6 +39,84 @@ def _wall_at(gm: GameMap, x: int, y: int) -> None:
 
 def _hull_at(gm: GameMap, x: int, y: int) -> None:
     gm.tiles[y][x] = HULL_WALL
+
+
+# ---------------------------------------------------------------------------
+# Soft loot movement
+# ---------------------------------------------------------------------------
+
+class TestSoftLoot:
+    def test_loot_does_not_block_world_movement(self):
+        """A player can walk through a loot pile instead of being trapped."""
+        gm = _make_map(3, 1)
+        player = Entity(char="@", fg=(255, 255, 255), pos=Position(0, 0))
+        loot = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(1, 0),
+            loot_data={"good_id": "scrap_metal", "quantity": 1},
+        )
+        gm.entities.extend((player, loot))
+
+        code, blocker = try_move(player, gm, 1, 0)
+
+        assert code == "moved"
+        assert blocker is None
+        assert player.pos == Position(1, 0)
+        assert gm.entity_at(1, 0) is player
+        assert gm.loot_at(1, 0) is loot
+
+    def test_find_loot_near_prefers_current_then_cardinal_cells(self):
+        """G pickup can collect loot on the player or one step away."""
+        gm = _make_map(5, 5)
+        player_pos = Position(2, 2)
+        adjacent = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(2, 1),
+            loot_data={"good_id": "scrap_metal", "quantity": 1},
+        )
+        gm.entities.append(adjacent)
+
+        assert find_loot_near(gm, player_pos) is adjacent
+
+    def test_find_loot_near_returns_none_without_loot(self):
+        gm = _make_map(3, 3)
+
+        assert find_loot_near(gm, Position(1, 1)) is None
+
+    def test_pathfinding_can_cross_loot(self):
+        """A loot drop does not make a corridor unreachable."""
+        gm = _make_map(3, 1)
+        loot = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(1, 0),
+            loot_data={"good_id": "scrap_metal", "quantity": 1},
+        )
+        gm.entities.append(loot)
+
+        path = find_path((0, 0), {(2, 0)}, gm)
+
+        assert path == [(1, 0), (2, 0)]
+
+    def test_dungeon_g_pickup_routes_to_existing_loot_modal(self, monkeypatch):
+        """The dungeon G action keeps mission-aware pickup centralized."""
+        from src.spacehack import __main__ as game_main
+
+        gm = _make_map(3, 3)
+        loot = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(2, 1),
+            loot_data={"good_id": "scrap_metal", "quantity": 1},
+        )
+        gm.entities.append(loot)
+        ctx = SimpleNamespace(
+            game_map=gm,
+            player=Entity(char="@", fg=(255, 255, 255), pos=Position(1, 1)),
+            log=MagicMock(),
+        )
+        opened = []
+        monkeypatch.setattr(
+            "src.spacehack.trade.open_loot_pickup",
+            lambda _ctx, entity: opened.append(entity),
+        )
+
+        assert game_main._pickup_loot_near(ctx) is True
+        assert opened == [loot]
 
 
 # ---------------------------------------------------------------------------

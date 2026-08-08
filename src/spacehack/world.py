@@ -316,6 +316,41 @@ class GameMap:
                 return e
         return None
 
+    def blocking_entity_at(
+        self,
+        x: int,
+        y: int,
+        *,
+        exclude: Entity | None = None,
+    ) -> Entity | None:
+        """Return the first solid entity at ``(x, y)``.
+
+        Loot is an interactable floor object, not a physical obstacle.
+        Movement and pathfinding use this lookup so cargo drops never
+        seal a corridor or trap a combatant.
+        """
+        for _entity in self.entities:
+            if _entity is exclude or _entity.loot_data is not None:
+                continue
+            if (
+                _entity.pos.x <= x < _entity.pos.x + _entity.width
+                and _entity.pos.y <= y < _entity.pos.y + _entity.height
+            ):
+                return _entity
+        return None
+
+    def loot_at(self, x: int, y: int) -> Entity | None:
+        """Return the loot entity occupying ``(x, y)``, if any."""
+        for _entity in self.entities:
+            if _entity.loot_data is None:
+                continue
+            if (
+                _entity.pos.x <= x < _entity.pos.x + _entity.width
+                and _entity.pos.y <= y < _entity.pos.y + _entity.height
+            ):
+                return _entity
+        return None
+
     def replace_tile(self, x: int, y: int, tile: Tile) -> None:
         self.tiles[y][x] = tile
 
@@ -1028,7 +1063,7 @@ def find_path(
             if npos not in end_candidates:
                 if not game_map.is_walkable(nx, ny):
                     continue
-                blocker = game_map.entity_at(nx, ny, exclude=exclude_entity)
+                blocker = game_map.blocking_entity_at(nx, ny, exclude=exclude_entity)
                 if blocker is not None:
                     continue
             tentative_g = g_score.get(curr, 0) + 1
@@ -1300,6 +1335,25 @@ MOVE_KEYS: dict[str, tuple[int, int]] = {
 }
 
 
+def find_loot_near(
+    game_map: GameMap,
+    position: Position,
+) -> Entity | None:
+    """Find loot on the current cell or an adjacent cardinal cell."""
+    _positions = (
+        position,
+        Position(position.x, position.y - 1),
+        Position(position.x + 1, position.y),
+        Position(position.x, position.y + 1),
+        Position(position.x - 1, position.y),
+    )
+    for _position in _positions:
+        _loot = game_map.loot_at(_position.x, _position.y)
+        if _loot is not None:
+            return _loot
+    return None
+
+
 def try_move(
     entity: Entity,
     game_map: GameMap,
@@ -1326,7 +1380,7 @@ def try_move(
     target_y = entity.pos.y + dy
     if not game_map.is_walkable(target_x, target_y):
         return ("wall", None)
-    blocker = game_map.entity_at(target_x, target_y, exclude=entity)
+    blocker = game_map.blocking_entity_at(target_x, target_y, exclude=entity)
     if blocker is not None:
         return ("occupied", blocker)
     entity.pos = Position(target_x, target_y)

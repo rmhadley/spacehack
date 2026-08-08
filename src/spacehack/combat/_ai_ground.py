@@ -128,7 +128,7 @@ def run_ground_enemy_turn(
         if (_nx, _ny) == (player_pos.x, player_pos.y):
             break
 
-        if game_map.is_walkable(_nx, _ny) and game_map.entity_at(_nx, _ny, exclude=enemy_entity) is None:
+        if game_map.is_walkable(_nx, _ny) and game_map.blocking_entity_at(_nx, _ny, exclude=enemy_entity) is None:
             enemy_entity.pos = world.Position(_nx, _ny)
             _result_ap -= 1
             # Animate step so the player sees enemies move one cell at a time

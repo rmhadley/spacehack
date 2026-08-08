@@ -393,8 +393,8 @@ def consume_shot(slot_idx: int, ctx) -> None:
 # ---------------------------------------------------------------------------
 
 def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
-    # Solid collision via the shared primitive: enemies, loot, and
-    # furniture all block — a combatant can't stack on another
+    # Solid collision via the shared primitive: enemies and furniture
+    # block, while loot is a walkable floor object.
     # combatant (melee attacks fire at range 1, there is no bump-attack).
     _new_pos, ok = move_entity(
         ctx.player.pos, dx, dy, game_map, exclude=ctx.player,

@@ -12,10 +12,11 @@ Movement accepts three key families (see ``world.MOVE_KEYS``):
 vim keys (``h`` / ``j`` / ``k`` / ``l`` for cardinals, ``y`` / ``u`` /
 ``b`` / ``n`` for diagonals), arrow keys, and the numpad. Walking
 into a wall logs a short message. Walking onto a tile holding
-another entity opens a context dialog:
+another solid entity opens a context dialog:
 
     * ship at the space port -> ship-buy modal (Enter / ESC)
     * guild NPC -> flavor dialog (ESC to leave)
+    * loot -> soft floor object; press G in dungeons to pick it up
     * anything else -> "You bump into X" log line
 """
 from __future__ import annotations
@@ -142,6 +143,17 @@ def _apply_ground_combat_rep(ctx, ground_result) -> None:
                 modify_rep(ctx, _fac, _delta)
         except (KeyError, ImportError):
             pass
+
+
+def _pickup_loot_near(ctx) -> bool:
+    """Open pickup for loot on or next to the current player."""
+    _loot = world.find_loot_near(ctx.game_map, ctx.player.pos)
+    if _loot is None:
+        ctx.log.add("No loot nearby.")
+        return False
+    from .trade import open_loot_pickup as _open_loot
+    _open_loot(ctx, _loot)
+    return True
 
 
 def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
@@ -489,7 +501,12 @@ def _run_game(
                 if outcome is NavigationOutcome.QUIT:
                     return
                 continue
+            if current_mode == 'dungeon' and _is_g_press(event):
+                _pickup_loot_near(ctx)
+                continue
             if current_mode == 'space' and _is_g_press(event):
+                if _pickup_loot_near(ctx):
+                    continue
                 _goto_outcome, _goto_combat = _run_goto(ctx, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
@@ -841,9 +858,6 @@ def _run_game(
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
                             short = _effective_price - ctx.stats.credits
                             log.add(f'You cannot afford the {ship.name} — need {_effective_price}$ (including {_trade_in_value}$ trade-in), {short}$ short.')
-                elif blocker.loot_data:
-                    from .trade import open_loot_pickup as _open_loot
-                    _open_loot(ctx, blocker)
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)

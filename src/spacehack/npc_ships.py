@@ -732,7 +732,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     _nx = _m.pos.x + _flee_dx
                     _ny = _m.pos.y + _flee_dy
                     if (game_map.is_walkable(_nx, _ny)
-                            and game_map.entity_at(_nx, _ny, exclude=_m) is None):
+                            and game_map.blocking_entity_at(_nx, _ny, exclude=_m) is None):
                         _m.pos = world.Position(_nx, _ny)
                 # Skip normal movement for this tick after fleeing.
                 continue
@@ -857,7 +857,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
             _nx = _lx + _drift_dx
             _ny = _ly + _drift_dy
             if (game_map.is_walkable(_nx, _ny)
-                    and game_map.entity_at(_nx, _ny, exclude=_leader) is None):
+                    and game_map.blocking_entity_at(_nx, _ny, exclude=_leader) is None):
                 _leader.pos = world.Position(_nx, _ny)
             continue
         if not _path:
@@ -876,7 +876,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
             _nx = _m.pos.x + _dx
             _ny = _m.pos.y + _dy
             if (game_map.is_walkable(_nx, _ny)
-                    and game_map.entity_at(_nx, _ny, exclude=_m) is None):
+                    and game_map.blocking_entity_at(_nx, _ny, exclude=_m) is None):
                 _m.pos = world.Position(_nx, _ny)
                 if _m is _leader:
                     _leader_moved = True
@@ -887,7 +887,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         _snx = _m.pos.x + _sdx
                         _sny = _m.pos.y + _sdy
                         if (game_map.is_walkable(_snx, _sny)
-                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
+                                and game_map.blocking_entity_at(_snx, _sny, exclude=_m) is None):
                             _m.pos = world.Position(_snx, _sny)
                             break
                 elif _dx != 0:
@@ -895,7 +895,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         _snx = _m.pos.x + _sdx
                         _sny = _m.pos.y + _sdy
                         if (game_map.is_walkable(_snx, _sny)
-                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
+                                and game_map.blocking_entity_at(_snx, _sny, exclude=_m) is None):
                             _m.pos = world.Position(_snx, _sny)
                             break
                 else:  # _dy != 0
@@ -903,7 +903,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                         _snx = _m.pos.x + _sdx
                         _sny = _m.pos.y + _sdy
                         if (game_map.is_walkable(_snx, _sny)
-                                and game_map.entity_at(_snx, _sny, exclude=_m) is None):
+                                and game_map.blocking_entity_at(_snx, _sny, exclude=_m) is None):
                             _m.pos = world.Position(_snx, _sny)
                             break
         if _leader_moved:
@@ -920,7 +920,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
                     _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
                     _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
                     if (game_map.is_walkable(_pull_x, _pull_y)
-                        and game_map.entity_at(_pull_x, _pull_y, exclude=_m) is None):
+                        and game_map.blocking_entity_at(_pull_x, _pull_y, exclude=_m) is None):
                         _m.pos = world.Position(_pull_x, _pull_y)
 
 

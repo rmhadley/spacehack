@@ -333,6 +333,6 @@ def move_entity(
     ny = pos.y + dy
     if not game_map.is_walkable(nx, ny):
         return pos, False
-    if game_map.entity_at(nx, ny, exclude=exclude) is not None:
+    if game_map.blocking_entity_at(nx, ny, exclude=exclude) is not None:
         return pos, False
     return world.Position(nx, ny), True

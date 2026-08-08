@@ -65,7 +65,7 @@ def _random_walkable(game_map: world.GameMap) -> tuple[int, int] | None:
     for _ in range(_attempts):
         _x = RNG.randint(0, game_map.width - 1)
         _y = RNG.randint(0, game_map.height - 1)
-        if game_map.is_walkable(_x, _y) and game_map.entity_at(_x, _y) is None:
+        if game_map.is_walkable(_x, _y) and game_map.blocking_entity_at(_x, _y) is None:
             return (_x, _y)
     return None
 
@@ -80,7 +80,7 @@ def _random_adjacent(
     for _dx, _dy in _dirs:
         _nx = entity.pos.x + _dx
         _ny = entity.pos.y + _dy
-        if game_map.is_walkable(_nx, _ny) and game_map.entity_at(_nx, _ny, exclude=entity) is None:
+        if game_map.is_walkable(_nx, _ny) and game_map.blocking_entity_at(_nx, _ny, exclude=entity) is None:
             return (_nx, _ny)
     return None
 
@@ -94,7 +94,7 @@ def _try_move_entity(
     _nx = entity.pos.x + dx
     _ny = entity.pos.y + dy
     if (game_map.is_walkable(_nx, _ny)
-            and game_map.entity_at(_nx, _ny, exclude=entity) is None):
+            and game_map.blocking_entity_at(_nx, _ny, exclude=entity) is None):
         entity.pos = world.Position(_nx, _ny)
         return True
     return False
@@ -123,7 +123,7 @@ def _patrol_path(
         if _path:
             _nx, _ny = _path[0]
             if (game_map.is_walkable(_nx, _ny)
-                    and game_map.entity_at(_nx, _ny, exclude=leader) is None):
+                    and game_map.blocking_entity_at(_nx, _ny, exclude=leader) is None):
                 _need_new = False
 
     if _need_new:
