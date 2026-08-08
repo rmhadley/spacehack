@@ -347,8 +347,6 @@ def render_hud(
             ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
-            ("Arrows", "Move"),
-            ("h/j/k/l", "Move"),
             ("numpad", "Move"),
         ])
 
@@ -447,8 +445,6 @@ def render_hud(
             ("C", "Character"),
             ("F", "Factions"),
             ("?", "Guide"),
-            ("Arrows", "Move"),
-            ("h/j/k/l", "Move"),
             ("numpad", "Move"),
         ]
         if mode == "dungeon":
