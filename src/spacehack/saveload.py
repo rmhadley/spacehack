@@ -312,6 +312,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 # the main-quest step id whose completion this loot
                 # triggers. Lives in dungeon interiors (persisted here).
                 "main_quest_step_id": getattr(e, 'main_quest_step_id', ''),
+                "dungeon_interaction": getattr(e, 'dungeon_interaction', ''),
             }
             for e in gm.entities if e.char != '@'
         ],
@@ -425,6 +426,9 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         _qsid = _ed.get("main_quest_step_id")
         if _qsid:
             _e.main_quest_step_id = _qsid
+        _interaction = _ed.get("dungeon_interaction", "")
+        if _interaction:
+            _e.dungeon_interaction = str(_interaction)
         _dungeon_entities.append(_e)
 
     _dungeon_map = world.GameMap(
@@ -1038,6 +1042,10 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             _parent_pos = world.Position(
                 int(_parent_position[0]), int(_parent_position[1]),
             )
+        _power_restored = bool(_extension_data.get("power_restored", False))
+        _state_flags = set(_extension_data.get("state_flags", []) or [])
+        if _power_restored:
+            _state_flags.add("engineering_power")
         _ctx.dungeon_extension = DungeonExtensionState(
             extension_id=str(_extension_data["extension_id"]),
             current_floor=int(_extension_data.get("current_floor", 1)),
@@ -1050,6 +1058,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
                 for _event_id, _point in (_extension_data.get("event_positions", {}) or {}).items()
                 if isinstance(_point, (list, tuple)) and len(_point) >= 2
             },
+            power_restored=_power_restored,
+            state_flags=_state_flags,
         )
     _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
     if _mode == "dungeon":
@@ -1105,6 +1115,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
             _extension_state.extension_id,
             _extension_state.current_floor,
         )
+        if _extension_state.power_restored:
+            _game_map.power_restored = True
         _ctx.interiors[_extension_floor_key(
             _extension_state.extension_id,
             _extension_state.current_floor,

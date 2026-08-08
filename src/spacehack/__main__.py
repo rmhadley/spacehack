@@ -197,6 +197,13 @@ def _first_walkable(game_map) -> world.Position | None:
     return None
 
 
+def _adopt_dungeon_transition(ctx, game_map, player) -> None:
+    """Install a dungeon transition result on the shared game context."""
+    ctx.game_map = game_map
+    ctx.player = player
+    ctx.ground_hp = ctx.ground_max_hp
+
+
 def _prep_cached_dungeon(game_map) -> world.Position | None:
     """Clear the stale player entity from a cached interior and return
     its entry spawn (first walkable tile when unrecorded).
@@ -621,10 +628,8 @@ def _run_game(
                     else:
                         game_map = _next_map
                         player = _next_player
-                        ctx.game_map = game_map
-                        ctx.player = player
+                        _adopt_dungeon_transition(ctx, game_map, player)
                         current_mode = 'dungeon'
-                        ctx.ground_hp = ctx.ground_max_hp
                         log.add(_transition_message)
                     continue
                 if _tile.kind == 'stairs_up':
@@ -941,6 +946,48 @@ def _run_game(
                     # Keep main_quest_door for old saves created before the
                     # landmark migration.
                     main_quest_module.bump_mars_door(ctx)
+                    continue
+                elif blocker.dungeon_interaction:
+                    from .dungeon_extensions import (
+                        activate_interaction_state,
+                        interaction_is_available,
+                        interaction_spec_at,
+                        transition_floor,
+                    )
+                    _interaction = interaction_spec_at(ctx, blocker.dungeon_interaction)
+                    if _interaction is None:
+                        log.add("The alien interface is unresponsive.")
+                    elif _interaction.action == "activate_state":
+                        if activate_interaction_state(ctx, blocker.dungeon_interaction):
+                            from .main_quest import show_gate_popup
+                            show_gate_popup(
+                                ctx,
+                                _interaction.faction_label,
+                                _interaction.popup_message,
+                                title=_interaction.popup_title,
+                            )
+                            log.add_colored(
+                                f"{_interaction.name} activated. The gated system is online.",
+                                message_log.COLOR_IMPORTANT_EVENT,
+                            )
+                        else:
+                            log.add(f"{_interaction.name} is already active.")
+                    elif _interaction.action == "transition_floor":
+                        if not interaction_is_available(ctx, blocker.dungeon_interaction):
+                            log.add(f"{_interaction.name} is inert. Required systems are offline.")
+                        else:
+                            try:
+                                _next_map, _next_player = transition_floor(
+                                    ctx, _interaction.destination_floor - ctx.dungeon_extension.current_floor,
+                                )
+                            except ValueError:
+                                log.add("The elevator refuses to move.")
+                            else:
+                                game_map = _next_map
+                                player = _next_player
+                                _adopt_dungeon_transition(ctx, game_map, player)
+                                current_mode = 'dungeon'
+                                log.add(f"{_interaction.name} descends into the next secured floor.")
                     continue
                 elif blocker.computer_terminal:
                     if current_mode == 'dungeon':

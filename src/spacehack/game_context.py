@@ -154,6 +154,8 @@ class DungeonExtensionState:
     parent_position: world.Position | None = None
     activated_events: set[str] = dataclasses.field(default_factory=set)
     event_positions: dict[str, list[int]] = dataclasses.field(default_factory=dict)
+    power_restored: bool = False
+    state_flags: set[str] = dataclasses.field(default_factory=set)
 
 
 @dataclasses.dataclass

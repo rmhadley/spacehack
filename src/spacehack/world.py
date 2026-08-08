@@ -151,6 +151,12 @@ DEFENSE_BARRIER = Tile(kind="defense_barrier", char="=", walkable=True,
                        fg=(255, 180, 100), bg=(75, 45, 30))
 SECURITY_NODE = Tile(kind="security_node", char="*", walkable=True,
                      fg=(255, 100, 100), bg=(70, 25, 30))
+HIGH_RISK_CELL_DOOR = Tile(kind="high_risk_cell_door", char="|", walkable=True,
+                           fg=(220, 245, 255), bg=(45, 65, 90))
+ALIEN_ELEVATOR = Tile(kind="alien_elevator", char="E", walkable=True,
+                      fg=(160, 240, 255), bg=(35, 70, 95))
+ENGINEERING_FLOOR = Tile(kind="engineering_floor", char="=", walkable=True,
+                         fg=(180, 220, 240), bg=(45, 60, 75))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.
@@ -270,6 +276,7 @@ class Entity:
     hp: int = 0  # ground-combat wound persistence: 0 = unengaged (full HP at first fight)
     main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
     main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
+    dungeon_interaction: str = ""  # reusable themed-extension interaction id
 
 
 # Anchor where the player's bought ship is parked outside the

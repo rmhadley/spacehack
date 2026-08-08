@@ -213,9 +213,27 @@ def _stamp_defensive_layer(
     )
 
 
+def _stamp_high_risk_quarters(
+    game_map: world.GameMap,
+    origin: world.Position,
+) -> None:
+    """Add larger-cell markers and advanced security to Floor 4."""
+    _used: set[tuple[int, int]] = set()
+    _cells = _feature_cells(game_map, origin, adjacent_to_wall=True)
+    _stamp_features(game_map, _cells, world.HIGH_RISK_CELL_DOOR, 10, _used)
+    _stamp_features(
+        game_map,
+        list(reversed(_cells)),
+        world.SECURITY_NODE,
+        5,
+        _used,
+    )
+
+
 _FEATURE_STAMPERS = {
     "prisoner_quarters": _stamp_prisoner_quarters,
     "defensive_layer": _stamp_defensive_layer,
+    "high_risk_quarters": _stamp_high_risk_quarters,
 }
 
 
@@ -228,6 +246,93 @@ def _stamp_floor_features(
     _feature_stamper = _FEATURE_STAMPERS.get(spec.feature_theme)
     if _feature_stamper is not None:
         _feature_stamper(game_map, origin)
+
+
+def _free_interaction_position(
+    game_map: world.GameMap,
+    cells: list[tuple[int, int]],
+) -> world.Position | None:
+    """Choose the first walkable cell not already occupied by an entity."""
+    _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    for _x, _y in cells:
+        if (_x, _y) in _occupied:
+            continue
+        if game_map.tiles[_y][_x].kind in {"stairs_up", "stairs_down"}:
+            continue
+        return world.Position(_x, _y)
+    return None
+
+
+def _stamp_engineering_room(
+    game_map: world.GameMap,
+    center: world.Position,
+) -> None:
+    """Dress a small walkable engineering room around its console."""
+    for _y in range(center.y - 1, center.y + 2):
+        for _x in range(center.x - 2, center.x + 3):
+            if not game_map.in_bounds(_x, _y):
+                continue
+            if game_map.tiles[_y][_x].kind in {"stairs_up", "stairs_down"}:
+                continue
+            if game_map.tiles[_y][_x].walkable:
+                game_map.tiles[_y][_x] = world.ENGINEERING_FLOOR
+
+
+def _stamp_interactions(
+    game_map: world.GameMap,
+    spec,
+    origin: world.Position,
+    interactions=None,
+) -> None:
+    """Place data-defined interactive anchors after procedural population."""
+    _interactions = spec.interactions if interactions is None else interactions
+    if not _interactions:
+        return
+    _cells = _feature_cells(game_map, origin)
+    _used: set[tuple[int, int]] = set()
+    for _interaction in _interactions:
+        if _interaction.action == "transition_floor":
+            _position = getattr(game_map, "down_stair_pos", None)
+        else:
+            _position = _free_interaction_position(game_map, _cells)
+        if _position is None or (_position.x, _position.y) in _used:
+            continue
+        _used.add((_position.x, _position.y))
+        _entity = world.Entity(
+            char=_interaction.char,
+            fg=(180, 240, 255),
+            pos=_position,
+            name=_interaction.name,
+            dungeon_interaction=_interaction.id,
+        )
+        game_map.entities.append(_entity)
+        if _interaction.feature_theme == "engineering_room":
+            _stamp_engineering_room(game_map, _position)
+
+
+def _ensure_floor_interactions(
+    game_map: world.GameMap,
+    spec,
+    origin: world.Position,
+) -> None:
+    """Repair missing interactive anchors on a cached extension floor."""
+    _missing = []
+    for _interaction in spec.interactions:
+        _existing = next(
+            (_entity for _entity in game_map.entities
+             if getattr(_entity, "dungeon_interaction", "") == _interaction.id),
+            None,
+        )
+        if _interaction.action == "transition_floor":
+            _expected = getattr(game_map, "down_stair_pos", None)
+            if _existing is not None and _expected is not None:
+                _existing.pos = _expected
+            elif _existing is None:
+                _missing.append(_interaction)
+        elif _existing is None:
+            _missing.append(_interaction)
+    if _missing:
+        _stamp_interactions(game_map, spec, origin, interactions=tuple(_missing))
 
 
 def _generate_floor(extension_id: str, floor: int):
@@ -251,6 +356,9 @@ def _generate_floor(extension_id: str, floor: int):
     _game_map.activation_positions = _activation_positions(
         _game_map, _spawn, _spec.activation_events,
     )
+    # The elevator anchor is stamped after the down stair is created so the
+    # interaction entity occupies the connection and gates it cleanly.
+    _stamp_interactions(_game_map, _spec, _spawn)
     return _game_map, _spawn
 
 
@@ -405,17 +513,18 @@ def _ensure_floor_connections(
         game_map.tiles[_entry.y][_entry.x] = world.STAIRS_UP
     _set_floor_metadata(game_map, extension_id, floor, _spec, _entry)
     if not _spec.has_down_stairs:
+        _ensure_floor_interactions(game_map, _spec, _entry)
         return
     _down = getattr(game_map, "down_stair_pos", None)
     if not _valid_stair_position(game_map, _down, "stairs_down"):
         _down = _find_stair_position(game_map, "stairs_down")
+    if not _valid_stair_position(game_map, _down, "stairs_down"):
+        _down = _farthest_free_cell(game_map, _entry)
+        if _down is not None:
+            game_map.tiles[_down.y][_down.x] = world.STAIRS_DOWN
     if _valid_stair_position(game_map, _down, "stairs_down"):
         game_map.down_stair_pos = _down
-        return
-    _down = _farthest_free_cell(game_map, _entry)
-    if _down is not None:
-        game_map.tiles[_down.y][_down.x] = world.STAIRS_DOWN
-        game_map.down_stair_pos = _down
+    _ensure_floor_interactions(game_map, _spec, _entry)
 
 
 def _connection_position(
@@ -449,6 +558,94 @@ def _get_or_generate_floor(
     return _game_map
 
 
+def _current_floor_spec(ctx):
+    """Return the active extension's current floor definition."""
+    _state = ctx.dungeon_extension
+    if _state is None or not _state.active:
+        return None
+    return _floor_spec(_state.extension_id, _state.current_floor)
+
+
+def interaction_spec_at(ctx, interaction_id: str):
+    """Resolve a current-floor interaction definition by stable ID."""
+    _spec = _current_floor_spec(ctx)
+    if _spec is None:
+        return None
+    return next(
+        (_interaction for _interaction in _spec.interactions
+         if _interaction.id == interaction_id),
+        None,
+    )
+
+
+def activate_interaction_state(ctx, interaction_id: str) -> bool:
+    """Activate a data-defined current-floor interaction state flag."""
+    _interaction = interaction_spec_at(ctx, interaction_id)
+    if _interaction is None or not _interaction.state_key:
+        return False
+    _state = ctx.dungeon_extension
+    if _interaction.state_key in _state.state_flags:
+        return False
+    _state.state_flags.add(_interaction.state_key)
+    # Keep the legacy boolean mirror only for the original prison power flag;
+    # state_flags remains canonical for every future extension interaction.
+    if _interaction.state_key == "engineering_power":
+        _state.power_restored = True
+        ctx.game_map.power_restored = True
+    return True
+
+
+def interaction_state_active(ctx, interaction_id: str) -> bool:
+    """Return whether an interaction's required state is active."""
+    _interaction = interaction_spec_at(ctx, interaction_id)
+    if _interaction is None or not _interaction.required_state:
+        return True
+    return _interaction.required_state in ctx.dungeon_extension.state_flags
+
+
+def interaction_is_available(ctx, interaction_id: str) -> bool:
+    """Return whether a current-floor interaction's gate is satisfied."""
+    _interaction = interaction_spec_at(ctx, interaction_id)
+    return _interaction is not None and interaction_state_active(ctx, interaction_id)
+
+
+def restore_power(ctx) -> bool:
+    """Backward-compatible helper for activating a stateful console."""
+    _spec = _current_floor_spec(ctx)
+    if _spec is None:
+        return False
+    _interaction = next(
+        (_item for _item in _spec.interactions
+         if _item.action == "activate_state"),
+        None,
+    )
+    if _interaction is None:
+        return False
+    return activate_interaction_state(ctx, _interaction.id)
+
+
+def elevator_is_powered(ctx) -> bool:
+    """Backward-compatible helper for the current floor's gated elevator."""
+    _state = ctx.dungeon_extension
+    _spec = _current_floor_spec(ctx)
+    if _spec is None:
+        return False
+    _interaction = next(
+        (_item for _item in _spec.interactions
+         if _item.action == "transition_floor"),
+        None,
+    )
+    if _interaction is None:
+        return False
+    if interaction_state_active(ctx, _interaction.id):
+        return True
+    # Legacy saves only carried the boolean mirror. It is safe to accept it
+    # for this known interaction while unrelated state flags remain ignored.
+    return _interaction.required_state == "engineering_power" and bool(
+        ctx.dungeon_extension.power_restored
+    )
+
+
 def transition_floor(
     ctx,
     direction: int,
@@ -460,6 +657,22 @@ def transition_floor(
     if direction not in (-1, 1):
         raise ValueError("Floor transition direction must be -1 or 1")
     _target_floor = _state.current_floor + direction
+    if direction > 0:
+        try:
+            _current_spec = _floor_spec(_state.extension_id, _state.current_floor)
+        except KeyError:
+            raise ValueError("No extension floor at that depth") from None
+        _gates = tuple(
+            _interaction for _interaction in _current_spec.interactions
+            if _interaction.action == "transition_floor"
+            and _interaction.destination_floor == _target_floor
+            and _interaction.required_state
+        )
+        if _gates and not any(
+            _interaction.required_state in _state.state_flags
+            for _interaction in _gates
+        ):
+            raise ValueError("The elevator is unpowered")
     if _target_floor < 1:
         raise ValueError("Already at the extension entrance")
     try:

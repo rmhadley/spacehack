@@ -249,6 +249,7 @@ class TestSaveLoadRoundTrip:
         assert loaded is not None
         assert loaded.dungeon_extension == ctx.dungeon_extension
         assert loaded.dungeon_extension.active
+        assert not loaded.dungeon_extension.power_restored
         floor_key = dungeon_extensions.floor_key("mars_alien_prison", 1)
         assert loaded.interiors[floor_key] is loaded.game_map
         assert loaded.interiors["surface:mars"].width == 12
@@ -441,6 +442,23 @@ class TestSaveLoadRoundTrip:
             for row in floor_two.tiles for tile in row
         )
         assert floor_one is not floor_two
+
+        dungeon_extensions.transition_floor(loaded, 1)
+        dungeon_extensions.transition_floor(loaded, 1)
+        assert loaded.dungeon_extension.current_floor == 4
+        assert dungeon_extensions.restore_power(loaded)
+        save_game(
+            loaded,
+            mode="dungeon",
+            city_id="mars",
+            system_id="sol",
+            space_player_pos=(3, 4),
+        )
+        powered = load_game(ctx.context)
+        assert powered is not None
+        assert powered.dungeon_extension.power_restored
+        assert "engineering_power" in powered.dungeon_extension.state_flags
+        assert getattr(powered.game_map, "power_restored", False)
 
         delete_save()
 

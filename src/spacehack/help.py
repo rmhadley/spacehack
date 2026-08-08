@@ -198,13 +198,16 @@ _GUIDE_DUNGEON_EXTENSIONS = GuideSection(
         "- Floors 2-3 are persistent procedural areas with low-risk "
         "quarters and a defensive layer"
         "\n"
+        "- Floor 4 contains larger high-risk cells and an engineering console"
+        "\n"
+        "- Restore engineering power before using the deep elevator"
+        "\n"
         "- Defeated enemies, collected loot, and revealed fog remain when "
         "you backtrack"
         "\n"
         "- The deeper > stairs on Floor 2 lead to the defensive Floor 3"
         "\n"
-        "- The full prison descent will add an elevator and a deep data "
-        "terminal"
+        "- The powered elevator currently stages the future deep-cell floor"
     ),
 )
 

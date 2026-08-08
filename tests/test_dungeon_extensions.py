@@ -364,6 +364,106 @@ def test_phase_two_floors_have_expected_stair_connections_and_population():
         assert any(entity.npc_char_id for entity in game_map.entities)
 
 
+def test_phase_three_floor_four_has_engineering_and_elevator_anchors():
+    seed_rng(304)
+    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 4)
+
+    assert game_map.location_name == "Alien Prison F4"
+    assert game_map.feature_theme == "high_risk_quarters"
+    assert sum(
+        tile.kind == "engineering_floor"
+        for row in game_map.tiles for tile in row
+    ) >= 1
+    assert sum(
+        tile.kind == "high_risk_cell_door"
+        for row in game_map.tiles for tile in row
+    ) >= 1
+    _interactions = {
+        entity.dungeon_interaction for entity in game_map.entities
+    }
+    assert {"engineering_console", "deep_elevator"} <= _interactions
+    assert game_map.down_stair_pos is not None
+
+
+def test_phase_three_elevator_requires_power_then_reaches_floor_five():
+    seed_rng(305)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    dungeon_extensions.transition_floor(ctx, 1)
+    dungeon_extensions.transition_floor(ctx, 1)
+    floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
+
+    assert ctx.dungeon_extension.current_floor == 4
+    assert not dungeon_extensions.elevator_is_powered(ctx)
+    try:
+        dungeon_extensions.transition_floor(ctx, 1)
+    except ValueError as exc:
+        assert "unpowered" in str(exc)
+    else:
+        raise AssertionError("unpowered elevator should block Floor 5")
+
+    assert dungeon_extensions.restore_power(ctx)
+    assert ctx.dungeon_extension.power_restored
+    assert dungeon_extensions.elevator_is_powered(ctx)
+    floor_five, _ = dungeon_extensions.transition_floor(ctx, 1)
+    assert floor_five.extension_floor == 5
+    assert floor_five.location_name == "Alien Prison F5"
+
+
+def test_phase_three_power_state_round_trips_in_extension_state():
+    state = DungeonExtensionState(
+        extension_id="mars_alien_prison",
+        current_floor=4,
+        active=True,
+        power_restored=True,
+    )
+    assert dungeon_extensions.elevator_is_powered(
+        SimpleNamespace(dungeon_extension=state),
+    )
+
+
+def test_unrelated_state_flag_does_not_power_elevator():
+    state = DungeonExtensionState(
+        extension_id="mars_alien_prison",
+        current_floor=4,
+        active=True,
+        state_flags={"unrelated_system"},
+    )
+    assert not dungeon_extensions.elevator_is_powered(
+        SimpleNamespace(dungeon_extension=state),
+    )
+
+
+def test_floor_four_repair_reanchors_existing_elevator_to_repaired_stairs():
+    seed_rng(306)
+    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 4)
+    _elevator = next(
+        entity for entity in game_map.entities
+        if entity.dungeon_interaction == "deep_elevator"
+    )
+    _old_down = game_map.down_stair_pos
+    game_map.tiles[_old_down.y][_old_down.x] = world.DUNGEON_FLOOR
+    game_map.down_stair_pos = world.Position(1, 1)
+    game_map.tiles[1][1] = world.DUNGEON_FLOOR
+
+    dungeon_extensions._ensure_floor_connections(
+        game_map, "mars_alien_prison", 4,
+    )
+
+    assert game_map.down_stair_pos is not None
+    assert _elevator.pos == game_map.down_stair_pos
+    assert game_map.tiles[
+        game_map.down_stair_pos.y
+    ][game_map.down_stair_pos.x].kind == "stairs_down"
+
+
 def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
     seed_rng(202)
     parent_map, parent_player = _parent_map()

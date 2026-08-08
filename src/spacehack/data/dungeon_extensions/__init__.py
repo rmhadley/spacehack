@@ -37,6 +37,23 @@ class ActivationEvent:
 
 
 @dataclass(frozen=True)
+class DungeonInteractionSpec:
+    """A data-defined interaction stamped into an extension floor."""
+
+    id: str
+    char: str
+    name: str
+    action: str = "activate_state"
+    state_key: str = ""
+    required_state: str = ""
+    destination_floor: int = 0
+    faction_label: str = "ALIEN FACILITY"
+    popup_title: str = "SYSTEM UPDATE"
+    popup_message: str = "A dormant system responds."
+    feature_theme: str = ""
+
+
+@dataclass(frozen=True)
 class ExtensionFloorSpec:
     """Procedural generation and activation data for one extension floor."""
 
@@ -47,6 +64,7 @@ class ExtensionFloorSpec:
     feature_theme: str = ""
     entry_flavor: EntryFlavor | None = None
     activation_events: tuple[ActivationEvent, ...] = ()
+    interactions: tuple[DungeonInteractionSpec, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,6 +173,65 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 sight_radius=8,
                 monster_pool=("sentry_drone", "hull_parasite", "assault_drone"),
                 monster_density=2.0,
+            ),
+        ),
+        ExtensionFloorSpec(
+            floor=4,
+            location_name="Alien Prison F4",
+            has_down_stairs=True,
+            feature_theme="high_risk_quarters",
+            interactions=(
+                DungeonInteractionSpec(
+                    id="engineering_console",
+                    char="C",
+                    name="Engineering Console",
+                    action="activate_state",
+                    state_key="engineering_power",
+                    popup_title="ENGINEERING POWER RESTORED",
+                    popup_message=(
+                        "A buried engineering lattice surges awake. Power flows "
+                        "through the high-risk quarters, and the deep elevator "
+                        "unlocks below."
+                    ),
+                    feature_theme="engineering_room",
+                ),
+                DungeonInteractionSpec(
+                    id="deep_elevator",
+                    char="E",
+                    name="Deep Elevator",
+                    action="transition_floor",
+                    required_state="engineering_power",
+                    destination_floor=5,
+                ),
+            ),
+            params=dungeon.DungeonParams(
+                width=52,
+                height=42,
+                min_room_size=6,
+                max_room_size=14,
+                room_fill_pct=0.64,
+                sight_radius=9,
+                monster_pool=("sentry_drone", "assault_drone", "hull_parasite"),
+                monster_density=2.4,
+            ),
+        ),
+        # Phase 4 will replace this procedural staging floor with the giant
+        # deep cell, torn doors, and the live data terminal. Keeping the
+        # connection real now lets Phase 3 test the powered elevator end to
+        # end without coupling the runtime to hand-authored content.
+        ExtensionFloorSpec(
+            floor=5,
+            location_name="Alien Prison F5",
+            feature_theme="deep_cell_staging",
+            params=dungeon.DungeonParams(
+                width=56,
+                height=44,
+                min_room_size=7,
+                max_room_size=16,
+                room_fill_pct=0.55,
+                sight_radius=10,
+                monster_pool=("assault_drone", "hull_parasite"),
+                monster_density=1.4,
             ),
         ),
     ),

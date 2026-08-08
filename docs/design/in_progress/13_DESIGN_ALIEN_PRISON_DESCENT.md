@@ -305,16 +305,20 @@ and no deeper connection yet. Each visited floor is cached under its stable
 extension key, with `<`/`>` connection metadata and feature-theme metadata
 serialized alongside the map. Automated validation: `python3 tools/smoke.py`
 passes and `python3 tools/test.py` passes with 235 tests. Manual playtest is
-the next checkpoint.
-
-### Phase 3 — Floor 4 engineering and powered elevator
-
-- [ ] Add high-risk quarters and larger empty cells.
-- [ ] Add engineering room and power-restoration interaction.
-- [ ] Gate the elevator until power is restored, then enable Floor 5 travel.
+the next checkpoint.### Phase 3 — Floor 4 engineering and powered elevator
+- [x] Add high-risk quarters and larger empty cells.
+- [x] Add engineering room and power-restoration interaction.
+- [x] Gate the elevator until power is restored, then enable Floor 5 travel.
 
 **PLAYTEST:** Attempt the elevator before engineering (blocked); restore power;
 verify the elevator works after leaving/re-entering Floor 4 and after Continue.
+
+**Implementation checkpoint:** Floor 4 is procedurally generated with reusable
+high-risk cell/security markers, an engineering console, and a deep elevator.
+The extension's power flag is persistent and the elevator now transitions to a
+procedural Floor 5 staging map. Phase 4 will replace that staging map with the
+hand-authored deep-cell/data-extraction content.
+
 
 ### Phase 4 — Floor 5 deep cell and data extraction
 
