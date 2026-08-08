@@ -144,7 +144,8 @@ _STEP_BODIES: dict[str, str] = {
         "The garbled transmission resolves to coordinates on MARS — "
         "that's your main quest.\n\n"
         "Head back to Sol and land on Earth. Before the red planet, "
-        "gear up for ground combat at the Armory terminal."
+        "gear up for ground combat at the Armory terminal (the 'A' "
+        "icon, left of the mechanic terminal outside the space port)."
     ),
     "earth_armory": (
         "Mars has hostile wildlife and raiders — bring a weapon. Visit "
