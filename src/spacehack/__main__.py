@@ -209,8 +209,22 @@ def _adopt_dungeon_transition(ctx, game_map, player) -> None:
     ctx.ground_hp = ctx.ground_max_hp
 
 
-def _maybe_show_post_prison_orbit(ctx, current_city_id: str) -> bool:
-    """Show the one-time Mars departure scene from any launch path."""
+def _maybe_show_post_prison_orbit(
+    ctx,
+    current_city_id: str,
+    *,
+    from_mars_prison: bool = False,
+) -> bool:
+    """Show the one-time Mars departure scene from a confirmed path."""
+    if from_mars_prison or getattr(ctx, "post_prison_orbit_pending", False):
+        ctx.post_prison_orbit_pending = True
+        _shown = main_quest_module.maybe_show_post_prison_orbit(
+            ctx,
+            from_mars_prison=True,
+        )
+        if _shown:
+            ctx.post_prison_orbit_pending = False
+        return _shown
     if current_city_id != "mars":
         return False
     return main_quest_module.maybe_show_post_prison_orbit(ctx)
@@ -246,7 +260,11 @@ def _notify_surface_exit(ctx, exited_map) -> bool:
     """Deliver the post-prison scene when a Mars facility reaches orbit."""
     if _is_wreck_interior(exited_map) or not _is_mars_facility_map(ctx, exited_map):
         return False
-    return _maybe_show_post_prison_orbit(ctx, "mars")
+    return _maybe_show_post_prison_orbit(
+        ctx,
+        "mars",
+        from_mars_prison=True,
+    )
 
 
 def _launch_from_city(

@@ -68,6 +68,7 @@ def _build_test_ctx() -> GameContext:
     ctx.militia_scanned = {"patrol_1"}
     ctx.main_quest_disclosure = "archive_sealed"
     ctx.post_prison_orbit_seen = True
+    ctx.post_prison_orbit_pending = True
     ctx.main_quest_chain = "lab"
     ctx.main_quest_gate = {"research_alpha": (1, 3, 2200)}
     ctx.main_quest_pending_message = "The archive comparison is ready."
@@ -166,6 +167,7 @@ class TestSaveLoadRoundTrip:
         # Post-prison Act 1 orbit disclosure and sandbox gate
         assert loaded.main_quest_disclosure == original.main_quest_disclosure
         assert loaded.post_prison_orbit_seen == original.post_prison_orbit_seen
+        assert loaded.post_prison_orbit_pending == original.post_prison_orbit_pending
         assert loaded.main_quest_chain == original.main_quest_chain
         assert loaded.main_quest_gate == original.main_quest_gate
         assert loaded.main_quest_pending_message == original.main_quest_pending_message
@@ -213,6 +215,7 @@ class TestSaveLoadRoundTrip:
             "main_quest_pending_objective",
             "main_quest_disclosure",
             "post_prison_orbit_seen",
+            "post_prison_orbit_pending",
         ):
             payload.pop(_field, None)
         path.write_text(json.dumps(payload))
@@ -227,6 +230,7 @@ class TestSaveLoadRoundTrip:
         assert loaded.main_quest_pending_objective == ""
         assert loaded.main_quest_disclosure == ""
         assert not loaded.post_prison_orbit_seen
+        assert not loaded.post_prison_orbit_pending
         delete_save()
 
     def test_active_extension_round_trip_restores_floor_cache_and_parent(

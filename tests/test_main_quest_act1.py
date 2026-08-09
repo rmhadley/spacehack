@@ -88,7 +88,7 @@ def test_surface_exit_notifies_only_for_mars_and_only_once(monkeypatch):
     monkeypatch.setattr(
         game_main,
         "_maybe_show_post_prison_orbit",
-        lambda _ctx, _city: _calls.append((_ctx, _city)) or True,
+        lambda _ctx, _city, **_kwargs: _calls.append((_ctx, _city)) or True,
     )
 
     assert game_main._notify_surface_exit(ctx, _mars_surface)
@@ -361,6 +361,7 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
 def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeypatch):
     """A Continue-restored prison map still reaches the orbit handoff."""
     ctx = _ctx()
+    ctx.current_city_id = "earth"
     ctx.time_day = 1
     ctx.time_month = 1
     ctx.time_year = 2200
@@ -418,6 +419,34 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
     )
 
 
+def test_orbit_scene_can_resolve_from_prison_without_city_context(monkeypatch):
+    import tcod.event
+
+    ctx = _ctx()
+    ctx.current_city_id = "earth"
+    ctx.context = SimpleNamespace(present=lambda _console: None)
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    monkeypatch.setattr(_act1, "make_console", lambda: object())
+
+    def _confirm(_modal, _render, update):
+        return update(
+            tcod.event.KeyDown(
+                scancode=tcod.event.Scancode.RETURN,
+                sym=ui._ENTER_SYMS[0],
+                mod=0,
+            )
+        )
+
+    monkeypatch.setattr(ui.Modal, "run", _confirm)
+
+    assert not _act1.maybe_show_post_prison_orbit(ctx)
+    assert _act1.maybe_show_post_prison_orbit(ctx, from_mars_prison=True)
+    assert ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+
+
 def test_interrupted_orbit_scene_preserves_choice_until_confirmation(monkeypatch):
     import tcod.event
 
@@ -450,6 +479,30 @@ def test_interrupted_orbit_scene_preserves_choice_until_confirmation(monkeypatch
     assert _act1.maybe_show_post_prison_orbit(ctx)
     assert ctx.post_prison_orbit_seen
     assert ctx.main_quest_disclosure == "diagnostic_fragment"
+
+
+def test_interrupted_prison_exit_retries_from_space_without_city_context(monkeypatch):
+    ctx = _ctx()
+    ctx.current_city_id = "earth"
+    _mars_surface = object()
+    ctx.interiors = {"surface:mars": _mars_surface}
+    _calls = []
+
+    def _resolve(_ctx, *, from_mars_prison=False):
+        _calls.append(from_mars_prison)
+        return len(_calls) == 2
+
+    monkeypatch.setattr(
+        game_main.main_quest_module,
+        "maybe_show_post_prison_orbit",
+        _resolve,
+    )
+
+    assert not game_main._notify_surface_exit(ctx, _mars_surface)
+    assert ctx.post_prison_orbit_pending
+    assert game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert _calls == [True, True]
+    assert not ctx.post_prison_orbit_pending
 
 
 def test_derelict_exit_keeps_hull_breach_message():

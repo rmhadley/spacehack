@@ -341,6 +341,10 @@ class GameContext:
     # the Mars launch scene is resolved.
     main_quest_disclosure: str = ""
     post_prison_orbit_seen: bool = False
+    # True after leaving the Mars prison until the first-reading modal
+    # resolves. This preserves the prison provenance across an interrupted
+    # modal and Continue; current_city_id is only landing/save bookkeeping.
+    post_prison_orbit_pending: bool = False
     # --- Tutorial mode (docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md) ---
     # True for tutorial runs (started from the title menu); gates the
     # scripted popup flow in spacehack.tutorial. Survives save/load so

@@ -182,18 +182,22 @@ def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
         )
 
 
-def _orbit_scene_is_ready(ctx) -> bool:
+def _orbit_scene_is_ready(ctx, *, from_mars_prison: bool = False) -> bool:
     """Return whether the one-time Mars-orbit scene should fire."""
     return (
-        ctx.current_city_id == "mars"
+        (from_mars_prison or ctx.current_city_id == "mars")
         and not getattr(ctx, "post_prison_orbit_seen", False)
         and ctx.main_quest_progress.get("act1_prison") == "completed"
     )
 
 
-def maybe_show_post_prison_orbit(ctx) -> bool:
-    """Show the first-reading disclosure scene once after launching from Mars."""
-    if not _orbit_scene_is_ready(ctx):
+def maybe_show_post_prison_orbit(
+    ctx,
+    *,
+    from_mars_prison: bool = False,
+) -> bool:
+    """Show the first-reading disclosure scene after a confirmed departure."""
+    if not _orbit_scene_is_ready(ctx, from_mars_prison=from_mars_prison):
         return False
     _console = make_console()
     _selected = 0
