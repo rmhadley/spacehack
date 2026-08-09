@@ -60,8 +60,9 @@ def show_step_readout(ctx, _step) -> bool:
         return False
     from ..data.npcs import find_npc as _fn
     _npc = _fn(next(iter(_step.dialogues)))
-    _next_step = main_quest_step_after(
-        _step.id, chain=ctx.main_quest_chain,
+    _next_step = (
+        main_quest_step_after(_step.id, chain=ctx.main_quest_chain)
+        if _step.auto_advance else None
     )
     if (_next_step is not None
             and _next_step.id in ctx.main_quest_gate):

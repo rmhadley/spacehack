@@ -68,6 +68,10 @@ def _build_test_ctx() -> GameContext:
     ctx.militia_scanned = {"patrol_1"}
     ctx.main_quest_disclosure = "archive_sealed"
     ctx.post_prison_orbit_seen = True
+    ctx.main_quest_chain = "lab"
+    ctx.main_quest_gate = {"research_alpha": (1, 3, 2200)}
+    ctx.main_quest_pending_message = "The archive comparison is ready."
+    ctx.main_quest_pending_objective = "Report to Alpha Centauri's Science Port."
     # Tutorial state (design doc 14) — non-default so the round-trip
     # proves the fields survive a save/continue cycle.
     ctx.tutorial_mode = True
@@ -159,9 +163,13 @@ class TestSaveLoadRoundTrip:
         # Missions
         assert loaded.completed_mission_ids == original.completed_mission_ids
 
-        # Post-prison Act 1 orbit disclosure
+        # Post-prison Act 1 orbit disclosure and sandbox gate
         assert loaded.main_quest_disclosure == original.main_quest_disclosure
         assert loaded.post_prison_orbit_seen == original.post_prison_orbit_seen
+        assert loaded.main_quest_chain == original.main_quest_chain
+        assert loaded.main_quest_gate == original.main_quest_gate
+        assert loaded.main_quest_pending_message == original.main_quest_pending_message
+        assert loaded.main_quest_pending_objective == original.main_quest_pending_objective
 
         # Economy
         assert loaded.economy_state == original.economy_state
@@ -198,12 +206,27 @@ class TestSaveLoadRoundTrip:
         path = tmp_path / "autosave.json"
         payload = json.loads(path.read_text())
         payload.pop("dungeon_extension", None)
+        for _field in (
+            "main_quest_chain",
+            "main_quest_gate",
+            "main_quest_pending_message",
+            "main_quest_pending_objective",
+            "main_quest_disclosure",
+            "post_prison_orbit_seen",
+        ):
+            payload.pop(_field, None)
         path.write_text(json.dumps(payload))
 
         loaded = load_game(ctx.context)
 
         assert loaded is not None
         assert loaded.dungeon_extension is None
+        assert loaded.main_quest_chain == ""
+        assert loaded.main_quest_gate == {}
+        assert loaded.main_quest_pending_message == ""
+        assert loaded.main_quest_pending_objective == ""
+        assert loaded.main_quest_disclosure == ""
+        assert not loaded.post_prison_orbit_seen
         delete_save()
 
     def test_active_extension_round_trip_restores_floor_cache_and_parent(

@@ -8,6 +8,9 @@ from src.spacehack import message_log
 from src.spacehack.data.main_quest import find_main_quest_step
 from src.spacehack.data.planets.ac_station import SPEC as AC_STATION
 from src.spacehack.main_quest import _act1
+from src.spacehack.main_quest._core import _schedule_next_step
+from src.spacehack.main_quest._breadcrumb import current_main_quest_objective
+from src.spacehack.main_quest._gates import check_quest_gates
 from src.spacehack import __main__ as game_main
 
 
@@ -18,6 +21,9 @@ def _ctx():
         main_quest_disclosure="",
         main_quest_progress={"act1_prison": "completed"},
         main_quest_chain="lab",
+        main_quest_gate={},
+        main_quest_pending_message="",
+        main_quest_pending_objective="",
         dungeon_extension=SimpleNamespace(state_flags={"prison_data_extracted"}),
         log=message_log.MessageLog(capacity=6),
     )
@@ -34,6 +40,12 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
         "Begin the first interpretation"
     )
     assert not step.auto_advance
+    assert step.wait_days == 0
+
+    prison = find_main_quest_step("act1_prison")
+    assert not prison.auto_advance
+    assert prison.wait_days == 60
+    assert "Alpha Centauri" in prison.ready_message
 
 
 def test_alpha_centauri_station_keeps_both_research_contacts():
@@ -100,16 +112,40 @@ def test_orbit_scene_requires_extraction_and_mars_departure():
     assert not _act1._orbit_scene_is_ready(ctx)
 
 
-def test_disclosure_choices_persist_and_unlock_research_alpha():
+def test_disclosure_choices_schedule_research_after_a_sandbox_gate():
     for choice in _act1.OrbitDisclosure:
         ctx = _ctx()
+        ctx.time_day = 1
+        ctx.time_month = 1
+        ctx.time_year = 2200
 
         _act1._apply_disclosure(ctx, choice)
 
         assert ctx.post_prison_orbit_seen
         assert ctx.main_quest_disclosure == choice.value
-        assert ctx.main_quest_progress["research_alpha"] == "available"
-        assert any("first interpretation" in entry.text for entry in ctx.log.recent(n=6))
+        assert "research_alpha" not in ctx.main_quest_progress
+        assert ctx.main_quest_gate["research_alpha"] == (1, 3, 2200)
+        _title, _description = current_main_quest_objective(ctx)
+        assert _title == "Awaiting word from the Lab..."
+        assert any("spend time" in entry.text for entry in ctx.log.recent(n=6))
+
+
+def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
+    ctx = _ctx()
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+
+    assert _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
+    assert not _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
+    ctx.time_day = 1
+    ctx.time_month = 3
+    ctx.time_year = 2200
+    assert check_quest_gates(ctx)
+    assert ctx.main_quest_progress["research_alpha"] == "available"
+    assert not ctx.main_quest_gate
+    assert ctx.main_quest_pending_message
+    assert "Alpha Centauri" in ctx.main_quest_pending_objective
 
 
 def test_orbit_menu_navigation_wraps_and_escape_does_not_resolve():

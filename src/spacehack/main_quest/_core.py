@@ -45,8 +45,35 @@ def start_step(ctx, step_id: str) -> bool:
     return True
 
 
+def _schedule_next_step(
+    ctx,
+    source_step_id: str,
+    next_step_id: str | None = None,
+) -> bool:
+    """Schedule or unlock a step after a completed story checkpoint."""
+    _next = (
+        find_main_quest_step(next_step_id)
+        if next_step_id is not None
+        else main_quest_step_after(source_step_id, chain=ctx.main_quest_chain)
+    )
+    if (
+        _next is None
+        or step_status(ctx, _next.id) != ""
+        or _next.id in ctx.main_quest_gate
+    ):
+        return False
+    _source = find_main_quest_step(source_step_id)
+    if _source.wait_days > 0:
+        ctx.main_quest_gate[_next.id] = _add_days_to_date(
+            ctx.time_day, ctx.time_month, ctx.time_year, _source.wait_days,
+        )
+    else:
+        ctx.main_quest_progress[_next.id] = STATUS_AVAILABLE
+    return True
+
+
 def complete_step(ctx, step_id: str) -> bool:
-    """Complete a step: apply rewards, then auto-advance the next step."""
+    """Complete a step: apply rewards, then schedule its next step."""
     _status = step_status(ctx, step_id)
     if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
         return False
@@ -67,17 +94,8 @@ def complete_step(ctx, step_id: str) -> bool:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
     if _step.completion_flavor:
         ctx.log.add(_step.completion_flavor)
-    _next = (
-        main_quest_step_after(step_id, chain=ctx.main_quest_chain)
-        if _step.auto_advance else None
-    )
-    if _next is not None and step_status(ctx, _next.id) == "":
-        if _step.wait_days > 0:
-            ctx.main_quest_gate[_next.id] = _add_days_to_date(
-                ctx.time_day, ctx.time_month, ctx.time_year, _step.wait_days,
-            )
-        else:
-            ctx.main_quest_progress[_next.id] = STATUS_AVAILABLE
+    if _step.auto_advance:
+        _schedule_next_step(ctx, step_id)
     if _step.unlocks_step and step_status(ctx, _step.unlocks_step) == "":
         ctx.main_quest_progress[_step.unlocks_step] = STATUS_AVAILABLE
     return True

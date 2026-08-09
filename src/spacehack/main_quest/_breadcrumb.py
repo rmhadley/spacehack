@@ -19,12 +19,12 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
             _next = find_main_quest_step(_next_id)
         except KeyError:
             return None
-        _fac = _next.chain.capitalize() if _next.chain else "faction"
+        _fac = _next.chain or ctx.main_quest_chain or "faction"
         _gating = _gating_step_for(ctx, _next_id)
         _desc = (
             _gating.completion_flavor
             if _gating is not None and _gating.completion_flavor
             else "The faction will contact you when they're ready."
         )
-        return (f"Awaiting word from the {_fac}...", _desc)
+        return (f"Awaiting word from the {_fac.capitalize()}...", _desc)
     return None

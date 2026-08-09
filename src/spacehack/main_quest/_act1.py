@@ -9,6 +9,7 @@ import tcod.event
 from .. import message_log
 from .. import ui
 from ..engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from ._core import _schedule_next_step
 
 
 class OrbitDisclosure(Enum):
@@ -137,11 +138,10 @@ def _render_orbit_scene(console, *, selected: int, faction_reading: str) -> None
 
 
 def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
-    """Persist the disclosure decision and unlock the research handoff."""
+    """Persist disclosure and begin the faction's research handoff gate."""
     ctx.main_quest_disclosure = choice.value
     ctx.post_prison_orbit_seen = True
-    if ctx.main_quest_progress.get("research_alpha", "") == "":
-        ctx.main_quest_progress["research_alpha"] = "available"
+    _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
     _messages = {
         OrbitDisclosure.DIAGNOSTIC_FRAGMENT: (
             "A diagnostic fragment leaves the ship. Your faction can begin an "
@@ -160,8 +160,9 @@ def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
     }
     ctx.log.add_colored(_messages[choice], message_log.COLOR_IMPORTANT_EVENT)
     ctx.log.add(
-        "The first interpretation awaits at Alpha Centauri's Science Port. "
-        "The route beyond Luyten is only a hypothesis - for now."
+        "Your faction will spend time comparing the archive against its own records. "
+        "The research handoff will arrive when they are ready; until then, the "
+        "route beyond Luyten remains only a hypothesis."
     )
 
 

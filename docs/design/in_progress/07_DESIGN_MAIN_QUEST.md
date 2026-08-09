@@ -430,6 +430,8 @@ The Act 0 faction remains the first interpreter, not the sole owner of the truth
 
 **Post-prison Act 1 branch — first beat implemented:**
 
+The orbit disclosure is a narrative handoff, not an immediate travel order. After the player chooses what to share, the selected Act 0 faction spends a minimum research period comparing the archive against its own records. `research_alpha` remains locked during that period; the quest log shows `Awaiting word from the <faction>...`. When the gate elapses, a one-way summon makes the Alpha Centauri visit available. This is a minimum wait, never a deadline: the player may continue sandbox play and answer the summon days, weeks, or months later without penalty.
+
 | Step | Purpose | Description |
 |------|---------|-------------|
 | `research_alpha` | First interpretation | After launching from Mars, the archive becomes active in orbit. The player chooses whether to transmit a diagnostic fragment, keep the archive sealed, or ask for a safe destination; then the chosen Act 0 faction and the Alpha Centauri Research Officer examine different layers of the archive. The first reading says the coordinate sequence may point beyond Luyten, without claiming to know what lies there. |
@@ -655,7 +657,7 @@ The final choice should be explicit. The ending should reflect accumulated disco
 
 **PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, faction relationship recorded. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
 
-**PLAYTEST (Phase 2 first beat):** extract the Floor 5 data, fight back to Mars, leave the prison via Floor 1 `<` (and separately test returning to the port and launching). Verify the orbit scene appears once on either departure route, shows the chosen faction's incomplete reading, and offers the three disclosure outcomes. Verify deeper-floor `<` transitions do not trigger it early. Verify ESC resolves to the sealed-archive outcome, `research_alpha` appears in the quest log, the Alpha Centauri station has both the Research Officer and Xenolinguist, and Continue preserves the disclosure choice and one-time flag.
+**PLAYTEST (Phase 2 first beat):** extract the Floor 5 data, fight back to Mars, leave the prison via Floor 1 `<` (and separately test returning to the port and launching). Verify the orbit scene appears once on either departure route, shows the chosen faction's incomplete reading, and offers the three disclosure outcomes. Verify deeper-floor `<` transitions do not trigger it early. Verify ESC resolves to the sealed-archive outcome, then confirm `research_alpha` is **not immediately available**: the quest log reads `Awaiting word from the <faction>...`, the 60-day minimum gate survives save/quit/continue, and the Alpha Centauri summon appears only after the gate elapses. Ignore the summon on a separate save for several weeks and confirm nothing expires or fails. The Alpha Centauri station should have both the Research Officer and Xenolinguist, and Continue should preserve the disclosure choice and one-time flag.
 
 ### Phase 1j: Time gating + one-way summons (full pass)
 
@@ -670,11 +672,12 @@ The final choice should be explicit. The ending should reflect accumulated disco
 
 ### Phase 2: Post-prison Act 1 — translation and disclosure
 
-- [ ] Finish and playtest the alien-prison content before extending the post-prison story.
+- [x] Finish and playtest the alien-prison content before extending the post-prison story.
 - [x] Write the first post-prison research beat as data; preserve `act1_prison` as the opening step.
 - [x] Define the initial layered archive read: reactive carrier, route hypothesis, and unresolved response; preserve network, warning, and identity layers for later translation.
 - [x] Wire the Alpha Centauri Research Officer visit and the Act 0 faction's first interpretation. The station keeps the established Xenolinguist slot and adds a separate archive contact.
 - [x] Add the first player disclosure choice: transmit a diagnostic fragment, keep the archive sealed, or ask for a safe destination. The larger trust/rival/sale/secret decision remains later in the branch.
+- [x] Add an open-world handoff gate after the orbit disclosure: the selected Act 0 faction spends 60 days comparing the archive, `research_alpha` stays locked during the wait, and a late response remains valid with no deadline or failure state.
 - [ ] Define the resonance/translation device and its answering pulse through the alien network.
 - [ ] Give the player a preparation plan for the blockade crossing.
 - [ ] Smoke test + commit
