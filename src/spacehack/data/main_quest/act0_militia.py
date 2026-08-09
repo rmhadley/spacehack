@@ -19,10 +19,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mil_q1_report",
         title="Report to the Captain",
         description=(
-            "Report to the Militia Captain on Earth — off the books, "
-            "he admits the patrol saw 'the incident' tech before. The "
-            "requisition is buried in a scrubbed cache on Mercury. "
-            "Bring him proof it's intact, and the schematics are yours."
+            "Report to the Militia Captain on Earth. He has an unofficial "
+            "explanation for the material on Mars, and an official reason "
+            "to deny he ever saw it. A requisition cache on Mercury holds "
+            "the parts for a breach package. Prove the cache survived, and "
+            "he will decide whether you are useful enough to trust."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -31,41 +32,41 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="talk",
         wait_days=60,
         completion_flavor=(
-            "The requisition is filed — off the books, no record. "
-            "The Captain will contact you when it clears. Once it "
-            "does, head to Mercury — the surface caves beneath the "
-            "old mining station hold a classified cache."
+            "The requisition disappears into a file that officially does not "
+            "exist. When the clearance comes through, search the Mercury "
+            "caves beneath the old mining station. If the cache is still "
+            "there, someone has been protecting the Incident's secrets "
+            "for a very long time."
         ),
         ready_message=(
-            "The requisition has cleared. Get to Mercury — the "
-            "surface caves beneath the old mining station hold a "
-            "classified cache. Secure the ship components and fuel "
-            "cells inside before anyone else finds them."
+            "Clearance came through. Go to Mercury and recover the cache beneath "
+            "the old mining station. Bring back the ship components and "
+            "fuel cells before the next patrol decides to clean up the "
+            "evidence for us."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
                 trigger_on_talk=True,
                 intro=(
-                    "Good. Now you're on the books — my books, which "
-                    "is to say no one's. The patrol saw this tech "
-                    "before. 'The incident'. The requisition that gets "
-                    "you the charge is buried in a scrubbed cache. "
-                    "Bring me proof it's intact, and the schematics "
-                    "are yours."
+                    "Good. You are on the books now — my private books, which means they "
+                    "can be burned. A patrol found this material during the "
+                    "Incident. We called it a wreck, then a weapons test, then "
+                    "nothing at all. The requisition cache on Mercury is what "
+                    "remains of the response. Bring me proof it survived, and "
+                    "I will show you how we planned to open the door."
                 ),
                 active=(
-                    "The requisition takes time to clear — buried "
-                    "paperwork, sealed records. Once it does, get to "
-                    "Mercury — the caves beneath the mining station "
-                    "hold a cache the official logs scrubbed years "
-                    "ago."
+                    "Clearance takes time because the records are sealed, duplicated, and "
+                    "missing in exactly the wrong places. When it clears, go to "
+                    "Mercury. The caves beneath the old station hold a cache "
+                    "the official archive claims was destroyed years ago."
                 ),
                 complete=(
-                    "The cache is waiting on Mercury. Once you've "
-                    "secured it, you'll need to get the components "
-                    "to the blockade for inspection. The Captain "
-                    "will brief you on the next step."
+                    "The cache is intact. That is the first clean result this operation has "
+                    "produced. Move the components to the Luyten's Star blockade. "
+                    "The inspection will tell us whether the package is safe to "
+                    "bring near the alien material."
                 ),
                 option_label="Report to the Captain",
                 backing_faction="militia",
@@ -78,11 +79,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mil_q2_cache",
         title="The Cache",
         description=(
-            "The requisition cache is buried deep in the Mercury "
-            "surface caves — a classified stockpile the official "
-            "logs scrubbed years ago. Descend into the caves and "
-            "secure the ship components and fuel cells. Then get "
-            "them to the blockade at Luyten's Star for inspection."
+            "The requisition cache lies beneath the Mercury mining station, in a "
+            "cave system absent from every public survey. Recover the sealed "
+            "components and fuel cells, then carry them to the Luyten's Star "
+            "blockade. The Captain wants the package inspected before it "
+            "comes anywhere near the Mars door."
         ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
@@ -92,9 +93,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         delve_good_ids=(("ship_components", 4), ("fuel_cells", 2)),
         wait_days=0,
         completion_flavor=(
-            "The requisition cache is secured — ship components and "
-            "fuel cells, still sealed. The Captain's already sent "
-            "word ahead — report to him for the delivery details."
+            "The cache contained exactly what the old requisition promised: sealed "
+            "components, fuel cells, and no explanation for why they were "
+            "hidden. The blockade inspector is expecting your transponder. "
+            "Take the package there before the silence around it attracts "
+            "the wrong attention."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
@@ -112,10 +115,10 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The requisition was scrubbed for a reason."
                 ),
                 complete=(
-                    "The cache is intact. Now get those components "
-                    "to the blockade at Luyten's Star — the inspector "
-                    "at the northern checkpoint is expecting you. "
-                    "Five jumps through frontier space. Stay sharp."
+                    "The cache is intact. Carry those components to the Luyten's Star "
+                    "blockade. The inspector at the northern checkpoint is "
+                    "expecting you. Five jumps through frontier space; keep the "
+                    "package and your transponder clean."
                 ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
@@ -128,12 +131,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mil_q3_inspection",
         title="The Inspection",
         description=(
-            "The requisition components are in your hold — "
-            "classified hardware with scrubbed serial numbers. "
-            "Deliver them to the blockade inspector at Luyten's "
-            "Star. Five jumps through frontier space — Wolf 359, "
-            "pirates, the edge of mapped space. Every system "
-            "between here and there is a potential threat."
+            "The components are in your hold under serial numbers that no longer "
+            "exist. Deliver them to the blockade inspector at Luyten's Star. "
+            "The route crosses pirate space and the edge of the mapped "
+            "frontier; every jump is another chance for the package to be "
+            "lost, seized, or noticed."
         ),
         trigger_planet_id="blockade",
         trigger_system_id="luyten_star",
@@ -146,39 +148,40 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_hot=False,  # militia's own requisition — never confiscatable
         wait_days=80,
         completion_flavor=(
-            "The blockade inspector signs off on every component — "
-            "the serials are scrubbed, the seals are intact, and "
-            "the requisition checks out. Every component needs to "
-            "be inspected before the charge can be assembled. The "
-            "Captain will call when the demolitions expert is ready."
+            "The blockade inspector signs off on every component. The serials are "
+            "scrubbed, the seals are intact, and the requisition survives one "
+            "more layer of questions. The Captain will contact you when the "
+            "demolitions expert is prepared to take responsibility for the "
+            "next step."
         ),
         ready_message=(
-            "Inspection's complete — every component checks out. "
-            "Recruit the demolitions expert at Epsilon Eridani b — "
-            "the militia building on the frontier colony. Drop the "
-            "Captain's name and he'll sign on."
+            "The blockade has verified the package without learning what it is. "
+            "Recruit the demolitions expert at Epsilon Eridani b. Use my "
+            "name, not the requisition number. He is the last person in the "
+            "Militia who still knows how to work on doors that were never "
+            "designed to be breached."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
                 trigger_on_talk=True,
                 intro=(
-                    "The cache is intact? Good work in those caves. "
-                    "Now get it to the blockade at Luyten's Star — "
-                    "the inspector at the northern checkpoint is "
-                    "expecting you. Five jumps through frontier space. "
-                    "Don't lose those components."
+                    "The cache survived. Now make the package survive the trip. The "
+                    "inspector at Luyten's Star is waiting at the northern "
+                    "checkpoint. Five jumps through frontier space, and no "
+                    "one outside this chain needs to know what you are carrying."
                 ),
                 active=(
-                    "The blockade inspector is waiting at Luyten's "
-                    "Star — northern checkpoint. Hand over the "
-                    "components. He'll log them as routine supply "
-                    "and keep it quiet."
+                    "The blockade inspector is waiting at Luyten's Star's northern checkpoint. "
+                    "Hand over the components. He will log them as routine supply "
+                    "and keep the package buried under ordinary paperwork."
                 ),
                 complete=(
-                    "The inspection cleared? Good. Now we wait for "
-                    "the demolitions expert — the Captain will call "
-                    "when he's ready."
+                    "The package passed inspection. That means the hardware is sound, not "
+                    "that the plan is. Wait for the demolitions expert's "
+                    "clearance. If he agrees to help, we may have one chance "
+                    "to open the Mars door without turning the whole site into "
+                    "a crater."
                 ),
                 option_label="Take on the delivery",
                 backing_faction="militia",
@@ -201,10 +204,10 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "disappear."
                 ),
                 complete=(
-                    "The components check out. The inspection report "
-                    "is filed under a routine supply transfer — no "
-                    "flags, no questions. The Captain will contact "
-                    "you when the demolitions expert is ready."
+                    "The components check out. The inspection report disappears into a routine "
+                    "supply transfer: no flags, no questions, and no record of why "
+                    "the Militia needed alien-grade hardware on the frontier. The "
+                    "Captain will contact you when the demolitions expert answers."
                 ),
                 option_label="Hand over the requisition",
                 backing_faction="militia",
@@ -216,10 +219,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mil_q4_demolitions",
         title="The Expert",
         description=(
-            "Recruit the demolitions expert at Epsilon Eridani b — "
-            "the militia building on the frontier colony. Drop the "
-            "Captain's name and he'll sign on. The charge needs a "
-            "specialist to assemble it."
+            "Recruit the demolitions expert at Epsilon Eridani b. The frontier colony's "
+            "Militia building is the last place he still answers calls. Use the "
+            "Captain's name; the breach package needs someone willing to admit "
+            "what it is for."
         ),
         trigger_planet_id="eri_b",
         trigger_system_id="epsilon_eridani",
@@ -229,37 +232,39 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="demolitions_expert",
         wait_days=120,
         completion_flavor=(
-            "The demolitions expert signs on. Building a breach "
-            "charge tuned to alien alloy takes time — the Captain "
-            "will call when it's ready for a live-fire test. Be "
-            "ready for a fight."
+            "The demolitions expert signs on. Tuning the charge to alien alloy will take "
+            "time, and the test will need a target that can survive the first "
+            "failure. The Captain will call when the prototype is ready."
         ),
         ready_message=(
-            "The charge is built and ready for testing. Clear the "
-            "pirate scouts at Cygni b — the Captain wants a live-fire "
-            "field test before it touches an alien door. Two scouts, "
-            "nothing fancy. Prove the charge works."
+            "The prototype is calibrated. Clear the pirate captains at Cygni b and "
+            "bring back the combat data. The Captain wants a live-fire test "
+            "before the charge touches the Mars door; the first failure must "
+            "happen somewhere we can survive it."
         ),
         dialogues={
             "demolitions_expert": QuestDialogue(
                 npc_id="demolitions_expert",
                 intro=(
-                    "The Captain sent you? Then the work is off the "
-                    "books — good, I prefer it that way. Breach "
-                    "charges, cutting torches, doors that don't want "
-                    "to open. If the requisition checks out, I'll "
-                    "build you a charge that'll crack anything."
+                    "The Captain sent you, which means this job is either important or "
+                    "already a mistake. I build charges for structures that "
+                    "resist ordinary physics. If the requisition is genuine, "
+                    "I can tune one to the Mars door. But understand this: a "
+                    "successful breach tells you nothing about what is waiting "
+                    "on the other side."
                 ),
                 active=(
-                    "Building a breach charge takes time — weeks, "
-                    "maybe months. Alien alloy isn't something you "
-                    "rush. The Captain will call when it's ready."
+                    "Alien alloy does not fail in familiar ways. The charge needs weeks of "
+                    "calibration, and every test risks teaching the material "
+                    "something about us. The Captain will call when I have a "
+                    "package that might open the door without waking the "
+                    "building behind it."
                 ),
                 complete=(
-                    "The charge is built and ready for testing. "
-                    "The Captain wants a live-fire field test before "
-                    "it goes near an alien door — report to him on "
-                    "Earth for the target."
+                    "The charge is ready for a live-fire test. The Captain has chosen a "
+                    "target at Cygni b: pirate captains, hard enough to stress "
+                    "the package and disposable enough that no official "
+                    "report will mourn the test. Ask him for the coordinates."
                 ),
                 option_label="Ask about the breach charge",
                 backing_faction="militia",
@@ -271,10 +276,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mil_q5_livefire",
         title="Live-Fire Test",
         description=(
-            "The breach charge is built — now it needs a field "
-            "test. Five pirate captains at Cygni b. The Captain "
-            "wants a real stress-test — mount the prototype and "
-            "show them what the charge can do."
+            "The breach charge is built, but a laboratory result is not proof. Take the "
+            "prototype to Cygni b and put it through a live-fire test against "
+            "five pirate captains. If it fails there, it fails on Mars. If it "
+            "works, we still have to decide whether opening the door is wiser "
+            "than leaving it sealed."
         ),
         trigger_system_id="cygni",
         requires_step="mil_q4_demolitions",
@@ -285,33 +291,39 @@ STEPS: tuple[MainQuestStep, ...] = (
         bounty_escort_ids=("pirate_captain", "pirate_captain", "pirate_captain", "pirate_captain"),
         wait_days=80,
         completion_flavor=(
-            "Live-fire test complete — the charge held. The Captain "
-            "needs time to assemble the final package from the test "
-            "data. He'll contact you when it's ready."
+            "The prototype held under fire. The test report contains one useful "
+            "answer and several new questions: the charge couples to the "
+            "alien material instead of simply breaking it. The Captain is "
+            "assembling the final package."
+
         ),
         ready_message=(
-            "The charge is assembled and ready. Report to the Captain "
-            "on Earth to collect the final package."
+            "The final breach package is assembled. Report to the Captain on Earth. "
+            "Once it is in your hands, the Militia can no longer pretend this "
+            "is only an investigation."
         ),
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
                 intro=(
-                    "The charge needs a real stress-test before it "
-                    "goes near an alien door. Five pirate captains "
-                    "at Cygni b. We're mounting the prototype to your "
-                    "ship — fire it, watch them burn, report back."
+                    "The charge needs a real stress-test before it touches Mars. Five "
+                    "pirate captains at Cygni b will serve as the target. We "
+                    "are mounting the prototype to your ship; fire it, record "
+                    "the result, and do not mistake a successful detonation "
+                    "for a successful containment plan."
                 ),
                 active=(
-                    "Five captains at Cygni b. The prototype's on "
-                    "your ship — one shot, one kill. Show them what "
-                    "the militia's been building off the books."
+                    "Five captains at Cygni b. The prototype is live. Use it once, watch "
+                    "what the material does under stress, and bring me the "
+                    "data. The Militia has spent years preparing for the "
+                    "possibility that the Mars site is not empty."
+
                 ),
                 complete=(
-                    "Five pirate captains — and the charge held. "
-                    "Good. The Captain was right about you. The final "
-                    "package is being assembled. He'll contact you "
-                    "when it's ready for collection."
+                    "Five targets, one surviving prototype, and a result I would rather "
+                    "not have seen: the charge made the alien material answer "
+                    "back. The final package is ready. Whether that is good "
+                    "news depends on what is behind the door."
                 ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
@@ -324,9 +336,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mil_q6_charge",
         title="The Charge",
         description=(
-            "Return to the Militia Captain on Earth. The breach "
-            "charge is assembled — tested, proven, and ready to "
-            "crack the alien seal on Mars."
+            "Return to the Militia Captain on Earth. The breach package is tuned, "
+            "tested, and ready to open the alien seal on Mars. The Captain "
+            "wants the operation contained from the first jump to the last."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -340,22 +352,21 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="militia_captain",
                 trigger_on_talk=True,
                 intro=(
-                    "There it is — the breach charge. Tested, "
-                    "proven, and tuned to alien alloy. Take it to "
-                    "Mars and open that door. Remember: this "
-                    "operation stays off the books. The frontier "
-                    "must be held — whatever's inside, we contain "
-                    "it. Quietly."
+                    "There it is. Tuned to the same material that ended the Incident. Take "
+                    "it to Mars and open the door. We contain whatever is "
+                    "inside, we preserve what can be learned, and we tell no "
+                    "one until we know which of those tasks is still possible. "
+                    "That is the order. The door is not."
                 ),
                 active=(
-                    "The charge is here when you're ready. After "
-                    "that door opens, you report to me what you "
-                    "find — nothing leaves the room."
+                    "The package is here. After the door opens, report what you find before you "
+                    "touch anything else. If the site is occupied, do not improvise "
+                    "a rescue, a raid, or a heroic death. Get out and call me."
                 ),
                 complete=(
-                    "Take the charge and open that door. The "
-                    "frontier must be held — and you're the one "
-                    "holding it now. Dismissed."
+                    "Take the package to Mars. Once you open that door, you are the first "
+                    "line between an old disaster and a new one. Hold the "
+                    "line if you can. Report if you cannot."
                 ),
                 option_label="Collect the charge",
                 backing_faction="militia",

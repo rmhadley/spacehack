@@ -14,10 +14,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q1_oldhand",
         title="The Old Hand",
         description=(
-            "The Barkeep names the old smuggler who cracked a door "
-            "like that once — cost him a hand. He warns the militia "
-            "has been sniffing around the old routes since 'the "
-            "incident'."
+            "The Barkeep names an old smuggler who once found a door made of the "
+            "same impossible material. It cost him a hand and left him with "
+            "a story no one believes. Since the Incident, the Militia has "
+            "been watching the old routes for anyone who asks the wrong "
+            "questions."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -25,31 +26,35 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="bar",
         objective_type="talk",
         wait_days=65,
-        completion_flavor="Word's been sent to Barnard's Star. The old man is cagey — give him time to come around.",
+        completion_flavor=(
+            "Word has gone to Barnard's Star. The old man is deciding whether "
+            "you want an answer or merely a door to break. Give him time."
+        ),
         ready_message=(
-            "The old man will see you for the right price. Come by the "
-            "bar first — I've got a crate that'll get you in the door. "
-            "Then run it to Barnard's Star b."
+            "The old man will see you for the right price. Come through the bar first; "
+            "I have a crate that proves you can carry a secret without opening "
+            "it in public. Run it to Barnard's Star b."
         ),
         dialogues={
             "barkeep": QuestDialogue(
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "The old hand who cracked a door like that once? "
-                    "Cost him a hand. He's retired on Barnard's Star b, "
-                    "and he don't see just anyone. But he owes the bar "
-                    "a favor — I'll send word ahead. Fair warning: the "
-                    "militia's been sniffing around the old routes "
-                    "since 'the incident'. Keep your head down."
+                    "The old hand did not crack that door. He made it answer, and it took his "
+                    "hand for the courtesy. He is retired on Barnard's Star b "
+                    "now, living where the maps get vague. He owes the bar a "
+                    "favor, so I will send word. Keep your head down: since the "
+                    "Incident, the Militia has treated old routes like crime "
+                    "scenes."
                 ),
                 active=(
-                    "Word's ahead to the old man. Go see him on "
-                    "Barnard's Star b — and watch the patrols."
+                    "The word is ahead. Go to Barnard's Star b and let the old man decide "
+                    "whether your curiosity is worth the risk. Watch the patrols "
+                    "on the way."
                 ),
                 complete=(
-                    "The old man is cagey — he'll see you for the "
-                    "right price."
+                    "The old man will see you. That is not the same as saying he will trust "
+                    "you."
                 ),
                 option_label="Ask about the old smuggler",
                 backing_faction="bar",
@@ -62,10 +67,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q2_proof",
         title="The Proof Run",
         description=(
-            "The old smuggler won't deal with strangers. See the "
-            "Barkeep on Earth — he has a hot crate to get you in the "
-            "door. Then run it to Barnard's Star b. Every militia "
-            "patrol on the way can scan it."
+            "The old smuggler does not deal in introductions; he deals in proof. "
+            "Take the Barkeep's hot crate to Barnard's Star b. Every Militia "
+            "patrol on the route can scan it, and every one of them has a "
+            "reason to wonder why you are carrying it."
         ),
         trigger_planet_id="barnards_b",
         trigger_system_id="barnards_star",
@@ -76,30 +81,34 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_good_id="weapons_blackmarket",
         smuggle_cargo_size=8,
         wait_days=85,
-        completion_flavor="The old man needs time to survey the dig site. His hand doesn't work like it used to.",
+        completion_flavor=(
+            "The old man is surveying the dig site with one hand and three "
+            "decades of regret. Give him time to decide what part of the old "
+            "story you are ready to carry."
+        ),
         ready_message=(
-            "He drew the cave where the old job went wrong — the rig's "
-            "power cell is still down there. Meet him at the dig on "
-            "Barnard's Star b."
+            "He has marked the cave where the old job went wrong. The rig's power cell "
+            "is still below, along with whatever the old door did not take. "
+            "Meet him at the dig on Barnard's Star b."
         ),
         dialogues={
             "barkeep": QuestDialogue(
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "The old man won't deal with strangers — but he "
-                    "owes the bar. I've got one crate left: black-market "
-                    "weapons, hot as they come. Run it to him at "
-                    "Barnard's Star b and he'll draw you the cave."
+                    "The old man will not deal with strangers, but he still owes the bar. I "
+                    "have one crate left: black-market weapons, hot enough to "
+                    "make a patrol curious. Deliver it to Barnard's Star b and "
+                    "he will draw the cave on your map."
                 ),
                 active=(
                     "The crate's in your hold. Get it to the old man "
                     "on Barnard's Star b before a patrol sniffs it."
                 ),
                 complete=(
-                    "He took the crate, then? Good — now he's got to "
-                    "draw you the cave. The story's worth a round when "
-                    "you're back."
+                    "He took the crate. Now he has to draw the cave. If you come back with the "
+                    "power cell, I will buy the first round and listen to the "
+                    "second story."
                 ),
                 locked=(
                     "Already running that crate, are you? The old man "
@@ -117,15 +126,15 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "wasting both our times?"
                 ),
                 active=(
-                    "Crate's here, good. Now the part you came for: the "
-                    "cave where the old job went wrong is up the ridge. "
-                    "The rig's power cell is still down there. Fetch it, "
-                    "and the bar gets its story."
+                    "The crate made it. Then listen carefully. The cave is up the ridge, and "
+                    "the power cell is still below. The old job was not a robbery; "
+                    "it was an attempt to make the door recognize a human signal. "
+                    "Fetch the cell. I will tell you the rest if you come back."
                 ),
                 complete=(
-                    "Cell's out, then? Good. The militia's got a nose "
-                    "for that hardware — don't let them catch you "
-                    "carrying it."
+                    "You brought the cell out. Good. It is old Militia hardware, which means "
+                    "someone still has a file on it even if the file says it never "
+                    "existed. Keep it away from scanners."
                 ),
                 option_label="Hand over the crate",
                 backing_faction="bar",
@@ -152,9 +161,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         delve_good_ids=(("machine_parts", 1), ("electronics", 1)),
         wait_days=0,
         completion_flavor=(
-            "The power cell is decades old and unstable. It needs "
-            "a recharge — and there's only one black-market rig "
-            "that can handle it: the Wolf 359 listening post."
+            "The power cell is decades old, unstable, and still holding a charge that "
+            "does not decay like human power cells do. Take it to the only "
+            "black-market rig built to handle it at the Wolf 359 listening post."
         ),
         dialogues={
             "old_smuggler": QuestDialogue(
@@ -170,11 +179,10 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "looking for it."
                 ),
                 complete=(
-                    "You got it out? Good. That cell's older than "
-                    "both of us — it needs a recharge before it'll "
-                    "power anything. There's a black-market rig at "
-                    "the Wolf 359 listening post. Pirate country — "
-                    "no militia, no questions. Run it there."
+                    "You brought it out. That cell is older than both of us, and it needs a "
+            "recharge before it will power the rig. Take it to the black-"
+            "market station at Wolf 359. Pirate country means no Militia "
+                    "questions, not no consequences."
                 ),
                 backing_faction="bar",
             ),
@@ -199,35 +207,35 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_cargo_size=5,
         wait_days=90,
         completion_flavor=(
-            "The operator hooks the cell up to the rig. 'This "
-            "thing's been sitting in the dark since before the "
-            "incident. Give me a few months — I'll call when "
-            "it's charged.'"
+            "The operator connects the cell and immediately disconnects it again. The "
+            "meter has no scale for what it reads. 'It has been waiting in the "
+            "dark since before the Incident,' he says. 'Give me time. And do not "
+            "let anyone ask why it still remembers the door.'"
         ),
         ready_message=(
-            "The cell's charged and ready. Come pick it up at the "
-            "Wolf 359 bar — and be careful on the way back. Every "
-            "militia scanner between here and Earth will light up "
-            "the moment you jump into Sol."
+            "The cell is charged, though the operator refuses to say what charged it. "
+            "Collect it at the Wolf 359 bar and keep it hidden on the return run. "
+            "Every Militia scanner between here and Earth will notice the moment "
+            "you enter Sol."
         ),
         dialogues={
             "wolf_barkeep": QuestDialogue(
                 npc_id="wolf_barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "You got something for me, or are you just "
-                    "thirsty? ...That's militia-issue. Old model, "
-                    "but the serial's still clean. I can recharge "
-                    "it — no questions — but it'll take time."
+                    "You brought something that still has a Militia serial. Old model, clean "
+                    "enough to be dangerous. I can recharge it, but I am not going "
+                    "to tell you what the meter says when the numbers stop behaving."
                 ),
                 active=(
-                    "The cell's on the rig now. Couple months, "
-                    "maybe less. I'll send word."
+                    "The cell is on the rig. It is drawing power in pulses, like it is "
+                    "listening for a response. Give me time. I will send word when "
+                    "it is safe to move."
                 ),
                 complete=(
-                    "Cell's charged. Word's ahead — the Earth "
-                    "barkeep knows you're coming. Watch the "
-                    "militia on the way back."
+                    "The cell is ready. I have warned the Earth Barkeep, and I have not warned "
+                    "the Militia. That is the difference between a delivery and a "
+                    "mistake. Watch the patrols."
                 ),
                 option_label="Hand over the power cell",
                 backing_faction="bar",
@@ -240,11 +248,9 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="old_smuggler",
                 trigger_on_talk=True,
                 intro=(
-                    "Lost the cell to a patrol? That's militia-issue "
-                    "hardware — it never travels quiet. I've got one "
-                    "spare casing left from the old job. I'll load "
-                    "another for you. Get it to the listening post "
-                    "at Wolf 359."
+                    "A patrol took the cell? It was never going to travel quietly. I kept one "
+                    "spare casing from the old job. I can replace it once; after "
+                    "that, the route has to stay yours. Get it to Wolf 359."
                 ),
                 option_label="Request another power cell",
                 backing_faction="bar",
@@ -258,10 +264,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q5_charged",
         title="The Return Run",
         description=(
-            "The cell is charged and hot — every militia scanner "
-            "in Sol will hunt you. Return to the Wolf 359 bar, "
-            "collect the charged cell, and run it back to the "
-            "Barkeep on Earth."
+            "The charged cell is in the Wolf 359 bar. Collect it and run it back to "
+            "the Barkeep on Earth. The Militia scanners in Sol will not merely "
+            "see a hot crate; they will recognize an old signature and start "
+            "asking why it has returned."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -280,18 +286,17 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="wolf_barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "There it is — fully charged and hot enough to "
-                    "melt a scanner. Take it back to the Earth "
-                    "barkeep. And stay sharp in Sol — every militia "
-                    "patrol will be on you the moment you jump in."
+                    "There it is. Fully charged, still carrying a signature the Militia "
+                    "thought it had erased. Take it to Earth. The moment you enter "
+                    "Sol, every patrol will have a reason to look twice."
                 ),
                 active=(
-                    "The cell's in your hold. Run it to Earth — "
-                    "the militia won't give you a choice."
+                    "The cell is in your hold. Run it to Earth before the Militia decides the "
+                    "old signature is evidence enough to take you apart."
                 ),
                 complete=(
-                    "The cell made it. The Earth barkeep will have "
-                    "the rig ready."
+                    "The cell made it. The Earth Barkeep has the rig ready, and he has been "
+                    "trying not to look at the door since you left."
                 ),
                 option_label="Take the charged cell",
                 backing_faction="bar",
@@ -300,16 +305,17 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "You made it — and you brought the cell. "
-                    "Give it here. The rig's half-assembled already."
+                    "You made it back. Give me the cell before the scanners remember you. The "
+                    "rig is waiting, and I would like to finish one job in my life "
+                    "before the past catches up."
                 ),
                 active=(
-                    "There she is — the charged cell. Hand it over. "
-                    "The rig is waiting."
+                    "The cell is here. Hand it over and let us see whether the old rig still "
+                    "knows what it was built to do."
                 ),
                 complete=(
-                    "Cell's in, rig's on. One more step and that "
-                    "door comes open."
+                    "Cell is seated. The rig is awake. One more step and the door will have to "
+                    "decide whether it remembers us."
                 ),
                 option_label="Hand over the charged cell",
                 backing_faction="bar",
@@ -323,7 +329,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q6_rig",
         title="The Rig",
         description=(
-            "Return to the Barkeep on Earth. The rig is assembled."
+            "Return to the Barkeep on Earth. The rig is assembled, but the old hand "
+            "never promised it would open the door gently."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -337,19 +344,19 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "There she is — the brute-force rig. Cracks the "
-                    "seal's power feed, just like the old man's door. "
-                    "The militia will be watching you from here on, "
-                    "friend. Welcome to the family."
+                    "There she is — the old rig rebuilt for a door that was never meant to "
+                    "open. It does not crack the seal so much as convince the power "
+                    "feed to stop pretending it is dead. The Militia will watch you "
+                    "from here on. Welcome to the family, friend."
                 ),
                 active=(
-                    "The rig's here when you're ready. After that door "
-                    "opens, the story's worth a round."
+                    "The rig is here when you are ready. After the door opens, come back with "
+                    "the part of the story that makes you hesitate."
                 ),
                 complete=(
-                    "Take the rig and open that door. The bar wants "
-                    "the story when you're done — and the militia will "
-                    "be watching."
+                    "Take the rig to Mars. Open the door, then come back if you can. The bar "
+                    "will listen to the story, and the Militia will listen for "
+                    "the parts you leave out."
                 ),
                 option_label="Collect the rig",
                 backing_faction="bar",

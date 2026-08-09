@@ -40,14 +40,15 @@ class QuestDialogue:
         locked: shown if prerequisites are not met.
         option_label: menu row text when this dialogue is live
             (e.g. "Tell me about the door"). Empty = no quest option.
-        backing_faction: faction claim planted when this dialogue
-            triggers (militia / merchants / bar / lab). Read by the
-            Act 3 epilogue ("last claim wins").
+        backing_faction: faction relationship/support flag planted when this
+            dialogue triggers (militia / merchants / bar / lab). It records
+            accumulated history for later investigation and endings; it is
+            not a last-claim selector.
         unlock_item: item id added to ``main_quest_unlocked_items``
             when this dialogue triggers (e.g. a quest-granted tool).
             NOTE (Act 0 chains): the seek-help fork no longer grants
             the faction's door tool on accept — the tool comes from
-            the chain's final step (``rewards_item`` on the q5 step).
+            the chain's final step (``rewards_item`` on the final step).
         locks_chain: True = accepting this dialogue locks the player
             into ``backing_faction``'s chain (``ctx.main_quest_chain``)
             and closes the other factions' offer rows. Used by the

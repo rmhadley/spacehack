@@ -83,7 +83,7 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
         message_log.COLOR_IMPORTANT_EVENT,
     )
     ctx.log.add(
-        "A burst of coordinates — then silence. They resolve to somewhere on Mars."
+        "A burst of coordinates cuts through the static, followed by a second pattern folded inside the first. They resolve to somewhere on Mars."
     )
     complete_step(ctx, "prologue_signal")
     return True
@@ -481,11 +481,14 @@ def bump_mars_door(ctx) -> None:
         complete_step(ctx, "prologue_open")
         ctx.main_quest_unlocked_items.add("prison_data")
         ctx.log.add_colored(
-            "The seal gives way. Inside: an empty cell of alien make — "
-            "and a cache of data beyond any human technology.",
+            "The seal gives way. Inside: an empty cell built for something enormous — "
+            "and a cache of data that refuses to become a language.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
-        ctx.log.add("The prison data is recovered. Someone will want to study this.")
+        ctx.log.add(
+            "The data is recovered: routes, warnings, and an absence where a "
+            "prisoner should be."
+        )
         animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
         show_sealed_door_overlay(ctx, "open")
         return
@@ -869,10 +872,10 @@ _DOOR_OVERLAYS: dict[str, dict[str, object]] = {
         "art": _DOOR_ART_OPEN,
         "body": (
             "The seal gives way - cleanly, as if it were waiting.",
-            "Inside: an empty cell of alien make -",
-            "and a cache of data beyond any human technology.",
+            "Inside: an empty cell built for something enormous -",
+            "and a cache of data that refuses to become a language.",
         ),
-        "highlight": "The prison data is recovered. Someone will want to study this.",
+        "highlight": "The data is recovered, but it is not a message yet. Routes, warnings, and fragments of a vanished prison record are tangled together inside it.",
         "instruction": "Press ENTER to continue",
     },
 }

@@ -17,10 +17,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mer_q1_contract",
         title="Sign the Contract",
         description=(
-            "Sign the contract with the Guild Master on Earth — first "
-            "rights to anything inside the door, and the cutter is "
-            "yours when the work is done. The first clause stakes the "
-            "Wolf 359 claim."
+            "Sign the Guild's contract on Earth. It grants the Guild first access "
+            "to anything recovered from the Mars site, and grants you the "
+            "cutter that may open it. The first clause sends you to an old "
+            "Wolf 359 claim — because every discovery begins with someone "
+            "insisting they got there first."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -29,40 +30,38 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="talk",
         wait_days=60,
         completion_flavor=(
-            "The Guild files the escrow paperwork and transfers the "
-            "claim deed. They'll contact you when it clears — "
-            "then head to Wolf 359 b and stake the claim before "
-            "the consortium gets there first."
+            "The Guild has filed the deed and transferred the claim into your name. "
+            "When the clearance arrives, go to Wolf 359 b and secure the "
+            "escrow ore before the rival consortium does. A legal claim is "
+            "only as strong as the person standing on it."
         ),
         ready_message=(
-            "The claim is ready. Get to Wolf 359 b and stake it — "
-            "the caves beneath the listening post hold the Guild's "
-            "abandoned escrow ore. Watch for rival prospectors."
+            "The claim is cleared. Reach Wolf 359 b and recover the escrow ore from "
+            "the caves beneath the listening post. The consortium knows the "
+            "deed changed hands; expect them to contest it with more than "
+            "paperwork."
         ),
         dialogues={
             "guild_master": QuestDialogue(
                 npc_id="guild_master",
                 trigger_on_talk=True,
                 intro=(
-                    "The contract is simple: the Guild gets first "
-                    "rights to anything inside that door — salvage, "
-                    "data, whatever it is — and in return the cutter "
-                    "is yours when it's ready. Sign, and the first "
-                    "clause sends you to the escrow ore we've got "
-                    "staked out at Wolf 359."
+                    "The contract is simple because complicated contracts make people read "
+                    "them. The Guild gets first access to salvage and data from "
+                    "the Mars site; you get a cutter tuned to the door's stress "
+                    "signature. Sign, and we begin with the Wolf 359 escrow ore "
+                    "that will pay for the work."
                 ),
                 active=(
-                    "Contract's filed. We need time to arrange the "
-                    "escrow paperwork and transfer the claim deed. "
-                    "Once it clears, head to Wolf 359 b — the caves "
-                    "beneath the listening post hold the Guild's "
-                    "abandoned escrow ore. Watch for rival "
-                    "prospectors."
+                    "The contract is filed. Give the Guild time to move the deed through "
+                    "three offices that all claim not to know us. Once it clears, "
+                    "go to Wolf 359 b. The caves beneath the listening post hold "
+                    "ore the Guild has been defending on paper for years."
                 ),
                 complete=(
-                    "The claim's yours to stake. The ore is "
-                    "down in the Wolf 359 b caves — don't let the "
-                    "consortium get there first."
+                    "The deed is yours to enforce. Recover the ore from the Wolf 359 b "
+                    "caves before the consortium turns our legal victory into a "
+                    "physical one."
                 ),
                 option_label="Sign the contract",
                 backing_faction="merchants",
@@ -89,30 +88,28 @@ STEPS: tuple[MainQuestStep, ...] = (
         delve_good_ids=(("rare_earth_metals", 3),),
         wait_days=0,
         completion_flavor=(
-            "The raw ore is loaded into your hold — valuable but "
-            "unrefined. It needs smelting, and the only specialist "
-            "who can handle high-grade rare earth is at Tau Ceti b."
+            "The raw ore is loaded into your hold — valuable, disputed, and useless "
+            "until it is smelted. The Guild's only specialist for material this "
+            "pure works at Tau Ceti b."
         ),
         dialogues={
             "guild_master": QuestDialogue(
                 npc_id="guild_master",
                 intro=(
-                    "The claim's been dormant for years. The ore "
-                    "should still be in the deep cache — if the "
-                    "consortium hasn't already stripped it. Get "
-                    "down there and stake it before they do."
+                    "The claim has been dormant long enough for everyone to forget who paid for "
+                    "it. The ore should still be in the deep cache, unless the "
+                    "consortium has decided a neglected deed is an invitation. "
+                    "Get down there and secure it before they do."
                 ),
                 active=(
-                    "The claim is at Wolf 359 b. The listening post "
-                    "staff won't ask questions — the caves are "
-                    "unregulated. Watch for rival prospectors."
+                    "The claim is at Wolf 359 b. The listening post staff will not ask questions "
+                    "because questions are bad for business. The consortium's "
+                    "prospectors will ask them anyway."
                 ),
                 complete=(
-                    "You got the ore out? Good — but it's raw. "
-                    "It needs smelting, and the guild knows one "
-                    "specialist who can handle it. He runs the "
-                    "merchants guild on Tau Ceti b — show him "
-                    "the ore and he'll fire up the rig."
+                    "You got the ore out. It is raw, but the assay is already making people "
+                    "nervous. Take it to the specialist at Tau Ceti b; he can smelt "
+                    "it without asking the material to become ordinary."
                 ),
                 backing_faction="merchants",
             ),
@@ -124,12 +121,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mer_q3_transport",
         title="The Transport",
         description=(
-            "The raw ore is loaded into your mission hold — hot "
-            "cargo. The consortium knows about the strike. "
-            "Transport the ore to the salvage specialist at "
-            "Tau Ceti b for smelting. Consortium ships with "
-            "pirate escorts patrol the route — every scanner is "
-            "a threat."
+            "The ore is in your mission hold, unrefined and already disputed. Take it "
+            "to the Guild's salvage specialist at Tau Ceti b. Rival ships are "
+            "watching the route; to them, this is not a delivery but evidence "
+            "that the Guild still intends to own the future."
         ),
         trigger_planet_id="tc_b",
         trigger_system_id="tau_ceti",
@@ -142,40 +137,38 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_hot=False,  # ore — never confiscatable (consortium heat is pirates, not scans)
         wait_days=130,
         completion_flavor=(
-            "The specialist hooks the ore into his smelting rig. "
-            "'High-grade stuff — the rare earth content is off the "
-            "charts. Give me a few months and I'll call when it's "
-            "ready.'"
+            "The specialist feeds the ore into the smelter and goes quiet. The assay "
+            "returns impossible purity, with traces that do not match any "
+            "human mine. 'Give me time,' he says. 'If this is what I think it "
+            "is, the cutter will be the least valuable thing we make from it.'"
         ),
         ready_message=(
-            "Smelt's done and the alloy is beautiful — stronger "
-            "than anything the guild has seen in years. Come pick "
-            "it up at Tau Ceti b. The cutter needs calibration "
-            "data from a derelict near Vega — but the consortium's "
-            "got ships and raiders guarding the wreck. Be ready "
-            "for a fight."
+            "The smelt is complete. The alloy is stronger than anything in the Guild's "
+            "catalogue, and it carries a repeating stress pattern like a "
+            "recorded pulse. Collect it at Tau Ceti b, then recover calibration "
+            "data from a derelict near Vega. The consortium has put raiders on "
+            "the wreck; they would rather destroy the evidence than let us "
+            "learn what the material can do."
         ),
         dialogues={
             "salvage_specialist": QuestDialogue(
                 npc_id="salvage_specialist",
                 trigger_on_talk=True,
                 intro=(
-                    "Word of the abandoned claim reached me months "
-                    "ago — if that escrow ore's still there, I want "
-                    "my cut. You got it? Hand it over and I'll fire "
-                    "up the smelting rig."
+                    "Word of the abandoned claim reached me months ago. If the Guild finally "
+                    "found the ore, I want my cut. Hand it over and I will fire up "
+                    "the smelter — assuming it agrees to run."
                 ),
                 active=(
-                    "The smelting rig is running hot. Couple months, "
-                    "and I'll have an alloy the guild hasn't seen "
-                    "in years."
+                    "The smelter is running hot and the readings refuse to settle. Give it time. "
+                    "If the alloy behaves, it will be unlike anything the Guild has "
+                    "sold before."
                 ),
                 complete=(
-                    "Smelt's done. The alloy is stronger than "
-                    "anything I've worked in years — the cutter "
-                    "will slice through that door like paper. "
-                    "Now get to Vega before the consortium strips "
-                    "that wreck."
+                    "The smelt is complete. The alloy is stronger than anything I have worked "
+                    "with, and it keeps returning the same pulse. Take it to Vega "
+                    "and recover the calibration data before the consortium strips "
+                    "the wreck."
                 ),
                 option_label="Hand over the ore",
                 backing_faction="merchants",
@@ -188,11 +181,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="mer_q4_calibrate",
         title="The Calibration",
         description=(
-            "The smelted alloy is loaded into your hold — the "
-            "consortium will hunt you while you carry it. Fly to "
-            "Vega, fight through the pirate captain and raiders "
-            "guarding the derelict, then board the wreck and "
-            "recover the calibration data inside."
+            "The smelted alloy is loaded into your hold. The consortium will hunt you "
+            "while you carry it to Vega. Fight through the raiders guarding the "
+            "derelict, board the wreck, and recover its calibration data before "
+            "someone destroys the record."
         ),
         trigger_system_id="vega",
         requires_step="mer_q3_transport",
@@ -208,37 +200,33 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_cargo_size=3,
         wait_days=0,
         completion_flavor=(
-            "The calibration data is secured — the cutter's frequency "
-            "map is complete. The consortium leader's ship breaks "
-            "apart behind you, and the pirate raiders scatter. The "
-            "cutter can be assembled now."
+            "The calibration data is secured. It shows the alloy does not simply cut the "
+            "door; it matches a response already present in the material. The "
+            "consortium leader is gone, the raiders have scattered, and the "
+            "cutter can be assembled."
         ),
         dialogues={
             "salvage_specialist": QuestDialogue(
                 npc_id="salvage_specialist",
                 trigger_on_talk=True,
                 intro=(
-                    "There she is — the smelted alloy. Worth ten "
-                    "times what you dug out of that cave. It's "
-                    "loaded into your hold — the consortium will "
-                    "be all over you the moment you undock. The "
-                    "cutter needs calibration data from a derelict "
-                    "near Vega. Fight through the blockade, board "
-                    "the wreck, and recover the data."
+                    "There is the alloy. It is worth more than the ore, the claim, and perhaps "
+                    "the Guild's entire current catalogue. It is loaded into your "
+                    "hold. The cutter needs calibration data from a derelict near "
+                    "Vega; the consortium has put raiders on the wreck to keep us "
+                    "from learning what we made."
                 ),
                 active=(
-                    "The alloy's in your hold — keep it safe. The "
-                    "wreck is near Vega's observation deck. Fight "
-                    "through the consortium blockade, board the "
-                    "derelict, and recover the calibration data "
-                    "inside. The cutter won't work without it."
+                    "The alloy is in your hold. The wreck is near Vega's observation deck. "
+                    "Fight through the consortium raiders, board the derelict, and "
+                    "recover the calibration data. Without it, the Guild cannot tell "
+                    "whether the cutter is opening a door or answering a call."
                 ),
                 complete=(
-                    "You fought through the blockade AND boarded "
-                    "the wreck? Good. The calibration data will "
-                    "dial in the cutter's frequency — take the "
-                    "alloy and head back to Earth. The Guild "
-                    "Master's waiting."
+                    "You fought through the raiders and brought back the data. It confirms the "
+                    "cutter will not be forcing the door; it will be completing a "
+                    "pattern. Take the alloy to Earth. The Guild Master is waiting "
+                    "to turn that distinction into a contract clause."
                 ),
                 option_label="Take the smelted alloy",
                 backing_faction="merchants",
@@ -267,21 +255,21 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="guild_master",
                 trigger_on_talk=True,
                 intro=(
-                    "You made it — and you brought the alloy. Give "
-                    "it here. The cutter's half-assembled already — "
-                    "the calibration data will dial it in. Sign the "
-                    "final addendum and the cutter is yours."
+                    "You brought the alloy back. Good. The cutter is assembled around it, "
+                    "though the calibration data suggests we are not merely "
+                    "cutting a door — we are asking a much older system to "
+                    "notice us. Sign the final addendum and the instrument is "
+                    "yours."
                 ),
                 active=(
-                    "The cutter's here when you're ready. After "
-                    "that door opens, the Guild gets first look "
-                    "inside — remember the contract."
+                    "The cutter is here. After the door opens, the Guild gets first access under "
+                    "the contract. If the first thing you find is a warning, send it "
+                    "before you send anything else."
                 ),
                 complete=(
-                    "Take the cutter and open that door. The Guild "
-                    "wants the first look inside — but whatever "
-                    "you find, the contract's fulfilled. Fair "
-                    "trading, pilot."
+                    "Take the cutter to Mars. Open the door, document what you find, and "
+                    "remember that a thing can be priceless without being safe to "
+                    "own. Fair trading, pilot."
                 ),
                 option_label="Collect the cutter",
                 backing_faction="merchants",

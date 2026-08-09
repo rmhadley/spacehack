@@ -14,9 +14,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_signal",
         title="The Signal",
         description=(
-            "A garbled transmission broke through the static — a burst "
-            "of coordinates, then silence. They resolve to somewhere on "
-            "Mars."
+            "A transmission breaks through the static in a pattern no human "
+            "receiver should be able to recognize: coordinates, a pause, "
+            "then a second set of coordinates folded over the first. They "
+            "resolve to somewhere on Mars."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
@@ -25,8 +26,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_mars_unlocked",
         title="Mars",
         description=(
-            "The transmission's coordinates point to a location on "
-            "Mars. The surface is explorable — see what's out there."
+            "The coordinates point to a dead stretch of Mars beyond the settled "
+            "routes. The signal has stopped, but whatever sent it left a "
+            "mark precise enough to follow. Find out what is waiting there."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
@@ -36,9 +38,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_mars_entrance",
         title="The Door",
         description=(
-            "Among the red-dust ruins you find a sealed door of alien "
-            "make. No visible mechanism, older than the colony. It will "
-            "not open with any human tool."
+            "The red dust gives way to a structure that predates every human "
+            "survey. A seamless alien door is set into the rock without "
+            "hinges, controls, or any sign that it was meant for human "
+            "hands. It is not damaged. It is waiting."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
@@ -48,9 +51,13 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_seek_help",
         title="Seek Help",
         description=(
-            "The door won't open with any human tool. Ask around — the "
-            "factions each have their own way in. Choose who helps you; "
-            "that choice will echo."
+            "No human tool can make the door acknowledge you. Ask the people "
+            "who have the most to lose if this place is opened: the bar "
+            "knows the old routes, the Guild knows how to buy a way through, "
+            "the Militia knows what it is hiding, and the Lab knows when a "
+            "discovery is too important to leave alone. Choose who puts "
+            "their hands on the lock. They will remember what you do with "
+            "what comes after."
         ),
         requires_step="prologue_mars_entrance",
         dialogues={
@@ -58,25 +65,29 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "Heard about the thing in the dust? The militia "
-                    "sealed it — or someone did. There was a guy got a "
-                    "door like that open once. Cost him a hand. Here's "
-                    "how he did it."
+                    "Heard about the thing in the dust? Then you heard the wrong story. "
+                    "The militia calls it a sealed site. The old routes call "
+                    "it a door that took a hand and gave nothing back. One "
+                    "man got close to opening it. He has spent the years "
+                    "since pretending he never did. I can put you in the "
+                    "same room with him."
                 ),
                 active=(
-                    "Still stuck on that door? The rig's yours when "
-                    "you want it — a cut of whatever's inside, and the "
-                    "story for the bar."
+                    "Still standing outside the door? The rig is ready when you are. "
+                    "No promises about what it will let through. Bring the "
+                    "bar the truth of what you find, not a polished version "
+                    "someone can sell."
                 ),
                 complete=(
-                    "So we've got a deal? Good. The old hand who "
-                    "cracked that door — I'll make the introduction. "
-                    "Come back with the story, and the bar pays in "
-                    "drinks."
+                    "Then we have an understanding. I will send you to the old hand. "
+                    "Do not ask him what was behind the door until he decides "
+                    "you are ready to hear it. If you come back, the bar will "
+                    "keep your glass full while you tell the story."
                 ),
                 locked=(
-                    "You've already got a way in, friend. The bar "
-                    "still wants the story when you're done."
+                    "You chose another road in. Fine. Just remember that official reports "
+                    "are written by the people who survive them. If you come "
+                    "back, tell the bar what the reports leave out."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="bar",
@@ -86,23 +97,28 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="guild_master",
                 trigger_on_talk=True,
                 intro=(
-                    "Alien tech on Mars? That's the most valuable "
-                    "cargo in history. A salvager's cutter tuned to "
-                    "alien alloys — sign the contract and it's yours. "
-                    "First rights to what's inside."
+                    "Alien infrastructure on Mars is not a curiosity. It is an asset with "
+                    "no owner, no patent, and no surviving claimant. Sign the "
+                    "contract and the Guild will put a cutter in your hands "
+                    "that can read the door's material stress. First rights "
+                    "to whatever is recovered. We can decide what it is worth "
+                    "after we know how much of the future it contains."
                 ),
                 active=(
-                    "The cutter's waiting. Sign here — first look at "
-                    "anything inside, and the tool's yours."
+                    "The cutter is waiting. Sign the addendum and the Guild gets first "
+                    "access to the recovery. That is not ownership of the "
+                    "truth, of course. It is only the usual arrangement for "
+                    "being the first person to put a price on it."
                 ),
                 complete=(
-                    "Contract signed, then. The cutter comes when the "
-                    "work's done — first rights to what's inside, "
-                    "remember."
+                    "The contract is filed. Build the cutter, open the door, and bring us "
+                    "something no one else can value yet. That is where the "
+                    "best margins begin."
                 ),
                 locked=(
-                    "You've found another way in, then. A pity — the "
-                    "guild pays handsomely for a look."
+                    "Another party is funding the operation. An unfortunate choice, but "
+                    "not an irreversible one. If you recover anything the Guild "
+                    "can refine, transport, or sell, our office remains open."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="merchants",
@@ -112,24 +128,28 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="militia_captain",
                 trigger_on_talk=True,
                 intro=(
-                    "There is no door. Whatever you saw out there, "
-                    "forget it. ...Quietly, off the books, the patrol "
-                    "has seen this tech before. The 'incident'. We have "
-                    "schematics and a breach charge that will open it. "
-                    "You say nothing. Understood?"
+                    "There is no door. That is the official answer, and you will repeat it "
+                    "if anyone asks. ...Off the books: a patrol found the same "
+                    "material during the Incident. We lost people, buried the "
+                    "report, and learned that some doors are built to keep "
+                    "something in. I can give you a breach package. You can "
+                    "give me one thing in return: silence until we know what "
+                    "we are dealing with."
                 ),
                 active=(
-                    "The schematics are ready. One condition: this "
-                    "never happened. Bring back proof of what's behind "
-                    "it, and the patrol remembers nothing."
+                    "The schematics are ready. The operation remains deniable, which is "
+                    "not the same as harmless. Open the door, record what you "
+                    "can, and bring back proof before anyone decides the "
+                    "answer is to seal Mars around it."
                 ),
                 complete=(
-                    "Understood. The work has begun — report when "
-                    "it's done, and we never speak of this again."
+                    "The paperwork is moving. When the package is ready, you will hear "
+                    "from me through a channel that officially does not exist. "
+                    "Until then, forget the coordinates."
                 ),
                 locked=(
-                    "You've made your choice, then. Keep it off the "
-                    "books — the patrol has no part in this."
+                    "You chose another sponsor. Then keep the operation away from the "
+                    "patrol. We have enough old mistakes on the books already."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="militia",
@@ -139,24 +159,26 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="research_officer",
                 trigger_on_talk=True,
                 intro=(
-                    "A sealed structure on Mars? I need to study it. "
-                    "Bring me a sample of the door's material — we'll "
-                    "analyze it, and the resonance key it unlocks will "
-                    "open the way."
+                    "A structure this old should not be broadcasting anything. Bring me a "
+                    "sample from the door and I can compare its resonance to "
+                    "the transmission. If the two are related, the key will not "
+                    "force the lock; it will demonstrate that the lock has "
+                    "already recognized us."
                 ),
                 active=(
-                    "The material analysis is promising. Bring the "
-                    "sample back and the key is yours — we want a "
-                    "specimen from inside for study."
+                    "The sample may give us a response, not merely a reading. Bring it back "
+                    "and we can test that hypothesis. If you cross that threshold, "
+                    "do not assume an empty room means the danger is gone."
                 ),
                 complete=(
-                    "The work has begun, then. Return to Mars and chip "
-                    "a sample off the door — we'll take it from there. "
-                    "The truth deserves to be published, not buried."
+                    "Then the work begins. Take a controlled sample from Mars and bring it "
+                    "back. We will publish the evidence when we know what it "
+                    "means, not before. The difference may keep people alive."
                 ),
                 locked=(
-                    "You've found other help. Very well — if you "
-                    "recover anything, the station will study it."
+                    "You found another method. If you recover evidence, send it to the "
+                    "station. We will study it before we decide whether it is a "
+                    "warning, a weapon, or something that has no human category."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="lab",
@@ -169,24 +191,26 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="xenolinguist",
                 trigger_on_talk=True,
                 intro=(
-                    "A sealed structure on Mars? The signal isn't "
-                    "human — and that door may be the same make. Bring "
-                    "me a sample of its material. A resonance key "
-                    "from the analysis would open it."
+                    "The signal is not a message in any human sense. It is a pattern with "
+                    "coordinates embedded inside it, and the door may be made "
+                    "of the same impossible material. Bring me a sample. We "
+                    "may be able to make the lock answer without teaching "
+                    "ourselves what it was built to contain."
                 ),
                 active=(
-                    "The material analysis is promising. Bring the "
-                    "sample back and the key is yours — we want a "
-                    "specimen from inside for study."
+                    "The sample may give us a response, not merely a reading. Bring it back "
+                    "and we can test that hypothesis. If you cross that threshold, "
+                    "do not assume an empty room means the danger is gone."
                 ),
                 complete=(
-                    "The work has begun, then. Return to Mars and chip "
-                    "a sample off the door — we'll take it from there. "
-                    "The truth deserves to be published, not buried."
+                    "Then the work begins. Take a controlled sample from Mars and bring it "
+                    "back. We will publish the evidence when we know what it "
+                    "means, not before. The difference may keep people alive."
                 ),
                 locked=(
-                    "You've found other help. Very well — if you "
-                    "recover anything, the station will study it."
+                    "You found another method. If you recover evidence, send it to the "
+                    "station. We will study it before we decide whether it is a "
+                    "warning, a weapon, or something that has no human category."
                 ),
                 option_label=_ASK_LABEL,
                 backing_faction="lab",
@@ -199,8 +223,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_open",
         title="The Door Opens",
         description=(
-            "Return to Mars with the means to open the door. The "
-            "coordinates still hold a secret."
+            "Return to Mars with the method your allies assembled. The door is "
+            "not the end of the signal; it is the first threshold. Beyond "
+            "it, the coordinates may finally explain what called you there."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",

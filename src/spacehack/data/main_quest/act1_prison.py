@@ -17,21 +17,24 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="act1_prison",
         title="The Prison Below",
         description=(
-            "The door has opened onto a facility built beneath Mars. "
-            "Descend the prison floors, restore its power, and reach the "
-            "deep cell at the bottom. Extract whatever data the one live "
-            "terminal still holds — it is beyond human understanding, but "
-            "it is a beginning."
+            "The door has opened onto a facility built beneath Mars. Descend through "
+            "the silent prison, restore the systems that still answer, and reach "
+            "the deep cell at the bottom. The cell is empty, but one terminal is "
+            "alive. Extract its data; it may tell you whether the prisoner left "
+            "by choice, by force, or long before anyone on Mars knew this place "
+            "existed."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
         objective_type="prison",
         rewards_xp=120,
         completion_flavor=(
-            "The data stream ends. Nothing decodes — no language, no "
-            "mathematics, no human frame can hold it. But the sheer volume "
-            "is proof: something was kept here, and something escaped. "
-            "Somewhere, someone will want to study this."
+            "The data stream ends before it becomes a translation. No language, no "
+            "mathematics, and no human model can hold the whole of it. But the "
+            "archive is not random: routes, containment records, warnings, and "
+            "fragments of an identity are buried together in the noise. The cell "
+            "was built for something. It is empty now. And the terminal has sent "
+            "the first answer back into the dark."
         ),
     ),
 )
