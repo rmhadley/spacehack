@@ -26,6 +26,8 @@ def _ctx():
         main_quest_pending_objective="",
         dungeon_extension=SimpleNamespace(state_flags={"prison_data_extracted"}),
         log=message_log.MessageLog(capacity=6),
+        main_quest_complete=False,
+        player_active_missions=[],
     )
 
 
@@ -97,6 +99,55 @@ def test_mars_departure_helper_triggers_from_any_launch_path(monkeypatch):
     assert _calls == [ctx]
     assert not game_main._maybe_show_post_prison_orbit(ctx, "earth")
     assert _calls == [ctx]
+
+
+def test_prison_completion_shows_departure_breadcrumb_before_orbit_scene():
+    """The completed prison opening still has a required Mars handoff."""
+    ctx = _ctx()
+
+    assert current_main_quest_objective(ctx) == (
+        "Leave Mars",
+        "Return to your ship and launch from Mars. The recovered archive "
+        "is waiting for its first reading.",
+    )
+
+    ctx.post_prison_orbit_seen = True
+    assert current_main_quest_objective(ctx) is None
+
+
+def test_quest_log_distinguishes_prison_handoff_from_final_resolution():
+    """The quest log reserves its completion label for the actual ending."""
+    from unittest.mock import MagicMock
+
+    from src.spacehack.menus._quest_log import render_quest_log
+    from src.spacehack.engine import SCREEN_HEIGHT, SCREEN_WIDTH
+
+    ctx = _ctx()
+    _console = MagicMock()
+    render_quest_log(
+        _console, ctx,
+        screen_width=SCREEN_WIDTH,
+        screen_height=SCREEN_HEIGHT,
+    )
+    _handoff_text = [
+        call.kwargs.get("string", call.args[2] if len(call.args) > 2 else "")
+        for call in _console.print.call_args_list
+    ]
+    assert "Leave Mars" in _handoff_text
+    assert "(main quest complete)" not in _handoff_text
+
+    ctx.main_quest_complete = True
+    _console.reset_mock()
+    render_quest_log(
+        _console, ctx,
+        screen_width=SCREEN_WIDTH,
+        screen_height=SCREEN_HEIGHT,
+    )
+    _final_text = [
+        call.kwargs.get("string", call.args[2] if len(call.args) > 2 else "")
+        for call in _console.print.call_args_list
+    ]
+    assert "(main quest complete)" in _final_text
 
 
 def test_orbit_scene_requires_extraction_and_mars_departure():

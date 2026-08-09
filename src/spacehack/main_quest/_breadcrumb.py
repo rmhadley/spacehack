@@ -27,4 +27,14 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
             else "The faction will contact you when they're ready."
         )
         return (f"Awaiting word from the {_fac.capitalize()}...", _desc)
+    if (
+        ctx.main_quest_progress.get("act1_prison") == "completed"
+        and not getattr(ctx, "post_prison_orbit_seen", False)
+        and not getattr(ctx, "main_quest_complete", False)
+    ):
+        return (
+            "Leave Mars",
+            "Return to your ship and launch from Mars. The recovered archive "
+            "is waiting for its first reading.",
+        )
     return None

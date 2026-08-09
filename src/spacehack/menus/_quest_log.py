@@ -55,7 +55,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
                 break
             ui.paint_line(console, col_x, cy, ui.fit_text(_line, max_w), fg=ui.COLOR_VALUE_DIM)
             cy += 1
-    elif _mq_started:
+    elif _mq_started and ctx.main_quest_complete:
         ui.paint_line(console, col_x, cy, "MAIN QUEST", fg=ui.COLOR_TITLE)
         cy += 1
         ui.paint_line(console, col_x, cy, "(main quest complete)", fg=ui.COLOR_VALUE_DIM)
