@@ -408,13 +408,16 @@ def populate_dungeon(
     from .engine import RNG
     from .data.npc_chars import find_npc_char as _find_nc
 
+    _landmark_footprint = set(
+        getattr(game_map, "landmark_footprint", ())
+    )
     _floor: list[tuple[int, int]] = []
     for _y in range(game_map.height):
         for _x in range(game_map.width):
             _t = game_map.tiles[_y][_x]
             if not _t.walkable or _t.kind in {
                 "exit", "stairs_up", "stairs_down",
-            }:
+            } or (_x, _y) in _landmark_footprint:
                 continue
             if max(abs(_x - spawn_pos.x), abs(_y - spawn_pos.y)) <= _SPAWN_CLEAR_RADIUS:
                 continue
@@ -460,6 +463,7 @@ def populate_dungeon(
                     _nt.walkable
                     and _nt.kind not in {"exit", "stairs_up", "stairs_down"}
                     and (_nx, _ny) not in _occupied
+                    and (_nx, _ny) not in _landmark_footprint
                 ):
                     _cells.append((_nx, _ny))
         _squad_id = f"dungeon_{_eid}_{_squad_counter}"

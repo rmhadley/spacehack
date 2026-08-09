@@ -164,6 +164,10 @@ DEEP_CELL_FLOOR = Tile(kind="deep_cell_floor", char=".", walkable=True,
                        fg=(190, 200, 215), bg=(35, 45, 60))
 TORN_DOOR = Tile(kind="torn_door", char="#", walkable=False,
                  fg=(200, 130, 90), bg=(60, 35, 30))
+CLAW_SCAR = Tile(kind="claw_scar", char="^", walkable=True,
+                 fg=(220, 145, 100), bg=(55, 40, 45))
+LANDMARK_ENTRANCE = Tile(kind="landmark_entrance", char="X", walkable=True,
+                         fg=(255, 150, 90), bg=(70, 35, 25))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.

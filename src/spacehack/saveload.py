@@ -353,6 +353,10 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
         "activation_positions": _d(getattr(gm, 'activation_positions', {})),
         "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
         "interior_cache_key": getattr(gm, 'interior_cache_key', ''),
+        "landmark_footprint": [
+            [int(_x), int(_y)]
+            for _x, _y in getattr(gm, 'landmark_footprint', set())
+        ],
     }
 
 
@@ -486,6 +490,13 @@ def _dungeon_from_dict(dd: dict) -> tuple:
     _interior_cache_key = dd.get("interior_cache_key", "")
     if _interior_cache_key:
         _dungeon_map.interior_cache_key = str(_interior_cache_key)
+    _landmark_footprint = dd.get("landmark_footprint", []) or []
+    if _landmark_footprint:
+        _dungeon_map.landmark_footprint = {
+            (int(_point[0]), int(_point[1]))
+            for _point in _landmark_footprint
+            if isinstance(_point, (list, tuple)) and len(_point) >= 2
+        }
     _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
     return _dungeon_map, _space_pos
 

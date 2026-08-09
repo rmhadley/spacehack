@@ -40,6 +40,28 @@ def _reachable(game_map, start, goal) -> bool:
     return False
 
 
+def test_deep_cell_landmark_parses_torn_entrance_and_claw_scars():
+    """The F5 asset has a walkable torn entrance and authored claw marks."""
+    _asset = landmark.load_landmark("alien_prison_deep_cell")
+    _entrances = [
+        (x, y) for y, row in enumerate(_asset.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "landmark_entrance"
+    ]
+    _scars = [
+        tile for row in _asset.tiles for tile in row
+        if tile.kind == "claw_scar"
+    ]
+
+    assert _asset.width == 35
+    assert _asset.height == 24
+    assert _entrances == [(18, 23)]
+    assert len(_scars) >= 20
+    assert landmark._landmark_markers(_asset) == (
+        world.Position(18, 23), None, None,
+    )
+
+
 def test_mars_landmark_layout_parses_console_and_bottom_door():
     """The authored asset exposes one quest console and one entrance tile."""
     _asset = landmark.load_landmark("mars_signal_door")
@@ -89,6 +111,18 @@ def test_landmark_console_survives_dungeon_serialization():
     assert _restored.tiles[3][20].kind == "stairs_down"
     assert _restored.tiles[0][1].kind == "dungeon_wall"
     assert _restored.tiles[2][18].kind == "dungeon_floor"
+
+
+def test_deep_cell_landmark_serializes_authored_tiles():
+    """The F5 landmark's torn entrance and claw scars survive save/load."""
+    _asset = landmark.load_landmark("alien_prison_deep_cell")
+    _restored, _space_pos = _dungeon_from_dict(_dungeon_to_dict(_asset, None))
+
+    assert _restored.tiles[23][18].kind == "landmark_entrance"
+    assert sum(
+        tile.kind == "claw_scar"
+        for row in _restored.tiles for tile in row
+    ) >= 20
 
 
 def test_landmark_inherits_destination_wall_and_floor_theme():
@@ -221,6 +255,43 @@ def _quest_ctx(progress):
     return _ctx
 
 
+def test_mars_surface_rejects_landmark_without_required_markers(monkeypatch):
+    """Act 0 validates its required console/stairs contract explicitly."""
+    _ctx = _quest_ctx({"prologue_mars_entrance": "available"})
+    _game_map = world.GameMap(
+        10, 10,
+        [[world.DUNGEON_FLOOR for _ in range(10)] for _ in range(10)],
+        [],
+    )
+    monkeypatch.setattr(
+        act0.landmark,
+        "load_landmark",
+        lambda _layout_id: world.GameMap(
+            1, 1, [[world.DUNGEON_FLOOR]], [],
+        ),
+    )
+    monkeypatch.setattr(
+        act0.landmark,
+        "stamp_landmark",
+        lambda *_args: landmark.LandmarkStamp(
+            origin=world.Position(0, 0),
+            entrance=world.Position(0, 0),
+            console=None,
+            stairs=None,
+            footprint=frozenset(),
+        ),
+    )
+
+    try:
+        act0.prepare_mars_surface(
+            _ctx, _game_map, world.Position(1, 1),
+        )
+    except ValueError as _error:
+        assert "console and stairs" in str(_error)
+    else:
+        raise AssertionError("invalid Mars landmark unexpectedly accepted")
+
+
 def test_mars_console_bump_runs_discovery_interaction(monkeypatch):
     """The landmark console routes the first bump to the Act 0 handler."""
     _ctx = _quest_ctx({"prologue_mars_entrance": "available"})
@@ -329,6 +400,26 @@ def test_signal_door_animation_undulates_then_splits(monkeypatch):
         and _game_map.tiles[pos.y][pos.x].bg == (42, 58, 88)
         for pos in _barrier_positions
     )
+
+
+def test_deep_cell_landmark_stamps_reachable_footprint():
+    """The authored cell stamps into F5-sized procedural maps and is reachable."""
+    seed_rng(401)
+    _params = find_planet_spec("mars").dungeon_params
+    _params = type(_params)(
+        width=58, height=46, min_room_size=8, max_room_size=18,
+        room_fill_pct=0.60, sight_radius=11,
+    )
+    _game_map, _spawn = dungeon.generate_dungeon(_params)
+    _asset = landmark.load_landmark("alien_prison_deep_cell")
+
+    _stamp = landmark.stamp_landmark(_game_map, _asset, _spawn)
+    _approach = type(_spawn)(_stamp.entrance.x, _stamp.entrance.y + 1)
+
+    assert _reachable(_game_map, _spawn, _approach)
+    assert len(_stamp.footprint) == _asset.width * _asset.height
+    assert _stamp.console is None
+    assert _stamp.stairs is None
 
 
 def test_mars_landmark_stamp_rejects_undersized_map():

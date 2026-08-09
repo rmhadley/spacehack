@@ -321,15 +321,14 @@ verify the elevator works after leaving/re-entering Floor 4 and after Continue.
 
 **Implementation checkpoint:** Floor 4 is procedurally generated with reusable
 high-risk cell/security markers, an engineering console, and a deep elevator.
-The extension's power flag is persistent and the elevator now transitions to a
-procedural Floor 5 staging map. Phase 4 will replace that staging map with the
-hand-authored deep-cell/data-extraction content.
+The extension's power flag is persistent and the elevator transitions to
+Floor 5's authored deep-cell/data-extraction landmark.
 
 
 ### Phase 4 — Floor 5 deep cell and data extraction
 
-- [x] Add the giant empty cell, torn doors, scattered terminals, and one live
-  terminal.
+- [x] Add the giant empty-cell landmark, torn-off doorway, claw-scar evidence,
+  scattered terminals, and one live terminal.
 - [x] Add data extraction interaction and incomprehensible result.
 - [x] Complete the prison objective and begin Act 1 with the descent itself.
 
@@ -347,10 +346,10 @@ extraction, and re-enter the floor without duplicating terminals.
 ### Phase 5 — Tuning, landmarks, guide, and final regression pass
 
 - [ ] Tune security/pest populations and encounter pacing; Floor 1 security now fires from monotonic progress toward the Floor 2 stairs and spawns beside the player rather than requiring an exact generated anchor. Thresholds resolve once even if every nearby floor cell is occupied, and stair tiles are never used as deployment cells.
-- [ ] Add optional hand-authored landmarks stamped into generated anchors.
+- [x] Add the authored `data/landmarks/alien_prison_deep_cell.layout` landmark to Floor 5: a giant empty cell with a torn-off entrance and claw scars, stamped into the procedural floor while retaining the live data terminal and persistent footprint.
 - [x] Update the in-game guide and main-quest design references; the guide now explains that the opened door ends Act 0 and the stairs begin the Act 1 prison descent.
-- [ ] Add generation, transition, activation, mutation, and save/load regression tests.
-- [ ] Run smoke and the full test suite.
+- [x] Add generation, transition, activation, mutation, and save/load regression tests.
+- [x] Run smoke and the full test suite.
 
 **PLAYTEST:** Complete the full five-floor run, confirm `act1_prison` becomes
 active on prison entry and completes on Floor 5 extraction, save/Continue before
@@ -393,16 +392,20 @@ not a prerequisite for finishing this content pack.
   tuning from the existing NPC catalog.
 - The exact generic activation-event schema may be finalized during Phase 1,
   but it must support future themes without prison-specific branches.
-- The final terminal's one-line immediate flavor text can be refined during
-  implementation, but it must not decode the data or reveal the escaped entity.
-- Whether Phase 5's optional authored landmarks materially improve the prison
-  run should be decided after the full five-floor playtest, not assumed as a
-  prerequisite for the current content pass.
+-The final terminal's one-line immediate flavor text can be refined during
+implementation, but it must not decode the data or reveal the escaped entity.
+The Floor 5 landmark supplies the authored cell silhouette, torn entrance, and
+claw scars; procedural generation supplies the approach route and persistent
+map cache.
+
+- The Floor 5 authored deep-cell landmark now provides the required cell
+  silhouette, torn entrance, and claw scars; additional landmarks remain
+  optional polish to evaluate after the full five-floor playtest.
 
 ### Current completion target
 
 Finish and validate the prison as a self-contained Act 1 opening: tune enemy
-populations and pacing, decide whether to add optional landmarks, validate the
-player guide and cross-references, add the remaining regression coverage, and
-complete the full five-floor save/load playtest. Only then should the post-prison
-research branch be implemented.
+populations and pacing, validate the new Floor 5 landmark and its save/load
+footprint, validate the player guide and cross-references, add the remaining
+regression coverage, and complete the full five-floor save/load playtest. Only
+then should the post-prison research branch be implemented.

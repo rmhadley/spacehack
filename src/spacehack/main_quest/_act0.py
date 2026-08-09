@@ -138,6 +138,10 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
     if step_status(ctx, "prologue_open") != STATUS_COMPLETED:
         _landmark = landmark.load_landmark("mars_signal_door")
         _stamp = landmark.stamp_landmark(game_map, _landmark, spawn)
+        if _stamp.console is None or _stamp.stairs is None:
+            raise ValueError(
+                "Mars signal landmark must define a console and stairs"
+            )
         game_map.mars_stairs_pos = _stamp.stairs
         _conceal_mars_stairs(game_map, _stamp.stairs)
         # The landmark's console replaces the old abstract one-tile door.

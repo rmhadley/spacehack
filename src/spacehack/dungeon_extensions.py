@@ -325,6 +325,7 @@ def _stamp_interactions(
     if not _interactions:
         return
     _cells = _feature_cells(game_map, origin)
+    _landmark_cells = set(getattr(game_map, "landmark_footprint", ()))
     _used: set[tuple[int, int]] = {
         (_position.x, _position.y)
         for _position in (
@@ -346,6 +347,13 @@ def _stamp_interactions(
             _interaction_cells = _preferred_interaction_cells(
                 game_map, _cells, _down, _walkable_distances,
             )
+            if _interaction.id == "deep_cell_data_terminal" and _landmark_cells:
+                _interaction_cells = [
+                    _cell for _cell in _interaction_cells
+                    if _cell in _landmark_cells
+                ] or [
+                    _cell for _cell in _cells if _cell in _landmark_cells
+                ]
             _position = _free_interaction_position(
                 game_map,
                 cells=_interaction_cells,

@@ -680,13 +680,14 @@ def test_interaction_placement_has_unrestricted_fallback(monkeypatch):
     assert _consoles[0].pos == world.Position(2, 2)
 
 
-def test_phase_four_deep_cell_floor_has_set_dressing_and_live_terminal():
+def test_phase_four_deep_cell_floor_has_landmark_set_dressing_and_live_terminal():
     for seed in (401, 402, 403):
         seed_rng(seed)
         game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 5)
 
         assert game_map.location_name == "Alien Prison F5"
         assert game_map.feature_theme == "deep_cell"
+        assert getattr(game_map, "landmark_footprint", set())
         assert sum(
             tile.kind == "deep_cell_floor"
             for row in game_map.tiles for tile in row
@@ -695,6 +696,26 @@ def test_phase_four_deep_cell_floor_has_set_dressing_and_live_terminal():
             tile.kind == "torn_door"
             for row in game_map.tiles for tile in row
         ) >= 1
+        assert sum(
+            tile.kind == "claw_scar"
+            for row in game_map.tiles for tile in row
+        ) >= 20
+        assert sum(
+            tile.kind == "landmark_entrance"
+            for row in game_map.tiles for tile in row
+        ) == 1
+        assert not any(
+            entity.npc_char_id
+            and (entity.pos.x, entity.pos.y) in game_map.landmark_footprint
+            for entity in game_map.entities
+        )
+        _terminal = next(
+            entity for entity in game_map.entities
+            if entity.dungeon_interaction == "deep_cell_data_terminal"
+        )
+        assert (
+            _terminal.pos.x, _terminal.pos.y
+        ) in game_map.landmark_footprint
         _dead = [
             entity for entity in game_map.entities
             if entity.interaction_flavor
@@ -797,6 +818,7 @@ def test_phase_four_deep_cell_floor_round_trips():
     restored, _ = _dungeon_from_dict(payload)
 
     assert restored.extension_floor == 5
+    assert getattr(restored, "landmark_footprint", set())
     assert sum(
         tile.kind == "deep_cell_floor"
         for row in restored.tiles for tile in row

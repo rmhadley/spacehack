@@ -30,8 +30,9 @@ class LandmarkStamp:
 
     origin: world.Position
     entrance: world.Position
-    console: world.Position
-    stairs: world.Position
+    console: world.Position | None
+    stairs: world.Position | None
+    footprint: frozenset[tuple[int, int]]
 
 
 def load_landmark(layout_id: str) -> world.GameMap:
@@ -46,13 +47,13 @@ def load_landmark(layout_id: str) -> world.GameMap:
 
 def _landmark_markers(
     landmark: world.GameMap,
-) -> tuple[world.Position, world.Position, world.Position]:
-    """Return the landmark's entrance, console, and stairs positions."""
+) -> tuple[world.Position, world.Position | None, world.Position | None]:
+    """Return a landmark's entrance and optional quest markers."""
     _doors = [
         world.Position(x, y)
         for y, row in enumerate(landmark.tiles)
         for x, tile in enumerate(row)
-        if tile.kind == "dungeon_door"
+        if tile.kind in {"dungeon_door", "landmark_entrance"}
     ]
     _consoles = [
         entity.pos
@@ -65,11 +66,15 @@ def _landmark_markers(
         for x, tile in enumerate(row)
         if tile.kind == "stairs_down"
     ]
-    if len(_doors) != 1 or len(_consoles) != 1 or len(_stairs) != 1:
+    if len(_doors) != 1 or len(_consoles) > 1 or len(_stairs) > 1:
         raise ValueError(
-            "Landmark must contain exactly one dungeon door, console, and stairs"
+            "Landmark must contain exactly one entrance and at most one console/stairs"
         )
-    return _doors[0], _consoles[0], _stairs[0]
+    return (
+        _doors[0],
+        _consoles[0] if _consoles else None,
+        _stairs[0] if _stairs else None,
+    )
 
 
 def _candidate_origins(
@@ -97,7 +102,9 @@ def _candidate_origins(
                 for _lx in range(landmark.width)
             }
             if any(
-                game_map.tiles[_py][_px].kind == "exit"
+                game_map.tiles[_py][_px].kind in {
+                    "exit", "stairs_up", "stairs_down",
+                }
                 for _px, _py in _footprint
             ):
                 continue
@@ -269,6 +276,13 @@ def stamp_landmark(
     return LandmarkStamp(
         origin=_origin,
         entrance=_entrance,
-        console=world.Position(_origin.x + _console.x, _origin.y + _console.y),
-        stairs=world.Position(_origin.x + _stairs.x, _origin.y + _stairs.y),
+        console=(
+            world.Position(_origin.x + _console.x, _origin.y + _console.y)
+            if _console is not None else None
+        ),
+        stairs=(
+            world.Position(_origin.x + _stairs.x, _origin.y + _stairs.y)
+            if _stairs is not None else None
+        ),
+        footprint=frozenset(_protected),
     )
