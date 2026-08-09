@@ -184,13 +184,10 @@ def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
 
 def _orbit_scene_is_ready(ctx) -> bool:
     """Return whether the one-time Mars-orbit scene should fire."""
-    _extension = getattr(ctx, "dungeon_extension", None)
     return (
         ctx.current_city_id == "mars"
         and not getattr(ctx, "post_prison_orbit_seen", False)
         and ctx.main_quest_progress.get("act1_prison") == "completed"
-        and _extension is not None
-        and "prison_data_extracted" in _extension.state_flags
     )
 
 

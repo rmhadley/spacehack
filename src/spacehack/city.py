@@ -44,6 +44,36 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         _responsive_sleep(frame_seconds)
 
 
+def _build_space_return(
+    ctx,
+    current_city_id: str,
+    ship_obj: ship_module.Ship,
+) -> tuple[world.GameMap, world.Entity]:
+    """Build a space map and dock the player's ship at a planet."""
+    _space_map = solar_system_module.make_solar_system()
+    _add_bounty_spawns_to_map(
+        ctx, _space_map, solar_system_module.current_solar_system_id,
+    )
+    _origin_planet = solar_system_module.find_planet(current_city_id)
+    from .npc_ships import SPAWN_EXCLUSION_RADIUS as _SER, spawn_npcs as _sn
+    _spawn_exclusion = {
+        (_origin_planet.pos.x + _dx, _origin_planet.pos.y + _dy)
+        for _dy in range(-_SER, _SER + 1)
+        for _dx in range(-_SER, _SER + 1)
+    }
+    _sn(
+        ctx,
+        _space_map,
+        solar_system_module.current_solar_system_id,
+        player_spawn_exclusion=_spawn_exclusion,
+    )
+    _space_player = solar_system_module.place_docked_ship(
+        ship_obj, _origin_planet,
+    )
+    _space_map.entities.append(_space_player)
+    return _space_map, _space_player
+
+
 def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
     """Animate ``hangar_ship_ent`` off the top of the city viewport and
     return ``(space_game_map, space_player_entity)``.
@@ -52,12 +82,6 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
     but kept in ``city_game_map.entities`` so the future return
     animation walks the SAME entity back to HANGAR_ANCHOR (no need
     to splice a new entity into/out of the city's entity list).
-
-    The returned ``space_game_map`` is freshly built via
-    :func:`solar_system_module.make_solar_system` and has the
-    player-ship Entity docked at ``current_city_id`` (whatever
-    planet the player just launched from) via
-    :func:`solar_system_module.place_docked_ship`.
     """
     if city_player in city_game_map.entities:
         city_game_map.entities.remove(city_player)
@@ -65,20 +89,6 @@ def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.Ga
     if hangar_ship_ent.pos.y > offscreen_y:
         _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y, location=current_city_id.replace('_', ' ').title())
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
-    space_map = solar_system_module.make_solar_system()
-    _add_bounty_spawns_to_map(ctx, space_map, solar_system_module.current_solar_system_id)
-    # Exclude a radius around the origin planet so the player
-    # isn't immediately surrounded on launch.
-    origin_planet = solar_system_module.find_planet(current_city_id)
-    from .npc_ships import SPAWN_EXCLUSION_RADIUS as _SER, spawn_npcs as _sn
-    _spawn_exclusion: set[tuple[int, int]] = set()
-    for _dy in range(-_SER, _SER + 1):
-        for _dx in range(-_SER, _SER + 1):
-            _spawn_exclusion.add((origin_planet.pos.x + _dx, origin_planet.pos.y + _dy))
-    _sn(ctx, space_map, solar_system_module.current_solar_system_id,
-        player_spawn_exclusion=_spawn_exclusion)
-    space_player = solar_system_module.place_docked_ship(ship_obj, origin_planet)
-    space_map.entities.append(space_player)
-    return (space_map, space_player)
+    return _build_space_return(ctx, current_city_id, ship_obj)
 
 

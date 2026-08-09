@@ -59,32 +59,6 @@ def test_alpha_centauri_station_keeps_both_research_contacts():
     assert dict(AC_STATION.npc_overrides)["archive_research_officer"].id == "research_officer"
 
 
-def test_prison_floor_one_departure_is_the_extension_exit_boundary():
-    """Only Floor 1 of the alien prison counts as the `<` departure."""
-    ctx = _ctx()
-    ctx.dungeon_extension.extension_id = "mars_alien_prison"
-    ctx.dungeon_extension.current_floor = 1
-    assert game_main._is_prison_floor_one_departure(ctx)
-
-    ctx.dungeon_extension.current_floor = 2
-    assert not game_main._is_prison_floor_one_departure(ctx)
-
-    ctx.dungeon_extension.current_floor = 1
-    ctx.dungeon_extension.extension_id = "other_extension"
-    assert not game_main._is_prison_floor_one_departure(ctx)
-
-
-def test_generic_dungeon_exit_does_not_count_as_prison_departure():
-    """A Mars derelict exit cannot accidentally launch the prison scene."""
-    ctx = _ctx()
-    ctx.dungeon_extension = SimpleNamespace(
-        extension_id="other_extension",
-        current_floor=1,
-    )
-
-    assert not game_main._is_prison_floor_one_departure(ctx)
-
-
 def test_mars_surface_detection_supports_current_and_legacy_maps():
     ctx = _ctx()
     _surface_map = object()
@@ -270,7 +244,7 @@ def test_quest_log_distinguishes_prison_handoff_from_final_resolution():
     assert "(main quest complete)" in _final_text
 
 
-def test_orbit_scene_requires_extraction_and_mars_departure():
+def test_orbit_scene_requires_completed_prison_and_mars_departure():
     ctx = _ctx()
 
     assert _act1._orbit_scene_is_ready(ctx)
@@ -279,8 +253,99 @@ def test_orbit_scene_requires_extraction_and_mars_departure():
     assert not _act1._orbit_scene_is_ready(ctx)
 
     ctx.current_city_id = "mars"
-    ctx.dungeon_extension.state_flags.clear()
+    ctx.dungeon_extension = None
+    assert _act1._orbit_scene_is_ready(ctx)
+
+    ctx.main_quest_progress["act1_prison"] = "active"
     assert not _act1._orbit_scene_is_ready(ctx)
+
+
+def test_space_mode_boundary_delivers_post_prison_scene(monkeypatch):
+    ctx = _ctx()
+    ctx.dungeon_extension = None
+    _calls = []
+    monkeypatch.setattr(
+        game_main.main_quest_module,
+        "maybe_show_post_prison_orbit",
+        lambda _ctx: _calls.append(_ctx) or True,
+    )
+
+    assert game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert _calls == [ctx]
+
+    ctx.current_city_id = "earth"
+    assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert _calls == [ctx]
+    assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "dungeon")
+    assert _calls == [ctx]
+
+
+def test_missing_space_state_rebuild_is_limited_to_mars_surface():
+    ctx = _ctx()
+    ctx.interiors = {"surface:mars": object()}
+    _mars_surface = ctx.interiors["surface:mars"]
+    assert game_main._is_mars_surface_map(ctx, _mars_surface)
+    assert not game_main._is_mars_surface_map(ctx, SimpleNamespace(wreck_spawn_id="wreck"))
+
+
+def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
+    import tcod.event
+
+    ctx = _ctx()
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    ctx.context = SimpleNamespace(present=lambda _console: None)
+    _mars_surface = object()
+    ctx.interiors = {"surface:mars": _mars_surface}
+    _ship = SimpleNamespace(ship_id="starter")
+    _space_map = object()
+    _space_player = object()
+    _modal_calls = []
+    monkeypatch.setattr(
+        game_main.ship_module,
+        "find_ship",
+        lambda _ship_id: _ship,
+    )
+    monkeypatch.setattr(
+        game_main,
+        "_build_space_return",
+        lambda _ctx, _city, _spec: (_space_map, _space_player),
+    )
+    monkeypatch.setattr(_act1, "make_console", lambda: object())
+
+    def _confirm_once(_modal, _render, update):
+        _modal_calls.append(True)
+        return update(
+            tcod.event.KeyDown(
+                scancode=tcod.event.Scancode.RETURN,
+                sym=ui._ENTER_SYMS[0],
+                mod=0,
+            )
+        )
+
+    monkeypatch.setattr(ui.Modal, "run", _confirm_once)
+
+    _result = game_main._handle_dungeon_exit_tile(
+        ctx,
+        "exit",
+        _mars_surface,
+        None,
+        None,
+        _ship,
+        [],
+        ctx.log,
+    )
+
+    assert _result == (_space_map, _space_player, "space")
+    assert (ctx.game_map, ctx.player) == (_space_map, _space_player)
+    assert ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    assert _modal_calls == [True]
+    assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert _modal_calls == [True]
+
+
 
 
 def test_disclosure_choices_use_context_appropriate_handoffs():

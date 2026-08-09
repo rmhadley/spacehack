@@ -78,7 +78,7 @@ from .navigation import (
     _animate_jump,
     _jump_to_system,
 )
-from .city import _animate_ship_to_y, _launch_to_space
+from .city import _animate_ship_to_y, _build_space_return, _launch_to_space
 from .time import tick_move, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
@@ -216,6 +216,13 @@ def _maybe_show_post_prison_orbit(ctx, current_city_id: str) -> bool:
     return main_quest_module.maybe_show_post_prison_orbit(ctx)
 
 
+def _maybe_show_post_prison_orbit_in_space(ctx, current_mode: str) -> bool:
+    """Deliver the orbit scene at the first confirmed space-mode frame."""
+    if current_mode != "space":
+        return False
+    return _maybe_show_post_prison_orbit(ctx, ctx.current_city_id)
+
+
 def _is_mars_surface_map(ctx, game_map) -> bool:
     """Return whether ``game_map`` is the cached Mars surface dungeon."""
     if getattr(game_map, "interior_cache_key", "") == "surface:mars":
@@ -286,16 +293,120 @@ def _launch_owned_ship(
     )
 
 
-def _is_prison_floor_one_departure(ctx) -> bool:
-    """Return whether stairs-up leaves the first alien-prison floor."""
-    from .dungeon_extensions import ALIEN_PRISON_EXTENSION_ID
+def _leave_dungeon_to_space(
+    ctx,
+    game_map,
+    space_game_map,
+    space_player,
+    player_owned_ship,
+    player_active_missions,
+    log,
+):
+    """Return from a dungeon exit to space and notify the orbit scene."""
+    _exited_map = game_map
+    if space_game_map is None or space_player is None:
+        if not _is_mars_surface_map(ctx, _exited_map) or player_owned_ship is None:
+            log.add("You have no ship waiting outside.")
+            return None
+        _return_ship = ship_module.find_ship(player_owned_ship.ship_id)
+        space_game_map, space_player = _build_space_return(
+            ctx, "mars", _return_ship,
+        )
+    else:
+        _wsid = getattr(game_map, "wreck_spawn_id", None)
+        if _wsid is not None:
+            _secured = _is_salvage_secured(
+                ctx, _wsid, player_active_missions,
+            )
+            if _secured:
+                _remove_salvage_wreck(
+                    ctx, _wsid, space_game_map,
+                )
+    ctx.log.add("You exit through the hull breach and return to your ship.")
+    _notify_surface_exit(ctx, _exited_map)
+    return space_game_map, space_player
 
-    _extension = getattr(ctx, "dungeon_extension", None)
-    return (
-        _extension is not None
-        and _extension.extension_id == ALIEN_PRISON_EXTENSION_ID
-        and _extension.current_floor == 1
+
+def _handle_dungeon_exit(
+    ctx,
+    game_map,
+    space_game_map,
+    space_player,
+    player_owned_ship,
+    player_active_missions,
+    log,
+):
+    """Handle an exit tile and return the next space-mode state."""
+    _space_transition = _leave_dungeon_to_space(
+        ctx,
+        game_map,
+        space_game_map,
+        space_player,
+        player_owned_ship,
+        player_active_missions,
+        log,
     )
+    if _space_transition is None:
+        return None
+    _space_map, _space_player = _space_transition
+    ctx.game_map = _space_map
+    ctx.player = _space_player
+    return _space_map, _space_player, "space"
+
+
+def _handle_dungeon_exit_tile(
+    ctx,
+    tile_kind: str,
+    game_map,
+    space_game_map,
+    space_player,
+    player_owned_ship,
+    player_active_missions,
+    log,
+):
+    """Dispatch an actual dungeon exit tile to the space transition."""
+    if tile_kind != "exit":
+        return None
+    return _handle_dungeon_exit(
+        ctx,
+        game_map,
+        space_game_map,
+        space_player,
+        player_owned_ship,
+        player_active_missions,
+        log,
+    )
+
+
+def _is_salvage_secured(ctx, wreck_spawn_id: str, active_missions) -> bool:
+    """Return whether a wreck's mission component has been secured."""
+    for _mission in active_missions:
+        if (
+            getattr(_mission, "salvage_wreck_spawn_id", None) == wreck_spawn_id
+            and getattr(_mission, "heist_good_secured", False)
+        ):
+            return True
+    if not wreck_spawn_id.endswith("_wreck"):
+        return False
+    _step = main_quest_module.find_salvage_step_for_spawn(
+        ctx, wreck_spawn_id[:-6],
+    )
+    return (
+        _step is not None
+        and ctx.main_quest_progress.get(_step.id) == "completed"
+    )
+
+
+def _remove_salvage_wreck(ctx, wreck_spawn_id: str, space_game_map) -> None:
+    """Remove a secured wreck from space and its cached interior."""
+    _system_id = solar_system_module.current_solar_system_id
+    space_game_map.entities[:] = [
+        _entity for _entity in space_game_map.entities
+        if getattr(_entity, "salvage_wreck_spawn_id", None) != wreck_spawn_id
+    ]
+    _remove_bounty_spawn(ctx, wreck_spawn_id, _system_id)
+    ctx.interiors.pop(wreck_spawn_id, None)
+    ctx.log.add("The secured wreck drifts away — its component is yours.")
 
 
 def _prep_cached_dungeon(game_map) -> world.Position | None:
@@ -459,6 +570,7 @@ def _run_game(
         main_quest_module.check_quest_gates(ctx)
         # Tutorial script: at most one guided popup per frame.
         tutorial_module.tick(ctx, mode=current_mode)
+        _maybe_show_post_prison_orbit_in_space(ctx, current_mode)
         if ctx.main_quest_pending_message:
             _summon = ctx.main_quest_pending_message
             _objective = ctx.main_quest_pending_objective
@@ -763,7 +875,6 @@ def _run_game(
                     continue
                 if _tile.kind == 'stairs_up':
                     from .dungeon_extensions import leave_extension, transition_floor
-                    _left_prison_extension = _is_prison_floor_one_departure(ctx)
                     try:
                         if (
                             ctx.dungeon_extension is not None
@@ -787,47 +898,22 @@ def _run_game(
                         # disclosure scene queued until the player launches.
                     continue
                 # Check if player walked onto the ordinary exit tile
+                _exit_transition = _handle_dungeon_exit_tile(
+                    ctx,
+                    _tile.kind,
+                    game_map,
+                    space_game_map,
+                    space_player,
+                    player_owned_ship,
+                    player_active_missions,
+                    log,
+                )
                 if _tile.kind == 'exit':
-                    _exited_map = game_map
-                    if space_game_map is not None and space_player is not None:
-                        # Salvage wreck lifecycle: once the mission component is
-                        # secured, exiting despawns the wreck (entity + spawn +
-                        # interior cache). Unsecured wrecks stay for re-boarding.
-                        _wsid = getattr(game_map, 'wreck_spawn_id', None)
-                        if _wsid is not None:
-                            _secured = False
-                            # Mission wrecks: check heist_good_secured flag.
-                            for _am in player_active_missions:
-                                if (getattr(_am, 'salvage_wreck_spawn_id', None) == _wsid
-                                        and getattr(_am, 'heist_good_secured', False)):
-                                    _secured = True
-                                    break
-                            # Main-quest salvage wrecks: check if the quest
-                            # step is completed (secure_quest_loot set it).
-                            if not _secured and _wsid.endswith("_wreck"):
-                                _mq_sid = _wsid[:-6]  # strip _wreck suffix
-                                _mq_cs = main_quest_module.find_salvage_step_for_spawn(
-                                    ctx, _mq_sid,
-                                )
-                                if (_mq_cs is not None
-                                        and ctx.main_quest_progress.get(_mq_cs.id) == "completed"):
-                                    _secured = True
-                            if _secured:
-                                _sys_id = solar_system_module.current_solar_system_id
-                                for _e in list(space_game_map.entities):
-                                    if getattr(_e, 'salvage_wreck_spawn_id', None) == _wsid:
-                                        space_game_map.entities.remove(_e)
-                                _remove_bounty_spawn(ctx, _wsid, _sys_id)
-                                ctx.interiors.pop(_wsid, None)
-                                log.add("The secured wreck drifts away — its component is yours.")
-                        game_map = space_game_map
-                        player = space_player
-                        ctx.game_map = game_map
-                        ctx.player = player
-                        current_mode = 'space'
-                        log.add('You exit through the hull breach and return to your ship.')
-                        _notify_surface_exit(ctx, _exited_map)
+                    if _exit_transition is None:
                         continue
+                    game_map, player, current_mode = _exit_transition
+                    space_game_map, space_player = game_map, player
+                    continue
             if code == 'wall':
                 if current_mode == 'space':
                     target_x = player.pos.x + dx
