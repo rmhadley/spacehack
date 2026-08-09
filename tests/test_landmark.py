@@ -336,7 +336,7 @@ def test_mars_console_bump_runs_discovery_interaction(monkeypatch):
 
 
 def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
-    """The console's open path grants prison data and uses the open overlay."""
+    """The console opens access without claiming the prison data was recovered."""
     _ctx = _quest_ctx({"prologue_open": "active"})
     _beats = []
     _animations = []
@@ -346,9 +346,40 @@ def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
     bump_mars_door(_ctx)
 
     assert _ctx.main_quest_progress["prologue_open"] == "completed"
-    assert "prison_data" in _ctx.main_quest_unlocked_items
+    assert "prison_data" not in _ctx.main_quest_unlocked_items
     assert _beats == ["open"]
+    assert any(
+        call.args == (
+            "The seal gives way. Inside: an empty cell built for something enormous — "
+            "and a dark terminal interface waiting to be accessed.",
+            act0.message_log.COLOR_IMPORTANT_EVENT,
+        )
+        for call in _ctx.log.add_colored.call_args_list
+    )
+    assert any(
+        call.args == (
+            "The entrance is open. Beyond it, the facility descends into darkness.",
+        )
+        for call in _ctx.log.add.call_args_list
+    )
     assert len(_animations) == 1
+    _door_log = " ".join(
+        str(call.args[0])
+        for call in (
+            *_ctx.log.add_colored.call_args_list,
+            *_ctx.log.add.call_args_list,
+        )
+        if call.args
+    ).lower()
+    _open_overlay = " ".join(
+        str(value)
+        for key in ("meta", "body", "highlight")
+        for value in act0._DOOR_OVERLAYS["open"].get(key, ())
+        if isinstance(value, str)
+    ).lower()
+    assert "data is recovered" not in _door_log
+    assert "data: recovered" not in _open_overlay
+    assert "data is recovered" not in _open_overlay
 
 
 def test_mars_door_animation_reveals_stairs_on_real_map(monkeypatch):

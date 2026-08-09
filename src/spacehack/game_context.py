@@ -309,7 +309,7 @@ class GameContext:
     # never on mission boards.
     main_quest_progress: dict[str, str] = dataclasses.field(default_factory=dict)
     # Items + dialogue flags unlocked by main quest steps (e.g. the
-    # faction's door-opening tool, the recovered prison data).
+    # faction's door-opening tool or later story discoveries).
     main_quest_unlocked_items: set[str] = dataclasses.field(default_factory=set)
     # Which blockade path was taken ("diplomatic" / "smuggler" /
     # "combat" / ""), read by the Act 3 epilogue.

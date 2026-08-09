@@ -479,15 +479,13 @@ def bump_mars_door(ctx) -> None:
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
         complete_step(ctx, "prologue_open")
-        ctx.main_quest_unlocked_items.add("prison_data")
         ctx.log.add_colored(
             "The seal gives way. Inside: an empty cell built for something enormous — "
-            "and a cache of data that refuses to become a language.",
+            "and a dark terminal interface waiting to be accessed.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
         ctx.log.add(
-            "The data is recovered: routes, warnings, and an absence where a "
-            "prisoner should be."
+            "The entrance is open. Beyond it, the facility descends into darkness."
         )
         animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
         show_sealed_door_overlay(ctx, "open")
@@ -868,14 +866,14 @@ _DOOR_OVERLAYS: dict[str, dict[str, object]] = {
     },
     "open": {
         "title": "THE SEAL GIVES WAY",
-        "meta": "SEAL: BROKEN    CHAMBER: EMPTY    DATA: RECOVERED",
+        "meta": "SEAL: BROKEN    CHAMBER: EMPTY    ACCESS: GRANTED",
         "art": _DOOR_ART_OPEN,
         "body": (
             "The seal gives way - cleanly, as if it were waiting.",
             "Inside: an empty cell built for something enormous -",
-            "and a cache of data that refuses to become a language.",
+            "and a dark terminal interface waiting for input.",
         ),
-        "highlight": "The data is recovered, but it is not a message yet. Routes, warnings, and fragments of a vanished prison record are tangled together inside it.",
+        "highlight": "The entrance is open. The way forward leads deeper into the facility.",
         "instruction": "Press ENTER to continue",
     },
 }
