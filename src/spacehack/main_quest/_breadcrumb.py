@@ -19,6 +19,14 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
             _next = find_main_quest_step(_next_id)
         except KeyError:
             return None
+        if _next_id == "research_alpha":
+            return (
+                "Awaiting preliminary archive review...",
+                "The faction you chose at Mars is comparing the recovered archive "
+                "against its own records. When that review is complete, take the "
+                "archive to the Research Officer at Alpha Centauri's Science Port "
+                "for an independent reading.",
+            )
         _fac = _next.chain or ctx.main_quest_chain or "faction"
         _gating = _gating_step_for(ctx, _next_id)
         _desc = (

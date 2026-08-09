@@ -11,6 +11,19 @@ from ..data.main_quest import (
 from ._core import STATUS_AVAILABLE, step_status
 
 
+def _normalize_pending_message(ctx) -> None:
+    """Refresh persisted Act 1 gate text after a narrative wording update."""
+    if not getattr(ctx, "main_quest_pending_message", "").startswith(
+        "The archive comparison is ready."
+    ):
+        return
+    if "research_alpha" not in ctx.main_quest_gate and step_status(ctx, "research_alpha") != STATUS_AVAILABLE:
+        return
+    _gating = _gating_step_for(ctx, "research_alpha")
+    if _gating is not None and _gating.ready_message:
+        ctx.main_quest_pending_message = _gating.ready_message
+
+
 def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
     """Return the completed step that set the gate for next_id."""
     for _s in list_main_quest_steps():
@@ -22,6 +35,7 @@ def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
 
 def check_quest_gates(ctx) -> bool:
     """Flip time-gated chain steps to available once their gate date passes."""
+    _normalize_pending_message(ctx)
     if not ctx.main_quest_gate:
         return False
     _now = (ctx.time_year, ctx.time_month, ctx.time_day)

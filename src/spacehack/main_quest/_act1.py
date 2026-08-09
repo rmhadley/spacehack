@@ -42,7 +42,7 @@ _DISCLOSURE_OPTIONS: tuple[tuple[OrbitDisclosure, str, str], ...] = (
     (
         OrbitDisclosure.SAFE_DESTINATION,
         "Ask for a safe destination",
-        "Reveal no data. Ask the faction where to take it before the archive's intermittent signal draws attention.",
+        "Reveal no data. Ask the faction to arrange a secure handoff; they will tell you where to take the archive after their preliminary review.",
     ),
 )
 
@@ -153,16 +153,17 @@ def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
             "contact, but the raw record stays under your control."
         ),
         OrbitDisclosure.SAFE_DESTINATION: (
-            "You transmit a request for a safe destination, not the archive. The "
-            "reply names Alpha Centauri's Science Port and warns that the response "
-            "may recur before you arrive."
+            "You transmit a request for a safe handoff, not the archive. Your faction "
+            "acknowledges the request and begins a preliminary review; the destination "
+            "will follow when they know how to move the evidence without broadcasting "
+            "its value."
         ),
     }
     ctx.log.add_colored(_messages[choice], message_log.COLOR_IMPORTANT_EVENT)
     ctx.log.add(
-        "Your faction will spend time comparing the archive against its own records. "
-        "The research handoff will arrive when they are ready; until then, the "
-        "route beyond Luyten remains only a hypothesis."
+        "Your faction will spend time on a preliminary comparison. When that review "
+        "is complete, you will carry the archive to Alpha Centauri for an independent "
+        "reading; until then, the route beyond Luyten remains only a hypothesis."
     )
 
 

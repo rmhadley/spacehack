@@ -47,6 +47,7 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     prison = find_main_quest_step("act1_prison")
     assert not prison.auto_advance
     assert prison.wait_days == 60
+    assert "preliminary archive review" in prison.ready_message
     assert "Alpha Centauri" in prison.ready_message
 
 
@@ -266,8 +267,44 @@ def test_disclosure_choices_schedule_research_after_a_sandbox_gate():
         assert "research_alpha" not in ctx.main_quest_progress
         assert ctx.main_quest_gate["research_alpha"] == (1, 3, 2200)
         _title, _description = current_main_quest_objective(ctx)
-        assert _title == "Awaiting word from the Lab..."
-        assert any("spend time" in entry.text for entry in ctx.log.recent(n=6))
+        assert _title == "Awaiting preliminary archive review..."
+        assert "Alpha Centauri" in _description
+        assert any("preliminary comparison" in entry.text for entry in ctx.log.recent(n=6))
+
+
+def test_gate_refreshes_stale_saved_act1_summon_text():
+    ctx = _ctx()
+    ctx.main_quest_progress["research_alpha"] = "available"
+    ctx.main_quest_pending_message = (
+        "The archive comparison is ready. Report to the Research Officer at "
+        "Alpha Centauri's Science Port when you choose; the work will wait "
+        "for you, but the signal will not become clearer on its own."
+    )
+    ctx.main_quest_pending_objective = "Take the archive to Alpha Centauri."
+
+    assert not check_quest_gates(ctx)
+
+    assert "preliminary archive review is complete" in ctx.main_quest_pending_message
+    assert not ctx.main_quest_pending_message.startswith(
+        "The archive comparison is ready."
+    )
+
+
+def test_preliminary_review_breadcrumb_is_consistent_for_every_faction():
+    for _faction in ("militia", "merchants", "bar", "lab"):
+        ctx = _ctx()
+        ctx.main_quest_chain = _faction
+        ctx.time_day = 1
+        ctx.time_month = 1
+        ctx.time_year = 2200
+
+        _act1._apply_disclosure(ctx, _act1.OrbitDisclosure.ARCHIVE_SEALED)
+
+        _title, _description = current_main_quest_objective(ctx)
+        assert _title == "Awaiting preliminary archive review..."
+        assert _faction.capitalize() not in _title
+        assert "Alpha Centauri" in _description
+        assert "independent reading" in _description
 
 
 def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
@@ -284,8 +321,10 @@ def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
     assert check_quest_gates(ctx)
     assert ctx.main_quest_progress["research_alpha"] == "available"
     assert not ctx.main_quest_gate
-    assert ctx.main_quest_pending_message
+    assert "preliminary archive review is complete" in ctx.main_quest_pending_message
+    assert "Alpha Centauri" in ctx.main_quest_pending_message
     assert "Alpha Centauri" in ctx.main_quest_pending_objective
+    assert "archive comparison is ready" not in ctx.main_quest_pending_message
 
 
 def test_orbit_menu_navigation_wraps_and_escape_does_not_resolve():

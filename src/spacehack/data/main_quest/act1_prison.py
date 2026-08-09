@@ -30,9 +30,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         auto_advance=False,
         wait_days=60,
         ready_message=(
-            "The archive comparison is ready. Report to the Research Officer at "
-            "Alpha Centauri's Science Port when you choose; the work will wait "
-            "for you, but the signal will not become clearer on its own."
+            "Your faction's preliminary archive review is complete. The first pass "
+            "did not produce a translation, but it identified a coordinate layer "
+            "worth testing. Take the recovered archive to the Research Officer at "
+            "Alpha Centauri's Science Port for an independent reading. The work "
+            "will wait for you; the signal will not become clearer on its own."
         ),
         rewards_xp=120,
         completion_flavor=(
