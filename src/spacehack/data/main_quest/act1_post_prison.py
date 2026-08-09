@@ -20,9 +20,8 @@ STEPS: tuple[MainQuestStep, ...] = (
             "Take the recovered archive to the Research Officer at Alpha Centauri's "
             "Science Port. The archive contains a coordinate sequence, but the "
             "first reading is only a hypothesis: the route appears to continue "
-            "past the Luyten blockade. Compare the chosen faction's interpretation "
-            "with an independent scientific analysis before deciding what the data "
-            "is asking you to do."
+            "past the Luyten blockade. Compare the raw record with an independent "
+            "scientific analysis before deciding what the data is asking you to do."
         ),
         trigger_planet_id="ac_station",
         trigger_system_id="alpha_centauri",
@@ -45,8 +44,8 @@ STEPS: tuple[MainQuestStep, ...] = (
                 intro=(
                     "You brought the Mars archive. Before we call it a map, I want to "
                     "know which parts came from the instrument and which parts came "
-                    "from the story your faction told you. Put the raw record on the "
-                    "table. We will isolate the coordinate layer first and leave "
+                    "from the interpretation you received on Mars. Put the raw record "
+                    "on the table. We will isolate the coordinate layer first and leave "
                     "the warnings alone until we know how they are encoded."
                 ),
                 active=(

@@ -47,7 +47,7 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     prison = find_main_quest_step("act1_prison")
     assert not prison.auto_advance
     assert prison.wait_days == 60
-    assert "preliminary archive review" in prison.ready_message
+    assert "archive handoff is ready" in prison.ready_message
     assert "Alpha Centauri" in prison.ready_message
 
 
@@ -283,7 +283,7 @@ def test_orbit_scene_requires_extraction_and_mars_departure():
     assert not _act1._orbit_scene_is_ready(ctx)
 
 
-def test_disclosure_choices_schedule_research_after_a_sandbox_gate():
+def test_disclosure_choices_use_context_appropriate_handoffs():
     for choice in _act1.OrbitDisclosure:
         ctx = _ctx()
         ctx.time_day = 1
@@ -294,12 +294,38 @@ def test_disclosure_choices_schedule_research_after_a_sandbox_gate():
 
         assert ctx.post_prison_orbit_seen
         assert ctx.main_quest_disclosure == choice.value
-        assert "research_alpha" not in ctx.main_quest_progress
-        assert ctx.main_quest_gate["research_alpha"] == (1, 3, 2200)
-        _title, _description = current_main_quest_objective(ctx)
-        assert _title == "Awaiting preliminary archive review..."
-        assert "Alpha Centauri" in _description
-        assert any("preliminary comparison" in entry.text for entry in ctx.log.recent(n=6))
+        if choice is _act1.OrbitDisclosure.ARCHIVE_SEALED:
+            assert ctx.main_quest_progress["research_alpha"] == "available"
+            assert not ctx.main_quest_gate
+            _title, _description = current_main_quest_objective(ctx)
+            assert _title == "Deliver the sealed archive"
+            assert "intact recovered archive" in _description
+            assert "Alpha Centauri" in _description
+            assert any("ready for delivery" in entry.text for entry in ctx.log.recent(n=6))
+        else:
+            assert "research_alpha" not in ctx.main_quest_progress
+            assert ctx.main_quest_gate["research_alpha"] == (1, 3, 2200)
+            _title, _description = current_main_quest_objective(ctx)
+            if choice is _act1.OrbitDisclosure.DIAGNOSTIC_FRAGMENT:
+                assert _title == "Awaiting fragment analysis..."
+                assert "diagnostic fragment" in _description
+            else:
+                assert _title == "Awaiting a secure handoff..."
+                assert "secure route" in _description
+            assert "Alpha Centauri" in _description
+            assert any("handoff requires time" in entry.text for entry in ctx.log.recent(n=6))
+
+
+def test_old_sealed_archive_gate_migrates_to_immediate_delivery():
+    ctx = _ctx()
+    ctx.main_quest_disclosure = "archive_sealed"
+    ctx.main_quest_gate["research_alpha"] = (1, 3, 2200)
+    ctx.main_quest_pending_message = "The old sealed-archive summon."
+
+    assert not check_quest_gates(ctx)
+    assert ctx.main_quest_progress["research_alpha"] == "available"
+    assert not ctx.main_quest_gate
+    assert not ctx.main_quest_pending_message
 
 
 def test_gate_refreshes_stale_saved_act1_summon_text():
@@ -314,7 +340,7 @@ def test_gate_refreshes_stale_saved_act1_summon_text():
 
     assert not check_quest_gates(ctx)
 
-    assert "preliminary archive review is complete" in ctx.main_quest_pending_message
+    assert "archive handoff is ready" in ctx.main_quest_pending_message
     assert not ctx.main_quest_pending_message.startswith(
         "The archive comparison is ready."
     )
@@ -328,13 +354,27 @@ def test_preliminary_review_breadcrumb_is_consistent_for_every_faction():
         ctx.time_month = 1
         ctx.time_year = 2200
 
-        _act1._apply_disclosure(ctx, _act1.OrbitDisclosure.ARCHIVE_SEALED)
+        _act1._apply_disclosure(ctx, _act1.OrbitDisclosure.DIAGNOSTIC_FRAGMENT)
 
         _title, _description = current_main_quest_objective(ctx)
-        assert _title == "Awaiting preliminary archive review..."
+        assert _title == "Awaiting fragment analysis..."
         assert _faction.capitalize() not in _title
+        assert "diagnostic fragment" in _description
         assert "Alpha Centauri" in _description
         assert "independent reading" in _description
+
+        ctx = _ctx()
+        ctx.main_quest_chain = _faction
+        ctx.time_day = 1
+        ctx.time_month = 1
+        ctx.time_year = 2200
+        _act1._apply_disclosure(ctx, _act1.OrbitDisclosure.SAFE_DESTINATION)
+
+        _title, _description = current_main_quest_objective(ctx)
+        assert _title == "Awaiting a secure handoff..."
+        assert "secure route" in _description
+        assert "diagnostic fragment" not in _description
+        assert "Alpha Centauri" in _description
 
 
 def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
@@ -351,7 +391,7 @@ def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
     assert check_quest_gates(ctx)
     assert ctx.main_quest_progress["research_alpha"] == "available"
     assert not ctx.main_quest_gate
-    assert "preliminary archive review is complete" in ctx.main_quest_pending_message
+    assert "archive handoff is ready" in ctx.main_quest_pending_message
     assert "Alpha Centauri" in ctx.main_quest_pending_message
     assert "Alpha Centauri" in ctx.main_quest_pending_objective
     assert "archive comparison is ready" not in ctx.main_quest_pending_message

@@ -11,6 +11,48 @@ from ..data.main_quest import (
 from ._core import STATUS_AVAILABLE, step_status
 
 
+def _repair_sealed_archive_handoff(ctx) -> None:
+    """Migrate old saves that incorrectly gated an intact archive delivery."""
+    if getattr(ctx, "main_quest_disclosure", "") != "archive_sealed":
+        return
+    if step_status(ctx, "research_alpha") != "":
+        return
+    if "research_alpha" not in ctx.main_quest_gate:
+        return
+    ctx.main_quest_gate.pop("research_alpha", None)
+    ctx.main_quest_pending_message = ""
+    ctx.main_quest_pending_objective = ""
+    ctx.main_quest_progress["research_alpha"] = STATUS_AVAILABLE
+
+
+def _research_handoff_ready_message(ctx) -> str | None:
+    """Return the ready message that matches the player's orbit choice."""
+    _messages = {
+        "diagnostic_fragment": (
+            "The diagnostic fragment has been analyzed. Take the recovered archive "
+            "to the Research Officer at Alpha Centauri's Science Port for an "
+            "independent reading. The work will wait for you; the signal will not "
+            "become clearer on its own."
+        ),
+        "safe_destination": (
+            "A secure handoff route has been arranged. Take the sealed archive to "
+            "the Research Officer at Alpha Centauri's Science Port for an independent "
+            "reading. The work will wait for you; the signal will not become clearer "
+            "on its own."
+        ),
+    }
+    return _messages.get(getattr(ctx, "main_quest_disclosure", ""))
+
+
+def _ready_message_for(ctx, next_id: str, gating_step: MainQuestStep | None) -> str:
+    """Return a choice-aware summon message for a newly available step."""
+    if next_id == "research_alpha":
+        _research_message = _research_handoff_ready_message(ctx)
+        if _research_message is not None:
+            return _research_message
+    return gating_step.ready_message if gating_step is not None else ""
+
+
 def _normalize_pending_message(ctx) -> None:
     """Refresh persisted Act 1 gate text after a narrative wording update."""
     if not getattr(ctx, "main_quest_pending_message", "").startswith(
@@ -20,8 +62,9 @@ def _normalize_pending_message(ctx) -> None:
     if "research_alpha" not in ctx.main_quest_gate and step_status(ctx, "research_alpha") != STATUS_AVAILABLE:
         return
     _gating = _gating_step_for(ctx, "research_alpha")
-    if _gating is not None and _gating.ready_message:
-        ctx.main_quest_pending_message = _gating.ready_message
+    _message = _ready_message_for(ctx, "research_alpha", _gating)
+    if _message:
+        ctx.main_quest_pending_message = _message
 
 
 def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
@@ -35,6 +78,7 @@ def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
 
 def check_quest_gates(ctx) -> bool:
     """Flip time-gated chain steps to available once their gate date passes."""
+    _repair_sealed_archive_handoff(ctx)
     _normalize_pending_message(ctx)
     if not ctx.main_quest_gate:
         return False
@@ -47,8 +91,9 @@ def check_quest_gates(ctx) -> bool:
         if step_status(ctx, _next_id) == "":
             ctx.main_quest_progress[_next_id] = STATUS_AVAILABLE
         _gating = _gating_step_for(ctx, _next_id)
-        if _gating is not None and _gating.ready_message:
-            ctx.main_quest_pending_message = _gating.ready_message
+        _ready_message = _ready_message_for(ctx, _next_id, _gating)
+        if _ready_message:
+            ctx.main_quest_pending_message = _ready_message
             try:
                 _next_step = find_main_quest_step(_next_id)
                 ctx.main_quest_pending_objective = _next_step.description

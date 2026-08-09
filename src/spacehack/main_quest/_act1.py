@@ -9,7 +9,7 @@ import tcod.event
 from .. import message_log
 from .. import ui
 from ..engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
-from ._core import _schedule_next_step
+from ._core import STATUS_AVAILABLE, _schedule_next_step
 
 
 class OrbitDisclosure(Enum):
@@ -137,34 +137,49 @@ def _render_orbit_scene(console, *, selected: int, faction_reading: str) -> None
     )
 
 
+def _unlock_research_immediately(ctx) -> None:
+    """Make the intact-archive delivery available without a wait."""
+    ctx.main_quest_gate.pop("research_alpha", None)
+    ctx.main_quest_pending_message = ""
+    ctx.main_quest_pending_objective = ""
+    ctx.main_quest_progress["research_alpha"] = STATUS_AVAILABLE
+
+
 def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
-    """Persist disclosure and begin the faction's research handoff gate."""
+    """Persist disclosure and schedule the context-appropriate handoff."""
     ctx.main_quest_disclosure = choice.value
     ctx.post_prison_orbit_seen = True
-    _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
+    if choice is OrbitDisclosure.ARCHIVE_SEALED:
+        _unlock_research_immediately(ctx)
+    else:
+        _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
     _messages = {
         OrbitDisclosure.DIAGNOSTIC_FRAGMENT: (
-            "A diagnostic fragment leaves the ship. Your faction can begin an "
-            "interpretation now; it can also confirm that you possess something "
-            "worth pursuing."
+            "A diagnostic fragment leaves the ship. The remote analysis will take "
+            "time, and the result will determine what the lab can safely ask of the "
+            "full archive."
         ),
         OrbitDisclosure.ARCHIVE_SEALED: (
-            "The archive remains sealed. The faction offers a route to a research "
-            "contact, but the raw record stays under your control."
+            "The archive remains sealed and under your control. Take the intact "
+            "record to the Research Officer at Alpha Centauri's Science Port now; "
+            "the lab is the next step."
         ),
         OrbitDisclosure.SAFE_DESTINATION: (
-            "You transmit a request for a safe handoff, not the archive. Your faction "
-            "acknowledges the request and begins a preliminary review; the destination "
-            "will follow when they know how to move the evidence without broadcasting "
-            "its value."
+            "You transmit a request for a safe handoff, not the archive. The contact "
+            "network will arrange a route that does not broadcast the archive's value."
         ),
     }
     ctx.log.add_colored(_messages[choice], message_log.COLOR_IMPORTANT_EVENT)
-    ctx.log.add(
-        "Your faction will spend time on a preliminary comparison. When that review "
-        "is complete, you will carry the archive to Alpha Centauri for an independent "
-        "reading; until then, the route beyond Luyten remains only a hypothesis."
-    )
+    if choice is OrbitDisclosure.ARCHIVE_SEALED:
+        ctx.log.add(
+            "The archive is ready for delivery. Reach Alpha Centauri's Science Port "
+            "and begin the independent reading."
+        )
+    else:
+        ctx.log.add(
+            "The handoff requires time. Until the response arrives, the route beyond "
+            "Luyten remains only a hypothesis."
+        )
 
 
 def _orbit_scene_is_ready(ctx) -> bool:

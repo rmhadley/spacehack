@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 from ..data.main_quest import find_main_quest_step
-from ._core import STATUS_ACTIVE, STATUS_AVAILABLE, _iter_known_steps
+from ._core import STATUS_ACTIVE, STATUS_AVAILABLE, _iter_known_steps, step_status
 from ._gates import _gating_step_for
 
 
 def current_main_quest_objective(ctx) -> tuple[str, str] | None:
     """Return (title, description) of the current breadcrumb step."""
+    if (
+        ctx.main_quest_disclosure == "archive_sealed"
+        and step_status(ctx, "research_alpha") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+    ):
+        return (
+            "Deliver the sealed archive",
+            "Take the intact recovered archive to the Research Officer at Alpha "
+            "Centauri's Science Port for its first independent reading.",
+        )
     for _step_id, _st, _step in _iter_known_steps(ctx):
         if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
             continue
@@ -20,12 +29,28 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
         except KeyError:
             return None
         if _next_id == "research_alpha":
-            return (
-                "Awaiting preliminary archive review...",
-                "The faction you chose at Mars is comparing the recovered archive "
-                "against its own records. When that review is complete, take the "
-                "archive to the Research Officer at Alpha Centauri's Science Port "
-                "for an independent reading.",
+            _handoff = {
+                "diagnostic_fragment": (
+                    "Awaiting fragment analysis...",
+                    "A diagnostic fragment is being analyzed remotely. When the review "
+                    "is complete, take the recovered archive to the Research Officer "
+                    "at Alpha Centauri's Science Port for an independent reading.",
+                ),
+                "safe_destination": (
+                    "Awaiting a secure handoff...",
+                    "A secure route for the sealed archive is being arranged. When the "
+                    "handoff is ready, take it to the Research Officer at Alpha "
+                    "Centauri's Science Port for an independent reading.",
+                ),
+            }
+            return _handoff.get(
+                ctx.main_quest_disclosure,
+                (
+                    "Awaiting archive handoff...",
+                    "The archive handoff is being prepared. Take the recovered archive "
+                    "to the Research Officer at Alpha Centauri's Science Port for an "
+                    "independent reading when the summons arrives.",
+                ),
             )
         _fac = _next.chain or ctx.main_quest_chain or "faction"
         _gating = _gating_step_for(ctx, _next_id)
