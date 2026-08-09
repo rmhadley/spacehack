@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import dataclasses
 from types import SimpleNamespace
 
 from src.spacehack import dungeon_extensions, message_log, ui, world
 from src.spacehack.data.main_quest import find_main_quest_step
+from src.spacehack.data.main_quest.act1_post_prison import find_archive_disclosure
 from src.spacehack.data.planets.ac_station import SPEC as AC_STATION
+
 from src.spacehack.main_quest import _act1
 from src.spacehack.main_quest._core import _schedule_next_step
 from src.spacehack.main_quest._objectives import maybe_complete_visit
@@ -62,6 +65,28 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     assert prison.wait_days == 60
     assert "archive handoff is ready" in prison.ready_message
     assert "Alpha Centauri" in prison.ready_message
+
+
+def test_archive_disclosure_catalog_is_frozen_and_keyed():
+    _spec = find_archive_disclosure("diagnostic_fragment")
+
+    assert _spec.label == "Transmit a diagnostic fragment"
+    assert _spec.waiting_title == "Awaiting fragment analysis..."
+    assert "independent reading" in _spec.ready_message
+
+    try:
+        find_archive_disclosure("not-a-real-disclosure")
+    except KeyError as _error:
+        assert "not-a-real-disclosure" in str(_error)
+    else:
+        raise AssertionError("unknown archive disclosure keys must fail")
+
+    try:
+        _spec.label = "mutated"
+    except dataclasses.FrozenInstanceError:
+        pass
+    else:
+        raise AssertionError("archive disclosure data must be frozen")
 
 
 def test_alpha_centauri_station_keeps_both_research_contacts():

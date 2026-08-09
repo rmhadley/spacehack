@@ -8,6 +8,10 @@ import tcod.event
 
 from .. import message_log
 from .. import ui
+from ..data.main_quest.act1_post_prison import (
+    ARCHIVE_DISCLOSURES,
+    find_archive_disclosure,
+)
 from ..engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ._core import STATUS_AVAILABLE, _schedule_next_step
 
@@ -28,22 +32,9 @@ class OrbitSceneOutcome(Enum):
     QUIT = auto()
 
 
-_DISCLOSURE_OPTIONS: tuple[tuple[OrbitDisclosure, str, str], ...] = (
-    (
-        OrbitDisclosure.DIAGNOSTIC_FRAGMENT,
-        "Transmit a diagnostic fragment",
-        "Give the faction a small raw sample. They can start reading, but they will know how valuable the archive is.",
-    ),
-    (
-        OrbitDisclosure.ARCHIVE_SEALED,
-        "Keep the archive sealed",
-        "Share nothing yet. Bring the untouched record to a research contact and keep control of the evidence.",
-    ),
-    (
-        OrbitDisclosure.SAFE_DESTINATION,
-        "Ask for a safe destination",
-        "Reveal no data. Ask the faction to arrange a secure handoff; they will tell you where to take the archive after their preliminary review.",
-    ),
+_DISCLOSURE_OPTIONS = tuple(
+    (OrbitDisclosure(spec.key), spec)
+    for spec in ARCHIVE_DISCLOSURES
 )
 
 _FACTION_READINGS = {
@@ -59,7 +50,10 @@ def _selected_disclosure(selected: int) -> OrbitDisclosure:
     return _DISCLOSURE_OPTIONS[selected % len(_DISCLOSURE_OPTIONS)][0]
 
 
-def _update_orbit_scene(event: tcod.event.Event, selected: int) -> tuple[OrbitSceneOutcome, int]:
+def _update_orbit_scene(
+    event: tcod.event.Event,
+    selected: int,
+) -> tuple[OrbitSceneOutcome, int]:
     """Update the disclosure modal while preserving its current selection."""
     if not isinstance(event, tcod.event.KeyDown):
         if isinstance(event, tcod.event.Quit):
@@ -89,6 +83,27 @@ def _faction_reading(ctx) -> str:
     )
 
 
+def _render_disclosure_options(console, *, option_y: int, selected: int) -> None:
+    """Render the archive disclosure choices and their descriptions."""
+    for _idx, (_key, _spec) in enumerate(_DISCLOSURE_OPTIONS):
+        _is_selected = _idx == selected
+        _marker = "> " if _is_selected else "  "
+        console.print(
+            x=2,
+            y=option_y + _idx * 3,
+            string=f"{_marker}{_spec.label}",
+            fg=ui.COLOR_OPTION_HIGHLIGHT if _is_selected else ui.COLOR_OPTION,
+        )
+        _wrapped = ui.wrap_text(_spec.menu_description, 66)
+        for _line_idx, _line in enumerate(_wrapped):
+            console.print(
+                x=6,
+                y=option_y + _idx * 3 + 1 + _line_idx,
+                string=_line,
+                fg=ui.COLOR_VALUE_DIM,
+            )
+
+
 def _render_orbit_scene(console, *, selected: int, faction_reading: str) -> None:
     """Render the archive response and disclosure options."""
     console.clear()
@@ -112,23 +127,7 @@ def _render_orbit_scene(console, *, selected: int, faction_reading: str) -> None
             fg=ui.COLOR_OPTION_HIGHLIGHT if _offset in (5, 7) else ui.COLOR_DESCRIPTION,
         )
     _option_y = _content_y + len(_lines) + 2
-    for _idx, (_key, _label, _description) in enumerate(_DISCLOSURE_OPTIONS):
-        _is_selected = _idx == selected
-        _marker = "> " if _is_selected else "  "
-        console.print(
-            x=2,
-            y=_option_y + _idx * 3,
-            string=f"{_marker}{_label}",
-            fg=ui.COLOR_OPTION_HIGHLIGHT if _is_selected else ui.COLOR_OPTION,
-        )
-        _wrapped = ui.wrap_text(_description, 66)
-        for _line_idx, _line in enumerate(_wrapped):
-            console.print(
-                x=6,
-                y=_option_y + _idx * 3 + 1 + _line_idx,
-                string=_line,
-                fg=ui.COLOR_VALUE_DIM,
-            )
+    _render_disclosure_options(console, option_y=_option_y, selected=selected)
     console.print(
         x=2,
         y=SCREEN_HEIGHT - 3,
@@ -153,33 +152,12 @@ def _apply_disclosure(ctx, choice: OrbitDisclosure) -> None:
         _unlock_research_immediately(ctx)
     else:
         _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
-    _messages = {
-        OrbitDisclosure.DIAGNOSTIC_FRAGMENT: (
-            "A diagnostic fragment leaves the ship. The remote analysis will take "
-            "time, and the result will determine what the lab can safely ask of the "
-            "full archive."
-        ),
-        OrbitDisclosure.ARCHIVE_SEALED: (
-            "The archive remains sealed and under your control. Take the intact "
-            "record to the Research Officer at Alpha Centauri's Science Port now; "
-            "the lab is the next step."
-        ),
-        OrbitDisclosure.SAFE_DESTINATION: (
-            "You transmit a request for a safe handoff, not the archive. The contact "
-            "network will arrange a route that does not broadcast the archive's value."
-        ),
-    }
-    ctx.log.add_colored(_messages[choice], message_log.COLOR_IMPORTANT_EVENT)
-    if choice is OrbitDisclosure.ARCHIVE_SEALED:
-        ctx.log.add(
-            "The archive is ready for delivery. Reach Alpha Centauri's Science Port "
-            "and begin the independent reading."
-        )
-    else:
-        ctx.log.add(
-            "The handoff requires time. Until the response arrives, the route beyond "
-            "Luyten remains only a hypothesis."
-        )
+    _disclosure = find_archive_disclosure(choice.value)
+    ctx.log.add_colored(
+        _disclosure.log_message,
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    ctx.log.add(_disclosure.followup_message)
 
 
 def _orbit_scene_is_ready(ctx, *, from_mars_prison: bool = False) -> bool:
