@@ -907,6 +907,8 @@ def _run_game(
                                 ctx.game_map = game_map
                                 ctx.player = player
                                 current_mode = 'space'
+                                if current_city_id == 'mars':
+                                    main_quest_module.maybe_show_post_prison_orbit(ctx)
                             continue
                     else:
                         # Trade-in: if the player already owns a ship, compute its value.

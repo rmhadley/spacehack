@@ -9,6 +9,7 @@ Package split (per knowledge.md ~1,000-line guardrail):
   _spawns.py     — quest-tagged bounty/salvage spawn management (~95 lines)
   _breadcrumb.py — quest-log objective display (~35 lines)
   _act0.py       — signal trigger, Mars door, full-screen overlays (~720 lines)
+  _act1.py       — post-prison Mars-orbit disclosure scene
 
 All well under the 1,000-line threshold.
 """
@@ -69,4 +70,9 @@ from ._act0 import (
     show_gate_popup,
     render_help_offer,
     render_gate_popup,
+)
+from ._act1 import (
+    OrbitDisclosure,
+    OrbitSceneOutcome,
+    maybe_show_post_prison_orbit,
 )

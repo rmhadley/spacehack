@@ -243,6 +243,7 @@ class MainQuestStep:
     ready_message: str = ""               # one-way summon sent when the wait elapses — names the next
                                              # step's system + planet ("Report to Cygni. The Captain waits.")
     dialogues: dict[str, QuestDialogue] = field(default_factory=dict)  # npc_id -> dialogue override
+    auto_advance: bool = True                 # false for narrative checkpoints with an explicit scene handoff
     rewards_credits: int = 0
     rewards_xp: int = 0
     rewards_rep: dict[str, int] | None = None
@@ -427,11 +428,11 @@ The Act 0 faction remains the first interpreter, not the sole owner of the truth
 |------|---------|-------|-------------|
 | `act1_prison` | Enter the alien-prison extension through the opened Mars stairs; complete on Floor 5 extraction | None (auto) | Descend the five-floor facility, restore power to the deep elevator, reach the giant empty cell, extract the data from the one terminal that still works, and survive the emergency security ascent. The prison is empty, the data is layered, and the archive points toward a larger dead network. |
 
-**Planned post-prison Act 1 branch — not yet implemented:**
+**Post-prison Act 1 branch — first beat implemented:**
 
 | Step | Purpose | Description |
 |------|---------|-------------|
-| `research_alpha` | First interpretation | The chosen Act 0 faction and the Alpha Centauri Research Officer examine different layers of the archive. The player decides who gets the raw data and learns that the coordinate sequence points beyond Luyten. |
+| `research_alpha` | First interpretation | After launching from Mars, the archive becomes active in orbit. The player chooses whether to transmit a diagnostic fragment, keep the archive sealed, or ask for a safe destination; then the chosen Act 0 faction and the Alpha Centauri Research Officer examine different layers of the archive. The first reading says the coordinate sequence may point beyond Luyten, without claiming to know what lies there. |
 | `research_sirius` | Decode the network | Sirius research links the coordinates into a multi-system transit network and identifies the hidden Vega route. A first translation warns against completing a return. |
 | `research_mercury` | Reconstruct the signal | Mercury research determines that the prison data is not passive: the resonance device answered the network and something on the far side noticed. The player learns the blockade may be a quarantine, not simple military control. |
 | `research_procyon` | Prepare the crossing | Procyon research reconstructs the navigation key and identifies several equipment signatures that can survive the dead systems. The player chooses what information and technology to carry forward. |
@@ -654,6 +655,8 @@ The final choice should be explicit. The ending should reflect accumulated disco
 
 **PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, faction relationship recorded. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
 
+**PLAYTEST (Phase 2 first beat):** extract the Floor 5 data, fight back to Mars, return to the port, and launch. Verify the orbit scene appears once, shows the chosen faction's incomplete reading, and offers the three disclosure outcomes. Verify ESC resolves to the sealed-archive outcome, `research_alpha` appears in the quest log, the Alpha Centauri station has both the Research Officer and Xenolinguist, and Continue preserves the disclosure choice and one-time flag.
+
 ### Phase 1j: Time gating + one-way summons (full pass)
 
 - [ ] Verify every gate fires on schedule (dev-mode skip-days helper): flavor logged on completion → gate date recorded → when the clock passes it the next step flips to `"available"` + the summon overlay arrives
@@ -668,10 +671,10 @@ The final choice should be explicit. The ending should reflect accumulated disco
 ### Phase 2: Post-prison Act 1 — translation and disclosure
 
 - [ ] Finish and playtest the alien-prison content before extending the post-prison story.
-- [ ] Write the post-prison research branch as data; preserve `act1_prison` as the opening step.
-- [ ] Define the layered archive fragments: navigation, network, warning, and identity.
-- [ ] Wire Research Officer conversations and the Act 0 faction's first interpretation.
-- [ ] Add the player disclosure choice: trust the chosen faction, share with a rival, sell a partial copy, or keep the data secret.
+- [x] Write the first post-prison research beat as data; preserve `act1_prison` as the opening step.
+- [x] Define the initial layered archive read: reactive carrier, route hypothesis, and unresolved response; preserve network, warning, and identity layers for later translation.
+- [x] Wire the Alpha Centauri Research Officer visit and the Act 0 faction's first interpretation. The station keeps the established Xenolinguist slot and adds a separate archive contact.
+- [x] Add the first player disclosure choice: transmit a diagnostic fragment, keep the archive sealed, or ask for a safe destination. The larger trust/rival/sale/secret decision remains later in the branch.
 - [ ] Define the resonance/translation device and its answering pulse through the alien network.
 - [ ] Give the player a preparation plan for the blockade crossing.
 - [ ] Smoke test + commit
@@ -756,8 +759,8 @@ This audit is the living pre-implementation contract for Phases 2-5. It was comp
 - [x] **Save/load:** existing Act 0 and prison fields (`main_quest_progress`, `main_quest_unlocked_items`, `main_quest_chain`, `main_quest_gate`, `main_quest_pending_message`, `main_quest_path`, `main_quest_backing`, `main_quest_complete`) are wired through `_ctx_to_dict()` and `load_game()`; entity flags and prison extension state are persisted. The post-extraction trigger `prison_data_extracted` lives in persisted `DungeonExtensionState.state_flags`, not in `GameContext` or `main_quest_progress`.
 - [x] **Game guide:** `_GUIDE_MAIN_QUEST` is current for the shipped Act 0 chains and Act 1 prison descent/ascent.
 - [x] **NPC spawns:** existing quest-tagged bounty/salvage spawns use `BountySpawn` with cleanup on completion.
-- [ ] **Post-prison story state:** evidence flags, disclosure choice, crossing plan, alien-tech signatures, resolution eligibility, and final outcome still require save/load wiring when implemented; this includes preserving the existing `DungeonExtensionState.state_flags` trigger alongside new main-quest fields.
-- [ ] **Post-prison guide:** translation, blockade-plan consequences, dead-network systems, warnings, and final resolutions still require guide updates when implemented.
+- [x] **Post-prison story state (first beat):** the Mars-orbit disclosure choice (`main_quest_disclosure`) and one-time scene flag (`post_prison_orbit_seen`) are wired through `_ctx_to_dict()` and `load_game()`; the existing `DungeonExtensionState.state_flags` extraction trigger remains canonical.
+- [x] **Post-prison guide (first beat):** `_GUIDE_MAIN_QUEST` explains the Mars-orbit response and the three disclosure choices. Translation, blockade-plan consequences, dead-network systems, warnings, and final resolutions remain future work.
 
 ## Open questions
 

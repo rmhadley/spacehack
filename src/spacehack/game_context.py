@@ -336,6 +336,11 @@ class GameContext:
     main_quest_pending_objective: str = ""
     # Set when Act 3 resolves (definitive ending; sandbox continues).
     main_quest_complete: bool = False
+    # First post-prison orbit beat: the player's disclosure choice is
+    # one of OrbitDisclosure's persisted string values, or empty before
+    # the Mars launch scene is resolved.
+    main_quest_disclosure: str = ""
+    post_prison_orbit_seen: bool = False
     # --- Tutorial mode (docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md) ---
     # True for tutorial runs (started from the title menu); gates the
     # scripted popup flow in spacehack.tutorial. Survives save/load so

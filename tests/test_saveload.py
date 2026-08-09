@@ -66,6 +66,8 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
+    ctx.main_quest_disclosure = "archive_sealed"
+    ctx.post_prison_orbit_seen = True
     # Tutorial state (design doc 14) — non-default so the round-trip
     # proves the fields survive a save/continue cycle.
     ctx.tutorial_mode = True
@@ -156,6 +158,10 @@ class TestSaveLoadRoundTrip:
 
         # Missions
         assert loaded.completed_mission_ids == original.completed_mission_ids
+
+        # Post-prison Act 1 orbit disclosure
+        assert loaded.main_quest_disclosure == original.main_quest_disclosure
+        assert loaded.post_prison_orbit_seen == original.post_prison_orbit_seen
 
         # Economy
         assert loaded.economy_state == original.economy_state

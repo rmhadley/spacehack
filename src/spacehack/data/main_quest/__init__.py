@@ -97,6 +97,10 @@ class MainQuestStep:
             on completion.
         unlocks_step: step id made available when this step completes,
             in addition to the ``requires_step`` auto-advance. Used by
+            chain-final steps and narrative handoffs.
+        auto_advance: whether completion should automatically resolve the
+            next ``requires_step`` branch. Narrative checkpoints can set
+            this false when a separate scene chooses the handoff.
             chain-final steps (q5–q7) to make ``prologue_open``
             available — each faction's final step sets
             ``unlocks_step="prologue_open"`` and grants its door tool
@@ -118,6 +122,9 @@ class MainQuestStep:
     rewards_rep: dict[str, int] | None = None
     rewards_item: str | None = None
     unlocks_step: str | None = None
+    # False for narrative checkpoints whose next branch is chosen by a
+    # separate scene rather than auto-advanced on completion.
+    auto_advance: bool = True
 
     # --- Act 0 faction-chain fields (Phase 1d) ---
     # Faction chain this step belongs to ("militia" / "merchants" /

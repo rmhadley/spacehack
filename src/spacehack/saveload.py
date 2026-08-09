@@ -133,6 +133,8 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "main_quest_pending_message": ctx.main_quest_pending_message,
         "main_quest_pending_objective": ctx.main_quest_pending_objective,
         "main_quest_complete": ctx.main_quest_complete,
+        "main_quest_disclosure": ctx.main_quest_disclosure,
+        "post_prison_orbit_seen": ctx.post_prison_orbit_seen,
         "dungeon_extension": _d(ctx.dungeon_extension),
         # Tutorial mode (design doc 14): resume mid-script on Continue.
         "tutorial_mode": ctx.tutorial_mode,
@@ -1084,6 +1086,8 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
     _ctx.main_quest_pending_message = _data.get("main_quest_pending_message", "")
     _ctx.main_quest_pending_objective = _data.get("main_quest_pending_objective", "")
     _ctx.main_quest_complete = _data.get("main_quest_complete", False)
+    _ctx.main_quest_disclosure = _data.get("main_quest_disclosure", "")
+    _ctx.post_prison_orbit_seen = bool(_data.get("post_prison_orbit_seen", False))
     # Tutorial mode — defaults keep non-tutorial saves loadable.
     _ctx.tutorial_mode = bool(_data.get("tutorial_mode", False))
     _ctx.tutorial_steps = set(_data.get("tutorial_steps", []) or [])

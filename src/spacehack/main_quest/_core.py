@@ -67,7 +67,10 @@ def complete_step(ctx, step_id: str) -> bool:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
     if _step.completion_flavor:
         ctx.log.add(_step.completion_flavor)
-    _next = main_quest_step_after(step_id, chain=ctx.main_quest_chain)
+    _next = (
+        main_quest_step_after(step_id, chain=ctx.main_quest_chain)
+        if _step.auto_advance else None
+    )
     if _next is not None and step_status(ctx, _next.id) == "":
         if _step.wait_days > 0:
             ctx.main_quest_gate[_next.id] = _add_days_to_date(
