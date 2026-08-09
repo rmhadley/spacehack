@@ -2,15 +2,15 @@
 
 ## Overview
 
-A **non-linear main quest** the player follows alongside sandbox play. Builds toward the blockade at Luyten's Star and what lies beyond: research the anomaly, find a way past the blockade, and discover the truth — a warning that has been broadcasting for a thousand years.
+A **non-linear main quest** the player follows alongside sandbox play. It begins with the Mars prison, follows the recovered data beyond the Luyten's Star blockade, crosses a dead alien multi-system network, and ends with a space battle against the ancient prisoner that now rests near a black hole.
 
-**The premise is a blend of alien mystery and faction politics.** The signal from beyond the blockade is real, ancient, and non-human. But the *story* the player experiences is driven by what the four factions want to do with that discovery — and the player's choices decide who wins.
+**The premise is a blend of alien mystery, faction politics, and consequence.** The four human factions offer competing interpretations and tools, but none possesses the whole truth. The player keeps making reasonable choices in pursuit of knowledge, survival, wealth, or security — and those choices gradually restore the path that wakes the prisoner. The final encounter is morally ambiguous without softening the creature's monstrous power or the devastation it caused.
 
 ## Design decisions (locked with the user)
 
 | Decision | Choice |
 |----------|--------|
-| **Core premise** | Alien mystery as the outer frame; faction politics as the engine. Each faction wants the discovery for its own reasons. Player choices decide who wins. |
+| **Core premise** | Alien mystery as the outer frame; faction politics and consequence are the engine. Each faction offers a useful but biased interpretation. Investigation and an explicit final choice determine the outcome. |
 | **Pacing** | Hybrid: main-quest breadcrumbs are visible in the quest log, but mysteries and faction quests are *dig content* — the player finds them by exploring and talking to the right people. |
 | **Ending** | Definitive resolution at the end of Act 3 (a real conclusion), then the sandbox continues. |
 | **Time pressure** | None. No deadlines, no fail states — nothing expires. The quest waits forever. Chain steps add a **minimum-wait gate** on the world clock: the next step unlocks only after N days, but ignoring a summon never fails anything. **Gates are tuned so ONE full faction chain spans ~425 in-game days ≈ 14 months — 5× the ~85-day Earth→Luyten one-way trip (locked with the user) — giving the player deep sandbox room to explore, build XP/credits, and gear up between summons.** |
@@ -32,30 +32,38 @@ A **non-linear main quest** the player follows alongside sandbox play. Builds to
 - Replayable: species/class combos + faction allegiances see different angles and endings
 - Definitive ending with a real payoff; sandbox continues afterward
 - 3-path blockade breach: diplomatic / smuggler / combat
+- The Act 0 faction choice is a continuing lens and source of support, not the sole owner of the truth
+- The prisoner is visibly catastrophic but morally ambiguous: victim, survivor, and destroyer may all be true
+- Final resolutions are investigation-gated: knowledge determines what the player understands is possible; equipment affects execution and cost
 
 ## Faction politics — the engine of the story
 
-Each faction believes the signal is something different, and each wants the player to serve their version. This is the *politics* layer: the alien mystery is the same for everyone, but the factions' competing claims turn it into a story about people.
+The Act 0 faction choice remains important after the Mars door opens, but it does not make that faction the sole owner of the prison data. The chosen faction gets the first look and supplies the first interpretation. The player can then decide how much to share, whether to seek competing expertise, and who receives the dangerous truth.
 
-| Faction | Believes the signal is… | Wants | How they help the player | If they "win" the discovery |
-|---------|------------------------|-------|--------------------------|------------------------------|
-| **Militia** | A threat beacon. Something is out there and the frontier must be held. | To quarantine it, keep it secret, keep order. | Blockade clearance (diplomatic path). Intel on the "incident." | Ending: the frontier is sealed; the threat is "contained." |
-| **Merchants** | The next frontier. Alien tech is the biggest trade route in history. | To exploit it, open the route. | Funding, modules, ship discounts, intel. | Ending: a new trade route opens; the structure is quietly mined for tech. |
-| **Bar / pirates** | The motherlode. The militia is just hoarding it. | To plunder it before anyone locks it down. | The back route (smuggler path). Partial intel. | Ending: the structure is stripped; the warning is lost/buried. |
-| **Lab / civilians** | The truth. It must be understood before anyone does anything stupid. | To study it, publish it, warn humanity. | The research trail itself — every Research Officer. | Ending: the truth is published; humanity hears the warning. |
+| Faction | First interpretation of the prison data | Wants | How they help after Act 1 |
+|---------|------------------------------------------|-------|---------------------------|
+| **Militia** | "This is a threat warning. The blockade is quarantine." | Containment, secrecy, and control of the frontier. | Classified records, blockade clearance, containment tools, military support. |
+| **Merchants** | "This is a map to an abandoned technology network." | Access to alien technology and a profitable new route. | Funding, modules, ship integration, salvage rights, power-system expertise. |
+| **Bar / pirates** | "This is a hidden route to the greatest score in history." | Reach the dead network before the militia seals it forever. | Smuggling routes, sabotage, contraband equipment, unconventional escape plans. |
+| **Lab / civilians** | "This is a translation problem. Understand it before acting." | Reconstruct the truth and warn humanity. | Translation, signal analysis, alien communication, historical interpretation. |
 
-The player is never forced to pick a side. They can serve one faction, play all four against each other, or go it alone. The **ending epilogue** reflects who (if anyone) backed the player through the blockade.
+The player may continue with the Act 0 faction, leak or sell a copy, bring in another faction, or keep the data secret. Faction relationships shape interpretations, equipment, support, and available approaches; they do not dictate a single canonical ending.
+
+The old **"last claim wins"** epilogue rule is superseded. Final outcomes should reflect accumulated investigation, disclosed information, faction support, and a final explicit decision rather than one late claim timestamp.
 
 ## Mysteries & dig content
 
-Main-quest breadcrumbs are visible in the quest log. These mysteries are **not** — the player finds them by digging: talking to the right NPC, flying to the odd system, boarding the strange derelict.
+Main-quest breadcrumbs are visible in the quest log. The deeper mysteries are **not** — the player finds them by digging: talking to the right NPC, flying to an odd system, boarding a strange derelict, and comparing contradictory records.
 
 | # | Mystery | How to find it | Payoff |
 |---|---------|----------------|--------|
-| M1 | **The Jamming** — the signal has been jammed for six months. By whom? | Find a classified militia comms log (derelict, lab terminal, or a trusted captain). | Reveals the militia already knew something was out there — since "the incident." |
-| M2 | **The Lost Scouts** — three militia scouts vanished beyond the Line. | Salvage the one derelict still drifting near the frontier (boarding + black box). | The scouts saw the structure. Their black box names it. |
-| M3 | **The Vega Gate** — decommissioned decades ago, officially. Still in use. | Fly to Vega's hidden gate (per `vega.py` comment). | A way past the blockade that isn't the Line. |
-| M4 | **The Lost Expedition** — a merchant-funded science crew went beyond. Its last transmission mentioned "a door that opens on a cycle." | Unlock via merchant faction questline. | Seeds Act 3's truth: the structure opens on a cycle. |
+| M1 | **The Jamming** — who has been suppressing the prison signal, and why? | Find a classified militia comms log through the militia route, a lab terminal, or a frontier derelict. | The militia knew about the prison incident and has been hiding the scale of the threat. |
+| M2 | **The Lost Scouts** — what did the missing scouts see beyond the Line? | Salvage a frontier derelict and recover its black box. | The scouts found a dead network, not a normal colony or station. |
+| M3 | **The Vega Gate** — why was a supposedly decommissioned gate still active? | Follow the Mercury research lead and activate the hidden gate in Vega. | A route beyond the blockade that may itself belong to the old anomaly network. |
+| M4 | **The Lost Expedition** — what happened to the merchant-funded science crew? | Unlock through merchant backing or find their abandoned research trail. | The expedition recorded the first evidence of a recurring return path. |
+| M5 | **The Foreign Prisoner** — what was the thing in the cell? | Compare prison records, alien observations, and damaged civilian accounts. | The prisoner was foreign to the alien civilization; it was studied, exploited, feared, and imprisoned. |
+| M6 | **The Star-by-Star Retreat** — what wiped out the alien civilization? | Explore dead relay, colony, and archive systems. | The aliens severed their own network system by system while the prisoner's route moved toward a place it could survive. |
+| M7 | **The Sleeping Refuge** — why does the anomaly terminate near a black hole? | Reach the final dead-star system and reconstruct its sensor history. | The black hole is the prisoner's natural refuge and power source, not its original cell. |
 
 ## Quest-aware NPC dialogue system
 
@@ -112,7 +120,7 @@ class QuestDialogue:
     option_label: str = ""                 # menu option text when this dialogue is live
                                              # (e.g. "Tell me about the door"); empty =
                                              # no quest option row shown for this NPC
-    backing_faction: str = ""              # faction claim planted when this dialogue
+    backing_faction: str = ""              # faction relationship/support flag planted when this dialogue
                                              # triggers ("militia"/"merchants"/"bar"/"lab")
     unlock_item: str = ""                  # item id added to main_quest_unlocked_items
                                              # when this dialogue triggers (e.g. the
@@ -248,7 +256,7 @@ class MainQuestStep:
 - `main_quest_pending_message: str = ""` — queued one-way summon text awaiting delivery at the next safe frame (same overlay as the prologue transmission). Cleared on delivery. Survives save/load.
 - `main_quest_chain: str = ""` — the faction chain locked in when the player Accepts a faction's door help (`"militia"` / `"merchants"` / `"bar"` / `"lab"` / `""`). Set by the accept flow; read to close the other factions' offer rows and to gate the faction tool. Survives save/load.
 - `main_quest_path: str = ""` — which blockade path was taken (`"diplomatic"` / `"smuggler"` / `"combat"` / `""`), read by the Act 3 epilogue
-- `main_quest_backing: set[str]` — faction claim flags planted by backing quests (see Act 3 epilogue resolution)
+- `main_quest_backing: set[str]` — shipped faction relationship/support flags planted by Act 0 and backing dialogue; future ending logic may use them as accumulated history, never as a last-claim selector
 - `main_quest_complete: bool = False` — set when Act 3 resolves (definitive ending; sandbox continues)
 
 ### New fields on `PlanetSpec`
@@ -260,11 +268,11 @@ class MainQuestStep:
 
 The player receives a garbled transmission as they jump out of Sol for the first time. It points to a location on Mars. They explore Mars, find a sealed entrance to *something*, and can't get it open — then they seek help from NPCs across the sector. Act 0 ends when the player returns with the right knowledge/tools and opens the door. Act 1 begins immediately on the other side, with the descent into the prison below Mars.
 
-**The Mars door is alien tech — the same kind as the Act 3 structure, but dormant.** The Act 3 structure is the *active, failing* seal; the Mars door is a *sealed, dormant* example of the same technology. It won't open with any human tool. This seeds the through-line: the player learns how the seal tech works here, and understands (and resolves) the failing seal at the end of the story. The two must NOT be conflated mechanically — the Mars door opens only with the right tool; the Act 3 structure opens on a cycle (M4's "door that opens on a cycle" refers to the Act 3 structure, not the Mars door).
+**The Mars door is alien technology connected to the later network, but it is not the black-hole refuge.** The door is a sealed, dormant prison node that opens only with the chosen faction's tool. The later dead-network systems and black-hole regulators are related infrastructure, but they must not be conflated mechanically: the Mars door is a prison entrance, the anomaly is a transit/return path, and the black hole is the creature's chosen resting place.
 
 **Behind the door: an empty ancient alien prison.** Inside are technology beyond any known human tech and a cache of data that needs to be translated and studied. The cell is **empty** — whatever it held is long gone, or was never there, or got out. This is a deliberate ambiguity the Act 3 reveal pays off (is what's pressing on the failing seal the same thing the prison was built to hold?). The prison descent is the opening of Act 1; the recovered data becomes the foundation for the later research trail, which branches after the prison objective is complete.
 
-**Opening the door is a faction choice.** The player picks which faction helps them; *how* the door opens changes with that choice (see the table below). Choosing a faction plants that faction's claim early (the first claim — non-binding, "last claim wins" still decides the Act 3 epilogue), and colors how the rest of the story treats the player. Consistent with the rest of the game, no faction ever *refuses* to help — standing only changes the flavor and side terms, never access.
+**Opening the door is a faction choice.** The player picks which faction helps them; *how* the door opens changes with that choice (see the table below). Choosing a faction establishes the player's first interpretive lens and relationship, but does not predetermine the final resolution. Consistent with the rest of the game, no faction ever *refuses* to help — standing only changes the flavor and side terms, never access.
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
@@ -274,9 +282,9 @@ The player receives a garbled transmission as they jump out of Sol for the first
 | `prologue_seek_help` | Talk to NPCs about the door | Any of several | The player begins looking for help. Each faction NPC gives a DIFFERENT lead (faction fork seeds here): Barkeep (bar): "Heard about the thing in the dust? The militia sealed it — or *someone* did." Trade Marshal (merchants): "Alien tech? That's the most valuable cargo in history. Bring me proof." Mars Patrol (militia): "There is no door. Whatever you saw, forget it." Research Officer (lab): "A sealed structure? I need to study it. Bring me a sample of the material." The lab lead is found at a **science station** (Alpha Centauri Science Port, Mercury, Sirius, Procyon C) — Mars has no lab building, so the lab read remains a later post-prison Act 1 branch. Dialogue is keyed by `npc_id`, so seek-help lines surface on whichever planet the player talks to the NPC (Earth or Mars variants of `barkeep`/`guild_master`/`militia_captain` share ids — intended).
 
   **LOCK-IN on accept (user decision):** accepting a faction's help commits the player to that faction's chain — `ctx.main_quest_chain` is set, the faction's tool is NOT yet granted, and the other three factions' "Ask about the Mars door" option rows close (their dialogues resolve to a locked/"you already have a way in" variant; they still offer normal work). The chain's 5 steps must ALL be completed before the door can open. |
-| `prologue_open` | Return to Mars after completing the chosen faction's chain | None (auto) | Act 0 ends when the player completes the faction chain, receives the faction's tool, and opens the entrance. The empty prison is revealed; `act1_prison` becomes available and the chosen faction's claim is planted. The deeper terminal data is extracted during the Act 1 prison objective. |
+| `prologue_open` | Return to Mars after completing the chosen faction's chain | None (auto) | Act 0 ends when the player completes the faction chain, receives the faction's tool, and opens the entrance. The empty prison is revealed; `act1_prison` becomes available and the chosen faction relationship is recorded. The deeper terminal data is extracted during the Act 1 prison objective. |
 
-**Reward:** The door opens and Act 0 closes. The prison descent becomes the opening Act 1 objective. The prison's data is recovered at the end of that descent, and the chosen faction's claim is seeded early. Faction fork is seeded (each NPC's lead points a different direction).
+**Reward:** The door opens and Act 0 closes. The prison descent becomes the opening Act 1 objective. The prison's data is recovered at the end of that descent, and the chosen faction becomes the player's first interpreter and source of support. The faction fork remains consequential without dictating the ending.
 
 **Faction opening methods — "the player picks who helps them":**
 
@@ -398,73 +406,136 @@ q5: talk      ░░░░  Resolution
 
 **Mars exploration gate (implementation note):** `data/planets.has_explorable_sites("mars")` returns `["signal"]` (from `PlanetSpec.explorable_site_name`) whenever `dungeon_params` exists, so the planet menu offers "Explore signal" rather than a generic "Explore Surface". Act 0 requires gating this on `prologue_signal`: before the transmission, the Mars planet menu shows no Explore option (or a locked "??" entry). See Phase 1.
 
-### Act 1: "The Anomaly"
+### Act 1: "The Prison and the Translation"
 
-**Current story structure:** Act 1 begins when the Mars door opens and the player descends into the alien prison. The prison is not a side dungeon or a prelude to Act 1; it is the opening Act 1 chapter. The player restores power, crosses all five floors, reaches the deep cell, and extracts the one live terminal's incomprehensible data. The `act1_prison` objective completes on extraction.
+Act 1 begins when the Mars door opens and the player descends into the alien prison. The prison is the opening chapter, not a side dungeon or a prelude. The shipped prison content remains the first half of the act: restore power, cross all five floors, reach the giant empty cell, extract the one live terminal's data, and fight back out as the emergency systems wake.
 
-The earlier research-first opening (`research_alpha` → `research_sirius` → `research_mercury` → `research_procyon`) is **superseded** by the prison-first structure and is not current runtime scope. The research trail remains a later Act 1 branch: it should begin from the recovered prison data once the prison content is finished and its next steps are designed. Research Officers remain important, but they are not the player's first Act 1 objective.
+The prison data is the act's hinge. It is not a clean message or a treasure map. It is a damaged, layered archive that humans initially misread:
+
+1. **Navigation layer:** a coordinate sequence pointing beyond the Luyten blockade.
+2. **Network layer:** the destination is a linked system of relays, colonies, archives, and dead transit nodes.
+3. **Warning layer:** repeated phrases translate approximately as "Do not complete the return," "Do not restore the road," and "The prisoner follows the path."
+4. **Identity layer:** the archive uses terms that may mean prisoner, weapon, survivor, or returning one. Human translation cannot settle the meaning immediately.
+
+The player must activate or reconstruct an alien resonance/translation device to read the deeper layers. This is the first major post-prison bad decision: the player believes they are decoding an archive, but the device sends an answering pulse through the old network. The prison's emergency ascent is therefore also the first sign that the player's investigation has changed the state of the facility.
+
+The Act 0 faction remains the first interpreter, not the sole owner of the truth. The player can share the raw data with that faction, leak or sell a copy, bring in another faction's expertise, or keep it secret. The initial interpretation colors later evidence but does not determine it.
 
 **Current Act 1 opening:**
 
 | Step | Trigger | Giver | Description |
 |------|---------|-------|-------------|
-| `act1_prison` | Enter the alien-prison extension through the opened Mars stairs; complete on Floor 5 extraction | None (auto) | Descend the five-floor facility, restore power to the deep elevator, reach the giant empty cell, and extract the data from the one terminal that still works. The result is incomprehensible, but proves the prison held something and that the evidence belongs to a larger anomaly. |
+| `act1_prison` | Enter the alien-prison extension through the opened Mars stairs; complete on Floor 5 extraction | None (auto) | Descend the five-floor facility, restore power to the deep elevator, reach the giant empty cell, extract the data from the one terminal that still works, and survive the emergency security ascent. The prison is empty, the data is layered, and the archive points toward a larger dead network. |
 
-**Next Act 1 branch — planned, not yet implemented:**
+**Planned post-prison Act 1 branch — not yet implemented:**
 
-| Step | Trigger | Giver | Description |
-|------|---------|-------|-------------|
-| `research_alpha` | Talk to Research Officer at Alpha Centauri Science Port after completing `act1_prison` | Research Officer | The recovered prison data establishes the reason to investigate. The officer begins translating the material and points the player toward the next station. |
-| `research_sirius` | Deliver the follow-up data to Sirius Research Officer | Research Officer (Sirius) | The analysis places the signal beyond Luyten's Star and points toward the hidden Vega gate. |
-| `research_mercury` | Talk to Research Officer on Mercury | Research Officer (Mercury) | The officer confirms that Vega's officially decommissioned gate is still in use. |
-| `research_procyon` | Talk to Research Officer on Procyon C | Research Officer (Procyon) | The officer identifies the nav key needed to pass the blockade. |
+| Step | Purpose | Description |
+|------|---------|-------------|
+| `research_alpha` | First interpretation | The chosen Act 0 faction and the Alpha Centauri Research Officer examine different layers of the archive. The player decides who gets the raw data and learns that the coordinate sequence points beyond Luyten. |
+| `research_sirius` | Decode the network | Sirius research links the coordinates into a multi-system transit network and identifies the hidden Vega route. A first translation warns against completing a return. |
+| `research_mercury` | Reconstruct the signal | Mercury research determines that the prison data is not passive: the resonance device answered the network and something on the far side noticed. The player learns the blockade may be a quarantine, not simple military control. |
+| `research_procyon` | Prepare the crossing | Procyon research reconstructs the navigation key and identifies several equipment signatures that can survive the dead systems. The player chooses what information and technology to carry forward. |
+| `research_decision` | Choose disclosure | The player chooses whether to trust the Act 0 faction, share the data with a rival faction, sell a partial copy, or keep the translation secret. This changes support and later scenes, not the existence of the anomaly. |
 
-**Alongside the trail (dig content, not in the quest log):**
-- **Faction backing (v1 depth: militia + merchants get full questlines; bar + lab are dialogue-only):**
-  - Militia (full questline): patrol duty → earns trust → unlocks the diplomatic blockade path + plants a militia claim. Includes the classified comms log (M1).
-  - Merchants (full questline): supply run → the Lost Expedition (M4) → unlocks intel on the structure + plants a merchant claim.
-  - Bar (dialogue-only): the barkeep offers the smuggler path + plants a bar claim if taken (no separate questline).
-  - Lab (dialogue-only): completing the research trail plants a lab claim when the player reports back to any Research Officer (no separate questline).
-- **M1 The Jamming** (classified militia comms log, from the militia questline or a lab terminal) — reveals the militia knew about "the incident" six months ago.
-- **M2 The Lost Scouts** (salvage derelict + black box) — the scouts saw the structure and named it.
-- **M3 The Vega Gate** (dialogue hint from the Mercury officer; fly there to activate) — a way past the blockade that isn't the Line.
+**Act 1 discoveries, in planned order:**
 
-**Reward:** Credits, XP, lab faction rep, and the faction-politics fork.
+- The prison was deliberately disconnected, not merely abandoned.
+- The empty cell was occupied by something foreign to the alien civilization.
+- The aliens observed, studied, exploited, feared, and imprisoned it; no surviving record proves whether it was naturally hostile before that treatment.
+- The data points toward a containment/transport network, not a conventional colony or treasure site.
+- Activating the translator broadcasts a recognizable prison signature.
+- Alien equipment recovered from the prison is powerful, but carrying and using it makes the player more visible to the network.
 
-**Choice fork:** Diplomatic (build militia rep to Allied), Smuggler (pay the barkeep at Luyten), Combat (fight through). The chosen path is recorded in `ctx.main_quest_path` and shapes the Act 3 epilogue.
+Act 1 ends when the player has enough translated evidence to make an informed plan for crossing the blockade. The player should understand that the route is dangerous and that the warnings are serious, but should not yet know whether the prisoner is a deliberate exterminator, a traumatized survivor, or both.
 
-### Act 2: "The Blockade"
+### Act 2: "The Blockade and the Plan"
 
-| Step | Trigger | Giver | Description |
-|------|---------|-------|-------------|
-| `blockade_diplomatic` | Talk to Blockade Officer (militia rep >= 76) | Blockade Officer | "Cleared for passage. Whatever's out there, you represent the Line now. The gate beyond has been active for six months. We've lost three scouts." |
-| `blockade_smuggler` | Visit bar at Luyten's Star (rep < 76) | Barkeep | "There's a back route through an old debris field. Risky. Costs credits + hull damage." |
-| `blockade_combat` | Defeat the blockade in combat | None (auto) | "Blockade Nav Key" drops from the commanding officer's ship. |
+The blockade is a human quarantine line, but its purpose is contested. The player needs a way through and must decide what to disclose before crossing. The existing three approaches remain, but each changes the player's resources and relationship to the danger beyond the Line.
 
-**Reward:** Nav key or clearance → unlocks uncharted system beyond Luyten's Star. The blockade path plants its own claim (diplomatic → militia, smuggler → pirates, combat → none).
+| Path | Access | Cost / consequence | Strategic advantage |
+|------|--------|--------------------|---------------------|
+| `diplomatic` | Earn sufficient militia trust and negotiate with the Blockade Officer. | Tracker, reporting obligations, restricted technology, and pressure to preserve containment. | Classified records, safer passage, military support, and the clearest account of "the incident." |
+| `smuggler` | Use the hidden Vega gate or an old debris-field route through the Bar. | Hull damage, unreliable navigation, no official rescue, and possible equipment loss. | Secrecy, access to suppressed evidence, contraband alien technology, and unconventional routes. |
+| `combat` | Fight through the blockade and recover the command ship's black box. | Militia hostility, destroyed intelligence, later patrol pressure, and no rescue network. | Immediate passage, military salvage, and proof of what the blockade was hiding. |
 
-### Act 3: "The Warning"
+Before departure, the player makes a **crossing plan** rather than merely selecting a key:
 
-A dead-star system with an alien structure — the source of the signal.
+- who receives the translated data;
+- whether to carry, remove, or spoof a tracker;
+- which alien device to install;
+- whether to preserve or destroy the blockade's warning network;
+- what equipment to prioritize: stealth, power, weapons, or translation;
+- and how much of the warning to believe.
 
-| Step | Trigger | Giver | Description |
-|------|---------|-------|-------------|
-| `beyond_arrival` | Enter uncharted system | None (auto) | "The signal is here. A massive alien structure orbits the dead star at the system's heart." |
-| `beyond_exploration` | Approach the structure | None (auto) | "Scans show it's dormant — but something inside is still active. A door that opens on a cycle." |
-| `beyond_core` | Board the structure (special encounter) | None | Gauntlet inside: combat with alien constructs ("Ancient Sentinel"). At the core: a data beacon containing the full message — the structure is a **seal**, not a beacon. The signal is the lock failing. Something is trying to come through, and it has been pressing for a thousand years. The builders sealed it knowing the seal would eventually break — and left the warning so someone would be ready. The cycle is ending: the seal is failing now. |
-| `beyond_finale` | Survive the gauntlet | None (auto) | The message is delivered. The seal holds — for now — and the structure goes dark, its warning delivered. The player returns through the now-open frontier — the first human to stand there and come back. |
+These are not good/evil choices. They are competing priorities: safety, knowledge, money, secrecy, speed, and power. Each plan gets the player beyond the Line, but creates a different downstream problem.
 
-**Reward:** "Alien Resonator" ship module (unique, powerful). Massive XP. The truth. `main_quest_complete = True` — sandbox continues.
+### Act 3: "The Dead Network"
 
-**Epilogue resolution — "last claim wins":** Each faction backing quest (Phase 3) plants a claim flag in `ctx.main_quest_backing`; the blockade path plants its own claim (diplomatic → militia, smuggler → pirates, combat → none). At the finale, the **most recently planted claim** wins — so every faction can win, and the player who serves multiple factions gets the ending of whoever they helped last. If no claims were planted, the player goes alone.
+Beyond the blockade is not one alien ruin. It is a chain of dead systems that reveal the civilization's collapse in stages. The player follows the restored route because it promises answers, technology, and a way to understand the prisoner's origin. Every step also restores more of the path that the aliens deliberately severed.
 
-**Lab-ending trigger (explicit):** there are TWO early lab-claim sources — the research trail (completes before the blockade) and the Act 0 Mars faction choice (pick lab to open the door). Either plants a lab claim early, and under "last claim wins" any later diplomatic/smuggler claim supersedes it. The lab ending therefore fires via the combat path: **combat path + (lab claim from research OR Mars choice) → lab ending** (the truth-teller publishes it); **combat path + no lab claim → alone** (the player keeps the secret). This is intentional — the "truth-teller goes alone" pairing — and an implementer should not expect the lab ending to be freely reachable.
+#### The relay system
 
-- Militia claim: the frontier is sealed; the threat is "contained." The militia thanks the player, quietly.
-- Merchant claim: a new trade route opens; the structure is quietly mined for tech. The Guild Master offers the player a share.
-- Pirate/bar claim: the structure is stripped; the warning is buried in a bar story. The Barkeep raises a glass.
-- Lab claim: the truth is published; humanity hears the warning. The Research Officers study the data beacon openly.
-- Alone (no claim): the player keeps the secret. The frontier stays open and wild.
+The first system contains a damaged relay, automated defense constructs, and communication records. The player learns that the transit network was shut down from the inside. The alien civilization did not simply vanish; someone or something forced it to cut its own roads.
+
+#### The colony system
+
+The next system contains evacuation shelters, unfinished ships, abandoned settlements, and records of population movements. The aliens knew the threat was moving through the network and tried to retreat ahead of it. Valuable alien technology can be recovered here, but each recovered component may carry a recognizable network signature.
+
+#### The archive/prison system
+
+A deeper system preserves conflicting accounts:
+
+- official records call the prisoner an existential threat;
+- research records describe an incomprehensible foreign organism or intelligence;
+- military records describe worlds sacrificed to slow it;
+- civilian records describe the aliens turning their own infrastructure into a series of desperate barricades.
+
+The player learns that the prisoner escaped and used the alien transit network to reach a place where it could survive. Its route crossed system after system. Whether it intentionally destroyed the civilization or simply destroyed everything that tried to restrain it remains unresolved.
+
+#### The dead-star system
+
+The anomaly terminates near a black hole. The black hole is not the original prison. It is the creature's natural refuge and resting place, where it can draw power from extreme gravitational and accretion conditions, recover, and remain dormant.
+
+The surviving alien systems around it are a monitoring and containment perimeter: regulators, warning arrays, emergency weapons, and a route-locking lattice. They were built after the creature reached the black hole to keep it asleep or prevent its return path from reaching inhabited space.
+
+The player discovers that the creature's sleep is not harmless. Its presence destabilizes the region, and restoring the network has begun to wake it.
+
+### The prisoner: canon and ambiguity
+
+The prisoner came from the vast empty abyss outside the alien civilization's known domain. It was foreign to them too. They encountered a powerful, incomprehensible being and responded by observing, studying, containing, exploiting, and eventually imprisoning it.
+
+The surviving evidence must support two truths at once:
+
+- the aliens wronged and abused a being they did not understand;
+- the prisoner's escape caused catastrophic destruction across multiple systems.
+
+The creature should look and behave unmistakably monstrous in play: immense power, lethal defenses, system-scale consequences, and terrifying presence. Moral ambiguity comes from motive and history, not from weakening the threat or pretending the destruction did not happen.
+
+When the player activates the prison resonance system, carries alien equipment into the dead network, and completes the return path, the black-hole refuge recognizes the prison signature. The prisoner wakes because it interprets the player as a possible jailer, recapture attempt, or return of the civilization that imprisoned it.
+
+> The player did not merely find the prisoner. The player announced that the prison had reopened.
+
+### The finale: the black-hole battle
+
+The finale is a multi-stage space encounter, not a single oversized ship:
+
+1. **Approach:** distorted navigation, gravitational movement, debris, and ancient defense constructs.
+2. **The refuge:** the player reaches the sleeping creature's surrounding regulators and must decide whether to repair, disable, reroute, or destroy them.
+3. **The awakening:** the creature first appears through gravity distortions, projected forms, and impossible weapon arcs before its full presence emerges.
+4. **Resolution:** the player acts on the knowledge gathered across the dead systems.
+
+The game supports multiple definitive resolutions. They are investigation-gated: the player must discover what each option means before it becomes available. Equipment affects execution, resource cost, survival, and collateral damage, but a faction choice alone never locks the player out of understanding the truth.
+
+| Resolution | Required investigation | Outcome |
+|------------|------------------------|---------|
+| **Destroy** | Discover how the creature can be harmed outside the protection of the black-hole environment. | The creature dies, the anomaly collapses, and much alien technology or evidence may be lost. Humanity survives, but the player may destroy the last surviving record of the civilization. |
+| **Return to sleep** | Reconstruct the dormant-state regulators and learn how to restore them. | The creature survives and the route is sealed. The player saves inhabited space by becoming the next jailer of a being that may have been abused. |
+| **Redirect** | Learn what environment the creature needs and how to create a route to an uninhabited refuge. | The creature leaves the dead systems. It is no longer immediately aimed at humanity, but it is free and may become another civilization's disaster. |
+| **Collapse the route** | Understand the network's essential nodes and the consequences of severing the path near the refuge. | The anomaly is destroyed or stranded. The creature may be trapped or weakened, the player may lose the route home, and the outcome can carry a sacrifice cost. |
+
+The final choice should be explicit. The ending should reflect accumulated discoveries, disclosed information, faction support, crossing plan, alien technology used, and the player's final judgment—not a hidden "last claim wins" timestamp.
+
+**Post-finale:** `main_quest_complete = True`; the sandbox continues. The ending records the chosen resolution and changes epilogue text and any safe world-state consequences without removing the completed run.
 
 ## Implementation phases
 
@@ -493,12 +564,12 @@ A dead-star system with an alien structure — the source of the signal.
 
 - [x] Add the authored `data/landmarks/mars_signal_door.layout` landmark to the fresh Mars surface after `generate_dungeon`. Its lower `d` tile is the reachable entrance; stamping carves a protected route from the dungeon spawn to the approach cell and places the `C` door console entity. **The Mars surface dungeon persists across visits** (cached in `ctx.interiors` keyed `surface:mars` — same anti-farm rule as salvage wreck interiors): the landmark stays exactly where it was found, fog stays revealed, and `prepare_mars_surface` runs only on first generation. The legacy `main_quest_door` entity remains load-compatible for old saves.
 - [x] Bump interaction on the landmark's `C` console: before `prologue_open` — "sealed, alien make, no mechanism" + start `prologue_mars_entrance`; with the faction tool — opens, reveals the empty prison + data, completes Act 0, and makes `act1_prison` available. **The two quest-beat bumps (discover + open) surface as full-screen overlays** (`main_quest.show_sealed_door_overlay`) — the same `ui.Modal` interruption pattern as the incoming transmission, with alien-rune static and ASCII door art. Repeat bumps stay as log lines only (no modal nag).
-- [x] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) plants `backing_faction` + unlocks the tool item. **The offer surfaces as its own full-screen modal** (`main_quest.show_help_offer`) when the player picks the "Ask about the Mars door" option row — the talk modal stays short (normal flavor + the option row), and the offer modal shows the NPC's full lead (word-wrapped, never truncated) with **Accept help** / **Keep looking** options. Keep looking loops back to the talk modal; Accept runs `trigger_dialogue`.
+- [x] Wire `prologue_seek_help`: each faction NPC's quest dialogue gives its unique lead and (on trigger) records `backing_faction` + unlocks the tool item. **The offer surfaces as its own full-screen modal** (`main_quest.show_help_offer`) when the player picks the "Ask about the Mars door" option row — the talk modal stays short (normal flavor + the option row), and the offer modal shows the NPC's full lead (word-wrapped, never truncated) with **Accept help** / **Keep looking** options. Keep looking loops back to the talk modal; Accept runs `trigger_dialogue`.
 - [x] Wire `prologue_open` completion: returning with the right knowledge/tool opens the door, logs the prison reveal, completes Act 0, and makes the Act 1 prison objective available
 - [x] Minimal quest-log breadcrumb: "MAIN QUEST" section showing current step title + objective (full UI polish stays in Phase 4)
 - [x] Smoke test + commit
 
-**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → follow the carved path to the landmark's lower `d` entrance → bump the `C` console (can't open — a SEALED ENTRANCE overlay pops up with alien runes + door art, ENTER dismisses) → talk to each faction NPC (talk modal shows normal flavor + the gold "Ask about the Mars door" row — no more truncated/quoted lead in the body; picking the row opens an AN OFFER OF HELP modal with the NPC's full lead, word-wrapped, plus Accept help / Keep looking) → pick Accept on one faction (claim planted, chain locked in) → return to Mars → the SAME surface landmark reloads (console and entrance where you left them, fog still revealed) → complete the chosen chain → bump the console → the barrier undulates, splits from the middle, and reveals the green `>` stairs-down marker; THE SEAL GIVES WAY overlay pops up, prison revealed, Act 0 completes, and `act1_prison` becomes available → bump it again (repeat) → log line only, no modal. The stairs now enter the Act 1 prison content. Also test Keep looking on a second faction (returns to the talk modal; you can walk away). Verify quest log (Q) tracks the boundary. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon and console entity).
+**PLAYTEST (1c):** full Act 0 run — receive signal → explore Mars ("Explore signal") → follow the carved path to the landmark's lower `d` entrance → bump the `C` console (can't open — a SEALED ENTRANCE overlay pops up with alien runes + door art, ENTER dismisses) → talk to each faction NPC (talk modal shows normal flavor + the gold "Ask about the Mars door" row — no more truncated/quoted lead in the body; picking the row opens an AN OFFER OF HELP modal with the NPC's full lead, word-wrapped, plus Accept help / Keep looking) → pick Accept on one faction (relationship recorded, chain locked in) → return to Mars → the SAME surface landmark reloads (console and entrance where you left them, fog still revealed) → complete the chosen chain → bump the console → the barrier undulates, splits from the middle, and reveals the green `>` stairs-down marker; THE SEAL GIVES WAY overlay pops up, prison revealed, Act 0 completes, and `act1_prison` becomes available → bump it again (repeat) → log line only, no modal. The stairs now enter the Act 1 prison content. Also test Keep looking on a second faction (returns to the talk modal; you can walk away). Verify quest log (Q) tracks the boundary. Save/quit/continue mid-Act-0 → state preserved (including the persisted surface dungeon and console entity).
 
 ### Phase 1d: Chain infrastructure — lock-in, objective types, delve sites
 
@@ -509,7 +580,7 @@ A dead-star system with an alien structure — the source of the signal.
 - [x] Add `dungeon_params` (planet-themed tiles) to the 4 delve planets: Mercury, Wolf 359, Barnard's Star b, Procyon C (pure data, mirroring `data/planets/mars.py`)
 - [x] Chain-aware planet-menu gate: "Explore <site>" shows only while the chain's delve step is active (extend the Mars signal gate in `menus/_planet.py` to take the active chain into account)
 - [x] Lock-in flow: Accept help in `show_help_offer` sets `main_quest_chain` (instead of unlocking the tool); the other three factions' "Ask about the Mars door" rows close (locked variant dialogue)
-- [x] Chain completion: final step's trigger grants the faction tool + makes `prologue_open` available
+- [x] Chain completion: final step's trigger grants the faction tool, records the faction relationship/support history, and makes `prologue_open` available
 - [x] **Time-gate infra:** add `wait_days` / `completion_flavor` / `ready_message` to `MainQuestStep`; add `main_quest_gate` + `main_quest_pending_message` to `GameContext` + serialize/deserialize in `saveload`; implement `main_quest.check_quest_gates(ctx)` per-frame hook (fires when `ctx.time_*` passes a gate date → next step `"available"` + queue the one-way summon; deliver via the prologue-transmission overlay pattern). Dev skip-days helper: Shift+D (SPACEHACK_DEV) advances 30 days so gates can be playtested. Quest log shows "Awaiting word from the <faction>..." while a gate is pending.
 - [x] **Act 0 dev shortcut:** Shift+O (SPACEHACK_DEV) skips directly to the Mars door-opening interaction for animation playtesting; it is a test shortcut only and does not grant faction-chain rewards.
 - [x] Add the 4 expert NPCs (`demolitions_expert` / `salvage_specialist` / `old_smuggler` / `xenolinguist`) to `data/npcs` + `PlanetSpec.npc_overrides`; verify target planets have the guild building
@@ -577,11 +648,11 @@ A dead-star system with an alien structure — the source of the signal.
 
 - [ ] Full 4-chain regression: run all four chains end-to-end on separate saves to `prologue_open`
 - [ ] Verify lock-in exclusivity: after accepting one faction, the other three offer rows stay closed even across save/load
-- [ ] Verify `prologue_open` completion plants the claim, closes Act 0, reveals the prison, and makes `act1_prison` available for ALL four tool types; prison data extraction is verified in the separate prison-content pass
+- [ ] Verify `prologue_open` completion records the chosen faction relationship, closes Act 0, reveals the prison, and makes `act1_prison` available for ALL four tool types; prison data extraction is verified in the separate prison-content pass
 - [ ] Balance pass: delve cache yields vs. early-game cargo capacity; cave size/placement difficulty (cache must be reachable without combat gear); bounty difficulty vs. expected level at that point; gate lengths feel like pacing, not padding
 - [ ] Smoke test + commit
 
-**PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, claim planted. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
+**PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, faction relationship recorded. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
 
 ### Phase 1j: Time gating + one-way summons (full pass)
 
@@ -594,66 +665,110 @@ A dead-star system with an alien structure — the source of the signal.
 
 **PLAYTEST (1j):** complete militia q1 → "We'll be in touch. Requisition takes time to clear." in the log → quest log reads "Awaiting word from the Militia..." → skip 60+ days (dev-mode) → a one-way comms overlay arrives: "Report to Mercury. The cache is mapped." → q2 unlocks and the Mercury delve site appears. Deliberately ignore a summon for 200+ days on a separate save → nothing fails; answering late works normally — the long gate (2-4 in-game months) should cover several sandbox sessions. Save during a pending gate → continue → gate intact, summon re-delivers. 
 
-### Phase 2: Post-prison Acts 1-3 story data
+### Phase 2: Post-prison Act 1 — translation and disclosure
 
 - [ ] Finish and playtest the alien-prison content before extending the post-prison story.
-- [ ] Write the post-prison Act 1 research branch as data (all steps, triggers, rewards); `act1_prison` is already implemented as the opening step.
-- [ ] Wire Research Officer conversations as quest-step triggers after `act1_prison`.
-- [ ] Wire Blockade Officer and Luyten bar as blockade-breach triggers.
-- [ ] Wire uncharted system entry as the Act 3 trigger.
-- [ ] Add "Ancient Sentinel" NpcShipSpec to `data/npc_ships/core.py` (T4+ challenge)
-- [ ] Wire `beyond_core` combat gauntlet
-- [ ] Add `main_quest_flavor` to key planets
+- [ ] Write the post-prison research branch as data; preserve `act1_prison` as the opening step.
+- [ ] Define the layered archive fragments: navigation, network, warning, and identity.
+- [ ] Wire Research Officer conversations and the Act 0 faction's first interpretation.
+- [ ] Add the player disclosure choice: trust the chosen faction, share with a rival, sell a partial copy, or keep the data secret.
+- [ ] Define the resonance/translation device and its answering pulse through the alien network.
+- [ ] Give the player a preparation plan for the blockade crossing.
 - [ ] Smoke test + commit
 
-### Phase 3: Mysteries & faction quests (dig content)
+### Phase 3: Act 2 — blockade breach and crossing plan
 
-- [ ] M1 The Jamming: classified militia comms log findable via the militia questline / a lab terminal
-- [ ] M2 The Lost Scouts: salvage derelict with black box near the frontier
-- [ ] M3 The Vega Gate: activate the hidden gate in `vega.py`
-- [ ] M4 The Lost Expedition: merchant faction questline
-- [ ] Militia backing questline (full): patrol duty + comms log
-- [ ] Merchant backing questline (full): supply run + Lost Expedition
-- [ ] Bar + lab: dialogue-only backing (claims planted by path choice / research completion)
+- [ ] Implement the diplomatic, smuggler, and combat approaches as distinct resource/support paths.
+- [ ] Preserve the existing `main_quest_path` field and add explicit crossing-plan state only when the design is settled.
+- [ ] Wire Blockade Officer, Luyten Bar, and hidden Vega gate interactions.
+- [ ] Define what each path reveals, destroys, or carries across the Line.
+- [ ] Add the blockade command black box and the quarantine explanation.
 - [ ] Smoke test + commit
 
-### Phase 4: Main quest log UI
+### Phase 4: Act 3 — dead network and dig mysteries
 
-- [ ] Add "Main Quest" section to quest log (Q key) — separate from active missions
-- [ ] Show status: completed (checkmark), active (highlighted), locked (grayed)
-- [ ] Mysteries are NOT listed — only breadcrumb steps
+- [ ] M1 The Jamming: classified militia comms log.
+- [ ] M2 The Lost Scouts: frontier derelict and black box.
+- [ ] M3 The Vega Gate: activate the hidden route.
+- [ ] M4 The Lost Expedition: merchant-backed expedition records.
+- [ ] M5 The Foreign Prisoner: contradictory alien, military, and civilian accounts.
+- [ ] M6 The Star-by-Star Retreat: dead relay, colony, and archive systems.
+- [ ] M7 The Sleeping Refuge: black-hole sensor history and failed regulators.
+- [ ] Add dead-network system content and reusable alien landmark variants.
+- [ ] Add alien constructs and a T4+ ancient sentinel encounter where appropriate.
 - [ ] Smoke test + commit
 
-### Phase 5: Rewards + unique items + ending
+### Phase 5: Investigation-gated finale
 
-- [ ] Wire rewards_credits / rewards_xp into step completion
-- [ ] Wire rewards_rep into `modify_rep`
-- [ ] Add "Alien Resonator" module to `data/modules/systems.py`
-- [ ] Add "Blockade Nav Key" as a quest item
-- [ ] Wire Act 3 epilogue variants by `main_quest_path`
-- [ ] Set `main_quest_complete` and confirm sandbox continues
+- [ ] Track discoveries as explicit persistent story flags, not inferred from dialogue text.
+- [ ] Define the evidence required for Destroy, Return to Sleep, Redirect, and Collapse the Route.
+- [ ] Add alien technology that improves survival while increasing network visibility or risk.
+- [ ] Build the multi-stage black-hole approach and regulator encounter.
+- [ ] Build the final monster space battle.
+- [ ] Present an explicit resolution choice and persist the selected outcome.
+- [ ] Replace the old claim-based epilogue logic with accumulated evidence/support plus final choice.
+- [ ] Set `main_quest_complete` and confirm the sandbox continues.
 - [ ] Smoke test + commit
 
-### Phase 6: Guide + final polish
+### Phase 6: Main quest UI, guide, and final polish
 
-- [x] Add main quest section to in-game guide (`_GUIDE_MAIN_QUEST` — updated for the shipped Act 0 chains and Act 1 prison entry)
-- [ ] Full playtest: prologue → Mars door opening → prison descent/extraction → post-prison research → mysteries → blockade breach → beyond → finale
-- [ ] DRY/RNG audit
+- [ ] Add or refine the "Main Quest" section in the quest log — breadcrumbs only; mysteries remain discoverable.
+- [ ] Show discovered evidence and available resolutions without spoiling undiscovered interpretations.
+- [x] Keep the in-game guide current for the shipped Act 0 chains and Act 1 prison entry.
+- [ ] Update the guide for post-prison translation, blockade paths, alien technology risk, and final resolutions.
+- [ ] Full playtest: prologue → prison descent/extraction/ascent → translation → disclosure → blockade plan → dead network → black-hole finale.
+- [ ] DRY/RNG/save-load audit
+
+## Pre-implementation audit — post-prison story expansion
+
+This audit is the living pre-implementation contract for Phases 2-5. It was completed before writing the next post-prison implementation.
+
+### Existing modules and patterns to reuse
+
+- `src/spacehack/main_quest/` — split core, dialogue, objective, gate, heat, and Act 0 helpers; extend the existing step lifecycle rather than creating a parallel quest system.
+- `src/spacehack/data/main_quest/` — frozen data-first step catalogs; add post-prison steps and evidence requirements as data.
+- `src/spacehack/game_context.py` + `src/spacehack/saveload.py` — existing persistent quest fields; every new discovery, crossing-plan, resolution, and ending field must be serialized and restored.
+- `src/spacehack/npc.py` and `main_quest/_dialogue.py` — quest-aware NPC dialogue and option rows; reuse for Research Officers, Blockade Officer, faction disclosure, and final interpretation scenes.
+- `src/spacehack/main_quest/_objectives.py` — existing talk, delve, smuggle, visit, bounty, salvage, and bump objective patterns; extend only when a new objective cannot be expressed by composition.
+- `src/spacehack/dungeon_extensions.py` and `src/spacehack/data/dungeon_extensions/` — persistent themed extensions, activation events, landmarks, and data-defined variants; reuse for dead-network interiors and rare landmark variants.
+- `src/spacehack/landmark.py` plus `data/landmarks/` — authored landmark stamping into procedural maps; use for relay, archive, regulator, and refuge locations.
+- `src/spacehack/npc_ships.py`, `src/spacehack/combat/`, and `data/npc_ships/` — space encounter spawning and combat; add ancient constructs through the existing ship/entity contracts.
+- `src/spacehack/navigation.py` and `src/spacehack/solar_system.py` — system entry, hidden gates, static encounters, and route transitions; reuse rather than adding a second travel graph.
+- `src/spacehack/help.py` — the in-game guide contract; every shipped player-facing story mechanic needs an accurate section.
+
+### Duplication hotspots and DRY strategy
+
+1. **Post-prison step progression:** Do not create a second research or evidence state machine. Extend `MainQuestStep`, the existing objective helpers, and `main_quest_progress` with data-defined evidence flags.
+2. **Alien system/landmark generation:** Do not copy the Mars/prison stamping or surface-delve placement blocks for every dead system. Extract or parameterize shared landmark placement and persistence helpers, with data-defined themes and weighted variants.
+3. **Final encounter and faction support:** Do not duplicate blockade, bounty, or combat spawning logic for every faction and resolution. Use a data-defined encounter/requirement table and shared handlers; keep pure resolution eligibility separate from mutation of `GameContext`.
+
+### Guardrails for the next implementation
+
+- New story state goes through `GameContext`, never module-level globals.
+- New alien content belongs in frozen `data/` catalogs.
+- Pure evidence/eligibility calculations receive explicit inputs and ship tests in the same commit.
+- Any mutable discovery, equipment signature, crossing-plan, or resolution state must survive save/load.
+- Every new player-facing mechanic updates `_GUIDE_MAIN_QUEST`.
+- No implementation begins until the specific Phase 2 step and its playtest checklist are approved.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [x] **Save/load:** `main_quest_progress`, `main_quest_unlocked_items`, `main_quest_chain`, `main_quest_gate`, `main_quest_pending_message`, `main_quest_path`, `main_quest_backing`, `main_quest_complete` → added to both `_ctx_to_dict()` AND `load_game()`; entity flags (`main_quest_door`, `main_quest_step_id`) + quest NPC respawn covered
-- [x] **Game guide:** `_GUIDE_MAIN_QUEST` section updated for the shipped Act 0 chains (bar / merchants / militia / lab) and the Act 1 prison descent/extraction
-- [x] **NPC spawns:** Quest-tagged bounty/salvage spawns via `BountySpawn` (leader + escorts + wreck) with cleanup on completion
+- [x] **Save/load:** existing Act 0 and prison fields (`main_quest_progress`, `main_quest_unlocked_items`, `main_quest_chain`, `main_quest_gate`, `main_quest_pending_message`, `main_quest_path`, `main_quest_backing`, `main_quest_complete`) are wired through `_ctx_to_dict()` and `load_game()`; entity flags and prison extension state are persisted. The post-extraction trigger `prison_data_extracted` lives in persisted `DungeonExtensionState.state_flags`, not in `GameContext` or `main_quest_progress`.
+- [x] **Game guide:** `_GUIDE_MAIN_QUEST` is current for the shipped Act 0 chains and Act 1 prison descent/ascent.
+- [x] **NPC spawns:** existing quest-tagged bounty/salvage spawns use `BountySpawn` with cleanup on completion.
+- [ ] **Post-prison story state:** evidence flags, disclosure choice, crossing plan, alien-tech signatures, resolution eligibility, and final outcome still require save/load wiring when implemented; this includes preserving the existing `DungeonExtensionState.state_flags` trigger alongside new main-quest fields.
+- [ ] **Post-prison guide:** translation, blockade-plan consequences, dead-network systems, warnings, and final resolutions still require guide updates when implemented.
 
 ## Open questions
 
-1. ~~What exactly is the warning?~~ **RESOLVED:** The structure is a seal. The signal is the lock failing — something is trying to come through, and the seal is breaking. The builders left the warning so someone would be ready.
-2. ~~Faction questline depth~~ **RESOLVED:** militia + merchants get full backing questlines in v1; bar + lab are dialogue-only backing (claims still reachable via path choice / research completion).
-3. ~~What is behind the Mars door?~~ **RESOLVED:** an empty ancient alien prison — tech beyond any known human tech, and a data cache needing translation/study. The emptiness is deliberate (see Act 0 note).
-4. ~~What opens the Mars door?~~ **RESOLVED:** a faction choice — the player picks which faction helps, and each faction opens it differently (militia breach / merchant cutter / bar brute-force rig / lab resonance key). The chosen faction's claim is planted early.
-5. **The empty cell** — is the prison's prisoner the same threat the Act 3 seal is failing against? (Story payoff for the Act 3 reveal; needs the user's call at Act 3 writing time — kept ambiguous on purpose for now.)
-6. **Ending world-state** — should the epilogues change the world (blockade opens, new trade route, structure mined) or stay text-only?
-7. **Main quest steps never appear on mission boards** — only triggered by exploration and NPC conversation.
-8. **Game continues after Act 3** — the story loop closes, sandbox continues. Confirmed.
-9. **No time pressure, no fail states** — the quest waits forever. Confirmed.
+1. **Exact translated wording:** what human-readable fragments appear first, and which phrase becomes the recurring warning?
+2. **Faction disclosure:** does the player choose one recipient, distribute partial copies, or negotiate different truths with each faction?
+3. **Dead-network geography:** how many systems should Act 3 contain before the black-hole refuge, and which systems are mandatory versus dig content?
+4. **Alien technology:** which upgrades improve survival while increasing the player's detectable prison/network signature?
+5. **Creature communication:** does the player receive direct signals from the sleeping creature, or only infer its perspective from alien records?
+6. **Resolution evidence:** what exact discovery unlocks Destroy, Return to Sleep, Redirect, and Collapse the Route?
+7. **Ending world-state:** which resolutions alter the blockade, alien technology access, faction reputation, and post-finale sandbox?
+8. ~~**What is behind the Mars door?**~~ **RESOLVED:** an empty ancient alien prison with technology beyond human capability and a layered data archive.
+9. ~~**What opens the Mars door?**~~ **RESOLVED:** the player chooses a faction in Act 0; militia breach charge, merchant cutter, bar brute-force rig, and lab resonance key each open it differently.
+10. ~~**Game continues after Act 3**~~ **RESOLVED:** the story reaches a definitive resolution, then the sandbox continues.
+11. ~~**No time pressure or fail states**~~ **RESOLVED:** the quest waits forever; investigation and resolution choices are not deadlines.
