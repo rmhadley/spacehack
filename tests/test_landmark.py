@@ -40,6 +40,33 @@ def _reachable(game_map, start, goal) -> bool:
     return False
 
 
+def test_weighted_landmark_variants_skip_zero_weight_and_clamp_roll():
+    """Weighted variant choice is deterministic at both roll boundaries."""
+    from src.spacehack.data.dungeon_extensions import LandmarkVariant
+
+    _variants = (
+        LandmarkVariant("common", 3.0),
+        LandmarkVariant("rare", 1.0),
+        LandmarkVariant("disabled", 0.0),
+    )
+
+    assert landmark.choose_weighted_variant(_variants, -1.0) == "common"
+    assert landmark.choose_weighted_variant(_variants, 0.75) == "rare"
+    assert landmark.choose_weighted_variant(_variants, 1.0) == "rare"
+
+
+def test_weighted_landmark_variants_reject_empty_weights():
+    """A content pack cannot silently choose from an empty weighted pool."""
+    from src.spacehack.data.dungeon_extensions import LandmarkVariant
+
+    try:
+        landmark.choose_weighted_variant((LandmarkVariant("none", 0.0),), 0.5)
+    except ValueError as _error:
+        assert "positive weight" in str(_error)
+    else:
+        raise AssertionError("empty landmark pool unexpectedly accepted")
+
+
 def test_deep_cell_landmark_parses_torn_entrance_and_claw_scars():
     """The F5 asset has a walkable torn entrance and authored claw marks."""
     _asset = landmark.load_landmark("alien_prison_deep_cell")
@@ -54,11 +81,15 @@ def test_deep_cell_landmark_parses_torn_entrance_and_claw_scars():
     ]
 
     assert _asset.width == 35
-    assert _asset.height == 24
-    assert _entrances == [(18, 23)]
+    assert _asset.height == 30
+    assert _entrances == [(17, 15)]
     assert len(_scars) >= 20
+    assert sum(
+        tile.kind == "void"
+        for row in _asset.tiles for tile in row
+    ) >= 1
     assert landmark._landmark_markers(_asset) == (
-        world.Position(18, 23), None, None,
+        world.Position(17, 15), world.Position(17, 1), None, None,
     )
 
 
@@ -118,7 +149,7 @@ def test_deep_cell_landmark_serializes_authored_tiles():
     _asset = landmark.load_landmark("alien_prison_deep_cell")
     _restored, _space_pos = _dungeon_from_dict(_dungeon_to_dict(_asset, None))
 
-    assert _restored.tiles[23][18].kind == "landmark_entrance"
+    assert _restored.tiles[15][17].kind == "landmark_entrance"
     assert sum(
         tile.kind == "claw_scar"
         for row in _restored.tiles for tile in row
@@ -418,6 +449,7 @@ def test_deep_cell_landmark_stamps_reachable_footprint():
 
     assert _reachable(_game_map, _spawn, _approach)
     assert len(_stamp.footprint) == _asset.width * _asset.height
+    assert _stamp.arrival is not None
     assert _stamp.console is None
     assert _stamp.stairs is None
 

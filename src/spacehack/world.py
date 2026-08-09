@@ -166,6 +166,10 @@ TORN_DOOR = Tile(kind="torn_door", char="#", walkable=False,
                  fg=(200, 130, 90), bg=(60, 35, 30))
 CLAW_SCAR = Tile(kind="claw_scar", char="^", walkable=True,
                  fg=(220, 145, 100), bg=(55, 40, 45))
+BRIDGE = Tile(kind="bridge", char="=", walkable=True,
+              fg=(100, 180, 220), bg=(18, 28, 48))
+TERMINAL_LANDING = Tile(kind="terminal_landing", char=".", walkable=True,
+                        fg=(175, 195, 215), bg=(38, 48, 65))
 LANDMARK_ENTRANCE = Tile(kind="landmark_entrance", char="X", walkable=True,
                          fg=(255, 150, 90), bg=(70, 35, 25))
 # Alien landmark tiles.  The landmark parser resolves these names from

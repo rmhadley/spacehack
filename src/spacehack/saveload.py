@@ -280,6 +280,20 @@ def save_game(
 # ---------------------------------------------------------------------------
 
 
+def _coordinate_pair(raw) -> tuple[int, int] | None:
+    """Return a valid integer coordinate pair, or ``None`` for bad data."""
+    if hasattr(raw, "x") and hasattr(raw, "y"):
+        _raw_pair = (raw.x, raw.y)
+    elif isinstance(raw, (list, tuple)) and len(raw) >= 2:
+        _raw_pair = (raw[0], raw[1])
+    else:
+        return None
+    try:
+        return int(_raw_pair[0]), int(_raw_pair[1])
+    except (TypeError, ValueError):
+        return None
+
+
 def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
     """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict.
 
@@ -288,6 +302,11 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
     only meaningful for the active dungeon (the player's ship position
     in space while boarded); interiors pass ``None``.
     """
+    _landmark_interaction_cells: list[list[int]] = []
+    for _cell in getattr(gm, "landmark_interaction_cells", ()):
+        _pair = _coordinate_pair(_cell)
+        if _pair is not None:
+            _landmark_interaction_cells.append([_pair[0], _pair[1]])
     return {
         "width": gm.width,
         "height": gm.height,
@@ -357,6 +376,8 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
             [int(_x), int(_y)]
             for _x, _y in getattr(gm, 'landmark_footprint', set())
         ],
+        "landmark_interaction_cells": _landmark_interaction_cells,
+        "landmark_variant_id": getattr(gm, 'landmark_variant_id', ''),
     }
 
 
@@ -497,6 +518,16 @@ def _dungeon_from_dict(dd: dict) -> tuple:
             for _point in _landmark_footprint
             if isinstance(_point, (list, tuple)) and len(_point) >= 2
         }
+    _landmark_interaction_cells = set()
+    for _point in dd.get("landmark_interaction_cells", []) or []:
+        _pair = _coordinate_pair(_point)
+        if _pair is not None:
+            _landmark_interaction_cells.add(_pair)
+    if _landmark_interaction_cells:
+        _dungeon_map.landmark_interaction_cells = _landmark_interaction_cells
+    _landmark_variant_id = dd.get("landmark_variant_id", "")
+    if _landmark_variant_id:
+        _dungeon_map.landmark_variant_id = str(_landmark_variant_id)
     _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
     return _dungeon_map, _space_pos
 

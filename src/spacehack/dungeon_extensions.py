@@ -182,6 +182,7 @@ def _stamp_features(
 def _stamp_prisoner_quarters(
     game_map: world.GameMap,
     origin: world.Position,
+    _spec=None,
 ) -> None:
     """Add empty-cell doors and security posts to a quarters floor."""
     _used: set[tuple[int, int]] = set()
@@ -204,6 +205,7 @@ def _stamp_prisoner_quarters(
 def _stamp_defensive_layer(
     game_map: world.GameMap,
     origin: world.Position,
+    _spec=None,
 ) -> None:
     """Add non-blocking barriers and active security nodes to Floor 3."""
     _used: set[tuple[int, int]] = set()
@@ -221,6 +223,7 @@ def _stamp_defensive_layer(
 def _stamp_high_risk_quarters(
     game_map: world.GameMap,
     origin: world.Position,
+    _spec=None,
 ) -> None:
     """Add larger-cell markers and advanced security to Floor 4."""
     _used: set[tuple[int, int]] = set()
@@ -239,11 +242,10 @@ _FEATURE_STAMPERS = {
     "prisoner_quarters": _stamp_prisoner_quarters,
     "defensive_layer": _stamp_defensive_layer,
     "high_risk_quarters": _stamp_high_risk_quarters,
-    "deep_cell": lambda _game_map, _origin: stamp_deep_cell(
+    "deep_cell": lambda _game_map, _origin, _spec=None: stamp_deep_cell(
         _game_map,
         _origin,
-        feature_cells=_feature_cells,
-        stamp_features=_stamp_features,
+        landmark_variants=(getattr(_spec, "landmark_variants", ()) if _spec else ()),
     ),
 }
 
@@ -256,7 +258,7 @@ def _stamp_floor_features(
     """Apply a data-selected procedural feature theme to a floor."""
     _feature_stamper = _FEATURE_STAMPERS.get(spec.feature_theme)
     if _feature_stamper is not None:
-        _feature_stamper(game_map, origin)
+        _feature_stamper(game_map, origin, spec)
 
 
 def _free_interaction_position(
@@ -326,6 +328,11 @@ def _stamp_interactions(
         return
     _cells = _feature_cells(game_map, origin)
     _landmark_cells = set(getattr(game_map, "landmark_footprint", ()))
+    _landmark_interaction_cells = {
+        (_cell.x, _cell.y)
+        if isinstance(_cell, world.Position) else _cell
+        for _cell in getattr(game_map, "landmark_interaction_cells", ())
+    }
     _used: set[tuple[int, int]] = {
         (_position.x, _position.y)
         for _position in (
@@ -354,12 +361,29 @@ def _stamp_interactions(
                 ] or [
                     _cell for _cell in _cells if _cell in _landmark_cells
                 ]
+                if _landmark_interaction_cells:
+                    _interaction_cells = [
+                        _cell for _cell in _interaction_cells
+                        if _cell in _landmark_interaction_cells
+                    ] or list(_landmark_interaction_cells)
             _position = _free_interaction_position(
                 game_map,
                 cells=_interaction_cells,
                 forbidden_positions=_anchors,
                 min_path_distance=8,
             )
+            if (
+                _interaction.id == "deep_cell_data_terminal"
+                and _landmark_interaction_cells
+            ):
+                _position = next(
+                    (
+                        world.Position(*_cell)
+                        for _cell in _landmark_interaction_cells
+                        if _cell not in _used
+                    ),
+                    _position,
+                )
             if _position is None:
                 _position = _free_interaction_position(
                     game_map,
@@ -375,6 +399,20 @@ def _stamp_interactions(
                 )
         if _position is None:
             continue
+        if _interaction.action != "transition_floor":
+            _authored_terminal = next(
+                (
+                    _entity for _entity in game_map.entities
+                    if _entity.name == "Landmark Terminal"
+                    and _entity.pos == _position
+                ),
+                None,
+            )
+            if _authored_terminal is not None:
+                _authored_terminal.name = _interaction.name
+                _authored_terminal.dungeon_interaction = _interaction.id
+                _authored_terminal.interaction_flavor = ""
+                continue
         if (
             _interaction.action != "transition_floor"
             and (_position.x, _position.y) in _used
@@ -417,6 +455,15 @@ def _ensure_floor_interactions(
         else:
             _down = getattr(game_map, "down_stair_pos", None)
             _cells = _feature_cells(game_map, origin)
+            _authored_cells = {
+                (_cell.x, _cell.y)
+                if isinstance(_cell, world.Position) else tuple(_cell)
+                for _cell in getattr(game_map, "landmark_interaction_cells", ())
+            }
+            _is_authored_anchor = (
+                _interaction.id == "deep_cell_data_terminal"
+                and (_existing.pos.x, _existing.pos.y) in _authored_cells
+            )
             _separate_cells = (
                 _separate_room_cells(game_map, _down, _walkable_distances)
                 if _down is not None else []
@@ -432,7 +479,7 @@ def _ensure_floor_interactions(
                 _separate_cells
                 and (_existing.pos.x, _existing.pos.y) not in _separate_cells
             )
-            if _distance < 8 or _wrong_room:
+            if not _is_authored_anchor and (_distance < 8 or _wrong_room):
                 _existing.pos = (
                     _free_interaction_position(
                         game_map,
@@ -467,14 +514,19 @@ def _generate_floor(extension_id: str, floor: int):
     _spec = _floor_spec(extension_id, floor)
     _game_map, _spawn = dungeon.generate_dungeon(_spec.params)
     _game_map.interior_cache_key = floor_key(extension_id, floor)
+    _generated_spawn = _spawn
     # The generic generator creates an EXIT at its spawn wall. An extension
     # floor uses an explicit up-connection marker instead.
     _game_map.tiles[_spawn.y][_spawn.x] = world.STAIRS_UP
     _set_floor_metadata(_game_map, extension_id, floor, _spec, _spawn)
     _stamp_floor_features(_game_map, _spec, _spawn)
+    _spawn = getattr(_game_map, "entry_spawn", _generated_spawn)
+    _set_floor_metadata(_game_map, extension_id, floor, _spec, _spawn)
+    if _game_map.in_bounds(_spawn.x, _spawn.y):
+        _game_map.tiles[_spawn.y][_spawn.x] = world.STAIRS_UP
     # Populate before selecting the deeper connection so the stair tile is
     # guaranteed not to overlap a procedural enemy.
-    dungeon.populate_dungeon(_game_map, _spec.params, _spawn)
+    dungeon.populate_dungeon(_game_map, _spec.params, _generated_spawn)
     if _spec.has_down_stairs:
         _down = _farthest_free_cell(_game_map, _spawn)
         if _down is not None:

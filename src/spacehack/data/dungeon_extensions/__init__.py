@@ -37,6 +37,14 @@ class ActivationEvent:
 
 
 @dataclass(frozen=True)
+class LandmarkVariant:
+    """A weighted authored landmark layout candidate."""
+
+    layout_id: str
+    weight: float
+
+
+@dataclass(frozen=True)
 class DungeonInteractionSpec:
     """A data-defined interaction stamped into an extension floor."""
 
@@ -66,6 +74,7 @@ class ExtensionFloorSpec:
     params: dungeon.DungeonParams
     has_down_stairs: bool = False
     feature_theme: str = ""
+    landmark_variants: tuple[LandmarkVariant, ...] = ()
     entry_flavor: EntryFlavor | None = None
     activation_events: tuple[ActivationEvent, ...] = ()
     interactions: tuple[DungeonInteractionSpec, ...] = ()
@@ -224,6 +233,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             floor=5,
             location_name="Alien Prison F5",
             feature_theme="deep_cell",
+            landmark_variants=(
+                LandmarkVariant("alien_prison_deep_cell", 100.0),
+            ),
             entry_flavor=EntryFlavor(
                 faction_label="ALIEN FACILITY",
                 title="THE DEEP CELL",

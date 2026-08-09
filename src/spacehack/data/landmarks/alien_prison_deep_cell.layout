@@ -1,43 +1,57 @@
-# alien_prison_deep_cell.layout - giant empty cell with a torn-off door
+# alien_prison_deep_cell.layout - epic deep-cell approach
 #
-# The bottom wall is the former door line: X marks torn door fragments,
-# e marks the open entrance, and ^ marks the claw scars dragged across
-# the cell floor. The room is intentionally empty and oversized.
+# The elevator arrives at `u`, then a long exposed bridge crosses the void.
+# The bridge opens onto a terminal-lined landing before the cell entrance.
 MAP
-###################################
-#.................................#
-#.................................#
-#.................................#
-#...###.....................###...#
-#...###.....................###...#
-#...###.....................###...#
-#.................................#
-#.................................#
-#.........###.........###.........#
-#.........###.........###.........#
-#.........###.........###.........#
-#.................................#
-#.................................#
-#..###.........................####
-#..###.........................####
-#..###.........................####
-#.................................#
-#..........^^^...^^^...^^^........#
-#..........^^^...^^^...^^^........#
-#..........^^^...^^^...^^^........#
-#.................................#
-#.................................#
-###########XX^XXX^e^XXX^XX########
+vvvvvvvvvvv.............vvvvvvvvvvv
+vvvvvvvvvvvvvvvv=u=vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvvvvvv===vvvvvvvvvvvvvvvv
+vvvvvvvvvvvlllllllllllllvvvvvvvvvvv
+vvvvvvvvvvvlTlllllllllTlvvvvvvvvvvv
+vvvvvvvvvvvlllllllllllllvvvvvvvvvvv
+vvvvvvvvvvvlTlllllllllTlvvvvvvvvvvv
+vvv###########XXXeXXX###########vvv
+vvv#...........................#vvv
+vvv#...........................#vvv
+vvv#...........................#vvv
+vvv#...###...............###...#vvv
+vvv#...###...............###...#vvv
+vvv#...###...............###...#vvv
+vvv#...........................#vvv
+vvv#..........XXX.XXX..........#vvv
+vvv#..........XXX.XXX..........#vvv
+vvv#.........^^^^^^^^^.........#vvv
+vvv#.........^^^^^^^^^.........#vvv
+vvv#.........^^^^^^^^^.........#vvv
+vvv#...........................#vvv
+vvv###########XXX#XXX###########vvv
 ENDMAP
 
+TILE: v = VOID
+TILE: = = BRIDGE
+TILE: u = STAIRS_UP
+TILE: l = TERMINAL_LANDING
+TILE: T = TERMINAL_LANDING
 TILE: # = DUNGEON_WALL
 TILE: . = DUNGEON_FLOOR
-TILE: X = TORN_DOOR
 TILE: ^ = CLAW_SCAR
+TILE: X = TORN_DOOR
 TILE: e = LANDMARK_ENTRANCE
 
-COLOUR: # = (105, 90, 115) / (22, 25, 38)       # cell wall
+COLOUR: = = (100, 180, 220) / (18, 28, 48)       # exposed bridge
+COLOUR: u = (150, 220, 255) / (20, 45, 65)       # elevator arrival
 COLOUR: . = (190, 200, 215) / (35, 45, 60)       # deep-cell floor
-COLOUR: X = (230, 125, 80) / (65, 32, 26)        # torn door metal
+COLOUR: l = (175, 195, 215) / (38, 48, 65)       # terminal landing deck
+COLOUR: T = (120, 230, 255) / (38, 48, 65)       # dark landing terminal
+COLOUR: # = (105, 90, 115) / (22, 25, 38)       # cell wall
 COLOUR: ^ = (240, 150, 105) / (55, 35, 42)       # giant claw scars
+COLOUR: X = (230, 125, 80) / (65, 32, 26)       # torn door metal
 COLOUR: e = (255, 165, 100) / (72, 36, 24)       # open, torn entrance

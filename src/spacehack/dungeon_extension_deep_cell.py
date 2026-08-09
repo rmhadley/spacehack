@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Callable
 
 from . import landmark, world
 
@@ -62,8 +61,7 @@ def stamp_deep_cell(
     game_map: world.GameMap,
     origin: world.Position,
     *,
-    feature_cells: Callable,
-    stamp_features: Callable,
+    landmark_variants,
 ) -> None:
     """Dress a deep cell: torn doors, dead terminals, and alien flooring.
 
@@ -72,12 +70,35 @@ def stamp_deep_cell(
     frames along the walls and scattered unpowered terminals as static
     flavor entities.
 
-    ``feature_cells`` / ``stamp_features`` are injected from the extension
-    runtime so this module stays a thin, reusable content helper.
+    Landmark selection is supplied by the floor data so this module stays a
+    thin, reusable content helper.
     """
-    _asset = landmark.load_landmark("alien_prison_deep_cell")
+    from .engine import RNG
+
+    _layout_id = landmark.choose_weighted_variant(
+        landmark_variants,
+        RNG.random(),
+    )
+    _asset = landmark.load_landmark(_layout_id)
+    # The procedural spawn is only a temporary placement anchor. The
+    # authored arrival marker becomes the real elevator landing, so remove
+    # the temporary stair before stamping to avoid duplicate up-connections.
+    if game_map.in_bounds(origin.x, origin.y):
+        game_map.tiles[origin.y][origin.x] = world.DUNGEON_FLOOR
     _stamp = landmark.stamp_landmark(game_map, _asset, origin)
     game_map.landmark_footprint = set(_stamp.footprint)
+    # The authored landmark owns the elevator arrival. Reassert the
+    # connection after stamping so a bridge footprint can never hide it.
+    if _stamp.arrival is not None:
+        game_map.tiles[_stamp.arrival.y][_stamp.arrival.x] = world.STAIRS_UP
+    game_map.landmark_variant_id = _layout_id
+    game_map.landmark_interaction_cells = [
+        _entity.pos for _entity in game_map.entities
+        if _entity.name == "Landmark Terminal"
+    ]
+    if _stamp.arrival is not None:
+        game_map.entry_spawn = _stamp.arrival
+        game_map.up_stair_pos = _stamp.arrival
     for _x, _y in _stamp.footprint:
         _tile = game_map.tiles[_y][_x]
         if _tile.kind == "dungeon_floor":

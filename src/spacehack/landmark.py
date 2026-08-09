@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import heapq
+from collections import deque
 import pathlib
 import sys
 from dataclasses import dataclass
@@ -33,6 +34,24 @@ class LandmarkStamp:
     console: world.Position | None
     stairs: world.Position | None
     footprint: frozenset[tuple[int, int]]
+    arrival: world.Position | None = None
+
+
+def choose_weighted_variant(variants, roll: float) -> str:
+    """Choose a landmark layout ID from weighted variant data."""
+    _positive = tuple(
+        _variant for _variant in variants
+        if getattr(_variant, "weight", 0) > 0
+    )
+    if not _positive:
+        raise ValueError("Landmark variants must contain a positive weight")
+    _total = sum(_variant.weight for _variant in _positive)
+    _target = min(max(roll, 0.0), 0.999999999) * _total
+    for _variant in _positive:
+        if _target < _variant.weight:
+            return _variant.layout_id
+        _target -= _variant.weight
+    return _positive[-1].layout_id
 
 
 def load_landmark(layout_id: str) -> world.GameMap:
@@ -47,8 +66,13 @@ def load_landmark(layout_id: str) -> world.GameMap:
 
 def _landmark_markers(
     landmark: world.GameMap,
-) -> tuple[world.Position, world.Position | None, world.Position | None]:
-    """Return a landmark's entrance and optional quest markers."""
+) -> tuple[
+    world.Position,
+    world.Position | None,
+    world.Position | None,
+    world.Position | None,
+]:
+    """Return a landmark's entrance and optional connection markers."""
     _doors = [
         world.Position(x, y)
         for y, row in enumerate(landmark.tiles)
@@ -66,12 +90,25 @@ def _landmark_markers(
         for x, tile in enumerate(row)
         if tile.kind == "stairs_down"
     ]
-    if len(_doors) != 1 or len(_consoles) > 1 or len(_stairs) > 1:
+    _arrivals = [
+        world.Position(x, y)
+        for y, row in enumerate(landmark.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "stairs_up"
+    ]
+    if (
+        len(_doors) != 1
+        or len(_consoles) > 1
+        or len(_stairs) > 1
+        or len(_arrivals) > 1
+    ):
         raise ValueError(
-            "Landmark must contain exactly one entrance and at most one console/stairs"
+            "Landmark must contain one entrance and at most one "
+            "arrival/console/stairs marker"
         )
     return (
         _doors[0],
+        _arrivals[0] if _arrivals else None,
         _consoles[0] if _consoles else None,
         _stairs[0] if _stairs else None,
     )
@@ -83,7 +120,8 @@ def _candidate_origins(
     spawn: world.Position,
 ) -> list[tuple[int, int, int]]:
     """Return valid origins ranked by entrance distance from ``spawn``."""
-    _door, _console, _stairs = _landmark_markers(landmark)
+    _door, _arrival, _console, _stairs = _landmark_markers(landmark)
+    _allow_spawn_overlap = _arrival is not None
     _max_x = game_map.width - landmark.width - 1
     _max_y = game_map.height - landmark.height - 2
     if _max_x < 1 or _max_y < 1:
@@ -101,10 +139,16 @@ def _candidate_origins(
                 for _ly in range(landmark.height)
                 for _lx in range(landmark.width)
             }
+            if (spawn.x, spawn.y) in _footprint and not _allow_spawn_overlap:
+                continue
             if any(
                 game_map.tiles[_py][_px].kind in {
                     "exit", "stairs_up", "stairs_down",
                 }
+                and not (
+                    _allow_spawn_overlap
+                    and (_px, _py) == (spawn.x, spawn.y)
+                )
                 for _px, _py in _footprint
             ):
                 continue
@@ -166,6 +210,43 @@ def _find_route(
         _route.append(world.Position(*_current))
         _current = _came_from[_current]
     return list(reversed(_route))
+
+
+def _authored_boundary_targets(
+    game_map: world.GameMap,
+    landmark: world.GameMap,
+    origin: world.Position,
+    arrival: world.Position,
+) -> list[world.Position]:
+    """Find outside connection cells reachable from an authored arrival."""
+    _start = (arrival.x, arrival.y)
+    _visited = {_start}
+    _queue = deque([_start])
+    while _queue:
+        _x, _y = _queue.popleft()
+        for _dx, _dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            _next = (_x + _dx, _y + _dy)
+            if not (0 <= _next[0] < landmark.width and 0 <= _next[1] < landmark.height):
+                continue
+            if _next in _visited or not landmark.tiles[_next[1]][_next[0]].walkable:
+                continue
+            _visited.add(_next)
+            _queue.append(_next)
+    _footprint = {
+        (origin.x + _x, origin.y + _y)
+        for _y in range(landmark.height)
+        for _x in range(landmark.width)
+    }
+    _targets: list[world.Position] = []
+    for _x, _y in _visited:
+        _world = (origin.x + _x, origin.y + _y)
+        if any(
+            game_map.in_bounds(_world[0] + _dx, _world[1] + _dy)
+            and (_world[0] + _dx, _world[1] + _dy) not in _footprint
+            for _dx, _dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+        ):
+            _targets.append(world.Position(*_world))
+    return _targets
 
 
 def _theme_tile(
@@ -262,20 +343,52 @@ def stamp_landmark(
     spawn: world.Position,
 ) -> LandmarkStamp:
     """Stamp ``landmark`` into ``game_map`` and carve a route to its door."""
-    _door, _console, _stairs = _landmark_markers(landmark)
+    _door, _arrival, _console, _stairs = _landmark_markers(landmark)
     _ranked = _candidate_origins(game_map, landmark, spawn)
     if not _ranked:
         raise ValueError("Landmark does not fit in the generated dungeon")
     _, _origin_y, _origin_x = _ranked[0]
     _origin = world.Position(_origin_x, _origin_y)
-    _protected = _stamp_map_cells(game_map, landmark, _origin)
     _entrance = world.Position(_origin.x + _door.x, _origin.y + _door.y)
     _approach = world.Position(_entrance.x, _entrance.y + 1)
-    _route = _find_route(game_map, spawn, _approach, _protected)
-    _carve_route(game_map, _route, _entrance)
+    _footprint = {
+        (_origin.x + _lx, _origin.y + _ly)
+        for _ly in range(landmark.height)
+        for _lx in range(landmark.width)
+    }
+    if _arrival is not None:
+        # The authored arrival selects the connected bridge component; the
+        # generated route enters that component at its nearest outer edge.
+        _targets = _authored_boundary_targets(
+            game_map, landmark, _origin, _arrival,
+        )
+        if not _targets:
+            raise ValueError("Landmark has no reachable outer connection")
+        _route_goal = min(
+            _targets,
+            key=lambda _position: (
+                abs(_position.x - spawn.x) + abs(_position.y - spawn.y),
+                _position.y,
+                _position.x,
+            ),
+        )
+        _route = _find_route(game_map, spawn, _route_goal, _footprint)
+        _carve_route(game_map, _route, _entrance)
+        _protected = _stamp_map_cells(game_map, landmark, _origin)
+    else:
+        # Legacy landmarks (such as the Mars signal door) are stamped first;
+        # their entrance/approach contract is defined relative to the stamped
+        # footprint and remains compatible with existing Act 0 saves.
+        _protected = _stamp_map_cells(game_map, landmark, _origin)
+        _route = _find_route(game_map, spawn, _approach, _protected)
+        _carve_route(game_map, _route, _entrance)
     return LandmarkStamp(
         origin=_origin,
         entrance=_entrance,
+        arrival=(
+            world.Position(_origin.x + _arrival.x, _origin.y + _arrival.y)
+            if _arrival is not None else None
+        ),
         console=(
             world.Position(_origin.x + _console.x, _origin.y + _console.y)
             if _console is not None else None

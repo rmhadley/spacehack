@@ -278,7 +278,7 @@ _ENEMY_GLYPHS: set[str] = {"r", "R", "S"}
 # Glyphs that place entities rather than tiles.  ``C`` remains the generic
 # ship computer marker for existing wreck layouts; landmark-specific
 # semantics are selected by the tile mapping below.
-_ENTITY_GLYPHS: set[str] = {"P", "C", "E"} | _ENEMY_GLYPHS
+_ENTITY_GLYPHS: set[str] = {"P", "C", "E", "T"} | _ENEMY_GLYPHS
 
 
 # ---------------------------------------------------------------------------
@@ -727,7 +727,10 @@ def load_layout(
 
             if ch in _ENTITY_GLYPHS or ch in enemy_spawn_specs:
                 # Entity marker — place layout's floor tile + optional entity
-                _underlay = tile_map.get(".", world.DUNGEON_FLOOR)
+                _underlay = tile_map.get(
+                    ch if ch == "T" else ".",
+                    tile_map.get(".", world.DUNGEON_FLOOR),
+                )
                 tile_row.append(_underlay)
                 if ch == "P":
                     if spawn_pos is not None:
@@ -761,6 +764,18 @@ def load_layout(
                         ),
                         pos=world.Position(col_idx, row_idx),
                         name="Engine Terminal", width=1, height=1,
+                    ))
+                elif ch == "T":
+                    entities.append(world.Entity(
+                        char="T", fg=(
+                            colour_overrides["T"].fg
+                            if "T" in colour_overrides else (150, 230, 255)
+                        ),
+                        pos=world.Position(col_idx, row_idx),
+                        name="Landmark Terminal", width=1, height=1,
+                        interaction_flavor=(
+                            "The terminal is dark. Its screen shows nothing."
+                        ),
                     ))
                 elif ch in enemy_spawn_specs:
                     # Enemy marker — defer spawn to scatter pass (like loot)

@@ -47,7 +47,7 @@ Floor order:
 | Decision | Choice |
 |----------|--------|
 | **Generation strategy** | Procedural-first: generate each floor from reusable dungeon parameters, then reserve stable structural anchors for objectives and future landmark stamping. |
-| **Authored content** | No required hand-authored floor map in the first vertical slice. Handcrafted landmarks remain a later extension point, not a prerequisite for the framework. |
+| **Authored content** | Floors remain procedurally generated, with flexible hand-authored landmarks stamped into stable footprints. Landmark layouts may define optional arrival, console, and stair markers, plus explicit void/bridge set pieces. |
 | **Floor travel** | Backtrack freely between visited floors; preserve each floor as a persistent interior. |
 | **Floor 5 outcome** | Extracting the data completes the opening Act 1 prison objective. The post-prison research branch is intentionally deferred until the prison content is finished. |
 | **Prison population** | Cells remain empty. Security defenses and random pests provide danger without populating prisoners. |
@@ -346,7 +346,7 @@ extraction, and re-enter the floor without duplicating terminals.
 ### Phase 5 — Tuning, landmarks, guide, and final regression pass
 
 - [ ] Tune security/pest populations and encounter pacing; Floor 1 security now fires from monotonic progress toward the Floor 2 stairs and spawns beside the player rather than requiring an exact generated anchor. Thresholds resolve once even if every nearby floor cell is occupied, and stair tiles are never used as deployment cells.
-- [x] Add the authored `data/landmarks/alien_prison_deep_cell.layout` landmark to Floor 5: a giant empty cell with a torn-off entrance and claw scars, stamped into the procedural floor while retaining the live data terminal and persistent footprint.
+- [x] Add the authored `data/landmarks/alien_prison_deep_cell.layout` landmark to Floor 5: a giant empty cell with a torn-off entrance, claw scars, an explicit void, a long open bridge, terminal landing, and weighted-variant selection, stamped into the procedural floor while retaining the live data terminal and persistent footprint.
 - [x] Update the in-game guide and main-quest design references; the guide now explains that the opened door ends Act 0 and the stairs begin the Act 1 prison descent.
 - [x] Add generation, transition, activation, mutation, and save/load regression tests.
 - [x] Run smoke and the full test suite.
@@ -399,8 +399,10 @@ claw scars; procedural generation supplies the approach route and persistent
 map cache.
 
 - The Floor 5 authored deep-cell landmark now provides the required cell
-  silhouette, torn entrance, and claw scars; additional landmarks remain
-  optional polish to evaluate after the full five-floor playtest.
+  silhouette, torn entrance, claw scars, explicit void, a long exposed bridge,
+  and a terminal-lined landing before the cell. Landmark selection is data-driven
+  through weighted variants; future acts can register common and rare layouts
+  without changing the stamping runtime.
 
 ### Current completion target
 

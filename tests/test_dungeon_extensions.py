@@ -680,6 +680,39 @@ def test_interaction_placement_has_unrestricted_fallback(monkeypatch):
     assert _consoles[0].pos == world.Position(2, 2)
 
 
+def test_phase_four_deep_cell_has_epic_bridge_and_terminal_landing():
+    """F5 arrival is an exposed bridge over void into a terminal landing."""
+    seed_rng(401)
+    game_map, _spawn = dungeon_extensions._generate_floor(
+        "mars_alien_prison", 5,
+    )
+
+    assert game_map.landmark_variant_id == "alien_prison_deep_cell"
+    assert game_map.tiles[game_map.entry_spawn.y][game_map.entry_spawn.x] is world.STAIRS_UP
+    assert sum(
+        tile.kind == "stairs_up"
+        for row in game_map.tiles for tile in row
+    ) == 1
+    assert world.VOID.walkable is False
+    assert world.BRIDGE.walkable is True
+    assert world.TERMINAL_LANDING.walkable is True
+    assert sum(tile.kind == "void" for row in game_map.tiles for tile in row) >= 1
+    assert sum(tile.kind == "bridge" for row in game_map.tiles for tile in row) >= 20
+    assert sum(
+        tile.kind == "terminal_landing"
+        for row in game_map.tiles for tile in row
+    ) >= 20
+    _landing_terminals = [
+        entity for entity in game_map.entities
+        if entity.name == "Landmark Terminal"
+    ]
+    assert len(_landing_terminals) >= 3
+    assert all(
+        (entity.pos.x, entity.pos.y) in game_map.landmark_footprint
+        for entity in _landing_terminals
+    )
+
+
 def test_phase_four_deep_cell_floor_has_landmark_set_dressing_and_live_terminal():
     for seed in (401, 402, 403):
         seed_rng(seed)
@@ -818,7 +851,12 @@ def test_phase_four_deep_cell_floor_round_trips():
     restored, _ = _dungeon_from_dict(payload)
 
     assert restored.extension_floor == 5
+    assert restored.landmark_variant_id == game_map.landmark_variant_id
     assert getattr(restored, "landmark_footprint", set())
+    assert restored.landmark_interaction_cells == {
+        (_cell.x, _cell.y)
+        for _cell in game_map.landmark_interaction_cells
+    }
     assert sum(
         tile.kind == "deep_cell_floor"
         for row in restored.tiles for tile in row
@@ -827,11 +865,60 @@ def test_phase_four_deep_cell_floor_round_trips():
         tile.kind == "torn_door"
         for row in restored.tiles for tile in row
     ) >= 1
-    assert any(
-        entity.dungeon_interaction == "deep_cell_data_terminal"
-        for entity in restored.entities
-    )
+    _restored_live = [
+        entity for entity in restored.entities
+        if entity.dungeon_interaction == "deep_cell_data_terminal"
+    ]
+    assert len(_restored_live) == 1
+    _terminal_position = (_restored_live[0].pos.x, _restored_live[0].pos.y)
+    assert _terminal_position in restored.landmark_footprint
+    assert _terminal_position in restored.landmark_interaction_cells
     assert any(entity.interaction_flavor for entity in restored.entities)
+
+    dungeon_extensions._ensure_floor_connections(
+        restored, "mars_alien_prison", 5,
+    )
+
+    _repaired_live = next(
+        entity for entity in restored.entities
+        if entity.dungeon_interaction == "deep_cell_data_terminal"
+    )
+    assert (_repaired_live.pos.x, _repaired_live.pos.y) == _terminal_position
+    assert (_repaired_live.pos.x, _repaired_live.pos.y) in restored.landmark_footprint
+
+
+def test_landmark_interaction_metadata_ignores_malformed_coordinates():
+    seed_rng(407)
+    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 5)
+    game_map.landmark_interaction_cells = [
+        world.Position(1, 2),
+        (3, 4),
+        ("bad", 6),
+        (7,),
+        None,
+    ]
+
+    payload = _dungeon_to_dict(game_map, None)
+
+    assert payload["landmark_interaction_cells"] == [[1, 2], [3, 4]]
+    restored, _ = _dungeon_from_dict({
+        **payload,
+        "landmark_interaction_cells": [[1, 2], ["bad", 6], [8]],
+    })
+
+    assert restored.landmark_interaction_cells == {(1, 2)}
+
+
+def test_old_dungeon_payload_without_landmark_interaction_metadata_loads():
+    seed_rng(408)
+    game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 1)
+    payload = _dungeon_to_dict(game_map, None)
+    payload.pop("landmark_interaction_cells")
+
+    restored, _ = _dungeon_from_dict(payload)
+
+    assert not hasattr(restored, "landmark_interaction_cells")
+    assert restored.extension_floor == 1
 
 
 def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
