@@ -28,6 +28,13 @@ def current_main_quest_objective(ctx) -> tuple[str, str] | None:
             _next = find_main_quest_step(_next_id)
         except KeyError:
             return None
+        if _next_id == "research_alpha_report":
+            return (
+                "Awaiting the first translation...",
+                "The Alpha Centauri processing cluster is separating and translating "
+                "the alien archive's layers. Return to the Research Officer when the "
+                "first report is ready; the work has no deadline.",
+            )
         if _next_id == "research_alpha":
             _handoff = {
                 "diagnostic_fragment": (

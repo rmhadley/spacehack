@@ -8,7 +8,8 @@ from ..data.main_quest import (
     list_main_quest_steps,
     main_quest_step_after,
 )
-from ._core import STATUS_AVAILABLE, step_status
+from ..time import add_days_to_date as _add_days_to_date
+from ._core import STATUS_AVAILABLE, STATUS_COMPLETED, step_status
 
 
 def _repair_sealed_archive_handoff(ctx) -> None:
@@ -23,6 +24,23 @@ def _repair_sealed_archive_handoff(ctx) -> None:
     ctx.main_quest_pending_message = ""
     ctx.main_quest_pending_objective = ""
     ctx.main_quest_progress["research_alpha"] = STATUS_AVAILABLE
+
+
+def _repair_instant_research_completion(ctx) -> None:
+    """Migrate saves where the old Alpha handoff translated instantly."""
+    if step_status(ctx, "research_alpha") != STATUS_COMPLETED:
+        return
+    if step_status(ctx, "research_alpha_report") != "":
+        return
+    if "research_alpha_report" in ctx.main_quest_gate:
+        return
+    _step = find_main_quest_step("research_alpha")
+    ctx.main_quest_gate["research_alpha_report"] = _add_days_to_date(
+        ctx.time_day,
+        ctx.time_month,
+        ctx.time_year,
+        _step.wait_days,
+    )
 
 
 def _research_handoff_ready_message(ctx) -> str | None:
@@ -79,6 +97,7 @@ def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
 def check_quest_gates(ctx) -> bool:
     """Flip time-gated chain steps to available once their gate date passes."""
     _repair_sealed_archive_handoff(ctx)
+    _repair_instant_research_completion(ctx)
     _normalize_pending_message(ctx)
     if not ctx.main_quest_gate:
         return False

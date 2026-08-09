@@ -9,6 +9,7 @@ from src.spacehack.data.main_quest import find_main_quest_step
 from src.spacehack.data.planets.ac_station import SPEC as AC_STATION
 from src.spacehack.main_quest import _act1
 from src.spacehack.main_quest._core import _schedule_next_step
+from src.spacehack.main_quest._objectives import maybe_complete_visit
 from src.spacehack.main_quest._breadcrumb import current_main_quest_objective
 from src.spacehack.main_quest._gates import check_quest_gates
 from src.spacehack import __main__ as game_main
@@ -44,11 +45,17 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     assert "layered signal" in _dialogue.intro
     assert "translate the simplest recurring symbols" in _dialogue.intro
     assert "coordinate sequence remains intact" in _dialogue.active
-    assert "first translation pass is complete" in _dialogue.complete
-    assert "who built it" in _dialogue.complete
+    assert "processing cluster" in _dialogue.complete
+    assert "not translated it yet" in _dialogue.complete
+    assert "first report" in _dialogue.complete
     assert "Before we call it a map" not in _dialogue.intro
-    assert not step.auto_advance
-    assert step.wait_days == 0
+    assert step.auto_advance
+    assert step.wait_days == 14
+    _report = find_main_quest_step("research_alpha_report")
+    assert _report.requires_step == "research_alpha"
+    assert _report.objective_type == "visit"
+    assert _report.wait_days == 0
+    assert "processing cluster" in _report.ready_message
 
     prison = find_main_quest_step("act1_prison")
     assert not prison.auto_advance
@@ -565,6 +572,54 @@ def test_disclosure_choices_use_context_appropriate_handoffs():
                 assert "secure route" in _description
             assert "Alpha Centauri" in _description
             assert any("handoff requires time" in entry.text for entry in ctx.log.recent(n=6))
+
+
+def test_research_handoff_starts_processing_gate_then_unlocks_report(monkeypatch):
+    ctx = _ctx()
+    monkeypatch.setattr(
+        "src.spacehack.main_quest._objectives.show_step_readout",
+        lambda _ctx, _step: None,
+    )
+    ctx.main_quest_progress["research_alpha"] = "available"
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    ctx.stats = SimpleNamespace(credits=0)
+    ctx.player_xp = 0
+    ctx.player_level = 1
+    ctx.player_skill_points = 0
+    ctx.player_traits = []
+    ctx.player_counters = SimpleNamespace()
+    ctx.player_gunnery_bonus = 0
+    ctx.player_piloting_bonus = 0
+    ctx.player_engineering_bonus = 0
+
+    assert maybe_complete_visit(ctx, "research_officer")
+    assert ctx.main_quest_progress["research_alpha"] == "completed"
+    assert ctx.main_quest_gate["research_alpha_report"] == (15, 1, 2200)
+    _title, _description = current_main_quest_objective(ctx)
+    assert _title == "Awaiting the first translation..."
+    assert "processing cluster" in _description
+
+    ctx.time_day = 15
+    assert check_quest_gates(ctx)
+    assert not ctx.main_quest_gate
+    assert ctx.main_quest_progress["research_alpha_report"] == "available"
+    assert "initial translation" in ctx.main_quest_pending_message
+
+
+def test_old_instant_research_completion_migrates_to_translation_gate():
+    ctx = _ctx()
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    ctx.main_quest_progress["research_alpha"] = "completed"
+
+    assert not check_quest_gates(ctx)
+    assert ctx.main_quest_gate["research_alpha_report"] == (15, 1, 2200)
+    _title, _description = current_main_quest_objective(ctx)
+    assert _title == "Awaiting the first translation..."
+    assert "processing cluster" in _description
 
 
 def test_old_sealed_archive_gate_migrates_to_immediate_delivery():
