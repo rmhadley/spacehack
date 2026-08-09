@@ -85,6 +85,36 @@ def test_generic_dungeon_exit_does_not_count_as_prison_departure():
     assert not game_main._is_prison_floor_one_departure(ctx)
 
 
+def test_mars_surface_detection_supports_current_and_legacy_maps():
+    ctx = _ctx()
+    _surface_map = object()
+    ctx.interiors = {"surface:mars": _surface_map}
+
+    assert game_main._is_mars_surface_map(ctx, _surface_map)
+    assert game_main._is_mars_surface_map(
+        ctx,
+        SimpleNamespace(interior_cache_key="surface:mars"),
+    )
+    assert not game_main._is_mars_surface_map(ctx, object())
+
+
+def test_surface_exit_notifies_only_for_mars_and_only_once(monkeypatch):
+    ctx = _ctx()
+    _mars_surface = object()
+    ctx.interiors = {"surface:mars": _mars_surface}
+    _calls = []
+    monkeypatch.setattr(
+        game_main,
+        "_maybe_show_post_prison_orbit",
+        lambda _ctx, _city: _calls.append((_ctx, _city)) or True,
+    )
+
+    assert game_main._notify_surface_exit(ctx, _mars_surface)
+    assert _calls == [(ctx, "mars")]
+    assert not game_main._notify_surface_exit(ctx, object())
+    assert _calls == [(ctx, "mars")]
+
+
 def test_mars_departure_helper_triggers_from_mars_launch(monkeypatch):
     """The disclosure helper remains available for the actual Mars launch."""
     ctx = _ctx()

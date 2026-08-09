@@ -216,6 +216,20 @@ def _maybe_show_post_prison_orbit(ctx, current_city_id: str) -> bool:
     return main_quest_module.maybe_show_post_prison_orbit(ctx)
 
 
+def _is_mars_surface_map(ctx, game_map) -> bool:
+    """Return whether ``game_map`` is the cached Mars surface dungeon."""
+    if getattr(game_map, "interior_cache_key", "") == "surface:mars":
+        return True
+    return ctx.interiors.get("surface:mars") is game_map
+
+
+def _notify_surface_exit(ctx, exited_map) -> bool:
+    """Deliver the post-prison scene after a surface map reaches orbit."""
+    if not _is_mars_surface_map(ctx, exited_map):
+        return False
+    return _maybe_show_post_prison_orbit(ctx, "mars")
+
+
 def _launch_from_city(
     ctx,
     console,
@@ -774,6 +788,7 @@ def _run_game(
                     continue
                 # Check if player walked onto the ordinary exit tile
                 if _tile.kind == 'exit':
+                    _exited_map = game_map
                     if space_game_map is not None and space_player is not None:
                         # Salvage wreck lifecycle: once the mission component is
                         # secured, exiting despawns the wreck (entity + spawn +
@@ -811,6 +826,7 @@ def _run_game(
                         ctx.player = player
                         current_mode = 'space'
                         log.add('You exit through the hull breach and return to your ship.')
+                        _notify_surface_exit(ctx, _exited_map)
                         continue
             if code == 'wall':
                 if current_mode == 'space':
