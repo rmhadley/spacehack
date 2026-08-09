@@ -34,6 +34,14 @@ class ActivationEvent:
     faction_label: str
     title: str
     message: str
+    # Optional state gate for late-phase events (for example, the escape
+    # response after the Floor 5 data extraction).
+    required_state: str = ""
+    # Route direction used by the progress trigger: ``down`` is the original
+    # descent route; ``up`` stages events while climbing back toward Mars.
+    route_direction: str = "down"
+    # Optional state that suppresses an event after a phase change.
+    blocked_state: str = ""
 
 
 @dataclass(frozen=True)
@@ -124,6 +132,40 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             ),
             activation_events=(
                 ActivationEvent(
+                    id="prison_ascent_f1_sentries",
+                    distance_fraction=0.20,
+                    trigger_radius=2,
+                    enemy_id="sentry_drone",
+                    count=2,
+                    max_count=2,
+                    faction_label="ALIEN SECURITY",
+                    title="SURFACE SECURITY AWAKENS",
+                    message=(
+                        "The upper staging floor is no longer dormant. Sentry drones "
+                        "drop from ceiling rails and cut off the last quiet route "
+                        "to the Mars surface."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+                ActivationEvent(
+                    id="prison_ascent_f1_final_lockdown",
+                    distance_fraction=0.68,
+                    trigger_radius=2,
+                    enemy_id="assault_drone",
+                    count=3,
+                    max_count=3,
+                    faction_label="ALIEN SECURITY",
+                    title="TOTAL FACILITY LOCKDOWN",
+                    message=(
+                        "Warning glyphs ignite across the walls. Three assault frames "
+                        "advance through the intake halls — the prison's final "
+                        "response before it lets you see the sky again."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+                ActivationEvent(
                     id="prison_floor1_security_alpha",
                     distance_fraction=0.42,
                     trigger_radius=2,
@@ -138,6 +180,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                         "security frame unfolds with a sound like breaking ice. "
                         "Something is bringing this place back online."
                     ),
+                    blocked_state="prison_data_extracted",
                 ),
                 ActivationEvent(
                     id="prison_floor1_security_beta",
@@ -154,6 +197,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                         "Whatever is waking below is more prepared than the "
                         "surface systems."
                     ),
+                    blocked_state="prison_data_extracted",
                 ),
             ),
         ),
@@ -162,6 +206,42 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             location_name="Alien Prison F2",
             has_down_stairs=True,
             feature_theme="prisoner_quarters",
+            activation_events=(
+                ActivationEvent(
+                    id="prison_ascent_f2_assault",
+                    distance_fraction=0.24,
+                    trigger_radius=2,
+                    enemy_id="assault_drone",
+                    count=2,
+                    max_count=2,
+                    faction_label="ALIEN SECURITY",
+                    title="QUARTERS LOCKDOWN",
+                    message=(
+                        "The prisoner quarters seal in sequence. Two heavy frames "
+                        "force their way through the cell blocks as the dormant "
+                        "security grid learns your route."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+                ActivationEvent(
+                    id="prison_ascent_f2_sentries",
+                    distance_fraction=0.72,
+                    trigger_radius=2,
+                    enemy_id="sentry_drone",
+                    count=2,
+                    max_count=2,
+                    faction_label="ALIEN SECURITY",
+                    title="CELL BLOCK PURSUIT",
+                    message=(
+                        "The cell doors flash awake behind you. Sentry drones pour "
+                        "from the observation posts, driving you toward the upper "
+                        "stairs."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+            ),
             params=dungeon.DungeonParams(
                 width=50,
                 height=40,
@@ -178,6 +258,42 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             location_name="Alien Prison F3",
             has_down_stairs=True,
             feature_theme="defensive_layer",
+            activation_events=(
+                ActivationEvent(
+                    id="prison_ascent_f3_sentries",
+                    distance_fraction=0.28,
+                    trigger_radius=2,
+                    enemy_id="sentry_drone",
+                    count=2,
+                    max_count=2,
+                    faction_label="ALIEN SECURITY",
+                    title="DEFENSIVE LATTICE ONLINE",
+                    message=(
+                        "The defensive layer wakes in sections. Two sentry drones "
+                        "slide from the walls and triangulate your position. "
+                        "Every corridor is becoming a firing lane."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+                ActivationEvent(
+                    id="prison_ascent_f3_heavy",
+                    distance_fraction=0.78,
+                    trigger_radius=2,
+                    enemy_id="assault_drone",
+                    count=1,
+                    max_count=1,
+                    faction_label="ALIEN SECURITY",
+                    title="DEFENSES ESCALATE",
+                    message=(
+                        "The sentries' signal summons something heavier. An assault "
+                        "drone unfolds in the corridor ahead, sealing the climb "
+                        "with bronze armor and cutting limbs."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+            ),
             params=dungeon.DungeonParams(
                 width=50,
                 height=40,
@@ -194,6 +310,25 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             location_name="Alien Prison F4",
             has_down_stairs=True,
             feature_theme="high_risk_quarters",
+            activation_events=(
+                ActivationEvent(
+                    id="prison_ascent_f4_lockdown",
+                    distance_fraction=0.25,
+                    trigger_radius=2,
+                    enemy_id="assault_drone",
+                    count=1,
+                    max_count=1,
+                    faction_label="ALIEN SECURITY",
+                    title="HIGH-RISK LOCKDOWN",
+                    message=(
+                        "The high-risk cells unlock behind you. A heavy security "
+                        "frame tears itself from a charging cradle and blocks "
+                        "the route upward. The prison is hunting you now."
+                    ),
+                    required_state="prison_data_extracted",
+                    route_direction="up",
+                ),
+            ),
             interactions=(
                 DungeonInteractionSpec(
                     id="engineering_console",
@@ -263,7 +398,10 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                         "built for something far larger than a human frame. "
                         "None of it decodes. The data is alien beyond any "
                         "human language or logic, but the sheer volume is "
-                        "proof enough: something was here, and it escaped."
+                        "proof enough: something was here, and it escaped. "
+                        "Then the dark panels flare white. Emergency power "
+                        "surges through the facility. The prison is fully awake. "
+                        "The route back to Mars will not be quiet."
                     ),
                 ),
             ),

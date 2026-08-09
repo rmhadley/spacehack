@@ -1021,14 +1021,12 @@ def _progress_reached(
     event,
     event_position: world.Position | None,
 ) -> bool:
-    """Return whether the player crossed an event's progress threshold.
+    """Return whether the player crossed an event's route threshold.
 
-    Floor 1 security is staged along the route to the next floor, not at
-    arbitrary map coordinates. A shortest-path distance to the down stairs
-    makes the trigger monotonic: once the player reaches a threshold, taking
-    a side corridor or stepping back cannot make the event unreliable.
-    ``event_position`` remains a compatibility fallback for old/corrupt maps
-    that have no usable stair connection.
+    Descent events measure progress from the upper stairs toward the lower
+    stairs. Escape events reverse that route and measure from the lower stairs
+    back toward the upper stairs. The same monotonic distance rule supports
+    both phases without relying on arbitrary generated coordinates.
     """
     _entry = getattr(game_map, "up_stair_pos", None)
     _down = getattr(game_map, "down_stair_pos", None)
@@ -1039,9 +1037,14 @@ def _progress_reached(
         or not game_map.in_bounds(_down.x, _down.y)
     ):
         return _within_trigger_radius(player_pos, event_position, event.trigger_radius)
-    _to_down = _walkable_distances(game_map, _down)
-    _total = _to_down.get((_entry.x, _entry.y))
-    _remaining = _to_down.get((player_pos.x, player_pos.y))
+    _route_origin, _route_target = (
+        (_down, _entry)
+        if getattr(event, "route_direction", "down") == "up"
+        else (_entry, _down)
+    )
+    _to_target = _walkable_distances(game_map, _route_target)
+    _total = _to_target.get((_route_origin.x, _route_origin.y))
+    _remaining = _to_target.get((player_pos.x, player_pos.y))
     if _total is None or _remaining is None:
         return _within_trigger_radius(player_pos, event_position, event.trigger_radius)
     _threshold = _total * (1.0 - min(max(event.distance_fraction, 0.0), 1.0))
@@ -1078,6 +1081,16 @@ def tick_activation(ctx) -> bool:
     for _event in _spec.activation_events:
         if _event.id in _state.activated_events:
             continue
+        if (
+            _event.required_state
+            and _event.required_state not in _state.state_flags
+        ):
+            continue
+        if (
+            _event.blocked_state
+            and _event.blocked_state in _state.state_flags
+        ):
+            continue
         _position = _event_position(ctx, _event.id)
         if not _progress_reached(
             ctx.game_map, ctx.player.pos, _event, _position,
@@ -1100,4 +1113,10 @@ def tick_activation(ctx) -> bool:
             )
         else:
             ctx.log.add("Security systems online; no deployable unit detected.")
+        # Escape events are deliberately staged. If the player crosses the
+        # whole floor in one move, release one response now and let the next
+        # dungeon tick reveal the next escalation instead of stacking the
+        # entire floor's force on the player simultaneously.
+        if getattr(_event, "route_direction", "down") == "up":
+            break
     return _fired

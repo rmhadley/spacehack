@@ -141,6 +141,8 @@ def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
     assert set(game_map.activation_positions) == {
         "prison_floor1_security_alpha",
         "prison_floor1_security_beta",
+        "prison_ascent_f1_sentries",
+        "prison_ascent_f1_final_lockdown",
     }
     assert all(game_map.is_walkable(pos.x, pos.y)
                for pos in game_map.activation_positions.values())
@@ -778,6 +780,102 @@ def test_phase_four_deep_cell_keeps_up_stair_after_theme_stamp():
             tile.kind == "deep_cell_floor"
             for row in game_map.tiles for tile in row
         ) >= 1
+
+
+def test_ascent_events_are_gated_until_data_extraction(monkeypatch):
+    seed_rng(409)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    extension_map, extension_player = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    extension_player.pos = extension_map.up_stair_pos
+
+    assert not dungeon_extensions.tick_activation(ctx)
+    assert not any(
+        event_id.startswith("prison_ascent_")
+        for event_id in ctx.dungeon_extension.activated_events
+    )
+
+    ctx.dungeon_extension.state_flags.add("prison_data_extracted")
+    extension_player.pos = extension_map.down_stair_pos
+    assert not dungeon_extensions.tick_activation(ctx)
+    assert not ctx.dungeon_extension.activated_events
+
+
+def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
+    seed_rng(410)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    floor_two, _ = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    dungeon_extensions.transition_floor(ctx, 1)
+    floor_two = ctx.game_map
+    ctx.dungeon_extension.state_flags.add("prison_data_extracted")
+    ctx.player.pos = floor_two.up_stair_pos
+
+    assert dungeon_extensions.tick_activation(ctx)
+    assert len(ctx.dungeon_extension.activated_events) == 1
+    assert ctx.dungeon_extension.activated_events == {
+        "prison_ascent_f2_assault",
+    }
+    assert sum(
+        entity.npc_char_id == "assault_drone"
+        for entity in floor_two.entities
+    ) == 2
+
+    assert dungeon_extensions.tick_activation(ctx)
+    assert ctx.dungeon_extension.activated_events == {
+        "prison_ascent_f2_assault",
+        "prison_ascent_f2_sentries",
+    }
+    assert sum(
+        entity.npc_char_id == "sentry_drone"
+        for entity in floor_two.entities
+    ) == 2
+    assert not dungeon_extensions.tick_activation(ctx)
+
+
+def test_descent_events_are_suppressed_after_extraction(monkeypatch):
+    seed_rng(411)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    extension_map, extension_player = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        lambda *args, **kwargs: None,
+    )
+    ctx.dungeon_extension.state_flags.add("prison_data_extracted")
+    extension_player.pos = extension_map.down_stair_pos
+
+    assert not dungeon_extensions.tick_activation(ctx)
+    assert not any(
+        event_id.startswith("prison_floor1_security_")
+        for event_id in ctx.dungeon_extension.activated_events
+    )
 
 
 def test_phase_four_extraction_completes_prison_objective(monkeypatch):

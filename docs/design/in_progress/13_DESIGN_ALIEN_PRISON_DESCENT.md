@@ -39,8 +39,11 @@ Floor order:
 5. **Deep cell** — the elevator arrives inside a giant empty cell. Its doors
    have been torn out by something massive and unknown. Terminals are scattered
    around the cell; only one still powers up. Extracting its incomprehensible
-   data completes the opening Act 1 prison objective. The later research trail
-   branches from the recovered data after the prison content is finished.
+   data completes the opening Act 1 prison objective and fully powers the
+   emergency systems. The ascent back toward Mars becomes a staged security
+   lockdown: each floor wakes a more dangerous response as the player climbs.
+   The later research trail branches from the recovered data after the prison
+   content is finished.
 
 ## Design decisions (locked)
 
@@ -49,7 +52,7 @@ Floor order:
 | **Generation strategy** | Procedural-first: generate each floor from reusable dungeon parameters, then reserve stable structural anchors for objectives and future landmark stamping. |
 | **Authored content** | Floors remain procedurally generated, with flexible hand-authored landmarks stamped into stable footprints. Landmark layouts may define optional arrival, console, and stair markers, plus explicit void/bridge set pieces. |
 | **Floor travel** | Backtrack freely between visited floors; preserve each floor as a persistent interior. |
-| **Floor 5 outcome** | Extracting the data completes the opening Act 1 prison objective. The post-prison research branch is intentionally deferred until the prison content is finished. |
+| **Floor 5 outcome** | Extracting the data completes the opening Act 1 prison objective and sets `prison_data_extracted`; emergency systems come fully online and unlock the authored ascent encounters. The post-prison research branch is intentionally deferred until the prison content is finished. |
 | **Prison population** | Cells remain empty. Security defenses and random pests provide danger without populating prisoners. |
 | **Narrative tone** | The facility is ancient, technologically superior, and ambiguous. The deep cell shows evidence of an unknown escape, not a direct monster reveal. |
 
@@ -64,7 +67,7 @@ Floor order:
 | **Pure computation** | Floor selection, marker lookup, and transition validation remain pure helpers where possible; interaction handlers only mutate state and log outcomes. |
 | **Domain ownership** | Prison setup/transition/objective logic belongs in a dedicated main-quest/prison module, not a larger `__main__.py` branch. |
 | **Performance** | Generate floors on first visit, cache them, cap population, and avoid regenerating or duplicating entities on re-entry. |
-| **Save/load safety** | Active floor, all visited floors, power state, elevator state, extraction state, fog, entities, and player return position survive Continue. |
+| **Save/load safety** | Active floor, all visited floors, power state, elevator state, extraction state, ascent encounter completion, fog, entities, and player return position survive Continue. |
 
 ## Data model
 
@@ -340,11 +343,19 @@ the research trail will branch from the recovered prison data later.
 
 **PLAYTEST:** Reach Floor 5, inspect inactive terminals (flavor bumps only),
 extract from the one live terminal, verify the prison objective completes in the
-quest log and Act 1's breadcrumb appears; save/Continue before and after
-extraction, and re-enter the floor without duplicating terminals.
+quest log and Act 1's breadcrumb appears. Confirm the extraction message states
+that emergency systems are fully online. Climb back through Floors 4, 3, 2, and
+1: each floor should trigger its authored ascent encounters while approaching
+the upper stairs, with the response escalating from sentries to heavy assault
+frames. If a long move crosses multiple thresholds, the floor releases only
+one ascent response per dungeon tick so the escalation remains playable rather
+than stacking every encounter at once. Save/Continue between floors and verify
+completed ascent events do not respawn or replay their popups; return to Mars
+only after the final upper-floor fight.
 
 ### Phase 5 — Tuning, landmarks, guide, and final regression pass
 
+- [x] Add the emergency ascent lockdown: Floor 5 extraction sets `prison_data_extracted`, suppresses the original descent warnings, and stages increasingly dangerous security responses on Floors 4-1 while the player climbs toward Mars. Ascent responses are one-shot and release one encounter per dungeon tick when thresholds are crossed.
 - [ ] Tune security/pest populations and encounter pacing; Floor 1 security now fires from monotonic progress toward the Floor 2 stairs and spawns beside the player rather than requiring an exact generated anchor. Thresholds resolve once even if every nearby floor cell is occupied, and stair tiles are never used as deployment cells.
 - [x] Add the authored `data/landmarks/alien_prison_deep_cell.layout` landmark to Floor 5: a giant empty cell with a torn-off entrance, claw scars, an explicit void, a long open bridge, terminal landing, and weighted-variant selection, stamped into the procedural floor while retaining the live data terminal and persistent footprint.
 - [x] Update the in-game guide and main-quest design references; the guide now explains that the opened door ends Act 0 and the stairs begin the Act 1 prison descent.

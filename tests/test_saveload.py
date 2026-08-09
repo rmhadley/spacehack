@@ -391,6 +391,111 @@ class TestSaveLoadRoundTrip:
         assert loaded.interiors["wreck:test"] is loaded.game_map
         delete_save()
 
+    def test_extraction_and_partial_ascent_round_trip(self, monkeypatch, tmp_path):
+        """Continue preserves extraction state and already-fired ascent events."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(47)
+        ctx = _build_test_ctx()
+        ctx.dungeon_extension.state_flags.add("prison_data_extracted")
+        ctx.dungeon_extension.current_floor = 2
+        ctx.dungeon_extension.activated_events = {
+            "__entry_flavor__:floor:1",
+            "prison_ascent_f2_assault",
+        }
+        ctx.dungeon_extension.active = True
+        save_game(ctx, mode="city", city_id="mars", system_id="sol")
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert "prison_data_extracted" in loaded.dungeon_extension.state_flags
+        assert loaded.dungeon_extension.activated_events == {
+            "__entry_flavor__:floor:1",
+            "prison_ascent_f2_assault",
+        }
+        assert loaded.dungeon_extension.current_floor == 2
+        delete_save()
+
+    def test_loaded_ascent_map_keeps_completed_event_and_stages_next(
+        self, monkeypatch, tmp_path,
+    ):
+        """An actual loaded prison floor resumes its staged ascent response."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        monkeypatch.setattr(
+            "src.spacehack.main_quest.show_gate_popup",
+            lambda *args, **kwargs: None,
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(48)
+        ctx = _build_test_ctx()
+        ctx.context = None
+        parent_map = GameMap(
+            12, 12,
+            [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)],
+            [],
+        )
+        parent_player = Entity("@", (255, 255, 255), Position(4, 5), "Player")
+        parent_map.entities.append(parent_player)
+        ctx.game_map = parent_map
+        ctx.player = parent_player
+        ctx.interiors = {"surface:mars": parent_map}
+        dungeon_extensions.enter_extension(
+            ctx,
+            parent_map,
+            parent_player,
+            extension_id="mars_alien_prison",
+            parent_map_key="surface:mars",
+        )
+        floor_two, floor_two_player = dungeon_extensions.transition_floor(ctx, 1)
+        ctx.dungeon_extension.activated_events.clear()
+        ctx.dungeon_extension.state_flags.add("prison_data_extracted")
+        floor_two_player.pos = floor_two.up_stair_pos
+        assert dungeon_extensions.tick_activation(ctx)
+        assert ctx.dungeon_extension.activated_events == {
+            "prison_ascent_f2_assault",
+        }
+        _assault_count = sum(
+            entity.npc_char_id == "assault_drone"
+            for entity in floor_two.entities
+        )
+
+        save_game(
+            ctx,
+            mode="dungeon",
+            city_id="mars",
+            system_id="sol",
+            space_player_pos=(3, 4),
+        )
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.dungeon_extension.activated_events == {
+            "prison_ascent_f2_assault",
+        }
+        assert sum(
+            entity.npc_char_id == "assault_drone"
+            for entity in loaded.game_map.entities
+        ) == _assault_count
+        loaded.player.pos = loaded.game_map.up_stair_pos
+        assert dungeon_extensions.tick_activation(loaded)
+        assert loaded.dungeon_extension.activated_events == {
+            "prison_ascent_f2_assault",
+            "prison_ascent_f2_sentries",
+        }
+        assert sum(
+            entity.npc_char_id == "sentry_drone"
+            for entity in loaded.game_map.entities
+        ) == 2
+        assert not dungeon_extensions.tick_activation(loaded)
+        delete_save()
+
     def test_phase_two_floor_round_trip_preserves_links_and_cache(
         self, monkeypatch, tmp_path,
     ):
