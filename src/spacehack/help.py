@@ -166,7 +166,7 @@ _GUIDE_CONTROLS = GuideSection(
         "\n\n"
         "Developer mode (SPACEHACK_DEV=1):"
         "\n"
-        "- Shift+O: skip Act 0 to the Mars door-opening interaction"
+        "- Shift+O: choose your Act 0 faction, then skip to the Mars door-opening interaction"
         "\n"
         "- Shift+R: reveal all dungeon fog"
         "\n"

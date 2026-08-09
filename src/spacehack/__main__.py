@@ -458,12 +458,32 @@ def _run_game(
                     _adv_time(ctx, 30)
                     log.add("Dev: skipped 30 days.")
                 continue
-            # Shift+O = dev mode: skip Act 0 to the Mars door-opening state.
+            # Shift+O = dev mode: choose a faction, then skip Act 0 to
+            # the Mars door-opening state.
             if _is_shift_o_press(event):
                 import os as _os
                 if _os.environ.get("SPACEHACK_DEV"):
-                    from .dev_mode import advance_main_quest as _advance_main_quest
-                    _advance_main_quest(ctx)
+                    from .dev_mode import (
+                        Outcome as _DevOutcome,
+                        advance_main_quest as _advance_main_quest,
+                        choose_main_quest_faction as _choose_main_quest_faction,
+                    )
+                    if ctx.main_quest_chain:
+                        log.add(
+                            f"[DEV MODE] Act 0 faction already set to "
+                            f"{ctx.main_quest_chain}."
+                        )
+                    else:
+                        _faction_outcome, _faction_id = _choose_main_quest_faction(
+                            ctx.context,
+                        )
+                        if _faction_outcome is _DevOutcome.QUIT:
+                            return
+                        if (
+                            _faction_outcome is _DevOutcome.CONFIRM
+                            and _faction_id is not None
+                        ):
+                            _advance_main_quest(ctx, _faction_id)
                 continue
             # F = faction standings (city or space).
             if _is_f_press(event):

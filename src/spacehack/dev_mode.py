@@ -15,7 +15,44 @@ from __future__ import annotations
 from typing import Any
 
 from . import ship as ship_module
+from . import ui
+from .input_helpers import Outcome, _run_pick
 from .data.ground_armor import list_ground_armor
+
+
+_DEV_FACTION_OPTIONS = (
+    ("militia", "Militia", "Order, procedure, and a sanctioned breach."),
+    ("merchants", "Merchants", "Routes, leverage, and a quiet way through."),
+    ("bar", "Free Captains", "Rumors, favors, and the outlaw route."),
+    ("lab", "Research Lab", "Evidence, analysis, and dangerous questions."),
+)
+_DEV_FACTION_LABELS = {option[0]: option[1] for option in _DEV_FACTION_OPTIONS}
+
+
+def main_quest_faction_menu() -> ui.MenuScreen:
+    """Return the faction picker used by the Act 0 dev shortcut."""
+    return ui.MenuScreen(
+        title="Choose Act 0 Faction",
+        instruction="ARROW KEYS or J/K navigate - ENTER select - ESC cancel",
+        options=tuple(
+            (faction_id, label)
+            for faction_id, label, _ in _DEV_FACTION_OPTIONS
+        ),
+        descriptions={
+            faction_id: description
+            for faction_id, _, description in _DEV_FACTION_OPTIONS
+        },
+    )
+
+
+def _dev_faction_label(faction_id: str) -> str:
+    """Return the display label for a registered developer faction."""
+    return _DEV_FACTION_LABELS[faction_id]
+
+
+def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
+    """Run the Act 0 faction picker for the developer shortcut."""
+    return _run_pick(context, main_quest_faction_menu())
 
 
 _GROUND_ARMOR_SLOTS = ("head", "body", "hands", "legs", "feet")
@@ -52,15 +89,20 @@ def apply_dev_ground_loadout(ctx) -> None:
     ctx.log.add("[DEV MODE] Two kinetic rifles + best armor equipped.")
 
 
-def advance_main_quest(ctx) -> None:
+def advance_main_quest(ctx, faction_id: str) -> None:
     """Put Act 0 immediately before the Mars door-opening interaction.
 
-    This helper intentionally skips rewards and faction-chain details: it
-    only creates the prerequisite story state needed to test the Mars
-    landmark and its opening animation. The caller must gate this action
-    behind ``SPACEHACK_DEV``.
+    ``faction_id`` mirrors the normal Act 0 lock-in choice, so post-prison
+    dialogue and faction-gated objectives behave like a real run. The
+    caller must gate this action behind ``SPACEHACK_DEV``.
     """
+    if faction_id not in _DEV_FACTION_LABELS:
+        raise ValueError(f"Unknown developer faction: {faction_id}")
+    if ctx.main_quest_chain and ctx.main_quest_chain != faction_id:
+        raise ValueError("Developer faction cannot replace an existing quest chain")
     _progress = ctx.main_quest_progress
+    ctx.main_quest_chain = faction_id
+    ctx.main_quest_backing.add(faction_id)
     _progress.update({
         "prologue_signal": "completed",
         "prologue_mars_unlocked": "completed",
@@ -69,7 +111,10 @@ def advance_main_quest(ctx) -> None:
     })
     if _progress.get("prologue_open") != "completed":
         _progress["prologue_open"] = "active"
-    ctx.log.add("[DEV MODE] Act 0 skipped - the Mars door can now be opened.")
+    ctx.log.add(
+        f"[DEV MODE] Act 0 skipped as {_dev_faction_label(faction_id)} - "
+        "the Mars door can now be opened."
+    )
 
 
 def apply_dev_overrides(
