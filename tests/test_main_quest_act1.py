@@ -8,6 +8,7 @@ from src.spacehack import message_log
 from src.spacehack.data.main_quest import find_main_quest_step
 from src.spacehack.data.planets.ac_station import SPEC as AC_STATION
 from src.spacehack.main_quest import _act1
+from src.spacehack import __main__ as game_main
 
 
 def _ctx():
@@ -41,6 +42,49 @@ def test_alpha_centauri_station_keeps_both_research_contacts():
     assert {"archive_research_officer", "research_officer"} <= _building_npcs
     assert dict(AC_STATION.npc_overrides)["research_officer"].id == "xenolinguist"
     assert dict(AC_STATION.npc_overrides)["archive_research_officer"].id == "research_officer"
+
+
+def test_prison_floor_one_departure_is_the_extension_exit_boundary():
+    """Only Floor 1 of the alien prison counts as the `<` departure."""
+    ctx = _ctx()
+    ctx.dungeon_extension.extension_id = "mars_alien_prison"
+    ctx.dungeon_extension.current_floor = 1
+    assert game_main._is_prison_floor_one_departure(ctx)
+
+    ctx.dungeon_extension.current_floor = 2
+    assert not game_main._is_prison_floor_one_departure(ctx)
+
+    ctx.dungeon_extension.current_floor = 1
+    ctx.dungeon_extension.extension_id = "other_extension"
+    assert not game_main._is_prison_floor_one_departure(ctx)
+
+
+def test_generic_dungeon_exit_does_not_count_as_prison_departure():
+    """A Mars derelict exit cannot accidentally launch the prison scene."""
+    ctx = _ctx()
+    ctx.dungeon_extension = SimpleNamespace(
+        extension_id="other_extension",
+        current_floor=1,
+    )
+
+    assert not game_main._is_prison_floor_one_departure(ctx)
+
+
+def test_mars_departure_helper_triggers_from_any_launch_path(monkeypatch):
+    """City launch and prison-extension departure share one trigger."""
+    ctx = _ctx()
+    _calls = []
+
+    monkeypatch.setattr(
+        game_main.main_quest_module,
+        "maybe_show_post_prison_orbit",
+        lambda _ctx: _calls.append(_ctx) or True,
+    )
+
+    assert game_main._maybe_show_post_prison_orbit(ctx, "mars")
+    assert _calls == [ctx]
+    assert not game_main._maybe_show_post_prison_orbit(ctx, "earth")
+    assert _calls == [ctx]
 
 
 def test_orbit_scene_requires_extraction_and_mars_departure():

@@ -209,6 +209,25 @@ def _adopt_dungeon_transition(ctx, game_map, player) -> None:
     ctx.ground_hp = ctx.ground_max_hp
 
 
+def _maybe_show_post_prison_orbit(ctx, current_city_id: str) -> bool:
+    """Show the one-time Mars departure scene from any launch path."""
+    if current_city_id != "mars":
+        return False
+    return main_quest_module.maybe_show_post_prison_orbit(ctx)
+
+
+def _is_prison_floor_one_departure(ctx) -> bool:
+    """Return whether stairs-up leaves the first alien-prison floor."""
+    from .dungeon_extensions import ALIEN_PRISON_EXTENSION_ID
+
+    _extension = getattr(ctx, "dungeon_extension", None)
+    return (
+        _extension is not None
+        and _extension.extension_id == ALIEN_PRISON_EXTENSION_ID
+        and _extension.current_floor == 1
+    )
+
+
 def _prep_cached_dungeon(game_map) -> world.Position | None:
     """Clear the stale player entity from a cached interior and return
     its entry spawn (first walkable tile when unrecorded).
@@ -674,6 +693,7 @@ def _run_game(
                     continue
                 if _tile.kind == 'stairs_up':
                     from .dungeon_extensions import leave_extension, transition_floor
+                    _left_prison_extension = _is_prison_floor_one_departure(ctx)
                     try:
                         if (
                             ctx.dungeon_extension is not None
@@ -693,6 +713,8 @@ def _run_game(
                         ctx.game_map = game_map
                         ctx.player = player
                         log.add(_transition_message)
+                        if _left_prison_extension:
+                            _maybe_show_post_prison_orbit(ctx, current_city_id)
                     continue
                 # Check if player walked onto the ordinary exit tile
                 if _tile.kind == 'exit':
@@ -927,8 +949,7 @@ def _run_game(
                                 ctx.game_map = game_map
                                 ctx.player = player
                                 current_mode = 'space'
-                                if current_city_id == 'mars':
-                                    main_quest_module.maybe_show_post_prison_orbit(ctx)
+                                _maybe_show_post_prison_orbit(ctx, current_city_id)
                             continue
                     else:
                         # Trade-in: if the player already owns a ship, compute its value.

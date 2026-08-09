@@ -655,7 +655,7 @@ The final choice should be explicit. The ending should reflect accumulated disco
 
 **PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, faction relationship recorded. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
 
-**PLAYTEST (Phase 2 first beat):** extract the Floor 5 data, fight back to Mars, return to the port, and launch. Verify the orbit scene appears once, shows the chosen faction's incomplete reading, and offers the three disclosure outcomes. Verify ESC resolves to the sealed-archive outcome, `research_alpha` appears in the quest log, the Alpha Centauri station has both the Research Officer and Xenolinguist, and Continue preserves the disclosure choice and one-time flag.
+**PLAYTEST (Phase 2 first beat):** extract the Floor 5 data, fight back to Mars, leave the prison via Floor 1 `<` (and separately test returning to the port and launching). Verify the orbit scene appears once on either departure route, shows the chosen faction's incomplete reading, and offers the three disclosure outcomes. Verify deeper-floor `<` transitions do not trigger it early. Verify ESC resolves to the sealed-archive outcome, `research_alpha` appears in the quest log, the Alpha Centauri station has both the Research Officer and Xenolinguist, and Continue preserves the disclosure choice and one-time flag.
 
 ### Phase 1j: Time gating + one-way summons (full pass)
 
