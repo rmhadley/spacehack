@@ -30,36 +30,47 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="research_officer",
         auto_advance=False,
         completion_flavor=(
-            "The Alpha Centauri instruments separate the archive's first layer from "
-            "the noise. It is a route, not a destination: the coordinates pass "
-            "beyond the Luyten blockade and continue through systems no human "
-            "survey has mapped. The Research Officer refuses to call that proof "
-            "of a colony, a weapon, or a rescue path. The next reading will need "
-            "more of the archive than anyone can safely expose at once."
+            "The Alpha Centauri instruments finish their first pass over the raw "
+            "archive. They isolate a recurring coordinate grammar from the prison "
+            "records, warning markers, and unresolved signal buried around it. The "
+            "pattern continues beyond the Luyten blockade through systems no human "
+            "survey has mapped. It is evidence of a route, not an explanation of "
+            "where the route ends or what used it. The deeper layers will require "
+            "more processing - and more of the archive than anyone can safely expose "
+            "at once."
         ),
         dialogues={
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
                 trigger_on_talk=True,
                 intro=(
-                    "You brought the Mars archive. Before we call it a map, I want to "
-                    "know which parts came from the instrument and which parts came "
-                    "from the interpretation you received on Mars. Put the raw record "
-                    "on the table. We will isolate the coordinate layer first and leave "
-                    "the warnings alone until we know how they are encoded."
+                    "You brought the recovered Mars data. Good. Do not call it a map "
+                    "yet. The terminal did not give us a picture; it gave us a layered "
+                    "signal with several systems speaking over one another. I can see "
+                    "repeated structures - coordinate patterns, machine-state records, "
+                    "and warning markers - but I cannot tell which layer belongs to the "
+                    "prison, which describes a route, or which is a response to something "
+                    "else. We will preserve the raw transfer, clean the signal, and "
+                    "translate the simplest recurring symbols first. Only then can we "
+                    "ask where any of it leads."
                 ),
                 active=(
-                    "The first reading is waiting in the lab. We can confirm a route "
-                    "beyond Luyten's blockade, but not what travels along it or why "
-                    "the archive was preserved. Bring the disclosure record and we "
-                    "will compare it against the raw signal."
+                    "The first processing pass is underway. We are not translating "
+                    "sentences yet; we are separating recurring symbols from the "
+                    "archive's other layers and checking that the patterns survive "
+                    "without the prison terminal's distortion. So far the coordinate "
+                    "sequence remains intact. It reaches beyond the Luyten blockade, "
+                    "but we do not know whether it marks a destination, a transit route, "
+                    "or a warning about what lies along it."
                 ),
                 complete=(
-                    "The route is real, and it continues beyond Luyten. That is the "
-                    "least dangerous conclusion we can defend. The archive's other "
-                    "layers are still entangled: network, warning, and something "
-                    "that may be an identity. We should separate them before we "
-                    "try to make the old system answer."
+                    "The first translation pass is complete. We isolated a coordinate "
+                    "grammar from the containment records and warning markers. The "
+                    "pattern continues beyond Luyten into systems no human survey has "
+                    "mapped. That proves a route exists; it does not tell us who built "
+                    "it, who used it, or why the prison archive preserved it. The next "
+                    "pass will have to translate the warnings without allowing the "
+                    "coordinate layer to contaminate the result."
                 ),
                 option_label="Begin the first interpretation",
                 dialogue_planet_id="ac_station",

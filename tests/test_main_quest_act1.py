@@ -38,9 +38,15 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     assert step.objective_type == "visit"
     assert step.requires_npc_id == "research_officer"
     assert step.trigger_planet_id == "ac_station"
-    assert step.dialogues["research_officer"].option_label == (
-        "Begin the first interpretation"
-    )
+    _dialogue = step.dialogues["research_officer"]
+    assert _dialogue.option_label == "Begin the first interpretation"
+    assert "Do not call it a map yet" in _dialogue.intro
+    assert "layered signal" in _dialogue.intro
+    assert "translate the simplest recurring symbols" in _dialogue.intro
+    assert "coordinate sequence remains intact" in _dialogue.active
+    assert "first translation pass is complete" in _dialogue.complete
+    assert "who built it" in _dialogue.complete
+    assert "Before we call it a map" not in _dialogue.intro
     assert not step.auto_advance
     assert step.wait_days == 0
 
