@@ -296,6 +296,7 @@ def _ground_hit_chance_raw(
     target_reflexes: int,
     target_dodge_bonus: int = 0,
     hit_bonus: int = 0,
+    range_penalty: int = 0,
 ) -> int:
     """Base hit chance before movement dodge.
 
@@ -306,7 +307,8 @@ def _ground_hit_chance_raw(
     bonuses (e.g. the Sharpshooter trait's +10%)."""
     _ws = _find_gw(weapon_id)
     return max(5, min(95,
-        _ws.accuracy + attacker_reflexes // 2 - target_reflexes // 2 - target_dodge_bonus + hit_bonus,
+        _ws.accuracy + attacker_reflexes // 2 - target_reflexes // 2
+        - target_dodge_bonus + hit_bonus - range_penalty,
     ))
 
 
@@ -316,6 +318,18 @@ def _ground_damage_raw(
     _ws = _find_gw(weapon_id)
     _str_bonus = strength // 10 if _ws.damage_type == 'melee' else 0
     return max(1, _ws.damage + _str_bonus - armor_defense)
+
+
+def _ground_point_blank_penalty(weapon_id: str, distance: int) -> int:
+    """Return the emergency accuracy penalty for firing inside minimum range.
+
+    Minimum range remains meaningful during normal play, but a pinned player
+    must retain an actionable response. Each cell inside the minimum range
+    costs 35 accuracy points; ordinary in-range and melee shots have no
+    penalty.
+    """
+    _ws = _find_gw(weapon_id)
+    return max(0, _ws.min_range - distance) * 35
 
 
 def _calc_ground_move_dodge(cells_moved: int) -> int:
@@ -329,11 +343,16 @@ def _calc_ground_move_dodge(cells_moved: int) -> int:
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _er = enemy.spec.reflexes if enemy.spec else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
+    _distance_cells = int(_distance(ctx.player.pos, enemy.pos))
+    _range_penalty = _ground_point_blank_penalty(
+        weapon_id, _distance_cells,
+    )
     # Sharpshooter trait: +10% hit chance in combat.
     _hit_bonus = _sharpshooter_bonus(ctx)
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
         target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
+        range_penalty=_range_penalty,
     )
 
 
@@ -363,8 +382,12 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
         return False, "No valid target"
     _target = _alive[_state.target_idx]
     _dist = int(_distance(ctx.player.pos, _target.pos))
-    if _dist > _ws.max_range or _dist < _ws.min_range:
+    if _dist > _ws.max_range:
         return False, f"Out of range ({_dist}u, need {_ws.min_range}-{_ws.max_range})"
+    _reason = ""
+    if _dist < _ws.min_range:
+        _penalty = _ground_point_blank_penalty(_weapons[slot_idx], _dist)
+        _reason = f"Emergency point-blank shot: {_penalty}% accuracy penalty."
     if _state.player_ap < _ws.ap_cost:
         return False, f"Need {_ws.ap_cost} AP (have {_state.player_ap})"
     if not _has_los(
@@ -373,7 +396,7 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
         _target.pos.x, _target.pos.y,
     ):
         return False, "Blocked by wall"
-    return True, ""
+    return True, _reason
 
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:

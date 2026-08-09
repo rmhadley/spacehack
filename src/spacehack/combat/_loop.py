@@ -119,6 +119,8 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
                 _wname = _wid
             ctx.log.add(f"{_wname}: {_reason}")
             continue
+        if _reason:
+            ctx.log.add(_reason)
 
         _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, _target, ctx)
 

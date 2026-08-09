@@ -11,10 +11,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from types import SimpleNamespace
+
+from src.spacehack import world
+from src.spacehack.combat import _loop, _rules_ground
 from src.spacehack.combat._rules_ground import (
     _ground_hit_chance_raw,
     _ground_damage_raw,
     _calc_ground_move_dodge,
+    _ground_point_blank_penalty,
 )
 
 
@@ -54,6 +59,12 @@ class TestGroundHitChanceRaw:
         chance = _ground_hit_chance_raw("fists", 0, 100, 200, 0)
         assert chance == 5
 
+    def test_point_blank_penalty_can_be_applied(self):
+        chance = _ground_hit_chance_raw(
+            "kinetic_rifle", 20, 10, range_penalty=35,
+        )
+        assert chance == 38
+
 
 # ---------------------------------------------------------------------------
 # _ground_damage_raw
@@ -87,6 +98,163 @@ class TestGroundDamageRaw:
 # ---------------------------------------------------------------------------
 # _calc_ground_move_dodge
 # ---------------------------------------------------------------------------
+
+class TestGroundPointBlankPenalty:
+    def test_no_penalty_at_or_beyond_min_range(self):
+        assert _ground_point_blank_penalty("kinetic_rifle", 2) == 0
+        assert _ground_point_blank_penalty("kinetic_rifle", 4) == 0
+
+    def test_penalty_scales_inside_min_range(self):
+        assert _ground_point_blank_penalty("kinetic_rifle", 1) == 35
+        assert _ground_point_blank_penalty("kinetic_rifle", 0) == 70
+
+
+class TestGroundCanFire:
+    def test_min_range_weapon_has_emergency_point_blank_action(self):
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(5)] for _ in range(5)]
+        _game_map = world.GameMap(5, 5, _tiles, [])
+        _player = world.Entity(
+            "@", (255, 255, 255), world.Position(2, 2), "Player",
+        )
+        _enemy = world.Entity(
+            "D", (255, 100, 100), world.Position(2, 3), "Assault Drone",
+            npc_char_id="assault_drone",
+        )
+        _game_map.entities.extend((_player, _enemy))
+        _ctx = SimpleNamespace(
+            player=_player,
+            ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            ground_hp=23,
+            ground_max_hp=23,
+            equipped_ground_weapons=["kinetic_rifle"],
+            equipped_ground_armor={},
+            player_traits=[],
+            log=SimpleNamespace(
+                add=lambda _message: None,
+                add_colored=lambda _message, _color: None,
+            ),
+        )
+
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+
+        _ok, _reason = _rules_ground.can_fire(0, _ctx)
+
+        assert _ok
+        assert "Emergency point-blank shot" in _reason
+
+
+class TestGroundPointBlankFire:
+    def test_two_adjacent_drones_do_not_softlock_min_range_rifles(self, monkeypatch):
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(5)] for _ in range(5)]
+        _game_map = world.GameMap(5, 5, _tiles, [])
+        _player = world.Entity(
+            "@", (255, 255, 255), world.Position(2, 2), "Player",
+        )
+        _left = world.Entity(
+            "D", (255, 100, 100), world.Position(2, 1), "Assault Drone",
+            npc_char_id="assault_drone",
+        )
+        _right = world.Entity(
+            "D", (255, 100, 100), world.Position(2, 3), "Assault Drone",
+            npc_char_id="assault_drone",
+        )
+        _game_map.entities.extend((_player, _left, _right))
+        _messages = []
+        _ctx = SimpleNamespace(
+            player=_player,
+            ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            ground_hp=23,
+            ground_max_hp=23,
+            equipped_ground_weapons=["kinetic_rifle", "kinetic_rifle"],
+            equipped_ground_armor={},
+            player_traits=[],
+            log=SimpleNamespace(
+                add=_messages.append,
+                add_colored=lambda _message, _color: _messages.append(_message),
+            ),
+        )
+
+        _rules_ground.init(_ctx, [_left, _right], _game_map)
+        monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+        monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
+
+        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+
+        assert _rules_ground.player_ap(_ctx) == 2
+        assert _left.hp < 39
+        assert any("Emergency point-blank shot" in _message for _message in _messages)
+
+    def test_point_blank_still_requires_clear_los(self, monkeypatch):
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(5)] for _ in range(5)]
+        _tiles[3][2] = world.DUNGEON_WALL
+        _game_map = world.GameMap(5, 5, _tiles, [])
+        _player = world.Entity(
+            "@", (255, 255, 255), world.Position(2, 2), "Player",
+        )
+        _enemy = world.Entity(
+            "D", (255, 100, 100), world.Position(2, 4), "Assault Drone",
+            npc_char_id="assault_drone",
+        )
+        _game_map.entities.extend((_player, _enemy))
+        _ctx = SimpleNamespace(
+            player=_player,
+            ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            ground_hp=23,
+            ground_max_hp=23,
+            equipped_ground_weapons=["kinetic_rifle"],
+            equipped_ground_armor={},
+            player_traits=[],
+            log=SimpleNamespace(
+                add=lambda _message: None,
+                add_colored=lambda _message, _color: None,
+            ),
+        )
+
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        monkeypatch.setattr(
+            _rules_ground,
+            "_find_gw",
+            lambda _weapon_id: SimpleNamespace(min_range=3, max_range=7, ap_cost=2),
+        )
+
+        _ok, _reason = _rules_ground.can_fire(0, _ctx)
+
+        assert not _ok
+        assert _reason == "Blocked by wall"
+
+    def test_point_blank_still_requires_ap(self):
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(5)] for _ in range(5)]
+        _game_map = world.GameMap(5, 5, _tiles, [])
+        _player = world.Entity(
+            "@", (255, 255, 255), world.Position(2, 2), "Player",
+        )
+        _enemy = world.Entity(
+            "D", (255, 100, 100), world.Position(2, 3), "Assault Drone",
+            npc_char_id="assault_drone",
+        )
+        _game_map.entities.extend((_player, _enemy))
+        _ctx = SimpleNamespace(
+            player=_player,
+            ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            ground_hp=23,
+            ground_max_hp=23,
+            equipped_ground_weapons=["kinetic_rifle"],
+            equipped_ground_armor={},
+            player_traits=[],
+            log=SimpleNamespace(
+                add=lambda _message: None,
+                add_colored=lambda _message, _color: None,
+            ),
+        )
+
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _rules_ground.set_player_ap(_ctx, 0)
+
+        _ok, _reason = _rules_ground.can_fire(0, _ctx)
+
+        assert not _ok
+        assert "Need 2 AP" in _reason
+
 
 class TestCalcGroundMoveDodge:
     def test_no_movement(self):
