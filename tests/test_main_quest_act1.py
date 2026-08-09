@@ -69,7 +69,15 @@ def test_mars_surface_detection_supports_current_and_legacy_maps():
         ctx,
         SimpleNamespace(interior_cache_key="surface:mars"),
     )
+    assert game_main._is_mars_facility_map(
+        ctx,
+        SimpleNamespace(extension_id="mars_alien_prison"),
+    )
     assert not game_main._is_mars_surface_map(ctx, object())
+    assert not game_main._is_mars_facility_map(
+        ctx,
+        SimpleNamespace(extension_id="other_facility"),
+    )
 
 
 def test_surface_exit_notifies_only_for_mars_and_only_once(monkeypatch):
@@ -342,10 +350,129 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
     assert ctx.post_prison_orbit_seen
     assert ctx.main_quest_disclosure == "diagnostic_fragment"
     assert _modal_calls == [True]
+    assert any(
+        "return to Mars orbit" in entry.text
+        for entry in ctx.log.recent(n=8)
+    )
     assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
     assert _modal_calls == [True]
 
 
+def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeypatch):
+    """A Continue-restored prison map still reaches the orbit handoff."""
+    ctx = _ctx()
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    ctx.context = SimpleNamespace(present=lambda _console: None)
+    ctx.interiors = {}
+    _loaded_prison = SimpleNamespace(
+        extension_id="mars_alien_prison",
+        extension_floor=1,
+    )
+    _space_map = object()
+    _space_player = object()
+    _ship = SimpleNamespace(ship_id="starter")
+    monkeypatch.setattr(
+        game_main.ship_module,
+        "find_ship",
+        lambda _ship_id: _ship,
+    )
+    monkeypatch.setattr(
+        game_main,
+        "_build_space_return",
+        lambda _ctx, _city, _spec: (_space_map, _space_player),
+    )
+    import tcod.event
+
+    monkeypatch.setattr(_act1, "make_console", lambda: object())
+
+    def _confirm(_modal, _render, update):
+        return update(
+            tcod.event.KeyDown(
+                scancode=tcod.event.Scancode.RETURN,
+                sym=ui._ENTER_SYMS[0],
+                mod=0,
+            )
+        )
+
+    monkeypatch.setattr(ui.Modal, "run", _confirm)
+
+    result = game_main._handle_dungeon_exit_tile(
+        ctx,
+        "exit",
+        _loaded_prison,
+        None,
+        None,
+        _ship,
+        [],
+        ctx.log,
+    )
+
+    assert result == (_space_map, _space_player, "space")
+    assert ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    assert any(
+        "return to Mars orbit" in entry.text
+        for entry in ctx.log.recent(n=8)
+    )
+
+
+def test_interrupted_orbit_scene_preserves_choice_until_confirmation(monkeypatch):
+    import tcod.event
+
+    ctx = _ctx()
+    ctx.context = SimpleNamespace(present=lambda _console: None)
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    monkeypatch.setattr(_act1, "make_console", lambda: object())
+    monkeypatch.setattr(
+        ui.Modal,
+        "run",
+        lambda _modal, _render, _update: _act1.OrbitSceneOutcome.QUIT,
+    )
+
+    assert not _act1.maybe_show_post_prison_orbit(ctx)
+    assert not ctx.post_prison_orbit_seen
+    assert not ctx.main_quest_disclosure
+
+    def _confirm(_modal, _render, update):
+        return update(
+            tcod.event.KeyDown(
+                scancode=tcod.event.Scancode.RETURN,
+                sym=ui._ENTER_SYMS[0],
+                mod=0,
+            )
+        )
+
+    monkeypatch.setattr(ui.Modal, "run", _confirm)
+    assert _act1.maybe_show_post_prison_orbit(ctx)
+    assert ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+
+
+def test_derelict_exit_keeps_hull_breach_message():
+    ctx = _ctx()
+    _wreck = SimpleNamespace(wreck_spawn_id="random-wreck")
+    _space_map = object()
+    _space_player = object()
+
+    result = game_main._leave_dungeon_to_space(
+        ctx,
+        _wreck,
+        _space_map,
+        _space_player,
+        None,
+        [],
+        ctx.log,
+    )
+
+    assert result == (_space_map, _space_player)
+    assert any(
+        "hull breach" in entry.text
+        for entry in ctx.log.recent(n=8)
+    )
 
 
 def test_disclosure_choices_use_context_appropriate_handoffs():

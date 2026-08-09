@@ -230,9 +230,21 @@ def _is_mars_surface_map(ctx, game_map) -> bool:
     return ctx.interiors.get("surface:mars") is game_map
 
 
+def _is_wreck_interior(game_map) -> bool:
+    """Return whether a dungeon map belongs to a boarded wreck."""
+    return getattr(game_map, "wreck_spawn_id", None) is not None
+
+
+def _is_mars_facility_map(ctx, game_map) -> bool:
+    """Return whether a map belongs to Mars surface or its prison."""
+    if _is_mars_surface_map(ctx, game_map):
+        return True
+    return getattr(game_map, "extension_id", "") == "mars_alien_prison"
+
+
 def _notify_surface_exit(ctx, exited_map) -> bool:
-    """Deliver the post-prison scene after a surface map reaches orbit."""
-    if not _is_mars_surface_map(ctx, exited_map):
+    """Deliver the post-prison scene when a Mars facility reaches orbit."""
+    if _is_wreck_interior(exited_map) or not _is_mars_facility_map(ctx, exited_map):
         return False
     return _maybe_show_post_prison_orbit(ctx, "mars")
 
@@ -305,7 +317,7 @@ def _leave_dungeon_to_space(
     """Return from a dungeon exit to space and notify the orbit scene."""
     _exited_map = game_map
     if space_game_map is None or space_player is None:
-        if not _is_mars_surface_map(ctx, _exited_map) or player_owned_ship is None:
+        if not _is_mars_facility_map(ctx, _exited_map) or player_owned_ship is None:
             log.add("You have no ship waiting outside.")
             return None
         _return_ship = ship_module.find_ship(player_owned_ship.ship_id)
@@ -322,7 +334,12 @@ def _leave_dungeon_to_space(
                 _remove_salvage_wreck(
                     ctx, _wsid, space_game_map,
                 )
-    ctx.log.add("You exit through the hull breach and return to your ship.")
+    if _is_wreck_interior(_exited_map):
+        log.add("You exit through the hull breach and return to your ship.")
+    elif _is_mars_facility_map(ctx, _exited_map):
+        log.add("You leave the prison complex and return to Mars orbit.")
+    else:
+        log.add("You return to your ship.")
     _notify_surface_exit(ctx, _exited_map)
     return space_game_map, space_player
 
