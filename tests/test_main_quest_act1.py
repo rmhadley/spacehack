@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import message_log
+from src.spacehack import dungeon_extensions, message_log, ui, world
 from src.spacehack.data.main_quest import find_main_quest_step
 from src.spacehack.data.planets.ac_station import SPEC as AC_STATION
 from src.spacehack.main_quest import _act1
@@ -84,8 +84,8 @@ def test_generic_dungeon_exit_does_not_count_as_prison_departure():
     assert not game_main._is_prison_floor_one_departure(ctx)
 
 
-def test_mars_departure_helper_triggers_from_any_launch_path(monkeypatch):
-    """City launch and prison-extension departure share one trigger."""
+def test_mars_departure_helper_triggers_from_mars_launch(monkeypatch):
+    """The disclosure helper remains available for the actual Mars launch."""
     ctx = _ctx()
     _calls = []
 
@@ -99,6 +99,95 @@ def test_mars_departure_helper_triggers_from_any_launch_path(monkeypatch):
     assert _calls == [ctx]
     assert not game_main._maybe_show_post_prison_orbit(ctx, "earth")
     assert _calls == [ctx]
+
+
+def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
+    """The real exit-then-launch sequence delivers the disclosure once."""
+    import tcod.event
+
+    ctx = _ctx()
+    ctx.context = None
+    _parent_map = world.GameMap(
+        12, 12,
+        [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)],
+        [],
+    )
+    _parent_player = world.Entity(
+        "@", (255, 255, 255), world.Position(4, 5), "Player",
+    )
+    _parent_map.entities.append(_parent_player)
+    ctx.interiors = {"surface:mars": _parent_map}
+    ctx.dungeon_extension = None
+    _extension_map, _ = dungeon_extensions.enter_extension(
+        ctx,
+        _parent_map,
+        _parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+    ctx.dungeon_extension.state_flags.add("prison_data_extracted")
+    dungeon_extensions.leave_extension(ctx, _extension_map)
+    ctx.time_day = 1
+    ctx.time_month = 1
+    ctx.time_year = 2200
+    ctx.context = SimpleNamespace(present=lambda _console: None)
+
+    monkeypatch.setattr(_act1, "make_console", lambda: object())
+    monkeypatch.setattr(
+        ui.Modal,
+        "run",
+        lambda _modal, _render, update: update(
+            tcod.event.KeyDown(
+                scancode=tcod.event.Scancode.RETURN,
+                sym=ui._ENTER_SYMS[0],
+                mod=0,
+            )
+        ),
+    )
+
+    _launch_calls = []
+    monkeypatch.setattr(
+        game_main,
+        "_launch_to_space",
+        lambda *_args, **_kwargs: (
+            _launch_calls.append(True) or (_parent_map, _parent_player)
+        ),
+    )
+    _owned_ship = SimpleNamespace(ship_id="starter")
+    _hangar_ship = world.Entity(
+        "S", (255, 255, 255), world.Position(5, 5), "Owned ship",
+        ship_id="starter", owned=True,
+    )
+    _parent_map.entities.append(_hangar_ship)
+
+    assert not ctx.post_prison_orbit_seen
+    _space_map, _space_player = game_main._launch_owned_ship(
+        ctx,
+        object(),
+        game_main.ShipMenuAction.LAUNCH,
+        _owned_ship,
+        _parent_map,
+        _parent_player,
+        "mars",
+        object(),
+    )
+    assert _launch_calls == [True]
+    assert (_space_map, _space_player) == (_parent_map, _parent_player)
+    assert ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    _launch_from_city_result = game_main._launch_owned_ship(
+        ctx,
+        object(),
+        game_main.ShipMenuAction.LAUNCH,
+        _owned_ship,
+        _parent_map,
+        _parent_player,
+        "mars",
+        object(),
+    )
+    assert _launch_from_city_result == (_parent_map, _parent_player)
+    assert _launch_calls == [True, True]
+    assert ctx.post_prison_orbit_seen
 
 
 def test_prison_completion_shows_departure_breadcrumb_before_orbit_scene():

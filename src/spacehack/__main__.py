@@ -216,6 +216,62 @@ def _maybe_show_post_prison_orbit(ctx, current_city_id: str) -> bool:
     return main_quest_module.maybe_show_post_prison_orbit(ctx)
 
 
+def _launch_from_city(
+    ctx,
+    console,
+    city_game_map,
+    hangar_ship,
+    ship,
+    current_city_id: str,
+    city_player,
+) -> tuple[world.GameMap, world.Entity]:
+    """Launch from a city and deliver any pending Mars-orbit scene."""
+    _space_map, _space_player = _launch_to_space(
+        ctx,
+        console,
+        city_game_map,
+        hangar_ship,
+        ship,
+        current_city_id=current_city_id,
+        city_player=city_player,
+    )
+    _maybe_show_post_prison_orbit(ctx, current_city_id)
+    return _space_map, _space_player
+
+
+def _launch_owned_ship(
+    ctx,
+    console,
+    result,
+    player_owned_ship,
+    city_game_map,
+    city_player,
+    current_city_id: str,
+    ship,
+) -> tuple[world.GameMap, world.Entity] | None:
+    """Handle the selected owned-ship launch from a city hangar."""
+    if result is not ShipMenuAction.LAUNCH or player_owned_ship is None:
+        return None
+    _hangar_ship = next(
+        (
+            _entity for _entity in city_game_map.entities
+            if _entity.owned and _entity.ship_id == player_owned_ship.ship_id
+        ),
+        None,
+    )
+    if _hangar_ship is None:
+        return None
+    return _launch_from_city(
+        ctx,
+        console,
+        city_game_map,
+        _hangar_ship,
+        ship,
+        current_city_id,
+        city_player,
+    )
+
+
 def _is_prison_floor_one_departure(ctx) -> bool:
     """Return whether stairs-up leaves the first alien-prison floor."""
     from .dungeon_extensions import ALIEN_PRISON_EXTENSION_ID
@@ -713,8 +769,8 @@ def _run_game(
                         ctx.game_map = game_map
                         ctx.player = player
                         log.add(_transition_message)
-                        if _left_prison_extension:
-                            _maybe_show_post_prison_orbit(ctx, current_city_id)
+                        # Returning to Mars is not orbit departure. Leave the
+                        # disclosure scene queued until the player launches.
                     continue
                 # Check if player walked onto the ordinary exit tile
                 if _tile.kind == 'exit':
@@ -940,17 +996,22 @@ def _run_game(
                         result = _run_ship_menu(ctx, ship)
                         if result is ShipMenuAction.QUIT:
                             return
-                        if result is ShipMenuAction.LAUNCH and player_owned_ship is not None:
-                            hangar_ship = next((e for e in city_game_map.entities if e.owned and e.ship_id == player_owned_ship.ship_id), None)
-                            if hangar_ship is not None:
-                                space_game_map, space_player_entity = _launch_to_space(ctx, console, city_game_map, hangar_ship, ship, current_city_id=current_city_id, city_player=city_player)
-                                game_map = space_game_map
-                                player = space_player_entity
-                                ctx.game_map = game_map
-                                ctx.player = player
-                                current_mode = 'space'
-                                _maybe_show_post_prison_orbit(ctx, current_city_id)
-                            continue
+                        _launch_result = _launch_owned_ship(
+                            ctx,
+                            console,
+                            result,
+                            player_owned_ship,
+                            city_game_map,
+                            city_player,
+                            current_city_id,
+                            ship,
+                        )
+                        if _launch_result is not None:
+                            game_map, player = _launch_result
+                            ctx.game_map = game_map
+                            ctx.player = player
+                            current_mode = 'space'
+                        continue
                     else:
                         # Trade-in: if the player already owns a ship, compute its value.
                         _trade_in_value = 0

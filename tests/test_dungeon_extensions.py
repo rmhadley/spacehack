@@ -36,6 +36,8 @@ def _ctx(parent_map: world.GameMap, parent_player: world.Entity):
         faction_reputation={},
         main_quest_gate={},
         main_quest_chain="",
+        main_quest_disclosure="",
+        post_prison_orbit_seen=False,
     )
 
 
@@ -255,6 +257,35 @@ def test_extension_entry_and_leave_preserve_parent_position():
     assert returned_player.pos == world.Position(4, 5)
     assert not ctx.dungeon_extension.active
     assert sum(entity.char == "@" for entity in parent_map.entities) == 1
+
+
+def test_prison_exit_does_not_consume_orbit_disclosure_state():
+    """Returning to Mars leaves the orbit disclosure queued for launch."""
+    seed_rng(8)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    ctx.main_quest_progress["act1_prison"] = "completed"
+    ctx.dungeon_extension = DungeonExtensionState(
+        extension_id="mars_alien_prison",
+        current_floor=1,
+        active=True,
+        parent_map_key="surface:mars",
+        parent_position=parent_player.pos,
+        state_flags={"prison_data_extracted"},
+    )
+    extension_map, _ = dungeon_extensions.enter_extension(
+        ctx,
+        parent_map,
+        parent_player,
+        extension_id="mars_alien_prison",
+        parent_map_key="surface:mars",
+    )
+
+    dungeon_extensions.leave_extension(ctx, extension_map)
+
+    assert not ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == ""
+    assert "prison_data_extracted" in ctx.dungeon_extension.state_flags
 
 
 def test_activation_fires_once_and_persists_event_id(monkeypatch):
