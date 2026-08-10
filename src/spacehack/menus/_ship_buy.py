@@ -22,27 +22,71 @@ from ..input_helpers import _try_open_guide
 
 def _pygame_ship_buy_enabled() -> bool:
     """Return whether the Pygame Ship Buy modal can render in this runtime."""
-    return pygame_ui.presentation_enabled()
+    from .. import pygame_screen
+
+    return pygame_screen.enabled()
 
 
-def _run_pygame_ship_buy(ctx, ship, effective_price: int | None) -> "ShipBuyOutcome | None":
+def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, selected: int):
+    """Build a modern framed snapshot of the ship-buy modal."""
+    from .. import pygame_screen
+
+    _price = effective_price if effective_price is not None else ship.price
+    _afford = ctx.stats.credits >= _price
+    _short = max(0, _price - ctx.stats.credits)
+    body = (ship.description,)
+    if effective_price is not None and effective_price < ship.price:
+        _trade_in_save = ship.price - effective_price
+        body += (f"Trade-in value: {_trade_in_save}$  -  credits: {ctx.stats.credits}$",)
+    if not _afford:
+        body += (f"You are {_short}$ short of the asking price.",)
+    detail = (
+        f"Price {_price}$  Credits {ctx.stats.credits}$"
+        + ("" if _afford else f"  ({_short}$ short)")
+    )
+    rows = (
+        pygame_screen.ScreenRow(
+            f"Buy the {ship.name} - {_price}$",
+            detail,
+            "BUY",
+        ),
+    )
+    footer = (
+        "ENTER buy   ESC walk away   ? guide",
+    )
+    return pygame_screen.ScreenFrame(
+        f"{ship.name.upper()} - for sale",
+        body,
+        rows,
+        footer,
+        selected,
+    )
+
+
+def _run_pygame_ship_buy(ctx, ship: ship_module.Ship, effective_price: int | None) -> "ShipBuyOutcome | None":
     """Run Ship Buy in the shared Pygame screen."""
-    from ..pygame_ship_buy import PygameShipBuyUnavailable, run_for_context
+    from .. import pygame_screen
 
+    selected = 0
     while True:
-        outcome = run_for_context(
-            getattr(ctx, "context", ctx), ctx, ship, effective_price,
+        outcome, action, selected = pygame_screen.run_for_context(
+            ctx.context,
+            _ship_buy_frame(ctx, ship, effective_price, selected),
+            caption="spacehack - ship buy",
         )
-        if outcome == "BUY":
-            return ShipBuyOutcome.BUY
-        if outcome == "TOO_EXPENSIVE":
-            return ShipBuyOutcome.TOO_EXPENSIVE
-        if outcome == "QUIT":
-            return ShipBuyOutcome.QUIT
         if outcome == "GUIDE":
             from ..help import _open_context_guide
             _open_context_guide(ctx, "Ships & Equipment")
             continue
+        if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
+            continue
+        if outcome == "SELECT" and action == "BUY":
+            _price = effective_price if effective_price is not None else ship.price
+            if ctx.stats.credits >= _price:
+                return ShipBuyOutcome.BUY
+            return ShipBuyOutcome.TOO_EXPENSIVE
+        if outcome == "QUIT":
+            return ShipBuyOutcome.QUIT
         return ShipBuyOutcome.BACK
 
 

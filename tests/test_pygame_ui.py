@@ -10,7 +10,6 @@ from src.spacehack import (
     pygame_menu,
     pygame_merchant,
     pygame_quest_log,
-    pygame_ship_buy,
     pygame_story,
     pygame_ui,
     pygame_world,
@@ -20,7 +19,7 @@ from src.spacehack import (
     pygame_navigation,
     animation_timing,
 )
-from src.spacehack.menus import _armory, _missions, _planet, _ship_menu
+from src.spacehack.menus import _armory, _missions, _planet, _ship_buy, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
 from src.spacehack.main_quest import _act0
 
@@ -756,36 +755,79 @@ def test_captured_quest_rows_merge_cells_by_color():
     )
 
 
-def test_ship_buy_frame_payload_round_trips_text_colors_and_affordability():
-    frame = pygame_ship_buy.ShipBuyFrame(
-        rows=((pygame_quest_log.QuestSpan("Cost: 100$", (255, 255, 255)),),),
-        can_buy=False,
+def test_ship_buy_frame_uses_modern_screen_contract_with_live_price():
+    ship = SimpleNamespace(
+        name="Scout", description="Fast courier.", price=5000,
     )
+    ctx = SimpleNamespace(stats=SimpleNamespace(credits=2000))
 
-    payload = pygame_ship_buy._worker_payload(frame)
-    restored = pygame_ship_buy._frame_from_payload(payload["frame"])
+    frame = _ship_buy._ship_buy_frame(ctx, ship, None, 0)
 
-    assert restored == frame
-    assert payload["font_size"] == 20
+    assert frame.title == "SCOUT - for sale"
+    assert frame.body == ("Fast courier.", "You are 3000$ short of the asking price.")
+    assert frame.rows[0].text == "Buy the Scout - 5000$"
+    assert "5000$" in frame.rows[0].detail
+    assert "3000$" in frame.rows[0].detail
+    assert frame.rows[0].action == "BUY"
 
 
-def test_ship_buy_key_mapping_preserves_purchase_contract():
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        K_ESCAPE = 10
-        K_RETURN = 11
-        K_KP_ENTER = 12
-        K_QUESTION = 13
+def test_ship_buy_frame_shows_trade_in_and_affordability():
+    ship = SimpleNamespace(
+        name="Freighter", description="Big hold.", price=8000,
+    )
+    ctx = SimpleNamespace(stats=SimpleNamespace(credits=6000))
 
-    fake = FakePygame()
-    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+    frame = _ship_buy._ship_buy_frame(ctx, ship, 5000, 0)
 
-    assert pygame_ship_buy._handle_key(fake, SimpleNamespace(type=fake.QUIT), True) == "QUIT"
-    assert pygame_ship_buy._handle_key(fake, key(fake.K_ESCAPE), True) == "BACK"
-    assert pygame_ship_buy._handle_key(fake, key(fake.K_RETURN), True) == "BUY"
-    assert pygame_ship_buy._handle_key(fake, key(fake.K_RETURN), False) == "TOO_EXPENSIVE"
-    assert pygame_ship_buy._handle_key(fake, key(fake.K_QUESTION), True) == "GUIDE"
+    assert any("Trade-in value: 3000$" in line for line in frame.body)
+    assert frame.rows[0].text == "Buy the Freighter - 5000$"
+    assert "5000$" in frame.rows[0].detail
+    assert "short" not in frame.rows[0].detail.lower()
+
+
+def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
+    from src.spacehack import pygame_screen
+
+    ship = SimpleNamespace(name="Scout", description="Fast.", price=5000)
+    outcomes = iter((("GUIDE", "", 0), ("SELECT", "BUY", 0)))
+    captured = {}
+
+    def fake_run(_context, frame, **_kwargs):
+        captured["frame"] = frame
+        return next(outcomes)
+
+    monkeypatch.setattr(pygame_screen, "run_for_context", fake_run)
+    monkeypatch.setattr("src.spacehack.help._open_context_guide", lambda _ctx, _topic: None)
+
+    ctx = SimpleNamespace(
+        context=object(),
+        stats=SimpleNamespace(credits=6000),
+    )
+    assert _ship_buy._run_pygame_ship_buy(ctx, ship, None) is _ship_buy.ShipBuyOutcome.BUY
+    assert captured["frame"].title == "SCOUT - for sale"
+
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_for_context",
+        lambda _context, _frame, **_kwargs: ("SELECT", "BUY", 0),
+    )
+    poor_ctx = SimpleNamespace(
+        context=object(),
+        stats=SimpleNamespace(credits=100),
+    )
+    assert _ship_buy._run_pygame_ship_buy(
+        poor_ctx, ship, None,
+    ) is _ship_buy.ShipBuyOutcome.TOO_EXPENSIVE
+
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_for_context",
+        lambda _context, _frame, **_kwargs: ("BACK", "", 0),
+    )
+    assert _ship_buy._run_pygame_ship_buy(
+        SimpleNamespace(context=object(), stats=SimpleNamespace(credits=6000)),
+        ship, None,
+    ) is _ship_buy.ShipBuyOutcome.BACK
 
 
 def test_pygame_presentation_is_enabled_without_migration_flags():
@@ -2011,17 +2053,13 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
         lambda *args, **kwargs: calls.append("quantity") or None,
     )
     monkeypatch.setattr(
-        pygame_ship_buy, "run_shared",
-        lambda *args, **kwargs: calls.append("ship_buy") or "BACK",
-    )
-    monkeypatch.setattr(
         pygame_quest_log, "run_shared",
         lambda *args, **kwargs: calls.append("quest_log") or ("BACK", 0),
     )
 
     for module in (
         pygame_menu, pygame_screen, pygame_split,
-        pygame_quantity, pygame_ship_buy, pygame_quest_log,
+        pygame_quantity, pygame_quest_log,
     ):
         monkeypatch.setattr(
             module, "run", lambda *args, **kwargs: (_ for _ in ()).throw(
@@ -2038,14 +2076,13 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
     assert pygame_screen.run_for_context(context, screen_frame)[0] == "BACK"
     assert pygame_batch.run_for_context(context, lambda _console: None) == "BACK"
     assert pygame_quantity.run_for_context(context, game_ctx, "Buy", 1) is None
-    assert pygame_ship_buy.run_for_context(context, game_ctx, SimpleNamespace()) == "BACK"
     assert pygame_quest_log.run_for_context(game_ctx)[0] == "BACK"
 
     assert pygame_split.run_interactive(
         game_ctx, lambda: split_frame, lambda *_args: True, caption="test",
     ) == "BACK"
     assert calls == [
-        "menu", "screen", "batch", "quantity", "ship_buy", "quest_log", "split",
+        "menu", "screen", "batch", "quantity", "quest_log", "split",
     ]
 
 
