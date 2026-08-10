@@ -68,36 +68,39 @@ def _frame_from_payload(raw: dict[str, Any]) -> MenuFrame:
     )
 
 
-def _max_text_width(frames: tuple[MenuFrame, ...]) -> int:
-    """Estimate the widest menu line in characters."""
-    return max(
-        (
-            max(
-                [len(frame.title), len(frame.body), *map(len, frame.hints),
-                 *(len(item.label) for item in frame.items),
-                 *(len(item.description) for item in frame.items)],
-                default=1,
+def _content_width(width: int) -> int:
+    """Return the worker panel's usable text width."""
+    return max(1, width - 132)
+
+
+def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
+    """Measure one frame using the same wrapping rules as the renderer."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    line_height = font.get_linesize()
+    body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
+    height = len(body_lines) * (line_height + 3) + 10
+    for index, item in enumerate(frame.items):
+        height += line_height + 14
+        if index == frame.selected and item.description:
+            description_lines = pygame_ui.wrap_text(
+                item.description, content_width - 28, measure,
             )
-            for frame in frames
-        ),
-        default=1,
-    )
+            height += max(1, len(description_lines)) * (line_height + 2)
+    height += 8 + len(frame.hints) * (line_height + 4)
+    return height
 
 
 def _fit_font(pygame: Any, frames: tuple[MenuFrame, ...], width: int, height: int) -> Any:
-    """Choose the largest readable font that fits every menu frame."""
+    """Choose the largest font that fits wrapped content in every frame."""
     path = _font_path(pygame)
-    max_chars = _max_text_width(frames)
-    max_rows = max(
-        (3 + len(frame.items) * 2 + len(frame.hints) for frame in frames),
-        default=1,
-    )
+    content_width = _content_width(width)
+    available_height = max(1, height - 132)
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
-        if (
-            font.get_linesize() * max_rows <= height - 96
-            and font.size("M" * max_chars)[0] <= width - 96
-        ):
+        if all(
+            _frame_height(font, frame, content_width) <= available_height
+            for frame in frames
+        ) and font.size("M")[0] <= content_width:
             return font
     return pygame.font.Font(path, 12)
 
@@ -117,7 +120,7 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
         panel.width - 48, color=palette.border,
     )
     x = panel.x + 34
-    content_width = panel.width - 68
+    content_width = _content_width(width)
     y = panel.y + 76
     measure = lambda text: pygame_ui.measure_font(font, text)
     for line in pygame_ui.wrap_text(frame.body, content_width, measure):

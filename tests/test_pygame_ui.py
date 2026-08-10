@@ -389,6 +389,44 @@ def test_navigation_update_preserves_back_quit_and_ignore_contract():
     ) is navigation.NavigationOutcome.BACK
 
 
+def test_selectable_menu_wraps_long_mission_text_without_tiny_font():
+    class FakeFont:
+        def __init__(self, size):
+            self.point_size = size
+
+        def get_linesize(self):
+            return self.point_size + 6
+
+        def size(self, text):
+            return len(text) * self.point_size // 2, self.point_size
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(_family):
+                return None
+
+            @staticmethod
+            def Font(_path, size):
+                return FakeFont(size)
+
+    long_description = "Cargo and deadline details. " * 30
+    frame = pygame_menu.MenuFrame(
+        title="Guild Master - available work",
+        body="Select a contract to review its details.",
+        items=(pygame_menu.MenuItem("Deliver supplies", long_description, "0"),),
+        hints=("ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",),
+        selected=0,
+    )
+
+    font = pygame_menu._fit_font(FakePygame, (frame,), 1600, 960)
+
+    assert font.point_size == 24
+    assert pygame_menu._frame_height(
+        font, frame, pygame_menu._content_width(1600),
+    ) <= 828
+
+
 def test_selectable_menu_frame_payload_round_trips_actions():
     frame = pygame_menu.MenuFrame(
         title="Mars",

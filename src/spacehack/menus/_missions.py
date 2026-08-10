@@ -5,6 +5,7 @@ Extracted from the old ``menus.py`` during the package refactor.
 
 from __future__ import annotations
 from enum import Enum, auto
+import os
 
 import tcod.console
 import tcod.event
@@ -205,7 +206,10 @@ def _run_pygame_interactive_missions(
     frames = tuple(
         pygame_menu.MenuFrame(
             title=f"{npc.name} - available work",
-            body=offerings[index].description if offerings else "No work is available right now.",
+            body=(
+                "Select a contract to review its details."
+                if offerings else "No work is available right now."
+            ),
             items=items,
             hints=("ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",),
             selected=index,
