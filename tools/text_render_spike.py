@@ -153,6 +153,16 @@ def _draw_panel_frame(pygame: Any, screen: Any, rect: PanelRect, title: str, fon
     screen.blit(title_surface, (rect.x + 20, rect.y + 18))
 
 
+def _bitmap_tile_or_none(tileset: Any, character: str) -> Any:
+    """Return a mapped glyph tile, or ``None`` for a blank/unmapped cell."""
+    if character == " ":
+        return None
+    try:
+        return tileset[ord(character)]
+    except KeyError:
+        return None
+
+
 def _draw_bitmap_line(
     pygame: Any,
     screen: Any,
@@ -163,11 +173,20 @@ def _draw_bitmap_line(
     scale: int,
     color: tuple[int, int, int],
 ) -> None:
-    """Draw a text line using the actual current tcod bitmap tiles."""
+    """Draw a text line using the actual current tcod bitmap tiles.
+
+    Tcod treats spaces and other unmapped codepoints as blank cells. Mirror
+    that behavior here instead of indexing the tileset and crashing.
+    """
     numpy = _load_numpy()
     cursor_x = x
+    cell_width = tileset.tile_width * scale
     for character in text:
-        tile = numpy.asarray(tileset[ord(character)])
+        tile = _bitmap_tile_or_none(tileset, character)
+        if tile is None:
+            cursor_x += cell_width
+            continue
+        tile = numpy.asarray(tile)
         glyph = _tile_surface(pygame, tile, color, scale)
         screen.blit(glyph, (cursor_x, y))
         cursor_x += tile.shape[1] * scale

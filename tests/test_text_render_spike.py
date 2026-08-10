@@ -10,6 +10,7 @@ from tools.text_render_spike import (
     choose_font_path,
     clamp_config,
     panel_rects,
+    _bitmap_tile_or_none,
 )
 
 
@@ -17,6 +18,14 @@ def test_spike_does_not_eagerly_import_numpy():
     """Help and configuration remain usable before visual dependencies load."""
     source = Path("tools/text_render_spike.py").read_text(encoding="utf-8")
     assert "import numpy as np" not in source
+
+
+def test_bitmap_tile_lookup_treats_spaces_as_blank_cells():
+    """The comparison raster preserves spacing for unmapped characters."""
+    tileset = {ord("A"): "glyph"}
+    assert _bitmap_tile_or_none(tileset, " ") is None
+    assert _bitmap_tile_or_none(tileset, "?") is None
+    assert _bitmap_tile_or_none(tileset, "A") == "glyph"
 
 
 def test_panel_rects_split_the_window_with_a_gap():
