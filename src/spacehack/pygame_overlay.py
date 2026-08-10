@@ -71,6 +71,38 @@ def _segments(commands: Any, *, x_min: int, x_max: int, y_min: int, y_max: int) 
     return tuple(segments)
 
 
+def _frame_from_commands(
+    commands: Any,
+    *,
+    screen_width: int,
+    screen_height: int,
+    hud_view_height: int,
+) -> OverlayFrame:
+    """Build an overlay frame from an already-rendered console."""
+    hud_x = screen_width - HUD_WIDTH
+    return OverlayFrame(
+        hud=_segments(
+            commands,
+            x_min=hud_x,
+            x_max=screen_width,
+            y_min=0,
+            y_max=hud_view_height,
+        ),
+        messages=_segments(
+            commands,
+            x_min=0,
+            x_max=screen_width,
+            y_min=screen_height - MSG_LOG_HEIGHT,
+            y_max=screen_height,
+        ),
+        hud_x=hud_x,
+        hud_top=0,
+        hud_height=hud_view_height,
+        message_top=screen_height - MSG_LOG_HEIGHT,
+        message_height=MSG_LOG_HEIGHT,
+    )
+
+
 def capture(
     ctx: Any,
     *,
@@ -99,36 +131,93 @@ def capture(
         has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
     )
-    hud_segments = _segments(
-        capture_console.commands,
-        x_min=screen_width - HUD_WIDTH,
-        x_max=screen_width,
-        y_min=0,
-        y_max=hud_view_height,
-    )
-    capture_console.clear()
     message_log.render_message_log(
         capture_console,
         ctx.log,
         screen_width=screen_width,
         screen_height=screen_height,
     )
-    message_segments = _segments(
-        capture_console.commands,
-        x_min=0,
-        x_max=screen_width,
-        y_min=screen_height - MSG_LOG_HEIGHT,
-        y_max=screen_height,
+    return _frame_from_commands(
+        tuple(capture_console.commands),
+        screen_width=screen_width,
+        screen_height=screen_height,
+        hud_view_height=hud_view_height,
     )
+
+
+def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
+    """Deserialize an overlay frame sent to an isolated Pygame worker."""
+    def _segments_from(key: str) -> tuple[OverlaySegment, ...]:
+        return tuple(
+            OverlaySegment(
+                x=int(item["x"]),
+                y=int(item["y"]),
+                text=str(item["text"]),
+                color=tuple(item["color"]),
+            )
+            for item in data.get(key, ())
+        )
+
     return OverlayFrame(
-        hud=hud_segments,
-        messages=message_segments,
-        hud_x=screen_width - HUD_WIDTH,
-        hud_top=0,
-        hud_height=hud_view_height,
-        message_top=screen_height - MSG_LOG_HEIGHT,
-        message_height=MSG_LOG_HEIGHT,
+        hud=_segments_from("hud"),
+        messages=_segments_from("messages"),
+        hud_x=int(data["hud_x"]),
+        hud_top=int(data["hud_top"]),
+        hud_height=int(data["hud_height"]),
+        message_top=int(data["message_top"]),
+        message_height=int(data["message_height"]),
     )
+
+
+def present_exploration(
+    ctx: Any,
+    console: Any,
+    *,
+    mode: str,
+    location: str,
+    screen_width: int,
+    screen_height: int,
+    hud_view_height: int,
+    has_trade_terminal: bool = False,
+    has_mech_terminal: bool = False,
+    has_armory_terminal: bool = False,
+) -> bool:
+    """Present an exploration frame with native HUD/log text when shared."""
+    from . import hud, message_log
+
+    if getattr(ctx.context, "_runtime", None) is None:
+        hud.render_hud(
+            console,
+            ctx,
+            screen_width=screen_width,
+            hud_view_height=hud_view_height,
+            location=location,
+            mode=mode,
+            has_trade_terminal=has_trade_terminal,
+            has_mech_terminal=has_mech_terminal,
+            has_armory_terminal=has_armory_terminal,
+        )
+        message_log.render_message_log(
+            console, ctx.log,
+            screen_width=screen_width,
+            screen_height=screen_height,
+        )
+        ctx.context.present(console)
+        return False
+
+    frame = capture(
+        ctx,
+        mode=mode,
+        location=location,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        hud_view_height=hud_view_height,
+        has_trade_terminal=has_trade_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_armory_terminal=has_armory_terminal,
+    )
+    ctx.context.present(console, overlay=frame)
+    return True
 
 
 def payload(frame: OverlayFrame) -> dict[str, Any]:
@@ -158,6 +247,10 @@ def _draw_segments(
     origin_y: int,
     width: int,
     height: int,
+    origin_cell_x: int,
+    origin_cell_y: int,
+    padding_x: int = 12,
+    padding_y: int = 4,
 ) -> None:
     """Paint captured text at logical-cell-relative positions with clipping."""
     clip = pygame.Rect(origin_x, origin_y, width, height)
@@ -165,11 +258,11 @@ def _draw_segments(
     try:
         measure = lambda text: pygame_ui.measure_font(font, text)
         for segment in segments:
-            x = segment.x * TILE_WIDTH
-            y = segment.y * TILE_HEIGHT + max(0, (TILE_HEIGHT - font.get_linesize()) // 2)
+            x = origin_x + padding_x + (segment.x - origin_cell_x) * TILE_WIDTH
+            y = origin_y + padding_y + (segment.y - origin_cell_y) * TILE_HEIGHT
             text = pygame_ui.fit_text(
                 segment.text,
-                max(1, origin_x + width - x - 8),
+                max(1, origin_x + width - padding_x - x),
                 measure,
             )
             pygame_ui.draw_text(
@@ -196,17 +289,22 @@ def draw(
     """Paint framed native-text HUD and message-log regions over the map frame."""
     palette = pygame_ui.DEFAULT_PALETTE
     screen_width = logical_width // TILE_WIDTH
+    hud_height = min(frame.hud_height, logical_height // TILE_HEIGHT - frame.hud_top)
+    message_height = min(
+        frame.message_height,
+        max(0, logical_height // TILE_HEIGHT - frame.message_top),
+    )
     hud_rect = pygame_ui.Rect(
         frame.hud_x * TILE_WIDTH,
         frame.hud_top * TILE_HEIGHT,
         (screen_width - frame.hud_x) * TILE_WIDTH,
-        frame.hud_height * TILE_HEIGHT,
+        max(0, hud_height) * TILE_HEIGHT,
     )
     message_rect = pygame_ui.Rect(
         0,
         frame.message_top * TILE_HEIGHT,
         logical_width,
-        frame.message_height * TILE_HEIGHT,
+        message_height * TILE_HEIGHT,
     )
     pygame_ui.draw_panel(pygame, screen, hud_rect, palette=palette)
     pygame_ui.draw_panel(pygame, screen, message_rect, palette=palette)
@@ -221,6 +319,8 @@ def draw(
         origin_y=hud_rect.y,
         width=hud_rect.width,
         height=hud_rect.height,
+        origin_cell_x=frame.hud_x,
+        origin_cell_y=frame.hud_top,
     )
     _draw_segments(
         pygame,
@@ -231,4 +331,6 @@ def draw(
         origin_y=message_rect.y,
         width=message_rect.width,
         height=message_rect.height,
+        origin_cell_x=0,
+        origin_cell_y=frame.message_top,
     )

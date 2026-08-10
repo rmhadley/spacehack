@@ -16,7 +16,8 @@ import sys
 import threading
 from typing import Any
 
-from . import pygame_engine, pygame_ui, pygame_world
+from . import pygame_engine, pygame_overlay, pygame_ui, pygame_world
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
 
 
 class PygameCombatUnavailable(RuntimeError):
@@ -75,10 +76,23 @@ def _console_commands(console: Any) -> tuple[pygame_world.world.WorldDrawCommand
 
 
 def _frame_payload(console: Any, *, interactive: bool) -> dict[str, Any]:
-    """Serialize either a captured or native tcod console for the worker."""
+    """Serialize a map-only combat console plus its native HUD/log overlay."""
+    all_commands = _console_commands(console)
+    commands = tuple(
+        command for command in all_commands
+        if command.x < SCREEN_WIDTH - HUD_WIDTH
+        and command.y < SCREEN_HEIGHT - MSG_LOG_HEIGHT
+    )
+    overlay = pygame_overlay._frame_from_commands(
+        all_commands,
+        screen_width=1600 // pygame_world.TILE_WIDTH,
+        screen_height=960 // pygame_world.TILE_HEIGHT,
+        hud_view_height=(960 // pygame_world.TILE_HEIGHT) - pygame_world.MSG_LOG_HEIGHT,
+    )
     return {
         "logical_size": (1600, 960),
-        "commands": [asdict(command) for command in _console_commands(console)],
+        "commands": [asdict(command) for command in commands],
+        "overlay": pygame_overlay.payload(overlay),
         "interactive": interactive,
     }
 
@@ -130,13 +144,14 @@ def _command_from_payload(data: dict[str, Any]):
     )
 
 
-def _frame_from_payload(data: dict[str, Any]) -> tuple[pygame_world.WorldFrame, bool]:
-    """Deserialize a combat frame and its input-enabled flag."""
+def _frame_from_payload(data: dict[str, Any]) -> tuple[pygame_world.WorldFrame, pygame_overlay.OverlayFrame, bool]:
+    """Deserialize a combat frame, native overlay, and input flag."""
     frame = pygame_world.WorldFrame(
         logical_size=tuple(data["logical_size"]),
         commands=tuple(_command_from_payload(command) for command in data["commands"]),
     )
-    return frame, bool(data.get("interactive", False))
+    overlay = pygame_overlay.frame_from_payload(data["overlay"])
+    return frame, overlay, bool(data.get("interactive", False))
 
 
 def present(ctx: Any, console: Any) -> None:
@@ -158,7 +173,7 @@ def _worker_main() -> int:
     if not first_line:
         return 0
     try:
-        first_frame, first_interactive = _frame_from_payload(json.loads(first_line))
+        first_frame, first_overlay, first_interactive = _frame_from_payload(json.loads(first_line))
         pygame = pygame_engine._load_pygame()
     except (ValueError, KeyError, TypeError, RuntimeError):
         return 2
@@ -172,7 +187,7 @@ def _worker_main() -> int:
         title="spacehack - combat",
     )
     engine = pygame_engine.PygameEngine(pygame, config).open()
-    frames: queue.Queue[tuple[pygame_world.WorldFrame, bool] | None] = queue.Queue(maxsize=2)
+    frames: queue.Queue[tuple[pygame_world.WorldFrame, pygame_overlay.OverlayFrame, bool] | None] = queue.Queue(maxsize=2)
     stop = threading.Event()
 
     def _read_frames() -> None:
@@ -200,6 +215,7 @@ def _worker_main() -> int:
     reader = threading.Thread(target=_read_frames, daemon=True)
     reader.start()
     current = first_frame
+    overlay = first_overlay
     interactive = first_interactive
     clock = pygame.time.Clock()
     try:
@@ -209,8 +225,15 @@ def _worker_main() -> int:
             except queue.Empty:
                 incoming = None
             if incoming is not None:
-                current, interactive = incoming
+                current, overlay, interactive = incoming
             pygame_world._draw_frame(pygame, engine, current)
+            pygame_overlay.draw(
+                pygame,
+                engine.logical_surface,
+                overlay,
+                logical_width=logical_width,
+                logical_height=logical_height,
+            )
             engine.present()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:

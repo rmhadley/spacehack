@@ -167,6 +167,23 @@ def test_combat_frame_payload_preserves_commands_and_mode():
     assert payload["commands"][0]["char"] == "@"
 
 
+def test_combat_frame_payload_filters_hud_and_log_from_bitmap_layer():
+    commands = [
+        SimpleNamespace(x=10, y=10, char="@", fg=(1, 2, 3), bg=None),
+        SimpleNamespace(x=80, y=10, char="H", fg=(4, 5, 6), bg=None),
+        SimpleNamespace(x=10, y=54, char="M", fg=(7, 8, 9), bg=None),
+    ]
+
+    payload = pygame_combat._frame_payload(
+        SimpleNamespace(commands=commands),
+        interactive=False,
+    )
+
+    assert [command["char"] for command in payload["commands"]] == ["@"]
+    assert payload["overlay"]["hud"][0]["text"] == "H"
+    assert payload["overlay"]["messages"][0]["text"] == "M"
+
+
 def test_combat_frame_payload_accepts_native_tcod_console():
     import tcod.console
 

@@ -1111,15 +1111,16 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                     _rnfe(console, ctx, cam_x, cam_y, view_w, view_h)
                     # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
                     _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None
-                    hud.render_hud(
-                        console, ctx,
-                        screen_width=SCREEN_WIDTH,
-                        hud_view_height=view_h,
-                        location=solar_system_module.current_system().name,
+                    from . import pygame_overlay
+                    pygame_overlay.present_exploration(
+                        ctx,
+                        console,
                         mode="space",
+                        location=solar_system_module.current_system().name,
+                        screen_width=SCREEN_WIDTH,
+                        screen_height=SCREEN_HEIGHT,
+                        hud_view_height=view_h,
                     )
-                    message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-                    ctx.context.present(console)
                     _aborted = False
                     _end = time.monotonic() + 0.04
                     while time.monotonic() < _end:
@@ -1504,7 +1505,16 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         _cam_y = max(0, min(cy - _view_h // 2, _sys.height - _view_h))
         world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=_view_w, region_h=_view_h, camera_x=_cam_x, camera_y=_cam_y)
         if void:
-            ctx.context.present(console)
+            from . import pygame_overlay
+            pygame_overlay.present_exploration(
+                ctx,
+                console,
+                mode="space",
+                location=solar_system_module.current_system().name,
+                screen_width=SCREEN_WIDTH,
+                screen_height=SCREEN_HEIGHT,
+                hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+            )
             _responsive_sleep(frame_s)
             return
         if not flash_white:
@@ -1527,9 +1537,16 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         else:
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
-        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT, location=solar_system_module.current_system().name, mode="space")
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        ctx.context.present(console)
+        from . import pygame_overlay
+        pygame_overlay.present_exploration(
+            ctx,
+            console,
+            mode="space",
+            location=solar_system_module.current_system().name,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        )
         _responsive_sleep(frame_s)
     for rings in range(len(_JUMP_RING_CHARS)):
         _render_frame(rings=rings, flash_white=False)

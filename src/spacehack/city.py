@@ -7,13 +7,11 @@ and :func:`_return_to_city`.
 from __future__ import annotations
 import tcod.console
 from . import world
-from . import hud
-from . import message_log
 from . import mission as mission_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
-from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, MSG_LOG_HEIGHT
 from .navigation import _add_bounty_spawns_to_map, _responsive_sleep
+from .engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
 
 
 
@@ -38,9 +36,19 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         console.clear()
         world.render_world(console, game_map, region_x=0, region_y=0, region_w=solar_system_module.SOL_VIEW_W, region_h=solar_system_module.SOL_VIEW_H)
-        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=solar_system_module.SOL_VIEW_H, location=location or None, mode="city", has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        ctx.context.present(console)
+        from . import pygame_overlay
+        pygame_overlay.present_exploration(
+            ctx,
+            console,
+            mode="city",
+            location=location or "",
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+            has_trade_terminal=_has_trade,
+            has_mech_terminal=_has_mech,
+            has_armory_terminal=_has_armory,
+        )
         _responsive_sleep(frame_seconds)
 
 

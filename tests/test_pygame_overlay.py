@@ -59,7 +59,7 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     assert frame.message_height == 6
 
 
-def test_overlay_payload_preserves_segments_and_layout():
+def test_overlay_payload_round_trips_segments_and_layout():
     frame = pygame_overlay.OverlayFrame(
         hud=(pygame_overlay.OverlaySegment(80, 0, "HUD", (1, 2, 3)),),
         messages=(pygame_overlay.OverlaySegment(0, 54, "msg", (4, 5, 6)),),
@@ -77,6 +77,95 @@ def test_overlay_payload_preserves_segments_and_layout():
     }
     assert payload["messages"][0]["text"] == "msg"
     assert payload["hud_height"] == 54
+    restored = pygame_overlay.frame_from_payload(payload)
+    assert restored == frame
+
+
+def test_draw_segments_offsets_text_inside_panel_padding(monkeypatch):
+    drawn = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 12)
+
+        def get_linesize(self):
+            return 12
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    pygame_overlay._draw_segments(
+        FakePygame,
+        FakeScreen(),
+        FakeFont(),
+        (pygame_overlay.OverlaySegment(80, 2, "HUD", (1, 2, 3)),),
+        origin_x=1280,
+        origin_y=0,
+        width=320,
+        height=864,
+        origin_cell_x=80,
+        origin_cell_y=0,
+    )
+
+    assert drawn == [("HUD", 1292, 36)]
+
+
+def test_present_exploration_uses_shared_overlay_and_tcod_fallback(monkeypatch):
+    frame = object()
+    shared_calls = []
+    shared_ctx = SimpleNamespace(
+        log=object(),
+        context=SimpleNamespace(
+            _runtime=object(),
+            present=lambda console, **kwargs: shared_calls.append((console, kwargs)),
+        ),
+    )
+    monkeypatch.setattr(pygame_overlay, "capture", lambda *_args, **_kwargs: frame)
+
+    assert pygame_overlay.present_exploration(
+        shared_ctx,
+        "console",
+        mode="city",
+        location="Earth",
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+    ) is True
+    assert shared_calls == [("console", {"overlay": frame})]
+
+    fallback_calls = []
+    fallback_ctx = SimpleNamespace(
+        log=object(),
+        context=SimpleNamespace(
+            present=lambda console: fallback_calls.append(("present", console)),
+        ),
+    )
+    from src.spacehack import hud, message_log
+    monkeypatch.setattr(hud, "render_hud", lambda *args, **kwargs: fallback_calls.append(("hud", args[0])))
+    monkeypatch.setattr(message_log, "render_message_log", lambda *args, **kwargs: fallback_calls.append(("log", args[0])))
+
+    assert pygame_overlay.present_exploration(
+        fallback_ctx,
+        "console",
+        mode="city",
+        location="Earth",
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+    ) is False
+    assert fallback_calls == [("hud", "console"), ("log", "console"), ("present", "console")]
 
 
 def test_shared_context_preserves_legacy_present_call_without_overlay():
