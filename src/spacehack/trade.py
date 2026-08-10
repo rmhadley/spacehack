@@ -327,18 +327,29 @@ class _QOut(Enum):
     CONFIRM = auto()
 
 
+def _pygame_quantity_enabled() -> bool:
+    """Return whether the shared Pygame quantity worker is enabled."""
+    from . import pygame_ui
+
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUANTITY")
+
+
 def _run_quantity_prompt(
     ctx: GameContext,
     label: str,
     max_qty: int,
     price_per: int,
 ) -> int | None:
-    """Show a centred quantity-input modal.
+    """Show a quantity-input modal and return the confirmed amount."""
+    if _pygame_quantity_enabled():
+        from . import pygame_quantity
+        try:
+            return pygame_quantity.run(ctx, label, max_qty, price_per)
+        except pygame_quantity.PygameQuantityQuit:
+            raise SystemExit
+        except pygame_quantity.PygameQuantityUnavailable:
+            pass
 
-    Arrow keys / +/- adjust the quantity, Enter confirms, ESC
-    cancels.  Returns the chosen quantity (>=1) or ``None`` on
-    cancel.
-    """
     console = make_console()
     qty = 1
 
@@ -404,6 +415,69 @@ class _LootOutcome(Enum):
     TAKE = auto()
     LEAVE = auto()
     QUIT = auto()
+
+
+def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -> str | None:
+    """Run the loot choice through the generic Pygame menu worker."""
+    from . import pygame_menu
+
+    item = pygame_menu.MenuItem(take_label, "", "TAKE")
+    frame = pygame_menu.MenuFrame(
+        title=title,
+        body=body,
+        items=(item,),
+        hints=("ENTER secure/take   ESC leave",),
+        selected=0,
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run(
+            (frame,), caption=f"spacehack - {title.lower()}",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return _run_pygame_loot(ctx, title, body, take_label)
+    if outcome == "SELECT" and action == "TAKE":
+        return "TAKE"
+    if outcome == "QUIT":
+        return "QUIT"
+    return "LEAVE"
+
+
+def _apply_loot_pickup(
+    ctx: GameContext,
+    loot_entity,
+    owned,
+    is_quest: bool,
+    goods: list[tuple[str, int]],
+    good_id: str,
+    quantity: int,
+    good,
+) -> None:
+    """Apply a confirmed loot pickup in the parent process."""
+    if is_quest:
+        from . import main_quest as _mq
+        secured = _mq.secure_quest_loot(ctx, loot_entity, goods)
+        if not secured:
+            for gid, qty in goods:
+                owned.inventory[gid] = owned.inventory.get(gid, 0) + qty
+            ctx.log.add("Picked up leftover quest cache goods.")
+    else:
+        secured = False
+        if getattr(loot_entity, "heist_mission", False):
+            secured = _secure_heist_cargo(ctx, loot_entity, good_id, quantity)
+        if secured:
+            ctx.log.add(
+                f"Secured mission cargo: {good.name} x{quantity} "
+                "(reserved in hold). Do not sell!"
+            )
+        else:
+            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+            ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
+    if loot_entity in ctx.game_map.entities:
+        ctx.game_map.entities.remove(loot_entity)
 
 
 def _secure_heist_cargo(ctx: GameContext, loot_entity, good_id: str, quantity: int) -> bool:
@@ -523,8 +597,39 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         )
         return
 
-    console = make_console()
     _is_heist = getattr(loot_entity, 'heist_mission', False)
+    if _is_quest:
+        title = "QUEST CACHE"
+        parts = [
+            f"{find_trade_good(gid).name} x{qty}"
+            for gid, qty in _goods
+        ]
+        body = "Secured quest contents: " + ", ".join(parts)
+        take_label = "Secure"
+    elif _is_heist:
+        title = "MISSION CARGO"
+        body = f"Secured mission cargo: {good.name} x{quantity}"
+        take_label = "Secure"
+    else:
+        title = "CARGO DEBRIS"
+        body = (
+            f"You found {good.name} x{quantity}. "
+            f"Value: {good.base_price}$ each | Volume: {good.volume} crate(s)"
+        )
+        take_label = "Take"
+    if _pygame_quantity_enabled():
+        pygame_outcome = _run_pygame_loot(ctx, title, body, take_label)
+        if pygame_outcome is not None:
+            if pygame_outcome == "TAKE":
+                _apply_loot_pickup(
+                    ctx, loot_entity, owned, _is_quest, _goods,
+                    good_id, quantity, good,
+                )
+            elif pygame_outcome in {"LEAVE", "QUIT"}:
+                ctx.log.add("Left the cargo debris in space.")
+            return
+
+    console = make_console()
 
     def _render() -> None:
         console.clear()
@@ -587,32 +692,10 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
 
     _outcome = ui.Modal(ctx.context, console).run(_render, _update)
     if _outcome is _LootOutcome.TAKE:
-        if _is_quest:
-            from . import main_quest as _mq
-            _secured = _mq.secure_quest_loot(ctx, loot_entity, _goods)
-            if not _secured:
-                # Quest step not active (stale cache from an aborted run) —
-                # grant the goods anyway so the find isn't wasted.
-                for _gid, _qty in _goods:
-                    owned.inventory[_gid] = owned.inventory.get(_gid, 0) + _qty
-                ctx.log.add("Picked up leftover quest cache goods.")
-        else:
-            _secured = False
-            if getattr(loot_entity, 'heist_mission', False):
-                _secured = _secure_heist_cargo(ctx, loot_entity, good_id, quantity)
-            if _secured:
-                ctx.log.add(
-                    f"Secured mission cargo: {good.name} x{quantity} "
-                    f"(reserved in hold). Do not sell!"
-                )
-            else:
-                owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-                ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
-        if loot_entity in ctx.game_map.entities:
-            try:
-                ctx.game_map.entities.remove(loot_entity)
-            except ValueError:
-                pass
+        _apply_loot_pickup(
+            ctx, loot_entity, owned, _is_quest, _goods,
+            good_id, quantity, good,
+        )
     elif _outcome is _LootOutcome.LEAVE or _outcome is _LootOutcome.QUIT:
         ctx.log.add("Left the cargo debris in space.")
         return
@@ -627,6 +710,147 @@ class _NpcTradeOutcome(Enum):
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
+
+
+def _pygame_npc_trade_frame(
+    ctx: GameContext,
+    npc_spec,
+    npc_stock: dict[str, int],
+    buy_mult: float,
+    sell_mult: float,
+    focus: int = 0,
+    selected: int = 0,
+):
+    """Build a Pygame frame for an ephemeral NPC trade stock pool."""
+    from . import pygame_split
+    owned = ctx.player_owned_ship
+    npc_rows = tuple(
+        pygame_split.SplitRow(
+            find_trade_good(gid).name,
+            f"{int(find_trade_good(gid).base_price * buy_mult)}$ ({qty})",
+            find_trade_good(gid).description,
+            f"BUY_NPC:{gid}",
+        )
+        for gid, qty in npc_stock.items()
+    )
+    hold_rows = tuple(
+        pygame_split.SplitRow(
+            find_trade_good(gid).name,
+            f"{int(find_trade_good(gid).base_price * sell_mult)}$ ({qty})",
+            find_trade_good(gid).description,
+            f"SELL_NPC:{gid}",
+        )
+        for gid, qty in (owned.inventory.items() if owned is not None else ())
+    )
+    from . import ship as ship_module
+    if owned is not None:
+        ship_spec = ship_module.find_ship(owned.ship_id)
+        cargo = f"Cargo: {owned.cargo_used}/{ship_module.effective_max_cargo(ship_spec, owned)}"
+    else:
+        cargo = "Cargo: N/A"
+    return pygame_split.SplitFrame(
+        f"TRADE - {npc_spec.name.upper()}", npc_spec.name, "Your Hold",
+        npc_rows, hold_rows, cargo, f"Credits: {ctx.stats.credits}",
+        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+        focus, selected,
+    )
+
+
+def _npc_trade_transaction(
+    ctx: GameContext,
+    npc_spec,
+    npc_stock: dict[str, int],
+    buy_mult: float,
+    sell_mult: float,
+    kind: str,
+    good_id: str,
+) -> None:
+    """Apply one NPC buy/sell transaction after quantity confirmation."""
+    good = find_trade_good(good_id)
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return
+    if kind == "BUY_NPC":
+        stock = npc_stock.get(good_id, 0)
+        price = int(good.base_price * buy_mult)
+        maximum = min(
+            stock,
+            _free_cargo(owned) // max(1, good.volume),
+            ctx.stats.credits // max(1, price),
+        )
+        quantity = _run_quantity_prompt(
+            ctx, f"Buy {good.name} from {npc_spec.name}", maximum, price,
+        ) if maximum else None
+        if quantity:
+            cost = price * quantity
+            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+            npc_stock[good_id] = stock - quantity
+            ctx.stats.credits -= cost
+            ctx.log.add(f"Bought {quantity}x {good.name} from {npc_spec.name} for {cost}$.")
+        elif maximum == 0:
+            ctx.log.add(
+                f"{npc_spec.name} has insufficient stock or you cannot afford/store {good.name}."
+            )
+        return
+    if kind != "SELL_NPC":
+        raise ValueError(f"Unknown NPC trade kind: {kind!r}")
+    held = owned.inventory.get(good_id, 0)
+    price = int(good.base_price * sell_mult)
+    quantity = _run_quantity_prompt(
+        ctx, f"Sell {good.name} to {npc_spec.name}", min(held, 999), price,
+    ) if held else None
+    if quantity:
+        revenue = price * quantity
+        remaining = held - quantity
+        if remaining <= 0:
+            del owned.inventory[good_id]
+        else:
+            owned.inventory[good_id] = remaining
+        npc_stock[good_id] = npc_stock.get(good_id, 0) + quantity
+        ctx.stats.credits += revenue
+        ctx.log.add(f"Sold {quantity}x {good.name} to {npc_spec.name} for {revenue}$.")
+
+
+def _apply_pygame_npc_trade_action(
+    ctx: GameContext,
+    npc_spec,
+    npc_stock: dict[str, int],
+    buy_mult: float,
+    sell_mult: float,
+    action: str,
+) -> bool:
+    """Apply one opaque NPC trade action in the parent process."""
+    if not action:
+        return True
+    kind, separator, good_id = action.partition(":")
+    if not separator or kind not in {"BUY_NPC", "SELL_NPC"}:
+        raise ValueError(f"Unknown NPC trade action: {action!r}")
+    _npc_trade_transaction(
+        ctx, npc_spec, npc_stock, buy_mult, sell_mult, kind, good_id,
+    )
+    return True
+
+
+def _run_pygame_npc_trade(
+    ctx: GameContext,
+    npc_spec,
+    npc_stock: dict[str, int],
+    buy_mult: float,
+    sell_mult: float,
+) -> bool | None:
+    """Run NPC trade in Pygame, returning None for tcod fallback."""
+    from . import pygame_split
+    result = pygame_split.run_interactive(
+        ctx,
+        lambda: _pygame_npc_trade_frame(
+            ctx, npc_spec, npc_stock, buy_mult, sell_mult,
+        ),
+        lambda action, _focus, _selected: _apply_pygame_npc_trade_action(
+            ctx, npc_spec, npc_stock, buy_mult, sell_mult, action,
+        ),
+        caption=f"spacehack - {npc_spec.name} trade",
+    )
+    return result is not None
 
 
 def open_npc_trade(ctx: GameContext, npc_spec) -> None:
@@ -679,6 +903,12 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     _sel: int = 0
 
     ctx.log.add(f"You open a trade channel with {npc_spec.name}.")
+
+    if _pygame_split_enabled():
+        if _run_pygame_npc_trade(
+            ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
+        ) is not None:
+            return
 
     console = make_console()
 
@@ -770,46 +1000,18 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
             return _NpcTradeOutcome.IGNORE
 
         if sym in ui._ENTER_SYMS:
-            if _focus == 0:
-                # Buy from NPC.
-                if 0 <= _sel < len(_npc_goods):
-                    gid = _npc_goods[_sel]
-                    good = find_trade_good(gid)
-                    price = int(good.base_price * _BUY_MULT)
-                    stock = _npc_stock.get(gid, 0)
-                    free = _free_cargo(owned)
-                    can_afford = ctx.stats.credits // price if price > 0 else 999
-                    max_qty = min(stock, free // max(1, good.volume), can_afford, 999)
-                    if max_qty >= 1:
-                        q = _run_quantity_prompt(ctx, f"Buy {good.name} from {npc_spec.name}", max_qty, price)
-                        if q is not None:
-                            cost = price * q
-                            owned.inventory[gid] = owned.inventory.get(gid, 0) + q
-                            _npc_stock[gid] = stock - q
-                            ctx.stats.credits -= cost
-                            ctx.log.add(f"Bought {q}x {good.name} from {npc_spec.name} for {cost}$.")
-                    else:
-                        ctx.log.add(f"{npc_spec.name} has insufficient stock or you cannot afford/store {good.name}.")
-            else:
-                # Sell to NPC.
+            if _focus == 0 and 0 <= _sel < len(_npc_goods):
+                _npc_trade_transaction(
+                    ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
+                    "BUY_NPC", _npc_goods[_sel],
+                )
+            elif _focus == 1:
                 inv_items = list(owned.inventory.items())
                 if 0 <= _sel < len(inv_items):
-                    gid, qty = inv_items[_sel]
-                    good = find_trade_good(gid)
-                    sell_price = int(good.base_price * _SELL_MULT)
-                    max_q = min(qty, 999)
-                    q = _run_quantity_prompt(ctx, f"Sell {good.name} to {npc_spec.name}", max_q, sell_price)
-                    if q is not None:
-                        revenue = sell_price * q
-                        remaining = qty - q
-                        if remaining <= 0:
-                            del owned.inventory[gid]
-                        else:
-                            owned.inventory[gid] = remaining
-                        # NPC adds to stock (just for bookkeeping, not persisted).
-                        _npc_stock[gid] = _npc_stock.get(gid, 0) + q
-                        ctx.stats.credits += revenue
-                        ctx.log.add(f"Sold {q}x {good.name} to {npc_spec.name} for {revenue}$.")
+                    _npc_trade_transaction(
+                        ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
+                        "SELL_NPC", inv_items[_sel][0],
+                    )
             return _NpcTradeOutcome.IGNORE
 
         return _NpcTradeOutcome.IGNORE

@@ -1126,6 +1126,45 @@ def update_jump_menu(event: tcod.event.Event) -> JumpMenuOutcome:
     return JumpMenuOutcome.IGNORE
 
 
+def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_fuel: int | None):
+    """Run the jump confirmation through the Pygame menu worker."""
+    from . import pygame_menu
+
+    target_system = solar_systems_module.find_solar_system(target_system_id)
+    fuel_line = (
+        f"Fuel: {fuel} / {max_fuel}  |  Jump cost: {ship_module.JUMP_FUEL_COST}"
+        if fuel is not None and max_fuel is not None
+        else ""
+    )
+    body = "\n".join(filter(None, (jp.description or "", fuel_line)))
+    frame = pygame_menu.MenuFrame(
+        title=f"JUMP - {jp.name} -> {target_system.name}",
+        body=body,
+        items=(pygame_menu.MenuItem(
+            f"Jump to {target_system.name}",
+            "Commit to the system transition.",
+            "JUMP",
+        ),),
+        hints=("ENTER jump   ESC fly past",),
+        selected=0,
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run(
+            (frame,), caption="spacehack - jump gate",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return _run_pygame_jump_menu(ctx, jp, target_system_id, fuel, max_fuel)
+    if outcome == "QUIT":
+        return JumpMenuOutcome.QUIT
+    if outcome == "SELECT" and action == "JUMP":
+        return JumpMenuOutcome.JUMP
+    return JumpMenuOutcome.BACK
+
+
 def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
     """Modal loop for the jump-point-bump dialog."""
     from . import engine
@@ -1136,6 +1175,14 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
         ship_rec = ship_module.find_ship(ctx.player_owned_ship.ship_id)
         _fuel = ctx.player_owned_ship.fuel
         _max_fuel = ship_rec.max_fuel
+
+    from . import pygame_ui
+    if pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE"):
+        pygame_result = _run_pygame_jump_menu(
+            ctx, jp, target_system_id, _fuel, _max_fuel,
+        )
+        if pygame_result is not None:
+            return pygame_result
 
     def _render() -> None:
         render_jump_menu(console, ctx, jp, target_system_id, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, current_fuel=_fuel, max_fuel=_max_fuel, jump_fuel_cost=ship_module.JUMP_FUEL_COST)

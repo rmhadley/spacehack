@@ -14,6 +14,7 @@ from src.spacehack import (
     pygame_story,
     pygame_ui,
     pygame_world,
+    pygame_quantity,
 )
 from src.spacehack.menus import _armory, _missions, _planet, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
@@ -28,6 +29,119 @@ class _FakeFont:
 
     def get_linesize(self) -> int:
         return 24
+
+
+def test_quantity_key_mapping_clamps_and_confirms():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_QUESTION = 11
+        K_UP = 12
+        K_DOWN = 13
+        K_k = 14
+        K_j = 15
+        K_RETURN = 16
+        K_KP_ENTER = 17
+        K_PLUS = 18
+        K_EQUALS = 19
+        K_MINUS = 20
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_quantity._handle_key(fake, key(fake.K_UP), 1, 2) == ("IGNORE", 2)
+    assert pygame_quantity._handle_key(fake, key(fake.K_UP), 2, 2) == ("IGNORE", 2)
+    assert pygame_quantity._handle_key(fake, key(fake.K_DOWN), 1, 2) == ("IGNORE", 1)
+    assert pygame_quantity._handle_key(fake, key(fake.K_RETURN), 2, 2) == ("CONFIRM", 2)
+    assert pygame_quantity._handle_key(fake, key(fake.K_ESCAPE), 1, 2) == ("BACK", 1)
+    assert pygame_quantity._handle_key(fake, SimpleNamespace(type=fake.QUIT), 1, 2) == ("QUIT", 1)
+
+
+def test_quantity_worker_propagates_quit(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui,
+        "run_json_worker",
+        lambda *args, **kwargs: {"outcome": "QUIT", "quantity": 1},
+    )
+
+    try:
+        pygame_quantity.run(SimpleNamespace(), "Buy", 3, 10)
+    except pygame_quantity.PygameQuantityQuit:
+        pass
+    else:
+        raise AssertionError("quantity window close must remain distinct from cancel")
+
+
+def test_quantity_worker_rejects_invalid_confirmed_amount(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui,
+        "run_json_worker",
+        lambda *args, **kwargs: {"outcome": "CONFIRM", "quantity": 8},
+    )
+
+    try:
+        pygame_quantity.run(SimpleNamespace(), "Buy", 3, 10)
+    except pygame_quantity.PygameQuantityUnavailable as exc:
+        assert "invalid quantity" in str(exc)
+    else:
+        raise AssertionError("quantity worker must reject out-of-range values")
+
+
+def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
+    from src.spacehack import navigation, pygame_menu
+
+    jump = SimpleNamespace(name="Gate", description="A stable gate.")
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda frames, **kwargs: ("SELECT", "JUMP", 0),
+    )
+    monkeypatch.setattr(
+        navigation.solar_systems_module,
+        "find_solar_system",
+        lambda _system_id: SimpleNamespace(name="Sirius"),
+    )
+
+    assert navigation._run_pygame_jump_menu(
+        SimpleNamespace(), jump, "sirius", 20, 30,
+    ) is navigation.JumpMenuOutcome.JUMP
+
+
+def test_npc_trade_frame_uses_opaque_buy_and_sell_actions():
+    from src.spacehack import trade
+
+    npc = SimpleNamespace(name="Trader")
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(
+            ship_id="starter", inventory={"food_rations": 2}, cargo_used=2,
+        ),
+        stats=SimpleNamespace(credits=100),
+    )
+    frame = trade._pygame_npc_trade_frame(
+        ctx, npc, {"food_rations": 3}, 1.2, 0.5,
+    )
+
+    assert frame.left_rows[0].action == "BUY_NPC:food_rations"
+    assert frame.right_rows[0].action == "SELL_NPC:food_rations"
+
+
+def test_loot_parent_apply_removes_entity_and_grants_inventory():
+    from src.spacehack import trade
+
+    entity = SimpleNamespace(loot_data={"good_id": "food_rations", "quantity": 2})
+    owned = SimpleNamespace(inventory={}, mission_reserved=0)
+    ctx = SimpleNamespace(
+        player_owned_ship=owned,
+        game_map=SimpleNamespace(entities=[entity]),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    good = SimpleNamespace(name="Food")
+
+    trade._apply_loot_pickup(ctx, entity, owned, False, [], "food", 2, good)
+
+    assert owned.inventory == {"food": 2}
+    assert entity not in ctx.game_map.entities
 
 
 def test_screen_frame_payload_round_trips_page_offset_and_rows():
