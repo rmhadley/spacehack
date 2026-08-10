@@ -717,9 +717,31 @@ def _run_game_loop(
             if not world_preview.send(_preview_frame):
                 world_preview.close()
                 world_preview = None
-        hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, mode=current_mode, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
-        message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        ctx.context.present(console)
+        _overlay = None
+        if getattr(ctx.context, "_runtime", None) is not None:
+            # The native Pygame overlay is the sole HUD/log layer in the
+            # shared runtime. Keep the bitmap console map-only so text is
+            # not painted twice underneath the readable native layer.
+            from . import pygame_overlay
+            _overlay = pygame_overlay.capture(
+                ctx,
+                mode=current_mode,
+                location=_location,
+                screen_width=SCREEN_WIDTH,
+                screen_height=SCREEN_HEIGHT,
+                hud_view_height=map_h,
+                has_trade_terminal=_has_trade,
+                has_mech_terminal=_has_mech,
+                has_armory_terminal=_has_armory,
+            )
+        else:
+            # The tcod rollback keeps the original all-console renderer.
+            hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, mode=current_mode, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
+            message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        if _overlay is None:
+            ctx.context.present(console)
+        else:
+            ctx.context.present(console, overlay=_overlay)
         for event in tcod.event.wait():
             if should_quit(event):
                 if current_mode == 'dungeon':

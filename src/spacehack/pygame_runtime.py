@@ -130,9 +130,12 @@ class PygameContext:
     def __init__(self, runtime: "PygameRuntime"):
         self._runtime = runtime
 
-    def present(self, console: Any) -> None:
-        """Paint one tcod/capture console into the shared Pygame window."""
-        self._runtime.present(console)
+    def present(self, console: Any, *, overlay: Any | None = None) -> None:
+        """Paint one console and optional native text overlay into Pygame."""
+        if overlay is None:
+            self._runtime.present(console)
+        else:
+            self._runtime.present(console, overlay=overlay)
 
     def convert_event(self, event: Any) -> Any:
         """Keep the tcod-context API used by the jump menu compatibility path."""
@@ -202,8 +205,8 @@ class PygameRuntime:
             if (converted := _tcod_event_from_pygame(pygame, event)) is not None
         )
 
-    def present(self, console: Any) -> None:
-        """Render a native tcod or capture console into the logical canvas."""
+    def present(self, console: Any, *, overlay: Any | None = None) -> None:
+        """Render a console, then an optional native Pygame overlay."""
         if self.engine is None or self.engine.logical_surface is None or self.engine.glyphs is None:
             raise RuntimeError("Pygame runtime is not open")
         self.engine.clear()
@@ -215,6 +218,15 @@ class PygameRuntime:
                 int(command.y) * self.engine.glyphs.tile_height,
                 fg=tuple(command.fg),
                 bg=None if command.bg is None else tuple(command.bg),
+            )
+        if overlay is not None:
+            from . import pygame_overlay
+            pygame_overlay.draw(
+                self.engine.pygame,
+                self.engine.logical_surface,
+                overlay,
+                logical_width=self.engine.config.logical_width,
+                logical_height=self.engine.config.logical_height,
             )
         self.engine.present()
 
