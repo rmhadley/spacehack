@@ -158,6 +158,30 @@ def _pickup_loot_near(ctx) -> bool:
     return True
 
 
+def _run_pygame_dungeon_confirm(
+    ctx,
+    *,
+    title: str,
+    body: str,
+    accept_label: str,
+    cancel_label: str,
+    caption: str,
+) -> str | None:
+    """Run a dungeon confirmation through Pygame, or return None to fallback."""
+    from . import pygame_story
+
+    if not pygame_story.enabled():
+        return None
+    return pygame_story.confirm(
+        ctx,
+        title=title,
+        body=body,
+        accept_label=accept_label,
+        cancel_label=cancel_label,
+        caption=caption,
+    )
+
+
 def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
     """Move ground NPCs, refresh the LOS frame, then detect + run
     ground combat if any hostile is now visible.
@@ -1311,6 +1335,22 @@ def _run_game_loop(
                 elif blocker.computer_terminal:
                     if current_mode == 'dungeon':
                         from . import ui as _ui
+                        _comp_result = None
+                        _pygame_comp = _run_pygame_dungeon_confirm(
+                            ctx,
+                            title="Ship Computer Terminal",
+                            body=(
+                                "Restore emergency power to the ship?\n\n"
+                                "This will boost interior lighting and sensor range."
+                            ),
+                            accept_label="Activate",
+                            cancel_label="Leave",
+                            caption="spacehack - ship computer",
+                        )
+                        if _pygame_comp == "QUIT":
+                            return
+                        if _pygame_comp == "CONFIRM":
+                            _comp_result = _ui.MenuAction.CONFIRM
                         _comp_console = make_console()
                         def _comp_render():
                             _comp_console.clear()
@@ -1348,7 +1388,12 @@ def _run_game_loop(
                             if event.sym in _ui._ESCAPE_SYMS:
                                 return _ui.MenuAction.BACK
                             return _ui.MenuAction.NONE
-                        _comp_result = ui.Modal(ctx.context, _comp_console).run(_comp_render, _comp_update, ignore=_ui.MenuAction.NONE)
+                        if _pygame_comp is None:
+                            _comp_result = ui.Modal(ctx.context, _comp_console).run(
+                                _comp_render,
+                                _comp_update,
+                                ignore=_ui.MenuAction.NONE,
+                            )
                         if _comp_result == ui.MenuAction.CONFIRM:
                             if getattr(game_map, 'power_restored', False):
                                 log.add("The ship's power grid is already online.")
@@ -1366,7 +1411,27 @@ def _run_game_loop(
                     try:
                         _npcspec = _find_ship(blocker.npc_ship_id)
                         if _npcspec.is_boardable:
-                            # Show board dialog
+                            # Show board dialog through Pygame first; retain
+                            # the tcod modal as the unavailable-worker fallback.
+                            _pygame_board = _run_pygame_dungeon_confirm(
+                                ctx,
+                                title=f"Board the {_npcspec.name}?",
+                                body="The derelict can be searched for salvage and mission cargo.",
+                                accept_label="Board",
+                                cancel_label="Fly past",
+                                caption="spacehack - boarding",
+                            )
+                            if _pygame_board == "QUIT":
+                                return
+                            _board_result = (
+                                PlanetMenuOutcome.LAND
+                                if _pygame_board == "CONFIRM"
+                                else PlanetMenuOutcome.BACK
+                                if _pygame_board == "BACK"
+                                else None
+                            )
+                            # Show the original modal only when the worker
+                            # is unavailable, preserving old input behavior.
                             _board_console = make_console()
                             def _board_render():
                                 _board_console.clear()
@@ -1392,7 +1457,11 @@ def _run_game_loop(
                                 if event.sym in ui._ESCAPE_SYMS:
                                     return PlanetMenuOutcome.BACK
                                 return PlanetMenuOutcome.IGNORE
-                            _board_result = ui.Modal(ctx.context, _board_console).run(_board_render, _board_update)
+                            if _pygame_board is None:
+                                _board_result = ui.Modal(ctx.context, _board_console).run(
+                                    _board_render,
+                                    _board_update,
+                                )
                             if _board_result == PlanetMenuOutcome.QUIT:
                                 return
                             if _board_result == PlanetMenuOutcome.LAND:

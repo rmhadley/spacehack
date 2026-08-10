@@ -1067,6 +1067,45 @@ def test_story_menu_dismisses_with_enter_without_items():
     assert pygame_menu._handle_key(fake, key(fake.K_ESCAPE), 0, 0) == ("BACK", 0)
 
 
+def test_story_confirm_maps_confirm_and_back(monkeypatch):
+    outcomes = iter((("SELECT", "CONFIRM", 0), ("BACK", "", 0)))
+    monkeypatch.setattr(pygame_menu, "run", lambda *args, **kwargs: next(outcomes))
+
+    assert pygame_story.confirm(
+        SimpleNamespace(),
+        title="Computer",
+        body="Restore power?",
+        accept_label="Activate",
+        cancel_label="Leave",
+        caption="test",
+    ) == "CONFIRM"
+    assert pygame_story.confirm(
+        SimpleNamespace(),
+        title="Computer",
+        body="Restore power?",
+        accept_label="Activate",
+        cancel_label="Leave",
+        caption="test",
+    ) == "BACK"
+
+
+def test_story_confirm_preserves_quit(monkeypatch):
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: ("QUIT", "", 0),
+    )
+
+    assert pygame_story.confirm(
+        SimpleNamespace(),
+        title="Board",
+        body="Board the wreck?",
+        accept_label="Board",
+        cancel_label="Fly past",
+        caption="test",
+    ) == "QUIT"
+
+
 def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
     captured = {}
 

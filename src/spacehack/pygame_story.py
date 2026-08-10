@@ -45,6 +45,46 @@ def dismiss(
     return outcome
 
 
+def confirm(
+    ctx,
+    *,
+    title: str,
+    body: str,
+    accept_label: str,
+    cancel_label: str,
+    caption: str,
+) -> str | None:
+    """Run a two-outcome confirmation and return its terminal result."""
+    item = pygame_menu.MenuItem(accept_label, "", "CONFIRM")
+    frame = pygame_menu.MenuFrame(
+        title=title,
+        body=body,
+        items=(item,),
+        hints=(f"ENTER {accept_label.lower()}   ESC {cancel_label.lower()}",),
+        selected=0,
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run((frame,), caption=caption)
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return confirm(
+            ctx,
+            title=title,
+            body=body,
+            accept_label=accept_label,
+            cancel_label=cancel_label,
+            caption=caption,
+        )
+    if outcome == "SELECT" and action == "CONFIRM":
+        return "CONFIRM"
+    if outcome == "QUIT":
+        return "QUIT"
+    return "BACK"
+
+
 def choose(
     ctx,
     *,
