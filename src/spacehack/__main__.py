@@ -660,39 +660,6 @@ def _run_game_loop(
             world.render_world_view(console, game_map, region_x=rx, region_y=ry, region_w=map_w, region_h=map_h, camera_x=cam_x, camera_y=cam_y)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
-        if world_preview is not None and world_preview.alive:
-            if current_mode == 'space':
-                _preview_frame = pygame_world.make_frame(
-                    game_map,
-                    region_x=rx,
-                    region_y=ry,
-                    region_w=view_w,
-                    region_h=view_h,
-                    camera_x=cam_x,
-                    camera_y=cam_y,
-                )
-            elif current_mode == 'dungeon':
-                _preview_frame = pygame_world.make_frame(
-                    game_map,
-                    region_x=rx,
-                    region_y=ry,
-                    region_w=map_w,
-                    region_h=map_h,
-                    camera_x=cam_x,
-                    camera_y=cam_y,
-                )
-            else:
-                _preview_frame = pygame_world.make_frame(
-                    game_map,
-                    region_x=0,
-                    region_y=0,
-                    region_w=map_w,
-                    region_h=map_h,
-                    centered=True,
-                )
-            if not world_preview.send(_preview_frame):
-                world_preview.close()
-                world_preview = None
         if current_mode == 'space':
             _location = solar_system_module.current_system().name
         elif current_mode == 'dungeon':
@@ -703,6 +670,28 @@ def _run_game_loop(
         _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_armory = any(e.armory_terminal for e in game_map.entities) if current_mode == 'city' else False
+        if world_preview is not None and world_preview.alive:
+            _preview_frame = pygame_world.make_mode_exploration_frame(
+                ctx,
+                game_map,
+                mode=current_mode,
+                location=_location,
+                map_width=map_w,
+                map_height=map_h,
+                camera_x=cam_x if current_mode != 'city' else 0,
+                camera_y=cam_y if current_mode != 'city' else 0,
+                region_x=rx if current_mode != 'city' else 0,
+                region_y=ry if current_mode != 'city' else 0,
+                region_width=(view_w if current_mode == 'space' else map_w),
+                region_height=(view_h if current_mode == 'space' else map_h),
+                centered=current_mode == 'city',
+                has_trade_terminal=_has_trade,
+                has_mech_terminal=_has_mech,
+                has_armory_terminal=_has_armory,
+            )
+            if not world_preview.send(_preview_frame):
+                world_preview.close()
+                world_preview = None
         hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, mode=current_mode, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
         message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         ctx.context.present(console)

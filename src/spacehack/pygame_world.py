@@ -1,10 +1,10 @@
-"""Opt-in Pygame preview for the live world grid.
+"""Opt-in Pygame preview for the live exploration frame.
 
 The game process creates renderer-neutral draw commands from ``world.py`` and
-sends serialized frames to a short-lived worker process. Only the worker owns
-Pygame/SDL, so the existing tcod context and event pump remain safe during
-this migration phase. The preview is intentionally presentation-only: it
-never receives or mutates gameplay state.
+projects the existing HUD/message log into the same command stream. A
+short-lived worker process owns Pygame/SDL, so the existing tcod context and
+event pump remain safe during this migration phase. The preview is
+presentation-only: it never receives or mutates gameplay state.
 """
 from __future__ import annotations
 
@@ -20,11 +20,15 @@ from typing import Any
 
 from . import pygame_engine
 from . import world
+from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
+
+
+Color = tuple[int, int, int]
 
 
 @dataclass(frozen=True)
 class WorldFrame:
-    """Renderer-neutral logical frame for the world grid."""
+    """Renderer-neutral logical frame for the exploration screen."""
 
     logical_size: tuple[int, int]
     commands: tuple[world.WorldDrawCommand, ...]
@@ -35,6 +39,44 @@ class WorldFrame:
             "logical_size": self.logical_size,
             "commands": [asdict(command) for command in self.commands],
         }
+
+
+class CaptureConsole:
+    """Minimal tcod-console protocol used to project existing UI renders."""
+
+    def __init__(self, width: int, height: int):
+        self.width = width
+        self.height = height
+        self.commands: list[world.WorldDrawCommand] = []
+
+    def clear(self) -> None:
+        """Clear captured commands, matching the UI console protocol."""
+        self.commands.clear()
+
+    def print(
+        self,
+        *,
+        x: int = 0,
+        y: int = 0,
+        string: str = "",
+        fg: Color = (255, 255, 255),
+        bg: Color | None = None,
+        **_kwargs: Any,
+    ) -> None:
+        """Capture clipped per-cell commands from ``console.print`` calls."""
+        cell_x, cell_y = x, y
+        for character in str(string):
+            if character == "\n":
+                cell_x = x
+                cell_y += 1
+                continue
+            if 0 <= cell_x < self.width and 0 <= cell_y < self.height:
+                self.commands.append(
+                    world.WorldDrawCommand(
+                        cell_x, cell_y, character, tuple(fg), bg,
+                    )
+                )
+            cell_x += 1
 
 
 def make_frame(
@@ -65,6 +107,133 @@ def make_frame(
     return WorldFrame(logical_size=logical_size, commands=commands)
 
 
+def _ui_commands(
+    ctx: Any,
+    *,
+    mode: str,
+    location: str,
+    screen_width: int,
+    screen_height: int,
+    hud_view_height: int,
+    has_trade_terminal: bool = False,
+    has_mech_terminal: bool = False,
+    has_armory_terminal: bool = False,
+) -> tuple[world.WorldDrawCommand, ...]:
+    """Capture the existing HUD and message-log renderers as cell commands."""
+    from . import hud, message_log
+
+    capture = CaptureConsole(screen_width, screen_height)
+    hud.render_hud(
+        capture,
+        ctx,
+        screen_width=screen_width,
+        hud_view_height=hud_view_height,
+        location=location,
+        mode=mode,
+        has_trade_terminal=has_trade_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_armory_terminal=has_armory_terminal,
+    )
+    message_log.render_message_log(
+        capture,
+        ctx.log,
+        screen_width=screen_width,
+        screen_height=screen_height,
+    )
+    return tuple(capture.commands)
+
+
+def make_exploration_frame(
+    ctx: Any,
+    game_map: world.GameMap,
+    *,
+    mode: str,
+    location: str,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+    camera_x: int = 0,
+    camera_y: int = 0,
+    centered: bool = False,
+    has_trade_terminal: bool = False,
+    has_mech_terminal: bool = False,
+    has_armory_terminal: bool = False,
+    logical_size: tuple[int, int] = (1600, 960),
+) -> WorldFrame:
+    """Build map, HUD, and message-log commands for one exploration frame."""
+    map_frame = make_frame(
+        game_map,
+        region_x=region_x,
+        region_y=region_y,
+        region_w=region_w,
+        region_h=region_h,
+        camera_x=camera_x,
+        camera_y=camera_y,
+        centered=centered,
+        logical_size=logical_size,
+    )
+    screen_width = logical_size[0] // TILE_WIDTH
+    screen_height = logical_size[1] // TILE_HEIGHT
+    ui_commands = _ui_commands(
+        ctx,
+        mode=mode,
+        location=location,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        hud_view_height=screen_height - MSG_LOG_HEIGHT,
+        has_trade_terminal=has_trade_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_armory_terminal=has_armory_terminal,
+    )
+    return WorldFrame(
+        logical_size=logical_size,
+        commands=map_frame.commands + ui_commands,
+    )
+
+
+def make_mode_exploration_frame(
+    ctx: Any,
+    game_map: world.GameMap,
+    *,
+    mode: str,
+    location: str,
+    map_width: int,
+    map_height: int,
+    camera_x: int = 0,
+    camera_y: int = 0,
+    region_x: int = 0,
+    region_y: int = 0,
+    region_width: int | None = None,
+    region_height: int | None = None,
+    centered: bool = False,
+    has_trade_terminal: bool = False,
+    has_mech_terminal: bool = False,
+    has_armory_terminal: bool = False,
+) -> WorldFrame:
+    """Build one exploration frame from mode-independent layout inputs."""
+    if region_width is None:
+        region_width = map_width
+    if region_height is None:
+        region_height = map_height
+    return make_exploration_frame(
+        ctx,
+        game_map,
+        mode=mode,
+        location=location,
+        region_x=region_x,
+        region_y=region_y,
+        region_w=region_width,
+        region_h=region_height,
+        camera_x=camera_x,
+        camera_y=camera_y,
+        centered=centered,
+        has_trade_terminal=has_trade_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_armory_terminal=has_armory_terminal,
+    )
+
+
 def _command_from_payload(data: dict[str, Any]) -> world.WorldDrawCommand:
     """Deserialize one renderer-neutral command from worker input."""
     return world.WorldDrawCommand(
@@ -89,7 +258,7 @@ def _draw_frame(
     engine: pygame_engine.PygameEngine,
     frame: WorldFrame,
 ) -> None:
-    """Paint one world frame onto the worker's logical surface."""
+    """Paint one exploration frame onto the worker's logical surface."""
     if engine.logical_surface is None or engine.glyphs is None:
         raise RuntimeError("Pygame world engine is not open")
     engine.logical_surface.fill((0, 0, 0, 255))

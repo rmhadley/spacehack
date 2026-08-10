@@ -1,4 +1,4 @@
-"""Tests for the opt-in Pygame world-frame migration seam."""
+"""Tests for the opt-in Pygame exploration-frame migration seam."""
 
 from __future__ import annotations
 
@@ -17,6 +17,44 @@ def _map(*, seen=None, visible=None, entities=None) -> world.GameMap:
         seen=seen,
         visible=visible,
     )
+
+
+def test_capture_console_clips_text_and_preserves_colors_and_backgrounds():
+    capture = pygame_world.CaptureConsole(4, 2)
+
+    capture.print(
+        x=2,
+        y=1,
+        string="hello",
+        fg=(1, 2, 3),
+        bg=(4, 5, 6),
+    )
+
+    assert capture.commands == [
+        world.WorldDrawCommand(2, 1, "h", (1, 2, 3), (4, 5, 6)),
+        world.WorldDrawCommand(3, 1, "e", (1, 2, 3), (4, 5, 6)),
+    ]
+
+
+def test_capture_console_handles_newlines_and_vertical_clipping():
+    capture = pygame_world.CaptureConsole(4, 2)
+
+    capture.print(x=0, y=0, string="a" + "\n" + "bc", fg=(1, 2, 3))
+
+    assert capture.commands == [
+        world.WorldDrawCommand(0, 0, "a", (1, 2, 3), None),
+        world.WorldDrawCommand(0, 1, "b", (1, 2, 3), None),
+        world.WorldDrawCommand(1, 1, "c", (1, 2, 3), None),
+    ]
+
+
+def test_capture_console_clear_removes_previous_commands():
+    capture = pygame_world.CaptureConsole(4, 2)
+    capture.print(string="old")
+
+    capture.clear()
+
+    assert capture.commands == []
 
 
 def test_world_commands_center_small_map_and_preserve_tile_backgrounds():
@@ -117,6 +155,92 @@ def test_world_frame_payload_round_trips_commands_and_size():
 
     assert restored == frame
     assert restored.logical_size == (1280, 768)
+
+
+def test_exploration_frame_uses_custom_logical_dimensions(monkeypatch):
+    ctx = SimpleNamespace(
+        log=SimpleNamespace(capacity=2, recent=lambda _n=None: []),
+        character_info={"species_name": "human", "class_name": "merchant"},
+        stats=SimpleNamespace(gunnery=1, piloting=2, engineering=3, credits=100),
+        player_owned_ship=None,
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        ground_stats=SimpleNamespace(reflexes=1, strength=2, stamina=3),
+        ground_hp=23,
+        ground_max_hp=23,
+        time_day=1,
+        time_month=1,
+        time_year=2200,
+    )
+
+    frame = pygame_world.make_exploration_frame(
+        ctx,
+        _map(),
+        mode="city",
+        location="Earth",
+        region_x=0,
+        region_y=0,
+        region_w=4,
+        region_h=3,
+        centered=True,
+        logical_size=(1280, 768),
+    )
+
+    assert any(command.x == 60 for command in frame.commands)
+    assert all(command.x < 80 for command in frame.commands)
+    assert all(command.y < 48 for command in frame.commands)
+
+
+def test_exploration_frame_appends_hud_and_log_after_map(monkeypatch):
+    class FakeLog:
+        capacity = 6
+
+        def __init__(self):
+            self.entries = []
+
+        def recent(self, _n=None):
+            return self.entries
+
+    ctx = SimpleNamespace(
+        log=FakeLog(),
+        character_info={"species_name": "human", "class_name": "merchant"},
+        stats=SimpleNamespace(
+            gunnery=1, piloting=2, engineering=3, credits=100,
+        ),
+        player_owned_ship=None,
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        ground_stats=SimpleNamespace(reflexes=1, strength=2, stamina=3),
+        ground_hp=23,
+        ground_max_hp=23,
+        time_day=1,
+        time_month=1,
+        time_year=2200,
+    )
+    monkeypatch.setattr(
+        ctx.log,
+        "recent",
+        lambda _n=None: [SimpleNamespace(text="Hello", fg=(9, 8, 7))],
+    )
+
+    frame = pygame_world.make_exploration_frame(
+        ctx,
+        _map(),
+        mode="city",
+        location="Earth",
+        region_x=0,
+        region_y=0,
+        region_w=4,
+        region_h=3,
+        centered=True,
+    )
+
+    assert any(command.char == "S" for command in frame.commands)
+    assert any(command.char == ">" and command.fg == (9, 8, 7) for command in frame.commands)
+    assert any(command.char == "Spacehack"[0] for command in frame.commands)
+    assert frame.commands.index(next(command for command in frame.commands if command.char == "S")) < frame.commands.index(next(command for command in frame.commands if command.char == "H"))
 
 
 def test_world_preview_is_disabled_without_explicit_opt_in(monkeypatch):
