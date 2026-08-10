@@ -63,7 +63,12 @@ def _pygame_armory_frame(ctx: GameContext):
     from ..data.ground_armor import list_ground_armor
     _left = [pygame_split.SplitRow("--- WEAPONS ---", "", "", "", True)]
     _left.extend(
-        pygame_split.SplitRow(spec.name, f"{spec.price}$", spec.description, f"BUY_WEAPON:{spec.id}")
+        pygame_split.SplitRow(
+            spec.name,
+            f"{spec.price}$",
+            f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
+            f"BUY_WEAPON:{spec.id}",
+        )
         for spec in sorted(list_ground_weapons(), key=lambda item: item.price)
         if getattr(spec, "shop_available", True)
     )
@@ -82,7 +87,9 @@ def _pygame_armory_frame(ctx: GameContext):
         if item_id:
             spec = find_ground_weapon(item_id)
             _right.append(pygame_split.SplitRow(
-                spec.name, f"(sell {_sell_price(item_id)}$)", spec.description,
+                spec.name,
+                f"(sell {_sell_price(item_id)}$)",
+                f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
                 f"SELL_WEAPON:{index}",
             ))
         else:
@@ -110,6 +117,8 @@ def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selec
     """Apply one Pygame armory action using the existing parent logic."""
     from ..data.ground_weapons import find_ground_weapon
     from ..data.ground_armor import find_ground_armor
+    if not action:
+        return True
     if action.startswith("BUY_WEAPON:"):
         item_id = action.split(":", 1)[1]
         spec = find_ground_weapon(item_id)
@@ -138,7 +147,9 @@ def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selec
         item_id = ctx.equipped_ground_armor.pop(slot, None)
         if item_id:
             ctx.stats.credits += _sell_price(item_id)
-    raise ValueError(f"Unknown armory action: {action!r}")
+    else:
+        raise ValueError(f"Unknown armory action: {action!r}")
+    return True
 
 
 def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:

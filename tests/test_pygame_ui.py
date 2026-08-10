@@ -14,7 +14,7 @@ from src.spacehack import (
     pygame_ui,
     pygame_world,
 )
-from src.spacehack.menus import _missions, _planet, _ship_menu
+from src.spacehack.menus import _armory, _missions, _planet, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
 from src.spacehack.main_quest import _act0
 
@@ -480,6 +480,68 @@ def test_split_interactive_preserves_focus_and_selection_after_action(monkeypatc
     assert applied == [("BUY:item", 1, 3)]
     assert seen[1].focus == 1
     assert seen[1].selected == 3
+
+
+def test_armory_pygame_frame_builds_ground_weapon_details():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    frame = _armory._pygame_armory_frame(ctx)
+    actions = [row.action for row in frame.left_rows if not row.divider]
+
+    assert actions
+    assert "BUY_WEAPON:laser_pistol" in actions
+    assert all("Accuracy:" in row.detail for row in frame.left_rows if row.action.startswith("BUY_WEAPON:"))
+
+
+def test_armory_pygame_empty_slot_action_is_noop():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    assert _armory._apply_pygame_armory_action(ctx, "", 1, 1) is True
+    assert ctx.stats.credits == 1000
+
+
+def test_armory_pygame_rejects_unknown_action():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    try:
+        _armory._apply_pygame_armory_action(ctx, "BROKEN", 0, 0)
+    except ValueError as exc:
+        assert "Unknown armory action" in str(exc)
+    else:
+        raise AssertionError("unknown Armory actions must trigger fallback")
+
+
+def test_armory_pygame_action_returns_keep_open_after_buy():
+    messages = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+
+    keep_open = _armory._apply_pygame_armory_action(
+        ctx, "BUY_WEAPON:laser_pistol", 0, 1,
+    )
+
+    assert keep_open is True
+    assert ctx.equipped_ground_weapons == ["laser_pistol"]
+    assert ctx.stats.credits < 1000
+    assert messages
 
 
 def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
