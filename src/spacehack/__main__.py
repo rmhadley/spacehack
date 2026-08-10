@@ -842,7 +842,7 @@ def _run_game_loop(
                     tutorial_module.notify_pickup(ctx)
                 continue
             if current_mode == 'space' and _is_g_press(event):
-                _goto_outcome, _goto_combat = _run_goto(ctx, player)
+                _goto_outcome, _goto_combat = _run_goto(ctx, console, player)
                 if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
                     _run_combat_loop(ctx, console, player)

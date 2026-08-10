@@ -901,7 +901,7 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
     return True, selected
 
 
-def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
+def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
     """Open a GO TO modal listing interactable space bodies, then
     auto-navigate the player's ship to a cell adjacent to the chosen
     target using BFS pathfinding + step-by-step animation.
