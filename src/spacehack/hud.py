@@ -63,7 +63,7 @@ if TYPE_CHECKING:
 # The shared white/dim/divider colors come from ui.py so brightness stays
 # consistent across menus and gameplay.
 COLOR_HUD_TITLE: tuple[int, int, int] = (255, 205, 95)             # vivid gold
-COLOR_LABEL: tuple[int, int, int] = (225, 225, 215)                # warm white label
+COLOR_LABEL: tuple[int, int, int] = (245, 245, 235)                # near-white label
 COLOR_HP_GOOD: tuple[int, int, int] = (110, 245, 125)               # bright green
 COLOR_HP_LOW: tuple[int, int, int] = (255, 110, 110)                # bright red
 COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green positive-buff accent
@@ -71,10 +71,10 @@ COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green posit
 # Space-mode HUD palette — cyan is reserved for the ship identity.
 COLOR_SHIP_NAME: tuple[int, int, int] = (150, 235, 255)             # bright cyan
 COLOR_SHIP_VALUE: tuple[int, int, int] = (255, 255, 255)            # white stat values
-COLOR_SHIP_LABEL: tuple[int, int, int] = (220, 220, 210)            # warm-white labels
+COLOR_SHIP_LABEL: tuple[int, int, int] = (240, 240, 230)            # near-white labels
 COLOR_FUEL_OK: tuple[int, int, int] = (110, 245, 125)               # green when fuel is adequate
 COLOR_FUEL_LOW: tuple[int, int, int] = (255, 190, 75)               # amber when fuel is low (< jump cost)
-COLOR_HELP_DESC: tuple[int, int, int] = (220, 220, 210)             # warm silver for key descriptions
+COLOR_HELP_DESC: tuple[int, int, int] = (240, 240, 230)             # near-white key descriptions
 
 
 @dataclass
@@ -469,13 +469,13 @@ COLOR_COMBAT_TITLE: tuple[int, int, int] = (255, 80, 80)           # red combat 
 COLOR_HULL_BAR_GREEN: tuple[int, int, int] = (100, 235, 115)       # bright green
 COLOR_HULL_BAR_YELLOW: tuple[int, int, int] = (255, 220, 80)       # amber
 COLOR_HULL_BAR_RED: tuple[int, int, int] = (255, 80, 80)           # red
-COLOR_SHIELD_BAR: tuple[int, int, int] = (100, 200, 255)           # cyan
+COLOR_SHIELD_BAR: tuple[int, int, int] = (175, 230, 255)           # bright cyan
 COLOR_AP: tuple[int, int, int] = (255, 220, 80)                    # gold
-COLOR_POWER: tuple[int, int, int] = (205, 225, 245)                # pale blue-white
+COLOR_POWER: tuple[int, int, int] = (225, 240, 255)                # near-white blue
 COLOR_COMBAT_WEAPON: tuple[int, int, int] = (255, 200, 100)        # gold
-COLOR_COMBAT_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)     # dimmed
-COLOR_COMBAT_LOG: tuple[int, int, int] = (200, 200, 200)           # silver
-COLOR_COMBAT_ACTION: tuple[int, int, int] = (220, 235, 220)        # readable pale neutral
+COLOR_COMBAT_WEAPON_DIM: tuple[int, int, int] = (205, 190, 145)     # readable inactive state
+COLOR_COMBAT_LOG: tuple[int, int, int] = (235, 235, 230)           # bright silver
+COLOR_COMBAT_ACTION: tuple[int, int, int] = (245, 250, 235)        # near-white action text
 COLOR_COMBAT_MODE: tuple[int, int, int] = (255, 255, 150)          # yellow for mode indicator
 
 

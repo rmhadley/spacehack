@@ -30,25 +30,25 @@ T = TypeVar("T", bound=Enum)
 # High-contrast sci-fi palette for a black background. Normal reading text
 # stays neutral or warm-white; color is reserved for hierarchy and state so
 # users do not have to decode a dark blue paragraph against black.
-COLOR_TITLE: tuple[int, int, int] = (150, 235, 255)              # bright cyan heading
-COLOR_INSTRUCTION: tuple[int, int, int] = (235, 220, 165)        # warm yellow hint
-COLOR_OPTION: tuple[int, int, int] = (235, 235, 225)             # soft white
+COLOR_TITLE: tuple[int, int, int] = (205, 250, 255)              # near-white cyan heading
+COLOR_INSTRUCTION: tuple[int, int, int] = (255, 240, 175)        # bright warm hint
+COLOR_OPTION: tuple[int, int, int] = (255, 255, 250)             # near-white body text
 COLOR_OPTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)   # pure white
-COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (190, 240, 255)  # pale cyan accent
-COLOR_DESCRIPTION: tuple[int, int, int] = (220, 220, 210)        # readable warm grey
+COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (220, 250, 255)  # pale cyan accent
+COLOR_DESCRIPTION: tuple[int, int, int] = (245, 245, 235)        # bright secondary text
 # Value cells (numbers, prices) - kept here so dialogs in __main__
 # (e.g. the ship-buy modal) can use the same near-white/dim pair.
 COLOR_VALUE_WHITE: tuple[int, int, int] = (255, 255, 255)        # pure white
-COLOR_VALUE_DIM: tuple[int, int, int] = (200, 200, 195)           # readable silver
+COLOR_VALUE_DIM: tuple[int, int, int] = (230, 230, 225)           # bright secondary value
 
 # Unified screen-header rule. Single source of truth for the divider
 # drawn under every menu title — change these and every screen follows.
 DIVIDER_CHAR: str = "="                       # CP437-safe rule char
-COLOR_DIVIDER: tuple[int, int, int] = (145, 145, 140)  # visible neutral rule
-COLOR_SPLASH_BORDER: tuple[int, int, int] = (170, 170, 165)   # title-frame neutral
-COLOR_SPLASH_ART: tuple[int, int, int] = (150, 235, 255)      # title cyan
-COLOR_SPLASH_FLAVOR: tuple[int, int, int] = (220, 220, 210)   # title body text
-COLOR_SPLASH_PROMPT: tuple[int, int, int] = (235, 220, 165)   # title instruction
+COLOR_DIVIDER: tuple[int, int, int] = (190, 190, 185)  # visible neutral rule
+COLOR_SPLASH_BORDER: tuple[int, int, int] = (205, 205, 200)   # title-frame neutral
+COLOR_SPLASH_ART: tuple[int, int, int] = (205, 250, 255)      # title cyan
+COLOR_SPLASH_FLAVOR: tuple[int, int, int] = (245, 245, 235)   # title body text
+COLOR_SPLASH_PROMPT: tuple[int, int, int] = (255, 240, 175)   # title instruction
 
 
 class MenuAction(Enum):

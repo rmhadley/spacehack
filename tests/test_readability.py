@@ -126,8 +126,15 @@ def test_primary_reading_palette_is_high_contrast_on_black():
         message_log.COLOR_MESSAGE_DIM,
         hud.COLOR_LABEL,
         hud.COLOR_SHIP_LABEL,
+        hud.COLOR_HELP_DESC,
+        hud.COLOR_POWER,
+        hud.COLOR_COMBAT_WEAPON_DIM,
+        hud.COLOR_COMBAT_ACTION,
     ):
-        assert _contrast_against_black(color) >= 7.0, color
+        assert _contrast_against_black(color) >= 10.0, color
+
+    assert _contrast_against_black(ui.COLOR_DIVIDER) >= 8.0
+    assert _contrast_against_black(message_log.COLOR_MESSAGE_DIM) >= 10.0
 
 
 def test_blue_is_reserved_for_bright_accents():
