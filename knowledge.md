@@ -165,7 +165,7 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
 ### Fonts & rendering (engine.py)
 
 - **TrueType is preferred**: `TRUETYPE_FONT_FILENAME`
-  (`DejaVuSansMono.ttf`) is rasterized at 14×18 and used first. The retained
+  (`DejaVuSansMono.ttf`) is rasterized at 18×18 and used first. The retained
   `Hack-Regular.ttf` is the secondary TTF fallback, followed by the CP437
   tilesheet (`dejavu16x16_gs_tc.png`) only when both TTF paths fail.
 - **Font gotcha**: libtcod scales a TTF to the tile height, then *shrinks* it
@@ -631,7 +631,7 @@ mutation-wrapper function:**
 SCREEN_WIDTH   = 100
 SCREEN_HEIGHT  = 60
 WINDOW_TITLE   = "spacehack"
-TILE_WIDTH, TILE_HEIGHT = 14, 18
+TILE_WIDTH, TILE_HEIGHT = 18, 18
 TRUETYPE_FONT_FILENAME = "DejaVuSansMono.ttf" # preferred (TTF)
 LEGACY_TRUETYPE_FONT_FILENAME = "Hack-Regular.ttf" # secondary TTF
 TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"       # CP437 fallback

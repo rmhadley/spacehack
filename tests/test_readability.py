@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -78,9 +77,9 @@ def test_bundled_font_is_explicit_and_has_more_raster_breathing_room():
     assert engine.TRUETYPE_FONT_FILENAME == "DejaVuSansMono.ttf"
     assert (data_dir / engine.TRUETYPE_FONT_FILENAME).is_file()
     assert (data_dir / engine.LEGACY_TRUETYPE_FONT_FILENAME).is_file()
-    assert engine.TILE_WIDTH == 14
+    assert engine.TILE_WIDTH == 18
     assert engine.TILE_HEIGHT == 18
-    assert engine.TILE_WIDTH < engine.TILE_HEIGHT
+    assert engine.TILE_WIDTH == engine.TILE_HEIGHT
 
 
 def test_font_loader_prefers_dejavu_then_hack_then_tilesheet(monkeypatch):
@@ -108,21 +107,12 @@ def test_font_loader_prefers_dejavu_then_hack_then_tilesheet(monkeypatch):
 
 def test_bitmap_glyphs_center_when_raster_is_larger():
     """Procedural texture glyphs stay aligned with a larger TTF tile."""
-    tile = engine._render_bitmap_tile(14, 18, ("#",))
-    assert tile[8, 6, 3] == 255
+    tile = engine._render_bitmap_tile(18, 18, ("#",))
+    assert tile[8, 8, 3] == 255
     assert tile[0, 0, 3] == 0
-    offset_tile = engine._render_bitmap_tile(14, 18, ("", "##"))
-    assert offset_tile[9, 6, 3] == 255
-    assert not engine._render_bitmap_tile(14, 18, ()).any()
-
-
-def test_wide_bitmap_glyphs_are_center_cropped_for_narrow_cells():
-    """The 16-column diamond remains balanced in the 14px tile."""
-    tile = engine._render_bitmap_tile(14, 18, engine._SUIT_BITMAPS[0x2666])
-    _ys, xs = np.where(tile[..., 3] > 0)
-    assert int(xs.min()) == 0
-    assert int(xs.max()) == 13
-    assert int(xs.max() - xs.min()) == 13
+    offset_tile = engine._render_bitmap_tile(18, 18, ("", "##"))
+    assert offset_tile[9, 8, 3] == 255
+    assert not engine._render_bitmap_tile(18, 18, ()).any()
 
 
 def test_primary_reading_palette_is_high_contrast_on_black():

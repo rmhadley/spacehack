@@ -57,8 +57,8 @@ def seed_rng(seed: int) -> None:
     INIT_SEED = seed
 
 
-# Screen dimensions in character cells. With the 14x18 font raster this
-# gives a 1400 x 1080 logical-pixel window while preserving the existing
+# Screen dimensions in character cells. With the 18x18 font raster this
+# gives a 1800 x 1080 logical-pixel window while preserving the existing
 # character-cell layout.
 SCREEN_WIDTH: int = 100
 SCREEN_HEIGHT: int = 60
@@ -75,10 +75,9 @@ MSG_LOG_HEIGHT: int = 6
 
 WINDOW_TITLE: str = "spacehack"
 
-# Glyph size in pixels. The 14x18 cell keeps the readable vertical raster
-# while matching DejaVu Sans Mono's narrower visual advance, reducing the
-# excessive horizontal air visible with the previous 18x18 square cell.
-TILE_WIDTH: int = 14
+# Glyph size in pixels. The square 18x18 cell preserves the font's
+# intended raster proportions and avoids horizontal distortion.
+TILE_WIDTH: int = 18
 TILE_HEIGHT: int = 18
 
 # Keep the dimensions easy to tune as a pair; the bundled font is loaded
