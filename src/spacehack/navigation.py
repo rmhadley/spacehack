@@ -868,6 +868,61 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
 # GO TO (auto-nav)
 # ---------------------------------------------------------------------------
 
+def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[bool, int | None]:
+    """Run the GO TO destination selector through the Pygame worker.
+
+    Returns ``(handled, selected)``. ``handled`` is false only when the
+    worker is unavailable, which preserves the native tcod selector as a
+    strict fallback. The parent process keeps destination objects private;
+    the worker receives labels/descriptions and returns only an index.
+    """
+    from . import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(
+            label,
+            getattr(body, "description", "") or "Plot a course to this destination.",
+            f"DEST:{index}",
+        )
+        for index, (label, body) in enumerate(destinations)
+    )
+    frames = tuple(
+        pygame_menu.MenuFrame(
+            title="GO TO",
+            body="Select a destination for auto-navigation.",
+            items=items,
+            hints=("ARROW KEYS / j,k navigate - ENTER go - ESC cancel",),
+            selected=index,
+        )
+        for index in range(len(items))
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run(
+            frames,
+            caption="spacehack - go to",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return False, None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return _run_pygame_goto_menu(ctx, destinations)
+    if outcome in {"BACK", "QUIT"}:
+        return True, None
+    if outcome != "SELECT":
+        return False, None
+    prefix, separator, raw_index = action.partition(":")
+    if prefix != "DEST" or not separator:
+        return False, None
+    try:
+        selected = int(raw_index)
+    except ValueError:
+        return False, None
+    if not 0 <= selected < len(destinations):
+        return False, None
+    return True, selected
+
+
 def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
     """Open a GO TO modal listing interactable space bodies, then
     auto-navigate the player's ship to a cell adjacent to the chosen
@@ -894,6 +949,14 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
         return (GotoOutcome.CANCELLED, None)
     n = len(destinations)
     selected = 0
+    _pygame_selected: int | None = None
+    from . import pygame_ui
+    if pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE"):
+        _pygame_handled, _pygame_selected = _run_pygame_goto_menu(ctx, destinations)
+        if _pygame_handled and _pygame_selected is None:
+            return (GotoOutcome.CANCELLED, None)
+        if not _pygame_handled:
+            _pygame_selected = None
     console = make_console()
     while True:
         console.clear()
@@ -911,8 +974,18 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
             hint='ARROW KEYS / j,k navigate - ENTER go - ESC cancel',
         )
         message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        ctx.context.present(console)
-        for event in tcod.event.wait():
+        if _pygame_selected is not None:
+            selected = _pygame_selected
+            _pygame_selected = None
+            _events = (tcod.event.KeyDown(
+                scancode=tcod.event.Scancode.UNKNOWN,
+                sym=tcod.event.K_RETURN,
+                mod=0,
+            ),            )
+        else:
+            ctx.context.present(console)
+            _events = tcod.event.wait()
+        for event in _events:
             if isinstance(event, tcod.event.Quit):
                 return (GotoOutcome.CANCELLED, None)
             if not isinstance(event, tcod.event.KeyDown):

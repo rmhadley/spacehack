@@ -88,6 +88,56 @@ def test_quantity_worker_rejects_invalid_confirmed_amount(monkeypatch):
         raise AssertionError("quantity worker must reject out-of-range values")
 
 
+def test_goto_menu_pygame_maps_destination_index(monkeypatch):
+    from src.spacehack import navigation, pygame_menu
+
+    destinations = [
+        ("Mars", SimpleNamespace(name="Mars", description="Red world.")),
+        ("[Gate] Sirius", SimpleNamespace(name="Sirius gate", description="A stable gate.")),
+    ]
+    captured = {}
+
+    def fake_run(frames, **kwargs):
+        captured["frames"] = frames
+        return ("SELECT", "DEST:1", 1)
+
+    monkeypatch.setattr(pygame_menu, "run", fake_run)
+
+    assert navigation._run_pygame_goto_menu(SimpleNamespace(), destinations) == (True, 1)
+    assert captured["frames"][1].items[1].action == "DEST:1"
+    assert captured["frames"][1].items[1].description == "A stable gate."
+
+
+def test_goto_menu_pygame_back_is_handled_as_cancel(monkeypatch):
+    from src.spacehack import navigation, pygame_menu
+
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: ("BACK", "", 0),
+    )
+
+    assert navigation._run_pygame_goto_menu(
+        SimpleNamespace(), [("Mars", SimpleNamespace(name="Mars"))],
+    ) == (True, None)
+
+
+def test_goto_menu_pygame_unavailable_requests_tcod_fallback(monkeypatch):
+    from src.spacehack import navigation, pygame_menu
+
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            pygame_menu.PygameMenuUnavailable("missing")
+        ),
+    )
+
+    assert navigation._run_pygame_goto_menu(
+        SimpleNamespace(), [("Mars", SimpleNamespace(name="Mars"))],
+    ) == (False, None)
+
+
 def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
     from src.spacehack import navigation, pygame_menu
 
