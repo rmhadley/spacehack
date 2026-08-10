@@ -66,7 +66,7 @@ def test_text_glyph_widening_preserves_grid_and_adds_ink():
     assert widened.shape == tile.shape
     assert np.count_nonzero(widened[..., 3]) > np.count_nonzero(tile[..., 3])
     ys, xs = np.where(widened[..., 3] > 0)
-    assert (int(xs.min()), int(xs.max())) == (4, 11)
+    assert (int(xs.min()), int(xs.max())) == (4, 10)
 
 
 def test_bitmap_glyphs_center_in_the_native_raster():

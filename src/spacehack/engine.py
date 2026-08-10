@@ -94,7 +94,7 @@ TILESHEET_ROWS: int = 8
 _TEXT_GLYPHS: tuple[int, ...] = tuple(
     ord(char) for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 )
-_TEXT_GLYPH_EXTRA_COLUMNS: int = 2
+_TEXT_GLYPH_EXTRA_COLUMNS: int = 1
 
 
 class EngineError(RuntimeError):
