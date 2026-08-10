@@ -305,12 +305,13 @@ def _faction_progress_bar(rep: int, width: int = 31) -> str:
 
 
 def _run_faction_view(ctx) -> None:
-    """Show faction standings with the existing tcod modal."""
-    if _pygame_readonly_enabled():
-        from .. import pygame_batch
+    """Show faction standings with the refreshed Pygame presentation."""
+    from .. import pygame_faction
+
+    if pygame_faction.enabled():
         try:
-            outcome = pygame_batch.run_for_context(ctx.context, lambda console: render_faction_view(console, ctx))
-        except pygame_batch.PygameBatchUnavailable:
+            outcome = pygame_faction.run_for_context(ctx.context, ctx)
+        except pygame_faction.PygameFactionUnavailable:
             outcome = None
         if outcome is not None:
             if outcome == "GUIDE":
