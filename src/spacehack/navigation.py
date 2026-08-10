@@ -981,7 +981,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
             _pygame_selected = None
             _events = (tcod.event.KeyDown(
                 scancode=tcod.event.Scancode.UNKNOWN,
-                sym=tcod.event.K_RETURN,
+                sym=tcod.event.KeySym.RETURN,
                 mod=0,
             ),            )
         else:
