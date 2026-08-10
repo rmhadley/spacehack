@@ -38,6 +38,13 @@ class ShipMenuAction(Enum):
 SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
 
 
+def _pygame_readonly_enabled() -> bool:
+    """Return whether the batched read-only Pygame screens are enabled."""
+    from .. import pygame_batch
+
+    return pygame_batch.enabled()
+
+
 def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int = 0, *, screen_width: int, screen_height: int) -> None:
     """Paint the hangar ship menu via :func:`ui.render_selectable_list`.
 
@@ -157,198 +164,172 @@ def _effective_power_gen(ship_spec, owned) -> int:
 
 
 
-def _run_loadout_view(ctx) -> None:
-    """Show a read-only view of the player's ship loadout.
+def _render_loadout_weapons(console, owned, ship_spec, cy: int) -> int:
+    """Render installed weapons and return the next row."""
+    from ..data.weapons import find_weapon as _find_weapon
 
-    All displayed stats reflect module bonuses (shields, power,
-    cargo are base + module bonuses).
-    """
+    count = len(owned.weapons)
+    ui.paint_text(console, 2, cy, f"WEAPONS  ({count}/{ship_spec.weapon_slots} slots)", fg=ui.COLOR_TITLE)
+    cy += 1
+    if not count:
+        ui.paint_text(console, 4, cy, "(none installed)", fg=ui.COLOR_VALUE_DIM)
+        return cy + 2
+    for weapon_id in owned.weapons:
+        try:
+            weapon = _find_weapon(weapon_id)
+            line = f"  {weapon.name:<20} dmg:{weapon.damage:>2}  acc:{weapon.accuracy:>2}%  range:{weapon.min_range}-{weapon.max_range}"
+        except KeyError:
+            line = f"  {weapon_id} (unknown)"
+        ui.paint_text(console, 4, cy, line, fg=ui.COLOR_OPTION)
+        cy += 1
+    return cy + 1
+
+
+def _render_loadout_modules(console, owned, ship_spec, cy: int) -> int:
+    """Render installed modules and return the next row."""
+    from ..data.modules import find_module as _find_module
+
+    count = len(owned.modules)
+    ui.paint_text(console, 2, cy, f"MODULES  ({count}/{ship_spec.module_slots} slots)", fg=ui.COLOR_TITLE)
+    cy += 1
+    if not count:
+        ui.paint_text(console, 4, cy, "(none installed)", fg=ui.COLOR_VALUE_DIM)
+        return cy + 3
+    for module_id in owned.modules:
+        try:
+            module = _find_module(module_id)
+            ui.paint_text(console, 4, cy, module.name, fg=ui.COLOR_OPTION)
+            ui.paint_text(console, 6, cy + 1, module.description, fg=ui.COLOR_VALUE_DIM)
+            cy += 2
+        except KeyError:
+            ui.paint_text(console, 4, cy, f"{module_id} (unknown)", fg=ui.COLOR_VALUE_DIM)
+            cy += 1
+    return cy + 2
+
+
+def render_loadout_view(console, ctx) -> None:
+    """Render the read-only loadout view into a supplied console."""
     owned = ctx.player_owned_ship
     if owned is None:
         return
     ship_spec = ship_module.find_ship(owned.ship_id)
+    eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
+    console.clear()
+    title = f"LOADOUT -- {ship_module.ship_display_name(owned).upper()}"
+    cy = ui.screen_header(console, SCREEN_WIDTH, title)
+    header = (
+        f"Fuel: {owned.fuel}/{ship_spec.max_fuel}  |  "
+        f"Hull: {owned.hull_damage_pct}%  |  Cargo: {owned.cargo_used}/{eff_cargo}  |  "
+        f"Shields: {_effective_shields(ship_spec, owned)}  |  "
+        f"Power: {_effective_power_gen(ship_spec, owned)}  |  "
+        f"Speed: {ship_module.effective_speed(ship_spec, owned)}"
+    )
+    ui.paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
+    cy += 2
+    ui.paint_rule(console, 2, cy, ui.rule_width(SCREEN_WIDTH))
+    cy = _render_loadout_weapons(console, owned, ship_spec, cy + 1)
+    cy = _render_loadout_modules(console, owned, ship_spec, cy)
+    ui.paint_text(console, 2, cy, "Press ESC to go back.", fg=ui.COLOR_INSTRUCTION)
+    message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
+
+def _run_loadout_view(ctx) -> None:
+    """Show the read-only loadout view through the existing tcod modal."""
+    if ctx.player_owned_ship is None:
+        return
+    if _pygame_readonly_enabled():
+        from .. import pygame_batch
+        try:
+            outcome = pygame_batch.run_readonly(lambda console: render_loadout_view(console, ctx))
+        except pygame_batch.PygameBatchUnavailable:
+            outcome = None
+        if outcome is not None:
+            if outcome == "GUIDE":
+                from ..help import _run_help_guide
+                _run_help_guide(ctx)
+            return
     console = make_console()
 
-    from ..ui import paint_text
-
-    # Pre-compute effective stats with module bonuses.
-    eff_shields = _effective_shields(ship_spec, owned)
-    eff_power = _effective_power_gen(ship_spec, owned)
-    eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
-
     def _render() -> None:
-        console.clear()
-        from ..data.weapons import find_weapon as _fw
-        from ..data.modules import find_module as _fm
-
-        # Title + header rule (unified screen header)
-        title_text = f"LOADOUT \u2014 {ship_module.ship_display_name(owned).upper()}"
-        cy = ui.screen_header(console, SCREEN_WIDTH, title_text)
-
-        # Ship stats header — effective values with module bonuses.
-        eff_spd = ship_module.effective_speed(ship_spec, owned)
-        header = (
-            f"Fuel: {owned.fuel}/{ship_spec.max_fuel}  |  "
-            f"Hull: {owned.hull_damage_pct}%  |  "
-            f"Cargo: {owned.cargo_used}/{eff_cargo}  |  "
-            f"Shields: {eff_shields}  |  "
-            f"Power: {eff_power}  |  "
-            f"Speed: {eff_spd}"
-        )
-        paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
-        cy += 2
-
-        # Section rule
-        ui.paint_rule(console, 2, cy, ui.rule_width(SCREEN_WIDTH))
-        cy += 1
-
-        # Weapons section
-        wpn_count = len(owned.weapons)
-        paint_text(console, 2, cy, f"WEAPONS  ({wpn_count}/{ship_spec.weapon_slots} slots)", fg=ui.COLOR_TITLE)
-        cy += 1
-        if wpn_count == 0:
-            paint_text(console, 4, cy, "(none installed)", fg=ui.COLOR_VALUE_DIM)
-            cy += 1
-        else:
-            for wid in owned.weapons:
-                try:
-                    ws = _fw(wid)
-                    line = f"  {ws.name:<20} dmg:{ws.damage:>2}  acc:{ws.accuracy:>2}%  range:{ws.min_range}-{ws.max_range}"
-                except KeyError:
-                    line = f"  {wid} (unknown)"
-                paint_text(console, 4, cy, line, fg=ui.COLOR_OPTION)
-                cy += 1
-
-        cy += 1
-
-        # Modules section
-        mod_count = len(owned.modules)
-        paint_text(console, 2, cy, f"MODULES  ({mod_count}/{ship_spec.module_slots} slots)", fg=ui.COLOR_TITLE)
-        cy += 1
-        if mod_count == 0:
-            paint_text(console, 4, cy, "(none installed)", fg=ui.COLOR_VALUE_DIM)
-            cy += 1
-        else:
-            for mid in owned.modules:
-                try:
-                    ms = _fm(mid)
-                    paint_text(console, 4, cy, ms.name, fg=ui.COLOR_OPTION)
-                    cy += 1
-                    paint_text(console, 6, cy, ms.description, fg=ui.COLOR_VALUE_DIM)
-                    cy += 1
-                except KeyError:
-                    paint_text(console, 4, cy, f"{mid} (unknown)", fg=ui.COLOR_VALUE_DIM)
-                    cy += 1
-
-        # Hint
-        cy += 2
-        paint_text(console, 2, cy, "Press ESC to go back.", fg=ui.COLOR_INSTRUCTION)
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_loadout_view(console, ctx)
 
     def _update(event: tcod.event.Event) -> ShipMenuAction | None:
-        """Return IGNORE to keep polling, None to close."""
         if _try_open_guide(event, ctx):
             return ShipMenuAction.IGNORE
         if isinstance(event, tcod.event.Quit):
             return None
-        if not isinstance(event, tcod.event.KeyDown):
-            return ShipMenuAction.IGNORE
-        if event.sym in ui._ESCAPE_SYMS:
+        if isinstance(event, tcod.event.KeyDown) and event.sym in ui._ESCAPE_SYMS:
             return None
         return ShipMenuAction.IGNORE
 
     ui.Modal(ctx.context, console).run(_render, _update)
 
 
-def _run_faction_view(ctx) -> None:
-    """Show faction standings with progress bars."""
+def render_faction_view(console, ctx) -> None:
+    """Render faction standings into a supplied console."""
     from ..faction import get_attitude, _ALL_FACTIONS
+
+    zone_colors: dict[str, tuple[int, int, int]] = {
+        "enemy": (255, 80, 80), "disliked": (255, 165, 60),
+        "neutral": (180, 180, 180), "liked": (100, 200, 255),
+        "allied": (100, 255, 130),
+    }
+    console.clear()
+    start_y = ui.screen_header(console, SCREEN_WIDTH, "FACTION STANDINGS")
+    for index, faction_id in enumerate(_ALL_FACTIONS):
+        reputation = ctx.faction_reputation.get(faction_id, 0)
+        attitude = get_attitude(reputation)
+        bar = _faction_progress_bar(reputation)
+        console.print(
+            x=2, y=start_y + index * 3,
+            string=f"{faction_id.title().ljust(10)} {reputation:+d}  {bar}  {attitude.title()}",
+            fg=zone_colors.get(attitude, (180, 180, 180)),
+        )
+    console.print(
+        x=2, y=start_y + len(_ALL_FACTIONS) * 3 + 2,
+        string="ENTER / ESC - back", fg=ui.COLOR_INSTRUCTION,
+    )
+    message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+
+
+def _faction_progress_bar(rep: int, width: int = 31) -> str:
+    """Return the CP437-safe centered faction reputation bar."""
+    half = width // 2
+    neg_fill = int((abs(rep) / 100) * half) if rep < 0 else 0
+    pos_fill = int((rep / 100) * half) if rep >= 0 else 0
+    neg_fill = max(0, min(half, neg_fill))
+    pos_fill = max(0, min(half, pos_fill))
+    left = ["#" if neg_fill >= half - index else "-" for index in range(half)]
+    right = ["#" if pos_fill >= index + 1 else "-" for index in range(half)]
+    return "".join(left + ["|"] + right)
+
+
+def _run_faction_view(ctx) -> None:
+    """Show faction standings with the existing tcod modal."""
+    if _pygame_readonly_enabled():
+        from .. import pygame_batch
+        try:
+            outcome = pygame_batch.run_readonly(lambda console: render_faction_view(console, ctx))
+        except pygame_batch.PygameBatchUnavailable:
+            outcome = None
+        if outcome is not None:
+            if outcome == "GUIDE":
+                from ..help import _run_help_guide
+                _run_help_guide(ctx)
+            return
     console = make_console()
 
-    _ZONE_COLORS: dict[str, tuple[int, int, int]] = {
-        "enemy": (255, 80, 80),       # red
-        "disliked": (255, 165, 60),    # orange
-        "neutral": (180, 180, 180),    # grey
-        "liked": (100, 200, 255),      # blue
-        "allied": (100, 255, 130),     # green
-    }
-
-    def _progress_bar(rep: int, width: int = 31) -> str:
-        """Return a centered bar with | at 0, negative filling left
-        with =, positive filling right with =. Unfilled space uses -
-        so the layout is visible even if colour is lost."""
-        half = width // 2
-        if rep < 0:
-            neg_fill = int((abs(rep) / 100) * half)
-            pos_fill = 0
-        else:
-            neg_fill = 0
-            pos_fill = int((rep / 100) * half)
-        neg_fill = max(0, min(half, neg_fill))
-        pos_fill = max(0, min(half, pos_fill))
-        # Build from leftmost to rightmost character-by-character.
-        chars: list[str] = []
-        for _i in range(half):
-            _pos_from_centre = half - _i
-            if neg_fill >= _pos_from_centre:
-                chars.append("#")
-            else:
-                chars.append("-")
-        chars.append("|")
-        for _i in range(half):
-            if pos_fill >= _i + 1:
-                chars.append("#")
-            else:
-                chars.append("-")
-        return "".join(chars)
-
     def _render() -> None:
-        console.clear()
-        # Title + header rule (unified screen header)
-        _start_y = ui.screen_header(console, SCREEN_WIDTH, "FACTION STANDINGS")
-        for _i, _faction in enumerate(_ALL_FACTIONS):
-            _rep = ctx.faction_reputation.get(_faction, 0)
-            _attitude = get_attitude(_rep)
-            _bar = _progress_bar(_rep)
-            _color = _ZONE_COLORS.get(_attitude, (180, 180, 180))
-            _y = _start_y + _i * 3
-
-            # Faction name (left-aligned, fixed width)
-            _name = _faction.title().ljust(10)
-            # Score (right-aligned, 5 chars for ±NNN)
-            _score = f"{_rep:+d}".rjust(5)
-            # Progress bar
-            _line = f"{_name} {_score}  {_bar}  {_attitude.title()}"
-            console.print(
-                x=2,
-                y=_y,
-                string=_line,
-                fg=_color,
-            )
-
-        # Hint
-        _hint_y = _start_y + len(_ALL_FACTIONS) * 3 + 2
-        console.print(
-            x=2,
-            y=_hint_y,
-            string="ENTER / ESC - back",
-            fg=ui.COLOR_INSTRUCTION,
-        )
-
-        message_log.render_message_log(
-            console, ctx.log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
+        render_faction_view(console, ctx)
 
     def _update(event: tcod.event.Event) -> ShipMenuAction | None:
         if _try_open_guide(event, ctx):
             return ShipMenuAction.IGNORE
         if isinstance(event, tcod.event.Quit):
             return None
-        if not isinstance(event, tcod.event.KeyDown):
-            return ShipMenuAction.IGNORE
-        if event.sym in ui._ESCAPE_SYMS or event.sym in ui._ENTER_SYMS:
+        if isinstance(event, tcod.event.KeyDown) and (
+            event.sym in ui._ESCAPE_SYMS or event.sym in ui._ENTER_SYMS
+        ):
             return None
         return ShipMenuAction.IGNORE
 

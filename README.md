@@ -196,6 +196,22 @@ It preserves the normal affordability, trade-in pricing, purchase, back, and
 quit outcomes. Press `?` for the guide. If the optional worker is unavailable,
 the existing tcod Ship Buy modal is used automatically.
 
+### Live read-only modal Pygame batch
+
+The read-only presentation batch previews the Faction Standings, Ship Loadout,
+and Navigation Map screens with the same natural-font worker used by the
+individual experiments:
+
+```bash
+SPACEHACK_PYGAME_READONLY=1 python -m spacehack
+```
+
+It captures each screen from its existing tcod renderer, so faction values,
+ship statistics, map bodies, HUD messages, and colors remain authoritative.
+Press `ESC` to return. Press `?` for the normal guide. If the worker is
+unavailable or returns an invalid result, the original tcod modal opens
+instead. Clear the variable to disable the batch.
+
 ### Live exploration-frame Pygame preview
 
 The migration preview shows the active city, space, or dungeon grid plus the

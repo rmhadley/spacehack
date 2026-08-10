@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import pygame_merchant, pygame_quest_log, pygame_ship_buy, pygame_ui, pygame_world
+from src.spacehack import (
+    pygame_batch,
+    pygame_merchant,
+    pygame_quest_log,
+    pygame_ship_buy,
+    pygame_ui,
+    pygame_world,
+)
+from src.spacehack.menus import _ship_menu
+from src.spacehack import navigation
 
 
 class _FakeFont:
@@ -306,6 +315,77 @@ def test_quest_log_opt_in_is_disabled_by_default(monkeypatch):
     from src.spacehack.menus import _quest_log
 
     assert not _quest_log._pygame_quest_log_enabled()
+
+
+def test_batch_frame_payload_round_trips_text_and_colors():
+    frame = pygame_batch.BatchFrame(
+        rows=((pygame_quest_log.QuestSpan("NAVIGATION", (1, 2, 3)),),),
+        key="readonly",
+    )
+
+    restored = pygame_batch._frame_from_payload(
+        pygame_batch.frame_payload(frame)["frame"]
+    )
+
+    assert restored == frame
+
+
+def test_batch_key_mapping_preserves_read_only_modal_contract():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_QUESTION = 11
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_batch._handle_key(fake, SimpleNamespace(type=fake.QUIT)) == "QUIT"
+    assert pygame_batch._handle_key(fake, key(fake.K_ESCAPE)) == "BACK"
+    assert pygame_batch._handle_key(fake, key(fake.K_QUESTION)) == "GUIDE"
+    assert pygame_batch._handle_key(fake, SimpleNamespace(type=99, key=0)) == "IGNORE"
+
+
+def test_batch_rejects_unknown_worker_outcomes(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui,
+        "run_json_worker",
+        lambda *args, **kwargs: {"outcome": "MUTATE"},
+    )
+
+    try:
+        pygame_batch.run_readonly(lambda console: None)
+    except pygame_batch.PygameBatchUnavailable as exc:
+        assert "unknown choice" in str(exc)
+    else:
+        raise AssertionError("unknown worker choices must use the tcod fallback")
+
+
+def test_read_only_batch_switch_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("SPACEHACK_PYGAME_READONLY", raising=False)
+
+    assert not pygame_batch.enabled()
+    assert not _ship_menu._pygame_readonly_enabled()
+
+
+def test_faction_progress_bar_is_cp437_safe_and_centered():
+    assert _ship_menu._faction_progress_bar(0) == "---------------|---------------"
+    assert _ship_menu._faction_progress_bar(-100) == "###############|---------------"
+    assert _ship_menu._faction_progress_bar(100) == "---------------|###############"
+    assert all(ord(char) < 128 for char in _ship_menu._faction_progress_bar(-37))
+
+
+def test_navigation_update_preserves_back_quit_and_ignore_contract():
+    import tcod.event
+
+    assert navigation.update_navigation(tcod.event.Quit()) is navigation.NavigationOutcome.QUIT
+    assert navigation.update_navigation(
+        tcod.event.KeyDown(
+            scancode=tcod.event.K_ESCAPE,
+            sym=tcod.event.K_ESCAPE,
+            mod=0,
+        )
+    ) is navigation.NavigationOutcome.BACK
 
 
 def test_pygame_backend_is_opt_in_and_falls_back_when_unavailable(monkeypatch):

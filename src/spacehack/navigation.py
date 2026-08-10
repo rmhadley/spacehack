@@ -277,8 +277,38 @@ def update_navigation(event: tcod.event.Event) -> NavigationOutcome:
     return NavigationOutcome.IGNORE
 
 
+def _pygame_readonly_enabled() -> bool:
+    """Return whether the read-only Pygame migration batch is enabled."""
+    from . import pygame_batch
+
+    return pygame_batch.enabled()
+
+
 def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     """Show the system-map overlay and return the outcome."""
+    if _pygame_readonly_enabled():
+        from . import pygame_batch
+        try:
+            outcome = pygame_batch.run_readonly(
+                lambda console: render_navigation(
+                    console,
+                    ctx,
+                    screen_width=SCREEN_WIDTH,
+                    screen_height=SCREEN_HEIGHT,
+                    ship_pos=ship_pos,
+                ),
+            )
+        except pygame_batch.PygameBatchUnavailable:
+            outcome = None
+        if outcome is not None:
+            if outcome == "GUIDE":
+                from .help import _run_help_guide
+                _run_help_guide(ctx)
+                return NavigationOutcome.BACK
+            if outcome == "QUIT":
+                return NavigationOutcome.QUIT
+            return NavigationOutcome.BACK
+
     console = make_console()
 
     def _render() -> None:
