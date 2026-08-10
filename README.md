@@ -212,6 +212,23 @@ Press `ESC` to return. Press `?` for the normal guide. If the worker is
 unavailable or returns an invalid result, the original tcod modal opens
 instead. Clear the variable to disable the batch.
 
+### Live interactive-menu Pygame batch
+
+The next migration batch previews mission offerings, planet interaction, and
+ordinary NPC talk with the natural-font selectable worker:
+
+```bash
+SPACEHACK_PYGAME_INTERACTIVE=1 python -m spacehack
+```
+
+Mission rows return the selected offering, planet rows return `LAND`,
+`EXPLORE`, or `BACK`, and NPC rows return delivery or work choices. The main
+process still owns mission acceptance, cargo delivery, quest progression, and
+world transitions. NPCs with a live main-quest choice intentionally remain on
+the original tcod path until that stateful dialogue flow is migrated safely.
+`ESC` backs out, `?` opens the normal guide, and unavailable or malformed
+workers fall back to tcod. Clear the variable to disable this batch.
+
 ### Live exploration-frame Pygame preview
 
 The migration preview shows the active city, space, or dungeon grid plus the

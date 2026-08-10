@@ -115,6 +115,50 @@ def update_planet_menu(
     return (PlanetMenuOutcome.IGNORE, selected)
 
 
+def _pygame_interactive_enabled() -> bool:
+    """Return whether the generic interactive-menu batch is enabled."""
+    from .. import pygame_menu
+
+    return pygame_menu.enabled()
+
+
+def _run_pygame_planet_menu(ctx, planet_obj, items):
+    """Run the dynamic planet action list through the Pygame worker."""
+    from .. import pygame_menu
+
+    frames = tuple(
+        pygame_menu.MenuFrame(
+            title=planet_obj.name,
+            body=planet_obj.description,
+            items=tuple(
+                pygame_menu.MenuItem(label, description, outcome.name)
+                for label, description, outcome in items
+            ),
+            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC leave.",),
+            selected=selected,
+        )
+        for selected in range(max(1, len(items)))
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run(
+            frames, caption=f"spacehack - {planet_obj.name}",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from ..help import _run_help_guide
+        _run_help_guide(ctx)
+        return PlanetMenuOutcome.BACK
+    if outcome == "SELECT":
+        try:
+            return PlanetMenuOutcome[action]
+        except KeyError:
+            return None
+    if outcome == "QUIT":
+        return PlanetMenuOutcome.QUIT
+    return PlanetMenuOutcome.BACK
+
+
 def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> PlanetMenuOutcome:
     """Show the planet-bump modal for ``planet_obj``; return the chosen outcome.
 
@@ -135,6 +179,11 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> PlanetMenuO
     if not main_quest_module.surface_exploration_unlocked(ctx, planet_obj.id):
         explorable_sites = []
     items = _build_menu_items(planet_obj, has_port, explorable_sites)
+    if _pygame_interactive_enabled():
+        _pygame_result = _run_pygame_planet_menu(ctx, planet_obj, items)
+        if _pygame_result is not None:
+            return _pygame_result
+
     console = make_console()
     selected = 0
 

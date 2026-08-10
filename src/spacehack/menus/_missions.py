@@ -5,7 +5,6 @@ Extracted from the old ``menus.py`` during the package refactor.
 
 from __future__ import annotations
 from enum import Enum, auto
-import os
 
 import tcod.console
 import tcod.event
@@ -184,6 +183,54 @@ def _pygame_merchant_enabled() -> bool:
     return bool(os.environ.get("SPACEHACK_PYGAME_MERCHANT"))
 
 
+def _pygame_interactive_enabled() -> bool:
+    """Return whether the generic interactive-menu batch is enabled."""
+    from .. import pygame_menu
+
+    return pygame_menu.enabled()
+
+
+def _run_pygame_interactive_missions(
+    ctx,
+    npc: npc_module.NPC,
+    offerings: tuple[mission_module.MissionSpec, ...],
+) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
+    """Run mission offerings through the generic selectable worker."""
+    from .. import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(_mission_board_label(mission), mission.description, str(index))
+        for index, mission in enumerate(offerings)
+    )
+    frames = tuple(
+        pygame_menu.MenuFrame(
+            title=f"{npc.name} - available work",
+            body=offerings[index].description if offerings else "No work is available right now.",
+            items=items,
+            hints=("ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",),
+            selected=index,
+        )
+        for index in range(max(1, len(offerings)))
+    )
+    try:
+        outcome, action, selected = pygame_menu.run(
+            frames, caption="spacehack - available work",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from ..help import _run_help_guide
+        _run_help_guide(ctx)
+        return MissionOutcome.BACK, None
+    if outcome == "SELECT" and offerings:
+        try:
+            picked = offerings[int(action)]
+        except (ValueError, IndexError):
+            return None
+        return MissionOutcome.ACCEPT, picked
+    return MissionOutcome.BACK, None
+
+
 def _run_pygame_mission_offerings(
     npc: npc_module.NPC,
     offerings: tuple[mission_module.MissionSpec, ...],
@@ -212,6 +259,10 @@ def _run_mission_offerings(
     (:func:`_run_game`) is responsible for swapping
     ``player_active_missions`` once it sees an ACCEPT.
     """
+    if _pygame_interactive_enabled():
+        _pygame_result = _run_pygame_interactive_missions(ctx, npc, offerings)
+        if _pygame_result is not None:
+            return _pygame_result
     if _pygame_merchant_enabled():
         _pygame_result = _run_pygame_mission_offerings(npc, offerings)
         if _pygame_result is not None:

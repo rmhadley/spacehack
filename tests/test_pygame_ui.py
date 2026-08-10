@@ -6,14 +6,15 @@ from types import SimpleNamespace
 
 from src.spacehack import (
     pygame_batch,
+    pygame_menu,
     pygame_merchant,
     pygame_quest_log,
     pygame_ship_buy,
     pygame_ui,
     pygame_world,
 )
-from src.spacehack.menus import _ship_menu
-from src.spacehack import navigation
+from src.spacehack.menus import _missions, _planet, _ship_menu
+from src.spacehack import navigation, npc
 
 
 class _FakeFont:
@@ -386,6 +387,98 @@ def test_navigation_update_preserves_back_quit_and_ignore_contract():
             mod=0,
         )
     ) is navigation.NavigationOutcome.BACK
+
+
+def test_selectable_menu_frame_payload_round_trips_actions():
+    frame = pygame_menu.MenuFrame(
+        title="Mars",
+        body="Choose an action.",
+        items=(pygame_menu.MenuItem("Land", "Dock", "LAND"),),
+        hints=("ESC back",),
+        selected=0,
+    )
+
+    restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
+
+    assert restored == frame
+
+
+def test_selectable_menu_key_mapping_preserves_navigation_and_actions():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_QUESTION = 11
+        K_UP = 12
+        K_DOWN = 13
+        K_k = 14
+        K_j = 15
+        K_RETURN = 16
+        K_KP_ENTER = 17
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_menu._handle_key(fake, SimpleNamespace(type=fake.QUIT), 0, 2) == ("QUIT", 0)
+    assert pygame_menu._handle_key(fake, key(fake.K_ESCAPE), 1, 2) == ("BACK", 1)
+    assert pygame_menu._handle_key(fake, key(fake.K_QUESTION), 1, 2) == ("GUIDE", 1)
+    assert pygame_menu._handle_key(fake, key(fake.K_UP), 0, 2) == ("IGNORE", 1)
+    assert pygame_menu._handle_key(fake, key(fake.K_RETURN), 1, 2) == ("SELECT", 1)
+
+
+def test_selectable_menu_rejects_unknown_worker_outcomes(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui,
+        "run_json_worker",
+        lambda *args, **kwargs: {"outcome": "MUTATE"},
+    )
+    frame = pygame_menu.MenuFrame("title", "body", (), (), 0)
+
+    try:
+        pygame_menu.run((frame,))
+    except pygame_menu.PygameMenuUnavailable as exc:
+        assert "unknown choice" in str(exc)
+    else:
+        raise AssertionError("unknown menu outcomes must use fallback")
+
+
+def test_interactive_batch_switch_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("SPACEHACK_PYGAME_INTERACTIVE", raising=False)
+
+    assert not pygame_menu.enabled()
+    assert not _missions._pygame_interactive_enabled()
+    assert not _planet._pygame_interactive_enabled()
+    assert not npc._pygame_interactive_enabled()
+
+
+def test_planet_menu_items_keep_domain_outcomes_opaque_to_worker():
+    planet = SimpleNamespace(id="mars", name="Mars")
+
+    items = _planet._build_menu_items(planet, True, ["Alien ruins"])
+
+    assert [item[2] for item in items] == [
+        _planet.PlanetMenuOutcome.LAND,
+        _planet.PlanetMenuOutcome.EXPLORE,
+        _planet.PlanetMenuOutcome.BACK,
+    ]
+
+
+def test_npc_pygame_actions_map_back_to_existing_outcomes(monkeypatch):
+    mission = SimpleNamespace(title="Deliver supplies")
+    npc_obj = SimpleNamespace(name="Guild Master", guild="merchants", flavor_text="Welcome")
+    from src.spacehack import pygame_menu
+
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda frames, **kwargs: ("SELECT", "DELIVER:0", 0),
+    )
+
+    result = npc._run_pygame_npc_talk(
+        SimpleNamespace(), npc_obj, "Welcome", [mission],
+    )
+
+    assert result == (npc.TalkOutcome.DELIVER, mission)
 
 
 def test_pygame_backend_is_opt_in_and_falls_back_when_unavailable(monkeypatch):

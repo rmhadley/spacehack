@@ -183,6 +183,88 @@ def _npc_talk_navigate(event: tcod.event.Event, selected: int, n: int) -> int | 
     return None
 
 
+def _pygame_interactive_enabled() -> bool:
+    """Return whether the generic interactive-menu batch is enabled."""
+    from . import pygame_menu
+
+    return pygame_menu.enabled()
+
+
+def _npc_pygame_items(npc, missions):
+    """Build opaque Pygame actions for ordinary NPC talk."""
+    from . import pygame_menu
+
+    items = [
+        pygame_menu.MenuItem(
+            "Deliver: " + mission.title,
+            "Hand over the mission cargo.",
+            f"DELIVER:{index}",
+        )
+        for index, mission in enumerate(missions)
+    ]
+    if npc.guild:
+        items.append(pygame_menu.MenuItem(
+            "View available work",
+            "Browse this guild's current mission offerings.",
+            "WORK",
+        ))
+    return tuple(items)
+
+
+def _npc_pygame_frames(npc, quest_body, items):
+    """Build selected-state frames for ordinary NPC talk."""
+    from . import pygame_menu
+
+    title = f"{npc.name} ({npc.guild})" if npc.guild else npc.name
+    body = f'"{quest_body if quest_body else npc.flavor_text}"'
+    return tuple(
+        pygame_menu.MenuFrame(
+            title=title,
+            body=body,
+            items=items,
+            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC walk away.",),
+            selected=selected,
+        )
+        for selected in range(max(1, len(items)))
+    )
+
+
+def _map_pygame_npc_result(ctx, outcome, action, missions):
+    """Map a worker result to the existing NPC talk contract."""
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return (TalkOutcome.BACK, None)
+    if outcome == "QUIT":
+        return (TalkOutcome.QUIT, None)
+    if outcome != "SELECT":
+        return (TalkOutcome.BACK, None)
+    if action == "WORK":
+        return (TalkOutcome.WORK, None)
+    if action.startswith("DELIVER:"):
+        try:
+            index = int(action.split(":", 1)[1])
+            return (TalkOutcome.DELIVER, missions[index])
+        except (ValueError, IndexError):
+            return None
+    return None
+
+
+def _run_pygame_npc_talk(ctx, npc, quest_body, missions):
+    """Run ordinary NPC talk through the selectable Pygame worker."""
+    from . import pygame_menu
+
+    items = _npc_pygame_items(npc, missions)
+    frames = _npc_pygame_frames(npc, quest_body, items)
+    try:
+        outcome, action, _selected = pygame_menu.run(
+            frames, caption=f"spacehack - {npc.name}",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    return _map_pygame_npc_result(ctx, outcome, action, missions)
+
+
 def _run_npc_talk(
     ctx: GameContext,
     npc: NPC,
@@ -235,6 +317,16 @@ def _run_npc_talk(
         else:
             ctx.log.add(f'{npc.name} has nothing more to say right now.')
         return (TalkOutcome.BACK, None)
+
+    # Quest-option rows stay on tcod for now: their selection can open
+    # an offer/claim flow and mutate main-quest state inside this modal.
+    # Ordinary talk, deliveries, and work are presentation-only here.
+    if _pygame_interactive_enabled() and not _quest_options:
+        _pygame_result = _run_pygame_npc_talk(
+            ctx, npc, _quest_body, _missions,
+        )
+        if _pygame_result is not None:
+            return _pygame_result
 
     def _render() -> None:
         render_npc_talk(
