@@ -13,6 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+visual = ["pygame>=2.5"]
 
 [project.scripts]
 spacehack = "spacehack.__main__:main"

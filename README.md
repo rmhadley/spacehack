@@ -118,6 +118,21 @@ run_spacehack.bat
 
 Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
 
+## Text rendering comparison spike
+
+To compare the current tcod bitmap text with an optional Pygame font renderer
+without changing the game, install the visual extra and run the standalone
+spike:
+
+```bash
+pip install -e '.[visual]'
+python3 tools/text_render_spike.py
+```
+
+The left panel is the current game bitmap; the right panel uses a system
+monospace font. Use `--no-aa`, `--size`, `--scale`, or `--font` to explore
+alternatives. Pygame is optional and is not required to run the game.
+
 ## How to play
 
 ### The basics
