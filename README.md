@@ -140,6 +140,29 @@ On macOS/Homebrew, use the virtual-environment commands above rather than
 installing into the system Python; otherwise PEP 668 may report an
 `externally-managed-environment` error.
 
+### Live Merchant Pygame experiment
+
+The first in-game migration experiment is opt-in. Install the visual extra,
+then launch the game with `SPACEHACK_PYGAME_MERCHANT=1` and visit the Merchant
+Guild. The game pauses its tcod modal, opens the real Merchant offerings flow
+in a Pygame window, and returns the normal accept/back result to gameplay:
+
+```bash
+SPACEHACK_PYGAME_MERCHANT=1 python -m spacehack
+```
+
+Press **ESC** to close the experiment window and return to the game. If Pygame
+is missing or cannot open a window, the normal tcod Merchant modal is used
+instead. Clear the variable to return to the unchanged tcod path:
+
+```bash
+python -m spacehack
+```
+
+This is intentionally a temporary second-window seam while the presentation
+migration begins; the world grid, save data, mission logic, and every other
+screen still belong to the existing tcod renderer.
+
 ## How to play
 
 ### The basics

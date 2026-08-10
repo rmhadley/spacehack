@@ -5,6 +5,7 @@ Extracted from the old ``menus.py`` during the package refactor.
 
 from __future__ import annotations
 from enum import Enum, auto
+import os
 
 import tcod.console
 import tcod.event
@@ -59,7 +60,10 @@ def _mission_board_label(m: mission_module.MissionSpec) -> str:
     return f'[{_tag}] {m.title}{_suffix} ({m.reward_credits}$)'
 
 
-def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...]) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
+def _offerings_to_menu(
+    npc: npc_module.NPC,
+    offerings: tuple[mission_module.MissionSpec, ...],
+) -> tuple[str, tuple[tuple[str, str], ...], dict[str, str]]:
     """Build an :class:`spacehack.ui.MenuScreen` payload from an
     NPC-mission-list so we can reuse the shared menu primitives.
 
@@ -74,7 +78,16 @@ def _offerings_to_menu(npc: npc_module.NPC, offerings: tuple[mission_module.Miss
     return (f'{npc.name} - available work', available_options, descriptions)
 
 
-def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...], selected: int, *, screen_width: int, screen_height: int) -> None:
+def render_mission_offerings(
+    console: tcod.console.Console,
+    ctx: GameContext,
+    npc: npc_module.NPC,
+    offerings: tuple[mission_module.MissionSpec, ...],
+    selected: int,
+    *,
+    screen_width: int,
+    screen_height: int,
+) -> None:
     """Paint the NPC's available missions — terminal look: centered
     title at the top, content flush-left at x=2, message log pinned
     at the bottom.
@@ -112,7 +125,13 @@ def render_mission_offerings(console: tcod.console.Console, ctx: GameContext, np
         if picked.recommended_ship_min_cargo > 0:
             hint_lines.append(f'Ship cargo recommended: {picked.recommended_ship_min_cargo}+')
     for i, line in enumerate(hint_lines):
-        ui.paint_line(console, content_x, desc_start_row + max(len(desc_rows), 1) + 1 + i, ui.fit_text(line, max_w), fg=ui.COLOR_INSTRUCTION)
+        ui.paint_line(
+            console,
+            content_x,
+            desc_start_row + max(len(desc_rows), 1) + 1 + i,
+            ui.fit_text(line, max_w),
+            fg=ui.COLOR_INSTRUCTION,
+        )
 
     from .. import message_log
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
@@ -160,7 +179,32 @@ def _mission_navigate(event: tcod.event.Event, selected: int, n: int) -> int | N
     return None
 
 
-def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_module.MissionSpec, ...]) -> tuple[MissionOutcome, mission_module.MissionSpec | None]:
+def _pygame_merchant_enabled() -> bool:
+    """Return whether the opt-in live Pygame Merchant experiment is enabled."""
+    return bool(os.environ.get("SPACEHACK_PYGAME_MERCHANT"))
+
+
+def _run_pygame_mission_offerings(
+    npc: npc_module.NPC,
+    offerings: tuple[mission_module.MissionSpec, ...],
+) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
+    """Run the Pygame Merchant backend, or return ``None`` for tcod fallback."""
+    from ..pygame_merchant import PygameMerchantUnavailable, run
+
+    try:
+        outcome, selected = run(npc, offerings)
+    except PygameMerchantUnavailable:
+        return None
+    if outcome == "ACCEPT" and offerings:
+        return MissionOutcome.ACCEPT, offerings[selected % len(offerings)]
+    return MissionOutcome.BACK, None
+
+
+def _run_mission_offerings(
+    ctx,
+    npc: npc_module.NPC,
+    offerings: tuple[mission_module.MissionSpec, ...],
+) -> tuple[MissionOutcome, mission_module.MissionSpec | None]:
     """Show the NPC's offerings modal and return the choice.
 
     Returns ``(MissionOutcome, picked_mission)``: ``picked`` is
@@ -168,11 +212,24 @@ def _run_mission_offerings(ctx, npc: npc_module.NPC, offerings: tuple[mission_mo
     (:func:`_run_game`) is responsible for swapping
     ``player_active_missions`` once it sees an ACCEPT.
     """
+    if _pygame_merchant_enabled():
+        _pygame_result = _run_pygame_mission_offerings(npc, offerings)
+        if _pygame_result is not None:
+            return _pygame_result
+
     console = make_console()
     selected = 0
 
     def _render() -> None:
-        render_mission_offerings(console, ctx, npc, offerings, selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        render_mission_offerings(
+            console,
+            ctx,
+            npc,
+            offerings,
+            selected,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+        )
 
     def _update(event) -> MissionOutcome:
         nonlocal selected
