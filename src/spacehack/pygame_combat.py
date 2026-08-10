@@ -32,20 +32,53 @@ def enabled() -> bool:
     return pygame_ui.migration_enabled("SPACEHACK_PYGAME_COMBAT")
 
 
+def _console_commands(console: Any) -> tuple[pygame_world.world.WorldDrawCommand, ...]:
+    """Extract renderer-neutral cells from a capture or native tcod console."""
+    try:
+        commands = getattr(console, "commands", None)
+        if commands is not None:
+            return tuple(
+                pygame_world.world.WorldDrawCommand(
+                    x=int(command.x),
+                    y=int(command.y),
+                    char=str(command.char),
+                    fg=tuple(int(value) for value in command.fg),
+                    bg=None if command.bg is None else tuple(int(value) for value in command.bg),
+                )
+                for command in commands
+            )
+
+        chars = getattr(console, "ch", None)
+        foreground = getattr(console, "fg", None)
+        background = getattr(console, "bg", None)
+        if chars is None or foreground is None or background is None:
+            raise PygameCombatUnavailable("Combat console has no readable cell data")
+
+        height, width = chars.shape
+        if foreground.shape != (height, width, 3) or background.shape != (height, width, 3):
+            raise PygameCombatUnavailable("Combat console color planes have invalid shapes")
+        return tuple(
+            pygame_world.world.WorldDrawCommand(
+                x=x,
+                y=y,
+                char=chr(int(chars[y, x])),
+                fg=tuple(int(value) for value in foreground[y, x]),
+                bg=tuple(int(value) for value in background[y, x]),
+            )
+            for y in range(height)
+            for x in range(width)
+        )
+    except PygameCombatUnavailable:
+        raise
+    except (AttributeError, IndexError, TypeError, ValueError) as exc:
+        raise PygameCombatUnavailable("Combat console cell data is invalid") from exc
+
+
 def _frame_payload(console: Any, *, interactive: bool) -> dict[str, Any]:
-    """Serialize a captured console for the combat worker."""
+    """Serialize either a captured or native tcod console for the worker."""
     return {
         "logical_size": (1600, 960),
-        "commands": [
-            asdict(command) if hasattr(command, "__dataclass_fields__") else {
-                "x": command.x,
-                "y": command.y,
-                "char": command.char,
-                "fg": command.fg,
-                "bg": command.bg,
-            }
-            for command in console.commands
-        ],
+        "commands": [asdict(command) for command in _console_commands(console)],
         "interactive": interactive,
     }
 

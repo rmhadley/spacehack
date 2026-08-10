@@ -84,6 +84,27 @@ def test_combat_present_falls_back_and_clears_failed_presenter():
     assert ctx._pygame_combat_presenter is None
 
 
+def test_invalid_combat_console_falls_back_to_tcod():
+    calls = []
+
+    class Presenter:
+        def show(self, console, **_kwargs):
+            pygame_combat._frame_payload(console, interactive=False)
+
+        def close(self):
+            calls.append("close")
+
+    ctx = SimpleNamespace(
+        _pygame_combat_presenter=Presenter(),
+        context=SimpleNamespace(present=lambda _console: calls.append("tcod")),
+    )
+
+    pygame_combat.present(ctx, SimpleNamespace(commands=[SimpleNamespace(x=0)]))
+
+    assert calls == ["close", "tcod"]
+    assert ctx._pygame_combat_presenter is None
+
+
 def test_combat_action_falls_back_when_presenter_stops():
     class UnavailablePresenter:
         def show(self, *_args, **_kwargs):
@@ -108,6 +129,19 @@ def test_combat_frame_payload_preserves_commands_and_mode():
     assert payload["logical_size"] == (1600, 960)
     assert payload["interactive"] is True
     assert payload["commands"][0]["char"] == "@"
+
+
+def test_combat_frame_payload_accepts_native_tcod_console():
+    import tcod.console
+
+    console = tcod.console.Console(2, 1, order="C")
+    console.print(x=0, y=0, string="@A", fg=(1, 2, 3), bg=(4, 5, 6))
+
+    payload = pygame_combat._frame_payload(console, interactive=False)
+
+    assert [command["char"] for command in payload["commands"]] == ["@", "A"]
+    assert payload["commands"][0]["fg"] == (1, 2, 3)
+    assert payload["commands"][0]["bg"] == (4, 5, 6)
 
 
 def test_combat_migration_is_enabled_by_default_and_rolls_back_globally(monkeypatch):
