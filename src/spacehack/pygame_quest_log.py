@@ -1,4 +1,4 @@
-"""Opt-in Pygame presentation for the Quest Log modal.
+"""Pygame presentation for the Quest Log modal.
 
 The game process remains the source of truth for quest-log content: it renders
 an existing Quest Log frame into a small capture console, then sends the
@@ -250,7 +250,7 @@ def _load_pygame() -> Any:
 
 
 def run(ctx: Any) -> tuple[str, int]:
-    """Run the opt-in Quest Log worker and return its modal outcome."""
+    """Run the Quest Log worker and return its modal outcome."""
     frames = _frames_for(ctx)
     try:
         response = pygame_ui.run_json_worker(

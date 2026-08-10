@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from src.spacehack import (
     pygame_batch,
+    pygame_screen,
     pygame_menu,
     pygame_merchant,
     pygame_quest_log,
@@ -27,6 +28,45 @@ class _FakeFont:
 
     def get_linesize(self) -> int:
         return 24
+
+
+def test_screen_frame_payload_round_trips_page_offset_and_rows():
+    frame = pygame_screen.ScreenFrame(
+        "Guide", ("body",),
+        (pygame_screen.ScreenRow("Pick", "Details", "ACTION"),),
+        ("ESC close",), 0, 4,
+    )
+
+    assert pygame_screen._frame_from_payload(
+        pygame_screen._frame_payload(frame),
+    ) == frame
+
+
+def test_screen_key_mapping_supports_tabs_and_paging():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_TAB = 11
+        K_PAGEDOWN = 12
+        K_PAGEUP = 13
+        K_QUESTION = 14
+        K_UP = 15
+        K_DOWN = 16
+        K_k = 17
+        K_j = 18
+        K_RETURN = 19
+        K_KP_ENTER = 20
+
+    fake = FakePygame()
+    frame = pygame_screen.ScreenFrame(
+        "T", (), (pygame_screen.ScreenRow("row", action="A"),),
+    )
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_screen._handle_key(fake, key(fake.K_TAB), frame) == ("TAB", 0)
+    assert pygame_screen._handle_key(fake, key(fake.K_PAGEDOWN), frame) == ("PAGE_DOWN", 0)
+    assert pygame_screen._handle_key(fake, key(fake.K_PAGEUP), frame) == ("PAGE_UP", 0)
 
 
 def test_fit_text_uses_renderer_metrics_and_ascii_ellipsis():
@@ -157,7 +197,7 @@ def test_merchant_key_mapping_matches_existing_modal_contract():
         K_j = 16
 
     fake = FakePygame()
-    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.QUIT), 0, 3) == ("BACK", 0)
+    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.QUIT), 0, 3) == ("QUIT", 0)
     assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.KEYDOWN, key=fake.K_UP), 0, 3) == ("IGNORE", 2)
     assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.KEYDOWN, key=fake.K_DOWN), 2, 3) == ("IGNORE", 0)
     assert pygame_merchant._handle_key(
@@ -257,12 +297,18 @@ def test_ship_buy_key_mapping_preserves_purchase_contract():
     assert pygame_ship_buy._handle_key(fake, key(fake.K_QUESTION), True) == "GUIDE"
 
 
-def test_ship_buy_opt_in_is_disabled_by_default(monkeypatch):
+def test_migrated_workers_are_enabled_by_default_and_support_global_tcod_rollback(monkeypatch):
     monkeypatch.delenv("SPACEHACK_PYGAME_SHIP_BUY", raising=False)
+    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
 
     from src.spacehack.menus import _ship_buy
 
+    assert _ship_buy._pygame_ship_buy_enabled()
+    assert pygame_ui.migration_enabled("SPACEHACK_PYGAME_SHIP_BUY")
+
+    monkeypatch.setenv("SPACEHACK_TCOD_UI", "1")
     assert not _ship_buy._pygame_ship_buy_enabled()
+    assert not pygame_menu.enabled()
 
 
 def test_quest_frame_payload_round_trips_text_colors_and_state():
@@ -312,12 +358,13 @@ def test_empty_quest_log_uses_a_non_abandonable_worker_state():
     assert pygame_quest_log._frame_key(-1, False) in payload["frames"]
 
 
-def test_quest_log_opt_in_is_disabled_by_default(monkeypatch):
+def test_quest_log_worker_is_enabled_by_default(monkeypatch):
     monkeypatch.delenv("SPACEHACK_PYGAME_QUEST_LOG", raising=False)
+    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
 
     from src.spacehack.menus import _quest_log
 
-    assert not _quest_log._pygame_quest_log_enabled()
+    assert _quest_log._pygame_quest_log_enabled()
 
 
 def test_batch_frame_payload_round_trips_text_and_colors():
@@ -364,11 +411,12 @@ def test_batch_rejects_unknown_worker_outcomes(monkeypatch):
         raise AssertionError("unknown worker choices must use the tcod fallback")
 
 
-def test_read_only_batch_switch_is_disabled_by_default(monkeypatch):
+def test_read_only_batch_is_enabled_by_default(monkeypatch):
     monkeypatch.delenv("SPACEHACK_PYGAME_READONLY", raising=False)
+    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
 
-    assert not pygame_batch.enabled()
-    assert not _ship_menu._pygame_readonly_enabled()
+    assert pygame_batch.enabled()
+    assert _ship_menu._pygame_readonly_enabled()
 
 
 def test_split_frame_payload_round_trips_rows_and_selection():
@@ -685,10 +733,11 @@ def test_ship_menu_pygame_guide_reopens_and_unavailable_falls_back(monkeypatch):
     assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.BACK
 
 
-def test_ship_menu_pygame_is_opt_in(monkeypatch):
+def test_ship_menu_pygame_is_enabled_by_default(monkeypatch):
     monkeypatch.delenv("SPACEHACK_PYGAME_INTERACTIVE", raising=False)
+    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
 
-    assert not _ship_menu._pygame_ship_menu_enabled()
+    assert _ship_menu._pygame_ship_menu_enabled()
 
 
 def test_faction_progress_bar_is_cp437_safe_and_centered():
@@ -782,6 +831,107 @@ def test_ascii_art_increases_selectable_frame_height():
     assert pygame_menu._frame_height(
         FakeFont(), decorated, 600,
     ) > pygame_menu._frame_height(FakeFont(), plain, 600)
+
+
+def test_screen_font_fit_accounts_for_long_detail_on_any_selection():
+    class FakeFont:
+        def __init__(self, size):
+            self.point_size = size
+
+        def get_linesize(self):
+            return self.point_size + 6
+
+        def size(self, text):
+            return len(text) * self.point_size // 2, self.point_size
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(_family):
+                return None
+
+            @staticmethod
+            def Font(_path, size):
+                return FakeFont(size)
+
+    frame = pygame_screen.ScreenFrame(
+        "Terminal",
+        ("Choose an option",),
+        (
+            pygame_screen.ScreenRow("Short", "brief", "SHORT"),
+            pygame_screen.ScreenRow("Long", "details " * 80, "LONG"),
+        ),
+        ("ESC back",),
+        selected=0,
+    )
+
+    font = pygame_screen._fit_font(FakePygame, frame, 640, 480)
+
+    assert pygame_screen._layout_height(font, frame, 560) <= 396
+
+
+def test_pygame_trade_valid_actions_keep_terminal_open(monkeypatch):
+    from src.spacehack import trade
+
+    class Good:
+        name = "Food"
+        volume = 1
+
+    calls = []
+    monkeypatch.setattr(trade, "find_trade_good", lambda _good_id: Good())
+    monkeypatch.setattr(trade, "_unit_price", lambda *_args: 10)
+    monkeypatch.setattr(trade, "_sell_price", lambda *_args: 7)
+    monkeypatch.setattr(trade, "_free_cargo", lambda _owned: 5)
+    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 1)
+    monkeypatch.setattr(trade, "_buy_good", lambda *args: calls.append(("BUY", args)) or True)
+    monkeypatch.setattr(trade, "_sell_good", lambda *args: calls.append(("SELL", args)) or True)
+
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(inventory={"food": 2}),
+        economy_state={"earth": {"food": 3}},
+        stats=SimpleNamespace(credits=100),
+    )
+
+    assert trade._apply_pygame_trade_action(ctx, "earth", "BUY:food") is True
+    assert trade._apply_pygame_trade_action(ctx, "earth", "SELL:food") is True
+    assert [kind for kind, _args in calls] == ["BUY", "SELL"]
+
+
+def test_screen_body_budget_reserves_rows_and_footer():
+    class Font:
+        def get_linesize(self):
+            return 20
+
+        def size(self, text):
+            return len(text) * 8, 20
+
+    frame = pygame_screen.ScreenFrame(
+        "Guide",
+        ("body " * 20,),
+        (pygame_screen.ScreenRow("Choice", "details", "CHOICE"),),
+        ("ESC close",),
+    )
+
+    budget = pygame_screen._body_budget(Font(), frame, 500, 480, 84)
+
+    assert budget > 0
+    assert budget * (20 + 3) + pygame_screen._non_body_height(Font(), frame, 500) <= 480 - 70 - 84 - 8
+
+
+def test_screen_worker_rejects_unknown_outcome(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui,
+        "run_json_worker",
+        lambda *args, **kwargs: {"outcome": "MUTATE"},
+    )
+    frame = pygame_screen.ScreenFrame("T", (), ())
+
+    try:
+        pygame_screen.run(frame)
+    except pygame_screen.PygameScreenUnavailable as exc:
+        assert "unknown choice" in str(exc)
+    else:
+        raise AssertionError("unknown text-screen outcomes must use fallback")
 
 
 def test_story_menu_dismisses_with_enter_without_items():
@@ -973,13 +1123,14 @@ def test_selectable_menu_rejects_unknown_worker_outcomes(monkeypatch):
         raise AssertionError("unknown menu outcomes must use fallback")
 
 
-def test_interactive_batch_switch_is_disabled_by_default(monkeypatch):
+def test_interactive_batch_is_enabled_by_default(monkeypatch):
     monkeypatch.delenv("SPACEHACK_PYGAME_INTERACTIVE", raising=False)
+    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
 
-    assert not pygame_menu.enabled()
-    assert not _missions._pygame_interactive_enabled()
-    assert not _planet._pygame_interactive_enabled()
-    assert not npc._pygame_interactive_enabled()
+    assert pygame_menu.enabled()
+    assert _missions._pygame_interactive_enabled()
+    assert _planet._pygame_interactive_enabled()
+    assert npc._pygame_interactive_enabled()
 
 
 def test_planet_menu_items_keep_domain_outcomes_opaque_to_worker():

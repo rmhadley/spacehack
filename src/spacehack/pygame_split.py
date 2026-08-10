@@ -20,7 +20,7 @@ class PygameSplitUnavailable(RuntimeError):
 
 def enabled() -> bool:
     """Return whether the shared interactive Pygame batch is enabled."""
-    return pygame_menu.enabled()
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE")
 
 
 @dataclass(frozen=True)

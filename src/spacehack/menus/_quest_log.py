@@ -11,6 +11,7 @@ import tcod.console
 import tcod.event
 
 from .. import ui
+from .. import pygame_ui
 from .. import mission as mission_module
 from ..game_context import GameContext
 from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
@@ -18,10 +19,8 @@ from ..input_helpers import _try_open_guide
 
 
 def _pygame_quest_log_enabled() -> bool:
-    """Return whether the opt-in Pygame Quest Log is enabled."""
-    import os
-
-    return bool(os.environ.get("SPACEHACK_PYGAME_QUEST_LOG"))
+    """Return whether the Pygame Quest Log is enabled."""
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUEST_LOG")
 
 
 def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:

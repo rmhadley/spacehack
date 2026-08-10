@@ -5,12 +5,11 @@ Extracted from the old ``menus.py`` during the package refactor.
 
 from __future__ import annotations
 from enum import Enum, auto
-import os
-
 import tcod.console
 import tcod.event
 
 from .. import ui
+from .. import pygame_ui
 from .. import mission as mission_module
 from .. import npc as npc_module
 from ..game_context import GameContext
@@ -29,6 +28,7 @@ class MissionOutcome(Enum):
     IGNORE = auto()
     ACCEPT = auto()
     BACK = auto()
+    QUIT = auto()
 
 
 def _mission_type_tag(m: mission_module.MissionSpec) -> str:
@@ -180,8 +180,8 @@ def _mission_navigate(event: tcod.event.Event, selected: int, n: int) -> int | N
 
 
 def _pygame_merchant_enabled() -> bool:
-    """Return whether the opt-in live Pygame Merchant experiment is enabled."""
-    return bool(os.environ.get("SPACEHACK_PYGAME_MERCHANT"))
+    """Return whether the live Pygame Merchant experiment is enabled."""
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_MERCHANT")
 
 
 def _pygame_interactive_enabled() -> bool:
@@ -226,6 +226,10 @@ def _run_pygame_interactive_missions(
         from ..help import _run_help_guide
         _run_help_guide(ctx)
         return MissionOutcome.BACK, None
+    if outcome == "QUIT":
+        return MissionOutcome.QUIT, None
+    if outcome == "TAB":
+        return MissionOutcome.BACK, None
     if outcome == "SELECT" and offerings:
         try:
             picked = offerings[int(action)]
@@ -248,6 +252,8 @@ def _run_pygame_mission_offerings(
         return None
     if outcome == "ACCEPT" and offerings:
         return MissionOutcome.ACCEPT, offerings[selected % len(offerings)]
+    if outcome == "QUIT":
+        return MissionOutcome.QUIT, None
     return MissionOutcome.BACK, None
 
 

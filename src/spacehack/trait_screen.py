@@ -20,6 +20,54 @@ from .input_helpers import _try_open_guide
 from .xp import _qualifying_traits
 
 
+def _pygame_trait_enabled() -> bool:
+    """Return whether the generic Pygame screen worker is enabled."""
+    from . import pygame_screen
+
+    return pygame_screen.enabled()
+
+
+def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | None:
+    """Run mandatory trait selection through Pygame."""
+    from . import pygame_screen
+
+    frame = pygame_screen.ScreenFrame(
+        title=f"TRAIT SELECTION - Level {ctx.player_level}",
+        body=("Choose one trait. Selection is required before gameplay resumes.",),
+        rows=tuple(
+            pygame_screen.ScreenRow(
+                text=trait.name,
+                detail=trait.description,
+                action=f"TRAIT:{trait.id}",
+            )
+            for trait in candidates
+        ),
+        footer=("UP/DOWN or j/k select   ENTER choose",),
+    )
+    try:
+        outcome, action, _selected = pygame_screen.run(
+            frame, caption="spacehack - trait selection",
+        )
+    except pygame_screen.PygameScreenUnavailable:
+        return None
+    if outcome in {"BACK", "TAB"}:
+        return _run_pygame_trait_selection(ctx, candidates)
+    if outcome == "QUIT":
+        raise SystemExit
+    if outcome == "SELECT" and action.startswith("TRAIT:"):
+        trait_id = action.split(":", 1)[1]
+        picked = next((trait for trait in candidates if trait.id == trait_id), None)
+        if picked is None:
+            return None
+        ctx.player_traits.append(picked.id)
+        ctx.log.add_colored(
+            f"Trait gained: {picked.name} - {picked.description}",
+            message_log.COLOR_COMBAT_EVENT,
+        )
+        return True
+    return None
+
+
 def open_trait_selection(ctx: GameContext) -> None:
     """Open the trait selection modal.
 
@@ -35,6 +83,10 @@ def open_trait_selection(ctx: GameContext) -> None:
             message_log.COLOR_IMPORTANT_EVENT,
         )
         return
+
+    if _pygame_trait_enabled():
+        if _run_pygame_trait_selection(ctx, _candidates) is not None:
+            return
 
     from .menus._ship_menu import ShipMenuAction
     console = make_console()

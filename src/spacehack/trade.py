@@ -867,13 +867,15 @@ def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) ->
         quantity = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price) if max_qty else None
         if quantity:
             _buy_good(ctx, planet_id, good_id, quantity)
-    elif kind == "SELL":
+        return True
+    if kind == "SELL":
         owned = ctx.player_owned_ship
         held = owned.inventory.get(good_id, 0) if owned is not None else 0
         price = _sell_price(ctx, planet_id, good_id)
         quantity = _run_quantity_prompt(ctx, f"Sell {good.name}", held, price) if held else None
         if quantity:
             _sell_good(ctx, planet_id, good_id, quantity)
+        return True
     raise ValueError(f"Unknown trade action: {action!r}")
 
 
@@ -1106,6 +1108,91 @@ class _COut(Enum):
     QUIT = auto()
 
 
+def _pygame_cargo_enabled() -> bool:
+    """Return whether the generic Pygame screen worker is enabled."""
+    from . import pygame_screen
+
+    return pygame_screen.enabled()
+
+
+def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
+    """Build a readable cargo snapshot with opaque jettison actions."""
+    from . import pygame_screen
+    from . import ship as ship_module
+
+    items = []
+    for good_id, qty in owned.inventory.items():
+        try:
+            good = find_trade_good(good_id)
+        except KeyError:
+            continue
+        items.append(
+            pygame_screen.ScreenRow(
+                f"{good.name} x{qty} ({good.volume * qty} volume)",
+                f"Value: {good.base_price}$ each",
+                f"JETTISON:{good_id}",
+            )
+        )
+    if not items:
+        items = [pygame_screen.ScreenRow("No trade goods in hold", selectable=False)]
+    body = (
+        f"Cargo: {owned.cargo_used} / {max_cargo}    Free: {max(0, max_cargo - owned.cargo_used)}",
+        f"Mission cargo reserved: {owned.mission_reserved}    Ammo: {owned.cargo_ammo}",
+        f"Hull: {owned.hull_damage_pct}% damage",
+    )
+    footer = ("UP/DOWN or j/k select   ENTER jettison selected   ESC close",)
+    return pygame_screen.ScreenFrame(
+        f"CARGO - {ship_name.upper()}", body, tuple(items), footer, selected,
+    )
+
+
+def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None:
+    """Run cargo through Pygame, preserving jettison in the parent."""
+    from . import pygame_screen
+
+    selected = 0
+    while True:
+        try:
+            outcome, action, selected = pygame_screen.run(
+                _cargo_frame(ctx, owned, ship_name, max_cargo, selected),
+                caption="spacehack - cargo",
+            )
+        except pygame_screen.PygameScreenUnavailable:
+            return None
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
+            continue
+        if outcome == "QUIT":
+            raise SystemExit
+        if outcome == "SELECT":
+            if not action.startswith("JETTISON:") or ":" not in action:
+                return None
+            good_id = action.split(":", 1)[1]
+            try:
+                quantity = owned.inventory.get(good_id, 0)
+                good = find_trade_good(good_id)
+            except (KeyError, ValueError):
+                return None
+            if quantity > 0:
+                quantity_prompt = _run_quantity_prompt(
+                    ctx, f"Jettison {good.name}", quantity, 0,
+                )
+                if quantity_prompt:
+                    remaining = quantity - quantity_prompt
+                    if remaining <= 0:
+                        del owned.inventory[good_id]
+                    else:
+                        owned.inventory[good_id] = remaining
+                    ctx.log.add(
+                        f"Jettisoned {quantity_prompt}x {good.name} into space."
+                    )
+            continue
+        return True
+
+
 def open_cargo(ctx: GameContext) -> None:
     """Open the cargo management modal.
 
@@ -1131,6 +1218,9 @@ def open_cargo(ctx: GameContext) -> None:
     from . import ship as _ship_mod
     ship_name = ship_module.ship_display_name(owned)
     max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned)
+    if _pygame_cargo_enabled():
+        if _run_pygame_cargo(ctx, owned, ship_name, max_cargo) is not None:
+            return
     hull_damage = owned.hull_damage_pct
     weapons_n = len(owned.weapons)
     weapon_slots = ship_spec.weapon_slots

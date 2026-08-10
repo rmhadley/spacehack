@@ -47,6 +47,18 @@ def run_json_worker(
         raise PygameWorkerUnavailable(unavailable_message) from exc
 
 
+def migration_enabled(env_var: str) -> bool:
+    """Return whether migrated Pygame UI is active by default.
+
+    ``SPACEHACK_TCOD_UI=1`` is the emergency compatibility switch for
+    the old terminal UI; individual feature variables may still disable
+    one migrated surface with ``=0`` while debugging.
+    """
+    if os.environ.get("SPACEHACK_TCOD_UI") == "1":
+        return False
+    return os.environ.get(env_var, "1") != "0"
+
+
 def worker_environment() -> dict[str, str]:
     """Return the environment used by optional Pygame workers."""
     return {**os.environ, "PYGAME_HIDE_SUPPORT_PROMPT": "1"}

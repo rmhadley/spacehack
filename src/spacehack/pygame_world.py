@@ -1,4 +1,4 @@
-"""Opt-in Pygame preview for the live exploration frame.
+"""Pygame preview for the live exploration frame.
 
 The game process creates renderer-neutral draw commands from ``world.py`` and
 projects the existing HUD/message log into the same command stream. A
@@ -19,6 +19,7 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from . import pygame_engine
+from . import pygame_ui
 from . import world
 from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 
@@ -406,12 +407,12 @@ class PygameWorldPreview:
 
 
 class PygameWorldUnavailable(RuntimeError):
-    """Raised when the optional world preview cannot start."""
+    """Raised when the world preview cannot start."""
 
 
 def start_if_enabled() -> PygameWorldPreview | None:
-    """Start the world preview only when explicitly requested."""
-    if os.environ.get("SPACEHACK_PYGAME_WORLD") != "1":
+    """Start the world preview unless Pygame migration is disabled."""
+    if not pygame_ui.migration_enabled("SPACEHACK_PYGAME_WORLD"):
         return None
     try:
         return PygameWorldPreview.start()

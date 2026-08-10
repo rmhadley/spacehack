@@ -20,9 +20,7 @@ class PygameMenuUnavailable(RuntimeError):
 
 def enabled() -> bool:
     """Return whether the generic interactive-menu batch is enabled."""
-    import os
-
-    return bool(os.environ.get("SPACEHACK_PYGAME_INTERACTIVE"))
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE")
 
 
 @dataclass(frozen=True)

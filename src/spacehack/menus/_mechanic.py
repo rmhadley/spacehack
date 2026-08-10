@@ -18,6 +18,120 @@ from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, mak
 from ..input_helpers import _try_open_guide
 
 
+def _pygame_mechanic_enabled() -> bool:
+    """Return whether the generic Pygame screen worker is enabled."""
+    from .. import pygame_screen
+
+    return pygame_screen.enabled()
+
+
+def _mechanic_frame(ctx, ship_rec, selected: int):
+    """Build a presentation snapshot for the mechanic terminal."""
+    from .. import pygame_screen
+
+    owned = ctx.player_owned_ship
+    rows = tuple(
+        pygame_screen.ScreenRow(label, action=action)
+        for label, action in (
+            ("Refuel", "REFUEL"),
+            ("Repair", "REPAIR"),
+            ("Manage Loadout", "LOADOUT"),
+            ("Buy Ammo", "AMMO"),
+        )
+    )
+    body = (
+        f"Ship: {ship_rec.name}",
+        f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {owned.hull_damage_pct}% damage",
+        f"Credits: {ctx.stats.credits}$",
+    )
+    return pygame_screen.ScreenFrame(
+        "MECHANIC TERMINAL", body, rows,
+        ("UP/DOWN or j/k select   ENTER choose   ESC back",), selected,
+    )
+
+
+def _refuel(ctx, owned, ship_rec) -> None:
+    """Apply the mechanic's refuel transaction."""
+    buyable = ship_rec.max_fuel - owned.fuel
+    affordable = ctx.stats.credits // ship_module.FUEL_COST_PER_UNIT
+    if buyable <= 0:
+        ctx.log.add("The fuel tank is already full.")
+    elif affordable <= 0:
+        ctx.log.add("You don't have enough credits to buy fuel.")
+    else:
+        units = min(buyable, affordable)
+        cost = units * ship_module.FUEL_COST_PER_UNIT
+        ctx.stats.credits -= cost
+        owned.fuel += units
+        ctx.log.add(f"Refueled {units} units for {cost}$. Fuel: {owned.fuel} / {ship_rec.max_fuel}.")
+
+
+def _repair(ctx, owned, ship_rec) -> None:
+    """Apply the mechanic's hull repair transaction."""
+    damage = owned.hull_damage_pct
+    if damage <= 0:
+        ctx.log.add("No repairs needed -- hull integrity is 100%.")
+        return
+    cost = int(damage * ship_rec.price // 100)
+    if ctx.stats.credits < cost:
+        ctx.log.add(f"Repair would cost {cost}$, but you only have {ctx.stats.credits}$.")
+        return
+    ctx.stats.credits -= cost
+    owned.hull_damage_pct = 0
+    ctx.log.add(f"Repaired hull to 100% for {cost}$.")
+
+
+def _apply_pygame_mechanic_action(ctx, action: str, planet_id: str, ship_rec) -> bool:
+    """Apply one mechanic action and keep the terminal open."""
+    owned = ctx.player_owned_ship
+    if action == "REFUEL":
+        _refuel(ctx, owned, ship_rec)
+        return True
+    if action == "REPAIR":
+        _repair(ctx, owned, ship_rec)
+        return True
+    if action == "LOADOUT":
+        from ._loadout import _run_loadout_menu
+        _run_loadout_menu(ctx, planet_id)
+        return True
+    if action == "AMMO":
+        _run_ammo_menu(ctx)
+        return True
+    if not action:
+        return True
+    raise ValueError(f"Unknown mechanic action: {action!r}")
+
+
+def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
+    """Run the mechanic terminal through Pygame, or return None on fallback."""
+    from .. import pygame_screen
+
+    selected = 0
+    while True:
+        try:
+            outcome, action, selected = pygame_screen.run(
+                _mechanic_frame(ctx, ship_rec, selected),
+                caption="spacehack - mechanic",
+            )
+        except (pygame_screen.PygameScreenUnavailable, ValueError):
+            return None
+        if outcome == "GUIDE":
+            from ..help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
+            continue
+        if outcome == "SELECT":
+            try:
+                _apply_pygame_mechanic_action(ctx, action, planet_id, ship_rec)
+            except (KeyError, ValueError):
+                return None
+            continue
+        if outcome == "QUIT":
+            raise SystemExit
+        return True
+
+
 class _MechanicOutcome(Enum):
     """Result of the mechanic-terminal menu."""
     IGNORE = auto()
@@ -43,10 +157,14 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
         ctx.log.add("You need a ship to use the mechanic terminal.")
         return
 
-    console = make_console()
-    selected = 0
     owned = ctx.player_owned_ship
     ship_rec = ship_module.find_ship(owned.ship_id)
+    if _pygame_mechanic_enabled():
+        if _run_pygame_mechanic(ctx, planet_id, ship_rec) is not None:
+            return
+
+    console = make_console()
+    selected = 0
     _MECH_OPTIONS = ["Refuel", "Repair", "Manage Loadout", "Buy Ammo"]
 
     def _render() -> None:
@@ -108,32 +226,10 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
     while True:
         action = ui.Modal(ctx.context, console).run(_render, _update)
         if action is _MechanicOutcome.REFUEL:
-            buyable = ship_rec.max_fuel - owned.fuel
-            if buyable <= 0:
-                ctx.log.add("The fuel tank is already full.")
-                continue
-            affordable = ctx.stats.credits // ship_module.FUEL_COST_PER_UNIT
-            if affordable <= 0:
-                ctx.log.add("You don't have enough credits to buy fuel.")
-                continue
-            units = min(buyable, affordable)
-            cost = units * ship_module.FUEL_COST_PER_UNIT
-            ctx.stats.credits -= cost
-            owned.fuel += units
-            ctx.log.add(f"Refueled {units} units for {cost}$. Fuel: {owned.fuel} / {ship_rec.max_fuel}.")
+            _refuel(ctx, owned, ship_rec)
             continue
         if action is _MechanicOutcome.REPAIR:
-            dmg_pct = owned.hull_damage_pct
-            if dmg_pct <= 0:
-                ctx.log.add("No repairs needed -- hull integrity is 100%.")
-                continue
-            repair_cost = int(dmg_pct * ship_rec.price // 100)
-            if ctx.stats.credits < repair_cost:
-                ctx.log.add(f"Repair would cost {repair_cost}$, but you only have {ctx.stats.credits}$.")
-                continue
-            ctx.stats.credits -= repair_cost
-            owned.hull_damage_pct = 0
-            ctx.log.add(f"Repaired hull to 100% for {repair_cost}$.")
+            _repair(ctx, owned, ship_rec)
             continue
         if action is _MechanicOutcome.LOADOUT:
             from ._loadout import _run_loadout_menu
@@ -143,6 +239,67 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
             _run_ammo_menu(ctx)
             continue
         return  # BACK or QUIT
+
+
+def _ammo_frame(ctx, owned, missile_slots, selected):
+    """Build a Pygame ammo-management snapshot."""
+    from .. import pygame_screen
+
+    rows = []
+    for slot in missile_slots:
+        weapon = find_weapon(owned.weapons[slot])
+        current = owned.weapon_ammo.get(slot, weapon.ammo_capacity)
+        rows.append(pygame_screen.ScreenRow(
+            f"Slot {slot + 1}: {weapon.name} ({current}/{weapon.ammo_capacity})",
+            f"{weapon.ammo_price}$/round",
+            f"AMMO:{slot}:1",
+        ))
+    return pygame_screen.ScreenFrame(
+        "BUY AMMO",
+        (f"Credits: {ctx.stats.credits}$",),
+        tuple(rows) or (pygame_screen.ScreenRow("No missile weapons installed", selectable=False),),
+        ("ENTER buy one round   ESC back",),
+        selected,
+    )
+
+
+def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
+    """Run ammo purchasing through Pygame, keeping the transaction in parent."""
+    from .. import pygame_screen
+
+    selected = 0
+    while True:
+        try:
+            outcome, action, selected = pygame_screen.run(
+                _ammo_frame(ctx, owned, missile_slots, selected),
+                caption="spacehack - buy ammo",
+            )
+        except pygame_screen.PygameScreenUnavailable:
+            return None
+        if outcome == "GUIDE":
+            from ..help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
+            continue
+        if outcome == "QUIT":
+            raise SystemExit
+        if outcome == "SELECT" and action.startswith("AMMO:"):
+            try:
+                slot = int(action.split(":")[1])
+            except (IndexError, ValueError):
+                return None
+            ok, cost, reason = ship_module.buy_ammo(
+                owned, slot, 1, ctx.stats.credits,
+            )
+            if not ok:
+                ctx.log.add(reason)
+            else:
+                ctx.stats.credits -= cost
+                weapon = find_weapon(owned.weapons[slot])
+                ctx.log.add(f"Bought 1x {weapon.name} ammo for {cost}$.")
+            continue
+        return True
 
 
 def _run_ammo_menu(ctx) -> None:
@@ -168,6 +325,10 @@ def _run_ammo_menu(ctx) -> None:
     if not missile_slots:
         ctx.log.add("No missile weapons installed.")
         return
+
+    if _pygame_mechanic_enabled():
+        if _run_pygame_ammo(ctx, owned, missile_slots) is not None:
+            return
 
     console = make_console()
     selected = 0

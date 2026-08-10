@@ -1847,12 +1847,73 @@ def update_guide(
 # ---------------------------------------------------------------------------
 
 
+def _pygame_help_enabled() -> bool:
+    """Return whether the generic Pygame screen worker is enabled."""
+    from . import pygame_screen
+
+    return pygame_screen.enabled()
+
+
+def _run_pygame_help(ctx: GameContext) -> bool | None:
+    """Run the guide through Pygame, returning None for tcod fallback."""
+    from . import pygame_screen
+
+    list_frame = pygame_screen.ScreenFrame(
+        title="SPACEHACK GUIDE",
+        body=("Select a topic. Open it with ENTER.",),
+        rows=tuple(
+            pygame_screen.ScreenRow(
+                text=section.title,
+                action=f"SECTION:{index}",
+            )
+            for index, section in enumerate(GUIDE_SECTIONS)
+        ),
+        footer=("UP/DOWN or j/k select   ENTER open   ESC close",),
+    )
+    frame = list_frame
+    while True:
+        try:
+            outcome, action, selected = pygame_screen.run(
+                frame, caption="spacehack - guide",
+            )
+        except pygame_screen.PygameScreenUnavailable:
+            return None
+        if outcome == "SELECT" and action.startswith("SECTION:"):
+            try:
+                index = int(action.split(":", 1)[1])
+                section = GUIDE_SECTIONS[index]
+            except (ValueError, IndexError):
+                return None
+            frame = pygame_screen.ScreenFrame(
+                title=section.title,
+                body=tuple(section.body.split("\n")),
+                rows=(),
+                footer=("PAGE UP/DOWN scroll   ESC topic list",),
+            )
+            continue
+        if outcome == "TAB":
+            frame = list_frame
+            continue
+        if outcome == "QUIT":
+            return True
+        if frame is not list_frame:
+            frame = list_frame
+            continue
+        if outcome == "BACK":
+            return True
+        if outcome == "PAGE_UP" or outcome == "PAGE_DOWN":
+            continue
+
+
 def _run_help_guide(ctx: GameContext) -> None:
     """Open the game guide as a modal. Returns when the player closes it.
 
     Called from ``__main__.py``'s city/space loop and from any modal's
     update function. Game state is paused while the guide is open.
     """
+    if _pygame_help_enabled():
+        if _run_pygame_help(ctx) is not None:
+            return
     console = make_console()
     selected = 0
     viewing: GuideSection | None = None

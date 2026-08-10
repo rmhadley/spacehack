@@ -19,10 +19,8 @@ class PygameBatchUnavailable(RuntimeError):
 
 
 def enabled() -> bool:
-    """Return whether the read-only migration batch is opt-in enabled."""
-    import os
-
-    return bool(os.environ.get("SPACEHACK_PYGAME_READONLY"))
+    """Return whether the read-only migration batch is enabled."""
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_READONLY")
 
 
 @dataclass(frozen=True)

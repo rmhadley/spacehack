@@ -157,7 +157,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
 
 
 def run(ctx: Any, ship: Any, effective_price: int | None = None) -> str:
-    """Run the opt-in worker and return its outcome string."""
+    """Run the worker and return its outcome string."""
     frame = _capture_frame(ctx, ship, effective_price)
     try:
         response = pygame_ui.run_json_worker(

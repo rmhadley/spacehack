@@ -1,10 +1,10 @@
-"""Opt-in Pygame Merchant offerings screen.
+"""Pygame Merchant offerings screen.
 
 This is the first live presentation-migration seam. The game process builds
 renderer-neutral frames from live mission data, then a short-lived worker
 process owns the Pygame window and event loop. The worker returns the same
 accept/back choice as the existing tcod modal without sharing SDL ownership
-with tcod. The backend is optional and falls back cleanly when unavailable.
+with tcod. The backend remains optional at runtime and falls back cleanly when unavailable.
 """
 from __future__ import annotations
 
@@ -174,7 +174,7 @@ def _all_frames(
 def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str, int]:
     """Map one Pygame event to the existing Merchant modal outcomes."""
     if event.type == pygame.QUIT:
-        return "BACK", selected
+        return "QUIT", selected
     if event.type != pygame.KEYDOWN:
         return "IGNORE", selected
     if event.key == pygame.K_ESCAPE:

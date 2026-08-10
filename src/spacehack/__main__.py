@@ -1652,6 +1652,8 @@ def _run_game_loop(
                                 log.add(f'{npc_obj.name} has no work for you right now.')
                             else:
                                 outcome, picked = _run_mission_offerings(ctx, npc_obj, offerings)
+                                if outcome is MissionOutcome.QUIT:
+                                    return
                                 if outcome is MissionOutcome.ACCEPT and picked is not None:
                                     if mission_module.try_accept_mission(
                                         picked, player_owned_ship, log,

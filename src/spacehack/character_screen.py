@@ -41,8 +41,113 @@ _ARMOR_SLOT_LABELS: dict[str, str] = {
 }
 
 
+def _character_frame(ctx: GameContext, tab: int, selected: int):
+    """Build a Pygame snapshot for one Character tab."""
+    from . import pygame_screen
+    from .xp import xp_for_level, _xp_to_next
+
+    level = ctx.player_level
+    current_xp = max(0, ctx.player_xp - xp_for_level(level))
+    needed = _xp_to_next(level)
+    title = f"CHARACTER - Level {level} {ctx.character_info.get('class_name', '').title()}"
+    if tab == 0:
+        rows = tuple(
+            pygame_screen.ScreenRow(
+                text=f"{skill.title():<12} {getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10):>3}  "
+                f"{'[+]' if ctx.player_skill_points > 0 and getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) < 100 else 'MAX' if getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) >= 100 else ''}",
+                detail=_SKILL_DESCRIPTIONS[skill],
+                action=f"SPEND:{skill}",
+            )
+            for index, skill in enumerate(_SKILLS)
+        )
+        body = (
+            "[ STATS ]    Equipment",
+            f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
+            f"Traits: {', '.join(ctx.player_traits) if ctx.player_traits else 'None'}",
+        )
+        footer = ("UP/DOWN or j/k select   ENTER spend   TAB equipment   ESC close",)
+    else:
+        rows = tuple(
+            pygame_screen.ScreenRow(text=line, selectable=False)
+            for line in _equipment_lines(ctx)
+        )
+        body = ("Stats    [ EQUIPMENT ]", "Your installed ground gear",)
+        footer = ("TAB stats   ESC close",)
+    return pygame_screen.ScreenFrame(title, body, rows, footer, selected)
+
+
+def _equipment_lines(ctx: GameContext) -> tuple[str, ...]:
+    """Return readable equipment snapshot lines."""
+    from .data.ground_weapons import find_ground_weapon
+    from .data.ground_armor import find_ground_armor
+
+    weapons = list(ctx.equipped_ground_weapons)
+    while len(weapons) < 2:
+        weapons.append("")
+    lines = []
+    for index, weapon_id in enumerate(weapons[:2], 1):
+        try:
+            name = find_ground_weapon(weapon_id).name if weapon_id else "Fists"
+        except KeyError:
+            name = weapon_id or "Fists"
+        lines.append(f"Weapon slot {index}: {name}")
+    for slot in _ARMOR_SLOTS:
+        item_id = ctx.equipped_ground_armor.get(slot)
+        try:
+            name = find_ground_armor(item_id).name if item_id else "None"
+        except KeyError:
+            name = item_id or "None"
+        lines.append(f"{_ARMOR_SLOT_LABELS[slot]} armor: {name}")
+    return tuple(lines)
+
+
+def _pygame_character_enabled() -> bool:
+    """Return whether the generic Pygame screen worker is enabled."""
+    from . import pygame_screen
+
+    return pygame_screen.enabled()
+
+
+def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
+    """Run Character through Pygame, returning None for tcod fallback."""
+    from . import pygame_screen
+    from .xp import _apply_skill_point
+
+    tab = 0
+    selected = 0
+    while True:
+        try:
+            outcome, action, selected = pygame_screen.run(
+                _character_frame(ctx, tab, selected), caption="spacehack - character",
+            )
+        except pygame_screen.PygameScreenUnavailable:
+            return None
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome == "TAB":
+            tab = (tab + 1) % 2
+            selected = 0
+            continue
+        if outcome == "SELECT" and tab == 0 and action.startswith("SPEND:"):
+            skill = action.split(":", 1)[1]
+            if skill not in _SKILLS:
+                return None
+            _apply_skill_point(ctx, skill)
+            continue
+        if outcome in {"PAGE_UP", "PAGE_DOWN"}:
+            continue
+        if outcome == "QUIT":
+            raise SystemExit
+        return True
+
+
 def open_character_screen(ctx: GameContext) -> None:
     """Open the Character screen modal."""
+    if _pygame_character_enabled():
+        if _run_pygame_character_screen(ctx) is not None:
+            return
     from .menus._ship_menu import ShipMenuAction
     console = make_console()
     _sel: int = 0

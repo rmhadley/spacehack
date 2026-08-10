@@ -10,6 +10,7 @@ import tcod.console
 import tcod.event
 
 from .. import ui
+from .. import pygame_ui
 from .. import world
 from .. import message_log
 from .. import ship as ship_module
@@ -20,10 +21,8 @@ from ..input_helpers import _try_open_guide
 
 
 def _pygame_ship_buy_enabled() -> bool:
-    """Return whether the opt-in Pygame Ship Buy modal is enabled."""
-    import os
-
-    return bool(os.environ.get("SPACEHACK_PYGAME_SHIP_BUY"))
+    """Return whether the Pygame Ship Buy modal is enabled."""
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_SHIP_BUY")
 
 
 def _run_pygame_ship_buy(ctx, ship, effective_price: int | None) -> "ShipBuyOutcome | None":

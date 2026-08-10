@@ -216,6 +216,58 @@ def _render_interaction_modal(
     )
 
 
+_INTERACTION_DISPATCH = {
+    "Open Trade": _InteractionOutcome.TRADE,
+    "Attack": _InteractionOutcome.ATTACK,
+    "Scan Cargo": _InteractionOutcome.SCAN,
+    "Allow Scan": _InteractionOutcome.ALLOW_SCAN,
+    "Flee": _InteractionOutcome.FLEE,
+    "End Transmission": _InteractionOutcome.BACK,
+}
+
+
+def _pygame_comms_enabled() -> bool:
+    """Return whether the generic Pygame menu worker is enabled."""
+    from . import pygame_menu
+
+    return pygame_menu.enabled()
+
+
+def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
+    """Return a Pygame-selected interaction enum, or None for fallback."""
+    from . import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(option, "Select this transmission action.", option)
+        for option in options
+    )
+    frames = tuple(
+        pygame_menu.MenuFrame(
+            title=f"{contact_name} - Hailing",
+            body=" ".join(getattr(contact_spec, "comms_lines", ()) or ("...",)),
+            items=items,
+            hints=("UP/DOWN or j/k navigate - ENTER select - ESC back.",),
+            selected=index,
+        )
+        for index in range(max(1, len(items)))
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run(
+            frames, caption=f"spacehack - {contact_name}",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return _pygame_interaction_outcome(ctx, contact_name, contact_spec, options)
+    if outcome == "QUIT":
+        return _InteractionOutcome.QUIT
+    if outcome != "SELECT":
+        return _InteractionOutcome.BACK
+    return _INTERACTION_DISPATCH.get(action)
+
+
 # ---------------------------------------------------------------------------
 # Interaction sub-modal (shared between open_comms and open_comms_direct)
 # ---------------------------------------------------------------------------
@@ -261,6 +313,17 @@ def _run_interaction_modal(
         # End Transmission always last.
         _options.append("End Transmission")
 
+    if _pygame_comms_enabled():
+        _pygame_result = _pygame_interaction_outcome(
+            ctx, contact_name, contact_spec, _options,
+        )
+        if _pygame_result is not None:
+            interaction_outcome = _pygame_result
+        else:
+            interaction_outcome = None
+    else:
+        interaction_outcome = None
+
     _interaction_selected = 0
 
     def _render_interaction() -> None:
@@ -289,20 +352,13 @@ def _run_interaction_modal(
         if event.sym in ui._ENTER_SYMS:
             chosen = _options[_interaction_selected]
             # Table-driven dispatch.
-            _DISPATCH = {
-                "Open Trade": _InteractionOutcome.TRADE,
-                "Attack": _InteractionOutcome.ATTACK,
-                "Scan Cargo": _InteractionOutcome.SCAN,
-                "Allow Scan": _InteractionOutcome.ALLOW_SCAN,
-                "Flee": _InteractionOutcome.FLEE,
-                "End Transmission": _InteractionOutcome.BACK,
-            }
-            return _DISPATCH.get(chosen, _InteractionOutcome.BACK)
+            return _INTERACTION_DISPATCH.get(chosen, _InteractionOutcome.BACK)
         return _InteractionOutcome.IGNORE
 
-    interaction_outcome = ui.Modal(ctx.context, console).run(
-        _render_interaction, _update_interaction,
-    )
+    if interaction_outcome is None:
+        interaction_outcome = ui.Modal(ctx.context, console).run(
+            _render_interaction, _update_interaction,
+        )
 
     # ---- Handle interaction outcome ----
     if interaction_outcome is _InteractionOutcome.ATTACK:
@@ -472,6 +528,46 @@ def open_comms_direct(
 # Main entry point
 # ---------------------------------------------------------------------------
 
+def _pygame_contact_result(ctx, contacts):
+    """Run the contact list through Pygame and return selected contact."""
+    from . import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(
+            f"{name} (hostile)" if _get_attitude(ctx.faction_reputation.get(spec.faction, 0)) in ("enemy", "disliked") else name,
+            spec.comms_lines[0] if spec.comms_lines else "...",
+            f"CONTACT:{index}",
+        )
+        for index, (name, spec, _entity) in enumerate(contacts)
+    )
+    frames = tuple(
+        pygame_menu.MenuFrame(
+            f"COMMS - {len(contacts)} contacts in range",
+            "Select a ship to hail.", items,
+            ("UP/DOWN or j/k navigate - ENTER hail - ESC close",), selected,
+        )
+        for selected in range(max(1, len(items)))
+    )
+    try:
+        outcome, action, selected = pygame_menu.run(
+            frames, caption="spacehack - comms",
+        )
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return _pygame_contact_result(ctx, contacts)
+    if outcome == "QUIT":
+        return "QUIT"
+    if outcome != "SELECT" or not action.startswith("CONTACT:"):
+        return "BACK"
+    try:
+        return contacts[int(action.split(":", 1)[1])]
+    except (ValueError, IndexError):
+        return None
+
+
 def open_comms(
     ctx: GameContext,
     player_pos,
@@ -493,6 +589,18 @@ def open_comms(
     if not contacts:
         ctx.log.add("No ships in comms range.")
         return None
+
+    if _pygame_comms_enabled():
+        _pygame_contact = _pygame_contact_result(ctx, contacts)
+        if _pygame_contact == "QUIT":
+            return None
+        if _pygame_contact == "BACK":
+            return None
+        if _pygame_contact is not None:
+            _contact_name, _contact_spec, _contact_entity = _pygame_contact
+            return _run_interaction_modal(
+                ctx, make_console(), _contact_name, _contact_spec, _contact_entity,
+            )
 
     console = make_console()
     selected = 0
