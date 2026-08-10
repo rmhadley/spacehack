@@ -109,15 +109,24 @@ def _content_width(width: int) -> int:
 def _frame_height(font: Any, frame: SplitFrame, width: int) -> int:
     """Measure the split frame for font fitting."""
     line = font.get_linesize()
-    panel_width = _content_width(width)
+    panel_width = (width - 64 - 20) // 2
+    detail_width = panel_width - 68
     measure = lambda text: pygame_ui.measure_font(font, text)
     rows = (*frame.left_rows, *frame.right_rows)
-    detail_lines = sum(
-        len(pygame_ui.wrap_text(row.detail, panel_width, measure))
-        for row in rows
-        if row.detail
+    detail_lines = pygame_ui.max_wrapped_lines(
+        (row.detail for row in rows if not row.divider),
+        detail_width,
+        measure,
     )
-    return 150 + max(len(frame.left_rows), len(frame.right_rows)) * (line + 8) + detail_lines * (line + 2)
+    left_rows_height = sum(
+        line + 5 if row.divider else line + 14
+        for row in frame.left_rows
+    )
+    right_rows_height = sum(
+        line + 5 if row.divider else line + 14
+        for row in frame.right_rows
+    )
+    return 150 + max(left_rows_height, right_rows_height) + max(1, detail_lines) * (line + 2)
 
 
 def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
@@ -153,32 +162,44 @@ def _draw_panel(
         pygame, screen, panel.x + 18, panel.y + 48,
         panel.width - 36, color=palette.border,
     )
-    x = panel.x + 20
-    y = panel.y + 66
-    measure = lambda text: pygame_ui.measure_font(font, text)
-    for index, row in enumerate(rows):
-        if row.divider:
-            pygame_ui.draw_text(
-                pygame, screen, font,
-                pygame_ui.fit_text(row.label, panel.width - 40, measure),
-                x, y, color=palette.description,
-            )
-            y += font.get_linesize() + 5
-            continue
-        selected_row = focused and index == selected
-        y = pygame_ui.draw_menu_row(
-            pygame, screen, font,
-            f"{row.label}  {row.value}".rstrip(),
-            x, y, panel.width - 40,
-            selected=selected_row,
-            palette=palette,
+    screen.set_clip(
+        pygame.Rect(
+            panel.x + 1, panel.y + 1,
+            max(1, panel.width - 2), max(1, panel.height - 2),
         )
-        if selected_row and row.detail:
-            y = pygame_ui.draw_wrapped_text(
-                pygame, screen, font, row.detail,
-                x + 28, y - 4, panel.width - 68,
-                color=palette.description, line_gap=2,
+    )
+    try:
+        x = panel.x + 20
+        y = panel.y + 66
+        measure = lambda text: pygame_ui.measure_font(font, text)
+        for index, row in enumerate(rows):
+            if row.divider:
+                pygame_ui.draw_text(
+                    pygame, screen, font,
+                    pygame_ui.fit_text(row.label, panel.width - 40, measure),
+                    x, y, color=palette.description,
+                )
+                y += font.get_linesize() + 5
+                continue
+            selected_row = focused and index == selected
+            y = pygame_ui.draw_menu_row(
+                pygame, screen, font,
+                f"{row.label}  {row.value}".rstrip(),
+                x, y, panel.width - 40,
+                selected=selected_row,
+                palette=palette,
             )
+        detail = ""
+        if focused and 0 <= selected < len(rows) and not rows[selected].divider:
+            detail = rows[selected].detail
+        detail_width = panel.width - 68
+        pygame_ui.draw_wrapped_text(
+            pygame, screen, font, detail,
+            x + 28, y, detail_width,
+            color=palette.description, line_gap=2,
+        )
+    finally:
+        screen.set_clip(None)
 
 
 def _draw_frame(pygame: Any, screen: Any, font: Any, frame: SplitFrame) -> None:

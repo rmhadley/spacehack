@@ -117,27 +117,20 @@ def _body_lines(font: Any, frame: ScreenFrame, width: int) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def _wrapped_height(font: Any, text: str, width: int, line_gap: int) -> int:
-    """Return the rendered height of wrapped text, including one line."""
-    measure = lambda value: pygame_ui.measure_font(font, value)
-    lines = pygame_ui.wrap_text(text, max(1, width), measure)
-    return max(1, len(lines)) * (font.get_linesize() + line_gap)
-
-
 def _non_body_height(font: Any, frame: ScreenFrame, width: int) -> int:
-    """Measure rows, selected detail, spacing, and footer below the body."""
-    detail_height = max(
-        (
-            _wrapped_height(font, row.detail, width - 28, 2)
-            for row in frame.rows
-            if row.selectable and row.detail
-        ),
-        default=0,
+    """Measure rows, fixed detail region, spacing, and footer."""
+    measure = lambda value: pygame_ui.measure_font(font, value)
+    detail_width = width
+    detail_lines = pygame_ui.max_wrapped_lines(
+        (row.detail for row in frame.rows if row.selectable),
+        detail_width,
+        measure,
     )
     row_height = sum(
         font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
         for row in frame.rows
     )
+    detail_height = max(1, detail_lines) * (font.get_linesize() + 2)
     footer_height = (max(1, len(frame.footer)) + 1) * (font.get_linesize() + 3)
     return row_height + detail_height + 12 + footer_height
 
@@ -151,7 +144,7 @@ def _body_budget(
 ) -> int:
     """Return body lines available while reserving rows and footer."""
     footer_start = height - 70
-    reserved = _non_body_height(font, frame, width)
+    reserved = _non_body_height(font, frame, width - 28)
     available = footer_start - start_y - 8 - reserved
     return max(0, available // (font.get_linesize() + 3))
 
@@ -160,7 +153,7 @@ def _layout_height(font: Any, frame: ScreenFrame, width: int) -> int:
     """Measure the worst selectable state using renderer widths."""
     body_lines = _body_lines(font, frame, width)
     return len(body_lines) * (font.get_linesize() + 3) + 8 + _non_body_height(
-        font, frame, width,
+        font, frame, width - 28,
     )
 
 
@@ -217,13 +210,6 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ScreenFrame) -> None
                 pygame, screen, font, row.text, x, y, width - 80,
                 selected=index == selected, palette=palette,
             )
-            if index == selected and row.detail:
-                detail_height = _wrapped_height(font, row.detail, width - 108, 2)
-                if y + detail_height <= footer_start:
-                    y = pygame_ui.draw_wrapped_text(
-                        pygame, screen, font, row.detail, x + 28, y - 4,
-                        width - 108, color=palette.description, line_gap=2,
-                    )
         else:
             pygame_ui.draw_text(
                 pygame, screen, font,
@@ -231,7 +217,27 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ScreenFrame) -> None
                 x, y, color=palette.description,
             )
             y += font.get_linesize() + 4
-    y = max(y + 12, footer_start)
+    detail_width = width - 108
+    detail = frame.rows[selected].detail if 0 <= selected < len(frame.rows) else ""
+    detail_height = pygame_ui.wrapped_text_height(
+        detail, detail_width, measure, font.get_linesize(), 2,
+    )
+    measure_detail_height = max(
+        (
+            pygame_ui.wrapped_text_height(
+                row.detail, detail_width, measure, font.get_linesize(), 2,
+            )
+            for row in frame.rows
+            if row.selectable
+        ),
+        default=font.get_linesize() + 2,
+    )
+    if y + detail_height <= footer_start:
+        pygame_ui.draw_wrapped_text(
+            pygame, screen, font, detail, x + 28, y,
+            detail_width, color=palette.description, line_gap=2,
+        )
+    y = max(y + measure_detail_height + 8, footer_start)
     footer_lines = frame.footer
     if body_overflow:
         footer_lines = ("PAGE UP/DOWN scroll for more",) + footer_lines

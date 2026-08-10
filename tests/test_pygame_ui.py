@@ -1120,6 +1120,71 @@ def test_selectable_menu_wraps_long_mission_text_without_tiny_font():
     ) <= 828
 
 
+def test_fixed_description_layout_budgets_cover_all_selection_states():
+    class Font:
+        def get_linesize(self):
+            return 20
+
+        def size(self, text):
+            return len(text) * 8, 20
+
+    descriptions = ("short", "long detail " * 12)
+    menu_frames = tuple(
+        pygame_menu.MenuFrame(
+            "Menu", "body",
+            tuple(
+                pygame_menu.MenuItem(f"Option {index}", description, str(index))
+                for index, description in enumerate(descriptions)
+            ),
+            (), selected,
+        )
+        for selected in range(2)
+    )
+    assert len({pygame_menu._frame_height(Font(), frame, 500) for frame in menu_frames}) == 1
+
+    screen_frame = pygame_screen.ScreenFrame(
+        "Screen", (), tuple(
+            pygame_screen.ScreenRow(f"Row {index}", description, str(index))
+            for index, description in enumerate(descriptions)
+        ), selected=0,
+    )
+    alternate_screen = pygame_screen.ScreenFrame(
+        screen_frame.title, screen_frame.body, screen_frame.rows,
+        screen_frame.footer, selected=1,
+    )
+    assert pygame_screen._non_body_height(Font(), screen_frame, 500) == \
+        pygame_screen._non_body_height(Font(), alternate_screen, 500)
+
+    split_frames = tuple(
+        pygame_split.SplitFrame(
+            "Split", "Left", "Right",
+            tuple(
+                pygame_split.SplitRow(f"Row {index}", "", description, str(index))
+                for index, description in enumerate(descriptions)
+            ), (), "", "", "", 0, selected,
+        )
+        for selected in range(2)
+    )
+    assert len({pygame_split._frame_height(Font(), frame, 800) for frame in split_frames}) == 1
+
+
+def test_merchant_description_budget_is_selection_independent():
+    class Font:
+        def get_linesize(self):
+            return 20
+
+        def size(self, text):
+            return len(text) * 8, 20
+
+    frames = (
+        pygame_merchant.MerchantFrame("M", ("A", "B"), "short", (), 0),
+        pygame_merchant.MerchantFrame("M", ("A", "B"), "long detail " * 12, (), 1),
+    )
+    height = pygame_merchant._description_height(Font(), frames, 500)
+    assert pygame_merchant._content_height(Font(), frames[0], 500, height) == \
+        pygame_merchant._content_height(Font(), frames[1], 500, height)
+
+
 def test_selectable_menu_frame_payload_round_trips_actions_and_ascii_art():
     frame = pygame_menu.MenuFrame(
         title="Mars",

@@ -71,8 +71,26 @@ def _merchant_layout(width: int, height: int, line_height: int) -> MerchantLayou
     return MerchantLayout(panel, content, title_y, rule_y)
 
 
-def _content_height(font: Any, frame: MerchantFrame, width: int) -> int:
-    """Return the rendered height needed for a frame's content."""
+def _description_height(
+    font: Any,
+    frames: tuple[MerchantFrame, ...],
+    width: int,
+) -> int:
+    """Return one fixed description-region height for all offerings."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    lines = pygame_ui.max_wrapped_lines(
+        (frame.description for frame in frames), width, measure,
+    )
+    return max(1, lines) * (font.get_linesize() + 4)
+
+
+def _content_height(
+    font: Any,
+    frame: MerchantFrame,
+    width: int,
+    description_height: int | None = None,
+) -> int:
+    """Return the rendered height needed for fixed content regions."""
     measure = lambda text: pygame_ui.measure_font(font, text)
     description_lines = pygame_ui.wrap_text(frame.description, width, measure)
     row_height = font.get_linesize() + 14
@@ -81,7 +99,11 @@ def _content_height(font: Any, frame: MerchantFrame, width: int) -> int:
     return (
         len(frame.options) * row_height
         + 8
-        + max(1, len(description_lines)) * text_step
+        + (
+            description_height
+            if description_height is not None
+            else max(1, len(description_lines)) * text_step
+        )
         + 8
         + len(frame.hints) * hint_step
     )
@@ -99,8 +121,13 @@ def _fit_font(
     for size in range(max(16, requested_size), 15, -1):
         font = pygame.font.Font(font_path, size)
         layout = _merchant_layout(width, height, font.get_linesize())
+        description_height = _description_height(
+            font, frames, layout.content.width,
+        )
         if all(
-            _content_height(font, frame, layout.content.width) <= layout.content.height
+            _content_height(
+                font, frame, layout.content.width, description_height,
+            ) <= layout.content.height
             for frame in frames
         ):
             return font
@@ -196,6 +223,7 @@ def _draw_frame(
     *,
     palette: pygame_ui.Palette,
     antialias: bool,
+    description_height: int | None = None,
 ) -> None:
     """Paint one complete Merchant frame with shared Pygame primitives."""
     width, height = screen.get_size()
@@ -229,11 +257,17 @@ def _draw_frame(
                 palette=palette, antialias=antialias,
             )
         y += 8
+        description_y = y
         y = pygame_ui.draw_wrapped_text(
-            pygame, screen, font, frame.description, x, y, content_width,
-            color=palette.description, line_gap=4, antialias=antialias,
+            pygame, screen, font, frame.description, x, description_y,
+            content_width, color=palette.description, line_gap=4,
+            antialias=antialias,
         )
-        y += 8
+        y = description_y + (
+            description_height
+            if description_height is not None
+            else y - description_y
+        ) + 8
         measure = lambda text: pygame_ui.measure_font(font, text)
         for hint in frame.hints:
             fitted_hint = pygame_ui.fit_text(hint, content_width, measure)
@@ -293,6 +327,12 @@ def _run_worker(payload: dict[str, Any]) -> int:
             screen_size[0],
             screen_size[1],
         )
+        layout = _merchant_layout(
+            screen_size[0], screen_size[1], font.get_linesize(),
+        )
+        description_height = _description_height(
+            font, frames, layout.content.width,
+        )
         palette = pygame_ui.DEFAULT_PALETTE
         selected = 0
         clock = pygame.time.Clock()
@@ -302,6 +342,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
             _draw_frame(
                 pygame, screen, font, frame,
                 palette=palette, antialias=antialias,
+                description_height=description_height,
             )
             pygame.display.flip()
             for event in pygame.event.get():

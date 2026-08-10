@@ -87,20 +87,20 @@ def _content_width(width: int) -> int:
 
 
 def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
-    """Measure one frame using the same wrapping rules as the renderer."""
+    """Measure one frame with a fixed description region."""
     measure = lambda text: pygame_ui.measure_font(font, text)
     line_height = font.get_linesize()
     body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
+    description_lines = pygame_ui.max_wrapped_lines(
+        (item.description for item in frame.items),
+        content_width - 28,
+        measure,
+    )
     height = len(body_lines) * (line_height + 3) + 10
     if frame.art:
         height += len(frame.art) * line_height + 10
-    for index, item in enumerate(frame.items):
-        height += line_height + 14
-        if index == frame.selected and item.description:
-            description_lines = pygame_ui.wrap_text(
-                item.description, content_width - 28, measure,
-            )
-            height += max(1, len(description_lines)) * (line_height + 2)
+    height += len(frame.items) * (line_height + 14)
+    height += max(1, description_lines) * (line_height + 2)
     height += 8 + len(frame.hints) * (line_height + 4)
     return height
 
@@ -182,15 +182,25 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
         y += font.get_linesize() + 3
     y += 10
     for index, item in enumerate(frame.items):
-        y = pygame_ui.draw_menu_row(
+        pygame_ui.draw_menu_row(
             pygame, screen, font, item.label, x, y, content_width,
             selected=index == frame.selected, palette=palette,
         )
-        if index == frame.selected and item.description:
-            y = pygame_ui.draw_wrapped_text(
-                pygame, screen, font, item.description, x + 28, y - 4,
-                content_width - 28, color=palette.description, line_gap=2,
-            )
+        y += font.get_linesize() + 14
+    y += 8
+    description_width = content_width - 28
+    pygame_ui.draw_wrapped_text(
+        pygame, screen, font,
+        frame.items[frame.selected].description if frame.items else "",
+        x + 28, y, description_width,
+        color=palette.description, line_gap=2,
+    )
+    description_lines = pygame_ui.max_wrapped_lines(
+        (item.description for item in frame.items),
+        description_width,
+        measure,
+    )
+    y += max(1, description_lines) * (font.get_linesize() + 2)
     y += 8
     for hint in frame.hints:
         pygame_ui.draw_text(

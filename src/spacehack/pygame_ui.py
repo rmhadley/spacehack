@@ -172,6 +172,25 @@ def wrap_text(text: str, max_width: int, measure: Measure) -> tuple[str, ...]:
     return tuple(lines)
 
 
+def max_wrapped_lines(texts: Any, max_width: int, measure: Measure) -> int:
+    """Return the fixed line budget needed for a collection of descriptions."""
+    return max(
+        (len(wrap_text(text, max_width, measure)) for text in texts),
+        default=0,
+    )
+
+
+def wrapped_text_height(
+    text: str,
+    max_width: int,
+    measure: Measure,
+    line_height: int,
+    line_gap: int,
+) -> int:
+    """Return one wrapped block's pixel height, including an empty slot."""
+    return max(1, len(wrap_text(text, max_width, measure))) * (line_height + line_gap)
+
+
 def draw_panel(pygame: Any, screen: Any, rect: Rect, *, palette: Palette = DEFAULT_PALETTE) -> None:
     """Paint a filled panel with a restrained one-pixel border."""
     panel = pygame.Rect(rect.x, rect.y, rect.width, rect.height)
