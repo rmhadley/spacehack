@@ -22,6 +22,11 @@ from .engine import (
 
 Color = tuple[int, int, int]
 
+# Match the responsive held-key feel of tcod's terminal input while keeping
+# the initial press distinct from the repeated movement ticks.
+KEY_REPEAT_DELAY_MS: int = 400
+KEY_REPEAT_INTERVAL_MS: int = 55
+
 
 @dataclass(frozen=True)
 class PygameEngineConfig:
@@ -277,6 +282,9 @@ class PygameEngine:
         """Create the Pygame window and fixed logical canvas."""
         flags = self.pygame.RESIZABLE if self.config.resizable else 0
         self.pygame.init()
+        key_module = getattr(self.pygame, "key", None)
+        if key_module is not None and hasattr(key_module, "set_repeat"):
+            key_module.set_repeat(KEY_REPEAT_DELAY_MS, KEY_REPEAT_INTERVAL_MS)
         self.pygame.font.init()
         self.window = self.pygame.display.set_mode(
             (self.config.window_width, self.config.window_height),
@@ -327,6 +335,9 @@ class PygameEngine:
 
     def close(self) -> None:
         """Release Pygame resources owned by this engine."""
+        key_module = getattr(self.pygame, "key", None)
+        if key_module is not None and hasattr(key_module, "set_repeat"):
+            key_module.set_repeat(0)
         self.pygame.display.quit()
         self.pygame.quit()
 

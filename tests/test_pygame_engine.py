@@ -103,6 +103,7 @@ def test_shared_runtime_context_is_renderer_compatible():
 
 def test_pygame_engine_uses_injected_tileset(monkeypatch):
     calls = []
+    repeat_calls = []
 
     class FakeSurface:
         def __init__(self, *_args):
@@ -125,10 +126,16 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
         def quit(self):
             pass
 
+    class FakeKey:
+        @staticmethod
+        def set_repeat(*args):
+            repeat_calls.append(args)
+
     class FakePygame:
         RESIZABLE = 1
         SRCALPHA = 2
         font = FakeFont()
+        key = FakeKey()
         display = FakeDisplay()
         Surface = FakeSurface
 
@@ -156,6 +163,10 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
     engine.open()
 
     assert calls == [supplied]
+    assert repeat_calls == [(400, 55)]
+
+    engine.close()
+    assert repeat_calls[-1] == (0,)
 
 
 def test_game_runtime_prefers_shared_pygame_unless_tcod_rollback(monkeypatch):
