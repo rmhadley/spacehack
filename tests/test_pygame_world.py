@@ -35,6 +35,23 @@ def test_derived_grass_accent_uses_derived_field_background():
     assert theme.grass_accent.fg != theme.grass.fg
 
 
+def test_all_named_planet_themes_keep_grass_accents_on_field_background():
+    from src.spacehack.data.planets import themes
+
+    named_themes = (
+        themes.EARTH,
+        themes.MARS,
+        themes.DESERT,
+        themes.LUSH,
+        themes.CLOUD_CITY,
+        themes.ICE,
+        themes.WARM_EARTH,
+        themes.STATION,
+    )
+
+    assert all(theme.grass_accent.bg == theme.grass.bg for theme in named_themes)
+
+
 def test_capture_console_clips_text_and_preserves_colors_and_backgrounds():
     capture = pygame_world.CaptureConsole(4, 2)
 
