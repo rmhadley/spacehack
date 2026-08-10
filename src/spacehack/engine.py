@@ -57,9 +57,9 @@ def seed_rng(seed: int) -> None:
     INIT_SEED = seed
 
 
-# Screen dimensions in character cells. With the 16x16 tilesheet this
-# gives a 1600 x 960 logical-pixel window - the standard libtcod
-# roguelike-starter size.
+# Screen dimensions in character cells. With the 18x18 font raster this
+# gives a 1800 x 1080 logical-pixel window while preserving the existing
+# character-cell layout.
 SCREEN_WIDTH: int = 100
 SCREEN_HEIGHT: int = 60
 
@@ -76,7 +76,7 @@ MSG_LOG_HEIGHT: int = 6
 WINDOW_TITLE: str = "spacehack"
 
 # Glyph size in pixels. A slightly larger raster than the old 16x16
-# default gives Hack's counters and punctuation more breathing room on
+# default gives letter counters and punctuation more breathing room on
 # laptop displays while preserving the existing character-cell layout.
 TILE_WIDTH: int = 18
 TILE_HEIGHT: int = 18
@@ -84,10 +84,12 @@ TILE_HEIGHT: int = 18
 # Keep the dimensions easy to tune as a pair; the bundled font is loaded
 # at these dimensions and the procedural glyph patches below adapt to them.
 
-# Optional TrueType/OpenType font. If present in the data/ directory,
-# it is loaded in preference to the CP437 tilesheet below. Drop any
-# monospace .ttf or .otf here and the game picks it up automatically.
-TRUETYPE_FONT_FILENAME: str = "Hack-Regular.ttf"
+# Preferred bundled TrueType font. DejaVu Sans Mono has a generous
+# x-height and clearer 0/O/1/l/I shapes than the previous Hack default.
+TRUETYPE_FONT_FILENAME: str = "DejaVuSansMono.ttf"
+
+# Secondary bundled TTF fallback retained for asset compatibility.
+LEGACY_TRUETYPE_FONT_FILENAME: str = "Hack-Regular.ttf"
 
 # Fallback CP437 tilesheet. Only used when the TrueType font above
 # is missing or fails to load.
@@ -123,15 +125,13 @@ def _data_path(filename: str) -> Path:
 # tile (see get_glyph_shift in tileset_truetype.c).  Symmetric glyphs (─ │ ┼)
 # center correctly, but asymmetric corners (┌ ┐ └ ┘) have their ink in one
 # corner of the em box, so centering drifts the strokes off the shared
-# centerline — every font fails this way (measured: Hack, DejaVu, Terminus,
-# Source Code Pro all misalign identically).
+# centerline — this is a font-independent rasterization issue.
 #
 # The fix: draw the box-drawing glyphs ourselves, straight strokes anchored
 # to a common center, so every corner lands exactly on the same rows/cols as
-# the lines.  Geometry mirrors the CP437 tilesheet (the look the game
-# shipped with): 4px single strokes at rows/cols 6-9, 4px double bars at
-# 2-5 and 10-13, single corners meeting at the shared center, double
-# corners meeting at the outer-bar block.
+# the lines. Geometry mirrors the CP437 tilesheet while adapting its 4px
+# single/double bands to the active tile dimensions; single corners meet at
+# the shared center and double corners meet at the outer-bar blocks.
 
 _BOX_TOP = 0b0001
 _BOX_BOTTOM = 0b0010
@@ -226,11 +226,10 @@ def _procedural_box_drawing(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tiles
 
 # --- Procedural block elements / shades / suits ----------------------------
 #
-# Same root cause as the box drawing: TrueType fonts render the game's
-# texture glyphs badly.  Hack's █ is inset (x3-12) so adjacent grass tiles
-# show seams, its ░▒▓ shades come out as irregular blobs, its · is a tiny
-# off-centre dot, and it has NO card suits at all — so trees (♣), fountains
-# (♦), and drinks (♥) currently render as invisible blanks.
+# Same root cause as the box drawing: TrueType fonts can render the game's
+# texture glyphs with inconsistent scale or coverage. Procedural patches
+# keep blocks and shades full-bleed, center the floor dot, and guarantee
+# visible card suits for trees (♣), fountains (♦), and drinks (♥).
 #
 # The CP437 tilesheet's versions are classic full-bleed patterns (measured
 # from dejavu16x16_gs_tc.png): light ░ = 1px dots at x%4==0 on even rows /
@@ -313,8 +312,8 @@ _MIDDOT_BITMAP: tuple[str, ...] = (
     "................",
 )
 
-# Card suits — Hack has none of these glyphs.  Symmetric pixel art sized
-# for the 16x16 tile.
+# Card suits — symmetric pixel art authored at the 16x16 reference size;
+# _render_bitmap_tile centers them for the active raster dimensions.
 _SUIT_BITMAPS: dict[int, tuple[str, ...]] = {
     0x2663: (  # ♣ club — city tree
         "................",
@@ -394,15 +393,19 @@ def _procedural_texture_glyphs(
 def load_tileset() -> tcod.tileset.Tileset:
     """Load a tileset for the game window.
 
-    Tries the bundled TrueType font first (see
-    :data:`TRUETYPE_FONT_FILENAME`).  If the file is missing or the
-    rasterizer fails, falls back to the CP437 tilesheet
-    (:data:`TILESHEET_FILENAME`).
+    Tries bundled DejaVu Sans Mono first, then the retained Hack font.
+    If both TrueType files are missing or their rasterizers fail, falls
+    back to the CP437 tilesheet (:data:`TILESHEET_FILENAME`).
 
-    Only raises :class:`EngineError` when **both** loaders fail.
+    Only raises :class:`EngineError` when all bundled loaders fail.
     """
-    _ttf_path = _data_path(TRUETYPE_FONT_FILENAME)
-    if _ttf_path.is_file():
+    _ttf_paths = (
+        _data_path(TRUETYPE_FONT_FILENAME),
+        _data_path(LEGACY_TRUETYPE_FONT_FILENAME),
+    )
+    for _ttf_path in _ttf_paths:
+        if not _ttf_path.is_file():
+            continue
         try:
             _ts = tcod.tileset.load_truetype_font(
                 str(_ttf_path),
@@ -411,10 +414,9 @@ def load_tileset() -> tcod.tileset.Tileset:
             )
             return _procedural_texture_glyphs(_procedural_box_drawing(_ts))
         except (OSError, RuntimeError, ValueError) as exc:
-            # TTF didn't work — carry on to the tilesheet fallback.
             print(
                 f"Warning: failed to load {_ttf_path} ({exc}). "
-                f"Falling back to {TILESHEET_FILENAME}.",
+                "Trying the next font fallback.",
                 file=sys.stderr,
             )
 
@@ -422,7 +424,8 @@ def load_tileset() -> tcod.tileset.Tileset:
     if not _tilesheet_path.is_file():
         raise EngineError(
             f"No tileset found. "
-            f"Expected {TRUETYPE_FONT_FILENAME} or {TILESHEET_FILENAME} "
+            f"Expected {TRUETYPE_FONT_FILENAME}, {LEGACY_TRUETYPE_FONT_FILENAME}, "
+            f"or {TILESHEET_FILENAME} "
             f"in the data/ directory."
         )
     try:

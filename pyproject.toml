@@ -25,4 +25,4 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-spacehack = ["data/*.png", "data/*.ttf", "data/*.otf", "data/*.ttc", "data/layouts/*.layout", "data/landmarks/*.layout"]
+spacehack = ["data/*.png", "data/*.ttf", "data/*.txt", "data/*.otf", "data/*.ttc", "data/layouts/*.layout", "data/landmarks/*.layout"]
