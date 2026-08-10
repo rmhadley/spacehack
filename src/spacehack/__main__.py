@@ -83,6 +83,7 @@ from .time import tick_move, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
 from . import tutorial as tutorial_module
+from . import pygame_world
 
 
 # ---------------------------------------------------------------------------
@@ -470,6 +471,31 @@ def _run_game(
     loaded_ctx: GameContext | None = None,
     tutorial: bool = False,
 ) -> None:
+    """Run gameplay with the opt-in Pygame world preview lifecycle."""
+    _world_preview = pygame_world.start_if_enabled()
+    try:
+        _run_game_loop(
+            context,
+            species_id,
+            class_id,
+            loaded_ctx=loaded_ctx,
+            tutorial=tutorial,
+            world_preview=_world_preview,
+        )
+    finally:
+        if _world_preview is not None:
+            _world_preview.close()
+
+
+def _run_game_loop(
+    context: tcod.context.Context,
+    species_id: str = "",
+    class_id: str = "",
+    *,
+    loaded_ctx: GameContext | None = None,
+    tutorial: bool = False,
+    world_preview: pygame_world.PygameWorldPreview | None = None,
+) -> None:
     """Render the small city + HUD + msg log and handle vim movement.
 
     Walking into a wall logs a short message. Walking into a
@@ -634,6 +660,39 @@ def _run_game(
             world.render_world_view(console, game_map, region_x=rx, region_y=ry, region_w=map_w, region_h=map_h, camera_x=cam_x, camera_y=cam_y)
         else:
             world.render_world(console, game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
+        if world_preview is not None and world_preview.alive:
+            if current_mode == 'space':
+                _preview_frame = pygame_world.make_frame(
+                    game_map,
+                    region_x=rx,
+                    region_y=ry,
+                    region_w=view_w,
+                    region_h=view_h,
+                    camera_x=cam_x,
+                    camera_y=cam_y,
+                )
+            elif current_mode == 'dungeon':
+                _preview_frame = pygame_world.make_frame(
+                    game_map,
+                    region_x=rx,
+                    region_y=ry,
+                    region_w=map_w,
+                    region_h=map_h,
+                    camera_x=cam_x,
+                    camera_y=cam_y,
+                )
+            else:
+                _preview_frame = pygame_world.make_frame(
+                    game_map,
+                    region_x=0,
+                    region_y=0,
+                    region_w=map_w,
+                    region_h=map_h,
+                    centered=True,
+                )
+            if not world_preview.send(_preview_frame):
+                world_preview.close()
+                world_preview = None
         if current_mode == 'space':
             _location = solar_system_module.current_system().name
         elif current_mode == 'dungeon':

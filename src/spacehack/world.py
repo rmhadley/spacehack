@@ -972,6 +972,17 @@ def make_city(width: int = 60, height: int = 40) -> GameMap:
 _DIM_FACTOR: float = 0.35
 
 
+@dataclass(frozen=True)
+class WorldDrawCommand:
+    """One renderer-neutral cell draw operation in screen-cell space."""
+
+    x: int
+    y: int
+    char: str
+    fg: tuple[int, int, int]
+    bg: tuple[int, int, int] | None = None
+
+
 def _dim_color(color: tuple[int, int, int]) -> tuple[int, int, int]:
     """Scale an (r, g, b) colour down to remembered-sight brightness."""
     return tuple(
@@ -1122,6 +1133,157 @@ def find_path(
     return path[1:]
 
 
+def _append_tile_commands(
+    commands: list[WorldDrawCommand],
+    game_map: GameMap,
+    *,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+    camera_x: int,
+    camera_y: int,
+) -> None:
+    """Append visible tile commands for a camera viewport."""
+    for ty in range(region_h):
+        for tx in range(region_w):
+            map_x = camera_x + tx
+            map_y = camera_y + ty
+            if not (0 <= map_x < game_map.width and 0 <= map_y < game_map.height):
+                continue
+            if not game_map.is_revealed(map_x, map_y):
+                continue
+            tile = game_map.tiles[map_y][map_x]
+            fg, bg = _tile_render_colors(game_map, map_x, map_y, tile)
+            commands.append(WorldDrawCommand(
+                region_x + tx,
+                region_y + ty,
+                tile.char,
+                fg,
+                bg,
+            ))
+
+
+def _entity_draw_order(
+    entities: list[Entity],
+    sort_entities: bool,
+) -> list[Entity]:
+    """Return visible entities in the requested renderer draw order."""
+    if not sort_entities:
+        return entities
+    return sorted(entities, key=lambda item: item.loot_data is None)
+
+
+def _append_entity_commands(
+    commands: list[WorldDrawCommand],
+    game_map: GameMap,
+    *,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+    camera_x: int,
+    camera_y: int,
+    sort_entities: bool = False,
+) -> None:
+    """Append visible entity footprint commands in draw order."""
+    visible = [
+        entity for entity in game_map.entities
+        if (
+            entity.pos.x < camera_x + region_w
+            and entity.pos.x + entity.width > camera_x
+            and entity.pos.y < camera_y + region_h
+            and entity.pos.y + entity.height > camera_y
+        )
+    ]
+    draw_order = _entity_draw_order(visible, sort_entities)
+    for entity in draw_order:
+        fg = _entity_render_fg(game_map, entity)
+        if fg is None:
+            continue
+        for dx in range(entity.width):
+            for dy in range(entity.height):
+                map_x = entity.pos.x + dx
+                map_y = entity.pos.y + dy
+                if not (
+                    camera_x <= map_x < camera_x + region_w
+                    and camera_y <= map_y < camera_y + region_h
+                ):
+                    continue
+                commands.append(WorldDrawCommand(
+                    region_x + map_x - camera_x,
+                    region_y + map_y - camera_y,
+                    entity.char,
+                    fg,
+                ))
+
+
+def world_draw_commands(
+    game_map: GameMap,
+    *,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+    camera_x: int = 0,
+    camera_y: int = 0,
+    centered: bool = False,
+    sort_entities: bool = False,
+) -> tuple[WorldDrawCommand, ...]:
+    """Return the shared tile/entity draw stream used by every renderer."""
+    if centered and (game_map.width > region_w or game_map.height > region_h):
+        raise ValueError(
+            f"city {game_map.width}x{game_map.height} is larger than "
+            f"viewport region {region_w}x{region_h}"
+        )
+    if centered:
+        camera_x = 0
+        camera_y = 0
+        region_x += (region_w - game_map.width) // 2
+        region_y += (region_h - game_map.height) // 2
+        region_w = game_map.width
+        region_h = game_map.height
+    else:
+        camera_x = max(0, min(camera_x, max(0, game_map.width - region_w)))
+        camera_y = max(0, min(camera_y, max(0, game_map.height - region_h)))
+
+    commands: list[WorldDrawCommand] = []
+    _append_tile_commands(
+        commands,
+        game_map,
+        region_x=region_x,
+        region_y=region_y,
+        region_w=region_w,
+        region_h=region_h,
+        camera_x=camera_x,
+        camera_y=camera_y,
+    )
+    _append_entity_commands(
+        commands,
+        game_map,
+        region_x=region_x,
+        region_y=region_y,
+        region_w=region_w,
+        region_h=region_h,
+        camera_x=camera_x,
+        camera_y=camera_y,
+        sort_entities=sort_entities,
+    )
+    return tuple(commands)
+
+
+def _render_commands(
+    console: tcod.console.Console,
+    commands: tuple[WorldDrawCommand, ...],
+) -> None:
+    """Paint a renderer-neutral command stream onto a tcod console."""
+    for command in commands:
+        kwargs = {"x": command.x, "y": command.y, "string": command.char, "fg": command.fg}
+        if command.bg is not None:
+            kwargs["bg"] = command.bg
+        console.print(**kwargs)
+
+
 def render_world(
     console: tcod.console.Console,
     game_map: GameMap,
@@ -1131,57 +1293,18 @@ def render_world(
     region_w: int,
     region_h: int,
 ) -> None:
-    """Paint ``game_map`` centred into a viewport region of ``console``.
-
-    Tiles are drawn first (city background appears under each
-    entity), then each entity's char is painted at every cell of its
-    footprint. A 2x1 ship reads as two glyphs side-by-side; an NPC
-    reads as a single glyph at its standing spot. The multi-cell
-    collision check in :meth:`GameMap.entity_at` matches.
-
-    Entities are iterated in insertion order; a later entity's paint
-    overwrites an earlier one's overlapping cell.
-    """
-    if game_map.width > region_w or game_map.height > region_h:
-        raise ValueError(
-            f"city {game_map.width}x{game_map.height} is larger than "
-            f"viewport region {region_w}x{region_h}"
-        )
-
-    off_x = (region_w - game_map.width) // 2
-    off_y = (region_h - game_map.height) // 2
-
-    for ty in range(game_map.height):
-        for tx in range(game_map.width):
-            # Fog of war: unseen tiles render as black.
-            if not game_map.is_revealed(tx, ty):
-                continue
-            tile = game_map.tiles[ty][tx]
-            # In-LOS tiles render bright; remembered tiles render dimmed.
-            _fg, _bg = _tile_render_colors(game_map, tx, ty, tile)
-            console.print(
-                x=region_x + off_x + tx,
-                y=region_y + off_y + ty,
-                string=tile.char,
-                fg=_fg,
-                bg=_bg,
-            )
-    for e in game_map.entities:
-        # Moving entities render only in LOS; remembered static
-        # furniture renders dimmed. ``None`` = don't draw.
-        _efg = _entity_render_fg(game_map, e)
-        if _efg is None:
-            continue
-        for dx in range(e.width):
-            for dy in range(e.height):
-                ex = e.pos.x + dx
-                ey = e.pos.y + dy
-                console.print(
-                    x=region_x + off_x + ex,
-                    y=region_y + off_y + ey,
-                    string=e.char,
-                    fg=_efg,
-                )
+    """Paint a centered world through the shared draw-command stream."""
+    _render_commands(
+        console,
+        world_draw_commands(
+            game_map,
+            region_x=region_x,
+            region_y=region_y,
+            region_w=region_w,
+            region_h=region_h,
+            centered=True,
+        ),
+    )
 
 
 def camera_for_view(
@@ -1224,95 +1347,22 @@ def render_world_view(
     camera_x: int = 0,
     camera_y: int = 0,
 ) -> None:
-    """Scrollable variant of :func:`render_world` that lets ``game_map``
-    be larger than the visible region.
-
-    :func:`render_world` raises :class:`ValueError` when ``game_map``
-    exceeds the region (city mode is small and centered, so the city
-    fits inside the viewport). In space mode the solar-system map is
-    much larger than the 80x54 viewport, so the player has to scroll
-    to explore - this function is the scrolling-aware primitive that
-    consumes ``camera_x``/``camera_y`` from the caller.
-
-    The function reads ``region_w`` x ``region_h`` cells from
-    ``game_map`` starting at ``(camera_x, camera_y)`` and paints them
-    into ``console`` at ``(region_x, region_y)``. The camera is
-    clamped so it never reads past the map bounds, and a defensive
-    inner ``if 0 <= map_x < ...`` guard protects against a
-    partially-out-of-bounds camera at the map edge.
-
-    Entities are drawn after tiles, footprint-aware (so a multi-cell
-    planet renders the same glyph at every cell of its ``width`` x
-    ``height``), and only the cells inside the camera viewport are
-    emitted (the rest of the footprint is correctly skipped).
-    """
-    # The ONLY place camera-edge-clamping lives for in-game rendering;
-    # the caller computes a ship-centered value and we clamp here
-    # defensively so a partly-out-of-bounds camera is safe.
-    cam_x = max(
-        0, min(camera_x, max(0, game_map.width - region_w)),
+    """Paint a scrollable world through the shared draw-command stream."""
+    cam_x = max(0, min(camera_x, max(0, game_map.width - region_w)))
+    cam_y = max(0, min(camera_y, max(0, game_map.height - region_h)))
+    _render_commands(
+        console,
+        world_draw_commands(
+            game_map,
+            region_x=region_x,
+            region_y=region_y,
+            region_w=region_w,
+            region_h=region_h,
+            camera_x=cam_x,
+            camera_y=cam_y,
+            sort_entities=True,
+        ),
     )
-    cam_y = max(
-        0, min(camera_y, max(0, game_map.height - region_h)),
-    )
-
-    for ty in range(region_h):
-        for tx in range(region_w):
-            map_x = cam_x + tx
-            map_y = cam_y + ty
-            if 0 <= map_x < game_map.width and 0 <= map_y < game_map.height:
-                # Fog of war: unseen tiles render as black.
-                if not game_map.is_revealed(map_x, map_y):
-                    continue
-                tile = game_map.tiles[map_y][map_x]
-                # In-LOS tiles render bright; remembered tiles dimmed.
-                _fg, _bg = _tile_render_colors(game_map, map_x, map_y, tile)
-                console.print(
-                    x=region_x + tx,
-                    y=region_y + ty,
-                    string=tile.char,
-                    fg=_fg,
-                    bg=_bg,
-                )
-
-    # Draw loot entities first (cargo debris), then ships/entities
-    # on top. Loot has loot_data set; sorting with key=lambda e:
-    # e.loot_data is None puts loot (False=0) before ships (True=1)
-    # while preserving insertion order for same-key entities.
-    #
-    # Viewport cull: only sort + iterate entities touching the
-    # visible camera region.  Avoids O(n log n) on hundreds of
-    # off-screen loot entities accumulated from large battles.
-    _visible = [
-        _e for _e in game_map.entities
-        if (_e.pos.x < cam_x + region_w and _e.pos.x + _e.width > cam_x
-            and _e.pos.y < cam_y + region_h and _e.pos.y + _e.height > cam_y)
-    ]
-    for e in sorted(_visible, key=lambda _e: _e.loot_data is None):
-        # Moving entities render only in LOS; remembered static
-        # furniture renders dimmed. ``None`` = don't draw.
-        _efg = _entity_render_fg(game_map, e)
-        if _efg is None:
-            continue
-        for dx in range(e.width):
-            for dy in range(e.height):
-                ex = e.pos.x + dx
-                ey = e.pos.y + dy
-                # Only paint cells whose footprint intersects the
-                # visible camera viewport; the rest of the entity is
-                # correctly skipped (no negative console coords).
-                if (
-                    cam_x <= ex < cam_x + region_w
-                    and cam_y <= ey < cam_y + region_h
-                ):
-                    sx_screen = region_x + (ex - cam_x)
-                    sy_screen = region_y + (ey - cam_y)
-                    console.print(
-                        x=sx_screen,
-                        y=sy_screen,
-                        string=e.char,
-                        fg=_efg,
-                    )
 
 
 # ---------------------------------------------------------------------------

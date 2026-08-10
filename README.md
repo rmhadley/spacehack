@@ -165,6 +165,22 @@ This is intentionally a temporary second-window seam while the presentation
 migration begins; the world grid, save data, mission logic, and every other
 screen still belong to the existing tcod renderer.
 
+### Live world-grid Pygame preview
+
+The next migration phase can preview the active city, space, or dungeon grid
+in the same isolated Pygame worker. It uses the real map tiles, fog-of-war,
+entity footprints, camera, and draw ordering, while tcod remains the active
+input/HUD/modal owner:
+
+```bash
+SPACEHACK_PYGAME_WORLD=1 python -m spacehack
+```
+
+Close the preview window or unset the variable to return to the unchanged
+single-window tcod path. This is a comparison seam, not yet the final unified
+window; the Pygame preview receives draw commands only and cannot mutate game
+state.
+
 ## How to play
 
 ### The basics

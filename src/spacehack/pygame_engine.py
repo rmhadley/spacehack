@@ -239,13 +239,14 @@ class GlyphAtlas:
         y: int,
         *,
         fg: Color,
-        bg: Color,
+        bg: Color | None = None,
     ) -> None:
-        """Paint one tinted glyph and its background onto ``target``."""
+        """Paint one tinted glyph and optionally its background."""
         rect = self._pygame.Rect(
             x, y, self.tile_width, self.tile_height,
         )
-        target.fill((*bg, 255), rect)
+        if bg is not None:
+            target.fill((*bg, 255), rect)
         source_rect = self._source_rect(character)
         if source_rect is None or character == " ":
             return
