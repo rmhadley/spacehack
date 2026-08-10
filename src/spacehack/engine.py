@@ -57,9 +57,9 @@ def seed_rng(seed: int) -> None:
     INIT_SEED = seed
 
 
-# Screen dimensions in character cells. With the 18x18 font raster this
-# gives a 1800 x 1080 logical-pixel window while preserving the existing
-# character-cell layout.
+# Screen dimensions in character cells. With the native 16x16 bitmap
+# tiles this gives a 1600 x 960 logical-pixel window while preserving the
+# existing character-cell layout.
 SCREEN_WIDTH: int = 100
 SCREEN_HEIGHT: int = 60
 
@@ -75,23 +75,23 @@ MSG_LOG_HEIGHT: int = 6
 
 WINDOW_TITLE: str = "spacehack"
 
-# Glyph size in pixels. The square 18x18 cell preserves the font's
-# intended raster proportions and avoids horizontal distortion.
-TILE_WIDTH: int = 18
-TILE_HEIGHT: int = 18
+# Glyph size in pixels. Keep the grid at the tilesheet's native dimensions
+# so bitmap glyphs stay crisp and are never rescaled.
+TILE_WIDTH: int = 16
+TILE_HEIGHT: int = 16
 
 # Keep the dimensions easy to tune as a pair; the bundled font is loaded
 # at these dimensions and the procedural glyph patches below adapt to them.
 
-# Preferred bundled TrueType font. DejaVu Sans Mono has a generous
-# x-height and clearer 0/O/1/l/I shapes than the previous Hack default.
+# TrueType fallback font. DejaVu Sans Mono has a generous x-height and
+# clearer 0/O/1/l/I shapes than the previous Hack default.
 TRUETYPE_FONT_FILENAME: str = "DejaVuSansMono.ttf"
 
 # Secondary bundled TTF fallback retained for asset compatibility.
 LEGACY_TRUETYPE_FONT_FILENAME: str = "Hack-Regular.ttf"
 
-# Fallback CP437 tilesheet. Only used when the TrueType font above
-# is missing or fails to load.
+# Primary CP437 bitmap tilesheet. TrueType fonts remain available as
+# fallbacks when the bitmap asset is missing or fails to load.
 TILESHEET_FILENAME: str = "dejavu16x16_gs_tc.png"
 TILESHEET_COLUMNS: int = 32
 TILESHEET_ROWS: int = 8
@@ -287,7 +287,7 @@ def _render_bitmap_tile(
         for x, ch in enumerate(row):
             target_x = x - crop_left + offset_x
             target_y = y + offset_y
-            if ch == "#" and 0 <= target_x < tw and target_y < th:
+            if ch == "#" and 0 <= target_x < tw and 0 <= target_y < th:
                 tile[target_y, target_x] = (255, 255, 255, 255)
     return tile
 
@@ -391,14 +391,33 @@ def _procedural_texture_glyphs(
 
 
 def load_tileset() -> tcod.tileset.Tileset:
-    """Load a tileset for the game window.
+    """Load the native bitmap tileset, falling back to bundled TTF fonts.
 
-    Tries bundled DejaVu Sans Mono first, then the retained Hack font.
-    If both TrueType files are missing or their rasterizers fail, falls
-    back to the CP437 tilesheet (:data:`TILESHEET_FILENAME`).
+    The CP437 bitmap is attempted first so the normal game path stays
+    crisp and pixel-stable. DejaVu Sans Mono and then Hack remain useful
+    fallbacks if the bitmap asset is missing or its loader fails.
 
     Only raises :class:`EngineError` when all bundled loaders fail.
     """
+    _tilesheet_path = _data_path(TILESHEET_FILENAME)
+    if _tilesheet_path.is_file():
+        try:
+            _sheet = tcod.tileset.load_tilesheet(
+                str(_tilesheet_path),
+                columns=TILESHEET_COLUMNS,
+                rows=TILESHEET_ROWS,
+                charmap=tcod.tileset.CHARMAP_TCOD,
+            )
+            # The tilesheet is missing █ · ♣ ♦ ♥ under CHARMAP_TCOD; fill
+            # them in with the same procedural glyphs as the TTF path.
+            return _procedural_texture_glyphs(_sheet)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(
+                f"Warning: failed to load {_tilesheet_path} ({exc}). "
+                "Trying the TrueType fallbacks.",
+                file=sys.stderr,
+            )
+
     _ttf_paths = (
         _data_path(TRUETYPE_FONT_FILENAME),
         _data_path(LEGACY_TRUETYPE_FONT_FILENAME),
@@ -420,28 +439,11 @@ def load_tileset() -> tcod.tileset.Tileset:
                 file=sys.stderr,
             )
 
-    _tilesheet_path = _data_path(TILESHEET_FILENAME)
-    if not _tilesheet_path.is_file():
-        raise EngineError(
-            f"No tileset found. "
-            f"Expected {TRUETYPE_FONT_FILENAME}, {LEGACY_TRUETYPE_FONT_FILENAME}, "
-            f"or {TILESHEET_FILENAME} "
-            f"in the data/ directory."
-        )
-    try:
-        _sheet = tcod.tileset.load_tilesheet(
-            str(_tilesheet_path),
-            columns=TILESHEET_COLUMNS,
-            rows=TILESHEET_ROWS,
-            charmap=tcod.tileset.CHARMAP_TCOD,
-        )
-    except (OSError, RuntimeError, ValueError) as exc:
-        raise EngineError(
-            f"Failed to load tilesheet from {_tilesheet_path}: {exc}"
-        ) from exc
-    # The tilesheet is missing █ · ♣ ♦ ♥ under CHARMAP_TCOD; fill them
-    # in with the same procedural glyphs as the font path.
-    return _procedural_texture_glyphs(_sheet)
+    raise EngineError(
+        f"No usable tileset found. Expected {TILESHEET_FILENAME}, "
+        f"{TRUETYPE_FONT_FILENAME}, or {LEGACY_TRUETYPE_FONT_FILENAME} "
+        "in the data/ directory."
+    )
 
 
 # ---------------------------------------------------------------------------

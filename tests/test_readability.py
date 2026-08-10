@@ -26,8 +26,9 @@ class _FakeTcodTileset:
 
     CHARMAP_TCOD = object()
 
-    def __init__(self, failures: int):
+    def __init__(self, failures: int, tilesheet_failures: int = 0):
         self.failures = failures
+        self.tilesheet_failures = tilesheet_failures
         self.calls: list[str] = []
 
     def load_truetype_font(self, path, *, tile_width, tile_height):
@@ -38,6 +39,9 @@ class _FakeTcodTileset:
 
     def load_tilesheet(self, *args, **kwargs):
         self.calls.append("tilesheet")
+        if self.tilesheet_failures:
+            self.tilesheet_failures -= 1
+            raise RuntimeError("simulated tilesheet failure")
         return _FakeTileset()
 
 
@@ -71,48 +75,58 @@ def _contrast_against_black(color: tuple[int, int, int]) -> float:
     return (_relative_luminance(color) + 0.05) / 0.05
 
 
-def test_bundled_font_is_explicit_and_has_more_raster_breathing_room():
-    """The chosen DejaVu font is bundled and rendered at a comfortable size."""
+def test_bitmap_tileset_is_native_and_ttf_fallbacks_are_bundled():
+    """The bitmap is native-sized and both TTF fallbacks remain bundled."""
     data_dir = Path(__file__).resolve().parents[1] / "src" / "spacehack" / "data"
     assert engine.TRUETYPE_FONT_FILENAME == "DejaVuSansMono.ttf"
     assert (data_dir / engine.TRUETYPE_FONT_FILENAME).is_file()
     assert (data_dir / engine.LEGACY_TRUETYPE_FONT_FILENAME).is_file()
-    assert engine.TILE_WIDTH == 18
-    assert engine.TILE_HEIGHT == 18
+    assert engine.TILE_WIDTH == 16
+    assert engine.TILE_HEIGHT == 16
     assert engine.TILE_WIDTH == engine.TILE_HEIGHT
+    assert engine.TILE_WIDTH * engine.TILESHEET_COLUMNS == 512
+    assert engine.TILE_HEIGHT * engine.TILESHEET_ROWS == 128
 
 
-def test_font_loader_prefers_dejavu_then_hack_then_tilesheet(monkeypatch):
-    """Broken preferred fonts fall through without making startup brittle."""
+def test_font_loader_prefers_tilesheet_then_dejavu_then_hack(monkeypatch):
+    """The crisp bitmap path wins, with both TTF fallbacks preserved."""
+    fake_tcod = _FakeTcodTileset(failures=0)
+    monkeypatch.setattr(engine.tcod, "tileset", fake_tcod)
+    monkeypatch.setattr(engine, "_data_path", lambda name: _FakePath(name))
+    engine.load_tileset()
+    assert fake_tcod.calls == ["tilesheet"]
+
     fake_tcod = _FakeTcodTileset(failures=0)
     monkeypatch.setattr(engine.tcod, "tileset", fake_tcod)
     monkeypatch.setattr(
         engine,
         "_data_path",
-        lambda name: _FakePath(name, exists=name != engine.TRUETYPE_FONT_FILENAME),
+        lambda name: _FakePath(name, exists=name != engine.TILESHEET_FILENAME),
     )
     engine.load_tileset()
-    assert fake_tcod.calls == [engine.LEGACY_TRUETYPE_FONT_FILENAME]
+    assert fake_tcod.calls == [engine.TRUETYPE_FONT_FILENAME]
 
-    fake_tcod = _FakeTcodTileset(failures=2)
+    fake_tcod = _FakeTcodTileset(failures=2, tilesheet_failures=1)
     monkeypatch.setattr(engine.tcod, "tileset", fake_tcod)
     monkeypatch.setattr(engine, "_data_path", lambda name: _FakePath(name))
     engine.load_tileset()
     assert fake_tcod.calls == [
+        "tilesheet",
         engine.TRUETYPE_FONT_FILENAME,
         engine.LEGACY_TRUETYPE_FONT_FILENAME,
-        "tilesheet",
     ]
 
 
-def test_bitmap_glyphs_center_when_raster_is_larger():
-    """Procedural texture glyphs stay aligned with a larger TTF tile."""
-    tile = engine._render_bitmap_tile(18, 18, ("#",))
-    assert tile[8, 8, 3] == 255
+def test_bitmap_glyphs_center_in_the_native_raster():
+    """Procedural texture glyphs stay aligned in the native bitmap tile."""
+    tile = engine._render_bitmap_tile(16, 16, ("#",))
+    assert tile[7, 7, 3] == 255
     assert tile[0, 0, 3] == 0
-    offset_tile = engine._render_bitmap_tile(18, 18, ("", "##"))
-    assert offset_tile[9, 8, 3] == 255
-    assert not engine._render_bitmap_tile(18, 18, ()).any()
+    offset_tile = engine._render_bitmap_tile(16, 16, ("", "##"))
+    assert offset_tile[8, 7, 3] == 255
+    tall_tile = engine._render_bitmap_tile(16, 16, tuple("#" for _ in range(20)))
+    assert tall_tile.shape == (16, 16, 4)
+    assert not engine._render_bitmap_tile(16, 16, ()).any()
 
 
 def test_primary_reading_palette_is_high_contrast_on_black():

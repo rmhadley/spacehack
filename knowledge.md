@@ -164,10 +164,13 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
 
 ### Fonts & rendering (engine.py)
 
-- **TrueType is preferred**: `TRUETYPE_FONT_FILENAME`
-  (`DejaVuSansMono.ttf`) is rasterized at 18×18 and used first. The retained
-  `Hack-Regular.ttf` is the secondary TTF fallback, followed by the CP437
-  tilesheet (`dejavu16x16_gs_tc.png`) only when both TTF paths fail.
+- **The native bitmap is preferred**: `dejavu16x16_gs_tc.png` is loaded at
+  its native 16×16 tile size first, keeping ordinary text crisp and free of
+  runtime anti-aliasing. The logical grid remains 100×60, so the window is
+  1600×960 pixels before OS/display scaling.
+- **TrueType fallbacks**: `DejaVuSansMono.ttf` is tried next, followed by
+  `Hack-Regular.ttf` if the bitmap asset is missing or cannot be loaded.
+  Both TTF paths are rasterized at the active 16×16 cell size.
 - **Font gotcha**: libtcod scales a TTF to the tile height, then *shrinks* it
   to tile width when the font's head-bbox width exceeds its em height —
   Iosevka / JetBrains Mono / Fira Code / Cascadia Code render at ~50% size
@@ -183,8 +186,9 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   active tile dimensions,
   mirroring the CP437 tilesheet geometry. `_procedural_texture_glyphs`
   similarly patches shades / block / dot / card-suit glyphs.
-- `load_tileset()`: TTF first → apply procedural box/texture glyphs →
-  else CP437 tilesheet fallback. Only raises `EngineError` when both fail.
+- `load_tileset()`: native CP437 bitmap first → apply procedural texture
+  patches → TTF fallbacks with procedural box/texture patches. Only raises
+  `EngineError` when all bundled loaders fail.
 - **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to
   **NEAREST** texture scaling. On displays where the window backing scale
   is not an exact integer multiple of the console (fractional Retina /
@@ -631,10 +635,10 @@ mutation-wrapper function:**
 SCREEN_WIDTH   = 100
 SCREEN_HEIGHT  = 60
 WINDOW_TITLE   = "spacehack"
-TILE_WIDTH, TILE_HEIGHT = 18, 18
-TRUETYPE_FONT_FILENAME = "DejaVuSansMono.ttf" # preferred (TTF)
+TILE_WIDTH, TILE_HEIGHT = 16, 16
+TRUETYPE_FONT_FILENAME = "DejaVuSansMono.ttf" # TTF fallback
 LEGACY_TRUETYPE_FONT_FILENAME = "Hack-Regular.ttf" # secondary TTF
-TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"       # CP437 fallback
+TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"       # primary CP437 bitmap
 ```
 
 ## Modal UI pattern
