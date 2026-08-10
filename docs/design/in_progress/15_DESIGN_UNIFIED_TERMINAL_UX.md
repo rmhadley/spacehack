@@ -125,6 +125,13 @@ so the `pygame_screen` / `pygame_menu` modal families can adopt them too
 armory: new `Wpn: 0/2  Arm: x/5` filling the empty slot; trade/NPC:
 `cargo_label(...)`). *Flagged decision — see Open decisions #1.*
 
+*Implementation note:* `section_header` and `SPLIT_SHOP_HINT` live in
+`pygame_split.py` (not `pygame_ui.py`) — `section_header` returns a
+`SplitRow` and `SPLIT_SHOP_HINT` is split-terminal vocabulary, so they
+stay in the split family to avoid a `pygame_ui → pygame_split` import.
+The pure string helpers (`terminal_title`, `price_cell`, …) are in
+`pygame_ui.py` as designed.
+
 ### C. Migrate the four terminals
 
 - `menus/_loadout.py` — route title, dividers, prices, credits, hint
@@ -247,18 +254,18 @@ of `_draw_panel`.
 
 ---
 
-### Phase 2 — Content-policy helpers (`pygame_ui.py`)
+### Phase 2 — Content-policy helpers (`pygame_ui.py` + `pygame_split.py`)
 
-- [ ] Add `terminal_title`, `section_header`, `price_cell`, `sell_cell`,
+- [x] Add `terminal_title`, `section_header`, `price_cell`, `sell_cell`,
       `credits_label`, `cargo_label`, `shortfall_label`, `reward_label`,
       `modal_hint`, `SPLIT_SHOP_HINT`
-- [ ] Unit tests for each helper (same commit)
-- [ ] Smoke gate
+- [x] Unit tests for each helper (same commit)
+- [x] Smoke gate (534 passed, smoke PASS)
 
 **▸ PLAYTEST Phase 2:** No visual change yet (helpers unused). Smoke
 gate is the real gate.
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none — no visual change, helpers unused by design.
 
 ---
 
