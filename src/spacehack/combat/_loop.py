@@ -29,15 +29,15 @@ def _combat_action(ctx, console, *, presenter) -> str:
     from .. import pygame_combat
 
     if presenter is None:
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.Quit):
-                return "QUIT"
-            if not isinstance(event, tcod.event.KeyDown):
-                continue
-            if _try_open_guide(event, ctx):
-                continue
-            return _tcod_action(event)
-        return "QUIT"
+        while True:
+            for event in tcod.event.wait():
+                if isinstance(event, tcod.event.Quit):
+                    return "QUIT"
+                if not isinstance(event, tcod.event.KeyDown):
+                    continue
+                if _try_open_guide(event, ctx):
+                    break
+                return _tcod_action(event)
     try:
         presenter.show(console, interactive=True)
         return presenter.wait_action()

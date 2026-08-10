@@ -121,6 +121,42 @@ def test_combat_action_falls_back_when_presenter_stops():
     ) == "UNAVAILABLE"
 
 
+def test_combat_action_ignores_triggering_key_release_before_next_action(monkeypatch):
+    from src.spacehack.combat import _loop
+    import tcod.event
+
+    key_up = tcod.event.KeyUp(
+        scancode=tcod.event.Scancode.UNKNOWN,
+        sym=tcod.event.KeySym.RIGHT,
+        mod=0,
+    )
+    key_down = tcod.event.KeyDown(
+        scancode=tcod.event.Scancode.UNKNOWN,
+        sym=tcod.event.KeySym.PERIOD,
+        mod=0,
+    )
+    waits = iter(((key_up,), (key_down,)))
+    monkeypatch.setattr(_loop.tcod.event, "wait", lambda: next(waits))
+
+    assert _loop._combat_action(SimpleNamespace(), SimpleNamespace(), presenter=None) == "WAIT"
+
+    unknown_key = tcod.event.KeyDown(
+        scancode=tcod.event.Scancode.UNKNOWN,
+        sym=tcod.event.KeySym.A,
+        mod=0,
+    )
+    waits = iter(((unknown_key,), (key_down,)))
+    monkeypatch.setattr(_loop.tcod.event, "wait", lambda: next(waits))
+    assert _loop._combat_action(SimpleNamespace(), SimpleNamespace(), presenter=None) == ""
+
+    monkeypatch.setattr(
+        _loop.tcod.event,
+        "wait",
+        lambda: (tcod.event.Quit(),),
+    )
+    assert _loop._combat_action(SimpleNamespace(), SimpleNamespace(), presenter=None) == "QUIT"
+
+
 def test_combat_frame_payload_preserves_commands_and_mode():
     console = SimpleNamespace(commands=[SimpleNamespace(x=1, y=2, char="@", fg=(1, 2, 3), bg=None)])
 
