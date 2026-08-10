@@ -50,9 +50,71 @@ def _dev_faction_label(faction_id: str) -> str:
     return _DEV_FACTION_LABELS[faction_id]
 
 
+def _pygame_faction_frames(menu: ui.MenuScreen):
+    """Build the shared fixed-layout frames for the dev faction picker."""
+    from . import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(
+            label=label,
+            description=menu.descriptions.get(faction_id, ""),
+            action=faction_id,
+        )
+        for faction_id, label in menu.options
+    )
+    return tuple(
+        pygame_menu.MenuFrame(
+            title=menu.title.upper(),
+            body="Choose the faction whose Act 0 path you want to test.",
+            items=items,
+            hints=(menu.instruction,),
+            selected=selected,
+        )
+        for selected in range(len(items))
+    )
+
+
+def _run_pygame_faction_pick(
+    context, menu: ui.MenuScreen,
+) -> tuple[Outcome, str | None] | None:
+    """Run the dev faction picker in Pygame, or return None for fallback."""
+    from . import pygame_menu
+
+    frames = _pygame_faction_frames(menu)
+    if not frames:
+        return None
+    while True:
+        try:
+            outcome, action, _selected = pygame_menu.run_for_context(
+                context,
+                frames,
+                caption="spacehack - choose act 0 faction",
+            )
+        except pygame_menu.PygameMenuUnavailable:
+            return None
+        if outcome == "GUIDE":
+            continue
+        if outcome == "QUIT":
+            return Outcome.QUIT, None
+        if outcome == "BACK":
+            return Outcome.BACK, None
+        if outcome == "SELECT":
+            valid_ids = {faction_id for faction_id, _label in menu.options}
+            if action in valid_ids:
+                return Outcome.CONFIRM, action
+        return None
+
+
 def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
     """Run the Act 0 faction picker for the developer shortcut."""
-    return _run_pick(context, main_quest_faction_menu())
+    menu = main_quest_faction_menu()
+    from . import pygame_menu
+
+    if pygame_menu.enabled():
+        pygame_result = _run_pygame_faction_pick(context, menu)
+        if pygame_result is not None:
+            return pygame_result
+    return _run_pick(context, menu)
 
 
 _GROUND_ARMOR_SLOTS = ("head", "body", "hands", "legs", "feet")

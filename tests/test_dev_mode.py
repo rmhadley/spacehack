@@ -56,6 +56,114 @@ def test_main_quest_faction_menu_lists_all_four_chains():
     assert set(_menu.descriptions) == {"militia", "merchants", "bar", "lab"}
 
 
+def test_pygame_faction_frames_keep_fixed_descriptions_and_ids():
+    """Dev faction items use the shared menu's stable descriptions."""
+    frames = dev_mode._pygame_faction_frames(main_quest_faction_menu())
+
+    assert len(frames) == 4
+    assert [item.action for item in frames[0].items] == [
+        "militia", "merchants", "bar", "lab",
+    ]
+    assert frames[0].items[0].description == (
+        "Order, procedure, and a sanctioned breach."
+    )
+    assert frames[2].selected == 2
+    assert frames[2].items[2].label == "Free Captains"
+
+
+def test_pygame_faction_picker_maps_select_and_preserves_outcome(monkeypatch):
+    """Pygame selection returns the same opaque faction ID and Outcome."""
+    from src.spacehack import pygame_menu
+
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+        "SELECT", "lab", 3,
+    ))
+
+    result = dev_mode._run_pygame_faction_pick(
+        object(), main_quest_faction_menu(),
+    )
+
+    assert result == (dev_mode.Outcome.CONFIRM, "lab")
+
+
+def test_pygame_faction_picker_ignores_guide_like_legacy_picker(monkeypatch):
+    """GUIDE is a no-op here because the legacy dev picker has no guide route."""
+    from src.spacehack import pygame_menu
+
+    outcomes = iter((("GUIDE", "", 0), ("SELECT", "militia", 0)))
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+
+    assert dev_mode._run_pygame_faction_pick(
+        object(), main_quest_faction_menu(),
+    ) == (dev_mode.Outcome.CONFIRM, "militia")
+
+
+def test_pygame_faction_picker_rejects_invalid_action_and_empty_menu(monkeypatch):
+    """Invalid worker data and empty menus remain safe fallback cases."""
+    from src.spacehack import pygame_menu, ui
+
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+        "SELECT", "not-a-faction", 0,
+    ))
+    assert dev_mode._run_pygame_faction_pick(
+        object(), main_quest_faction_menu(),
+    ) is None
+
+    empty = ui.MenuScreen(
+        title="Empty", instruction="", options=(), descriptions={},
+    )
+    assert dev_mode._run_pygame_faction_pick(object(), empty) is None
+
+
+def test_choose_main_quest_faction_uses_pygame_when_enabled(monkeypatch):
+    """The developer shortcut routes through the shared menu when active."""
+    from src.spacehack import pygame_menu
+
+    seen = {}
+    monkeypatch.setattr(pygame_menu, "enabled", lambda: True)
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        lambda context, frames, **kwargs: seen.update(
+            context=context, frames=frames,
+        ) or ("SELECT", "bar", 2),
+    )
+
+    context = object()
+    assert dev_mode.choose_main_quest_faction(context) == (
+        dev_mode.Outcome.CONFIRM, "bar",
+    )
+    assert seen["context"] is context
+    assert seen["frames"][0].items[2].action == "bar"
+
+
+def test_pygame_faction_picker_maps_back_quit_and_falls_back(monkeypatch):
+    """Cancel/quit remain distinct, while worker failure selects tcod fallback."""
+    from src.spacehack import pygame_menu
+
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+        "BACK", "", 0,
+    ))
+    assert dev_mode._run_pygame_faction_pick(
+        object(), main_quest_faction_menu(),
+    ) == (dev_mode.Outcome.BACK, None)
+
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+        "QUIT", "", 0,
+    ))
+    assert dev_mode._run_pygame_faction_pick(
+        object(), main_quest_faction_menu(),
+    ) == (dev_mode.Outcome.QUIT, None)
+
+    def unavailable(*args, **kwargs):
+        raise pygame_menu.PygameMenuUnavailable("missing")
+
+    monkeypatch.setattr(pygame_menu, "run_for_context", unavailable)
+    assert dev_mode._run_pygame_faction_pick(
+        object(), main_quest_faction_menu(),
+    ) is None
+
+
 def test_choose_main_quest_faction_delegates_to_picker(monkeypatch):
     """The UI wrapper returns the picker result without mutating game state."""
     _expected = (dev_mode.Outcome.CONFIRM, "lab")
