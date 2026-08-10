@@ -559,7 +559,7 @@ def _animate_laser_shot(
                 view_w=view_w, view_h=view_h,
             )
             _present(context, console)
-            _responsive_sleep(animation_timing.COMBAT_BEAM)
+            _responsive_sleep(animation_timing.DAMAGE_POPUP)
 
 
 def _animate_explosion(
