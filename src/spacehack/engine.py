@@ -96,6 +96,14 @@ TILESHEET_FILENAME: str = "dejavu16x16_gs_tc.png"
 TILESHEET_COLUMNS: int = 32
 TILESHEET_ROWS: int = 8
 
+# Widen only ordinary text glyphs. Punctuation, map symbols, and box drawing
+# retain the native sheet geometry so the bitmap experiment cannot disturb
+# spatial symbols or UI frames.
+_TEXT_GLYPHS: tuple[int, ...] = tuple(
+    ord(char) for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+)
+_TEXT_GLYPH_EXTRA_COLUMNS: int = 2
+
 
 class EngineError(RuntimeError):
     """Raised when the engine cannot finish initialising."""
@@ -390,6 +398,44 @@ def _procedural_texture_glyphs(
     return tileset
 
 
+def _widen_glyph_tile(
+    tile: np.ndarray, extra_columns: int = _TEXT_GLYPH_EXTRA_COLUMNS
+) -> np.ndarray:
+    """Return a centered glyph with its ink widened by ``extra_columns``.
+
+    Only the non-transparent horizontal ink bounds are resized. The tile
+    remains the same shape, and nearest-neighbour sampling keeps the bitmap
+    fully crisp.
+    """
+    alpha = tile[..., 3]
+    _ys, xs = np.where(alpha > 0)
+    if not len(xs) or extra_columns <= 0:
+        return tile.copy()
+    left, right = int(xs.min()), int(xs.max())
+    source_width = right - left + 1
+    target_width = min(tile.shape[1], source_width + extra_columns)
+    if target_width <= source_width:
+        return tile.copy()
+    source = tile[:, left : right + 1, :]
+    source_columns = np.floor(
+        np.arange(target_width) * source_width / target_width
+    ).astype(int)
+    widened = source[:, source_columns, :]
+    result = np.zeros_like(tile)
+    target_left = (tile.shape[1] - target_width) // 2
+    result[:, target_left : target_left + target_width, :] = widened
+    return result
+
+
+def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
+    """Tighten ordinary bitmap text while preserving the fixed cell grid."""
+    for codepoint in _TEXT_GLYPHS:
+        tileset[codepoint] = _widen_glyph_tile(
+            np.asarray(tileset[codepoint])
+        )
+    return tileset
+
+
 def load_tileset() -> tcod.tileset.Tileset:
     """Load the native bitmap tileset, falling back to bundled TTF fonts.
 
@@ -410,7 +456,7 @@ def load_tileset() -> tcod.tileset.Tileset:
             )
             # The tilesheet is missing █ · ♣ ♦ ♥ under CHARMAP_TCOD; fill
             # them in with the same procedural glyphs as the TTF path.
-            return _procedural_texture_glyphs(_sheet)
+            return _widen_text_glyphs(_procedural_texture_glyphs(_sheet))
         except (OSError, RuntimeError, ValueError) as exc:
             print(
                 f"Warning: failed to load {_tilesheet_path} ({exc}). "

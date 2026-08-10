@@ -168,6 +168,10 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   its native 16×16 tile size first, keeping ordinary text crisp and free of
   runtime anti-aliasing. The logical grid remains 100×60, so the window is
   1600×960 pixels before OS/display scaling.
+- **Text spacing refinement**: after loading the bitmap and its procedural
+  texture patches, `engine.py` widens only ASCII letters and digits by two
+  bitmap columns, centered inside the same 16×16 cells. Punctuation, map
+  symbols, box drawing, and the logical grid remain unchanged.
 - **TrueType fallbacks**: `DejaVuSansMono.ttf` is tried next, followed by
   `Hack-Regular.ttf` if the bitmap asset is missing or cannot be loaded.
   Both TTF paths are rasterized at the active 16×16 cell size.
@@ -187,8 +191,9 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   mirroring the CP437 tilesheet geometry. `_procedural_texture_glyphs`
   similarly patches shades / block / dot / card-suit glyphs.
 - `load_tileset()`: native CP437 bitmap first → apply procedural texture
-  patches → TTF fallbacks with procedural box/texture patches. Only raises
-  `EngineError` when all bundled loaders fail.
+  patches and the small text-glyph widening pass → TTF fallbacks with
+  procedural box/texture patches. Only raises `EngineError` when all bundled
+  loaders fail.
 - **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to
   **NEAREST** texture scaling. On displays where the window backing scale
   is not an exact integer multiple of the console (fractional Retina /

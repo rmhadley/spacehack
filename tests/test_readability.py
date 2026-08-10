@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -17,8 +19,17 @@ class _FakeTileset:
     tile_width = engine.TILE_WIDTH
     tile_height = engine.TILE_HEIGHT
 
+    def __init__(self):
+        self.tiles = {}
+
+    def __getitem__(self, codepoint):
+        return self.tiles.get(
+            codepoint,
+            np.zeros((self.tile_height, self.tile_width, 4), dtype=np.uint8),
+        )
+
     def __setitem__(self, codepoint, tile):
-        pass
+        self.tiles[codepoint] = tile
 
 
 class _FakeTcodTileset:
@@ -115,6 +126,17 @@ def test_font_loader_prefers_tilesheet_then_dejavu_then_hack(monkeypatch):
         engine.TRUETYPE_FONT_FILENAME,
         engine.LEGACY_TRUETYPE_FONT_FILENAME,
     ]
+
+
+def test_text_glyph_widening_preserves_grid_and_adds_ink():
+    """The readability experiment widens letters without changing tiles."""
+    tile = np.zeros((16, 16, 4), dtype=np.uint8)
+    tile[:, 5:11, 3] = 255
+    widened = engine._widen_glyph_tile(tile)
+    assert widened.shape == tile.shape
+    assert np.count_nonzero(widened[..., 3]) > np.count_nonzero(tile[..., 3])
+    ys, xs = np.where(widened[..., 3] > 0)
+    assert (int(xs.min()), int(xs.max())) == (4, 11)
 
 
 def test_bitmap_glyphs_center_in_the_native_raster():
