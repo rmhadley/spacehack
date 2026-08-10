@@ -98,6 +98,18 @@ def _selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
 MAX_VISIBLE_ROWS = 9
 MAX_DETAIL_LINES = 2
 
+# Canonical hint for every split buy/sell terminal (single source of
+# truth — see 15_DESIGN_UNIFIED_TERMINAL_UX.md).
+SPLIT_SHOP_HINT = pygame_ui.modal_hint(
+    "UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell",
+    "ESC back", "? guide",
+)
+
+
+def section_header(label: str) -> SplitRow:
+    """Build a divider row for a labeled list section (``--- WEAPONS ---``)."""
+    return SplitRow(f"--- {label} ---", "", "", "", divider=True)
+
 
 def _window_span(
     rows: tuple[SplitRow, ...], first: int, last: int,

@@ -1598,6 +1598,52 @@ def test_split_font_fit_is_independent_of_catalog_size():
     assert font_huge.point_size == font_small.point_size
 
 
+def test_terminal_title_grammar():
+    assert pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT") == "MECHANIC - SHIP LOADOUT"
+    assert pygame_ui.terminal_title("TRADE", "earth") == "TRADE - EARTH"
+    assert pygame_ui.terminal_title("ARMORY", "earth") == "ARMORY - EARTH"
+    assert pygame_ui.terminal_title("ARMORY") == "ARMORY"
+    assert pygame_ui.terminal_title("scout", "for sale") == "SCOUT - FOR SALE"
+
+
+def test_price_and_sell_cells():
+    assert pygame_ui.price_cell(30) == "30$"
+    assert pygame_ui.price_cell(30, 12) == "30$ (12)"
+    assert pygame_ui.sell_cell(15) == "(sell 15$)"
+    assert pygame_ui.sell_cell(15, 2) == "(sell 15$) x2"
+
+
+def test_stat_and_reward_labels():
+    assert pygame_ui.credits_label(1000) == "Credits: 1000$"
+    assert pygame_ui.cargo_label(12, 50) == "Cargo: 12/50"
+    assert pygame_ui.shortfall_label(3000) == "3000$ short"
+    assert pygame_ui.reward_label(400, 50) == "Reward: 400$ + 50xp"
+
+
+def test_modal_hint_uses_canonical_separator_and_strips_dots():
+    assert pygame_ui.modal_hint("UP/DOWN navigate", "ENTER select", "ESC back") == (
+        "UP/DOWN navigate   ENTER select   ESC back"
+    )
+    assert pygame_ui.modal_hint("ESC leave.") == "ESC leave"
+    assert pygame_ui.modal_hint("a.", "b", "c.") == "a   b   c"
+
+
+def test_split_section_header_builds_divider_row():
+    row = pygame_split.section_header("WEAPONS")
+    assert row.label == "--- WEAPONS ---"
+    assert row.divider is True
+    assert row.action == ""
+    assert row.value == ""
+
+
+def test_split_shop_hint_is_canonical_and_advertises_guide():
+    assert pygame_split.SPLIT_SHOP_HINT == (
+        "UP/DOWN navigate   TAB switch panel   ENTER buy/sell   "
+        "ESC back   ? guide"
+    )
+    assert "? guide" in pygame_split.SPLIT_SHOP_HINT
+
+
 def test_merchant_description_budget_is_selection_independent():
     class Font:
         def get_linesize(self):

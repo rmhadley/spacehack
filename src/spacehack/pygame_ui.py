@@ -371,3 +371,71 @@ def draw_menu_row(
         antialias=antialias,
     )
     return y + row_height
+
+
+# ---------------------------------------------------------------------------
+# Shared modal content conventions (single source of truth)
+# ---------------------------------------------------------------------------
+# Every modal family (split terminals, text screens, menus, merchant board)
+# formats its titles, prices, stats, rewards, and hints through these pure
+# helpers, so a global change (e.g. a bigger title font or a "Credits:"
+# relabel) is exactly one edit (see 15_DESIGN_UNIFIED_TERMINAL_UX.md).
+
+HINT_SEP = "   "
+
+
+def terminal_title(prefix: str, suffix: str = "") -> str:
+    """Return the all-caps ``PREFIX - SUFFIX`` title, or bare ``PREFIX``.
+
+    Single source of truth for modal title grammar: every buy/sell
+    terminal title routes through this helper.
+    """
+    prefix = prefix.upper()
+    if not suffix:
+        return prefix
+    return f"{prefix} - {suffix.upper()}"
+
+
+def price_cell(price: int, qty: int | None = None) -> str:
+    """Format a buy price cell: ``30$`` or ``30$ (12)`` with a qty shown."""
+    cell = f"{price}$"
+    if qty is not None:
+        cell += f" ({qty})"
+    return cell
+
+
+def sell_cell(price: int, qty: int | None = None) -> str:
+    """Format a sell-back cell: ``(sell 15$)`` or ``(sell 15$) x2``."""
+    cell = f"(sell {price}$)"
+    if qty is not None:
+        cell += f" x{qty}"
+    return cell
+
+
+def credits_label(credits: int) -> str:
+    """Format the credits footer line: ``Credits: 1000$``."""
+    return f"Credits: {credits}$"
+
+
+def cargo_label(used: int, max_cargo: int) -> str:
+    """Format the cargo footer line: ``Cargo: 12/50``."""
+    return f"Cargo: {used}/{max_cargo}"
+
+
+def shortfall_label(short: int) -> str:
+    """Format an affordability shortfall: ``3000$ short``."""
+    return f"{short}$ short"
+
+
+def reward_label(credits: int, xp: int) -> str:
+    """Format a mission reward line: ``Reward: 400$ + 50xp``."""
+    return f"Reward: {credits}$ + {xp}xp"
+
+
+def modal_hint(*parts: str) -> str:
+    """Join hint parts with the canonical separator, dropping trailing dots.
+
+    Single source of truth for hint grammar across every modal family:
+    ``"UP/DOWN navigate   ENTER select   ESC back   ? guide"``.
+    """
+    return HINT_SEP.join(part.rstrip(".").strip() for part in parts)
