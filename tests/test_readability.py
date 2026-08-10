@@ -58,25 +58,16 @@ def test_bitmap_loader_raises_when_the_native_sheet_is_missing(monkeypatch):
         raise AssertionError("missing bitmap should raise EngineError")
 
 
-def test_native_mode_keeps_authored_text_glyphs_unchanged():
-    """Native mode leaves representative alphanumeric pixels untouched."""
-    assert engine._TEXT_GLYPH_EXTRA_COLUMNS == 0
-    source = engine.load_tileset()
-    native = engine._widen_text_glyphs(source)
-    assert native is source
-    for char in "AaM0":
-        assert np.array_equal(native[ord(char)], source[ord(char)])
-
-
-def test_text_glyph_widening_preserves_grid_and_adds_ink():
-    """The optional widening helper preserves the fixed tile grid."""
+def test_text_glyph_widening_is_the_tightened_bitmap_baseline():
+    """The readability pass widens letters without changing their cells."""
+    assert engine._TEXT_GLYPH_EXTRA_COLUMNS == 2
     tile = np.zeros((16, 16, 4), dtype=np.uint8)
     tile[:, 5:11, 3] = 255
-    widened = engine._widen_glyph_tile(tile, extra_columns=1)
+    widened = engine._widen_glyph_tile(tile)
     assert widened.shape == tile.shape
     assert np.count_nonzero(widened[..., 3]) > np.count_nonzero(tile[..., 3])
     ys, xs = np.where(widened[..., 3] > 0)
-    assert (int(xs.min()), int(xs.max())) == (4, 10)
+    assert (int(xs.min()), int(xs.max())) == (4, 11)
 
 
 def test_bitmap_glyphs_center_in_the_native_raster():

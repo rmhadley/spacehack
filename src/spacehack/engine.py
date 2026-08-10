@@ -88,13 +88,13 @@ TILESHEET_FILENAME: str = "dejavu16x16_gs_tc.png"
 TILESHEET_COLUMNS: int = 32
 TILESHEET_ROWS: int = 8
 
-# Keep ordinary text glyphs at their native sheet widths. Punctuation, map
-# symbols, and box drawing also retain native geometry so the bitmap renderer
-# stays faithful to the authored CP437 raster.
+# Widen only ordinary text glyphs. Punctuation, map symbols, and box drawing
+# retain the native sheet geometry so the bitmap experiment cannot disturb
+# spatial symbols or UI frames.
 _TEXT_GLYPHS: tuple[int, ...] = tuple(
     ord(char) for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 )
-_TEXT_GLYPH_EXTRA_COLUMNS: int = 0
+_TEXT_GLYPH_EXTRA_COLUMNS: int = 2
 
 
 class EngineError(RuntimeError):
@@ -122,8 +122,8 @@ def _data_path(filename: str) -> Path:
 #
 # The native sheet already supplies the text and box-drawing glyphs. These
 # patches fill the few game-specific texture codepoints that are absent or
-# inconsistent under CHARMAP_TCOD. Ordinary alphanumeric glyphs remain
-# unscaled so their authored bitmap edges stay crisp.
+# inconsistent under CHARMAP_TCOD. Ordinary alphanumeric glyphs receive the
+# small readability widening pass below; spatial glyphs remain unscaled.
 
 # --- Procedural block elements / shades / suits ----------------------------
 #
@@ -319,9 +319,7 @@ def _widen_glyph_tile(
 
 
 def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
-    """Apply the optional text-width experiment without changing the cell grid."""
-    if _TEXT_GLYPH_EXTRA_COLUMNS <= 0:
-        return tileset
+    """Tighten ordinary bitmap text while preserving the fixed cell grid."""
     for codepoint in _TEXT_GLYPHS:
         tileset[codepoint] = _widen_glyph_tile(
             np.asarray(tileset[codepoint])
@@ -334,7 +332,7 @@ def load_tileset() -> tcod.tileset.Tileset:
 
     The bitmap is the sole rendering path so glyphs remain crisp and
     pixel-stable across platforms. Texture patches and the text-spacing
-    texture patches are applied after the sheet loads.
+    pass are applied after the sheet loads.
     """
     _tilesheet_path = _data_path(TILESHEET_FILENAME)
     if not _tilesheet_path.is_file():

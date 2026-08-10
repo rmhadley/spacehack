@@ -168,11 +168,10 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   loaded at its native 16×16 tile size, keeping ordinary text crisp and free
   of runtime anti-aliasing. The game intentionally fails clearly if this
   asset is missing instead of silently switching fonts. The logical grid
-  remains 100×60, so the window is 1600×960 pixels before OS/display scaling.
-- **Native text raster**: after loading the bitmap and its procedural
-  texture patches, ordinary ASCII letters and digits remain at their authored
-  widths. The optional widening helper is retained for isolated experiments;
-  punctuation, map symbols, box drawing, and the logical grid remain unchanged.
+  remains 100×60, so the window is 1600×960 pixels before OS/display scaling.- **Text spacing refinement**: after loading the bitmap and its procedural
+  texture patches, `engine.py` widens only ASCII letters and digits by two
+  bitmap columns, centered inside the same 16×16 cells. Punctuation, map
+  symbols, box drawing, and the logical grid remain unchanged.
 - **No runtime font fallback**: the project no longer bundles or loads TTF,
   OTF, or TTC fonts. This keeps rendering deterministic across platforms.
 - **Font gotcha**: libtcod scales a TTF to the tile height, then *shrinks* it
@@ -191,7 +190,8 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   mirroring the CP437 tilesheet geometry. `_procedural_texture_glyphs`
   similarly patches shades / block / dot / card-suit glyphs.
 - `load_tileset()`: load the native CP437 bitmap → apply procedural texture
-  patches. It raises `EngineError` if the bitmap cannot be loaded.
+  patches → apply the ordinary-text spacing pass. It raises `EngineError` if
+  the bitmap cannot be loaded.
 - **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to
   **NEAREST** texture scaling. On displays where the window backing scale
   is not an exact integer multiple of the console (fractional Retina /
