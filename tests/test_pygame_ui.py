@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import pygame_merchant, pygame_quest_log, pygame_ui, pygame_world
+from src.spacehack import pygame_merchant, pygame_quest_log, pygame_ship_buy, pygame_ui, pygame_world
 
 
 class _FakeFont:
@@ -211,6 +211,46 @@ def test_captured_quest_rows_merge_cells_by_color():
             pygame_quest_log.QuestSpan("CD", (4, 5, 6)),
         ),
     )
+
+
+def test_ship_buy_frame_payload_round_trips_text_colors_and_affordability():
+    frame = pygame_ship_buy.ShipBuyFrame(
+        rows=((pygame_quest_log.QuestSpan("Cost: 100$", (255, 255, 255)),),),
+        can_buy=False,
+    )
+
+    payload = pygame_ship_buy._worker_payload(frame)
+    restored = pygame_ship_buy._frame_from_payload(payload["frame"])
+
+    assert restored == frame
+    assert payload["font_size"] == 20
+
+
+def test_ship_buy_key_mapping_preserves_purchase_contract():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_RETURN = 11
+        K_KP_ENTER = 12
+        K_QUESTION = 13
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_ship_buy._handle_key(fake, SimpleNamespace(type=fake.QUIT), True) == "QUIT"
+    assert pygame_ship_buy._handle_key(fake, key(fake.K_ESCAPE), True) == "BACK"
+    assert pygame_ship_buy._handle_key(fake, key(fake.K_RETURN), True) == "BUY"
+    assert pygame_ship_buy._handle_key(fake, key(fake.K_RETURN), False) == "TOO_EXPENSIVE"
+    assert pygame_ship_buy._handle_key(fake, key(fake.K_QUESTION), True) == "GUIDE"
+
+
+def test_ship_buy_opt_in_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("SPACEHACK_PYGAME_SHIP_BUY", raising=False)
+
+    from src.spacehack.menus import _ship_buy
+
+    assert not _ship_buy._pygame_ship_buy_enabled()
 
 
 def test_quest_frame_payload_round_trips_text_colors_and_state():

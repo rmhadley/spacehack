@@ -184,6 +184,18 @@ existing tcod Quest Log opens instead. Clear the variable to disable it.
 This is still a comparison seam: the tcod context, gameplay state, save/load,
 and all mission mutations remain owned by the main game process.
 
+### Live Ship Buy Pygame experiment
+
+The Ship Buy modal can be previewed with the same readable Pygame renderer:
+
+```bash
+SPACEHACK_PYGAME_SHIP_BUY=1 python -m spacehack
+```
+
+It preserves the normal affordability, trade-in pricing, purchase, back, and
+quit outcomes. Press `?` for the guide. If the optional worker is unavailable,
+the existing tcod Ship Buy modal is used automatically.
+
 ### Live exploration-frame Pygame preview
 
 The migration preview shows the active city, space, or dungeon grid plus the

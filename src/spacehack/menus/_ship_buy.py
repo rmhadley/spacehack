@@ -19,6 +19,33 @@ from ..engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..input_helpers import _try_open_guide
 
 
+def _pygame_ship_buy_enabled() -> bool:
+    """Return whether the opt-in Pygame Ship Buy modal is enabled."""
+    import os
+
+    return bool(os.environ.get("SPACEHACK_PYGAME_SHIP_BUY"))
+
+
+def _run_pygame_ship_buy(ctx, ship, effective_price: int | None) -> "ShipBuyOutcome | None":
+    """Run Pygame Ship Buy, returning None for tcod fallback."""
+    from ..pygame_ship_buy import PygameShipBuyUnavailable, run
+
+    try:
+        outcome = run(ctx, ship, effective_price)
+    except PygameShipBuyUnavailable:
+        return None
+    if outcome == "BUY":
+        return ShipBuyOutcome.BUY
+    if outcome == "TOO_EXPENSIVE":
+        return ShipBuyOutcome.TOO_EXPENSIVE
+    if outcome == "QUIT":
+        return ShipBuyOutcome.QUIT
+    if outcome == "GUIDE":
+        from ..help import _run_help_guide
+        _run_help_guide(ctx)
+    return ShipBuyOutcome.BACK
+
+
 class ShipBuyOutcome(Enum):
     """What happened during a single ship-buy dialog iteration.
 
@@ -92,6 +119,11 @@ def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship, *, effecti
     When ``effective_price`` is provided (trade-in), the dialog uses
     it for afford checks instead of ``ship.price``.
     """
+    if _pygame_ship_buy_enabled():
+        pygame_result = _run_pygame_ship_buy(ctx, ship, effective_price)
+        if pygame_result is not None:
+            return pygame_result
+
     console = make_console()
 
     def _render() -> None:
