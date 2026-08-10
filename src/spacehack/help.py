@@ -1054,6 +1054,11 @@ _GUIDE_DERELICT = GuideSection(
     ),
 )
 
+# The selected marker must exist in the CP437 bitmap tilesheet. Keep this
+# ASCII glyph instead of Unicode arrows, which can render as blank cells.
+GUIDE_SELECTED_MARKER: str = ">"
+
+
 # All sections in order. Add new sections here (insert or append).
 _GUIDE_BAR_MISSIONS = GuideSection(
     title="Bar Missions",
@@ -1693,7 +1698,7 @@ def render_guide_list(
         _row = _list_top + i
         _is_sel = i == selected
         _num = f"{i + 1:02d}"
-        _marker = "\u25b8" if _is_sel else " "  # ▸ for selected
+        _marker = GUIDE_SELECTED_MARKER if _is_sel else " "
         _text = f"{_marker} {_num}  {sec.title}"
         _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
         console.print(

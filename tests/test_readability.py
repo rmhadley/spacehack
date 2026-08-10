@@ -10,7 +10,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack import engine, hud, message_log, ui
+from src.spacehack import engine, help as game_help, hud, message_log, ui
 
 
 class _FakeTileset:
@@ -149,6 +149,15 @@ def test_bitmap_glyphs_center_in_the_native_raster():
     tall_tile = engine._render_bitmap_tile(16, 16, tuple("#" for _ in range(20)))
     assert tall_tile.shape == (16, 16, 4)
     assert not engine._render_bitmap_tile(16, 16, ()).any()
+
+
+def test_help_selector_uses_a_renderable_cp437_marker():
+    """The guide selection marker must be present in the bitmap font."""
+    assert game_help.GUIDE_SELECTED_MARKER == ">"
+    assert ord(game_help.GUIDE_SELECTED_MARKER) < 0x100
+
+    tileset = engine.load_tileset()
+    assert np.asarray(tileset[ord(game_help.GUIDE_SELECTED_MARKER)])[..., 3].any()
 
 
 def test_primary_reading_palette_is_high_contrast_on_black():
