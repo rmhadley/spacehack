@@ -531,6 +531,35 @@ def test_wrap_text_uses_font_width_and_preserves_paragraph_breaks():
     assert pygame_ui.wrap_text("", 100, measure) == ()
 
 
+def test_pygame_comms_preserves_distress_beacon_line_breaks(monkeypatch):
+    from src.spacehack import comms
+
+    captured = {}
+    contact_spec = SimpleNamespace(
+        comms_lines=("BEACON LINE ONE", "BEACON LINE TWO", "BEACON LINE THREE"),
+    )
+    menu = __import__("src.spacehack.pygame_menu", fromlist=["MenuFrame"])
+
+    def fake_run(_context, frames, **_kwargs):
+        captured["frame"] = frames[0]
+        return "BACK", "", 0
+
+    monkeypatch.setattr(menu, "run_for_context", fake_run)
+    monkeypatch.setattr(comms, "_INTERACTION_DISPATCH", {})
+
+    result = comms._pygame_interaction_outcome(
+        SimpleNamespace(context=object()),
+        "Derelict Scout",
+        contact_spec,
+        ["End Transmission"],
+    )
+
+    assert result is comms._InteractionOutcome.BACK
+    assert captured["frame"].body == (
+        "BEACON LINE ONE\nBEACON LINE TWO\nBEACON LINE THREE"
+    )
+
+
 def test_merchant_frame_uses_live_content_and_selected_details():
     offerings = (
         SimpleNamespace(

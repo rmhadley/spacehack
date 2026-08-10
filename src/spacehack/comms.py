@@ -244,7 +244,7 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
     frames = tuple(
         pygame_menu.MenuFrame(
             title=f"{contact_name} - Hailing",
-            body=" ".join(getattr(contact_spec, "comms_lines", ()) or ("...",)),
+            body="\n".join(getattr(contact_spec, "comms_lines", ()) or ("...",)),
             items=items,
             hints=("UP/DOWN or j/k navigate - ENTER select - ESC back.",),
             selected=index,
