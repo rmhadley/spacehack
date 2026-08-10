@@ -15,7 +15,7 @@ from src.spacehack import (
     pygame_world,
 )
 from src.spacehack.menus import _missions, _planet, _ship_menu
-from src.spacehack import navigation, npc
+from src.spacehack import navigation, npc, pygame_split
 from src.spacehack.main_quest import _act0
 
 
@@ -369,6 +369,183 @@ def test_read_only_batch_switch_is_disabled_by_default(monkeypatch):
 
     assert not pygame_batch.enabled()
     assert not _ship_menu._pygame_readonly_enabled()
+
+
+def test_split_frame_payload_round_trips_rows_and_selection():
+    frame = pygame_split.SplitFrame(
+        title="ARMORY",
+        left_label="For Sale",
+        right_label="My Loadout",
+        left_rows=(pygame_split.SplitRow("Laser", "100$", "damage", "BUY:laser"),),
+        right_rows=(pygame_split.SplitRow("[empty]", "", "", "", divider=False),),
+        footer_left="Credits: 100",
+        footer_right="",
+        hint="TAB switch",
+        focus=0,
+        selected=0,
+    )
+
+    restored = pygame_split._frame_from_payload(
+        pygame_split._frame_payload(frame),
+    )
+
+    assert restored == frame
+
+
+def test_split_key_mapping_switches_panels_and_returns_opaque_action():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_TAB = 11
+        K_UP = 12
+        K_DOWN = 13
+        K_k = 14
+        K_j = 15
+        K_RETURN = 16
+        K_KP_ENTER = 17
+
+    frame = pygame_split.SplitFrame(
+        "ARMORY", "Sale", "Owned",
+        (pygame_split.SplitRow("Laser", "100$", "", "BUY"),),
+        (pygame_split.SplitRow("Armor", "50$", "", "SELL"),),
+        "", "", "", 0, 0,
+    )
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_split._handle_key(fake, key(fake.K_TAB), frame) == ("IGNORE", 1, 0)
+    assert pygame_split._handle_key(fake, key(fake.K_RETURN), frame) == ("SELECT", 0, 0)
+    assert pygame_split._handle_key(fake, SimpleNamespace(type=fake.QUIT), frame) == ("QUIT", 0, 0)
+
+
+def test_split_worker_rejects_unknown_outcomes(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui,
+        "run_json_worker",
+        lambda *args, **kwargs: {"outcome": "MUTATE"},
+    )
+    frame = pygame_split.SplitFrame("T", "L", "R", (), (), "", "", "")
+
+    try:
+        pygame_split.run(frame)
+    except pygame_split.PygameSplitUnavailable as exc:
+        assert "unknown choice" in str(exc)
+    else:
+        raise AssertionError("unknown split outcomes must use fallback")
+
+
+def test_split_interactive_preserves_initial_focus_and_selection(monkeypatch):
+    frame = pygame_split.SplitFrame(
+        "Terminal", "Buy", "Sell", (), (), "", "", "hint", 1, 3,
+    )
+    seen = []
+    monkeypatch.setattr(
+        pygame_split,
+        "run",
+        lambda current, **kwargs: seen.append(current) or ("BACK", "", 1, 3),
+    )
+
+    assert pygame_split.run_interactive(
+        SimpleNamespace(), lambda: frame, lambda *args: True, caption="test",
+    ) == "BACK"
+    assert seen[0].focus == 1
+    assert seen[0].selected == 3
+
+
+def test_split_interactive_preserves_focus_and_selection_after_action(monkeypatch):
+    frame = pygame_split.SplitFrame(
+        "Terminal", "Buy", "Sell", (), (), "", "", "hint",
+    )
+    seen = []
+    outcomes = iter((("SELECT", "BUY:item", 1, 3), ("BACK", "", 1, 3)))
+
+    def fake_run(current, **kwargs):
+        seen.append(current)
+        return next(outcomes)
+
+    monkeypatch.setattr(pygame_split, "run", fake_run)
+    applied = []
+
+    result = pygame_split.run_interactive(
+        SimpleNamespace(),
+        lambda: frame,
+        lambda action, focus, selected: applied.append(
+            (action, focus, selected)
+        ) or True,
+        caption="test",
+    )
+
+    assert result == "BACK"
+    assert applied == [("BUY:item", 1, 3)]
+    assert seen[1].focus == 1
+    assert seen[1].selected == 3
+
+
+def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="starter"),
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    frame = __import__(
+        "src.spacehack.menus._loadout", fromlist=["_pygame_loadout_frame"]
+    )._pygame_loadout_frame(
+        ctx,
+        "earth",
+        ("light_missile",),
+        ("armor_plating",),
+    )
+
+    actions = [row.action for row in frame.left_rows if not row.divider]
+    assert actions == ["BUY_WEAPON:light_missile", "BUY_MODULE:armor_plating"]
+
+
+def test_loadout_sell_action_targets_selected_duplicate_slot():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="starter",
+            weapons=("light_laser", "light_laser"),
+        ),
+        stats=SimpleNamespace(credits=0),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    original = ctx.player_owned_ship.weapons
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "SELL_WEAPON_SLOT:1", 1, 2, "earth",
+    )
+    assert original == ("light_laser", "light_laser")
+    assert ctx.player_owned_ship.weapons == ("light_laser",)
+
+
+def test_split_interactive_frame_build_failure_returns_to_fallback():
+    assert pygame_split.run_interactive(
+        SimpleNamespace(),
+        lambda: (_ for _ in ()).throw(KeyError("bad inventory")),
+        lambda *args: True,
+        caption="test",
+    ) is None
+
+
+def test_split_interactive_malformed_action_returns_to_fallback(monkeypatch):
+    frame = pygame_split.SplitFrame("Terminal", "Buy", "Sell", (), (), "", "", "hint")
+    monkeypatch.setattr(
+        pygame_split,
+        "run",
+        lambda *args, **kwargs: ("SELECT", "BROKEN:action", 0, 0),
+    )
+
+    assert pygame_split.run_interactive(
+        SimpleNamespace(), lambda: frame,
+        lambda action, focus, selected: int(action.split(":", 1)[1]),
+        caption="test",
+    ) is None
 
 
 def test_ship_menu_frames_keep_actions_opaque_and_stats_in_parent_snapshot(monkeypatch):

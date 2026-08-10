@@ -17,11 +17,147 @@ from ..input_helpers import _try_open_guide
 from ..ui import render_split_frame
 
 
+def _pygame_split_enabled() -> bool:
+    """Return whether the shared split-screen Pygame batch is enabled."""
+    from .. import pygame_split
+
+    return pygame_split.enabled()
+
+
 class _LoadoutOutcome(Enum):
     """Result of the mechanic loadout menu."""
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
+
+
+def _pygame_loadout_frame(
+    ctx,
+    planet_id: str = "",
+    weapon_ids: tuple[str, ...] | None = None,
+    module_ids: tuple[str, ...] | None = None,
+):
+    """Build a presentation-only loadout split frame.
+
+    ``weapon_ids`` and ``module_ids`` are an optional parent-owned
+    inventory snapshot. Supplying them keeps a Pygame refresh from
+    re-rolling a planet's seeded mechanic stock.
+    """
+    from .. import pygame_split
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return pygame_split.SplitFrame(
+            "MECHANIC - SHIP LOADOUT", "For Sale", "My Ship",
+            (), (), "", "", "ESC back",
+        )
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    from ..data.weapons import find_weapon as _fw, list_weapons as _lw
+    from ..data.modules import find_module as _fm, list_modules as _lm
+    _weapons = sorted(
+        tuple(_fw(item_id) for item_id in weapon_ids)
+        if weapon_ids is not None else _lw(),
+        key=lambda spec: spec.price,
+    )
+    _modules = sorted(
+        tuple(_fm(item_id) for item_id in module_ids)
+        if module_ids is not None else _lm(),
+        key=lambda spec: spec.price,
+    )
+    _left = [pygame_split.SplitRow("--- WEAPONS ---", "", "", "", True)]
+    _left.extend(
+        pygame_split.SplitRow(
+            spec.name,
+            f"{spec.price}$",
+            f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
+            f"BUY_WEAPON:{spec.id}",
+        )
+        for spec in _weapons
+    )
+    _left.append(pygame_split.SplitRow("--- MODULES ---", "", "", "", True))
+    _left.extend(
+        pygame_split.SplitRow(spec.name, f"{spec.price}$", spec.description, f"BUY_MODULE:{spec.id}")
+        for spec in _modules
+    )
+    _right = [pygame_split.SplitRow("--- WEAPON SLOTS ---", "", "", "", True)]
+    for item_id, slot_index in ship_module._find_weapon_slots(owned, ship_spec):
+        if item_id is None:
+            _right.append(pygame_split.SplitRow("[empty]", "", "", "", False))
+        else:
+            spec = _fw(item_id)
+            _right.append(pygame_split.SplitRow(
+                spec.name,
+                f"(sell {ship_module._sell_price('weapon', item_id)}$)",
+                f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
+                f"SELL_WEAPON_SLOT:{slot_index}",
+            ))
+    _right.append(pygame_split.SplitRow("--- MODULE SLOTS ---", "", "", "", True))
+    for item_id, slot_index in ship_module._find_module_slots(owned, ship_spec):
+        if item_id is None:
+            _right.append(pygame_split.SplitRow("[empty]", "", "", "", False))
+        else:
+            spec = _fm(item_id)
+            _right.append(pygame_split.SplitRow(
+                spec.name, f"(sell {ship_module._sell_price('module', item_id)}$)",
+                spec.description, f"SELL_MODULE_SLOT:{slot_index}",
+            ))
+    return pygame_split.SplitFrame(
+        "MECHANIC - SHIP LOADOUT", "For Sale", "My Ship",
+        tuple(_left), tuple(_right),
+        f"Credits: {ctx.stats.credits}$",
+        f"Wpn: {len(owned.weapons)}/{ship_spec.weapon_slots}  Mod: {len(owned.modules)}/{ship_spec.module_slots}",
+        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+    )
+
+
+def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, planet_id: str) -> bool:
+    """Apply one Pygame loadout action using existing mutation helpers."""
+    if not action:
+        return True
+    if action.startswith("BUY_WEAPON:"):
+        item_id = action.split(":", 1)[1]
+        owned = ctx.player_owned_ship
+        ship_spec = ship_module.find_ship(owned.ship_id)
+        from ..data.weapons import find_weapon
+        spec = find_weapon(item_id)
+        if len(owned.weapons) < ship_spec.weapon_slots and ctx.stats.credits >= spec.price:
+            if ship_module._install_weapon(owned, item_id, ship_spec):
+                ctx.stats.credits -= spec.price
+                ctx.log.add(f"Installed {spec.name} for {spec.price}$.")
+        return True
+    if action.startswith("BUY_MODULE:"):
+        item_id = action.split(":", 1)[1]
+        owned = ctx.player_owned_ship
+        ship_spec = ship_module.find_ship(owned.ship_id)
+        from ..data.modules import find_module
+        spec = find_module(item_id)
+        if len(owned.modules) < ship_spec.module_slots and ctx.stats.credits >= spec.price:
+            if ship_module._install_module(owned, item_id, ship_spec):
+                ctx.stats.credits -= spec.price
+                ctx.log.add(f"Installed {spec.name} for {spec.price}$.")
+        return True
+    if action.startswith("SELL_WEAPON_SLOT:"):
+        slot = int(action.split(":", 1)[1])
+        owned = ctx.player_owned_ship
+        ship_spec = ship_module.find_ship(owned.ship_id)
+        slots = ship_module._find_weapon_slots(owned, ship_spec)
+        if not 0 <= slot < len(slots) or slots[slot][0] is None:
+            return True
+        item_id = slots[slot][0]
+        ship_module._remove_weapon(owned, slot)
+        ctx.stats.credits += ship_module._sell_price("weapon", item_id)
+        return True
+    if action.startswith("SELL_MODULE_SLOT:"):
+        slot = int(action.split(":", 1)[1])
+        owned = ctx.player_owned_ship
+        ship_spec = ship_module.find_ship(owned.ship_id)
+        slots = ship_module._find_module_slots(owned, ship_spec)
+        if not 0 <= slot < len(slots) or slots[slot][0] is None:
+            return True
+        item_id = slots[slot][0]
+        ship_module._remove_module(owned, slot)
+        ctx.stats.credits += ship_module._sell_price("module", item_id)
+        return True
+    raise ValueError(f"Unknown loadout action: {action!r}")
 
 
 def _run_loadout_menu(ctx, planet_id: str = "") -> None:
@@ -135,6 +271,24 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
             if item[4] != "divider":
                 return i
         return 0
+
+    if _pygame_split_enabled():
+        from .. import pygame_split
+        result = pygame_split.run_interactive(
+            ctx,
+            lambda: _pygame_loadout_frame(
+                ctx,
+                planet_id,
+                tuple(item.id for item in _weapons_list),
+                tuple(item.id for item in _modules_list),
+            ),
+            lambda action, focus, selected: _apply_pygame_loadout_action(
+                ctx, action, focus, selected, planet_id,
+            ),
+            caption="spacehack - ship loadout",
+        )
+        if result is not None:
+            return
 
     console = make_console()
     _focus: int = 0  # 0 = left, 1 = right

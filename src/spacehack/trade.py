@@ -30,6 +30,13 @@ from .input_helpers import _try_open_guide
 from .ui import paint_text, paint_centered, render_split_frame
 
 
+def _pygame_split_enabled() -> bool:
+    """Return whether the shared split-screen Pygame batch is enabled."""
+    from . import pygame_split
+
+    return pygame_split.enabled()
+
+
 NEUTRAL_TARGET: int = 8
 
 # ---------------------------------------------------------------------------
@@ -810,6 +817,78 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     ui.Modal(ctx.context, console).run(_render, _update)
 
 
+def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[str]):
+    """Build a presentation-only station trade frame."""
+    from . import pygame_split
+    spec = find_planet_spec(planet_id)
+    owned = ctx.player_owned_ship
+    _stocks = ctx.economy_state.get(planet_id, {})
+    left = tuple(
+        pygame_split.SplitRow(
+            find_trade_good(gid).name,
+            f"{_unit_price(ctx, planet_id, gid)}$ ({_stocks.get(gid, 0)})",
+            f"{find_trade_good(gid).description}",
+            f"BUY:{gid}",
+        )
+        for gid in station_goods
+    )
+    right = tuple(
+        pygame_split.SplitRow(
+            find_trade_good(gid).name,
+            f"{_sell_price(ctx, planet_id, gid)}$ ({qty})",
+            find_trade_good(gid).description,
+            f"SELL:{gid}",
+        )
+        for gid, qty in (owned.inventory.items() if owned is not None else ())
+    )
+    return pygame_split.SplitFrame(
+        f"TRADE - {spec.name.upper()}", "Station Inventory", "Your Hold",
+        left, right,
+        f"Cargo: {owned.cargo_used if owned else 0}",
+        f"Credits: {ctx.stats.credits}",
+        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+    )
+
+
+def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) -> bool:
+    """Apply one Pygame trade action through the existing transaction helpers."""
+    if not action:
+        return True
+    if ":" not in action:
+        raise ValueError(f"Malformed trade action: {action!r}")
+    kind, good_id = action.split(":", 1)
+    good = find_trade_good(good_id)
+    if kind == "BUY":
+        price = _unit_price(ctx, planet_id, good_id)
+        owned = ctx.player_owned_ship
+        stock = ctx.economy_state.get(planet_id, {}).get(good_id, 0)
+        free = _free_cargo(owned) if owned is not None else 0
+        max_qty = min(stock, free // max(1, good.volume), ctx.stats.credits // max(1, price))
+        quantity = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price) if max_qty else None
+        if quantity:
+            _buy_good(ctx, planet_id, good_id, quantity)
+    elif kind == "SELL":
+        owned = ctx.player_owned_ship
+        held = owned.inventory.get(good_id, 0) if owned is not None else 0
+        price = _sell_price(ctx, planet_id, good_id)
+        quantity = _run_quantity_prompt(ctx, f"Sell {good.name}", held, price) if held else None
+        if quantity:
+            _sell_good(ctx, planet_id, good_id, quantity)
+    raise ValueError(f"Unknown trade action: {action!r}")
+
+
+def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]) -> bool | None:
+    """Run the Pygame station trade loop, or return None for tcod fallback."""
+    from . import pygame_split
+    result = pygame_split.run_interactive(
+        ctx,
+        lambda: _pygame_trade_frame(ctx, planet_id, station_goods),
+        lambda action, _focus, _selected: _apply_pygame_trade_action(ctx, planet_id, action),
+        caption="spacehack - trade terminal",
+    )
+    return result is not None if result is not None else None
+
+
 def open_trade(ctx: GameContext, planet_id: str) -> None:
     """Open the trade modal for ``planet_id``.
 
@@ -845,14 +924,22 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         ctx.log.add("This terminal has nothing to trade.")
         return
 
-    # Faction rep gating: enemy/disliked can't use trade terminals.
+    # Preserve the tcod path's state gates before opening any optional
+    # presentation worker.
     from .faction import get_attitude
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
-
+    if _attitude in ("enemy", "disliked"):
+        ctx.log.add("The merchants refuse to trade with you.")
+        return
     if ctx.player_owned_ship is None:
         ctx.log.add("You need a ship with cargo space to use this terminal.")
         return
+
+    if _pygame_split_enabled():
+        _pygame_result = _run_pygame_trade(ctx, planet_id, _station_goods)
+        if _pygame_result is not None:
+            return
 
     _focus: int = 0        # 0 = station panel, 1 = player panel
     _sel: int = 0

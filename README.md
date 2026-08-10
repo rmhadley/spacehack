@@ -233,6 +233,23 @@ The city ship-hangar hub is also migrated under this switch: `View Cargo`,
 `View Loadout`, and `Launch` return opaque actions to the parent game process;
 cargo, equipment, and launch behavior remain unchanged.
 
+### Live split-screen terminal Pygame batch
+
+Armory, Ship Loadout, and station Trade share a two-panel Pygame terminal
+worker under the same opt-in switch:
+
+```bash
+SPACEHACK_PYGAME_INTERACTIVE=1 python -m spacehack
+```
+
+The worker renders readable-font inventory panels with `TAB` focus switching,
+selection details, and `ENTER` actions. The main process remains authoritative
+for credits, stock, cargo, buying, selling, equipping, and removing equipment.
+Loadout uses the same planet-specific mechanic inventory as the tcod terminal,
+and refreshing after a transaction does not re-roll that inventory. If Pygame
+is unavailable or returns malformed data, the original tcod terminal remains
+the fallback. Clear `SPACEHACK_PYGAME_INTERACTIVE` to disable the batch.
+
 ### Live main-quest story Pygame batch
 
 The main-quest story popups can also use the readable Pygame presentation:

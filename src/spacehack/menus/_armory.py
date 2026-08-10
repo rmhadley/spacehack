@@ -21,6 +21,13 @@ from ..input_helpers import _try_open_guide
 from ..ui import render_split_frame
 
 
+def _pygame_split_enabled() -> bool:
+    """Return whether the shared split-screen Pygame batch is enabled."""
+    from .. import pygame_split
+
+    return pygame_split.enabled()
+
+
 class _ArmoryOutcome(Enum):
     IGNORE = auto()
     BACK = auto()
@@ -49,8 +56,105 @@ def _sell_price(item_id: str) -> int:
     return 0
 
 
+def _pygame_armory_frame(ctx: GameContext):
+    """Build a presentation-only armory split frame."""
+    from .. import pygame_split
+    from ..data.ground_weapons import list_ground_weapons
+    from ..data.ground_armor import list_ground_armor
+    _left = [pygame_split.SplitRow("--- WEAPONS ---", "", "", "", True)]
+    _left.extend(
+        pygame_split.SplitRow(spec.name, f"{spec.price}$", spec.description, f"BUY_WEAPON:{spec.id}")
+        for spec in sorted(list_ground_weapons(), key=lambda item: item.price)
+        if getattr(spec, "shop_available", True)
+    )
+    _left.append(pygame_split.SplitRow("--- ARMOUR ---", "", "", "", True))
+    _left.extend(
+        pygame_split.SplitRow(spec.name, f"{spec.price}$", spec.description, f"BUY_ARMOR:{spec.id}")
+        for spec in sorted(list_ground_armor(), key=lambda item: item.price)
+    )
+    _right = [pygame_split.SplitRow("--- WEAPON SLOTS ---", "", "", "", True)]
+    weapons = list(ctx.equipped_ground_weapons)
+    while len(weapons) < 2:
+        weapons.append("")
+    from ..data.ground_weapons import find_ground_weapon
+    from ..data.ground_armor import find_ground_armor
+    for index, item_id in enumerate(weapons[:2]):
+        if item_id:
+            spec = find_ground_weapon(item_id)
+            _right.append(pygame_split.SplitRow(
+                spec.name, f"(sell {_sell_price(item_id)}$)", spec.description,
+                f"SELL_WEAPON:{index}",
+            ))
+        else:
+            _right.append(pygame_split.SplitRow("[empty]", "", "", "", False))
+    _right.append(pygame_split.SplitRow("--- ARMOUR SLOTS ---", "", "", "", True))
+    for slot in _ARMOR_SLOTS:
+        item_id = ctx.equipped_ground_armor.get(slot)
+        if item_id:
+            spec = find_ground_armor(item_id)
+            _right.append(pygame_split.SplitRow(
+                f"{_ARMOR_SLOT_LABELS[slot]}: {spec.name}",
+                f"(sell {_sell_price(item_id)}$)", spec.description,
+                f"SELL_ARMOR:{slot}",
+            ))
+        else:
+            _right.append(pygame_split.SplitRow(f"{_ARMOR_SLOT_LABELS[slot]}: [empty]", "", "", "", False))
+    return pygame_split.SplitFrame(
+        "ARMORY", "For Sale", "My Loadout", tuple(_left), tuple(_right),
+        f"Credits: {ctx.stats.credits}$", "",
+        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+    )
+
+
+def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selected: int) -> bool:
+    """Apply one Pygame armory action using the existing parent logic."""
+    from ..data.ground_weapons import find_ground_weapon
+    from ..data.ground_armor import find_ground_armor
+    if action.startswith("BUY_WEAPON:"):
+        item_id = action.split(":", 1)[1]
+        spec = find_ground_weapon(item_id)
+        weapons = list(ctx.equipped_ground_weapons)
+        if ctx.stats.credits >= spec.price and len(weapons) < 2:
+            ctx.equipped_ground_weapons.append(item_id)
+            ctx.stats.credits -= spec.price
+            ctx.log.add(f"Bought and equipped {spec.name} for {spec.price}$.")
+    elif action.startswith("BUY_ARMOR:"):
+        item_id = action.split(":", 1)[1]
+        spec = find_ground_armor(item_id)
+        if ctx.stats.credits >= spec.price and spec.slot not in ctx.equipped_ground_armor:
+            ctx.equipped_ground_armor[spec.slot] = item_id
+            ctx.stats.credits -= spec.price
+            ctx.log.add(f"Bought and equipped {spec.name} for {spec.price}$.")
+    elif action.startswith("SELL_WEAPON:"):
+        index = int(action.split(":", 1)[1])
+        weapons = list(ctx.equipped_ground_weapons)
+        if 0 <= index < len(weapons) and weapons[index]:
+            item_id = weapons[index]
+            del weapons[index]
+            ctx.equipped_ground_weapons = weapons
+            ctx.stats.credits += _sell_price(item_id)
+    elif action.startswith("SELL_ARMOR:"):
+        slot = action.split(":", 1)[1]
+        item_id = ctx.equipped_ground_armor.pop(slot, None)
+        if item_id:
+            ctx.stats.credits += _sell_price(item_id)
+    raise ValueError(f"Unknown armory action: {action!r}")
+
+
 def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     """Show the armory terminal split-screen modal."""
+    if _pygame_split_enabled():
+        from .. import pygame_split
+        result = pygame_split.run_interactive(
+            ctx,
+            lambda: _pygame_armory_frame(ctx),
+            lambda action, focus, selected: _apply_pygame_armory_action(
+                ctx, action, focus, selected,
+            ),
+            caption="spacehack - armory",
+        )
+        if result is not None:
+            return
     from ..data.ground_weapons import find_ground_weapon as _fgw, list_ground_weapons as _lgw
     from ..data.ground_armor import find_ground_armor as _fga, list_ground_armor as _lga
 
