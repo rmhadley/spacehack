@@ -89,6 +89,7 @@ def frames(save_available: bool) -> tuple[pygame_menu.MenuFrame, ...]:
             items=items,
             hints=("ARROW KEYS / j,k navigate   ENTER select   ESC exit",),
             selected=selected,
+            initial_selected=1 if save_available else 0,
             art=art,
             art_color=pygame_ui.DEFAULT_PALETTE.title,
         )

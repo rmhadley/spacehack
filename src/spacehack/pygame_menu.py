@@ -44,6 +44,7 @@ class MenuFrame:
     art: tuple[str, ...] = ()
     art_color: tuple[int, int, int] | None = None
     art_colors: tuple[tuple[int, int, int], ...] = ()
+    initial_selected: int | None = None
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -76,7 +77,24 @@ def _frame_from_payload(raw: dict[str, Any]) -> MenuFrame:
             tuple(int(channel) for channel in color)
             for color in raw.get("art_colors", ())
         ),
+        initial_selected=(
+            int(raw["initial_selected"])
+            if raw.get("initial_selected") is not None
+            else None
+        ),
     )
+
+
+def _initial_selected(frames: tuple[MenuFrame, ...]) -> int:
+    """Return a valid initial cursor index for a menu frame set."""
+    if not frames:
+        return 0
+    count = len(frames[0].items)
+    if count == 0:
+        return 0
+    initial = frames[0].initial_selected
+    requested = initial if initial is not None else frames[0].selected
+    return max(0, min(count - 1, requested))
 
 
 def _content_width(width: int) -> int:
@@ -245,7 +263,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
         font = _fit_font(pygame, frames, width, height)
         screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption(str(payload.get("caption", "spacehack")))
-        selected = max(0, frames[0].selected)
+        selected = _initial_selected(frames)
         count = len(frames[0].items)
         clock = pygame.time.Clock()
         while True:
@@ -299,7 +317,7 @@ def run_shared(
         raise PygameMenuUnavailable("Shared Pygame menu has no frames")
     width, height = screen.get_size()
     font = _fit_font(pygame, frames, width, height)
-    selected = max(0, frames[0].selected)
+    selected = _initial_selected(frames)
     count = len(frames[0].items)
     while True:
         frame = frames[selected % len(frames)]

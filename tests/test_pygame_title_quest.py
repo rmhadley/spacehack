@@ -15,6 +15,17 @@ def test_title_frames_include_start_continue_only_when_save_exists():
     assert [item.action for item in with_save[0].items] == ["NEW_GAME", "CONTINUE", "TUTORIAL", "EXIT"]
     assert no_save[0].art
     assert no_save[0].items == no_save[1].items
+    assert no_save[0].initial_selected == 0
+    assert with_save[0].initial_selected == 1
+    assert pygame_menu._initial_selected(no_save) == 0
+    assert pygame_menu._initial_selected(with_save) == 1
+    oversized = (
+        pygame_menu.MenuFrame(
+            title="", body="", items=with_save[0].items,
+            hints=(), selected=0, initial_selected=999,
+        ),
+    )
+    assert pygame_menu._initial_selected(oversized) == len(with_save[0].items) - 1
 
 
 def test_title_splash_layout_and_stars_avoid_art_regions():
