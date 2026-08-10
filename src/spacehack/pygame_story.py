@@ -13,7 +13,16 @@ def enabled() -> bool:
     return pygame_menu.enabled()
 
 
-def dismiss(ctx, *, title: str, body: str, caption: str) -> str | None:
+def dismiss(
+    ctx,
+    *,
+    title: str,
+    body: str,
+    caption: str,
+    art: tuple[str, ...] = (),
+    art_color: tuple[int, int, int] | None = None,
+    art_colors: tuple[tuple[int, int, int], ...] = (),
+) -> str | None:
     """Run a dismiss-only story popup, or return ``None`` for tcod fallback."""
     frame = pygame_menu.MenuFrame(
         title=title,
@@ -21,6 +30,9 @@ def dismiss(ctx, *, title: str, body: str, caption: str) -> str | None:
         items=(),
         hints=("Press ENTER to continue - ESC close",),
         selected=0,
+        art=art,
+        art_color=art_color,
+        art_colors=art_colors,
     )
     try:
         outcome, _action, _selected = pygame_menu.run((frame,), caption=caption)

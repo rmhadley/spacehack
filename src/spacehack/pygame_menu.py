@@ -43,6 +43,9 @@ class MenuFrame:
     items: tuple[MenuItem, ...]
     hints: tuple[str, ...]
     selected: int
+    art: tuple[str, ...] = ()
+    art_color: tuple[int, int, int] | None = None
+    art_colors: tuple[tuple[int, int, int], ...] = ()
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -65,6 +68,16 @@ def _frame_from_payload(raw: dict[str, Any]) -> MenuFrame:
         items=tuple(MenuItem(**item) for item in raw["items"]),
         hints=tuple(str(hint) for hint in raw["hints"]),
         selected=int(raw["selected"]),
+        art=tuple(str(line) for line in raw.get("art", ())),
+        art_color=(
+            tuple(int(channel) for channel in raw["art_color"])
+            if raw.get("art_color") is not None
+            else None
+        ),
+        art_colors=tuple(
+            tuple(int(channel) for channel in color)
+            for color in raw.get("art_colors", ())
+        ),
     )
 
 
@@ -79,6 +92,8 @@ def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
     line_height = font.get_linesize()
     body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
     height = len(body_lines) * (line_height + 3) + 10
+    if frame.art:
+        height += len(frame.art) * line_height + 10
     for index, item in enumerate(frame.items):
         height += line_height + 14
         if index == frame.selected and item.description:
@@ -100,9 +115,45 @@ def _fit_font(pygame: Any, frames: tuple[MenuFrame, ...], width: int, height: in
         if all(
             _frame_height(font, frame, content_width) <= available_height
             for frame in frames
-        ) and font.size("M")[0] <= content_width:
+        ) and max(
+            (font.size(line)[0] for frame in frames for line in frame.art),
+            default=0,
+        ) <= content_width:
             return font
     return pygame.font.Font(path, 12)
+
+
+def _draw_art(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    panel: pygame_ui.Rect,
+    frame: MenuFrame,
+    y: int,
+    content_width: int,
+    measure: Any,
+) -> int:
+    """Paint optional centered ASCII art and return the next content y."""
+    if not frame.art:
+        return y
+    default_color = frame.art_color or pygame_ui.DEFAULT_PALETTE.description
+    for index, line in enumerate(frame.art):
+        line_color = (
+            frame.art_colors[index]
+            if index < len(frame.art_colors)
+            else default_color
+        )
+        pygame_ui.draw_centered_text(
+            pygame,
+            screen,
+            font,
+            pygame_ui.fit_text(line, content_width, measure),
+            panel,
+            y,
+            color=line_color,
+        )
+        y += font.get_linesize()
+    return y + 10
 
 
 def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
@@ -123,6 +174,9 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
     content_width = _content_width(width)
     y = panel.y + 76
     measure = lambda text: pygame_ui.measure_font(font, text)
+    y = _draw_art(
+        pygame, screen, font, panel, frame, y, content_width, measure,
+    )
     for line in pygame_ui.wrap_text(frame.body, content_width, measure):
         pygame_ui.draw_text(pygame, screen, font, line, x, y, color=palette.description)
         y += font.get_linesize() + 3

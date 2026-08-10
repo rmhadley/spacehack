@@ -16,6 +16,7 @@ from src.spacehack import (
 )
 from src.spacehack.menus import _missions, _planet, _ship_menu
 from src.spacehack import navigation, npc
+from src.spacehack.main_quest import _act0
 
 
 class _FakeFont:
@@ -428,18 +429,39 @@ def test_selectable_menu_wraps_long_mission_text_without_tiny_font():
     ) <= 828
 
 
-def test_selectable_menu_frame_payload_round_trips_actions():
+def test_selectable_menu_frame_payload_round_trips_actions_and_ascii_art():
     frame = pygame_menu.MenuFrame(
         title="Mars",
         body="Choose an action.",
         items=(pygame_menu.MenuItem("Land", "Dock", "LAND"),),
         hints=("ESC back",),
         selected=0,
+        art=("~=~=~", "=+=+=",),
+        art_color=(150, 95, 255),
+        art_colors=((150, 95, 255), (140, 80, 255)),
     )
 
     restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
 
     assert restored == frame
+
+
+def test_ascii_art_increases_selectable_frame_height():
+    class FakeFont:
+        def get_linesize(self):
+            return 24
+
+        def size(self, text):
+            return len(text) * 10, 24
+
+    plain = pygame_menu.MenuFrame("title", "body", (), (), 0)
+    decorated = pygame_menu.MenuFrame(
+        "title", "body", (), (), 0, art=("rune", "door",),
+    )
+
+    assert pygame_menu._frame_height(
+        FakeFont(), decorated, 600,
+    ) > pygame_menu._frame_height(FakeFont(), plain, 600)
 
 
 def test_story_menu_dismisses_with_enter_without_items():
@@ -459,6 +481,55 @@ def test_story_menu_dismisses_with_enter_without_items():
 
     assert pygame_menu._handle_key(fake, key(fake.K_RETURN), 0, 0) == ("DISMISS", 0)
     assert pygame_menu._handle_key(fake, key(fake.K_ESCAPE), 0, 0) == ("BACK", 0)
+
+
+def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
+    captured = {}
+
+    def fake_run(frames, **kwargs):
+        captured["frame"] = frames[0]
+        return "DISMISS", "", 0
+
+    monkeypatch.setattr(pygame_menu, "run", fake_run)
+    result = pygame_story.dismiss(
+        SimpleNamespace(),
+        title="Transmission",
+        body="Body",
+        caption="test",
+        art=("STATIC",),
+        art_color=(90, 150, 90),
+    )
+
+    assert result == "DISMISS"
+    assert captured["frame"].art == ("STATIC",)
+    assert captured["frame"].art_color == (90, 150, 90)
+
+
+def test_main_quest_story_art_preserves_transmission_and_door_flavor(monkeypatch):
+    captured = []
+
+    monkeypatch.setattr(_act0, "_pygame_story_enabled", lambda: True)
+    monkeypatch.setattr(
+        "src.spacehack.pygame_story.dismiss",
+        lambda _ctx, **kwargs: captured.append(kwargs) or "DISMISS",
+    )
+
+    _act0.show_prologue_transmission(SimpleNamespace())
+    _act0.show_sealed_door_overlay(SimpleNamespace(), "discover")
+
+    assert captured[0]["art"] == _act0._SIGNAL_ART
+    assert captured[0]["art_color"] == _act0._SIGNAL_TRACE_FG
+    assert captured[0]["art_colors"] == _act0._SIGNAL_ART_COLORS
+    assert captured[1]["art"] == tuple(
+        ("MAKE: ALIEN    MECHANISM: NONE VISIBLE    AGE: UNKNOWN", "", *_act0._DOOR_RUNES, *_act0._DOOR_ART_SEALED)
+    )
+    assert captured[1]["art_color"] == _act0._DOOR_ART_FG
+    assert captured[1]["art_colors"] == (
+        _act0.ui.COLOR_VALUE_DIM,
+        _act0.ui.COLOR_VALUE_DIM,
+        *(_act0._DOOR_RUNE_FG for _ in _act0._DOOR_RUNES),
+        *(_act0._DOOR_ART_FG for _ in _act0._DOOR_ART_SEALED),
+    )
 
 
 def test_story_frames_preserve_opaque_archive_choices(monkeypatch):

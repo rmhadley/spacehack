@@ -693,6 +693,16 @@ _SIGNAL_STATIC: tuple[str, ...] = (
     "..-.-.--.....-.-..--.-..--...--.-..---.-.",
 )
 _SIGNAL_TRACE_FG: tuple[int, int, int] = (90, 150, 90)
+_SIGNAL_ART: tuple[str, ...] = (
+    "FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE",
+    "",
+    *_SIGNAL_STATIC,
+)
+_SIGNAL_ART_COLORS: tuple[tuple[int, int, int], ...] = (
+    ui.COLOR_VALUE_DIM,
+    ui.COLOR_VALUE_DIM,
+    *(_SIGNAL_TRACE_FG for _ in _SIGNAL_STATIC),
+)
 
 
 def render_incoming_transmission(console, *, screen_width, screen_height) -> None:
@@ -717,6 +727,9 @@ def show_prologue_transmission(ctx) -> None:
         title="INCOMING TRANSMISSION",
         body="A burst of coordinates cuts through the static - then silence.\n\nThey resolve to somewhere on Mars.",
         caption="spacehack - incoming transmission",
+        art=_SIGNAL_ART,
+        art_color=_SIGNAL_TRACE_FG,
+        art_colors=_SIGNAL_ART_COLORS,
     ):
         return
     console = make_console()
@@ -930,6 +943,14 @@ def show_sealed_door_overlay(ctx, beat: str) -> None:
         title=str(_content["title"]),
         body="\n".join((*_content["body"], str(_content["highlight"]))),
         caption=f"spacehack - {str(_content['title']).lower()}",
+        art=tuple((str(_content["meta"]), "", *_DOOR_RUNES, *_content["art"])),
+        art_color=_DOOR_ART_FG,
+        art_colors=tuple((
+            ui.COLOR_VALUE_DIM,
+            ui.COLOR_VALUE_DIM,
+            *(_DOOR_RUNE_FG for _ in _DOOR_RUNES),
+            *(_DOOR_ART_FG for _ in _content["art"]),
+        )),
     ):
         return
     console = make_console()
@@ -966,13 +987,30 @@ def render_help_offer(console, *, screen_width, screen_height, npc_name, offer_t
                     text="ARROW KEYS / j,k navigate - ENTER select - ESC go back", fg=ui.COLOR_INSTRUCTION)
 
 
-def _show_pygame_dismiss(ctx, *, title: str, body: str, caption: str) -> bool:
+def _show_pygame_dismiss(
+    ctx,
+    *,
+    title: str,
+    body: str,
+    caption: str,
+    art: tuple[str, ...] = (),
+    art_color: tuple[int, int, int] | None = None,
+    art_colors: tuple[tuple[int, int, int], ...] = (),
+) -> bool:
     """Show a story popup through Pygame when enabled."""
     if not _pygame_story_enabled():
         return False
     from ..pygame_story import dismiss
 
-    outcome = dismiss(ctx, title=title, body=body, caption=caption)
+    outcome = dismiss(
+        ctx,
+        title=title,
+        body=body,
+        caption=caption,
+        art=art,
+        art_color=art_color,
+        art_colors=art_colors,
+    )
     if outcome == "QUIT":
         raise SystemExit()
     return outcome is not None

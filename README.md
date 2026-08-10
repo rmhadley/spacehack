@@ -239,8 +239,9 @@ SPACEHACK_PYGAME_INTERACTIVE=1 python -m spacehack
 
 This covers incoming transmissions, quest messages, gate explanations, sealed
 entrance readouts, ordinary quest readouts, help offers, and the first archive
-disclosure in orbit. Dismiss-only screens use `ENTER` or `ESC`; archive choices
-return opaque actions to the existing quest code. The main process remains the
+disclosure in orbit. Incoming transmissions and sealed entrances retain their
+signal/static, rune, and door ASCII art. Dismiss-only screens use `ENTER` or
+`ESC`; archive choices return opaque actions to the existing quest code. The main process remains the
 only owner of quest progress, gates, logs, dialogue progression, and archive
 state. Quest-option NPC dialogue continues to use the original tcod path until
 that stateful flow is migrated safely. Press `?` for the normal guide; if the
