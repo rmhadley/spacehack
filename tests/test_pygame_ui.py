@@ -1506,3 +1506,98 @@ def test_pygame_backend_is_opt_in_and_falls_back_when_unavailable(monkeypatch):
         pass
     else:
         raise AssertionError("missing Pygame must remain an explicit fallback condition")
+
+
+def test_shared_menu_runner_uses_existing_engine_and_returns_action(monkeypatch):
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_RETURN = 11
+        K_KP_ENTER = 12
+        K_UP = 13
+        K_DOWN = 14
+        K_k = 15
+        K_j = 16
+        K_QUESTION = 17
+        event = SimpleNamespace(
+            wait=lambda: SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_RETURN),
+        )
+
+    class Surface:
+        def get_size(self):
+            return (1600, 960)
+
+        def fill(self, _color):
+            pass
+
+    engine = SimpleNamespace(
+        pygame=FakePygame,
+        logical_surface=Surface(),
+        present=lambda: None,
+    )
+    context = SimpleNamespace(_runtime=SimpleNamespace(engine=engine))
+    frame = pygame_menu.MenuFrame(
+        "Merchant", "Choose", (pygame_menu.MenuItem("Work", "Details", "WORK"),), (), 0,
+    )
+    monkeypatch.setattr(pygame_menu, "_fit_font", lambda *args: object())
+    monkeypatch.setattr(pygame_menu, "_draw_frame", lambda *args: None)
+
+    assert pygame_menu.run_shared(context, (frame,), caption="test") == (
+        "SELECT", "WORK", 0,
+    )
+
+
+def test_mission_menu_routes_to_shared_window_without_worker(monkeypatch):
+    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    captured = {}
+
+    def fake_shared(context, frames, **kwargs):
+        captured["context"] = context
+        captured["frames"] = frames
+        return "BACK", "", 0
+
+    monkeypatch.setattr(pygame_menu, "run_shared", fake_shared)
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("shared menus must not start a worker")
+        ),
+    )
+    ctx = SimpleNamespace(context=object())
+    npc_obj = SimpleNamespace(name="Guild Master")
+
+    result = _missions._run_pygame_interactive_missions(ctx, npc_obj, ())
+
+    assert result == (_missions.MissionOutcome.BACK, None)
+    assert captured["context"] is ctx.context
+    assert captured["frames"][0].title == "Guild Master - available work"
+
+
+def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
+    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    captured = {}
+
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_shared",
+        lambda context, frames, **kwargs: captured.update(
+            context=context, frames=frames,
+        ) or ("SELECT", "WORK", 0),
+    )
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("shared NPC talk must not start a worker")
+        ),
+    )
+    ctx = SimpleNamespace(context=object())
+    npc_obj = SimpleNamespace(name="Guild Master", guild="merchants", flavor_text="Welcome")
+
+    result = npc._run_pygame_npc_talk(ctx, npc_obj, "Welcome", [])
+
+    assert result == (npc.TalkOutcome.WORK, None)
+    assert captured["context"] is ctx.context
+    assert captured["frames"][0].items[0].action == "WORK"

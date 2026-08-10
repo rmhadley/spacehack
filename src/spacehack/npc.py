@@ -184,10 +184,19 @@ def _npc_talk_navigate(event: tcod.event.Event, selected: int, n: int) -> int | 
 
 
 def _pygame_interactive_enabled() -> bool:
-    """Return whether the generic interactive-menu batch is enabled."""
-    from . import pygame_menu
+    """Return whether generic menus can render in the current runtime."""
+    from . import pygame_menu, pygame_runtime
 
-    return pygame_menu.enabled()
+    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+
+
+def _run_pygame_menu(ctx, frames, *, caption: str):
+    """Use the shared window when available, otherwise the worker menu."""
+    from . import pygame_menu, pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return pygame_menu.run_shared(ctx.context, frames, caption=caption)
+    return pygame_menu.run(frames, caption=caption)
 
 
 def _npc_pygame_items(npc, missions):
@@ -257,8 +266,10 @@ def _run_pygame_npc_talk(ctx, npc, quest_body, missions):
     items = _npc_pygame_items(npc, missions)
     frames = _npc_pygame_frames(npc, quest_body, items)
     try:
-        outcome, action, _selected = pygame_menu.run(
-            frames, caption=f"spacehack - {npc.name}",
+        outcome, action, _selected = _run_pygame_menu(
+            ctx,
+            frames,
+            caption=f"spacehack - {npc.name}",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None

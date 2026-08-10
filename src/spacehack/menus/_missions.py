@@ -185,10 +185,24 @@ def _pygame_merchant_enabled() -> bool:
 
 
 def _pygame_interactive_enabled() -> bool:
-    """Return whether the generic interactive-menu batch is enabled."""
-    from .. import pygame_menu
+    """Return whether generic menus can render in the current runtime."""
+    from .. import pygame_menu, pygame_runtime
 
-    return pygame_menu.enabled()
+    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+
+
+def _run_pygame_menu(
+    ctx,
+    frames: tuple,
+    *,
+    caption: str,
+) -> tuple[str, str, int]:
+    """Use the shared window when available, otherwise the worker menu."""
+    from .. import pygame_menu, pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return pygame_menu.run_shared(ctx.context, frames, caption=caption)
+    return pygame_menu.run(frames, caption=caption)
 
 
 def _run_pygame_interactive_missions(
@@ -217,8 +231,10 @@ def _run_pygame_interactive_missions(
         for index in range(max(1, len(offerings)))
     )
     try:
-        outcome, action, selected = pygame_menu.run(
-            frames, caption="spacehack - available work",
+        outcome, action, selected = _run_pygame_menu(
+            ctx,
+            frames,
+            caption="spacehack - available work",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None

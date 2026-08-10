@@ -266,6 +266,49 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.quit()
 
 
+def run_shared(
+    context: Any,
+    frames: tuple[MenuFrame, ...],
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Run a menu inside the already-open shared Pygame window.
+
+    ``context`` is the :class:`pygame_runtime.PygameContext` owned by the
+    main game runtime. This path deliberately reuses its logical surface and
+    event pump instead of starting the short-lived worker used by the legacy
+    migration path.
+    """
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameMenuUnavailable("Shared Pygame runtime is not open")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    frames = tuple(frames)
+    if not frames:
+        raise PygameMenuUnavailable("Shared Pygame menu has no frames")
+    width, height = screen.get_size()
+    font = _fit_font(pygame, frames, width, height)
+    selected = max(0, frames[0].selected)
+    count = len(frames[0].items)
+    while True:
+        frame = frames[selected % len(frames)]
+        screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+        _draw_frame(pygame, screen, font, frame)
+        engine.present()
+        event = pygame.event.wait()
+        outcome, selected = _handle_key(pygame, event, selected, count)
+        if outcome == "IGNORE":
+            continue
+        action = (
+            frame.items[selected].action
+            if outcome == "SELECT" and frame.items
+            else ""
+        )
+        return outcome, action, selected
+
+
 def run(
     frames: tuple[MenuFrame, ...],
     *,
