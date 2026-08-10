@@ -1,0 +1,74 @@
+"""Opt-in Pygame presentation adapters for story popups.
+
+Story modules provide immutable text and opaque action IDs. This module owns
+only the optional presentation worker; quest state remains in the caller.
+"""
+from __future__ import annotations
+
+from . import pygame_menu
+
+
+def enabled() -> bool:
+    """Return whether the interactive Pygame migration is enabled."""
+    return pygame_menu.enabled()
+
+
+def dismiss(ctx, *, title: str, body: str, caption: str) -> str | None:
+    """Run a dismiss-only story popup, or return ``None`` for tcod fallback."""
+    frame = pygame_menu.MenuFrame(
+        title=title,
+        body=body,
+        items=(),
+        hints=("Press ENTER to continue - ESC close",),
+        selected=0,
+    )
+    try:
+        outcome, _action, _selected = pygame_menu.run((frame,), caption=caption)
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return "__GUIDE__"
+    return outcome
+
+
+def choose(
+    ctx,
+    *,
+    title: str,
+    body: str,
+    options: tuple[tuple[str, str], ...],
+    caption: str,
+) -> str | None:
+    """Run a small story choice and return its opaque action ID."""
+    items = tuple(
+        pygame_menu.MenuItem(label, "", action)
+        for label, action in options
+    )
+    frames = tuple(
+        pygame_menu.MenuFrame(
+            title=title,
+            body=body,
+            items=items,
+            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC back",),
+            selected=index,
+        )
+        for index in range(max(1, len(items)))
+    )
+    try:
+        outcome, action, _selected = pygame_menu.run(frames, caption=caption)
+    except pygame_menu.PygameMenuUnavailable:
+        return None
+    if outcome == "SELECT":
+        valid_actions = {option_action for _label, option_action in options}
+        return action if action in valid_actions else None
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return "__GUIDE__"
+    if outcome == "BACK":
+        return "__BACK__"
+    if outcome == "QUIT":
+        return "__QUIT__"
+    return "__DISMISS__"

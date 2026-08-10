@@ -169,6 +169,30 @@ def _orbit_scene_is_ready(ctx, *, from_mars_prison: bool = False) -> bool:
     )
 
 
+def _pygame_orbit_choice(ctx) -> str | None:
+    """Run the archive disclosure through the optional Pygame worker."""
+    from ..pygame_story import choose, enabled
+
+    if not enabled():
+        return None
+    options = tuple(
+        (spec.label, disclosure.value)
+        for disclosure, spec in _DISCLOSURE_OPTIONS
+    )
+    body = (
+        "The recovered archive has begun interacting with your communications array.\n\n"
+        f"{_faction_reading(ctx)}\n\n"
+        "One layer may be a route beyond the Luyten blockade. The others remain unread."
+    )
+    return choose(
+        ctx,
+        title="THE FIRST READING",
+        body=body,
+        options=options,
+        caption="spacehack - the first reading",
+    )
+
+
 def maybe_show_post_prison_orbit(
     ctx,
     *,
@@ -177,6 +201,17 @@ def maybe_show_post_prison_orbit(
     """Show the first-reading disclosure scene after a confirmed departure."""
     if not _orbit_scene_is_ready(ctx, from_mars_prison=from_mars_prison):
         return False
+    _pygame_choice = _pygame_orbit_choice(ctx)
+    while _pygame_choice == "__GUIDE__":
+        _pygame_choice = _pygame_orbit_choice(ctx)
+    if _pygame_choice is not None:
+        if _pygame_choice == "__QUIT__":
+            return False
+        if _pygame_choice == "__BACK__":
+            _apply_disclosure(ctx, OrbitDisclosure.ARCHIVE_SEALED)
+        elif _pygame_choice != "__DISMISS__":
+            _apply_disclosure(ctx, OrbitDisclosure(_pygame_choice))
+        return True
     _console = make_console()
     _selected = 0
 

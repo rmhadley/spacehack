@@ -161,8 +161,8 @@ def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str
         return "IGNORE", (selected - 1) % count
     if event.key in (pygame.K_DOWN, pygame.K_j) and count:
         return "IGNORE", (selected + 1) % count
-    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and count:
-        return "SELECT", selected
+    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+        return ("SELECT", selected) if count else ("DISMISS", selected)
     return "IGNORE", selected
 
 
@@ -192,19 +192,22 @@ def _run_worker(payload: dict[str, Any]) -> int:
             _draw_frame(pygame, screen, font, frame)
             pygame.display.flip()
             for event in pygame.event.get():
-                outcome, selected = _handle_key(pygame, event, selected, count)
-                if outcome != "IGNORE":
-                    action = (
-                        frame.items[selected].action
-                        if outcome == "SELECT" and frame.items
-                        else ""
-                    )
-                    print(json.dumps({
-                        "outcome": outcome,
-                        "action": action,
-                        "selected": selected,
-                    }))
-                    return 0
+                outcome, selected = _handle_key(
+                    pygame, event, selected, count,
+                )
+                if outcome == "IGNORE":
+                    continue
+                action = (
+                    frame.items[selected].action
+                    if outcome == "SELECT" and frame.items
+                    else ""
+                )
+                print(json.dumps({
+                    "outcome": outcome,
+                    "action": action,
+                    "selected": selected,
+                }))
+                return 0
             clock.tick(60)
     finally:
         pygame.display.quit()
@@ -237,7 +240,7 @@ def run(
         selected = int(response.get("selected", 0))
     except (KeyError, TypeError, ValueError) as exc:
         raise PygameMenuUnavailable("Pygame menu returned no usable choice") from exc
-    if outcome not in {"BACK", "QUIT", "GUIDE", "SELECT"}:
+    if outcome not in {"BACK", "QUIT", "GUIDE", "SELECT", "DISMISS"}:
         raise PygameMenuUnavailable("Pygame menu returned an unknown choice")
     return outcome, action, selected
 

@@ -485,6 +485,23 @@ def test_orbit_scene_can_resolve_from_prison_without_city_context(monkeypatch):
     assert ctx.main_quest_disclosure == "diagnostic_fragment"
 
 
+def test_pygame_orbit_guide_reopens_choice_before_disclosure(monkeypatch):
+    ctx = _ctx()
+    _choices = iter(("__GUIDE__", "archive_sealed"))
+    _calls = []
+
+    monkeypatch.setattr(
+        _act1,
+        "_pygame_orbit_choice",
+        lambda _ctx: _calls.append(True) or next(_choices),
+    )
+
+    assert _act1.maybe_show_post_prison_orbit(ctx)
+    assert _calls == [True, True]
+    assert ctx.post_prison_orbit_seen
+    assert ctx.main_quest_disclosure == "archive_sealed"
+
+
 def test_interrupted_orbit_scene_preserves_choice_until_confirmation(monkeypatch):
     import tcod.event
 

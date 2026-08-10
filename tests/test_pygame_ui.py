@@ -10,6 +10,7 @@ from src.spacehack import (
     pygame_merchant,
     pygame_quest_log,
     pygame_ship_buy,
+    pygame_story,
     pygame_ui,
     pygame_world,
 )
@@ -439,6 +440,107 @@ def test_selectable_menu_frame_payload_round_trips_actions():
     restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
 
     assert restored == frame
+
+
+def test_story_menu_dismisses_with_enter_without_items():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_RETURN = 11
+        K_KP_ENTER = 12
+        K_UP = 13
+        K_DOWN = 14
+        K_k = 15
+        K_j = 16
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_menu._handle_key(fake, key(fake.K_RETURN), 0, 0) == ("DISMISS", 0)
+    assert pygame_menu._handle_key(fake, key(fake.K_ESCAPE), 0, 0) == ("BACK", 0)
+
+
+def test_story_frames_preserve_opaque_archive_choices(monkeypatch):
+    captured = {}
+
+    def fake_run(frames, **kwargs):
+        captured["frames"] = frames
+        return "SELECT", "archive_sealed", 1
+
+    monkeypatch.setattr(pygame_menu, "run", fake_run)
+    result = pygame_story.choose(
+        SimpleNamespace(),
+        title="THE FIRST READING",
+        body="Archive body",
+        options=(("Share fragment", "diagnostic_fragment"), ("Keep sealed", "archive_sealed")),
+        caption="test",
+    )
+
+    assert result == "archive_sealed"
+    assert captured["frames"][1].items[1].action == "archive_sealed"
+
+
+def test_story_choice_rejects_unknown_worker_action(monkeypatch):
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: ("SELECT", "mutate_quest", 0),
+    )
+
+    assert pygame_story.choose(
+        SimpleNamespace(),
+        title="THE FIRST READING",
+        body="Archive body",
+        options=(("Keep sealed", "archive_sealed"),),
+        caption="test",
+    ) is None
+
+
+def test_story_dismiss_falls_back_when_worker_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            pygame_menu.PygameMenuUnavailable("missing")
+        ),
+    )
+
+    assert pygame_story.dismiss(
+        SimpleNamespace(), title="Message", body="Body", caption="test",
+    ) is None
+
+
+def test_story_dismiss_preserves_worker_quit_outcome(monkeypatch):
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: ("QUIT", "", 0),
+    )
+
+    assert pygame_story.dismiss(
+        SimpleNamespace(), title="Message", body="Body", caption="test",
+    ) == "QUIT"
+
+
+def test_story_dismiss_propagates_quit_to_act0(monkeypatch):
+    from src.spacehack.main_quest import _act0
+
+    monkeypatch.setenv("SPACEHACK_PYGAME_INTERACTIVE", "1")
+    monkeypatch.setattr(
+        pygame_story,
+        "dismiss",
+        lambda *args, **kwargs: "QUIT",
+    )
+
+    try:
+        _act0._show_pygame_dismiss(
+            SimpleNamespace(), title="Message", body="Body", caption="test",
+        )
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("story worker QUIT must propagate to Act 0")
 
 
 def test_selectable_menu_key_mapping_preserves_navigation_and_actions():

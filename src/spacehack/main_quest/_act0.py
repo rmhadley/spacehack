@@ -712,6 +712,13 @@ def render_incoming_transmission(console, *, screen_width, screen_height) -> Non
 
 
 def show_prologue_transmission(ctx) -> None:
+    if _show_pygame_dismiss(
+        ctx,
+        title="INCOMING TRANSMISSION",
+        body="A burst of coordinates cuts through the static - then silence.\n\nThey resolve to somewhere on Mars.",
+        caption="spacehack - incoming transmission",
+    ):
+        return
     console = make_console()
     def _render(): render_incoming_transmission(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
     def _update(event): return _modal_dismiss_update(event)
@@ -744,6 +751,14 @@ def render_quest_summon(console, *, screen_width, screen_height, message, object
 
 
 def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
+    _body = message if not objective else f"{message}\n\n{objective}"
+    if _show_pygame_dismiss(
+        ctx,
+        title="INCOMING MESSAGE",
+        body=_body,
+        caption="spacehack - incoming message",
+    ):
+        return
     console = make_console()
     def _render(): render_quest_summon(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, message=message, objective=objective)
     def _update(event): return _modal_dismiss_update(event)
@@ -774,6 +789,13 @@ def render_gate_popup(console, *, screen_width, screen_height, faction, body_tex
 
 def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "THE WORK BEGINS") -> None:
     """Show a dismiss-only modal popup (time-gate explanation, ambush, etc.)."""
+    if _show_pygame_dismiss(
+        ctx,
+        title=title,
+        body=f"FACTION: {faction.upper()}\n\n{body_text}",
+        caption=f"spacehack - {title.lower()}",
+    ):
+        return
     console = make_console()
     def _render(): render_gate_popup(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, faction=faction, body_text=body_text, title=title)
     def _update(event): return _modal_dismiss_update(event)
@@ -902,6 +924,14 @@ def render_sealed_door_overlay(console, *, screen_width, screen_height, beat) ->
 
 
 def show_sealed_door_overlay(ctx, beat: str) -> None:
+    _content = _DOOR_OVERLAYS[beat]
+    if _show_pygame_dismiss(
+        ctx,
+        title=str(_content["title"]),
+        body="\n".join((*_content["body"], str(_content["highlight"]))),
+        caption=f"spacehack - {str(_content['title']).lower()}",
+    ):
+        return
     console = make_console()
     def _render(): render_sealed_door_overlay(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, beat=beat)
     def _update(event): return _modal_dismiss_update(event)
@@ -936,6 +966,43 @@ def render_help_offer(console, *, screen_width, screen_height, npc_name, offer_t
                     text="ARROW KEYS / j,k navigate - ENTER select - ESC go back", fg=ui.COLOR_INSTRUCTION)
 
 
+def _show_pygame_dismiss(ctx, *, title: str, body: str, caption: str) -> bool:
+    """Show a story popup through Pygame when enabled."""
+    if not _pygame_story_enabled():
+        return False
+    from ..pygame_story import dismiss
+
+    outcome = dismiss(ctx, title=title, body=body, caption=caption)
+    if outcome == "QUIT":
+        raise SystemExit()
+    return outcome is not None
+
+
+def _pygame_story_enabled() -> bool:
+    """Return whether the shared interactive Pygame worker is enabled."""
+    from ..pygame_story import enabled
+
+    return enabled()
+
+
+def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
+    """Map the optional Pygame help offer back to quest outcomes."""
+    from ..pygame_story import choose
+
+    _action = choose(
+        ctx,
+        title="AN OFFER OF HELP",
+        body=f"OFFERED BY: {npc_name.upper()}\n\n{offer_text}",
+        options=(("Accept", "ACCEPT"), ("I need more time", "DECLINE")),
+        caption="spacehack - an offer of help",
+    )
+    if _action == "ACCEPT":
+        return OfferOutcome.ACCEPT
+    if _action == "__QUIT__":
+        return OfferOutcome.QUIT
+    return OfferOutcome.DECLINE
+
+
 def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
     _step = find_main_quest_step(step_id)
     _dialogue = _step.dialogues.get(npc_id)
@@ -947,6 +1014,8 @@ def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
         return OfferOutcome.DECLINE
     from ..data.npcs import find_npc as _find_npc
     _npc_name = _find_npc(npc_id).name
+    if _pygame_story_enabled():
+        return _run_pygame_help_offer(ctx, _npc_name, _offer_text)
     _selected = 0
     console = make_console()
 
@@ -995,6 +1064,13 @@ def render_quest_readout(console, *, screen_width, screen_height, npc_name, body
 
 
 def show_quest_readout(ctx, npc, body_text: str) -> None:
+    if _show_pygame_dismiss(
+        ctx,
+        title=npc.name.upper(),
+        body=body_text,
+        caption=f"spacehack - {npc.name}",
+    ):
+        return
     console = make_console()
     def _render(): render_quest_readout(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, npc_name=npc.name, body_text=body_text)
     def _update(event): return _modal_dismiss_update(event)

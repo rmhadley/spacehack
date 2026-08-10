@@ -229,6 +229,24 @@ the original tcod path until that stateful dialogue flow is migrated safely.
 `ESC` backs out, `?` opens the normal guide, and unavailable or malformed
 workers fall back to tcod. Clear the variable to disable this batch.
 
+### Live main-quest story Pygame batch
+
+The main-quest story popups can also use the readable Pygame presentation:
+
+```bash
+SPACEHACK_PYGAME_INTERACTIVE=1 python -m spacehack
+```
+
+This covers incoming transmissions, quest messages, gate explanations, sealed
+entrance readouts, ordinary quest readouts, help offers, and the first archive
+disclosure in orbit. Dismiss-only screens use `ENTER` or `ESC`; archive choices
+return opaque actions to the existing quest code. The main process remains the
+only owner of quest progress, gates, logs, dialogue progression, and archive
+state. Quest-option NPC dialogue continues to use the original tcod path until
+that stateful flow is migrated safely. Press `?` for the normal guide; if the
+worker is unavailable or malformed, the original tcod popup is used instead.
+Clear `SPACEHACK_PYGAME_INTERACTIVE` to disable the batch.
+
 ### Live exploration-frame Pygame preview
 
 The migration preview shows the active city, space, or dungeon grid plus the
