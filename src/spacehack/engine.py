@@ -57,8 +57,8 @@ def seed_rng(seed: int) -> None:
     INIT_SEED = seed
 
 
-# Screen dimensions in character cells. With the 18x18 font raster this
-# gives a 1800 x 1080 logical-pixel window while preserving the existing
+# Screen dimensions in character cells. With the 14x18 font raster this
+# gives a 1400 x 1080 logical-pixel window while preserving the existing
 # character-cell layout.
 SCREEN_WIDTH: int = 100
 SCREEN_HEIGHT: int = 60
@@ -75,10 +75,10 @@ MSG_LOG_HEIGHT: int = 6
 
 WINDOW_TITLE: str = "spacehack"
 
-# Glyph size in pixels. A slightly larger raster than the old 16x16
-# default gives letter counters and punctuation more breathing room on
-# laptop displays while preserving the existing character-cell layout.
-TILE_WIDTH: int = 18
+# Glyph size in pixels. The 14x18 cell keeps the readable vertical raster
+# while matching DejaVu Sans Mono's narrower visual advance, reducing the
+# excessive horizontal air visible with the previous 18x18 square cell.
+TILE_WIDTH: int = 14
 TILE_HEIGHT: int = 18
 
 # Keep the dimensions easy to tune as a pair; the bundled font is loaded
@@ -281,13 +281,14 @@ def _render_bitmap_tile(
     if not rows:
         return tile
     bitmap_width = max(map(len, rows), default=0)
+    crop_left = max(0, (bitmap_width - tw) // 2)
     offset_x = max(0, (tw - bitmap_width) // 2)
     offset_y = max(0, (th - len(rows)) // 2)
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
-            target_x = x + offset_x
+            target_x = x - crop_left + offset_x
             target_y = y + offset_y
-            if ch == "#" and target_x < tw and target_y < th:
+            if ch == "#" and 0 <= target_x < tw and target_y < th:
                 tile[target_y, target_x] = (255, 255, 255, 255)
     return tile
 
