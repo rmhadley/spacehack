@@ -336,6 +336,76 @@ def _run_faction_view(ctx) -> None:
     ui.Modal(ctx.context, console).run(_render, _update)
 
 
+def _pygame_ship_menu_enabled() -> bool:
+    """Return whether the interactive Pygame menu batch is enabled."""
+    from .. import pygame_menu
+
+    return pygame_menu.enabled()
+
+
+def _ship_menu_frames(ctx, ship: ship_module.Ship):
+    """Build presentation-only frames for the Pygame ship hub."""
+    from .. import pygame_menu
+
+    owned = ctx.player_owned_ship
+    if owned is None:
+        _body = ship.description
+    else:
+        _speed = ship_module.effective_speed(ship, owned)
+        _body = "\n".join((
+            ship.description,
+            f"Fuel: {owned.fuel} / {ship.max_fuel}",
+            f"Hull: {owned.hull_damage_pct}% damage",
+            f"Speed: {_speed}",
+            f"Credits: {ctx.stats.credits}$",
+        ))
+    _items = tuple(
+        pygame_menu.MenuItem(label, "", action)
+        for label, action in zip(
+            SHIP_MENU_OPTIONS,
+            ("VIEW", "LOADOUT", "LAUNCH"),
+        )
+    )
+    return tuple(
+        pygame_menu.MenuFrame(
+            title=f"Your {ship_module.ship_display_name(owned).upper()}",
+            body=_body,
+            items=_items,
+            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC back",),
+            selected=index,
+        )
+        for index in range(len(_items))
+    )
+
+
+def _run_pygame_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
+    """Run one Pygame ship-hub interaction, or return ``None`` for fallback."""
+    from .. import pygame_menu
+
+    while True:
+        try:
+            outcome, action, _selected = pygame_menu.run(
+                _ship_menu_frames(ctx, ship),
+                caption="spacehack - ship hangar",
+            )
+        except pygame_menu.PygameMenuUnavailable:
+            return None
+        if outcome == "GUIDE":
+            from ..help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome == "SELECT":
+            _actions = {
+                "VIEW": ShipMenuAction.VIEW,
+                "LOADOUT": ShipMenuAction.LOADOUT,
+                "LAUNCH": ShipMenuAction.LAUNCH,
+            }
+            return _actions.get(action, ShipMenuAction.BACK)
+        if outcome == "QUIT":
+            return ShipMenuAction.QUIT
+        return ShipMenuAction.BACK
+
+
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the hub-menu modal for ``ship``; return the chosen action.
 
@@ -344,6 +414,20 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     UP / DOWN arrows AND vim ``j`` / ``k`` via
     :func:`_ship_menu_navigate`.
     """
+    if _pygame_ship_menu_enabled():
+        while True:
+            _pygame_action = _run_pygame_ship_menu(ctx, ship)
+            if _pygame_action is None:
+                break
+            if _pygame_action is ShipMenuAction.VIEW:
+                from ..trade import open_cargo as _open_cargo
+                _open_cargo(ctx)
+                continue
+            if _pygame_action is ShipMenuAction.LOADOUT:
+                _run_loadout_view(ctx)
+                continue
+            return _pygame_action
+
     console = make_console()
     selected = 0
     n = len(SHIP_MENU_OPTIONS)

@@ -229,6 +229,10 @@ the original tcod path until that stateful dialogue flow is migrated safely.
 `ESC` backs out, `?` opens the normal guide, and unavailable or malformed
 workers fall back to tcod. Clear the variable to disable this batch.
 
+The city ship-hangar hub is also migrated under this switch: `View Cargo`,
+`View Loadout`, and `Launch` return opaque actions to the parent game process;
+cargo, equipment, and launch behavior remain unchanged.
+
 ### Live main-quest story Pygame batch
 
 The main-quest story popups can also use the readable Pygame presentation:

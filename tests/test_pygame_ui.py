@@ -371,6 +371,87 @@ def test_read_only_batch_switch_is_disabled_by_default(monkeypatch):
     assert not _ship_menu._pygame_readonly_enabled()
 
 
+def test_ship_menu_frames_keep_actions_opaque_and_stats_in_parent_snapshot(monkeypatch):
+    monkeypatch.setattr(
+        _ship_menu.ship_module,
+        "ship_display_name",
+        lambda owned: "Scout A",
+    )
+    monkeypatch.setattr(
+        _ship_menu.ship_module,
+        "effective_speed",
+        lambda ship, owned: 9,
+    )
+    ship = SimpleNamespace(description="Fast courier", max_fuel=20)
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(
+            fuel=12,
+            hull_damage_pct=5,
+        ),
+        stats=SimpleNamespace(credits=321),
+    )
+    frames = _ship_menu._ship_menu_frames(ctx, ship)
+
+    assert [item.action for item in frames[0].items] == ["VIEW", "LOADOUT", "LAUNCH"]
+    assert "Fuel: 12 / 20" in frames[0].body
+    assert "Credits: 321$" in frames[0].body
+
+
+def test_ship_menu_pygame_maps_terminal_actions(monkeypatch):
+    ship = SimpleNamespace(description="Fast courier", max_fuel=20)
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(fuel=12, hull_damage_pct=5),
+        stats=SimpleNamespace(credits=321),
+    )
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda frames, **kwargs: ("SELECT", "LAUNCH", 2),
+    )
+    monkeypatch.setattr(
+        _ship_menu.ship_module,
+        "ship_display_name",
+        lambda owned: "Scout A",
+    )
+    monkeypatch.setattr(
+        _ship_menu.ship_module,
+        "effective_speed",
+        lambda ship, owned: 9,
+    )
+
+    assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.LAUNCH
+
+
+def test_ship_menu_pygame_guide_reopens_and_unavailable_falls_back(monkeypatch):
+    ship = SimpleNamespace(description="Fast courier", max_fuel=20)
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(fuel=12, hull_damage_pct=5),
+        stats=SimpleNamespace(credits=321),
+    )
+    outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
+    monkeypatch.setattr(pygame_menu, "run", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(
+        _ship_menu.ship_module,
+        "ship_display_name",
+        lambda owned: "Scout A",
+    )
+    monkeypatch.setattr(
+        _ship_menu.ship_module,
+        "effective_speed",
+        lambda ship, owned: 9,
+    )
+    monkeypatch.setattr("src.spacehack.menus._ship_menu._try_open_guide", lambda *args: None)
+    monkeypatch.setattr("src.spacehack.help._run_help_guide", lambda _ctx: None)
+
+    assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.BACK
+
+
+def test_ship_menu_pygame_is_opt_in(monkeypatch):
+    monkeypatch.delenv("SPACEHACK_PYGAME_INTERACTIVE", raising=False)
+
+    assert not _ship_menu._pygame_ship_menu_enabled()
+
+
 def test_faction_progress_bar_is_cp437_safe_and_centered():
     assert _ship_menu._faction_progress_bar(0) == "---------------|---------------"
     assert _ship_menu._faction_progress_bar(-100) == "###############|---------------"
