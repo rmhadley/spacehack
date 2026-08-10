@@ -155,7 +155,7 @@ def _frame_from_payload(data: dict[str, Any]) -> tuple[pygame_world.WorldFrame, 
 
 
 def present(ctx: Any, console: Any) -> None:
-    """Present a combat frame, disabling a failed worker before tcod fallback."""
+    """Present a combat frame through the active native or worker renderer."""
     presenter = getattr(ctx, "_pygame_combat_presenter", None)
     if presenter is not None:
         try:
@@ -164,6 +164,22 @@ def present(ctx: Any, console: Any) -> None:
         except PygameCombatUnavailable:
             presenter.close()
             ctx._pygame_combat_presenter = None
+    if getattr(ctx.context, "_runtime", None) is not None:
+        all_commands = _console_commands(console)
+        overlay = pygame_overlay._frame_from_commands(
+            all_commands,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        )
+        map_console = pygame_world.CaptureConsole(SCREEN_WIDTH, SCREEN_HEIGHT)
+        map_console.commands.extend(
+            command for command in all_commands
+            if command.x < SCREEN_WIDTH - HUD_WIDTH
+            and command.y < SCREEN_HEIGHT - MSG_LOG_HEIGHT
+        )
+        ctx.context.present(map_console, overlay=overlay)
+        return
     ctx.context.present(console)
 
 

@@ -33,7 +33,10 @@ from .time import tick_move
 # ---------------------------------------------------------------------------
 
 NAV_SHIP_FG: tuple[int, int, int] = (255, 255, 100)
-_JUMP_FRAME_S: float = 0.06
+from . import animation_timing
+
+
+_JUMP_FRAME_S: float = animation_timing.JUMP
 _JUMP_RING_CHARS: tuple[tuple[str, tuple[int, int, int]], ...] = (
     ('*', (255, 200, 100)),
     ('+', (255, 255, 150)),
@@ -286,6 +289,24 @@ def _pygame_readonly_enabled() -> bool:
 
 def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     """Show the system-map overlay and return the outcome."""
+    from . import pygame_runtime
+    if pygame_runtime.shared_enabled():
+        from . import pygame_navigation
+        try:
+            outcome = pygame_navigation.run_for_context(
+                ctx.context, ctx, ship_pos,
+            )
+        except pygame_navigation.PygameNavigationUnavailable:
+            outcome = None
+        if outcome is not None:
+            if outcome == "GUIDE":
+                from .help import _run_help_guide
+                _run_help_guide(ctx)
+                return NavigationOutcome.BACK
+            if outcome == "QUIT":
+                return NavigationOutcome.QUIT
+            return NavigationOutcome.BACK
+
     if _pygame_readonly_enabled():
         from . import pygame_batch
         try:
@@ -1122,7 +1143,7 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
                         hud_view_height=view_h,
                     )
                     _aborted = False
-                    _end = time.monotonic() + 0.04
+                    _end = time.monotonic() + animation_timing.AUTO_NAV
                     while time.monotonic() < _end:
                         for _ev in tcod.event.get():
                             if isinstance(_ev, tcod.event.KeyDown):

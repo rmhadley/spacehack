@@ -12,10 +12,11 @@ from . import ship as ship_module
 from . import solar_system as solar_system_module
 from .navigation import _add_bounty_spawns_to_map, _responsive_sleep
 from .engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
+from . import animation_timing
 
 
 
-def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = 0.08, location: str = '') -> None:
+def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = animation_timing.CITY_TRANSITION, location: str = '') -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the

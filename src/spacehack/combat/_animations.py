@@ -16,6 +16,7 @@ import tcod.event
 from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
+from .. import animation_timing
 
 
 def _present(context, console) -> None:
@@ -508,7 +509,7 @@ def _animate_laser_shot(
                     char = "=" if i % 2 == 0 else "-"
                 console.print(x=sx, y=sy, string=char, fg=color)
         _present(context, console)
-        _responsive_sleep(0.05)
+        _responsive_sleep(animation_timing.COMBAT_BEAM)
 
     # Impact flash (if hit): two quick bright pulses at target,
     # with the damage number riding on top from the first frame.
@@ -536,7 +537,7 @@ def _animate_laser_shot(
                     view_w=view_w, view_h=view_h,
                 )
             _present(context, console)
-            _responsive_sleep(0.06)
+            _responsive_sleep(animation_timing.COMBAT_IMPACT)
 
     # Damage number drift + fade frames after the impact. Ages 0-1
     # were the flash frames above, so the drift starts at age 2.
@@ -558,7 +559,7 @@ def _animate_laser_shot(
                 view_w=view_w, view_h=view_h,
             )
             _present(context, console)
-            _responsive_sleep(0.05)
+            _responsive_sleep(animation_timing.COMBAT_BEAM)
 
 
 def _animate_explosion(
@@ -610,7 +611,7 @@ def _animate_explosion(
                     if 0 <= sx < view_w and 0 <= sy < view_h:
                         console.print(x=sx, y=sy, string=r_char, fg=r_fg)
         _present(context, console)
-        _responsive_sleep(0.07)
+        _responsive_sleep(animation_timing.EXPLOSION_RING)
 
     # One frame of white flash
     _render_anim_frame(
@@ -634,7 +635,7 @@ def _animate_explosion(
                     bg = (255, 255, 255)
                     console.print(x=sx, y=sy, string=" ", fg=(255, 255, 255), bg=bg)
     _present(context, console)
-    _responsive_sleep(0.08)
+    _responsive_sleep(animation_timing.EXPLOSION_FLASH)
 
     # Brief void to let the flash settle
     _render_anim_frame(
@@ -647,4 +648,4 @@ def _animate_explosion(
         hit_chances=hit_chances,
         flee_chance=flee_chance,
     )
-    _responsive_sleep(0.04)
+    _responsive_sleep(animation_timing.EXPLOSION_SETTLE)

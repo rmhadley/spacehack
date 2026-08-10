@@ -10,6 +10,7 @@ from __future__ import annotations
 from .. import world
 from .. import message_log as _ml
 from ..engine import RNG
+from .. import animation_timing
 from ._animations import _has_los, _responsive_sleep, _present
 
 # Guards defend a post: beyond this euclidean distance from their
@@ -135,7 +136,7 @@ def run_ground_enemy_turn(
             if render_callback is not None and console is not None:
                 render_callback(console, ctx, game_map)
                 _present(ctx, console)
-                _responsive_sleep(0.05)
+                _responsive_sleep(animation_timing.GROUND_STEP)
         else:
             # Step blocked — recompute path next iteration
             _cached_path = None

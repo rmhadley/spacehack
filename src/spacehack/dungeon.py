@@ -1256,7 +1256,8 @@ def animate_breach(
         orig_tiles[key] = game_map.tiles[bp.y][bp.x]
         game_map.tiles[bp.y][bp.x] = world.DUNGEON_WALL
 
-    frame_s = 0.08
+    from . import animation_timing
+    frame_s = animation_timing.DUNGEON_BREACH
     off_x = (region_w - game_map.width) // 2
     off_y = (region_h - game_map.height) // 2
 

@@ -8,6 +8,7 @@ from enum import Enum, auto
 import tcod.event
 
 from .. import message_log
+from .. import animation_timing
 from .. import ui
 from .. import dungeon
 from .. import landmark
@@ -296,7 +297,7 @@ def animate_signal_door_opening(
     from ..navigation import _responsive_sleep
     for _frame in _signal_door_frames(len(_barrier)):
         _render_signal_door_frame(ctx, console, game_map, player_pos, _barrier, _frame)
-        _responsive_sleep(0.10)
+        _responsive_sleep(animation_timing.SIGNAL_WAVE)
     _open_signal_door_tiles(game_map, _barrier, _stairs)
     _render_signal_door_frame(
         ctx,
@@ -306,7 +307,7 @@ def animate_signal_door_opening(
         _barrier,
         " " * len(_barrier),
     )
-    _responsive_sleep(0.18)
+    _responsive_sleep(animation_timing.SIGNAL_SETTLE)
     return True
 
 

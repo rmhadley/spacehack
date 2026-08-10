@@ -16,6 +16,7 @@ from typing import Any
 from .. import world
 from .. import ui
 from .. import message_log as _ml
+from .. import animation_timing
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
@@ -600,7 +601,7 @@ def animate_fire(
                 char = "*" if i == len(cells) - 1 else ("+" if i == 0 else ("=" if i % 2 == 0 else "-"))
                 console.print(x=sx, y=sy, string=char, fg=color)
         _present(ctx, console)
-        _responsive_sleep(0.05)
+        _responsive_sleep(animation_timing.COMBAT_BEAM)
 
     # Impact flash (if hit): two quick bright pulses with the damage
     # number riding on top, then extra drift + fade frames.
@@ -619,7 +620,7 @@ def animate_fire(
                     region_x=_rx, region_y=_ry,
                 )
             _present(ctx, console)
-            _responsive_sleep(0.06)
+            _responsive_sleep(animation_timing.COMBAT_IMPACT)
         if damage is not None:
             for _age in range(_DAMAGE_POPUP_FRAMES):
                 render_frame(console, ctx, game_map)
@@ -630,7 +631,7 @@ def animate_fire(
                     region_x=_rx, region_y=_ry,
                 )
                 _present(ctx, console)
-                _responsive_sleep(0.05)
+                _responsive_sleep(animation_timing.COMBAT_BEAM)
 
 
 # ---------------------------------------------------------------------------

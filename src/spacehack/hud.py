@@ -163,6 +163,12 @@ def _render_ground_stat_line(
     )
 
 
+def _footer_rows(hud_view_height: int) -> tuple[int, int, int]:
+    """Return safe XP, interaction, and exit rows inside the HUD panel."""
+    bottom = max(3, hud_view_height - 1)
+    return bottom - 3, bottom - 2, bottom - 1
+
+
 def _render_help_lines(
     console: tcod.console.Console,
     hud_x: int,
@@ -350,12 +356,12 @@ def render_hud(
         ])
 
         # XP progress bar — between key hints and footer.
-        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=_xp_fg)
+        _xp_y, _bump_y, _exit_y = _footer_rows(hud_view_height)
+        console.print(x=hud_x, y=_xp_y, string=_xp_line, fg=_xp_fg)
 
-        # Bottom hint.
-        y = hud_view_height - 2
-        console.print(x=hud_x, y=y, string="bump to interact", fg=COLOR_VALUE_DIM)
-        console.print(x=hud_x, y=y + 1, string="ESC to quit", fg=COLOR_VALUE_DIM)
+        # Bottom hints stay one full row inside the panel's bottom edge.
+        console.print(x=hud_x, y=_bump_y, string="bump to interact", fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=_exit_y, string="ESC to quit", fg=COLOR_VALUE_DIM)
 
     else:
         # ---- City / dungeon mode: character stats ----
@@ -452,12 +458,12 @@ def render_hud(
         y = _render_help_lines(console, hud_x, y, _help_lines)
 
         # XP progress bar — between key hints and footer.
-        console.print(x=hud_x, y=hud_view_height - 3, string=_xp_line, fg=_xp_fg)
+        _xp_y, _bump_y, _exit_y = _footer_rows(hud_view_height)
+        console.print(x=hud_x, y=_xp_y, string=_xp_line, fg=_xp_fg)
 
-        # Footer hint at the bottom of the HUD
-        y = hud_view_height - 2
-        console.print(x=hud_x, y=y, string="bump to interact", fg=COLOR_VALUE_DIM)
-        console.print(x=hud_x, y=y + 1, string="ESC to quit", fg=COLOR_VALUE_DIM)
+        # Footer hint at the bottom of the HUD, with a safe bottom inset.
+        console.print(x=hud_x, y=_bump_y, string="bump to interact", fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=_exit_y, string="ESC to quit", fg=COLOR_VALUE_DIM)
 
 
 # ---------------------------------------------------------------------------

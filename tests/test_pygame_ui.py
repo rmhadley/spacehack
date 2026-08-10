@@ -16,6 +16,8 @@ from src.spacehack import (
     pygame_world,
     pygame_quantity,
     pygame_combat,
+    pygame_navigation,
+    animation_timing,
 )
 from src.spacehack.menus import _armory, _missions, _planet, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
@@ -195,6 +197,68 @@ def test_combat_frame_payload_accepts_native_tcod_console():
     assert [command["char"] for command in payload["commands"]] == ["@", "A"]
     assert payload["commands"][0]["fg"] == (1, 2, 3)
     assert payload["commands"][0]["bg"] == (4, 5, 6)
+
+
+def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
+    calls = []
+    ctx = SimpleNamespace(
+        _pygame_combat_presenter=None,
+        context=SimpleNamespace(
+            _runtime=object(),
+            present=lambda console, **kwargs: calls.append((console, kwargs)),
+        ),
+    )
+    console = SimpleNamespace(commands=[
+        SimpleNamespace(x=1, y=1, char="@", fg=(1, 2, 3), bg=None),
+        SimpleNamespace(x=80, y=1, char="H", fg=(4, 5, 6), bg=None),
+        SimpleNamespace(x=1, y=54, char="M", fg=(7, 8, 9), bg=None),
+    ])
+
+    pygame_combat.present(ctx, console)
+
+    rendered_console, kwargs = calls[0]
+    assert [command.char for command in rendered_console.commands] == ["@"]
+    assert kwargs["overlay"].hud[0].text == "H"
+    assert kwargs["overlay"].messages[0].text == "M"
+
+
+def test_navigation_capture_trims_empty_rows_for_readable_font_fit(monkeypatch):
+    captured = pygame_world.CaptureConsole(100, 60)
+
+    def fake_render(console, _ctx, **_kwargs):
+        console.print(x=0, y=0, string="MAP", fg=(1, 2, 3))
+
+    monkeypatch.setattr(
+        "src.spacehack.navigation.render_navigation",
+        fake_render,
+    )
+    monkeypatch.setattr(
+        pygame_navigation.pygame_world,
+        "CaptureConsole",
+        lambda _w, _h: captured,
+    )
+
+    frame = pygame_navigation._capture(SimpleNamespace(), SimpleNamespace(x=1, y=1))
+
+    assert len(frame.rows) == 1
+    assert frame.rows[0][0].text.startswith("MAP")
+
+
+def test_footer_rows_leave_exit_text_inside_hud_bounds():
+    from src.spacehack import hud
+
+    xp_y, bump_y, exit_y = hud._footer_rows(54)
+
+    assert (xp_y, bump_y, exit_y) == (50, 51, 52)
+    assert exit_y < 54
+
+
+def test_animation_timing_is_slightly_faster_than_previous_defaults():
+    assert animation_timing.COMBAT_BEAM < 0.05
+    assert animation_timing.COMBAT_IMPACT < 0.06
+    assert animation_timing.JUMP < 0.06
+    assert animation_timing.CITY_TRANSITION < 0.08
+    assert animation_timing.DUNGEON_BREACH < 0.08
 
 
 def test_combat_migration_is_enabled_by_default_and_rolls_back_globally(monkeypatch):

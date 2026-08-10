@@ -27,6 +27,7 @@ from ._actions import (
     start_enemy_turn,
     resolve_damage,
 )
+from .. import animation_timing
 from ._animations import (
     _animate_laser_shot,
     _animate_explosion,
@@ -145,7 +146,7 @@ def _run_enemy_turn(
                         flee_chance=_flee_chance,
                         player_mode="WAIT",
                     )
-                    _responsive_sleep(0.05)
+                    _responsive_sleep(animation_timing.GROUND_STEP)
                 else:
                     _cached_path = None
 
