@@ -58,24 +58,23 @@ if TYPE_CHECKING:
     from .game_context import GameContext
 
 
-# Vivid HUD palette: gold title, bright near-white values, blue-tinted
-# labels (replaces the old flat greys), saturated green/red for HP
-# depending on ratio, and a cool dark-slate divider so the headline
-# fields pop.  The white/dim/divider colors are imported from ui.py —
-# the single source — so a global brightness pass never drifts.
-COLOR_HUD_TITLE: tuple[int, int, int] = (255, 195, 80)            # vivid orange-gold
-COLOR_LABEL: tuple[int, int, int] = (185, 205, 235)               # ice-blue (brightened for dark-bg pop)
-COLOR_HP_GOOD: tuple[int, int, int] = (100, 235, 115)             # bright grass-green
-COLOR_HP_LOW: tuple[int, int, int] = (255, 95, 95)                # bright crimson
-COLOR_EVADE: tuple[int, int, int] = (120, 220, 140)               # soft green positive-buff accent
+# High-contrast HUD palette: neutral labels and values carry the reading
+# load, while saturated colors communicate health and resource state.
+# The shared white/dim/divider colors come from ui.py so brightness stays
+# consistent across menus and gameplay.
+COLOR_HUD_TITLE: tuple[int, int, int] = (255, 205, 95)             # vivid gold
+COLOR_LABEL: tuple[int, int, int] = (225, 225, 215)                # warm white label
+COLOR_HP_GOOD: tuple[int, int, int] = (110, 245, 125)               # bright green
+COLOR_HP_LOW: tuple[int, int, int] = (255, 110, 110)                # bright red
+COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green positive-buff accent
 
-# Space-mode HUD palette — cooler, more technical feel.
-COLOR_SHIP_NAME: tuple[int, int, int] = (100, 220, 255)           # bright cyan for ship name
-COLOR_SHIP_VALUE: tuple[int, int, int] = (255, 255, 255)          # white stat values
-COLOR_SHIP_LABEL: tuple[int, int, int] = (170, 195, 230)          # ice-blue labels (brightened; slightly dimmer than COLOR_LABEL)
-COLOR_FUEL_OK: tuple[int, int, int] = (100, 235, 115)            # green when fuel is adequate
-COLOR_FUEL_LOW: tuple[int, int, int] = (255, 180, 60)            # amber when fuel is low (< jump cost)
-COLOR_HELP_DESC: tuple[int, int, int] = (205, 205, 210)          # silver for key descriptions
+# Space-mode HUD palette — cyan is reserved for the ship identity.
+COLOR_SHIP_NAME: tuple[int, int, int] = (150, 235, 255)             # bright cyan
+COLOR_SHIP_VALUE: tuple[int, int, int] = (255, 255, 255)            # white stat values
+COLOR_SHIP_LABEL: tuple[int, int, int] = (220, 220, 210)            # warm-white labels
+COLOR_FUEL_OK: tuple[int, int, int] = (110, 245, 125)               # green when fuel is adequate
+COLOR_FUEL_LOW: tuple[int, int, int] = (255, 190, 75)               # amber when fuel is low (< jump cost)
+COLOR_HELP_DESC: tuple[int, int, int] = (220, 220, 210)             # warm silver for key descriptions
 
 
 @dataclass
@@ -472,11 +471,11 @@ COLOR_HULL_BAR_YELLOW: tuple[int, int, int] = (255, 220, 80)       # amber
 COLOR_HULL_BAR_RED: tuple[int, int, int] = (255, 80, 80)           # red
 COLOR_SHIELD_BAR: tuple[int, int, int] = (100, 200, 255)           # cyan
 COLOR_AP: tuple[int, int, int] = (255, 220, 80)                    # gold
-COLOR_POWER: tuple[int, int, int] = (150, 200, 255)                # blue-white
+COLOR_POWER: tuple[int, int, int] = (205, 225, 245)                # pale blue-white
 COLOR_COMBAT_WEAPON: tuple[int, int, int] = (255, 200, 100)        # gold
 COLOR_COMBAT_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)     # dimmed
 COLOR_COMBAT_LOG: tuple[int, int, int] = (200, 200, 200)           # silver
-COLOR_COMBAT_ACTION: tuple[int, int, int] = (180, 220, 255)        # light blue
+COLOR_COMBAT_ACTION: tuple[int, int, int] = (220, 235, 220)        # readable pale neutral
 COLOR_COMBAT_MODE: tuple[int, int, int] = (255, 255, 150)          # yellow for mode indicator
 
 
@@ -741,17 +740,7 @@ def render_combat_hud(
                 ws = _fw(wid)
             except KeyError:
                 continue
-            # Check if can fire — ammo is keyed by weapon SLOT index so
-            # two launchers of the same type show independent magazines.
             wammo = player_state.get("weapon_ammo", {}).get(i, 0)
-            ap_req = ws.ap_cost
-            pow_req = ws.power_cost if ws.slot_type in ("energy", "plasma") else 0
-            has_ap = pap >= ap_req
-            has_pow = ppow >= pow_req
-            has_ammo = wammo > 0 or ws.ammo_capacity <= 0
-            can_fire = has_ap and has_pow and has_ammo
-
-            fg_w = COLOR_COMBAT_WEAPON if can_fire else COLOR_COMBAT_WEAPON_DIM
             is_active = active_weapons[i] if active_weapons else True
             sel_mark = "[x]" if is_active else "[ ]"
             name_str = f"{sel_mark}[{i+1}] {ws.name}"

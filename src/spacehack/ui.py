@@ -27,28 +27,28 @@ from .data.classes import list_classes
 # if the base defines members, so a shared base is impossible).
 T = TypeVar("T", bound=Enum)
 
-# Vivid sci-fi palette tuned for the default DejaVu 16x16 tileset.
-# Each role gets a thematic hue (cyan for titles, gold for highlights,
-# slate for dim/auxiliary text) so the menus pop instead of reading
-# as a stack of greys. ``COLOR_OPTION_HIGHLIGHT`` stays pure white
-# because that is already the brightest possible value - the gold
-# accents in HUD add color elsewhere where escape from pure white
-# is desired.
-COLOR_TITLE: tuple[int, int, int] = (130, 220, 255)              # bright cyan
-COLOR_INSTRUCTION: tuple[int, int, int] = (160, 180, 220)        # periwinkle (brightened for dark-bg pop)
-COLOR_OPTION: tuple[int, int, int] = (215, 215, 235)             # pale lavender-grey
-COLOR_OPTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)      # pure white (brightest)
-COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (175, 215, 235)     # steel-cyan, used for science ports + station glyphs in AoI panel
-COLOR_DESCRIPTION: tuple[int, int, int] = (205, 200, 235)           # lavender (brightened for dark-bg pop)
+# High-contrast sci-fi palette for a black background. Normal reading text
+# stays neutral or warm-white; color is reserved for hierarchy and state so
+# users do not have to decode a dark blue paragraph against black.
+COLOR_TITLE: tuple[int, int, int] = (150, 235, 255)              # bright cyan heading
+COLOR_INSTRUCTION: tuple[int, int, int] = (235, 220, 165)        # warm yellow hint
+COLOR_OPTION: tuple[int, int, int] = (235, 235, 225)             # soft white
+COLOR_OPTION_HIGHLIGHT: tuple[int, int, int] = (255, 255, 255)   # pure white
+COLOR_OPTION_HIGHLIGHT2: tuple[int, int, int] = (190, 240, 255)  # pale cyan accent
+COLOR_DESCRIPTION: tuple[int, int, int] = (220, 220, 210)        # readable warm grey
 # Value cells (numbers, prices) - kept here so dialogs in __main__
 # (e.g. the ship-buy modal) can use the same near-white/dim pair.
-COLOR_VALUE_WHITE: tuple[int, int, int] = (255, 255, 255)        # pure white (brightest)
-COLOR_VALUE_DIM: tuple[int, int, int] = (185, 185, 195)           # silver (brightened but still receded from white)
+COLOR_VALUE_WHITE: tuple[int, int, int] = (255, 255, 255)        # pure white
+COLOR_VALUE_DIM: tuple[int, int, int] = (200, 200, 195)           # readable silver
 
 # Unified screen-header rule. Single source of truth for the divider
 # drawn under every menu title — change these and every screen follows.
 DIVIDER_CHAR: str = "="                       # CP437-safe rule char
-COLOR_DIVIDER: tuple[int, int, int] = (110, 110, 115)   # dim grey rule (brightened for visibility)
+COLOR_DIVIDER: tuple[int, int, int] = (145, 145, 140)  # visible neutral rule
+COLOR_SPLASH_BORDER: tuple[int, int, int] = (170, 170, 165)   # title-frame neutral
+COLOR_SPLASH_ART: tuple[int, int, int] = (150, 235, 255)      # title cyan
+COLOR_SPLASH_FLAVOR: tuple[int, int, int] = (220, 220, 210)   # title body text
+COLOR_SPLASH_PROMPT: tuple[int, int, int] = (235, 220, 165)   # title instruction
 
 
 class MenuAction(Enum):
@@ -429,7 +429,7 @@ def render_title_menu(
     _title_y = screen_height // 2 - 10
     for _i, _line in enumerate(_TITLE_ART):
         _x = (screen_width - len(_line)) // 2
-        console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
+        console.print(x=_x, y=_title_y + _i, string=_line, fg=COLOR_SPLASH_ART)
 
     # Menu options
     _options: list[tuple[str, tuple]] = [
@@ -533,17 +533,17 @@ def render_title_splash(context: tcod.context.Context) -> None:
     _BR = "\u255d"  # ╝
     _H  = "\u2550"  # ═
     _V  = "\u2551"  # ║
-    _console.print(x=0,  y=0,   string=_TL + _H * (W - 2) + _TR, fg=(100, 110, 160))
-    _console.print(x=0,  y=H-1, string=_BL + _H * (W - 2) + _BR, fg=(100, 110, 160))
+    _console.print(x=0,  y=0,   string=_TL + _H * (W - 2) + _TR, fg=COLOR_SPLASH_BORDER)
+    _console.print(x=0,  y=H-1, string=_BL + _H * (W - 2) + _BR, fg=COLOR_SPLASH_BORDER)
     for _y in range(1, H - 1):
-        _console.print(x=0,   y=_y, string=_V, fg=(100, 110, 160))
-        _console.print(x=W-1, y=_y, string=_V, fg=(100, 110, 160))
+        _console.print(x=0,   y=_y, string=_V, fg=COLOR_SPLASH_BORDER)
+        _console.print(x=W-1, y=_y, string=_V, fg=COLOR_SPLASH_BORDER)
 
     # Title
     _title_y = H // 2 - 8
     for _i, _line in enumerate(_TITLE_ART):
         _x = (W - len(_line)) // 2
-        _console.print(x=_x, y=_title_y + _i, string=_line, fg=(100, 200, 255))
+        _console.print(x=_x, y=_title_y + _i, string=_line, fg=COLOR_SPLASH_ART)
 
     # Flavor text
     _lines = [
@@ -556,7 +556,7 @@ def render_title_splash(context: tcod.context.Context) -> None:
     for _i, _line in enumerate(_lines):
         _console.print(
             x=centered_x(_line, W), y=_flavor_y + _i,
-            string=_line, fg=(160, 175, 210),
+            string=_line, fg=COLOR_SPLASH_FLAVOR,
         )
 
     # Spaceship (below flavor text)
@@ -602,11 +602,11 @@ def render_title_splash(context: tcod.context.Context) -> None:
     _prompt = "Press any key to begin"
     _console.print(
         x=centered_x(_prompt, W), y=H - 4,
-        string=_prompt, fg=(120, 140, 190),
+        string=_prompt, fg=COLOR_SPLASH_PROMPT,
     )
     _console.print(
         x=centered_x("\u2500\u2500\u2500\u2500\u2500\u2500\u2500", W), y=H - 5,
-        string="\u2500\u2500\u2500\u2500\u2500\u2500\u2500", fg=(100, 110, 160),
+        string="\u2500\u2500\u2500\u2500\u2500\u2500\u2500", fg=COLOR_SPLASH_BORDER,
     )
 
     # Planet
@@ -619,10 +619,10 @@ def render_title_splash(context: tcod.context.Context) -> None:
     ]
     _planet_x = 4
     _planet_y = H - 12
-    _planet_fg = (90, 130, 160)
+    _planet_fg = COLOR_SPLASH_BORDER
     for _i, _line in enumerate(_planet_art):
         _console.print(x=_planet_x, y=_planet_y + _i, string=_line, fg=_planet_fg)
-    _console.print(x=_planet_x + 2, y=_planet_y + 2, string="\u25c4", fg=(130, 170, 200))
+    _console.print(x=_planet_x + 2, y=_planet_y + 2, string="\u25c4", fg=COLOR_SPLASH_ART)
 
     # Present and wait for key
     context.present(_console)

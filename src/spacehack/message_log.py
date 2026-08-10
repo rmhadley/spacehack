@@ -12,11 +12,10 @@ from dataclasses import dataclass
 import tcod.console
 
 
-# Bright cool-white for live messages, muted blue for less-emphasised
-# log lines. Replaces the previous flat greys so the message log no
-# longer blends into the HUD on a black background.
-COLOR_MESSAGE: tuple[int, int, int] = (230, 230, 240)
-COLOR_MESSAGE_DIM: tuple[int, int, int] = (145, 180, 190)         # desaturated teal (brightened; distinct from COLOR_INSTRUCTION's periwinkle)
+# Readable neutral log text. Secondary lines are still visibly dimmer,
+# but avoid dark blue so they remain legible against the black playfield.
+COLOR_MESSAGE: tuple[int, int, int] = (240, 240, 235)
+COLOR_MESSAGE_DIM: tuple[int, int, int] = (195, 205, 195)         # pale desaturated green-grey
 
 # Combat log colors
 COLOR_PLAYER_ACTION: tuple[int, int, int] = (100, 235, 115)       # bright green for player actions

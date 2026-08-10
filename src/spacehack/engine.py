@@ -75,10 +75,14 @@ MSG_LOG_HEIGHT: int = 6
 
 WINDOW_TITLE: str = "spacehack"
 
-# Glyph size in pixels. Used by both the CP437 tilesheet (implicit in
-# the 32x8 grid) and the TrueType font rasterizer.
-TILE_WIDTH: int = 16
-TILE_HEIGHT: int = 16
+# Glyph size in pixels. A slightly larger raster than the old 16x16
+# default gives Hack's counters and punctuation more breathing room on
+# laptop displays while preserving the existing character-cell layout.
+TILE_WIDTH: int = 18
+TILE_HEIGHT: int = 18
+
+# Keep the dimensions easy to tune as a pair; the bundled font is loaded
+# at these dimensions and the procedural glyph patches below adapt to them.
 
 # Optional TrueType/OpenType font. If present in the data/ directory,
 # it is loaded in preference to the CP437 tilesheet below. Drop any
@@ -268,12 +272,24 @@ def _render_shade_tile(tw: int, th: int, kind: str) -> np.ndarray:
 def _render_bitmap_tile(
     tw: int, th: int, rows: tuple[str, ...]
 ) -> np.ndarray:
-    """Build a glyph tile (RGBA) from '#'/'.' bitmap rows."""
+    """Build a centered glyph tile (RGBA) from '#'/'.' bitmap rows.
+
+    The bundled bitmap patterns are authored at 16x16, while the TTF
+    path may use a larger raster. Centering the pattern keeps procedural
+    glyphs aligned with the font at either size.
+    """
     tile = np.zeros((th, tw, 4), dtype=np.uint8)
+    if not rows:
+        return tile
+    bitmap_width = max(map(len, rows), default=0)
+    offset_x = max(0, (tw - bitmap_width) // 2)
+    offset_y = max(0, (th - len(rows)) // 2)
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
-            if ch == "#":
-                tile[y, x] = (255, 255, 255, 255)
+            target_x = x + offset_x
+            target_y = y + offset_y
+            if ch == "#" and target_x < tw and target_y < th:
+                tile[target_y, target_x] = (255, 255, 255, 255)
     return tile
 
 
