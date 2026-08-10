@@ -13,61 +13,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.spacehack import engine, help as game_help, hud, message_log, ui
 
 
-class _FakeTileset:
-    """Minimal tileset stand-in for font-loader fallback tests."""
-
-    tile_width = engine.TILE_WIDTH
-    tile_height = engine.TILE_HEIGHT
-
-    def __init__(self):
-        self.tiles = {}
-
-    def __getitem__(self, codepoint):
-        return self.tiles.get(
-            codepoint,
-            np.zeros((self.tile_height, self.tile_width, 4), dtype=np.uint8),
-        )
-
-    def __setitem__(self, codepoint, tile):
-        self.tiles[codepoint] = tile
-
-
-class _FakeTcodTileset:
-    """Loader namespace used to exercise the fallback chain."""
-
-    CHARMAP_TCOD = object()
-
-    def __init__(self, failures: int, tilesheet_failures: int = 0):
-        self.failures = failures
-        self.tilesheet_failures = tilesheet_failures
-        self.calls: list[str] = []
-
-    def load_truetype_font(self, path, *, tile_width, tile_height):
-        self.calls.append(path)
-        if len(self.calls) <= self.failures:
-            raise RuntimeError("simulated font failure")
-        return _FakeTileset()
-
-    def load_tilesheet(self, *args, **kwargs):
-        self.calls.append("tilesheet")
-        if self.tilesheet_failures:
-            self.tilesheet_failures -= 1
-            raise RuntimeError("simulated tilesheet failure")
-        return _FakeTileset()
-
-
-class _FakePath:
-    def __init__(self, name: str, exists: bool = True):
-        self.name = name
-        self.exists = exists
-
-    def is_file(self):
-        return self.exists
-
-    def __str__(self):
-        return self.name
-
-
 
 def _relative_luminance(color: tuple[int, int, int]) -> float:
     """Return approximate sRGB relative luminance for contrast checks."""
@@ -86,46 +31,28 @@ def _contrast_against_black(color: tuple[int, int, int]) -> float:
     return (_relative_luminance(color) + 0.05) / 0.05
 
 
-def test_bitmap_tileset_is_native_and_ttf_fallbacks_are_bundled():
-    """The bitmap is native-sized and both TTF fallbacks remain bundled."""
+def test_bitmap_tileset_is_native_and_is_the_only_font_configuration():
+    """The game uses the bundled bitmap at its native dimensions."""
     data_dir = Path(__file__).resolve().parents[1] / "src" / "spacehack" / "data"
-    assert engine.TRUETYPE_FONT_FILENAME == "DejaVuSansMono.ttf"
-    assert (data_dir / engine.TRUETYPE_FONT_FILENAME).is_file()
-    assert (data_dir / engine.LEGACY_TRUETYPE_FONT_FILENAME).is_file()
     assert engine.TILE_WIDTH == 16
     assert engine.TILE_HEIGHT == 16
     assert engine.TILE_WIDTH == engine.TILE_HEIGHT
     assert engine.TILE_WIDTH * engine.TILESHEET_COLUMNS == 512
     assert engine.TILE_HEIGHT * engine.TILESHEET_ROWS == 128
+    assert (data_dir / engine.TILESHEET_FILENAME).is_file()
+    assert not hasattr(engine, "TRUETYPE_FONT_FILENAME")
+    assert not hasattr(engine, "LEGACY_TRUETYPE_FONT_FILENAME")
 
 
-def test_font_loader_prefers_tilesheet_then_dejavu_then_hack(monkeypatch):
-    """The crisp bitmap path wins, with both TTF fallbacks preserved."""
-    fake_tcod = _FakeTcodTileset(failures=0)
-    monkeypatch.setattr(engine.tcod, "tileset", fake_tcod)
-    monkeypatch.setattr(engine, "_data_path", lambda name: _FakePath(name))
-    engine.load_tileset()
-    assert fake_tcod.calls == ["tilesheet"]
-
-    fake_tcod = _FakeTcodTileset(failures=0)
-    monkeypatch.setattr(engine.tcod, "tileset", fake_tcod)
-    monkeypatch.setattr(
-        engine,
-        "_data_path",
-        lambda name: _FakePath(name, exists=name != engine.TILESHEET_FILENAME),
-    )
-    engine.load_tileset()
-    assert fake_tcod.calls == [engine.TRUETYPE_FONT_FILENAME]
-
-    fake_tcod = _FakeTcodTileset(failures=2, tilesheet_failures=1)
-    monkeypatch.setattr(engine.tcod, "tileset", fake_tcod)
-    monkeypatch.setattr(engine, "_data_path", lambda name: _FakePath(name))
-    engine.load_tileset()
-    assert fake_tcod.calls == [
-        "tilesheet",
-        engine.TRUETYPE_FONT_FILENAME,
-        engine.LEGACY_TRUETYPE_FONT_FILENAME,
-    ]
+def test_bitmap_loader_raises_when_the_native_sheet_is_missing(monkeypatch):
+    """Bitmap-only mode fails explicitly instead of silently changing fonts."""
+    monkeypatch.setattr(engine, "_data_path", lambda _name: Path("missing.png"))
+    try:
+        engine.load_tileset()
+    except engine.EngineError as exc:
+        assert engine.TILESHEET_FILENAME in str(exc)
+    else:
+        raise AssertionError("missing bitmap should raise EngineError")
 
 
 def test_text_glyph_widening_preserves_grid_and_adds_ink():

@@ -164,17 +164,17 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
 
 ### Fonts & rendering (engine.py)
 
-- **The native bitmap is preferred**: `dejavu16x16_gs_tc.png` is loaded at
-  its native 16×16 tile size first, keeping ordinary text crisp and free of
-  runtime anti-aliasing. The logical grid remains 100×60, so the window is
-  1600×960 pixels before OS/display scaling.
+- **The native bitmap is the only renderer**: `dejavu16x16_gs_tc.png` is
+  loaded at its native 16×16 tile size, keeping ordinary text crisp and free
+  of runtime anti-aliasing. The game intentionally fails clearly if this
+  asset is missing instead of silently switching fonts. The logical grid
+  remains 100×60, so the window is 1600×960 pixels before OS/display scaling.
 - **Text spacing refinement**: after loading the bitmap and its procedural
   texture patches, `engine.py` widens only ASCII letters and digits by two
   bitmap columns, centered inside the same 16×16 cells. Punctuation, map
   symbols, box drawing, and the logical grid remain unchanged.
-- **TrueType fallbacks**: `DejaVuSansMono.ttf` is tried next, followed by
-  `Hack-Regular.ttf` if the bitmap asset is missing or cannot be loaded.
-  Both TTF paths are rasterized at the active 16×16 cell size.
+- **No runtime font fallback**: the project no longer bundles or loads TTF,
+  OTF, or TTC fonts. This keeps rendering deterministic across platforms.
 - **Font gotcha**: libtcod scales a TTF to the tile height, then *shrinks* it
   to tile width when the font's head-bbox width exceeds its em height —
   Iosevka / JetBrains Mono / Fira Code / Cascadia Code render at ~50% size
@@ -190,10 +190,9 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   active tile dimensions,
   mirroring the CP437 tilesheet geometry. `_procedural_texture_glyphs`
   similarly patches shades / block / dot / card-suit glyphs.
-- `load_tileset()`: native CP437 bitmap first → apply procedural texture
-  patches and the small text-glyph widening pass → TTF fallbacks with
-  procedural box/texture patches. Only raises `EngineError` when all bundled
-  loaders fail.
+- `load_tileset()`: load the native CP437 bitmap → apply procedural texture
+  patches and the small text-glyph widening pass. It raises `EngineError` if
+  the bitmap cannot be loaded.
 - **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to
   **NEAREST** texture scaling. On displays where the window backing scale
   is not an exact integer multiple of the console (fractional Retina /
@@ -202,8 +201,9 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   Macs, different result. Fix: `open_terminal()` sets
   `SDL_RENDER_SCALE_QUALITY=linear` before SDL init (effectively
   identical at integer scales).
-- `pyproject.toml` package-data ships `data/*.png|ttf|otf|ttc` + `layouts/` + `landmarks/`
-  so frozen bundles (PyInstaller, `spacehack.spec`) include them.
+- `pyproject.toml` package-data ships the bitmap `data/*.png` plus
+  `layouts/` and `landmarks/`; `spacehack.spec` bundles the complete data
+  tree for frozen builds.
 
 ### Code quality guardrails
 
@@ -641,9 +641,7 @@ SCREEN_WIDTH   = 100
 SCREEN_HEIGHT  = 60
 WINDOW_TITLE   = "spacehack"
 TILE_WIDTH, TILE_HEIGHT = 16, 16
-TRUETYPE_FONT_FILENAME = "DejaVuSansMono.ttf" # TTF fallback
-LEGACY_TRUETYPE_FONT_FILENAME = "Hack-Regular.ttf" # secondary TTF
-TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"       # primary CP437 bitmap
+TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"       # sole CP437 bitmap renderer
 ```
 
 ## Modal UI pattern

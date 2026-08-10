@@ -42,7 +42,7 @@ WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50,
 
 # Box-drawing wall tiles for building exteriors.  These use
 # single-line box-drawing glyphs that render cleanly in any
-# monospace font (CP437 or TrueType) and connect into continuous
+# monospace CP437 bitmap font and connect into continuous
 # architectural frames with proper corners.
 WALL_TL = Tile(kind="wall", char="┌", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-left corner
 WALL_TR = Tile(kind="wall", char="┐", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))  # top-right corner

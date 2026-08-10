@@ -80,18 +80,10 @@ WINDOW_TITLE: str = "spacehack"
 TILE_WIDTH: int = 16
 TILE_HEIGHT: int = 16
 
-# Keep the dimensions easy to tune as a pair; the bundled font is loaded
-# at these dimensions and the procedural glyph patches below adapt to them.
+# Keep the dimensions easy to tune as a pair; the native bitmap and its
+# procedural patches use these dimensions.
 
-# TrueType fallback font. DejaVu Sans Mono has a generous x-height and
-# clearer 0/O/1/l/I shapes than the previous Hack default.
-TRUETYPE_FONT_FILENAME: str = "DejaVuSansMono.ttf"
-
-# Secondary bundled TTF fallback retained for asset compatibility.
-LEGACY_TRUETYPE_FONT_FILENAME: str = "Hack-Regular.ttf"
-
-# Primary CP437 bitmap tilesheet. TrueType fonts remain available as
-# fallbacks when the bitmap asset is missing or fails to load.
+# Sole rendering asset: a native CP437 bitmap tilesheet.
 TILESHEET_FILENAME: str = "dejavu16x16_gs_tc.png"
 TILESHEET_COLUMNS: int = 32
 TILESHEET_ROWS: int = 8
@@ -126,117 +118,17 @@ def _data_path(filename: str) -> Path:
     return Path(__file__).resolve().parent / "data" / filename
 
 
-# --- Procedural box drawing -------------------------------------------------
+# --- Procedural bitmap texture patches -------------------------------------
 #
-# libtcod's TrueType loader centers each glyph's ink bounding box inside the
-# tile (see get_glyph_shift in tileset_truetype.c).  Symmetric glyphs (─ │ ┼)
-# center correctly, but asymmetric corners (┌ ┐ └ ┘) have their ink in one
-# corner of the em box, so centering drifts the strokes off the shared
-# centerline — this is a font-independent rasterization issue.
-#
-# The fix: draw the box-drawing glyphs ourselves, straight strokes anchored
-# to a common center, so every corner lands exactly on the same rows/cols as
-# the lines. Geometry mirrors the CP437 tilesheet while adapting its 4px
-# single/double bands to the active tile dimensions; single corners meet at
-# the shared center and double corners meet at the outer-bar blocks.
-
-_BOX_TOP = 0b0001
-_BOX_BOTTOM = 0b0010
-_BOX_LEFT = 0b0100
-_BOX_RIGHT = 0b1000
-
-# Single-line (light) box drawing, U+2500-253C.  Used for city building
-# walls (world.py WALL_*) and loadout dividers.
-_BOX_SINGLE = {
-    0x2500: _BOX_LEFT | _BOX_RIGHT,        # ─
-    0x2502: _BOX_TOP | _BOX_BOTTOM,        # │
-    0x250C: _BOX_BOTTOM | _BOX_RIGHT,      # ┌
-    0x2510: _BOX_BOTTOM | _BOX_LEFT,       # ┐
-    0x2514: _BOX_TOP | _BOX_RIGHT,         # └
-    0x2518: _BOX_TOP | _BOX_LEFT,          # ┘
-    0x251C: _BOX_TOP | _BOX_BOTTOM | _BOX_RIGHT,   # ├
-    0x2524: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT,    # ┤
-    0x252C: _BOX_LEFT | _BOX_RIGHT | _BOX_BOTTOM,  # ┬
-    0x2534: _BOX_LEFT | _BOX_RIGHT | _BOX_TOP,     # ┴
-    0x253C: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT | _BOX_RIGHT,  # ┼
-}
-
-# Double-line box drawing, U+2550-256C.  Used for UI modal frames
-# (ui.py) and the combat banner.
-_BOX_DOUBLE = {
-    0x2550: _BOX_LEFT | _BOX_RIGHT,        # ═
-    0x2551: _BOX_TOP | _BOX_BOTTOM,        # ║
-    0x2554: _BOX_BOTTOM | _BOX_RIGHT,      # ╔
-    0x2557: _BOX_BOTTOM | _BOX_LEFT,       # ╗
-    0x255A: _BOX_TOP | _BOX_RIGHT,         # ╚
-    0x255D: _BOX_TOP | _BOX_LEFT,          # ╝
-    0x2560: _BOX_TOP | _BOX_BOTTOM | _BOX_RIGHT,   # ╠
-    0x2563: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT,    # ╣
-    0x2566: _BOX_LEFT | _BOX_RIGHT | _BOX_BOTTOM,  # ╦
-    0x2569: _BOX_LEFT | _BOX_RIGHT | _BOX_TOP,     # ╩
-    0x256C: _BOX_TOP | _BOX_BOTTOM | _BOX_LEFT | _BOX_RIGHT,  # ╬
-}
-
-
-def _render_box_tile(
-    tw: int, th: int, mask: int, double: bool
-) -> np.ndarray:
-    """Build one box-drawing glyph tile (RGBA) from its stroke mask.
-
-    Horizontal strokes sit on the shared ``h_bands`` rows, vertical
-    strokes on the shared ``v_bands`` columns; each half-stroke extends
-    from the tile edge to the common center (single) or the opposite
-    bar (double).  Because every glyph uses the same bands and center,
-    corners connect with lines seamlessly.
-    """
-    tile = np.zeros((th, tw, 4), dtype=np.uint8)
-    center_lo, center_hi = tw // 2 - 2, tw // 2 + 1
-    if double:
-        h_bands = [(th // 4 - 2, th // 4 + 1), (3 * th // 4 - 2, 3 * th // 4 + 1)]
-        v_bands = [(tw // 4 - 2, tw // 4 + 1), (3 * tw // 4 - 2, 3 * tw // 4 + 1)]
-    else:
-        h_bands = [(center_lo, center_hi)]
-        v_bands = [(center_lo, center_hi)]
-    if double:
-        # Double-line bands are disjoint (2-5 / 10-13), so a half-stroke
-        # must reach the *opposite bar*, not the centre, or the corner
-        # junction stays open.
-        x0 = 0 if mask & _BOX_LEFT else v_bands[0][0]
-        x1 = tw - 1 if mask & _BOX_RIGHT else v_bands[1][1]
-        y0 = 0 if mask & _BOX_TOP else h_bands[0][0]
-        y1 = th - 1 if mask & _BOX_BOTTOM else h_bands[1][1]
-    else:
-        x0 = 0 if mask & _BOX_LEFT else center_lo
-        x1 = tw - 1 if mask & _BOX_RIGHT else center_hi
-        y0 = 0 if mask & _BOX_TOP else center_lo
-        y1 = th - 1 if mask & _BOX_BOTTOM else center_hi
-    for r0, r1 in h_bands:
-        tile[r0 : r1 + 1, x0 : x1 + 1, 3] = 255
-    for c0, c1 in v_bands:
-        tile[y0 : y1 + 1, c0 : c1 + 1, 3] = 255
-    tile[..., :3] = 255  # white; the console tints via fg colour
-    return tile
-
-
-def _procedural_box_drawing(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
-    """Overwrite box-drawing codepoints in ``tileset`` with perfect strokes.
-
-    Returns the (mutated) tileset.  Only the box-drawing block
-    (U+2500-256C) is replaced; text glyphs are untouched.
-    """
-    tw, th = tileset.tile_width, tileset.tile_height
-    for masks, double in ((_BOX_SINGLE, False), (_BOX_DOUBLE, True)):
-        for cp, mask in masks.items():
-            tileset[cp] = _render_box_tile(tw, th, mask, double)
-    return tileset
-
+# The native sheet already supplies the text and box-drawing glyphs. These
+# patches fill the few game-specific texture codepoints that are absent or
+# inconsistent under CHARMAP_TCOD, then the text pass tightens ordinary
+# alphanumeric glyphs without changing the 16x16 cell grid.
 
 # --- Procedural block elements / shades / suits ----------------------------
 #
-# Same root cause as the box drawing: TrueType fonts can render the game's
-# texture glyphs with inconsistent scale or coverage. Procedural patches
-# keep blocks and shades full-bleed, center the floor dot, and guarantee
-# visible card suits for trees (♣), fountains (♦), and drinks (♥).
+# Procedural patches keep blocks and shades full-bleed, center the floor dot,
+# and guarantee visible card suits for trees (♣), fountains (♦), and drinks (♥).
 #
 # The CP437 tilesheet's versions are classic full-bleed patterns (measured
 # from dejavu16x16_gs_tc.png): light ░ = 1px dots at x%4==0 on even rows /
@@ -280,9 +172,8 @@ def _render_bitmap_tile(
 ) -> np.ndarray:
     """Build a centered glyph tile (RGBA) from '#'/'.' bitmap rows.
 
-    The bundled bitmap patterns are authored at 16x16, while the TTF
-    path may use a larger raster. Centering the pattern keeps procedural
-    glyphs aligned with the font at either size.
+    The bundled bitmap patterns are authored at 16x16. Centering the
+    pattern keeps procedural glyphs aligned in the native raster.
     """
     tile = np.zeros((th, tw, 4), dtype=np.uint8)
     if not rows:
@@ -437,59 +328,30 @@ def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
 
 
 def load_tileset() -> tcod.tileset.Tileset:
-    """Load the native bitmap tileset, falling back to bundled TTF fonts.
+    """Load the native CP437 bitmap tileset.
 
-    The CP437 bitmap is attempted first so the normal game path stays
-    crisp and pixel-stable. DejaVu Sans Mono and then Hack remain useful
-    fallbacks if the bitmap asset is missing or its loader fails.
-
-    Only raises :class:`EngineError` when all bundled loaders fail.
+    The bitmap is the sole rendering path so glyphs remain crisp and
+    pixel-stable across platforms. Texture patches and the text-spacing
+    refinement are applied after the sheet loads.
     """
     _tilesheet_path = _data_path(TILESHEET_FILENAME)
-    if _tilesheet_path.is_file():
-        try:
-            _sheet = tcod.tileset.load_tilesheet(
-                str(_tilesheet_path),
-                columns=TILESHEET_COLUMNS,
-                rows=TILESHEET_ROWS,
-                charmap=tcod.tileset.CHARMAP_TCOD,
-            )
-            # The tilesheet is missing █ · ♣ ♦ ♥ under CHARMAP_TCOD; fill
-            # them in with the same procedural glyphs as the TTF path.
-            return _widen_text_glyphs(_procedural_texture_glyphs(_sheet))
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(
-                f"Warning: failed to load {_tilesheet_path} ({exc}). "
-                "Trying the TrueType fallbacks.",
-                file=sys.stderr,
-            )
-
-    _ttf_paths = (
-        _data_path(TRUETYPE_FONT_FILENAME),
-        _data_path(LEGACY_TRUETYPE_FONT_FILENAME),
-    )
-    for _ttf_path in _ttf_paths:
-        if not _ttf_path.is_file():
-            continue
-        try:
-            _ts = tcod.tileset.load_truetype_font(
-                str(_ttf_path),
-                tile_width=TILE_WIDTH,
-                tile_height=TILE_HEIGHT,
-            )
-            return _procedural_texture_glyphs(_procedural_box_drawing(_ts))
-        except (OSError, RuntimeError, ValueError) as exc:
-            print(
-                f"Warning: failed to load {_ttf_path} ({exc}). "
-                "Trying the next font fallback.",
-                file=sys.stderr,
-            )
-
-    raise EngineError(
-        f"No usable tileset found. Expected {TILESHEET_FILENAME}, "
-        f"{TRUETYPE_FONT_FILENAME}, or {LEGACY_TRUETYPE_FONT_FILENAME} "
-        "in the data/ directory."
-    )
+    if not _tilesheet_path.is_file():
+        raise EngineError(
+            f"No bitmap tileset found. Expected {TILESHEET_FILENAME} "
+            "in the data/ directory."
+        )
+    try:
+        _sheet = tcod.tileset.load_tilesheet(
+            str(_tilesheet_path),
+            columns=TILESHEET_COLUMNS,
+            rows=TILESHEET_ROWS,
+            charmap=tcod.tileset.CHARMAP_TCOD,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise EngineError(
+            f"Failed to load bitmap tilesheet from {_tilesheet_path}: {exc}"
+        ) from exc
+    return _widen_text_glyphs(_procedural_texture_glyphs(_sheet))
 
 
 # ---------------------------------------------------------------------------
