@@ -131,7 +131,7 @@ python3 tools/text_render_spike.py
 
 The left panel is the current game bitmap; the right panel uses a system
 monospace font. Use `--no-aa`, `--size`, `--scale`, or `--font` to explore
-alternatives. Pygame is optional and is not required to run the game.
+alternatives. Pygame and NumPy are optional and are not required to run the game.
 
 ## How to play
 

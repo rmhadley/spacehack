@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from tools.text_render_spike import (
@@ -10,6 +11,12 @@ from tools.text_render_spike import (
     clamp_config,
     panel_rects,
 )
+
+
+def test_spike_does_not_eagerly_import_numpy():
+    """Help and configuration remain usable before visual dependencies load."""
+    source = Path("tools/text_render_spike.py").read_text(encoding="utf-8")
+    assert "import numpy as np" not in source
 
 
 def test_panel_rects_split_the_window_with_a_gap():

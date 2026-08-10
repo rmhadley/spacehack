@@ -20,8 +20,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 
 SAMPLE_LINES: tuple[str, ...] = (
     "SPACEHACK",
@@ -107,6 +105,17 @@ def _load_pygame() -> Any:
     return pygame
 
 
+def _load_numpy() -> Any:
+    """Import NumPy only when the bitmap panel is actually rendered."""
+    try:
+        import numpy
+    except ModuleNotFoundError as exc:
+        raise SystemExit(
+            "NumPy is not installed. Run: pip install -e '.[visual]'"
+        ) from exc
+    return numpy
+
+
 def _project_root() -> Path:
     """Return the repository root from this tool's location."""
     return Path(__file__).resolve().parents[1]
@@ -122,7 +131,7 @@ def _load_current_tileset():
     return engine.load_tileset()
 
 
-def _tile_surface(pygame: Any, tile: np.ndarray, color: tuple[int, int, int], scale: int):
+def _tile_surface(pygame: Any, tile: Any, color: tuple[int, int, int], scale: int):
     """Convert one tcod RGBA tile into a scaled, tinted Pygame surface."""
     height, width = tile.shape[:2]
     surface = pygame.image.frombuffer(tile.tobytes(), (width, height), "RGBA").convert_alpha()
@@ -153,9 +162,10 @@ def _draw_bitmap_line(
     color: tuple[int, int, int],
 ) -> None:
     """Draw a text line using the actual current tcod bitmap tiles."""
+    numpy = _load_numpy()
     cursor_x = x
     for character in text:
-        tile = np.asarray(tileset[ord(character)])
+        tile = numpy.asarray(tileset[ord(character)])
         glyph = _tile_surface(pygame, tile, color, scale)
         screen.blit(glyph, (cursor_x, y))
         cursor_x += tile.shape[1] * scale
