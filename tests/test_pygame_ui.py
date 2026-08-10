@@ -244,6 +244,46 @@ def test_navigation_capture_trims_empty_rows_for_readable_font_fit(monkeypatch):
     assert frame.rows[0][0].text.startswith("MAP")
 
 
+def test_navigation_capture_splits_authoritative_map_and_aoi_regions(monkeypatch):
+    captured = pygame_world.CaptureConsole(100, 60)
+
+    def fake_render(console, _ctx, **_kwargs):
+        console.print(x=20, y=5, string="....@", fg=(255, 255, 100))
+        console.print(x=72, y=5, string="AREAS OF INTEREST", fg=(220, 230, 245))
+        console.print(x=72, y=6, string="Earth - 0.0u", fg=(232, 236, 246))
+
+    monkeypatch.setattr(
+        "src.spacehack.navigation.render_navigation",
+        fake_render,
+    )
+    monkeypatch.setattr(
+        pygame_navigation.pygame_world,
+        "CaptureConsole",
+        lambda _w, _h: captured,
+    )
+
+    frame = pygame_navigation._capture(SimpleNamespace(), SimpleNamespace(x=1, y=1))
+
+    assert frame.map_rows[0][0].text == "....@"
+    assert frame.aoi_rows[0][0].text == "AREAS OF INTEREST"
+    assert frame.aoi_rows[1][0].text == "Earth - 0.0u"
+    assert frame.title.startswith("NAVIGATION - ")
+    assert frame.position == "Position: (1, 1)"
+
+
+def test_navigation_crops_rows_without_losing_colour_spans():
+    rows = (
+        (
+            pygame_quest_log.QuestSpan("prefix", (1, 2, 3)),
+            pygame_quest_log.QuestSpan("MAP", (4, 5, 6)),
+        ),
+    )
+
+    cropped = pygame_navigation._crop_rows(rows, x=6, y=0, width=3, height=1)
+
+    assert cropped == ((pygame_quest_log.QuestSpan("MAP", (4, 5, 6)),),)
+
+
 def test_footer_rows_leave_exit_text_inside_hud_bounds():
     from src.spacehack import hud
 
