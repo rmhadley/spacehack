@@ -40,9 +40,9 @@ SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
 
 def _pygame_readonly_enabled() -> bool:
     """Return whether read-only Pygame screens can render in this runtime."""
-    from .. import pygame_batch
+    from .. import pygame_screen
 
-    return pygame_batch.enabled()
+    return pygame_screen.enabled()
 
 
 def render_ship_menu(console: tcod.console.Console, ctx: GameContext, ship: ship_module.Ship, selected: int = 0, *, screen_width: int, screen_height: int) -> None:
@@ -233,21 +233,88 @@ def render_loadout_view(console, ctx) -> None:
     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
 
+def _pygame_loadout_frame(ctx):
+    """Build a readable Pygame snapshot for the installed ship loadout."""
+    from .. import pygame_screen
+    from ..data.modules import find_module
+    from ..data.weapons import find_weapon
+
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return pygame_screen.ScreenFrame(
+            "SHIP LOADOUT", ("No ship equipped.",), (),
+            ("ESC back",),
+        )
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    body = (
+        f"Fuel: {owned.fuel}/{ship_spec.max_fuel}",
+        f"Hull damage: {owned.hull_damage_pct}%",
+        f"Cargo: {owned.cargo_used}/{ship_module.effective_max_cargo(ship_spec, owned)}",
+        f"Shields: {_effective_shields(ship_spec, owned)}    Power: {_effective_power_gen(ship_spec, owned)}    Speed: {ship_module.effective_speed(ship_spec, owned)}",
+    )
+    rows: list = []
+    for index, weapon_id in enumerate(owned.weapons, 1):
+        try:
+            weapon = find_weapon(weapon_id)
+            detail = (
+                f"Damage {weapon.damage}   Accuracy {weapon.accuracy}%   "
+                f"Range {weapon.min_range}-{weapon.max_range}   "
+                f"AP {weapon.ap_cost}   Power {weapon.power_cost}"
+            )
+            if weapon.slot_type == "missile":
+                detail += f"   Ammo {weapon.ammo_capacity}"
+            label = f"Weapon {index}: {weapon.name}"
+        except KeyError:
+            label = f"Weapon {index}: {weapon_id}"
+            detail = "Unknown weapon specification"
+        rows.append(pygame_screen.ScreenRow(label, detail, selectable=True))
+    if not owned.weapons:
+        rows.append(pygame_screen.ScreenRow("Weapons: none installed", selectable=False))
+    rows.append(pygame_screen.ScreenRow("MODULES", selectable=False))
+    for module_id in owned.modules:
+        try:
+            module = find_module(module_id)
+            rows.append(pygame_screen.ScreenRow(module.name, module.description, selectable=True))
+        except KeyError:
+            rows.append(pygame_screen.ScreenRow(module_id, "Unknown module specification", selectable=True))
+    if not owned.modules:
+        rows.append(pygame_screen.ScreenRow("Modules: none installed", selectable=False))
+    return pygame_screen.ScreenFrame(
+        title=f"LOADOUT - {ship_module.ship_display_name(owned).upper()}",
+        body=body,
+        rows=tuple(rows),
+        footer=("ESC back   ? guide",),
+    )
+
+
+def _run_pygame_loadout_view(ctx) -> bool | None:
+    """Run the read-only loadout through the shared Pygame screen."""
+    from .. import pygame_screen
+
+    while True:
+        try:
+            outcome, _action, _selected = pygame_screen.run_for_context(
+                ctx.context,
+                _pygame_loadout_frame(ctx),
+                caption="spacehack - ship loadout",
+            )
+        except pygame_screen.PygameScreenUnavailable:
+            return None
+        if outcome == "GUIDE":
+            from ..help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome in {"BACK", "QUIT"}:
+            return True
+        return True
+
+
 def _run_loadout_view(ctx) -> None:
-    """Show the read-only loadout view through the existing tcod modal."""
+    """Show the read-only loadout view through Pygame with tcod fallback."""
     if ctx.player_owned_ship is None:
         return
-    if _pygame_readonly_enabled():
-        from .. import pygame_batch
-        try:
-            outcome = pygame_batch.run_for_context(ctx.context, lambda console: render_loadout_view(console, ctx))
-        except pygame_batch.PygameBatchUnavailable:
-            outcome = None
-        if outcome is not None:
-            if outcome == "GUIDE":
-                from ..help import _run_help_guide
-                _run_help_guide(ctx)
-            return
+    if _pygame_readonly_enabled() and _run_pygame_loadout_view(ctx) is not None:
+        return
     console = make_console()
 
     def _render() -> None:

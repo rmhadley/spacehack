@@ -914,6 +914,113 @@ def test_armory_pygame_action_returns_keep_open_after_buy():
     assert messages
 
 
+def test_readonly_loadout_frame_uses_semantic_screen_rows(monkeypatch):
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    monkeypatch.setattr(_ship_menu.ship_module, "ship_display_name", lambda _owned: "Scout A")
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="starter",
+            weapons=("light_laser",),
+            modules=("shield_mk1",),
+            fuel=12,
+        ),
+    )
+
+    frame = _ship_menu._pygame_loadout_frame(ctx)
+
+    assert frame.title == "LOADOUT - SCOUT A"
+    assert "Fuel: 12/80" in frame.body
+    assert frame.rows[0].text.startswith("Weapon 1:")
+    assert "Damage" in frame.rows[0].detail
+    assert any(row.text == "Shield Mk. 1" for row in frame.rows)
+    assert all(row.selectable for row in frame.rows if row.text != "MODULES")
+
+
+def test_readonly_loadout_pygame_maps_back_and_quit(monkeypatch):
+    from src.spacehack import pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        context=object(),
+        player_owned_ship=OwnedShip(ship_id="starter"),
+    )
+    for outcome in ("BACK", "QUIT"):
+        monkeypatch.setattr(
+            pygame_screen,
+            "run_for_context",
+            lambda *args, _outcome=outcome, **kwargs: (_outcome, "", 0),
+        )
+        monkeypatch.setattr(pygame_screen, "enabled", lambda: True)
+        assert _ship_menu._run_pygame_loadout_view(ctx) is True
+
+
+def test_readonly_loadout_pygame_maps_guide_and_falls_back(monkeypatch):
+    from src.spacehack import pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        context=object(),
+        player_owned_ship=OwnedShip(ship_id="starter"),
+    )
+    outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
+    monkeypatch.setattr(pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_screen, "enabled", lambda: True)
+    monkeypatch.setattr("src.spacehack.help._run_help_guide", lambda _ctx: None)
+
+    assert _ship_menu._run_pygame_loadout_view(ctx) is True
+
+    calls = []
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_for_context",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            pygame_screen.PygameScreenUnavailable("missing")
+        ),
+    )
+    monkeypatch.setattr(
+        _ship_menu.ui.Modal,
+        "run",
+        lambda self, render, update: calls.append("fallback") or None,
+    )
+    _ship_menu._run_loadout_view(ctx)
+    assert calls == ["fallback"]
+
+
+def test_readonly_loadout_uses_shared_screen_without_worker(monkeypatch):
+    from src.spacehack import pygame_runtime, pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        context=object(),
+        player_owned_ship=OwnedShip(ship_id="starter"),
+    )
+    captured = {}
+    monkeypatch.setattr(pygame_runtime, "shared_enabled", lambda: True)
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_shared",
+        lambda context, frame, **kwargs: captured.update(
+            context=context, frame=frame,
+        ) or ("BACK", "", 0),
+    )
+    monkeypatch.setattr(
+        pygame_screen,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("shared loadout must not start a worker")
+        ),
+    )
+
+    assert _ship_menu._run_pygame_loadout_view(ctx) is True
+    assert captured["context"] is ctx.context
+    assert captured["frame"].title.startswith("LOADOUT -")
+
+
 def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
     from src.spacehack.ship import OwnedShip
 
