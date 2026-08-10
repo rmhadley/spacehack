@@ -310,6 +310,21 @@ def test_footer_rows_leave_exit_text_inside_hud_bounds():
     assert exit_y < 54
 
 
+def test_modal_footer_geometry_leaves_clearance_above_log_panel():
+    from src.spacehack import pygame_ui
+
+    height = 960
+    boundary = pygame_ui.modal_footer_y(height)
+
+    assert boundary == height - pygame_ui.LOG_PANEL_HEIGHT - pygame_ui.FOOTER_PAD
+    # A hint drawn at modal_footer_text_y has its bottom at the boundary, so
+    # its ink never reaches the console-log panel border.
+    line_height = 40
+    hint_y = pygame_ui.modal_footer_text_y(height, line_height)
+    assert hint_y == boundary - line_height
+    assert hint_y + line_height <= height - pygame_ui.LOG_PANEL_HEIGHT
+
+
 def test_animation_timing_is_slightly_faster_than_previous_defaults():
     assert animation_timing.COMBAT_BEAM < 0.05
     assert animation_timing.COMBAT_IMPACT < 0.06

@@ -97,6 +97,10 @@ DEFAULT_PALETTE = Palette()
 # presentation primitives.
 LOG_ROWS = 6
 LOG_PANEL_HEIGHT = 128
+# Clearance between modal footer/hint text and the top border of the console
+# log panel. ``modal_footer_y`` is the BOTTOM boundary for footer text — no
+# footer glyph may extend below it, so hints never touch the log border.
+FOOTER_PAD = 30
 
 
 def _context_game_context(context: Any) -> Any | None:
@@ -106,13 +110,23 @@ def _context_game_context(context: Any) -> Any | None:
 
 
 def modal_footer_y(height: int) -> int:
-    """Return the top of the footer area above the modal log panel."""
-    return max(0, height - LOG_PANEL_HEIGHT - 18)
+    """Return the bottom boundary for footer text above the modal log panel.
+
+    Footer/hint text must not extend below this line; the console-log panel's
+    top border sits ``FOOTER_PAD`` pixels further down.
+    """
+    return max(0, height - LOG_PANEL_HEIGHT - FOOTER_PAD)
 
 
-def modal_content_bottom(height: int, inset: int = 12) -> int:
-    """Return a safe bottom edge for custom modal content."""
-    return max(0, modal_footer_y(height) - inset)
+def modal_footer_text_y(height: int, line_height: int) -> int:
+    """Return the y for one footer line whose bottom clears the log panel.
+
+    ``line_height`` is the full block height below the returned y (glyph ink
+    plus any extra margin); the line's bottom lands at ``modal_footer_y``.
+    The clamp guards degenerate tiny-window sizes where the block exceeds the
+    available space.
+    """
+    return max(0, modal_footer_y(height) - line_height)
 
 
 def is_guide_key(pygame: Any, event: Any) -> bool:

@@ -167,16 +167,19 @@ def _draw(
     pygame_ui.draw_rule(pygame, screen, outer.x + 24, outer.y + 54, outer.width - 48, color=palette.border)
     gap = 20
     panel_width = max(1, (outer.width - 68 - gap) // 2)
-    content_bottom = (
-        pygame_ui.modal_content_bottom(height)
-        if context is not None else height - 68
-    )
+    if context is not None:
+        # Bottom-anchor the footer line so it clears the console-log
+        # boundary; panels end above it.
+        footer_y = pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
+        content_bottom = footer_y - 6
+    else:
+        content_bottom = height - 68
+        footer_y = height - 68
     panel_height = max(1, content_bottom - 110)
     left = pygame_ui.Rect(48, 110, panel_width, panel_height)
     right = pygame_ui.Rect(left.x + panel_width + gap, 110, panel_width, panel_height)
     _draw_panel(pygame, screen, font, left, "SYSTEM MAP", frame.map_rows)
     _draw_panel(pygame, screen, font, right, "AREAS OF INTEREST", frame.aoi_rows)
-    footer_y = content_bottom + 4 if context is not None else height - 68
     pygame_ui.draw_text(pygame, screen, font, frame.position, 52, footer_y, color=palette.text)
     pygame_ui.draw_text(pygame, screen, font, "ESC close   ? guide", width - 270, footer_y, color=palette.instruction)
     if context is not None:

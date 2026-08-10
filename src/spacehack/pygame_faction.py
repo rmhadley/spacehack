@@ -113,7 +113,13 @@ def _fit_font(pygame: Any, frame: FactionFrame, width: int, height: int) -> Any:
     for size in range(26, 13, -1):
         font = pygame.font.Font(path, size)
         row_height = font.get_linesize() + 42
-        if row_height * max(1, len(frame.rows)) <= height - 250 and font.size(row_text)[0] <= width - 140:
+        # Reserve one hint line plus the log-panel clearance below the rows
+        # so the footer never collides with the last standing row.
+        hint_block = font.get_linesize() + pygame_ui.FOOTER_PAD
+        if (
+            row_height * max(1, len(frame.rows)) + hint_block <= height - 250
+            and font.size(row_text)[0] <= width - 140
+        ):
             return font
     return pygame.font.Font(path, 14)
 
@@ -125,7 +131,13 @@ def _draw_frame(
     """Draw faction standings in the shared framed-screen style."""
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
-    panel = pygame_ui.Rect(32, 28, width - 64, height - 56)
+    if context is not None:
+        # Panel ends at the console-log boundary so its border never hides
+        # behind the log panel or crowds the footer hint.
+        panel_bottom = pygame_ui.modal_footer_y(height)
+        panel = pygame_ui.Rect(32, 28, width - 64, max(1, panel_bottom - 28))
+    else:
+        panel = pygame_ui.Rect(32, 28, width - 64, height - 56)
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
     pygame_ui.draw_centered_text(
         pygame, screen, font, frame.title, panel, panel.y + 22,
@@ -163,7 +175,7 @@ def _draw_frame(
         )
         y += row_height
     hint_y = (
-        pygame_ui.modal_content_bottom(height, 2)
+        pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
         if context is not None
         else panel.y + panel.height - 48
     )

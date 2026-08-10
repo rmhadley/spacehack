@@ -246,7 +246,7 @@ def _draw_rows(
         screen.set_clip(None)
     if frame.hint:
         hint_y = (
-            pygame_ui.modal_content_bottom(height, 2)
+            pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
             if context is not None else panel.y + panel.height - 48
         )
         pygame_ui.draw_centered_text(

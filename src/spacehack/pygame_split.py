@@ -219,11 +219,19 @@ def _draw_frame(
     )
     gap = 20
     panel_width = (width - 64 - gap) // 2
-    content_bottom = (
-        pygame_ui.modal_content_bottom(height)
-        if context is not None else height - 34
-    )
-    panel_height = max(1, content_bottom - 78)
+    if context is not None:
+        # Panels end above the footer block; the footer and hint lines sit
+        # between the panels and the console-log boundary (modal_footer_y)
+        # so no glyph ever touches the log panel border.
+        footer_block = font.get_linesize() * 2 + 20
+        panel_bottom = pygame_ui.modal_footer_y(height) - footer_block
+        footer_y = panel_bottom + 6
+        hint_y = footer_y + font.get_linesize() + 8
+    else:
+        panel_bottom = height - 34
+        footer_y = height - 58
+        hint_y = height - 34
+    panel_height = max(1, panel_bottom - 78)
     left = pygame_ui.Rect(32, 78, panel_width, panel_height)
     right = pygame_ui.Rect(32 + panel_width + gap, 78, panel_width, panel_height)
     selected = _clamp_selected(frame)
@@ -238,22 +246,19 @@ def _draw_frame(
         focused=frame.focus == 1,
     )
     pygame_ui.draw_text(
-        pygame, screen, font, frame.footer_left, 40,
-        (content_bottom + 10 if context is not None else height - 58),
+        pygame, screen, font, frame.footer_left, 40, footer_y,
         color=pygame_ui.DEFAULT_PALETTE.text,
     )
     footer_width = pygame_ui.measure_font(font, frame.footer_right)
     pygame_ui.draw_text(
         pygame, screen, font, frame.footer_right,
-        width - footer_width - 40,
-        (content_bottom + 10 if context is not None else height - 58),
+        width - footer_width - 40, footer_y,
         color=pygame_ui.DEFAULT_PALETTE.text,
     )
     pygame_ui.draw_text(
         pygame, screen, font,
         pygame_ui.fit_text(frame.hint, width - 80, lambda value: pygame_ui.measure_font(font, value)),
-        40,
-        (content_bottom + 34 if context is not None else height - 34),
+        40, hint_y,
         color=pygame_ui.DEFAULT_PALETTE.instruction,
     )
     if context is not None:

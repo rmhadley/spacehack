@@ -174,7 +174,7 @@ def _fit_font(
     content_width = max(1, width - 80)
     available_height = max(1, height - 70 - 84)
     if reserve_log:
-        available_height -= pygame_ui.LOG_PANEL_HEIGHT
+        available_height -= pygame_ui.LOG_PANEL_HEIGHT + pygame_ui.FOOTER_PAD
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
         if _layout_height(font, frame, content_width) <= available_height:
@@ -281,16 +281,20 @@ def _draw_frame(
             pygame, screen, font, detail, x + 28, y,
             detail_width, color=palette.description, line_gap=2,
         )
-    y = max(y + measure_detail_height + 8, footer_start)
     footer_lines = frame.footer
     if body_overflow:
         footer_lines = ("PAGE UP/DOWN scroll for more",) + footer_lines
+    footer_step = font.get_linesize() + 3
+    footer_top = footer_start - len(footer_lines) * footer_step
+    y = max(y + measure_detail_height + 8, footer_top)
     for line in footer_lines:
+        if y + font.get_linesize() > footer_start:
+            break
         pygame_ui.draw_text(
             pygame, screen, font, pygame_ui.fit_text(line, width - 80, measure),
             x, y, color=palette.instruction,
         )
-        y += font.get_linesize() + 3
+        y += footer_step
     if context is not None:
         pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
 

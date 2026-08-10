@@ -135,7 +135,7 @@ def _fit_font(
     content_width = _content_width(width)
     available_height = max(1, height - 132)
     if reserve_log:
-        available_height -= pygame_ui.LOG_PANEL_HEIGHT
+        available_height -= pygame_ui.LOG_PANEL_HEIGHT + pygame_ui.FOOTER_PAD
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
         if all(
