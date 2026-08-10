@@ -117,8 +117,10 @@ def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
     selected = 0
     while True:
         try:
-            outcome, action, selected = pygame_screen.run(
-                _character_frame(ctx, tab, selected), caption="spacehack - character",
+            outcome, action, selected = pygame_screen.run_for_context(
+                ctx.context,
+                _character_frame(ctx, tab, selected),
+                caption="spacehack - character",
             )
         except pygame_screen.PygameScreenUnavailable:
             return None

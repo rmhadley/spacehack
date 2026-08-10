@@ -19,8 +19,10 @@ class PygameMenuUnavailable(RuntimeError):
 
 
 def enabled() -> bool:
-    """Return whether the generic interactive-menu batch is enabled."""
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE")
+    """Return whether generic menus can render in this runtime."""
+    from . import pygame_runtime
+
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE") or pygame_runtime.shared_enabled()
 
 
 @dataclass(frozen=True)
@@ -309,8 +311,22 @@ def run_shared(
         return outcome, action, selected
 
 
-def run(
+def run_for_context(
+    context: Any,
     frames: tuple[MenuFrame, ...],
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Use the shared window when active, otherwise the worker window."""
+    from . import pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return run_shared(context, frames, caption=caption)
+    return run(frames, caption=caption)
+
+
+def run(frames: tuple[MenuFrame, ...],
+
     *,
     caption: str = "spacehack",
     screen_size: tuple[int, int] = (1600, 960),

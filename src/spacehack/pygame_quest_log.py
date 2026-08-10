@@ -219,8 +219,8 @@ def _run_worker(payload: dict[str, Any]) -> int:
             frame.selected for frame in all_frames
             if frame.selected >= 0 and not frame.confirm_abandon
         })
-        selected = 0 if count else -1
-        confirm = False
+        selected = int(payload.get("selected", 0)) if count else -1
+        confirm = bool(payload.get("confirm_abandon", False))
         clock = pygame.time.Clock()
         while True:
             frame = frames[_frame_key(selected, confirm)]
@@ -232,7 +232,11 @@ def _run_worker(payload: dict[str, Any]) -> int:
                     pygame, event, selected, confirm, count,
                 )
                 if outcome != "IGNORE":
-                    print(json.dumps({"outcome": outcome, "selected": selected}))
+                    print(json.dumps({
+                        "outcome": outcome,
+                        "selected": selected,
+                        "confirm_abandon": confirm,
+                    }))
                     return 0
             clock.tick(60)
     finally:
@@ -249,20 +253,80 @@ def _load_pygame() -> Any:
     return pygame
 
 
-def run(ctx: Any) -> tuple[str, int]:
+def run_shared(
+    context: Any,
+    ctx: Any,
+    selected: int = 0,
+    confirm_abandon: bool = False,
+) -> tuple[str, int, bool]:
+    """Run the stateful Quest Log inside the existing shared window."""
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameQuestLogUnavailable("Shared Pygame runtime is not open")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    all_frames = _frames_for(ctx)
+    if not all_frames:
+        raise PygameQuestLogUnavailable("Quest Log has no renderable frames")
+    width, height = screen.get_size()
+    font = _fit_font(pygame, all_frames, width, height)
+    count = len(ctx.player_active_missions)
+    selected = selected if count else -1
+    confirm = confirm_abandon
+    while True:
+        frame = _capture_frame(ctx, selected, confirm)
+        screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+        _draw_rows(pygame, screen, font, frame)
+        engine.present()
+        event = pygame.event.wait()
+        outcome, selected, confirm = _handle_key(
+            pygame, event, selected, confirm, count,
+        )
+        if outcome == "IGNORE":
+            continue
+        return outcome, selected, confirm
+
+
+def run_for_context(
+    ctx: Any,
+    selected: int = 0,
+    confirm_abandon: bool = False,
+) -> tuple[str, int, bool]:
+    """Use the shared window when active, otherwise the worker window."""
+    from . import pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return run_shared(ctx.context, ctx, selected, confirm_abandon)
+    return run(ctx, selected, confirm_abandon)
+
+
+def run(
+    ctx: Any,
+    selected: int = 0,
+    confirm_abandon: bool = False,
+) -> tuple[str, int, bool]:
     """Run the Quest Log worker and return its modal outcome."""
     frames = _frames_for(ctx)
     try:
         response = pygame_ui.run_json_worker(
             pygame_ui.worker_command(f"{__package__}.pygame_quest_log"),
-            _worker_payload(frames),
+            {
+                **_worker_payload(frames),
+                "selected": selected,
+                "confirm_abandon": confirm_abandon,
+            },
             unavailable_message="Pygame Quest Log unavailable",
             environment=pygame_ui.worker_environment(),
         )
     except pygame_ui.PygameWorkerUnavailable as exc:
         raise PygameQuestLogUnavailable(str(exc)) from exc
     try:
-        return str(response["outcome"]), int(response["selected"])
+        return (
+            str(response["outcome"]),
+            int(response["selected"]),
+            bool(response.get("confirm_abandon", confirm_abandon)),
+        )
     except (KeyError, TypeError, ValueError) as exc:
         raise PygameQuestLogUnavailable(
             "Pygame Quest Log returned no usable choice"

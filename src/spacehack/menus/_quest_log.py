@@ -19,27 +19,34 @@ from ..input_helpers import _try_open_guide
 
 
 def _pygame_quest_log_enabled() -> bool:
-    """Return whether the Pygame Quest Log is enabled."""
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUEST_LOG")
+    """Return whether the Pygame Quest Log can render in this runtime."""
+    from .. import pygame_runtime
+
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUEST_LOG") or pygame_runtime.shared_enabled()
 
 
 def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
     """Run the Pygame Quest Log, returning None for tcod fallback."""
-    from ..pygame_quest_log import PygameQuestLogUnavailable, run
+    from ..pygame_quest_log import PygameQuestLogUnavailable, run_for_context
 
-    try:
-        outcome, selected = run(ctx)
-    except PygameQuestLogUnavailable:
-        return None
-    if outcome == "ABANDONED":
-        return QuestLogOutcome.ABANDONED, selected
-    if outcome == "QUIT":
-        return QuestLogOutcome.QUIT, None
-    if outcome == "GUIDE":
-        from ..help import _run_help_guide
-        _run_help_guide(ctx)
+    selected = 0
+    confirm_abandon = False
+    while True:
+        try:
+            outcome, selected, confirm_abandon = run_for_context(
+                ctx, selected, confirm_abandon,
+            )
+        except PygameQuestLogUnavailable:
+            return None
+        if outcome == "ABANDONED":
+            return QuestLogOutcome.ABANDONED, selected
+        if outcome == "QUIT":
+            return QuestLogOutcome.QUIT, None
+        if outcome == "GUIDE":
+            from ..help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
         return QuestLogOutcome.BACK, None
-    return QuestLogOutcome.BACK, None
 
 
 class QuestLogOutcome(Enum):

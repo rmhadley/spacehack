@@ -109,7 +109,8 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
     selected = 0
     while True:
         try:
-            outcome, action, selected = pygame_screen.run(
+            outcome, action, selected = pygame_screen.run_for_context(
+                ctx.context,
                 _mechanic_frame(ctx, ship_rec, selected),
                 caption="spacehack - mechanic",
             )
@@ -270,7 +271,8 @@ def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
     selected = 0
     while True:
         try:
-            outcome, action, selected = pygame_screen.run(
+            outcome, action, selected = pygame_screen.run_for_context(
+                ctx.context,
                 _ammo_frame(ctx, owned, missile_slots, selected),
                 caption="spacehack - buy ammo",
             )

@@ -35,7 +35,7 @@ def dismiss(
         art_colors=art_colors,
     )
     try:
-        outcome, _action, _selected = pygame_menu.run((frame,), caption=caption)
+        outcome, _action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
     except pygame_menu.PygameMenuUnavailable:
         return None
     if outcome == "GUIDE":
@@ -64,7 +64,7 @@ def confirm(
         selected=0,
     )
     try:
-        outcome, action, _selected = pygame_menu.run((frame,), caption=caption)
+        outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
     except pygame_menu.PygameMenuUnavailable:
         return None
     if outcome == "GUIDE":
@@ -109,7 +109,7 @@ def choose(
         for index in range(max(1, len(items)))
     )
     try:
-        outcome, action, _selected = pygame_menu.run(frames, caption=caption)
+        outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
     except pygame_menu.PygameMenuUnavailable:
         return None
     if outcome == "SELECT":

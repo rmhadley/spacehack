@@ -328,10 +328,10 @@ class _QOut(Enum):
 
 
 def _pygame_quantity_enabled() -> bool:
-    """Return whether the shared Pygame quantity worker is enabled."""
-    from . import pygame_ui
+    """Return whether the Pygame quantity selector can render in this runtime."""
+    from . import pygame_ui, pygame_runtime
 
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUANTITY")
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUANTITY") or pygame_runtime.shared_enabled()
 
 
 def _run_quantity_prompt(
@@ -344,7 +344,9 @@ def _run_quantity_prompt(
     if _pygame_quantity_enabled():
         from . import pygame_quantity
         try:
-            return pygame_quantity.run(ctx, label, max_qty, price_per)
+            return pygame_quantity.run_for_context(
+                getattr(ctx, "context", ctx), ctx, label, max_qty, price_per,
+            )
         except pygame_quantity.PygameQuantityQuit:
             raise SystemExit
         except pygame_quantity.PygameQuantityUnavailable:
@@ -430,8 +432,10 @@ def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -
         selected=0,
     )
     try:
-        outcome, action, _selected = pygame_menu.run(
-            (frame,), caption=f"spacehack - {title.lower()}",
+        outcome, action, _selected = pygame_menu.run_for_context(
+            getattr(ctx, "context", ctx),
+            (frame,),
+            caption=f"spacehack - {title.lower()}",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None
@@ -1355,7 +1359,8 @@ def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None
     selected = 0
     while True:
         try:
-            outcome, action, selected = pygame_screen.run(
+            outcome, action, selected = pygame_screen.run_for_context(
+                getattr(ctx, "context", ctx),
                 _cargo_frame(ctx, owned, ship_name, max_cargo, selected),
                 caption="spacehack - cargo",
             )

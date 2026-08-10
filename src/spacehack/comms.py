@@ -227,7 +227,7 @@ _INTERACTION_DISPATCH = {
 
 
 def _pygame_comms_enabled() -> bool:
-    """Return whether the generic Pygame menu worker is enabled."""
+    """Return whether the generic Pygame comms menu can render in this runtime."""
     from . import pygame_menu
 
     return pygame_menu.enabled()
@@ -252,8 +252,10 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
         for index in range(max(1, len(items)))
     )
     try:
-        outcome, action, _selected = pygame_menu.run(
-            frames, caption=f"spacehack - {contact_name}",
+        outcome, action, _selected = pygame_menu.run_for_context(
+            ctx.context,
+            frames,
+            caption=f"spacehack - {contact_name}",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None
@@ -549,8 +551,10 @@ def _pygame_contact_result(ctx, contacts):
         for selected in range(max(1, len(items)))
     )
     try:
-        outcome, action, selected = pygame_menu.run(
-            frames, caption="spacehack - comms",
+        outcome, action, selected = pygame_menu.run_for_context(
+            ctx.context,
+            frames,
+            caption="spacehack - comms",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None

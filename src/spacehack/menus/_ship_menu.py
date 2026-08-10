@@ -39,7 +39,7 @@ SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
 
 
 def _pygame_readonly_enabled() -> bool:
-    """Return whether the batched read-only Pygame screens are enabled."""
+    """Return whether read-only Pygame screens can render in this runtime."""
     from .. import pygame_batch
 
     return pygame_batch.enabled()
@@ -240,7 +240,7 @@ def _run_loadout_view(ctx) -> None:
     if _pygame_readonly_enabled():
         from .. import pygame_batch
         try:
-            outcome = pygame_batch.run_readonly(lambda console: render_loadout_view(console, ctx))
+            outcome = pygame_batch.run_for_context(ctx.context, lambda console: render_loadout_view(console, ctx))
         except pygame_batch.PygameBatchUnavailable:
             outcome = None
         if outcome is not None:
@@ -309,7 +309,7 @@ def _run_faction_view(ctx) -> None:
     if _pygame_readonly_enabled():
         from .. import pygame_batch
         try:
-            outcome = pygame_batch.run_readonly(lambda console: render_faction_view(console, ctx))
+            outcome = pygame_batch.run_for_context(ctx.context, lambda console: render_faction_view(console, ctx))
         except pygame_batch.PygameBatchUnavailable:
             outcome = None
         if outcome is not None:
@@ -337,7 +337,7 @@ def _run_faction_view(ctx) -> None:
 
 
 def _pygame_ship_menu_enabled() -> bool:
-    """Return whether the interactive Pygame menu batch is enabled."""
+    """Return whether the interactive Pygame menu can render in this runtime."""
     from .. import pygame_menu
 
     return pygame_menu.enabled()
@@ -384,7 +384,8 @@ def _run_pygame_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
 
     while True:
         try:
-            outcome, action, _selected = pygame_menu.run(
+            outcome, action, _selected = pygame_menu.run_for_context(
+                getattr(ctx, "context", ctx),
                 _ship_menu_frames(ctx, ship),
                 caption="spacehack - ship hangar",
             )

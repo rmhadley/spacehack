@@ -19,8 +19,10 @@ class PygameSplitUnavailable(RuntimeError):
 
 
 def enabled() -> bool:
-    """Return whether the shared interactive Pygame batch is enabled."""
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE")
+    """Return whether split screens can render in this runtime."""
+    from . import pygame_runtime
+
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE") or pygame_runtime.shared_enabled()
 
 
 @dataclass(frozen=True)
@@ -305,6 +307,35 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.quit()
 
 
+def run_shared(
+    context: Any,
+    frame: SplitFrame,
+    *,
+    caption: str = "spacehack - terminal",
+) -> tuple[str, str, int, int]:
+    """Run one split frame inside the already-open shared Pygame window."""
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameSplitUnavailable("Shared Pygame runtime is not open")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    width, height = screen.get_size()
+    font = _fit_font(pygame, frame, width, height)
+    while True:
+        current = replace(frame, selected=_clamp_selected(frame))
+        _draw_frame(pygame, screen, font, current)
+        engine.present()
+        event = pygame.event.wait()
+        outcome, focus, selected = _handle_key(pygame, event, current)
+        if outcome == "IGNORE":
+            frame = replace(frame, focus=focus, selected=selected)
+            continue
+        rows = _rows(current)
+        action = rows[selected].action if outcome == "SELECT" else ""
+        return outcome, action, focus, selected
+
+
 def run_interactive(
     ctx: Any,
     build_frame: Callable[[], SplitFrame],
@@ -327,7 +358,12 @@ def run_interactive(
     while True:
         try:
             frame = replace(frame, focus=focus, selected=selected)
-            outcome, action, focus, selected = run(frame, caption=caption)
+            if _shared_runtime_enabled(ctx):
+                outcome, action, focus, selected = run_shared(
+                    ctx.context, frame, caption=caption,
+                )
+            else:
+                outcome, action, focus, selected = run(frame, caption=caption)
         except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
             return None
         except PygameSplitUnavailable:
@@ -353,6 +389,13 @@ def run_interactive(
                 continue
             return "BACK"
         return outcome
+
+
+def _shared_runtime_enabled(ctx: Any) -> bool:
+    """Return whether this process owns the shared Pygame window."""
+    from . import pygame_runtime
+
+    return pygame_runtime.shared_enabled() and getattr(ctx, "context", None) is not None
 
 
 def run(

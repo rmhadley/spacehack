@@ -289,7 +289,8 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     if _pygame_readonly_enabled():
         from . import pygame_batch
         try:
-            outcome = pygame_batch.run_readonly(
+            outcome = pygame_batch.run_for_context(
+                ctx.context,
                 lambda console: render_navigation(
                     console,
                     ctx,
@@ -897,7 +898,8 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
         for index in range(len(items))
     )
     try:
-        outcome, action, _selected = pygame_menu.run(
+        outcome, action, _selected = pygame_menu.run_for_context(
+            getattr(ctx, "context", ctx),
             frames,
             caption="spacehack - go to",
         )
@@ -950,8 +952,8 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
     n = len(destinations)
     selected = 0
     _pygame_selected: int | None = None
-    from . import pygame_ui
-    if pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE"):
+    from . import pygame_menu
+    if pygame_menu.enabled():
         _pygame_handled, _pygame_selected = _run_pygame_goto_menu(ctx, destinations)
         if _pygame_handled and _pygame_selected is None:
             return (GotoOutcome.CANCELLED, None)
@@ -1222,8 +1224,10 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_
         selected=0,
     )
     try:
-        outcome, action, _selected = pygame_menu.run(
-            (frame,), caption="spacehack - jump gate",
+        outcome, action, _selected = pygame_menu.run_for_context(
+            getattr(ctx, "context", ctx),
+            (frame,),
+            caption="spacehack - jump gate",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None
@@ -1249,8 +1253,8 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
         _fuel = ctx.player_owned_ship.fuel
         _max_fuel = ship_rec.max_fuel
 
-    from . import pygame_ui
-    if pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE"):
+    from . import pygame_menu
+    if pygame_menu.enabled():
         pygame_result = _run_pygame_jump_menu(
             ctx, jp, target_system_id, _fuel, _max_fuel,
         )

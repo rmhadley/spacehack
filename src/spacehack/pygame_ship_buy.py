@@ -156,6 +156,46 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.quit()
 
 
+def run_shared(
+    context: Any,
+    ctx: Any,
+    ship: Any,
+    effective_price: int | None = None,
+) -> str:
+    """Run Ship Buy inside the existing shared Pygame window."""
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameShipBuyUnavailable("Shared Pygame runtime is not open")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    frame = _capture_frame(ctx, ship, effective_price)
+    width, height = screen.get_size()
+    font = _fit_font(pygame, frame, width, height)
+    while True:
+        screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+        _draw_frame(pygame, screen, font, frame)
+        engine.present()
+        event = pygame.event.wait()
+        outcome = _handle_key(pygame, event, frame.can_buy)
+        if outcome != "IGNORE":
+            return outcome
+
+
+def run_for_context(
+    context: Any,
+    ctx: Any,
+    ship: Any,
+    effective_price: int | None = None,
+) -> str:
+    """Use the shared window when active, otherwise the worker window."""
+    from . import pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return run_shared(context, ctx, ship, effective_price)
+    return run(ctx, ship, effective_price)
+
+
 def run(ctx: Any, ship: Any, effective_price: int | None = None) -> str:
     """Run the worker and return its outcome string."""
     frame = _capture_frame(ctx, ship, effective_price)

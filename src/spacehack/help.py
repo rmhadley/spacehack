@@ -1873,8 +1873,8 @@ def _run_pygame_help(ctx: GameContext) -> bool | None:
     frame = list_frame
     while True:
         try:
-            outcome, action, selected = pygame_screen.run(
-                frame, caption="spacehack - guide",
+            outcome, action, selected = pygame_screen.run_for_context(
+                ctx.context, frame, caption="spacehack - guide",
             )
         except pygame_screen.PygameScreenUnavailable:
             return None

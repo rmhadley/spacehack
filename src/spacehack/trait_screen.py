@@ -45,8 +45,8 @@ def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | No
         footer=("UP/DOWN or j/k select   ENTER choose",),
     )
     try:
-        outcome, action, _selected = pygame_screen.run(
-            frame, caption="spacehack - trait selection",
+        outcome, action, _selected = pygame_screen.run_for_context(
+            ctx.context, frame, caption="spacehack - trait selection",
         )
     except pygame_screen.PygameScreenUnavailable:
         return None

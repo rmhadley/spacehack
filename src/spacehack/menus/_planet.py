@@ -116,10 +116,10 @@ def update_planet_menu(
 
 
 def _pygame_interactive_enabled() -> bool:
-    """Return whether the generic interactive-menu batch is enabled."""
-    from .. import pygame_menu
+    """Return whether generic menus can render in this runtime."""
+    from .. import pygame_menu, pygame_runtime
 
-    return pygame_menu.enabled()
+    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
 
 
 def _run_pygame_planet_menu(ctx, planet_obj, items):
@@ -140,8 +140,10 @@ def _run_pygame_planet_menu(ctx, planet_obj, items):
         for selected in range(max(1, len(items)))
     )
     try:
-        outcome, action, _selected = pygame_menu.run(
-            frames, caption=f"spacehack - {planet_obj.name}",
+        outcome, action, _selected = pygame_menu.run_for_context(
+            ctx.context,
+            frames,
+            caption=f"spacehack - {planet_obj.name}",
         )
     except pygame_menu.PygameMenuUnavailable:
         return None

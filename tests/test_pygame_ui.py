@@ -1601,3 +1601,161 @@ def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
     assert result == (npc.TalkOutcome.WORK, None)
     assert captured["context"] is ctx.context
     assert captured["frames"][0].items[0].action == "WORK"
+
+
+def test_all_shared_adapters_bypass_workers(monkeypatch):
+    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+
+    menu_frame = pygame_menu.MenuFrame(
+        "Menu", "", (pygame_menu.MenuItem("Go", "", "GO"),), (), 0,
+    )
+    screen_frame = pygame_screen.ScreenFrame(
+        "Screen", (), (pygame_screen.ScreenRow("Go", action="GO"),),
+    )
+    split_frame = pygame_split.SplitFrame(
+        "Split", "Left", "Right",
+        (pygame_split.SplitRow("Go", "", "", "GO"),), (),
+        "", "", "", 0, 0,
+    )
+    context = object()
+    game_ctx = SimpleNamespace(context=context)
+    calls = []
+
+    monkeypatch.setattr(
+        pygame_menu, "run_shared",
+        lambda *args, **kwargs: calls.append("menu") or ("BACK", "", 0),
+    )
+    monkeypatch.setattr(
+        pygame_screen, "run_shared",
+        lambda *args, **kwargs: calls.append("screen") or ("BACK", "", 0),
+    )
+    monkeypatch.setattr(
+        pygame_batch, "run_shared",
+        lambda *args, **kwargs: calls.append("batch") or "BACK",
+    )
+    monkeypatch.setattr(
+        pygame_split, "run_shared",
+        lambda *args, **kwargs: calls.append("split") or ("BACK", "", 0, 0),
+    )
+    monkeypatch.setattr(
+        pygame_quantity, "run_shared",
+        lambda *args, **kwargs: calls.append("quantity") or None,
+    )
+    monkeypatch.setattr(
+        pygame_ship_buy, "run_shared",
+        lambda *args, **kwargs: calls.append("ship_buy") or "BACK",
+    )
+    monkeypatch.setattr(
+        pygame_quest_log, "run_shared",
+        lambda *args, **kwargs: calls.append("quest_log") or ("BACK", 0),
+    )
+
+    for module in (
+        pygame_menu, pygame_screen, pygame_split,
+        pygame_quantity, pygame_ship_buy, pygame_quest_log,
+    ):
+        monkeypatch.setattr(
+            module, "run", lambda *args, **kwargs: (_ for _ in ()).throw(
+                AssertionError(f"{module.__name__} started a worker")
+            ),
+        )
+    monkeypatch.setattr(
+        pygame_batch, "run_readonly", lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("pygame_batch started a worker")
+        ),
+    )
+
+    assert pygame_menu.run_for_context(context, (menu_frame,))[0] == "BACK"
+    assert pygame_screen.run_for_context(context, screen_frame)[0] == "BACK"
+    assert pygame_batch.run_for_context(context, lambda _console: None) == "BACK"
+    assert pygame_quantity.run_for_context(context, game_ctx, "Buy", 1) is None
+    assert pygame_ship_buy.run_for_context(context, game_ctx, SimpleNamespace()) == "BACK"
+    assert pygame_quest_log.run_for_context(game_ctx)[0] == "BACK"
+
+    assert pygame_split.run_interactive(
+        game_ctx, lambda: split_frame, lambda *_args: True, caption="test",
+    ) == "BACK"
+    assert calls == [
+        "menu", "screen", "batch", "quantity", "ship_buy", "quest_log", "split",
+    ]
+
+
+def test_story_adapters_use_the_shared_menu_runner(monkeypatch):
+    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    captured = []
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        lambda context, frames, **kwargs: captured.append(
+            (context, frames),
+        ) or ("DISMISS", "", 0),
+    )
+    monkeypatch.setattr(
+        pygame_menu,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("shared story adapters must not start a worker")
+        ),
+    )
+    ctx = SimpleNamespace(context=object())
+
+    assert pygame_story.dismiss(
+        ctx, title="Signal", body="Message", caption="test",
+    ) == "DISMISS"
+    assert captured[0][0] is ctx.context
+    assert captured[0][1][0].title == "Signal"
+
+
+def test_quest_log_guide_reopens_the_same_shared_modal(monkeypatch):
+    from src.spacehack.menus import _quest_log
+
+    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    outcomes = iter((("GUIDE", 2, True), ("BACK", 2, True)))
+    calls = []
+    states = []
+    monkeypatch.setattr(
+        "src.spacehack.help._run_help_guide",
+        lambda ctx: calls.append(ctx),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.pygame_quest_log.run_for_context",
+        lambda ctx, selected=0, confirm=False: states.append(
+            (selected, confirm),
+        ) or next(outcomes),
+    )
+    ctx = SimpleNamespace()
+
+    assert _quest_log._run_pygame_quest_log(ctx) == (_quest_log.QuestLogOutcome.BACK, None)
+    assert calls == [ctx]
+    assert states == [(0, False), (2, True)]
+
+
+def test_cargo_screen_uses_context_adapter_when_fixture_has_no_context(monkeypatch):
+    from src.spacehack import trade
+
+    captured = {}
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_for_context",
+        lambda context, frame, **kwargs: captured.update(
+            context=context, frame=frame,
+        ) or ("BACK", "", frame.selected),
+    )
+    monkeypatch.setattr(trade, "_pygame_cargo_enabled", lambda: True)
+    owned = SimpleNamespace(
+        ship_id="starter",
+        inventory={},
+        cargo_used=0,
+        mission_reserved=0,
+        cargo_ammo=0,
+        hull_damage_pct=0,
+    )
+    ctx = SimpleNamespace(
+        player_owned_ship=owned,
+        stats=SimpleNamespace(credits=0),
+    )
+
+    result = trade._run_pygame_cargo(ctx, owned, "Scout", 10)
+
+    assert result is True
+    assert captured["context"] is ctx

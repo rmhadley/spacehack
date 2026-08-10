@@ -18,8 +18,10 @@ class PygameScreenUnavailable(RuntimeError):
 
 
 def enabled() -> bool:
-    """Return whether generic text screens are enabled."""
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_SCREEN")
+    """Return whether generic text screens can render in this runtime."""
+    from . import pygame_runtime
+
+    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_SCREEN") or pygame_runtime.shared_enabled()
 
 
 @dataclass(frozen=True)
@@ -288,6 +290,60 @@ def _run_worker(payload: dict[str, Any]) -> int:
     finally:
         pygame.display.quit()
         pygame.quit()
+
+
+def run_shared(
+    context: Any,
+    frame: ScreenFrame,
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Run a text screen inside the already-open shared Pygame window."""
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameScreenUnavailable("Shared Pygame runtime is not open")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    width, height = screen.get_size()
+    font = _fit_font(pygame, frame, width, height)
+    while True:
+        current = ScreenFrame(
+            frame.title, frame.body, frame.rows, frame.footer,
+            _clamp(frame), frame.page_offset,
+        )
+        _draw_frame(pygame, screen, font, current)
+        engine.present()
+        event = pygame.event.wait()
+        outcome, selected = _handle_key(pygame, event, current)
+        if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
+            body_lines = _body_lines(font, current, width - 80)
+            offset = frame.page_offset
+            if outcome == "PAGE_DOWN":
+                offset = min(max(0, len(body_lines) - 1), offset + 8)
+            elif outcome == "PAGE_UP":
+                offset = max(0, offset - 8)
+            frame = ScreenFrame(
+                frame.title, frame.body, frame.rows, frame.footer,
+                selected, offset,
+            )
+            continue
+        row = current.rows[selected] if outcome == "SELECT" else None
+        return outcome, row.action if row else "", selected
+
+
+def run_for_context(
+    context: Any,
+    frame: ScreenFrame,
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Use the shared window when active, otherwise the worker window."""
+    from . import pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return run_shared(context, frame, caption=caption)
+    return run(frame, caption=caption)
 
 
 def run(frame: ScreenFrame, *, caption: str = "spacehack") -> tuple[str, str, int]:

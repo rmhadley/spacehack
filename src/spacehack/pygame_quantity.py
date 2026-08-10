@@ -92,6 +92,76 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.quit()
 
 
+def run_shared(
+    context: Any,
+    ctx: Any,
+    label: str,
+    maximum: int,
+    price: int = 0,
+) -> int | None:
+    """Run quantity selection inside the existing shared Pygame window."""
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameQuantityUnavailable("Shared Pygame runtime is not open")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    from .pygame_menu import _font_path
+    font = pygame.font.Font(_font_path(pygame), 24)
+    quantity = 1
+    while True:
+        palette = pygame_ui.DEFAULT_PALETTE
+        screen.fill(palette.background)
+        panel = pygame_ui.Rect(120, 240, screen.get_width() - 240, 360)
+        pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
+        pygame_ui.draw_centered_text(pygame, screen, font, label, panel, 285, color=palette.title)
+        pygame_ui.draw_centered_text(
+            pygame, screen, font, f"Quantity: {quantity} / {maximum}",
+            panel, 365, color=palette.text,
+        )
+        if price:
+            pygame_ui.draw_centered_text(
+                pygame, screen, font, f"{price}$ each   Total: {price * quantity}$",
+                panel, 410, color=palette.description,
+            )
+        pygame_ui.draw_centered_text(
+            pygame, screen, font,
+            "UP/DOWN or j/k adjust   ENTER confirm   ESC cancel",
+            panel, 500, color=palette.instruction,
+        )
+        engine.present()
+        event = pygame.event.wait()
+        outcome, quantity = _handle_key(pygame, event, quantity, maximum)
+        if outcome == "IGNORE":
+            continue
+        if outcome == "CONFIRM":
+            return quantity
+        if outcome == "QUIT":
+            raise PygameQuantityQuit("Quantity window closed")
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        return None
+
+
+def run_for_context(
+    context: Any,
+    ctx: Any,
+    label: str,
+    maximum: int,
+    price: int = 0,
+    *,
+    caption: str = "spacehack - quantity",
+) -> int | None:
+    """Use the shared window when active, otherwise the worker window."""
+    from . import pygame_runtime
+
+    if pygame_runtime.shared_enabled():
+        return run_shared(context, ctx, label, maximum, price)
+    return run(ctx, label, maximum, price, caption=caption)
+
+
 def run(
     ctx: Any,
     label: str,
