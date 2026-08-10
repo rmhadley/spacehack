@@ -59,15 +59,15 @@ def test_bitmap_loader_raises_when_the_native_sheet_is_missing(monkeypatch):
 
 
 def test_text_glyph_widening_is_the_tightened_bitmap_baseline():
-    """The readability pass widens letters without changing their cells."""
-    assert engine._TEXT_GLYPH_EXTRA_COLUMNS == 2
+    """The stronger readability pass widens letters without changing cells."""
+    assert engine._TEXT_GLYPH_EXTRA_COLUMNS == 3
     tile = np.zeros((16, 16, 4), dtype=np.uint8)
     tile[:, 5:11, 3] = 255
     widened = engine._widen_glyph_tile(tile)
     assert widened.shape == tile.shape
     assert np.count_nonzero(widened[..., 3]) > np.count_nonzero(tile[..., 3])
     ys, xs = np.where(widened[..., 3] > 0)
-    assert (int(xs.min()), int(xs.max())) == (4, 11)
+    assert (int(xs.min()), int(xs.max())) == (3, 11)
 
 
 def test_bitmap_glyphs_center_in_the_native_raster():

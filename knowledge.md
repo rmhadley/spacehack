@@ -169,7 +169,7 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   of runtime anti-aliasing. The game intentionally fails clearly if this
   asset is missing instead of silently switching fonts. The logical grid
   remains 100×60, so the window is 1600×960 pixels before OS/display scaling.- **Text spacing refinement**: after loading the bitmap and its procedural
-  texture patches, `engine.py` widens only ASCII letters and digits by two
+  texture patches, `engine.py` widens only ASCII letters and digits by three
   bitmap columns, centered inside the same 16×16 cells. Punctuation, map
   symbols, box drawing, and the logical grid remain unchanged.
 - **No runtime font fallback**: the project no longer bundles or loads TTF,
