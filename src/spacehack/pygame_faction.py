@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import inspect
 import json
 import sys
 from typing import Any
@@ -105,7 +106,8 @@ def _font_path(pygame: Any) -> str | None:
 
 
 def _fit_font(pygame: Any, frame: FactionFrame, width: int, height: int) -> Any:
-    """Choose a readable font that fits every faction row."""
+    """Choose a readable font that fits every faction row and modal log."""
+    height = pygame_ui.modal_footer_y(height)
     path = _font_path(pygame)
     row_text = "Merchant  +100  ---------------|###############  Allied"
     for size in range(26, 13, -1):
@@ -116,7 +118,10 @@ def _fit_font(pygame: Any, frame: FactionFrame, width: int, height: int) -> Any:
     return pygame.font.Font(path, 14)
 
 
-def _draw_frame(pygame: Any, screen: Any, font: Any, frame: FactionFrame) -> None:
+def _draw_frame(
+    pygame: Any, screen: Any, font: Any, frame: FactionFrame,
+    *, context: Any | None = None,
+) -> None:
     """Draw faction standings in the shared framed-screen style."""
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
@@ -157,11 +162,27 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: FactionFrame) -> Non
             color=row.color,
         )
         y += row_height
-    hint_y = panel.y + panel.height - 48
+    hint_y = (
+        pygame_ui.modal_content_bottom(height, 2)
+        if context is not None
+        else panel.y + panel.height - 48
+    )
     pygame_ui.draw_centered_text(
         pygame, screen, font, frame.hint, panel, hint_y,
         color=palette.instruction,
     )
+
+
+def _draw_shared_frame(
+    pygame: Any, screen: Any, font: Any, frame: FactionFrame, context: Any,
+) -> None:
+    """Draw a faction frame while preserving legacy test doubles."""
+    if "context" in inspect.signature(_draw_frame).parameters:
+        _draw_frame(pygame, screen, font, frame, context=context)
+        pygame_ui.draw_context_log(pygame, screen, context)
+        return
+    _draw_frame(pygame, screen, font, frame)
+    pygame_ui.draw_context_log(pygame, screen, context)
 
 
 def _handle_key(pygame: Any, event: Any) -> str:
@@ -227,7 +248,7 @@ def run_shared(context: Any, ctx: Any) -> str:
     font = _fit_font(pygame, frame, width, height)
     while True:
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_frame(pygame, screen, font, frame)
+        _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
         event = pygame.event.wait()
         outcome = _handle_key(pygame, event)

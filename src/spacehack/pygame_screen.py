@@ -5,7 +5,8 @@ presentation and input; all game state remains in the parent process.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
+import inspect
 import json
 import sys
 from typing import Any
@@ -42,6 +43,8 @@ class ScreenFrame:
     footer: tuple[str, ...] = ()
     selected: int = 0
     page_offset: int = 0
+    tabs: tuple[str, ...] = ()
+    active_tab: int = 0
 
 
 def _frame_payload(frame: ScreenFrame) -> dict[str, Any]:
@@ -58,6 +61,8 @@ def _frame_from_payload(raw: dict[str, Any]) -> ScreenFrame:
         footer=tuple(str(line) for line in raw.get("footer", ())),
         selected=int(raw.get("selected", 0)),
         page_offset=int(raw.get("page_offset", 0)),
+        tabs=tuple(str(tab) for tab in raw.get("tabs", ())),
+        active_tab=int(raw.get("active_tab", 0)),
     )
 
 
@@ -139,9 +144,10 @@ def _body_budget(
     width: int,
     height: int,
     start_y: int,
+    footer_start: int | None = None,
 ) -> int:
     """Return body lines available while reserving rows and footer."""
-    footer_start = height - 70
+    footer_start = height - 70 if footer_start is None else footer_start
     reserved = _non_body_height(font, frame, width - 28)
     available = footer_start - start_y - 8 - reserved
     return max(0, available // (font.get_linesize() + 3))
@@ -155,11 +161,20 @@ def _layout_height(font: Any, frame: ScreenFrame, width: int) -> int:
     )
 
 
-def _fit_font(pygame: Any, frame: ScreenFrame, width: int, height: int) -> Any:
+def _fit_font(
+    pygame: Any,
+    frame: ScreenFrame,
+    width: int,
+    height: int,
+    *,
+    reserve_log: bool = False,
+) -> Any:
     """Choose the largest readable font that fits wrapped content."""
     path = pygame_menu._font_path(pygame)
     content_width = max(1, width - 80)
     available_height = max(1, height - 70 - 84)
+    if reserve_log:
+        available_height -= pygame_ui.LOG_PANEL_HEIGHT
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
         if _layout_height(font, frame, content_width) <= available_height:
@@ -167,13 +182,19 @@ def _fit_font(pygame: Any, frame: ScreenFrame, width: int, height: int) -> Any:
     return pygame.font.Font(path, 12)
 
 
-def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ScreenFrame) -> None:
+def _draw_frame(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    frame: ScreenFrame,
+    *,
+    context: Any | None = None,
+) -> None:
     """Paint the current text screen."""
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
     screen.fill(palette.background)
     x = 40
-    y = 84
     measure = lambda text: pygame_ui.measure_font(font, text)
     pygame_ui.draw_centered_text(
         pygame, screen, font, frame.title,
@@ -181,10 +202,36 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ScreenFrame) -> None
         color=palette.title,
     )
     pygame_ui.draw_rule(pygame, screen, 48, 62, width - 96, color=palette.border)
+    if frame.tabs:
+        tab_width = max(1, (width - 80) // len(frame.tabs))
+        for index, tab in enumerate(frame.tabs):
+            tab_x = 40 + index * tab_width
+            selected_tab = index == frame.active_tab
+            tab_rect = pygame.Rect(tab_x, 72, tab_width - 8, 36)
+            pygame.draw.rect(
+                screen,
+                palette.selected_background if selected_tab else palette.panel,
+                tab_rect,
+                border_radius=4,
+            )
+            pygame.draw.rect(
+                screen,
+                palette.selected_border if selected_tab else palette.border,
+                tab_rect,
+                width=2 if selected_tab else 1,
+                border_radius=4,
+            )
+            pygame_ui.draw_centered_text(
+                pygame, screen, font, tab, pygame_ui.Rect(tab_x, 72, tab_width - 8, 36), 80,
+                color=palette.title if selected_tab else palette.description,
+            )
+    body_start = 126 if frame.tabs else 84
+    y = body_start
     body_lines = _body_lines(font, frame, width - 80)
     visible_body = body_lines[frame.page_offset:]
     body_step = font.get_linesize() + 3
-    body_budget = _body_budget(font, frame, width - 80, height, y)
+    footer_start = pygame_ui.modal_footer_y(height) if context is not None else height - 70
+    body_budget = _body_budget(font, frame, width - 80, height, y, footer_start)
     for line in visible_body[:body_budget]:
         pygame_ui.draw_text(
             pygame, screen, font, line, x, y, color=palette.description,
@@ -198,7 +245,6 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ScreenFrame) -> None
     y += 8
     body_overflow = len(visible_body) > body_budget
     selected = _clamp(frame)
-    footer_start = height - 70
     for index, row in enumerate(frame.rows):
         row_height = font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
         if y + row_height > footer_start:
@@ -245,6 +291,19 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ScreenFrame) -> None
             x, y, color=palette.instruction,
         )
         y += font.get_linesize() + 3
+    if context is not None:
+        pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
+
+
+def _draw_shared_frame(
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame, context: Any,
+) -> None:
+    """Draw a shared frame while preserving legacy renderer test doubles."""
+    if "context" in inspect.signature(_draw_frame).parameters:
+        _draw_frame(pygame, screen, font, frame, context=context)
+        return
+    _draw_frame(pygame, screen, font, frame)
+    pygame_ui.draw_context_log(pygame, screen, context)
 
 
 def _run_worker(payload: dict[str, Any]) -> int:
@@ -258,15 +317,12 @@ def _run_worker(payload: dict[str, Any]) -> int:
     pygame.font.init()
     try:
         width, height = tuple(payload.get("screen_size", (1600, 960)))
-        font = _fit_font(pygame, frame, width, height)
+        font = _fit_font(pygame, frame, width, height, reserve_log=True)
         screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption(str(payload.get("caption", "spacehack")))
         clock = pygame.time.Clock()
         while True:
-            current = ScreenFrame(
-                frame.title, frame.body, frame.rows, frame.footer,
-                _clamp(frame), frame.page_offset,
-            )
+            current = replace(frame, selected=_clamp(frame))
             _draw_frame(pygame, screen, font, current)
             pygame.display.flip()
             for event in pygame.event.get():
@@ -278,10 +334,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
                         offset = min(max(0, len(body_lines) - 1), offset + 8)
                     elif outcome == "PAGE_UP":
                         offset = max(0, offset - 8)
-                    frame = ScreenFrame(
-                        frame.title, frame.body, frame.rows, frame.footer,
-                        selected, offset,
-                    )
+                    frame = replace(frame, selected=selected, page_offset=offset)
                     continue
                 row = current.rows[selected] if outcome == "SELECT" else None
                 print(json.dumps({
@@ -310,13 +363,10 @@ def run_shared(
     pygame = engine.pygame
     screen = engine.logical_surface
     width, height = screen.get_size()
-    font = _fit_font(pygame, frame, width, height)
+    font = _fit_font(pygame, frame, width, height, reserve_log=True)
     while True:
-        current = ScreenFrame(
-            frame.title, frame.body, frame.rows, frame.footer,
-            _clamp(frame), frame.page_offset,
-        )
-        _draw_frame(pygame, screen, font, current)
+        current = replace(frame, selected=_clamp(frame))
+        _draw_shared_frame(pygame, screen, font, current, context)
         engine.present()
         event = pygame.event.wait()
         outcome, selected = _handle_key(pygame, event, current)
@@ -327,10 +377,7 @@ def run_shared(
                 offset = min(max(0, len(body_lines) - 1), offset + 8)
             elif outcome == "PAGE_UP":
                 offset = max(0, offset - 8)
-            frame = ScreenFrame(
-                frame.title, frame.body, frame.rows, frame.footer,
-                selected, offset,
-            )
+            frame = replace(frame, selected=selected, page_offset=offset)
             continue
         row = current.rows[selected] if outcome == "SELECT" else None
         return outcome, row.action if row else "", selected

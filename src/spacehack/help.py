@@ -1854,7 +1854,24 @@ def _pygame_help_enabled() -> bool:
     return pygame_screen.enabled()
 
 
-def _run_pygame_help(ctx: GameContext) -> bool | None:
+def _guide_index(topic: str | int | None) -> int | None:
+    """Resolve a contextual guide topic by title or section index."""
+    if topic is None:
+        return None
+    if isinstance(topic, int):
+        return topic if 0 <= topic < len(GUIDE_SECTIONS) else None
+    normalized = topic.strip().casefold()
+    return next(
+        (index for index, section in enumerate(GUIDE_SECTIONS)
+         if section.title.casefold() == normalized),
+        None,
+    )
+
+
+def _run_pygame_help(
+    ctx: GameContext,
+    initial_topic: str | int | None = None,
+) -> bool | None:
     """Run the guide through the shared Pygame screen."""
     from . import pygame_screen
 
@@ -1870,7 +1887,16 @@ def _run_pygame_help(ctx: GameContext) -> bool | None:
         ),
         footer=("UP/DOWN or j/k select   ENTER open   ESC close",),
     )
+    initial_index = _guide_index(initial_topic)
     frame = list_frame
+    if initial_index is not None:
+        section = GUIDE_SECTIONS[initial_index]
+        frame = pygame_screen.ScreenFrame(
+            title=section.title,
+            body=tuple(section.body.split("\n")),
+            rows=(),
+            footer=("PAGE UP/DOWN scroll   ESC topic list",),
+        )
     while True:
         outcome, action, selected = pygame_screen.run_for_context(
             ctx.context, frame, caption="spacehack - guide",
@@ -1903,12 +1929,17 @@ def _run_pygame_help(ctx: GameContext) -> bool | None:
 
 
 def _run_help_guide(ctx: GameContext) -> None:
-    """Open the game guide as a modal. Returns when the player closes it.
-
-    Called from ``__main__.py``'s city/space loop and from any modal's
-    update function. Game state is paused while the guide is open.
-    """
-    result = _run_pygame_help(ctx)
+    """Open the game guide as a modal, optionally at a contextual topic."""
+    topic = getattr(ctx, "_guide_topic", None)
+    if hasattr(ctx, "_guide_topic"):
+        delattr(ctx, "_guide_topic")
+    result = _run_pygame_help(ctx, topic)
     if result is None:
         raise RuntimeError("Guide returned no outcome")
     return
+
+
+def _open_context_guide(ctx: GameContext, topic: str) -> None:
+    """Open the guide directly at the topic most relevant to a modal."""
+    ctx._guide_topic = topic
+    _run_help_guide(ctx)

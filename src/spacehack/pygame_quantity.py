@@ -129,6 +129,7 @@ def run_shared(
             "UP/DOWN or j/k adjust   ENTER confirm   ESC cancel",
             panel, 500, color=palette.instruction,
         )
+        pygame_ui.draw_context_log(pygame, screen, context)
         engine.present()
         event = pygame.event.wait()
         outcome, quantity = _handle_key(pygame, event, quantity, maximum)

@@ -25,24 +25,43 @@ def _pygame_mechanic_enabled() -> bool:
     return pygame_screen.enabled()
 
 
+def _refuel_preview(owned, ship_rec, credits: int) -> tuple[int, int]:
+    """Return the fuel units and credits needed by the refuel action."""
+    units = max(0, min(ship_rec.max_fuel - owned.fuel, credits // ship_module.FUEL_COST_PER_UNIT))
+    return units, units * ship_module.FUEL_COST_PER_UNIT
+
+
+def _repair_preview(owned, ship_rec) -> int:
+    """Return the hull repair price for the current damage."""
+    return max(0, int(owned.hull_damage_pct * ship_rec.price // 100))
+
+
 def _mechanic_frame(ctx, ship_rec, selected: int):
     """Build a presentation snapshot for the mechanic terminal."""
     from .. import pygame_screen
 
     owned = ctx.player_owned_ship
-    rows = tuple(
-        pygame_screen.ScreenRow(label, action=action)
-        for label, action in (
-            ("Refuel", "REFUEL"),
-            ("Repair", "REPAIR"),
-            ("Manage Loadout", "LOADOUT"),
-            ("Buy Ammo", "AMMO"),
-        )
+    _fuel_units, _fuel_cost = _refuel_preview(owned, ship_rec, ctx.stats.credits)
+    _repair_cost = _repair_preview(owned, ship_rec)
+    rows = (
+        pygame_screen.ScreenRow(
+            f"Refuel - {_fuel_cost}$ for {_fuel_units} units",
+            f"{ship_module.FUEL_COST_PER_UNIT}$/unit; fills the tank up to your available credits.",
+            "REFUEL",
+        ),
+        pygame_screen.ScreenRow(
+            f"Repair - {_repair_cost}$ to restore hull",
+            f"Restores {owned.hull_damage_pct}% damage; price is based on the ship's value.",
+            "REPAIR",
+        ),
+        pygame_screen.ScreenRow("Manage Loadout", "Buy and sell ship weapons and modules.", "LOADOUT"),
+        pygame_screen.ScreenRow("Buy Ammo", "Replenish one missile round at a time.", "AMMO"),
     )
     body = (
         f"Ship: {ship_rec.name}",
         f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {owned.hull_damage_pct}% damage",
         f"Credits: {ctx.stats.credits}$",
+        "Select Refuel or Repair to review the exact total before committing.",
     )
     return pygame_screen.ScreenFrame(
         "MECHANIC TERMINAL", body, rows,
@@ -72,7 +91,7 @@ def _repair(ctx, owned, ship_rec) -> None:
     if damage <= 0:
         ctx.log.add("No repairs needed -- hull integrity is 100%.")
         return
-    cost = int(damage * ship_rec.price // 100)
+    cost = _repair_preview(owned, ship_rec)
     if ctx.stats.credits < cost:
         ctx.log.add(f"Repair would cost {cost}$, but you only have {ctx.stats.credits}$.")
         return
@@ -114,8 +133,8 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
             caption="spacehack - mechanic",
         )
         if outcome == "GUIDE":
-            from ..help import _run_help_guide
-            _run_help_guide(ctx)
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
             continue
@@ -194,8 +213,8 @@ def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
             caption="spacehack - buy ammo",
         )
         if outcome == "GUIDE":
-            from ..help import _run_help_guide
-            _run_help_guide(ctx)
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
             continue

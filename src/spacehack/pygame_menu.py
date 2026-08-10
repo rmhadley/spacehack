@@ -7,6 +7,7 @@ perform all gameplay mutations in-process.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import inspect
 import json
 import sys
 from typing import Any
@@ -121,11 +122,20 @@ def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
     return height
 
 
-def _fit_font(pygame: Any, frames: tuple[MenuFrame, ...], width: int, height: int) -> Any:
+def _fit_font(
+    pygame: Any,
+    frames: tuple[MenuFrame, ...],
+    width: int,
+    height: int,
+    *,
+    reserve_log: bool = False,
+) -> Any:
     """Choose the largest font that fits wrapped content in every frame."""
     path = _font_path(pygame)
     content_width = _content_width(width)
     available_height = max(1, height - 132)
+    if reserve_log:
+        available_height -= pygame_ui.LOG_PANEL_HEIGHT
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
         if all(
@@ -137,6 +147,18 @@ def _fit_font(pygame: Any, frames: tuple[MenuFrame, ...], width: int, height: in
         ) <= content_width:
             return font
     return pygame.font.Font(path, 12)
+
+
+def _fit_shared_font(
+    pygame: Any,
+    frames: tuple[MenuFrame, ...],
+    width: int,
+    height: int,
+) -> Any:
+    """Fit a shared menu while supporting legacy four-argument patches."""
+    if "reserve_log" in inspect.signature(_fit_font).parameters:
+        return _fit_font(pygame, frames, width, height, reserve_log=True)
+    return _fit_font(pygame, frames, width, height)
 
 
 def _draw_art(
@@ -172,7 +194,14 @@ def _draw_art(
     return y + 10
 
 
-def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
+def _draw_frame(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    frame: MenuFrame,
+    *,
+    context: Any | None = None,
+) -> None:
     """Paint a menu frame with natural font spacing."""
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
@@ -188,6 +217,11 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
     )
     x = panel.x + 34
     content_width = _content_width(width)
+    content_bottom = (
+        pygame_ui.modal_footer_y(height)
+        if context is not None
+        else panel.y + panel.height - 20
+    )
     y = panel.y + 76
     measure = lambda text: pygame_ui.measure_font(font, text)
     y = _draw_art(
@@ -198,19 +232,23 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
         y += font.get_linesize() + 3
     y += 10
     for index, item in enumerate(frame.items):
+        row_height = font.get_linesize() + 14
+        if y + row_height > content_bottom:
+            break
         pygame_ui.draw_menu_row(
             pygame, screen, font, item.label, x, y, content_width,
             selected=index == frame.selected, palette=palette,
         )
-        y += font.get_linesize() + 14
+        y += row_height
     y += 8
     description_width = content_width - 28
-    pygame_ui.draw_wrapped_text(
-        pygame, screen, font,
-        frame.items[frame.selected].description if frame.items else "",
-        x + 28, y, description_width,
-        color=palette.description, line_gap=2,
-    )
+    if y < content_bottom:
+        pygame_ui.draw_wrapped_text(
+            pygame, screen, font,
+            frame.items[frame.selected].description if frame.items else "",
+            x + 28, y, description_width,
+            color=palette.description, line_gap=2,
+        )
     description_lines = pygame_ui.max_wrapped_lines(
         (item.description for item in frame.items),
         description_width,
@@ -219,11 +257,26 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: MenuFrame) -> None:
     y += max(1, description_lines) * (font.get_linesize() + 2)
     y += 8
     for hint in frame.hints:
+        if y + font.get_linesize() > content_bottom:
+            break
         pygame_ui.draw_text(
             pygame, screen, font, pygame_ui.fit_text(hint, content_width, measure),
             x, y, color=palette.instruction,
         )
         y += font.get_linesize() + 4
+    if context is not None:
+        pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
+
+
+def _draw_shared_frame(
+    pygame: Any, screen: Any, font: Any, frame: MenuFrame, context: Any,
+) -> None:
+    """Draw a shared frame while preserving legacy renderer test doubles."""
+    if "context" in inspect.signature(_draw_frame).parameters:
+        _draw_frame(pygame, screen, font, frame, context=context)
+        return
+    _draw_frame(pygame, screen, font, frame)
+    pygame_ui.draw_context_log(pygame, screen, context)
 
 
 def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str, int]:
@@ -260,7 +313,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
     pygame.font.init()
     try:
         width, height = tuple(payload.get("screen_size", (1600, 960)))
-        font = _fit_font(pygame, frames, width, height)
+        font = _fit_shared_font(pygame, frames, width, height)
         screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption(str(payload.get("caption", "spacehack")))
         selected = _initial_selected(frames)
@@ -316,13 +369,13 @@ def run_shared(
     if not frames:
         raise PygameMenuUnavailable("Shared Pygame menu has no frames")
     width, height = screen.get_size()
-    font = _fit_font(pygame, frames, width, height)
+    font = _fit_shared_font(pygame, frames, width, height)
     selected = _initial_selected(frames)
     count = len(frames[0].items)
     while True:
         frame = frames[selected % len(frames)]
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_frame(pygame, screen, font, frame)
+        _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
         event = pygame.event.wait()
         outcome, selected = _handle_key(pygame, event, selected, count)

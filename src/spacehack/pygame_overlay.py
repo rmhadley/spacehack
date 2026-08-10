@@ -333,4 +333,5 @@ def draw(
         height=message_rect.height,
         origin_cell_x=0,
         origin_cell_y=frame.message_top,
+        padding_y=0,
     )

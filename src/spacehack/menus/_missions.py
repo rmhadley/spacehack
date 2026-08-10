@@ -231,8 +231,8 @@ def _run_pygame_interactive_missions(
         caption="spacehack - available work",
     )
     if outcome == "GUIDE":
-        from ..help import _run_help_guide
-        _run_help_guide(ctx)
+        from ..help import _open_context_guide
+        _open_context_guide(ctx, "Missions")
         return MissionOutcome.BACK, None
     if outcome == "QUIT":
         return MissionOutcome.QUIT, None

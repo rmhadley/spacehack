@@ -81,7 +81,8 @@ def _font_path(pygame: Any) -> str | None:
 
 
 def _fit_font(pygame: Any, frame: BatchFrame, width: int, height: int) -> Any:
-    """Choose a font that fits the captured frame."""
+    """Choose a font that fits the captured frame and modal log."""
+    height = pygame_ui.modal_footer_y(height)
     path = _font_path(pygame)
     max_width = max(
         (sum(len(span.text) for span in row) for row in frame.rows),
@@ -98,7 +99,10 @@ def _fit_font(pygame: Any, frame: BatchFrame, width: int, height: int) -> Any:
     return pygame.font.Font(path, 12)
 
 
-def _draw_frame(pygame: Any, screen: Any, font: Any, frame: BatchFrame) -> None:
+def _draw_frame(
+    pygame: Any, screen: Any, font: Any, frame: BatchFrame,
+    *, context: Any | None = None,
+) -> None:
     """Render captured rows with natural font spacing."""
     for row_index, row in enumerate(frame.rows):
         x = 24
@@ -173,7 +177,8 @@ def run_shared(context: Any, render: Any) -> str:
     font = _fit_font(pygame, frame, width, height)
     while True:
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_frame(pygame, screen, font, frame)
+        _draw_frame(pygame, screen, font, frame, context=context)
+        pygame_ui.draw_context_log(pygame, screen, context)
         engine.present()
         event = pygame.event.wait()
         outcome = _handle_key(pygame, event)

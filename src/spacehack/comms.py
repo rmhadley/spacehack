@@ -257,8 +257,8 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
         caption=f"spacehack - {contact_name}",
     )
     if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "NPCs & Factions")
         return _pygame_interaction_outcome(ctx, contact_name, contact_spec, options)
     if outcome == "QUIT":
         return _InteractionOutcome.QUIT
@@ -511,8 +511,8 @@ def _pygame_contact_result(ctx, contacts):
         caption="spacehack - comms",
     )
     if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "NPCs & Factions")
         return _pygame_contact_result(ctx, contacts)
     if outcome == "QUIT":
         return "QUIT"

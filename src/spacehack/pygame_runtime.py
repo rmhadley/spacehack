@@ -145,6 +145,7 @@ class PygameRuntime:
     def __init__(self, tileset: Any):
         self.tileset = tileset
         self.engine: pygame_engine.PygameEngine | None = None
+        self.game_context: Any | None = None
         self.context = PygameContext(self)
         self._old_wait: Callable[..., Any] | None = None
         self._old_get: Callable[..., Any] | None = None

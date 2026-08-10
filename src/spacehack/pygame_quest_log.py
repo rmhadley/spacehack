@@ -172,11 +172,18 @@ def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: i
     return pygame.font.Font(path, 12)
 
 
-def _draw_rows(pygame: Any, screen: Any, font: Any, frame: QuestFrame) -> None:
+def _draw_rows(
+    pygame: Any, screen: Any, font: Any, frame: QuestFrame,
+    *, context: Any | None = None,
+) -> None:
     """Render captured rows inside the shared high-contrast panel treatment."""
     width, height = screen.get_size()
     palette = pygame_ui.DEFAULT_PALETTE
-    panel = pygame_ui.Rect(32, 28, width - 64, height - 56)
+    panel_bottom = (
+        pygame_ui.modal_footer_y(height)
+        if context is not None else height - 28
+    )
+    panel = pygame_ui.Rect(32, 28, width - 64, max(1, panel_bottom - 28))
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
     pygame_ui.draw_centered_text(
         pygame, screen, font, "QUEST LOG", panel, panel.y + 22,
@@ -307,7 +314,8 @@ def run_shared(
     while True:
         frame = _capture_frame(ctx, selected, confirm)
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_rows(pygame, screen, font, frame)
+        _draw_rows(pygame, screen, font, frame, context=context)
+        pygame_ui.draw_context_log(pygame, screen, ctx.context)
         engine.present()
         event = pygame.event.wait()
         outcome, selected, confirm = _handle_key(

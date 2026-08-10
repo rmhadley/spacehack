@@ -298,8 +298,8 @@ def _run_pygame_loadout_view(ctx) -> bool | None:
             caption="spacehack - ship loadout",
         )
         if outcome == "GUIDE":
-            from ..help import _run_help_guide
-            _run_help_guide(ctx)
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome in {"BACK", "QUIT"}:
             return True
@@ -357,11 +357,13 @@ def _run_faction_view(ctx) -> None:
     """Show faction standings with the refreshed Pygame presentation."""
     from .. import pygame_faction
 
-    outcome = pygame_faction.run_for_context(ctx.context, ctx)
-    if outcome == "GUIDE":
-        from ..help import _run_help_guide
-        _run_help_guide(ctx)
-    return
+    while True:
+        outcome = pygame_faction.run_for_context(ctx.context, ctx)
+        if outcome == "GUIDE":
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "NPCs & Factions")
+            continue
+        return
 
 
 def _pygame_ship_menu_enabled() -> bool:
@@ -417,8 +419,8 @@ def _run_pygame_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
             caption="spacehack - ship hangar",
         )
         if outcome == "GUIDE":
-            from ..help import _run_help_guide
-            _run_help_guide(ctx)
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome == "SELECT":
             _actions = {

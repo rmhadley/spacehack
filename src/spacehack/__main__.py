@@ -600,6 +600,9 @@ def _run_game_loop(
         player_active_missions: list[mission_module.ActiveMission] = []
         character_info = {'species_id': species_id, 'species_name': species.name, 'class_id': class_id, 'class_name': klass.name}
         ctx = GameContext(context=context, character_info=character_info, log=log, game_map=game_map, player=player, stats=stats, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
+        runtime = getattr(context, "_runtime", None)
+        if runtime is not None:
+            runtime.game_context = ctx
         ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
         ctx.ground_stats = character.starting_ground_stats(species_id, class_id)
         ctx.ground_max_hp = 20 + ctx.ground_stats.stamina // 3
@@ -632,6 +635,9 @@ def _run_game_loop(
     #   - loading a dungeon save (ctx._space_game_map / ctx._space_player)
     space_game_map: world.GameMap | None
     space_player: world.Entity | None
+    runtime = getattr(context, "_runtime", None)
+    if runtime is not None:
+        runtime.game_context = ctx
 
     # --- Main game loop ---
     while True:

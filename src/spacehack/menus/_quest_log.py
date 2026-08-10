@@ -38,8 +38,8 @@ def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
         if outcome == "QUIT":
             return QuestLogOutcome.QUIT, None
         if outcome == "GUIDE":
-            from ..help import _run_help_guide
-            _run_help_guide(ctx)
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "Missions")
             continue
         return QuestLogOutcome.BACK, None
 

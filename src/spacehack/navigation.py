@@ -291,14 +291,15 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     """Show the system-map overlay in the shared Pygame window."""
     from . import pygame_navigation
 
-    outcome = pygame_navigation.run_for_context(ctx.context, ctx, ship_pos)
-    if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
+    while True:
+        outcome = pygame_navigation.run_for_context(ctx.context, ctx, ship_pos)
+        if outcome == "GUIDE":
+            from .help import _open_context_guide
+            _open_context_guide(ctx, "Navigation & Jump Gates")
+            continue
+        if outcome == "QUIT":
+            return NavigationOutcome.QUIT
         return NavigationOutcome.BACK
-    if outcome == "QUIT":
-        return NavigationOutcome.QUIT
-    return NavigationOutcome.BACK
 
 
 def _nearest_body_name(pos: world.Position, system) -> str:
@@ -882,8 +883,8 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
         caption="spacehack - go to",
     )
     if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "Navigation & Jump Gates")
         return _run_pygame_goto_menu(ctx, destinations)
     if outcome in {"BACK", "QUIT"}:
         return True, None
@@ -1151,8 +1152,8 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_
         caption="spacehack - jump gate",
     )
     if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "Navigation & Jump Gates")
         return _run_pygame_jump_menu(ctx, jp, target_system_id, fuel, max_fuel)
     if outcome == "QUIT":
         return JumpMenuOutcome.QUIT

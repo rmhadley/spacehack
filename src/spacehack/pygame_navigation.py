@@ -153,7 +153,10 @@ def _draw_panel(
     _draw_rows(pygame, screen, font, rows, panel)
 
 
-def _draw(pygame: Any, screen: Any, font: Any, frame: NavigationFrame) -> None:
+def _draw(
+    pygame: Any, screen: Any, font: Any, frame: NavigationFrame,
+    *, context: Any | None = None,
+) -> None:
     """Draw the navigation map with the shared two-panel screen treatment."""
     width, height = screen.get_size()
     palette = pygame_ui.DEFAULT_PALETTE
@@ -164,13 +167,20 @@ def _draw(pygame: Any, screen: Any, font: Any, frame: NavigationFrame) -> None:
     pygame_ui.draw_rule(pygame, screen, outer.x + 24, outer.y + 54, outer.width - 48, color=palette.border)
     gap = 20
     panel_width = max(1, (outer.width - 68 - gap) // 2)
-    panel_height = max(1, height - 190)
+    content_bottom = (
+        pygame_ui.modal_content_bottom(height)
+        if context is not None else height - 68
+    )
+    panel_height = max(1, content_bottom - 110)
     left = pygame_ui.Rect(48, 110, panel_width, panel_height)
     right = pygame_ui.Rect(left.x + panel_width + gap, 110, panel_width, panel_height)
     _draw_panel(pygame, screen, font, left, "SYSTEM MAP", frame.map_rows)
     _draw_panel(pygame, screen, font, right, "AREAS OF INTEREST", frame.aoi_rows)
-    pygame_ui.draw_text(pygame, screen, font, frame.position, 52, height - 68, color=palette.text)
-    pygame_ui.draw_text(pygame, screen, font, "ESC close   ? guide", width - 270, height - 68, color=palette.instruction)
+    footer_y = content_bottom + 4 if context is not None else height - 68
+    pygame_ui.draw_text(pygame, screen, font, frame.position, 52, footer_y, color=palette.text)
+    pygame_ui.draw_text(pygame, screen, font, "ESC close   ? guide", width - 270, footer_y, color=palette.instruction)
+    if context is not None:
+        pygame_ui.draw_context_log(pygame, screen, context)
 
 
 def _handle_key(pygame: Any, event: Any) -> str:
@@ -198,7 +208,7 @@ def run_shared(context: Any, ctx: Any, ship_pos: Any) -> str:
     frame = _capture(ctx, ship_pos)
     font = _font(pygame, frame, *screen.get_size())
     while True:
-        _draw(pygame, screen, font, frame)
+        _draw(pygame, screen, font, frame, context=context)
         engine.present()
         outcome = _handle_key(pygame, pygame.event.wait())
         if outcome != "IGNORE":

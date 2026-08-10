@@ -102,7 +102,7 @@ def render_message_log(
         row = msg_y_top + i
         if entry is None or not entry.text:
             continue
-        line = "> " + entry.text
+        line = ("> " + entry.text)[:max(0, screen_width)]
         console.print(
             x=0,
             y=row,

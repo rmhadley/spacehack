@@ -75,7 +75,8 @@ def _frame_from_payload(raw: dict[str, Any]) -> ShipBuyFrame:
 
 
 def _fit_font(pygame: Any, frame: ShipBuyFrame, width: int, height: int) -> Any:
-    """Choose the largest font that fits the captured rows."""
+    """Choose the largest font that fits the captured rows and modal log."""
+    height = pygame_ui.modal_footer_y(height)
     path = pygame_quest_log._font_path(pygame)
     max_text_width = max(
         (sum(len(span.text) for span in row) for row in frame.rows),
@@ -91,7 +92,10 @@ def _fit_font(pygame: Any, frame: ShipBuyFrame, width: int, height: int) -> Any:
     return pygame.font.Font(path, 12)
 
 
-def _draw_frame(pygame: Any, screen: Any, font: Any, frame: ShipBuyFrame) -> None:
+def _draw_frame(
+    pygame: Any, screen: Any, font: Any, frame: ShipBuyFrame,
+    *, context: Any | None = None,
+) -> None:
     """Draw captured Ship Buy rows with natural font spacing."""
     for row_index, row in enumerate(frame.rows):
         x = 24
@@ -174,7 +178,8 @@ def run_shared(
     font = _fit_font(pygame, frame, width, height)
     while True:
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_frame(pygame, screen, font, frame)
+        _draw_frame(pygame, screen, font, frame, context=context)
+        pygame_ui.draw_context_log(pygame, screen, context)
         engine.present()
         event = pygame.event.wait()
         outcome = _handle_key(pygame, event, frame.can_buy)

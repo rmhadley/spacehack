@@ -29,19 +29,21 @@ def _run_pygame_ship_buy(ctx, ship, effective_price: int | None) -> "ShipBuyOutc
     """Run Ship Buy in the shared Pygame screen."""
     from ..pygame_ship_buy import PygameShipBuyUnavailable, run_for_context
 
-    outcome = run_for_context(
-        getattr(ctx, "context", ctx), ctx, ship, effective_price,
-    )
-    if outcome == "BUY":
-        return ShipBuyOutcome.BUY
-    if outcome == "TOO_EXPENSIVE":
-        return ShipBuyOutcome.TOO_EXPENSIVE
-    if outcome == "QUIT":
-        return ShipBuyOutcome.QUIT
-    if outcome == "GUIDE":
-        from ..help import _run_help_guide
-        _run_help_guide(ctx)
-    return ShipBuyOutcome.BACK
+    while True:
+        outcome = run_for_context(
+            getattr(ctx, "context", ctx), ctx, ship, effective_price,
+        )
+        if outcome == "BUY":
+            return ShipBuyOutcome.BUY
+        if outcome == "TOO_EXPENSIVE":
+            return ShipBuyOutcome.TOO_EXPENSIVE
+        if outcome == "QUIT":
+            return ShipBuyOutcome.QUIT
+        if outcome == "GUIDE":
+            from ..help import _open_context_guide
+            _open_context_guide(ctx, "Ships & Equipment")
+            continue
+        return ShipBuyOutcome.BACK
 
 
 class ShipBuyOutcome(Enum):

@@ -128,7 +128,8 @@ def _frame_height(font: Any, frame: SplitFrame, width: int) -> int:
 
 
 def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
-    """Choose the largest readable font that fits the split frame."""
+    """Choose the largest readable font that fits the split frame and log."""
+    height = pygame_ui.modal_footer_y(height)
     path = pygame_menu._font_path(pygame)
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
@@ -200,7 +201,10 @@ def _draw_panel(
         screen.set_clip(None)
 
 
-def _draw_frame(pygame: Any, screen: Any, font: Any, frame: SplitFrame) -> None:
+def _draw_frame(
+    pygame: Any, screen: Any, font: Any, frame: SplitFrame,
+    *, context: Any | None = None,
+) -> None:
     """Paint the split-screen frame."""
     width, height = screen.get_size()
     screen.fill(pygame_ui.DEFAULT_PALETTE.background)
@@ -215,7 +219,11 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: SplitFrame) -> None:
     )
     gap = 20
     panel_width = (width - 64 - gap) // 2
-    panel_height = height - 156
+    content_bottom = (
+        pygame_ui.modal_content_bottom(height)
+        if context is not None else height - 34
+    )
+    panel_height = max(1, content_bottom - 78)
     left = pygame_ui.Rect(32, 78, panel_width, panel_height)
     right = pygame_ui.Rect(32 + panel_width + gap, 78, panel_width, panel_height)
     selected = _clamp_selected(frame)
@@ -230,20 +238,26 @@ def _draw_frame(pygame: Any, screen: Any, font: Any, frame: SplitFrame) -> None:
         focused=frame.focus == 1,
     )
     pygame_ui.draw_text(
-        pygame, screen, font, frame.footer_left, 40, height - 58,
+        pygame, screen, font, frame.footer_left, 40,
+        (content_bottom + 10 if context is not None else height - 58),
         color=pygame_ui.DEFAULT_PALETTE.text,
     )
     footer_width = pygame_ui.measure_font(font, frame.footer_right)
     pygame_ui.draw_text(
         pygame, screen, font, frame.footer_right,
-        width - footer_width - 40, height - 58,
+        width - footer_width - 40,
+        (content_bottom + 10 if context is not None else height - 58),
         color=pygame_ui.DEFAULT_PALETTE.text,
     )
     pygame_ui.draw_text(
         pygame, screen, font,
         pygame_ui.fit_text(frame.hint, width - 80, lambda value: pygame_ui.measure_font(font, value)),
-        40, height - 34, color=pygame_ui.DEFAULT_PALETTE.instruction,
+        40,
+        (content_bottom + 34 if context is not None else height - 34),
+        color=pygame_ui.DEFAULT_PALETTE.instruction,
     )
+    if context is not None:
+        pygame_ui.draw_context_log(pygame, screen, context)
 
 
 def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, int]:
@@ -343,7 +357,7 @@ def run_shared(
     font = _fit_font(pygame, frame, width, height)
     while True:
         current = replace(frame, selected=_clamp_selected(frame))
-        _draw_frame(pygame, screen, font, current)
+        _draw_frame(pygame, screen, font, current, context=context)
         engine.present()
         event = pygame.event.wait()
         outcome, focus, selected = _handle_key(pygame, event, current)

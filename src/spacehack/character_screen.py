@@ -61,7 +61,6 @@ def _character_frame(ctx: GameContext, tab: int, selected: int):
             for index, skill in enumerate(_SKILLS)
         )
         body = (
-            "[ STATS ]    Equipment",
             f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
             f"Traits: {', '.join(ctx.player_traits) if ctx.player_traits else 'None'}",
         )
@@ -71,9 +70,12 @@ def _character_frame(ctx: GameContext, tab: int, selected: int):
             pygame_screen.ScreenRow(text=line, selectable=False)
             for line in _equipment_lines(ctx)
         )
-        body = ("Stats    [ EQUIPMENT ]", "Your installed ground gear",)
+        body = ("Your installed ground gear",)
         footer = ("TAB stats   ESC close",)
-    return pygame_screen.ScreenFrame(title, body, rows, footer, selected)
+    return pygame_screen.ScreenFrame(
+        title, body, rows, footer, selected,
+        tabs=("STATS", "EQUIPMENT"), active_tab=tab,
+    )
 
 
 def _equipment_lines(ctx: GameContext) -> tuple[str, ...]:
@@ -122,8 +124,8 @@ def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
             caption="spacehack - character",
         )
         if outcome == "GUIDE":
-            from .help import _run_help_guide
-            _run_help_guide(ctx)
+            from .help import _open_context_guide
+            _open_context_guide(ctx, "Character & Skills")
             continue
         if outcome == "TAB":
             tab = (tab + 1) % 2

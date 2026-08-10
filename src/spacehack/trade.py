@@ -387,8 +387,8 @@ def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -
         caption=f"spacehack - {title.lower()}",
     )
     if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "Trading & Economy")
         return _run_pygame_loot(ctx, title, body, take_label)
     if outcome == "SELECT" and action == "TAKE":
         return "TAKE"

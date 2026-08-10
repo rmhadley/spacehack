@@ -92,6 +92,84 @@ class Palette:
 
 DEFAULT_PALETTE = Palette()
 
+# Modal screens reserve this bottom band for the live console log. Exploration
+# already renders the log through pygame_overlay, so this is only for modal
+# presentation primitives.
+LOG_ROWS = 6
+LOG_PANEL_HEIGHT = 128
+
+
+def _context_game_context(context: Any) -> Any | None:
+    """Return the live GameContext attached to a shared runtime, if any."""
+    runtime = getattr(context, "_runtime", None)
+    return getattr(runtime, "game_context", None)
+
+
+def modal_footer_y(height: int) -> int:
+    """Return the top of the footer area above the modal log panel."""
+    return max(0, height - LOG_PANEL_HEIGHT - 18)
+
+
+def modal_content_bottom(height: int, inset: int = 12) -> int:
+    """Return a safe bottom edge for custom modal content."""
+    return max(0, modal_footer_y(height) - inset)
+
+
+def is_guide_key(pygame: Any, event: Any) -> bool:
+    """Return whether a Pygame event represents the ``?`` key."""
+    question = getattr(pygame, "K_QUESTION", None)
+    return (
+        event.type == getattr(pygame, "KEYDOWN", None)
+        and (
+            question is not None and event.key == question
+            or getattr(event, "unicode", "") == "?"
+        )
+    )
+
+
+def _log_font(pygame: Any) -> Any:
+    """Load the compact readable font used by modal console logs."""
+    from .pygame_merchant import _font_path
+
+    return pygame.font.Font(_font_path(pygame), 16)
+
+
+def draw_context_log(
+    pygame: Any,
+    screen: Any,
+    context: Any,
+    *,
+    palette: Palette = DEFAULT_PALETTE,
+) -> None:
+    """Paint the live console log in the reserved bottom modal band."""
+    game_context = _context_game_context(context)
+    log = getattr(game_context, "log", None)
+    if log is None:
+        return
+    width, height = screen.get_size()
+    panel = Rect(32, max(0, height - LOG_PANEL_HEIGHT), width - 64, LOG_PANEL_HEIGHT)
+    draw_panel(pygame, screen, panel, palette=palette)
+    font = _log_font(pygame)
+    draw_text(
+        pygame, screen, font, "CONSOLE LOG", panel.x + 20, panel.y + 10,
+        color=palette.title,
+    )
+    draw_rule(
+        pygame, screen, panel.x + 18, panel.y + 34,
+        panel.width - 36, color=palette.border,
+    )
+    entries = log.recent(LOG_ROWS)
+    measure = lambda text: measure_font(font, text)
+    content_width = panel.width - 40
+    for index, entry in enumerate(entries):
+        line = fit_text("> " + entry.text, content_width, measure)
+        draw_text(
+            pygame, screen, font, line,
+            panel.x + 20,
+            panel.y + 42 + index * (font.get_linesize() + 1),
+            color=entry.fg,
+        )
+
 
 def measure_font(font: Any, text: str) -> int:
     """Return the rendered pixel width of ``text`` for ``font``."""
