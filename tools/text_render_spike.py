@@ -20,7 +20,7 @@ import argparse
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 SAMPLE_LINES: tuple[str, ...] = (
@@ -36,6 +36,32 @@ _FONT_CANDIDATES: tuple[str, ...] = (
     "Noto Sans Mono",
     "Courier New",
 )
+_FALLBACK_MERCHANT_OPTIONS: tuple[str, ...] = (
+    "> [Delivery] Deliver to Mars in Sol (100$) <",
+    "  [Delivery] Deliver to Science Port in Alpha Centauri (180$)",
+    "  [Delivery] Deliver to Binary Station in Sirius (400$)",
+    "  [Delivery] Deliver to Wolf 359 b in Wolf 359 (650$)",
+)
+_FALLBACK_MERCHANT_DESCRIPTION = (
+    "The Mars colony is short on Earth-grown food rations. Five crates of "
+    "hydroponic produce - load them up and run them to the Mars Barkeep. "
+    "Same system, quick turnaround."
+)
+_FALLBACK_MERCHANT_HINTS: tuple[str, ...] = (
+    "ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",
+    "Reward: 100$ + 20xp",
+    "Best suited for: Merchant",
+    "Ship cargo recommended: 5+",
+)
+
+
+@dataclass(frozen=True)
+class MerchantScreenData:
+    """Text content needed to compare the Merchant offerings screen."""
+
+    options: tuple[str, ...]
+    description: str
+    hints: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -58,6 +84,7 @@ class SpikeConfig:
     bitmap_scale: int = 2
     font_name: str | None = None
     antialias: bool = True
+    view: str = "samples"
 
 
 def panel_rects(width: int, height: int, gap: int = 18) -> tuple[PanelRect, PanelRect]:
@@ -79,6 +106,7 @@ def clamp_config(config: SpikeConfig) -> SpikeConfig:
         bitmap_scale=max(1, min(config.bitmap_scale, 4)),
         font_name=config.font_name,
         antialias=config.antialias,
+        view=config.view,
     )
 
 
@@ -133,6 +161,52 @@ def _load_current_tileset():
     return engine.load_tileset()
 
 
+def _load_merchant_screen_data() -> MerchantScreenData:
+    """Load current Merchant catalog content for the comparison view."""
+    root = _project_root()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from src.spacehack.data.missions.merchants import MISSIONS
+        from src.spacehack.mission import destination_system_name
+        from src.spacehack.data.classes import find_class
+
+        missions = MISSIONS[:4]
+        options: list[str] = []
+        for index, mission in enumerate(missions):
+            marker = "> " if index == 0 else "  "
+            end_marker = " <" if index == 0 else ""
+            system = destination_system_name(mission)
+            suffix = (
+                f" @ {system}"
+                if system and system.lower() not in mission.title.lower()
+                else ""
+            )
+            options.append(
+                f"{marker}[Delivery] {mission.title}{suffix} "
+                f"({mission.reward_credits}$){end_marker}"
+            )
+        selected = missions[0]
+        class_name = find_class(selected.recommended_class_id).name
+        hints = (
+            "ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",
+            f"Reward: {selected.reward_credits}$ + {selected.reward_xp}xp",
+            f"Best suited for: {class_name}",
+            f"Ship cargo recommended: {selected.recommended_ship_min_cargo}+",
+        )
+        return MerchantScreenData(
+            options=tuple(options),
+            description=selected.description,
+            hints=hints,
+        )
+    except (ImportError, KeyError, IndexError):
+        return MerchantScreenData(
+            options=_FALLBACK_MERCHANT_OPTIONS,
+            description=_FALLBACK_MERCHANT_DESCRIPTION,
+            hints=_FALLBACK_MERCHANT_HINTS,
+        )
+
+
 def _tile_surface(pygame: Any, tile: Any, color: tuple[int, int, int], scale: int):
     """Convert one tcod RGBA tile into a scaled, tinted Pygame surface."""
     height, width = tile.shape[:2]
@@ -173,11 +247,7 @@ def _draw_bitmap_line(
     scale: int,
     color: tuple[int, int, int],
 ) -> None:
-    """Draw a text line using the actual current tcod bitmap tiles.
-
-    Tcod treats spaces and other unmapped codepoints as blank cells. Mirror
-    that behavior here instead of indexing the tileset and crashing.
-    """
+    """Draw a text line using the actual current tcod bitmap tiles."""
     numpy = _load_numpy()
     cursor_x = x
     cell_width = tileset.tile_width * scale
@@ -192,19 +262,122 @@ def _draw_bitmap_line(
         cursor_x += tile.shape[1] * scale
 
 
+def _wrap_by_measure(text: str, max_width: int, measure: Callable[[str], int]) -> tuple[str, ...]:
+    """Wrap text at word boundaries using a renderer-specific width measure."""
+    if not text:
+        return ("",)
+    words = text.split()
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = word if not current else f"{current} {word}"
+        if current and measure(candidate) > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return tuple(lines)
+
+
+def _fit_by_measure(text: str, max_width: int, measure: Callable[[str], int]) -> str:
+    """Fit one terminal-style row, using an ellipsis when it is too long."""
+    if measure(text) <= max_width:
+        return text
+    suffix = "..."
+    if measure(suffix) >= max_width:
+        return suffix
+    fitted = text
+    while fitted and measure(fitted + suffix) > max_width:
+        fitted = fitted[:-1]
+    return fitted.rstrip() + suffix
+
+
+def _merchant_lines(
+    data: MerchantScreenData,
+    max_width: int,
+    measure: Callable[[str], int],
+) -> tuple[str, ...]:
+    """Assemble shared Merchant screen rows using renderer metrics."""
+    row = lambda text: _fit_by_measure(text, max_width, measure)
+    lines = [row("Guild Master - available work")]
+    for option in data.options:
+        lines.extend((row(option), ""))
+    lines.extend(_wrap_by_measure(data.description, max_width, measure))
+    lines.append("")
+    for hint in data.hints:
+        lines.append(row(hint))
+    return tuple(lines)
+
+
+def _merchant_bitmap_lines(tileset: Any, scale: int, max_width: int) -> tuple[str, ...]:
+    """Build Merchant Guild lines using the game's fixed-cell row behavior."""
+    data = _load_merchant_screen_data()
+    measure = lambda text: len(text) * tileset.tile_width * scale
+    return _merchant_lines(data, max_width, measure)
+
+
+def _merchant_pygame_lines(font: Any, max_width: int) -> tuple[str, ...]:
+    """Build Merchant Guild lines using Pygame font metrics."""
+    data = _load_merchant_screen_data()
+    measure = lambda text: font.size(text)[0]
+    return _merchant_lines(data, max_width, measure)
+
+
+def _draw_bitmap_text_lines(
+    pygame: Any,
+    screen: Any,
+    tileset: Any,
+    lines: tuple[str, ...],
+    x: int,
+    y: int,
+    scale: int,
+    color: tuple[int, int, int],
+) -> None:
+    """Draw wrapped bitmap lines at fixed-cell vertical spacing."""
+    line_step = tileset.tile_height * scale + 4
+    for index, line in enumerate(lines):
+        _draw_bitmap_line(pygame, screen, tileset, line, x, y + index * line_step, scale, color)
+
+
+def _draw_font_text_lines(
+    pygame: Any,
+    screen: Any,
+    lines: tuple[str, ...],
+    x: int,
+    y: int,
+    font: Any,
+    color: tuple[int, int, int],
+    antialias: bool,
+) -> None:
+    """Draw Pygame lines using the font's natural spacing and AA setting."""
+    line_step = font.get_linesize() + 4
+    for index, line in enumerate(lines):
+        screen.blit(font.render(line, antialias, color), (x, y + index * line_step))
+
+
 def _draw_bitmap_panel(pygame: Any, screen: Any, rect: PanelRect, tileset: Any, config: SpikeConfig, ui_font: Any) -> None:
     """Render representative text using the current tcod bitmap raster."""
-    _draw_panel_frame(pygame, screen, rect, "CURRENT TCOD BITMAP (+3)", ui_font)
+    title = "CURRENT TCOD BITMAP (+3)"
+    _draw_panel_frame(pygame, screen, rect, title, ui_font)
     x = rect.x + 20
     y = rect.y + 72
-    line_step = config.bitmap_scale * 16 + 22
-    for index, line in enumerate(SAMPLE_LINES):
-        color = (238, 242, 255) if index == 0 else (190, 204, 226)
-        _draw_bitmap_line(
-            pygame, screen, tileset, line, x, y + index * line_step,
-            config.bitmap_scale, color,
+    if config.view == "merchant":
+        max_width = rect.width - 40
+        lines = _merchant_bitmap_lines(tileset, config.bitmap_scale, max_width)
+    else:
+        lines = SAMPLE_LINES
+    screen.set_clip(pygame.Rect(rect.x + 1, rect.y + 60, rect.width - 2, rect.height - 108))
+    try:
+        _draw_bitmap_text_lines(
+            pygame, screen, tileset, lines, x, y, config.bitmap_scale,
+            (210, 220, 240),
         )
-    note = ui_font.render("16px cells; current widened raster", True, (132, 148, 172))
+    finally:
+        screen.set_clip(None)
+    note_text = "Merchant offerings; fixed 16px cells" if config.view == "merchant" else "16px cells; current widened raster"
+    note = ui_font.render(note_text, True, (132, 148, 172))
     screen.blit(note, (x, rect.y + rect.height - 38))
 
 
@@ -222,13 +395,21 @@ def _draw_pygame_sample(
     _draw_panel_frame(pygame, screen, rect, title, ui_font)
     x = rect.x + 20
     y = rect.y + 78
-    line_step = config.font_size + 30
-    for index, line in enumerate(SAMPLE_LINES):
-        color = (245, 247, 255) if index == 0 else (198, 210, 232)
-        rendered = font.render(line, config.antialias, color)
-        screen.blit(rendered, (x, y + index * line_step))
+    if config.view == "merchant":
+        lines = _merchant_pygame_lines(font, rect.width - 40)
+    else:
+        lines = SAMPLE_LINES
+    screen.set_clip(pygame.Rect(rect.x + 1, rect.y + 60, rect.width - 2, rect.height - 108))
+    try:
+        _draw_font_text_lines(
+            pygame, screen, lines, x, y, font,
+            (220, 226, 242), config.antialias,
+        )
+    finally:
+        screen.set_clip(None)
     selected = Path(font_path).name if font_path else "Pygame default font"
-    note = ui_font.render(f"{selected}  |  {config.font_size}px", True, (132, 148, 172))
+    note_text = f"{selected} | Merchant offerings" if config.view == "merchant" else f"{selected}  |  {config.font_size}px"
+    note = ui_font.render(note_text, True, (132, 148, 172))
     screen.blit(note, (x, rect.y + rect.height - 38))
 
 
@@ -270,18 +451,20 @@ def _parse_args(argv: list[str] | None = None) -> SpikeConfig:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--font", help="Pygame font family or path")
     parser.add_argument("--size", type=int, default=30, help="Pygame font size in pixels")
-    parser.add_argument("--scale", type=int, default=2, help="Scale factor for the current bitmap")
+    parser.add_argument("--scale", type=int, default=None, help="Scale factor for the current bitmap (default: 1 for merchant, 2 for samples)")
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=760)
     parser.add_argument("--no-aa", action="store_true", help="Disable Pygame antialiasing")
+    parser.add_argument("--view", choices=("samples", "merchant"), default="samples", help="Comparison screen to display")
     args = parser.parse_args(argv)
     return SpikeConfig(
         width=args.width,
         height=args.height,
         font_size=args.size,
-        bitmap_scale=args.scale,
+        bitmap_scale=args.scale if args.scale is not None else (1 if args.view == "merchant" else 2),
         font_name=args.font,
         antialias=not args.no_aa,
+        view=args.view,
     )
 
 

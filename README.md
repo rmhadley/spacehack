@@ -132,8 +132,10 @@ python tools/text_render_spike.py
 ```
 
 The left panel is the current game bitmap; the right panel uses a system
-monospace font. Use `--no-aa`, `--size`, `--scale`, or `--font` to explore
-alternatives. Pygame and NumPy are optional and are not required to run the game.
+monospace font. Use `--view merchant` to compare the Merchant Guild delivery
+selection screen specifically. Use `--no-aa`, `--size`, `--scale`, or `--font`
+to explore alternatives. Pygame and NumPy are optional and are not required
+to run the game.
 On macOS/Homebrew, use the virtual-environment commands above rather than
 installing into the system Python; otherwise PEP 668 may report an
 `externally-managed-environment` error.

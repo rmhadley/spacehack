@@ -11,6 +11,8 @@ from tools.text_render_spike import (
     clamp_config,
     panel_rects,
     _bitmap_tile_or_none,
+    _merchant_bitmap_lines,
+    _merchant_pygame_lines,
 )
 
 
@@ -18,6 +20,29 @@ def test_spike_does_not_eagerly_import_numpy():
     """Help and configuration remain usable before visual dependencies load."""
     source = Path("tools/text_render_spike.py").read_text(encoding="utf-8")
     assert "import numpy as np" not in source
+
+
+def test_merchant_bitmap_view_wraps_long_rows_to_panel_width():
+    """The fixed-cell mock keeps long mission rows inside its panel."""
+    tileset = SimpleNamespace(tile_width=16, tile_height=16)
+    lines = _merchant_bitmap_lines(tileset, scale=2, max_width=500)
+    assert "Guild Master..." in lines
+    assert "> [Delivery]..." in lines
+    assert "The Mars colony" in lines
+    assert max(len(line) * 32 for line in lines) <= 500
+
+
+def test_merchant_pygame_view_uses_font_metrics_for_wrapping():
+    """The font mock drives proportional wrapping independently of cells."""
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 10, 20)
+
+    lines = _merchant_pygame_lines(FakeFont(), max_width=300)
+    assert "Guild Master - available work" in lines
+    assert "> [Delivery] Deliver to Mar..." in lines
+    assert "The Mars colony is short on" in lines
+    assert max(len(line) * 10 for line in lines) <= 300
 
 
 def test_bitmap_tile_lookup_treats_spaces_as_blank_cells():
