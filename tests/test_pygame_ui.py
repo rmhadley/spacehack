@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import pygame_merchant, pygame_ui
+from src.spacehack import pygame_merchant, pygame_quest_log, pygame_ui, pygame_world
 
 
 class _FakeFont:
@@ -156,6 +156,116 @@ def test_merchant_key_mapping_matches_existing_modal_contract():
     ) == ("ACCEPT", 1)
     assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.KEYDOWN, key=fake.K_ESCAPE), 1, 3) == ("BACK", 1)
     assert pygame_merchant._handle_key(fake, SimpleNamespace(type=99, key=0), 1, 3) == ("IGNORE", 1)
+
+
+def test_json_worker_rejects_nonzero_worker_exit(monkeypatch):
+    monkeypatch.setattr(
+        pygame_ui.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=2, stdout=""),
+    )
+
+    try:
+        pygame_ui.run_json_worker(
+            ["python"],
+            {},
+            unavailable_message="unavailable",
+        )
+    except pygame_ui.PygameWorkerUnavailable as exc:
+        assert str(exc) == "unavailable"
+    else:
+        raise AssertionError("nonzero worker exits must use the fallback path")
+
+
+def test_json_worker_returns_last_json_line_and_uses_supplied_environment(monkeypatch):
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return SimpleNamespace(returncode=0, stdout="worker noise\n{\"outcome\": \"BACK\"}\n")
+
+    monkeypatch.setattr(pygame_ui.subprocess, "run", fake_run)
+
+    result = pygame_ui.run_json_worker(
+        ["python", "-m", "worker"],
+        {"value": 1},
+        unavailable_message="unavailable",
+        environment={"TEST": "1"},
+    )
+
+    assert result == {"outcome": "BACK"}
+    assert captured["command"] == ["python", "-m", "worker"]
+    assert captured["env"] == {"TEST": "1"}
+    assert captured["input"] == '{"value": 1}'
+
+
+def test_captured_quest_rows_merge_cells_by_color():
+    capture = pygame_world.CaptureConsole(6, 1)
+    capture.print(x=0, y=0, string="AB", fg=(1, 2, 3))
+    capture.print(x=2, y=0, string="CD", fg=(4, 5, 6))
+
+    assert pygame_quest_log._captured_rows(capture) == (
+        (
+            pygame_quest_log.QuestSpan("AB", (1, 2, 3)),
+            pygame_quest_log.QuestSpan("CD", (4, 5, 6)),
+        ),
+    )
+
+
+def test_quest_frame_payload_round_trips_text_colors_and_state():
+    frame = pygame_quest_log.QuestFrame(
+        rows=((pygame_quest_log.QuestSpan("> Mission", (255, 255, 255)),),),
+        selected=2,
+        confirm_abandon=True,
+    )
+
+    payload = pygame_quest_log._worker_payload((frame,))
+    restored = pygame_quest_log._frame_from_payload(
+        payload["frames"][pygame_quest_log._frame_key(2, True)]
+    )
+
+    assert restored == frame
+
+
+def test_quest_key_mapping_preserves_navigation_and_confirmation_contract():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_UP = 11
+        K_DOWN = 12
+        K_k = 13
+        K_j = 14
+        K_a = 15
+        K_RETURN = 16
+        K_KP_ENTER = 17
+        K_QUESTION = 18
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+    assert pygame_quest_log._handle_key(fake, key(fake.K_UP), 0, False, 3) == ("IGNORE", 2, False)
+    assert pygame_quest_log._handle_key(fake, key(fake.K_a), 1, False, 3) == ("IGNORE", 1, True)
+    assert pygame_quest_log._handle_key(fake, key(fake.K_RETURN), 1, True, 3) == ("ABANDONED", 1, True)
+    assert pygame_quest_log._handle_key(fake, key(fake.K_ESCAPE), 1, True, 3) == ("BACK", 1, True)
+    assert pygame_quest_log._handle_key(fake, key(fake.K_QUESTION), 1, False, 3) == ("GUIDE", 1, False)
+    assert pygame_quest_log._handle_key(fake, SimpleNamespace(type=fake.QUIT), 1, False, 3) == ("QUIT", 1, False)
+
+
+def test_empty_quest_log_uses_a_non_abandonable_worker_state():
+    frame = pygame_quest_log.QuestFrame(rows=((),), selected=-1, confirm_abandon=False)
+    payload = pygame_quest_log._worker_payload((frame,))
+
+    assert pygame_quest_log._frame_key(-1, False) in payload["frames"]
+
+
+def test_quest_log_opt_in_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("SPACEHACK_PYGAME_QUEST_LOG", raising=False)
+
+    from src.spacehack.menus import _quest_log
+
+    assert not _quest_log._pygame_quest_log_enabled()
 
 
 def test_pygame_backend_is_opt_in_and_falls_back_when_unavailable(monkeypatch):

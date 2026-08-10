@@ -9,7 +9,52 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import json
+import os
+import subprocess
+import sys
 from typing import Any
+
+
+class PygameWorkerUnavailable(RuntimeError):
+    """Raised when an optional Pygame worker cannot return a result."""
+
+
+def run_json_worker(
+    command: list[str],
+    payload: dict[str, Any],
+    *,
+    unavailable_message: str,
+    environment: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Run a JSON-in/JSON-out worker with one consistent fallback path."""
+    try:
+        result = subprocess.run(
+            command,
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            check=False,
+            env=environment or os.environ.copy(),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise PygameWorkerUnavailable(unavailable_message) from exc
+    if result.returncode != 0:
+        raise PygameWorkerUnavailable(unavailable_message)
+    try:
+        return json.loads(result.stdout.strip().splitlines()[-1])
+    except (IndexError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        raise PygameWorkerUnavailable(unavailable_message) from exc
+
+
+def worker_environment() -> dict[str, str]:
+    """Return the environment used by optional Pygame workers."""
+    return {**os.environ, "PYGAME_HIDE_SUPPORT_PROMPT": "1"}
+
+
+def worker_command(module: str) -> list[str]:
+    """Build a worker command for the current Python environment."""
+    return [sys.executable, "-m", module, "--worker"]
 
 
 Color = tuple[int, int, int]

@@ -17,6 +17,32 @@ from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from ..input_helpers import _try_open_guide
 
 
+def _pygame_quest_log_enabled() -> bool:
+    """Return whether the opt-in Pygame Quest Log is enabled."""
+    import os
+
+    return bool(os.environ.get("SPACEHACK_PYGAME_QUEST_LOG"))
+
+
+def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
+    """Run the Pygame Quest Log, returning None for tcod fallback."""
+    from ..pygame_quest_log import PygameQuestLogUnavailable, run
+
+    try:
+        outcome, selected = run(ctx)
+    except PygameQuestLogUnavailable:
+        return None
+    if outcome == "ABANDONED":
+        return QuestLogOutcome.ABANDONED, selected
+    if outcome == "QUIT":
+        return QuestLogOutcome.QUIT, None
+    if outcome == "GUIDE":
+        from ..help import _run_help_guide
+        _run_help_guide(ctx)
+        return QuestLogOutcome.BACK, None
+    return QuestLogOutcome.BACK, None
+
+
 class QuestLogOutcome(Enum):
     """What the player chose in the city quest log.
 
@@ -362,6 +388,11 @@ def _run_quest_log(ctx) -> tuple[QuestLogOutcome, int | None]:
     the index of the abandoned mission (for removal from the list),
     or ``None``.
     """
+    if _pygame_quest_log_enabled():
+        pygame_result = _run_pygame_quest_log(ctx)
+        if pygame_result is not None:
+            return pygame_result
+
     console = make_console()
     selected = 0
     confirm_abandon = False

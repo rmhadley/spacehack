@@ -9,8 +9,6 @@ with tcod. The backend is optional and falls back cleanly when unavailable.
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -353,31 +351,18 @@ def run(
         _mission_board_label,
         lambda class_id: find_class(class_id).name,
     )
-    command = [sys.executable, "-m", f"{__package__}.pygame_merchant", "--worker"]
-    environment = {**os.environ, "PYGAME_HIDE_SUPPORT_PROMPT": "1"}
     try:
-        result = subprocess.run(
-            command,
-            input=json.dumps(
-                _worker_payload(frames, screen_size, font_size, antialias)
-            ),
-            text=True,
-            capture_output=True,
-            check=False,
-            env=environment,
+        response = pygame_ui.run_json_worker(
+            pygame_ui.worker_command(f"{__package__}.pygame_merchant"),
+            _worker_payload(frames, screen_size, font_size, antialias),
+            unavailable_message="Pygame worker unavailable; using the tcod Merchant modal.",
+            environment=pygame_ui.worker_environment(),
         )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise PygameMerchantUnavailable(
-            "Pygame worker could not start; using the tcod Merchant modal."
-        ) from exc
-    if result.returncode != 0:
-        raise PygameMerchantUnavailable(
-            "Pygame worker failed; using the tcod Merchant modal."
-        )
+    except pygame_ui.PygameWorkerUnavailable as exc:
+        raise PygameMerchantUnavailable(str(exc)) from exc
     try:
-        response = json.loads(result.stdout.strip().splitlines()[-1])
         return str(response["outcome"]), int(response["selected"])
-    except (IndexError, KeyError, ValueError, json.JSONDecodeError) as exc:
+    except (KeyError, TypeError, ValueError) as exc:
         raise PygameMerchantUnavailable(
             "Pygame worker returned no usable choice; using tcod."
         ) from exc
