@@ -17,6 +17,72 @@ def test_title_frames_include_start_continue_only_when_save_exists():
     assert no_save[0].items == no_save[1].items
 
 
+def test_title_splash_layout_and_stars_avoid_art_regions():
+    class Font:
+        def get_linesize(self):
+            return 20
+
+        def size(self, text):
+            return (len(text) * 10, 20)
+
+    layout = pygame_title._splash_layout(Font(), 1600, 960)
+    positions = pygame_title._splash_star_positions(Font(), 1600, 960)
+
+    assert layout["ship_bottom"] < layout["prompt_y"]
+    assert len(positions) == 80
+    for x, y in positions:
+        assert not (
+            layout["title_y"] - 20 <= y < layout["title_y"] + len(pygame_title._TITLE_ART) * 20
+        )
+        assert not (layout["ship_x"] - 8 <= x < 1600 and layout["ship_y"] - 4 <= y < layout["ship_bottom"] + 4)
+        assert not (layout["prompt_y"] - 28 <= y < 960)
+
+
+def test_title_splash_rejects_surface_too_small():
+    class Font:
+        def get_linesize(self):
+            return 20
+
+        def size(self, text):
+            return (len(text) * 10, 20)
+
+    try:
+        pygame_title._splash_layout(Font(), 300, 200)
+    except ValueError as exc:
+        assert "does not fit" in str(exc)
+    else:
+        raise AssertionError("small splash surface must be rejected")
+
+
+def test_title_splash_uses_shared_runtime_and_dismisses_on_key(monkeypatch):
+    calls = []
+
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+
+    event = SimpleNamespace(type=FakePygame.KEYDOWN)
+    screen = SimpleNamespace(get_size=lambda: (1600, 960), fill=lambda *_args: None)
+    engine = SimpleNamespace(
+        pygame=FakePygame,
+        logical_surface=screen,
+        present=lambda: calls.append("present"),
+    )
+    context = SimpleNamespace(_runtime=SimpleNamespace(engine=engine))
+    monkeypatch.setattr(
+        FakePygame,
+        "event",
+        SimpleNamespace(wait=lambda: event),
+        raising=False,
+    )
+    monkeypatch.setattr(pygame_title, "_splash_font", lambda *args: SimpleNamespace(get_linesize=lambda: 16))
+    monkeypatch.setattr(pygame_title, "_draw_splash", lambda *args: calls.append("draw"))
+
+    pygame_title.run_splash_for_context(context)
+
+    assert calls == ["draw", "present"]
+
+
 def test_title_runner_maps_pygame_actions_to_legacy_outcomes(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
