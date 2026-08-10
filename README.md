@@ -151,9 +151,11 @@ in a Pygame window, and returns the normal accept/back result to gameplay:
 SPACEHACK_PYGAME_MERCHANT=1 python -m spacehack
 ```
 
-Press **ESC** to close the experiment window and return to the game. If Pygame
-is missing or cannot open a window, the normal tcod Merchant modal is used
-instead. Clear the variable to return to the unchanged tcod path:
+The experiment matches the game canvas at `1600x960` and starts with a more
+compact `24px` font; it will reduce the font further if the selected content
+needs it. Press **ESC** to close the experiment window and return to the game.
+If Pygame is missing or cannot open a window, the normal tcod Merchant modal
+is used instead. Clear the variable to return to the unchanged tcod path:
 
 ```bash
 python -m spacehack

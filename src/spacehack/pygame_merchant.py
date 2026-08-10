@@ -34,6 +34,81 @@ class MerchantFrame:
     selected: int
 
 
+@dataclass(frozen=True)
+class MerchantLayout:
+    """Responsive pixel bounds for one Merchant screen."""
+
+    panel: pygame_ui.Rect
+    content: pygame_ui.Rect
+    title_y: int
+    rule_y: int
+
+
+def _default_screen_size() -> tuple[int, int]:
+    """Match the game's native 100x60 grid at its 16px cell size."""
+    from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, TILE_HEIGHT, TILE_WIDTH
+
+    return SCREEN_WIDTH * TILE_WIDTH, SCREEN_HEIGHT * TILE_HEIGHT
+
+
+def _merchant_layout(width: int, height: int, line_height: int) -> MerchantLayout:
+    """Build responsive panel and content bounds for a Pygame viewport."""
+    margin_x = max(28, width // 40)
+    margin_y = max(24, height // 30)
+    panel = pygame_ui.Rect(
+        margin_x,
+        margin_y,
+        max(1, width - margin_x * 2),
+        max(1, height - margin_y * 2),
+    )
+    title_y = panel.y + 24
+    rule_y = title_y + line_height + 10
+    content_y = rule_y + 24
+    content = pygame_ui.Rect(
+        panel.x + 34,
+        content_y,
+        max(1, panel.width - 68),
+        max(1, panel.y + panel.height - content_y - 24),
+    )
+    return MerchantLayout(panel, content, title_y, rule_y)
+
+
+def _content_height(font: Any, frame: MerchantFrame, width: int) -> int:
+    """Return the rendered height needed for a frame's content."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    description_lines = pygame_ui.wrap_text(frame.description, width, measure)
+    row_height = font.get_linesize() + 14
+    text_step = font.get_linesize() + 4
+    hint_step = font.get_linesize() + 14
+    return (
+        len(frame.options) * row_height
+        + 8
+        + max(1, len(description_lines)) * text_step
+        + 8
+        + len(frame.hints) * hint_step
+    )
+
+
+def _fit_font(
+    pygame: Any,
+    font_path: str | None,
+    requested_size: int,
+    frames: tuple[MerchantFrame, ...],
+    width: int,
+    height: int,
+) -> Any:
+    """Choose the largest requested font that fits every Merchant frame."""
+    for size in range(max(16, requested_size), 15, -1):
+        font = pygame.font.Font(font_path, size)
+        layout = _merchant_layout(width, height, font.get_linesize())
+        if all(
+            _content_height(font, frame, layout.content.width) <= layout.content.height
+            for frame in frames
+        ):
+            return font
+    return pygame.font.Font(font_path, 16)
+
+
 def _load_pygame() -> Any:
     """Import Pygame only inside the isolated worker process."""
     try:
@@ -126,43 +201,66 @@ def _draw_frame(
 ) -> None:
     """Paint one complete Merchant frame with shared Pygame primitives."""
     width, height = screen.get_size()
-    panel = pygame_ui.Rect(28, 24, width - 56, height - 48)
-    pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
+    layout = _merchant_layout(width, height, font.get_linesize())
+    pygame_ui.draw_panel(pygame, screen, layout.panel, palette=palette)
     pygame_ui.draw_centered_text(
-        pygame, screen, font, frame.title, panel, 52,
+        pygame, screen, font, frame.title, layout.panel, layout.title_y,
         color=palette.title, antialias=antialias,
     )
     pygame_ui.draw_rule(
-        pygame, screen, panel.x + 24, 94, panel.width - 48,
-        color=palette.border,
+        pygame, screen, layout.panel.x + 24, layout.rule_y,
+        layout.panel.width - 48, color=palette.border,
     )
-    x = panel.x + 34
-    content_width = panel.width - 68
-    y = 120
+    x = layout.content.x
+    content_width = layout.content.width
+    y = layout.content.y
     row_step = font.get_linesize() + 14
-    for index, label in enumerate(frame.options):
-        y = pygame_ui.draw_menu_row(
-            pygame, screen, font, label, x, y, content_width,
-            selected=index == frame.selected,
-            palette=palette, antialias=antialias,
+    screen.set_clip(
+        pygame.Rect(
+            layout.content.x,
+            layout.content.y,
+            layout.content.width,
+            layout.content.height,
         )
-    y += 8
-    y = pygame_ui.draw_wrapped_text(
-        pygame, screen, font, frame.description, x, y, content_width,
-        color=palette.description, line_gap=4, antialias=antialias,
     )
-    y += 8
-    for hint in frame.hints:
-        pygame_ui.draw_text(
-            pygame, screen, font, hint, x, y,
-            color=palette.instruction, antialias=antialias,
+    try:
+        for index, label in enumerate(frame.options):
+            y = pygame_ui.draw_menu_row(
+                pygame, screen, font, label, x, y, content_width,
+                selected=index == frame.selected,
+                palette=palette, antialias=antialias,
+            )
+        y += 8
+        y = pygame_ui.draw_wrapped_text(
+            pygame, screen, font, frame.description, x, y, content_width,
+            color=palette.description, line_gap=4, antialias=antialias,
         )
-        y += row_step
+        y += 8
+        measure = lambda text: pygame_ui.measure_font(font, text)
+        for hint in frame.hints:
+            fitted_hint = pygame_ui.fit_text(hint, content_width, measure)
+            pygame_ui.draw_text(
+                pygame, screen, font, fitted_hint, x, y,
+                color=palette.instruction, antialias=antialias,
+            )
+            y += row_step
+    finally:
+        screen.set_clip(None)
 
 
-def _worker_payload(frames: tuple[MerchantFrame, ...]) -> dict[str, Any]:
-    """Serialize renderer-neutral frames for the worker process."""
-    return {"frames": [asdict(frame) for frame in frames]}
+def _worker_payload(
+    frames: tuple[MerchantFrame, ...],
+    screen_size: tuple[int, int],
+    font_size: int,
+    antialias: bool,
+) -> dict[str, Any]:
+    """Serialize frames and display settings for the worker process."""
+    return {
+        "frames": [asdict(frame) for frame in frames],
+        "screen_size": screen_size,
+        "font_size": font_size,
+        "antialias": antialias,
+    }
 
 
 def _run_worker(payload: dict[str, Any]) -> int:
@@ -183,9 +281,20 @@ def _run_worker(payload: dict[str, Any]) -> int:
     pygame.init()
     pygame.font.init()
     try:
-        screen = pygame.display.set_mode((1280, 760))
+        screen_size = tuple(payload.get("screen_size", (1600, 960)))
+        requested_size = int(payload.get("font_size", 24))
+        antialias = bool(payload.get("antialias", True))
+        screen = pygame.display.set_mode(screen_size)
         pygame.display.set_caption("spacehack - Merchant Guild")
-        font = pygame.font.Font(_font_path(pygame), 30)
+        font_path = _font_path(pygame)
+        font = _fit_font(
+            pygame,
+            font_path,
+            requested_size,
+            frames,
+            screen_size[0],
+            screen_size[1],
+        )
         palette = pygame_ui.DEFAULT_PALETTE
         selected = 0
         clock = pygame.time.Clock()
@@ -194,7 +303,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
             screen.fill(palette.background)
             _draw_frame(
                 pygame, screen, font, frame,
-                palette=palette, antialias=True,
+                palette=palette, antialias=antialias,
             )
             pygame.display.flip()
             for event in pygame.event.get():
@@ -223,17 +332,18 @@ def run(
     npc: Any,
     offerings: tuple[Any, ...],
     *,
-    screen_size: tuple[int, int] = (1280, 760),
-    font_size: int = 30,
+    screen_size: tuple[int, int] | None = None,
+    font_size: int = 24,
     antialias: bool = True,
 ) -> tuple[str, int]:
     """Run the isolated Pygame Merchant worker and return its choice.
 
-    ``screen_size``, ``font_size``, and ``antialias`` remain in the signature
-    for the next presentation-migration step; the first live worker uses the
-    comparison spike's proven 1280x760, 30px antialiased configuration.
+    The default size matches the existing tcod canvas. The worker may reduce
+    the requested font to keep every row, description, and hint inside its
+    content region.
     """
-    del screen_size, font_size, antialias
+    if screen_size is None:
+        screen_size = _default_screen_size()
     from .data.classes import find_class
     from .menus._missions import _mission_board_label
 
@@ -248,7 +358,9 @@ def run(
     try:
         result = subprocess.run(
             command,
-            input=json.dumps(_worker_payload(frames)),
+            input=json.dumps(
+                _worker_payload(frames, screen_size, font_size, antialias)
+            ),
             text=True,
             capture_output=True,
             check=False,

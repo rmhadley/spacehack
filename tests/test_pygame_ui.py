@@ -78,6 +78,60 @@ def test_merchant_frame_uses_live_content_and_selected_details():
     )
 
 
+def test_default_merchant_window_matches_game_canvas():
+    assert pygame_merchant._default_screen_size() == (1600, 960)
+
+
+def test_merchant_layout_matches_game_canvas_and_keeps_content_inside_panel():
+    layout = pygame_merchant._merchant_layout(1600, 960, 34)
+
+    assert layout.panel == pygame_ui.Rect(40, 32, 1520, 896)
+    assert layout.content.x == layout.panel.x + 34
+    assert layout.content.y > layout.rule_y
+    assert layout.content.x + layout.content.width < layout.panel.x + layout.panel.width
+    assert layout.content.y + layout.content.height < layout.panel.y + layout.panel.height
+
+
+def test_font_fit_uses_each_candidate_font_metrics(monkeypatch):
+    class FakePygame:
+        class font:
+            @staticmethod
+            def Font(_path, size):
+                return SimpleNamespace(
+                    get_linesize=lambda: size + 20,
+                    size=lambda text: (len(text) * size, size),
+                )
+
+    frame = pygame_merchant.MerchantFrame(
+        "title",
+        ("row",),
+        "description",
+        ("hint",),
+        0,
+    )
+    font = pygame_merchant._fit_font(
+        FakePygame,
+        None,
+        24,
+        (frame,),
+        1600,
+        960,
+    )
+
+    assert font.get_linesize() == 44
+
+
+def test_worker_payload_carries_display_configuration():
+    frame = pygame_merchant.MerchantFrame("title", ("row",), "desc", ("hint",), 0)
+
+    payload = pygame_merchant._worker_payload((frame,), (1600, 960), 24, True)
+
+    assert payload["screen_size"] == (1600, 960)
+    assert payload["font_size"] == 24
+    assert payload["antialias"] is True
+    assert payload["frames"][0]["options"] == ("row",)
+
+
 def test_merchant_key_mapping_matches_existing_modal_contract():
     class FakePygame:
         QUIT = 1
