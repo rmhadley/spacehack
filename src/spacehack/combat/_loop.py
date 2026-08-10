@@ -20,7 +20,47 @@ from ..input_helpers import _try_open_guide
 from ._types import CombatResult
 from ._animations import (
     _damage_popup_for,
+    _present,
 )
+
+
+def _combat_action(ctx, console, *, presenter) -> str:
+    """Render one interactive combat frame and return its opaque action."""
+    from .. import pygame_combat
+
+    if presenter is None:
+        for event in tcod.event.wait():
+            if isinstance(event, tcod.event.Quit):
+                return "QUIT"
+            if not isinstance(event, tcod.event.KeyDown):
+                continue
+            if _try_open_guide(event, ctx):
+                continue
+            return _tcod_action(event)
+        return "QUIT"
+    try:
+        presenter.show(console, interactive=True)
+        return presenter.wait_action()
+    except pygame_combat.PygameCombatQuit:
+        return "QUIT"
+    except pygame_combat.PygameCombatUnavailable:
+        return "UNAVAILABLE"
+
+
+def _tcod_action(event) -> str:
+    """Translate a tcod key event to the same opaque combat action IDs."""
+    sym_name = getattr(event.sym, "name", "").lower()
+    if sym_name == "tab":
+        return "TARGET"
+    if sym_name in _MOVE_KEYS:
+        return f"MOVE:{sym_name}"
+    if sym_name in {".", "period"}:
+        return "WAIT"
+    return {
+        "s": "DEFENSE",
+        "w": "WAIT",
+        "f": "FIRE",
+    }.get(sym_name, f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else "")
 
 
 
@@ -213,7 +253,7 @@ def _end_turn(ctx, game_map, rules) -> str | None:
     return None
 
 
-def run_combat(
+def _run_combat_impl(
     console,
     ctx,
     game_map: world.GameMap,
@@ -243,6 +283,13 @@ def run_combat(
     _target_idx: int = 0
     _turn: int = 1
     _result: str | None = None
+    _presenter = None
+    try:
+        from ..pygame_combat import start_if_enabled as _start_pygame_combat
+        _presenter = _start_pygame_combat() if getattr(ctx, "_pygame_combat_allowed", True) else None
+    except (ImportError, RuntimeError):
+        _presenter = None
+    ctx._pygame_combat_presenter = _presenter
 
     # Initial combat log
     _enemies = rules.get_enemies(ctx)
@@ -275,65 +322,50 @@ def run_combat(
 
         # ---- Render ----
         rules.render_frame(console, ctx, game_map)
-        ctx.context.present(console)
+        _present(ctx, console)
+        _presenter = getattr(ctx, "_pygame_combat_presenter", None)
 
         # ---- Wait for input ----
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.Quit):
-                _result = "FLEE"
-                break
-            if not isinstance(event, tcod.event.KeyDown):
-                continue
-
-            if _try_open_guide(event, ctx):
-                continue
-
-            sym_name: str = getattr(event.sym, "name", "").lower()
-            sym = event.sym
-
-            # [Tab] -> Cycle target. (Arrow keys are movement now, so
-            # target cycling is TAB-only; LEFT/RIGHT move instead.)
-            if sym_name == "tab":
-                _target_idx = _cycle_target(_target_idx, len(_enemies), 1)
-                rules.set_target_idx(ctx, _target_idx)
-                break
-
-            # Movement (vim keys, arrows, or numpad)
-            if sym_name in _MOVE_KEYS and rules.player_ap(ctx) > 0:
-                _dx, _dy = _MOVE_KEYS[sym_name]
-                _moved = rules.try_move(ctx, game_map, _dx, _dy)
-                if not _moved:
-                    ctx.log.add("Blocked.")
-                break
-
-            # [s] -> Defense toggle (shields in space, no-op in ground)
-            if sym_name == "s":
-                rules.handle_defense(ctx)
-                break
-
-            # [w] -> End player turn
-            if sym_name == "w":
-                # Force AP to 0 so end-turn guard triggers
-                break  # break out of event loop; AP check below handles it
-
-            # [f] -> Fire ALL active weapons
-            if sym_name == "f":
-                _handle_fire(console, ctx, game_map, rules, _target_idx)
-                break
-
-            # [1]–[9] -> Toggle weapon on/off
-            if sym_name in _NUM_KEYS:
-                _idx = _NUM_KEYS[sym_name]
-                _active = rules.active_weapons(ctx)
-                _active = _toggle_weapon(_idx, _active, ctx, rules)
-                break
-
-        if _result is not None:
+        _action = _combat_action(ctx, console, presenter=_presenter)
+        if _action in {"QUIT", "FLEE"}:
+            _result = "FLEE"
             break
+        if _action == "UNAVAILABLE":
+            if _presenter is not None:
+                _presenter.close()
+                _presenter = None
+                ctx._pygame_combat_presenter = None
+            continue
+        if _action == "GUIDE":
+            from ..help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if _action == "TARGET":
+            _target_idx = _cycle_target(_target_idx, len(_enemies), 1)
+            rules.set_target_idx(ctx, _target_idx)
+        elif _action.startswith("MOVE:"):
+            sym_name = _action.partition(":")[2]
+            if rules.player_ap(ctx) > 0:
+                _dx, _dy = _MOVE_KEYS.get(sym_name, (0, 0))
+                if (_dx, _dy) != (0, 0) and not rules.try_move(ctx, game_map, _dx, _dy):
+                    ctx.log.add("Blocked.")
+        elif _action == "DEFENSE":
+            rules.handle_defense(ctx)
+        elif _action == "FIRE":
+            _handle_fire(console, ctx, game_map, rules, _target_idx)
+            _presenter = getattr(ctx, "_pygame_combat_presenter", None)
+
+        elif _action.startswith("WEAPON:"):
+            _idx = int(_action.partition(":")[2])
+            _toggle_weapon(_idx, rules.active_weapons(ctx), ctx, rules)
+        elif _action == "WAIT":
+            # Waiting ends the player's turn and forfeits remaining AP.
+            rules.set_player_ap(ctx, 0)
 
         # ---- End-turn guard: if AP ≤ 0, run enemy turns ----
         if rules.player_ap(ctx) <= 0:
             _end_result = _end_turn(ctx, game_map, rules)
+            _presenter = getattr(ctx, "_pygame_combat_presenter", None)
             if _end_result == "DEFEAT":
                 _result = "DEFEAT"
                 break
@@ -342,6 +374,9 @@ def run_combat(
 
     # ---- Sync state back ----
     rules.sync_state(ctx)
+    if _presenter is not None:
+        _presenter.close()
+    ctx._pygame_combat_presenter = None
 
     # ---- Build result ----
     if hasattr(rules, 'get_combat_result'):
@@ -350,4 +385,20 @@ def run_combat(
         _cr = CombatResult()
     _cr.outcome = _result or "VICTORY"
     return _cr
+
+
+def run_combat(
+    console,
+    ctx,
+    game_map: world.GameMap,
+    rules,
+) -> CombatResult:
+    """Run combat and always release a transient Pygame presenter."""
+    try:
+        return _run_combat_impl(console, ctx, game_map, rules)
+    finally:
+        _presenter = getattr(ctx, "_pygame_combat_presenter", None)
+        if _presenter is not None:
+            _presenter.close()
+            ctx._pygame_combat_presenter = None
 

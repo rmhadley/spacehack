@@ -485,7 +485,7 @@ def animate_fire(
     )
 
     _animate_laser_shot(
-        console, ctx.context, game_map,
+        console, ctx, game_map,
         from_pos, to_pos,
         is_hit=is_hit,
         damage=damage,
@@ -526,7 +526,7 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
         int(_state.player_state.get("piloting", 0) * 0.5),
     )
     _animate_explosion(
-        _state.console, ctx.context, game_map,
+        _state.console, ctx, game_map,
         enemy.pos,
         cam_x=_cam_x, cam_y=_cam_y,
         view_w=_state.view_w, view_h=_state.view_h,
@@ -615,9 +615,8 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
 
 
 def on_player_death(ctx) -> None:
+    """Mark the player dead; the encounter wrapper owns presentation."""
     ctx.player_dead = True
-    from ._encounter import _render_death_screen
-    _render_death_screen(_state.console, ctx.context, _state.log)
 
 
 # ---------------------------------------------------------------------------

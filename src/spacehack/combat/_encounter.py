@@ -217,7 +217,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
 
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
-        _render_death_screen(console, ctx.context, ctx.log)
+        _render_death_screen(console, ctx, ctx.log)
     elif _cr.outcome == "FLEE":
         # Apply cowardice rep penalty for fleeing combat.
         from ..faction import modify_rep, _COMBAT_FLEE_DELTAS
@@ -309,7 +309,40 @@ def detect_ground_combat(
     return visible_hostiles(ctx, game_map, player_pos, _radius)
 
 
-def _render_death_screen(console, context, log) -> None:
+def _wait_for_death_input(ctx, console) -> None:
+    """Wait for dismissal through Pygame, falling back to tcod."""
+    from .. import pygame_combat
+
+    presenter = getattr(ctx, "_pygame_combat_presenter", None)
+    started_here = presenter is None
+    if presenter is None:
+        presenter = pygame_combat.start_if_enabled()
+        ctx._pygame_combat_presenter = presenter
+    if presenter is not None:
+        try:
+            presenter.show(console, interactive=True)
+            presenter.wait_action()
+            if started_here:
+                presenter.close()
+                ctx._pygame_combat_presenter = None
+            return
+        except pygame_combat.PygameCombatQuit as exc:
+            presenter.close()
+            ctx._pygame_combat_presenter = None
+            raise SystemExit() from exc
+        except pygame_combat.PygameCombatUnavailable:
+            presenter.close()
+            ctx._pygame_combat_presenter = None
+
+    ctx.context.present(console)
+    for event in tcod.event.wait():
+        if isinstance(event, tcod.event.Quit):
+            raise SystemExit()
+        if isinstance(event, tcod.event.KeyDown):
+            return
+
+
+def _render_death_screen(console, ctx, log) -> None:
     """Display a dramatic full-screen death overlay and wait for input.
 
     Renders a red-tinted screen with a final message and the message
@@ -349,10 +382,5 @@ def _render_death_screen(console, context, log) -> None:
             screen_height=SCREEN_HEIGHT,
         )
 
-        context.present(console)
-
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.Quit):
-                raise SystemExit()
-            if isinstance(event, tcod.event.KeyDown):
-                return
+        _wait_for_death_input(ctx, console)
+        return

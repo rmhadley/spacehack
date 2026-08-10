@@ -17,6 +17,13 @@ from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
 
+
+def _present(context, console) -> None:
+    """Present combat animation frames through the active renderer."""
+    from ..pygame_combat import present as _pygame_present
+
+    _pygame_present(context, console)
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -426,7 +433,7 @@ def _render_anim_frame(
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
     )
-    context.present(console)
+    _present(context, console)
 
 
 # ---------------------------------------------------------------------------
@@ -500,7 +507,7 @@ def _animate_laser_shot(
                     # Alternate beam chars along the path
                     char = "=" if i % 2 == 0 else "-"
                 console.print(x=sx, y=sy, string=char, fg=color)
-        context.present(console)
+        _present(context, console)
         _responsive_sleep(0.05)
 
     # Impact flash (if hit): two quick bright pulses at target,
@@ -528,7 +535,7 @@ def _animate_laser_shot(
                     cam_x=cam_x, cam_y=cam_y,
                     view_w=view_w, view_h=view_h,
                 )
-            context.present(console)
+            _present(context, console)
             _responsive_sleep(0.06)
 
     # Damage number drift + fade frames after the impact. Ages 0-1
@@ -550,7 +557,7 @@ def _animate_laser_shot(
                 cam_x=cam_x, cam_y=cam_y,
                 view_w=view_w, view_h=view_h,
             )
-            context.present(console)
+            _present(context, console)
             _responsive_sleep(0.05)
 
 
@@ -602,7 +609,7 @@ def _animate_explosion(
                     sy = center_pos.y + dy - cam_y
                     if 0 <= sx < view_w and 0 <= sy < view_h:
                         console.print(x=sx, y=sy, string=r_char, fg=r_fg)
-        context.present(console)
+        _present(context, console)
         _responsive_sleep(0.07)
 
     # One frame of white flash
@@ -626,7 +633,7 @@ def _animate_explosion(
                 if abs(dx) + abs(dy) <= 3:
                     bg = (255, 255, 255)
                     console.print(x=sx, y=sy, string=" ", fg=(255, 255, 255), bg=bg)
-    context.present(console)
+    _present(context, console)
     _responsive_sleep(0.08)
 
     # Brief void to let the flash settle

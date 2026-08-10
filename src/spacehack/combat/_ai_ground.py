@@ -10,7 +10,7 @@ from __future__ import annotations
 from .. import world
 from .. import message_log as _ml
 from ..engine import RNG
-from ._animations import _has_los, _responsive_sleep
+from ._animations import _has_los, _responsive_sleep, _present
 
 # Guards defend a post: beyond this euclidean distance from their
 # spawn position they disengage and return instead of chasing.
@@ -134,7 +134,7 @@ def run_ground_enemy_turn(
             # Animate step so the player sees enemies move one cell at a time
             if render_callback is not None and console is not None:
                 render_callback(console, ctx, game_map)
-                ctx.context.present(console)
+                _present(ctx, console)
                 _responsive_sleep(0.05)
         else:
             # Step blocked — recompute path next iteration

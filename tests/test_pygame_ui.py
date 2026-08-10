@@ -15,6 +15,7 @@ from src.spacehack import (
     pygame_ui,
     pygame_world,
     pygame_quantity,
+    pygame_combat,
 )
 from src.spacehack.menus import _armory, _missions, _planet, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
@@ -29,6 +30,93 @@ class _FakeFont:
 
     def get_linesize(self) -> int:
         return 24
+
+
+def test_combat_key_mapping_returns_opaque_actions():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_TAB = 11
+        K_UP = 12
+        K_DOWN = 13
+        K_LEFT = 14
+        K_RIGHT = 15
+
+        class key:
+            @staticmethod
+            def name(value):
+                return {20: "f", 21: "1", 22: "?", 23: "period"}.get(value, "")
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value, unicode="")
+
+    assert pygame_combat._action_for_key(fake, SimpleNamespace(type=fake.QUIT)) == "QUIT"
+    assert pygame_combat._action_for_key(fake, key(fake.K_ESCAPE)) == "FLEE"
+    assert pygame_combat._action_for_key(fake, key(fake.K_TAB)) == "TARGET"
+    assert pygame_combat._action_for_key(fake, key(fake.K_UP)) == "MOVE:up"
+    assert pygame_combat._action_for_key(fake, key(20)) == "FIRE"
+    assert pygame_combat._action_for_key(fake, key(21)) == "WEAPON:0"
+    assert pygame_combat._action_for_key(fake, key(23)) == "WAIT"
+
+    from src.spacehack.combat import _loop
+    assert _loop._tcod_action(SimpleNamespace(sym=SimpleNamespace(name="period"))) == "WAIT"
+
+
+def test_combat_present_falls_back_and_clears_failed_presenter():
+    calls = []
+
+    class FailedPresenter:
+        def show(self, *_args, **_kwargs):
+            raise pygame_combat.PygameCombatUnavailable("stopped")
+
+        def close(self):
+            calls.append("close")
+
+    ctx = SimpleNamespace(
+        _pygame_combat_presenter=FailedPresenter(),
+        context=SimpleNamespace(present=lambda _console: calls.append("tcod")),
+    )
+
+    pygame_combat.present(ctx, SimpleNamespace(commands=[]))
+
+    assert calls == ["close", "tcod"]
+    assert ctx._pygame_combat_presenter is None
+
+
+def test_combat_action_falls_back_when_presenter_stops():
+    class UnavailablePresenter:
+        def show(self, *_args, **_kwargs):
+            raise pygame_combat.PygameCombatUnavailable("stopped")
+
+        def wait_action(self):
+            raise AssertionError("wait_action must not run after show fails")
+
+    assert pygame_combat.PygameCombatUnavailable.__name__ == "PygameCombatUnavailable"
+    from src.spacehack.combat import _loop
+
+    assert _loop._combat_action(
+        SimpleNamespace(), SimpleNamespace(), presenter=UnavailablePresenter(),
+    ) == "UNAVAILABLE"
+
+
+def test_combat_frame_payload_preserves_commands_and_mode():
+    console = SimpleNamespace(commands=[SimpleNamespace(x=1, y=2, char="@", fg=(1, 2, 3), bg=None)])
+
+    payload = pygame_combat._frame_payload(console, interactive=True)
+
+    assert payload["logical_size"] == (1600, 960)
+    assert payload["interactive"] is True
+    assert payload["commands"][0]["char"] == "@"
+
+
+def test_combat_migration_is_enabled_by_default_and_rolls_back_globally(monkeypatch):
+    monkeypatch.delenv("SPACEHACK_PYGAME_COMBAT", raising=False)
+    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
+    assert pygame_combat.enabled()
+
+    monkeypatch.setenv("SPACEHACK_TCOD_UI", "1")
+    assert not pygame_combat.enabled()
 
 
 def test_quantity_key_mapping_clamps_and_confirms():

@@ -41,6 +41,7 @@ from ._animations import (
     _draw_damage_popup,
     _DAMAGE_POPUP_FRAMES,
     DamagePopup,
+    _present,
 )
 
 
@@ -598,7 +599,7 @@ def animate_fire(
             if 0 <= sx < _RENDER_WIDTH and 0 <= sy < _RENDER_HEIGHT:
                 char = "*" if i == len(cells) - 1 else ("+" if i == 0 else ("=" if i % 2 == 0 else "-"))
                 console.print(x=sx, y=sy, string=char, fg=color)
-        ctx.context.present(console)
+        _present(ctx, console)
         _responsive_sleep(0.05)
 
     # Impact flash (if hit): two quick bright pulses with the damage
@@ -617,7 +618,7 @@ def animate_fire(
                     view_w=_RENDER_WIDTH, view_h=_RENDER_HEIGHT,
                     region_x=_rx, region_y=_ry,
                 )
-            ctx.context.present(console)
+            _present(ctx, console)
             _responsive_sleep(0.06)
         if damage is not None:
             for _age in range(_DAMAGE_POPUP_FRAMES):
@@ -628,7 +629,7 @@ def animate_fire(
                     view_w=_RENDER_WIDTH, view_h=_RENDER_HEIGHT,
                     region_x=_rx, region_y=_ry,
                 )
-                ctx.context.present(console)
+                _present(ctx, console)
                 _responsive_sleep(0.05)
 
 

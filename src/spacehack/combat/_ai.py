@@ -135,7 +135,7 @@ def _run_enemy_turn(
                     _cached_path.pop(0)
                     _cam_x, _cam_y = calc_cam()
                     _render_anim_frame(
-                        state.console, state.ctx.context, state.game_map,
+                        state.console, state.ctx, state.game_map,
                         _cam_x, _cam_y, state.view_w, state.view_h,
                         state.player_state, state.enemy_insts, state.target_idx, state.log,
                         weapon_list=tuple(state.weapons_list),
@@ -186,7 +186,7 @@ def _run_enemy_turn(
                         _e_dmg_popup = _damage_popup_for(_e_dmg, _e_sdmg, _e_is_strip)
                     _ecx, _ecy = calc_cam()
                     _animate_laser_shot(
-                        state.console, state.ctx.context, state.game_map,
+                        state.console, state.ctx, state.game_map,
                         _ei.pos, state.player_state["pos"],
                         is_hit=_e_hit,
                         damage=_e_dmg_popup,
@@ -217,7 +217,7 @@ def _run_enemy_turn(
                             _e_log("Your ship has been destroyed!", state.log)
                             _ecx, _ecy = calc_cam()
                             _animate_explosion(
-                                state.console, state.ctx.context, state.game_map,
+                                state.console, state.ctx, state.game_map,
                                 state.player_state["pos"],
                                 cam_x=_ecx, cam_y=_ecy,
                                 view_w=state.view_w, view_h=state.view_h,
