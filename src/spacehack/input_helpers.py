@@ -34,7 +34,126 @@ class Outcome(Enum):
     CONFIRM = auto()
 
 
+def _pygame_pick_frames(menu: ui.MenuScreen):
+    """Build fixed-layout Pygame frames for one character picker."""
+    from . import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(
+            label=label,
+            description=menu.descriptions.get(option_id, ""),
+            action=option_id,
+        )
+        for option_id, label in menu.options
+    )
+    return tuple(
+        pygame_menu.MenuFrame(
+            title=menu.title.upper(),
+            body="Choose an option to shape your character.",
+            items=items,
+            hints=(menu.instruction,),
+            selected=selected,
+        )
+        for selected in range(len(items))
+    )
+
+
+def _pygame_confirm_frame(species, klass):
+    """Build the fixed-layout Pygame character confirmation frame."""
+    from . import pygame_menu
+
+    body = (
+        f"You are a {species.name.upper()} {klass.name.upper()}.\n\n"
+        f"SPECIES: {species.description}\n"
+        f"CLASS: {klass.description}"
+    )
+    item = pygame_menu.MenuItem(
+        label="BEGIN JOURNEY",
+        description=f"Starting credits: {klass.credits}$",
+        action="CONFIRM",
+    )
+    return pygame_menu.MenuFrame(
+        title="CHARACTER CREATION",
+        body=body,
+        items=(item,),
+        hints=("ENTER begin journey   ESC start over",),
+        selected=0,
+    )
+
+
+def _is_character_menu(menu: ui.MenuScreen) -> bool:
+    """Return whether a menu is one of the two character-creation pickers."""
+    return menu.title in {"Choose Your Species", "Choose Your Class"}
+
+
+def _pygame_character_enabled() -> bool:
+    """Return whether character creation can use the Pygame presentation."""
+    from . import pygame_menu, pygame_runtime
+
+    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+
+
+def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None] | None:
+    """Run a character picker in Pygame, or return None for tcod fallback."""
+    from . import pygame_menu
+
+    frames = _pygame_pick_frames(menu)
+    if not frames:
+        return None
+    while True:
+        try:
+            outcome, action, _selected = pygame_menu.run_for_context(
+                context,
+                frames,
+                caption=f"spacehack - {menu.title.lower()}",
+            )
+        except pygame_menu.PygameMenuUnavailable:
+            return None
+        if outcome == "GUIDE":
+            continue
+        if outcome == "QUIT":
+            return Outcome.QUIT, None
+        if outcome == "BACK":
+            return Outcome.BACK, None
+        if outcome == "SELECT":
+            valid_ids = {option_id for option_id, _label in menu.options}
+            if action in valid_ids:
+                return Outcome.CONFIRM, action
+        return None
+
+
+def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | None:
+    """Run character confirmation in Pygame, or return None for tcod fallback."""
+    from . import pygame_menu
+
+    species = find_species(species_id)
+    klass = find_class(class_id)
+    frame = _pygame_confirm_frame(species, klass)
+    while True:
+        try:
+            outcome, action, _selected = pygame_menu.run_for_context(
+                context,
+                (frame,),
+                caption="spacehack - character creation",
+            )
+        except pygame_menu.PygameMenuUnavailable:
+            return None
+        if outcome == "GUIDE":
+            continue
+        if outcome == "SELECT" and action == "CONFIRM":
+            return Outcome.CONFIRM
+        if outcome == "BACK":
+            return Outcome.BACK
+        if outcome == "QUIT":
+            return Outcome.QUIT
+        return None
+
+
 def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
+    if _pygame_character_enabled() and _is_character_menu(menu):
+        _pygame_result = _run_pygame_pick(context, menu)
+        if _pygame_result is not None:
+            return _pygame_result
     console = make_console()
 
     def _render() -> None:
@@ -56,6 +175,10 @@ def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outco
 
 
 def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) -> Outcome:
+    if _pygame_character_enabled():
+        _pygame_result = _run_pygame_confirm(context, species_id, class_id)
+        if _pygame_result is not None:
+            return _pygame_result
     species = find_species(species_id)
     klass = find_class(class_id)
     console = make_console()
