@@ -1492,6 +1492,112 @@ def test_fixed_description_layout_budgets_cover_all_selection_states():
     assert len({pygame_split._frame_height(Font(), frame, 800) for frame in split_frames}) == 1
 
 
+def test_split_visible_window_keeps_selection_inside_and_capped():
+    rows = tuple(
+        pygame_split.SplitRow(f"Item {index}", "", "", f"ACT:{index}")
+        for index in range(30)
+    )
+
+    top, count = pygame_split._visible_window(rows, 0, 9)
+    assert (top, count) == (0, 9)
+
+    top, count = pygame_split._visible_window(rows, 29, 9)
+    assert top + count == len(rows)
+    assert top <= 29 < top + count
+
+    top, count = pygame_split._visible_window(rows, 15, 9)
+    assert top <= 15 < top + count
+    assert count <= 9
+
+    # Empty and divider-only panels expose no viewport.
+    assert pygame_split._visible_window((), 0, 9) == (0, 0)
+    dividers = (pygame_split.SplitRow("--- X ---", "", "", "", True),)
+    assert pygame_split._visible_window(dividers, 0, 9) == (0, 0)
+
+
+def test_split_visible_window_includes_adjacent_dividers():
+    rows = (
+        pygame_split.SplitRow("--- WEAPONS ---", "", "", "", True),
+        pygame_split.SplitRow("Laser", "30$", "", "BUY:laser"),
+        pygame_split.SplitRow("--- ARMOUR ---", "", "", "", True),
+        pygame_split.SplitRow("Vest", "50$", "", "BUY:vest"),
+    )
+
+    top, count = pygame_split._visible_window(rows, 3, 9)
+    assert top == 0
+    assert top + count == len(rows)
+
+
+def test_split_frame_height_caps_rows_and_detail_lines():
+    class Font:
+        def get_linesize(self) -> int:
+            return 29
+
+        def size(self, text):
+            return len(text) * 14, 29
+
+    def frame(row_count, detail="d"):
+        return pygame_split.SplitFrame(
+            "Split", "Left", "Right",
+            tuple(
+                pygame_split.SplitRow(f"Row {index}", "", detail, str(index))
+                for index in range(row_count)
+            ),
+            (), "", "", "", 0, 0,
+        )
+
+    nine = pygame_split._frame_height(Font(), frame(9), 800)
+    assert nine == pygame_split._frame_height(Font(), frame(10), 800)
+    assert nine == pygame_split._frame_height(Font(), frame(40), 800)
+    assert nine == 150 + 9 * (29 + 14) + 1 * (29 + 2)
+
+    wrapped = frame(1, detail="word " * 60)
+    assert pygame_split._frame_height(Font(), wrapped, 800) == (
+        150 + (29 + 14) + pygame_split.MAX_DETAIL_LINES * (29 + 2)
+    )
+
+
+def test_split_font_fit_is_independent_of_catalog_size():
+    class Font:
+        def __init__(self, size):
+            self.point_size = size
+
+        def get_linesize(self):
+            return int(self.point_size * 1.2) + 1
+
+        def size(self, text):
+            return int(len(text) * self.point_size * 0.6), self.point_size
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(_family):
+                return None
+
+            @staticmethod
+            def Font(_path, size):
+                return Font(size)
+
+    small = pygame_split.SplitFrame(
+        "T", "L", "R",
+        (pygame_split.SplitRow("a", "1", "short", "X"),), (), "", "", "",
+    )
+    huge = pygame_split.SplitFrame(
+        "T", "L", "R",
+        tuple(
+            pygame_split.SplitRow(f"item {index}", "1", "details " * 3, f"X:{index}")
+            for index in range(40)
+        ),
+        (), "", "", "",
+    )
+
+    font_small = pygame_split._fit_font(FakePygame, small, 1600, 960)
+    font_huge = pygame_split._fit_font(FakePygame, huge, 1600, 960)
+
+    assert font_small.point_size == 24
+    assert font_huge.point_size == font_small.point_size
+
+
 def test_merchant_description_budget_is_selection_independent():
     class Font:
         def get_linesize(self):

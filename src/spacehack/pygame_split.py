@@ -89,6 +89,70 @@ def _selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
     return tuple(index for index, row in enumerate(rows) if not row.divider)
 
 
+# Font-fit budget for split panels: at most this many selectable rows per
+# panel are counted by the frame-height solver (and shown in a viewport
+# window), and at most this many wrapped detail lines count toward the
+# frame height. Capping the counted content makes the rendered font size
+# independent of catalog size — every terminal renders at the same size
+# instead of shrinking as lists grow (see 15_DESIGN_UNIFIED_TERMINAL_UX).
+MAX_VISIBLE_ROWS = 9
+MAX_DETAIL_LINES = 2
+
+
+def _window_span(
+    rows: tuple[SplitRow, ...], first: int, last: int,
+) -> tuple[int, int]:
+    """Widen a selectable-row span to include adjacent divider rows."""
+    top = first
+    while top > 0 and rows[top - 1].divider:
+        top -= 1
+    bottom = last + 1
+    while bottom < len(rows) and rows[bottom].divider:
+        bottom += 1
+    return top, bottom
+
+
+def _visible_window(
+    rows: tuple[SplitRow, ...], selected: int, cap: int = MAX_VISIBLE_ROWS,
+) -> tuple[int, int]:
+    """Return the ``(top, count)`` viewport window centered on ``selected``.
+
+    The window holds at most ``cap`` selectable rows plus any dividers
+    between them, and the selection is always inside it. An out-of-range
+    selection clamps to the nearest selectable row; empty or divider-only
+    panels yield ``(0, 0)``.
+    """
+    indices = _selectable_indices(rows)
+    if not indices:
+        return 0, 0
+    if selected not in indices:
+        selected = min(indices, key=lambda index: abs(index - selected))
+    position = indices.index(selected)
+    start = max(0, min(position - cap // 2, len(indices) - cap))
+    first = indices[start]
+    last = indices[min(len(indices) - 1, start + cap - 1)]
+    top, bottom = _window_span(rows, first, last)
+    return top, bottom - top
+
+
+def _rows_height(font: Any, rows: tuple[SplitRow, ...], cap: int) -> int:
+    """Height of the tallest visible window of at most ``cap`` selectable rows."""
+    if not rows:
+        return 0
+    indices = _selectable_indices(rows)
+    if not indices:
+        return 0
+    line = font.get_linesize()
+    heights = [line + 5 if row.divider else line + 14 for row in rows]
+    best = 0
+    for start in range(len(indices)):
+        first = indices[start]
+        last = indices[min(len(indices) - 1, start + cap - 1)]
+        top, bottom = _window_span(rows, first, last)
+        best = max(best, sum(heights[top:bottom]))
+    return best
+
+
 def _clamp_selected(frame: SplitFrame) -> int:
     """Clamp selection to a selectable row, or zero for an empty panel."""
     indices = _selectable_indices(_rows(frame))
@@ -105,25 +169,27 @@ def _content_width(width: int) -> int:
 
 
 def _frame_height(font: Any, frame: SplitFrame, width: int) -> int:
-    """Measure the split frame for font fitting."""
+    """Measure the split frame for font fitting.
+
+    Row and detail counts are capped (``MAX_VISIBLE_ROWS`` /
+    ``MAX_DETAIL_LINES``) so the height — and therefore the rendered font
+    size — no longer depends on catalog size.
+    """
     line = font.get_linesize()
     panel_width = (width - 64 - 20) // 2
     detail_width = panel_width - 68
     measure = lambda text: pygame_ui.measure_font(font, text)
     rows = (*frame.left_rows, *frame.right_rows)
-    detail_lines = pygame_ui.max_wrapped_lines(
-        (row.detail for row in rows if not row.divider),
-        detail_width,
-        measure,
+    detail_lines = min(
+        pygame_ui.max_wrapped_lines(
+            (row.detail for row in rows if not row.divider),
+            detail_width,
+            measure,
+        ),
+        MAX_DETAIL_LINES,
     )
-    left_rows_height = sum(
-        line + 5 if row.divider else line + 14
-        for row in frame.left_rows
-    )
-    right_rows_height = sum(
-        line + 5 if row.divider else line + 14
-        for row in frame.right_rows
-    )
+    left_rows_height = _rows_height(font, frame.left_rows, MAX_VISIBLE_ROWS)
+    right_rows_height = _rows_height(font, frame.right_rows, MAX_VISIBLE_ROWS)
     return 150 + max(left_rows_height, right_rows_height) + max(1, detail_lines) * (line + 2)
 
 
@@ -171,7 +237,13 @@ def _draw_panel(
         x = panel.x + 20
         y = panel.y + 66
         measure = lambda text: pygame_ui.measure_font(font, text)
-        for index, row in enumerate(rows):
+        # Render the viewport window that keeps the selection visible;
+        # unfocused panels show their top window (their own selection is
+        # not tracked across TAB switches).
+        viewport_selected = selected if focused else 0
+        top, count = _visible_window(rows, viewport_selected, MAX_VISIBLE_ROWS)
+        for index in range(top, top + count):
+            row = rows[index]
             if row.divider:
                 pygame_ui.draw_text(
                     pygame, screen, font,
