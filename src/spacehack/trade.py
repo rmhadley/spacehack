@@ -329,9 +329,9 @@ class _QOut(Enum):
 
 def _pygame_quantity_enabled() -> bool:
     """Return whether the Pygame quantity selector can render in this runtime."""
-    from . import pygame_ui, pygame_runtime
+    from . import pygame_ui
 
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUANTITY") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 def _run_quantity_prompt(
@@ -340,65 +340,15 @@ def _run_quantity_prompt(
     max_qty: int,
     price_per: int,
 ) -> int | None:
-    """Show a quantity-input modal and return the confirmed amount."""
-    if _pygame_quantity_enabled():
-        from . import pygame_quantity
-        try:
-            return pygame_quantity.run_for_context(
-                getattr(ctx, "context", ctx), ctx, label, max_qty, price_per,
-            )
-        except pygame_quantity.PygameQuantityQuit:
-            raise SystemExit
-        except pygame_quantity.PygameQuantityUnavailable:
-            pass
+    """Show the quantity selector in the shared Pygame window."""
+    from . import pygame_quantity
 
-    console = make_console()
-    qty = 1
-
-    def _render() -> None:
-        console.clear()
-        prompt = f"{label}  ({price_per}$ each)"
-        qty_text = f"Quantity: [{qty}]"
-        hint = "UP/+ increase  DOWN/- decrease  ENTER confirm  ESC cancel"
-
-        cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2
-        paint_centered(console, cy - 2, prompt, fg=ui.COLOR_TITLE)
-        paint_centered(console, cy + 1, qty_text, fg=ui.COLOR_VALUE_WHITE)
-        paint_centered(console, cy + 3, hint, fg=ui.COLOR_INSTRUCTION)
-
-    def _update(event: tcod.event.Event) -> _QOut:
-        nonlocal qty
-
-        if _try_open_guide(event, ctx):
-            return _QOut.IGNORE
-
-        if isinstance(event, tcod.event.Quit):
-            return _QOut.BACK
-        if not isinstance(event, tcod.event.KeyDown):
-            return _QOut.IGNORE
-
-        sym = event.sym
-        sym_name = getattr(sym, "name", "").lower()
-
-        if sym in ui._ESCAPE_SYMS:
-            return _QOut.BACK
-        if sym in ui._ENTER_SYMS:
-            return _QOut.CONFIRM
-
-        # Increase (UP, +, =) or decrease (DOWN, -).
-        is_up = sym in ui._UP_SYMS or sym_name in ("k", "plus", "equals")
-        is_down = sym in ui._DOWN_SYMS or sym_name in ("j", "-", "minus")
-        if is_up:
-            qty = min(max_qty, qty + 1)
-            return _QOut.IGNORE
-        if is_down:
-            qty = max(1, qty - 1)
-            return _QOut.IGNORE
-
-        return _QOut.IGNORE
-
-    outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    return qty if outcome is _QOut.CONFIRM else None
+    try:
+        return pygame_quantity.run_for_context(
+            getattr(ctx, "context", ctx), ctx, label, max_qty, price_per,
+        )
+    except pygame_quantity.PygameQuantityQuit:
+        raise SystemExit
 
 
 # ---------------------------------------------------------------------------
@@ -431,14 +381,11 @@ def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -
         hints=("ENTER secure/take   ESC leave",),
         selected=0,
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(
-            getattr(ctx, "context", ctx),
-            (frame,),
-            caption=f"spacehack - {title.lower()}",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = pygame_menu.run_for_context(
+        getattr(ctx, "context", ctx),
+        (frame,),
+        caption=f"spacehack - {title.lower()}",
+    )
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -621,88 +568,16 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
             f"Value: {good.base_price}$ each | Volume: {good.volume} crate(s)"
         )
         take_label = "Take"
-    if _pygame_quantity_enabled():
-        pygame_outcome = _run_pygame_loot(ctx, title, body, take_label)
-        if pygame_outcome is not None:
-            if pygame_outcome == "TAKE":
-                _apply_loot_pickup(
-                    ctx, loot_entity, owned, _is_quest, _goods,
-                    good_id, quantity, good,
-                )
-            elif pygame_outcome in {"LEAVE", "QUIT"}:
-                ctx.log.add("Left the cargo debris in space.")
-            return
-
-    console = make_console()
-
-    def _render() -> None:
-        console.clear()
-        if _is_quest:
-            title = "QUEST CACHE"
-            _parts = []
-            for _gid, _qty in _goods:
-                try:
-                    _parts.append(f"{find_trade_good(_gid).name} x{_qty}")
-                except KeyError:
-                    _parts.append(f"{_gid} x{_qty}")
-            label = "Secured quest contents:"
-            contents = ", ".join(_parts)
-            take_label = "Secure"
-            hint = "ENTER to secure  |  ESC to leave"
-        elif _is_heist:
-            title = "MISSION CARGO"
-            label = "Secured mission cargo:"
-            contents = f"{good.name} x{quantity}"
-            take_label = "Secure"
-            hint = "ENTER to secure  |  ESC to leave"
-        else:
-            title = "CARGO DEBRIS"
-            label = f"You found {good.name} x{quantity}"
-            contents = ""
-            take_label = "Take"
-            hint = "ENTER to take  |  ESC to leave"
-        line2 = (
-            contents
-            if contents
-            else f"Value: {good.base_price}$ each  |  Volume: {good.volume} crate(s)"
-        )
-
-        cy = (SCREEN_HEIGHT - MSG_LOG_HEIGHT) // 2 - 2
-        paint_centered(console, cy, title, fg=ui.COLOR_TITLE)
-        paint_centered(console, cy + 2, label, fg=ui.COLOR_VALUE_WHITE)
-        paint_centered(console, cy + 3, line2, fg=ui.COLOR_VALUE_DIM)
-
-        ui.render_selectable_list(
-            console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="",
-            items=[(take_label, "")],
-            selected=0,
-            title_y=cy + 4,
-            hint=hint,
-        )
-
-    def _update(event) -> _LootOutcome:
-        if _try_open_guide(event, ctx):
-            return _LootOutcome.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return _LootOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _LootOutcome.IGNORE
-        if event.sym in ui._ESCAPE_SYMS:
-            return _LootOutcome.LEAVE
-        if event.sym in ui._ENTER_SYMS:
-            return _LootOutcome.TAKE
-        return _LootOutcome.IGNORE
-
-    _outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if _outcome is _LootOutcome.TAKE:
+    pygame_outcome = _run_pygame_loot(ctx, title, body, take_label)
+    if pygame_outcome == "TAKE":
         _apply_loot_pickup(
             ctx, loot_entity, owned, _is_quest, _goods,
             good_id, quantity, good,
         )
-    elif _outcome is _LootOutcome.LEAVE or _outcome is _LootOutcome.QUIT:
+    elif pygame_outcome == "QUIT":
+        raise SystemExit
+    else:
         ctx.log.add("Left the cargo debris in space.")
-        return
 
 
 # ---------------------------------------------------------------------------
@@ -730,19 +605,19 @@ def _pygame_npc_trade_frame(
     owned = ctx.player_owned_ship
     npc_rows = tuple(
         pygame_split.SplitRow(
-            find_trade_good(gid).name,
-            f"{int(find_trade_good(gid).base_price * buy_mult)}$ ({qty})",
-            find_trade_good(gid).description,
-            f"BUY_NPC:{gid}",
+        find_trade_good(gid).name,
+        f"{int(find_trade_good(gid).base_price * buy_mult)}$ ({qty})",
+        find_trade_good(gid).description,
+        f"BUY_NPC:{gid}",
         )
         for gid, qty in npc_stock.items()
     )
     hold_rows = tuple(
         pygame_split.SplitRow(
-            find_trade_good(gid).name,
-            f"{int(find_trade_good(gid).base_price * sell_mult)}$ ({qty})",
-            find_trade_good(gid).description,
-            f"SELL_NPC:{gid}",
+        find_trade_good(gid).name,
+        f"{int(find_trade_good(gid).base_price * sell_mult)}$ ({qty})",
+        find_trade_good(gid).description,
+        f"SELL_NPC:{gid}",
         )
         for gid, qty in (owned.inventory.items() if owned is not None else ())
     )
@@ -842,15 +717,15 @@ def _run_pygame_npc_trade(
     buy_mult: float,
     sell_mult: float,
 ) -> bool | None:
-    """Run NPC trade in Pygame, returning None for tcod fallback."""
+    """Run NPC trade in the shared Pygame window."""
     from . import pygame_split
     result = pygame_split.run_interactive(
         ctx,
         lambda: _pygame_npc_trade_frame(
-            ctx, npc_spec, npc_stock, buy_mult, sell_mult,
+        ctx, npc_spec, npc_stock, buy_mult, sell_mult,
         ),
         lambda action, _focus, _selected: _apply_pygame_npc_trade_action(
-            ctx, npc_spec, npc_stock, buy_mult, sell_mult, action,
+        ctx, npc_spec, npc_stock, buy_mult, sell_mult, action,
         ),
         caption=f"spacehack - {npc_spec.name} trade",
     )
@@ -908,121 +783,12 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
 
     ctx.log.add(f"You open a trade channel with {npc_spec.name}.")
 
-    if _pygame_split_enabled():
-        if _run_pygame_npc_trade(
-            ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
-        ) is not None:
-            return
-
-    console = make_console()
-
-    def _render() -> None:
-        nonlocal _sel
-
-        # Pre-compute left panel rows (NPC goods).
-        _left_rows: list[tuple[str, str, str, tuple]] = []
-        for i, gid in enumerate(_npc_goods):
-            if i >= SCREEN_HEIGHT - 12:
-                break
-            good = find_trade_good(gid)
-            stock = _npc_stock.get(gid, 0)
-            price = int(good.base_price * _BUY_MULT)
-            price_label = f"{price:>5}$"
-            suffix = f"({stock:>3})"
-            _left_rows.append((good.name, price_label, suffix, ui.COLOR_OPTION))
-
-        # Pre-compute right panel rows (player goods).
-        _right_rows: list[tuple[str, str, str, tuple]] = []
-        inv_items = list(owned.inventory.items())
-        for i, (gid, qty) in enumerate(inv_items):
-            if i >= SCREEN_HEIGHT - 12:
-                break
-            good = find_trade_good(gid)
-            sell_price = int(good.base_price * _SELL_MULT)
-            price_label = f"{sell_price:>5}$"
-            suffix = f"({qty:>3})"
-            _right_rows.append((good.name, price_label, suffix, ui.COLOR_OPTION))
-
-        # Footer strings.
-        from . import ship as ship_module
-        ship_spec = ship_module.find_ship(owned.ship_id)
-        _eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
-        cargo_str = f"Cargo: {owned.cargo_used}/{_eff_cargo}"
-        credits_str = f"Credits: {ctx.stats.credits}"
-
-        render_split_frame(
-            console,
-            title=f"TRADE \u2014 {npc_spec.name.upper()}",
-            left_label=f"\u2502 {npc_spec.name}" if _focus == 0 else f"  {npc_spec.name} ",
-            right_label="\u2502 Your Hold" if _focus == 1 else "  Your Hold ",
-            focus=_focus,
-            sel=_sel,
-            left_rows=_left_rows,
-            right_rows=_right_rows,
-            footer_left=cargo_str,
-            footer_right=credits_str,
-            hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
-            log=ctx.log,
-        )
-
-    def _update(event: tcod.event.Event) -> _NpcTradeOutcome:
-        nonlocal _focus, _sel
-
-        if _try_open_guide(event, ctx):
-            return _NpcTradeOutcome.IGNORE
-
-        if isinstance(event, tcod.event.Quit):
-            return _NpcTradeOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _NpcTradeOutcome.IGNORE
-
-        sym = event.sym
-        sym_name = getattr(sym, "name", "").lower()
-
-        if sym in ui._ESCAPE_SYMS:
-            return _NpcTradeOutcome.BACK
-        if sym_name == "tab":
-            _focus = 1 - _focus
-            _sel = 0
-            return _NpcTradeOutcome.IGNORE
-
-        is_up = sym in ui._UP_SYMS or sym_name == "k"
-        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
-        if is_up:
-            if _focus == 0:
-                _sel = (_sel - 1) % max(1, len(_npc_goods))
-            else:
-                n = len(owned.inventory)
-                _sel = (_sel - 1) % max(1, n)
-            return _NpcTradeOutcome.IGNORE
-        if is_down:
-            if _focus == 0:
-                _sel = (_sel + 1) % max(1, len(_npc_goods))
-            else:
-                n = len(owned.inventory)
-                _sel = (_sel + 1) % max(1, n)
-            return _NpcTradeOutcome.IGNORE
-
-        if sym in ui._ENTER_SYMS:
-            if _focus == 0 and 0 <= _sel < len(_npc_goods):
-                _npc_trade_transaction(
-                    ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
-                    "BUY_NPC", _npc_goods[_sel],
-                )
-            elif _focus == 1:
-                inv_items = list(owned.inventory.items())
-                if 0 <= _sel < len(inv_items):
-                    _npc_trade_transaction(
-                        ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
-                        "SELL_NPC", inv_items[_sel][0],
-                    )
-            return _NpcTradeOutcome.IGNORE
-
-        return _NpcTradeOutcome.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
-
-
+    result = _run_pygame_npc_trade(
+        ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
+    )
+    if result is None:
+        raise RuntimeError("NPC trade returned no outcome")
+    return
 def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[str]):
     """Build a presentation-only station trade frame."""
     from . import pygame_split
@@ -1031,19 +797,19 @@ def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[st
     _stocks = ctx.economy_state.get(planet_id, {})
     left = tuple(
         pygame_split.SplitRow(
-            find_trade_good(gid).name,
-            f"{_unit_price(ctx, planet_id, gid)}$ ({_stocks.get(gid, 0)})",
-            f"{find_trade_good(gid).description}",
-            f"BUY:{gid}",
+        find_trade_good(gid).name,
+        f"{_unit_price(ctx, planet_id, gid)}$ ({_stocks.get(gid, 0)})",
+        f"{find_trade_good(gid).description}",
+        f"BUY:{gid}",
         )
         for gid in station_goods
     )
     right = tuple(
         pygame_split.SplitRow(
-            find_trade_good(gid).name,
-            f"{_sell_price(ctx, planet_id, gid)}$ ({qty})",
-            find_trade_good(gid).description,
-            f"SELL:{gid}",
+        find_trade_good(gid).name,
+        f"{_sell_price(ctx, planet_id, gid)}$ ({qty})",
+        find_trade_good(gid).description,
+        f"SELL:{gid}",
         )
         for gid, qty in (owned.inventory.items() if owned is not None else ())
     )
@@ -1086,7 +852,7 @@ def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) ->
 
 
 def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]) -> bool | None:
-    """Run the Pygame station trade loop, or return None for tcod fallback."""
+    """Run the station trade loop in the shared Pygame window."""
     from . import pygame_split
     result = pygame_split.run_interactive(
         ctx,
@@ -1144,170 +910,10 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         ctx.log.add("You need a ship with cargo space to use this terminal.")
         return
 
-    if _pygame_split_enabled():
-        _pygame_result = _run_pygame_trade(ctx, planet_id, _station_goods)
-        if _pygame_result is not None:
-            return
-
-    _focus: int = 0        # 0 = station panel, 1 = player panel
-    _sel: int = 0
-    ctx.log.add(f"You approach the Trade Terminal at {spec.name}.")
-
-    console = make_console()
-
-    def _render() -> None:
-        nonlocal _sel
-        owned = ctx.player_owned_ship
-
-        # Pre-compute left panel rows (station goods).
-        _left_rows: list[tuple[str, str, str, tuple]] = []
-        for i, gid in enumerate(_station_goods):
-            if i >= SCREEN_HEIGHT - 12:
-                break
-            good = find_trade_good(gid)
-            price = _unit_price(ctx, planet_id, gid)
-            stock = _stocks.get(gid, 0)
-            price_label = f"{price:>5}$"
-            suffix = f"({stock:>3})"
-            _left_rows.append((good.name, price_label, suffix, ui.COLOR_OPTION))
-
-        # Pre-compute right panel rows (player goods).
-        _right_rows: list[tuple[str, str, str, tuple]] = []
-        if owned is not None:
-            inv_items = list(owned.inventory.items())
-        else:
-            inv_items = []
-        for i, (gid, qty) in enumerate(inv_items):
-            if i >= SCREEN_HEIGHT - 12:
-                break
-            good = find_trade_good(gid)
-            sell_price = _sell_price(ctx, planet_id, gid)
-            price_label = f"{sell_price:>5}$"
-            _contra = good.category == "contraband" and not _can_sell_here(planet_id, gid)
-            if _contra:
-                price_label = f"  ---$"
-            suffix = f"({qty:>3})"
-            fg = ui.COLOR_VALUE_DIM if _contra else ui.COLOR_OPTION
-            _right_rows.append((good.name, price_label, suffix, fg))
-
-        # Footer strings.
-        if owned is not None:
-            from . import ship as ship_module
-            ship_spec = ship_module.find_ship(owned.ship_id)
-            _eff_cargo = ship_module.effective_max_cargo(ship_spec, owned)
-            cargo_str = f"Cargo: {owned.cargo_used}/{_eff_cargo}"
-        else:
-            cargo_str = "Cargo: N/A"
-        credits_str = f"Credits: {ctx.stats.credits}"
-
-        render_split_frame(
-            console,
-            title=f"TRADE - {spec.name.upper()}",
-            left_label="\u2502 Station Inventory" if _focus == 0 else "  Station Inventory ",
-            right_label="\u2502 Your Hold" if _focus == 1 else "  Your Hold ",
-            focus=_focus,
-            sel=_sel,
-            left_rows=_left_rows,
-            right_rows=_right_rows,
-            footer_left=cargo_str,
-            footer_right=credits_str,
-            hint="UP/DOWN navigate  ENTER buy/sell  TAB switch panel  ESC back",
-            log=ctx.log,
-        )
-
-    def _update(event: tcod.event.Event) -> _TradeOutcome:
-        nonlocal _focus, _sel
-
-        if _try_open_guide(event, ctx):
-            return _TradeOutcome.IGNORE
-
-        if isinstance(event, tcod.event.Quit):
-            return _TradeOutcome.QUIT
-
-        if not isinstance(event, tcod.event.KeyDown):
-            return _TradeOutcome.IGNORE
-
-        sym = event.sym
-        sym_name = getattr(sym, "name", "").lower()
-
-        # ESC = back.
-        if sym in ui._ESCAPE_SYMS:
-            return _TradeOutcome.BACK
-
-        # Tab = switch focus panel.
-        if sym_name == "tab":
-            _focus = 1 - _focus
-            _sel = 0
-            return _TradeOutcome.IGNORE
-
-        # Up/Down navigation.
-        is_up = sym in ui._UP_SYMS or sym_name == "k"
-        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
-        if is_up:
-            if _focus == 0:
-                _sel = (_sel - 1) % max(1, len(_station_goods))
-            else:
-                owned = ctx.player_owned_ship
-                n = len(owned.inventory) if owned is not None else 0
-                _sel = (_sel - 1) % max(1, n)
-            return _TradeOutcome.IGNORE
-        if is_down:
-            if _focus == 0:
-                _sel = (_sel + 1) % max(1, len(_station_goods))
-            else:
-                owned = ctx.player_owned_ship
-                n = len(owned.inventory) if owned is not None else 0
-                _sel = (_sel + 1) % max(1, n)
-            return _TradeOutcome.IGNORE
-
-        # Enter = buy on station panel, sell on hold panel.
-        if sym in ui._ENTER_SYMS:
-            if _focus == 0:
-                # Buy from station.
-                if 0 <= _sel < len(_station_goods):
-                    gid = _station_goods[_sel]
-                    good = find_trade_good(gid)
-                    price = _unit_price(ctx, planet_id, gid)
-                    owned = ctx.player_owned_ship
-                    max_qty = 1
-                    if owned is not None:
-                        free = _free_cargo(owned)
-                        stock = _stocks.get(gid, 0)
-                        max_qty = min(
-                            free // good.volume if good.volume > 0 else 999,
-                            stock,
-                            999,
-                        )
-                        can_afford = ctx.stats.credits // price if price > 0 else 999
-                        max_qty = min(max_qty, can_afford)
-                    if max_qty >= 1:
-                        q = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price)
-                        if q is not None:
-                            _buy_good(ctx, planet_id, gid, q)
-                    else:
-                        ctx.log.add(f"Cannot afford or store {good.name}.")
-            else:
-                # Sell from hold.
-                owned = ctx.player_owned_ship
-                if owned is not None:
-                    inv_items = list(owned.inventory.items())
-                    if 0 <= _sel < len(inv_items):
-                        gid, qty = inv_items[_sel]
-                        max_qty = min(qty, 9999)
-                        sell_p = _sell_price(ctx, planet_id, gid)
-                        q = _run_quantity_prompt(ctx, f"Sell {find_trade_good(gid).name}", max_qty, sell_p)
-                        if q is not None:
-                            _sell_good(ctx, planet_id, gid, q)
-            return _TradeOutcome.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
-
-
-# ---------------------------------------------------------------------------
-# Cargo management modal
-# ---------------------------------------------------------------------------
-
-
+    result = _run_pygame_trade(ctx, planet_id, _station_goods)
+    if result is None:
+        raise RuntimeError("Trade terminal returned no outcome")
+    return
 class _COut(Enum):
     IGNORE = auto()
     BACK = auto()
@@ -1358,14 +964,11 @@ def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None
 
     selected = 0
     while True:
-        try:
-            outcome, action, selected = pygame_screen.run_for_context(
-                getattr(ctx, "context", ctx),
-                _cargo_frame(ctx, owned, ship_name, max_cargo, selected),
-                caption="spacehack - cargo",
-            )
-        except pygame_screen.PygameScreenUnavailable:
-            return None
+        outcome, action, selected = pygame_screen.run_for_context(
+            getattr(ctx, "context", ctx),
+            _cargo_frame(ctx, owned, ship_name, max_cargo, selected),
+            caption="spacehack - cargo",
+        )
         if outcome == "GUIDE":
             from .help import _run_help_guide
             _run_help_guide(ctx)
@@ -1425,180 +1028,7 @@ def open_cargo(ctx: GameContext) -> None:
     from . import ship as _ship_mod
     ship_name = ship_module.ship_display_name(owned)
     max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned)
-    if _pygame_cargo_enabled():
-        if _run_pygame_cargo(ctx, owned, ship_name, max_cargo) is not None:
-            return
-    hull_damage = owned.hull_damage_pct
-    weapons_n = len(owned.weapons)
-    weapon_slots = ship_spec.weapon_slots
-    modules_n = len(owned.modules)
-    module_slots = ship_spec.module_slots
-
-    # Active mission titles (for display).
-    mission_title = ""
-    active_missions = ctx.player_active_missions
-    if active_missions:
-        titles = [m.title for m in active_missions]
-        mission_title = ", ".join(titles) if titles else ""
-
-    console = make_console()
-    _sel: int = 0
-
-    def _rebuild_trade_items() -> list[tuple[str, int, int]]:
-        """Return [(good_id, qty, volume), ...] from current inventory."""
-        items: list[tuple[str, int, int]] = []
-        for gid, qty in owned.inventory.items():
-            try:
-                good = find_trade_good(gid)
-                items.append((gid, qty, good.volume * qty))
-            except KeyError:
-                items.append((gid, qty, 0))
-        return items
-
-    def _render() -> None:
-        nonlocal _sel
-        console.clear()
-
-        _items = _rebuild_trade_items()
-        _cargo_used = owned.cargo_used
-        _free = max_cargo - _cargo_used
-        _ammo = owned.cargo_ammo
-        _mission_res = owned.mission_reserved
-
-        # Title + header rule (unified screen header)
-        title = f"CARGO \u2014 {ship_name.upper()} ({_cargo_used}/{max_cargo})"
-        cy = ui.screen_header(console, SCREEN_WIDTH, title)
-
-        # Ship stats header
-        header = f"Hull: {hull_damage}% damage  |  Wpn: {weapons_n}/{weapon_slots}  |  Mod: {modules_n}/{module_slots}"
-        paint_text(console, 2, cy, header, fg=ui.COLOR_VALUE_DIM)
-        cy += 2
-
-        # Section rule
-        ui.paint_rule(console, 2, cy, ui.rule_width(SCREEN_WIDTH))
-        cy += 1
-
-        # Trade goods section
-        paint_text(console, 2, cy, "TRADE GOODS:", fg=ui.COLOR_TITLE)
-        cy += 1
-        if _items:
-            for i, (gid, qty, vol) in enumerate(_items):
-                if i > 25:
-                    break
-                try:
-                    good = find_trade_good(gid)
-                    name = good.name
-                except KeyError:
-                    name = gid
-                is_sel = i == _sel
-                marker = "> " if is_sel else "  "
-                line = f"{marker}{name:<20} {qty:>3} crates ({vol:>3}u)"
-                fg = ui.COLOR_OPTION_HIGHLIGHT if is_sel else ui.COLOR_OPTION
-                paint_text(console, 4, cy, line, fg=fg)
-                cy += 1
-        else:
-            paint_text(console, 4, cy, "(empty)", fg=ui.COLOR_VALUE_DIM)
-            cy += 1
-        cy += 1
-
-        # Mission cargo (read-only)
-        paint_text(console, 2, cy, "MISSION CARGO:", fg=ui.COLOR_TITLE)
-        cy += 1
-        if active_missions:
-            paint_text(console, 4, cy, f"{_mission_res} unit{'' if _mission_res == 1 else 's'} reserved \u2014 {mission_title}", fg=ui.COLOR_VALUE_WHITE)
-        else:
-            paint_text(console, 4, cy, "0 units (no active mission)", fg=ui.COLOR_VALUE_DIM)
-        cy += 2
-
-        # Ammo (read-only)
-        paint_text(console, 2, cy, "AMMO:", fg=ui.COLOR_TITLE)
-        cy += 1
-        paint_text(console, 4, cy, f"{_ammo} unit{'' if _ammo == 1 else 's'}", fg=ui.COLOR_VALUE_WHITE)
-        cy += 2
-
-        # Free space
-        paint_text(console, 2, cy, "FREE:", fg=ui.COLOR_TITLE)
-        cy += 1
-        free_fg = ui.COLOR_VALUE_WHITE if _free > 0 else (255, 80, 80)
-        paint_text(console, 4, cy, f"{_free} unit{'' if _free == 1 else 's'}", fg=free_fg)
-        cy += 2
-
-        # Jettison hint (only when there are trade goods to jettison)
-        if _items:
-            hint = "[J] jettison selected  [C/ESC] close"
-        else:
-            hint = "[C/ESC] close"
-        paint_text(console, 2, cy, hint, fg=ui.COLOR_INSTRUCTION)
-
-        # Message log pinned at the bottom (terminal look).
-        message_log.render_message_log(
-            console, ctx.log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
-
-    def _update(event: tcod.event.Event) -> _COut:
-        nonlocal _sel
-
-        if _try_open_guide(event, ctx):
-            return _COut.IGNORE
-
-        if isinstance(event, tcod.event.Quit):
-            return _COut.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _COut.IGNORE
-
-        sym = event.sym
-        sym_name = getattr(sym, "name", "").lower()
-
-        # ESC or C = close
-        if sym in ui._ESCAPE_SYMS or sym_name == "c":
-            return _COut.BACK
-
-        # Rebuild for current state.
-        _items = _rebuild_trade_items()
-
-        # Shift+J = jettison selected good (checked BEFORE navigation
-        # so plain ``j`` still navigates down but Shift+J fires the
-        # jettison prompt). SDL/tcod reports the same sym.name for
-        # both upper and lowercase letters, so we must check the
-        # shift modifier directly rather than relying on the name.
-        _shift_held = bool(
-            event.mod & (tcod.event.Modifier.LSHIFT | tcod.event.Modifier.RSHIFT)
-        ) if hasattr(tcod.event, 'Modifier') else False
-        if _shift_held and sym_name == "j" and _items and 0 <= _sel < len(_items):
-            gid, qty, _ = _items[_sel]
-            try:
-                good = find_trade_good(gid)
-            except KeyError:
-                return _COut.IGNORE
-            max_q = min(qty, 9999)
-            q = _run_quantity_prompt(
-                ctx, f"Jettison {good.name}", max_q, 0,
-            )
-            if q is not None and q > 0:
-                remaining = qty - q
-                if remaining <= 0:
-                    del owned.inventory[gid]
-                else:
-                    owned.inventory[gid] = remaining
-                ctx.log.add(f"Jettisoned {q}x {good.name} into space.")
-                # Rebuild items to update _sel in case last item was removed.
-                _new_items = _rebuild_trade_items()
-                if _sel >= len(_new_items):
-                    _sel = max(0, len(_new_items) - 1)
-            return _COut.IGNORE
-
-        # Up/Down navigation (lowercase j = down, k = up).
-        is_up = sym in ui._UP_SYMS or sym_name == "k"
-        is_down = sym in ui._DOWN_SYMS or sym_name == "j"
-        if is_up:
-            _sel = (_sel - 1) % max(1, len(_items))
-            return _COut.IGNORE
-        if is_down:
-            _sel = (_sel + 1) % max(1, len(_items))
-            return _COut.IGNORE
-
-        return _COut.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
+    result = _run_pygame_cargo(ctx, owned, ship_name, max_cargo)
+    if result is None:
+        raise RuntimeError("Cargo screen returned no outcome")
+    return

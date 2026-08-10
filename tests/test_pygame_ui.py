@@ -1,4 +1,4 @@
-"""Tests for the optional Pygame presentation migration seam."""
+"""Tests for the Pygame presentation and shared-runtime seam."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from src.spacehack import (
     pygame_world,
     pygame_quantity,
     pygame_combat,
+    pygame_runtime,
     pygame_navigation,
     animation_timing,
 )
@@ -65,7 +66,7 @@ def test_combat_key_mapping_returns_opaque_actions():
     assert _loop._tcod_action(SimpleNamespace(sym=SimpleNamespace(name="period"))) == "WAIT"
 
 
-def test_combat_present_falls_back_and_clears_failed_presenter():
+def test_combat_present_rejects_failed_presenter_without_shared_runtime(monkeypatch):
     calls = []
 
     class FailedPresenter:
@@ -80,13 +81,18 @@ def test_combat_present_falls_back_and_clears_failed_presenter():
         context=SimpleNamespace(present=lambda _console: calls.append("tcod")),
     )
 
-    pygame_combat.present(ctx, SimpleNamespace(commands=[]))
-
-    assert calls == ["close", "tcod"]
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: False)
+    try:
+        pygame_combat.present(ctx, SimpleNamespace(commands=[]))
+    except pygame_combat.PygameCombatUnavailable:
+        pass
+    else:
+        raise AssertionError("combat must require the shared Pygame runtime")
+    assert calls == ["close"]
     assert ctx._pygame_combat_presenter is None
 
 
-def test_invalid_combat_console_falls_back_to_tcod():
+def test_invalid_combat_console_rejects_without_shared_runtime(monkeypatch):
     calls = []
 
     class Presenter:
@@ -101,9 +107,14 @@ def test_invalid_combat_console_falls_back_to_tcod():
         context=SimpleNamespace(present=lambda _console: calls.append("tcod")),
     )
 
-    pygame_combat.present(ctx, SimpleNamespace(commands=[SimpleNamespace(x=0)]))
-
-    assert calls == ["close", "tcod"]
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: False)
+    try:
+        pygame_combat.present(ctx, SimpleNamespace(commands=[SimpleNamespace(x=0)]))
+    except pygame_combat.PygameCombatUnavailable:
+        pass
+    else:
+        raise AssertionError("combat must require the shared Pygame runtime")
+    assert calls == ["close"]
     assert ctx._pygame_combat_presenter is None
 
 
@@ -139,8 +150,14 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
     )
     waits = iter(((key_up,), (key_down,)))
     monkeypatch.setattr(_loop.tcod.event, "wait", lambda: next(waits))
+    shared_ctx = SimpleNamespace(context=SimpleNamespace(_runtime=SimpleNamespace(engine=object())))
+    monkeypatch.setattr(
+        pygame_runtime,
+        "is_shared_context",
+        lambda _context: True,
+    )
 
-    assert _loop._combat_action(SimpleNamespace(), SimpleNamespace(), presenter=None) == "WAIT"
+    assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == "WAIT"
 
     unknown_key = tcod.event.KeyDown(
         scancode=tcod.event.Scancode.UNKNOWN,
@@ -149,14 +166,14 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
     )
     waits = iter(((unknown_key,), (key_down,)))
     monkeypatch.setattr(_loop.tcod.event, "wait", lambda: next(waits))
-    assert _loop._combat_action(SimpleNamespace(), SimpleNamespace(), presenter=None) == ""
+    assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == ""
 
     monkeypatch.setattr(
         _loop.tcod.event,
         "wait",
         lambda: (tcod.event.Quit(),),
     )
-    assert _loop._combat_action(SimpleNamespace(), SimpleNamespace(), presenter=None) == "QUIT"
+    assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == "QUIT"
 
 
 def test_combat_frame_payload_preserves_commands_and_mode():
@@ -214,6 +231,7 @@ def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
         SimpleNamespace(x=1, y=54, char="M", fg=(7, 8, 9), bg=None),
     ])
 
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
     pygame_combat.present(ctx, console)
 
     rendered_console, kwargs = calls[0]
@@ -301,13 +319,9 @@ def test_animation_timing_is_slightly_faster_than_previous_defaults():
     assert animation_timing.DUNGEON_BREACH < 0.08
 
 
-def test_combat_migration_is_enabled_by_default_and_rolls_back_globally(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_COMBAT", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
+def test_combat_presentation_is_always_enabled():
     assert pygame_combat.enabled()
-
-    monkeypatch.setenv("SPACEHACK_TCOD_UI", "1")
-    assert not pygame_combat.enabled()
+    assert pygame_ui.presentation_enabled()
 
 
 def test_quantity_key_mapping_clamps_and_confirms():
@@ -380,9 +394,9 @@ def test_goto_menu_pygame_maps_destination_index(monkeypatch):
         captured["frames"] = frames
         return ("SELECT", "DEST:1", 1)
 
-    monkeypatch.setattr(pygame_menu, "run", fake_run)
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda _context, frames, **kwargs: fake_run(frames, **kwargs))
 
-    assert navigation._run_pygame_goto_menu(SimpleNamespace(), destinations) == (True, 1)
+    assert navigation._run_pygame_goto_menu(SimpleNamespace(context=object()), destinations) == (True, 1)
     assert captured["frames"][1].items[1].action == "DEST:1"
     assert captured["frames"][1].items[1].description == "A stable gate."
 
@@ -392,29 +406,34 @@ def test_goto_menu_pygame_back_is_handled_as_cancel(monkeypatch):
 
     monkeypatch.setattr(
         pygame_menu,
-        "run",
+        "run_for_context",
         lambda *args, **kwargs: ("BACK", "", 0),
     )
 
     assert navigation._run_pygame_goto_menu(
-        SimpleNamespace(), [("Mars", SimpleNamespace(name="Mars"))],
+        SimpleNamespace(context=object()), [("Mars", SimpleNamespace(name="Mars"))],
     ) == (True, None)
 
 
-def test_goto_menu_pygame_unavailable_requests_tcod_fallback(monkeypatch):
+def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
     from src.spacehack import navigation, pygame_menu
 
     monkeypatch.setattr(
         pygame_menu,
-        "run",
+        "run_for_context",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             pygame_menu.PygameMenuUnavailable("missing")
         ),
     )
 
-    assert navigation._run_pygame_goto_menu(
-        SimpleNamespace(), [("Mars", SimpleNamespace(name="Mars"))],
-    ) == (False, None)
+    try:
+        navigation._run_pygame_goto_menu(
+            SimpleNamespace(context=object()), [("Mars", SimpleNamespace(name="Mars"))],
+        )
+    except pygame_menu.PygameMenuUnavailable as exc:
+        assert str(exc) == "missing"
+    else:
+        raise AssertionError("unavailable shared menus must not fall back to tcod")
 
 
 def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
@@ -423,8 +442,8 @@ def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
     jump = SimpleNamespace(name="Gate", description="A stable gate.")
     monkeypatch.setattr(
         pygame_menu,
-        "run",
-        lambda frames, **kwargs: ("SELECT", "JUMP", 0),
+        "run_for_context",
+        lambda _context, frames, **kwargs: ("SELECT", "JUMP", 0),
     )
     monkeypatch.setattr(
         navigation.solar_systems_module,
@@ -433,7 +452,7 @@ def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
     )
 
     assert navigation._run_pygame_jump_menu(
-        SimpleNamespace(), jump, "sirius", 20, 30,
+        SimpleNamespace(context=object()), jump, "sirius", 20, 30,
     ) is navigation.JumpMenuOutcome.JUMP
 
 
@@ -769,18 +788,12 @@ def test_ship_buy_key_mapping_preserves_purchase_contract():
     assert pygame_ship_buy._handle_key(fake, key(fake.K_QUESTION), True) == "GUIDE"
 
 
-def test_migrated_workers_are_enabled_by_default_and_support_global_tcod_rollback(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_SHIP_BUY", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
-
+def test_pygame_presentation_is_enabled_without_migration_flags():
     from src.spacehack.menus import _ship_buy
 
     assert _ship_buy._pygame_ship_buy_enabled()
-    assert pygame_ui.migration_enabled("SPACEHACK_PYGAME_SHIP_BUY")
-
-    monkeypatch.setenv("SPACEHACK_TCOD_UI", "1")
-    assert not _ship_buy._pygame_ship_buy_enabled()
-    assert not pygame_menu.enabled()
+    assert pygame_menu.enabled()
+    assert pygame_ui.presentation_enabled()
 
 
 def test_quest_frame_payload_round_trips_text_colors_and_state():
@@ -830,10 +843,7 @@ def test_empty_quest_log_uses_a_non_abandonable_worker_state():
     assert pygame_quest_log._frame_key(-1, False) in payload["frames"]
 
 
-def test_quest_log_worker_is_enabled_by_default(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_QUEST_LOG", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
-
+def test_quest_log_presentation_is_enabled():
     from src.spacehack.menus import _quest_log
 
     assert _quest_log._pygame_quest_log_enabled()
@@ -880,13 +890,10 @@ def test_batch_rejects_unknown_worker_outcomes(monkeypatch):
     except pygame_batch.PygameBatchUnavailable as exc:
         assert "unknown choice" in str(exc)
     else:
-        raise AssertionError("unknown worker choices must use the tcod fallback")
+        raise AssertionError("unknown worker choices must be rejected")
 
 
-def test_read_only_batch_is_enabled_by_default(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_READONLY", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
-
+def test_read_only_batch_presentation_is_enabled():
     assert pygame_batch.enabled()
     assert _ship_menu._pygame_readonly_enabled()
 
@@ -960,14 +967,15 @@ def test_split_interactive_preserves_initial_focus_and_selection(monkeypatch):
         "Terminal", "Buy", "Sell", (), (), "", "", "hint", 1, 3,
     )
     seen = []
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
     monkeypatch.setattr(
         pygame_split,
-        "run",
-        lambda current, **kwargs: seen.append(current) or ("BACK", "", 1, 3),
+        "run_shared",
+        lambda _context, current, **kwargs: seen.append(current) or ("BACK", "", 1, 3),
     )
 
     assert pygame_split.run_interactive(
-        SimpleNamespace(), lambda: frame, lambda *args: True, caption="test",
+        SimpleNamespace(context=object()), lambda: frame, lambda *args: True, caption="test",
     ) == "BACK"
     assert seen[0].focus == 1
     assert seen[0].selected == 3
@@ -984,11 +992,12 @@ def test_split_interactive_preserves_focus_and_selection_after_action(monkeypatc
         seen.append(current)
         return next(outcomes)
 
-    monkeypatch.setattr(pygame_split, "run", fake_run)
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
+    monkeypatch.setattr(pygame_split, "run_shared", lambda _context, current, **kwargs: fake_run(current, **kwargs))
     applied = []
 
     result = pygame_split.run_interactive(
-        SimpleNamespace(),
+        SimpleNamespace(context=object()),
         lambda: frame,
         lambda action, focus, selected: applied.append(
             (action, focus, selected)
@@ -1107,7 +1116,7 @@ def test_readonly_loadout_pygame_maps_back_and_quit(monkeypatch):
         assert _ship_menu._run_pygame_loadout_view(ctx) is True
 
 
-def test_readonly_loadout_pygame_maps_guide_and_falls_back(monkeypatch):
+def test_readonly_loadout_pygame_maps_guide_and_requires_shared_runtime(monkeypatch):
     from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
@@ -1131,13 +1140,12 @@ def test_readonly_loadout_pygame_maps_guide_and_falls_back(monkeypatch):
             pygame_screen.PygameScreenUnavailable("missing")
         ),
     )
-    monkeypatch.setattr(
-        _ship_menu.ui.Modal,
-        "run",
-        lambda self, render, update: calls.append("fallback") or None,
-    )
-    _ship_menu._run_loadout_view(ctx)
-    assert calls == ["fallback"]
+    try:
+        _ship_menu._run_loadout_view(ctx)
+    except pygame_screen.PygameScreenUnavailable as exc:
+        assert str(exc) == "missing"
+    else:
+        raise AssertionError("loadout must not fall back to tcod")
 
 
 def test_readonly_loadout_uses_shared_screen_without_worker(monkeypatch):
@@ -1150,20 +1158,13 @@ def test_readonly_loadout_uses_shared_screen_without_worker(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="starter"),
     )
     captured = {}
-    monkeypatch.setattr(pygame_runtime, "shared_enabled", lambda: True)
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
     monkeypatch.setattr(
         pygame_screen,
-        "run_shared",
+        "run_for_context",
         lambda context, frame, **kwargs: captured.update(
             context=context, frame=frame,
         ) or ("BACK", "", 0),
-    )
-    monkeypatch.setattr(
-        pygame_screen,
-        "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("shared loadout must not start a worker")
-        ),
     )
 
     assert _ship_menu._run_pygame_loadout_view(ctx) is True
@@ -1213,28 +1214,40 @@ def test_loadout_sell_action_targets_selected_duplicate_slot():
     assert ctx.player_owned_ship.weapons == ("light_laser",)
 
 
-def test_split_interactive_frame_build_failure_returns_to_fallback():
-    assert pygame_split.run_interactive(
-        SimpleNamespace(),
-        lambda: (_ for _ in ()).throw(KeyError("bad inventory")),
-        lambda *args: True,
-        caption="test",
-    ) is None
+def test_split_interactive_frame_build_failure_is_explicit(monkeypatch):
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
+    try:
+        pygame_split.run_interactive(
+            SimpleNamespace(context=object()),
+            lambda: (_ for _ in ()).throw(KeyError("bad inventory")),
+            lambda *args: True,
+            caption="test",
+        )
+    except pygame_split.PygameSplitUnavailable as exc:
+        assert "could not be built" in str(exc)
+    else:
+        raise AssertionError("invalid split frames must not fall back to tcod")
 
 
-def test_split_interactive_malformed_action_returns_to_fallback(monkeypatch):
+def test_split_interactive_malformed_action_is_explicit(monkeypatch):
     frame = pygame_split.SplitFrame("Terminal", "Buy", "Sell", (), (), "", "", "hint")
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
     monkeypatch.setattr(
         pygame_split,
-        "run",
+        "run_shared",
         lambda *args, **kwargs: ("SELECT", "BROKEN:action", 0, 0),
     )
 
-    assert pygame_split.run_interactive(
-        SimpleNamespace(), lambda: frame,
-        lambda action, focus, selected: int(action.split(":", 1)[1]),
-        caption="test",
-    ) is None
+    try:
+        pygame_split.run_interactive(
+            SimpleNamespace(context=object()), lambda: frame,
+            lambda action, focus, selected: int(action.split(":", 1)[1]),
+            caption="test",
+        )
+    except pygame_split.PygameSplitUnavailable as exc:
+        assert "could not be rebuilt" in str(exc)
+    else:
+        raise AssertionError("invalid split actions must not fall back to tcod")
 
 
 def test_ship_menu_frames_keep_actions_opaque_and_stats_in_parent_snapshot(monkeypatch):
@@ -1271,8 +1284,8 @@ def test_ship_menu_pygame_maps_terminal_actions(monkeypatch):
     )
     monkeypatch.setattr(
         pygame_menu,
-        "run",
-        lambda frames, **kwargs: ("SELECT", "LAUNCH", 2),
+        "run_for_context",
+        lambda _context, frames, **kwargs: ("SELECT", "LAUNCH", 2),
     )
     monkeypatch.setattr(
         _ship_menu.ship_module,
@@ -1288,14 +1301,14 @@ def test_ship_menu_pygame_maps_terminal_actions(monkeypatch):
     assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.LAUNCH
 
 
-def test_ship_menu_pygame_guide_reopens_and_unavailable_falls_back(monkeypatch):
+def test_ship_menu_pygame_guide_reopens_and_requires_shared_runtime(monkeypatch):
     ship = SimpleNamespace(description="Fast courier", max_fuel=20)
     ctx = SimpleNamespace(
         player_owned_ship=SimpleNamespace(fuel=12, hull_damage_pct=5),
         stats=SimpleNamespace(credits=321),
     )
     outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
-    monkeypatch.setattr(pygame_menu, "run", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
     monkeypatch.setattr(
         _ship_menu.ship_module,
         "ship_display_name",
@@ -1312,10 +1325,7 @@ def test_ship_menu_pygame_guide_reopens_and_unavailable_falls_back(monkeypatch):
     assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.BACK
 
 
-def test_ship_menu_pygame_is_enabled_by_default(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_INTERACTIVE", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
-
+def test_ship_menu_pygame_is_enabled():
     assert _ship_menu._pygame_ship_menu_enabled()
 
 
@@ -1599,7 +1609,7 @@ def test_story_menu_dismisses_with_enter_without_items():
 
 def test_story_confirm_maps_confirm_and_back(monkeypatch):
     outcomes = iter((("SELECT", "CONFIRM", 0), ("BACK", "", 0)))
-    monkeypatch.setattr(pygame_menu, "run", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
 
     assert pygame_story.confirm(
         SimpleNamespace(),
@@ -1622,7 +1632,7 @@ def test_story_confirm_maps_confirm_and_back(monkeypatch):
 def test_story_confirm_preserves_quit(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
-        "run",
+        "run_for_context",
         lambda *args, **kwargs: ("QUIT", "", 0),
     )
 
@@ -1643,7 +1653,11 @@ def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
         captured["frame"] = frames[0]
         return "DISMISS", "", 0
 
-    monkeypatch.setattr(pygame_menu, "run", fake_run)
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        lambda _context, frames, **kwargs: fake_run(frames, **kwargs),
+    )
     result = pygame_story.dismiss(
         SimpleNamespace(),
         title="Transmission",
@@ -1661,7 +1675,6 @@ def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
 def test_main_quest_story_art_preserves_transmission_and_door_flavor(monkeypatch):
     captured = []
 
-    monkeypatch.setattr(_act0, "_pygame_story_enabled", lambda: True)
     monkeypatch.setattr(
         "src.spacehack.pygame_story.dismiss",
         lambda _ctx, **kwargs: captured.append(kwargs) or "DISMISS",
@@ -1692,7 +1705,11 @@ def test_story_frames_preserve_opaque_archive_choices(monkeypatch):
         captured["frames"] = frames
         return "SELECT", "archive_sealed", 1
 
-    monkeypatch.setattr(pygame_menu, "run", fake_run)
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        lambda _context, frames, **kwargs: fake_run(frames, **kwargs),
+    )
     result = pygame_story.choose(
         SimpleNamespace(),
         title="THE FIRST READING",
@@ -1708,8 +1725,8 @@ def test_story_frames_preserve_opaque_archive_choices(monkeypatch):
 def test_story_choice_rejects_unknown_worker_action(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
-        "run",
-        lambda *args, **kwargs: ("SELECT", "mutate_quest", 0),
+        "run_for_context",
+        lambda _context, frames, **kwargs: ("SELECT", "mutate_quest", 0),
     )
 
     assert pygame_story.choose(
@@ -1721,36 +1738,40 @@ def test_story_choice_rejects_unknown_worker_action(monkeypatch):
     ) is None
 
 
-def test_story_dismiss_falls_back_when_worker_unavailable(monkeypatch):
+def test_story_dismiss_is_explicit_when_shared_runtime_unavailable(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
-        "run",
+        "run_for_context",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             pygame_menu.PygameMenuUnavailable("missing")
         ),
     )
 
-    assert pygame_story.dismiss(
-        SimpleNamespace(), title="Message", body="Body", caption="test",
-    ) is None
+    try:
+        pygame_story.dismiss(
+            SimpleNamespace(context=object()), title="Message", body="Body", caption="test",
+        )
+    except pygame_menu.PygameMenuUnavailable as exc:
+        assert str(exc) == "missing"
+    else:
+        raise AssertionError("story presentation must not fall back to tcod")
 
 
 def test_story_dismiss_preserves_worker_quit_outcome(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
-        "run",
+        "run_for_context",
         lambda *args, **kwargs: ("QUIT", "", 0),
     )
 
     assert pygame_story.dismiss(
-        SimpleNamespace(), title="Message", body="Body", caption="test",
+        SimpleNamespace(context=object()), title="Message", body="Body", caption="test",
     ) == "QUIT"
 
 
 def test_story_dismiss_propagates_quit_to_act0(monkeypatch):
     from src.spacehack.main_quest import _act0
 
-    monkeypatch.setenv("SPACEHACK_PYGAME_INTERACTIVE", "1")
     monkeypatch.setattr(
         pygame_story,
         "dismiss",
@@ -1803,13 +1824,10 @@ def test_selectable_menu_rejects_unknown_worker_outcomes(monkeypatch):
     except pygame_menu.PygameMenuUnavailable as exc:
         assert "unknown choice" in str(exc)
     else:
-        raise AssertionError("unknown menu outcomes must use fallback")
+        raise AssertionError("unknown menu outcomes must be rejected")
 
 
-def test_interactive_batch_is_enabled_by_default(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_INTERACTIVE", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
-
+def test_interactive_batch_is_enabled():
     assert pygame_menu.enabled()
     assert _missions._pygame_interactive_enabled()
     assert _planet._pygame_interactive_enabled()
@@ -1835,22 +1853,23 @@ def test_npc_pygame_actions_map_back_to_existing_outcomes(monkeypatch):
 
     monkeypatch.setattr(
         pygame_menu,
-        "run",
-        lambda frames, **kwargs: ("SELECT", "DELIVER:0", 0),
+        "run_for_context",
+        lambda _context, frames, **kwargs: ("SELECT", "DELIVER:0", 0),
     )
 
+    from src.spacehack import pygame_runtime
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
+    monkeypatch.setattr(pygame_menu, "run_shared", lambda _context, frames, **kwargs: ("SELECT", "DELIVER:0", 0))
     result = npc._run_pygame_npc_talk(
-        SimpleNamespace(), npc_obj, "Welcome", [mission],
+        SimpleNamespace(context=object()), npc_obj, "Welcome", [mission],
     )
 
     assert result == (npc.TalkOutcome.DELIVER, mission)
 
 
-def test_pygame_backend_is_opt_in_and_falls_back_when_unavailable(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_MERCHANT", raising=False)
+def test_pygame_backend_reports_unavailable_when_loader_fails(monkeypatch):
     assert not pygame_merchant.PygameMerchantUnavailable.__module__.endswith("ui")
 
-    monkeypatch.setenv("SPACEHACK_PYGAME_MERCHANT", "1")
     monkeypatch.setattr(
         pygame_merchant,
         "_load_pygame",
@@ -1907,7 +1926,9 @@ def test_shared_menu_runner_uses_existing_engine_and_returns_action(monkeypatch)
 
 
 def test_mission_menu_routes_to_shared_window_without_worker(monkeypatch):
-    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    from src.spacehack import pygame_runtime
+
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
     captured = {}
 
     def fake_shared(context, frames, **kwargs):
@@ -1916,13 +1937,6 @@ def test_mission_menu_routes_to_shared_window_without_worker(monkeypatch):
         return "BACK", "", 0
 
     monkeypatch.setattr(pygame_menu, "run_shared", fake_shared)
-    monkeypatch.setattr(
-        pygame_menu,
-        "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("shared menus must not start a worker")
-        ),
-    )
     ctx = SimpleNamespace(context=object())
     npc_obj = SimpleNamespace(name="Guild Master")
 
@@ -1934,7 +1948,9 @@ def test_mission_menu_routes_to_shared_window_without_worker(monkeypatch):
 
 
 def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
-    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    from src.spacehack import pygame_runtime
+
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
     captured = {}
 
     monkeypatch.setattr(
@@ -1943,13 +1959,6 @@ def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
         lambda context, frames, **kwargs: captured.update(
             context=context, frames=frames,
         ) or ("SELECT", "WORK", 0),
-    )
-    monkeypatch.setattr(
-        pygame_menu,
-        "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("shared NPC talk must not start a worker")
-        ),
     )
     ctx = SimpleNamespace(context=object())
     npc_obj = SimpleNamespace(name="Guild Master", guild="merchants", flavor_text="Welcome")
@@ -1962,7 +1971,9 @@ def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
 
 
 def test_all_shared_adapters_bypass_workers(monkeypatch):
-    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
+    from src.spacehack import pygame_runtime
+
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
 
     menu_frame = pygame_menu.MenuFrame(
         "Menu", "", (pygame_menu.MenuItem("Go", "", "GO"),), (), 0,
@@ -2039,7 +2050,6 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
 
 
 def test_story_adapters_use_the_shared_menu_runner(monkeypatch):
-    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
     captured = []
     monkeypatch.setattr(
         pygame_menu,
@@ -2067,7 +2077,6 @@ def test_story_adapters_use_the_shared_menu_runner(monkeypatch):
 def test_quest_log_guide_reopens_the_same_shared_modal(monkeypatch):
     from src.spacehack.menus import _quest_log
 
-    monkeypatch.setenv("SPACEHACK_PYGAME_SHARED", "1")
     outcomes = iter((("GUIDE", 2, True), ("BACK", 2, True)))
     calls = []
     states = []

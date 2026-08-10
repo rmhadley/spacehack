@@ -84,14 +84,11 @@ def _run_pygame_faction_pick(
     if not frames:
         return None
     while True:
-        try:
-            outcome, action, _selected = pygame_menu.run_for_context(
-                context,
-                frames,
-                caption="spacehack - choose act 0 faction",
-            )
-        except pygame_menu.PygameMenuUnavailable:
-            return None
+        outcome, action, _selected = pygame_menu.run_for_context(
+            context,
+            frames,
+            caption="spacehack - choose act 0 faction",
+        )
         if outcome == "GUIDE":
             continue
         if outcome == "QUIT":
@@ -106,15 +103,11 @@ def _run_pygame_faction_pick(
 
 
 def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
-    """Run the Act 0 faction picker for the developer shortcut."""
-    menu = main_quest_faction_menu()
-    from . import pygame_menu
-
-    if pygame_menu.enabled():
-        pygame_result = _run_pygame_faction_pick(context, menu)
-        if pygame_result is not None:
-            return pygame_result
-    return _run_pick(context, menu)
+    """Run the Act 0 faction picker in the shared Pygame window."""
+    result = _run_pygame_faction_pick(context, main_quest_faction_menu())
+    if result is None:
+        raise RuntimeError("Developer faction picker returned no outcome")
+    return result
 
 
 _GROUND_ARMOR_SLOTS = ("head", "body", "hands", "legs", "feet")

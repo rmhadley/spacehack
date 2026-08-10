@@ -169,7 +169,7 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
     assert repeat_calls[-1] == (0,)
 
 
-def test_game_runtime_prefers_shared_pygame_unless_tcod_rollback(monkeypatch):
+def test_game_runtime_always_uses_shared_pygame(monkeypatch):
     class FakePygameRuntime:
         def __init__(self, tileset):
             self.context = object()
@@ -180,23 +180,11 @@ def test_game_runtime_prefers_shared_pygame_unless_tcod_rollback(monkeypatch):
         def __exit__(self, *_args):
             pass
 
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
     monkeypatch.setattr(pygame_runtime, "PygameRuntime", FakePygameRuntime)
     runtime = pygame_runtime.GameRuntime(object())
 
     assert runtime.__enter__() is runtime._pygame.context
     runtime.__exit__(None, None, None)
-
-    monkeypatch.setenv("SPACEHACK_TCOD_UI", "1")
-    sentinel = SimpleNamespace(__enter__=lambda self: self, __exit__=lambda *args: None)
-    monkeypatch.setattr(
-        "src.spacehack.engine.open_terminal",
-        lambda _tileset: sentinel,
-    )
-    rollback = pygame_runtime.GameRuntime(object())
-
-    assert rollback.__enter__() is sentinel
-    rollback.__exit__(None, None, None)
 
 
 def test_pygame_runtime_installs_and_restores_tcod_event_bridge(monkeypatch):

@@ -26,9 +26,15 @@ from ._animations import (
 
 def _combat_action(ctx, console, *, presenter) -> str:
     """Render one interactive combat frame and return its opaque action."""
-    from .. import pygame_combat
+    from .. import pygame_combat, pygame_runtime
 
     if presenter is None:
+        if not pygame_runtime.is_shared_context(getattr(ctx, "context", None)):
+            raise pygame_combat.PygameCombatUnavailable(
+                "Combat requires the shared Pygame runtime"
+            )
+        # GameRuntime installs a Pygame -> tcod event bridge, so this
+        # domain-level event contract still reads only from Pygame-owned SDL.
         while True:
             for event in tcod.event.wait():
                 if isinstance(event, tcod.event.Quit):
@@ -283,13 +289,11 @@ def _run_combat_impl(
     _target_idx: int = 0
     _turn: int = 1
     _result: str | None = None
+    # Combat presentation uses the already-open shared Pygame runtime.
+    # The tcod event bridge remains the input contract, so combat does not
+    # need a second persistent worker window.
     _presenter = None
-    try:
-        from ..pygame_combat import start_if_enabled as _start_pygame_combat
-        _presenter = _start_pygame_combat() if getattr(ctx, "_pygame_combat_allowed", True) else None
-    except (ImportError, RuntimeError):
-        _presenter = None
-    ctx._pygame_combat_presenter = _presenter
+    ctx._pygame_combat_presenter = None
 
     # Initial combat log
     _enemies = rules.get_enemies(ctx)

@@ -1,7 +1,7 @@
-"""Shared Pygame worker for the read-only modal migration batch.
+"""Shared Pygame presentation for read-only modal screens.
 
 Screen modules render their existing tcod output into captured rows and send
-only immutable presentation data here. This worker owns the optional Pygame
+only immutable presentation data here. This worker owns the isolated Pygame
 window and translates read-only modal keys back to the parent.
 """
 from __future__ import annotations
@@ -20,9 +20,7 @@ class PygameBatchUnavailable(RuntimeError):
 
 def enabled() -> bool:
     """Return whether read-only screens can render in this runtime."""
-    from . import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_READONLY") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 @dataclass(frozen=True)
@@ -184,12 +182,12 @@ def run_shared(context: Any, render: Any) -> str:
 
 
 def run_for_context(context: Any, render: Any) -> str:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run the read-only screen in the shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(context, render)
-    return run_readonly(render)
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameBatchUnavailable("Shared Pygame runtime is not open")
+    return run_shared(context, render)
 
 
 def run_readonly(render: Any) -> str:

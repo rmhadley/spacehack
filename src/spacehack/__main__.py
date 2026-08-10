@@ -83,7 +83,6 @@ from .time import tick_move, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
 from . import tutorial as tutorial_module
-from . import pygame_world
 from .pygame_runtime import open_runtime
 
 
@@ -168,11 +167,9 @@ def _run_pygame_dungeon_confirm(
     cancel_label: str,
     caption: str,
 ) -> str | None:
-    """Run a dungeon confirmation through Pygame, or return None to fallback."""
+    """Run a dungeon confirmation in the shared Pygame window."""
     from . import pygame_story
 
-    if not pygame_story.enabled():
-        return None
     return pygame_story.confirm(
         ctx,
         title=title,
@@ -496,20 +493,14 @@ def _run_game(
     loaded_ctx: GameContext | None = None,
     tutorial: bool = False,
 ) -> None:
-    """Run gameplay with the opt-in Pygame world preview lifecycle."""
-    _world_preview = pygame_world.start_if_enabled()
-    try:
-        _run_game_loop(
-            context,
-            species_id,
-            class_id,
-            loaded_ctx=loaded_ctx,
-            tutorial=tutorial,
-            world_preview=_world_preview,
-        )
-    finally:
-        if _world_preview is not None:
-            _world_preview.close()
+    """Run gameplay inside the already-open shared Pygame runtime."""
+    _run_game_loop(
+        context,
+        species_id,
+        class_id,
+        loaded_ctx=loaded_ctx,
+        tutorial=tutorial,
+    )
 
 
 def _run_game_loop(
@@ -519,7 +510,6 @@ def _run_game_loop(
     *,
     loaded_ctx: GameContext | None = None,
     tutorial: bool = False,
-    world_preview: pygame_world.PygameWorldPreview | None = None,
 ) -> None:
     """Render the small city + HUD + msg log and handle vim movement.
 
@@ -695,28 +685,6 @@ def _run_game_loop(
         _has_trade = any(e.trade_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_armory = any(e.armory_terminal for e in game_map.entities) if current_mode == 'city' else False
-        if world_preview is not None and world_preview.alive:
-            _preview_frame = pygame_world.make_mode_exploration_frame(
-                ctx,
-                game_map,
-                mode=current_mode,
-                location=_location,
-                map_width=map_w,
-                map_height=map_h,
-                camera_x=cam_x if current_mode != 'city' else 0,
-                camera_y=cam_y if current_mode != 'city' else 0,
-                region_x=rx if current_mode != 'city' else 0,
-                region_y=ry if current_mode != 'city' else 0,
-                region_width=(view_w if current_mode == 'space' else map_w),
-                region_height=(view_h if current_mode == 'space' else map_h),
-                centered=current_mode == 'city',
-                has_trade_terminal=_has_trade,
-                has_mech_terminal=_has_mech,
-                has_armory_terminal=_has_armory,
-            )
-            if not world_preview.send(_preview_frame):
-                world_preview.close()
-                world_preview = None
         _overlay = None
         if getattr(ctx.context, "_runtime", None) is not None:
             # The native Pygame overlay is the sole HUD/log layer in the
@@ -734,14 +702,9 @@ def _run_game_loop(
                 has_mech_terminal=_has_mech,
                 has_armory_terminal=_has_armory,
             )
-        else:
-            # The tcod rollback keeps the original all-console renderer.
-            hud.render_hud(console, ctx, screen_width=SCREEN_WIDTH, hud_view_height=map_h, location=_location, mode=current_mode, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory)
-            message_log.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
         if _overlay is None:
-            ctx.context.present(console)
-        else:
-            ctx.context.present(console, overlay=_overlay)
+            raise RuntimeError("The shared Pygame runtime is required for gameplay presentation")
+        ctx.context.present(console, overlay=_overlay)
         for event in tcod.event.wait():
             if should_quit(event):
                 if current_mode == 'dungeon':
@@ -1374,49 +1337,6 @@ def _run_game_loop(
                             return
                         if _pygame_comp == "CONFIRM":
                             _comp_result = _ui.MenuAction.CONFIRM
-                        _comp_console = make_console()
-                        def _comp_render():
-                            _comp_console.clear()
-                            _comp_console.print(
-                                x=_ui.centered_x("Ship Computer Terminal", SCREEN_WIDTH),
-                                y=SCREEN_HEIGHT // 3,
-                                string="Ship Computer Terminal",
-                                fg=_ui.COLOR_TITLE,
-                            )
-                            _comp_console.print(
-                                x=_ui.centered_x("Restore emergency power to the ship?", SCREEN_WIDTH),
-                                y=SCREEN_HEIGHT // 3 + 2,
-                                string="Restore emergency power to the ship?",
-                                fg=_ui.COLOR_DESCRIPTION,
-                            )
-                            _comp_console.print(
-                                x=_ui.centered_x("This will boost interior lighting and sensor range.", SCREEN_WIDTH),
-                                y=SCREEN_HEIGHT // 3 + 3,
-                                string="This will boost interior lighting and sensor range.",
-                                fg=_ui.COLOR_VALUE_DIM,
-                            )
-                            _comp_console.print(
-                                x=_ui.centered_x("ENTER to activate  |  ESC to leave", SCREEN_WIDTH),
-                                y=SCREEN_HEIGHT // 3 + 5,
-                                string="ENTER to activate  |  ESC to leave",
-                                fg=_ui.COLOR_INSTRUCTION,
-                            )
-                        def _comp_update(event):
-                            if isinstance(event, tcod.event.Quit):
-                                return _ui.MenuAction.CONFIRM
-                            if not isinstance(event, tcod.event.KeyDown):
-                                return _ui.MenuAction.NONE
-                            if event.sym in _ui._ENTER_SYMS:
-                                return _ui.MenuAction.CONFIRM
-                            if event.sym in _ui._ESCAPE_SYMS:
-                                return _ui.MenuAction.BACK
-                            return _ui.MenuAction.NONE
-                        if _pygame_comp is None:
-                            _comp_result = ui.Modal(ctx.context, _comp_console).run(
-                                _comp_render,
-                                _comp_update,
-                                ignore=_ui.MenuAction.NONE,
-                            )
                         if _comp_result == ui.MenuAction.CONFIRM:
                             if getattr(game_map, 'power_restored', False):
                                 log.add("The ship's power grid is already online.")
@@ -1435,7 +1355,7 @@ def _run_game_loop(
                         _npcspec = _find_ship(blocker.npc_ship_id)
                         if _npcspec.is_boardable:
                             # Show board dialog through Pygame first; retain
-                            # the tcod modal as the unavailable-worker fallback.
+                            # the shared Pygame boarding dialog.
                             _pygame_board = _run_pygame_dungeon_confirm(
                                 ctx,
                                 title=f"Board the {_npcspec.name}?",
@@ -1453,38 +1373,8 @@ def _run_game_loop(
                                 if _pygame_board == "BACK"
                                 else None
                             )
-                            # Show the original modal only when the worker
-                            # is unavailable, preserving old input behavior.
-                            _board_console = make_console()
-                            def _board_render():
-                                _board_console.clear()
-                                _board_console.print(
-                                    x=ui.centered_x(f"Board the {_npcspec.name}?", SCREEN_WIDTH),
-                                    y=SCREEN_HEIGHT // 3,
-                                    string=f"Board the {_npcspec.name}?",
-                                    fg=ui.COLOR_TITLE,
-                                )
-                                _board_console.print(
-                                    x=ui.centered_x("ENTER to board - ESC to fly past", SCREEN_WIDTH),
-                                    y=SCREEN_HEIGHT // 3 + 2,
-                                    string="ENTER to board - ESC to fly past",
-                                    fg=ui.COLOR_INSTRUCTION,
-                                )
-                            def _board_update(event):
-                                if isinstance(event, tcod.event.Quit):
-                                    return PlanetMenuOutcome.QUIT
-                                if not isinstance(event, tcod.event.KeyDown):
-                                    return PlanetMenuOutcome.IGNORE
-                                if event.sym in ui._ENTER_SYMS:
-                                    return PlanetMenuOutcome.LAND
-                                if event.sym in ui._ESCAPE_SYMS:
-                                    return PlanetMenuOutcome.BACK
-                                return PlanetMenuOutcome.IGNORE
-                            if _pygame_board is None:
-                                _board_result = ui.Modal(ctx.context, _board_console).run(
-                                    _board_render,
-                                    _board_update,
-                                )
+                            if _board_result is None:
+                                continue
                             if _board_result == PlanetMenuOutcome.QUIT:
                                 return
                             if _board_result == PlanetMenuOutcome.LAND:
@@ -1915,38 +1805,17 @@ def run(context: tcod.context.Context) -> None:
     import struct
     _seed = struct.unpack('I', os.urandom(4))[0]
     seed_rng(_seed)
-    # Show the title splash screen.
-    ui.render_title_splash(context)
-    console = make_console()
+    # Show the title splash screen in the shared Pygame window.
+    from . import pygame_title
+    pygame_title.run_splash_for_context(context)
     while True:
         # --- Title menu ---
         from .saveload import save_exists as _has_save, load_game as _load, delete_save as _delete_save
         _sel = 0
         _save_avail = _has_save()
-        _menu_outcome = ui.TitleMenuOutcome.IGNORE
-        from . import pygame_title
-        if pygame_title.enabled():
-            _pygame_title_result = pygame_title.run_for_context(
-                context, _save_avail,
-            )
-            if _pygame_title_result is not None:
-                _menu_outcome, _sel = _pygame_title_result
-        if _menu_outcome is ui.TitleMenuOutcome.IGNORE:
-            while _menu_outcome is ui.TitleMenuOutcome.IGNORE:
-                console.clear()
-                ui.render_title_menu(
-                    console, SCREEN_WIDTH, SCREEN_HEIGHT,
-                    selected=_sel, save_available=_save_avail,
-                )
-                context.present(console)
-                for event in tcod.event.wait():
-                    if should_quit(event):
-                        return
-                    _menu_outcome, _sel = ui.update_title_menu(
-                        event, selected=_sel, save_available=_save_avail,
-                    )
-                    if _menu_outcome is not ui.TitleMenuOutcome.IGNORE:
-                        break
+        _menu_outcome, _sel = pygame_title.run_for_context(
+            context, _save_avail,
+        )
         if _menu_outcome is ui.TitleMenuOutcome.EXIT:
             return
         if _menu_outcome is ui.TitleMenuOutcome.TUTORIAL:
@@ -1962,17 +1831,13 @@ def run(context: tcod.context.Context) -> None:
                 _delete_save()  # roguelike: no save scumming
                 _run_game(context, loaded_ctx=_ctx)
             else:
-                # Corrupted save — flash error then return to menu.
-                console.clear()
-                _msg = "Save file corrupted."
-                console.print(
-                    x=ui.centered_x(_msg, SCREEN_WIDTH),
-                    y=SCREEN_HEIGHT // 2,
-                    string=_msg, fg=(255, 100, 100),
+                from . import pygame_story
+                pygame_story.dismiss(
+                    context,
+                    title="SAVE ERROR",
+                    body="Save file corrupted.",
+                    caption="spacehack - save error",
                 )
-                context.present(console)
-                import time as _time
-                _time.sleep(1.0)
             continue
         # --- New Game: character creation ---
         while True:

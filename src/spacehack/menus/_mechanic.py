@@ -108,14 +108,11 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
 
     selected = 0
     while True:
-        try:
-            outcome, action, selected = pygame_screen.run_for_context(
-                ctx.context,
-                _mechanic_frame(ctx, ship_rec, selected),
-                caption="spacehack - mechanic",
-            )
-        except (pygame_screen.PygameScreenUnavailable, ValueError):
-            return None
+        outcome, action, selected = pygame_screen.run_for_context(
+            ctx.context,
+            _mechanic_frame(ctx, ship_rec, selected),
+            caption="spacehack - mechanic",
+        )
         if outcome == "GUIDE":
             from ..help import _run_help_guide
             _run_help_guide(ctx)
@@ -125,8 +122,8 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
         if outcome == "SELECT":
             try:
                 _apply_pygame_mechanic_action(ctx, action, planet_id, ship_rec)
-            except (KeyError, ValueError):
-                return None
+            except (KeyError, ValueError) as exc:
+                ctx.log.add(f"Mechanic action failed: {exc}")
             continue
         if outcome == "QUIT":
             raise SystemExit
@@ -160,87 +157,8 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
 
     owned = ctx.player_owned_ship
     ship_rec = ship_module.find_ship(owned.ship_id)
-    if _pygame_mechanic_enabled():
-        if _run_pygame_mechanic(ctx, planet_id, ship_rec) is not None:
-            return
-
-    console = make_console()
-    selected = 0
-    _MECH_OPTIONS = ["Refuel", "Repair", "Manage Loadout", "Buy Ammo"]
-
-    def _render() -> None:
-        nonlocal selected
-        console.clear()
-        stat_y = ui.screen_header(console, SCREEN_WIDTH, "MECHANIC TERMINAL")
-        _stat_lines = [
-            f"Ship: {ship_rec.name}",
-            f"Fuel: {owned.fuel} / {ship_rec.max_fuel}  |  Hull: {owned.hull_damage_pct}% damage",
-            f"Credits: {ctx.stats.credits}$",
-        ]
-        for i, _line in enumerate(_stat_lines):
-            console.print(x=2, y=stat_y + i, string=_line, fg=ui.COLOR_VALUE_WHITE)
-        _opt_items = [(opt, "") for opt in _MECH_OPTIONS]
-        _list_title_y = stat_y + len(_stat_lines) + 1
-        ui.render_selectable_list(
-            console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="",
-            items=_opt_items,
-            selected=selected,
-            col_x=2,
-            title_y=_list_title_y,
-            row_spacing=2,
-            item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
-            item_fg_normal=ui.COLOR_OPTION,
-            hint="UP/DOWN / j,k navigate - ENTER select - ESC back",
-        )
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
-    def _update(event) -> _MechanicOutcome:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return _MechanicOutcome.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return _MechanicOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _MechanicOutcome.IGNORE
-        sym = event.sym
-        sym_name: str = getattr(sym, 'name', '').lower()
-        if sym in ui._UP_SYMS or sym_name == 'k':
-            selected = (selected - 1) % len(_MECH_OPTIONS)
-            return _MechanicOutcome.IGNORE
-        if sym in ui._DOWN_SYMS or sym_name == 'j':
-            selected = (selected + 1) % len(_MECH_OPTIONS)
-            return _MechanicOutcome.IGNORE
-        if sym in ui._ESCAPE_SYMS:
-            return _MechanicOutcome.BACK
-        if sym in ui._ENTER_SYMS:
-            if selected == 0:
-                return _MechanicOutcome.REFUEL
-            elif selected == 1:
-                return _MechanicOutcome.REPAIR
-            elif selected == 2:
-                return _MechanicOutcome.LOADOUT
-            else:
-                return _MechanicOutcome.AMMO
-        return _MechanicOutcome.IGNORE
-
-    while True:
-        action = ui.Modal(ctx.context, console).run(_render, _update)
-        if action is _MechanicOutcome.REFUEL:
-            _refuel(ctx, owned, ship_rec)
-            continue
-        if action is _MechanicOutcome.REPAIR:
-            _repair(ctx, owned, ship_rec)
-            continue
-        if action is _MechanicOutcome.LOADOUT:
-            from ._loadout import _run_loadout_menu
-            _run_loadout_menu(ctx, planet_id)
-            continue
-        if action is _MechanicOutcome.AMMO:
-            _run_ammo_menu(ctx)
-            continue
-        return  # BACK or QUIT
-
+    _run_pygame_mechanic(ctx, planet_id, ship_rec)
+    return
 
 def _ammo_frame(ctx, owned, missile_slots, selected):
     """Build a Pygame ammo-management snapshot."""
@@ -251,9 +169,9 @@ def _ammo_frame(ctx, owned, missile_slots, selected):
         weapon = find_weapon(owned.weapons[slot])
         current = owned.weapon_ammo.get(slot, weapon.ammo_capacity)
         rows.append(pygame_screen.ScreenRow(
-            f"Slot {slot + 1}: {weapon.name} ({current}/{weapon.ammo_capacity})",
-            f"{weapon.ammo_price}$/round",
-            f"AMMO:{slot}:1",
+        f"Slot {slot + 1}: {weapon.name} ({current}/{weapon.ammo_capacity})",
+        f"{weapon.ammo_price}$/round",
+        f"AMMO:{slot}:1",
         ))
     return pygame_screen.ScreenFrame(
         "BUY AMMO",
@@ -270,14 +188,11 @@ def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
 
     selected = 0
     while True:
-        try:
-            outcome, action, selected = pygame_screen.run_for_context(
-                ctx.context,
-                _ammo_frame(ctx, owned, missile_slots, selected),
-                caption="spacehack - buy ammo",
-            )
-        except pygame_screen.PygameScreenUnavailable:
-            return None
+        outcome, action, selected = pygame_screen.run_for_context(
+            ctx.context,
+            _ammo_frame(ctx, owned, missile_slots, selected),
+            caption="spacehack - buy ammo",
+        )
         if outcome == "GUIDE":
             from ..help import _run_help_guide
             _run_help_guide(ctx)
@@ -289,8 +204,9 @@ def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
         if outcome == "SELECT" and action.startswith("AMMO:"):
             try:
                 slot = int(action.split(":")[1])
-            except (IndexError, ValueError):
-                return None
+            except (IndexError, ValueError) as exc:
+                ctx.log.add(f"Invalid ammo selection: {exc}")
+                continue
             ok, cost, reason = ship_module.buy_ammo(
                 owned, slot, 1, ctx.stats.credits,
             )
@@ -328,76 +244,5 @@ def _run_ammo_menu(ctx) -> None:
         ctx.log.add("No missile weapons installed.")
         return
 
-    if _pygame_mechanic_enabled():
-        if _run_pygame_ammo(ctx, owned, missile_slots) is not None:
-            return
-
-    console = make_console()
-    selected = 0
-
-    def _render() -> None:
-        nonlocal selected
-        console.clear()
-        stat_y = ui.screen_header(console, SCREEN_WIDTH, "BUY AMMO")
-        console.print(x=2, y=stat_y, string=f"Credits: {ctx.stats.credits}$", fg=ui.COLOR_VALUE_WHITE)
-        _items: list[tuple[str, str]] = []
-        for _slot in missile_slots:
-            _ws = find_weapon(owned.weapons[_slot])
-            _cur = owned.weapon_ammo.get(_slot, _ws.ammo_capacity)
-            _items.append((
-                f"[{_slot + 1}] {_ws.name}: {_cur}/{_ws.ammo_capacity} rounds",
-                f"{_ws.ammo_price}$/round  ENTER=+1  SPACE=fill",
-            ))
-        ui.render_selectable_list(
-            console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="",
-            items=_items,
-            selected=selected,
-            col_x=2,
-            title_y=stat_y + 2,
-            row_spacing=2,
-            item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
-            item_fg_normal=ui.COLOR_OPTION,
-            hint="UP/DOWN / j,k navigate - ENTER buy 1 - SPACE fill - ESC back",
-        )
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
-    def _update(event) -> _MechanicOutcome:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return _MechanicOutcome.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return _MechanicOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _MechanicOutcome.IGNORE
-        sym = event.sym
-        sym_name: str = getattr(sym, 'name', '').lower()
-        if sym in ui._UP_SYMS or sym_name == 'k':
-            selected = (selected - 1) % len(missile_slots)
-            return _MechanicOutcome.IGNORE
-        if sym in ui._DOWN_SYMS or sym_name == 'j':
-            selected = (selected + 1) % len(missile_slots)
-            return _MechanicOutcome.IGNORE
-        if sym in ui._ESCAPE_SYMS:
-            return _MechanicOutcome.BACK
-        if sym in ui._ENTER_SYMS:
-            _buy(ctx, owned, missile_slots[selected], 1)
-            return _MechanicOutcome.IGNORE
-        if sym_name in ('space', 's'):
-            _buy(ctx, owned, missile_slots[selected], 999)
-            return _MechanicOutcome.IGNORE
-        return _MechanicOutcome.IGNORE
-
-    def _buy(_ctx, _owned, _slot, _rounds) -> None:
-        _before = _owned.weapon_ammo.get(_slot, 0)
-        _ok, _cost, _reason = ship_module.buy_ammo(_owned, _slot, _rounds, _ctx.stats.credits)
-        if not _ok:
-            _ctx.log.add(_reason)
-            return
-        _ws = find_weapon(_owned.weapons[_slot])
-        _rounds_bought = _owned.weapon_ammo.get(_slot, 0) - _before
-        _ctx.stats.credits -= _cost
-        _ctx.log.add(f"Bought {_rounds_bought}x {_ws.name} ammo for {_cost}$. "
-                     f"{_owned.weapon_ammo.get(_slot, 0)}/{_ws.ammo_capacity} rounds left.")
-
-    ui.Modal(ctx.context, console).run(_render, _update)
+    _run_pygame_ammo(ctx, owned, missile_slots)
+    return

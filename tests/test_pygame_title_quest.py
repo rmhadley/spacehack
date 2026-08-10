@@ -43,7 +43,7 @@ def test_title_runner_preserves_close_as_exit(monkeypatch):
     )
 
 
-def test_title_runner_falls_back_when_pygame_menu_is_unavailable(monkeypatch):
+def test_title_runner_propagates_missing_shared_runtime(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
@@ -52,7 +52,12 @@ def test_title_runner_falls_back_when_pygame_menu_is_unavailable(monkeypatch):
         ),
     )
 
-    assert pygame_title.run_for_context(SimpleNamespace(), False) is None
+    try:
+        pygame_title.run_for_context(SimpleNamespace(), False)
+    except pygame_menu.PygameMenuUnavailable as exc:
+        assert str(exc) == "missing"
+    else:
+        raise AssertionError("title must not fall back to TCOD")
 
 
 def test_quest_log_capture_excludes_message_log_and_trailing_blank_rows():

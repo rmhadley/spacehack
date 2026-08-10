@@ -20,9 +20,7 @@ class PygameSplitUnavailable(RuntimeError):
 
 def enabled() -> bool:
     """Return whether split screens can render in this runtime."""
-    from . import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 @dataclass(frozen=True)
@@ -363,50 +361,46 @@ def run_interactive(
     apply_action: Callable[[str, int, int], bool],
     *,
     caption: str,
-) -> str | None:
+) -> str:
     """Repeat split selections while the parent applies domain actions.
 
     ``build_frame`` and ``apply_action`` execute in the game process;
     the worker never receives mutable game state. ``apply_action`` returns
     True when the terminal should remain open after the mutation.
     """
+    if not _shared_runtime_enabled(ctx):
+        raise PygameSplitUnavailable("Shared Pygame runtime is not open")
     try:
         frame = build_frame()
-    except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-        return None
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
+        raise PygameSplitUnavailable("Pygame split frame could not be built") from exc
     focus = frame.focus
     selected = frame.selected
     while True:
-        try:
-            frame = replace(frame, focus=focus, selected=selected)
-            if _shared_runtime_enabled(ctx):
-                outcome, action, focus, selected = run_shared(
-                    ctx.context, frame, caption=caption,
-                )
-            else:
-                outcome, action, focus, selected = run(frame, caption=caption)
-        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
-            return None
-        except PygameSplitUnavailable:
-            return None
+        frame = replace(frame, focus=focus, selected=selected)
+        outcome, action, focus, selected = run_shared(
+            ctx.context, frame, caption=caption,
+        )
         if outcome == "GUIDE":
             from .help import _run_help_guide
             _run_help_guide(ctx)
             try:
                 frame = build_frame()
-            except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-                return None
+            except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
+                raise PygameSplitUnavailable("Pygame split frame could not be rebuilt") from exc
             continue
         if outcome == "SELECT":
             try:
                 keep_open = apply_action(action, focus, selected)
-            except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-                return None
+            except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
+                raise PygameSplitUnavailable("Pygame split frame could not be rebuilt") from exc
             if keep_open:
                 try:
                     frame = build_frame()
-                except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-                    return None
+                except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
+                    raise PygameSplitUnavailable(
+                        "Pygame split frame could not be rebuilt"
+                    ) from exc
                 continue
             return "BACK"
         return outcome
@@ -416,7 +410,7 @@ def _shared_runtime_enabled(ctx: Any) -> bool:
     """Return whether this process owns the shared Pygame window."""
     from . import pygame_runtime
 
-    return pygame_runtime.shared_enabled() and getattr(ctx, "context", None) is not None
+    return pygame_runtime.is_shared_context(getattr(ctx, "context", None))
 
 
 def run(

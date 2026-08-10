@@ -723,7 +723,7 @@ def render_incoming_transmission(console, *, screen_width, screen_height) -> Non
 
 
 def show_prologue_transmission(ctx) -> None:
-    if _show_pygame_dismiss(
+    _show_pygame_dismiss(
         ctx,
         title="INCOMING TRANSMISSION",
         body="A burst of coordinates cuts through the static - then silence.\n\nThey resolve to somewhere on Mars.",
@@ -731,12 +731,7 @@ def show_prologue_transmission(ctx) -> None:
         art=_SIGNAL_ART,
         art_color=_SIGNAL_TRACE_FG,
         art_colors=_SIGNAL_ART_COLORS,
-    ):
-        return
-    console = make_console()
-    def _render(): render_incoming_transmission(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-    def _update(event): return _modal_dismiss_update(event)
-    ui.Modal(ctx.context, console).run(_render, _update)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -766,17 +761,12 @@ def render_quest_summon(console, *, screen_width, screen_height, message, object
 
 def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
     _body = message if not objective else f"{message}\n\n{objective}"
-    if _show_pygame_dismiss(
+    _show_pygame_dismiss(
         ctx,
         title="INCOMING MESSAGE",
         body=_body,
         caption="spacehack - incoming message",
-    ):
-        return
-    console = make_console()
-    def _render(): render_quest_summon(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, message=message, objective=objective)
-    def _update(event): return _modal_dismiss_update(event)
-    ui.Modal(ctx.context, console).run(_render, _update)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -803,17 +793,12 @@ def render_gate_popup(console, *, screen_width, screen_height, faction, body_tex
 
 def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "THE WORK BEGINS") -> None:
     """Show a dismiss-only modal popup (time-gate explanation, ambush, etc.)."""
-    if _show_pygame_dismiss(
+    _show_pygame_dismiss(
         ctx,
         title=title,
         body=f"FACTION: {faction.upper()}\n\n{body_text}",
         caption=f"spacehack - {title.lower()}",
-    ):
-        return
-    console = make_console()
-    def _render(): render_gate_popup(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, faction=faction, body_text=body_text, title=title)
-    def _update(event): return _modal_dismiss_update(event)
-    ui.Modal(ctx.context, console).run(_render, _update)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -939,7 +924,7 @@ def render_sealed_door_overlay(console, *, screen_width, screen_height, beat) ->
 
 def show_sealed_door_overlay(ctx, beat: str) -> None:
     _content = _DOOR_OVERLAYS[beat]
-    if _show_pygame_dismiss(
+    _show_pygame_dismiss(
         ctx,
         title=str(_content["title"]),
         body="\n".join((*_content["body"], str(_content["highlight"]))),
@@ -952,12 +937,7 @@ def show_sealed_door_overlay(ctx, beat: str) -> None:
             *(_DOOR_RUNE_FG for _ in _DOOR_RUNES),
             *(_DOOR_ART_FG for _ in _content["art"]),
         )),
-    ):
-        return
-    console = make_console()
-    def _render(): render_sealed_door_overlay(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, beat=beat)
-    def _update(event): return _modal_dismiss_update(event)
-    ui.Modal(ctx.context, console).run(_render, _update)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -998,34 +978,28 @@ def _show_pygame_dismiss(
     art_color: tuple[int, int, int] | None = None,
     art_colors: tuple[tuple[int, int, int], ...] = (),
 ) -> bool:
-    """Show a story popup through Pygame when enabled."""
-    if not _pygame_story_enabled():
-        return False
+    """Show a story popup in the shared Pygame window."""
     from ..pygame_story import dismiss
 
-    outcome = dismiss(
-        ctx,
-        title=title,
-        body=body,
-        caption=caption,
-        art=art,
-        art_color=art_color,
-        art_colors=art_colors,
-    )
-    if outcome == "QUIT":
-        raise SystemExit()
-    return outcome is not None
-
-
-def _pygame_story_enabled() -> bool:
-    """Return whether the shared interactive Pygame worker is enabled."""
-    from ..pygame_story import enabled
-
-    return enabled()
+    while True:
+        outcome = dismiss(
+            ctx,
+            title=title,
+            body=body,
+            caption=caption,
+            art=art,
+            art_color=art_color,
+            art_colors=art_colors,
+        )
+        if outcome == "__GUIDE__":
+            continue
+        if outcome == "QUIT":
+            raise SystemExit
+        return True
 
 
 def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
-    """Map the optional Pygame help offer back to quest outcomes."""
+    """Map the Pygame help offer back to quest outcomes."""
     from ..pygame_story import choose
 
     _action = choose(
@@ -1053,36 +1027,7 @@ def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
         return OfferOutcome.DECLINE
     from ..data.npcs import find_npc as _find_npc
     _npc_name = _find_npc(npc_id).name
-    if _pygame_story_enabled():
-        return _run_pygame_help_offer(ctx, _npc_name, _offer_text)
-    _selected = 0
-    console = make_console()
-
-    def _render():
-        render_help_offer(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-                          npc_name=_npc_name, offer_text=_offer_text, selected=_selected)
-
-    def _update(event) -> OfferOutcome:
-        nonlocal _selected
-        if isinstance(event, tcod.event.Quit):
-            return OfferOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return OfferOutcome.IGNORE
-        sym = event.sym
-        sym_name: str = getattr(sym, "name", "").lower()
-        if sym in ui._UP_SYMS or sym_name == "k":
-            _selected = 0
-            return OfferOutcome.IGNORE
-        if sym in ui._DOWN_SYMS or sym_name == "j":
-            _selected = 1
-            return OfferOutcome.IGNORE
-        if sym in ui._ENTER_SYMS:
-            return OfferOutcome.ACCEPT if _selected == 0 else OfferOutcome.DECLINE
-        if sym in ui._ESCAPE_SYMS:
-            return OfferOutcome.DECLINE
-        return OfferOutcome.IGNORE
-
-    return ui.Modal(ctx.context, console).run(_render, _update)
+    return _run_pygame_help_offer(ctx, _npc_name, _offer_text)
 
 
 # ---------------------------------------------------------------------------
@@ -1103,14 +1048,9 @@ def render_quest_readout(console, *, screen_width, screen_height, npc_name, body
 
 
 def show_quest_readout(ctx, npc, body_text: str) -> None:
-    if _show_pygame_dismiss(
+    _show_pygame_dismiss(
         ctx,
         title=npc.name.upper(),
         body=body_text,
         caption=f"spacehack - {npc.name}",
-    ):
-        return
-    console = make_console()
-    def _render(): render_quest_readout(console, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, npc_name=npc.name, body_text=body_text)
-    def _update(event): return _modal_dismiss_update(event)
-    ui.Modal(ctx.context, console).run(_render, _update)
+    )

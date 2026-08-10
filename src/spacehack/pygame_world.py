@@ -1,10 +1,10 @@
 """Pygame preview for the live exploration frame.
 
 The game process creates renderer-neutral draw commands from ``world.py`` and
-projects the existing HUD/message log into the same command stream. A
-short-lived worker process owns Pygame/SDL, so the existing tcod context and
-event pump remain safe during this migration phase. The preview is
-presentation-only: it never receives or mutates gameplay state.
+projects the existing HUD/message log into the same command stream. The
+normal game runtime owns the shared window and event pump; the isolated worker
+protocol remains available for renderer tests. The preview is presentation-only:
+it never receives or mutates gameplay state.
 """
 from __future__ import annotations
 
@@ -410,14 +410,9 @@ class PygameWorldUnavailable(RuntimeError):
     """Raised when the world preview cannot start."""
 
 
-def start_if_enabled() -> PygameWorldPreview | None:
-    """Start the world preview unless Pygame migration is disabled."""
-    if not pygame_ui.migration_enabled("SPACEHACK_PYGAME_WORLD"):
-        return None
-    try:
-        return PygameWorldPreview.start()
-    except PygameWorldUnavailable:
-        return None
+def start_if_enabled() -> PygameWorldPreview:
+    """Start the world preview for the mandatory Pygame presentation."""
+    return PygameWorldPreview.start()
 
 
 if __name__ == "__main__":

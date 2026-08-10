@@ -137,8 +137,8 @@ def test_choose_main_quest_faction_uses_pygame_when_enabled(monkeypatch):
     assert seen["frames"][0].items[2].action == "bar"
 
 
-def test_pygame_faction_picker_maps_back_quit_and_falls_back(monkeypatch):
-    """Cancel/quit remain distinct, while worker failure selects tcod fallback."""
+def test_pygame_faction_picker_maps_back_quit_and_propagates_failure(monkeypatch):
+    """Cancel/quit remain distinct, while worker failure is explicit."""
     from src.spacehack import pygame_menu
 
     monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
@@ -159,9 +159,14 @@ def test_pygame_faction_picker_maps_back_quit_and_falls_back(monkeypatch):
         raise pygame_menu.PygameMenuUnavailable("missing")
 
     monkeypatch.setattr(pygame_menu, "run_for_context", unavailable)
-    assert dev_mode._run_pygame_faction_pick(
-        object(), main_quest_faction_menu(),
-    ) is None
+    try:
+        dev_mode._run_pygame_faction_pick(
+            object(), main_quest_faction_menu(),
+        )
+    except pygame_menu.PygameMenuUnavailable as exc:
+        assert str(exc) == "missing"
+    else:
+        raise AssertionError("dev faction picker must not fall back to TCOD")
 
 
 def test_choose_main_quest_faction_delegates_to_picker(monkeypatch):
@@ -173,7 +178,7 @@ def test_choose_main_quest_faction_delegates_to_picker(monkeypatch):
         _seen.append((context, menu))
         return _expected
 
-    monkeypatch.setattr(dev_mode, "_run_pick", _fake_pick)
+    monkeypatch.setattr(dev_mode, "_run_pygame_faction_pick", _fake_pick)
     _context = object()
 
     assert dev_mode.choose_main_quest_faction(_context) == _expected

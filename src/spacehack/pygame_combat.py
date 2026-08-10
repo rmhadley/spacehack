@@ -29,15 +29,15 @@ class PygameCombatQuit(RuntimeError):
 
 
 def enabled() -> bool:
-    """Return whether the Pygame combat migration is active."""
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_COMBAT")
+    """Return whether the Pygame combat presentation is active."""
+    return pygame_ui.presentation_enabled()
 
 
 def _console_commands(console: Any) -> tuple[pygame_world.world.WorldDrawCommand, ...]:
     """Extract renderer-neutral cells from a capture or native tcod console."""
-    try:
-        commands = getattr(console, "commands", None)
-        if commands is not None:
+    commands = getattr(console, "commands", None)
+    if commands is not None:
+        try:
             return tuple(
                 pygame_world.world.WorldDrawCommand(
                     x=int(command.x),
@@ -48,16 +48,19 @@ def _console_commands(console: Any) -> tuple[pygame_world.world.WorldDrawCommand
                 )
                 for command in commands
             )
+        except (AttributeError, IndexError, TypeError, ValueError) as exc:
+            raise PygameCombatUnavailable("Combat console cell data is invalid") from exc
 
-        chars = getattr(console, "ch", None)
-        foreground = getattr(console, "fg", None)
-        background = getattr(console, "bg", None)
-        if chars is None or foreground is None or background is None:
-            raise PygameCombatUnavailable("Combat console has no readable cell data")
+    chars = getattr(console, "ch", None)
+    foreground = getattr(console, "fg", None)
+    background = getattr(console, "bg", None)
+    if chars is None or foreground is None or background is None:
+        raise PygameCombatUnavailable("Combat console has no readable cell data")
 
-        height, width = chars.shape
-        if foreground.shape != (height, width, 3) or background.shape != (height, width, 3):
-            raise PygameCombatUnavailable("Combat console color planes have invalid shapes")
+    height, width = chars.shape
+    if foreground.shape != (height, width, 3) or background.shape != (height, width, 3):
+        raise PygameCombatUnavailable("Combat console color planes have invalid shapes")
+    try:
         return tuple(
             pygame_world.world.WorldDrawCommand(
                 x=x,
@@ -69,8 +72,6 @@ def _console_commands(console: Any) -> tuple[pygame_world.world.WorldDrawCommand
             for y in range(height)
             for x in range(width)
         )
-    except PygameCombatUnavailable:
-        raise
     except (AttributeError, IndexError, TypeError, ValueError) as exc:
         raise PygameCombatUnavailable("Combat console cell data is invalid") from exc
 
@@ -155,7 +156,7 @@ def _frame_from_payload(data: dict[str, Any]) -> tuple[pygame_world.WorldFrame, 
 
 
 def present(ctx: Any, console: Any) -> None:
-    """Present a combat frame through the active native or worker renderer."""
+    """Present a combat frame through the shared Pygame runtime."""
     presenter = getattr(ctx, "_pygame_combat_presenter", None)
     if presenter is not None:
         try:
@@ -164,7 +165,9 @@ def present(ctx: Any, console: Any) -> None:
         except PygameCombatUnavailable:
             presenter.close()
             ctx._pygame_combat_presenter = None
-    if getattr(ctx.context, "_runtime", None) is not None:
+    from . import pygame_runtime
+
+    if pygame_runtime.is_shared_context(ctx.context):
         all_commands = _console_commands(console)
         overlay = pygame_overlay._frame_from_commands(
             all_commands,
@@ -180,7 +183,7 @@ def present(ctx: Any, console: Any) -> None:
         )
         ctx.context.present(map_console, overlay=overlay)
         return
-    ctx.context.present(console)
+    raise PygameCombatUnavailable("Shared Pygame combat presentation is not open")
 
 
 def _worker_main() -> int:
@@ -350,16 +353,6 @@ class PygameCombatPresenter:
                 self._process.wait(timeout=1)
             except subprocess.TimeoutExpired:
                 self._process.kill()
-
-
-def start_if_enabled() -> PygameCombatPresenter | None:
-    """Start the combat worker when the migration is enabled."""
-    if not enabled():
-        return None
-    try:
-        return PygameCombatPresenter.start()
-    except PygameCombatUnavailable:
-        return None
 
 
 if __name__ == "__main__":

@@ -1855,7 +1855,7 @@ def _pygame_help_enabled() -> bool:
 
 
 def _run_pygame_help(ctx: GameContext) -> bool | None:
-    """Run the guide through Pygame, returning None for tcod fallback."""
+    """Run the guide through the shared Pygame screen."""
     from . import pygame_screen
 
     list_frame = pygame_screen.ScreenFrame(
@@ -1872,12 +1872,9 @@ def _run_pygame_help(ctx: GameContext) -> bool | None:
     )
     frame = list_frame
     while True:
-        try:
-            outcome, action, selected = pygame_screen.run_for_context(
-                ctx.context, frame, caption="spacehack - guide",
-            )
-        except pygame_screen.PygameScreenUnavailable:
-            return None
+        outcome, action, selected = pygame_screen.run_for_context(
+            ctx.context, frame, caption="spacehack - guide",
+        )
         if outcome == "SELECT" and action.startswith("SECTION:"):
             try:
                 index = int(action.split(":", 1)[1])
@@ -1911,53 +1908,7 @@ def _run_help_guide(ctx: GameContext) -> None:
     Called from ``__main__.py``'s city/space loop and from any modal's
     update function. Game state is paused while the guide is open.
     """
-    if _pygame_help_enabled():
-        if _run_pygame_help(ctx) is not None:
-            return
-    console = make_console()
-    selected = 0
-    viewing: GuideSection | None = None
-    page_offset: int = 0
-
-    def _render() -> None:
-        if viewing is not None:
-            render_guide_page(console, viewing, page_offset)
-        else:
-            render_guide_list(console, GUIDE_SECTIONS, selected)
-
-    def _update(event: tcod.event.Event) -> GuideOutcome:
-        nonlocal selected, viewing, page_offset
-
-        if isinstance(event, tcod.event.Quit):
-            return GuideOutcome.CLOSED
-
-        outcome, new_sel, new_data = update_guide(
-            event, GUIDE_SECTIONS,
-            selected if viewing is None else 0,
-            viewing, page_offset,
-        )
-
-        if outcome is GuideOutcome.CLOSED:
-            return GuideOutcome.CLOSED
-
-        if outcome is GuideOutcome.BACK_TO_LIST:
-            viewing = None
-            page_offset = 0
-            return GuideOutcome.IGNORE
-
-        if viewing is not None:
-            # On a section page — new_data is page_offset or None
-            if new_data is not None:
-                page_offset = new_data
-            return GuideOutcome.IGNORE
-
-        # On the topic list
-        if new_sel != selected:
-            selected = new_sel
-        if new_data is not None:
-            # Open section at new_data index (which is page_offset = 0)
-            viewing = GUIDE_SECTIONS[selected]
-            page_offset = 0
-        return GuideOutcome.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
+    result = _run_pygame_help(ctx)
+    if result is None:
+        raise RuntimeError("Guide returned no outcome")
+    return

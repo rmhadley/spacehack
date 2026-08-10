@@ -209,6 +209,6 @@ def run_for_context(context: Any, ctx: Any, ship_pos: Any) -> str:
     """Use the shared runtime; otherwise request the normal fallback."""
     from . import pygame_runtime
 
-    if not pygame_runtime.shared_enabled():
+    if not pygame_runtime.is_shared_context(context):
         raise PygameNavigationUnavailable("Navigation requires the shared Pygame runtime")
     return run_shared(context, ctx, ship_pos)

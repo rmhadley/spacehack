@@ -9,13 +9,11 @@ import tcod.console
 import tcod.event
 
 from .. import ui
-from .. import pygame_ui
 from .. import mission as mission_module
 from .. import npc as npc_module
 from ..game_context import GameContext
-from ..engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from ..engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH
 from ..data.classes import find_class
-from ..input_helpers import _try_open_guide
 
 
 class MissionOutcome(Enum):
@@ -179,16 +177,11 @@ def _mission_navigate(event: tcod.event.Event, selected: int, n: int) -> int | N
     return None
 
 
-def _pygame_merchant_enabled() -> bool:
-    """Return whether the live Pygame Merchant experiment is enabled."""
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_MERCHANT")
-
-
 def _pygame_interactive_enabled() -> bool:
     """Return whether generic menus can render in the current runtime."""
-    from .. import pygame_menu, pygame_runtime
+    from .. import pygame_menu
 
-    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+    return pygame_menu.enabled()
 
 
 def _run_pygame_menu(
@@ -197,12 +190,14 @@ def _run_pygame_menu(
     *,
     caption: str,
 ) -> tuple[str, str, int]:
-    """Use the shared window when available, otherwise the worker menu."""
+    """Run a selectable menu in the mandatory shared Pygame window."""
     from .. import pygame_menu, pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return pygame_menu.run_shared(ctx.context, frames, caption=caption)
-    return pygame_menu.run(frames, caption=caption)
+    if not pygame_runtime.is_shared_context(ctx.context):
+        raise pygame_menu.PygameMenuUnavailable(
+            "Shared Pygame runtime is not open"
+        )
+    return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
 
 def _run_pygame_interactive_missions(
@@ -230,14 +225,11 @@ def _run_pygame_interactive_missions(
         )
         for index in range(max(1, len(offerings)))
     )
-    try:
-        outcome, action, selected = _run_pygame_menu(
-            ctx,
-            frames,
-            caption="spacehack - available work",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, selected = _run_pygame_menu(
+        ctx,
+        frames,
+        caption="spacehack - available work",
+    )
     if outcome == "GUIDE":
         from ..help import _run_help_guide
         _run_help_guide(ctx)
@@ -255,24 +247,6 @@ def _run_pygame_interactive_missions(
     return MissionOutcome.BACK, None
 
 
-def _run_pygame_mission_offerings(
-    npc: npc_module.NPC,
-    offerings: tuple[mission_module.MissionSpec, ...],
-) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
-    """Run the Pygame Merchant backend, or return ``None`` for tcod fallback."""
-    from ..pygame_merchant import PygameMerchantUnavailable, run
-
-    try:
-        outcome, selected = run(npc, offerings)
-    except PygameMerchantUnavailable:
-        return None
-    if outcome == "ACCEPT" and offerings:
-        return MissionOutcome.ACCEPT, offerings[selected % len(offerings)]
-    if outcome == "QUIT":
-        return MissionOutcome.QUIT, None
-    return MissionOutcome.BACK, None
-
-
 def _run_mission_offerings(
     ctx,
     npc: npc_module.NPC,
@@ -285,39 +259,7 @@ def _run_mission_offerings(
     (:func:`_run_game`) is responsible for swapping
     ``player_active_missions`` once it sees an ACCEPT.
     """
-    if _pygame_interactive_enabled():
-        _pygame_result = _run_pygame_interactive_missions(ctx, npc, offerings)
-        if _pygame_result is not None:
-            return _pygame_result
-    if _pygame_merchant_enabled():
-        _pygame_result = _run_pygame_mission_offerings(npc, offerings)
-        if _pygame_result is not None:
-            return _pygame_result
-
-    console = make_console()
-    selected = 0
-
-    def _render() -> None:
-        render_mission_offerings(
-            console,
-            ctx,
-            npc,
-            offerings,
-            selected,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
-
-    def _update(event) -> MissionOutcome:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return MissionOutcome.IGNORE
-        new = _mission_navigate(event, selected, len(offerings))
-        if new is not None:
-            selected = new
-            return MissionOutcome.IGNORE
-        return update_mission_offerings(event)
-    outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if outcome is MissionOutcome.ACCEPT:
-        return (outcome, offerings[selected % len(offerings)])
-    return (outcome, None)
+    result = _run_pygame_interactive_missions(ctx, npc, offerings)
+    if result is None:
+        raise RuntimeError("Mission offerings returned no outcome")
+    return result

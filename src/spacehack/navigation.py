@@ -281,66 +281,24 @@ def update_navigation(event: tcod.event.Event) -> NavigationOutcome:
 
 
 def _pygame_readonly_enabled() -> bool:
-    """Return whether the read-only Pygame migration batch is enabled."""
+    """Return whether read-only Pygame screens are enabled."""
     from . import pygame_batch
 
     return pygame_batch.enabled()
 
 
 def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
-    """Show the system-map overlay and return the outcome."""
-    from . import pygame_runtime
-    if pygame_runtime.shared_enabled():
-        from . import pygame_navigation
-        try:
-            outcome = pygame_navigation.run_for_context(
-                ctx.context, ctx, ship_pos,
-            )
-        except pygame_navigation.PygameNavigationUnavailable:
-            outcome = None
-        if outcome is not None:
-            if outcome == "GUIDE":
-                from .help import _run_help_guide
-                _run_help_guide(ctx)
-                return NavigationOutcome.BACK
-            if outcome == "QUIT":
-                return NavigationOutcome.QUIT
-            return NavigationOutcome.BACK
+    """Show the system-map overlay in the shared Pygame window."""
+    from . import pygame_navigation
 
-    if _pygame_readonly_enabled():
-        from . import pygame_batch
-        try:
-            outcome = pygame_batch.run_for_context(
-                ctx.context,
-                lambda console: render_navigation(
-                    console,
-                    ctx,
-                    screen_width=SCREEN_WIDTH,
-                    screen_height=SCREEN_HEIGHT,
-                    ship_pos=ship_pos,
-                ),
-            )
-        except pygame_batch.PygameBatchUnavailable:
-            outcome = None
-        if outcome is not None:
-            if outcome == "GUIDE":
-                from .help import _run_help_guide
-                _run_help_guide(ctx)
-                return NavigationOutcome.BACK
-            if outcome == "QUIT":
-                return NavigationOutcome.QUIT
-            return NavigationOutcome.BACK
-
-    console = make_console()
-
-    def _render() -> None:
-        render_navigation(console, ctx, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, ship_pos=ship_pos)
-
-    def _update(event) -> NavigationOutcome:
-        if _try_open_guide(event, ctx):
-            return NavigationOutcome.IGNORE
-        return update_navigation(event)
-    return ui.Modal(ctx.context, console).run(_render, _update)
+    outcome = pygame_navigation.run_for_context(ctx.context, ctx, ship_pos)
+    if outcome == "GUIDE":
+        from .help import _run_help_guide
+        _run_help_guide(ctx)
+        return NavigationOutcome.BACK
+    if outcome == "QUIT":
+        return NavigationOutcome.QUIT
+    return NavigationOutcome.BACK
 
 
 def _nearest_body_name(pos: world.Position, system) -> str:
@@ -918,14 +876,11 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
         )
         for index in range(len(items))
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(
-            getattr(ctx, "context", ctx),
-            frames,
-            caption="spacehack - go to",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return False, None
+    outcome, action, _selected = pygame_menu.run_for_context(
+        getattr(ctx, "context", ctx),
+        frames,
+        caption="spacehack - go to",
+    )
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -970,212 +925,157 @@ def _run_goto(ctx, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list
     if not destinations:
         ctx.log.add('There is nothing to navigate to in this system.')
         return (GotoOutcome.CANCELLED, None)
-    n = len(destinations)
-    selected = 0
-    _pygame_selected: int | None = None
-    from . import pygame_menu
-    if pygame_menu.enabled():
-        _pygame_handled, _pygame_selected = _run_pygame_goto_menu(ctx, destinations)
-        if _pygame_handled and _pygame_selected is None:
-            return (GotoOutcome.CANCELLED, None)
-        if not _pygame_handled:
-            _pygame_selected = None
-    console = make_console()
-    while True:
-        console.clear()
-        _goto_items = [(label, "") for label, _body in destinations]
-        content_y = ui.screen_header(console, SCREEN_WIDTH, "GO TO")
-        ui.render_selectable_list(
-            console, SCREEN_WIDTH, SCREEN_HEIGHT,
-            title="",
-            items=_goto_items,
-            selected=selected,
-            col_x=2,
-            # render_selectable_list starts items at title_y + 2, so
-            # title_y = content_y - 2 puts the list at content_y.
-            title_y=content_y - 2,
-            hint='ARROW KEYS / j,k navigate - ENTER go - ESC cancel',
+    _pygame_handled, selected = _run_pygame_goto_menu(ctx, destinations)
+    if not _pygame_handled or selected is None:
+        return (GotoOutcome.CANCELLED, None)
+    chosen_body = destinations[selected][1]
+    ctx.log.add(f"Auto-nav engaged. Plotting course to {getattr(chosen_body, 'name', 'target')}...")
+    dirs_8 = [(0, -1), (-1, 0), (1, 0), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
+    target_cells: set[tuple[int, int]] = set()
+    for bx in range(chosen_body.pos.x, chosen_body.pos.x + chosen_body.width):
+        for by in range(chosen_body.pos.y, chosen_body.pos.y + chosen_body.height):
+            for dx, dy in dirs_8:
+                nx, ny = (bx + dx, by + dy)
+                if chosen_body.pos.x <= nx < chosen_body.pos.x + chosen_body.width and chosen_body.pos.y <= ny < chosen_body.pos.y + chosen_body.height:
+                    continue
+                if not ctx.game_map.in_bounds(nx, ny):
+                    continue
+                if not ctx.game_map.is_walkable(nx, ny):
+                    continue
+                blocked_by_other = False
+                for other in destinations:
+                    ob = other[1]
+                    if ob is chosen_body:
+                        continue
+                    if ob.pos.x <= nx < ob.pos.x + ob.width and ob.pos.y <= ny < ob.pos.y + ob.height:
+                        blocked_by_other = True
+                        break
+                if blocked_by_other:
+                    continue
+                target_cells.add((nx, ny))
+    if not target_cells:
+        ctx.log.add('Cannot reach that destination - no adjacent landing zone.')
+        return (GotoOutcome.CANCELLED, None)
+    start = (player_entity.pos.x, player_entity.pos.y)
+    sx, sy = start
+    target_cx, target_cy = min(target_cells, key=lambda tc: max(abs(tc[0] - sx), abs(tc[1] - sy)))
+
+    def _bresenham_line(x0, y0, x1, y1):
+        dx = abs(x1 - x0)
+        dy = -abs(y1 - y0)
+        sig_x = 1 if x0 < x1 else -1
+        sig_y = 1 if y0 < y1 else -1
+        err = dx + dy
+        cx, cy = (x0, y0)
+        while (cx, cy) != (x1, y1):
+            e2 = 2 * err
+            if e2 >= dy:
+                err += dy
+                cx += sig_x
+            if e2 <= dx:
+                err += dx
+                cy += sig_y
+            yield (cx, cy)
+
+    def _cell_is_passable(x, y):
+        if not ctx.game_map.in_bounds(x, y):
+            return False
+        if not ctx.game_map.is_walkable(x, y):
+            return False
+        for other in destinations:
+            ob = other[1]
+            if ob is chosen_body:
+                continue
+            if ob.pos.x <= x < ob.pos.x + ob.width and ob.pos.y <= y < ob.pos.y + ob.height:
+                return False
+        return True
+    line_clear = True
+    line_path: list[tuple[int, int]] = []
+    for lx, ly in _bresenham_line(sx, sy, target_cx, target_cy):
+        if (lx, ly) in target_cells:
+            line_path.append((lx, ly))
+            break
+        if not _cell_is_passable(lx, ly):
+            line_clear = False
+            break
+        line_path.append((lx, ly))
+        if len(line_path) > 500:
+            line_clear = False
+            break
+    if line_clear and line_path:
+        line_path.append((target_cx, target_cy))
+        steps = line_path
+    else:
+        steps = world.find_path(
+            start, target_cells, ctx.game_map,
+            exclude_entity=player_entity,
         )
-        message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-        if _pygame_selected is not None:
-            selected = _pygame_selected
-            _pygame_selected = None
-            _events = (tcod.event.KeyDown(
-                scancode=tcod.event.Scancode.UNKNOWN,
-                sym=tcod.event.KeySym.RETURN,
-                mod=0,
-            ),            )
-        else:
-            ctx.context.present(console)
-            _events = tcod.event.wait()
-        for event in _events:
-            if isinstance(event, tcod.event.Quit):
-                return (GotoOutcome.CANCELLED, None)
-            if not isinstance(event, tcod.event.KeyDown):
-                continue
-            sym = event.sym
-            sym_name: str = getattr(sym, 'name', '').lower()
-            if _try_open_guide(event, ctx):
-                continue
-            if sym in ui._UP_SYMS or sym_name == 'k':
-                selected = (selected - 1) % n
+        if steps is None:
+            ctx.log.add('Could not find a path to that destination.')
+            return (GotoOutcome.CANCELLED, None)
+    if not steps:
+        ctx.log.add('You are already at the destination.')
+        return (GotoOutcome.COMPLETED, None)
+    for sx, sy in steps:
+        player_entity.pos = world.Position(sx, sy)
+        sys_now = solar_system_module.current_system()
+        sol_w = sys_now.width
+        sol_h = sys_now.height
+        view_w = solar_system_module.SOL_VIEW_W
+        view_h = solar_system_module.SOL_VIEW_H
+        cam_x = max(0, min(sx - view_w // 2, sol_w - view_w))
+        cam_y = max(0, min(sy - view_h // 2, sol_h - view_h))
+        console.clear()
+        world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
+        # Render NPC flash events so merchant despawns decay
+        # normally during auto-nav instead of accumulating and
+        # bursting all at once when the main render loop resumes.
+        from .npc_ships import render_npc_flash_events as _rnfe
+        _rnfe(console, ctx, cam_x, cam_y, view_w, view_h)
+        # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
+        from . import pygame_overlay
+        pygame_overlay.present_exploration(
+            ctx,
+            console,
+            mode="space",
+            location=solar_system_module.current_system().name,
+            screen_width=SCREEN_WIDTH,
+            screen_height=SCREEN_HEIGHT,
+            hud_view_height=view_h,
+        )
+        _aborted = False
+        _end = time.monotonic() + animation_timing.AUTO_NAV
+        while time.monotonic() < _end:
+            for _ev in tcod.event.get():
+                if isinstance(_ev, tcod.event.KeyDown):
+                    _name = getattr(_ev.sym, 'name', '').lower()
+                    if _name in world.MOVE_KEYS or _name == 'period':
+                        _aborted = True
+                        break
+            if _aborted:
                 break
-            if sym in ui._DOWN_SYMS or sym_name == 'j':
-                selected = (selected + 1) % n
-                break
-            if sym in ui._ESCAPE_SYMS:
-                return (GotoOutcome.CANCELLED, None)
-            if sym in ui._ENTER_SYMS:
-                chosen_body = destinations[selected][1]
-                ctx.log.add(f"Auto-nav engaged. Plotting course to {getattr(chosen_body, 'name', 'target')}...")
-                dirs_8 = [(0, -1), (-1, 0), (1, 0), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
-                target_cells: set[tuple[int, int]] = set()
-                for bx in range(chosen_body.pos.x, chosen_body.pos.x + chosen_body.width):
-                    for by in range(chosen_body.pos.y, chosen_body.pos.y + chosen_body.height):
-                        for dx, dy in dirs_8:
-                            nx, ny = (bx + dx, by + dy)
-                            if chosen_body.pos.x <= nx < chosen_body.pos.x + chosen_body.width and chosen_body.pos.y <= ny < chosen_body.pos.y + chosen_body.height:
-                                continue
-                            if not ctx.game_map.in_bounds(nx, ny):
-                                continue
-                            if not ctx.game_map.is_walkable(nx, ny):
-                                continue
-                            blocked_by_other = False
-                            for other in destinations:
-                                ob = other[1]
-                                if ob is chosen_body:
-                                    continue
-                                if ob.pos.x <= nx < ob.pos.x + ob.width and ob.pos.y <= ny < ob.pos.y + ob.height:
-                                    blocked_by_other = True
-                                    break
-                            if blocked_by_other:
-                                continue
-                            target_cells.add((nx, ny))
-                if not target_cells:
-                    ctx.log.add('Cannot reach that destination - no adjacent landing zone.')
-                    return (GotoOutcome.CANCELLED, None)
-                start = (player_entity.pos.x, player_entity.pos.y)
-                sx, sy = start
-                target_cx, target_cy = min(target_cells, key=lambda tc: max(abs(tc[0] - sx), abs(tc[1] - sy)))
-
-                def _bresenham_line(x0, y0, x1, y1):
-                    dx = abs(x1 - x0)
-                    dy = -abs(y1 - y0)
-                    sig_x = 1 if x0 < x1 else -1
-                    sig_y = 1 if y0 < y1 else -1
-                    err = dx + dy
-                    cx, cy = (x0, y0)
-                    while (cx, cy) != (x1, y1):
-                        e2 = 2 * err
-                        if e2 >= dy:
-                            err += dy
-                            cx += sig_x
-                        if e2 <= dx:
-                            err += dx
-                            cy += sig_y
-                        yield (cx, cy)
-
-                def _cell_is_passable(x, y):
-                    if not ctx.game_map.in_bounds(x, y):
-                        return False
-                    if not ctx.game_map.is_walkable(x, y):
-                        return False
-                    for other in destinations:
-                        ob = other[1]
-                        if ob is chosen_body:
-                            continue
-                        if ob.pos.x <= x < ob.pos.x + ob.width and ob.pos.y <= y < ob.pos.y + ob.height:
-                            return False
-                    return True
-                line_clear = True
-                line_path: list[tuple[int, int]] = []
-                for lx, ly in _bresenham_line(sx, sy, target_cx, target_cy):
-                    if (lx, ly) in target_cells:
-                        line_path.append((lx, ly))
-                        break
-                    if not _cell_is_passable(lx, ly):
-                        line_clear = False
-                        break
-                    line_path.append((lx, ly))
-                    if len(line_path) > 500:
-                        line_clear = False
-                        break
-                if line_clear and line_path:
-                    line_path.append((target_cx, target_cy))
-                    steps = line_path
-                else:
-                    steps = world.find_path(
-                        start, target_cells, ctx.game_map,
-                        exclude_entity=player_entity,
-                    )
-                    if steps is None:
-                        ctx.log.add('Could not find a path to that destination.')
-                        return (GotoOutcome.CANCELLED, None)
-                if not steps:
-                    ctx.log.add('You are already at the destination.')
-                    return (GotoOutcome.COMPLETED, None)
-                for sx, sy in steps:
-                    player_entity.pos = world.Position(sx, sy)
-                    sys_now = solar_system_module.current_system()
-                    sol_w = sys_now.width
-                    sol_h = sys_now.height
-                    view_w = solar_system_module.SOL_VIEW_W
-                    view_h = solar_system_module.SOL_VIEW_H
-                    cam_x = max(0, min(sx - view_w // 2, sol_w - view_w))
-                    cam_y = max(0, min(sy - view_h // 2, sol_h - view_h))
-                    console.clear()
-                    world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
-                    # Render NPC flash events so merchant despawns decay
-                    # normally during auto-nav instead of accumulating and
-                    # bursting all at once when the main render loop resumes.
-                    from .npc_ships import render_npc_flash_events as _rnfe
-                    _rnfe(console, ctx, cam_x, cam_y, view_w, view_h)
-                    # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
-                    _ship_cat = ship_module.find_ship(ctx.player_owned_ship.ship_id) if ctx.player_owned_ship is not None else None
-                    from . import pygame_overlay
-                    pygame_overlay.present_exploration(
-                        ctx,
-                        console,
-                        mode="space",
-                        location=solar_system_module.current_system().name,
-                        screen_width=SCREEN_WIDTH,
-                        screen_height=SCREEN_HEIGHT,
-                        hud_view_height=view_h,
-                    )
-                    _aborted = False
-                    _end = time.monotonic() + animation_timing.AUTO_NAV
-                    while time.monotonic() < _end:
-                        for _ev in tcod.event.get():
-                            if isinstance(_ev, tcod.event.KeyDown):
-                                _name = getattr(_ev.sym, 'name', '').lower()
-                                if _name in world.MOVE_KEYS or _name == 'period':
-                                    _aborted = True
-                                    break
-                        if _aborted:
-                            break
-                        _remaining = _end - time.monotonic()
-                        if _remaining > 0:
-                            time.sleep(min(_remaining, 0.01))
-                    if _aborted:
-                        ctx.log.add('Auto-nav cancelled.')
-                        return (GotoOutcome.CANCELLED, None)
-                    _auto_result = _check_auto_comms_warning(ctx, player_entity.pos, solar_system_module.current_system())
-                    if _auto_result is not None:
-                        _warned, _attack_data = _auto_result
-                        ctx.log.add('Auto-nav interrupted - incoming transmission!')
-                        if _attack_data is not None:
-                            return (GotoOutcome.COMBAT, _attack_data)
-                        return (GotoOutcome.CANCELLED, None)
-                    _encounter = _detect_combat_encounter(ctx, player_entity.pos, solar_system_module.current_system())
-                    if _encounter is not None:
-                        ctx.log.add('Auto-nav interrupted - enemies detected!')
-                        return (GotoOutcome.COMBAT, _encounter)
-                    from .npc_ships import move_npcs as _mn
-                    _mn(ctx, ctx.game_map)
-                    tick_move(ctx)
-                ctx.log.add('Auto-nav complete.')
-                return (GotoOutcome.COMPLETED, None)
-            continue
+            _remaining = _end - time.monotonic()
+            if _remaining > 0:
+                time.sleep(min(_remaining, 0.01))
+        if _aborted:
+            ctx.log.add('Auto-nav cancelled.')
+            return (GotoOutcome.CANCELLED, None)
+        _auto_result = _check_auto_comms_warning(ctx, player_entity.pos, solar_system_module.current_system())
+        if _auto_result is not None:
+            _warned, _attack_data = _auto_result
+            ctx.log.add('Auto-nav interrupted - incoming transmission!')
+            if _attack_data is not None:
+                return (GotoOutcome.COMBAT, _attack_data)
+            return (GotoOutcome.CANCELLED, None)
+        _encounter = _detect_combat_encounter(ctx, player_entity.pos, solar_system_module.current_system())
+        if _encounter is not None:
+            ctx.log.add('Auto-nav interrupted - enemies detected!')
+            return (GotoOutcome.COMBAT, _encounter)
+        from .npc_ships import move_npcs as _mn
+        _mn(ctx, ctx.game_map)
+        tick_move(ctx)
+    ctx.log.add('Auto-nav complete.')
+    return (GotoOutcome.COMPLETED, None)
 
 
 # ---------------------------------------------------------------------------
@@ -1216,10 +1116,10 @@ def update_jump_menu(event: tcod.event.Event) -> JumpMenuOutcome:
         return JumpMenuOutcome.QUIT
     if isinstance(event, tcod.event.KeyDown):
         sym = event.sym
-        if sym in ui._ESCAPE_SYMS:
-            return JumpMenuOutcome.BACK
-        if sym in ui._ENTER_SYMS:
-            return JumpMenuOutcome.JUMP
+    if sym in ui._ESCAPE_SYMS:
+        return JumpMenuOutcome.BACK
+    if sym in ui._ENTER_SYMS:
+        return JumpMenuOutcome.JUMP
     return JumpMenuOutcome.IGNORE
 
 
@@ -1245,14 +1145,11 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_
         hints=("ENTER jump   ESC fly past",),
         selected=0,
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(
-            getattr(ctx, "context", ctx),
-            (frame,),
-            caption="spacehack - jump gate",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = pygame_menu.run_for_context(
+        getattr(ctx, "context", ctx),
+        (frame,),
+        caption="spacehack - jump gate",
+    )
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -1265,33 +1162,18 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_
 
 
 def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
-    """Modal loop for the jump-point-bump dialog."""
-    from . import engine
-    console = engine.make_console()
+    """Run the jump-point dialog in the shared Pygame window."""
     _fuel: int | None = None
     _max_fuel: int | None = None
     if ctx.player_owned_ship is not None:
         ship_rec = ship_module.find_ship(ctx.player_owned_ship.ship_id)
         _fuel = ctx.player_owned_ship.fuel
         _max_fuel = ship_rec.max_fuel
-
     from . import pygame_menu
-    if pygame_menu.enabled():
-        pygame_result = _run_pygame_jump_menu(
-            ctx, jp, target_system_id, _fuel, _max_fuel,
-        )
-        if pygame_result is not None:
-            return pygame_result
-
-    def _render() -> None:
-        render_jump_menu(console, ctx, jp, target_system_id, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, current_fuel=_fuel, max_fuel=_max_fuel, jump_fuel_cost=ship_module.JUMP_FUEL_COST)
-
-    def _update(event) -> JumpMenuOutcome:
-        if _try_open_guide(event, ctx):
-            return JumpMenuOutcome.IGNORE
-        ctx.context.convert_event(event)
-        return update_jump_menu(event)
-    return ui.Modal(ctx.context, console).run(_render, _update)
+    result = _run_pygame_jump_menu(ctx, jp, target_system_id, _fuel, _max_fuel)
+    if result is None:
+        raise pygame_menu.PygameMenuUnavailable("Jump menu returned no outcome")
+    return result
 
 
 # ---------------------------------------------------------------------------

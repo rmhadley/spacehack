@@ -1,10 +1,8 @@
 """Pygame Merchant offerings screen.
 
-This is the first live presentation-migration seam. The game process builds
-renderer-neutral frames from live mission data, then a short-lived worker
-process owns the Pygame window and event loop. The worker returns the same
-accept/back choice as the existing tcod modal without sharing SDL ownership
-with tcod. The backend remains optional at runtime and falls back cleanly when unavailable.
+The game process builds renderer-neutral frames from live mission data, then
+an isolated worker process owns the Pygame window and event loop. The worker
+returns the accept/back choice while the game process remains authoritative.
 """
 from __future__ import annotations
 
@@ -18,7 +16,7 @@ from . import pygame_ui
 
 
 class PygameMerchantUnavailable(RuntimeError):
-    """Raised when the optional Pygame Merchant backend cannot start."""
+    """Raised when the Merchant presentation cannot start."""
 
 
 @dataclass(frozen=True)
@@ -140,7 +138,7 @@ def _load_pygame() -> Any:
         import pygame
     except ModuleNotFoundError as exc:
         raise PygameMerchantUnavailable(
-            "Pygame is not installed; using the tcod Merchant modal."
+            "Pygame is not installed."
         ) from exc
     return pygame
 
@@ -396,7 +394,7 @@ def run(
         response = pygame_ui.run_json_worker(
             pygame_ui.worker_command(f"{__package__}.pygame_merchant"),
             _worker_payload(frames, screen_size, font_size, antialias),
-            unavailable_message="Pygame worker unavailable; using the tcod Merchant modal.",
+            unavailable_message="Pygame worker unavailable.",
             environment=pygame_ui.worker_environment(),
         )
     except pygame_ui.PygameWorkerUnavailable as exc:
@@ -405,7 +403,7 @@ def run(
         return str(response["outcome"]), int(response["selected"])
     except (KeyError, TypeError, ValueError) as exc:
         raise PygameMerchantUnavailable(
-            "Pygame worker returned no usable choice; using tcod."
+            "Pygame worker returned no usable choice."
         ) from exc
 
 

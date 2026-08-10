@@ -109,21 +109,18 @@ def _pygame_character_enabled() -> bool:
 
 
 def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
-    """Run Character through Pygame, returning None for tcod fallback."""
+    """Run Character through the shared Pygame screen."""
     from . import pygame_screen
     from .xp import _apply_skill_point
 
     tab = 0
     selected = 0
     while True:
-        try:
-            outcome, action, selected = pygame_screen.run_for_context(
-                ctx.context,
-                _character_frame(ctx, tab, selected),
-                caption="spacehack - character",
-            )
-        except pygame_screen.PygameScreenUnavailable:
-            return None
+        outcome, action, selected = pygame_screen.run_for_context(
+            ctx.context,
+            _character_frame(ctx, tab, selected),
+            caption="spacehack - character",
+        )
         if outcome == "GUIDE":
             from .help import _run_help_guide
             _run_help_guide(ctx)
@@ -146,88 +143,11 @@ def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
 
 
 def open_character_screen(ctx: GameContext) -> None:
-    """Open the Character screen modal."""
-    if _pygame_character_enabled():
-        if _run_pygame_character_screen(ctx) is not None:
-            return
-    from .menus._ship_menu import ShipMenuAction
-    console = make_console()
-    _sel: int = 0
-    _tab: int = 0  # 0=Stats, 1=Equipment
-
-    _level = ctx.player_level
-    from .xp import xp_for_level as _xp_for_level, _xp_to_next as _xp_to_next
-    _total_for_current = _xp_for_level(_level)
-    _needed = _xp_to_next(_level)
-    _into_level = max(0, ctx.player_xp - _total_for_current)
-
-    def _render() -> None:
-        nonlocal _sel
-        console.clear()
-
-        _class_name = ctx.character_info.get("class_name", "").title()
-        _title = f"CHARACTER -- Level {_level} {_class_name}"
-
-        # Tab bar (top).
-        _tab_labels = ["  Stats  ", "  Equipment  "]
-        _tab_str = ""
-        for i, _tl in enumerate(_tab_labels):
-            if i == _tab:
-                _tab_str += f"[{_tl}]"
-            else:
-                _tab_str += f" {_tl} "
-        console.print(
-            x=ui.centered_x(_tab_str, SCREEN_WIDTH),
-            y=0,
-            string=_tab_str,
-            fg=ui.COLOR_OPTION_HIGHLIGHT if _tab == 1 else ui.COLOR_OPTION,
-        )
-        ui.screen_header(console, SCREEN_WIDTH, _title)
-
-        if _tab == 0:
-            _render_stats(ctx, console, _sel, _level, _into_level, _needed)
-        else:
-            _render_equipment(ctx, console)
-
-        message_log.render_message_log(
-            console, ctx.log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
-
-    def _update(event: tcod.event.Event) -> ShipMenuAction | None:
-        nonlocal _sel, _tab
-        if _try_open_guide(event, ctx):
-            return ShipMenuAction.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return None
-        if not isinstance(event, tcod.event.KeyDown):
-            return ShipMenuAction.IGNORE
-        sym = event.sym
-        sym_name: str = getattr(sym, "name", "").lower()
-        if sym in ui._ESCAPE_SYMS:
-            return None
-        if sym_name == "tab":
-            _tab = (_tab + 1) % 2
-            _sel = 0
-            return ShipMenuAction.IGNORE
-
-        if _tab == 0:
-            if sym in ui._ENTER_SYMS:
-                from .xp import _apply_skill_point
-                _apply_skill_point(ctx, _SKILLS[_sel])
-                return ShipMenuAction.IGNORE
-            if sym in ui._UP_SYMS or sym_name == "k":
-                _sel = (_sel - 1) % len(_SKILLS)
-                return ShipMenuAction.IGNORE
-            if sym in ui._DOWN_SYMS or sym_name == "j":
-                _sel = (_sel + 1) % len(_SKILLS)
-                return ShipMenuAction.IGNORE
-        return ShipMenuAction.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
-
-
+    """Open the Character screen in the shared Pygame window."""
+    result = _run_pygame_character_screen(ctx)
+    if result is None:
+        raise RuntimeError("Character screen returned no outcome")
+    return
 def _render_stats(
     ctx: GameContext, console: tcod.console.Console,
     _sel: int, _level: int, _into_level: int, _needed: int,

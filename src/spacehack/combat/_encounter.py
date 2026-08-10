@@ -310,31 +310,10 @@ def detect_ground_combat(
 
 
 def _wait_for_death_input(ctx, console) -> None:
-    """Wait for dismissal through Pygame, falling back to tcod."""
+    """Wait for dismissal through the shared Pygame presentation."""
     from .. import pygame_combat
 
-    presenter = getattr(ctx, "_pygame_combat_presenter", None)
-    started_here = presenter is None
-    if presenter is None:
-        presenter = pygame_combat.start_if_enabled()
-        ctx._pygame_combat_presenter = presenter
-    if presenter is not None:
-        try:
-            presenter.show(console, interactive=True)
-            presenter.wait_action()
-            if started_here:
-                presenter.close()
-                ctx._pygame_combat_presenter = None
-            return
-        except pygame_combat.PygameCombatQuit as exc:
-            presenter.close()
-            ctx._pygame_combat_presenter = None
-            raise SystemExit() from exc
-        except pygame_combat.PygameCombatUnavailable:
-            presenter.close()
-            ctx._pygame_combat_presenter = None
-
-    ctx.context.present(console)
+    pygame_combat.present(ctx, console)
     for event in tcod.event.wait():
         if isinstance(event, tcod.event.Quit):
             raise SystemExit()

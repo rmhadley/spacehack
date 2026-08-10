@@ -19,9 +19,7 @@ class PygameScreenUnavailable(RuntimeError):
 
 def enabled() -> bool:
     """Return whether generic text screens can render in this runtime."""
-    from . import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_SCREEN") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 @dataclass(frozen=True)
@@ -344,12 +342,12 @@ def run_for_context(
     *,
     caption: str = "spacehack",
 ) -> tuple[str, str, int]:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run the screen in the already-open shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(context, frame, caption=caption)
-    return run(frame, caption=caption)
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameScreenUnavailable("Shared Pygame runtime is not open")
+    return run_shared(context, frame, caption=caption)
 
 
 def run(frame: ScreenFrame, *, caption: str = "spacehack") -> tuple[str, str, int]:

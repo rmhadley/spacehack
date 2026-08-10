@@ -28,7 +28,7 @@ from . import main_quest as main_quest_module
 from . import message_log
 from . import ui
 from .data.npcs import NPC, find_npc, list_npcs
-from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT
 from .game_context import GameContext
 from .input_helpers import _try_open_guide
 
@@ -185,32 +185,36 @@ def _npc_talk_navigate(event: tcod.event.Event, selected: int, n: int) -> int | 
 
 def _pygame_interactive_enabled() -> bool:
     """Return whether generic menus can render in the current runtime."""
-    from . import pygame_menu, pygame_runtime
+    from . import pygame_menu
 
-    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+    return pygame_menu.enabled()
 
 
 def _run_pygame_menu(ctx, frames, *, caption: str):
-    """Use the shared window when available, otherwise the worker menu."""
+    """Run the menu in the shared Pygame window."""
     from . import pygame_menu, pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return pygame_menu.run_shared(ctx.context, frames, caption=caption)
-    return pygame_menu.run(frames, caption=caption)
+    if not pygame_runtime.is_shared_context(getattr(ctx, "context", ctx)):
+        raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
+    return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
 
-def _npc_pygame_items(npc, missions):
-    """Build opaque Pygame actions for ordinary NPC talk."""
+def _npc_pygame_items(npc, missions, quest_options=()):
+    """Build opaque Pygame actions for every NPC-talk option."""
     from . import pygame_menu
 
     items = [
+        pygame_menu.MenuItem(label, "Continue the main-quest conversation.", f"QUEST:{step_id}")
+        for label, step_id in quest_options
+    ]
+    items.extend(
         pygame_menu.MenuItem(
             "Deliver: " + mission.title,
             "Hand over the mission cargo.",
             f"DELIVER:{index}",
         )
         for index, mission in enumerate(missions)
-    ]
+    )
     if npc.guild:
         items.append(pygame_menu.MenuItem(
             "View available work",
@@ -250,6 +254,8 @@ def _map_pygame_npc_result(ctx, outcome, action, missions):
         return (TalkOutcome.BACK, None)
     if action == "WORK":
         return (TalkOutcome.WORK, None)
+    if action.startswith("QUEST:"):
+        return (TalkOutcome.QUEST, action.split(":", 1)[1])
     if action.startswith("DELIVER:"):
         try:
             index = int(action.split(":", 1)[1])
@@ -259,20 +265,17 @@ def _map_pygame_npc_result(ctx, outcome, action, missions):
     return None
 
 
-def _run_pygame_npc_talk(ctx, npc, quest_body, missions):
-    """Run ordinary NPC talk through the selectable Pygame worker."""
+def _run_pygame_npc_talk(ctx, npc, quest_body, missions, quest_options=()):
+    """Run NPC talk through the shared selectable Pygame screen."""
     from . import pygame_menu
 
-    items = _npc_pygame_items(npc, missions)
+    items = _npc_pygame_items(npc, missions, quest_options)
     frames = _npc_pygame_frames(npc, quest_body, items)
-    try:
-        outcome, action, _selected = _run_pygame_menu(
-            ctx,
-            frames,
-            caption=f"spacehack - {npc.name}",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = _run_pygame_menu(
+        ctx,
+        frames,
+        caption=f"spacehack - {npc.name}",
+    )
     return _map_pygame_npc_result(ctx, outcome, action, missions)
 
 
@@ -306,8 +309,6 @@ def _run_npc_talk(
     # only way to trigger the full-screen overlay — no auto-trigger.
     _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
 
-    console = make_console()
-    selected = 0
     _missions = deliver_missions or []
     n_deliver = len(_missions)
 
@@ -329,68 +330,27 @@ def _run_npc_talk(
             ctx.log.add(f'{npc.name} has nothing more to say right now.')
         return (TalkOutcome.BACK, None)
 
-    # Quest-option rows stay on tcod for now: their selection can open
-    # an offer/claim flow and mutate main-quest state inside this modal.
-    # Ordinary talk, deliveries, and work are presentation-only here.
-    if _pygame_interactive_enabled() and not _quest_options:
-        _pygame_result = _run_pygame_npc_talk(
-            ctx, npc, _quest_body, _missions,
-        )
-        if _pygame_result is not None:
-            return _pygame_result
-
-    def _render() -> None:
-        render_npc_talk(
-            console,
-            ctx,
-            npc,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-            deliver_missions=_missions,
-            selected=selected,
-            quest_body=_quest_body,
-            quest_options=_quest_options,
-        )
-
-    def _update(event: tcod.event.Event) -> TalkOutcome:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return TalkOutcome.IGNORE
-        new = _npc_talk_navigate(event, selected, n_options)
-        if new is not None:
-            selected = new
-            return TalkOutcome.IGNORE
-        result = update_npc_talk(event)
-        if result is TalkOutcome.IGNORE:
-            return TalkOutcome.IGNORE
-        if result is TalkOutcome.QUIT:
-            return TalkOutcome.QUIT
-        if result is TalkOutcome.BACK:
-            return TalkOutcome.BACK
-        if selected < n_quest:
-            return TalkOutcome.QUEST
-        if selected < n_quest + n_deliver:
-            return TalkOutcome.DELIVER
-        return TalkOutcome.WORK
-
-    while True:
-        outcome = ui.Modal(ctx.context, console).run(_render, _update)
-        if outcome is TalkOutcome.QUEST and _quest_options:
-            _step_id = _quest_options[selected % len(_quest_options)][1]
-            _offer = main_quest_module.show_help_offer(ctx, npc.id, _step_id)
-            if _offer is main_quest_module.OfferOutcome.QUIT:
-                return (TalkOutcome.QUIT, None)
-            if _offer is main_quest_module.OfferOutcome.ACCEPT:
-                main_quest_module.trigger_dialogue(ctx, npc.id, _step_id)
-                # Multi-step chain: after seek-help lock-in, show the
-                # chain q1 popup immediately; after any step with a
-                # wait_days, show the time-gate explanation.
-                main_quest_module.maybe_continue_chain(ctx, npc.id, _step_id)
-                return (outcome, None)
-            continue
-        if outcome is TalkOutcome.DELIVER and 0 <= selected < n_deliver:
-            return (outcome, _missions[selected])
+    # Quest-option rows still use the domain modal because selecting one
+    # immediately mutates main-quest state; ordinary talk uses shared Pygame.
+    result = _run_pygame_npc_talk(
+        ctx,
+        npc,
+        _quest_body,
+        _missions,
+        _quest_options,
+    )
+    if result is None:
+        raise RuntimeError("NPC talk returned no outcome")
+    outcome, payload = result
+    if outcome is TalkOutcome.QUEST and isinstance(payload, str):
+        _offer = main_quest_module.show_help_offer(ctx, npc.id, payload)
+        if _offer is main_quest_module.OfferOutcome.QUIT:
+            return (TalkOutcome.QUIT, None)
+        if _offer is main_quest_module.OfferOutcome.ACCEPT:
+            main_quest_module.trigger_dialogue(ctx, npc.id, payload)
+            main_quest_module.maybe_continue_chain(ctx, npc.id, payload)
         return (outcome, None)
+    return result
 
 
 # IDENTITY GUARANTEE: ``npc_module.NPC is NPC`` (and ditto for

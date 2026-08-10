@@ -1,9 +1,8 @@
 """Reusable Pygame presentation primitives.
 
 The module deliberately does not import Pygame at module load time. Layout
-helpers are pure and remain testable in the normal tcod-only installation;
-drawing helpers receive the imported Pygame module explicitly. This keeps the
-migration optional until the game owns the window and event loop globally.
+helpers are pure and remain testable without opening the game runtime;
+drawing helpers receive the imported Pygame module explicitly.
 """
 from __future__ import annotations
 
@@ -17,7 +16,7 @@ from typing import Any
 
 
 class PygameWorkerUnavailable(RuntimeError):
-    """Raised when an optional Pygame worker cannot return a result."""
+    """Raised when a Pygame worker cannot return a result."""
 
 
 def run_json_worker(
@@ -47,25 +46,13 @@ def run_json_worker(
         raise PygameWorkerUnavailable(unavailable_message) from exc
 
 
-def migration_enabled(env_var: str) -> bool:
-    """Return whether migrated Pygame UI is active by default.
-
-    ``SPACEHACK_TCOD_UI=1`` is the emergency compatibility switch for
-    the old terminal UI; individual feature variables may still disable
-    one migrated surface with ``=0`` while debugging.
-    """
-    if os.environ.get("SPACEHACK_TCOD_UI") == "1":
-        return False
-    # The full-game runtime owns the only Pygame window and event pump.
-    # Feature workers must stay disabled inside that runtime; their legacy
-    # tcod modal paths render through the shared context adapter instead.
-    if os.environ.get("SPACEHACK_PYGAME_SHARED") == "1":
-        return False
-    return os.environ.get(env_var, "1") != "0"
+def presentation_enabled() -> bool:
+    """Return whether the mandatory Pygame presentation is available."""
+    return True
 
 
 def worker_environment() -> dict[str, str]:
-    """Return the environment used by optional Pygame workers."""
+    """Return the environment used by isolated Pygame workers."""
     return {**os.environ, "PYGAME_HIDE_SUPPORT_PROMPT": "1"}
 
 
@@ -80,7 +67,7 @@ Measure = Callable[[str], int]
 
 @dataclass(frozen=True)
 class Rect:
-    """Pixel rectangle used by the optional Pygame UI."""
+    """Pixel rectangle used by the Pygame UI."""
 
     x: int
     y: int

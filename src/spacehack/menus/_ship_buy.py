@@ -22,21 +22,16 @@ from ..input_helpers import _try_open_guide
 
 def _pygame_ship_buy_enabled() -> bool:
     """Return whether the Pygame Ship Buy modal can render in this runtime."""
-    from .. import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_SHIP_BUY") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 def _run_pygame_ship_buy(ctx, ship, effective_price: int | None) -> "ShipBuyOutcome | None":
-    """Run Pygame Ship Buy, returning None for tcod fallback."""
+    """Run Ship Buy in the shared Pygame screen."""
     from ..pygame_ship_buy import PygameShipBuyUnavailable, run_for_context
 
-    try:
-        outcome = run_for_context(
-            getattr(ctx, "context", ctx), ctx, ship, effective_price,
-        )
-    except PygameShipBuyUnavailable:
-        return None
+    outcome = run_for_context(
+        getattr(ctx, "context", ctx), ctx, ship, effective_price,
+    )
     if outcome == "BUY":
         return ShipBuyOutcome.BUY
     if outcome == "TOO_EXPENSIVE":
@@ -122,18 +117,7 @@ def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship, *, effecti
     When ``effective_price`` is provided (trade-in), the dialog uses
     it for afford checks instead of ``ship.price``.
     """
-    if _pygame_ship_buy_enabled():
-        pygame_result = _run_pygame_ship_buy(ctx, ship, effective_price)
-        if pygame_result is not None:
-            return pygame_result
-
-    console = make_console()
-
-    def _render() -> None:
-        render_ship_buy(console, ctx, ship, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, effective_price=effective_price)
-
-    def _update(event) -> ShipBuyOutcome:
-        if _try_open_guide(event, ctx):
-            return ShipBuyOutcome.IGNORE
-        return update_ship_buy(event, ship, ctx.stats, effective_price=effective_price)
-    return ui.Modal(ctx.context, console).run(_render, _update)
+    result = _run_pygame_ship_buy(ctx, ship, effective_price)
+    if result is None:
+        raise RuntimeError("Ship-buy menu returned no outcome")
+    return result

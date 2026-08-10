@@ -45,9 +45,7 @@ _ZONE_COLORS: dict[str, tuple[int, int, int]] = {
 
 def enabled() -> bool:
     """Return whether the faction Pygame presentation is active."""
-    from . import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_FACTIONS") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 def _faction_rows(ctx: Any) -> tuple[FactionRow, ...]:
@@ -240,12 +238,12 @@ def run_shared(context: Any, ctx: Any) -> str:
 
 
 def run_for_context(context: Any, ctx: Any) -> str:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run faction standings in the already-open shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(context, ctx)
-    return run(ctx)
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameFactionUnavailable("Shared Pygame runtime is not open")
+    return run_shared(context, ctx)
 
 
 def run(ctx: Any) -> str:

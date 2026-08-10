@@ -188,12 +188,12 @@ def run_for_context(
     ship: Any,
     effective_price: int | None = None,
 ) -> str:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run Ship Buy in the already-open shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(context, ctx, ship, effective_price)
-    return run(ctx, ship, effective_price)
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameShipBuyUnavailable("Shared Pygame runtime is not open")
+    return run_shared(context, ctx, ship, effective_price)
 
 
 def run(ctx: Any, ship: Any, effective_price: int | None = None) -> str:

@@ -154,8 +154,6 @@ def test_mars_departure_helper_triggers_from_mars_launch(monkeypatch):
 
 def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
     """The real exit-then-launch sequence delivers the disclosure once."""
-    import tcod.event
-
     ctx = _ctx()
     ctx.context = None
     _parent_map = world.GameMap(
@@ -183,17 +181,10 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
     ctx.time_year = 2200
     ctx.context = SimpleNamespace(present=lambda _console: None)
 
-    monkeypatch.setattr(_act1, "make_console", lambda: object())
     monkeypatch.setattr(
-        ui.Modal,
-        "run",
-        lambda _modal, _render, update: update(
-            tcod.event.KeyDown(
-                scancode=tcod.event.Scancode.RETURN,
-                sym=ui._ENTER_SYMS[0],
-                mod=0,
-            )
-        ),
+        _act1,
+        "_pygame_orbit_choice",
+        lambda _ctx: "diagnostic_fragment",
     )
 
     _launch_calls = []
@@ -335,8 +326,6 @@ def test_missing_space_state_rebuild_is_limited_to_mars_surface():
 
 
 def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
-    import tcod.event
-
     ctx = _ctx()
     ctx.time_day = 1
     ctx.time_month = 1
@@ -358,19 +347,11 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
         "_build_space_return",
         lambda _ctx, _city, _spec: (_space_map, _space_player),
     )
-    monkeypatch.setattr(_act1, "make_console", lambda: object())
-
-    def _confirm_once(_modal, _render, update):
-        _modal_calls.append(True)
-        return update(
-            tcod.event.KeyDown(
-                scancode=tcod.event.Scancode.RETURN,
-                sym=ui._ENTER_SYMS[0],
-                mod=0,
-            )
-        )
-
-    monkeypatch.setattr(ui.Modal, "run", _confirm_once)
+    monkeypatch.setattr(
+        _act1,
+        "_pygame_orbit_choice",
+        lambda _ctx: _modal_calls.append(True) or "diagnostic_fragment",
+    )
 
     _result = game_main._handle_dungeon_exit_tile(
         ctx,
@@ -422,20 +403,11 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
         "_build_space_return",
         lambda _ctx, _city, _spec: (_space_map, _space_player),
     )
-    import tcod.event
-
-    monkeypatch.setattr(_act1, "make_console", lambda: object())
-
-    def _confirm(_modal, _render, update):
-        return update(
-            tcod.event.KeyDown(
-                scancode=tcod.event.Scancode.RETURN,
-                sym=ui._ENTER_SYMS[0],
-                mod=0,
-            )
-        )
-
-    monkeypatch.setattr(ui.Modal, "run", _confirm)
+    monkeypatch.setattr(
+        _act1,
+        "_pygame_orbit_choice",
+        lambda _ctx: "diagnostic_fragment",
+    )
 
     result = game_main._handle_dungeon_exit_tile(
         ctx,
@@ -458,26 +430,17 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
 
 
 def test_orbit_scene_can_resolve_from_prison_without_city_context(monkeypatch):
-    import tcod.event
-
     ctx = _ctx()
     ctx.current_city_id = "earth"
     ctx.context = SimpleNamespace(present=lambda _console: None)
     ctx.time_day = 1
     ctx.time_month = 1
     ctx.time_year = 2200
-    monkeypatch.setattr(_act1, "make_console", lambda: object())
-
-    def _confirm(_modal, _render, update):
-        return update(
-            tcod.event.KeyDown(
-                scancode=tcod.event.Scancode.RETURN,
-                sym=ui._ENTER_SYMS[0],
-                mod=0,
-            )
-        )
-
-    monkeypatch.setattr(ui.Modal, "run", _confirm)
+    monkeypatch.setattr(
+        _act1,
+        "_pygame_orbit_choice",
+        lambda _ctx: "diagnostic_fragment",
+    )
 
     assert not _act1.maybe_show_post_prison_orbit(ctx)
     assert _act1.maybe_show_post_prison_orbit(ctx, from_mars_prison=True)
@@ -503,34 +466,22 @@ def test_pygame_orbit_guide_reopens_choice_before_disclosure(monkeypatch):
 
 
 def test_interrupted_orbit_scene_preserves_choice_until_confirmation(monkeypatch):
-    import tcod.event
-
     ctx = _ctx()
     ctx.context = SimpleNamespace(present=lambda _console: None)
     ctx.time_day = 1
     ctx.time_month = 1
     ctx.time_year = 2200
-    monkeypatch.setattr(_act1, "make_console", lambda: object())
+    _choices = iter(("__QUIT__", "diagnostic_fragment"))
     monkeypatch.setattr(
-        ui.Modal,
-        "run",
-        lambda _modal, _render, _update: _act1.OrbitSceneOutcome.QUIT,
+        _act1,
+        "_pygame_orbit_choice",
+        lambda _ctx: next(_choices),
     )
 
     assert not _act1.maybe_show_post_prison_orbit(ctx)
     assert not ctx.post_prison_orbit_seen
     assert not ctx.main_quest_disclosure
 
-    def _confirm(_modal, _render, update):
-        return update(
-            tcod.event.KeyDown(
-                scancode=tcod.event.Scancode.RETURN,
-                sym=ui._ENTER_SYMS[0],
-                mod=0,
-            )
-        )
-
-    monkeypatch.setattr(ui.Modal, "run", _confirm)
     assert _act1.maybe_show_post_prison_orbit(ctx)
     assert ctx.post_prison_orbit_seen
     assert ctx.main_quest_disclosure == "diagnostic_fragment"

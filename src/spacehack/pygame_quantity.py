@@ -154,12 +154,12 @@ def run_for_context(
     *,
     caption: str = "spacehack - quantity",
 ) -> int | None:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run quantity selection in the already-open shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(context, ctx, label, maximum, price)
-    return run(ctx, label, maximum, price, caption=caption)
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameQuantityUnavailable("Shared Pygame runtime is not open")
+    return run_shared(context, ctx, label, maximum, price)
 
 
 def run(

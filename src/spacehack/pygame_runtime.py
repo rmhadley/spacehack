@@ -3,13 +3,12 @@
 The game still uses tcod consoles as renderer-neutral framebuffers and tcod
 KeyDown objects as the domain input contract. This module owns the one default
 SDL window, converts console cells to the existing Pygame glyph atlas, and
-bridges Pygame events back to tcod events. The old tcod terminal remains an
-explicit rollback through ``SPACEHACK_TCOD_UI=1``.
+bridges Pygame events back to tcod events. Presentation is always owned by this Pygame runtime; tcod remains only
+as the renderer-neutral console and event contract.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 from typing import Any, Callable
 
 import tcod.event
@@ -18,12 +17,10 @@ from . import pygame_engine
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, TILE_HEIGHT, TILE_WIDTH
 
 
-_SHARED_ENV = "SPACEHACK_PYGAME_SHARED"
-
-
-def shared_enabled() -> bool:
-    """Return whether the process currently owns the shared Pygame runtime."""
-    return os.environ.get(_SHARED_ENV) == "1"
+def is_shared_context(context: Any) -> bool:
+    """Return whether ``context`` belongs to the active shared runtime."""
+    runtime = getattr(context, "_runtime", None)
+    return getattr(runtime, "engine", None) is not None
 
 
 def _key_sym(name: str, text: str = "") -> Any | None:
@@ -151,13 +148,10 @@ class PygameRuntime:
         self.context = PygameContext(self)
         self._old_wait: Callable[..., Any] | None = None
         self._old_get: Callable[..., Any] | None = None
-        self._old_shared_env: str | None = None
 
     def __enter__(self) -> PygameContext:
         """Open the shared window and install the event bridge."""
         pygame = pygame_engine._load_pygame()
-        self._old_shared_env = os.environ.get(_SHARED_ENV)
-        os.environ[_SHARED_ENV] = "1"
         try:
             self.engine = pygame_engine.PygameEngine(
                 pygame,
@@ -241,46 +235,27 @@ class PygameRuntime:
         if self.engine is not None:
             self.engine.close()
             self.engine = None
-        if self._old_shared_env is None:
-            os.environ.pop(_SHARED_ENV, None)
-        else:
-            os.environ[_SHARED_ENV] = self._old_shared_env
-        self._old_shared_env = None
 
 
 class GameRuntime:
-    """Select the shared Pygame runtime or the explicit tcod rollback."""
+    """Own the mandatory shared Pygame runtime for the complete game."""
 
     def __init__(self, tileset: Any):
         self.tileset = tileset
         self._pygame: PygameRuntime | None = None
-        self._tcod_context: Any | None = None
 
     def __enter__(self) -> Any:
-        """Open Pygame by default, falling back only when unavailable."""
-        if os.environ.get("SPACEHACK_TCOD_UI") == "1":
-            from .engine import open_terminal
-            self._tcod_context = open_terminal(self.tileset)
-            return self._tcod_context
-        try:
-            self._pygame = PygameRuntime(self.tileset)
-            return self._pygame.__enter__()
-        except (ImportError, ModuleNotFoundError, OSError, RuntimeError, ValueError):
-            self._pygame = None
-            from .engine import open_terminal
-            self._tcod_context = open_terminal(self.tileset)
-            return self._tcod_context
+        """Open the mandatory Pygame runtime."""
+        self._pygame = PygameRuntime(self.tileset)
+        return self._pygame.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Close whichever renderer was selected."""
         if self._pygame is not None:
             self._pygame.__exit__(exc_type, exc_value, traceback)
             self._pygame = None
-        if self._tcod_context is not None:
-            self._tcod_context.__exit__(exc_type, exc_value, traceback)
-            self._tcod_context = None
 
 
 def open_runtime(tileset: Any) -> GameRuntime:
-    """Return the default full-game runtime selector."""
+    """Return the mandatory full-game Pygame runtime."""
     return GameRuntime(tileset)

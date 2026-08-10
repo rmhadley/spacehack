@@ -87,26 +87,17 @@ def test_run_confirm_maps_pygame_terminal_outcomes(monkeypatch):
     assert input_helpers._run_confirm(SimpleNamespace(), "human", "pirate") is input_helpers.Outcome.CONFIRM
 
 
-def test_character_creation_falls_back_to_tcod_when_pygame_is_unavailable(monkeypatch):
+def test_character_picker_rejects_non_character_menu_without_tcod_fallback():
     menu = ui.MenuScreen(
         "Choose", "hint", (("human", "Human"),), {"human": "desc"},
     )
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
-    monkeypatch.setattr(
-        input_helpers,
-        "_run_pygame_pick",
-        lambda *args: None,
-    )
-    monkeypatch.setattr(
-        input_helpers.ui.Modal,
-        "run",
-        lambda self, render, update: input_helpers.Outcome.BACK,
-    )
 
-    assert input_helpers._run_pick(SimpleNamespace(), menu) == (
-        input_helpers.Outcome.BACK,
-        None,
-    )
+    try:
+        input_helpers._run_pick(SimpleNamespace(), menu)
+    except RuntimeError as exc:
+        assert "requires the shared Pygame runtime" in str(exc)
+    else:
+        raise AssertionError("non-character menus must use the shared Pygame runtime")
 
 
 def test_character_picker_ignores_guide_then_preserves_quit(monkeypatch):
@@ -127,41 +118,33 @@ def test_character_picker_ignores_guide_then_preserves_quit(monkeypatch):
     )
 
 
-def test_character_picker_invalid_action_returns_to_tcod_fallback(monkeypatch):
+def test_character_picker_rejects_invalid_action_without_tcod_fallback(monkeypatch):
     menu = ui.MenuScreen(
         "Choose Your Class", "hint", (("merchant", "Merchant"),), {"merchant": "desc"},
     )
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
         lambda *args, **kwargs: ("SELECT", "not-a-class", 0),
     )
-    monkeypatch.setattr(
-        input_helpers.ui.Modal,
-        "run",
-        lambda self, render, update: input_helpers.Outcome.BACK,
-    )
 
-    assert input_helpers._run_pick(SimpleNamespace(), menu) == (
-        input_helpers.Outcome.BACK,
-        None,
-    )
+    try:
+        input_helpers._run_pick(SimpleNamespace(), menu)
+    except RuntimeError as exc:
+        assert "returned no outcome" in str(exc)
+    else:
+        raise AssertionError("invalid Pygame actions must be rejected explicitly")
 
 
-def test_empty_character_picker_uses_tcod_fallback(monkeypatch):
+def test_empty_character_picker_rejects_missing_pygame_outcome():
     menu = ui.MenuScreen("Choose Your Species", "hint", (), {})
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
-    monkeypatch.setattr(
-        input_helpers.ui.Modal,
-        "run",
-        lambda self, render, update: input_helpers.Outcome.BACK,
-    )
 
-    assert input_helpers._run_pick(SimpleNamespace(), menu) == (
-        input_helpers.Outcome.BACK,
-        None,
-    )
+    try:
+        input_helpers._run_pick(SimpleNamespace(), menu)
+    except RuntimeError as exc:
+        assert "returned no outcome" in str(exc)
+    else:
+        raise AssertionError("empty character pickers must be rejected explicitly")
 
 
 def test_character_confirm_ignores_guide_then_preserves_quit(monkeypatch):

@@ -8,9 +8,7 @@ from . import pygame_menu, pygame_ui, ui
 
 def enabled() -> bool:
     """Return whether the shared Pygame title presentation is active."""
-    from . import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_TITLE") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 _TITLE_ACTIONS = {
@@ -63,23 +61,43 @@ def frames(save_available: bool) -> tuple[pygame_menu.MenuFrame, ...]:
     )
 
 
-def run_for_context(context: Any, save_available: bool) -> tuple[ui.TitleMenuOutcome, int] | None:
-    """Run the title menu in the existing Pygame window, or request fallback."""
-    try:
-        outcome, action, selected = pygame_menu.run_for_context(
-            context,
-            frames(save_available),
-            caption="spacehack",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+def run_splash_for_context(context: Any) -> None:
+    """Show the title splash in the existing shared Pygame window."""
+    frame = pygame_menu.MenuFrame(
+        title="SPACEHACK",
+        body=(
+            "The year is 2200. Humankind has spread across a dozen star systems,\n"
+            "linked by jump gates of unknown origin. You are a freelance pilot\n"
+            "making a living on the frontier - trading, bounty hunting, and\n"
+            "surviving where the law is what you make of it."
+        ),
+        items=(),
+        hints=("Press ENTER to begin",),
+        selected=0,
+        art=tuple(getattr(ui, "_TITLE_ART", ())),
+        art_color=pygame_ui.DEFAULT_PALETTE.title,
+    )
+    outcome, _action, _selected = pygame_menu.run_for_context(
+        context,
+        (frame,),
+        caption="spacehack",
+    )
     if outcome == "QUIT":
-        return ui.TitleMenuOutcome.EXIT, selected
-    if outcome == "BACK":
+        raise SystemExit
+
+
+def run_for_context(context: Any, save_available: bool) -> tuple[ui.TitleMenuOutcome, int]:
+    """Run the title menu in the existing shared Pygame window."""
+    outcome, action, selected = pygame_menu.run_for_context(
+        context,
+        frames(save_available),
+        caption="spacehack",
+    )
+    if outcome in {"QUIT", "BACK"}:
         return ui.TitleMenuOutcome.EXIT, selected
     if outcome != "SELECT":
-        return None
+        raise RuntimeError("Pygame title menu returned no outcome")
     title_outcome = _TITLE_ACTIONS.get(action)
     if title_outcome is None:
-        return None
+        raise RuntimeError("Pygame title menu returned an unknown action")
     return title_outcome, selected

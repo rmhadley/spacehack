@@ -148,7 +148,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> QuestFrame:
 
 
 def _font_path(pygame: Any) -> str | None:
-    """Choose the same readable font family as the Merchant migration."""
+    """Choose the same readable font family as the Merchant screen."""
     from .pygame_merchant import _font_path as merchant_font_path
 
     return merchant_font_path(pygame)
@@ -323,12 +323,12 @@ def run_for_context(
     selected: int = 0,
     confirm_abandon: bool = False,
 ) -> tuple[str, int, bool]:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run Quest Log in the already-open shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(ctx.context, ctx, selected, confirm_abandon)
-    return run(ctx, selected, confirm_abandon)
+    if not pygame_runtime.is_shared_context(ctx.context):
+        raise PygameQuestLogUnavailable("Shared Pygame runtime is not open")
+    return run_shared(ctx.context, ctx, selected, confirm_abandon)
 
 
 def run(

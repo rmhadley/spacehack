@@ -88,27 +88,24 @@ def _is_character_menu(menu: ui.MenuScreen) -> bool:
 
 def _pygame_character_enabled() -> bool:
     """Return whether character creation can use the Pygame presentation."""
-    from . import pygame_menu, pygame_runtime
+    from . import pygame_menu
 
-    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+    return pygame_menu.enabled()
 
 
 def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None] | None:
-    """Run a character picker in Pygame, or return None for tcod fallback."""
+    """Run a character picker in the shared Pygame window."""
     from . import pygame_menu
 
     frames = _pygame_pick_frames(menu)
     if not frames:
         return None
     while True:
-        try:
-            outcome, action, _selected = pygame_menu.run_for_context(
-                context,
-                frames,
-                caption=f"spacehack - {menu.title.lower()}",
-            )
-        except pygame_menu.PygameMenuUnavailable:
-            return None
+        outcome, action, _selected = pygame_menu.run_for_context(
+            context,
+            frames,
+            caption=f"spacehack - {menu.title.lower()}",
+        )
         if outcome == "GUIDE":
             continue
         if outcome == "QUIT":
@@ -123,21 +120,18 @@ def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]
 
 
 def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | None:
-    """Run character confirmation in Pygame, or return None for tcod fallback."""
+    """Run character confirmation in the shared Pygame window."""
     from . import pygame_menu
 
     species = find_species(species_id)
     klass = find_class(class_id)
     frame = _pygame_confirm_frame(species, klass)
     while True:
-        try:
-            outcome, action, _selected = pygame_menu.run_for_context(
-                context,
-                (frame,),
-                caption="spacehack - character creation",
-            )
-        except pygame_menu.PygameMenuUnavailable:
-            return None
+        outcome, action, _selected = pygame_menu.run_for_context(
+            context,
+            (frame,),
+            caption="spacehack - character creation",
+        )
         if outcome == "GUIDE":
             continue
         if outcome == "SELECT" and action == "CONFIRM":
@@ -150,52 +144,21 @@ def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | No
 
 
 def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
-    if _pygame_character_enabled() and _is_character_menu(menu):
-        _pygame_result = _run_pygame_pick(context, menu)
-        if _pygame_result is not None:
-            return _pygame_result
-    console = make_console()
-
-    def _render() -> None:
-        ui.render_menu(console, menu, SCREEN_WIDTH, SCREEN_HEIGHT)
-
-    def _update(event) -> Outcome:
-        if isinstance(event, tcod.event.Quit):
-            return Outcome.QUIT
-        action = ui.update_menu(menu, event)
-        if action is ui.MenuAction.CONFIRM:
-            return Outcome.CONFIRM
-        if action is ui.MenuAction.BACK:
-            return Outcome.BACK
-        return Outcome.IGNORE
-    outcome = ui.Modal(context, console).run(_render, _update)
-    if outcome is Outcome.CONFIRM:
-        return (outcome, menu.selected_id)
-    return (outcome, None)
+    """Run a character picker in the shared Pygame window."""
+    if not _is_character_menu(menu):
+        raise RuntimeError("Character picker requires the shared Pygame runtime")
+    result = _run_pygame_pick(context, menu)
+    if result is None:
+        raise RuntimeError("Character picker returned no outcome")
+    return result
 
 
 def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) -> Outcome:
-    if _pygame_character_enabled():
-        _pygame_result = _run_pygame_confirm(context, species_id, class_id)
-        if _pygame_result is not None:
-            return _pygame_result
-    species = find_species(species_id)
-    klass = find_class(class_id)
-    console = make_console()
-
-    def _render() -> None:
-        ui.render_confirm(console, species, klass, SCREEN_WIDTH, SCREEN_HEIGHT)
-
-    def _update(event) -> Outcome:
-        if isinstance(event, tcod.event.Quit):
-            return Outcome.QUIT
-        action = ui.update_confirm(event)
-        if action is ui.MenuAction.CONFIRM:
-            return Outcome.CONFIRM
-        if action is ui.MenuAction.BACK:
-            return Outcome.BACK
-        return Outcome.IGNORE
-    return ui.Modal(context, console).run(_render, _update)
+    """Run character confirmation in the shared Pygame window."""
+    result = _run_pygame_confirm(context, species_id, class_id)
+    if result is None:
+        raise RuntimeError("Character confirmation returned no outcome")
+    return result
 
 
 def _movement_action(event: tcod.event.Event) -> tuple[int, int] | None:

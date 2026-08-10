@@ -1,7 +1,7 @@
-"""Opt-in Pygame presentation adapters for story popups.
+"""Pygame presentation adapters for story popups.
 
 Story modules provide immutable text and opaque action IDs. This module owns
-only the optional presentation worker; quest state remains in the caller.
+only the shared Pygame presentation; quest state remains in the caller.
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from . import pygame_menu
 
 
 def enabled() -> bool:
-    """Return whether the interactive Pygame migration is enabled."""
+    """Return whether the interactive Pygame presentation is enabled."""
     return pygame_menu.enabled()
 
 
@@ -22,8 +22,8 @@ def dismiss(
     art: tuple[str, ...] = (),
     art_color: tuple[int, int, int] | None = None,
     art_colors: tuple[tuple[int, int, int], ...] = (),
-) -> str | None:
-    """Run a dismiss-only story popup, or return ``None`` for tcod fallback."""
+) -> str:
+    """Run a dismiss-only story popup in the shared Pygame window."""
     frame = pygame_menu.MenuFrame(
         title=title,
         body=body,
@@ -34,10 +34,7 @@ def dismiss(
         art_color=art_color,
         art_colors=art_colors,
     )
-    try:
-        outcome, _action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, _action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -63,10 +60,7 @@ def confirm(
         hints=(f"ENTER {accept_label.lower()}   ESC {cancel_label.lower()}",),
         selected=0,
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -92,7 +86,7 @@ def choose(
     body: str,
     options: tuple[tuple[str, str], ...],
     caption: str,
-) -> str | None:
+) -> str:
     """Run a small story choice and return its opaque action ID."""
     items = tuple(
         pygame_menu.MenuItem(label, "", action)
@@ -108,10 +102,7 @@ def choose(
         )
         for index in range(max(1, len(items)))
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
     if outcome == "SELECT":
         valid_actions = {option_action for _label, option_action in options}
         return action if action in valid_actions else None

@@ -170,11 +170,9 @@ def _orbit_scene_is_ready(ctx, *, from_mars_prison: bool = False) -> bool:
 
 
 def _pygame_orbit_choice(ctx) -> str | None:
-    """Run the archive disclosure through the optional Pygame worker."""
-    from ..pygame_story import choose, enabled
+    """Run the archive disclosure in the shared Pygame window."""
+    from ..pygame_story import choose
 
-    if not enabled():
-        return None
     options = tuple(
         (spec.label, disclosure.value)
         for disclosure, spec in _DISCLOSURE_OPTIONS
@@ -201,36 +199,16 @@ def maybe_show_post_prison_orbit(
     """Show the first-reading disclosure scene after a confirmed departure."""
     if not _orbit_scene_is_ready(ctx, from_mars_prison=from_mars_prison):
         return False
-    _pygame_choice = _pygame_orbit_choice(ctx)
-    while _pygame_choice == "__GUIDE__":
-        _pygame_choice = _pygame_orbit_choice(ctx)
-    if _pygame_choice is not None:
-        if _pygame_choice == "__QUIT__":
-            return False
-        if _pygame_choice == "__BACK__":
-            _apply_disclosure(ctx, OrbitDisclosure.ARCHIVE_SEALED)
-        elif _pygame_choice != "__DISMISS__":
-            _apply_disclosure(ctx, OrbitDisclosure(_pygame_choice))
-        return True
-    _console = make_console()
-    _selected = 0
-
-    def _render() -> None:
-        _render_orbit_scene(
-            _console,
-            selected=_selected,
-            faction_reading=_faction_reading(ctx),
-        )
-
-    def _update(event) -> OrbitSceneOutcome:
-        nonlocal _selected
-        _outcome, _selected = _update_orbit_scene(event, _selected)
-        if _outcome is OrbitSceneOutcome.CONFIRM:
-            _apply_disclosure(ctx, _selected_disclosure(_selected))
-        return _outcome
-
-    _outcome = ui.Modal(ctx.context, _console).run(_render, _update)
-    return _outcome is OrbitSceneOutcome.CONFIRM
+    choice = _pygame_orbit_choice(ctx)
+    while choice == "__GUIDE__":
+        choice = _pygame_orbit_choice(ctx)
+    if choice == "__QUIT__":
+        return False
+    if choice in {"__BACK__", "__DISMISS__"}:
+        _apply_disclosure(ctx, OrbitDisclosure.ARCHIVE_SEALED)
+    else:
+        _apply_disclosure(ctx, OrbitDisclosure(choice))
+    return True
 
 
 __all__ = [

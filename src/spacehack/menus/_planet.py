@@ -117,9 +117,9 @@ def update_planet_menu(
 
 def _pygame_interactive_enabled() -> bool:
     """Return whether generic menus can render in this runtime."""
-    from .. import pygame_menu, pygame_runtime
+    from .. import pygame_menu
 
-    return pygame_menu.enabled() or pygame_runtime.shared_enabled()
+    return pygame_menu.enabled()
 
 
 def _run_pygame_planet_menu(ctx, planet_obj, items):
@@ -139,14 +139,11 @@ def _run_pygame_planet_menu(ctx, planet_obj, items):
         )
         for selected in range(max(1, len(items)))
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(
-            ctx.context,
-            frames,
-            caption=f"spacehack - {planet_obj.name}",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = pygame_menu.run_for_context(
+        ctx.context,
+        frames,
+        caption=f"spacehack - {planet_obj.name}",
+    )
     if outcome == "GUIDE":
         from ..help import _run_help_guide
         _run_help_guide(ctx)
@@ -181,23 +178,7 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> PlanetMenuO
     if not main_quest_module.surface_exploration_unlocked(ctx, planet_obj.id):
         explorable_sites = []
     items = _build_menu_items(planet_obj, has_port, explorable_sites)
-    if _pygame_interactive_enabled():
-        _pygame_result = _run_pygame_planet_menu(ctx, planet_obj, items)
-        if _pygame_result is not None:
-            return _pygame_result
-
-    console = make_console()
-    selected = 0
-
-    def _render() -> None:
-        render_planet_menu(console, ctx, planet_obj, items=items, selected=selected)
-
-    def _update(event) -> PlanetMenuOutcome:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return PlanetMenuOutcome.IGNORE
-        outcome, new_selected = update_planet_menu(event, items=items, selected=selected)
-        selected = new_selected
-        return outcome
-
-    return ui.Modal(ctx.context, console).run(_render, _update)
+    result = _run_pygame_planet_menu(ctx, planet_obj, items)
+    if result is None:
+        raise RuntimeError("Planet menu returned no outcome")
+    return result

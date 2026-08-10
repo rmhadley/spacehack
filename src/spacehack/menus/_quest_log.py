@@ -20,24 +20,19 @@ from ..input_helpers import _try_open_guide
 
 def _pygame_quest_log_enabled() -> bool:
     """Return whether the Pygame Quest Log can render in this runtime."""
-    from .. import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_QUEST_LOG") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
-    """Run the Pygame Quest Log, returning None for tcod fallback."""
+    """Run the Quest Log in the shared Pygame screen."""
     from ..pygame_quest_log import PygameQuestLogUnavailable, run_for_context
 
     selected = 0
     confirm_abandon = False
     while True:
-        try:
-            outcome, selected, confirm_abandon = run_for_context(
-                ctx, selected, confirm_abandon,
-            )
-        except PygameQuestLogUnavailable:
-            return None
+        outcome, selected, confirm_abandon = run_for_context(
+            ctx, selected, confirm_abandon,
+        )
         if outcome == "ABANDONED":
             return QuestLogOutcome.ABANDONED, selected
         if outcome == "QUIT":
@@ -394,34 +389,7 @@ def _run_quest_log(ctx) -> tuple[QuestLogOutcome, int | None]:
     the index of the abandoned mission (for removal from the list),
     or ``None``.
     """
-    if _pygame_quest_log_enabled():
-        pygame_result = _run_pygame_quest_log(ctx)
-        if pygame_result is not None:
-            return pygame_result
-
-    console = make_console()
-    selected = 0
-    confirm_abandon = False
-    missions = ctx.player_active_missions
-
-    def _render() -> None:
-        render_quest_log(console, ctx, selected=selected, confirm_abandon=confirm_abandon, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
-    def _update(event) -> QuestLogOutcome:
-        nonlocal selected, confirm_abandon
-        if _try_open_guide(event, ctx):
-            return QuestLogOutcome.IGNORE
-        new = _quest_log_navigate(event, selected, len(missions))
-        if new is not None:
-            selected = new
-            return QuestLogOutcome.IGNORE
-        result = update_quest_log(event, confirm_abandon=confirm_abandon)
-        if result is QuestLogOutcome.ABANDONED and (not confirm_abandon):
-            confirm_abandon = True
-            return QuestLogOutcome.IGNORE
-        return result
-
-    outcome = ui.Modal(ctx.context, console).run(_render, _update)
-    if outcome is QuestLogOutcome.ABANDONED:
-        return (outcome, selected)
-    return (outcome, None)
+    result = _run_pygame_quest_log(ctx)
+    if result is None:
+        raise RuntimeError("Quest Log returned no outcome")
+    return result

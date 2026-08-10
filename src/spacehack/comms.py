@@ -251,14 +251,11 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
         )
         for index in range(max(1, len(items)))
     )
-    try:
-        outcome, action, _selected = pygame_menu.run_for_context(
-            ctx.context,
-            frames,
-            caption=f"spacehack - {contact_name}",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, _selected = pygame_menu.run_for_context(
+        ctx.context,
+        frames,
+        caption=f"spacehack - {contact_name}",
+    )
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -315,52 +312,10 @@ def _run_interaction_modal(
         # End Transmission always last.
         _options.append("End Transmission")
 
-    if _pygame_comms_enabled():
-        _pygame_result = _pygame_interaction_outcome(
-            ctx, contact_name, contact_spec, _options,
-        )
-        if _pygame_result is not None:
-            interaction_outcome = _pygame_result
-        else:
-            interaction_outcome = None
-    else:
-        interaction_outcome = None
-
-    _interaction_selected = 0
-
-    def _render_interaction() -> None:
-        _render_interaction_modal(
-            console, ctx, contact_name, contact_spec,
-            _options, _interaction_selected,
-        )
-
-    def _update_interaction(event) -> _InteractionOutcome:
-        nonlocal _interaction_selected
-        if _try_open_guide(event, ctx):
-            return _InteractionOutcome.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return _InteractionOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _InteractionOutcome.IGNORE
-        sym_name: str = getattr(event.sym, 'name', '').lower()
-        if event.sym in ui._ESCAPE_SYMS:
-            return _InteractionOutcome.BACK
-        if event.sym in ui._UP_SYMS or sym_name == 'k':
-            _interaction_selected = (_interaction_selected - 1) % len(_options)
-            return _InteractionOutcome.IGNORE
-        if event.sym in ui._DOWN_SYMS or sym_name == 'j':
-            _interaction_selected = (_interaction_selected + 1) % len(_options)
-            return _InteractionOutcome.IGNORE
-        if event.sym in ui._ENTER_SYMS:
-            chosen = _options[_interaction_selected]
-            # Table-driven dispatch.
-            return _INTERACTION_DISPATCH.get(chosen, _InteractionOutcome.BACK)
-        return _InteractionOutcome.IGNORE
-
-    if interaction_outcome is None:
-        interaction_outcome = ui.Modal(ctx.context, console).run(
-            _render_interaction, _update_interaction,
-        )
+    interaction_outcome = (
+        _pygame_interaction_outcome(ctx, contact_name, contact_spec, _options)
+        or _InteractionOutcome.BACK
+    )
 
     # ---- Handle interaction outcome ----
     if interaction_outcome is _InteractionOutcome.ATTACK:
@@ -550,14 +505,11 @@ def _pygame_contact_result(ctx, contacts):
         )
         for selected in range(max(1, len(items)))
     )
-    try:
-        outcome, action, selected = pygame_menu.run_for_context(
-            ctx.context,
-            frames,
-            caption="spacehack - comms",
-        )
-    except pygame_menu.PygameMenuUnavailable:
-        return None
+    outcome, action, selected = pygame_menu.run_for_context(
+        ctx.context,
+        frames,
+        caption="spacehack - comms",
+    )
     if outcome == "GUIDE":
         from .help import _run_help_guide
         _run_help_guide(ctx)
@@ -594,54 +546,10 @@ def open_comms(
         ctx.log.add("No ships in comms range.")
         return None
 
-    if _pygame_comms_enabled():
-        _pygame_contact = _pygame_contact_result(ctx, contacts)
-        if _pygame_contact == "QUIT":
-            return None
-        if _pygame_contact == "BACK":
-            return None
-        if _pygame_contact is not None:
-            _contact_name, _contact_spec, _contact_entity = _pygame_contact
-            return _run_interaction_modal(
-                ctx, make_console(), _contact_name, _contact_spec, _contact_entity,
-            )
-
-    console = make_console()
-    selected = 0
-
-    # ---- Modal 1: contact list ----
-    def _render_list() -> None:
-        _render_comms_panel(console, contacts, selected, ctx)
-
-    def _update_list(event) -> _CommsListOutcome:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return _CommsListOutcome.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return _CommsListOutcome.QUIT
-        if not isinstance(event, tcod.event.KeyDown):
-            return _CommsListOutcome.IGNORE
-        sym_name: str = getattr(event.sym, 'name', '').lower()
-        if event.sym in ui._ESCAPE_SYMS:
-            return _CommsListOutcome.BACK
-        if event.sym in ui._UP_SYMS or sym_name == 'k':
-            selected = (selected - 1) % len(contacts)
-            return _CommsListOutcome.IGNORE
-        if event.sym in ui._DOWN_SYMS or sym_name == 'j':
-            selected = (selected + 1) % len(contacts)
-            return _CommsListOutcome.IGNORE
-        if event.sym in ui._ENTER_SYMS:
-            return _CommsListOutcome.HAIL
-        return _CommsListOutcome.IGNORE
-
-    list_outcome = ui.Modal(ctx.context, console).run(
-        _render_list, _update_list,
-    )
-    if list_outcome is not _CommsListOutcome.HAIL:
+    _pygame_contact = _pygame_contact_result(ctx, contacts)
+    if _pygame_contact in {"QUIT", "BACK", None}:
         return None
-
-    # ---- Modal 2: interaction with selected contact ----
-    _contact_name, _contact_spec, _contact_entity = contacts[selected]
+    _contact_name, _contact_spec, _contact_entity = _pygame_contact
     return _run_interaction_modal(
-        ctx, console, _contact_name, _contact_spec, _contact_entity,
+        ctx, make_console(), _contact_name, _contact_spec, _contact_entity,
     )

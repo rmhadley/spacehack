@@ -102,13 +102,8 @@ def test_faction_runner_uses_semantic_adapter_and_falls_back(monkeypatch):
     assert captured["ctx"] is ctx
 
 
-def test_faction_runner_falls_back_when_worker_unavailable(monkeypatch):
-    calls = []
-    ctx = SimpleNamespace(
-        faction_reputation={},
-        context=SimpleNamespace(present=lambda _console: calls.append("present")),
-    )
-    monkeypatch.setattr(pygame_faction, "enabled", lambda: True)
+def test_faction_runner_propagates_unavailable_shared_runtime(monkeypatch):
+    ctx = SimpleNamespace(faction_reputation={}, context=object())
     monkeypatch.setattr(
         pygame_faction,
         "run_for_context",
@@ -118,11 +113,9 @@ def test_faction_runner_falls_back_when_worker_unavailable(monkeypatch):
     )
 
     from src.spacehack.menus import _ship_menu
-    monkeypatch.setattr(
-        _ship_menu.ui.Modal,
-        "run",
-        lambda self, render, update: calls.append("fallback") or None,
-    )
-    _ship_menu._run_faction_view(ctx)
-
-    assert "fallback" in calls
+    try:
+        _ship_menu._run_faction_view(ctx)
+    except pygame_faction.PygameFactionUnavailable as exc:
+        assert str(exc) == "missing"
+    else:
+        raise AssertionError("faction view must not fall back to TCOD")

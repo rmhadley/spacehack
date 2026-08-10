@@ -1,4 +1,4 @@
-"""Pygame-owned presentation foundation for the renderer migration.
+"""Pygame-owned presentation foundation for the game renderer.
 
 This module owns no gameplay state and imports Pygame lazily. The logical
 canvas stays at the game's native 100x60 cells (1600x960 pixels), while the
@@ -194,7 +194,7 @@ class GlyphAtlas:
         ``engine.load_tileset`` applies the approved text widening and
         procedural texture/box-drawing patches. Building the Pygame atlas from
         those glyph arrays, rather than reloading the raw PNG, keeps both
-        renderers visually identical during the migration.
+        renderers visually identical during the shared-renderer transition.
         """
         columns = 32
         rows = 8

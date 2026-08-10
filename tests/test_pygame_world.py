@@ -1,4 +1,4 @@
-"""Tests for the Pygame exploration-frame migration seam."""
+"""Tests for the Pygame exploration-frame presentation seam."""
 
 from __future__ import annotations
 
@@ -276,17 +276,19 @@ def test_exploration_frame_appends_hud_and_log_after_map(monkeypatch):
     assert frame.commands.index(next(command for command in frame.commands if command.char == "S")) < frame.commands.index(next(command for command in frame.commands if command.char == "H"))
 
 
-def test_world_preview_honors_global_tcod_rollback(monkeypatch):
-    monkeypatch.delenv("SPACEHACK_PYGAME_WORLD", raising=False)
-    monkeypatch.setenv("SPACEHACK_TCOD_UI", "1")
-
-    assert pygame_world.start_if_enabled() is None
-
-
-def test_world_preview_is_default_on(monkeypatch):
+def test_world_preview_starts_when_requested(monkeypatch):
     sentinel = object()
-    monkeypatch.delenv("SPACEHACK_PYGAME_WORLD", raising=False)
-    monkeypatch.delenv("SPACEHACK_TCOD_UI", raising=False)
+    monkeypatch.setattr(
+        pygame_world.PygameWorldPreview,
+        "start",
+        staticmethod(lambda: sentinel),
+    )
+
+    assert pygame_world.start_if_enabled() is sentinel
+
+
+def test_world_preview_starts_without_environment_flags(monkeypatch):
+    sentinel = object()
     monkeypatch.setattr(
         pygame_world.PygameWorldPreview,
         "start",

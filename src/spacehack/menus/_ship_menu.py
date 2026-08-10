@@ -242,8 +242,8 @@ def _pygame_loadout_frame(ctx):
     owned = ctx.player_owned_ship
     if owned is None:
         return pygame_screen.ScreenFrame(
-            "SHIP LOADOUT", ("No ship equipped.",), (),
-            ("ESC back",),
+        "SHIP LOADOUT", ("No ship equipped.",), (),
+        ("ESC back",),
         )
     ship_spec = ship_module.find_ship(owned.ship_id)
     body = (
@@ -292,14 +292,11 @@ def _run_pygame_loadout_view(ctx) -> bool | None:
     from .. import pygame_screen
 
     while True:
-        try:
-            outcome, _action, _selected = pygame_screen.run_for_context(
-                ctx.context,
-                _pygame_loadout_frame(ctx),
-                caption="spacehack - ship loadout",
-            )
-        except pygame_screen.PygameScreenUnavailable:
-            return None
+        outcome, _action, _selected = pygame_screen.run_for_context(
+            ctx.context,
+            _pygame_loadout_frame(ctx),
+            caption="spacehack - ship loadout",
+        )
         if outcome == "GUIDE":
             from ..help import _run_help_guide
             _run_help_guide(ctx)
@@ -310,26 +307,11 @@ def _run_pygame_loadout_view(ctx) -> bool | None:
 
 
 def _run_loadout_view(ctx) -> None:
-    """Show the read-only loadout view through Pygame with tcod fallback."""
+    """Show the read-only loadout view through the shared Pygame screen."""
     if ctx.player_owned_ship is None:
         return
-    if _pygame_readonly_enabled() and _run_pygame_loadout_view(ctx) is not None:
-        return
-    console = make_console()
-
-    def _render() -> None:
-        render_loadout_view(console, ctx)
-
-    def _update(event: tcod.event.Event) -> ShipMenuAction | None:
-        if _try_open_guide(event, ctx):
-            return ShipMenuAction.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return None
-        if isinstance(event, tcod.event.KeyDown) and event.sym in ui._ESCAPE_SYMS:
-            return None
-        return ShipMenuAction.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
+    _run_pygame_loadout_view(ctx)
+    return
 
 
 def render_faction_view(console, ctx) -> None:
@@ -375,33 +357,11 @@ def _run_faction_view(ctx) -> None:
     """Show faction standings with the refreshed Pygame presentation."""
     from .. import pygame_faction
 
-    if pygame_faction.enabled():
-        try:
-            outcome = pygame_faction.run_for_context(ctx.context, ctx)
-        except pygame_faction.PygameFactionUnavailable:
-            outcome = None
-        if outcome is not None:
-            if outcome == "GUIDE":
-                from ..help import _run_help_guide
-                _run_help_guide(ctx)
-            return
-    console = make_console()
-
-    def _render() -> None:
-        render_faction_view(console, ctx)
-
-    def _update(event: tcod.event.Event) -> ShipMenuAction | None:
-        if _try_open_guide(event, ctx):
-            return ShipMenuAction.IGNORE
-        if isinstance(event, tcod.event.Quit):
-            return None
-        if isinstance(event, tcod.event.KeyDown) and (
-            event.sym in ui._ESCAPE_SYMS or event.sym in ui._ENTER_SYMS
-        ):
-            return None
-        return ShipMenuAction.IGNORE
-
-    ui.Modal(ctx.context, console).run(_render, _update)
+    outcome = pygame_faction.run_for_context(ctx.context, ctx)
+    if outcome == "GUIDE":
+        from ..help import _run_help_guide
+        _run_help_guide(ctx)
+    return
 
 
 def _pygame_ship_menu_enabled() -> bool:
@@ -451,14 +411,11 @@ def _run_pygame_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
     from .. import pygame_menu
 
     while True:
-        try:
-            outcome, action, _selected = pygame_menu.run_for_context(
-                getattr(ctx, "context", ctx),
-                _ship_menu_frames(ctx, ship),
-                caption="spacehack - ship hangar",
-            )
-        except pygame_menu.PygameMenuUnavailable:
-            return None
+        outcome, action, _selected = pygame_menu.run_for_context(
+            getattr(ctx, "context", ctx),
+            _ship_menu_frames(ctx, ship),
+            caption="spacehack - ship hangar",
+        )
         if outcome == "GUIDE":
             from ..help import _run_help_guide
             _run_help_guide(ctx)
@@ -483,46 +440,16 @@ def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     UP / DOWN arrows AND vim ``j`` / ``k`` via
     :func:`_ship_menu_navigate`.
     """
-    if _pygame_ship_menu_enabled():
-        while True:
-            _pygame_action = _run_pygame_ship_menu(ctx, ship)
-            if _pygame_action is None:
-                break
-            if _pygame_action is ShipMenuAction.VIEW:
-                from ..trade import open_cargo as _open_cargo
-                _open_cargo(ctx)
-                continue
-            if _pygame_action is ShipMenuAction.LOADOUT:
-                _run_loadout_view(ctx)
-                continue
-            return _pygame_action
-
-    console = make_console()
-    selected = 0
-    n = len(SHIP_MENU_OPTIONS)
-
-    def _render() -> None:
-        render_ship_menu(console, ctx, ship, selected=selected, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
-
-    def _update(event) -> ShipMenuAction:
-        nonlocal selected
-        if _try_open_guide(event, ctx):
-            return ShipMenuAction.IGNORE
-        new = _ship_menu_navigate(event, selected, n)
-        if new is not None:
-            selected = new
-            return ShipMenuAction.IGNORE
-        return update_ship_menu(event, selected)
     while True:
-        action = ui.Modal(ctx.context, console).run(_render, _update)
-        if action is ShipMenuAction.VIEW:
+        _pygame_action = _run_pygame_ship_menu(ctx, ship)
+        if _pygame_action is ShipMenuAction.VIEW:
             from ..trade import open_cargo as _open_cargo
             _open_cargo(ctx)
             continue
-        if action is ShipMenuAction.LOADOUT:
+        if _pygame_action is ShipMenuAction.LOADOUT:
             _run_loadout_view(ctx)
             continue
-        return action  # LAUNCH, BACK, or QUIT
+        return _pygame_action
 
 
 def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_module.OwnedShip | None) -> world.Entity | None:

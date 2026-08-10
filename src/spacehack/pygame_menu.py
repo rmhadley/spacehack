@@ -1,4 +1,4 @@
-"""Optional Pygame worker for selectable text menus.
+"""Pygame selectable-menu presentation and isolated worker protocol.
 
 The parent process supplies immutable menu frames and receives only an opaque
 selected action. Domain modules map that action to their existing outcomes and
@@ -15,14 +15,12 @@ from . import pygame_ui
 
 
 class PygameMenuUnavailable(RuntimeError):
-    """Raised when the optional selectable-menu worker cannot return."""
+    """Raised when selectable-menu presentation cannot return."""
 
 
 def enabled() -> bool:
     """Return whether generic menus can render in this runtime."""
-    from . import pygame_runtime
-
-    return pygame_ui.migration_enabled("SPACEHACK_PYGAME_INTERACTIVE") or pygame_runtime.shared_enabled()
+    return pygame_ui.presentation_enabled()
 
 
 @dataclass(frozen=True)
@@ -49,7 +47,7 @@ class MenuFrame:
 
 
 def _font_path(pygame: Any) -> str | None:
-    """Reuse the readable font selection from the Merchant worker."""
+    """Reuse the readable font selection from the Merchant screen."""
     from .pygame_merchant import _font_path as merchant_font_path
 
     return merchant_font_path(pygame)
@@ -288,8 +286,7 @@ def run_shared(
 
     ``context`` is the :class:`pygame_runtime.PygameContext` owned by the
     main game runtime. This path deliberately reuses its logical surface and
-    event pump instead of starting the short-lived worker used by the legacy
-    migration path.
+    event pump instead of starting an additional window.
     """
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -327,12 +324,12 @@ def run_for_context(
     *,
     caption: str = "spacehack",
 ) -> tuple[str, str, int]:
-    """Use the shared window when active, otherwise the worker window."""
+    """Run the menu in the already-open shared Pygame window."""
     from . import pygame_runtime
 
-    if pygame_runtime.shared_enabled():
-        return run_shared(context, frames, caption=caption)
-    return run(frames, caption=caption)
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameMenuUnavailable("Shared Pygame runtime is not open")
+    return run_shared(context, frames, caption=caption)
 
 
 def run(frames: tuple[MenuFrame, ...],
