@@ -88,10 +88,9 @@ def derive_theme(
     base = PlanetTheme(
         floor=T("floor", "░", floor, _darken(floor, 0.42)),
         grass=T("grass", "█", grass, _gbg),
-        # Accent bg matches the grass field's visible fg (full-bleed █) and
-        # the comma glyph itself is darkened (half the field colour) so it
-        # reads as a clear texture mark on the same field.
-        grass_accent=T("grass", ",", _darken(grass, 0.5), grass),
+        # Keep accent cells on the same dark field background as GRASS;
+        # the comma itself carries the unique darker-green accent.
+        grass_accent=T("grass", ",", _darken(grass, 0.5), _gbg),
         plaza=T("plaza", "░", _blend(grass, (255, 245, 220), 0.55), _plaza_bg),
         sidewalk=T("sidewalk", "▒", _darken(_blend(grass, (190, 195, 210), 0.5), 0.55), _darken(_blend(grass, (190, 195, 210), 0.5), 0.32)),
         road_surface=T("road", ".", _road_fg, _road_bg),

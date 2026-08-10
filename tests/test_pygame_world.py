@@ -19,6 +19,22 @@ def _map(*, seen=None, visible=None, entities=None) -> world.GameMap:
     )
 
 
+def test_earth_grass_accent_uses_field_background_and_unique_comma_color():
+    assert world.GRASS_ACCENT.char == ","
+    assert world.GRASS_ACCENT.bg == world.GRASS.bg
+    assert world.GRASS_ACCENT.fg == (57, 100, 47)
+    assert world.GRASS_ACCENT.fg != world.GRASS.fg
+
+
+def test_derived_grass_accent_uses_derived_field_background():
+    from src.spacehack.data.planets.themes import derive_theme
+
+    theme = derive_theme(grass=(100, 180, 80))
+
+    assert theme.grass_accent.bg == theme.grass.bg
+    assert theme.grass_accent.fg != theme.grass.fg
+
+
 def test_capture_console_clips_text_and_preserves_colors_and_backgrounds():
     capture = pygame_world.CaptureConsole(4, 2)
 
