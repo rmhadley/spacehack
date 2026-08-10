@@ -73,6 +73,16 @@ def _captured_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpa
     return tuple(rows)
 
 
+def _quest_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpan, ...], ...]:
+    """Keep quest content while excluding the legacy message-log band."""
+    from .engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT
+
+    rows = _captured_rows(capture)[:SCREEN_HEIGHT - MSG_LOG_HEIGHT]
+    while rows and not any(span.text.strip() for span in rows[-1]):
+        rows = rows[:-1]
+    return rows
+
+
 def _capture_frame(ctx: Any, selected: int, confirm_abandon: bool) -> QuestFrame:
     """Render one authoritative tcod Quest Log state into portable rows."""
     from .menus._quest_log import render_quest_log
@@ -88,7 +98,7 @@ def _capture_frame(ctx: Any, selected: int, confirm_abandon: bool) -> QuestFrame
         screen_height=SCREEN_HEIGHT,
     )
     return QuestFrame(
-        rows=_captured_rows(capture),
+        rows=_quest_rows(capture),
         selected=selected,
         confirm_abandon=confirm_abandon,
     )
@@ -163,16 +173,36 @@ def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: i
 
 
 def _draw_rows(pygame: Any, screen: Any, font: Any, frame: QuestFrame) -> None:
-    """Render captured rows with natural font spacing and source colours."""
-    for row_index, row in enumerate(frame.rows):
-        x = 24
-        y = 12 + row_index * font.get_linesize()
-        for span in row:
-            pygame_ui.draw_text(
-                pygame, screen, font, span.text, x, y,
-                color=span.fg, antialias=True,
-            )
-            x += pygame_ui.measure_font(font, span.text)
+    """Render captured rows inside the shared high-contrast panel treatment."""
+    width, height = screen.get_size()
+    palette = pygame_ui.DEFAULT_PALETTE
+    panel = pygame_ui.Rect(32, 28, width - 64, height - 56)
+    pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
+    pygame_ui.draw_centered_text(
+        pygame, screen, font, "QUEST LOG", panel, panel.y + 22,
+        color=palette.title, antialias=True,
+    )
+    pygame_ui.draw_rule(
+        pygame, screen, panel.x + 24, panel.y + 54,
+        panel.width - 48, color=palette.border,
+    )
+    content = pygame_ui.Rect(
+        panel.x + 34, panel.y + 76,
+        max(1, panel.width - 68), max(1, panel.height - 100),
+    )
+    screen.set_clip(pygame.Rect(content.x, content.y, content.width, content.height))
+    try:
+        for row_index, row in enumerate(frame.rows):
+            x = content.x
+            y = content.y + row_index * font.get_linesize()
+            for span in row:
+                pygame_ui.draw_text(
+                    pygame, screen, font, span.text, x, y,
+                    color=span.fg, antialias=True,
+                )
+                x += pygame_ui.measure_font(font, span.text)
+    finally:
+        screen.set_clip(None)
 
 
 def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: int) -> tuple[str, int, bool]:
@@ -183,9 +213,9 @@ def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: in
         return "IGNORE", selected, confirm
     if event.key == pygame.K_ESCAPE:
         return "BACK", selected, confirm
-    if event.key in (pygame.K_UP, pygame.K_k) and count:
+    if not confirm and event.key in (pygame.K_UP, pygame.K_k) and count:
         return "IGNORE", (selected - 1) % count, confirm
-    if event.key in (pygame.K_DOWN, pygame.K_j) and count:
+    if not confirm and event.key in (pygame.K_DOWN, pygame.K_j) and count:
         return "IGNORE", (selected + 1) % count, confirm
     if event.key == pygame.K_a and not confirm and count:
         return "IGNORE", selected, True

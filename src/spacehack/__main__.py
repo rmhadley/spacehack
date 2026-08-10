@@ -1902,21 +1902,29 @@ def run(context: tcod.context.Context) -> None:
         _sel = 0
         _save_avail = _has_save()
         _menu_outcome = ui.TitleMenuOutcome.IGNORE
-        while _menu_outcome is ui.TitleMenuOutcome.IGNORE:
-            console.clear()
-            ui.render_title_menu(
-                console, SCREEN_WIDTH, SCREEN_HEIGHT,
-                selected=_sel, save_available=_save_avail,
+        from . import pygame_title
+        if pygame_title.enabled():
+            _pygame_title_result = pygame_title.run_for_context(
+                context, _save_avail,
             )
-            context.present(console)
-            for event in tcod.event.wait():
-                if should_quit(event):
-                    return
-                _menu_outcome, _sel = ui.update_title_menu(
-                    event, selected=_sel, save_available=_save_avail,
+            if _pygame_title_result is not None:
+                _menu_outcome, _sel = _pygame_title_result
+        if _menu_outcome is ui.TitleMenuOutcome.IGNORE:
+            while _menu_outcome is ui.TitleMenuOutcome.IGNORE:
+                console.clear()
+                ui.render_title_menu(
+                    console, SCREEN_WIDTH, SCREEN_HEIGHT,
+                    selected=_sel, save_available=_save_avail,
                 )
-                if _menu_outcome is not ui.TitleMenuOutcome.IGNORE:
-                    break
+                context.present(console)
+                for event in tcod.event.wait():
+                    if should_quit(event):
+                        return
+                    _menu_outcome, _sel = ui.update_title_menu(
+                        event, selected=_sel, save_available=_save_avail,
+                    )
+                    if _menu_outcome is not ui.TitleMenuOutcome.IGNORE:
+                        break
         if _menu_outcome is ui.TitleMenuOutcome.EXIT:
             return
         if _menu_outcome is ui.TitleMenuOutcome.TUTORIAL:
