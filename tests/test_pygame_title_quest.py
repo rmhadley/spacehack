@@ -137,15 +137,20 @@ def test_title_runner_propagates_missing_shared_runtime(monkeypatch):
         raise AssertionError("title must not fall back to TCOD")
 
 
-def test_quest_log_capture_excludes_message_log_and_trailing_blank_rows():
+def test_quest_log_capture_excludes_header_block_message_log_and_trailing_blank_rows():
     from src.spacehack.engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT
 
     capture = SimpleNamespace(
         height=SCREEN_HEIGHT,
         width=10,
         commands=(
-            SimpleNamespace(x=0, y=0, char="Q", fg=(255, 255, 255)),
-            SimpleNamespace(x=0, y=1, char=" ", fg=(255, 255, 255)),
+            # Legacy screen_header block (title row 2, divider row 3) must be
+            # stripped so the Pygame header is not duplicated.
+            SimpleNamespace(x=0, y=2, char="Q", fg=(255, 255, 255)),
+            SimpleNamespace(x=0, y=3, char="=", fg=(255, 255, 255)),
+            # Real content starts at row 5.
+            SimpleNamespace(x=0, y=5, char="M", fg=(255, 255, 255)),
+            SimpleNamespace(x=0, y=6, char=" ", fg=(255, 255, 255)),
             SimpleNamespace(
                 x=0, y=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
                 char="L", fg=(255, 255, 255),
@@ -156,7 +161,47 @@ def test_quest_log_capture_excludes_message_log_and_trailing_blank_rows():
     rows = pygame_quest_log._quest_rows(capture)
 
     assert len(rows) == 1
-    assert rows[0][0].text == "Q"
+    assert rows[0][0].text == "M"
+
+
+def test_quest_log_split_hint_moves_trailing_hint_out_of_content():
+    hint_row = (pygame_quest_log.QuestSpan(
+        "ARROW KEYS navigate - A abandon - ESC close.", (255, 240, 175),
+    ),)
+    rows = (
+        (pygame_quest_log.QuestSpan("MAIN QUEST", (255, 255, 255)),),
+        hint_row,
+    )
+
+    content, hint = pygame_quest_log._split_hint(rows)
+
+    assert hint == "ARROW KEYS navigate - A abandon - ESC close."
+    assert content == ((pygame_quest_log.QuestSpan("MAIN QUEST", (255, 255, 255)),),)
+
+
+def test_quest_log_split_hint_keeps_unknown_trailing_rows():
+    rows = ((pygame_quest_log.QuestSpan("Reward: 500$", (255, 255, 255)),),)
+
+    content, hint = pygame_quest_log._split_hint(rows)
+
+    assert hint == ""
+    assert content == rows
+
+
+def test_quest_log_frame_payload_round_trips_hint():
+    frame = pygame_quest_log.QuestFrame(
+        rows=((pygame_quest_log.QuestSpan("MAIN QUEST", (255, 255, 255)),),),
+        selected=0,
+        confirm_abandon=False,
+        hint="Press ESC to close.",
+    )
+
+    payload = pygame_quest_log._worker_payload((frame,))
+    restored = pygame_quest_log._frame_from_payload(
+        payload["frames"][pygame_quest_log._frame_key(0, False)]
+    )
+
+    assert restored == frame
 
 
 def test_quest_log_confirmation_freezes_selection():

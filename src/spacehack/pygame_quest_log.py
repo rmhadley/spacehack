@@ -35,6 +35,7 @@ class QuestFrame:
     rows: tuple[tuple[QuestSpan, ...], ...]
     selected: int
     confirm_abandon: bool
+    hint: str = ""
 
 
 def _captured_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpan, ...], ...]:
@@ -73,14 +74,44 @@ def _captured_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpa
     return tuple(rows)
 
 
+# The legacy terminal renderer anchors its own header via ui.screen_header
+# (title row 2, divider row 3, blank gap row 4), so its real content begins
+# at row 5. The Pygame presentation draws its own header, so the captured
+# header block is dropped to avoid a double header.
+_LEGACY_HEADER_BLOCK = 5
+
+# Legacy footer-hint lines painted by the terminal renderer
+# (menus/_quest_log.py). They are pulled out of the captured content so the
+# Pygame footer can draw them in the modern position instead of as a body
+# row. Prefixes are matched (not exact) so a hint that wraps or carries
+# extra spacing still extracts; keep these in sync if the terminal hint
+# strings are ever reworded in menus/_quest_log.py.
+_HINT_PREFIXES = (
+    "ARROW KEYS navigate",
+    "Press ENTER to abandon",
+    "Press ESC to close",
+)
+
+
 def _quest_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpan, ...], ...]:
-    """Keep quest content while excluding the legacy message-log band."""
+    """Keep quest content, excluding the legacy header and message-log band."""
     from .engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT
 
     rows = _captured_rows(capture)[:SCREEN_HEIGHT - MSG_LOG_HEIGHT]
+    rows = rows[_LEGACY_HEADER_BLOCK:]
     while rows and not any(span.text.strip() for span in rows[-1]):
         rows = rows[:-1]
     return rows
+
+
+def _split_hint(rows: tuple[tuple[QuestSpan, ...], ...]) -> tuple[tuple[tuple[QuestSpan, ...], ...], str]:
+    """Return ``(content_rows, hint)``, moving a trailing hint row out."""
+    if not rows:
+        return rows, ""
+    text = "".join(span.text for span in rows[-1]).strip()
+    if text.startswith(_HINT_PREFIXES):
+        return rows[:-1], text
+    return rows, ""
 
 
 def _capture_frame(ctx: Any, selected: int, confirm_abandon: bool) -> QuestFrame:
@@ -97,10 +128,12 @@ def _capture_frame(ctx: Any, selected: int, confirm_abandon: bool) -> QuestFrame
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
     )
+    rows, hint = _split_hint(_quest_rows(capture))
     return QuestFrame(
-        rows=_quest_rows(capture),
+        rows=rows,
         selected=selected,
         confirm_abandon=confirm_abandon,
+        hint=hint,
     )
 
 
@@ -144,6 +177,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> QuestFrame:
         ),
         selected=int(raw["selected"]),
         confirm_abandon=bool(raw["confirm_abandon"]),
+        hint=str(raw.get("hint", "")),
     )
 
 
@@ -210,6 +244,15 @@ def _draw_rows(
                 x += pygame_ui.measure_font(font, span.text)
     finally:
         screen.set_clip(None)
+    if frame.hint:
+        hint_y = (
+            pygame_ui.modal_content_bottom(height, 2)
+            if context is not None else panel.y + panel.height - 48
+        )
+        pygame_ui.draw_centered_text(
+            pygame, screen, font, frame.hint, panel, hint_y,
+            color=palette.instruction, antialias=True,
+        )
 
 
 def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: int) -> tuple[str, int, bool]:
