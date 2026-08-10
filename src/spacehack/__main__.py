@@ -84,6 +84,7 @@ from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
 from . import tutorial as tutorial_module
 from . import pygame_world
+from .pygame_runtime import open_runtime
 
 
 # ---------------------------------------------------------------------------
@@ -1969,7 +1970,7 @@ def run(context: tcod.context.Context) -> None:
 def main() -> None:
     """Top-level entry: load assets, open window, then run the flow."""
     tileset = load_tileset()
-    with open_terminal(tileset) as context:
+    with open_runtime(tileset) as context:
         run(context)
 if __name__ == '__main__':
     main()

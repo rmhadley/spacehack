@@ -258,9 +258,16 @@ class GlyphAtlas:
 class PygameEngine:
     """Own the Pygame display and logical presentation surface."""
 
-    def __init__(self, pygame: Any, config: PygameEngineConfig | None = None):
+    def __init__(
+        self,
+        pygame: Any,
+        config: PygameEngineConfig | None = None,
+        *,
+        tileset: Any | None = None,
+    ):
         self.pygame = pygame
         self.config = config or PygameEngineConfig()
+        self.tileset = tileset
         self.window: Any | None = None
         self.logical_surface: Any | None = None
         self.viewport = Viewport(0, 0, self.config.window_width, self.config.window_height)
@@ -283,7 +290,8 @@ class PygameEngine:
         from .engine import load_tileset
 
         self.glyphs = GlyphAtlas.from_processed_tileset(
-            self.pygame, load_tileset(),
+            self.pygame,
+            self.tileset if self.tileset is not None else load_tileset(),
         )
         return self
 

@@ -56,6 +56,11 @@ def migration_enabled(env_var: str) -> bool:
     """
     if os.environ.get("SPACEHACK_TCOD_UI") == "1":
         return False
+    # The full-game runtime owns the only Pygame window and event pump.
+    # Feature workers must stay disabled inside that runtime; their legacy
+    # tcod modal paths render through the shared context adapter instead.
+    if os.environ.get("SPACEHACK_PYGAME_SHARED") == "1":
+        return False
     return os.environ.get(env_var, "1") != "0"
 
 

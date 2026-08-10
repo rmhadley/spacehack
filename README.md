@@ -94,18 +94,22 @@ Grab the latest release for your platform from the
 > `xattr -dr com.apple.quarantine /path/to/spacehack.app` to clear the
 > quarantine flag (or System Settings → Privacy & Security → "Open Anyway").
 
-### From source
-
-Requires **Python 3.10+**. macOS / Linux:
+### From sourceRequires **Python 3.10+**. macOS / Linux:
 
 ```bash
-git clone https://github.com/rmhadley/spacehack.git
+ git clone https://github.com/rmhadley/spacehack.git
+
 cd spacehack
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 python -m spacehack
 ```
+
+The game now defaults to one Pygame-owned window from the title splash through
+all gameplay, menus, combat, and story screens. Pygame is installed as a core
+runtime dependency. Set `SPACEHACK_TCOD_UI=1` to use the legacy tcod terminal
+as an emergency compatibility fallback.
 
 Windows (from the repo folder):
 
@@ -140,12 +144,26 @@ On macOS/Homebrew, use the virtual-environment commands above rather than
 installing into the system Python; otherwise PEP 668 may report an
 `externally-managed-environment` error.
 
+### Full Pygame presentation
+
+The default game owns one Pygame window from the title splash through character
+creation, exploration, every modal, combat, and the title menu. Existing tcod
+console renderers remain authoritative framebuffers, while the shared Pygame
+runtime supplies crisp glyph presentation and the single event pump. No modal
+opens a second window. Set `SPACEHACK_TCOD_UI=1` to roll back the complete UI to
+the legacy tcod terminal.
+
+The following individual worker flags are retained for isolated development
+and comparison only; they are disabled automatically while the full shared
+runtime is active.
+
 ### Live Merchant Pygame experiment
 
-The first in-game migration experiment is opt-in. Install the visual extra,
-then launch the game with `SPACEHACK_PYGAME_MERCHANT=1` and visit the Merchant
-Guild. The game pauses its tcod modal, opens the real Merchant offerings flow
-in a Pygame window, and returns the normal accept/back result to gameplay:
+The first in-game migration experiment is retained for isolated development.
+Install the visual extra, then launch the game with `SPACEHACK_PYGAME_MERCHANT=1`
+and visit the Merchant Guild. The game pauses its tcod modal, opens the real
+Merchant offerings flow in a Pygame window, and returns the normal accept/back
+result to gameplay:
 
 ```bash
 SPACEHACK_PYGAME_MERCHANT=1 python -m spacehack
@@ -161,9 +179,8 @@ is used instead. Clear the variable to return to the unchanged tcod path:
 python -m spacehack
 ```
 
-This is intentionally a temporary second-window seam while the presentation
-migration begins; the world grid, save data, mission logic, and every other
-screen still belong to the existing tcod renderer.
+This isolated flag is bypassed by the default shared runtime; it remains
+useful only when running a worker module directly for renderer comparisons.
 
 ### Live Quest Log Pygame experiment
 
@@ -271,19 +288,18 @@ Clear `SPACEHACK_PYGAME_INTERACTIVE` to disable the batch.
 
 ### Live exploration-frame Pygame preview
 
-The migration preview shows the active city, space, or dungeon grid plus the
-existing HUD and message log in the same isolated Pygame worker. It uses the
-real map tiles, fog-of-war, entity footprints, camera, draw ordering, and
-current gameplay stats, while tcod remains the active input/modal owner:
+The historical exploration preview is retained for isolated development. The
+full shared runtime now shows the active city, space, or dungeon grid plus the
+existing HUD and message log in the one application window. It uses the real
+map tiles, fog-of-war, entity footprints, camera, draw ordering, and current
+gameplay stats:
 
 ```bash
 SPACEHACK_PYGAME_WORLD=1 python -m spacehack
 ```
 
-Close the preview window or unset the variable to return to the unchanged
-single-window tcod path. This is still a comparison seam, not yet the final
-unified window; the Pygame preview receives draw commands only and cannot
-mutate game state.
+The old preview flag is bypassed by the full shared runtime. The explicit
+rollback for the complete game is `SPACEHACK_TCOD_UI=1`.
 
 ## How to play
 
