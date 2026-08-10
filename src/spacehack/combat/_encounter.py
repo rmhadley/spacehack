@@ -61,7 +61,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
 
     # Sanity: player must have a ship catalog and owned ship.
     if ctx.player_owned_ship is None:
-        ctx.log.add("No ship — cannot start combat.")
+        ctx.log.add("No ship - cannot start combat.")
         return "FLEE"
 
     _ship_cat = None
@@ -69,7 +69,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     try:
         _ship_cat = _find_ship_catalog(ctx.player_owned_ship.ship_id)
     except (KeyError, AttributeError):
-        ctx.log.add("Ship catalog mismatch — cannot start combat.")
+        ctx.log.add("Ship catalog mismatch - cannot start combat.")
         return "FLEE"
 
     # Militia live-fire test (mil_q5_livefire): temporarily mount the
@@ -90,7 +90,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
                 )
                 _breach_mounted = True
                 ctx.log.add_colored(
-                    "BREACH CHARGE ARMED — prototype mounted for live-fire test.",
+                    "BREACH CHARGE ARMED - prototype mounted for live-fire test.",
                     _ml.COLOR_IMPORTANT_EVENT,
                 )
 
@@ -116,7 +116,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
             if w != _breach_wid
         )
         ctx.log.add_colored(
-            "BREACH CHARGE DISARMED — prototype test complete.",
+            "BREACH CHARGE DISARMED - prototype test complete.",
             _ml.COLOR_IMPORTANT_EVENT,
         )
 

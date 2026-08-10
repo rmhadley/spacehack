@@ -788,7 +788,7 @@ def fit_text(text: str, max_w: int) -> str:
     Shared by the terminal-look menu family (mission board, quest log,
     NPC talk, ship buy) so the truncation behaviour lives in one place.
     """
-    return text if len(text) <= max_w else text[:max_w - 1] + "…"
+    return text if len(text) <= max_w else text[:max_w - 1] + "..."
 
 
 def paint_title(console, screen_width: int, row: int, text: str, *, fg) -> None:

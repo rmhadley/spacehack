@@ -24,7 +24,7 @@ SPEC = PlanetSpec(
     char="P",
     fg=(120, 150, 200),
     description=(
-        "A cold gas giant on the frontier — a helium-3 mining "
+        "A cold gas giant on the frontier - a helium-3 mining "
         "deck in its upper bands."
     ),
     width=40,

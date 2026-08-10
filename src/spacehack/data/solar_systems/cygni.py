@@ -29,14 +29,14 @@ _planets: tuple[solar_module.Planet, ...] = (
         char="O", fg=(255, 190, 110),                # warm orange
         pos=world.Position(100, 70), width=7, height=7,
         sun=True,
-        description="A K-type orange dwarf — the gateway to the North Arm.",
+        description="A K-type orange dwarf - the gateway to the North Arm.",
     ),
     # Cygni b — the shipyard colony, landable.
     solar_module.Planet(
         id="cygni_b", name="Cygni b",
         char="p", fg=(160, 170, 120),                # dry green-brown
         pos=world.Position(60, 50), width=2, height=2,
-        description="A dry temperate world — hulls are forged in its orbital yards.",
+        description="A dry temperate world - hulls are forged in its orbital yards.",
     ),
     # Cygni c — a cold outer gas giant, unlandable.
     solar_module.Planet(
@@ -58,7 +58,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(5, 70),
         width=2, height=2,
         connects_to=(("sol", "jump_61_cygni"),),
-        description="A humming FTL gate facing Sol — the road home.",
+        description="A humming FTL gate facing Sol - the road home.",
     ),
     JumpPoint(
         id="jump_epsilon_indii",
@@ -68,7 +68,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(193, 70),
         width=2, height=2,
         connects_to=(("epsilon_indii", "jump_cygni"),),
-        description="A humming FTL gate facing Epsilon Indi — deeper into the arm.",
+        description="A humming FTL gate facing Epsilon Indi - deeper into the arm.",
     ),
 )
 

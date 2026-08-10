@@ -159,7 +159,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     title="TOTAL FACILITY LOCKDOWN",
                     message=(
                         "Warning glyphs ignite across the walls. Three assault frames "
-                        "advance through the intake halls — the prison's final "
+                        "advance through the intake halls - the prison's final "
                         "response before it lets you see the sky again."
                     ),
                     required_state="prison_data_extracted",
@@ -376,7 +376,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 title="THE DEEP CELL",
                 message=(
                     "The elevator opens onto a chamber so vast it swallows "
-                    "the light. A prison cell built for something enormous — "
+                    "the light. A prison cell built for something enormous - "
                     "and the doors that once held it have been torn from "
                     "their frames. Terminals dot the floor, dark and silent. "
                     "Somewhere in the dark, one of them still answers."
@@ -394,7 +394,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     popup_title="DATA STREAM",
                     popup_message=(
                         "The terminal floods the cell with light. A torrent of "
-                        "data pours out — coordinates, schematics, structures "
+                        "data pours out - coordinates, schematics, structures "
                         "built for something far larger than a human frame. "
                         "None of it decodes. The data is alien beyond any "
                         "human language or logic, but the sheer volume is "

@@ -49,7 +49,7 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
     TradeGood(
         id="machine_parts",
         name="Machine Parts",
-        description="Replacement spools, gaskets, filters — the industrial backbone.",
+        description="Replacement spools, gaskets, filters - the industrial backbone.",
         base_price=50,
         category="industrial",
         volume=2,
@@ -105,7 +105,7 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
     TradeGood(
         id="luxury_goods",
         name="Luxury Goods",
-        description="Fine spirits, silks, jewellery — the spoils of civilisation.",
+        description="Fine spirits, silks, jewellery - the spoils of civilisation.",
         base_price=150,
         category="luxury",
         volume=1,
@@ -134,7 +134,7 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         id="reference_recorder",
         name="Reference Frequency Recorder",
         description=(
-            "A sealed recorder from a derelict scout — decades of "
+            "A sealed recorder from a derelict scout - decades of "
             "resonance frequency readings from the Sirius patrol."
         ),
         base_price=200,
@@ -147,7 +147,7 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         name="Cutter Calibration Data",
         description=(
             "Frequency-alignment telemetry recovered from a derelict "
-            "near Vega — the last thing the cutter needs before it "
+            "near Vega - the last thing the cutter needs before it "
             "can be assembled."
         ),
         base_price=250,
@@ -159,7 +159,7 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
     TradeGood(
         id="weapons_blackmarket",
         name="Black Market Weapons",
-        description="Unregistered side-arms and mil-spec ordnance — hot, illegal, lucrative.",
+        description="Unregistered side-arms and mil-spec ordnance - hot, illegal, lucrative.",
         base_price=250,
         category="contraband",
         volume=1,

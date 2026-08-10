@@ -386,7 +386,7 @@ def complete_mission(
             # Late penalty: half credits, no XP.
             credits = credits // 2
             xp = 0
-            bonus_msg = " Late delivery — half pay."
+            bonus_msg = " Late delivery - half pay."
 
     if hasattr(stats, "credits"):
         stats.credits = stats.credits + credits

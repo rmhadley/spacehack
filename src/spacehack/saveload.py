@@ -763,7 +763,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         try:
             _sys_spec = _find_sys(_system_id)
         except KeyError:
-            _log.add(f"Save references unknown system '{_system_id}' — loading Earth city.")
+            _log.add(f"Save references unknown system '{_system_id}' - loading Earth city.")
             _mode = "city"
             _city_id = "earth"
 
@@ -852,14 +852,14 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
 
         _dd = _data.get("dungeon", {})
         if not _dd:
-            _log.add("Dungeon save data missing — loading Earth city.")
+            _log.add("Dungeon save data missing - loading Earth city.")
             _mode = "city"
             _city_id = "earth"
         else:
             try:
                 _sys_spec = _find_sys(_system_id)
             except KeyError:
-                _log.add(f"Save references unknown system '{_system_id}' — loading Earth city.")
+                _log.add(f"Save references unknown system '{_system_id}' - loading Earth city.")
                 _mode = "city"
                 _city_id = "earth"
 
@@ -974,7 +974,7 @@ def load_game(context: "tcod.context.Context") -> GameContext | None:
         try:
             _find_sys(_system_id)
         except KeyError:
-            _log.add(f"Save references unknown system '{_system_id}' — loading Earth city.")
+            _log.add(f"Save references unknown system '{_system_id}' - loading Earth city.")
             _city_id = "earth"
             _system_id = "sol"
         solar_system_module.current_solar_system_id = _system_id

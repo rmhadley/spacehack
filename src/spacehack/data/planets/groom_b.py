@@ -27,7 +27,7 @@ SPEC = PlanetSpec(
     name="Groombridge 34 b",
     char="p",
     fg=(110, 100, 90),
-    description="A rough mining world at the end of the arm — no laws, no militia.",
+    description="A rough mining world at the end of the arm - no laws, no militia.",
     width=60,
     height=40,
     hangar_anchor=world.Position(13, 17),
@@ -66,7 +66,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(210, 130, 80),
                 flavor_text=(
-                    "Out past the gate there's nothing — that's the "
+                    "Out past the gate there's nothing - that's the "
                     "point. In here, a pilot can get rich or get dead. "
                     "Sometimes both."
                 ),

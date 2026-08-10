@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import ast
+import io
 import sys
+import tokenize
 from pathlib import Path
 
 import numpy as np
@@ -10,7 +13,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack import engine, help as game_help, hud, message_log, ui
+from src.spacehack import engine, help as game_help, hud, message_log, ui, world
 
 
 
@@ -85,6 +88,71 @@ def test_help_selector_uses_a_renderable_cp437_marker():
 
     tileset = engine.load_tileset()
     assert np.asarray(tileset[ord(game_help.GUIDE_SELECTED_MARKER)])[..., 3].any()
+
+
+def _runtime_string_tokens():
+    """Yield source string tokens that can reach runtime output.
+
+    Module/function docstrings are documentation rather than rendered
+    game text, so they are excluded from the compatibility assertion.
+    """
+    source_root = Path(__file__).resolve().parents[1] / "src" / "spacehack"
+    for path in source_root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        tree = ast.parse(text)
+        line_starts = [0]
+        for line in text.splitlines(keepends=True):
+            line_starts.append(line_starts[-1] + len(line))
+
+        def _offset(position):
+            return line_starts[position[0] - 1] + position[1]
+
+        docstring_spans = []
+        for node in ast.walk(tree):
+            body = getattr(node, "body", None)
+            if not isinstance(body, list) or not body:
+                continue
+            first = body[0]
+            value = getattr(first, "value", None)
+            if not isinstance(first, ast.Expr) or not isinstance(value, ast.Constant):
+                continue
+            if not isinstance(value.value, str):
+                continue
+            docstring_spans.append((
+                _offset((value.lineno, value.col_offset)),
+                _offset((value.end_lineno, value.end_col_offset)),
+            ))
+
+        for token in tokenize.generate_tokens(io.StringIO(text).readline):
+            if token.type != tokenize.STRING:
+                continue
+            span = (_offset(token.start), _offset(token.end))
+            if any(start <= span[0] and span[1] <= end for start, end in docstring_spans):
+                continue
+            yield path, token.string
+
+
+def test_runtime_strings_avoid_missing_bitmap_codepoints():
+    """Player-facing literals use characters the bitmap renderer supports."""
+    missing = set("Öε—–…×∞≈")
+    escaped_missing = (
+        r"\\u00d6", r"\\u03b5", r"\\u2014", r"\\u2013",
+        r"\\u2026", r"\\u00d7", r"\\u221e", r"\\u2248",
+    )
+    offenders = [
+        f"{path}:{literal}"
+        for path, literal in _runtime_string_tokens()
+        if any(char in literal for char in missing)
+        or any(escape in literal.lower() for escape in escaped_missing)
+    ]
+    assert offenders == []
+
+
+def test_ascii_replacements_cover_known_runtime_glyphs():
+    """Representative map/UI replacements remain explicit and readable."""
+    assert world.TABLE.char == "~"
+    assert ui.fit_text("A long mission title", 10) == "A long mi..."
+    assert hud._UNLIMITED_AMMO_LABEL == "INF"
 
 
 def test_primary_reading_palette_is_high_contrast_on_black():

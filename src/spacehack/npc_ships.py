@@ -176,7 +176,7 @@ def _spawn_consortium_squad(
 
     _total_pirates = _spawned - 1  # minus the merchant
     ctx.log.add_colored(
-        f"Sensor ping: consortium operation detected — "
+        f"Sensor ping: consortium operation detected - "
         f"merchant hauler with {_total_pirates} pirate "
         f"escort{('s' if _total_pirates != 1 else '')}.",
         _ml.COLOR_IMPORTANT_EVENT,

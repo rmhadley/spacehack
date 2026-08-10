@@ -46,7 +46,7 @@ def setup_tutorial(ctx) -> None:
     _board = ensure_board(ctx, "bounty_master", max_slots=5, planet_id="earth")
     _board.slots = ["bhguild_sol_scout", None, None, None, None]
     _board.last_refresh_month = ctx.time_month
-    ctx.log.add("[TUTORIAL] Human Merchant start — follow the popups.")
+    ctx.log.add("[TUTORIAL] Human Merchant start - follow the popups.")
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ _STEP_BODIES: dict[str, str] = {
         "Welcome to spacehack! This guided run teaches the core loop: "
         "missions, ship loadout, space combat, loot, jumping, and ground "
         "combat.\n\n"
-        "Move with ARROW KEYS, vim keys (h/j/k/l), or the numpad — "
+        "Move with ARROW KEYS, vim keys (h/j/k/l), or the numpad - "
         "diagonals use y/u/b/n. '?' opens the game guide at any time, "
         "and ESC quits to the title (the game autosaves).\n\n"
         "Your first job: the Bounty Master (D) in the guild hall "
@@ -85,29 +85,29 @@ _STEP_BODIES: dict[str, str] = {
         "The city is your home base: space port (NW), merchant guild "
         "(SW), bar (plaza), militia + bounty guild (SE).\n\n"
         "Walk into the bounty guild hall and bump the Bounty Master (D) "
-        "to talk. Choose 'Find work' to see contracts — there's one "
+        "to talk. Choose 'Find work' to see contracts - there's one "
         "waiting for you."
     ),
     "accepted_crimson": (
-        "Wanted: Crimson Jack — a pirate scout in Sol, near Mercury. "
+        "Wanted: Crimson Jack - a pirate scout in Sol, near Mercury. "
         "'Q' opens your quest log whenever you want to review active "
         "work.\n\n"
         "Before you launch, visit the Mechanic terminal (the '%' icon "
         "just outside the space port door). Buy a second Light Laser "
-        "and a Shield Mk. 1 from the Loadout screen — you have enough "
+        "and a Shield Mk. 1 from the Loadout screen - you have enough "
         "credits. A shield and a spare laser make your first fight much "
         "safer."
     ),
     "equipped_loadout": (
-        "Nice loadout — two lasers and a shield generator. Your ship is "
+        "Nice loadout - two lasers and a shield generator. Your ship is "
         "docked at the space port.\n\n"
         "Walk up to it and bump it, then choose Launch to lift off."
     ),
     "launched": (
         "You're in space around Sol. The bounty target message is in "
-        "the log — Crimson Jack is lurking near Mercury.\n\n"
+        "the log - Crimson Jack is lurking near Mercury.\n\n"
         "Press 'G' for auto-navigation and select Mercury from the "
-        "list. Your ship will fly itself there — the pirate is holed "
+        "list. Your ship will fly itself there - the pirate is holed "
         "up nearby."
     ),
     "space_combat_intro": (
@@ -115,19 +115,19 @@ _STEP_BODIES: dict[str, str] = {
         "that decide how much you can do before the enemy moves. "
         "Moving always costs 1 AP.\n\n"
         "FIRE: select a weapon and a target. Firing costs the MAX AP "
-        "of the weapons you enable — four light lasers still cost just "
+        "of the weapons you enable - four light lasers still cost just "
         "1 AP, not 4. But every weapon that fires pays its full power "
         "cost, so firing everything every turn burns through your "
         "energy fast.\n\n"
-        "MOVEMENT: moving is good beyond positioning — each cell you "
+        "MOVEMENT: moving is good beyond positioning - each cell you "
         "travel raises your dodge chance.\n\n"
         "SHIELDS: press 'S' to cycle how much power your shields drain "
         "for regen each turn.\n\n"
-        "AP, energy, shields, and movement are all finite — it's a "
+        "AP, energy, shields, and movement are all finite - it's a "
         "balancing act. Spend them wisely and defeat Crimson Jack."
     ),
     "loot_dropped": (
-        "Crimson Jack was destroyed — and dropped loot (%).\n\n"
+        "Crimson Jack was destroyed - and dropped loot (%).\n\n"
         "Fly onto (or next to) the loot and press 'P' to pick it up. "
         "'P' works in space and on the ground, and it reaches loot on "
         "diagonal squares too."
@@ -136,20 +136,20 @@ _STEP_BODIES: dict[str, str] = {
         "Loot secured. Now try a jump: press 'G' for auto-navigation "
         "and fly to the 61 Cygni Gate. Bump it and choose to jump to "
         "the connected system.\n\n"
-        "Each jump costs 10 fuel — keep an eye on the fuel gauge in the "
+        "Each jump costs 10 fuel - keep an eye on the fuel gauge in the "
         "HUD. Jumping out of Sol triggers the main quest: a strange "
         "signal with coordinates to Mars. After the transmission, jump "
         "back and land on Earth."
     ),
     "signal_triggered": (
-        "The garbled transmission resolves to coordinates on MARS — "
+        "The garbled transmission resolves to coordinates on MARS - "
         "that's your main quest.\n\n"
         "Head back to Sol and land on Earth. Before the red planet, "
         "gear up for ground combat at the Armory terminal (the 'A' "
         "icon, left of the mechanic terminal outside the space port)."
     ),
     "earth_armory": (
-        "Mars has hostile wildlife and raiders — bring a weapon. Visit "
+        "Mars has hostile wildlife and raiders - bring a weapon. Visit "
         "the Armory terminal (the 'A' icon, left of the mechanic "
         "terminal outside the space port) and buy a Kinetic Rifle.\n\n"
         "You can carry two weapons; equip it from your ground loadout."
@@ -165,18 +165,18 @@ _STEP_BODIES: dict[str, str] = {
         "spend on moving, aiming, and firing.\n\n"
         "Range and line of sight matter: weapons have min/max ranges "
         "and you can only hit what you can see. Your weapon slots are "
-        "shown in the HUD — swap between them with the indicated "
+        "shown in the HUD - swap between them with the indicated "
         "keys.\n\n"
-        "Win this fight and the tutorial's core is done — the galaxy "
+        "Win this fight and the tutorial's core is done - the galaxy "
         "is yours."
     ),
     "level_up": (
-        "Victory! That fight pushed you to the next level — you "
+        "Victory! That fight pushed you to the next level - you "
         "earned skill points.\n\n"
         "Press 'C' to open your character screen and spend them. "
         "Points boost your ship skills (Gunnery, Piloting, "
         "Engineering) or your ground stats (Reflexes, Strength, "
-        "Stamina) — +1 per point, capped at 100.\n\n"
+        "Stamina) - +1 per point, capped at 100.\n\n"
         "Spend your points, and the tutorial wraps up."
     ),
     "finale": (
@@ -185,7 +185,7 @@ _STEP_BODIES: dict[str, str] = {
         "A few parting tips: trade goods between planets for profit "
         "('I' opens cargo), visit the other guilds for different work, "
         "and '?' is always there for details. Death is permanent in "
-        "this game — fly smart.\n\n"
+        "this game - fly smart.\n\n"
         "Good hunting, pilot."
     ),
 }

@@ -142,7 +142,7 @@ def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, 
     def _clamp_label(label: str) -> str:
         if len(label) <= name_w:
             return label
-        return label[:name_w - 1] + chr(8230)
+        return label[:name_w - 1] + "..."
 
     def _row(label, dist=None):
         if dist is None:
@@ -255,7 +255,7 @@ def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen
     coord_line = f'You are at ({ship_pos.x}, {ship_pos.y}).'
     max_w = screen_width - HUD_WIDTH - 2
     if len(coord_line) > max_w:
-        coord_line = coord_line[:max_w - 1] + '…'
+        coord_line = coord_line[:max_w - 1] + '...'
     console.print(x=ui.centered_x(coord_line, screen_width), y=foot_y, string=coord_line, fg=ui.COLOR_VALUE_WHITE)
     hint = 'Press ESC to close.'
     console.print(x=ui.centered_x(hint, screen_width), y=foot_y + 2, string=hint, fg=ui.COLOR_INSTRUCTION)
@@ -697,7 +697,7 @@ def _run_space_cargo_scan(ctx) -> None:
     )
 
     if not _confiscated and not _failed_missions:
-        ctx.log.add("Militia scans your cargo — clean.")
+        ctx.log.add("Militia scans your cargo - clean.")
         from .faction import modify_rep
         modify_rep(ctx, "militia", +1)
         return

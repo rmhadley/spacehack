@@ -88,7 +88,7 @@ SYSTEM: SolarSystem = SolarSystem(
             city_planet_id="sirius_station",
             description=(
                 "A solar research station suspended between the "
-                "binary pair — studying the dance of two stars."
+                "binary pair - studying the dance of two stars."
             ),
         ),
     ),

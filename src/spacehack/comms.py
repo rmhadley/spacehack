@@ -126,7 +126,7 @@ def _render_comms_panel(
     """
     console.clear()
     n = len(contacts)
-    title = f"COMMS — {n} contact{('' if n == 1 else 's')} in range"
+    title = f"COMMS - {n} contact{('' if n == 1 else 's')} in range"
 
     # Build items with suffix baked in, flavor text as description.
     _items: list[tuple[str, str]] = []
@@ -177,7 +177,7 @@ def _render_interaction_modal(
     ``ctx`` is needed for the message-log footer.
     """
     console.clear()
-    title = f"{contact_name} — Hailing"
+    title = f"{contact_name} - Hailing"
     _COL_X = 2
     flavor_y = ui.screen_header(console, SCREEN_WIDTH, title, fg=_INTERACTION_TITLE)
 

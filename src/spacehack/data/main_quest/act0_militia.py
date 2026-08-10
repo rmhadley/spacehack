@@ -49,7 +49,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="militia_captain",
                 trigger_on_talk=True,
                 intro=(
-                    "Good. You are on the books now — my private books, which means they "
+                    "Good. You are on the books now - my private books, which means they "
                     "can be burned. A patrol found this material during the "
                     "Incident. We called it a wreck, then a weapons test, then "
                     "nothing at all. The requisition cache on Mercury is what "
@@ -103,14 +103,14 @@ STEPS: tuple[MainQuestStep, ...] = (
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
                 intro=(
-                    "The cache is deep in the Mercury caves — "
+                    "The cache is deep in the Mercury caves - "
                     "a sealed requisition the official logs don't "
                     "show. Ship components, fuel cells, enough to "
                     "build a breach charge that'll crack anything. "
                     "Secure it and bring it back."
                 ),
                 active=(
-                    "The cache is in the Mercury caves — beneath "
+                    "The cache is in the Mercury caves - beneath "
                     "the old mining station. Don't draw attention. "
                     "The requisition was scrubbed for a reason."
                 ),
@@ -192,7 +192,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 trigger_on_talk=True,
                 intro=(
                     "The Captain sent word. Scratched requisition, "
-                    "scrubbed serials — I know the drill. Hand over "
+                    "scrubbed serials - I know the drill. Hand over "
                     "the components. I'll log them as routine supply "
                     "transfer, and no one asks questions. The Captain "
                     "will call when the inspection clears."

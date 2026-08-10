@@ -59,7 +59,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 ),
                 complete=(
                     "Sample received. The instruments are not finding a language, but they are "
-                    "finding structure — the same structure hidden in the original "
+                    "finding structure - the same structure hidden in the original "
                     "transmission. Give us time to determine whether the signal is "
                     "an invitation, a route, or a warning."
                 ),
@@ -128,7 +128,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         title="The Reference",
         description=(
             "The analysis points to Procyon C. A sealed cache beneath the outpost holds "
-            "reference data from an earlier survey — old enough to predate the "
+            "reference data from an earlier survey - old enough to predate the "
             "current signal, if the archive is telling the truth. Recover it "
             "from the ice caves so the lab can separate coincidence from a "
             "repeatable route."
@@ -241,7 +241,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 trigger_on_talk=True,
                 intro=(
                     "If that dataset copy goes missing, the lab keeps "
-                    "a backup of the Procyon reference files — I can "
+                    "a backup of the Procyon reference files - I can "
                     "issue another. Get it straight to the Science "
                     "Port."
                 ),
@@ -354,7 +354,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "know what it will wake."
                 ),
                 complete=(
-                    "The key is forged. Take it to Mars and open the door — then let the evidence "
+                    "The key is forged. Take it to Mars and open the door - then let the evidence "
                     "decide whether we have found a discovery, a warning, or both."
                 ),
                 option_label="Hand over the recorder",
@@ -385,7 +385,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="research_officer",
                 trigger_on_talk=True,
                 intro=(
-                    "There it is — the resonance key. Forged from the door's own material "
+                    "There it is - the resonance key. Forged from the door's own material "
                     "signature and calibrated against data older than human "
                     "contact with this region. Take it to Mars. The door should "
                     "open. What comes after may be a discovery, a warning, or a "

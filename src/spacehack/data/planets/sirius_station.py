@@ -24,7 +24,7 @@ SPEC = PlanetSpec(
     name="Binary Station",
     char="#",
     fg=(180, 210, 240),
-    description="A solar research station between Sirius A and B — the only port in the system.",
+    description="A solar research station between Sirius A and B - the only port in the system.",
     width=40,
     height=24,
     hangar_anchor=world.Position(7, 14),
@@ -56,7 +56,7 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "Two stars, one orbit, a thousand questions. "
                     "Every day the data tells us something new about "
-                    "how binaries live — and how they die."
+                    "how binaries live - and how they die."
                 ),
             ),
         ),

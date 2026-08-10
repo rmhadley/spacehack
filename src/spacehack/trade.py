@@ -468,7 +468,7 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
             try:
                 find_trade_good(str(_g[0]))
             except KeyError:
-                ctx.log.add("The quest cache contains unknown goods — ignored.")
+                ctx.log.add("The quest cache contains unknown goods - ignored.")
                 continue
             _goods.append((str(_g[0]), int(_g[1])))
         if not _goods:
@@ -907,7 +907,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
 
         render_split_frame(
             console,
-            title=f"TRADE — {spec.name.upper()}",
+            title=f"TRADE - {spec.name.upper()}",
             left_label="\u2502 Station Inventory" if _focus == 0 else "  Station Inventory ",
             right_label="\u2502 Your Hold" if _focus == 1 else "  Your Hold ",
             focus=_focus,

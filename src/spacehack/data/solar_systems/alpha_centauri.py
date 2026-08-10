@@ -41,14 +41,14 @@ _planets: tuple[solar_module.Planet, ...] = (
     solar_module.Planet(
         id="ac_a", name="Alpha Centauri A", char="O", fg=(255, 240, 180),
         pos=AC_A_POS, width=11, height=11, sun=True,
-        description="A yellow-white star — close twin to Sol.",
+        description="A yellow-white star - close twin to Sol.",
     ),
     # Alpha Centauri B — orange K1 companion, 7x7 footprint so it
     # reads as smaller + warmer than AC-A at a glance.
     solar_module.Planet(
         id="ac_b", name="Alpha Centauri B", char="O", fg=(255, 170, 100),
         pos=AC_B_POS, width=7, height=7, sun=True,
-        description="An orange companion — the binary's smaller twin.",
+        description="An orange companion - the binary's smaller twin.",
     ),
     # Proxima Centauri — small red dwarf, far from the binary.
     # Tiny 3x3 footprint so the size differential to AC-A reads as
@@ -56,7 +56,7 @@ _planets: tuple[solar_module.Planet, ...] = (
     solar_module.Planet(
         id="proxima", name="Proxima Centauri", char="o", fg=(230, 80, 50),
         pos=PROXIMA_POS, width=3, height=3, sun=True,
-        description="A small red dwarf — distant third member of the system.",
+        description="A small red dwarf - distant third member of the system.",
     ),
     # AC-I + AC-III are landable via their PlanetSpecs
     # (data/planets/ac_planet_1.py, ac_planet_3.py); the comments

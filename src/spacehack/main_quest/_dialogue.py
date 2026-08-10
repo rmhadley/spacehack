@@ -137,7 +137,7 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
         ctx.main_quest_chain = _dialogue.backing_faction
         ctx.log.add_colored(
             f"You've agreed to work with the "
-            f"{_dialogue.backing_faction.capitalize()} — the plan is in motion.",
+            f"{_dialogue.backing_faction.capitalize()} - the plan is in motion.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
     if _dialogue.backing_faction:

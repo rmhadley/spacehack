@@ -26,7 +26,7 @@ SPEC = PlanetSpec(
     name="Wolf 359 b",
     char="p",
     fg=(80, 60, 50),
-    description="A dark, airless rock — a pirate-run listening post on the frontier. No questions asked.",
+    description="A dark, airless rock - a pirate-run listening post on the frontier. No questions asked.",
     width=40,
     height=24,
     hangar_anchor=world.Position(7, 14),
@@ -64,7 +64,7 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "The lights are low and the patrons don't ask questions. "
                     "A scratched sign above the bar reads NO MILITIA. The "
-                    "operator sizes you up — 'You got something for me, or "
+                    "operator sizes you up - 'You got something for me, or "
                     "are you just thirsty?'"
                 ),
             ),

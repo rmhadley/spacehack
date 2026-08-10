@@ -350,7 +350,7 @@ def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
     assert _beats == ["open"]
     assert any(
         call.args == (
-            "The seal gives way. Inside: an empty cell built for something enormous — "
+            "The seal gives way. Inside: an empty cell built for something enormous - "
             "and a dark terminal interface waiting to be accessed.",
             act0.message_log.COLOR_IMPORTANT_EVENT,
         )

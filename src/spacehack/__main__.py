@@ -441,7 +441,7 @@ def _remove_salvage_wreck(ctx, wreck_spawn_id: str, space_game_map) -> None:
     ]
     _remove_bounty_spawn(ctx, wreck_spawn_id, _system_id)
     ctx.interiors.pop(wreck_spawn_id, None)
-    ctx.log.add("The secured wreck drifts away — its component is yours.")
+    ctx.log.add("The secured wreck drifts away - its component is yours.")
 
 
 def _prep_cached_dungeon(game_map) -> world.Position | None:
@@ -1186,12 +1186,12 @@ def _run_game(
                                 log.add(f'WARNING: {ship.name} cannot hold your mission cargo ({_old_reserved}/{_new_cap}). Some missions may be undeliverable.')
                             ctx.player_owned_ship = player_owned_ship
                             if _trade_in_value > 0:
-                                log.add(f'Traded in for the {ship.name} — paid {_effective_price}$ (trade-in {_trade_in_value}$).')
+                                log.add(f'Traded in for the {ship.name} - paid {_effective_price}$ (trade-in {_trade_in_value}$).')
                             else:
                                 log.add(f'You bought the {ship.name} for {ship.price}$ and parked it in your hangar.')
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
                             short = _effective_price - ctx.stats.credits
-                            log.add(f'You cannot afford the {ship.name} — need {_effective_price}$ (including {_trade_in_value}$ trade-in), {short}$ short.')
+                            log.add(f'You cannot afford the {ship.name} - need {_effective_price}$ (including {_trade_in_value}$ trade-in), {short}$ short.')
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)

@@ -28,14 +28,14 @@ _planets: tuple[solar_module.Planet, ...] = (
         char="O", fg=(255, 90, 60),                  # cool red
         pos=world.Position(100, 70), width=7, height=7,
         sun=True,
-        description="A dim red dwarf — the last star on the North Arm.",
+        description="A dim red dwarf - the last star on the North Arm.",
     ),
     # Groombridge 34 b — the mining colony, landable.
     solar_module.Planet(
         id="groom_b", name="Groombridge 34 b",
         char="p", fg=(110, 100, 90),                 # dim rocky brown
         pos=world.Position(55, 55), width=2, height=2,
-        description="A rough mining world at the end of the arm — no laws, no militia.",
+        description="A rough mining world at the end of the arm - no laws, no militia.",
     ),
 )
 
@@ -50,7 +50,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(5, 70),
         width=2, height=2,
         connects_to=(("epsilon_indii", "jump_groombridge"),),
-        description="A humming FTL gate facing Epsilon Indi — the road back to charted space.",
+        description="A humming FTL gate facing Epsilon Indi - the road back to charted space.",
     ),
 )
 

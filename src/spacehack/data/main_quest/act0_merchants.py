@@ -20,7 +20,7 @@ STEPS: tuple[MainQuestStep, ...] = (
             "Sign the Guild's contract on Earth. It grants the Guild first access "
             "to anything recovered from the Mars site, and grants you the "
             "cutter that may open it. The first clause sends you to an old "
-            "Wolf 359 claim — because every discovery begins with someone "
+            "Wolf 359 claim - because every discovery begins with someone "
             "insisting they got there first."
         ),
         trigger_planet_id="earth",
@@ -77,7 +77,7 @@ STEPS: tuple[MainQuestStep, ...] = (
             "Descend into the Wolf 359 b surface caves and stake "
             "the Guild's abandoned prospecting claim. Rival "
             "prospectors from a competing consortium got there "
-            "first — clear them out and secure the rare earth "
+            "first - clear them out and secure the rare earth "
             "metals."
         ),
         trigger_planet_id="wolf_b",
@@ -88,7 +88,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         delve_good_ids=(("rare_earth_metals", 3),),
         wait_days=0,
         completion_flavor=(
-            "The raw ore is loaded into your hold — valuable, disputed, and useless "
+            "The raw ore is loaded into your hold - valuable, disputed, and useless "
             "until it is smelted. The Guild's only specialist for material this "
             "pure works at Tau Ceti b."
         ),
@@ -157,7 +157,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 intro=(
                     "Word of the abandoned claim reached me months ago. If the Guild finally "
                     "found the ore, I want my cut. Hand it over and I will fire up "
-                    "the smelter — assuming it agrees to run."
+                    "the smelter - assuming it agrees to run."
                 ),
                 active=(
                     "The smelter is running hot and the readings refuse to settle. Give it time. "
@@ -241,7 +241,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         description=(
             "Return to the Guild Master on Earth with the smelted "
             "alloy and the calibration data. The cutter can be "
-            "assembled — and the door on Mars can finally be opened."
+            "assembled - and the door on Mars can finally be opened."
         ),
         trigger_planet_id="earth",
         trigger_system_id="sol",
@@ -257,7 +257,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 intro=(
                     "You brought the alloy back. Good. The cutter is assembled around it, "
                     "though the calibration data suggests we are not merely "
-                    "cutting a door — we are asking a much older system to "
+                    "cutting a door - we are asking a much older system to "
                     "notice us. Sign the final addendum and the instrument is "
                     "yours."
                 ),

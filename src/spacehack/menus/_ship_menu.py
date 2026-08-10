@@ -331,7 +331,7 @@ def _run_faction_view(ctx) -> None:
         console.print(
             x=2,
             y=_hint_y,
-            string="ENTER / ESC — back",
+            string="ENTER / ESC - back",
             fg=ui.COLOR_INSTRUCTION,
         )
 

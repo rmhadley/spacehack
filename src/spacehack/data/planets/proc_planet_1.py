@@ -24,7 +24,7 @@ SPEC = PlanetSpec(
     char="p",
     fg=(180, 160, 130),
     description=(
-        "A scorched rocky world orbiting Procyon A — a waypoint "
+        "A scorched rocky world orbiting Procyon A - a waypoint "
         "on the deep-space lanes."
     ),
     width=40,

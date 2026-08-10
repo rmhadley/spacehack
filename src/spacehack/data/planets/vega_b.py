@@ -29,7 +29,7 @@ SPEC = PlanetSpec(
     name="Vega b",
     char="P",
     fg=(200, 200, 220),
-    description="A massive gas giant — its upper atmosphere hosts a floating observation deck.",
+    description="A massive gas giant - its upper atmosphere hosts a floating observation deck.",
     width=60,
     height=40,
     hangar_anchor=world.Position(13, 17),
@@ -62,7 +62,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(180, 220, 240),
                 flavor_text=(
-                    "Welcome to the Veil. Drink in the view — "
+                    "Welcome to the Veil. Drink in the view - "
                     "the clouds below shift faster than the politics above."
                 ),
             ),

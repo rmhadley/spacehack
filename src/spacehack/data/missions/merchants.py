@@ -17,7 +17,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Deliver to Mars in Sol",
         description=(
             "The Mars colony is short on Earth-grown food rations. "
-            "Five crates of hydroponic produce — load them up and "
+            "Five crates of hydroponic produce - load them up and "
             "run them to the Mars Barkeep. Same system, quick turnaround."
         ),
         giver_npc_id="guild_master",
@@ -42,7 +42,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Deliver to Science Port in Alpha Centauri",
         description=(
             "The Science Port at Alpha Centauri needs calibration "
-            "gear and biologics. Ten crates — hand them to the "
+            "gear and biologics. Ten crates - hand them to the "
             "xenolinguist on arrival. A two-jump trip through "
             "Barnard's Star."
         ),
@@ -97,7 +97,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Deliver to Binary Station in Sirius",
         description=(
             "The research station at Sirius needs precision instruments "
-            "from Earth — fifteen crates of spectrometers, lenses, and "
+            "from Earth - fifteen crates of spectrometers, lenses, and "
             "vacuum-sealed electronics. A long haul through multiple "
             "systems. The Research Officer is expecting you."
         ),
@@ -123,7 +123,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Deliver to Vega b in Vega",
         description=(
             "The Cloud Host at Vega b has ordered luxury goods from "
-            "the Tau Ceti guild — twelve crates of rare botanicals and "
+            "the Tau Ceti guild - twelve crates of rare botanicals and "
             "artisan electronics. The floating platform above the gas "
             "giant is a long but rewarding run."
         ),
@@ -154,7 +154,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         description=(
             "The listening post at Wolf 359 is running critically low "
             "on food rations, fuel cells, and medical supplies. "
-            "Twenty-five crates — the biggest haul the guild offers. "
+            "Twenty-five crates - the biggest haul the guild offers. "
             "The Frontier Operator will be grateful. Long trip, big payout."
         ),
         giver_npc_id="salvage_specialist",

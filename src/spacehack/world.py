@@ -195,7 +195,7 @@ BAR_COUNTER = Tile(kind="floor", char="░", walkable=True, fg=(210, 165, 90), b
 # Bar counter body / front (darker wood grain).
 BAR_BODY = Tile(kind="floor", char="▒", walkable=True, fg=(160, 120, 70), bg=(90, 75, 50))
 # Table surface (≈ reads as a wavy table surface).
-TABLE = Tile(kind="floor", char="≈", walkable=True, fg=(255, 200, 80), bg=(130, 108, 70))
+TABLE = Tile(kind="floor", char="~", walkable=True, fg=(255, 200, 80), bg=(130, 108, 70))
 # Drink glass (♥ bright red for contrast against warm floor).
 DRINK = Tile(kind="floor", char="♥", walkable=True, fg=(255, 60, 60), bg=(130, 108, 70))
 

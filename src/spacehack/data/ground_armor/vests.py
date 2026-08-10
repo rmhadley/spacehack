@@ -40,7 +40,7 @@ WARES: tuple[GroundArmorSpec, ...] = (
         name="Medium Armor Vest",
         slot="body",
         defense=3,
-        description="Plated composite vest — good all-round protection.",
+        description="Plated composite vest - good all-round protection.",
         price=110,
         tech_level=2,
     ),

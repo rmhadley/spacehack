@@ -40,7 +40,7 @@ _planets: tuple[solar_module.Planet, ...] = (
         id="indi_c", name="Indi c",
         char="d", fg=(90, 70, 90),                   # dim brown-grey
         pos=world.Position(150, 95), width=2, height=2,
-        description="A dim brown dwarf — a failed star in a wide orbit.",
+        description="A dim brown dwarf - a failed star in a wide orbit.",
     ),
 )
 
@@ -55,7 +55,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(5, 70),
         width=2, height=2,
         connects_to=(("cygni", "jump_epsilon_indii"),),
-        description="A humming FTL gate facing 61 Cygni — back toward Sol.",
+        description="A humming FTL gate facing 61 Cygni - back toward Sol.",
     ),
     JumpPoint(
         id="jump_groombridge",
@@ -65,7 +65,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(193, 70),
         width=2, height=2,
         connects_to=(("groombridge", "jump_epsilon_indii"),),
-        description="A humming FTL gate facing Groombridge 34 — the arm's end.",
+        description="A humming FTL gate facing Groombridge 34 - the arm's end.",
     ),
 )
 

@@ -26,7 +26,7 @@ SPEC = PlanetSpec(
     char="p",
     fg=(180, 165, 130),
     description=(
-        "A scorched rocky world in the binary's inner belt — "
+        "A scorched rocky world in the binary's inner belt - "
         "a prospecting outpost."
     ),
     width=40,
@@ -58,7 +58,7 @@ SPEC = PlanetSpec(
                 fg=(210, 150, 80),
                 flavor_text=(
                     "Two suns, one hot rock, and a hundred ways "
-                    "to go broke. Sit down, pilot — everyone here "
+                    "to go broke. Sit down, pilot - everyone here "
                     "has a story, and most of them end in ore."
                 ),
             ),

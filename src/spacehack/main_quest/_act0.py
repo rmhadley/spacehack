@@ -419,7 +419,7 @@ def start_prison_objective(ctx) -> None:
     if step_status(ctx, "act1_prison") == STATUS_AVAILABLE:
         start_step(ctx, "act1_prison")
         ctx.log.add_colored(
-            "[MAIN QUEST] Act 1: The Prison Below — descend the facility.",
+            "[MAIN QUEST] Act 1: The Prison Below - descend the facility.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
 
@@ -471,7 +471,7 @@ def bump_mars_door(ctx) -> None:
             show_gate_popup(
                 ctx, "Pirate Raiders",
                 "Raiders pour out of the shadows around the sealed "
-                "door — they were watching the dig site, waiting for "
+                "door - they were watching the dig site, waiting for "
                 "someone to come back for the sample. They want it.",
                 title="AMBUSH!",
             )
@@ -480,7 +480,7 @@ def bump_mars_door(ctx) -> None:
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
         complete_step(ctx, "prologue_open")
         ctx.log.add_colored(
-            "The seal gives way. Inside: an empty cell built for something enormous — "
+            "The seal gives way. Inside: an empty cell built for something enormous - "
             "and a dark terminal interface waiting to be accessed.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
@@ -495,7 +495,7 @@ def bump_mars_door(ctx) -> None:
         complete_step(ctx, "prologue_mars_entrance")
         ctx.log.add_colored(
             "A door of alien make, set into the red dust. No visible "
-            "mechanism — older than the colony. It will not open.",
+            "mechanism - older than the colony. It will not open.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
         show_sealed_door_overlay(ctx, "discover")

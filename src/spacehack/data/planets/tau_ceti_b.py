@@ -27,7 +27,7 @@ SPEC = PlanetSpec(
     name="Tau Cet b",
     char="p",
     fg=(140, 200, 180),
-    description="A temperate rocky world in the habitable zone — a new frontier.",
+    description="A temperate rocky world in the habitable zone - a new frontier.",
     width=60,
     height=40,
     hangar_anchor=world.Position(13, 17),
@@ -60,7 +60,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(180, 220, 130),
                 flavor_text=(
-                    "Welcome to Tau Cet b — the beer is local, the "
+                    "Welcome to Tau Cet b - the beer is local, the "
                     "stories are tall, and the landing pads are always open."
                 ),
             ),
@@ -76,7 +76,7 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "I've stripped more claims than the guild keeps "
                     "records of. Word of the abandoned claim reached "
-                    "me — if the escrow ore's still there, I want my cut."
+                    "me - if the escrow ore's still there, I want my cut."
                 ),
             ),
         ),

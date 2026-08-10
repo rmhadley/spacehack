@@ -24,7 +24,7 @@ SPEC = PlanetSpec(
     char="P",
     fg=(210, 145, 100),
     description=(
-        "A ringed gas giant in the binary's middle orbit — "
+        "A ringed gas giant in the binary's middle orbit - "
         "a floating refinery deck."
     ),
     width=60,

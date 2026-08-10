@@ -19,7 +19,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Wanted: Crimson Jack",
         description=(
             "A known pirate scout operating out of Sol. The Bounty Guild "
-            "wants Crimson Jack brought in — dead, preferably. "
+            "wants Crimson Jack brought in - dead, preferably. "
             "Danger: Low."
         ),
         giver_npc_id="bounty_master",
@@ -143,7 +143,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Wanted: Dread Captain Vol",
         description=(
             "Dread Captain Vol commands a pirate frigate in the Vega "
-            "system. The Guild's most wanted — approach with extreme "
+            "system. The Guild's most wanted - approach with extreme "
             "caution. Danger: Extreme. Full squad present."
         ),
         giver_npc_id="bounty_master",

@@ -31,7 +31,7 @@ def open_trait_selection(ctx: GameContext) -> None:
     _candidates = _qualifying_traits(ctx)
     if not _candidates:
         ctx.log.add_colored(
-            "No qualifying traits available yet — check the Character screen later.",
+            "No qualifying traits available yet - check the Character screen later.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
         return
@@ -45,7 +45,7 @@ def open_trait_selection(ctx: GameContext) -> None:
         nonlocal _sel
         console.clear()
 
-        _title = f"TRAIT SELECTION — Level {ctx.player_level}"
+        _title = f"TRAIT SELECTION - Level {ctx.player_level}"
         ui.screen_header(console, SCREEN_WIDTH, _title)
 
         _y = 5
@@ -105,7 +105,7 @@ def open_trait_selection(ctx: GameContext) -> None:
             _picked = _candidates[_sel]
             ctx.player_traits.append(_picked.id)
             ctx.log.add_colored(
-                f"Trait gained: {_picked.name} — {_picked.description}",
+                f"Trait gained: {_picked.name} - {_picked.description}",
                 message_log.COLOR_COMBAT_EVENT,
             )
             return None

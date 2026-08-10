@@ -38,7 +38,7 @@ _planets: tuple[solar_module.Planet, ...] = (
         char="O", fg=(255, 90, 60),                  # warm red dwarf
         pos=world.Position(100, 70), width=7, height=7,
         sun=True,
-        description="A dim red dwarf — the last star on the chart.",
+        description="A dim red dwarf - the last star on the chart.",
     ),
     # Luyten b — a small, cold rocky world.
     solar_module.Planet(
@@ -52,7 +52,7 @@ _planets: tuple[solar_module.Planet, ...] = (
         id="luyt_c", name="Luyten c",
         char="p", fg=(100, 80, 60),
         pos=world.Position(150, 95), width=2, height=2,
-        description="A dark, airless world — utterly lifeless.",
+        description="A dark, airless world - utterly lifeless.",
     ),
 )
 
@@ -71,7 +71,7 @@ _stations: tuple[StationSpec, ...] = (
         city_planet_id="blockade",
         description=(
             "A militia blockade station guarding the edge of "
-            "federation space — no ships past this point without authorisation."
+            "federation space - no ships past this point without authorisation."
         ),
     ),
     StationSpec(
@@ -83,7 +83,7 @@ _stations: tuple[StationSpec, ...] = (
         width=3, height=3,
         city_planet_id="blockade",
         description=(
-            "A secondary militia checkpoint — eyes on the deep-space "
+            "A secondary militia checkpoint - eyes on the deep-space "
             "corridor beyond the federation boundary."
         ),
     ),
@@ -100,7 +100,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(5, 70),
         width=2, height=2,
         connects_to=(( "wolf_359", "jump_luyten_star"),),
-        description="A humming FTL gate facing Wolf 359 — the road back to charted space.",
+        description="A humming FTL gate facing Wolf 359 - the road back to charted space.",
     ),
 )
 
@@ -117,7 +117,7 @@ _restricted_sector = solar_module.Planet(
     pos=world.Position(183, 62),
     width=6, height=6,
     description=(
-        "A heavily restricted sector beyond federation space — "
+        "A heavily restricted sector beyond federation space - "
         "no ships authorised past this point."
     ),
 )

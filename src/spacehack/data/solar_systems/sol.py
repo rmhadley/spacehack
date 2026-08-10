@@ -46,22 +46,22 @@ _planets: tuple[solar_module.Planet, ...] = (
     solar_module.Planet(
         id="mercury", name="Mercury", char="m", fg=(180, 175, 165),
         pos=world.Position(75, 51), width=2, height=2,
-        description="A scorched rocky world — closest orbit to Sol.",
+        description="A scorched rocky world - closest orbit to Sol.",
     ),
     solar_module.Planet(
         id="venus", name="Venus", char="v", fg=(235, 215, 165),
         pos=world.Position(124, 94), width=3, height=3,
-        description="A dense, cloud-shrouded planet — second from Sol.",
+        description="A dense, cloud-shrouded planet - second from Sol.",
     ),
     solar_module.Planet(
         id="earth", name="Earth", char="o", fg=(130, 195, 230),
         pos=EARTH_POS, width=3, height=3,
-        description="Your home — blue oceans, green continents, one moon.",
+        description="Your home - blue oceans, green continents, one moon.",
     ),
     solar_module.Planet(
         id="mars", name="Mars", char="M", fg=(200, 50, 50),
         pos=world.Position(60, 99), width=3, height=3,
-        description="A red, dusty world — humanity's first off-world colony.",
+        description="A red, dusty world - humanity's first off-world colony.",
     ),
     # Outer gas/ice giants: the largest non-Sol bodies so the scout
     # ship reads as visually tiny next to Jupiter/Saturn even at
@@ -74,7 +74,7 @@ _planets: tuple[solar_module.Planet, ...] = (
     solar_module.Planet(
         id="saturn", name="Saturn", char="S", fg=(220, 200, 140),
         pos=world.Position(34, 89), width=7, height=7,
-        description="A ringed gas giant — the second-largest in Sol.",
+        description="A ringed gas giant - the second-largest in Sol.",
     ),
     solar_module.Planet(
         id="uranus", name="Uranus", char="U", fg=(160, 220, 235),
@@ -84,7 +84,7 @@ _planets: tuple[solar_module.Planet, ...] = (
     solar_module.Planet(
         id="neptune", name="Neptune", char="N", fg=(95, 145, 230),
         pos=world.Position(179, 109), width=5, height=5,
-        description="A deep-blue ice giant — the outermost classical planet.",
+        description="A deep-blue ice giant - the outermost classical planet.",
     ),
 )
 
@@ -137,7 +137,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(193, 128),
         width=2, height=2,
         connects_to=(("epsilon_eridani", "jump_sol"),),
-        description="A humming FTL gate facing Epsilon Eridani — the deep-space corridor.",
+        description="A humming FTL gate facing Epsilon Eridani - the deep-space corridor.",
     ),
     # 61 Cygni Gate: a FOURTH gate from Sol, opening the North Arm
     # (61 Cygni -> Epsilon Indi -> Groombridge 34). Positioned at the
@@ -153,7 +153,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(100, 5),
         width=2, height=2,
         connects_to=(("cygni", "jump_sol"),),
-        description="A humming FTL gate ringing the northern edge of Sol — the North Arm.",
+        description="A humming FTL gate ringing the northern edge of Sol - the North Arm.",
     ),
 )
 

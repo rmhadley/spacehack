@@ -51,7 +51,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         description=(
             "A hauler in Vega is shipping machine parts to a militia outpost. "
             "We could use those parts ourselves. Intercept them, bring the "
-            "components back to me. Watch out — they may have escorts."
+            "components back to me. Watch out - they may have escorts."
         ),
         giver_npc_id="barkeep",
         faction="bar",
@@ -74,7 +74,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Sirius Luxury",
         description=(
             "A merchant freighter running luxury goods through Sirius Station. "
-            "Armed and alert. The cargo is worth a fortune — half for you, "
+            "Armed and alert. The cargo is worth a fortune - half for you, "
             "half for me. Bring back the luxury goods."
         ),
         giver_npc_id="barkeep",
@@ -99,7 +99,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Frontier Tech",
         description=(
             "Deep in Luyten's Star, a merchant caravan is transporting "
-            "experimental electronics. They're armed to the teeth — this is "
+            "experimental electronics. They're armed to the teeth - this is "
             "the big one. Pull this off and you'll be set for months."
         ),
         giver_npc_id="barkeep",
@@ -127,7 +127,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Mars Weapons Run",
         description=(
             "A crate of black-market side-arms needs to reach the Mars "
-            "Barkeep. The colony patrol scans incoming freight — fly "
+            "Barkeep. The colony patrol scans incoming freight - fly "
             "quiet, or pay the price."
         ),
         giver_npc_id="barkeep",
@@ -154,7 +154,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         description=(
             "Experimental electronics, no questions asked. The Binary "
             "Observer at the research station pays well for hardware that "
-            "fell off the back of a freighter. Sirius is patrolled — "
+            "fell off the back of a freighter. Sirius is patrolled - "
             "mind the scans."
         ),
         giver_npc_id="barkeep",
@@ -179,7 +179,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Vega Narcotics",
         description=(
             "The Cloud Host on Vega b has clients with expensive tastes. "
-            "Ship the luxury goods through the orbital checkpoint — the "
+            "Ship the luxury goods through the orbital checkpoint - the "
             "station scans everything that docks."
         ),
         giver_npc_id="barkeep",
@@ -206,7 +206,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         id="bar_smuggle_frontier_fuel",
         title="Frontier Fuel Heist",
         description=(
-            "Fuel cells — a lot of them — need to reach the Bounty Master "
+            "Fuel cells - a lot of them - need to reach the Bounty Master "
             "at Blockade Station, the last port before uncharted space. "
             "The blockade runs the tightest scans in the sector. This one "
             "pays like a heist because it is one."
@@ -269,7 +269,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         title="Epsilon Drive",
         description=(
             "A freighter went down near Epsilon Eridani with a hold of "
-            "electronics. Two pirates are picking it clean — and they "
+            "electronics. Two pirates are picking it clean - and they "
             "won't share. Clear the patrol and board the wreck for the "
             "drive components."
         ),
@@ -297,7 +297,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         description=(
             "A big freighter is dead in the water off Procyon, and a raider "
             "crew with a scout escort has claimed it. The reactor core is "
-            "still intact — fuel cells for the taking. Clear the patrol, "
+            "still intact - fuel cells for the taking. Clear the patrol, "
             "board, and strip the engine room."
         ),
         giver_npc_id="barkeep",
@@ -324,7 +324,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         description=(
             "Deep in Luyten's Star, a pirate captain and his raiders are "
             "guarding a gutted luxury liner. The cargo vault is still "
-            "sealed — luxury goods waiting. This one's a full boarding "
+            "sealed - luxury goods waiting. This one's a full boarding "
             "action: clear the space patrol, then fight the crew inside "
             "deck by deck."
         ),

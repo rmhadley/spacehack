@@ -99,7 +99,7 @@ NPCS: tuple[NPC, ...] = (
         char="A",
         fg=(200, 200, 180),                         # warm grey
         flavor_text=(
-            "Fuel pumps are online. The deep-space run is long — "
+            "Fuel pumps are online. The deep-space run is long - "
             "make sure your tanks are topped before you push further out."
         ),
     ),
@@ -114,7 +114,7 @@ NPCS: tuple[NPC, ...] = (
         char="K",
         fg=(130, 230, 220),                         # teal (militia colour)
         flavor_text=(
-            "This is the line. Past Luyten's Star is uncharted space — "
+            "This is the line. Past Luyten's Star is uncharted space - "
             "no patrols, no beacons, no backup. Turn back while you still can."
         ),
     ),
@@ -134,7 +134,7 @@ NPCS: tuple[NPC, ...] = (
         flavor_text=(
             "Breach charges, cutting torches, doors that don't want "
             "to open. If the patrol captain vouched for you, then "
-            "the work is off the books — understand?"
+            "the work is off the books - understand?"
         ),
     ),
     NPC(
@@ -145,7 +145,7 @@ NPCS: tuple[NPC, ...] = (
         fg=(200, 230, 130),                         # pale gold-green
         flavor_text=(
             "I've stripped more claims than the guild keeps records "
-            "of. Word of the abandoned claim reached me — if the "
+            "of. Word of the abandoned claim reached me - if the "
             "escrow ore's still there, I want my cut."
         ),
     ),

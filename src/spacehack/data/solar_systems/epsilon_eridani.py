@@ -35,7 +35,7 @@ _planets: tuple[solar_module.Planet, ...] = (
     # Small 2x2 footprint so it reads as a single-char body
     # compared to the star.
     solar_module.Planet(
-        id="eri_b", name="ε Eri b",
+        id="eri_b", name="Epsilon Eri b",
         char="p", fg=(190, 130, 90),
         pos=world.Position(60, 50), width=2, height=2,
         description="A warm, rocky super-Earth in the habitable zone.",
@@ -43,10 +43,10 @@ _planets: tuple[solar_module.Planet, ...] = (
     # ε Eri c — cold gas giant with the refueling depot.
     # 4x4 footprint, outer orbit.
     solar_module.Planet(
-        id="eri_c", name="ε Eri c",
+        id="eri_c", name="Epsilon Eri c",
         char="P", fg=(160, 190, 220),
         pos=world.Position(155, 95), width=4, height=4,
-        description="A cold gas giant — the system's outer sentinel.",
+        description="A cold gas giant - the system's outer sentinel.",
     ),
 )
 
@@ -56,9 +56,9 @@ _planets: tuple[solar_module.Planet, ...] = (
 _eri_c = [p for p in _planets if p.id == "eri_c"][0]
 _stations = (station_near(
     _eri_c, east=9, north=3, station_id="eri_depot",
-    name="ε Eri Refueling Depot",
+    name="Epsilon Eri Refueling Depot",
     description=(
-        "A refueling outpost in high orbit around ε Eri c — "
+        "A refueling outpost in high orbit around Epsilon Eri c - "
         "the last gas stop before the deep chain."
     ),
 ),)

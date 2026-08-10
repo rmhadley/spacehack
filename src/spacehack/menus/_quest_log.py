@@ -223,7 +223,7 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
             if _total_days >= 0:
                 ui.paint_line(console, col_x, detail_top, ui.fit_text(f'Due: {_date_str} ({_total_days} days)', max_w), fg=ui.COLOR_OPTION_HIGHLIGHT)
             else:
-                ui.paint_line(console, col_x, detail_top, ui.fit_text(f'EXPIRED — Due: {_date_str}', max_w), fg=(255, 80, 80))
+                ui.paint_line(console, col_x, detail_top, ui.fit_text(f'EXPIRED - Due: {_date_str}', max_w), fg=(255, 80, 80))
             detail_top += 1
 
     detail_top += 2

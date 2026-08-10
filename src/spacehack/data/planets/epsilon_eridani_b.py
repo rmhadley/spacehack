@@ -30,10 +30,10 @@ from .themes import WARM_EARTH
 SPEC = PlanetSpec(
     theme=WARM_EARTH,
     id="eri_b",
-    name="ε Eri b",
+    name="Epsilon Eri b",
     char="p",
     fg=(190, 130, 90),
-    description="A warm, rocky super-Earth — the first deep-space settlement.",
+    description="A warm, rocky super-Earth - the first deep-space settlement.",
     width=60,
     height=40,
     hangar_anchor=world.Position(13, 17),
@@ -87,7 +87,7 @@ SPEC = PlanetSpec(
                 fg=(210, 170, 100),
                 flavor_text=(
                     "First settlement past Sol runs on what gets "
-                    "hauled in. Electronics, meds, machine parts — "
+                    "hauled in. Electronics, meds, machine parts - "
                     "bring them and I'll make it worth your fuel."
                 ),
             ),

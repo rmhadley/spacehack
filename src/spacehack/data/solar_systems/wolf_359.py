@@ -29,7 +29,7 @@ _planets: tuple[solar_module.Planet, ...] = (
         char="O", fg=(255, 80, 50),                  # deep cool red
         pos=world.Position(100, 70), width=7, height=7,
         sun=True,
-        description="A dim red dwarf — one of the faintest stars in the sky.",
+        description="A dim red dwarf - one of the faintest stars in the sky.",
     ),
     # A single barren rocky world — dark, airless.
     solar_module.Planet(

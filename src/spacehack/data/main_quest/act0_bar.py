@@ -150,7 +150,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         description=(
             "The old smuggler drew the cave where the old job went "
             "wrong. Descend into the Barnard's Star b surface caves "
-            "and recover the rig's power cell — decades-old "
+            "and recover the rig's power cell - decades-old "
             "militia-issue hardware."
         ),
         trigger_planet_id="barnards_b",
@@ -170,12 +170,12 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="old_smuggler",
                 intro=(
                     "The cave's up the ridge, past the old dig markers. "
-                    "The cell is down in the dark — watch your step, "
+                    "The cell is down in the dark - watch your step, "
                     "and watch the sky. The militia's been circling."
                 ),
                 active=(
                     "The cave's up the ridge. The power cell is down "
-                    "in the dark — and the militia knows you're "
+                    "in the dark - and the militia knows you're "
                     "looking for it."
                 ),
                 complete=(
@@ -193,7 +193,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="bar_q4_blackmarket",
         title="Black-Market Recharge",
         description=(
-            "The power cell is in your hold — unstable and hot. "
+            "The power cell is in your hold - unstable and hot. "
             "Take it to the Wolf 359 listening post. The black-market "
             "operator there has the only rig that can recharge it."
         ),
@@ -344,7 +344,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                 npc_id="barkeep",
                 trigger_on_talk=True,
                 intro=(
-                    "There she is — the old rig rebuilt for a door that was never meant to "
+                    "There she is - the old rig rebuilt for a door that was never meant to "
                     "open. It does not crack the seal so much as convince the power "
                     "feed to stop pretending it is dead. The Militia will watch you "
                     "from here on. Welcome to the family, friend."

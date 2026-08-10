@@ -59,7 +59,7 @@ SHIPS: tuple[Ship, ...] = (
         price=5000,
         width=1, height=1,
         description=(
-            "A small, fast scoutship — quick on cargo runs, lightly armed."
+            "A small, fast scoutship - quick on cargo runs, lightly armed."
         ),
         speed=14,
         weapon_slots=4,
@@ -109,7 +109,7 @@ SHIPS: tuple[Ship, ...] = (
         price=25000,
         width=1, height=1,
         description=(
-            "A well-armed cruiser — capable in a fight, well-shielded."
+            "A well-armed cruiser - capable in a fight, well-shielded."
         ),
         speed=9,
         weapon_slots=6,

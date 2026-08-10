@@ -30,7 +30,7 @@ _planets: tuple[solar_module.Planet, ...] = (
         char="O", fg=(255, 235, 140),                # warm golden-yellow
         pos=world.Position(100, 70), width=11, height=11,
         sun=True,
-        description="A G-type main-sequence star — one of Sol's nearest cousins.",
+        description="A G-type main-sequence star - one of Sol's nearest cousins.",
     ),
     # Tau Cet b — habitable-zone rocky planet, 2x2.
     solar_module.Planet(
@@ -51,7 +51,7 @@ _planets: tuple[solar_module.Planet, ...] = (
         id="tc_d", name="Tau Cet d",
         char="P", fg=(170, 210, 240),
         pos=world.Position(150, 100), width=4, height=4,
-        description="A cold ice giant — the system's outermost planet.",
+        description="A cold ice giant - the system's outermost planet.",
     ),
 )
 
@@ -63,7 +63,7 @@ _stations = (station_near(
     _tc_d, east=9, north=3, station_id="tc_depot",
     name="Tau Cet Refueling Depot",
     description=(
-        "A refueling depot in orbit around Tau Cet d — the "
+        "A refueling depot in orbit around Tau Cet d - the "
         "last stop before the Wolf 359 frontier."
     ),
 ),)

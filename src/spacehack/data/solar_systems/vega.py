@@ -107,7 +107,7 @@ _jump_points: tuple[JumpPoint, ...] = (
         pos=world.Position(193, 100),
         width=2, height=2,
         connects_to=(("procyon", "jump_vega"),),
-        description="A humming FTL gate facing Procyon — the deep-space shortcut.",
+        description="A humming FTL gate facing Procyon - the deep-space shortcut.",
     ),
 )
 
