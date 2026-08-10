@@ -4,10 +4,12 @@ This tool does not change the game renderer. It opens a separate Pygame
 window with the current loaded tcod bitmap raster on the left and Pygame
 font-rendered samples on the right.
 
-Run from the project root after installing the optional visual dependency:
+Run from the project root in a virtual environment (recommended on macOS/Homebrew):
 
-    pip install -e '.[visual]'
-    python3 tools/text_render_spike.py
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install -e '.[visual]'
+    python tools/text_render_spike.py
 
 Use ``--help`` for font, size, scaling, and antialiasing options. Close the
 window or press Escape/Q to exit.
@@ -100,7 +102,7 @@ def _load_pygame() -> Any:
         import pygame
     except ModuleNotFoundError as exc:
         raise SystemExit(
-            "Pygame is not installed. Run: pip install -e '.[visual]'"
+            "Pygame is not installed. Create/activate .venv, then run: python -m pip install -e '.[visual]'"
         ) from exc
     return pygame
 
@@ -111,7 +113,7 @@ def _load_numpy() -> Any:
         import numpy
     except ModuleNotFoundError as exc:
         raise SystemExit(
-            "NumPy is not installed. Run: pip install -e '.[visual]'"
+            "NumPy is not installed. Create/activate .venv, then run: python -m pip install -e '.[visual]'"
         ) from exc
     return numpy
 

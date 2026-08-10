@@ -125,13 +125,18 @@ without changing the game, install the visual extra and run the standalone
 spike:
 
 ```bash
-pip install -e '.[visual]'
-python3 tools/text_render_spike.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[visual]'
+python tools/text_render_spike.py
 ```
 
 The left panel is the current game bitmap; the right panel uses a system
 monospace font. Use `--no-aa`, `--size`, `--scale`, or `--font` to explore
 alternatives. Pygame and NumPy are optional and are not required to run the game.
+On macOS/Homebrew, use the virtual-environment commands above rather than
+installing into the system Python; otherwise PEP 668 may report an
+`externally-managed-environment` error.
 
 ## How to play
 
