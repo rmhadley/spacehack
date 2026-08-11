@@ -91,7 +91,7 @@ _GUIDE_CONTROLS = GuideSection(
         "cargo, view loadout), NPCs (talk/missions), terminals"
         "(trade, mechanic: refuel/repair/manage loadout)"
         "\n"
-        "- ESC: quit the game"
+        "- ESC: save and exit to the main menu (asks first)"
         "\n\n"
         "Space mode:"
         "\n"

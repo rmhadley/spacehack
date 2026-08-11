@@ -172,6 +172,25 @@ def _run_pygame_dungeon_confirm(
     )
 
 
+def _run_pygame_exit_confirm(ctx) -> bool:
+    """Ask before saving and returning to the main menu (ESC).
+
+    Returns True when the player confirms; the caller then saves and
+    leaves. Any dismissal (ESC, window close) keeps the run going.
+    """
+    from . import pygame_story
+
+    result = pygame_story.confirm(
+        ctx,
+        title="EXIT TO MAIN MENU",
+        body="Save your progress and return to the main menu?",
+        accept_label="Save & Exit",
+        cancel_label="Keep Playing",
+        caption="spacehack",
+    )
+    return result == "CONFIRM"
+
+
 def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
     """Move ground NPCs, refresh the LOS frame, then detect + run
     ground combat if any hostile is now visible.
@@ -705,6 +724,11 @@ def _run_game_loop(
         ctx.context.present(console, overlay=_overlay)
         for event in tcod.event.wait():
             if should_quit(event):
+                # ESC confirms before leaving; a raw window close (Quit
+                # event) exits immediately — the window is already gone.
+                if isinstance(event, tcod.event.KeyDown):
+                    if not _run_pygame_exit_confirm(ctx):
+                        continue
                 if current_mode == 'dungeon':
                     _save_game(ctx, mode='dungeon', city_id=current_city_id,
                                system_id=solar_system_module.current_solar_system_id,

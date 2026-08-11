@@ -3179,3 +3179,42 @@ def test_menu_draw_frame_skips_log_when_flag_is_off(monkeypatch):
     pygame_menu._draw_frame(FakePygame, screen, FakeFont(), frame, context=context)
 
     assert len(log_calls) == 1
+
+
+def test_exit_to_menu_confirm_returns_true_only_on_confirm(monkeypatch):
+    from src.spacehack import __main__ as game_main
+    from src.spacehack import pygame_story
+
+    captured = {}
+    monkeypatch.setattr(
+        pygame_story,
+        "confirm",
+        lambda ctx, **kwargs: captured.update(
+            ctx=ctx, kwargs=kwargs,
+        ) or "CONFIRM",
+    )
+    ctx = SimpleNamespace()
+
+    assert game_main._run_pygame_exit_confirm(ctx) is True
+    assert captured["ctx"] is ctx
+    assert captured["kwargs"]["title"] == "EXIT TO MAIN MENU"
+    assert captured["kwargs"]["accept_label"] == "Save & Exit"
+    assert captured["kwargs"]["cancel_label"] == "Keep Playing"
+
+    for dismissal in ("BACK", "QUIT", None):
+        monkeypatch.setattr(
+            pygame_story,
+            "confirm",
+            lambda *args, _result=dismissal, **kwargs: _result,
+        )
+        assert game_main._run_pygame_exit_confirm(ctx) is False
+
+
+def test_guide_says_esc_saves_and_confirms_before_exit():
+    from src.spacehack.help import GUIDE_SECTIONS
+
+    controls = next(
+        section for section in GUIDE_SECTIONS
+        if section.title == "Controls & Keybindings"
+    )
+    assert "save and exit to the main menu (asks first)" in controls.body
