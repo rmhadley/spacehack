@@ -64,6 +64,27 @@ def patch_stanza(file: Path, name: str, value: str) -> bool:
     return True
 
 
+def formula_url(version: str) -> str:
+    """Source tarball URL for the v<version> tag (literal - no version stanza in the formula)."""
+    return f"https://github.com/{REPO}/archive/refs/tags/v{version}.tar.gz"
+
+
+def patch_formula_url(formula: Path, version: str) -> bool:
+    """Rewrite the formula's literal tag URL in place. Returns True if changed."""
+    text = formula.read_text()
+    pattern = re.compile(r'^(\s*)url "([^"]*archive/refs/tags/v[^"/]+\.tar\.gz)"', re.MULTILINE)
+    match = pattern.search(text)
+    if match is None:
+        sys.exit(f"error: no tag url stanza found in {formula}")
+    new_uri = formula_url(version)
+    if match.group(2) == new_uri:
+        return False
+    formula.write_text(
+        pattern.sub(lambda m: f'{m.group(1)}url "{new_uri}"', text, count=1)
+    )
+    return True
+
+
 def release_asset_url(version: str) -> str:
     """URL of the macOS .app zip attached to the v<version> release."""
     api = f"https://api.github.com/repos/{REPO}/releases/tags/v{version}"
@@ -122,15 +143,18 @@ def main() -> int:
         do_cask = args.zip is not None
         do_formula = args.tarball is not None
 
-    changed = False
     if do_cask:
         new_sha = sha256_of(Path(args.zip)) if args.zip else download_sha(release_asset_url(version))
+        # The cask keeps a #{version}-interpolated url, so only its version
+        # and sha256 stanzas need patching.
         changed = patch_stanza(cask, "version", version) | patch_stanza(cask, "sha256", new_sha)
         print(f"cask:    version={version} sha256={new_sha} {'(changed)' if changed else '(up to date)'}")
     if do_formula:
         new_sha = sha256_of(Path(args.tarball)) if args.tarball else download_sha(source_tarball_url(version))
-        changed = patch_stanza(formula, "version", version) | patch_stanza(formula, "sha256", new_sha)
-        print(f"formula: version={version} sha256={new_sha} {'(changed)' if changed else '(up to date)'}")
+        # The formula's URL is literal (version is derived from the tag), so
+        # a version bump rewrites the url line instead of a version stanza.
+        changed = patch_formula_url(formula, version) | patch_stanza(formula, "sha256", new_sha)
+        print(f"formula: tag={version} sha256={new_sha} {'(changed)' if changed else '(up to date)'}")
     return 0
 
 
