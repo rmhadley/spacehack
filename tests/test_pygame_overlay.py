@@ -79,6 +79,12 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     assert frame.message_height == 6
 
 
+def test_normalize_bg_maps_default_black_to_none():
+    assert pygame_overlay._normalize_bg(None) is None
+    assert pygame_overlay._normalize_bg((0, 0, 0)) is None
+    assert pygame_overlay._normalize_bg((255, 255, 255)) == (255, 255, 255)
+
+
 def test_overlay_payload_round_trips_segments_and_layout():
     frame = pygame_overlay.OverlayFrame(
         hud=(pygame_overlay.OverlaySegment(80, 0, "HUD", (1, 2, 3)),),
@@ -192,8 +198,224 @@ def test_draw_segments_paints_background_highlight_before_text(monkeypatch):
     assert len(filled) == 1
     fill_color, fill_rect = filled[0]
     assert fill_color == (255, 255, 255)
-    assert fill_rect.args == (1292, 36, 32, 16)
+    # The highlight hugs the drawn glyphs (2 chars x 8px), not the full cells.
+    assert fill_rect.args == (1292, 36, 16, 16)
     assert drawn == [("##", 1292, 36)]
+
+
+def test_draw_segments_chains_contiguous_segments_by_glyph_width(monkeypatch):
+    # Mirrors the combat shield line: a white regen segment splits the run,
+    # but the trailing text must land exactly where an un-split line would
+    # put it — never pushed right by cell-aligned jumps.
+    drawn = []
+    filled = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+        class draw:
+            @staticmethod
+            def rect(_screen, color, rect):
+                filled.append((color, rect))
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 12)
+
+        def get_linesize(self):
+            return 12
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    pygame_overlay._draw_segments(
+        FakePygame,
+        FakeScreen(),
+        FakeFont(),
+        (
+            pygame_overlay.OverlaySegment(80, 5, "Shd  ", (1, 2, 3)),
+            pygame_overlay.OverlaySegment(85, 5, "#####", (1, 2, 3), (255, 255, 255)),
+            pygame_overlay.OverlaySegment(90, 5, "#.... 60%", (1, 2, 3)),
+        ),
+        origin_x=1280,
+        origin_y=0,
+        width=320,
+        height=864,
+        origin_cell_x=80,
+        origin_cell_y=0,
+    )
+
+    # 'Shd  ' at 1292 (5x8px) -> white segment chains at 1332 -> trailing
+    # text chains at 1372. A cell-aligned layout would have placed the white
+    # segment at 1372 and the trailing text at 1452.
+    assert drawn == [
+        ("Shd  ", 1292, 84),
+        ("#####", 1332, 84),
+        ("#.... 60%", 1372, 84),
+    ]
+    assert len(filled) == 1
+    fill_color, fill_rect = filled[0]
+    assert fill_color == (255, 255, 255)
+    assert fill_rect.args == (1332, 84, 40, 16)
+
+
+def test_draw_segments_split_line_keeps_trailing_text_at_un_split_position(monkeypatch):
+    # Regression for the reported bug: as the shield-regen highlight grows,
+    # the ' 60%' readout must stay exactly where an un-split line renders it.
+    drawn = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+        class draw:
+            @staticmethod
+            def rect(_screen, _color, rect):
+                pass
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 12)
+
+        def get_linesize(self):
+            return 12
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    def draw_with(segments):
+        drawn.clear()
+        pygame_overlay._draw_segments(
+            FakePygame, FakeScreen(), FakeFont(), segments,
+            origin_x=1280, origin_y=0, width=320, height=864,
+            origin_cell_x=80, origin_cell_y=0,
+        )
+        return dict((text, x) for text, x, _y in drawn)
+
+    # Rate 0: one un-split line (' 60%' starts 15 chars in, '%' is the 19th).
+    draw_with((pygame_overlay.OverlaySegment(80, 5, "Shd  ######.... 60%", (1, 2, 3)),))
+    # Rate 10: the highlight splits the line into three segments.
+    split = draw_with((
+        pygame_overlay.OverlaySegment(80, 5, "Shd  ", (1, 2, 3)),
+        pygame_overlay.OverlaySegment(85, 5, "######....", (1, 2, 3), (255, 255, 255)),
+        pygame_overlay.OverlaySegment(95, 5, " 60%", (1, 2, 3)),
+    ))
+
+    # The '%' glyph must land at the same pixel whether the line is split
+    # (1412 + 3*8) or un-split (1292 + 18*8) — both are 1436.
+    assert split[" 60%"] == 1292 + 15 * 8
+    assert split[" 60%"] + 3 * 8 == 1292 + 18 * 8
+
+
+def test_draw_segments_resets_chaining_at_row_boundaries(monkeypatch):
+    drawn = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+        class draw:
+            @staticmethod
+            def rect(_screen, _color, rect):
+                pass
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 12)
+
+        def get_linesize(self):
+            return 12
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    pygame_overlay._draw_segments(
+        FakePygame, FakeScreen(), FakeFont(),
+        (
+            pygame_overlay.OverlaySegment(80, 5, "Shd  ", (1, 2, 3)),
+            pygame_overlay.OverlaySegment(85, 6, "AB", (1, 2, 3)),  # next row, x-contiguous
+        ),
+        origin_x=1280, origin_y=0, width=320, height=864,
+        origin_cell_x=80, origin_cell_y=0,
+    )
+
+    # Row 2 starts at its cell position (1292 + 5*16), not chained after row 1.
+    assert drawn == [("Shd  ", 1292, 84), ("AB", 1372, 100)]
+
+
+def test_draw_segments_falls_back_to_cell_position_on_gap(monkeypatch):
+    drawn = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+        class draw:
+            @staticmethod
+            def rect(_screen, _color, rect):
+                pass
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 12)
+
+        def get_linesize(self):
+            return 12
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    pygame_overlay._draw_segments(
+        FakePygame,
+        FakeScreen(),
+        FakeFont(),
+        (
+            pygame_overlay.OverlaySegment(80, 5, "AB", (1, 2, 3)),
+            pygame_overlay.OverlaySegment(83, 5, "CD", (1, 2, 3)),  # gap at cell 82
+        ),
+        origin_x=1280,
+        origin_y=0,
+        width=320,
+        height=864,
+        origin_cell_x=80,
+        origin_cell_y=0,
+    )
+
+    # Non-contiguous segments keep their cell-aligned positions.
+    assert drawn == [("AB", 1292, 84), ("CD", 1340, 84)]
 
 
 def test_present_exploration_uses_shared_overlay_and_tcod_fallback(monkeypatch):

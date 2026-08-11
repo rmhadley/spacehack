@@ -37,8 +37,18 @@ class OverlaySegment:
 
 
 def _normalize_bg(value: Any) -> Color | None:
-    """Normalize a background color value (``None`` when unpainted)."""
-    return tuple(value) if value is not None else None
+    """Normalize a background color value (``None`` when unpainted).
+
+    Native tcod consoles report the default black background for every
+    cell the renderer never painted; treating that as a real background
+    would paint black fills behind ordinary HUD text. Map it to ``None``
+    so only intentionally painted backgrounds (e.g. the shield-regen
+    highlight) produce fills.
+    """
+    if value is None:
+        return None
+    color = tuple(value)
+    return None if color == (0, 0, 0) else color
 
 
 def _bg_of(command: Any) -> Color | None:
@@ -281,22 +291,43 @@ def _draw_segments(
     screen.set_clip(clip)
     try:
         measure = lambda text: pygame_ui.measure_font(font, text)
+        prev_end_x: int | None = None   # pixel x where the previous text ended
+        prev_end_cell: int | None = None  # cell index after the previous segment
+        prev_y: int | None = None
         for segment in segments:
-            x = origin_x + padding_x + (segment.x - origin_cell_x) * TILE_WIDTH
+            # Glyph-accurate layout: when this segment continues the previous
+            # segment's run (no cell gap), place it exactly where the previous
+            # segment's rendered text ends instead of at a cell boundary.
+            # Splitting one text run into colored segments (e.g. the shield
+            # bar's regen highlight) must not move the remaining text — a
+            # cell-aligned start would push the percentage readout right as
+            # the highlight grows.
+            if prev_y is not None and segment.y != prev_y:
+                prev_end_x = prev_end_cell = None
+            if (
+                prev_end_x is not None
+                and prev_end_cell is not None
+                and segment.x == prev_end_cell
+            ):
+                x = prev_end_x
+            else:
+                x = origin_x + padding_x + (segment.x - origin_cell_x) * TILE_WIDTH
             y = origin_y + padding_y + (segment.y - origin_cell_y) * TILE_HEIGHT
-            # Background fill: paint a highlight spanning the segment's
-            # logical cells BEFORE the text so glyphs stay readable.
-            if segment.bg is not None:
-                pygame.draw.rect(
-                    screen,
-                    segment.bg,
-                    pygame.Rect(x, y, len(segment.text) * TILE_WIDTH, TILE_HEIGHT),
-                )
             text = pygame_ui.fit_text(
                 segment.text,
                 max(1, origin_x + width - padding_x - x),
                 measure,
             )
+            text_width = measure(text)
+            # Background highlight spans the drawn glyphs, not the full
+            # logical cells — proportional glyphs are narrower than the
+            # 16px cells, so a cell-wide fill reads wider than its text.
+            if segment.bg is not None and text:
+                pygame.draw.rect(
+                    screen,
+                    segment.bg,
+                    pygame.Rect(x, y, text_width, TILE_HEIGHT),
+                )
             pygame_ui.draw_text(
                 pygame,
                 screen,
@@ -306,6 +337,9 @@ def _draw_segments(
                 y,
                 color=segment.color,
             )
+            prev_end_x = x + text_width
+            prev_end_cell = segment.x + len(segment.text)
+            prev_y = segment.y
     finally:
         screen.set_clip(None)
 
