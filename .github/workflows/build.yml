@@ -24,7 +24,10 @@ jobs:
           pip install pyinstaller
 
       - name: Build standalone .app
-        run: pyinstaller --clean spacehack.spec
+        run: |
+          # Fail the build if PyInstaller's own bundle signing fails; by
+          # default it only logs a warning and ships an unsigned .app.
+          PYINSTALLER_STRICT_BUNDLE_CODESIGN_ERROR=1 pyinstaller --clean spacehack.spec
 
       # macOS enforces a signature on every nested binary (mandatory on
       # Apple Silicon); unsigned dylibs make the app open as "damaged".
@@ -32,8 +35,8 @@ jobs:
       - name: Ad-hoc deep-sign the .app
         run: codesign --force --deep --sign - dist/spacehack.app
 
-      - name: Verify the signature
-        run: codesign --verify --verbose dist/spacehack.app
+      - name: Verify the signature (strict, includes nested code)
+        run: codesign --verify --deep --strict --verbose=2 dist/spacehack.app
 
       - name: Package .app as .zip
         run: |
@@ -42,7 +45,13 @@ jobs:
           cp "packaging/Open Spacehack.command" dist/
           chmod +x "dist/Open Spacehack.command"
           cd dist
-          zip -r spacehack-macos.zip spacehack.app "Open Spacehack.command"
+          # ditto --sequesterRsrc, NOT plain zip: PyInstaller .app bundles
+          # store code signatures for non-binary files (the whole data tree,
+          # spacehack.pkg, ...) in extended attributes, and plain `zip -r`
+          # drops those - making the downloaded app's signature INVALID
+          # ("damaged", Open Anyway can't fix it). ditto stores them in
+          # __MACOSX/._* files that Archive Utility restores on extract.
+          ditto -c -k --sequesterRsrc spacehack.app "Open Spacehack.command" spacehack-macos.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

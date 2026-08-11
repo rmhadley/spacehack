@@ -71,7 +71,9 @@ zip: dist
 # ──────────────────────────────────────────────
 pyinstaller:
 	$(PYTHON) -m pip install pyinstaller --quiet 2>/dev/null || true
-	pyinstaller --clean --noconfirm spacehack.spec
+	# PYINSTALLER_STRICT_BUNDLE_CODESIGN_ERROR: fail if PyInstaller's own
+	# bundle signing fails (default is a warning-only, unsigned .app).
+	PYINSTALLER_STRICT_BUNDLE_CODESIGN_ERROR=1 pyinstaller --clean --noconfirm spacehack.spec
 	@echo "─── Standalone build ready in dist/ ───"
 
 # ──────────────────────────────────────────────
@@ -84,7 +86,7 @@ pyinstaller:
 app: pyinstaller
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
 		codesign --force --deep --sign - dist/spacehack.app; \
-		codesign --verify --verbose dist/spacehack.app; \
+		codesign --verify --deep --strict --verbose=2 dist/spacehack.app; \
 		cp "packaging/Open Spacehack.command" dist/; \
 		chmod +x "dist/Open Spacehack.command"; \
 		echo "─── Signed spacehack.app + Gatekeeper launcher ready in dist/ ───"; \
