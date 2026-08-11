@@ -368,66 +368,119 @@ def test_ground_defeat_shows_full_screen_death_frame(monkeypatch):
     assert shown[0][1]["lines"] == ("YOU DIED", "You collapse from your wounds.")
 
 
-def test_navigation_capture_trims_empty_rows_for_readable_font_fit(monkeypatch):
-    captured = pygame_world.CaptureConsole(100, 60)
-
-    def fake_render(console, _ctx, **_kwargs):
-        console.print(x=0, y=0, string="MAP", fg=(1, 2, 3))
-
+def test_navigation_capture_builds_native_data_without_legacy_renderer(monkeypatch):
+    system = SimpleNamespace(
+        id="test", name="Test", width=200, height=140, stars=(),
+        planets=(), jump_points=(), stations=(),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.solar_system.current_system",
+        lambda: system,
+    )
+    monkeypatch.setattr(
+        pygame_navigation.solar_system_module,
+        "reachable_system_ids",
+        lambda _system_id: {},
+    )
     monkeypatch.setattr(
         "src.spacehack.navigation.render_navigation",
-        fake_render,
-    )
-    monkeypatch.setattr(
-        pygame_navigation.pygame_world,
-        "CaptureConsole",
-        lambda _w, _h: captured,
-    )
-
-    frame = pygame_navigation._capture(SimpleNamespace(), SimpleNamespace(x=1, y=1))
-
-    assert len(frame.rows) == 1
-    assert frame.rows[0][0].text.startswith("MAP")
-
-
-def test_navigation_capture_splits_authoritative_map_and_aoi_regions(monkeypatch):
-    captured = pygame_world.CaptureConsole(100, 60)
-
-    def fake_render(console, _ctx, **_kwargs):
-        console.print(x=20, y=5, string="....@", fg=(255, 255, 100))
-        console.print(x=72, y=5, string="AREAS OF INTEREST", fg=(220, 230, 245))
-        console.print(x=72, y=6, string="Earth - 0.0u", fg=(232, 236, 246))
-
-    monkeypatch.setattr(
-        "src.spacehack.navigation.render_navigation",
-        fake_render,
-    )
-    monkeypatch.setattr(
-        pygame_navigation.pygame_world,
-        "CaptureConsole",
-        lambda _w, _h: captured,
-    )
-
-    frame = pygame_navigation._capture(SimpleNamespace(), SimpleNamespace(x=1, y=1))
-
-    assert frame.map_rows[0][0].text == "....@"
-    assert frame.aoi_rows[0][0].text == "AREAS OF INTEREST"
-    assert frame.aoi_rows[1][0].text == "Earth - 0.0u"
-    assert frame.title.startswith("NAVIGATION - ")
-    assert frame.position == "Position: (1, 1)"
-
-
-def test_navigation_crops_rows_without_losing_colour_spans():
-    rows = (
-        (
-            pygame_quest_log.QuestSpan("prefix", (1, 2, 3)),
-            pygame_quest_log.QuestSpan("MAP", (4, 5, 6)),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("native map must not call the legacy renderer")
         ),
     )
 
-    cropped = pygame_navigation._crop_rows(rows, x=6, y=0, width=3, height=1)
+    frame = pygame_navigation._capture(SimpleNamespace(), SimpleNamespace(x=1, y=1))
 
-    assert cropped == ((pygame_quest_log.QuestSpan("MAP", (4, 5, 6)),),)
+    assert frame.title == "NAVIGATION - TEST"
+    assert frame.markers[-1].tag == "YOU"
+
+
+def test_navigation_native_frame_builds_tagged_plot_data(monkeypatch):
+    from src.spacehack import solar_system
+
+    system = SimpleNamespace(
+        id="test",
+        name="Test",
+        width=200,
+        height=140,
+        stars=((10, 20),),
+        planets=(
+            SimpleNamespace(
+                name="Sun", pos=SimpleNamespace(x=100, y=70),
+                width=5, height=5, fg=(255, 220, 130), sun=True,
+            ),
+            SimpleNamespace(
+                name="Earth", pos=SimpleNamespace(x=40, y=50),
+                width=3, height=3, fg=(130, 195, 230), sun=False,
+            ),
+        ),
+        jump_points=(SimpleNamespace(
+            name="Vega Gate", pos=SimpleNamespace(x=190, y=100),
+            width=2, height=2, fg=(245, 215, 110),
+        ),),
+        stations=(),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.navigation.render_navigation",
+        lambda console, *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(solar_system, "current_system", lambda: system)
+    monkeypatch.setattr(
+        pygame_navigation.solar_system_module,
+        "reachable_system_ids",
+        lambda _system_id: {},
+    )
+
+    frame = pygame_navigation._capture(SimpleNamespace(), SimpleNamespace(x=12, y=14))
+
+    assert frame.map_width == 200
+    assert frame.map_height == 140
+    assert frame.stars == ((10, 20),)
+    assert [marker.tag for marker in frame.markers] == ["S1", "P1", "G1", "YOU"]
+    assert frame.markers[-1].kind == "ship"
+    assert frame.aoi_sections[0].title == "STARS"
+    assert frame.aoi_sections[1].rows[0].detail.endswith("u")
+    assert any(section.title == "JUMP GATES" for section in frame.aoi_sections)
+
+
+def test_navigation_plot_projection_scales_body_coordinates():
+    marker = pygame_navigation.NavigationMarker(
+        "P1", "Earth", "planet", 100, 70, 3, 3, (1, 2, 3),
+    )
+    point = pygame_navigation._plot_point(
+        marker, pygame_ui.Rect(100, 50, 400, 280), 200, 140,
+    )
+
+    assert point == (303, 193)
+
+
+def test_navigation_marker_labels_are_above_small_objects():
+    marker = pygame_navigation.NavigationMarker(
+        "P1", "Earth", "planet", 100, 70, 1, 1, (1, 2, 3),
+    )
+    plot = pygame_ui.Rect(100, 50, 400, 280)
+
+    x, y = pygame_navigation._marker_label_position(
+        marker, plot, 200, 140, _FakeFont(),
+    )
+    center_x, center_y = pygame_navigation._plot_point(marker, plot, 200, 140)
+
+    assert abs((x + _FakeFont().size(marker.tag)[0] // 2) - center_x) <= 1
+    assert y + _FakeFont().get_linesize() < center_y
+
+
+def test_navigation_marker_labels_fall_below_objects_at_top_edge():
+    marker = pygame_navigation.NavigationMarker(
+        "S1", "Sol", "star", 0, 0, 1, 1, (1, 2, 3),
+    )
+    plot = pygame_ui.Rect(100, 50, 400, 280)
+
+    _x, y = pygame_navigation._marker_label_position(
+        marker, plot, 200, 140, _FakeFont(),
+    )
+
+    _center_x, center_y = pygame_navigation._plot_point(marker, plot, 200, 140)
+    assert y > center_y
 
 
 def test_footer_rows_leave_exit_text_inside_hud_bounds():
