@@ -9,6 +9,8 @@ dist/
 *.egg-info/
 *.egg
 .eggs/
+# Transient PyInstaller spec launcher (spacehack.spec writes + cleans it)
+_spacehack_launcher.py
 
 # --- Virtual environments ---
 .venv/

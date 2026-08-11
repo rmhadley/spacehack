@@ -204,6 +204,12 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
 - `pyproject.toml` package-data ships the bitmap `data/*.png` plus
   `layouts/` and `landmarks/`; `spacehack.spec` bundles the complete data
   tree for frozen builds.
+- **macOS frozen builds must be ad-hoc deep-signed** — macOS (mandatory
+  on Apple Silicon) rejects unsigned nested dylibs as "damaged".
+  `make app` builds and signs (`codesign --force --deep --sign -`); the
+  release workflow does the same. Never set `codesign_identity='-'` in the
+  spec — it also enables hardened runtime, which makes ad-hoc-signed
+  dylibs fail library validation.
 
 ### Code quality guardrails
 

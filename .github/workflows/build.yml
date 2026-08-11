@@ -26,6 +26,15 @@ jobs:
       - name: Build standalone .app
         run: pyinstaller --clean spacehack.spec
 
+      # macOS enforces a signature on every nested binary (mandatory on
+      # Apple Silicon); unsigned dylibs make the app open as "damaged".
+      # Ad-hoc signing (identity '-') needs no Apple certificate.
+      - name: Ad-hoc deep-sign the .app
+        run: codesign --force --deep --sign - dist/spacehack.app
+
+      - name: Verify the signature
+        run: codesign --verify --verbose dist/spacehack.app
+
       - name: Package .app as .zip
         run: |
           cd dist

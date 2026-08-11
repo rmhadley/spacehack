@@ -120,6 +120,18 @@ coll = COLLECT(
 # macOS .app bundle (only built on macOS): wraps the COLLECT folder into a
 # standard spacehack.app/Contents/{MacOS,Frameworks} layout so every tcod /
 # numpy dylib is exposed transparently to the operating system.
+#
+# macOS requires every nested binary to carry at least an ad-hoc signature
+# (mandatory on Apple Silicon); unsigned dylibs make the app open as
+# "damaged".  PyInstaller ad-hoc signs by default, but if macOS still
+# rejects the bundle, force a local deep signature (or run `make app`):
+#
+#     codesign --force --deep --sign - dist/spacehack.app
+#     codesign --verify --verbose dist/spacehack.app
+#
+# Do NOT use codesign_identity='-' here: PyInstaller then also passes
+# --options=runtime (hardened runtime), which makes ad-hoc-signed dylibs
+# fail library validation at launch.
 # ---------------------------------------------------------------------------
 if sys.platform == 'darwin':
     app = BUNDLE(

@@ -13,7 +13,7 @@
 #   ├── run_spacehack.bat           # Windows: double-click
 #   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
-.PHONY: dist zip clean
+.PHONY: dist zip app pyinstaller clean
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -71,8 +71,24 @@ zip: dist
 # ──────────────────────────────────────────────
 pyinstaller:
 	$(PYTHON) -m pip install pyinstaller --quiet 2>/dev/null || true
-	pyinstaller --clean spacehack.spec
+	pyinstaller --clean --noconfirm spacehack.spec
 	@echo "─── Standalone build ready in dist/ ───"
+
+# ──────────────────────────────────────────────
+# app — macOS .app: build, ad-hoc deep-sign, verify
+# macOS enforces a signature on every nested binary (mandatory on Apple
+# Silicon); an unsigned bundle opens as "damaged".  Ad-hoc signing with
+# identity '-' needs no Apple certificate and is exactly what the OS
+# requires to accept the architecture components cleanly.
+# ──────────────────────────────────────────────
+app: pyinstaller
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		codesign --force --deep --sign - dist/spacehack.app; \
+		codesign --verify --verbose dist/spacehack.app; \
+		echo "─── Signed spacehack.app ready in dist/ ───"; \
+	else \
+		echo "─── .app bundle + codesign require macOS (skipped on $$(uname -s)) ───"; \
+	fi
 
 # ──────────────────────────────────────────────
 # clean
