@@ -5,36 +5,41 @@ ASCII-art sci-fi roguelike.
 
 ## Install
 
+Two ways to install:
+
 ```bash
 brew tap rmhadley/tap
-brew install --cask spacehack
+brew install --cask spacehack        # macOS .app in /Applications
+# or
+brew install spacehack               # `spacehack` command from a Cellar venv
 ```
 
-This downloads the macOS `.app` release (ad-hoc signed, no Developer ID).
-Homebrew does **not** apply the `com.apple.quarantine` attribute to cask
-installs, so the app opens normally on macOS 15+ with no Gatekeeper
-bypass and no `xattr -cr`.
+**Cask** — downloads the macOS `.app` release. Homebrew does not apply the
+`com.apple.quarantine` attribute to cask installs, so the app opens without
+a Gatekeeper bypass.
+
+**Formula** — builds the game into a Python venv inside the Cellar and
+installs a `spacehack` command. Because the game runs as a Python script
+launched from the terminal, there is **no `.app` bundle for Gatekeeper or
+LaunchServices to assess at all** — no quarantine, no signature
+requirement, nothing to bypass, on any macOS. This is the most
+gatekeeper-proof path. First install pulls the tcod/pygame/numpy wheels
+from PyPI (~100 MB); later installs are cached by Homebrew.
 
 ## Updating after a release
 
-Bump the cask to a new GitHub release (tag `v0.3.4`):
+Bump the tap to a new GitHub release (tag `v0.3.4`):
 
 ```bash
 python3 tools/update_cask.py --version 0.3.4
 ```
 
-Or just refresh the sha256 of the cask's current version:
+This updates **both** the cask (macOS zip sha256) and the formula (source
+tarball sha256) from the GitHub API. Or refresh just the current version's
+hashes with no arguments, and hash local files offline with `--zip` /
+`--tarball`. The script is stdlib-only — no brew or extra dependencies.
 
-```bash
-python3 tools/update_cask.py
-```
-
-The script downloads the release zip from GitHub, computes its sha256,
-and rewrites the `version` / `sha256` stanzas in `Casks/spacehack.rb`.
-It is stdlib-only — no brew or extra dependencies. For offline testing,
-`--zip path/to/spacehack-macos.zip` computes the hash of a local file.
-
-Commit and push; users then run `brew upgrade --cask spacehack`.
+Commit and push; users then run `brew upgrade` / `brew upgrade --cask spacehack`.
 
 ## Repository layout
 
@@ -46,9 +51,10 @@ account as the spacehack repo):
 gh repo create rmhadley/homebrew-tap --public --source packaging/homebrew-tap --push
 ```
 
-Casks live in `Casks/` (formulae would go in `Formula/`).
+Casks live in `Casks/`, formulae in `Formula/`.
 
 ## Notes
 
 - The release build is arm64-only (CI runs on Apple Silicon runners).
-- Local sanity check: `brew audit --cask Casks/spacehack.rb`
+- Local sanity checks: `brew audit --cask Casks/spacehack.rb` and
+  `brew audit --formula Formula/spacehack.rb`.
