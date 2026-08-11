@@ -216,9 +216,9 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   so the downloaded app's signature becomes INVALID — "damaged and can't
   be opened", and even Open Anyway fails (only `xattr -cr` bypasses it).
   The release workflow archives with `ditto -c -k --sequesterRsrc
-  --keepParent` (single source only; append extra files with plain zip).
-  Verify downloads with `codesign --verify --deep --strict`; if it fails,
-  the zip step is the culprit, not the signing.
+  --keepParent` (single source only). Verify downloads with
+  `codesign --verify --deep --strict`; if it fails, the zip step is the
+  culprit, not the signing.
 
 ### Code quality guardrails
 

@@ -87,9 +87,7 @@ app: pyinstaller
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
 		codesign --force --deep --sign - dist/spacehack.app; \
 		codesign --verify --deep --strict --verbose=2 dist/spacehack.app; \
-		cp "packaging/Open Spacehack.command" dist/; \
-		chmod +x "dist/Open Spacehack.command"; \
-		echo "─── Signed spacehack.app + Gatekeeper launcher ready in dist/ ───"; \
+		echo "─── Signed spacehack.app ready in dist/ ───"; \
 	else \
 		echo "─── .app bundle + codesign require macOS (skipped on $$(uname -s)) ───"; \
 	fi

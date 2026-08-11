@@ -92,13 +92,12 @@ Grab the latest release for your platform from the
 > The builds are ad-hoc signed (no paid Developer ID), so a downloaded app
 > shows "unidentified developer". Fixes, easiest first:
 >
-> 1. **Double-click `Open Spacehack.command`** (included in the zip, next to
->    the app) — it clears the quarantine attributes and launches the game.
-> 2. Right-click the app → **Open** (one-time Gatekeeper bypass).
-> 3. System Settings → Privacy & Security → "Open Anyway".
-> 4. In a terminal: `xattr -cr /path/to/spacehack.app` — `-cr` (clear,
+> 1. **Right-click the app → Open** (one-time Gatekeeper bypass; normal
+>    double-clicks work afterwards).
+> 2. System Settings → Privacy & Security → "Open Anyway".
+> 3. In a terminal: `xattr -cr /path/to/spacehack.app` — `-cr` (clear,
 >    recursive) removes both `com.apple.quarantine` and, on macOS 13+,
->    `com.apple.provenance`.
+>    `com.apple.provenance`, bypassing Gatekeeper entirely.
 >
 > If the app instead says **"damaged and can't be opened"** (and even
 > "Open Anyway" does nothing), the signature was lost in transit — the
