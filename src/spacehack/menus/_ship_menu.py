@@ -1,10 +1,10 @@
 """Ship hangar — tabbed modal runner.
 
-One ``pygame_screen`` modal with CARGO / LOADOUT tabs for the player's
-owned ship while in city mode (the C-screen pattern): TAB cycles tabs,
-ENTER jettisons a selected good on the CARGO tab or launches from
-either tab, ESC walks away. Also exports ``_find_hangar_ship`` used by
-the landing animation code in ``__main__.py``.
+One ``pygame_screen`` modal with SHIP / CARGO / LOADOUT tabs for the
+player's owned ship while in city mode (the C-screen pattern): TAB
+cycles tabs, ENTER launches on the SHIP tab or jettisons a selected
+good on the CARGO tab, ESC walks away. Also exports ``_find_hangar_ship``
+used by the landing animation code in ``__main__.py``.
 
 Extracted from the old ``menus.py`` during the package refactor.
 """
@@ -37,6 +37,9 @@ class ShipMenuAction(Enum):
 
 
 SHIP_MENU_OPTIONS: tuple[str, ...] = ('View Cargo', 'View Loadout', 'Launch')
+
+_HANGAR_TABS: tuple[str, ...] = ("SHIP", "CARGO", "LOADOUT")
+"""The single source of truth for the hangar tab names and count."""
 
 
 def _pygame_readonly_enabled() -> bool:
@@ -342,7 +345,7 @@ def _pygame_ship_menu_enabled() -> bool:
 
 
 def _launch_row():
-    """Build the persistent Launch row reachable from both hangar tabs."""
+    """Build the Launch row that lives at the bottom of the SHIP tab."""
     from .. import pygame_screen
 
     return pygame_screen.ScreenRow(
@@ -351,11 +354,13 @@ def _launch_row():
 
 
 def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
-    """Build one tabbed hangar snapshot (CARGO / LOADOUT tabs).
+    """Build one tabbed hangar snapshot (SHIP / CARGO / LOADOUT tabs).
 
-    CARGO reuses the shared cargo rows (jettison actions preserved) and
-    the LOADOUT tab reuses the read-only loadout rows; both tabs end with
-    the persistent Launch row (decision #6).
+    SHIP shows the at-a-glance stats with the Launch action separated by
+    one blank line (EXPERIMENT, decision #6 revision — visible white
+    space, not a ton; the blank-line count is a one-line tweak). CARGO
+    reuses the shared cargo rows (jettison actions preserved); LOADOUT
+    reuses the read-only loadout rows. Launch lives only on the SHIP tab.
     """
     from .. import pygame_screen, pygame_ui
     from ..trade import _cargo_body, _cargo_rows
@@ -367,41 +372,50 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
             (pygame_ui.modal_hint("ESC back", pygame_ui.GUIDE_HINT),),
         )
     title = f"YOUR {ship_module.ship_display_name(owned).upper()}"
-    launch_row = _launch_row()
+    max_cargo = ship_module.effective_max_cargo(ship, owned)
     if tab == 0:
-        max_cargo = ship_module.effective_max_cargo(ship, owned)
-        rows = (*_cargo_rows(owned), launch_row)
         body = (
             ship.description,
+            "",
             f"Fuel: {owned.fuel} / {ship.max_fuel}",
             f"Hull: {owned.hull_damage_pct}% damage",
             f"Speed: {ship_module.effective_speed(ship, owned)}",
+            f"Shields: {_effective_shields(ship, owned)}",
+            f"Power: {_effective_power_gen(ship, owned)}",
+            f"Cargo: {owned.cargo_used} / {max_cargo}",
             pygame_ui.credits_label(ctx.stats.credits),
             "",
-            *_cargo_body(owned, max_cargo),
         )
+        rows = (_launch_row(),)
+        footer = (pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER launch", "TAB cargo",
+            "ESC back", pygame_ui.GUIDE_HINT,
+        ),)
+    elif tab == 1:
+        rows = _cargo_rows(owned)
+        body = _cargo_body(owned, max_cargo)
         footer = (pygame_ui.modal_hint(
             pygame_ui.NAV_HINT, "ENTER jettison", "TAB loadout",
             "ESC back", pygame_ui.GUIDE_HINT,
         ),)
     else:
-        rows = (*_loadout_rows(ctx, owned, ship), launch_row)
+        rows = _loadout_rows(ctx, owned, ship)
         body = _loadout_body(ctx, owned, ship)
         footer = (pygame_ui.modal_hint(
-            "TAB cargo", "ESC back", pygame_ui.GUIDE_HINT,
+            pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
         ),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
-        tabs=("CARGO", "LOADOUT"), active_tab=tab,
+        tabs=_HANGAR_TABS, active_tab=tab,
     )
 
 
 def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
     """Run the tabbed hangar through the shared Pygame screen.
 
-    TAB cycles CARGO ⇄ LOADOUT; ENTER jettisons a selected good on the
-    CARGO tab or launches from either tab; ``?`` reopens the guide; ESC
-    walks away.
+    TAB cycles SHIP → CARGO → LOADOUT → SHIP; ENTER launches from the
+    SHIP tab or jettisons a selected good on the CARGO tab; ``?`` reopens
+    the guide; ESC walks away.
     """
     from .. import pygame_screen
 
@@ -418,7 +432,7 @@ def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | Non
             _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome == "TAB":
-            tab = (tab + 1) % 2
+            tab = (tab + 1) % len(_HANGAR_TABS)
             selected = 0
             continue
         if outcome in {"PAGE_UP", "PAGE_DOWN"}:
@@ -428,7 +442,7 @@ def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | Non
         if outcome == "SELECT":
             if action == "LAUNCH":
                 return ShipMenuAction.LAUNCH
-            if tab == 0:
+            if tab == 1:
                 from ..trade import _apply_jettison
                 owned = ctx.player_owned_ship
                 if owned is not None and _apply_jettison(ctx, owned, action):
@@ -440,9 +454,9 @@ def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | Non
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the tabbed hangar modal for ``ship``; return the chosen action.
 
-    One tabbed screen (CARGO / LOADOUT, the C-screen pattern): no nested
-    sub-modals. TAB cycles tabs, ENTER jettisons on the CARGO tab or
-    launches from either tab, ESC walks away.
+    One tabbed screen (SHIP / CARGO / LOADOUT, the C-screen pattern): no
+    nested sub-modals. TAB cycles tabs, ENTER launches on the SHIP tab
+    or jettisons on the CARGO tab, ESC walks away.
     """
     return _run_pygame_ship_hangar(ctx, ship)
 

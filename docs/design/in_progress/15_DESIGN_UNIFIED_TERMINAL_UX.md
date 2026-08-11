@@ -543,6 +543,32 @@ jettison + Launch both in-tab; `_run_ship_menu` now returns LAUNCH/BACK/
 QUIT directly (`__main__` launch flow untouched). Code review: no
 blocking issues.
 
+**▸ EXPERIMENT (Phase 7 revision — decision #6 REVISION, pending user
+test):** user request — "3 tabs. SHIP -- has details about your ship,
+at a glance data. And the launch button at the bottom (some white space
+separating it, but not a ton). CARGO -- no need for launch button.
+LOADOUT -- no need for launch button." Implemented:
+
+- SHIP tab (default): at-a-glance body — description, fuel, hull,
+  speed, shields, power, cargo, credits — with the `Launch` row at the
+  bottom separated by one blank body line (visible white space, not a
+  ton; the blank-line count is a one-line tweak). Footer:
+  `NAV_HINT, "ENTER launch", "TAB cargo", "ESC back", GUIDE_HINT`.
+- CARGO tab: shared cargo rows + jettison, no Launch. Footer:
+  `NAV_HINT, "ENTER jettison", "TAB loadout", "ESC back", GUIDE_HINT`.
+- LOADOUT tab: read-only loadout rows, no Launch. Footer:
+  `"TAB ship", "ESC back", GUIDE_HINT`.
+- Runner: TAB cycles SHIP → CARGO → LOADOUT → SHIP (mod 3), resets
+  selection; jettison only handled on tab 1. 555 passed, smoke PASS.
+- help.py "Your ship in the hangar" updated to describe the 3 tabs.
+
+**▸ PLAYTEST this experiment:** bump your ship.
+
+- [ ] SHIP tab reads as a clean "at a glance" dashboard; Launch sits
+      low with visible (not excessive) white space above it
+- [ ] CARGO / LOADOUT tabs have no Launch row
+- [ ] TAB cycles through all three tabs and wraps
+
 ---
 
 ### Phase 8 — Final gates
@@ -610,7 +636,12 @@ Passed: [ ]   Issues: _______________
    (matches the current 3rd menu option). Alternatives: a hotkey
    (needs new key plumbing in `pygame_screen`) or a third tab
    (rejected — Launch is an action, not a view).
-   **RESOLVED (Phase 7): persistent Launch row on both tabs.**
+   **RESOLVED (Phase 7): persistent Launch row on both tabs** — then
+   **REVISED (Phase 7 experiment, PENDING user test): 3 tabs**
+   SHIP / CARGO / LOADOUT; Launch moves to a dedicated SHIP tab
+   (at-a-glance stats + Launch at the bottom with modest white space),
+   CARGO and LOADOUT drop it. User: "I'm thinking 3 tabs… let's do
+   this as an experiment and I'll test and give feedback."
 7. **Pinned description (EXPERIMENT — Phase 3 revision).** Anchor the
    focused panel's description to the panel's bottom edge (stable
    position while rows scroll above it) vs today's
@@ -743,9 +774,10 @@ NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
 12. [x] Menus/screens that can clip render at the same font as terminals
       (Phase 6 — shared `pygame_ui.fit_font` + capped viewport) or are
       explicitly exempt (tiny content: ship buy, jump, story)
-13. [x] Ship hangar is a tabbed CARGO/LOADOUT screen (C-screen pattern)
-      with Launch still reachable; no nested cargo/loadout modals
-      (Phase 7 — jettison stays in-tab on CARGO)
+13. [x] Ship hangar is a tabbed screen (C-screen pattern) with no nested
+      cargo/loadout modals (Phase 7 — jettison stays in-tab on CARGO);
+      **experiment in flight:** 3 tabs SHIP/CARGO/LOADOUT with Launch
+      on the SHIP tab only (decision #6 revision, pending user test)
 14. [x] Every tunable (palette, fonts, title/hint/value formats, row
       cap, pin geometry) is a single constant/helper — one edit updates
       all modals

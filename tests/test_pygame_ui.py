@@ -1278,18 +1278,17 @@ def test_hangar_loadout_tab_reuses_readonly_loadout_rows():
         stats=SimpleNamespace(credits=321),
     )
 
-    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=1, selected=0)
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
 
     assert frame.title.startswith("YOUR ")
-    assert frame.tabs == ("CARGO", "LOADOUT")
-    assert frame.active_tab == 1
+    assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
+    assert frame.active_tab == 2
     assert "Fuel: 12/80" in frame.body
     assert frame.rows[0].text.startswith("Weapon 1:")
     assert "Damage" in frame.rows[0].detail
     assert any(row.text == "Shield Mk. 1" for row in frame.rows)
-    assert frame.rows[-1].text == "Launch"
-    assert frame.rows[-1].action == "LAUNCH"
-    assert any("TAB cargo" in hint for hint in frame.footer)
+    assert all(row.action != "LAUNCH" for row in frame.rows)
+    assert any("TAB ship" in hint for hint in frame.footer)
     assert all(row.selectable for row in frame.rows if row.text != "MODULES")
 
 
@@ -1337,7 +1336,7 @@ def test_ship_hangar_pygame_maps_launch(monkeypatch):
     ) is _ship_menu.ShipMenuAction.LAUNCH
 
 
-def test_ship_hangar_pygame_tab_cycles_and_resets_selection(monkeypatch):
+def test_ship_hangar_pygame_tab_cycles_all_tabs_and_wraps(monkeypatch):
     from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
@@ -1349,7 +1348,7 @@ def test_ship_hangar_pygame_tab_cycles_and_resets_selection(monkeypatch):
         stats=SimpleNamespace(credits=321),
     )
     seen = []
-    outcomes = iter((("TAB", "", 3), ("BACK", "", 0)))
+    outcomes = iter((("TAB", "", 3), ("TAB", "", 0), ("TAB", "", 0), ("BACK", "", 0)))
 
     def fake_run(_context, frame, **_kwargs):
         seen.append(frame)
@@ -1360,9 +1359,9 @@ def test_ship_hangar_pygame_tab_cycles_and_resets_selection(monkeypatch):
     assert _ship_menu._run_pygame_ship_hangar(
         ctx, ship,
     ) is _ship_menu.ShipMenuAction.BACK
-    assert seen[0].active_tab == 0
-    assert seen[1].active_tab == 1
+    assert [frame.active_tab for frame in seen] == [0, 1, 2, 0]
     assert seen[1].selected == 0
+    assert seen[3].selected == 0
 
 
 def test_ship_hangar_pygame_guide_reopens(monkeypatch):
@@ -1401,7 +1400,12 @@ def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
         stats=SimpleNamespace(credits=321),
         log=SimpleNamespace(add=lambda _message: None),
     )
-    outcomes = iter((("SELECT", "JETTISON:food_rations", 0), ("BACK", "", 0)))
+    # TAB to the CARGO tab first (SHIP is the default), then jettison.
+    outcomes = iter((
+        ("TAB", "", 0),
+        ("SELECT", "JETTISON:food_rations", 0),
+        ("BACK", "", 0),
+    ))
     monkeypatch.setattr(
         pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes),
     )
@@ -1491,13 +1495,14 @@ def test_split_interactive_malformed_action_is_explicit(monkeypatch):
         raise AssertionError("invalid split actions must not fall back to tcod")
 
 
-def test_hangar_cargo_tab_reuses_cargo_rows_and_launch():
+def test_hangar_ship_tab_shows_at_a_glance_stats_and_launch():
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
     ship = _ship_menu.ship_module.find_ship("starter")
-    owned = OwnedShip(ship_id="starter", fuel=12, hull_damage_pct=5)
-    owned.inventory = {"food_rations": 2}
+    owned = OwnedShip(
+        ship_id="starter", weapons=("light_laser",), fuel=12, hull_damage_pct=5,
+    )
     ctx = SimpleNamespace(
         player_owned_ship=owned,
         stats=SimpleNamespace(credits=321),
@@ -1506,18 +1511,21 @@ def test_hangar_cargo_tab_reuses_cargo_rows_and_launch():
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=0, selected=0)
 
     assert frame.title.startswith("YOUR ")
-    assert frame.tabs == ("CARGO", "LOADOUT")
+    assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 0
-    assert "Fuel: 12 / 80" in frame.body
-    assert "Credits: 321$" in frame.body
-    assert any("Cargo: 2 / 20" in line for line in frame.body)
-    assert frame.rows[0].action == "JETTISON:food_rations"
-    assert frame.rows[-1].text == "Launch"
-    assert frame.rows[-1].action == "LAUNCH"
-    assert any("TAB loadout" in hint for hint in frame.footer)
+    body_text = "\n".join(frame.body)
+    assert "Fuel: 12 / 80" in body_text
+    assert "Hull: 5% damage" in body_text
+    assert "Shields:" in body_text
+    assert "Power:" in body_text
+    assert "Cargo:" in body_text
+    assert "Credits: 321$" in body_text
+    assert [row.action for row in frame.rows] == ["LAUNCH"]
+    assert any("ENTER launch" in hint for hint in frame.footer)
+    assert any("TAB cargo" in hint for hint in frame.footer)
 
 
-def test_hangar_empty_hold_clamps_selection_to_launch():
+def test_hangar_ship_tab_launch_is_the_only_selectable_row():
     from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
@@ -1530,8 +1538,79 @@ def test_hangar_empty_hold_clamps_selection_to_launch():
 
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=0, selected=0)
 
-    assert frame.rows[-1].action == "LAUNCH"
-    assert pygame_screen._clamp(frame) == len(frame.rows) - 1
+    assert [row.action for row in frame.rows] == ["LAUNCH"]
+    assert pygame_screen._clamp(frame) == 0
+
+
+def test_hangar_cargo_tab_reuses_cargo_rows_without_launch():
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    owned = OwnedShip(ship_id="starter", fuel=12, hull_damage_pct=5)
+    owned.inventory = {"food_rations": 2}
+    ctx = SimpleNamespace(
+        player_owned_ship=owned,
+        stats=SimpleNamespace(credits=321),
+    )
+
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=1, selected=0)
+
+    assert frame.title.startswith("YOUR ")
+    assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
+    assert frame.active_tab == 1
+    assert any("Cargo: 2 / 20" in line for line in frame.body)
+    assert frame.rows[0].action == "JETTISON:food_rations"
+    assert all(row.action != "LAUNCH" for row in frame.rows)
+    assert any("TAB loadout" in hint for hint in frame.footer)
+
+
+def test_hangar_empty_hold_cargo_tab_has_no_selectable_rows():
+    from src.spacehack import pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
+    )
+
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=1, selected=0)
+
+    assert frame.active_tab == 1
+    assert any("No trade goods in hold" in row.text for row in frame.rows)
+    assert all(not row.selectable for row in frame.rows)
+
+
+def test_hangar_pygame_empty_hold_enter_is_back_not_select():
+    from src.spacehack import pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
+    )
+
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=1, selected=0)
+
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_UP = 12
+        K_DOWN = 13
+        K_k = 17
+        K_j = 18
+        K_RETURN = 19
+        K_KP_ENTER = 20
+
+    enter = SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_RETURN)
+    # With zero selectable rows the shared screen maps ENTER to BACK, so
+    # the hangar can never jettison a bogus action from an empty hold.
+    assert pygame_screen._handle_key(FakePygame, enter, frame) == ("BACK", 0)
 
 
 def test_hangar_frame_without_owned_ship_is_tabless_fallback():
