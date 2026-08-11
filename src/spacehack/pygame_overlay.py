@@ -259,18 +259,6 @@ def payload(frame: OverlayFrame) -> dict[str, Any]:
     return asdict(frame)
 
 
-def _font(pygame: Any, *, line_height: int) -> Any:
-    """Choose the largest native font that fits one logical cell row."""
-    from .pygame_menu import _font_path
-
-    path = _font_path(pygame)
-    for size in range(20, 9, -1):
-        candidate = pygame.font.Font(path, size)
-        if candidate.get_linesize() <= line_height:
-            return candidate
-    return pygame.font.Font(path, 10)
-
-
 def _draw_segments(
     pygame: Any,
     screen: Any,
@@ -374,8 +362,8 @@ def draw(
     )
     pygame_ui.draw_panel(pygame, screen, hud_rect, palette=palette)
     pygame_ui.draw_panel(pygame, screen, message_rect, palette=palette)
-    hud_font = _font(pygame, line_height=TILE_HEIGHT)
-    message_font = _font(pygame, line_height=TILE_HEIGHT)
+    hud_font = pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT)
+    message_font = pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT)
     _draw_segments(
         pygame,
         screen,

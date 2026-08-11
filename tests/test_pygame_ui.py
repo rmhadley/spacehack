@@ -2253,6 +2253,31 @@ def test_menu_and_screen_viewports_reuse_the_shared_window():
     assert selectable_in_window == 13
 
 
+def test_log_panel_height_matches_world_band():
+    """Modals reserve exactly the world renderer's log band height."""
+    from src.spacehack.engine import MSG_LOG_HEIGHT, TILE_HEIGHT
+
+    assert pygame_ui.LOG_PANEL_HEIGHT == MSG_LOG_HEIGHT * TILE_HEIGHT
+    assert pygame_ui.LOG_PANEL_HEIGHT == 96
+
+
+def test_draw_context_log_delegates_to_message_band(monkeypatch):
+    """The modal log renders through the same band painter as the world."""
+    log = object()
+    ctx = SimpleNamespace(
+        _runtime=SimpleNamespace(game_context=SimpleNamespace(log=log)),
+    )
+    seen = []
+    monkeypatch.setattr(
+        pygame_ui, "draw_message_band",
+        lambda _pygame, _screen, band_log, **_kwargs: seen.append(band_log),
+    )
+
+    pygame_ui.draw_context_log(SimpleNamespace(), object(), ctx)
+
+    assert seen == [log]
+
+
 def test_terminal_title_grammar():
     assert pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT") == "MECHANIC - SHIP LOADOUT"
     assert pygame_ui.terminal_title("TRADE", "earth") == "TRADE - EARTH"

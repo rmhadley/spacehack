@@ -14,6 +14,8 @@ import subprocess
 import sys
 from typing import Any
 
+from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT
+
 
 class PygameWorkerUnavailable(RuntimeError):
     """Raised when a Pygame worker cannot return a result."""
@@ -93,10 +95,10 @@ class Palette:
 DEFAULT_PALETTE = Palette()
 
 # Modal screens reserve this bottom band for the live console log. Exploration
-# already renders the log through pygame_overlay, so this is only for modal
-# presentation primitives.
-LOG_ROWS = 6
-LOG_PANEL_HEIGHT = 128
+# The console log band is drawn identically in world and modal contexts
+# (see draw_message_band): MSG_LOG_HEIGHT rows at TILE_HEIGHT each. Every
+# modal reserves exactly this band so modal content never overlaps it.
+LOG_PANEL_HEIGHT = MSG_LOG_HEIGHT * TILE_HEIGHT
 # Clearance between modal footer/hint text and the top border of the console
 # log panel. ``modal_footer_y`` is the BOTTOM boundary for footer text — no
 # footer glyph may extend below it, so hints never touch the log border.
@@ -233,11 +235,60 @@ def is_guide_key(pygame: Any, event: Any) -> bool:
     )
 
 
-def _log_font(pygame: Any) -> Any:
-    """Load the compact readable font used by modal console logs."""
-    from .pygame_merchant import _font_path
+def cell_font(pygame: Any, *, line_height: int) -> Any:
+    """Choose the largest native font that fits one cell row.
 
-    return pygame.font.Font(_font_path(pygame), 16)
+    Shared by the world overlay and the modal console log so both bands
+    render text at the same size (no size jump when a modal opens).
+    """
+    from .pygame_menu import _font_path
+
+    path = _font_path(pygame)
+    for size in range(20, 9, -1):
+        candidate = pygame.font.Font(path, size)
+        if candidate.get_linesize() <= line_height:
+            return candidate
+    return pygame.font.Font(path, 10)
+
+
+def draw_message_band(
+    pygame: Any,
+    screen: Any,
+    log: Any,
+    *,
+    palette: Palette = DEFAULT_PALETTE,
+) -> None:
+    """Paint the bottom console-log band exactly like the world overlay.
+
+    Full-width panel, ``MSG_LOG_HEIGHT`` rows at ``TILE_HEIGHT`` each,
+    messages bottom-aligned on cell rows with the shared cell font and
+    12px side padding — the same geometry the world renderer produces,
+    so log text never jumps when a modal opens.
+    """
+    width, height = screen.get_size()
+    band_height = MSG_LOG_HEIGHT * TILE_HEIGHT
+    panel = Rect(0, max(0, height - band_height), width, band_height)
+    draw_panel(pygame, screen, panel, palette=palette)
+    font = cell_font(pygame, line_height=TILE_HEIGHT)
+    entries = log.recent(MSG_LOG_HEIGHT)
+    measure = lambda text: measure_font(font, text)
+    content_x = panel.x + 12
+    content_width = max(1, panel.width - 24)
+    # Bottom-aligned like the world capture: the newest entry sits on the
+    # last band row, so a short log stays put when more entries arrive.
+    top = panel.y + (MSG_LOG_HEIGHT - len(entries)) * TILE_HEIGHT
+    clip = pygame.Rect(panel.x, panel.y, panel.width, panel.height)
+    screen.set_clip(clip)
+    try:
+        for index, entry in enumerate(entries):
+            line = fit_text("> " + entry.text, content_width, measure)
+            draw_text(
+                pygame, screen, font, line,
+                content_x, top + index * TILE_HEIGHT,
+                color=entry.fg,
+            )
+    finally:
+        screen.set_clip(None)
 
 
 def draw_context_log(
@@ -249,37 +300,14 @@ def draw_context_log(
 ) -> None:
     """Paint the live console log in the reserved bottom band.
 
-    The panel spans the full screen width so the log reads identically
-    here and in the world renderer (which paints log rows edge-to-edge
-    on the capture console).
+    Delegates to :func:`draw_message_band` so modals render the log
+    identically to the world overlay.
     """
     game_context = _context_game_context(context)
     log = getattr(game_context, "log", None)
     if log is None:
         return
-    width, height = screen.get_size()
-    panel = Rect(0, max(0, height - LOG_PANEL_HEIGHT), width, LOG_PANEL_HEIGHT)
-    draw_panel(pygame, screen, panel, palette=palette)
-    font = _log_font(pygame)
-    draw_text(
-        pygame, screen, font, "CONSOLE LOG", panel.x + 20, panel.y + 10,
-        color=palette.title,
-    )
-    draw_rule(
-        pygame, screen, panel.x + 18, panel.y + 34,
-        panel.width - 36, color=palette.border,
-    )
-    entries = log.recent(LOG_ROWS)
-    measure = lambda text: measure_font(font, text)
-    content_width = panel.width - 40
-    for index, entry in enumerate(entries):
-        line = fit_text("> " + entry.text, content_width, measure)
-        draw_text(
-            pygame, screen, font, line,
-            panel.x + 20,
-            panel.y + 42 + index * (font.get_linesize() + 1),
-            color=entry.fg,
-        )
+    draw_message_band(pygame, screen, log, palette=palette)
 
 
 def measure_font(font: Any, text: str) -> int:
