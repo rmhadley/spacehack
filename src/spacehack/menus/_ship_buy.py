@@ -28,7 +28,12 @@ def _pygame_ship_buy_enabled() -> bool:
 
 
 def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, selected: int):
-    """Build a modern framed snapshot of the ship-buy modal."""
+    """Build a modern framed snapshot of the ship-buy modal.
+
+    Content policy is shared with the split terminals (title, price,
+    credits, shortfall, hint formats all route through the helpers in
+    ``pygame_ui`` — see 15_DESIGN_UNIFIED_TERMINAL_UX.md, Phase 4).
+    """
     from .. import pygame_screen
 
     _price = effective_price if effective_price is not None else ship.price
@@ -37,25 +42,29 @@ def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, se
     body = (ship.description,)
     if effective_price is not None and effective_price < ship.price:
         _trade_in_save = ship.price - effective_price
-        body += (f"Trade-in value: {_trade_in_save}$  -  credits: {ctx.stats.credits}$",)
+        body += (
+            f"Trade-in value: {pygame_ui.price_cell(_trade_in_save)}  -  "
+            f"{pygame_ui.credits_label(ctx.stats.credits)}",
+        )
     if not _afford:
-        body += (f"You are {_short}$ short of the asking price.",)
+        body += (f"You are {pygame_ui.shortfall_label(_short)} of the asking price.",)
     detail = (
-        f"Price {_price}$  Credits {ctx.stats.credits}$"
-        + ("" if _afford else f"  ({_short}$ short)")
+        f"Price {pygame_ui.price_cell(_price)}  "
+        f"{pygame_ui.credits_label(ctx.stats.credits)}"
+        + ("" if _afford else f"  ({pygame_ui.shortfall_label(_short)})")
     )
     rows = (
         pygame_screen.ScreenRow(
-            f"Buy the {ship.name} - {_price}$",
+            f"Buy the {ship.name} - {pygame_ui.price_cell(_price)}",
             detail,
             "BUY",
         ),
     )
     footer = (
-        "ENTER buy   ESC walk away   ? guide",
+        pygame_ui.modal_hint("ENTER buy", "ESC walk away"),
     )
     return pygame_screen.ScreenFrame(
-        f"{ship.name.upper()} - for sale",
+        pygame_ui.terminal_title(ship.name, "for sale"),
         body,
         rows,
         footer,

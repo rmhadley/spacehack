@@ -831,12 +831,15 @@ def test_ship_buy_frame_uses_modern_screen_contract_with_live_price():
 
     frame = _ship_buy._ship_buy_frame(ctx, ship, None, 0)
 
-    assert frame.title == "SCOUT - for sale"
+    assert frame.title == "SCOUT - FOR SALE"
     assert frame.body == ("Fast courier.", "You are 3000$ short of the asking price.")
     assert frame.rows[0].text == "Buy the Scout - 5000$"
     assert "5000$" in frame.rows[0].detail
     assert "3000$" in frame.rows[0].detail
+    assert "Credits: 2000$" in frame.rows[0].detail
     assert frame.rows[0].action == "BUY"
+    assert frame.footer == ("ENTER buy   ESC walk away",)
+    assert "? guide" not in frame.footer[0]
 
 
 def test_ship_buy_frame_shows_trade_in_and_affordability():
@@ -848,6 +851,7 @@ def test_ship_buy_frame_shows_trade_in_and_affordability():
     frame = _ship_buy._ship_buy_frame(ctx, ship, 5000, 0)
 
     assert any("Trade-in value: 3000$" in line for line in frame.body)
+    assert any("Credits: 6000$" in line for line in frame.body)
     assert frame.rows[0].text == "Buy the Freighter - 5000$"
     assert "5000$" in frame.rows[0].detail
     assert "short" not in frame.rows[0].detail.lower()
@@ -872,7 +876,7 @@ def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
         stats=SimpleNamespace(credits=6000),
     )
     assert _ship_buy._run_pygame_ship_buy(ctx, ship, None) is _ship_buy.ShipBuyOutcome.BUY
-    assert captured["frame"].title == "SCOUT - for sale"
+    assert captured["frame"].title == "SCOUT - FOR SALE"
 
     monkeypatch.setattr(
         pygame_screen,
