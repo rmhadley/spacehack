@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import (
+    character_screen,
     pygame_batch,
     pygame_screen,
     pygame_menu,
@@ -1213,6 +1214,71 @@ def test_armory_frame_uses_shared_content_policy():
     assert buy_cells and all(cell.endswith("$") and "(" not in cell for cell in buy_cells)
     sell_cells = [row.value for row in frame.right_rows if row.action.startswith("SELL_WEAPON:")]
     assert sell_cells and all(cell.startswith("(sell ") for cell in sell_cells)
+
+
+def test_character_equipment_rows_mirror_loadout_slots():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={"body": "light_vest"},
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    # Filled weapon slot: selectable, stats in the detail pane.
+    assert rows[0].selectable
+    assert "Laser Pistol" in rows[0].text
+    assert "Damage 4" in rows[0].detail
+    assert "Accuracy 78%" in rows[0].detail
+    # Empty weapon slot: non-selectable Fists placeholder.
+    assert not rows[1].selectable
+    assert rows[1].text == "Weapon slot 2: Fists"
+    # Empty head slot first, then the filled body slot.
+    assert not rows[2].selectable
+    assert rows[2].text == "Head armor: None"
+    assert rows[3].selectable
+    assert "Light Armor Vest" in rows[3].text
+    assert "Defense 2" in rows[3].detail
+
+
+def test_character_equipment_rows_empty_gear_is_informational():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    assert len(rows) == 7
+    assert all(not row.selectable for row in rows)
+    assert rows[0].text == "Weapon slot 1: Fists"
+    assert rows[6].text == "Feet armor: None"
+
+
+def test_screen_info_window_shows_informational_only_frames():
+    frame = pygame_screen.ScreenFrame(
+        "T", (),
+        tuple(
+            pygame_screen.ScreenRow(f"line {i}", selectable=False)
+            for i in range(4)
+        ),
+    )
+    assert pygame_screen._info_window(frame) == (0, 4)
+    # Empty frames stay empty.
+    assert pygame_screen._info_window(
+        pygame_screen.ScreenFrame("T", (), ())
+    ) == (0, 0)
+
+
+def test_screen_rows_height_reserves_informational_rows():
+    frame = pygame_screen.ScreenFrame(
+        "T", (),
+        tuple(
+            pygame_screen.ScreenRow(f"line {i}", selectable=False)
+            for i in range(3)
+        ),
+    )
+    info_step = _FakeFont().get_linesize() + 4
+    assert pygame_screen._rows_height(_FakeFont(), frame) == 3 * info_step
 
 
 def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):

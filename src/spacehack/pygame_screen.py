@@ -126,6 +126,33 @@ def _body_lines(font: Any, frame: ScreenFrame, width: int) -> tuple[str, ...]:
     return tuple(lines)
 
 
+def _info_window(frame: ScreenFrame) -> tuple[int, int]:
+    """Viewport for frames with no selectable rows: show the whole list.
+
+    :func:`pygame_ui.visible_window` yields ``(0, 0)`` when every row is
+    non-selectable, which would blank informational-only frames (the
+    Character screen's Equipment tab, empty-cargo / no-missiles
+    fallbacks). Non-empty frames without selectable rows instead render
+    as a capped list of info rows.
+    """
+    if not frame.rows:
+        return 0, 0
+    return 0, min(len(frame.rows), pygame_ui.MAX_VISIBLE_ROWS)
+
+
+def _rows_height(font: Any, frame: ScreenFrame) -> int:
+    """Height of the capped rows viewport, incl. informational frames."""
+    line_height = font.get_linesize()
+    row_height = pygame_ui.window_height(
+        frame.rows, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda row: row.selectable,
+        selectable_step=line_height + 14, info_step=line_height + 4,
+    )
+    if row_height == 0 and frame.rows:
+        row_height = _info_window(frame)[1] * (line_height + 4)
+    return row_height
+
+
 def _non_body_height(font: Any, frame: ScreenFrame, width: int) -> int:
     """Measure rows, fixed detail region, spacing, and footer.
 
@@ -144,11 +171,7 @@ def _non_body_height(font: Any, frame: ScreenFrame, width: int) -> int:
         pygame_ui.MAX_DETAIL_LINES,
     )
     line_height = font.get_linesize()
-    row_height = pygame_ui.window_height(
-        frame.rows, pygame_ui.MAX_VISIBLE_ROWS,
-        is_selectable=lambda row: row.selectable,
-        selectable_step=line_height + 14, info_step=line_height + 4,
-    )
+    row_height = _rows_height(font, frame)
     detail_height = max(1, detail_lines) * (line_height + 2)
     footer_height = (max(1, len(frame.footer)) + 1) * (line_height + 3)
     rows_detail_gap = ROWS_DETAIL_GAP if row_height else 0
@@ -263,12 +286,7 @@ def _draw_frame(
     # to the top anchor exactly as before. The rows block uses the capped
     # window height so centering is list-length independent.
     body_block = min(len(visible_body), body_budget) * body_step
-    rows_block = pygame_ui.window_height(
-        frame.rows, pygame_ui.MAX_VISIBLE_ROWS,
-        is_selectable=lambda row: row.selectable,
-        selectable_step=font.get_linesize() + 14,
-        info_step=font.get_linesize() + 4,
-    )
+    rows_block = _rows_height(font, frame)
     body_rows_gap = BODY_ROWS_GAP if body_block else 0
     rows_detail_gap = ROWS_DETAIL_GAP if rows_block else 0
     content_height = (
@@ -290,6 +308,8 @@ def _draw_frame(
         frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
         is_selectable=lambda row: row.selectable,
     )
+    if window_count == 0:
+        window_top, window_count = _info_window(frame)
     for index in range(window_top, window_top + window_count):
         row = frame.rows[index]
         row_height = font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4

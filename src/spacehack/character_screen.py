@@ -59,42 +59,71 @@ def _character_frame(ctx: GameContext, tab: int, selected: int):
             "ESC close", pygame_ui.GUIDE_HINT,
         ),)
     else:
-        rows = tuple(
-            pygame_screen.ScreenRow(text=line, selectable=False)
-            for line in _equipment_lines(ctx)
-        )
+        rows = _equipment_rows(ctx)
         body = ("Your installed ground gear",)
         footer = (pygame_ui.modal_hint(
-            "TAB stats", "ESC close", pygame_ui.GUIDE_HINT,
+            pygame_ui.NAV_HINT, "TAB stats", "ESC close",
+            pygame_ui.GUIDE_HINT,
         ),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
         tabs=("STATS", "EQUIPMENT"), active_tab=tab,
     )
 
-def _equipment_lines(ctx: GameContext) -> tuple[str, ...]:
-    """Return readable equipment snapshot lines."""
+def _equipment_rows(ctx: GameContext) -> tuple:
+    """Build Equipment-tab rows mirroring the hangar LOADOUT tab.
+
+    Filled slots are selectable rows whose detail pane carries the
+    weapon / armor stats; empty slots are non-selectable ``Fists`` /
+    ``None`` placeholders. A frame with no gear at all is entirely
+    informational, which :mod:`pygame_screen` renders as a capped list.
+    """
+    from . import pygame_screen
     from .data.ground_weapons import find_ground_weapon
     from .data.ground_armor import find_ground_armor
 
+    rows: list = []
     weapons = list(ctx.equipped_ground_weapons)
     while len(weapons) < 2:
         weapons.append("")
-    lines = []
     for index, weapon_id in enumerate(weapons[:2], 1):
-        try:
-            name = find_ground_weapon(weapon_id).name if weapon_id else "Fists"
-        except KeyError:
-            name = weapon_id or "Fists"
-        lines.append(f"Weapon slot {index}: {name}")
+        label = f"Weapon slot {index}"
+        if weapon_id:
+            try:
+                spec = find_ground_weapon(weapon_id)
+                detail = (
+                    f"Damage {spec.damage}   Accuracy {spec.accuracy}%   "
+                    f"Range {spec.min_range}-{spec.max_range}   AP {spec.ap_cost}"
+                )
+                if spec.ammo_capacity > 0:
+                    detail += f"   Ammo {spec.ammo_capacity}"
+                rows.append(pygame_screen.ScreenRow(
+                    f"{label}: {spec.name}", detail, selectable=True,
+                ))
+                continue
+            except KeyError:
+                pass
+        rows.append(pygame_screen.ScreenRow(
+            f"{label}: Fists", "", selectable=False,
+        ))
     for slot in _ARMOR_SLOTS:
         item_id = ctx.equipped_ground_armor.get(slot)
-        try:
-            name = find_ground_armor(item_id).name if item_id else "None"
-        except KeyError:
-            name = item_id or "None"
-        lines.append(f"{_ARMOR_SLOT_LABELS[slot]} armor: {name}")
-    return tuple(lines)
+        label = f"{_ARMOR_SLOT_LABELS[slot]} armor"
+        if item_id:
+            try:
+                spec = find_ground_armor(item_id)
+                rows.append(pygame_screen.ScreenRow(
+                    f"{label}: {spec.name}",
+                    f"Defense {spec.defense}   {spec.description}",
+                    selectable=True,
+                ))
+                continue
+            except KeyError:
+                pass
+        rows.append(pygame_screen.ScreenRow(
+            f"{label}: None", "", selectable=False,
+        ))
+    return tuple(rows)
 
 def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
     """Run Character through the shared Pygame screen."""
@@ -117,12 +146,13 @@ def _run_pygame_character_screen(ctx: GameContext) -> bool | None:
             tab = (tab + 1) % 2
             selected = 0
             continue
-        if outcome == "SELECT" and tab == 0 and action.startswith("SPEND:"):
-            skill = action.split(":", 1)[1]
-            if skill not in _SKILLS:
-                return None
-            _apply_skill_point(ctx, skill)
-            continue
+        if outcome == "SELECT":
+            if tab == 0 and action.startswith("SPEND:"):
+                skill = action.split(":", 1)[1]
+                if skill not in _SKILLS:
+                    return None
+                _apply_skill_point(ctx, skill)
+            continue  # read-only rows: ENTER keeps the screen open
         if outcome in {"PAGE_UP", "PAGE_DOWN"}:
             continue
         if outcome == "QUIT":
