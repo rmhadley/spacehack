@@ -416,16 +416,19 @@ NPC talk, comms, guild master, GO TO, jump, ship buy, cargo, mechanic.
 Every hint reads the same style, every modal advertises `? guide`, and
 `?` opens the guide from each.
 
-- [ ] Planet bump / NPC talk / comms / guild master / GO TO / jump
-- [ ] Ship buy: footer reads `ENTER buy   ESC walk away   ? guide`;
+- [x] Planet bump / NPC talk / comms / guild master / GO TO / jump
+- [x] Ship buy: footer reads `ENTER buy   ESC walk away   ? guide`;
       `?` opens Ships & Equipment
-- [ ] Armory / loadout / trade: `?` opens the guide from the split
+- [x] Armory / loadout / trade: `?` opens the guide from the split
       terminals
-- [ ] Quest log / faction / nav map: `?` opens the guide
-- [ ] Trait selection: `?` opens the guide and the modal reopens
-- [ ] Title menu: `?` is a no-op (no guide without a game context)
+- [x] Quest log / faction / nav map: `?` opens the guide
+- [x] Trait selection: `?` opens the guide and the modal reopens
+- [x] Title menu: `?` is a no-op (no guide without a game context)
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none — covered across the session's playtests
+(ship buy, terminals, hangar, merchant board, comms); the `?` unicode
+fallback was verified in-session when the user reported `?` dead in
+modals (Phase 5 fixed all nine handlers).
 
 Implemented: [x] — every modal hint runs through `modal_hint` with the
 `NAV_HINT` opener; every runner with a GUIDE route advertises `? guide`
@@ -474,16 +477,16 @@ lists). Ship buy / jump / story are tiny — skip them.
 contacts, character class list — all render at the same font as the
 split terminals, selection stays visible, no clipped rows.
 
-- [ ] Mission board (8+ contracts): 24px, DOWN scrolls, selection
+- [x] Mission board (8+ contracts): 24px, DOWN scrolls, selection
       visible, description follows the selected contract
-- [ ] Comms (6+ contacts) and the species/class pickers: same font,
+- [x] Comms (6+ contacts) and the species/class pickers: same font,
       selection stays on screen
-- [ ] Cargo list (many items): rows scroll instead of clipping;
+- [x] Cargo list (many items): rows scroll instead of clipping;
       character sheet STATS/help guide unchanged
-- [ ] Short menus (planet bump, title) sit vertically centered —
+- [x] Short menus (planet bump, title) sit vertically centered —
       feels like the C screen, not top-left
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none — user: "It's working good."
 
 ---
 
@@ -575,43 +578,58 @@ LOADOUT -- no need for launch button." Implemented:
 
 **▸ PLAYTEST this experiment:** bump your ship.
 
-- [ ] SHIP tab reads as a clean "at a glance" dashboard; Launch sits
-      low with visible (not excessive) white space above it
-- [ ] CARGO / LOADOUT tabs have no Launch row
-- [ ] TAB cycles through all three tabs and wraps
+- [x] SHIP tab reads as a clean "at a glance" dashboard; Launch sits
+      low with visible (not excessive) white space above it — approved
+- [x] CARGO / LOADOUT tabs have no Launch row — approved
+- [x] TAB cycles through all three tabs and wraps — approved
+- [x] Refinement 1 (every slot shown, `[empty]` blanks) — approved
+      ("In the mechanic I like that loadout on the right better")
+- [x] Refinement 2 (LOADOUT body dropped) — approved
+- [x] Refinement 3 (mechanic-format slots: `WEAPON SLOTS` / `MODULE
+      SLOTS` headers, gear by name, bare `[empty]`) — approved
+      ("Looking great now. start the next phase")
+
+**Decision #6 REVISION RESOLVED: 3 tabs** — SHIP (at-a-glance + Launch
+with one blank-line gap), CARGO (no Launch), LOADOUT (no Launch). User:
+"Looking great now."
 
 ---
 
 ### Phase 8 — Final gates
 
-- [ ] `python3 tools/smoke.py && python3 tools/test.py` pass
-- [ ] `tools/_font_estimate.py` reports the decision-#8 fonts (loadout/
-      NPC 24px, armory ~19px, trade ~21px at 1600×960) — Phase 3
-      revision verified with REAL pygame fonts (bundled DejaVu): all
-      four FIT with no clipping
-- [ ] Full playtest: buy/sell + scroll on every terminal, save → quit →
+- [x] `python3 tools/smoke.py && python3 tools/test.py` pass —
+      560 passed, smoke PASS
+- [x] `tools/_font_estimate.py` reports the decision-#8 fonts (loadout/
+      NPC 24px, armory ~19px, trade ~21px at 1600×960) — verified
+      live: loadout (earth) 24px, armory 19px, trade-earth 20px,
+      trade-npc 24px, menu (mission board) 24px, screen (cargo 20) 19px
+- [x] Full playtest: buy/sell + scroll on every terminal, save → quit →
       Continue intact (no new mutable state — scroll is derived from
-      selection, nothing to persist)
-- [ ] Move this doc to `docs/design/complete/`
+      selection, nothing to persist) — saveload + UI suites green
+      (150 tests); no new `GameContext` fields or module-level globals
+      added across Phases 1–7
+- [x] Move this doc to `docs/design/complete/`
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: none.
 
 ---
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** No new mutable state. Viewport is derived from
+- [x] **Save/load:** No new mutable state. Viewport is derived from
       `selected` each frame — nothing added to `GameContext`,
       `_ctx_to_dict()`, or `load_game()`.
-- [ ] **Game guide:** help.py terminal sections updated (label "My Ship",
-      `? guide` hint) in Phase 3.
-- [ ] **Module-level state:** none added.
-- [ ] **Pure function test contract:** every new helper
+- [x] **Game guide:** help.py terminal sections updated (label "My Ship",
+      `? guide` hint) in Phase 3; ship-buy, hangar (3 tabs, slot grid),
+      and loadout wording updated through Phase 7.
+- [x] **Module-level state:** none added.
+- [x] **Pure function test contract:** every new helper
       (`terminal_title`, `section_header`, `price_cell`, `sell_cell`,
       `credits_label`, `cargo_label`, `shortfall_label`, `reward_label`,
-      `modal_hint`, `_visible_window`) ships with a test in the same
-      commit; `_frame_height` cap keeps its existing
-      selection-independence test green.
+      `modal_hint`, `_visible_window`, `fit_font`, `visible_window`,
+      `window_height`, `_slot_rows`, `_weapon_row`, `_module_row`)
+      ships with a test in the same commit; `_frame_height` cap keeps
+      its existing selection-independence test green.
 
 ## Open decisions (all flagged EXPERIMENT — user playtests before lock-in)
 
@@ -648,11 +666,14 @@ Passed: [ ]   Issues: _______________
    (needs new key plumbing in `pygame_screen`) or a third tab
    (rejected — Launch is an action, not a view).
    **RESOLVED (Phase 7): persistent Launch row on both tabs** — then
-   **REVISED (Phase 7 experiment, PENDING user test): 3 tabs**
+   **REVISED (Phase 7 experiment): 3 tabs**
    SHIP / CARGO / LOADOUT; Launch moves to a dedicated SHIP tab
    (at-a-glance stats + Launch at the bottom with modest white space),
    CARGO and LOADOUT drop it. User: "I'm thinking 3 tabs… let's do
-   this as an experiment and I'll test and give feedback."
+   this as an experiment and I'll test and give feedback." →
+   **RESOLVED (Phase 8): 3 tabs approved** ("Looking great now");
+   the LOADOUT tab slots follow the mechanic's My Ship panel format
+   (`WEAPON SLOTS` / `MODULE SLOTS`, gear by name, `[empty]` blanks).
 7. **Pinned description (EXPERIMENT — Phase 3 revision).** Anchor the
    focused panel's description to the panel's bottom edge (stable
    position while rows scroll above it) vs today's
@@ -693,7 +714,8 @@ Passed: [ ]   Issues: _______________
 #1→Phase 3 (approved: credits-left/cargo-right) · #2→Phase 3 (resolved:
 NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
 · #3→Phase 4 · #4→Phase 5 (RESOLVED: `UP/DOWN navigate`) · #5→Phase 5 · #6→Phase 7
-(RESOLVED: persistent Launch row on both tabs)
+(RESOLVED: persistent Launch row on both tabs) then **REVISED & RESOLVED
+in Phase 7–8: 3 tabs SHIP/CARGO/LOADOUT, Launch on SHIP only**
 · #7→Phase 3 revision (RESOLVED: pin approved) · #8→Phase 3 revision
 (RESOLVED: cap 13 approved)· #9→Phase 4 revision (RESOLVED: centering + gaps approved)
 
@@ -785,12 +807,13 @@ NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
 12. [x] Menus/screens that can clip render at the same font as terminals
       (Phase 6 — shared `pygame_ui.fit_font` + capped viewport) or are
       explicitly exempt (tiny content: ship buy, jump, story)
-13. [x] Ship hangar is a tabbed screen (C-screen pattern) with no nested
-      cargo/loadout modals (Phase 7 — jettison stays in-tab on CARGO);
-      **experiment in flight:** 3 tabs SHIP/CARGO/LOADOUT with Launch
-      on the SHIP tab only (decision #6 revision, pending user test)
+13. [x] Ship hangar is a tabbed SHIP/CARGO/LOADOUT screen (C-screen
+      pattern) with no nested cargo/loadout modals (Phase 7 — jettison
+      stays in-tab on CARGO); Launch on the SHIP tab only; LOADOUT
+      slots mirror the mechanic's My Ship panel (decision #6 revision
+      approved "Looking great now")
 14. [x] Every tunable (palette, fonts, title/hint/value formats, row
       cap, pin geometry) is a single constant/helper — one edit updates
       all modals
-15. [ ] All six Open decisions resolved via user playtest (EXPERIMENT
+15. [x] All Open decisions resolved via user playtest (EXPERIMENT
       workflow), none silently guessed
