@@ -249,39 +249,85 @@ def _loadout_body(ctx, owned, ship_spec) -> tuple[str, ...]:
     )
 
 
-def _loadout_rows(ctx, owned, ship_spec):
-    """Build the read-only weapon/module rows for the LOADOUT tab."""
+def _weapon_row(index: int, weapon_id: str):
+    """Build one filled weapon-slot row (``Weapon N: <name>``)."""
     from .. import pygame_screen
-    from ..data.modules import find_module
     from ..data.weapons import find_weapon
 
-    rows: list = []
-    for index, weapon_id in enumerate(owned.weapons, 1):
-        try:
-            weapon = find_weapon(weapon_id)
-            detail = (
-                f"Damage {weapon.damage}   Accuracy {weapon.accuracy}%   "
-                f"Range {weapon.min_range}-{weapon.max_range}   "
-                f"AP {weapon.ap_cost}   Power {weapon.power_cost}"
-            )
-            if weapon.slot_type == "missile":
-                detail += f"   Ammo {weapon.ammo_capacity}"
-            label = f"Weapon {index}: {weapon.name}"
-        except KeyError:
-            label = f"Weapon {index}: {weapon_id}"
-            detail = "Unknown weapon specification"
-        rows.append(pygame_screen.ScreenRow(label, detail, selectable=True))
-    if not owned.weapons:
-        rows.append(pygame_screen.ScreenRow("Weapons: none installed", selectable=False))
-    rows.append(pygame_screen.ScreenRow("MODULES", selectable=False))
-    for module_id in owned.modules:
-        try:
-            module = find_module(module_id)
-            rows.append(pygame_screen.ScreenRow(module.name, module.description, selectable=True))
-        except KeyError:
-            rows.append(pygame_screen.ScreenRow(module_id, "Unknown module specification", selectable=True))
-    if not owned.modules:
-        rows.append(pygame_screen.ScreenRow("Modules: none installed", selectable=False))
+    try:
+        weapon = find_weapon(weapon_id)
+        detail = (
+            f"Damage {weapon.damage}   Accuracy {weapon.accuracy}%   "
+            f"Range {weapon.min_range}-{weapon.max_range}   "
+            f"AP {weapon.ap_cost}   Power {weapon.power_cost}"
+        )
+        if weapon.slot_type == "missile":
+            detail += f"   Ammo {weapon.ammo_capacity}"
+        return pygame_screen.ScreenRow(
+            f"Weapon {index + 1}: {weapon.name}", detail, selectable=True,
+        )
+    except KeyError:
+        return pygame_screen.ScreenRow(
+            f"Weapon {index + 1}: {weapon_id}",
+            "Unknown weapon specification", selectable=True,
+        )
+
+
+def _module_row(index: int, module_id: str):
+    """Build one filled module-slot row (``Module N: <name>``)."""
+    from .. import pygame_screen
+    from ..data.modules import find_module
+
+    try:
+        module = find_module(module_id)
+        return pygame_screen.ScreenRow(
+            f"Module {index + 1}: {module.name}",
+            module.description, selectable=True,
+        )
+    except KeyError:
+        return pygame_screen.ScreenRow(
+            f"Module {index + 1}: {module_id}",
+            "Unknown module specification", selectable=True,
+        )
+
+
+def _slot_rows(prefix: str, slot_count: int, installed, make_row) -> tuple:
+    """Render every slot in one section: filled slots via ``make_row``,
+    empty ones as non-selectable ``[empty slot]`` markers."""
+    from .. import pygame_screen
+
+    rows = []
+    for index in range(max(slot_count, len(installed))):
+        if index < len(installed):
+            rows.append(make_row(index, installed[index]))
+        else:
+            rows.append(pygame_screen.ScreenRow(
+                f"{prefix} {index + 1}: [empty slot]",
+                f"No {prefix.lower()} installed.", selectable=False,
+            ))
+    return tuple(rows)
+
+
+def _loadout_rows(owned, ship_spec):
+    """Build the read-only slot rows for the LOADOUT tab.
+
+    Every weapon and module slot is rendered; installed gear fills its
+    slot, empty slots read ``[empty slot]`` (non-selectable).
+    """
+    from .. import pygame_screen
+
+    rows: list = [
+        pygame_screen.ScreenRow(
+            f"WEAPONS ({len(owned.weapons)}/{ship_spec.weapon_slots} slots)",
+            selectable=False,
+        ),
+    ]
+    rows.extend(_slot_rows("Weapon", ship_spec.weapon_slots, owned.weapons, _weapon_row))
+    rows.append(pygame_screen.ScreenRow(
+        f"MODULES ({len(owned.modules)}/{ship_spec.module_slots} slots)",
+        selectable=False,
+    ))
+    rows.extend(_slot_rows("Module", ship_spec.module_slots, owned.modules, _module_row))
     return tuple(rows)
 
 
@@ -399,7 +445,7 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
             "ESC back", pygame_ui.GUIDE_HINT,
         ),)
     else:
-        rows = _loadout_rows(ctx, owned, ship)
+        rows = _loadout_rows(owned, ship)
         body = _loadout_body(ctx, owned, ship)
         footer = (pygame_ui.modal_hint(
             pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,

@@ -557,7 +557,15 @@ LOADOUT -- no need for launch button." Implemented:
 - CARGO tab: shared cargo rows + jettison, no Launch. Footer:
   `NAV_HINT, "ENTER jettison", "TAB loadout", "ESC back", GUIDE_HINT`.
 - LOADOUT tab: read-only loadout rows, no Launch. Footer:
-  `"TAB ship", "ESC back", GUIDE_HINT`.
+  `NAV_HINT, "TAB ship", "ESC back", GUIDE_HINT`.
+- **Refinement (pending user test):** LOADOUT renders EVERY slot —
+  section headers `WEAPONS (n/m slots)` / `MODULES (n/m slots)`, filled
+  slots show the gear (`Weapon N: <name>` / `Module N: <name>`,
+  selectable), empty slots read `Weapon N: [empty slot]` /
+  `Module N: [empty slot]` (non-selectable, "No weapon/module
+  installed."). Installed rows stay selectable; empty rows are skipped
+  by navigation. Shared `_slot_rows(prefix, slot_count, installed,
+  make_row)` helper builds both sections (DRY). help.py updated.
 - Runner: TAB cycles SHIP → CARGO → LOADOUT → SHIP (mod 3), resets
   selection; jettison only handled on tab 1. 555 passed, smoke PASS.
 - help.py "Your ship in the hangar" updated to describe the 3 tabs.

@@ -1263,7 +1263,7 @@ def test_armory_pygame_action_returns_keep_open_after_buy():
     assert messages
 
 
-def test_hangar_loadout_tab_reuses_readonly_loadout_rows():
+def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
@@ -1284,12 +1284,64 @@ def test_hangar_loadout_tab_reuses_readonly_loadout_rows():
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 2
     assert "Fuel: 12/80" in frame.body
-    assert frame.rows[0].text.startswith("Weapon 1:")
-    assert "Damage" in frame.rows[0].detail
-    assert any(row.text == "Shield Mk. 1" for row in frame.rows)
+    assert "WEAPONS (1/2 slots)" in [row.text for row in frame.rows]
+    weapon_1 = next(row for row in frame.rows if row.text == "Weapon 1: Light Laser")
+    assert "Damage" in weapon_1.detail
+    assert any(row.text == "Weapon 2: [empty slot]" for row in frame.rows)
+    assert any(row.text == "Module 1: Shield Mk. 1" for row in frame.rows)
     assert all(row.action != "LAUNCH" for row in frame.rows)
     assert any("TAB ship" in hint for hint in frame.footer)
-    assert all(row.selectable for row in frame.rows if row.text != "MODULES")
+    selectable = [row.text for row in frame.rows if row.selectable]
+    assert selectable == ["Weapon 1: Light Laser", "Module 1: Shield Mk. 1"]
+
+
+def test_hangar_loadout_tab_marks_empty_slots():
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
+    )
+
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
+
+    texts = [row.text for row in frame.rows]
+    assert "WEAPONS (0/2 slots)" in texts
+    assert "Weapon 1: [empty slot]" in texts
+    assert "Weapon 2: [empty slot]" in texts
+    assert "MODULES (0/1 slots)" in texts
+    assert "Module 1: [empty slot]" in texts
+    assert all(not row.selectable for row in frame.rows)
+
+
+def test_slot_rows_render_installed_gear_beyond_slot_count():
+    from src.spacehack.menus import _ship_menu
+
+    rows = _ship_menu._slot_rows(
+        "Weapon", 1, ("light_laser", "light_laser"), _ship_menu._weapon_row,
+    )
+
+    assert [row.text for row in rows] == [
+        "Weapon 1: Light Laser", "Weapon 2: Light Laser",
+    ]
+    assert all(row.selectable for row in rows)
+
+
+def test_slot_rows_mark_unknown_ids_and_empty_slots():
+    from src.spacehack.menus import _ship_menu
+
+    rows = _ship_menu._slot_rows(
+        "Module", 2, ("not_a_real_module",), _ship_menu._module_row,
+    )
+
+    assert rows[0].text == "Module 1: not_a_real_module"
+    assert rows[0].detail == "Unknown module specification"
+    assert rows[1].text == "Module 2: [empty slot]"
+    assert rows[1].detail == "No module installed."
+    assert rows[0].selectable is True
+    assert rows[1].selectable is False
 
 
 def test_ship_hangar_pygame_maps_back_and_quit(monkeypatch):
