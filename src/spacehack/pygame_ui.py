@@ -247,13 +247,18 @@ def draw_context_log(
     *,
     palette: Palette = DEFAULT_PALETTE,
 ) -> None:
-    """Paint the live console log in the reserved bottom modal band."""
+    """Paint the live console log in the reserved bottom band.
+
+    The panel spans the full screen width so the log reads identically
+    here and in the world renderer (which paints log rows edge-to-edge
+    on the capture console).
+    """
     game_context = _context_game_context(context)
     log = getattr(game_context, "log", None)
     if log is None:
         return
     width, height = screen.get_size()
-    panel = Rect(32, max(0, height - LOG_PANEL_HEIGHT), width - 64, LOG_PANEL_HEIGHT)
+    panel = Rect(0, max(0, height - LOG_PANEL_HEIGHT), width, LOG_PANEL_HEIGHT)
     draw_panel(pygame, screen, panel, palette=palette)
     font = _log_font(pygame)
     draw_text(
