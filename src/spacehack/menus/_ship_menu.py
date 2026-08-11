@@ -1,9 +1,10 @@
-"""Ship hangar menu — render, update, and modal runner.
+"""Ship hangar — tabbed modal runner.
 
-Provides the ``View Cargo`` / ``View Loadout`` / ``Launch`` options
-for the player's owned ship while in city mode. Also exports
-``_find_hangar_ship`` used by the landing animation code in
-``__main__.py``.
+One ``pygame_screen`` modal with CARGO / LOADOUT tabs for the player's
+owned ship while in city mode (the C-screen pattern): TAB cycles tabs,
+ENTER jettisons a selected good on the CARGO tab or launches from
+either tab, ESC walks away. Also exports ``_find_hangar_ship`` used by
+the landing animation code in ``__main__.py``.
 
 Extracted from the old ``menus.py`` during the package refactor.
 """
@@ -233,25 +234,24 @@ def render_loadout_view(console, ctx) -> None:
     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
 
-def _pygame_loadout_frame(ctx):
-    """Build a readable Pygame snapshot for the installed ship loadout."""
-    from .. import pygame_screen, pygame_ui
-    from ..data.modules import find_module
-    from ..data.weapons import find_weapon
-
-    owned = ctx.player_owned_ship
-    if owned is None:
-        return pygame_screen.ScreenFrame(
-        "SHIP LOADOUT", ("No ship equipped.",), (),
-        ("ESC back",),
-        )
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    body = (
+def _loadout_body(ctx, owned, ship_spec) -> tuple[str, ...]:
+    """Build the read-only loadout summary lines (the LOADOUT tab body)."""
+    return (
         f"Fuel: {owned.fuel}/{ship_spec.max_fuel}",
         f"Hull damage: {owned.hull_damage_pct}%",
         f"Cargo: {owned.cargo_used}/{ship_module.effective_max_cargo(ship_spec, owned)}",
-        f"Shields: {_effective_shields(ship_spec, owned)}    Power: {_effective_power_gen(ship_spec, owned)}    Speed: {ship_module.effective_speed(ship_spec, owned)}",
+        f"Shields: {_effective_shields(ship_spec, owned)}    "
+        f"Power: {_effective_power_gen(ship_spec, owned)}    "
+        f"Speed: {ship_module.effective_speed(ship_spec, owned)}",
     )
+
+
+def _loadout_rows(ctx, owned, ship_spec):
+    """Build the read-only weapon/module rows for the LOADOUT tab."""
+    from .. import pygame_screen
+    from ..data.modules import find_module
+    from ..data.weapons import find_weapon
+
     rows: list = []
     for index, weapon_id in enumerate(owned.weapons, 1):
         try:
@@ -279,39 +279,7 @@ def _pygame_loadout_frame(ctx):
             rows.append(pygame_screen.ScreenRow(module_id, "Unknown module specification", selectable=True))
     if not owned.modules:
         rows.append(pygame_screen.ScreenRow("Modules: none installed", selectable=False))
-    return pygame_screen.ScreenFrame(
-        title=f"LOADOUT - {ship_module.ship_display_name(owned).upper()}",
-        body=body,
-        rows=tuple(rows),
-        footer=(pygame_ui.modal_hint("ESC back", pygame_ui.GUIDE_HINT),),
-    )
-
-
-def _run_pygame_loadout_view(ctx) -> bool | None:
-    """Run the read-only loadout through the shared Pygame screen."""
-    from .. import pygame_screen
-
-    while True:
-        outcome, _action, _selected = pygame_screen.run_for_context(
-            ctx.context,
-            _pygame_loadout_frame(ctx),
-            caption="spacehack - ship loadout",
-        )
-        if outcome == "GUIDE":
-            from ..help import _open_context_guide
-            _open_context_guide(ctx, "Ships & Equipment")
-            continue
-        if outcome in {"BACK", "QUIT"}:
-            return True
-        return True
-
-
-def _run_loadout_view(ctx) -> None:
-    """Show the read-only loadout view through the shared Pygame screen."""
-    if ctx.player_owned_ship is None:
-        return
-    _run_pygame_loadout_view(ctx)
-    return
+    return tuple(rows)
 
 
 def render_faction_view(console, ctx) -> None:
@@ -367,94 +335,116 @@ def _run_faction_view(ctx) -> None:
 
 
 def _pygame_ship_menu_enabled() -> bool:
-    """Return whether the interactive Pygame menu can render in this runtime."""
-    from .. import pygame_menu
+    """Return whether the tabbed hangar can render in this runtime."""
+    from .. import pygame_screen
 
-    return pygame_menu.enabled()
+    return pygame_screen.enabled()
 
 
-def _ship_menu_frames(ctx, ship: ship_module.Ship):
-    """Build presentation-only frames for the Pygame ship hub."""
-    from .. import pygame_menu, pygame_ui
+def _launch_row():
+    """Build the persistent Launch row reachable from both hangar tabs."""
+    from .. import pygame_screen
+
+    return pygame_screen.ScreenRow(
+        "Launch", "Leave the hangar and enter space.", "LAUNCH",
+    )
+
+
+def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
+    """Build one tabbed hangar snapshot (CARGO / LOADOUT tabs).
+
+    CARGO reuses the shared cargo rows (jettison actions preserved) and
+    the LOADOUT tab reuses the read-only loadout rows; both tabs end with
+    the persistent Launch row (decision #6).
+    """
+    from .. import pygame_screen, pygame_ui
+    from ..trade import _cargo_body, _cargo_rows
 
     owned = ctx.player_owned_ship
     if owned is None:
-        _body = ship.description
-    else:
-        _speed = ship_module.effective_speed(ship, owned)
-        _body = "\n".join((
+        return pygame_screen.ScreenFrame(
+            "YOUR SHIP", ("No ship equipped.",), (),
+            (pygame_ui.modal_hint("ESC back", pygame_ui.GUIDE_HINT),),
+        )
+    title = f"YOUR {ship_module.ship_display_name(owned).upper()}"
+    launch_row = _launch_row()
+    if tab == 0:
+        max_cargo = ship_module.effective_max_cargo(ship, owned)
+        rows = (*_cargo_rows(owned), launch_row)
+        body = (
             ship.description,
             f"Fuel: {owned.fuel} / {ship.max_fuel}",
             f"Hull: {owned.hull_damage_pct}% damage",
-            f"Speed: {_speed}",
+            f"Speed: {ship_module.effective_speed(ship, owned)}",
             pygame_ui.credits_label(ctx.stats.credits),
-        ))
-    _items = tuple(
-        pygame_menu.MenuItem(label, "", action)
-        for label, action in zip(
-            SHIP_MENU_OPTIONS,
-            ("VIEW", "LOADOUT", "LAUNCH"),
+            "",
+            *_cargo_body(owned, max_cargo),
         )
-    )
-    return tuple(
-        pygame_menu.MenuFrame(
-            title=f"Your {ship_module.ship_display_name(owned).upper()}",
-            body=_body,
-            items=_items,
-            hints=(pygame_ui.modal_hint(
-                pygame_ui.NAV_HINT, "ENTER select", "ESC back",
-                pygame_ui.GUIDE_HINT,
-            ),),
-            selected=index,
-        )
-        for index in range(len(_items))
+        footer = (pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER jettison", "TAB loadout",
+            "ESC back", pygame_ui.GUIDE_HINT,
+        ),)
+    else:
+        rows = (*_loadout_rows(ctx, owned, ship), launch_row)
+        body = _loadout_body(ctx, owned, ship)
+        footer = (pygame_ui.modal_hint(
+            "TAB cargo", "ESC back", pygame_ui.GUIDE_HINT,
+        ),)
+    return pygame_screen.ScreenFrame(
+        title, body, rows, footer, selected,
+        tabs=("CARGO", "LOADOUT"), active_tab=tab,
     )
 
 
-def _run_pygame_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
-    """Run one Pygame ship-hub interaction, or return ``None`` for fallback."""
-    from .. import pygame_menu
+def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
+    """Run the tabbed hangar through the shared Pygame screen.
 
+    TAB cycles CARGO ⇄ LOADOUT; ENTER jettisons a selected good on the
+    CARGO tab or launches from either tab; ``?`` reopens the guide; ESC
+    walks away.
+    """
+    from .. import pygame_screen
+
+    tab = 0
+    selected = 0
     while True:
-        outcome, action, _selected = pygame_menu.run_for_context(
+        outcome, action, selected = pygame_screen.run_for_context(
             getattr(ctx, "context", ctx),
-            _ship_menu_frames(ctx, ship),
+            _ship_hangar_frame(ctx, ship, tab, selected),
             caption="spacehack - ship hangar",
         )
         if outcome == "GUIDE":
             from ..help import _open_context_guide
             _open_context_guide(ctx, "Ships & Equipment")
             continue
-        if outcome == "SELECT":
-            _actions = {
-                "VIEW": ShipMenuAction.VIEW,
-                "LOADOUT": ShipMenuAction.LOADOUT,
-                "LAUNCH": ShipMenuAction.LAUNCH,
-            }
-            return _actions.get(action, ShipMenuAction.BACK)
+        if outcome == "TAB":
+            tab = (tab + 1) % 2
+            selected = 0
+            continue
+        if outcome in {"PAGE_UP", "PAGE_DOWN"}:
+            continue
         if outcome == "QUIT":
             return ShipMenuAction.QUIT
+        if outcome == "SELECT":
+            if action == "LAUNCH":
+                return ShipMenuAction.LAUNCH
+            if tab == 0:
+                from ..trade import _apply_jettison
+                owned = ctx.player_owned_ship
+                if owned is not None and _apply_jettison(ctx, owned, action):
+                    continue
+            return None
         return ShipMenuAction.BACK
 
 
 def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
-    """Show the hub-menu modal for ``ship``; return the chosen action.
+    """Show the tabbed hangar modal for ``ship``; return the chosen action.
 
-    The menu has 3 options (View Cargo, View Loadout, Launch);
-    the highlighted option (initially 0 = View Cargo) is mutated by
-    UP / DOWN arrows AND vim ``j`` / ``k`` via
-    :func:`_ship_menu_navigate`.
+    One tabbed screen (CARGO / LOADOUT, the C-screen pattern): no nested
+    sub-modals. TAB cycles tabs, ENTER jettisons on the CARGO tab or
+    launches from either tab, ESC walks away.
     """
-    while True:
-        _pygame_action = _run_pygame_ship_menu(ctx, ship)
-        if _pygame_action is ShipMenuAction.VIEW:
-            from ..trade import open_cargo as _open_cargo
-            _open_cargo(ctx)
-            continue
-        if _pygame_action is ShipMenuAction.LOADOUT:
-            _run_loadout_view(ctx)
-            continue
-        return _pygame_action
+    return _run_pygame_ship_hangar(ctx, ship)
 
 
 def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_module.OwnedShip | None) -> world.Entity | None:

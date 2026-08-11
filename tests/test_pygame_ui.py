@@ -1263,11 +1263,11 @@ def test_armory_pygame_action_returns_keep_open_after_buy():
     assert messages
 
 
-def test_readonly_loadout_frame_uses_semantic_screen_rows(monkeypatch):
+def test_hangar_loadout_tab_reuses_readonly_loadout_rows():
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
-    monkeypatch.setattr(_ship_menu.ship_module, "ship_display_name", lambda _owned: "Scout A")
+    ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(
             ship_id="starter",
@@ -1275,26 +1275,34 @@ def test_readonly_loadout_frame_uses_semantic_screen_rows(monkeypatch):
             modules=("shield_mk1",),
             fuel=12,
         ),
+        stats=SimpleNamespace(credits=321),
     )
 
-    frame = _ship_menu._pygame_loadout_frame(ctx)
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=1, selected=0)
 
-    assert frame.title == "LOADOUT - SCOUT A"
+    assert frame.title.startswith("YOUR ")
+    assert frame.tabs == ("CARGO", "LOADOUT")
+    assert frame.active_tab == 1
     assert "Fuel: 12/80" in frame.body
     assert frame.rows[0].text.startswith("Weapon 1:")
     assert "Damage" in frame.rows[0].detail
     assert any(row.text == "Shield Mk. 1" for row in frame.rows)
+    assert frame.rows[-1].text == "Launch"
+    assert frame.rows[-1].action == "LAUNCH"
+    assert any("TAB cargo" in hint for hint in frame.footer)
     assert all(row.selectable for row in frame.rows if row.text != "MODULES")
 
 
-def test_readonly_loadout_pygame_maps_back_and_quit(monkeypatch):
+def test_ship_hangar_pygame_maps_back_and_quit(monkeypatch):
     from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
+    ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
         context=object(),
-        player_owned_ship=OwnedShip(ship_id="starter"),
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
     )
     for outcome in ("BACK", "QUIT"):
         monkeypatch.setattr(
@@ -1302,64 +1310,107 @@ def test_readonly_loadout_pygame_maps_back_and_quit(monkeypatch):
             "run_for_context",
             lambda *args, _outcome=outcome, **kwargs: (_outcome, "", 0),
         )
-        monkeypatch.setattr(pygame_screen, "enabled", lambda: True)
-        assert _ship_menu._run_pygame_loadout_view(ctx) is True
+        assert _ship_menu._run_pygame_ship_hangar(
+            ctx, ship,
+        ) is _ship_menu.ShipMenuAction[outcome]
 
 
-def test_readonly_loadout_pygame_maps_guide_and_requires_shared_runtime(monkeypatch):
+def test_ship_hangar_pygame_maps_launch(monkeypatch):
     from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
+    ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
         context=object(),
-        player_owned_ship=OwnedShip(ship_id="starter"),
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
     )
-    outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
-    monkeypatch.setattr(pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes))
-    monkeypatch.setattr(pygame_screen, "enabled", lambda: True)
-    monkeypatch.setattr("src.spacehack.help._run_help_guide", lambda _ctx: None)
-
-    assert _ship_menu._run_pygame_loadout_view(ctx) is True
-
-    calls = []
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            pygame_screen.PygameScreenUnavailable("missing")
-        ),
+        lambda _context, frame, **kwargs: ("SELECT", "LAUNCH", len(frame.rows) - 1),
     )
-    try:
-        _ship_menu._run_loadout_view(ctx)
-    except pygame_screen.PygameScreenUnavailable as exc:
-        assert str(exc) == "missing"
-    else:
-        raise AssertionError("loadout must not fall back to tcod")
+
+    assert _ship_menu._run_pygame_ship_hangar(
+        ctx, ship,
+    ) is _ship_menu.ShipMenuAction.LAUNCH
 
 
-def test_readonly_loadout_uses_shared_screen_without_worker(monkeypatch):
-    from src.spacehack import pygame_runtime, pygame_screen
+def test_ship_hangar_pygame_tab_cycles_and_resets_selection(monkeypatch):
+    from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
+    ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
         context=object(),
-        player_owned_ship=OwnedShip(ship_id="starter"),
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
     )
-    captured = {}
-    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
-    monkeypatch.setattr(
-        pygame_screen,
-        "run_for_context",
-        lambda context, frame, **kwargs: captured.update(
-            context=context, frame=frame,
-        ) or ("BACK", "", 0),
-    )
+    seen = []
+    outcomes = iter((("TAB", "", 3), ("BACK", "", 0)))
 
-    assert _ship_menu._run_pygame_loadout_view(ctx) is True
-    assert captured["context"] is ctx.context
-    assert captured["frame"].title.startswith("LOADOUT -")
+    def fake_run(_context, frame, **_kwargs):
+        seen.append(frame)
+        return next(outcomes)
+
+    monkeypatch.setattr(pygame_screen, "run_for_context", fake_run)
+
+    assert _ship_menu._run_pygame_ship_hangar(
+        ctx, ship,
+    ) is _ship_menu.ShipMenuAction.BACK
+    assert seen[0].active_tab == 0
+    assert seen[1].active_tab == 1
+    assert seen[1].selected == 0
+
+
+def test_ship_hangar_pygame_guide_reopens(monkeypatch):
+    from src.spacehack import pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    ctx = SimpleNamespace(
+        context=object(),
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
+        stats=SimpleNamespace(credits=321),
+    )
+    outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
+    monkeypatch.setattr(
+        pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes),
+    )
+    monkeypatch.setattr("src.spacehack.help._open_context_guide", lambda _ctx, _topic: None)
+
+    assert _ship_menu._run_pygame_ship_hangar(
+        ctx, ship,
+    ) is _ship_menu.ShipMenuAction.BACK
+
+
+def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
+    from src.spacehack import pygame_screen, trade
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    owned = OwnedShip(ship_id="starter", fuel=12)
+    owned.inventory = {"food_rations": 2}
+    ctx = SimpleNamespace(
+        context=object(),
+        player_owned_ship=owned,
+        stats=SimpleNamespace(credits=321),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    outcomes = iter((("SELECT", "JETTISON:food_rations", 0), ("BACK", "", 0)))
+    monkeypatch.setattr(
+        pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes),
+    )
+    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 2)
+
+    assert _ship_menu._run_pygame_ship_hangar(
+        ctx, ship,
+    ) is _ship_menu.ShipMenuAction.BACK
+    assert owned.inventory == {}
 
 
 def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
@@ -1440,79 +1491,117 @@ def test_split_interactive_malformed_action_is_explicit(monkeypatch):
         raise AssertionError("invalid split actions must not fall back to tcod")
 
 
-def test_ship_menu_frames_keep_actions_opaque_and_stats_in_parent_snapshot(monkeypatch):
-    monkeypatch.setattr(
-        _ship_menu.ship_module,
-        "ship_display_name",
-        lambda owned: "Scout A",
-    )
-    monkeypatch.setattr(
-        _ship_menu.ship_module,
-        "effective_speed",
-        lambda ship, owned: 9,
-    )
-    ship = SimpleNamespace(description="Fast courier", max_fuel=20)
+def test_hangar_cargo_tab_reuses_cargo_rows_and_launch():
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
+    owned = OwnedShip(ship_id="starter", fuel=12, hull_damage_pct=5)
+    owned.inventory = {"food_rations": 2}
     ctx = SimpleNamespace(
-        player_owned_ship=SimpleNamespace(
-            fuel=12,
-            hull_damage_pct=5,
-        ),
+        player_owned_ship=owned,
         stats=SimpleNamespace(credits=321),
     )
-    frames = _ship_menu._ship_menu_frames(ctx, ship)
 
-    assert [item.action for item in frames[0].items] == ["VIEW", "LOADOUT", "LAUNCH"]
-    assert "Fuel: 12 / 20" in frames[0].body
-    assert "Credits: 321$" in frames[0].body
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=0, selected=0)
+
+    assert frame.title.startswith("YOUR ")
+    assert frame.tabs == ("CARGO", "LOADOUT")
+    assert frame.active_tab == 0
+    assert "Fuel: 12 / 80" in frame.body
+    assert "Credits: 321$" in frame.body
+    assert any("Cargo: 2 / 20" in line for line in frame.body)
+    assert frame.rows[0].action == "JETTISON:food_rations"
+    assert frame.rows[-1].text == "Launch"
+    assert frame.rows[-1].action == "LAUNCH"
+    assert any("TAB loadout" in hint for hint in frame.footer)
 
 
-def test_ship_menu_pygame_maps_terminal_actions(monkeypatch):
-    ship = SimpleNamespace(description="Fast courier", max_fuel=20)
+def test_hangar_empty_hold_clamps_selection_to_launch():
+    from src.spacehack import pygame_screen
+    from src.spacehack.menus import _ship_menu
+    from src.spacehack.ship import OwnedShip
+
+    ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
-        player_owned_ship=SimpleNamespace(fuel=12, hull_damage_pct=5),
+        player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
         stats=SimpleNamespace(credits=321),
     )
-    monkeypatch.setattr(
-        pygame_menu,
-        "run_for_context",
-        lambda _context, frames, **kwargs: ("SELECT", "LAUNCH", 2),
-    )
-    monkeypatch.setattr(
-        _ship_menu.ship_module,
-        "ship_display_name",
-        lambda owned: "Scout A",
-    )
-    monkeypatch.setattr(
-        _ship_menu.ship_module,
-        "effective_speed",
-        lambda ship, owned: 9,
-    )
 
-    assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.LAUNCH
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=0, selected=0)
+
+    assert frame.rows[-1].action == "LAUNCH"
+    assert pygame_screen._clamp(frame) == len(frame.rows) - 1
 
 
-def test_ship_menu_pygame_guide_reopens_and_requires_shared_runtime(monkeypatch):
-    ship = SimpleNamespace(description="Fast courier", max_fuel=20)
+def test_hangar_frame_without_owned_ship_is_tabless_fallback():
+    from src.spacehack.menus import _ship_menu
+
+    ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
-        player_owned_ship=SimpleNamespace(fuel=12, hull_damage_pct=5),
+        player_owned_ship=None,
         stats=SimpleNamespace(credits=321),
     )
-    outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
-    monkeypatch.setattr(
-        _ship_menu.ship_module,
-        "ship_display_name",
-        lambda owned: "Scout A",
-    )
-    monkeypatch.setattr(
-        _ship_menu.ship_module,
-        "effective_speed",
-        lambda ship, owned: 9,
-    )
-    monkeypatch.setattr("src.spacehack.menus._ship_menu._try_open_guide", lambda *args: None)
-    monkeypatch.setattr("src.spacehack.help._run_help_guide", lambda _ctx: None)
 
-    assert _ship_menu._run_pygame_ship_menu(ctx, ship) is _ship_menu.ShipMenuAction.BACK
+    frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=1, selected=0)
+
+    assert frame.title == "YOUR SHIP"
+    assert frame.tabs == ()
+    assert "No ship equipped." in frame.body
+
+
+def test_cargo_rows_are_shared_with_the_hangar_tab():
+    from src.spacehack import trade
+    from src.spacehack.ship import OwnedShip
+
+    owned = OwnedShip(ship_id="starter")
+    owned.inventory = {"food_rations": 2}
+
+    rows = trade._cargo_rows(owned)
+
+    assert rows[0].action == "JETTISON:food_rations"
+    assert "x2" in rows[0].text
+    assert "Value:" in rows[0].detail
+
+
+def test_apply_jettison_removes_selected_quantity(monkeypatch):
+    from src.spacehack import trade
+    from src.spacehack.ship import OwnedShip
+
+    owned = OwnedShip(ship_id="starter")
+    owned.inventory = {"food_rations": 5}
+    messages = []
+    ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
+    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 3)
+
+    assert trade._apply_jettison(ctx, owned, "JETTISON:food_rations") is True
+    assert owned.inventory == {"food_rations": 2}
+    assert messages
+
+
+def test_apply_jettison_full_quantity_removes_the_good(monkeypatch):
+    from src.spacehack import trade
+    from src.spacehack.ship import OwnedShip
+
+    owned = OwnedShip(ship_id="starter")
+    owned.inventory = {"food_rations": 4}
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
+    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 4)
+
+    assert trade._apply_jettison(ctx, owned, "JETTISON:food_rations") is True
+    assert owned.inventory == {}
+
+
+def test_apply_jettison_rejects_malformed_or_unknown_actions():
+    from src.spacehack import trade
+    from src.spacehack.ship import OwnedShip
+
+    owned = OwnedShip(ship_id="starter")
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
+
+    assert trade._apply_jettison(ctx, owned, "BROKEN") is False
+    assert trade._apply_jettison(ctx, owned, "JETTISON:") is False
+    assert trade._apply_jettison(ctx, owned, "JETTISON:unknown_good") is False
 
 
 def test_ship_menu_pygame_is_enabled():

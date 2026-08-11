@@ -938,10 +938,13 @@ def _pygame_cargo_enabled() -> bool:
     return pygame_screen.enabled()
 
 
-def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
-    """Build a readable cargo snapshot with opaque jettison actions."""
-    from . import pygame_screen, pygame_ui
-    from . import ship as ship_module
+def _cargo_rows(owned):
+    """Build the cargo inventory rows (opaque ``JETTISON:<id>`` actions).
+
+    Shared by the standalone cargo modal (:func:`_cargo_frame`) and the
+    tabbed ship hangar's CARGO tab (``menus/_ship_menu.py``).
+    """
+    from . import pygame_screen
 
     items = []
     for good_id, qty in owned.inventory.items():
@@ -958,17 +961,63 @@ def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
         )
     if not items:
         items = [pygame_screen.ScreenRow("No trade goods in hold", selectable=False)]
-    body = (
+    return tuple(items)
+
+
+def _cargo_body(owned, max_cargo: int) -> tuple[str, ...]:
+    """Build the cargo summary body lines (shared by the cargo modal and
+    the tabbed hangar's CARGO tab)."""
+    return (
         f"Cargo: {owned.cargo_used} / {max_cargo}    Free: {max(0, max_cargo - owned.cargo_used)}",
         f"Mission cargo reserved: {owned.mission_reserved}    Ammo: {owned.cargo_ammo}",
-        f"Hull: {owned.hull_damage_pct}% damage",
     )
+
+
+def _apply_jettison(ctx, owned, action: str) -> bool:
+    """Apply one ``JETTISON:<good_id>`` action and return whether it was
+    a recognized jettison request (False = malformed/unknown, the caller
+    falls back).
+
+    Prompts the player for the quantity in the shared Pygame window,
+    removes that many units from the hold, and logs the jettison. The
+    computation (quantity prompt + inventory mutation) is deterministic
+    and tested in isolation.
+    """
+    if not action.startswith("JETTISON:") or ":" not in action:
+        return False
+    good_id = action.split(":", 1)[1]
+    try:
+        quantity = owned.inventory.get(good_id, 0)
+        good = find_trade_good(good_id)
+    except (KeyError, ValueError):
+        return False
+    if quantity > 0:
+        quantity_prompt = _run_quantity_prompt(
+            ctx, f"Jettison {good.name}", quantity, 0,
+        )
+        if quantity_prompt:
+            remaining = quantity - quantity_prompt
+            if remaining <= 0:
+                del owned.inventory[good_id]
+            else:
+                owned.inventory[good_id] = remaining
+            ctx.log.add(
+                f"Jettisoned {quantity_prompt}x {good.name} into space."
+            )
+    return True
+
+
+def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
+    """Build a readable cargo snapshot with opaque jettison actions."""
+    from . import pygame_screen, pygame_ui
+
+    body = (*_cargo_body(owned, max_cargo), f"Hull: {owned.hull_damage_pct}% damage")
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER jettison selected", "ESC close",
         pygame_ui.GUIDE_HINT,
     ),)
     return pygame_screen.ScreenFrame(
-        f"CARGO - {ship_name.upper()}", body, tuple(items), footer, selected,
+        f"CARGO - {ship_name.upper()}", body, _cargo_rows(owned), footer, selected,
     )
 
 
@@ -992,27 +1041,8 @@ def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None
         if outcome == "QUIT":
             raise SystemExit
         if outcome == "SELECT":
-            if not action.startswith("JETTISON:") or ":" not in action:
+            if not _apply_jettison(ctx, owned, action):
                 return None
-            good_id = action.split(":", 1)[1]
-            try:
-                quantity = owned.inventory.get(good_id, 0)
-                good = find_trade_good(good_id)
-            except (KeyError, ValueError):
-                return None
-            if quantity > 0:
-                quantity_prompt = _run_quantity_prompt(
-                    ctx, f"Jettison {good.name}", quantity, 0,
-                )
-                if quantity_prompt:
-                    remaining = quantity - quantity_prompt
-                    if remaining <= 0:
-                        del owned.inventory[good_id]
-                    else:
-                        owned.inventory[good_id] = remaining
-                    ctx.log.add(
-                        f"Jettisoned {quantity_prompt}x {good.name} into space."
-                    )
             continue
         return True
 

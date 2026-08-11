@@ -492,16 +492,36 @@ Passed: [ ]   Issues: _______________
 The hangar menu (View Cargo / View Loadout / Launch) becomes one tabbed
 `pygame_screen` modal — the first Layer 4 adoption.
 
-- [ ] Convert `_ship_menu` hangar from `pygame_menu` to `pygame_screen`
-      with `tabs=("CARGO", "LOADOUT")`
-- [ ] CARGO tab reuses `_cargo_frame` rows (jettison actions preserved);
-      LOADOUT tab reuses the read-only loadout rows
-- [ ] Persistent `Launch` action row reachable from both tabs
-      (decision #6)
-- [ ] Footers advertise the TAB target like the C screen
-      (`TAB loadout` / `TAB cargo`); `modal_hint` + `? guide`
-- [ ] Update `_ship_menu` / `trade` frame tests and help.py ship section
-- [ ] Smoke gate
+- [x] Convert `_ship_menu` hangar from `pygame_menu` to `pygame_screen`
+      with `tabs=("CARGO", "LOADOUT")` — `_ship_menu_frames` /
+      `_run_pygame_ship_menu` replaced by `_ship_hangar_frame(ctx, ship,
+      tab, selected)` + `_run_pygame_ship_hangar` (the C-screen runner
+      pattern: TAB outcome toggles the tab and resets selection; parent
+      owns tab state, worker stays a dumb painter)
+- [x] CARGO tab reuses the shared cargo rows — `trade._cargo_frame` split
+      into `_cargo_rows(owned)` / `_cargo_body(owned, max_cargo)` and the
+      standalone cargo modal composes them (byte-identical output); the
+      jettison flow extracted into `trade._apply_jettison(ctx, owned,
+      action)` (pure mutation wrapper) shared by the cargo modal and the
+      hangar
+- [x] LOADOUT tab reuses the read-only loadout rows — `_pygame_loadout_frame`
+      split into `_loadout_rows` / `_loadout_body`; the standalone loadout
+      view and its runner (`_run_loadout_view`, `_run_pygame_loadout_view`)
+      are gone (nothing else opened a read-only loadout)
+- [x] Persistent `Launch` action row reachable from both tabs
+      (decision #6) — last row on both tabs, `"Launch" / "Leave the
+      hangar and enter space." / LAUNCH`
+- [x] Footers advertise the TAB target like the C screen
+      (`TAB loadout` / `TAB cargo`); `modal_hint` + `? guide` — CARGO
+      footer `NAV_HINT, "ENTER jettison", "TAB loadout", "ESC back",
+      GUIDE_HINT`; LOADOUT footer `"TAB cargo", "ESC back",
+      GUIDE_HINT`
+- [x] Update `_ship_menu` / `trade` frame tests and help.py ship section
+      — hangar frame/runner tests (launch, TAB cycle + selection reset,
+      guide reopen, jettison on the cargo tab, back/quit), `_apply_jettison`
+      unit tests (partial/full/malformed), `_cargo_rows` shared test;
+      help.py "Your ship in the hangar" describes the tabs + Launch
+- [x] Smoke gate (552 passed, smoke PASS)
 
 **▸ PLAYTEST Phase 7:**
 
@@ -516,6 +536,12 @@ Bump your ship in the city.
 - [ ] `?` opens the guide from the hangar
 
 Passed: [ ]   Issues: _______________
+
+Implemented: [x] — one tabbed `YOUR <SHIP>` screen (CARGO | LOADOUT tab
+bar), title unchanged from the old hangar; TAB ⇄ LOADOUT/CARGO;
+jettison + Launch both in-tab; `_run_ship_menu` now returns LAUNCH/BACK/
+QUIT directly (`__main__` launch flow untouched). Code review: no
+blocking issues.
 
 ---
 
@@ -584,6 +610,7 @@ Passed: [ ]   Issues: _______________
    (matches the current 3rd menu option). Alternatives: a hotkey
    (needs new key plumbing in `pygame_screen`) or a third tab
    (rejected — Launch is an action, not a view).
+   **RESOLVED (Phase 7): persistent Launch row on both tabs.**
 7. **Pinned description (EXPERIMENT — Phase 3 revision).** Anchor the
    focused panel's description to the panel's bottom edge (stable
    position while rows scroll above it) vs today's
@@ -624,6 +651,7 @@ Passed: [ ]   Issues: _______________
 #1→Phase 3 (approved: credits-left/cargo-right) · #2→Phase 3 (resolved:
 NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
 · #3→Phase 4 · #4→Phase 5 (RESOLVED: `UP/DOWN navigate`) · #5→Phase 5 · #6→Phase 7
+(RESOLVED: persistent Launch row on both tabs)
 · #7→Phase 3 revision (RESOLVED: pin approved) · #8→Phase 3 revision
 (RESOLVED: cap 13 approved)· #9→Phase 4 revision (RESOLVED: centering + gaps approved)
 
@@ -715,8 +743,9 @@ NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
 12. [x] Menus/screens that can clip render at the same font as terminals
       (Phase 6 — shared `pygame_ui.fit_font` + capped viewport) or are
       explicitly exempt (tiny content: ship buy, jump, story)
-13. [ ] Ship hangar is a tabbed CARGO/LOADOUT screen (C-screen pattern)
+13. [x] Ship hangar is a tabbed CARGO/LOADOUT screen (C-screen pattern)
       with Launch still reachable; no nested cargo/loadout modals
+      (Phase 7 — jettison stays in-tab on CARGO)
 14. [x] Every tunable (palette, fonts, title/hint/value formats, row
       cap, pin geometry) is a single constant/helper — one edit updates
       all modals
