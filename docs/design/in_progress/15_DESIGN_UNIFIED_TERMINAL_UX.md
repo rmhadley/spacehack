@@ -365,6 +365,15 @@ Implemented: [x] — 541 passed, smoke PASS. `? guide` dropped from the
 footer for decision-#2 consistency (the GUIDE key handler stays,
 unadvertised, like the split terminals).
 
+**▸ RE-TEST (post-playtest revision, decision #9):** ship buy "smashed
+into the top-left corner" → the shared `pygame_screen` renderer now
+vertically centers the content block (approved) and adds section gaps
+`BODY_ROWS_GAP = 24` / `ROWS_DETAIL_GAP = 20` to un-cram the
+description/buy-row/detail. Verified with real DejaVu at 24px: ship buy
+119 → 155px content (y 361→516), C screen STATS tab 396px (y 262→658,
+tallest case, FITS), EQUIPMENT 337px, cargo 207px. Gap values pending
+playtest.
+
 ---
 
 ### Phase 5 — Menu & screen-family conventions (`pygame_menu` / `pygame_screen` / `pygame_merchant`)
@@ -530,12 +539,28 @@ Passed: [ ]   Issues: _______________
    air above the pinned description); 13 full rows at 24px don't fit
    the 1600×960 panel, so armory renders ~19px and trade ~21px while
    loadout/NPC stay 24px. Revert to 10 is one constant.
+9. **Screen-family layout (EXPERIMENT — Phase 4 revision).** Ship buy
+   "feels squished": the `pygame_screen` family draws no panel, and
+   content was top-anchored at (40, 84), leaving ~700px of empty
+   canvas below short modals. Two-part fix in the shared
+   `pygame_screen._draw_frame`:
+   - **Vertical centering:** the content block (body + rows + detail)
+     is centered between the title rule and the footer zone;
+     content taller than the space falls back to the top anchor via
+     `max(0, …)` — long pages (guide) are byte-identical.
+   - **Section breathing room:** `BODY_ROWS_GAP = 24` and
+     `ROWS_DETAIL_GAP = 20` (only applied when the section above
+     exists), mirrored in `_layout_height` / `_non_body_height` so
+     the font-fit solver budgets the same space. Ship buy content
+     grows 119 → 155px, still 24px, still centered.
+   **RESOLVED: both parts approved** — user: "I think I do like the
+   vert center feel" then, after the gaps, "Much better. commit".
 
 **Where each decision lands (implementation stops for a user playtest):**
 #1→Phase 3 (approved: credits-left/cargo-right) · #2→Phase 3 (resolved:
 NO `? guide` in hints) · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→Phase 7
 · #7→Phase 3 revision (RESOLVED: pin approved) · #8→Phase 3 revision
-(RESOLVED: cap 13 approved)
+(RESOLVED: cap 13 approved)· #9→Phase 4 revision (RESOLVED: centering + gaps approved)
 
 ## Pre-implementation audit
 
