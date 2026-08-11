@@ -210,6 +210,15 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   release workflow does the same. Never set `codesign_identity='-'` in the
   spec — it also enables hardened runtime, which makes ad-hoc-signed
   dylibs fail library validation.
+- **Never zip the .app with plain `zip -r`** — PyInstaller stores the code
+  signatures of non-binary files inside `Contents/Frameworks` (the data
+  tree, `spacehack.pkg`) in extended attributes; plain zip drops xattrs,
+  so the downloaded app's signature becomes INVALID — "damaged and can't
+  be opened", and even Open Anyway fails (only `xattr -cr` bypasses it).
+  The release workflow archives with `ditto -c -k --sequesterRsrc
+  --keepParent` (single source only; append extra files with plain zip).
+  Verify downloads with `codesign --verify --deep --strict`; if it fails,
+  the zip step is the culprit, not the signing.
 
 ### Code quality guardrails
 
