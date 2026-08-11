@@ -46,6 +46,9 @@ class MenuFrame:
     art_color: tuple[int, int, int] | None = None
     art_colors: tuple[tuple[int, int, int], ...] = ()
     initial_selected: int | None = None
+    # Pre-game screens (the title menu) must not paint the previous run's
+    # console-log band; in-game menus leave this on.
+    draw_log: bool = True
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -83,6 +86,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> MenuFrame:
             if raw.get("initial_selected") is not None
             else None
         ),
+        draw_log=bool(raw.get("draw_log", True)),
     )
 
 
@@ -236,7 +240,7 @@ def _draw_frame(
     content_width = _content_width(width)
     content_bottom = (
         pygame_ui.modal_footer_y(height)
-        if context is not None
+        if context is not None and frame.draw_log
         else panel.y + panel.height - 20
     )
     measure = lambda text: pygame_ui.measure_font(font, text)
@@ -312,7 +316,7 @@ def _draw_frame(
             y += line_height + 4
     finally:
         screen.set_clip(None)
-    if context is not None:
+    if context is not None and frame.draw_log:
         pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
 
 
@@ -324,7 +328,8 @@ def _draw_shared_frame(
         _draw_frame(pygame, screen, font, frame, context=context)
         return
     _draw_frame(pygame, screen, font, frame)
-    pygame_ui.draw_context_log(pygame, screen, context)
+    if frame.draw_log:
+        pygame_ui.draw_context_log(pygame, screen, context)
 
 
 def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str, int]:

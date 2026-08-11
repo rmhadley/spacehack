@@ -3080,3 +3080,102 @@ def test_cargo_screen_uses_context_adapter_when_fixture_has_no_context(monkeypat
 
     assert result is True
     assert captured["context"] is ctx
+
+
+def test_title_menu_frames_do_not_draw_the_console_log():
+    """The pre-game title menu must never paint a previous run's log band."""
+    from src.spacehack import pygame_title
+
+    frames = pygame_title.frames(save_available=True)
+
+    assert frames
+    assert all(frame.draw_log is False for frame in frames)
+    assert all("CONTINUE" in item.label for item in frames[0].items if item.action == "CONTINUE")
+
+
+def test_title_menu_frames_without_save_omit_continue():
+    from src.spacehack import pygame_title
+
+    frames = pygame_title.frames(save_available=False)
+
+    assert all(item.action != "CONTINUE" for frame in frames for item in frame.items)
+    assert frames[0].initial_selected == 0
+
+
+def test_menu_draw_log_flag_round_trips_payload():
+    frame = pygame_menu.MenuFrame(
+        title="Mars",
+        body="Choose an action.",
+        items=(pygame_menu.MenuItem("Land", "Dock", "LAND"),),
+        hints=("ESC back",),
+        selected=0,
+        draw_log=False,
+    )
+
+    restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
+
+    assert restored == frame
+    assert restored.draw_log is False
+
+
+def test_menu_draw_frame_skips_log_when_flag_is_off(monkeypatch):
+    """draw_log=False (title menu) must not paint the console-log band
+    even when a shared context with a live game log is attached."""
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+    class Surface:
+        def get_size(self):
+            return (1600, 960)
+
+        def fill(self, _color):
+            pass
+
+        def set_clip(self, _rect):
+            pass
+
+    class FakeFont:
+        def get_linesize(self):
+            return 24
+
+        def size(self, text):
+            return len(text) * 10, 24
+
+    screen = Surface()
+    log_calls = []
+    monkeypatch.setattr(
+        pygame_ui, "draw_context_log",
+        lambda *args, **kwargs: log_calls.append(args),
+    )
+    # The remaining painter helpers only need to not crash.
+    for name in (
+        "draw_panel", "draw_centered_text", "draw_rule",
+        "draw_menu_row", "draw_text", "draw_wrapped_text",
+    ):
+        monkeypatch.setattr(pygame_ui, name, lambda *args, **kwargs: None)
+    monkeypatch.setattr(pygame_ui, "fit_text", lambda text, *args, **kwargs: text)
+    monkeypatch.setattr(
+        pygame_ui, "wrap_text", lambda text, *args, **kwargs: (text,),
+    )
+    monkeypatch.setattr(
+        pygame_ui, "visible_window", lambda *args, **kwargs: (0, 0),
+    )
+
+    context = SimpleNamespace()
+    frame = pygame_menu.MenuFrame(
+        "TITLE", "body", (pygame_menu.MenuItem("New", "d", "NEW"),), (), 0,
+        draw_log=False,
+    )
+    pygame_menu._draw_frame(FakePygame, screen, FakeFont(), frame, context=context)
+
+    assert log_calls == []
+
+    # In-game menus keep the log band.
+    frame = pygame_menu.MenuFrame(
+        "TITLE", "body", (pygame_menu.MenuItem("New", "d", "NEW"),), (), 0,
+    )
+    pygame_menu._draw_frame(FakePygame, screen, FakeFont(), frame, context=context)
+
+    assert len(log_calls) == 1

@@ -94,6 +94,7 @@ def frames(save_available: bool) -> tuple[pygame_menu.MenuFrame, ...]:
             initial_selected=1 if save_available else 0,
             art=art,
             art_color=pygame_ui.DEFAULT_PALETTE.title,
+            draw_log=False,
         )
         for selected in range(len(items))
     )
