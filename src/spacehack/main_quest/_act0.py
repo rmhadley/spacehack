@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections import deque
 from enum import Enum, auto
 
-import tcod.event
-
 from .. import message_log
 from .. import animation_timing
 from .. import ui
@@ -42,7 +40,6 @@ _SIGNAL_DOOR_WAVE_FRAMES: tuple[str, ...] = (
     "~=~=~=~",
 )
 
-
 def _signal_door_frames(width: int) -> tuple[str, ...]:
     """Build wave and center-split frames for an alien door barrier."""
     if width < 1:
@@ -66,11 +63,9 @@ def _signal_door_frames(width: int) -> tuple[str, ...]:
     )
     return _wave + _split
 
-
 # ---------------------------------------------------------------------------
 # Signal trigger
 # ---------------------------------------------------------------------------
-
 
 def maybe_trigger_signal(ctx, system_id: str) -> bool:
     """Fire the prologue signal on the first jump out of Sol."""
@@ -89,11 +84,9 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
     complete_step(ctx, "prologue_signal")
     return True
 
-
 # ---------------------------------------------------------------------------
 # Farthest-walkable BFS (shared by Mars door + delve sites)
 # ---------------------------------------------------------------------------
-
 
 def _farthest_walkable(game_map: world.GameMap, spawn: world.Position) -> world.Position:
     """Walkable cell farthest from ``spawn`` (BFS over walkable tiles)."""
@@ -124,11 +117,9 @@ def _farthest_walkable(game_map: world.GameMap, spawn: world.Position) -> world.
                 _queue.append((_nx, _ny))
     return world.Position(_far[0], _far[1])
 
-
 # ---------------------------------------------------------------------------
 # Mars surface + sealed door
 # ---------------------------------------------------------------------------
-
 
 def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) -> None:
     """Stamp the Mars signal landmark into the fresh surface dungeon."""
@@ -150,7 +141,6 @@ def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) ->
         # console/entrance and the finished map can be cached unchanged.
         _spawn_cache_guardian(game_map, _stamp.console, "mars")
 
-
 def _conceal_mars_stairs(
     game_map: world.GameMap,
     stairs: world.Position,
@@ -168,7 +158,6 @@ def _conceal_mars_stairs(
         world.DUNGEON_WALL,
     )
     game_map.tiles[stairs.y][stairs.x] = _wall
-
 
 def _signal_door_barrier(game_map: world.GameMap) -> list[world.Position]:
     """Return one contiguous authored alien barrier, ordered left-to-right."""
@@ -193,7 +182,6 @@ def _signal_door_barrier(game_map: world.GameMap) -> list[world.Position]:
         return []
     return _positions
 
-
 def _signal_door_screen_pos(
     position: world.Position,
     camera_x: int,
@@ -206,7 +194,6 @@ def _signal_door_screen_pos(
         region_x + position.x - camera_x,
         region_y + position.y - camera_y,
     )
-
 
 def _render_signal_door_frame(
     ctx,
@@ -251,7 +238,6 @@ def _render_signal_door_frame(
             )
     ctx.context.present(console)
 
-
 def _landmark_floor_near_barrier(
     game_map: world.GameMap,
     barrier: list[world.Position],
@@ -268,7 +254,6 @@ def _landmark_floor_near_barrier(
                 return _tile
     return world.DUNGEON_FLOOR
 
-
 def _open_signal_door_tiles(
     game_map: world.GameMap,
     barrier: list[world.Position],
@@ -281,7 +266,6 @@ def _open_signal_door_tiles(
     if game_map.in_bounds(stairs.x, stairs.y):
         game_map.tiles[stairs.y][stairs.x] = world.STAIRS_DOWN
         game_map.extension_entry_id = "mars_alien_prison"
-
 
 def animate_signal_door_opening(
     ctx,
@@ -310,7 +294,6 @@ def animate_signal_door_opening(
     _responsive_sleep(animation_timing.SIGNAL_SETTLE)
     return True
 
-
 def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40) -> list[world.Position]:
     """BFS through walkable cells from the door — the door's room.
 
@@ -334,7 +317,6 @@ def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: 
             _seen.add((_nx, _ny))
             _queue.append((_nx, _ny))
     return _cells
-
 
 def _spawn_squad_near(
     game_map: world.GameMap,
@@ -376,7 +358,6 @@ def _spawn_squad_near(
         fg=_spec.fg,
     )
 
-
 def _spawn_cache_guardian(
     game_map: world.GameMap,
     near_pos: world.Position,
@@ -409,7 +390,6 @@ def _spawn_cache_guardian(
         room_cap=10,
     )
 
-
 def start_prison_objective(ctx) -> None:
     """Start the Act 1 prison step when the player enters the extension.
 
@@ -423,7 +403,6 @@ def start_prison_objective(ctx) -> None:
             "[MAIN QUEST] Act 1: The Prison Below - descend the facility.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
-
 
 def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
     """Spawn pirate raiders in the room around the Mars door.
@@ -454,7 +433,6 @@ def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
         ctx.game_map, _anchor,
         enemy_id="pirate_raider", count=count, label="door_ambush",
     ) > 0
-
 
 def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars."""
@@ -506,11 +484,9 @@ def bump_mars_door(ctx) -> None:
         return
     ctx.log.add("The sealed door holds fast. It needs a tool you don't have.")
 
-
 # ---------------------------------------------------------------------------
 # Delve site preparation
 # ---------------------------------------------------------------------------
-
 
 def prepare_delve_site(
     ctx,
@@ -539,21 +515,17 @@ def prepare_delve_site(
     _spawn_cache_guardian(game_map, _cache_pos, planet_id)
     return True
 
-
 # ---------------------------------------------------------------------------
 # Exploration gates
 # ---------------------------------------------------------------------------
-
 
 def mars_exploration_unlocked(ctx) -> bool:
     """True once the signal has been received (Mars gate open)."""
     return step_status(ctx, "prologue_signal") in (STATUS_ACTIVE, STATUS_COMPLETED)
 
-
 def delve_site_unlocked(ctx, planet_id: str) -> bool:
     """True while a delve step targeting planet_id is live."""
     return _active_objective_step(ctx, "delve", planet_id=planet_id) is not None
-
 
 def surface_exploration_unlocked(ctx, planet_id: str) -> bool:
     """True when planet_id's surface explore option may be shown."""
@@ -561,11 +533,9 @@ def surface_exploration_unlocked(ctx, planet_id: str) -> bool:
         return mars_exploration_unlocked(ctx)
     return delve_site_unlocked(ctx, planet_id)
 
-
 # ---------------------------------------------------------------------------
 # Quest NPC spawning
 # ---------------------------------------------------------------------------
-
 
 def _wall_adjacent_tile(
     game_map: world.GameMap,
@@ -589,7 +559,6 @@ def _wall_adjacent_tile(
                             and game_map.tiles[_ny][_nx].walkable):
                         return world.Position(_x, _y)
     return near
-
 
 def spawn_quest_npcs(
     ctx,
@@ -640,49 +609,15 @@ def spawn_quest_npcs(
         width=1, height=1,
     ))
 
-
 # ---------------------------------------------------------------------------
 # Full-screen overlay plumbing
 # ---------------------------------------------------------------------------
-
-
-class _ModalOutcome(Enum):
-    IGNORE = auto()
-    CLOSE = auto()
-    QUIT = auto()
-
 
 class OfferOutcome(Enum):
     IGNORE = auto()
     ACCEPT = auto()
     DECLINE = auto()
     QUIT = auto()
-
-
-def _overlay_box(console, *, screen_width, screen_height, box_w, box_h) -> int:
-    console.clear()
-    y0 = max(0, (screen_height - box_h) // 2 - 2)
-    ui.paint_rect_border(
-        console,
-        (max(0, (screen_width - box_w) // 2), y0, box_w, box_h),
-        fg=ui.COLOR_VALUE_DIM,
-    )
-    return y0
-
-
-def _centered_print(console, *, screen_width, y, text, fg) -> None:
-    console.print(x=ui.centered_x(text, screen_width), y=y, string=text, fg=fg)
-
-
-def _modal_dismiss_update(event: tcod.event.Event) -> _ModalOutcome:
-    if isinstance(event, tcod.event.Quit):
-        return _ModalOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return _ModalOutcome.IGNORE
-    if event.sym in ui._ENTER_SYMS or event.sym in ui._ESCAPE_SYMS:
-        return _ModalOutcome.CLOSE
-    return _ModalOutcome.IGNORE
-
 
 # ---------------------------------------------------------------------------
 # Incoming transmission overlay
@@ -705,23 +640,6 @@ _SIGNAL_ART_COLORS: tuple[tuple[int, int, int], ...] = (
     *(_SIGNAL_TRACE_FG for _ in _SIGNAL_STATIC),
 )
 
-
-def render_incoming_transmission(console, *, screen_width, screen_height) -> None:
-    _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=64, box_h=18)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text="INCOMING TRANSMISSION", fg=ui.COLOR_TITLE)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 3,
-                    text="FREQUENCY: UNKNOWN    SOURCE: UNKNOWN    ENCRYPTION: NONE", fg=ui.COLOR_VALUE_DIM)
-    for _i, _line in enumerate(_SIGNAL_STATIC):
-        _centered_print(console, screen_width=screen_width, y=_y0 + 5 + _i, text=_line, fg=_SIGNAL_TRACE_FG)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 9,
-                    text="A burst of coordinates cuts through the static -", fg=ui.COLOR_DESCRIPTION)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 10, text="then silence.", fg=ui.COLOR_DESCRIPTION)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 12,
-                    text="They resolve to somewhere on Mars.", fg=ui.COLOR_OPTION_HIGHLIGHT)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 14,
-                    text="Press ENTER to acknowledge", fg=ui.COLOR_INSTRUCTION)
-
-
 def show_prologue_transmission(ctx) -> None:
     _show_pygame_dismiss(
         ctx,
@@ -733,31 +651,9 @@ def show_prologue_transmission(ctx) -> None:
         art_colors=_SIGNAL_ART_COLORS,
     )
 
-
 # ---------------------------------------------------------------------------
 # Quest summon overlay
 # ---------------------------------------------------------------------------
-
-
-def render_quest_summon(console, *, screen_width, screen_height, message, objective="") -> None:
-    _lines = ui.wrap_text(message, 60)
-    _obj_lines = ui.wrap_text(objective, 60) if objective else []
-    _box_h = 14 + len(_lines) + len(_obj_lines) + (1 if _obj_lines else 0)
-    _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=70, box_h=_box_h)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text="INCOMING MESSAGE", fg=ui.COLOR_TITLE)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 3,
-                    text="SOURCE: CHAIN CONTACT    ENCRYPTION: NONE    REPLY: NOT REQUIRED", fg=ui.COLOR_VALUE_DIM)
-    _body_y = _y0 + 5
-    for _i, _line in enumerate(_lines):
-        _centered_print(console, screen_width=screen_width, y=_body_y + _i, text=_line, fg=ui.COLOR_DESCRIPTION)
-    _hint_y = _body_y + len(_lines) + 2
-    if _obj_lines:
-        for _i, _line in enumerate(_obj_lines):
-            _centered_print(console, screen_width=screen_width, y=_hint_y + _i, text=_line, fg=ui.COLOR_OPTION_HIGHLIGHT)
-        _hint_y += len(_obj_lines) + 1
-    _centered_print(console, screen_width=screen_width, y=_hint_y,
-                    text="Press ENTER to acknowledge", fg=ui.COLOR_INSTRUCTION)
-
 
 def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
     _body = message if not objective else f"{message}\n\n{objective}"
@@ -768,28 +664,9 @@ def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
         caption="spacehack - incoming message",
     )
 
-
 # ---------------------------------------------------------------------------
 # Gate popup (time-gate explanation)
 # ---------------------------------------------------------------------------
-
-_OFFER_BODY_WIDTH = 62
-
-
-def render_gate_popup(console, *, screen_width, screen_height, faction, body_text, title="THE WORK BEGINS") -> None:
-    """Paint a dismiss-only modal (time-gate explanation, ambush, etc.)."""
-    _lines = ui.wrap_text(body_text, _OFFER_BODY_WIDTH)
-    _box_h = 10 + len(_lines)
-    _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=70, box_h=_box_h)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text=title, fg=ui.COLOR_TITLE)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 3,
-                    text=f"FACTION: {faction.upper()}", fg=ui.COLOR_VALUE_DIM)
-    _body_y = _y0 + 5
-    for _i, _line in enumerate(_lines):
-        _centered_print(console, screen_width=screen_width, y=_body_y + _i, text=_line, fg=ui.COLOR_DESCRIPTION)
-    _centered_print(console, screen_width=screen_width, y=_body_y + len(_lines) + 2,
-                    text="Press ENTER to continue", fg=ui.COLOR_INSTRUCTION)
-
 
 def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "THE WORK BEGINS") -> None:
     """Show a dismiss-only modal popup (time-gate explanation, ambush, etc.)."""
@@ -800,11 +677,9 @@ def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "THE WORK
         caption=f"spacehack - {title.lower()}",
     )
 
-
 # ---------------------------------------------------------------------------
 # Chain continuation (after dialogue trigger)
 # ---------------------------------------------------------------------------
-
 
 def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
     """After trigger_dialogue completes step_id, handle follow-up popups."""
@@ -827,7 +702,6 @@ def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
             and step_status(ctx, _step.id) == STATUS_COMPLETED):
         _fac = (_step.chain or "faction").capitalize()
         show_gate_popup(ctx, _fac, _step.completion_flavor)
-
 
 # ---------------------------------------------------------------------------
 # Sealed door overlay
@@ -899,29 +773,6 @@ _DOOR_OVERLAYS: dict[str, dict[str, object]] = {
     },
 }
 
-
-def render_sealed_door_overlay(console, *, screen_width, screen_height, beat) -> None:
-    _content = _DOOR_OVERLAYS[beat]
-    _art = _content["art"]
-    _body = _content["body"]
-    _box_h = 15 + len(_art) + len(_body)
-    _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=66, box_h=_box_h)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text=_content["title"], fg=ui.COLOR_TITLE)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 3, text=_content["meta"], fg=ui.COLOR_VALUE_DIM)
-    for _i, _line in enumerate(_DOOR_RUNES):
-        _centered_print(console, screen_width=screen_width, y=_y0 + 5 + _i, text=_line, fg=_DOOR_RUNE_FG)
-    _art_y = _y0 + 9
-    for _i, _line in enumerate(_art):
-        _centered_print(console, screen_width=screen_width, y=_art_y + _i, text=_line, fg=_DOOR_ART_FG)
-    _body_y = _art_y + len(_art) + 1
-    for _i, _line in enumerate(_body):
-        _centered_print(console, screen_width=screen_width, y=_body_y + _i, text=_line, fg=ui.COLOR_DESCRIPTION)
-    _centered_print(console, screen_width=screen_width, y=_body_y + len(_body) + 1,
-                    text=_content["highlight"], fg=ui.COLOR_OPTION_HIGHLIGHT)
-    _centered_print(console, screen_width=screen_width, y=_body_y + len(_body) + 3,
-                    text=_content["instruction"], fg=ui.COLOR_INSTRUCTION)
-
-
 def show_sealed_door_overlay(ctx, beat: str) -> None:
     _content = _DOOR_OVERLAYS[beat]
     _show_pygame_dismiss(
@@ -939,34 +790,9 @@ def show_sealed_door_overlay(ctx, beat: str) -> None:
         )),
     )
 
-
 # ---------------------------------------------------------------------------
 # Help-offer modal
 # ---------------------------------------------------------------------------
-
-
-def render_help_offer(console, *, screen_width, screen_height, npc_name, offer_text, selected) -> None:
-    _title = "AN OFFER OF HELP"
-    _lines = ui.wrap_text(offer_text, _OFFER_BODY_WIDTH)
-    _box_h = 14 + len(_lines)
-    _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=70, box_h=_box_h)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text=_title, fg=ui.COLOR_TITLE)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 3,
-                    text=f"OFFERED BY: {npc_name.upper()}", fg=ui.COLOR_VALUE_DIM)
-    _body_y = _y0 + 5
-    for _i, _line in enumerate(_lines):
-        _centered_print(console, screen_width=screen_width, y=_body_y + _i, text=_line, fg=ui.COLOR_DESCRIPTION)
-    _opt_y = _body_y + len(_lines) + 1
-    for _i, _label in enumerate(("Accept", "I need more time")):
-        _is_sel = _i == selected
-        _marker_open = "> " if _is_sel else "  "
-        _marker_close = " <" if _is_sel else "  "
-        _centered_print(console, screen_width=screen_width, y=_opt_y + _i,
-                        text=f"{_marker_open}{_label}{_marker_close}",
-                        fg=ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION)
-    _centered_print(console, screen_width=screen_width, y=_opt_y + 3,
-                    text="ARROW KEYS / j,k navigate - ENTER select - ESC go back", fg=ui.COLOR_INSTRUCTION)
-
 
 def _show_pygame_dismiss(
     ctx,
@@ -997,7 +823,6 @@ def _show_pygame_dismiss(
             raise SystemExit
         return True
 
-
 def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
     """Map the Pygame help offer back to quest outcomes."""
     from ..pygame_story import choose
@@ -1015,7 +840,6 @@ def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
         return OfferOutcome.QUIT
     return OfferOutcome.DECLINE
 
-
 def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
     _step = find_main_quest_step(step_id)
     _dialogue = _step.dialogues.get(npc_id)
@@ -1029,23 +853,9 @@ def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
     _npc_name = _find_npc(npc_id).name
     return _run_pygame_help_offer(ctx, _npc_name, _offer_text)
 
-
 # ---------------------------------------------------------------------------
 # Quest readout overlay
 # ---------------------------------------------------------------------------
-
-
-def render_quest_readout(console, *, screen_width, screen_height, npc_name, body_text) -> None:
-    _lines = ui.wrap_text(body_text, _OFFER_BODY_WIDTH)
-    _box_h = 10 + len(_lines)
-    _y0 = _overlay_box(console, screen_width=screen_width, screen_height=screen_height, box_w=70, box_h=_box_h)
-    _centered_print(console, screen_width=screen_width, y=_y0 + 1, text=npc_name.upper(), fg=ui.COLOR_TITLE)
-    _body_y = _y0 + 3
-    for _i, _line in enumerate(_lines):
-        _centered_print(console, screen_width=screen_width, y=_body_y + _i, text=_line, fg=ui.COLOR_DESCRIPTION)
-    _centered_print(console, screen_width=screen_width, y=_body_y + len(_lines) + 2,
-                    text="Press ENTER to continue", fg=ui.COLOR_INSTRUCTION)
-
 
 def show_quest_readout(ctx, npc, body_text: str) -> None:
     _show_pygame_dismiss(

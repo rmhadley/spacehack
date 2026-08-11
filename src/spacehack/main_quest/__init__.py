@@ -68,11 +68,8 @@ from ._act0 import (
     show_sealed_door_overlay,
     show_help_offer,
     show_gate_popup,
-    render_help_offer,
-    render_gate_popup,
 )
 from ._act1 import (
     OrbitDisclosure,
-    OrbitSceneOutcome,
     maybe_show_post_prison_orbit,
 )

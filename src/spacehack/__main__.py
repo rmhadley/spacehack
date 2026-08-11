@@ -21,13 +21,10 @@ another solid entity opens a context dialog:
 """
 from __future__ import annotations
 import time
-import math
-from enum import Enum, auto
 import tcod.console
 import tcod.context
 import tcod.event
 from . import character
-from . import hud
 from . import message_log
 from . import mission as mission_module
 from . import ship as ship_module
@@ -48,33 +45,28 @@ from .combat._loop import run_combat as _run_combat_unified
 from .combat import _rules_ground
 from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
-from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE, load_tileset, make_console, open_terminal, seed_rng, should_quit
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, load_tileset, make_console, seed_rng, should_quit
 from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_p_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
-    render_ship_buy, update_ship_buy, _run_ship_buy,
-    _offerings_to_menu, render_mission_offerings, update_mission_offerings,
-    _mission_navigate, _run_mission_offerings,
-    render_quest_log, update_quest_log, _run_quest_log,
-    render_ship_menu, _ship_menu_navigate, update_ship_menu, _run_ship_menu,
+    _run_ship_buy,
+    _run_mission_offerings,
+    _run_quest_log,
+    _run_ship_menu,
     _run_mech_menu,
     _run_planet_menu,
 )
 from .navigation import (
     JumpMenuOutcome, GotoOutcome, NavigationOutcome,
-    _render_aoi_panel,
-    render_navigation, update_navigation, _run_navigation,
-    _nearest_body_name,
-    _add_bounty_spawns_to_map,
+    _run_navigation,
     _remove_bounty_spawn,
     _pick_bounty_spawn_pos,
     _detect_combat_encounter,
     _check_auto_comms_warning,
     _run_goto,
-    render_jump_menu, update_jump_menu, _run_jump_menu,
+    _run_jump_menu,
     _run_cargo_scan,
-    _responsive_sleep,
     _animate_jump,
     _jump_to_system,
 )

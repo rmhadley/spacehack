@@ -17,32 +17,15 @@ from __future__ import annotations
 
 from enum import Enum, auto
 
-import tcod.console
-import tcod.event
-
-from . import ui
-from . import message_log
-from .engine import MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
-from .input_helpers import _try_open_guide
-from .ui import paint_text, paint_centered, render_split_frame
-
-
-def _pygame_split_enabled() -> bool:
-    """Return whether the shared split-screen Pygame batch is enabled."""
-    from . import pygame_split
-
-    return pygame_split.enabled()
-
 
 NEUTRAL_TARGET: int = 8
 
 # ---------------------------------------------------------------------------
 # Pricing (pure function, shared by station + NPC trade)
 # ---------------------------------------------------------------------------
-
 
 def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
     """Calculate the buy/sell price given current vs target stock levels.
@@ -66,23 +49,19 @@ def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
         # Surplus zone: 1.0\u00d7 linearly down to 0.6\u00d7 at 100%.
         return max(1, int(base_price * (1.0 - (ratio - 0.5) * 0.8)))
 
-
 def _trait_buy_mult(ctx: GameContext) -> float:
     """Trade Route trait: -5% buy prices."""
     from .xp import has_trait
     return 0.95 if has_trait(ctx, "trade_route") else 1.0
-
 
 def _trait_sell_mult(ctx: GameContext) -> float:
     """Trade Route trait: +5% sell prices."""
     from .xp import has_trait
     return 1.05 if has_trait(ctx, "trade_route") else 1.0
 
-
 # ---------------------------------------------------------------------------
 # Economy seeding
 # ---------------------------------------------------------------------------
-
 
 def _seed_economy(ctx: GameContext, planet_id: str) -> None:
     """Seed ``ctx.economy_state[planet_id]`` on first visit.
@@ -101,11 +80,9 @@ def _seed_economy(ctx: GameContext, planet_id: str) -> None:
         stocks[gid] = NEUTRAL_TARGET // 2
     ctx.economy_state[planet_id] = stocks
 
-
 # ---------------------------------------------------------------------------
 # Economy tick (passive stock regen)
 # ---------------------------------------------------------------------------
-
 
 def _target_stock_for(planet_id: str, good_id: str) -> int:
     """Equilibrium target for ``good_id`` on ``planet_id``.
@@ -119,7 +96,6 @@ def _target_stock_for(planet_id: str, good_id: str) -> int:
             return t
     return NEUTRAL_TARGET
 
-
 def tick_economy(ctx: GameContext) -> None:
     """Drift all stocked economies toward target by 1/tick.
     Called on jump / launch.  Idempotent (skips non-seeded planets)."""
@@ -132,11 +108,9 @@ def tick_economy(ctx: GameContext) -> None:
             elif current > target:
                 stocks[good_id] = max(target, current - 1)
 
-
 # ---------------------------------------------------------------------------
 # Transaction helpers
 # ---------------------------------------------------------------------------
-
 
 def _buy_good(
     ctx: GameContext,
@@ -188,7 +162,6 @@ def _buy_good(
     ctx.log.add(f"Bought {quantity}x {good.name} for {cost}$.")
     return True
 
-
 def _can_sell_here(planet_id: str, good_id: str) -> bool:
     """True if ``good_id`` can be sold at ``planet_id``'s market.
 
@@ -208,7 +181,6 @@ def _can_sell_here(planet_id: str, good_id: str) -> bool:
         if gid == good_id:
             return True
     return False
-
 
 def _sell_good(
     ctx: GameContext,
@@ -260,7 +232,6 @@ def _sell_good(
     ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}$.")
     return True
 
-
 def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     """Current buy price for one unit of ``good_id`` on ``planet_id``.
 
@@ -284,7 +255,6 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     _mod = buy_price_modifier(_attitude) * _trait_buy_mult(ctx)
     return max(1, int(price * _mod))
 
-
 def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     """Terminal sell price for one unit of ``good_id`` on ``planet_id``.
 
@@ -300,7 +270,6 @@ def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     _sell_mod = sell_price_modifier(_attitude)
     return max(1, int(buy_price * 3 // 4 * _sell_mod * _trait_sell_mult(ctx)))
 
-
 def _free_cargo(owned) -> int:
     """Remaining cargo capacity on ``owned`` (effective max - used).
 
@@ -310,13 +279,6 @@ def _free_cargo(owned) -> int:
     ship_spec = ship_module.find_ship(owned.ship_id)
     return ship_module.effective_max_cargo(ship_spec, owned) - owned.cargo_used
 
-
-# (Shared render helpers _paint_text, _paint_centered, _format_trade_line,
-# and _render_trade_frame were extracted to ui.py as paint_text,
-# paint_centered, format_split_row, render_split_frame.)
-# This module imports them from ui.py at the top of the file.
-
-
 # ---------------------------------------------------------------------------
 # Quantity prompt (arrow-key adjustment)
 # ---------------------------------------------------------------------------
@@ -325,14 +287,6 @@ class _QOut(Enum):
     IGNORE = auto()
     BACK = auto()
     CONFIRM = auto()
-
-
-def _pygame_quantity_enabled() -> bool:
-    """Return whether the Pygame quantity selector can render in this runtime."""
-    from . import pygame_ui
-
-    return pygame_ui.presentation_enabled()
-
 
 def _run_quantity_prompt(
     ctx: GameContext,
@@ -350,24 +304,20 @@ def _run_quantity_prompt(
     except pygame_quantity.PygameQuantityQuit:
         raise SystemExit
 
-
 # ---------------------------------------------------------------------------
 # Trade modal
 # ---------------------------------------------------------------------------
-
 
 class _TradeOutcome(Enum):
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
 
-
 class _LootOutcome(Enum):
     IGNORE = auto()
     TAKE = auto()
     LEAVE = auto()
     QUIT = auto()
-
 
 def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -> str | None:
     """Run the loot choice through the generic Pygame menu worker."""
@@ -397,7 +347,6 @@ def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -
     if outcome == "QUIT":
         return "QUIT"
     return "LEAVE"
-
 
 def _apply_loot_pickup(
     ctx: GameContext,
@@ -431,7 +380,6 @@ def _apply_loot_pickup(
             ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
     if loot_entity in ctx.game_map.entities:
         ctx.game_map.entities.remove(loot_entity)
-
 
 def _secure_heist_cargo(ctx: GameContext, loot_entity, good_id: str, quantity: int) -> bool:
     """Mark the intercept mission's loot as secured and reserve hold space.
@@ -471,7 +419,6 @@ def _secure_heist_cargo(ctx: GameContext, loot_entity, good_id: str, quantity: i
             _owned.mission_reserved += _vol
         return True
     return False
-
 
 def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open a simple modal to pick up loot from a destroyed ship.
@@ -581,17 +528,14 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     else:
         ctx.log.add("Left the cargo debris in space.")
 
-
 # ---------------------------------------------------------------------------
 # NPC trade modal (Phase 4 — merchant ships from comms)
 # ---------------------------------------------------------------------------
-
 
 class _NpcTradeOutcome(Enum):
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
-
 
 def _hold_cargo_label(owned) -> str:
     """Footer cargo label for a trade split screen (``Cargo: N/M``)."""
@@ -604,7 +548,6 @@ def _hold_cargo_label(owned) -> str:
         owned.cargo_used,
         ship_module.effective_max_cargo(ship_spec, owned),
     )
-
 
 def _pygame_npc_trade_frame(
     ctx: GameContext,
@@ -644,7 +587,6 @@ def _pygame_npc_trade_frame(
         pygame_split.SPLIT_SHOP_HINT,
         focus, selected,
     )
-
 
 def _npc_trade_transaction(
     ctx: GameContext,
@@ -700,7 +642,6 @@ def _npc_trade_transaction(
         ctx.stats.credits += revenue
         ctx.log.add(f"Sold {quantity}x {good.name} to {npc_spec.name} for {revenue}$.")
 
-
 def _apply_pygame_npc_trade_action(
     ctx: GameContext,
     npc_spec,
@@ -719,7 +660,6 @@ def _apply_pygame_npc_trade_action(
         ctx, npc_spec, npc_stock, buy_mult, sell_mult, kind, good_id,
     )
     return True
-
 
 def _run_pygame_npc_trade(
     ctx: GameContext,
@@ -741,7 +681,6 @@ def _run_pygame_npc_trade(
         caption=f"spacehack - {npc_spec.name} trade",
     )
     return result is not None
-
 
 def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     """Open a trade modal with an NPC ship.
@@ -832,7 +771,6 @@ def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[st
         pygame_split.SPLIT_SHOP_HINT,
     )
 
-
 def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) -> bool:
     """Apply one Pygame trade action through the existing transaction helpers."""
     if not action:
@@ -861,7 +799,6 @@ def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) ->
         return True
     raise ValueError(f"Unknown trade action: {action!r}")
 
-
 def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]) -> bool | None:
     """Run the station trade loop in the shared Pygame window."""
     from . import pygame_split
@@ -872,7 +809,6 @@ def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]
         caption="spacehack - trade terminal",
     )
     return result is not None if result is not None else None
-
 
 def open_trade(ctx: GameContext, planet_id: str) -> None:
     """Open the trade modal for ``planet_id``.
@@ -930,14 +866,6 @@ class _COut(Enum):
     BACK = auto()
     QUIT = auto()
 
-
-def _pygame_cargo_enabled() -> bool:
-    """Return whether the generic Pygame screen worker is enabled."""
-    from . import pygame_screen
-
-    return pygame_screen.enabled()
-
-
 def _cargo_rows(owned):
     """Build the cargo inventory rows (opaque ``JETTISON:<id>`` actions).
 
@@ -963,7 +891,6 @@ def _cargo_rows(owned):
         items = [pygame_screen.ScreenRow("No trade goods in hold", selectable=False)]
     return tuple(items)
 
-
 def _cargo_body(owned, max_cargo: int) -> tuple[str, ...]:
     """Build the cargo summary body lines (shared by the cargo modal and
     the tabbed hangar's CARGO tab)."""
@@ -971,7 +898,6 @@ def _cargo_body(owned, max_cargo: int) -> tuple[str, ...]:
         f"Cargo: {owned.cargo_used} / {max_cargo}    Free: {max(0, max_cargo - owned.cargo_used)}",
         f"Mission cargo reserved: {owned.mission_reserved}    Ammo: {owned.cargo_ammo}",
     )
-
 
 def _apply_jettison(ctx, owned, action: str) -> bool:
     """Apply one ``JETTISON:<good_id>`` action and return whether it was
@@ -1006,12 +932,12 @@ def _apply_jettison(ctx, owned, action: str) -> bool:
             )
     return True
 
-
 def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
     """Build a readable cargo snapshot with opaque jettison actions."""
     from . import pygame_screen, pygame_ui
+    from . import ship as ship_module
 
-    body = (*_cargo_body(owned, max_cargo), f"Hull: {owned.hull_damage_pct}% damage")
+    body = (*_cargo_body(owned, max_cargo), f"Hull: {ship_module.hull_integrity_pct(owned)}%")
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER jettison selected", "ESC close",
         pygame_ui.GUIDE_HINT,
@@ -1019,7 +945,6 @@ def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
     return pygame_screen.ScreenFrame(
         f"CARGO - {ship_name.upper()}", body, _cargo_rows(owned), footer, selected,
     )
-
 
 def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None:
     """Run cargo through Pygame, preserving jettison in the parent."""
@@ -1045,7 +970,6 @@ def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None
                 return None
             continue
         return True
-
 
 def open_cargo(ctx: GameContext) -> None:
     """Open the cargo management modal.

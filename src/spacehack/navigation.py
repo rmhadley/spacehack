@@ -13,20 +13,17 @@ import tcod.console
 import tcod.event
 from . import ui
 from . import world
-from . import hud
 from . import message_log
 from . import main_quest as main_quest_module
 from . import mission as mission_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
 from .game_context import GameContext
-from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
 from .data import solar_systems as solar_systems_module
 from .data.npc_ships import find_npc_ship
 from .faction import get_attitude as _get_attitude
-from .input_helpers import _try_open_guide
 from .time import tick_move
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -34,7 +31,6 @@ from .time import tick_move
 
 NAV_SHIP_FG: tuple[int, int, int] = (255, 255, 100)
 from . import animation_timing
-
 
 _JUMP_FRAME_S: float = animation_timing.JUMP
 _JUMP_RING_CHARS: tuple[tuple[str, tuple[int, int, int]], ...] = (
@@ -44,7 +40,6 @@ _JUMP_RING_CHARS: tuple[tuple[str, tuple[int, int, int]], ...] = (
     ('O', (200, 200, 255)),
     ('#', (180, 180, 255)),
 )
-
 
 # ---------------------------------------------------------------------------
 # Outcome enums
@@ -68,7 +63,6 @@ class JumpMenuOutcome(Enum):
     JUMP = auto()
     BACK = auto()
     QUIT = auto()
-
 
 class GotoOutcome(Enum):
     """Result of the auto-nav (G-key) modal.
@@ -102,7 +96,6 @@ class GotoOutcome(Enum):
     COMPLETED = auto()
     COMBAT = auto()
 
-
 class NavigationOutcome(Enum):
     """Result of the system-map (N) overlay.
 
@@ -114,7 +107,6 @@ class NavigationOutcome(Enum):
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
-
 
 # ---------------------------------------------------------------------------
 # AOI panel
@@ -198,7 +190,6 @@ def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, 
     rect = (x + 1, y + 1, max(0, width - 2), max(0, height - 2))
     ui.paint_rect_border(console, rect, fg=ui.COLOR_VALUE_DIM)
 
-
 # ---------------------------------------------------------------------------
 # Navigation overlay
 # ---------------------------------------------------------------------------
@@ -263,30 +254,6 @@ def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen
     hint = 'Press ESC to close.'
     console.print(x=ui.centered_x(hint, screen_width), y=foot_y + 2, string=hint, fg=ui.COLOR_INSTRUCTION)
 
-
-def update_navigation(event: tcod.event.Event) -> NavigationOutcome:
-    """Map a single event for the navigation overlay.
-
-    Read-only modal: ESC closes (:attr:`BACK`), Quit exits
-    (:attr:`QUIT`), everything else is :attr:`IGNORE` so the loop
-    returns and the dispatcher can route the next event normally.
-    """
-    if isinstance(event, tcod.event.Quit):
-        return NavigationOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return NavigationOutcome.IGNORE
-    if event.sym in ui._ESCAPE_SYMS:
-        return NavigationOutcome.BACK
-    return NavigationOutcome.IGNORE
-
-
-def _pygame_readonly_enabled() -> bool:
-    """Return whether read-only Pygame screens are enabled."""
-    from . import pygame_batch
-
-    return pygame_batch.enabled()
-
-
 def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     """Show the system-map overlay in the shared Pygame window."""
     from . import pygame_navigation
@@ -300,7 +267,6 @@ def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
         if outcome == "QUIT":
             return NavigationOutcome.QUIT
         return NavigationOutcome.BACK
-
 
 def _nearest_body_name(pos: world.Position, system) -> str:
     """Return the name of the nearest named body (planet, gate, or
@@ -330,7 +296,6 @@ def _nearest_body_name(pos: world.Position, system) -> str:
             best_dist = d
             best_name = st.name
     return best_name
-
 
 # ---------------------------------------------------------------------------
 # Bounty spawn helpers (needed by jump/system transition)
@@ -365,7 +330,6 @@ def _bounty_landmarks(system) -> list[world.Position]:
     _positions.sort(key=lambda p: (p.x - _cx) ** 2 + (p.y - _cy) ** 2)
     return _positions
 
-
 def _pick_bounty_spawn_pos(
     system, *,
     used_positions: frozenset = frozenset(),
@@ -380,7 +344,6 @@ def _pick_bounty_spawn_pos(
         if (_pos.x, _pos.y) not in used_positions:
             return _pos
     return None
-
 
 def _bounty_leader_entity(_bs, _espec) -> world.Entity:
     """Build the space entity for a bounty leader/wingmate spawn.
@@ -413,7 +376,6 @@ def _bounty_leader_entity(_bs, _espec) -> world.Entity:
     # triggers combat before the auto-hail fires.
     _ent.bounty_comms_range = _bs.comms_warning_range
     return _ent
-
 
 def _add_bounty_spawns_to_map(
     ctx, game_map: world.GameMap, system_id: str,
@@ -467,7 +429,6 @@ def _add_bounty_spawns_to_map(
             ctx.log.add_colored(f"Sensor ping: bounty target detected near {_landmark}.",
                                 message_log.COLOR_IMPORTANT_EVENT)
 
-
 def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
     """Remove the bounty spawn with ``spawn_id`` from
     ``ctx.bounty_spawns[system_id]``, and from the current
@@ -513,7 +474,6 @@ def _remove_bounty_spawn(ctx, spawn_id: str, system_id: str | None) -> None:
                         ctx.game_map.entities.remove(_target_entity)
                     except ValueError:
                         pass
-
 
 # ---------------------------------------------------------------------------
 # Combat encounter detection
@@ -640,7 +600,6 @@ def _detect_combat_encounter(ctx, player_pos: world.Position, system: object) ->
         return (_nearby_specs, _nearby_positions)
     return None
 
-
 # ---------------------------------------------------------------------------
 # NPC auto-comms warning (before combat triggers)
 # ---------------------------------------------------------------------------
@@ -671,7 +630,6 @@ def _militia_scan_chance(ctx) -> float:
         _chance = max(0.60, min(0.80, _chance + 0.30))
     return _chance
 
-
 def _calc_flee_chance(ctx) -> float:
     """Return the player's chance [0.0, 1.0] to flee a militia scan.
 
@@ -684,7 +642,6 @@ def _calc_flee_chance(ctx) -> float:
         _chance += (_speed - 10) * 0.02
     _chance += (ctx.stats.piloting - 30) * 0.005
     return max(0.15, min(0.90, _chance))
-
 
 def _run_space_cargo_scan(ctx) -> None:
     """Run a cargo scan triggered by militia auto-hail in space.
@@ -720,7 +677,6 @@ def _run_space_cargo_scan(ctx) -> None:
     from .faction import modify_rep
     modify_rep(ctx, "militia", -5)
 
-
 def _entity_hail_key(_e) -> str:
     """Return a stable key for per-entity hail tracking.
 
@@ -735,7 +691,6 @@ def _entity_hail_key(_e) -> str:
     _pid = getattr(_e, 'npc_ship_id', '')
     return f"{_pid}:{_e.pos.x}:{_e.pos.y}"
 
-
 def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
     """Mark entity scanned and open comms with the entity.
 
@@ -747,12 +702,10 @@ def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
     _attack_data = _ocd(ctx, _e)
     return (True, _attack_data)
 
-
 def _check_spec_distance(e, player_pos, max_dist) -> bool:
     """Pure: returns True if player is within ``max_dist`` of entity ``e``."""
     _dist = math.hypot(player_pos.x - e.pos.x, player_pos.y - e.pos.y)
     return 0 < _dist <= max_dist
-
 
 def _check_viewport_visible(e, player_pos, system) -> bool:
     """Pure: returns True if entity ``e`` is within the player's viewport."""
@@ -762,7 +715,6 @@ def _check_viewport_visible(e, player_pos, system) -> bool:
     _cam_y = max(0, min(player_pos.y - _view_h // 2, system.height - _view_h))
     return (_cam_x <= e.pos.x < _cam_x + _view_w
             and _cam_y <= e.pos.y < _cam_y + _view_h)
-
 
 def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | None:
     """Check if any entity with auto-hail behaviour is within range.
@@ -844,7 +796,6 @@ def _check_auto_comms_warning(ctx, player_pos, system) -> tuple[bool, object] | 
 
     return None
 
-
 # ---------------------------------------------------------------------------
 # GO TO (auto-nav)
 # ---------------------------------------------------------------------------
@@ -904,7 +855,6 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
         if not 0 <= selected < len(destinations):
             return False, None
         return True, selected
-
 
 def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
     """Open a GO TO modal listing interactable space bodies, then
@@ -1082,51 +1032,9 @@ def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, t
     ctx.log.add('Auto-nav complete.')
     return (GotoOutcome.COMPLETED, None)
 
-
 # ---------------------------------------------------------------------------
 # Jump gate dialog
 # ---------------------------------------------------------------------------
-
-def render_jump_menu(console: tcod.console.Console, ctx: GameContext, jp, target_system_id: str, *, screen_width: int, screen_height: int, current_fuel: int | None=None, max_fuel: int | None=None, jump_fuel_cost: int=10) -> None:
-    """Paint the jump-point-bump dialog."""
-    target_system = solar_systems_module.find_solar_system(target_system_id)
-    console.clear()
-    title = f'JUMP  -  {jp.name}  ->  {target_system.name}'
-    title_y = ui.screen_header(console, screen_width, title)
-    _content_x, _desc_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
-    desc_lines = ui.wrap_text(jp.description or '', max_width=_desc_w)
-    _content_bottom = title_y + len(desc_lines[:3])
-    for i, line in enumerate(desc_lines[:3]):
-        console.print(x=_content_x, y=title_y + i, string=line, fg=ui.COLOR_DESCRIPTION)
-    _list_y = _content_bottom + 1
-    if current_fuel is not None and max_fuel is not None:
-        fuel_str = f'Fuel: {current_fuel} / {max_fuel}  |  Jump cost: {jump_fuel_cost}'
-        console.print(x=_content_x, y=_content_bottom + 1, string=fuel_str, fg=ui.COLOR_OPTION_HIGHLIGHT if current_fuel >= jump_fuel_cost else ui.COLOR_VALUE_DIM)
-        _list_y = _content_bottom + 3
-    ui.render_selectable_list(
-        console, screen_width, screen_height,
-        title="",
-        items=[(f"Jump to {target_system.name}", "")],
-        selected=0,
-        col_x=2,
-        title_y=_list_y,
-        hint="ENTER to jump - ESC to fly past",
-    )
-    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
-
-
-def update_jump_menu(event: tcod.event.Event) -> JumpMenuOutcome:
-    """Translate a key into a :class:`JumpMenuOutcome`."""
-    if isinstance(event, tcod.event.Quit):
-        return JumpMenuOutcome.QUIT
-    if isinstance(event, tcod.event.KeyDown):
-        sym = event.sym
-    if sym in ui._ESCAPE_SYMS:
-        return JumpMenuOutcome.BACK
-    if sym in ui._ENTER_SYMS:
-        return JumpMenuOutcome.JUMP
-    return JumpMenuOutcome.IGNORE
-
 
 def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_fuel: int | None):
     """Run the jump confirmation through the Pygame menu worker."""
@@ -1168,7 +1076,6 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_
             return JumpMenuOutcome.JUMP
         return JumpMenuOutcome.BACK
 
-
 def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
     """Run the jump-point dialog in the shared Pygame window."""
     _fuel: int | None = None
@@ -1182,7 +1089,6 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
     if result is None:
         raise pygame_menu.PygameMenuUnavailable("Jump menu returned no outcome")
     return result
-
 
 # ---------------------------------------------------------------------------
 # Cargo scan
@@ -1229,7 +1135,6 @@ def _compute_scan_exposure(owned, active_missions) -> tuple[list, list]:
         _confiscated.append((gid, _lose, _fine))
     return _failed_missions, _confiscated
 
-
 def _apply_scan_confiscation(ctx, owned, confiscated) -> None:
     """Mutate: remove confiscated inventory contraband and levy the fine.
 
@@ -1255,7 +1160,6 @@ def _apply_scan_confiscation(ctx, owned, confiscated) -> None:
     ctx.log.add_colored(f"Militia levies a fine of {_total_fine}$ for contraband.",
                         message_log.COLOR_IMPORTANT_EVENT)
 
-
 def _militia_scan_target(ctx, planet_id: str):
     """Guard + resolve the militia checkpoint for a landing scan.
 
@@ -1274,7 +1178,6 @@ def _militia_scan_target(ctx, planet_id: str):
     if not has_militia_presence(planet_id):
         return None
     return owned, spec
-
 
 def _run_cargo_scan(ctx, planet_id: str) -> None:
     """Check the player's cargo for contraband when landing on a
@@ -1340,7 +1243,6 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     if _confiscated:
         _apply_scan_confiscation(ctx, owned, _confiscated)
 
-
 def _fail_smuggle_mission(ctx, owned, active) -> None:
     """Auto-fail a smuggling mission whose cargo was confiscated.
 
@@ -1371,7 +1273,6 @@ def _fail_smuggle_mission(ctx, owned, active) -> None:
     if getattr(active, 'main_quest_step_id', ''):
         main_quest_module.fail_smuggle_step(ctx, active)
 
-
 # ---------------------------------------------------------------------------
 # Jump animation + system transition
 # ---------------------------------------------------------------------------
@@ -1393,7 +1294,6 @@ def _responsive_sleep(seconds: float) -> None:
         remaining = end - time.monotonic()
         if remaining > 0:
             time.sleep(min(remaining, 0.01))
-
 
 def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entity) -> None:
     """Render a brief "jump drive" animation before the system swap.
@@ -1463,7 +1363,6 @@ def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entit
         _render_frame(rings=rings, flash_white=False)
     _render_frame(rings=0, flash_white=True)
     _render_frame(rings=0, void=True)
-
 
 def _jump_to_system(*, ctx, jp, target_system_id: str, target_jp_id: str) -> tuple:
     """Jump the player ship from ``jp`` (current gate) to

@@ -77,7 +77,6 @@ def smoke_test() -> int:
         (game_context, "GameContext"),
         (world, "GameMap"),
         (world, "MOVE_KEYS"),
-        (ui, "Modal"),
     ]
     for mod, attr in checks:
         if not hasattr(mod, attr):
@@ -94,7 +93,6 @@ def smoke_test() -> int:
         (main_quest, "show_prologue_transmission"),
         (main_quest, "show_sealed_door_overlay"),
         (main_quest, "show_help_offer"),
-        (main_quest, "render_help_offer"),
         (main_quest, "mars_exploration_unlocked"),
         (main_quest, "prepare_mars_surface"),
         (main_quest, "bump_mars_door"),
@@ -109,7 +107,6 @@ def smoke_test() -> int:
         (main_quest, "show_quest_summon"),
         (main_quest, "show_quest_readout"),
         (main_quest, "show_gate_popup"),
-        (main_quest, "render_gate_popup"),
         (main_quest, "maybe_continue_chain"),
         (main_quest, "spawn_quest_npcs"),
     ]

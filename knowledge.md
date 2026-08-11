@@ -94,7 +94,7 @@ Always: `ctx.game_map`, `ctx.log`, etc.
 | Field | Type | Purpose |
 |-------|------|---------|
 | `species_name`, `class_name` | `str` | character identity |
-| `context` | `tcod.context.Context` | SDL window; pass to `ui.Modal` |
+| `context` | `PygameContext` (tcod-context-compatible) | shared Pygame runtime adapter; pass to `pygame_*.run_for_context` |
 | `character_info`, `player` | dataclasses | character + entity state |
 | `log` | `MessageLog` | in-game log + colour helpers |
 | `game_map` | `world.GameMap` | world / entity container |
@@ -125,7 +125,7 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 1. Create `src/spacehack/<domain>.py` — setup, execution, post-state live together.
 2. Entry point takes `ctx` (+ pure positional args). Access all state via `ctx`.
 3. From `__main__`, hand off: `<domain>.<entry_point>(ctx, ...)`. No indirection.
-4. For modal-driven UI: `ui.Modal(ctx.context, console).run(render_fn, update_fn)`
+4. For modal-driven UI: run the domain's shared `pygame_*` presentation helper with `ctx.context` (e.g. `pygame_screen.run_for_context(ctx.context, frame, caption=...)`).
 5. Add new cross-cutting state as a field on `GameContext`.
 6. **Monitor file size** — If any existing `src/spacehack/*.py` approaches ~1000 lines during development, pause and evaluate whether the new code should live in its own module rather than inflating an existing file.
 
@@ -197,9 +197,10 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   is not an exact integer multiple of the console (fractional Retina /
   macOS "scaled" display modes), NEAREST drops pixel rows/columns and
   glyphs render with missing pixels — same repo, same font, different
-  Macs, different result. Fix: `open_terminal()` sets
-  `SDL_RENDER_SCALE_QUALITY=linear` before SDL init (effectively
-  identical at integer scales).
+  Macs, different result. Fix: `spacehack/__init__.py` sets
+  `SDL_RENDER_SCALE_QUALITY=linear` at package init, before any
+  `import tcod.*` initialises SDL (effectively identical at integer
+  scales).
 - `pyproject.toml` package-data ships the bitmap `data/*.png` plus
   `layouts/` and `landmarks/`; `spacehack.spec` bundles the complete data
   tree for frozen builds.
@@ -273,7 +274,7 @@ a simple verb phrase (no "and"), split it into private helpers prefixed with
 | Lines | Rule |
 |-------|------|
 | **≤25** | The sweet spot. The project's cleanest code (``ship.py``, ``faction.py``, ``character.py``) already lives here — 90% of functions are 2–21 lines. |
-| **26–40** | Allowed only if the function passes the "one verb phrase" test. Modal runners (``ui.Modal(...).run(...)``), render functions with multiple visual sections, and complex pure-formula functions may legitimately reach this range — but ask yourself: *"could this be two functions?"* |
+| **26–40** | Allowed only if the function passes the "one verb phrase" test. Pygame modal runners (``pygame_*.run_for_context``), render functions with multiple visual sections, and complex pure-formula functions may legitimately reach this range — but ask yourself: *"could this be two functions?"* |
 | **>40** | **Never allowed.** Always split. Every function in this range in the current codebase is doing multiple things by definition. |
 
 **How to split:** Extract logical sections into private module-level helpers.
@@ -306,7 +307,7 @@ via their constructor — never instantiate their own sub-components internally.
 
 **What this project already does right:**
 - Every domain class is a ``@dataclass`` — zero inheritance hierarchies.
-- ``ui.Modal(context, console)`` — both dependencies injected at construction.
+- ``pygame_engine.PygameEngine(pygame, config, tileset=...)`` — all collaborators injected at construction.
 - ``MessageLog(capacity)`` — configuration injected.
 - Domain functions take ``ctx`` as first parameter — parameter-based DI
   instead of hidden global state.
@@ -645,7 +646,9 @@ TILESHEET_FILENAME = "dejavu16x16_gs_tc.png"       # sole CP437 bitmap renderer
 
 ## Modal UI pattern
 ```python
-ui.Modal(ctx.context, console).run(render_fn, update_fn)
+pygame_menu.run_for_context(ctx.context, frames, caption="spacehack - ...")
+# or pygame_screen.run_for_context(ctx.context, frame, caption=...) for
+# tabbed/text screens — the shared Pygame runtime does the presenting.
 ```
 
 ---
@@ -670,7 +673,7 @@ design doc covering three items:
    - ``EnemyInstance`` (``combat/_types.py``) can be reused for crew members
    - ``BountySpawn`` lifecycle (``game_context.py`` → ``__main__.py`` spawn
      + ``navigation.py`` cleanup) can be reused for heist targets
-   - ``ui.render_selectable_list`` can render the faction standings viewer
+   - ``pygame_faction.run_for_context`` can render the faction standings viewer
    - ``world.Entity`` with ``loot_data`` can place interactable wrecks
 
 2. **Three potential duplication hotspots.**
@@ -679,8 +682,8 @@ design doc covering three items:
    - Copy-pasting an ``Entity(...)`` construction block instead of reusing a
      factory helper
    - Re-implementing a path-computation loop that already exists
-   - Duplicating a modal runner pattern instead of reusing
-     ``ui.Modal(ctx.context, console).run(render_fn, update_fn)``
+   - Duplicating a modal runner pattern instead of reusing the shared
+     ``pygame_*`` presentation helpers (``run_for_context`` / ``run_shared``)
 
 3. **DRY strategy for each hotspot.**
    Describe the specific approach: extract a shared helper, parameterize an

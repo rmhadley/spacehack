@@ -9,23 +9,9 @@ Design doc: ``docs/design/in_progress/02_DESIGN_XP_LEVELING.md``
 
 from __future__ import annotations
 
-import tcod.console
-import tcod.event
-
-from . import ui
 from . import message_log
-from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .game_context import GameContext
-from .input_helpers import _try_open_guide
 from .xp import _qualifying_traits
-
-
-def _pygame_trait_enabled() -> bool:
-    """Return whether the generic Pygame screen worker is enabled."""
-    from . import pygame_screen
-
-    return pygame_screen.enabled()
-
 
 def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | None:
     """Run mandatory trait selection through Pygame."""
@@ -70,7 +56,6 @@ def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | No
             )
             return True
         return None
-
 
 def open_trait_selection(ctx: GameContext) -> None:
     """Open the trait selection modal.

@@ -6,30 +6,13 @@ Extracted from the old ``menus.py`` during the package refactor.
 from __future__ import annotations
 from enum import Enum, auto
 
-import tcod.console
-import tcod.event
-
-from .. import ui
 from .. import ship as ship_module
-from ..game_context import GameContext
-from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
-from ..input_helpers import _try_open_guide
-from ..ui import render_split_frame
-
-
-def _pygame_split_enabled() -> bool:
-    """Return whether the shared split-screen Pygame batch is enabled."""
-    from .. import pygame_split
-
-    return pygame_split.enabled()
-
 
 class _LoadoutOutcome(Enum):
     """Result of the mechanic loadout menu."""
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
-
 
 def _pygame_loadout_frame(
     ctx,
@@ -109,7 +92,6 @@ def _pygame_loadout_frame(
         pygame_split.SPLIT_SHOP_HINT,
     )
 
-
 def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, planet_id: str) -> bool:
     """Apply one Pygame loadout action using existing mutation helpers."""
     if not action:
@@ -159,7 +141,6 @@ def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, pl
         ctx.stats.credits += ship_module._sell_price("module", item_id)
         return True
     raise ValueError(f"Unknown loadout action: {action!r}")
-
 
 def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     """Show the loadout management terminal in the shared Pygame window."""

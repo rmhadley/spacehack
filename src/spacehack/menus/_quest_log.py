@@ -7,21 +7,11 @@ Supports up to 5 active missions with arrow-key navigation.
 from __future__ import annotations
 from enum import Enum, auto
 
-import tcod.console
-import tcod.event
-
 from .. import ui
 from .. import pygame_ui
 from .. import mission as mission_module
 from ..game_context import GameContext
-from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
-from ..input_helpers import _try_open_guide
-
-
-def _pygame_quest_log_enabled() -> bool:
-    """Return whether the Pygame Quest Log can render in this runtime."""
-    return pygame_ui.presentation_enabled()
-
+from ..engine import MSG_LOG_HEIGHT
 
 def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
     """Run the Quest Log in the shared Pygame screen."""
@@ -43,7 +33,6 @@ def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
             continue
         return QuestLogOutcome.BACK, None
 
-
 class QuestLogOutcome(Enum):
     """What the player chose in the city quest log.
 
@@ -55,7 +44,6 @@ class QuestLogOutcome(Enum):
     BACK = auto()
     ABANDONED = auto()
     QUIT = auto()
-
 
 def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
     """Paint the quest-log overlay — unified terminal look."""
@@ -269,31 +257,6 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
     from .. import message_log
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
 
-
-def update_quest_log(event: tcod.event.Event, *, confirm_abandon: bool) -> QuestLogOutcome:
-    """Map a single event for the quest-log overlay.
-
-    Two states:
-      * ``confirm_abandon`` False — ESC -> BACK, A -> ABANDONED.
-      * ``confirm_abandon`` True — ENTER -> ABANDONED, ESC -> BACK.
-    """
-    if isinstance(event, tcod.event.Quit):
-        return QuestLogOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return QuestLogOutcome.IGNORE
-    sym = event.sym
-    sym_name: str = getattr(sym, 'name', '').lower()
-    if sym in ui._ESCAPE_SYMS:
-        return QuestLogOutcome.BACK
-    if confirm_abandon:
-        if sym in ui._ENTER_SYMS:
-            return QuestLogOutcome.ABANDONED
-        return QuestLogOutcome.IGNORE
-    if sym_name == 'a':
-        return QuestLogOutcome.ABANDONED
-    return QuestLogOutcome.IGNORE
-
-
 # Scan-risk bands: ``(hold_divisor, label, fg)`` evaluated in order.
 # Low when the hold covers the full cargo (hold >= cargo // 1), Medium
 # at half coverage (hold >= cargo // 2), else High. Divisors preserve
@@ -302,7 +265,6 @@ _SCAN_RISK_STEPS: tuple[tuple[int, str, tuple[int, int, int]], ...] = (
     (1, "Low",    (120, 220, 120)),
     (2, "Medium", (255, 200, 100)),
 )
-
 
 def _npc_ship_name(ship_id: str | None) -> str:
     """Resolve an NpcShipSpec id to its display name, with fallback.
@@ -317,7 +279,6 @@ def _npc_ship_name(ship_id: str | None) -> str:
         return _fns(ship_id).name
     except (KeyError, ImportError):
         return ship_id.replace('_', ' ').title()
-
 
 def _npc_display_name(planet_id: str, npc_id: str) -> str:
     """Resolve the planet-local NPC display name (e.g. 'Mars Barkeep').
@@ -340,7 +301,6 @@ def _npc_display_name(planet_id: str, npc_id: str) -> str:
     except (KeyError, ImportError):
         return ""
 
-
 def _good_display_name(good_id: str | None) -> str:
     """Resolve a trade-good id to its display name, with fallback.
 
@@ -355,7 +315,6 @@ def _good_display_name(good_id: str | None) -> str:
         return _ftg(good_id).name
     except (KeyError, ImportError):
         return good_id.replace('_', ' ').title()
-
 
 def _smuggle_scan_risk(ctx, am) -> tuple[str, tuple[int, int, int]]:
     """Return ``(label, fg)`` for a smuggling mission's scan risk.
@@ -373,7 +332,6 @@ def _smuggle_scan_risk(ctx, am) -> tuple[str, tuple[int, int, int]]:
             return _label, _fg
     return "High", (255, 80, 80)
 
-
 def _quest_log_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
     """If ``event`` drives quest log nav, return the new ``selected`` index."""
     if n <= 0:
@@ -387,7 +345,6 @@ def _quest_log_navigate(event: tcod.event.Event, selected: int, n: int) -> int |
     if sym in ui._DOWN_SYMS or sym_name == 'j':
         return (selected + 1) % n
     return None
-
 
 def _run_quest_log(ctx) -> tuple[QuestLogOutcome, int | None]:
     """Show the city quest-log overlay and return the outcome.

@@ -13,15 +13,12 @@ from typing import Any
 
 from . import pygame_quest_log, pygame_ui
 
-
 class PygameBatchUnavailable(RuntimeError):
     """Raised when a batched Pygame modal cannot return a result."""
-
 
 def enabled() -> bool:
     """Return whether read-only screens can render in this runtime."""
     return pygame_ui.presentation_enabled()
-
 
 @dataclass(frozen=True)
 class BatchFrame:
@@ -30,11 +27,9 @@ class BatchFrame:
     rows: tuple[tuple[pygame_quest_log.QuestSpan, ...], ...]
     key: str
 
-
 def capture_rows(capture: Any) -> tuple[tuple[pygame_quest_log.QuestSpan, ...], ...]:
     """Convert a capture console into naturally rendered text spans."""
     return pygame_quest_log._captured_rows(capture)
-
 
 def _capture_console(width: int | None = None, height: int | None = None) -> Any:
     """Create a capture console matching the game's native canvas."""
@@ -43,13 +38,11 @@ def _capture_console(width: int | None = None, height: int | None = None) -> Any
 
     return CaptureConsole(width or SCREEN_WIDTH, height or SCREEN_HEIGHT)
 
-
 def capture_frame(render: Any) -> BatchFrame:
     """Capture one authoritative read-only render callback."""
     capture = _capture_console()
     render(capture)
     return BatchFrame(rows=capture_rows(capture), key="readonly")
-
 
 def frame_payload(frame: BatchFrame) -> dict[str, Any]:
     """Serialize one captured read-only frame for the worker."""
@@ -57,7 +50,6 @@ def frame_payload(frame: BatchFrame) -> dict[str, Any]:
         "frame": asdict(frame),
         "screen_size": (1600, 960),
     }
-
 
 def _frame_from_payload(raw: dict[str, Any]) -> BatchFrame:
     """Deserialize one captured read-only frame."""
@@ -74,11 +66,9 @@ def _frame_from_payload(raw: dict[str, Any]) -> BatchFrame:
         ),
     )
 
-
 def _font_path(pygame: Any) -> str | None:
     """Reuse the approved readable font selection."""
     return pygame_quest_log._font_path(pygame)
-
 
 def _fit_font(pygame: Any, frame: BatchFrame, width: int, height: int) -> Any:
     """Choose a font that fits the captured frame and modal log."""
@@ -98,7 +88,6 @@ def _fit_font(pygame: Any, frame: BatchFrame, width: int, height: int) -> Any:
             return font
     return pygame.font.Font(path, 12)
 
-
 def _draw_frame(
     pygame: Any, screen: Any, font: Any, frame: BatchFrame,
     *, context: Any | None = None,
@@ -113,7 +102,6 @@ def _draw_frame(
             )
             x += pygame_ui.measure_font(font, span.text)
 
-
 def _handle_key(pygame: Any, event: Any) -> str:
     """Translate read-only modal keys into parent outcomes."""
     if event.type == pygame.QUIT:
@@ -126,7 +114,6 @@ def _handle_key(pygame: Any, event: Any) -> str:
         return "GUIDE"
     return "IGNORE"
 
-
 def _load_pygame() -> Any:
     """Load Pygame lazily in the worker process."""
     try:
@@ -134,7 +121,6 @@ def _load_pygame() -> Any:
     except ModuleNotFoundError as exc:
         raise PygameBatchUnavailable("Pygame is not installed") from exc
     return pygame
-
 
 def _run_worker(payload: dict[str, Any]) -> int:
     """Own one read-only modal window and return a JSON outcome."""
@@ -162,7 +148,6 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.display.quit()
         pygame.quit()
 
-
 def run_shared(context: Any, render: Any) -> str:
     """Render a read-only capture in the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
@@ -184,7 +169,6 @@ def run_shared(context: Any, render: Any) -> str:
         if outcome != "IGNORE":
             return outcome
 
-
 def run_for_context(context: Any, render: Any) -> str:
     """Run the read-only screen in the shared Pygame window."""
     from . import pygame_runtime
@@ -192,31 +176,6 @@ def run_for_context(context: Any, render: Any) -> str:
     if not pygame_runtime.is_shared_context(context):
         raise PygameBatchUnavailable("Shared Pygame runtime is not open")
     return run_shared(context, render)
-
-
-def run_readonly(render: Any) -> str:
-    """Capture and run one read-only modal, returning its outcome."""
-    try:
-        response = pygame_ui.run_json_worker(
-            pygame_ui.worker_command(f"{__package__}.pygame_batch"),
-            frame_payload(capture_frame(render)),
-            unavailable_message="Pygame modal batch unavailable",
-            environment=pygame_ui.worker_environment(),
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        raise PygameBatchUnavailable(str(exc)) from exc
-    try:
-        outcome = str(response["outcome"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise PygameBatchUnavailable(
-            "Pygame modal batch returned no usable choice"
-        ) from exc
-    if outcome not in {"BACK", "QUIT", "GUIDE"}:
-        raise PygameBatchUnavailable(
-            "Pygame modal batch returned an unknown choice"
-        )
-    return outcome
-
 
 if __name__ == "__main__":
     raise SystemExit(_run_worker(json.load(sys.stdin)) if "--worker" in sys.argv else 2)

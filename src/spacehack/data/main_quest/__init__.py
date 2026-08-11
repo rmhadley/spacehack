@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 class QuestDialogue:
     """One NPC's dialogue override for a specific quest step.
 
-    The live NPC-talk modal (:func:`spacehack.npc.render_npc_talk`)
+    The live NPC-talk flow (:func:`spacehack.npc._run_npc_talk`)
     resolves the player's current step status to one of the four
     variant strings and shows it INSTEAD of the NPC's default
     ``flavor_text``. When ``option_label`` is non-empty AND the step

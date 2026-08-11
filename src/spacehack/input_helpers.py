@@ -3,37 +3,32 @@
 Contains the :class:`Outcome` enum, :func:`_run_pick`,
 :func:`_run_confirm`, key-press predicates (``_is_q_press``,
 ``_is_m_press``, etc.), and the :func:`_movement_action`
-movement mapper.  Everything here is a pure function or a short
-Modal wrapper — no game state, no event-loop internals.
+movement mapper.  Everything here is a pure function — no game state,
+no event-loop internals.
 """
 
 from __future__ import annotations
 from enum import Enum, auto
-import tcod.console
 import tcod.context
 import tcod.event
 from . import ui
 from . import pygame_ui
 from . import world
-from .engine import make_console, SCREEN_WIDTH, SCREEN_HEIGHT
 from .data.species import find_species
 from .data.classes import find_class
-
 
 class Outcome(Enum):
     """What happened at the end of a per-creation-screen loop iteration.
 
-    ``IGNORE`` is the standard "keep polling" signal consumed by
-    :meth:`spacehack.ui.Modal.run` -- an update function returns
-    :attr:`IGNORE` for events it doesn't act on, and Modal keeps
-    rendering + polling. Every other member terminates the modal
-    loop and propagates back to the caller.
+    ``IGNORE`` is the standard "keep polling" signal: an update
+    function returns :attr:`IGNORE` for events it doesn't act on, and
+    the presentation loop keeps polling. Every other member
+    terminates the loop and propagates back to the caller.
     """
     IGNORE = auto()
     QUIT = auto()
     BACK = auto()
     CONFIRM = auto()
-
 
 def _pygame_pick_frames(menu: ui.MenuScreen):
     """Build fixed-layout Pygame frames for one character picker."""
@@ -57,7 +52,6 @@ def _pygame_pick_frames(menu: ui.MenuScreen):
         )
         for selected in range(len(items))
     )
-
 
 def _pygame_confirm_frame(species, klass):
     """Build the fixed-layout Pygame character confirmation frame."""
@@ -83,18 +77,9 @@ def _pygame_confirm_frame(species, klass):
         selected=0,
     )
 
-
 def _is_character_menu(menu: ui.MenuScreen) -> bool:
     """Return whether a menu is one of the two character-creation pickers."""
     return menu.title in {"Choose Your Species", "Choose Your Class"}
-
-
-def _pygame_character_enabled() -> bool:
-    """Return whether character creation can use the Pygame presentation."""
-    from . import pygame_menu
-
-    return pygame_menu.enabled()
-
 
 def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None] | None:
     """Run a character picker in the shared Pygame window."""
@@ -121,7 +106,6 @@ def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]
                 return Outcome.CONFIRM, action
         return None
 
-
 def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | None:
     """Run character confirmation in the shared Pygame window."""
     from . import pygame_menu
@@ -145,7 +129,6 @@ def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | No
             return Outcome.QUIT
         return None
 
-
 def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
     """Run a character picker in the shared Pygame window."""
     if not _is_character_menu(menu):
@@ -155,14 +138,12 @@ def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outco
         raise RuntimeError("Character picker returned no outcome")
     return result
 
-
 def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) -> Outcome:
     """Run character confirmation in the shared Pygame window."""
     result = _run_pygame_confirm(context, species_id, class_id)
     if result is None:
         raise RuntimeError("Character confirmation returned no outcome")
     return result
-
 
 def _movement_action(event: tcod.event.Event) -> tuple[int, int] | None:
     """If ``event`` is a movement KeyDown, return (dx, dy); else None.
@@ -189,7 +170,6 @@ def _movement_action(event: tcod.event.Event) -> tuple[int, int] | None:
     sym_name: str = getattr(event.sym, 'name', '').lower()
     return world.MOVE_KEYS.get(sym_name)
 
-
 def _is_q_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``Q`` key.
 
@@ -203,7 +183,6 @@ def _is_q_press(event: tcod.event.Event) -> bool:
     if not isinstance(event, tcod.event.KeyDown):
         return False
     return getattr(event.sym, 'name', '') == 'Q'
-
 
 def _is_m_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``M`` key (or its
@@ -229,7 +208,6 @@ def _is_m_press(event: tcod.event.Event) -> bool:
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('M', 'm')
 
-
 def _is_period_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``.`` key (period).
 
@@ -240,7 +218,6 @@ def _is_period_press(event: tcod.event.Event) -> bool:
     if not isinstance(event, tcod.event.KeyDown):
         return False
     return getattr(event.sym, 'name', '') == 'PERIOD'
-
 
 def _is_g_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``G`` key (or its
@@ -262,7 +239,6 @@ def _is_g_press(event: tcod.event.Event) -> bool:
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('G', 'g')
 
-
 def _is_p_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``P`` key (or its
     lowercase alias).
@@ -275,7 +251,6 @@ def _is_p_press(event: tcod.event.Event) -> bool:
         return False
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('P', 'p')
-
 
 def _is_i_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``I`` key (or its
@@ -293,7 +268,6 @@ def _is_i_press(event: tcod.event.Event) -> bool:
         return False
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('I', 'i')
-
 
 def _is_t_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``T`` key (or its
@@ -315,7 +289,6 @@ def _is_t_press(event: tcod.event.Event) -> bool:
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('T', 't')
 
-
 def _is_c_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``C`` key (or its
     lowercase alias).
@@ -332,7 +305,6 @@ def _is_c_press(event: tcod.event.Event) -> bool:
         return False
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('C', 'c')
-
 
 def _is_f_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``F`` key (or its
@@ -351,7 +323,6 @@ def _is_f_press(event: tcod.event.Event) -> bool:
     sym_name: str = getattr(event.sym, 'name', '')
     return sym_name in ('F', 'f')
 
-
 def _is_shift_press(event: tcod.event.Event, key_name: str) -> bool:
     """Return whether a key event has the requested key plus Shift."""
     if not isinstance(event, tcod.event.KeyDown):
@@ -362,14 +333,12 @@ def _is_shift_press(event: tcod.event.Event, key_name: str) -> bool:
     shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
     return bool(mod & shift)
 
-
 def _is_shift_x_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+X.
 
     Used in dev mode (``SPACEHACK_DEV``) to award bonus XP.
     """
     return _is_shift_press(event, 'X')
-
 
 def _is_question_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``?`` key.
@@ -398,14 +367,12 @@ def _is_question_press(event: tcod.event.Event) -> bool:
         return bool(mod & shift)
     return False
 
-
 def _is_shift_r_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+R.
 
     Dev-mode only (``SPACEHACK_DEV``): fully reveals dungeon fog.
     """
     return _is_shift_press(event, 'R')
-
 
 def _is_shift_d_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+D.
@@ -416,7 +383,6 @@ def _is_shift_d_press(event: tcod.event.Event) -> bool:
     """
     return _is_shift_press(event, 'D')
 
-
 def _is_shift_o_press(event: tcod.event.Event) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+O.
 
@@ -425,7 +391,6 @@ def _is_shift_o_press(event: tcod.event.Event) -> bool:
     environment-variable gate and mutates the quest context.
     """
     return _is_shift_press(event, 'O')
-
 
 def _try_open_guide(event: tcod.event.Event, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.

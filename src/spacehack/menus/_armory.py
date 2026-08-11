@@ -11,35 +11,18 @@ Mirrors the mechanic loadout menu (``_loadout.py``) exactly:
 from __future__ import annotations
 from enum import Enum, auto
 
-import tcod.console
-import tcod.event
-
-from .. import ui
 from ..game_context import GameContext
-from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
-from ..input_helpers import _try_open_guide
-from ..ui import render_split_frame
-
-
-def _pygame_split_enabled() -> bool:
-    """Return whether the shared split-screen Pygame batch is enabled."""
-    from .. import pygame_split
-
-    return pygame_split.enabled()
-
 
 class _ArmoryOutcome(Enum):
     IGNORE = auto()
     BACK = auto()
     QUIT = auto()
 
-
 _ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
 _ARMOR_SLOT_LABELS: dict[str, str] = {
     "head": "Head", "body": "Body", "hands": "Hands",
     "legs": "Legs", "feet": "Feet",
 }
-
 
 def _sell_price(item_id: str) -> int:
     """Half the buy price of a ground weapon or armor piece."""
@@ -54,7 +37,6 @@ def _sell_price(item_id: str) -> int:
     except KeyError:
         pass
     return 0
-
 
 def _pygame_armory_frame(ctx: GameContext, planet_id: str = ""):
     """Build a presentation-only armory split frame.
@@ -119,7 +101,6 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = ""):
         pygame_split.SPLIT_SHOP_HINT,
     )
 
-
 def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selected: int) -> bool:
     """Apply one Pygame armory action using the existing parent logic."""
     from ..data.ground_weapons import find_ground_weapon
@@ -157,7 +138,6 @@ def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selec
     else:
         raise ValueError(f"Unknown armory action: {action!r}")
     return True
-
 
 def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     """Show the armory terminal split-screen modal."""

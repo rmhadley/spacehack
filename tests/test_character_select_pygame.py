@@ -56,7 +56,6 @@ def test_run_pick_uses_shared_pygame_menu_and_preserves_opaque_species_id(monkey
     )
     captured = {}
 
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
@@ -77,7 +76,6 @@ def test_run_confirm_maps_pygame_terminal_outcomes(monkeypatch):
     klass = SimpleNamespace(name="Pirate", description="Dangerous.", credits=25)
     monkeypatch.setattr(input_helpers, "find_species", lambda _id: species)
     monkeypatch.setattr(input_helpers, "find_class", lambda _id: klass)
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
@@ -105,7 +103,6 @@ def test_character_picker_ignores_guide_then_preserves_quit(monkeypatch):
         "Choose Your Species", "hint", (("human", "Human"),), {"human": "desc"},
     )
     outcomes = iter((("GUIDE", "", 0), ("QUIT", "", 0)))
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
@@ -152,7 +149,6 @@ def test_character_confirm_ignores_guide_then_preserves_quit(monkeypatch):
     klass = SimpleNamespace(name="Pirate", description="Dangerous.", credits=25)
     monkeypatch.setattr(input_helpers, "find_species", lambda _id: species)
     monkeypatch.setattr(input_helpers, "find_class", lambda _id: klass)
-    monkeypatch.setattr(input_helpers, "_pygame_character_enabled", lambda: True)
     outcomes = iter((("GUIDE", "", 0), ("QUIT", "", 0)))
     monkeypatch.setattr(
         pygame_menu,

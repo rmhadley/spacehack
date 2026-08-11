@@ -21,20 +21,12 @@ from __future__ import annotations
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-import tcod.console
-import tcod.event
-
 from . import main_quest as main_quest_module
-from . import message_log
-from . import ui
 from .data.npcs import NPC, find_npc, list_npcs
-from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT
 from .game_context import GameContext
-from .input_helpers import _try_open_guide
 
 if TYPE_CHECKING:
     from .mission import Mission
-
 
 class TalkOutcome(Enum):
     """What happened during a single NPC-talk dialog iteration.
@@ -57,139 +49,6 @@ class TalkOutcome(Enum):
     QUIT = auto()
     QUEST = auto()  # player picked the main-quest dialogue option row
 
-
-def render_npc_talk(
-    console: tcod.console.Console,
-    ctx: GameContext,
-    npc: NPC,
-    *,
-    screen_width: int,
-    screen_height: int,
-    deliver_missions: list | None = None,
-    selected: int = 0,
-    quest_body: str = "",
-    quest_options: list[tuple[str, str]] | None = None,
-) -> None:
-    """Paint the NPC-talk dialog — terminal look: centered title at
-    the top, body and option rows flush-left at x=2, message log
-    pinned at the bottom.
-
-    ``quest_body`` overrides the NPC's ``flavor_text`` when a live
-    main-quest dialogue exists (empty = normal flavor).
-    ``quest_options`` is ``(label, step_id)`` pairs rendered as
-    selectable rows ABOVE the deliver/work rows; picking one returns
-    :attr:`TalkOutcome.QUEST` so :func:`_run_npc_talk` can advance
-    the main quest step.
-
-    Otherwise the menu shows one "Deliver: <title>" row per
-    deliverable mission, then "View available work" at the bottom.
-    """
-    console.clear()
-    title = f"{npc.name} ({npc.guild})" if npc.guild else npc.name
-    body = f'"{quest_body if quest_body else npc.flavor_text}"'
-    content_x, max_w = ui.content_metrics(screen_width, HUD_WIDTH, col_x=2)
-
-    content_y = ui.screen_header(console, screen_width, ui.fit_text(title, max_w), fg=ui.COLOR_TITLE)
-    ui.paint_line(console, content_x, content_y, ui.fit_text(body, max_w), fg=ui.COLOR_DESCRIPTION)
-
-    _missions = deliver_missions or []
-    options: list[tuple[str, str]] = []  # (label, kind: quest/deliver/work)
-    for label, _step_id in (quest_options or []):
-        options.append((label, "quest"))
-    for m in _missions:
-        options.append(("Deliver: " + m.title, "deliver"))
-    if npc.guild:
-        options.append(("View available work", "work"))
-    n = len(options)
-    if n == 0:
-        # No menu items — just dismiss (ESC walks away).
-        hint = "ESC to walk away."
-        hint_row = content_y + 2
-        ui.paint_line(console, content_x, hint_row, ui.fit_text(hint, max_w), fg=ui.COLOR_INSTRUCTION)
-        message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
-        return
-    sel = selected % n
-    list_top = content_y + 2
-    for i, (label, kind) in enumerate(options):
-        row = list_top + i * 2
-        is_selected = i == sel
-        marker_open = "> " if is_selected else "  "
-        marker_close = " <" if is_selected else "  "
-        text = f"{marker_open}{ui.fit_text(label, max_w)}{marker_close}"
-        if is_selected:
-            # Quest + deliver rows share the gold "action" highlight;
-            # work stays the standard highlight.
-            fg = ui.COLOR_OPTION_HIGHLIGHT2 if kind in ("quest", "deliver") else ui.COLOR_OPTION_HIGHLIGHT
-        else:
-            fg = ui.COLOR_OPTION
-        console.print(x=content_x, y=row, string=text, fg=fg)
-    hint = "ARROW KEYS / j,k navigate - ENTER select - ESC walk away."
-    hint_row = list_top + n * 2
-    if hint_row + 1 <= screen_height - MSG_LOG_HEIGHT:
-        ui.paint_line(console, content_x, hint_row, ui.fit_text(hint, max_w), fg=ui.COLOR_INSTRUCTION)
-    message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)
-
-
-def update_npc_talk(event: tcod.event.Event) -> TalkOutcome:
-    """Map a single event for the NPC-talk dialog.
-
-    Returns a NAV-AGNOSTIC outcome: ESC -> BACK, Enter -> WORK,
-    window-close -> QUIT, anything else -> IGNORE. UP/DOWN /
-    j/k nav is handled by :func:`_npc_talk_navigate` (a sibling
-    helper used by :func:`_run_npc_talk`) so this function's
-    job is purely the dialog-level outcomes.
-
-    Note that ``TalkOutcome.WORK`` is the Enter default here; the
-    caller (:func:`_run_npc_talk`) re-maps WORK to
-    :attr:`TalkOutcome.DELIVER` when the highlighted option
-    happens to be the "Deliver <title>" row. Keeping Enter here
-    as a generic "confirm" marker lets the caller own the index-
-    to-outcome mapping without the dispatcher hardcoding which
-    option is deliverable.
-    """
-    if isinstance(event, tcod.event.Quit):
-        return TalkOutcome.QUIT
-    if not isinstance(event, tcod.event.KeyDown):
-        return TalkOutcome.IGNORE
-    if event.sym in ui._ENTER_SYMS:
-        return TalkOutcome.WORK
-    if event.sym in ui._ESCAPE_SYMS:
-        return TalkOutcome.BACK
-    return TalkOutcome.IGNORE
-
-
-def _npc_talk_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
-    """If ``event`` drives NPC-talk menu nav, return the new
-    ``selected`` index (modulo ``n`` options); otherwise ``None``.
-
-    Recognises both the standard arrow keys (UP / DOWN; also KP_8
-    / KP_2 via :data:`ui._UP_SYMS` / :data:`ui._DOWN_SYMS`) and
-    the vertical vim keys (``j`` down, ``k`` up). Mirrors
-    :func:`spacehack.__main__._mission_navigate` and
-    :func:`spacehack.__main__._ship_menu_navigate` so all three
-    NPC-facing modals share the same nav idiom — one shape the
-    smoke harness can regression-guard.
-    """
-    if n <= 0:
-        return None
-    if not isinstance(event, tcod.event.KeyDown):
-        return None
-    sym = event.sym
-    sym_name: str = getattr(sym, "name", "").lower()
-    if sym in ui._UP_SYMS or sym_name == "k":
-        return (selected - 1) % n
-    if sym in ui._DOWN_SYMS or sym_name == "j":
-        return (selected + 1) % n
-    return None
-
-
-def _pygame_interactive_enabled() -> bool:
-    """Return whether generic menus can render in the current runtime."""
-    from . import pygame_menu
-
-    return pygame_menu.enabled()
-
-
 def _run_pygame_menu(ctx, frames, *, caption: str):
     """Run the menu in the shared Pygame window."""
     from . import pygame_menu, pygame_runtime
@@ -197,7 +56,6 @@ def _run_pygame_menu(ctx, frames, *, caption: str):
     if not pygame_runtime.is_shared_context(getattr(ctx, "context", ctx)):
         raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
-
 
 def _npc_pygame_items(npc, missions, quest_options=()):
     """Build opaque Pygame actions for every NPC-talk option."""
@@ -223,7 +81,6 @@ def _npc_pygame_items(npc, missions, quest_options=()):
         ))
     return tuple(items)
 
-
 def _npc_pygame_frames(npc, quest_body, items):
     """Build selected-state frames for ordinary NPC talk."""
     from . import pygame_menu, pygame_ui
@@ -244,7 +101,6 @@ def _npc_pygame_frames(npc, quest_body, items):
         for selected in range(max(1, len(items)))
     )
 
-
 def _map_pygame_npc_result(outcome, action, missions):
     """Map a worker result to the existing NPC talk contract."""
     if outcome == "QUIT":
@@ -263,7 +119,6 @@ def _map_pygame_npc_result(outcome, action, missions):
             return None
     return None
 
-
 def _run_pygame_npc_talk(ctx, npc, quest_body, missions, quest_options=()):
     """Run NPC talk through the shared selectable Pygame screen."""
     from . import pygame_menu
@@ -281,7 +136,6 @@ def _run_pygame_npc_talk(ctx, npc, quest_body, missions, quest_options=()):
             _run_help_guide(ctx)
             continue
         return _map_pygame_npc_result(outcome, action, missions)
-
 
 def _run_npc_talk(
     ctx: GameContext,
@@ -356,7 +210,6 @@ def _run_npc_talk(
         return (outcome, None)
     return result
 
-
 # IDENTITY GUARANTEE: ``npc_module.NPC is NPC`` (and ditto for
 # find_npc / list_npcs). Smoke-verified at the registry build site
 # so a future refactor that accidentally drops the re-exports (or
@@ -367,8 +220,5 @@ __all__ = [
     "TalkOutcome",
     "find_npc",
     "list_npcs",
-    "render_npc_talk",
-    "update_npc_talk",
-    "_npc_talk_navigate",
     "_run_npc_talk",
 ]

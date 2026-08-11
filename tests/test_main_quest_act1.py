@@ -694,36 +694,3 @@ def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
     assert "Alpha Centauri" in ctx.main_quest_pending_message
     assert "Alpha Centauri" in ctx.main_quest_pending_objective
     assert "archive comparison is ready" not in ctx.main_quest_pending_message
-
-
-def test_orbit_menu_navigation_wraps_and_escape_does_not_resolve():
-    ctx = _ctx()
-    selected = 0
-
-    from src.spacehack import ui
-
-    down = SimpleNamespace(sym=ui._DOWN_SYMS[0])
-    escape = SimpleNamespace(sym=ui._ESCAPE_SYMS[0])
-
-    import tcod.event
-
-    selected = 0
-    for _ in range(3):
-        event = tcod.event.KeyDown(
-            scancode=tcod.event.Scancode.DOWN,
-            sym=down.sym,
-            mod=0,
-        )
-        outcome, selected = _act1._update_orbit_scene(event, selected)
-        assert outcome is _act1.OrbitSceneOutcome.IGNORE
-    assert selected == 0
-
-    outcome, selected = _act1._update_orbit_scene(
-        tcod.event.KeyDown(
-            scancode=tcod.event.Scancode.ESCAPE,
-            sym=escape.sym,
-            mod=0,
-        ), selected,
-    )
-    assert outcome is _act1.OrbitSceneOutcome.CONFIRM
-    assert selected == 1

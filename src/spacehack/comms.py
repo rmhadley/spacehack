@@ -16,24 +16,11 @@ import math
 from enum import Enum, auto
 
 import tcod.console
-import tcod.event
-
-from . import ui
 from .faction import get_attitude as _get_attitude
 from .data.npc_ships import find_npc_ship as _find_npc_ship
-from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, make_console
+from .engine import make_console
 from .game_context import GameContext
 from . import message_log as _ml
-from .input_helpers import _try_open_guide
-
-
-class _CommsListOutcome(Enum):
-    """Outcome for the contact-list modal."""
-    IGNORE = auto()
-    BACK = auto()
-    QUIT = auto()
-    HAIL = auto()   # ENTER on a contact → open interaction modal
-
 
 class _InteractionOutcome(Enum):
     """Outcome for the per-contact interaction sub-modal."""
@@ -45,7 +32,6 @@ class _InteractionOutcome(Enum):
     FLEE = auto()        # militia: attempt to flee the patrol
     BACK = auto()    # "End Transmission" or ESC
     QUIT = auto()
-
 
 # ---------------------------------------------------------------------------
 # Contact scanning
@@ -95,126 +81,11 @@ def _scan_contacts(
     )
     return contacts
 
-
 # ---------------------------------------------------------------------------
 # Rendering helpers
 # ---------------------------------------------------------------------------
 
 # Colour constants — all imported from ui.py to avoid duplication.
-_CONTACTS_TITLE_COLOR = ui.COLOR_TITLE
-_CONTACTS_FLAVOR = ui.COLOR_DESCRIPTION
-_CONTACTS_DIM = ui.COLOR_VALUE_DIM
-
-_INTERACTION_TITLE = ui.COLOR_TITLE
-_INTERACTION_FLAVOR = ui.COLOR_DESCRIPTION
-_INTERACTION_OPTION = ui.COLOR_OPTION
-_INTERACTION_HIGHLIGHT = ui.COLOR_OPTION_HIGHLIGHT
-_INTERACTION_INSTRUCTION = ui.COLOR_INSTRUCTION
-
-
-def _render_comms_panel(
-    console: tcod.console.Console,
-    contacts: list[tuple[str, object, object]],
-    selected: int,
-    ctx,
-) -> None:
-    """Paint the comms contact-list panel via :func:`ui.render_selectable_list`.
-
-    Attitude suffix (``(hostile)``) is baked into the contact name so
-    the standard list renderer works without per-row color overrides.
-    ``ctx`` is needed for faction reputation lookups.
-    """
-    console.clear()
-    n = len(contacts)
-    title = f"COMMS - {n} contact{('' if n == 1 else 's')} in range"
-
-    # Build items with suffix baked in, flavor text as description.
-    _items: list[tuple[str, str]] = []
-    for name, spec, _entity in contacts:
-        _rep = ctx.faction_reputation.get(spec.faction, 0)
-        _attitude = _get_attitude(_rep)
-        _display_name = f"{name} (hostile)" if _attitude in ('enemy', 'disliked') else name
-        _flavor = spec.comms_lines[0] if spec.comms_lines else "..."
-        _items.append((_display_name, _flavor))
-
-    content_y = ui.screen_header(console, SCREEN_WIDTH, title, fg=_CONTACTS_TITLE_COLOR)
-    ui.render_selectable_list(
-        console, SCREEN_WIDTH, SCREEN_HEIGHT,
-        title="",
-        items=_items,
-        selected=selected,
-        col_x=2,
-        # render_selectable_list starts items at title_y + 2, so
-        # title_y = content_y - 2 puts the list at content_y.
-        title_y=content_y - 2,
-        row_spacing=3,
-        item_fg_selected=ui.COLOR_OPTION_HIGHLIGHT,
-        item_fg_normal=ui.COLOR_OPTION,
-        desc_fg_selected=_CONTACTS_FLAVOR,
-        desc_fg_normal=_CONTACTS_DIM,
-        hint="UP/DOWN / j,k navigate - ENTER hail - ESC close",
-        hint_fg=_INTERACTION_INSTRUCTION,
-    )
-    _ml.render_message_log(
-        console, ctx.log,
-        screen_width=SCREEN_WIDTH,
-        screen_height=SCREEN_HEIGHT,
-    )
-
-
-def _render_interaction_modal(
-    console: tcod.console.Console,
-    ctx: GameContext,
-    contact_name: str,
-    spec: object,
-    options: list[str],
-    selected: int,
-) -> None:
-    """Paint the per-contact interaction sub-modal.
-
-    Flavor text rendered directly; options delegated to
-    :func:`ui.render_selectable_list` for consistent markers.
-    ``ctx`` is needed for the message-log footer.
-    """
-    console.clear()
-    title = f"{contact_name} - Hailing"
-    _COL_X = 2
-    flavor_y = ui.screen_header(console, SCREEN_WIDTH, title, fg=_INTERACTION_TITLE)
-
-    # Flavor text — left-aligned from the fixed content column.
-    for line in spec.comms_lines:
-        wrapped = ui.wrap_text(line, max_width=SCREEN_WIDTH - _COL_X * 2)
-        for wl in wrapped:
-            console.print(
-                x=_COL_X, y=flavor_y,
-                string=wl,
-                fg=_INTERACTION_FLAVOR,
-            )
-            flavor_y += 1
-
-    # Options via reusable list renderer.
-    _opt_items = [(opt, "") for opt in options]
-    _list_title_y = flavor_y + 1
-    ui.render_selectable_list(
-        console, SCREEN_WIDTH, SCREEN_HEIGHT,
-        title="",
-        items=_opt_items,
-        selected=selected,
-        col_x=_COL_X,
-        title_y=_list_title_y,
-        title_fg=_INTERACTION_TITLE,
-        row_spacing=2,
-        item_fg_selected=_INTERACTION_HIGHLIGHT,
-        item_fg_normal=_INTERACTION_OPTION,
-        hint="UP/DOWN navigate - ENTER select - ESC back",
-        hint_fg=_INTERACTION_INSTRUCTION,
-    )
-    _ml.render_message_log(
-        console, ctx.log,
-        screen_width=SCREEN_WIDTH,
-        screen_height=SCREEN_HEIGHT,
-    )
-
 
 _INTERACTION_DISPATCH = {
     "Open Trade": _InteractionOutcome.TRADE,
@@ -224,14 +95,6 @@ _INTERACTION_DISPATCH = {
     "Flee": _InteractionOutcome.FLEE,
     "End Transmission": _InteractionOutcome.BACK,
 }
-
-
-def _pygame_comms_enabled() -> bool:
-    """Return whether the generic Pygame comms menu can render in this runtime."""
-    from . import pygame_menu
-
-    return pygame_menu.enabled()
-
 
 def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
     """Return a Pygame-selected interaction enum, or None for fallback."""
@@ -268,7 +131,6 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
     if outcome != "SELECT":
         return _InteractionOutcome.BACK
     return _INTERACTION_DISPATCH.get(action)
-
 
 # ---------------------------------------------------------------------------
 # Interaction sub-modal (shared between open_comms and open_comms_direct)
@@ -459,7 +321,6 @@ def _run_interaction_modal(
     else:  # BACK / QUIT / anything else
         return None
 
-
 # ---------------------------------------------------------------------------
 # Direct comms (skip contact list, hail a specific entity)
 # ---------------------------------------------------------------------------
@@ -482,7 +343,6 @@ def open_comms_direct(
     _name = getattr(entity, 'name', '') or _spec.name
     console = make_console()
     return _run_interaction_modal(ctx, console, _name, _spec, entity)
-
 
 # ---------------------------------------------------------------------------
 # Main entry point
@@ -528,7 +388,6 @@ def _pygame_contact_result(ctx, contacts):
         return contacts[int(action.split(":", 1)[1])]
     except (ValueError, IndexError):
         return None
-
 
 def open_comms(
     ctx: GameContext,

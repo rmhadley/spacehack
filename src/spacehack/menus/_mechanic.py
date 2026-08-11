@@ -6,35 +6,17 @@ Extracted from the old ``menus.py`` during the package refactor.
 from __future__ import annotations
 from enum import Enum, auto
 
-import tcod.console
-import tcod.event
-
-from .. import ui
-from .. import message_log
 from .. import ship as ship_module
 from ..data.weapons import find_weapon
-from ..game_context import GameContext
-from ..engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
-from ..input_helpers import _try_open_guide
-
-
-def _pygame_mechanic_enabled() -> bool:
-    """Return whether the generic Pygame screen worker is enabled."""
-    from .. import pygame_screen
-
-    return pygame_screen.enabled()
-
 
 def _refuel_preview(owned, ship_rec, credits: int) -> tuple[int, int]:
     """Return the fuel units and credits needed by the refuel action."""
     units = max(0, min(ship_rec.max_fuel - owned.fuel, credits // ship_module.FUEL_COST_PER_UNIT))
     return units, units * ship_module.FUEL_COST_PER_UNIT
 
-
 def _repair_preview(owned, ship_rec) -> int:
     """Return the hull repair price for the current damage."""
     return max(0, int(owned.hull_damage_pct * ship_rec.price // 100))
-
 
 def _mechanic_frame(ctx, ship_rec, selected: int):
     """Build a presentation snapshot for the mechanic terminal."""
@@ -59,7 +41,7 @@ def _mechanic_frame(ctx, ship_rec, selected: int):
     )
     body = (
         f"Ship: {ship_rec.name}",
-        f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {owned.hull_damage_pct}% damage",
+        f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {ship_module.hull_integrity_pct(owned)}%",
         pygame_ui.credits_label(ctx.stats.credits),
         "Select Refuel or Repair to review the exact total before committing.",
     )
@@ -70,7 +52,6 @@ def _mechanic_frame(ctx, ship_rec, selected: int):
             pygame_ui.GUIDE_HINT,
         ),), selected,
     )
-
 
 def _refuel(ctx, owned, ship_rec) -> None:
     """Apply the mechanic's refuel transaction."""
@@ -87,7 +68,6 @@ def _refuel(ctx, owned, ship_rec) -> None:
         owned.fuel += units
         ctx.log.add(f"Refueled {units} units for {cost}$. Fuel: {owned.fuel} / {ship_rec.max_fuel}.")
 
-
 def _repair(ctx, owned, ship_rec) -> None:
     """Apply the mechanic's hull repair transaction."""
     damage = owned.hull_damage_pct
@@ -101,7 +81,6 @@ def _repair(ctx, owned, ship_rec) -> None:
     ctx.stats.credits -= cost
     owned.hull_damage_pct = 0
     ctx.log.add(f"Repaired hull to 100% for {cost}$.")
-
 
 def _apply_pygame_mechanic_action(ctx, action: str, planet_id: str, ship_rec) -> bool:
     """Apply one mechanic action and keep the terminal open."""
@@ -122,7 +101,6 @@ def _apply_pygame_mechanic_action(ctx, action: str, planet_id: str, ship_rec) ->
     if not action:
         return True
     raise ValueError(f"Unknown mechanic action: {action!r}")
-
 
 def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
     """Run the mechanic terminal through Pygame, or return None on fallback."""
@@ -151,7 +129,6 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
             raise SystemExit
         return True
 
-
 class _MechanicOutcome(Enum):
     """Result of the mechanic-terminal menu."""
     IGNORE = auto()
@@ -161,7 +138,6 @@ class _MechanicOutcome(Enum):
     REPAIR = auto()
     LOADOUT = auto()
     AMMO = auto()
-
 
 def _run_mech_menu(ctx, planet_id: str = "") -> None:
     """Show the mechanic-terminal menu with Refuel + Repair + Loadout options.
@@ -205,7 +181,6 @@ def _ammo_frame(ctx, owned, missile_slots, selected):
         selected,
     )
 
-
 def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
     """Run ammo purchasing through Pygame, keeping the transaction in parent."""
     from .. import pygame_screen
@@ -242,7 +217,6 @@ def _run_pygame_ammo(ctx, owned, missile_slots) -> bool | None:
                 ctx.log.add(f"Bought 1x {weapon.name} ammo for {cost}$.")
             continue
         return True
-
 
 def _run_ammo_menu(ctx) -> None:
     """Buy missile ammo for installed missile weapons.

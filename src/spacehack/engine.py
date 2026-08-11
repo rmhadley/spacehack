@@ -9,13 +9,11 @@ accident.
 from __future__ import annotations
 
 import random as _random
-import os as _os
 import sys
 from pathlib import Path
 
 import numpy as np
 import tcod.console
-import tcod.context
 import tcod.event
 import tcod.tileset
 
@@ -44,7 +42,6 @@ RNG: _random.Random = _random.Random()
 # main RNG or depending on its ephemeral state.
 INIT_SEED: int = 0
 
-
 def seed_rng(seed: int) -> None:
     """Re-seed the shared :data:`RNG` with ``seed``.
 
@@ -55,7 +52,6 @@ def seed_rng(seed: int) -> None:
     global RNG, INIT_SEED
     RNG = _random.Random(seed)
     INIT_SEED = seed
-
 
 # Screen dimensions in character cells. With the native 16x16 bitmap
 # tiles this gives a 1600 x 960 logical-pixel window while preserving the
@@ -96,15 +92,12 @@ _TEXT_GLYPHS: tuple[int, ...] = tuple(
 )
 _TEXT_GLYPH_EXTRA_COLUMNS: int = 3
 
-
 class EngineError(RuntimeError):
     """Raised when the engine cannot finish initialising."""
-
 
 # ---------------------------------------------------------------------------
 # Tileset
 # ---------------------------------------------------------------------------
-
 
 def _data_path(filename: str) -> Path:
     """Resolve ``filename`` relative to the ``data/`` directory.
@@ -116,7 +109,6 @@ def _data_path(filename: str) -> Path:
     if getattr(sys, 'frozen', False):
         return Path(sys._MEIPASS) / "spacehack" / "data" / filename
     return Path(__file__).resolve().parent / "data" / filename
-
 
 # --- Procedural bitmap texture patches -------------------------------------
 #
@@ -143,7 +135,6 @@ _BLOCK_AND_SHADES: dict[int, str] = {
     0x2593: "dark",    # ▓ dark shade
 }
 
-
 def _render_shade_tile(tw: int, th: int, kind: str) -> np.ndarray:
     """Build one block/shade glyph tile (RGBA) matching the tilesheet look.
 
@@ -165,7 +156,6 @@ def _render_shade_tile(tw: int, th: int, kind: str) -> np.ndarray:
             if on:
                 tile[y, x] = (255, 255, 255, 255)
     return tile
-
 
 def _render_bitmap_tile(
     tw: int, th: int, rows: tuple[str, ...]
@@ -189,7 +179,6 @@ def _render_bitmap_tile(
             if ch == "#" and 0 <= target_x < tw and 0 <= target_y < th:
                 tile[target_y, target_x] = (255, 255, 255, 255)
     return tile
-
 
 # Floor middot — a clean 4x4 centred dot (reads as polished indoor floor).
 _MIDDOT_BITMAP: tuple[str, ...] = (
@@ -270,7 +259,6 @@ _SUIT_BITMAPS: dict[int, tuple[str, ...]] = {
     ),
 }
 
-
 def _procedural_texture_glyphs(
     tileset: tcod.tileset.Tileset,
 ) -> tcod.tileset.Tileset:
@@ -287,7 +275,6 @@ def _procedural_texture_glyphs(
     for cp, rows in _SUIT_BITMAPS.items():
         tileset[cp] = _render_bitmap_tile(tw, th, rows)
     return tileset
-
 
 def _widen_glyph_tile(
     tile: np.ndarray, extra_columns: int = _TEXT_GLYPH_EXTRA_COLUMNS
@@ -317,7 +304,6 @@ def _widen_glyph_tile(
     result[:, target_left : target_left + target_width, :] = widened
     return result
 
-
 def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
     """Tighten ordinary bitmap text while preserving the fixed cell grid."""
     for codepoint in _TEXT_GLYPHS:
@@ -325,7 +311,6 @@ def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
             np.asarray(tileset[codepoint])
         )
     return tileset
-
 
 def load_tileset() -> tcod.tileset.Tileset:
     """Load the native CP437 bitmap tileset.
@@ -353,37 +338,9 @@ def load_tileset() -> tcod.tileset.Tileset:
         ) from exc
     return _widen_text_glyphs(_procedural_texture_glyphs(_sheet))
 
-
 # ---------------------------------------------------------------------------
 # Context + console
 # ---------------------------------------------------------------------------
-
-
-def open_terminal(tileset: tcod.tileset.Tileset) -> tcod.context.Context:
-    """Open the libtcod terminal-window context for the game."""
-    # SDL3 defaults to NEAREST texture scaling. On displays whose backing
-    # scale is not an exact integer multiple of the console (fractional
-    # Retina / "scaled" display modes), NEAREST drops pixel rows/columns
-    # and glyphs come out with missing pixels. LINEAR is effectively
-    # identical at integer scales and complete at fractional ones
-    # (tcod 19.5.0 note: "Scaling defaults to nearest, set
-    # SDL_RENDER_SCALE_QUALITY=linear if linear scaling was preferred").
-    #
-    # NOTE: this setdefault alone does NOT work — SDL3 snapshots env vars
-    # into hints during the first ``import tcod``, which happens before
-    # this function runs (verified: SDL_GetHint returns NULL here even
-    # after setting the var). The authoritative set lives in
-    # ``spacehack/__init__.py`` (package init, before any tcod import);
-    # this one is kept as a harmless fallback for direct-engine callers.
-    _os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
-    return tcod.context.new_terminal(
-        columns=SCREEN_WIDTH,
-        rows=SCREEN_HEIGHT,
-        tileset=tileset,
-        title=WINDOW_TITLE,
-        vsync=True,
-    )
-
 
 def make_console(
     width: int | None = None, height: int | None = None
@@ -394,11 +351,9 @@ def make_console(
         height if height is not None else SCREEN_HEIGHT,
     )
 
-
 # ---------------------------------------------------------------------------
 # Events
 # ---------------------------------------------------------------------------
-
 
 def _safe_syms(*names: str) -> tuple:
     """Resolve ``tcod.event.KeySym`` members by name, skipping any that
@@ -409,9 +364,7 @@ def _safe_syms(*names: str) -> tuple:
         if s is not None
     )
 
-
 _ESCAPE_SYMS = _safe_syms("ESCAPE")
-
 
 def should_quit(event: tcod.event.Event) -> bool:
     """Return True if ``event`` should make the main loop exit cleanly."""

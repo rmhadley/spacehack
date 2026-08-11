@@ -82,15 +82,6 @@ def test_bitmap_glyphs_center_in_the_native_raster():
     assert not engine._render_bitmap_tile(16, 16, ()).any()
 
 
-def test_help_selector_uses_a_renderable_cp437_marker():
-    """The guide selection marker must be present in the bitmap font."""
-    assert game_help.GUIDE_SELECTED_MARKER == ">"
-    assert ord(game_help.GUIDE_SELECTED_MARKER) < 0x100
-
-    tileset = engine.load_tileset()
-    assert np.asarray(tileset[ord(game_help.GUIDE_SELECTED_MARKER)])[..., 3].any()
-
-
 def _runtime_string_tokens():
     """Yield source string tokens that can reach runtime output.
 

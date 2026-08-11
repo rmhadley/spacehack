@@ -12,21 +12,12 @@ navigation, character skills, factions, and keybindings.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, auto
 
-import tcod.console
-import tcod.context
-import tcod.event
-
-from . import ui
-from .engine import SCREEN_WIDTH, SCREEN_HEIGHT, make_console
 from .game_context import GameContext
-
 
 # ---------------------------------------------------------------------------
 # Data
 # ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class GuideSection:
@@ -39,20 +30,6 @@ class GuideSection:
     """
     title: str
     body: str
-
-
-class GuideOutcome(Enum):
-    """What happened during a guide update call.
-
-    ``IGNORE`` means keep polling (no relevant event).
-    ``CLOSED`` means the player dismissed the guide entirely.
-    ``BACK_TO_LIST`` means the player pressed ESC from a section
-    page and wants to return to the topic list.
-    """
-    IGNORE = auto()
-    CLOSED = auto()
-    BACK_TO_LIST = auto()
-
 
 # ---------------------------------------------------------------------------
 # Section content
@@ -256,7 +233,6 @@ _GUIDE_DUNGEON_EXTENSIONS = GuideSection(
         "weapon, or rescue path."
     ),
 )
-
 
 _GUIDE_COMBAT = GuideSection(
     title="Combat System",
@@ -1067,11 +1043,6 @@ _GUIDE_DERELICT = GuideSection(
     ),
 )
 
-# The selected marker must exist in the CP437 bitmap tilesheet. Keep this
-# ASCII glyph instead of Unicode arrows, which can render as blank cells.
-GUIDE_SELECTED_MARKER: str = ">"
-
-
 # All sections in order. Add new sections here (insert or append).
 _GUIDE_BAR_MISSIONS = GuideSection(
     title="Bar Missions",
@@ -1257,7 +1228,6 @@ _GUIDE_GROUND_GEAR = GuideSection(
         "- Shows your currently equipped weapon and all armour slots"
     ),
 )
-
 
 _GUIDE_MILITIA_PATROLS = GuideSection(
     title="Militia Patrols & Cargo Scans",
@@ -1477,7 +1447,6 @@ _GUIDE_GROUND_COMBAT = GuideSection(
     ),
 )
 
-
 _GUIDE_MAIN_QUEST = GuideSection(
     title="Main Quest",
     body=(
@@ -1582,7 +1551,6 @@ _GUIDE_MAIN_QUEST = GuideSection(
     ),
 )
 
-
 _GUIDE_DUNGEON_MONSTERS = GuideSection(
     title="Dungeon Monsters",
     body=(
@@ -1618,7 +1586,6 @@ _GUIDE_DUNGEON_MONSTERS = GuideSection(
     ),
 )
 
-
 _GUIDE_TUTORIAL = GuideSection(
     title="Tutorial Mode",
     body=(
@@ -1640,7 +1607,6 @@ _GUIDE_TUTORIAL = GuideSection(
         "replaces the previous save."
     ),
 )
-
 
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_TUTORIAL,
@@ -1664,208 +1630,15 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_MAIN_QUEST,
 )
 
-
 # ---------------------------------------------------------------------------
-# Rendering
-# ---------------------------------------------------------------------------
-
-
-# Border frame around the entire guide.
-_BORDER_RECT = (1, 1, SCREEN_WIDTH - 2, SCREEN_HEIGHT - 2)
-
-# Left-edge x for left-aligned body text (inside border + padding).
-_CONTENT_LEFT: int = 4
-
-# Word-wrap width for body text — matches the space inside the border
-# after accounting for 3-char left padding.
-_CONTENT_WIDTH: int = SCREEN_WIDTH - 8
-
-# Rows available for body text: room for title (3), divider (1), blank (1),
-# then body, then blank (1), divider (1), hint (1), blank (1) before border.
-# Shared between render_guide_page and update_guide so scroll logic stays
-# consistent.
-_BODY_AVAIL_ROWS: int = SCREEN_HEIGHT - 13
-
-
-def render_guide_list(
-    console: tcod.console.Console,
-    sections: tuple[GuideSection, ...],
-    selected: int,
-) -> None:
-    """Paint the topic-selection list. Clears console first."""
-    console.clear()
-
-    # Border frame (subtle dot-border)
-    ui.paint_rect_border(console, _BORDER_RECT, fg=ui.COLOR_VALUE_DIM, char=".")
-
-    # Title + divider (unified screen header, inside the frame)
-    ui.screen_header(
-        console, SCREEN_WIDTH, "GAME GUIDE",
-        row=3, divider_x=_CONTENT_LEFT, divider_w=_CONTENT_WIDTH,
-    )
-
-    # Section list — numbered, left-aligned inside the frame, with
-    # selection marker (character-screen style).
-    _list_top = 7
-    for i, sec in enumerate(sections):
-        _row = _list_top + i
-        _is_sel = i == selected
-        _num = f"{i + 1:02d}"
-        _marker = GUIDE_SELECTED_MARKER if _is_sel else " "
-        _text = f"{_marker} {_num}  {sec.title}"
-        _fg = ui.COLOR_OPTION_HIGHLIGHT if _is_sel else ui.COLOR_OPTION
-        console.print(
-            x=_CONTENT_LEFT,
-            y=_row,
-            string=_text,
-            fg=_fg,
-        )
-
-    # Hint
-    _hint = "\u2191\u2193 / jk  navigate  \u00b7  ENTER  open  \u00b7  ESC  close"
-    console.print(
-        x=_CONTENT_LEFT, y=SCREEN_HEIGHT - 5,
-        string=_hint, fg=ui.COLOR_INSTRUCTION,
-    )
-
-
-def render_guide_page(
-    console: tcod.console.Console,
-    section: GuideSection,
-    page_offset: int = 0,
-) -> None:
-    """Paint one section's body text, word-wrapped. Clears console first.
-
-    ``page_offset`` is the first line to display (for scrolling long
-    sections). Section title, dividers, and hint are always painted;
-    the body text starts below the title divider and is left-aligned
-    inside the border frame for easier reading of long passages.
-    """
-    console.clear()
-
-    # Border frame
-    ui.paint_rect_border(console, _BORDER_RECT, fg=ui.COLOR_VALUE_DIM, char=".")
-
-    # Title + divider (unified screen header, inside the frame)
-    ui.screen_header(
-        console, SCREEN_WIDTH, section.title,
-        row=3, divider_x=_CONTENT_LEFT, divider_w=_CONTENT_WIDTH,
-    )
-
-    # Body text — word-wrapped, left-aligned, starting at row 6
-    _lines = ui.wrap_text(section.body, _CONTENT_WIDTH)
-    _start_y = 6
-    for i in range(_BODY_AVAIL_ROWS):
-        _idx = page_offset + i
-        if _idx >= len(_lines):
-            break
-        console.print(
-            x=_CONTENT_LEFT,
-            y=_start_y + i,
-            string=_lines[_idx],
-            fg=ui.COLOR_VALUE_WHITE,
-        )
-
-    if not _lines:
-        return
-
-    # Bottom divider (same width as body text)
-    _hint_y = _start_y + _BODY_AVAIL_ROWS + 1
-    if _hint_y < SCREEN_HEIGHT - 2:
-        ui.paint_rule(console, _CONTENT_LEFT, _hint_y, _CONTENT_WIDTH)
-        _hint_y += 1
-
-    # Hint — scroll indicator with page counter for multi-page sections
-    _hint: str
-    if len(_lines) > _BODY_AVAIL_ROWS:
-        _total_pages = (len(_lines) + _BODY_AVAIL_ROWS - 1) // _BODY_AVAIL_ROWS
-        _cur_page = page_offset // _BODY_AVAIL_ROWS + 1
-        _hint = (
-            f"\u2191\u2193 scroll  ({_cur_page}/{_total_pages})  "
-            "\u00b7  ESC  back"
-        )
-    else:
-        _hint = "ESC  go back"
-    console.print(
-        x=_CONTENT_LEFT, y=_hint_y,
-        string=_hint, fg=ui.COLOR_INSTRUCTION,
-    )
-
 
 # ---------------------------------------------------------------------------
 # Update
 # ---------------------------------------------------------------------------
 
-
-def update_guide(
-    event: tcod.event.Event,
-    sections: tuple[GuideSection, ...],
-    selected: int,
-    viewing: GuideSection | None,
-    page_offset: int,
-) -> tuple[GuideOutcome, int, int | None]:
-    """Handle input for the guide. Returns ``(outcome, new_selected, new_page_offset_or_section_idx)``.
-
-    When the player opens a section, ``new_page_offset_or_section_idx`` is
-    the section index (viewing). When they close or navigate the list, it's
-    ``None`` for non-section events. The caller applies the state changes.
-    """
-    if not isinstance(event, tcod.event.KeyDown):
-        return GuideOutcome.IGNORE, selected, None if viewing is None else page_offset
-
-    sym_name: str = getattr(event.sym, "name", "").lower()
-
-    if viewing is not None:
-        # We are on a section page
-        if sym_name in ("escape",):
-            return GuideOutcome.BACK_TO_LIST, selected, None
-        # Scrolling — page-down/page-up for full-page jumps
-        _lines = ui.wrap_text(viewing.body, _CONTENT_WIDTH)
-        if sym_name in ("pagedown",):
-            _next = page_offset + _BODY_AVAIL_ROWS
-            if _next < len(_lines):
-                return GuideOutcome.IGNORE, selected, _next
-            return GuideOutcome.IGNORE, selected, page_offset
-        if sym_name in ("pageup",):
-            _prev = page_offset - _BODY_AVAIL_ROWS
-            if _prev > 0:
-                return GuideOutcome.IGNORE, selected, _prev
-            return GuideOutcome.IGNORE, selected, 0
-        if sym_name in ("down", "j"):
-            if page_offset + _BODY_AVAIL_ROWS < len(_lines):
-                return GuideOutcome.IGNORE, selected, page_offset + 1
-            return GuideOutcome.IGNORE, selected, page_offset
-        if sym_name in ("up", "k"):
-            if page_offset > 0:
-                return GuideOutcome.IGNORE, selected, page_offset - 1
-            return GuideOutcome.IGNORE, selected, page_offset
-        # Any other key closes the page
-        return GuideOutcome.BACK_TO_LIST, selected, None
-    else:
-        # We are on the topic list
-        if sym_name in ("escape",):
-            return GuideOutcome.CLOSED, selected, None
-        if sym_name in ("up", "k") and selected > 0:
-            return GuideOutcome.IGNORE, selected - 1, None
-        if sym_name in ("down", "j") and selected < len(sections) - 1:
-            return GuideOutcome.IGNORE, selected + 1, None
-        if sym_name in ("return", "enter", "kp_enter", "kp_5"):
-            return GuideOutcome.IGNORE, selected, 0  # page_offset = 0
-        # Any other key is ignored on the list
-        return GuideOutcome.IGNORE, selected, None
-
-
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-
-
-def _pygame_help_enabled() -> bool:
-    """Return whether the generic Pygame screen worker is enabled."""
-    from . import pygame_screen
-
-    return pygame_screen.enabled()
-
 
 def _guide_index(topic: str | int | None) -> int | None:
     """Resolve a contextual guide topic by title or section index."""
@@ -1879,7 +1652,6 @@ def _guide_index(topic: str | int | None) -> int | None:
          if section.title.casefold() == normalized),
         None,
     )
-
 
 def _run_pygame_help(
     ctx: GameContext,
@@ -1946,7 +1718,6 @@ def _run_pygame_help(
         if outcome == "PAGE_UP" or outcome == "PAGE_DOWN":
             continue
 
-
 def _run_help_guide(ctx: GameContext) -> None:
     """Open the game guide as a modal, optionally at a contextual topic."""
     topic = getattr(ctx, "_guide_topic", None)
@@ -1956,7 +1727,6 @@ def _run_help_guide(ctx: GameContext) -> None:
     if result is None:
         raise RuntimeError("Guide returned no outcome")
     return
-
 
 def _open_context_guide(ctx: GameContext, topic: str) -> None:
     """Open the guide directly at the topic most relevant to a modal."""

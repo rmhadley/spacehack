@@ -10,23 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, TypeVar
-
-import tcod.console
-import tcod.context
-import tcod.event
 
 from .data.species import list_species
 from .data.classes import list_classes
 from . import pygame_ui
-
-# Generic modal outcome type. Each modal defines its own enum subclass
-# with terminal outcomes plus an IGNORE member (which signals "this
-# event wasn't relevant, keep polling"). The Modal helper duck-types
-# the IGNORE check via ``outcome.name == "IGNORE"`` so each modal
-# doesn't need to import a shared base (Python enums can't subclass
-# if the base defines members, so a shared base is impossible).
-T = TypeVar("T", bound=Enum)
 
 # High-contrast sci-fi palette for a black background. Normal reading text
 # stays neutral or warm-white; color is reserved for hierarchy and state so
@@ -51,13 +38,11 @@ COLOR_SPLASH_ART: tuple[int, int, int] = (205, 250, 255)      # title cyan
 COLOR_SPLASH_FLAVOR: tuple[int, int, int] = (245, 245, 235)   # title body text
 COLOR_SPLASH_PROMPT: tuple[int, int, int] = (255, 240, 175)   # title instruction
 
-
 class MenuAction(Enum):
     """What a single key event means for a menu screen."""
     NONE = auto()     # no menu-level action (e.g. UP/DOWN navigation)
     CONFIRM = auto()  # user pressed Enter (RETURN/ENTER/KP_ENTER/KP_5)
     BACK = auto()     # user pressed ESC
-
 
 @dataclass
 class MenuScreen:
@@ -76,7 +61,6 @@ class MenuScreen:
     def selected_id(self) -> str:
         return self.options[self.selected][0]
 
-
 def species_menu() -> MenuScreen:
     """Build the species-choices menu screen."""
     return MenuScreen(
@@ -88,7 +72,6 @@ def species_menu() -> MenuScreen:
         descriptions={s.id: s.description for s in list_species()},
         selected=0,
     )
-
 
 def class_menu() -> MenuScreen:
     """Build the class-choices menu screen."""
@@ -102,7 +85,6 @@ def class_menu() -> MenuScreen:
         selected=0,
     )
 
-
 # ---------------------------------------------------------------------------
 # Layout helpers
 # ---------------------------------------------------------------------------
@@ -110,27 +92,6 @@ def class_menu() -> MenuScreen:
 def centered_x(text: str, screen_width: int) -> int:
     """Column index that horizontally centers ``text`` in the given width."""
     return max(0, (screen_width - len(text)) // 2)
-
-
-def content_metrics(
-    screen_width: int,
-    hud_width: int,
-    col_x: int | None = None,
-) -> tuple[int, int]:
-    """Return ``(col_x, max_w)`` for left-anchored modal content.
-
-    ``col_x`` is the fixed content column — defaults to the
-    character-screen style (``screen_width // 4``); pass a custom
-    column for the terminal look (``2``, flush-left like the ship
-    loadout and cargo screens). ``max_w`` caps the line width so
-    ``col_x + max_w`` always fits inside the console — without this
-    cap, long left-anchored lines would clip off the right edge
-    (centered text used to fit by construction).
-    """
-    _col_x = screen_width // 4 if col_x is None else col_x
-    max_w = max(1, min(screen_width - hud_width - 2, screen_width - _col_x - 2))
-    return _col_x, max_w
-
 
 def paint_rect_border(
     console,
@@ -205,167 +166,9 @@ def wrap_text(text: str, max_width: int) -> list[str]:
         lines.pop()
     return lines
 
-
 # ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
-
-
-def render_selectable_list(
-    console: tcod.console.Console,
-    screen_width: int,
-    screen_height: int,
-    title: str,
-    items: list[tuple[str, str]],
-    selected: int,
-    *,
-    col_x: int | None = None,
-    title_y: int | None = None,
-    row_spacing: int = 2,
-    title_fg: tuple[int, int, int] = COLOR_TITLE,
-    item_fg_selected: tuple[int, int, int] = COLOR_OPTION_HIGHLIGHT,
-    item_fg_normal: tuple[int, int, int] = COLOR_OPTION,
-    desc_fg_selected: tuple[int, int, int] = COLOR_DESCRIPTION,
-    desc_fg_normal: tuple[int, int, int] = COLOR_VALUE_DIM,
-    hint_fg: tuple[int, int, int] = COLOR_INSTRUCTION,
-    hint: str = "UP/DOWN navigate - ENTER select - ESC back",
-) -> None:
-    """Render a selectable list menu with a fixed-column layout.
-
-    ``items`` is ``[(name, description), ...]`` — name is the
-    selectable label, description is an optional second line shown
-    in dim text below each item (pass ``""`` for items with no
-    description).  Uses consistent-width markers (4 chars for both
-    selected and unselected) and a fixed left column so scrolling
-    never shifts the text horizontally.
-
-    The console is NOT cleared — callers may want to paint a
-    background or message log underneath.  Call ``console.clear()``
-    yourself before calling this if you want a clean slate.
-
-    Args:
-        console: Target console to draw on.
-        screen_width: Width of the console in character cells.
-        screen_height: Height of the console in character cells.
-        title: Title text (centered).
-        items: List of ``(name, description)`` tuples.
-        selected: Index of the currently selected item.
-        col_x: Left column for item names.  Defaults to ``screen_width // 4``.
-        title_y: Y position of the title.  Defaults to ``screen_height // 4``.
-        row_spacing: Lines between item rows (default 2: name + desc).
-        title_fg: Color for the title.
-        item_fg_selected: Color for the selected item name.
-        item_fg_normal: Color for unselected item names.
-        desc_fg_selected: Color for the selected item's description.
-        desc_fg_normal: Color for unselected items' descriptions.
-        hint_fg: Color for the hint at the bottom.
-        hint: Hint text shown below the list.  Empty string to skip.
-
-    The hint is left-aligned at the item column (``_col_x``), matching
-    the character-screen layout where all content shares one column.
-    """
-    _col_x = col_x if col_x is not None else screen_width // 4
-    _title_y = title_y if title_y is not None else screen_height // 4
-
-    # Title (centered).
-    paint_title(console, screen_width, _title_y, title, fg=title_fg)
-
-    # Items with consistent-width markers.
-    n = len(items)
-    list_top = _title_y + 2
-    for i, (name, desc) in enumerate(items):
-        row = list_top + i * row_spacing
-        is_selected = i == selected
-        marker_open = "> " if is_selected else "  "
-        marker_close = " <" if is_selected else "  "
-        text = f"{marker_open}{name}{marker_close}"
-        item_fg = item_fg_selected if is_selected else item_fg_normal
-        console.print(x=_col_x, y=row, string=text, fg=item_fg)
-
-        if desc:
-            desc_fg = desc_fg_selected if is_selected else desc_fg_normal
-            console.print(
-                # Indent past the item name (name starts at _col_x + 2)
-                # so the description reads as a sub-line of the menu
-                # choice above, not a peer option.
-                x=_col_x + 4, y=row + 1,
-                string=desc, fg=desc_fg,
-            )
-
-    # Hint (left-aligned with the item column, matching the
-    # character-screen layout).
-    if hint:
-        hint_y = list_top + n * row_spacing + 1
-        console.print(
-            x=_col_x, y=hint_y,
-            string=hint, fg=hint_fg,
-        )
-
-
-def render_menu(
-    console: tcod.console.Console,
-    menu: MenuScreen,
-    screen_width: int,
-    screen_height: int,
-) -> None:
-    """Paint ``menu`` — unified terminal look: centered title + divider
-    rule at the top, content flush-left at x=2, hint at the bottom."""
-    console.clear()
-    content_y = screen_header(console, screen_width, menu.title)
-
-    _col_x = 2
-    n = len(menu.options)
-    for i, (opt_id, label) in enumerate(menu.options):
-        row = content_y + i * 2
-        is_selected = i == menu.selected
-        marker = "> " if is_selected else "  "
-        end_marker = " <" if is_selected else "  "
-        text = f"{marker}{label}{end_marker}"
-        fg = COLOR_OPTION_HIGHLIGHT if is_selected else COLOR_OPTION
-        console.print(x=_col_x, y=row, string=text, fg=fg)
-
-        desc = menu.descriptions.get(opt_id, "")
-        if desc:
-            desc_fg = COLOR_DESCRIPTION if is_selected else COLOR_VALUE_DIM
-            console.print(x=_col_x + 4, y=row + 1, string=desc, fg=desc_fg)
-
-    if menu.instruction:
-        hint_y = content_y + n * 2 + 1
-        console.print(x=_col_x, y=hint_y, string=menu.instruction, fg=COLOR_INSTRUCTION)
-
-
-def render_confirm(
-    console: tcod.console.Console,
-    species: character.Species,
-    klass: character.GameClass,
-    screen_width: int,
-    screen_height: int,
-) -> None:
-    """Paint the confirmation screen — unified terminal look."""
-    console.clear()
-    content_y = screen_header(console, screen_width, "CHARACTER CREATION")
-
-    _col_x = 2
-    line_top = f"You are a {species.name.upper()} {klass.name.upper()}."
-
-    _lines: list[tuple[str, tuple[int, int, int]]] = [
-        (line_top, COLOR_TITLE),
-        ("", COLOR_TITLE),
-        (species.description, COLOR_DESCRIPTION),
-        (klass.description, COLOR_DESCRIPTION),
-        ("", COLOR_DESCRIPTION),
-        (f"Starting credits: {klass.credits}$", COLOR_VALUE_WHITE),
-        ("", COLOR_VALUE_WHITE),
-        ("Press ENTER to begin your journey.", COLOR_OPTION_HIGHLIGHT),
-        ("Press ESC to start over.", COLOR_INSTRUCTION),
-    ]
-
-    _dy = 0
-    for _line, _fg in _lines:
-        if _line:
-            console.print(x=_col_x, y=content_y + _dy, string=_line, fg=_fg)
-        _dy += 1
-
 
 # ---------------------------------------------------------------------------
 # Title splash screen
@@ -401,7 +204,6 @@ _SHIP_ART: tuple[str, ...] = (
     "'.;.;' ;'.;' ..;;'",   # 14 smoke             (18, unpadded)
 )
 
-
 # ---------------------------------------------------------------------------
 # Title menu (after splash screen)
 # ---------------------------------------------------------------------------
@@ -414,378 +216,21 @@ class TitleMenuOutcome(Enum):
     EXIT = auto()
     IGNORE = auto()
 
-
-def render_title_menu(
-    console: tcod.console.Console,
-    screen_width: int,
-    screen_height: int,
-    *,
-    selected: int = 0,
-    save_available: bool = False,
-) -> None:
-    """Render the title menu with New Game / Continue / Tutorial / Exit.
-
-    ``Continue`` is dimmed (and unselectable via update) when no
-    save file exists.
-    """
-    console.clear()
-
-    # Title art
-    _title_y = screen_height // 2 - 10
-    for _i, _line in enumerate(_TITLE_ART):
-        _x = (screen_width - len(_line)) // 2
-        console.print(x=_x, y=_title_y + _i, string=_line, fg=COLOR_SPLASH_ART)
-
-    # Menu options
-    _options: list[tuple[str, tuple]] = [
-        ("New Game", COLOR_OPTION),
-        ("Continue", COLOR_OPTION if save_available else COLOR_VALUE_DIM),
-        ("Tutorial", COLOR_OPTION),
-        ("Exit", COLOR_OPTION),
-    ]
-    _menu_y = _title_y + len(_TITLE_ART) + 3
-    for _i, (_label, _base_fg) in enumerate(_options):
-        _is_sel = _i == selected
-        _marker = "> " if _is_sel else "  "
-        _close = " <" if _is_sel else "  "
-        _fg = COLOR_OPTION_HIGHLIGHT if _is_sel else _base_fg
-        console.print(
-            x=centered_x(f"{_marker}{_label}{_close}", screen_width),
-            y=_menu_y + _i * 2,
-            string=f"{_marker}{_label}{_close}",
-            fg=_fg,
-        )
-
-    # Hint
-    _hint = "UP/DOWN navigate - ENTER select"
-    console.print(
-        x=centered_x(_hint, screen_width), y=screen_height - 4,
-        string=_hint, fg=COLOR_INSTRUCTION,
-    )
-
-
-def update_title_menu(
-    event: tcod.event.Event,
-    *,
-    selected: int,
-    save_available: bool = False,
-) -> tuple[TitleMenuOutcome, int]:
-    """Handle a key event for the title menu.
-
-    Returns ``(outcome, new_selected)``. ``Continue`` skips to Tutorial
-    when no save is available.
-    """
-    _max = 3  # 0=New Game, 1=Continue, 2=Tutorial, 3=Exit
-    _sel = selected
-
-    if isinstance(event, tcod.event.KeyDown):
-        sym = event.sym
-        sym_name: str = getattr(sym, 'name', '').lower()
-
-        if sym in _UP_SYMS or sym_name == 'k':
-            _sel = (_sel - 1) % (_max + 1)
-            # Skip Continue if no save.
-            if _sel == 1 and not save_available:
-                _sel = 0
-            return TitleMenuOutcome.IGNORE, _sel
-
-        if sym in _DOWN_SYMS or sym_name == 'j':
-            _sel = (_sel + 1) % (_max + 1)
-            if _sel == 1 and not save_available:
-                _sel = 2
-            return TitleMenuOutcome.IGNORE, _sel
-
-        if sym in _ENTER_SYMS:
-            if _sel == 0:
-                return TitleMenuOutcome.NEW_GAME, _sel
-            if _sel == 1 and save_available:
-                return TitleMenuOutcome.CONTINUE, _sel
-            if _sel == 2:
-                return TitleMenuOutcome.TUTORIAL, _sel
-            if _sel == 3:
-                return TitleMenuOutcome.EXIT, _sel
-            return TitleMenuOutcome.IGNORE, _sel
-
-        if sym in _ESCAPE_SYMS:
-            return TitleMenuOutcome.EXIT, _sel
-
-    return TitleMenuOutcome.IGNORE, _sel
-
-
 # ---------------------------------------------------------------------------
 # Title splash screen
 # ---------------------------------------------------------------------------
-
-def render_title_splash(context: tcod.context.Context) -> None:
-    """Render the title splash screen and wait for any key.
-
-    Draws a double-line CP437 border, scattered starfield, "SPACEHACK"
-    in large block letters, a detailed ASCII spaceship with exhaust
-    flame, a short flavor paragraph, and a "Press any key to continue"
-    prompt. Blocks until the player presses any key (or closes the
-    window).
-    """
-    from .engine import SCREEN_WIDTH as W, SCREEN_HEIGHT as H, make_console
-    import random
-
-    _console = make_console()
-    _console.clear()
-
-    # Double-line border
-    _TL = "\u2554"  # ╔
-    _TR = "\u2557"  # ╗
-    _BL = "\u255a"  # ╚
-    _BR = "\u255d"  # ╝
-    _H  = "\u2550"  # ═
-    _V  = "\u2551"  # ║
-    _console.print(x=0,  y=0,   string=_TL + _H * (W - 2) + _TR, fg=COLOR_SPLASH_BORDER)
-    _console.print(x=0,  y=H-1, string=_BL + _H * (W - 2) + _BR, fg=COLOR_SPLASH_BORDER)
-    for _y in range(1, H - 1):
-        _console.print(x=0,   y=_y, string=_V, fg=COLOR_SPLASH_BORDER)
-        _console.print(x=W-1, y=_y, string=_V, fg=COLOR_SPLASH_BORDER)
-
-    # Title
-    _title_y = H // 2 - 8
-    for _i, _line in enumerate(_TITLE_ART):
-        _x = (W - len(_line)) // 2
-        _console.print(x=_x, y=_title_y + _i, string=_line, fg=COLOR_SPLASH_ART)
-
-    # Flavor text
-    _lines = [
-        "The year is 2200. Humankind has spread across a dozen star systems,",
-        "linked by jump gates of unknown origin. You are a freelance pilot",
-        "making a living on the frontier \u2014 trading, bounty hunting, and",
-        "surviving where the law is what you make of it.",
-    ]
-    _flavor_y = H // 2 + 6
-    for _i, _line in enumerate(_lines):
-        _console.print(
-            x=centered_x(_line, W), y=_flavor_y + _i,
-            string=_line, fg=COLOR_SPLASH_FLAVOR,
-        )
-
-    # Spaceship (below flavor text)
-    _ship_x = W - 20     # 18 wide, cols 80-97
-    _ship_y = _flavor_y + len(_lines)
-    _ship_colors = [
-        (180, 180, 210),  # 0  nose tip
-        (200, 200, 230),  # 1  nose cone
-        (220, 220, 245),  # 2  hull
-        (210, 210, 235),  # 3  hull
-        (210, 210, 235),  # 4  hull
-        (210, 210, 235),  # 5  hull
-        (200, 200, 225),  # 6  hull
-        (180, 170, 190),  # 7  engine mount
-        (190, 180, 200),  # 8  engine
-        (190, 180, 200),  # 9  engine
-        (170, 155, 180),  # 10 engine base
-        (255, 120,  60),  # 11 flame core
-        (255, 180,  50),  # 12 flame
-        (255, 210, 100),  # 13 smoke
-        (220, 200, 150),  # 14 smoke
-    ]
-    for _i, _line in enumerate(_SHIP_ART):
-        _console.print(x=_ship_x, y=_ship_y + _i, string=_line, fg=_ship_colors[_i])
-
-    # Starfield
-    for _ in range(80):
-        _sx = random.randint(2, W - 3)
-        _sy = random.randint(2, H - 3)
-        if _title_y - 2 <= _sy <= _title_y + len(_TITLE_ART) + 1:
-            continue
-        if _flavor_y <= _sy <= _flavor_y + len(_lines) - 1:
-            continue
-        if _ship_x <= _sx <= _ship_x + len(_SHIP_ART[0]) - 1 and _ship_y <= _sy <= _ship_y + len(_SHIP_ART) - 1:
-            continue
-        if H - 10 <= _sy <= H - 2:
-            continue
-        _ch = random.choice([".", ".", "*", "."])
-        _br = random.randint(100, 200)
-        _console.print(x=_sx, y=_sy, string=_ch, fg=(_br, _br, _br))
-
-    # Prompt
-    _prompt = "Press any key to begin"
-    _console.print(
-        x=centered_x(_prompt, W), y=H - 4,
-        string=_prompt, fg=COLOR_SPLASH_PROMPT,
-    )
-    _console.print(
-        x=centered_x("\u2500\u2500\u2500\u2500\u2500\u2500\u2500", W), y=H - 5,
-        string="\u2500\u2500\u2500\u2500\u2500\u2500\u2500", fg=COLOR_SPLASH_BORDER,
-    )
-
-    # Planet
-    _planet_art = [
-        "  \u250c\u2500\u2500\u2500\u2500\u2510",
-        " \u2500\u2502    \u2502\u2500",
-        "\u2500\u2500\u2502    \u2502\u2500\u2500",
-        " \u2500\u2502    \u2502\u2500",
-        "  \u2514\u2500\u2500\u2500\u2500\u2518",
-    ]
-    _planet_x = 4
-    _planet_y = H - 12
-    _planet_fg = COLOR_SPLASH_BORDER
-    for _i, _line in enumerate(_planet_art):
-        _console.print(x=_planet_x, y=_planet_y + _i, string=_line, fg=_planet_fg)
-    _console.print(x=_planet_x + 2, y=_planet_y + 2, string="\u25c4", fg=COLOR_SPLASH_ART)
-
-    # Present and wait for key
-    context.present(_console)
-    while True:
-        for event in tcod.event.wait():
-            if isinstance(event, tcod.event.KeyDown):
-                return
-            if isinstance(event, tcod.event.Quit):
-                return
-
 
 # ---------------------------------------------------------------------------
 # Input
 # ---------------------------------------------------------------------------
 
-
-def _safe_syms(*names: str) -> tuple:
-    """Resolve ``tcod.event.KeySym`` members by name, skipping any that
-    aren't exported by the installed tcod version.
-
-    Different tcod releases expose different sets of KeySym aliases -
-    for example, ``ENTER`` exists as a synonym for ``RETURN`` in some
-    builds but not in others, and the numpad arrows (``KP_8`` /
-    ``KP_2`` / ``KP_5``) can also vary. Looking syms up by name and
-    silently dropping the missing ones keeps this module importable
-    across tcod upgrades; the cost is that, on a tcod build missing
-    e.g. ``KP_5``, the user just can't confirm via numpad-5 (main
-    keyboard Enter still works via ``RETURN``).
-    """
-    return tuple(
-        getattr(tcod.event.KeySym, name)
-        for name in names
-        if hasattr(tcod.event.KeySym, name)
-    )
-
-
-_ENTER_SYMS = _safe_syms("RETURN", "ENTER", "KP_ENTER", "KP_5")
-_UP_SYMS = _safe_syms("UP", "KP_8")
-_DOWN_SYMS = _safe_syms("DOWN", "KP_2")
-_ESCAPE_SYMS = _safe_syms("ESCAPE")
-
-
-def update_menu(menu: MenuScreen, event: tcod.event.Event) -> MenuAction:
-    """Apply ``event`` to ``menu`` and return the resulting action."""
-    if isinstance(event, tcod.event.KeyDown):
-        sym = event.sym
-        sym_name: str = getattr(sym, 'name', '').lower()
-        if sym in _UP_SYMS or sym_name == 'k':
-            menu.selected = (menu.selected - 1) % len(menu.options)
-            return MenuAction.NONE
-        if sym in _DOWN_SYMS or sym_name == 'j':
-            menu.selected = (menu.selected + 1) % len(menu.options)
-            return MenuAction.NONE
-        if sym in _ENTER_SYMS:
-            return MenuAction.CONFIRM
-        if sym in _ESCAPE_SYMS:
-            return MenuAction.BACK
-    return MenuAction.NONE
-
-
-def update_confirm(event: tcod.event.Event) -> MenuAction:
-    """Translate a single key event for the confirm screen."""
-    if isinstance(event, tcod.event.KeyDown):
-        sym = event.sym
-        if sym in _ENTER_SYMS:
-            return MenuAction.CONFIRM
-        if sym in _ESCAPE_SYMS:
-            return MenuAction.BACK
-    return MenuAction.NONE
-
-
 # ---------------------------------------------------------------------------
 # Modal helper
 # ---------------------------------------------------------------------------
 
-
-class Modal:
-    """Helper to run a render/update event loop.
-
-    Wraps the standard modal pattern so individual ``_run_X`` functions
-    in :mod:`spacehack.__main__` don't re-implement it. The console
-    is passed at construction time so it can be cleared once per loop
-    iteration; ``context`` is held for ``present()`` calls. ``run()``
-    blocks until ``update`` returns something that is NOT named
-    ``"IGNORE"`` - which is the convention every existing modal enum
-    (``NavigationOutcome``, ``ShipMenuAction``, ``PlanetMenuOutcome``,
-    etc.) already follows.
-    """
-
-    def __init__(
-        self,
-        context: tcod.context.Context,
-        console: tcod.console.Console,
-    ) -> None:
-        self.context = context
-        self.console = console
-
-    def run(
-        self,
-        render: Callable[[], None],
-        update: Callable[[tcod.event.Event], T],
-        *,
-        ignore: T | None = None,
-    ) -> T:
-        """Block until ``update`` returns a terminal outcome.
-
-        ``render`` paints the frame; ``update`` maps a single event
-        to an outcome. ``ignore`` (optional) names the enum member
-        that signals "keep polling" - by default the helper
-        duck-types via ``outcome.name == "IGNORE"`` so existing
-        modals (NavigationOutcome, ShipMenuAction, etc.) work
-        without per-call plumbing.
-
-        Returns whatever ``update`` produced on the terminating
-        iteration.
-        """
-        while True:
-            render()
-            self.context.present(self.console)
-            for event in tcod.event.wait():
-                outcome = update(event)
-                if ignore is not None:
-                    if outcome is ignore:
-                        continue
-                elif outcome is not None and getattr(outcome, "name", None) == "IGNORE":
-                    continue
-                return outcome
-
-
 # ---------------------------------------------------------------------------
 # Shared split-screen primitives (used by trade.py and the loadout UI)
 # ---------------------------------------------------------------------------
-
-
-def paint_text(
-    console,
-    x: int, y: int, text: str, *,
-    fg,
-    max_x: int | None = None,
-) -> None:
-    """Print ``text`` character-by-character, optionally clipping at ``max_x``."""
-    for i, ch in enumerate(text):
-        if max_x is None or x + i < max_x:
-            console.print(x=x + i, y=y, string=ch, fg=fg)
-
-
-def paint_centered(
-    console,
-    y: int, text: str, *,
-    fg,
-) -> None:
-    """Print ``text`` centered at row ``y``.
-
-    Uses :func:`centered_x` for horizontal positioning.
-    """
-    from .engine import SCREEN_WIDTH
-    console.print(x=centered_x(text, SCREEN_WIDTH), y=y, string=text, fg=fg)
-
 
 def fit_text(text: str, max_w: int) -> str:
     """Truncate ``text`` to ``max_w`` columns, appending ``…`` when cut.
@@ -795,17 +240,14 @@ def fit_text(text: str, max_w: int) -> str:
     """
     return text if len(text) <= max_w else text[:max_w - 1] + "..."
 
-
 def paint_title(console, screen_width: int, row: int, text: str, *, fg) -> None:
     """Print ``text`` horizontally centered at ``row`` — the terminal-look
     title row shared by every menu screen."""
     console.print(x=centered_x(text, screen_width), y=row, string=text, fg=fg)
 
-
 def paint_line(console, x: int, y: int, text: str, *, fg) -> None:
     """Print ``text`` left-anchored at ``(x, y)`` — terminal-look content."""
     console.print(x=x, y=y, string=text, fg=fg)
-
 
 def screen_header(
     console,
@@ -836,7 +278,6 @@ def screen_header(
     )
     return row + 3
 
-
 def rule_width(screen_width: int, *, x: int = 2) -> int:
     """Return the rule span for ``screen_width``.
 
@@ -847,22 +288,6 @@ def rule_width(screen_width: int, *, x: int = 2) -> int:
     a one-line change.
     """
     return max(1, screen_width - 2 * x)
-
-
-def paint_rule(
-    console,
-    x: int, y: int, width: int,
-    *,
-    fg=COLOR_DIVIDER,
-    char: str = DIVIDER_CHAR,
-) -> None:
-    """Paint a horizontal rule — shared section separator (not a header).
-
-    Used for mid-content dividers (stat blocks, panels) so their
-    style also updates from one place.
-    """
-    console.print(x=x, y=y, string=char * max(1, width), fg=fg)
-
 
 def format_split_row(
     name: str, label: str, suffix: str,
@@ -879,71 +304,3 @@ def format_split_row(
     name_w = max(4, col_w - fixed - len(suffix))
     trimmed = name[:name_w].ljust(name_w)
     return f"{marker}{trimmed} {label} {suffix}"
-
-
-def render_split_frame(
-    console,
-    *,
-    title: str,
-    left_label: str,
-    right_label: str,
-    focus: int,
-    sel: int,
-    left_rows: list[tuple[str, str, str, tuple]],
-    right_rows: list[tuple[str, str, str, tuple]],
-    footer_left: str,
-    footer_right: str,
-    hint: str,
-    log = None,
-) -> None:
-    """Render a split-screen two-panel frame.
-
-    ``left_rows`` / ``right_rows`` are pre-computed
-    ``(name, label, suffix, fg)`` tuples — the same format used
-    by :func:`format_split_row`.
-    ``focus`` (0 = left, 1 = right) and ``sel`` drive the per-row
-    selection highlight.
-    ``log`` — optional ``MessageLog``; when provided the bottom
-    ``MSG_LOG_HEIGHT`` rows are painted with the recent messages.
-    """
-    from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
-    from . import message_log as _ml
-    console.clear()
-    max_w = SCREEN_WIDTH - HUD_WIDTH - 2
-    col_w = max_w // 2 - 2
-    cy = screen_header(console, SCREEN_WIDTH, title)
-    left_fg = COLOR_TITLE if focus == 0 else COLOR_OPTION
-    right_fg = COLOR_TITLE if focus == 1 else COLOR_OPTION
-    paint_text(console, 2, cy, left_label, fg=left_fg)
-    paint_text(console, max_w // 2 + 2, cy, right_label, fg=right_fg)
-    sep_x = max_w // 2
-    for sep_y in range(cy, SCREEN_HEIGHT - MSG_LOG_HEIGHT - 4):
-        console.print(x=sep_x, y=sep_y, string="\u2502", fg=COLOR_VALUE_DIM)
-    cy += 1
-    for i, (name, label, suffix, fg) in enumerate(left_rows):
-        is_sel = focus == 0 and i == sel
-        paint_text(
-            console, 2, cy + i,
-            format_split_row(name, label, suffix, is_sel, col_w),
-            fg=COLOR_OPTION_HIGHLIGHT if is_sel else fg,
-        )
-    for i, (name, label, suffix, fg) in enumerate(right_rows):
-        is_sel = focus == 1 and i == sel
-        col_x = max_w // 2 + 2
-        paint_text(
-            console, col_x, cy + i,
-            format_split_row(name, label, suffix, is_sel, col_w),
-            fg=COLOR_OPTION_HIGHLIGHT if is_sel else fg,
-        )
-    foot_y = SCREEN_HEIGHT - MSG_LOG_HEIGHT - 3
-    paint_text(console, 2, foot_y, footer_left, fg=COLOR_VALUE_WHITE)
-    paint_text(console, SCREEN_WIDTH - HUD_WIDTH - len(footer_right) - 2, foot_y, footer_right, fg=COLOR_VALUE_WHITE)
-    paint_text(console, 2, foot_y + 2, hint, fg=COLOR_INSTRUCTION)
-
-    # Message log at the bottom.
-    if log is not None:
-        _ml.render_message_log(
-            console, log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )

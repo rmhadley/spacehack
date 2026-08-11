@@ -980,9 +980,6 @@ def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
 
 
 def test_pygame_presentation_is_enabled_without_migration_flags():
-    from src.spacehack.menus import _ship_buy
-
-    assert _ship_buy._pygame_ship_buy_enabled()
     assert pygame_menu.enabled()
     assert pygame_ui.presentation_enabled()
 
@@ -1034,11 +1031,6 @@ def test_empty_quest_log_uses_a_non_abandonable_worker_state():
     assert pygame_quest_log._frame_key(-1, False) in payload["frames"]
 
 
-def test_quest_log_presentation_is_enabled():
-    from src.spacehack.menus import _quest_log
-
-    assert _quest_log._pygame_quest_log_enabled()
-
 
 def test_batch_frame_payload_round_trips_text_and_colors():
     frame = pygame_batch.BatchFrame(
@@ -1069,24 +1061,9 @@ def test_batch_key_mapping_preserves_read_only_modal_contract():
     assert pygame_batch._handle_key(fake, SimpleNamespace(type=99, key=0)) == "IGNORE"
 
 
-def test_batch_rejects_unknown_worker_outcomes(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui,
-        "run_json_worker",
-        lambda *args, **kwargs: {"outcome": "MUTATE"},
-    )
-
-    try:
-        pygame_batch.run_readonly(lambda console: None)
-    except pygame_batch.PygameBatchUnavailable as exc:
-        assert "unknown choice" in str(exc)
-    else:
-        raise AssertionError("unknown worker choices must be rejected")
-
 
 def test_read_only_batch_presentation_is_enabled():
     assert pygame_batch.enabled()
-    assert _ship_menu._pygame_readonly_enabled()
 
 
 def test_split_frame_payload_round_trips_rows_and_selection():
@@ -1609,7 +1586,7 @@ def test_hangar_ship_tab_shows_at_a_glance_stats_and_launch():
     assert frame.active_tab == 0
     body_text = "\n".join(frame.body)
     assert "Fuel: 12 / 80" in body_text
-    assert "Hull: 5% damage" in body_text
+    assert "Hull: 95%" in body_text
     assert "Shields:" in body_text
     assert "Power:" in body_text
     assert "Cargo:" in body_text
@@ -1777,9 +1754,6 @@ def test_apply_jettison_rejects_malformed_or_unknown_actions():
     assert trade._apply_jettison(ctx, owned, "JETTISON:unknown_good") is False
 
 
-def test_ship_menu_pygame_is_enabled():
-    assert _ship_menu._pygame_ship_menu_enabled()
-
 
 def test_faction_progress_bar_is_cp437_safe_and_centered():
     assert _ship_menu._faction_progress_bar(0) == "---------------|---------------"
@@ -1787,18 +1761,6 @@ def test_faction_progress_bar_is_cp437_safe_and_centered():
     assert _ship_menu._faction_progress_bar(100) == "---------------|###############"
     assert all(ord(char) < 128 for char in _ship_menu._faction_progress_bar(-37))
 
-
-def test_navigation_update_preserves_back_quit_and_ignore_contract():
-    import tcod.event
-
-    assert navigation.update_navigation(tcod.event.Quit()) is navigation.NavigationOutcome.QUIT
-    assert navigation.update_navigation(
-        tcod.event.KeyDown(
-            scancode=tcod.event.K_ESCAPE,
-            sym=tcod.event.K_ESCAPE,
-            mod=0,
-        )
-    ) is navigation.NavigationOutcome.BACK
 
 
 def test_selectable_menu_wraps_long_mission_text_without_tiny_font():
@@ -2665,9 +2627,6 @@ def test_selectable_menu_rejects_unknown_worker_outcomes(monkeypatch):
 
 def test_interactive_batch_is_enabled():
     assert pygame_menu.enabled()
-    assert _missions._pygame_interactive_enabled()
-    assert _planet._pygame_interactive_enabled()
-    assert npc._pygame_interactive_enabled()
 
 
 def test_planet_menu_items_keep_domain_outcomes_opaque_to_worker():
@@ -2860,12 +2819,6 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
                 AssertionError(f"{module.__name__} started a worker")
             ),
         )
-    monkeypatch.setattr(
-        pygame_batch, "run_readonly", lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("pygame_batch started a worker")
-        ),
-    )
-
     assert pygame_menu.run_for_context(context, (menu_frame,))[0] == "BACK"
     assert pygame_screen.run_for_context(context, screen_frame)[0] == "BACK"
     assert pygame_batch.run_for_context(context, lambda _console: None) == "BACK"
@@ -2939,7 +2892,6 @@ def test_cargo_screen_uses_context_adapter_when_fixture_has_no_context(monkeypat
             context=context, frame=frame,
         ) or ("BACK", "", frame.selected),
     )
-    monkeypatch.setattr(trade, "_pygame_cargo_enabled", lambda: True)
     owned = SimpleNamespace(
         ship_id="starter",
         inventory={},
