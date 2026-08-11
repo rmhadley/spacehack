@@ -580,6 +580,18 @@ def board_offerings(
     return tuple(result)
 
 
+def _tutorial_live(ctx) -> bool:
+    """True while the scripted tutorial flow is live (boards suppressed).
+
+    Mirrors :func:`tutorial._active` — ``tutorial_mode`` alone stays True
+    for the whole run, so mission suppression must also respect
+    ``tutorial_complete`` or every non-bounty board would stay empty
+    forever after the finale.
+    """
+    from .tutorial import _active as _tutorial_active
+    return bool(ctx is not None and _tutorial_active(ctx))
+
+
 def fill_empty_slots(
     board: MissionBoard,
     planet_tier: int,
@@ -622,10 +634,11 @@ def fill_empty_slots(
         active_ids=active_ids,
         planet_id=planet_id,
     )
-    # Tutorial mode (design doc 14): only the tutorial's single contract
-    # is ever offered, and procedural generation is suppressed below so
-    # the guided first run isn't flooded with extra work.
-    if ctx is not None and getattr(ctx, "tutorial_mode", False):
+    # Tutorial mode (design doc 14): while the scripted tutorial flow is
+    # live only the tutorial's single contract is offered, and procedural
+    # generation is suppressed below so the guided first run isn't
+    # flooded with extra work.
+    if _tutorial_live(ctx):
         from .tutorial import TUTORIAL_MISSION_IDS as _tutorial_ids
         available = [_m for _m in available if _m.id in _tutorial_ids]
     available_ids = [m.id for m in available]
@@ -643,7 +656,7 @@ def fill_empty_slots(
     # Tutorial mode: never generate procedural missions (the guided run
     # teaches one contract at a time). Static whitelist fill above is all
     # the tutorial board shows.
-    if ctx is not None and getattr(ctx, "tutorial_mode", False):
+    if _tutorial_live(ctx):
         return
 
     # Resolve guild for procedural generation dispatch.

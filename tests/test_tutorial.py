@@ -99,6 +99,33 @@ class TestBoardForcing:
         assert filled == ["bhguild_sol_scout"]
         assert generated == {}
 
+    def test_fill_empty_slots_after_tutorial_complete_fills_normally(self):
+        """Once the finale fires, boards repopulate (static + procedural).
+
+        Regression: suppression was gated on ``tutorial_mode`` alone,
+        which stays True for the whole run, so every non-bounty board
+        stayed empty forever after the tutorial ended.
+        """
+        ctx = _StubCtx()
+        ctx.tutorial_mode = True
+        ctx.tutorial_complete = True
+        board = mission.ensure_board(ctx, "bounty_master", max_slots=5, planet_id="earth")
+        generated: dict = {}
+
+        mission.fill_empty_slots(
+            board,
+            planet_tier=1,
+            completed_ids=frozenset(),
+            active_ids=frozenset(),
+            planet_id="earth",
+            generated=generated,
+            ctx=ctx,
+        )
+
+        # The whitelist no longer applies and procedural gen is back on.
+        assert generated
+        assert sum(1 for s in board.slots if s is not None) > 1
+
     def test_fill_empty_slots_non_tutorial_still_procedural(self):
         """Normal games keep procedural bounty generation (regression guard)."""
         ctx = _StubCtx()  # tutorial_mode stays False
@@ -438,6 +465,29 @@ class TestMarsAndFinale:
             tutorial.maybe_ground_combat_intro(ctx)
             tutorial.tick(ctx, mode="city")
             assert fired == ["level_up", "finale"]
+
+    def test_finale_unlocks_mission_boards(self):
+        """Finishing the tutorial lets boards refresh on their next visit."""
+        ctx = self._tutorial_ctx()
+        board = mission.ensure_board(ctx, "bar_owner", max_slots=3, planet_id="earth")
+        board.last_refresh_month = ctx.time_month  # visited during tutorial
+        tutorial.mark_step(ctx, "earth_armory")
+        tutorial.mark_step(ctx, "armed_ground")
+        tutorial.mark_step(ctx, "mars_ground_combat_intro")
+        fired: list[str] = []
+
+        def _fake_show(_, step_id):
+            fired.append(step_id)
+            tutorial.mark_step(ctx, step_id)
+
+        with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
+            tutorial.notify_ground_combat_ended(ctx)
+            ctx.player_skill_points = 0
+            tutorial.tick(ctx, mode="dungeon")
+
+        assert ctx.tutorial_complete is True
+        assert fired == ["level_up", "finale"]
+        assert board.last_refresh_month == 0
 
     def test_level_up_gated_on_ground_intro(self):
         """A stray combat resolution before the intro beat cannot level up."""

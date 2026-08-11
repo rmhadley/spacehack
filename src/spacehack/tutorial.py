@@ -18,8 +18,10 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-# The only mission offered while a tutorial run is active (Earth's
-# bounty board shows nothing else; other boards stay empty).
+# The only mission offered while the scripted tutorial flow is live
+# (Earth's bounty board shows nothing else; other boards stay empty
+# until the finale sets ``tutorial_complete`` and lifts the suppression
+# in mission.fill_empty_slots).
 TUTORIAL_MISSION_IDS = frozenset({"bhguild_sol_scout"})
 
 # Extra credits granted at tutorial start. Merchant starts with 75$;
@@ -361,6 +363,12 @@ def tick(ctx, mode: str = "city") -> None:
             _show_step(ctx, _step_id)
             if _step_id == "finale":
                 ctx.tutorial_complete = True
+                # Boards visited during the tutorial are marked refreshed
+                # this month; unlock them so every board repopulates on
+                # its next visit (the suppression lift in
+                # mission.fill_empty_slots then applies).
+                for _board in getattr(ctx, "mission_boards", {}).values():
+                    _board.last_refresh_month = 0
             return
 
 
