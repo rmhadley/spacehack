@@ -88,12 +88,29 @@ class Spacehack < Formula
   # ===== end resources =====
 
   def install
-    # Creates a venv in the Cellar and pip-installs the project plus its
-    # pinned resources (above). The game runs as a Python script launched
-    # from the terminal, so there is no .app bundle for Gatekeeper or
-    # LaunchServices to assess - no quarantine, no signature requirement,
-    # works on macOS 15+ with no bypass.
-    virtualenv_install_with_resources
+    # Homebrew's virtualenv_install_with_resources only installs a resource
+    # as a wheel FILE when its URL matches the pure-wheel pattern
+    # (py3-none-any); binary wheels get staged as extracted directories and
+    # pip rejects those under --no-binary=:all: ("Neither 'setup.py' nor
+    # 'pyproject.toml' found"). So: pure wheels go through brew's normal
+    # path, binary wheels are installed from the cached wheel file itself -
+    # pip accepts explicit wheel files even with --no-binary=:all:.
+    #
+    # The game runs as a Python script launched from the terminal, so there
+    # is no .app bundle for Gatekeeper or LaunchServices to assess - no
+    # quarantine, no signature requirement, works on macOS 15+ with no
+    # bypass.
+    venv = virtualenv_create(libexec, "python3.12")
+    resources.each do |r|
+      if r.url&.match?("[.-]py3[^-]*-none-any.whl$")
+        venv.pip_install r
+      else
+        r.stage do
+          venv.pip_install r.cached_download
+        end
+      end
+    end
+    venv.pip_install_and_link buildpath
   end
 
   test do
