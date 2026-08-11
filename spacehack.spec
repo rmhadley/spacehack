@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for spacehack — standalone macOS .app / Windows .exe.
+"""PyInstaller spec for spacehack — standalone macOS .app / Windows onedir.
 
 Usage:
     pyinstaller spacehack.spec          # one-shot build
@@ -72,26 +72,24 @@ a = Analysis(
 pyz = PYZ(a.pure, a.zipped_data)
 
 # ---------------------------------------------------------------------------
-# onefile executable — self-contained binary with all Python + libs + data.
-# BUNDLE wraps this into a double-clickable .app on macOS.
-# ---------------------------------------------------------------------------
-# NOTE: PyInstaller emits a deprecation warning about onefile + BUNDLE
-# ("don't make sense") but it works correctly — the .app contains a
-# self-contained executable.  This will only become an error in v7.0.
+# onedir executable — the bootloader stub carries only the launcher; every
+# compiled module, C-extension, archive and data file is collected raw by
+# COLLECT below.  exclude_binaries=True keeps binaries out of the stub so
+# each .dylib/.pyd sits unpacked and visible to the OS — required for clean
+# codesigning/notarization on macOS and far friendlier to Windows
+# SmartScreen / Defender heuristics (a packed onefile exe reads as a
+# generic binary blob; a folder of ordinary files does not).
 # ---------------------------------------------------------------------------
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
+    exclude_binaries=True,
     name='spacehack',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
-    runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -101,11 +99,31 @@ exe = EXE(
 )
 
 # ---------------------------------------------------------------------------
-# macOS .app bundle (only built on macOS).
+# COLLECT lays the executable out beside its raw binaries, zipfiles and
+# data: dist/spacehack/ on Windows, and Contents/Frameworks/ inside the
+# .app on macOS — a transparent layout the OS can read without parsing the
+# bootloader stub.  upx=False avoids UPX-compressed Mach-O/PE blobs, which
+# Apple's code-signature parser rejects and Windows AV heuristics flag.
+# ---------------------------------------------------------------------------
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='spacehack',
+)
+
+# ---------------------------------------------------------------------------
+# macOS .app bundle (only built on macOS): wraps the COLLECT folder into a
+# standard spacehack.app/Contents/{MacOS,Frameworks} layout so every tcod /
+# numpy dylib is exposed transparently to the operating system.
 # ---------------------------------------------------------------------------
 if sys.platform == 'darwin':
     app = BUNDLE(
-        exe,
+        coll,
         name='spacehack.app',
         icon=None,
         bundle_identifier='com.spacehack.game',
