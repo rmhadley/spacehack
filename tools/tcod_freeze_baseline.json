@@ -1,0 +1,1661 @@
+{
+  "version": 1,
+  "description": "Approved tcod reference inventory; new occurrences fail the freeze audit.",
+  "references": [
+    {
+      "path": ".github/workflows/build.yml",
+      "token": "tcod",
+      "source": "# tcod-removal freeze"
+    },
+    {
+      "path": ".github/workflows/build.yml",
+      "token": "tcod",
+      "source": "- name: Verify the tcod reference freeze"
+    },
+    {
+      "path": ".github/workflows/tcod-freeze.yml",
+      "token": "tcod",
+      "source": "- name: Verify the tcod reference freeze"
+    },
+    {
+      "path": ".github/workflows/tcod-freeze.yml",
+      "token": "tcod",
+      "source": "name: tcod-freeze"
+    },
+    {
+      "path": "README.md",
+      "token": "tcod",
+      "source": "- Built on [python-tcod](https://github.com/HexDecimal/python-tcod) with a"
+    },
+    {
+      "path": "README.md",
+      "token": "tcod",
+      "source": "- Built on [python-tcod](https://github.com/HexDecimal/python-tcod) with a"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "### Tcod-safe characters (CP437)"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "### tcod removal freeze \u2014 mandatory"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- **Do not add new tcod usage.**"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- Do not add new `import tcod` / `from tcod` statements in production code."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- Do not add new `import tcod` / `from tcod` statements in production code."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- Do not add tcod to dependencies, PyInstaller hidden imports, CI setup,"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- Do not add tcod types to public function signatures, `GameContext` fields,"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- Do not copy an existing tcod compatibility pattern into new code merely"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- Do not create new tests that construct tcod events or consoles."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "- project-owned frame/runtime types rather than tcod-shaped contracts."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "A change may touch an existing tcod reference only when it:"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "A traditional ASCII-art sci-fi roguelike built on [python-tcod](https://github.com/HexDecimal/python-tcod)."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "A traditional ASCII-art sci-fi roguelike built on [python-tcod](https://github.com/HexDecimal/python-tcod)."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "Existing tcod references may remain temporarily. The freeze inventory"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "The project is migrating away from tcod. Until"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "The tcod freeze audit rejects new protected-file references while the"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "`import tcod.*` initialises SDL (effectively identical at integer"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "design doc's final no-tcod acceptance criteria pass."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "no-tcod validation gate."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod",
+      "source": "| `context` | `PygameContext` (tcod-context-compatible) | shared Pygame runtime adapter; pass to `pygame_*.run_for_context` |"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.console.console",
+      "source": "- Do not add new references to `tcod.event`, `tcod.console.Console`,"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.context.context",
+      "source": "`tcod.context.Context`, or `tcod.tileset`."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.event",
+      "source": "- Do not add new references to `tcod.event`, `tcod.console.Console`,"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.event.get",
+      "source": "- Do not add new calls to `tcod.event.wait()`, `tcod.event.get()`, or"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.event.poll",
+      "source": "`tcod.event.poll()`."
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.event.wait",
+      "source": "- Do not add new calls to `tcod.event.wait()`, `tcod.event.get()`, or"
+    },
+    {
+      "path": "knowledge.md",
+      "token": "tcod.tileset",
+      "source": "`tcod.context.Context`, or `tcod.tileset`."
+    },
+    {
+      "path": "pyproject.toml",
+      "token": "tcod",
+      "source": "\"tcod>=16\","
+    },
+    {
+      "path": "pyproject.toml",
+      "token": "tcod",
+      "source": "description = \"A traditional ASCII-art roguelike built on python-tcod.\""
+    },
+    {
+      "path": "requirements.txt",
+      "token": "tcod",
+      "source": "tcod>=16"
+    },
+    {
+      "path": "spacehack.spec",
+      "token": "tcod",
+      "source": "# Hidden imports \u2014 tcod uses cffi + numpy, both of which can be missed by"
+    },
+    {
+      "path": "spacehack.spec",
+      "token": "tcod",
+      "source": "# standard spacehack.app/Contents/{MacOS,Frameworks} layout so every tcod /"
+    },
+    {
+      "path": "spacehack.spec",
+      "token": "tcod",
+      "source": "'tcod',"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "- Built on [python-tcod](https://github.com/HexDecimal/python-tcod)"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "- Built on [python-tcod](https://github.com/HexDecimal/python-tcod)"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "If Pygame is missing or cannot open a window, the normal tcod Merchant modal"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "It captures each screen from its existing tcod renderer, so faction values,"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "Loadout uses the same planet-specific mechanic inventory as the tcod terminal,"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "Requires-Dist: tcod>=16"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "Summary: A traditional ASCII-art roguelike built on python-tcod."
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "This is still a comparison seam: the tcod context, gameplay state, save/load,"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "To compare the current tcod bitmap text with an optional Pygame font renderer"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "and visit the Merchant Guild. The game pauses its tcod modal, opens the real"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "creation, exploration, every modal, combat, and the title menu. Existing tcod"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "existing tcod Quest Log opens instead. Clear the variable to disable it."
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "is unavailable or returns malformed data, the original tcod terminal remains"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "is used instead. Clear the variable to return to the unchanged tcod path:"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "runtime dependency. Set `SPACEHACK_TCOD_UI=1` to use the legacy tcod terminal"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "state. Quest-option NPC dialogue continues to use the original tcod path until"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "the existing tcod Ship Buy modal is used automatically."
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "the legacy tcod terminal."
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "the original tcod path until that stateful dialogue flow is migrated safely."
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "unavailable or returns an invalid result, the original tcod modal opens"
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "worker is unavailable or malformed, the original tcod popup is used instead."
+    },
+    {
+      "path": "src/spacehack.egg-info/PKG-INFO",
+      "token": "tcod",
+      "source": "workers fall back to tcod. Clear the variable to disable this batch."
+    },
+    {
+      "path": "src/spacehack.egg-info/requires.txt",
+      "token": "tcod",
+      "source": "tcod>=16"
+    },
+    {
+      "path": "src/spacehack/__init__.py",
+      "token": "tcod",
+      "source": "\"\"\"spacehack - a traditional ASCII-art roguelike built on python-tcod."
+    },
+    {
+      "path": "src/spacehack/__init__.py",
+      "token": "tcod",
+      "source": "# SDL3 (bundled by python-tcod 21.x) reads SDL_RENDER_SCALE_QUALITY from the"
+    },
+    {
+      "path": "src/spacehack/__init__.py",
+      "token": "tcod",
+      "source": "# first ``import tcod.*`` (verified empirically with SDL_GetHint). Setting the"
+    },
+    {
+      "path": "src/spacehack/__init__.py",
+      "token": "tcod",
+      "source": "# hint here, at package-init time and before any tcod import, is what makes"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.context",
+      "source": "import tcod.context"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.context.context",
+      "source": "context: tcod.context.Context,"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.context.context",
+      "source": "context: tcod.context.Context,"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.context.context",
+      "source": "def run(context: tcod.context.Context) -> None:"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.event.keydown",
+      "source": "if isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/__main__.py",
+      "token": "tcod.event.wait",
+      "source": "for event in tcod.event.wait():"
+    },
+    {
+      "path": "src/spacehack/city.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/city.py",
+      "token": "tcod.console.console",
+      "source": "def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = animation_timing.CITY_TRANSITION, location: str = '') -> None:"
+    },
+    {
+      "path": "src/spacehack/city.py",
+      "token": "tcod.console.console",
+      "source": "def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:"
+    },
+    {
+      "path": "src/spacehack/city.py",
+      "token": "tcod.context.context.present",
+      "source": "moving ship and calls :meth:`tcod.context.Context.present`. Direction"
+    },
+    {
+      "path": "src/spacehack/combat/_animations.py",
+      "token": "tcod",
+      "source": "All functions here render directly to a tcod console and present"
+    },
+    {
+      "path": "src/spacehack/combat/_animations.py",
+      "token": "tcod",
+      "source": "crash the tcod context."
+    },
+    {
+      "path": "src/spacehack/combat/_animations.py",
+      "token": "tcod",
+      "source": "so camera-edge targets never crash tcod."
+    },
+    {
+      "path": "src/spacehack/combat/_animations.py",
+      "token": "tcod",
+      "source": "targets never crash tcod. ``damage`` is ``(text, color)``;"
+    },
+    {
+      "path": "src/spacehack/combat/_animations.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/combat/_animations.py",
+      "token": "tcod.event.get",
+      "source": "for _ in tcod.event.get():"
+    },
+    {
+      "path": "src/spacehack/combat/_encounter.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/combat/_encounter.py",
+      "token": "tcod.event.keydown",
+      "source": "if isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/combat/_encounter.py",
+      "token": "tcod.event.quit",
+      "source": "if isinstance(event, tcod.event.Quit):"
+    },
+    {
+      "path": "src/spacehack/combat/_encounter.py",
+      "token": "tcod.event.wait",
+      "source": "for event in tcod.event.wait():"
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod",
+      "source": "\"\"\"Translate a tcod key event to the same opaque combat action IDs.\"\"\""
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod",
+      "source": "# GameRuntime installs a Pygame -> tcod event bridge, so this"
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod",
+      "source": "# The tcod event bridge remains the input contract, so combat does not"
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod",
+      "source": "console: tcod console for rendering."
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod.event.quit",
+      "source": "if isinstance(event, tcod.event.Quit):"
+    },
+    {
+      "path": "src/spacehack/combat/_loop.py",
+      "token": "tcod.event.wait",
+      "source": "for event in tcod.event.wait():"
+    },
+    {
+      "path": "src/spacehack/comms.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/comms.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/dungeon.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod",
+      "source": "\"\"\"libtcod (python-tcod) setup helpers for spacehack."
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod",
+      "source": "aren't exported by the installed tcod version."
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.console.console",
+      "source": ") -> tcod.console.Console:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.console.console",
+      "source": "return tcod.console.Console("
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.event.event",
+      "source": "def should_quit(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.event.keydown",
+      "source": "if isinstance(event, tcod.event.KeyDown) and event.sym in _ESCAPE_SYMS:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.event.keysym",
+      "source": "\"\"\"Resolve ``tcod.event.KeySym`` members by name, skipping any that"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.event.keysym",
+      "source": "s for s in (getattr(tcod.event.KeySym, name) for name in names)"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.event.quit",
+      "source": "if isinstance(event, tcod.event.Quit):"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset",
+      "source": "import tcod.tileset"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.charmap_tcod",
+      "source": "charmap=tcod.tileset.CHARMAP_TCOD,"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.load_tilesheet",
+      "source": "_sheet = tcod.tileset.load_tilesheet("
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.tileset",
+      "source": ") -> tcod.tileset.Tileset:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.tileset",
+      "source": "def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.tileset",
+      "source": "def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.tileset",
+      "source": "def load_tileset() -> tcod.tileset.Tileset:"
+    },
+    {
+      "path": "src/spacehack/engine.py",
+      "token": "tcod.tileset.tileset",
+      "source": "tileset: tcod.tileset.Tileset,"
+    },
+    {
+      "path": "src/spacehack/game_context.py",
+      "token": "tcod.console.console",
+      "source": "**Why not put the ``tcod.console.Console`` on ctx?**  :func:`Modal.run`"
+    },
+    {
+      "path": "src/spacehack/game_context.py",
+      "token": "tcod.context",
+      "source": "import tcod.context"
+    },
+    {
+      "path": "src/spacehack/game_context.py",
+      "token": "tcod.context.context",
+      "source": "context: tcod.context.Context"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console, hud_x: int, y: int, ground_stats,"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console, hud_x: int, y: int, stats: HudStats,"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console, hud_x: int, y: int, title: str,"
+    },
+    {
+      "path": "src/spacehack/hud.py",
+      "token": "tcod.console.console",
+      "source": "def _render_divider(console: tcod.console.Console, hud_x: int, y: int) -> None:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "* ``'QUESTION'`` \u2014 direct match (some platforms / tcod builds)."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "SDL/tcod reports physical key presses as UPPERCASE ``KeySym``"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "against a hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "future tcod build that produces an event whose ``sym`` lacks a"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod",
+      "source": "hypothetical tcod build whose ``sym`` lacks ``.name``."
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.context",
+      "source": "import tcod.context"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.context.context",
+      "source": "def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) -> Outcome:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.context.context",
+      "source": "def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_c_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_f_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_g_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_i_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_m_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_p_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_period_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_q_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_question_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_shift_d_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_shift_o_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_shift_press(event: tcod.event.Event, key_name: str) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_shift_r_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_shift_x_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _is_t_press(event: tcod.event.Event) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _movement_action(event: tcod.event.Event) -> tuple[int, int] | None:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.event",
+      "source": "def _try_open_guide(event: tcod.event.Event, ctx) -> bool:"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.modifier.lshift.value",
+      "source": "shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.modifier.lshift.value",
+      "source": "shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.modifier.rshift.value",
+      "source": "shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value"
+    },
+    {
+      "path": "src/spacehack/input_helpers.py",
+      "token": "tcod.event.modifier.rshift.value",
+      "source": "shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value"
+    },
+    {
+      "path": "src/spacehack/menus/_quest_log.py",
+      "token": "tcod.console.console",
+      "source": "def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:"
+    },
+    {
+      "path": "src/spacehack/menus/_quest_log.py",
+      "token": "tcod.event.event",
+      "source": "def _quest_log_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:"
+    },
+    {
+      "path": "src/spacehack/menus/_quest_log.py",
+      "token": "tcod.event.keydown",
+      "source": "if not isinstance(event, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/message_log.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/message_log.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod",
+      "source": "worker is unavailable, which preserves the native tcod selector as a"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.console.console",
+      "source": "def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entity) -> None:"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.console.console",
+      "source": "def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen_width: int, screen_height: int, ship_pos: world.Position, system=None) -> None:"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.event.get",
+      "source": "for _ in tcod.event.get():"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.event.get",
+      "source": "for _ev in tcod.event.get():"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.event.keydown",
+      "source": "if isinstance(_ev, tcod.event.KeyDown):"
+    },
+    {
+      "path": "src/spacehack/navigation.py",
+      "token": "tcod.event.poll",
+      "source": "``tcod.event.poll()`` on each iteration so SDL can"
+    },
+    {
+      "path": "src/spacehack/npc_ships.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/npc_ships.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/pygame_batch.py",
+      "token": "tcod",
+      "source": "Screen modules render their existing tcod output into captured rows and send"
+    },
+    {
+      "path": "src/spacehack/pygame_combat.py",
+      "token": "tcod",
+      "source": "\"\"\"Extract renderer-neutral cells from a capture or native tcod console.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod",
+      "source": "\"\"\"Build an atlas from the project's processed tcod tileset."
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod",
+      "source": "\"\"\"Use the same CP437 codepoint order as the existing tcod sheet.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod",
+      "source": "# Match the responsive held-key feel of tcod's terminal input while keeping"
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod",
+      "source": "coordinates. Tcod remains available for headless algorithms; no tcod Context"
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod",
+      "source": "coordinates. Tcod remains available for headless algorithms; no tcod Context"
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod",
+      "source": "or tcod event pump is created here."
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod.tileset",
+      "source": "import tcod.tileset"
+    },
+    {
+      "path": "src/spacehack/pygame_engine.py",
+      "token": "tcod.tileset.charmap_tcod",
+      "source": "return tuple(tcod.tileset.CHARMAP_TCOD)"
+    },
+    {
+      "path": "src/spacehack/pygame_merchant.py",
+      "token": "tcod",
+      "source": "The default size matches the existing tcod canvas. The worker may reduce"
+    },
+    {
+      "path": "src/spacehack/pygame_overlay.py",
+      "token": "tcod",
+      "source": "Native tcod consoles report the default black background for every"
+    },
+    {
+      "path": "src/spacehack/pygame_quest_log.py",
+      "token": "tcod",
+      "source": "\"\"\"Render one authoritative tcod Quest Log state into portable rows.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Block for Pygame input and return converted tcod events.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Convert one Pygame event into the legacy tcod event contract.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Extract renderer-neutral draw commands from a capture or tcod console.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Keep the tcod-context API used by the jump menu compatibility path.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Map a Pygame key name to the installed tcod ``KeySym`` enum.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Minimal tcod-context-compatible adapter backed by Pygame.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Own one Pygame engine and bridge the legacy tcod event functions.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Poll Pygame input and return converted tcod events.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Restore tcod event functions and close the shared window.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "\"\"\"Small command shape used when reading native tcod console planes.\"\"\""
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "The game still uses tcod consoles as renderer-neutral framebuffers and tcod"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "The game still uses tcod consoles as renderer-neutral framebuffers and tcod"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "bridges Pygame events back to tcod events. Presentation is always owned by this Pygame runtime; tcod remains only"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod",
+      "source": "bridges Pygame events back to tcod events. Presentation is always owned by this Pygame runtime; tcod remains only"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.get",
+      "source": "self._old_get = tcod.event.get"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.get",
+      "source": "tcod.event.get = self._get"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.get",
+      "source": "tcod.event.get = self._old_get"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.keydown",
+      "source": "event_type = tcod.event.KeyDown if event.type == pygame.KEYDOWN else tcod.event.KeyUp"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.keysym",
+      "source": "return getattr(tcod.event.KeySym, enum_name, None)"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.keyup",
+      "source": "event_type = tcod.event.KeyDown if event.type == pygame.KEYDOWN else tcod.event.KeyUp"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.quit",
+      "source": "return tcod.event.Quit()"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.scancode.unknown",
+      "source": "scancode=tcod.event.Scancode.UNKNOWN,"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.wait",
+      "source": "self._old_wait = tcod.event.wait"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.wait",
+      "source": "tcod.event.wait = self._old_wait"
+    },
+    {
+      "path": "src/spacehack/pygame_runtime.py",
+      "token": "tcod.event.wait",
+      "source": "tcod.event.wait = self._wait"
+    },
+    {
+      "path": "src/spacehack/pygame_world.py",
+      "token": "tcod",
+      "source": "\"\"\"Minimal tcod-console protocol used to project existing UI renders.\"\"\""
+    },
+    {
+      "path": "src/spacehack/saveload.py",
+      "token": "tcod",
+      "source": "skipping non-serializable fields (tcod context, game_map, entities)."
+    },
+    {
+      "path": "src/spacehack/saveload.py",
+      "token": "tcod.context.context",
+      "source": "def load_game(context: \"tcod.context.Context\") -> GameContext | None:"
+    },
+    {
+      "path": "src/spacehack/trade.py",
+      "token": "tcod",
+      "source": "# Preserve the tcod path's state gates before opening any optional"
+    },
+    {
+      "path": "src/spacehack/ui.py",
+      "token": "tcod.console.console",
+      "source": "single centered vertical menu onto an existing ``tcod.console.Console``"
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod",
+      "source": "\"\"\"Paint a renderer-neutral command stream onto a tcod console.\"\"\""
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod",
+      "source": "# tcod's KeySym reports physical letter key presses as UPPERCASE"
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod",
+      "source": "# y increases downward (matching tcod's convention). The standard"
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "src/spacehack/world.py",
+      "token": "tcod.console.console",
+      "source": "console: tcod.console.Console,"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"dev faction picker must not fall back to TCOD\")"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event.keydown",
+      "source": "def _key_o(mod: int) -> tcod.event.KeyDown:"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event.keydown",
+      "source": "return tcod.event.KeyDown("
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event.keysym.o",
+      "source": "sym=tcod.event.KeySym.O,"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event.modifier.lshift.value",
+      "source": "_shift = tcod.event.Modifier.LSHIFT.value"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event.modifier.rshift.value",
+      "source": "assert _is_shift_o_press(_key_o(tcod.event.Modifier.RSHIFT.value))"
+    },
+    {
+      "path": "tests/test_dev_mode.py",
+      "token": "tcod.event.scancode.o",
+      "source": "scancode=tcod.event.Scancode.O,"
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.keydown",
+      "source": "_event = tcod.event.KeyDown("
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.keydown",
+      "source": "assert not _is_p_press(tcod.event.KeyDown("
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.keysym.g",
+      "source": "sym=tcod.event.KeySym.G,"
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.keysym.p",
+      "source": "sym=tcod.event.KeySym.P,"
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.modifier.lshift.value",
+      "source": "_left_shift = tcod.event.Modifier.LSHIFT.value"
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.scancode.g",
+      "source": "scancode=tcod.event.Scancode.G,"
+    },
+    {
+      "path": "tests/test_dungeon.py",
+      "token": "tcod.event.scancode.p",
+      "source": "scancode=tcod.event.Scancode.P,"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event",
+      "source": "__import__(\"tcod.event\", fromlist=[\"Quit\"]).Quit,"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event.get",
+      "source": "assert pygame_runtime.tcod.event.get != original_get"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event.get",
+      "source": "assert pygame_runtime.tcod.event.get is original_get"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event.get",
+      "source": "original_get = pygame_runtime.tcod.event.get"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event.wait",
+      "source": "assert pygame_runtime.tcod.event.wait != original_wait"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event.wait",
+      "source": "assert pygame_runtime.tcod.event.wait is original_wait"
+    },
+    {
+      "path": "tests/test_pygame_engine.py",
+      "token": "tcod.event.wait",
+      "source": "original_wait = pygame_runtime.tcod.event.wait"
+    },
+    {
+      "path": "tests/test_pygame_faction.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"faction view must not fall back to TCOD\")"
+    },
+    {
+      "path": "tests/test_pygame_title_quest.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"title must not fall back to TCOD\")"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod",
+      "source": "context=SimpleNamespace(present=lambda _console: calls.append(\"tcod\")),"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod",
+      "source": "context=SimpleNamespace(present=lambda _console: calls.append(\"tcod\")),"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"invalid split actions must not fall back to tcod\")"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"invalid split frames must not fall back to tcod\")"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"story presentation must not fall back to tcod\")"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod",
+      "source": "raise AssertionError(\"unavailable shared menus must not fall back to tcod\")"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.console",
+      "source": "import tcod.console"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.console.console",
+      "source": "console = tcod.console.Console(2, 1, order=\"C\")"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event",
+      "source": "_loop.tcod.event,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event",
+      "source": "import tcod.event"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event",
+      "source": "monkeypatch.setattr(_encounter.tcod.event, \"wait\", lambda: (key_down,))"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event",
+      "source": "monkeypatch.setattr(_loop.tcod.event, \"wait\", lambda: next(waits))"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event",
+      "source": "monkeypatch.setattr(_loop.tcod.event, \"wait\", lambda: next(waits))"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keydown",
+      "source": "key_down = tcod.event.KeyDown("
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keydown",
+      "source": "key_down = tcod.event.KeyDown("
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keydown",
+      "source": "unknown_key = tcod.event.KeyDown("
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keysym.a",
+      "source": "sym=tcod.event.KeySym.A,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keysym.a",
+      "source": "sym=tcod.event.KeySym.A,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keysym.period",
+      "source": "sym=tcod.event.KeySym.PERIOD,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keysym.right",
+      "source": "sym=tcod.event.KeySym.RIGHT,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.keyup",
+      "source": "key_up = tcod.event.KeyUp("
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.quit",
+      "source": "lambda: (tcod.event.Quit(),),"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.scancode.unknown",
+      "source": "scancode=tcod.event.Scancode.UNKNOWN,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.scancode.unknown",
+      "source": "scancode=tcod.event.Scancode.UNKNOWN,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.scancode.unknown",
+      "source": "scancode=tcod.event.Scancode.UNKNOWN,"
+    },
+    {
+      "path": "tests/test_pygame_ui.py",
+      "token": "tcod.event.scancode.unknown",
+      "source": "scancode=tcod.event.Scancode.UNKNOWN,"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"\"\"Changing imported tcod modules changes the protected inventory.\"\"\""
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"\"\"Changing tcod APIs cannot hide behind an unchanged occurrence count.\"\"\""
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"\"\"Tests for the temporary tcod reference freeze audit.\"\"\""
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"# existing tcod reference\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"from tcod import (\\n    console,\\n    event,\\n)\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"from tcod import console, event\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"import tcod\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "\"import tcod\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "(\"src/live.py\", \"tcod\"),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "(\"src/live.py\", \"tcod\"),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "(tmp_path / \"src\" / \"live.py\").write_text(\"import tcod\\n\", encoding=\"utf-8\")"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "assert added == [\"src/example.py:8,12 added tcod x1\"]"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "baseline = (tcod_freeze.Reference(\"src/example.py\", \"tcod\", 1),)"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "tcod_freeze.Reference(\"src/example.py\", \"tcod\", 12),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod",
+      "source": "tcod_freeze.Reference(\"src/example.py\", \"tcod\", 8),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "\"The tcod.console policy is frozen.\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "\"from tcod.console import Console\\n\", encoding=\"utf-8\","
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "(\"knowledge.md\", \"tcod.console\"),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "(\"src/live.py\", \"tcod.console\"),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "assert (\"src/live.py\", \"tcod.console\") in {"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "assert removed == [\"src/example.py removed tcod.console x1\"]"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console",
+      "source": "baseline = (tcod_freeze.Reference(\"src/example.py\", \"tcod.console\", 1),)"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.console.console",
+      "source": "assert (\"src/live.py\", \"tcod.console.Console\") in {"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.event",
+      "source": "(\"src/live.py\", \"tcod.event\"),"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.event",
+      "source": "assert (\"src/live.py\", \"tcod.event\") in {"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.event",
+      "source": "assert added == [\"src/example.py:8 added tcod.event x1\"]"
+    },
+    {
+      "path": "tests/test_tcod_freeze.py",
+      "token": "tcod.event",
+      "source": "current = (tcod_freeze.Reference(\"src/example.py\", \"tcod.event\", 8),)"
+    },
+    {
+      "path": "tests/test_tutorial.py",
+      "token": "tcod",
+      "source": "\"\"\"A finished tutorial never fires popups (no tcod context needed).\"\"\""
+    },
+    {
+      "path": "tests/test_tutorial.py",
+      "token": "tcod",
+      "source": "The tutorial module's popup firing itself needs a live tcod context, so"
+    },
+    {
+      "path": "tests/test_tutorial.py",
+      "token": "tcod",
+      "source": "and ordering are testable without a tcod context."
+    },
+    {
+      "path": "tools/smoke.py",
+      "token": "tcod",
+      "source": "# Enforce the temporary tcod-removal freeze as part of the canonical"
+    },
+    {
+      "path": "tools/smoke.py",
+      "token": "tcod",
+      "source": "``ModuleNotFoundError: No module named 'tcod'`` failures (the runtime"
+    },
+    {
+      "path": "tools/smoke.py",
+      "token": "tcod",
+      "source": "deps including tcod are installed only in the project venv)."
+    },
+    {
+      "path": "tools/smoke.py",
+      "token": "tcod",
+      "source": "module-level entry points without triggering the tcod-not-installed"
+    }
+  ]
+}

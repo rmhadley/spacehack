@@ -204,18 +204,20 @@ reintroducing tcod-shaped APIs.
 
 No behavior change. This phase makes the later migration safer.
 
-- [ ] Add a contributor rule: no new `tcod` imports, annotations, event
+- [x] Add a contributor rule: no new `tcod` imports, annotations, event
       fixtures, or console parameters in production code.
-- [ ] Record the current tcod reference inventory with a source grep in the
-      design doc or a small checked-in audit tool.
+- [x] Record the current tcod reference inventory with a checked-in,
+      baseline-aware audit tool (`tools/tcod_freeze.py` and
+      `tools/tcod_freeze_baseline.json`).
 - [ ] Establish visual baselines for city, space, dungeon, combat, title,
       modal, HUD, and message-log frames using the existing Pygame runtime.
-- [ ] Confirm the existing full test and smoke gates pass before migration.
+- [x] Confirm the existing full test and smoke gates pass before migration.
 - [ ] Decide whether the final runtime will retain NumPy for glyph processing
       or replace that narrow use with Pygame surfaces.
 
 **Exit criteria:** new work can proceed without increasing the tcod inventory,
-and the visual/test baseline is recorded.
+and the visual/test baseline is recorded. The freeze audit is part of the
+pre-commit gate for the migration period.
 
 ### Phase 1 — Native Pygame input
 
@@ -512,5 +514,23 @@ CP437 codepoints.
 - [x] Research recorded: Pygame does not replace tcod's roguelike
       algorithms; this project already owns the algorithms it uses.
 - [x] Deployment benefit and rug-pull risk assessed.
-- [ ] User approves the staged direction.
-- [ ] Implementation begins only after approval.
+- [x] User approved the staged direction.
+- [x] Strict contributor freeze added to `knowledge.md`.
+- [x] Baseline-aware `tools/tcod_freeze.py` audit added and current
+      inventory committed to `tools/tcod_freeze_baseline.json`.
+- [x] Pre-commit gate expanded to run the freeze audit before smoke/tests.
+- [x] Canonical smoke gate invokes the freeze audit, and the build workflow
+      runs the freeze audit before platform builds.
+- [x] Freeze audit runs on normal `main` pushes and pull requests via the
+      dedicated `.github/workflows/tcod-freeze.yml` workflow.
+- [ ] Implementation begins with Phase 1 after the freeze baseline is
+      reviewed.
+
+**Phase 0 result:** the repository now permits existing tcod references but
+fails when protected source, tests, dependencies, packaging, CI, knowledge
+policy, or root launchers gain new source-aware tcod references. The audit runs
+through the canonical smoke gate, as a standalone CI freeze job on normal
+pushes/PRs, and before platform builds. The audit implementation and its
+baseline are operational control files excluded from their own inventory;
+historical design docs, archived codemods, and the excluded text render spike
+remain outside the protected inventory.

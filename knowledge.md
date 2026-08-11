@@ -39,7 +39,8 @@ launcher), `run_spacehack.bat` (Windows).
 
 6. **Boundary rule for cross-cutting changes.** A cross-cutting change (same edit repeated in many files) still counts as ONE commit, because the individual edits are meaningless without each other. Example: wiring `?` into 16 modal handlers across 6 files = one commit ("feat: wire ? into all modal sub-screens").
 
-7. **Never commit without a passing smoke test.** Run ``python3 tools/smoke.py`` first.
+7. **Never commit without the full pre-commit gate.** Run
+   ``python3 tools/tcod_freeze.py && python3 tools/smoke.py && python3 tools/test.py``.
 
 **Violation example from a real session:** After a session with 11 files changed, the agent made 2 commits instead of ~6. The second commit bundled 5+ unrelated changes (a feature, a refactor, a content restructure, a HUD addition, and a one-line fix). Each should have been separate.
 
@@ -131,14 +132,78 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 
 ### Pre-commit gate
 ```bash
-python3 tools/smoke.py && python3 tools/test.py
+python3 tools/tcod_freeze.py && python3 tools/smoke.py && python3 tools/test.py
 ```
 
-The smoke test auto-mounts `.venv/bin/python3` so tcod is always resolved. It verifies all major modules import correctly and key entry points survived signature changes.
+The tcod freeze audit rejects new protected-file references while the
+migration is in progress. Existing references are tracked in
+`tools/tcod_freeze_baseline.json`; only approved removals or an explicitly
+approved migration phase may change that inventory.
+
+The smoke test auto-mounts `.venv/bin/python3` so the current runtime
+dependencies are resolved. It verifies all major modules import correctly and
+key entry points survived signature changes.
 
 The test runner (`tools/test.py`) also auto-mounts the venv and runs the
 pytest suite — formula-correctness tests for pure computation functions.
-Never commit without both passing.
+Never commit without all three gates passing.
+
+### tcod removal freeze — mandatory
+
+The project is migrating away from tcod. Until
+`docs/design/in_progress/16_DESIGN_REMOVE_TCOD.md` is complete:
+
+- **Do not add new tcod usage.**
+- Do not add new `import tcod` / `from tcod` statements in production code.
+- Do not add new references to `tcod.event`, `tcod.console.Console`,
+  `tcod.context.Context`, or `tcod.tileset`.
+- Do not add new calls to `tcod.event.wait()`, `tcod.event.get()`, or
+  `tcod.event.poll()`.
+- Do not add tcod types to public function signatures, `GameContext` fields,
+  or new protocols.
+- Do not create new tests that construct tcod events or consoles.
+- Do not add tcod to dependencies, PyInstaller hidden imports, CI setup,
+  packaging scripts, or future-architecture documentation.
+- Do not copy an existing tcod compatibility pattern into new code merely
+  because it is convenient.
+
+When adding or modifying presentation/input code, use the migration seams:
+
+- `pygame_engine.PygameInputEvent` for input;
+- `world.WorldDrawCommand` for world rendering;
+- `pygame_world.CaptureConsole` only as a temporary capture/test seam; and
+- project-owned frame/runtime types rather than tcod-shaped contracts.
+
+Existing tcod references may remain temporarily. The freeze inventory
+protects `src/`, `tests/`, `tools/`, `knowledge.md`, root launchers,
+dependencies, packaging, and CI. The audit implementation and its checked-in
+baseline are operational control files, so they are excluded from their own
+inventory; do not weaken or broaden those exclusions without updating this
+policy and the design doc.
+
+A change may touch an existing tcod reference only when it:
+
+1. removes or reduces that reference;
+2. is part of an approved phase in
+   `docs/design/in_progress/16_DESIGN_REMOVE_TCOD.md`; or
+3. is a narrowly-scoped compatibility/test change with a comment explaining
+   why it cannot yet be removed.
+
+The exception must be reflected in the design doc's current phase log, and
+the baseline must be intentionally regenerated after review. Historical design
+docs, `tools/_archived/`, and explicitly excluded visual spikes are not part
+of the protected inventory; they must not be imported by the game or the
+no-tcod validation gate.
+
+Before implementing any change, inspect the changed files with:
+
+```bash
+python3 tools/tcod_freeze.py
+```
+
+If the audit reports an added reference, remove it or stop and obtain explicit
+approval for the migration exception. The freeze is lifted only after the
+design doc's final no-tcod acceptance criteria pass.
 
 ### Refactor philosophy
 - **Data-first.** New content is a file in `data/` backed by a frozen dataclass. No content lives in `__main__.py` or runtime modules.
