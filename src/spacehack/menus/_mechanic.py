@@ -14,9 +14,21 @@ def _refuel_preview(owned, ship_rec, credits: int) -> tuple[int, int]:
     units = max(0, min(ship_rec.max_fuel - owned.fuel, credits // ship_module.FUEL_COST_PER_UNIT))
     return units, units * ship_module.FUEL_COST_PER_UNIT
 
+# Full hull repair costs this percentage of the ship's purchase price.
+# Repairing is labour + parts, not a replacement hull — the old
+# ``damage_pct * price // 100`` formula charged 100% of the ship's
+# value to rebuild it (a 500$ Skiff cost 500$ to repair).
+_REPAIR_COST_PCT = 10
+
 def _repair_preview(owned, ship_rec) -> int:
-    """Return the hull repair price for the current damage."""
-    return max(0, int(owned.hull_damage_pct * ship_rec.price // 100))
+    """Return the hull repair price for the current damage.
+
+    Full repair costs ``_REPAIR_COST_PCT``% of the ship's purchase
+    price; partial damage scales linearly (10% damage = 10% of the
+    full-repair price).
+    """
+    damage = max(0, min(100, owned.hull_damage_pct))
+    return max(0, int(ship_rec.price * damage * _REPAIR_COST_PCT // 10000))
 
 def _mechanic_frame(ctx, ship_rec, selected: int):
     """Build a presentation snapshot for the mechanic terminal."""
@@ -33,7 +45,7 @@ def _mechanic_frame(ctx, ship_rec, selected: int):
         ),
         pygame_screen.ScreenRow(
             f"Repair - {_repair_cost}$ to restore hull",
-            f"Restores {owned.hull_damage_pct}% damage; price is based on the ship's value.",
+            f"Restores {owned.hull_damage_pct}% damage; full repair costs 10% of the ship's value.",
             "REPAIR",
         ),
         pygame_screen.ScreenRow("Manage Loadout", "Buy and sell ship weapons and modules.", "LOADOUT"),
