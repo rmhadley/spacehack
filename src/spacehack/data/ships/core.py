@@ -32,7 +32,7 @@ SHIPS: tuple[Ship, ...] = (
         name="Skiff",
         char="t",
         fg=(180, 200, 220),                                              # muted steel-blue
-        price=0,
+        price=500,  # given free at start, but has value: repairs/trade-ins are never $0
         width=1, height=1,
         description=(
             "A modest starter vessel. Gets you where you need to go."
