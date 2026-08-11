@@ -89,15 +89,20 @@ Grab the latest release for your platform from the
 - **macOS** — `spacehack-macos.zip` (a `.app` bundle)
 - **Windows** — `spacehack-windows.zip` (a standalone `.exe`)
 
-> The builds are ad-hoc signed (no paid Developer ID), so a downloaded app
-> shows "unidentified developer". Fixes, easiest first:
+> The builds are ad-hoc signed (no paid Developer ID, no notarization), so
+> Gatekeeper blocks downloaded copies. On macOS 14 and earlier, right-click
+> → **Open** works as a one-time bypass. **macOS 15+ (Sequoia) removed that
+> bypass**, so the free options there are the terminal one-liner below or
+> running from source. Real "double-click and it opens" requires Apple
+> notarization (a paid Developer ID).
 >
-> 1. **Right-click the app → Open** (one-time Gatekeeper bypass; normal
->    double-clicks work afterwards).
-> 2. System Settings → Privacy & Security → "Open Anyway".
-> 3. In a terminal: `xattr -cr /path/to/spacehack.app` — `-cr` (clear,
->    recursive) removes both `com.apple.quarantine` and, on macOS 13+,
->    `com.apple.provenance`, bypassing Gatekeeper entirely.
+> Terminal one-liner (clears the quarantine attributes, then launches):
+>
+>     xattr -cr /path/to/spacehack.app && open /path/to/spacehack.app
+>
+> (`-cr` clears both `com.apple.quarantine` and, on macOS 13+,
+> `com.apple.provenance`.) Source installs (below) carry no quarantine at
+> all and need none of this.
 >
 > If the app instead says **"damaged and can't be opened"** (and even
 > "Open Anyway" does nothing), the signature was lost in transit — the
