@@ -44,11 +44,12 @@ def _pygame_loadout_frame(
     re-rolling a planet's seeded mechanic stock.
     """
     from .. import pygame_split
+    from .. import pygame_ui
     owned = ctx.player_owned_ship
     if owned is None:
         return pygame_split.SplitFrame(
-            "MECHANIC - SHIP LOADOUT", "For Sale", "My Ship",
-            (), (), "", "", "ESC back",
+            pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"), "For Sale", "My Ship",
+            (), (), "", "", pygame_split.SPLIT_SHOP_HINT,
         )
     ship_spec = ship_module.find_ship(owned.ship_id)
     from ..data.weapons import find_weapon as _fw, list_weapons as _lw
@@ -63,22 +64,22 @@ def _pygame_loadout_frame(
         if module_ids is not None else _lm(),
         key=lambda spec: spec.price,
     )
-    _left = [pygame_split.SplitRow("--- WEAPONS ---", "", "", "", True)]
+    _left = [pygame_split.section_header("WEAPONS")]
     _left.extend(
         pygame_split.SplitRow(
             spec.name,
-            f"{spec.price}$",
+            pygame_ui.price_cell(spec.price),
             f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
             f"BUY_WEAPON:{spec.id}",
         )
         for spec in _weapons
     )
-    _left.append(pygame_split.SplitRow("--- MODULES ---", "", "", "", True))
+    _left.append(pygame_split.section_header("MODULES"))
     _left.extend(
-        pygame_split.SplitRow(spec.name, f"{spec.price}$", spec.description, f"BUY_MODULE:{spec.id}")
+        pygame_split.SplitRow(spec.name, pygame_ui.price_cell(spec.price), spec.description, f"BUY_MODULE:{spec.id}")
         for spec in _modules
     )
-    _right = [pygame_split.SplitRow("--- WEAPON SLOTS ---", "", "", "", True)]
+    _right = [pygame_split.section_header("WEAPON SLOTS")]
     for item_id, slot_index in ship_module._find_weapon_slots(owned, ship_spec):
         if item_id is None:
             _right.append(pygame_split.SplitRow("[empty]", "", "", "", False))
@@ -86,26 +87,26 @@ def _pygame_loadout_frame(
             spec = _fw(item_id)
             _right.append(pygame_split.SplitRow(
                 spec.name,
-                f"(sell {ship_module._sell_price('weapon', item_id)}$)",
+                pygame_ui.sell_cell(ship_module._sell_price("weapon", item_id)),
                 f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
                 f"SELL_WEAPON_SLOT:{slot_index}",
             ))
-    _right.append(pygame_split.SplitRow("--- MODULE SLOTS ---", "", "", "", True))
+    _right.append(pygame_split.section_header("MODULE SLOTS"))
     for item_id, slot_index in ship_module._find_module_slots(owned, ship_spec):
         if item_id is None:
             _right.append(pygame_split.SplitRow("[empty]", "", "", "", False))
         else:
             spec = _fm(item_id)
             _right.append(pygame_split.SplitRow(
-                spec.name, f"(sell {ship_module._sell_price('module', item_id)}$)",
+                spec.name, pygame_ui.sell_cell(ship_module._sell_price("module", item_id)),
                 spec.description, f"SELL_MODULE_SLOT:{slot_index}",
             ))
     return pygame_split.SplitFrame(
-        "MECHANIC - SHIP LOADOUT", "For Sale", "My Ship",
+        pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"), "For Sale", "My Ship",
         tuple(_left), tuple(_right),
-        f"Credits: {ctx.stats.credits}$",
+        pygame_ui.credits_label(ctx.stats.credits),
         f"Wpn: {len(owned.weapons)}/{ship_spec.weapon_slots}  Mod: {len(owned.modules)}/{ship_spec.module_slots}",
-        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+        pygame_split.SPLIT_SHOP_HINT,
     )
 
 

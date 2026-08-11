@@ -95,14 +95,27 @@ def _selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
 # frame height. Capping the counted content makes the rendered font size
 # independent of catalog size — every terminal renders at the same size
 # instead of shrinking as lists grow (see 15_DESIGN_UNIFIED_TERMINAL_UX).
-MAX_VISIBLE_ROWS = 9
+# Row cap for the fit solver + viewport. EXPERIMENT (decision #8):
+# bumped from 10 to 13 at the user's request ("3 more items before
+# scrolling"). At a 1600x960 logical window the armory can no longer hold
+# 13 rows at 24px, so its font drops to ~19px and per-terminal fonts
+# diverge below the cap; on taller windows the budget scales and 13 rows
+# hold 24px. Revert to 10 to restore uniform 24px everywhere.
+MAX_VISIBLE_ROWS = 13
 MAX_DETAIL_LINES = 2
 
+# Pinned-detail geometry (decision #7 experiment): the focused panel's
+# description is anchored this many px above the panel bottom, with a
+# small gap between the last row and the description.
+DETAIL_BOTTOM_PAD = 8
+ROWS_DETAIL_GAP = 6
+
 # Canonical hint for every split buy/sell terminal (single source of
-# truth — see 15_DESIGN_UNIFIED_TERMINAL_UX.md).
+# truth — see 15_DESIGN_UNIFIED_TERMINAL_UX.md). No "? guide": the guide
+# key is not a modal key (user decision, playtest Phase 3).
 SPLIT_SHOP_HINT = pygame_ui.modal_hint(
     "UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell",
-    "ESC back", "? guide",
+    "ESC back",
 )
 
 
@@ -209,9 +222,13 @@ def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
     """Choose the largest readable font that fits the split frame and log."""
     height = pygame_ui.modal_footer_y(height)
     path = pygame_menu._font_path(pygame)
+    # Budget = modal_footer_y - 80: mirrors the real panel bottom (footer
+    # block of 2 lines + 20px, then a small pad) so the solver accepts the
+    # same content the renderer can actually draw. The old -120 left ~70px
+    # of empty panel and made lists scroll a row sooner than needed.
     for size in range(24, 11, -1):
         font = pygame.font.Font(path, size)
-        if _frame_height(font, frame, width) <= height - 120:
+        if _frame_height(font, frame, width) <= height - 80:
             return font
     return pygame.font.Font(path, 12)
 
@@ -249,12 +266,31 @@ def _draw_panel(
         x = panel.x + 20
         y = panel.y + 66
         measure = lambda text: pygame_ui.measure_font(font, text)
+        detail = ""
+        if focused and 0 <= selected < len(rows) and not rows[selected].divider:
+            detail = rows[selected].detail
+        detail_width = panel.width - 68
+        step = font.get_linesize() + 2
+        detail_height = max(
+            1, len(pygame_ui.wrap_text(detail, detail_width, measure)),
+        ) * step
+        # EXPERIMENT (decision #7): the focused description is pinned to
+        # the panel's bottom edge instead of floating after the last row,
+        # so its position is stable while the rows scroll above it.
+        if detail:
+            detail_y = panel.y + panel.height - detail_height - DETAIL_BOTTOM_PAD
+            rows_bottom = detail_y - ROWS_DETAIL_GAP
+        else:
+            detail_y = y
+            rows_bottom = panel.y + panel.height
         # Render the viewport window that keeps the selection visible;
         # unfocused panels show their top window (their own selection is
         # not tracked across TAB switches).
         viewport_selected = selected if focused else 0
         top, count = _visible_window(rows, viewport_selected, MAX_VISIBLE_ROWS)
         for index in range(top, top + count):
+            if y >= rows_bottom:
+                break
             row = rows[index]
             if row.divider:
                 pygame_ui.draw_text(
@@ -272,13 +308,9 @@ def _draw_panel(
                 selected=selected_row,
                 palette=palette,
             )
-        detail = ""
-        if focused and 0 <= selected < len(rows) and not rows[selected].divider:
-            detail = rows[selected].detail
-        detail_width = panel.width - 68
         pygame_ui.draw_wrapped_text(
             pygame, screen, font, detail,
-            x + 28, y, detail_width,
+            x + 28, detail_y, detail_width,
             color=palette.description, line_gap=2,
         )
     finally:

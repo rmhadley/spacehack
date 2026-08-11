@@ -488,6 +488,59 @@ def test_npc_trade_frame_uses_opaque_buy_and_sell_actions():
     assert frame.right_rows[0].action == "SELL_NPC:food_rations"
 
 
+def test_npc_trade_frame_uses_shared_content_policy():
+    from src.spacehack import trade
+
+    npc = SimpleNamespace(name="Trader")
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(
+            ship_id="starter", inventory={"food_rations": 2}, cargo_used=2,
+        ),
+        stats=SimpleNamespace(credits=100),
+    )
+    frame = trade._pygame_npc_trade_frame(
+        ctx, npc, {"food_rations": 3}, 1.2, 0.5,
+    )
+
+    assert frame.title == "TRADE - TRADER"
+    assert frame.footer_left == "Credits: 100$"
+    assert frame.footer_right == "Cargo: 2/20"
+    assert frame.hint == pygame_split.SPLIT_SHOP_HINT
+    assert frame.left_rows[0].value == "24$ (3)"
+    assert frame.right_rows[0].value == "(sell 10$) x2"
+
+
+def test_hold_cargo_label_formats_used_and_capacity():
+    from src.spacehack import trade
+
+    owned = SimpleNamespace(ship_id="starter", cargo_used=2)
+    assert trade._hold_cargo_label(owned) == "Cargo: 2/20"
+    assert trade._hold_cargo_label(None) == "Cargo: 0/0"
+
+
+def test_station_trade_frame_uses_shared_content_policy(monkeypatch):
+    from src.spacehack import trade
+
+    ctx = SimpleNamespace(
+        player_owned_ship=SimpleNamespace(
+            ship_id="starter", inventory={"food_rations": 2}, cargo_used=2,
+        ),
+        stats=SimpleNamespace(credits=1000),
+        economy_state={},
+    )
+    monkeypatch.setattr(trade, "_unit_price", lambda _ctx, _planet, _gid: 30)
+    monkeypatch.setattr(trade, "_sell_price", lambda _ctx, _planet, _gid: 15)
+
+    frame = trade._pygame_trade_frame(ctx, "earth", ("food_rations",))
+
+    assert frame.title == "TRADE - EARTH"
+    assert frame.footer_left == "Credits: 1000$"
+    assert frame.footer_right == "Cargo: 2/20"
+    assert frame.hint == pygame_split.SPLIT_SHOP_HINT
+    assert frame.left_rows[0].value == "30$ (0)"
+    assert frame.right_rows[0].value == "(sell 15$) x2"
+
+
 def test_loot_parent_apply_removes_entity_and_grants_inventory():
     from src.spacehack import trade
 
@@ -1075,12 +1128,60 @@ def test_armory_pygame_frame_builds_ground_weapon_details():
         stats=SimpleNamespace(credits=1000),
     )
 
-    frame = _armory._pygame_armory_frame(ctx)
+    frame = _armory._pygame_armory_frame(ctx, "earth")
     actions = [row.action for row in frame.left_rows if not row.divider]
 
     assert actions
     assert "BUY_WEAPON:laser_pistol" in actions
     assert all("Accuracy:" in row.detail for row in frame.left_rows if row.action.startswith("BUY_WEAPON:"))
+
+
+def test_armory_frame_uses_shared_content_policy():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    frame = _armory._pygame_armory_frame(ctx, "earth")
+
+    assert frame.title == "ARMORY - EARTH"
+    assert frame.footer_left == "Credits: 1000$"
+    assert frame.footer_right == "Wpn: 1/2  Arm: 0/5"
+    assert frame.hint == pygame_split.SPLIT_SHOP_HINT
+    assert frame.left_rows[0].label == "--- WEAPONS ---"
+    assert frame.left_rows[0].divider is True
+    buy_cells = [row.value for row in frame.left_rows if row.action.startswith("BUY_WEAPON:")]
+    assert buy_cells and all(cell.endswith("$") and "(" not in cell for cell in buy_cells)
+    sell_cells = [row.value for row in frame.right_rows if row.action.startswith("SELL_WEAPON:")]
+    assert sell_cells and all(cell.startswith("(sell ") for cell in sell_cells)
+
+
+def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+    )
+    captured = {}
+
+    def fake_run(_ctx, frame_builder, _apply, **_kwargs):
+        captured["frame"] = frame_builder()
+
+    monkeypatch.setattr(pygame_split, "run_interactive", fake_run)
+    _armory._run_armory_menu(ctx, "earth")
+
+    assert captured["frame"].title == "ARMORY - EARTH"
+
+
+def test_armory_frame_without_planet_id_uses_bare_title():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    assert _armory._pygame_armory_frame(ctx).title == "ARMORY"
 
 
 def test_armory_pygame_empty_slot_action_is_noop():
@@ -1546,10 +1647,12 @@ def test_split_frame_height_caps_rows_and_detail_lines():
             (), "", "", "", 0, 0,
         )
 
-    nine = pygame_split._frame_height(Font(), frame(9), 800)
-    assert nine == pygame_split._frame_height(Font(), frame(10), 800)
-    assert nine == pygame_split._frame_height(Font(), frame(40), 800)
-    assert nine == 150 + 9 * (29 + 14) + 1 * (29 + 2)
+    # Heights are identical at the cap and beyond (independent of list
+    # length) but not below it: 9 rows < MAX_VISIBLE_ROWS is shorter.
+    capped = pygame_split._frame_height(Font(), frame(pygame_split.MAX_VISIBLE_ROWS), 800)
+    assert capped == pygame_split._frame_height(Font(), frame(40), 800)
+    assert capped == pygame_split._frame_height(Font(), frame(100), 800)
+    assert capped == 150 + pygame_split.MAX_VISIBLE_ROWS * (29 + 14) + 1 * (29 + 2)
 
     wrapped = frame(1, detail="word " * 60)
     assert pygame_split._frame_height(Font(), wrapped, 800) == (
@@ -1557,7 +1660,7 @@ def test_split_frame_height_caps_rows_and_detail_lines():
     )
 
 
-def test_split_font_fit_is_independent_of_catalog_size():
+def test_split_font_fit_is_stable_once_rows_exceed_cap():
     class Font:
         def __init__(self, size):
             self.point_size = size
@@ -1590,12 +1693,23 @@ def test_split_font_fit_is_independent_of_catalog_size():
         ),
         (), "", "", "",
     )
+    huger = pygame_split.SplitFrame(
+        "T", "L", "R",
+        tuple(
+            pygame_split.SplitRow(f"item {index}", "1", "details " * 3, f"X:{index}")
+            for index in range(41)
+        ),
+        (), "", "", "",
+    )
 
     font_small = pygame_split._fit_font(FakePygame, small, 1600, 960)
     font_huge = pygame_split._fit_font(FakePygame, huge, 1600, 960)
+    font_huger = pygame_split._fit_font(FakePygame, huger, 1600, 960)
 
+    # Below the cap the frame is small and fits the max font; once the
+    # list exceeds MAX_VISIBLE_ROWS the fit is catalog-independent.
     assert font_small.point_size == 24
-    assert font_huge.point_size == font_small.point_size
+    assert font_huge.point_size == font_huger.point_size
 
 
 def test_terminal_title_grammar():
@@ -1636,12 +1750,12 @@ def test_split_section_header_builds_divider_row():
     assert row.value == ""
 
 
-def test_split_shop_hint_is_canonical_and_advertises_guide():
+def test_split_shop_hint_is_canonical_without_guide_key():
     assert pygame_split.SPLIT_SHOP_HINT == (
         "UP/DOWN navigate   TAB switch panel   ENTER buy/sell   "
-        "ESC back   ? guide"
+        "ESC back"
     )
-    assert "? guide" in pygame_split.SPLIT_SHOP_HINT
+    assert "? guide" not in pygame_split.SPLIT_SHOP_HINT
 
 
 def test_merchant_description_budget_is_selection_independent():

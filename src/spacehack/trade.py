@@ -591,6 +591,19 @@ class _NpcTradeOutcome(Enum):
     QUIT = auto()
 
 
+def _hold_cargo_label(owned) -> str:
+    """Footer cargo label for a trade split screen (``Cargo: N/M``)."""
+    from . import pygame_ui
+    from . import ship as ship_module
+    if owned is None:
+        return pygame_ui.cargo_label(0, 0)
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    return pygame_ui.cargo_label(
+        owned.cargo_used,
+        ship_module.effective_max_cargo(ship_spec, owned),
+    )
+
+
 def _pygame_npc_trade_frame(
     ctx: GameContext,
     npc_spec,
@@ -602,35 +615,31 @@ def _pygame_npc_trade_frame(
 ):
     """Build a Pygame frame for an ephemeral NPC trade stock pool."""
     from . import pygame_split
+    from . import pygame_ui
     owned = ctx.player_owned_ship
-    npc_rows = tuple(
-        pygame_split.SplitRow(
-        find_trade_good(gid).name,
-        f"{int(find_trade_good(gid).base_price * buy_mult)}$ ({qty})",
-        find_trade_good(gid).description,
-        f"BUY_NPC:{gid}",
-        )
-        for gid, qty in npc_stock.items()
-    )
-    hold_rows = tuple(
-        pygame_split.SplitRow(
-        find_trade_good(gid).name,
-        f"{int(find_trade_good(gid).base_price * sell_mult)}$ ({qty})",
-        find_trade_good(gid).description,
-        f"SELL_NPC:{gid}",
-        )
-        for gid, qty in (owned.inventory.items() if owned is not None else ())
-    )
-    from . import ship as ship_module
-    if owned is not None:
-        ship_spec = ship_module.find_ship(owned.ship_id)
-        cargo = f"Cargo: {owned.cargo_used}/{ship_module.effective_max_cargo(ship_spec, owned)}"
-    else:
-        cargo = "Cargo: N/A"
+    npc_rows = []
+    for gid, qty in npc_stock.items():
+        good = find_trade_good(gid)
+        npc_rows.append(pygame_split.SplitRow(
+            good.name,
+            pygame_ui.price_cell(int(good.base_price * buy_mult), qty),
+            good.description,
+            f"BUY_NPC:{gid}",
+        ))
+    hold_rows = []
+    for gid, qty in (owned.inventory.items() if owned is not None else ()):
+        good = find_trade_good(gid)
+        hold_rows.append(pygame_split.SplitRow(
+            good.name,
+            pygame_ui.sell_cell(int(good.base_price * sell_mult), qty),
+            good.description,
+            f"SELL_NPC:{gid}",
+        ))
     return pygame_split.SplitFrame(
-        f"TRADE - {npc_spec.name.upper()}", npc_spec.name, "Your Hold",
-        npc_rows, hold_rows, cargo, f"Credits: {ctx.stats.credits}",
-        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+        pygame_ui.terminal_title("TRADE", npc_spec.name), npc_spec.name, "Your Hold",
+        tuple(npc_rows), tuple(hold_rows),
+        pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned),
+        pygame_split.SPLIT_SHOP_HINT,
         focus, selected,
     )
 
@@ -792,33 +801,33 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
 def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[str]):
     """Build a presentation-only station trade frame."""
     from . import pygame_split
+    from . import pygame_ui
     spec = find_planet_spec(planet_id)
     owned = ctx.player_owned_ship
     _stocks = ctx.economy_state.get(planet_id, {})
-    left = tuple(
-        pygame_split.SplitRow(
-        find_trade_good(gid).name,
-        f"{_unit_price(ctx, planet_id, gid)}$ ({_stocks.get(gid, 0)})",
-        f"{find_trade_good(gid).description}",
-        f"BUY:{gid}",
-        )
-        for gid in station_goods
-    )
-    right = tuple(
-        pygame_split.SplitRow(
-        find_trade_good(gid).name,
-        f"{_sell_price(ctx, planet_id, gid)}$ ({qty})",
-        find_trade_good(gid).description,
-        f"SELL:{gid}",
-        )
-        for gid, qty in (owned.inventory.items() if owned is not None else ())
-    )
+    left = []
+    for gid in station_goods:
+        good = find_trade_good(gid)
+        left.append(pygame_split.SplitRow(
+            good.name,
+            pygame_ui.price_cell(_unit_price(ctx, planet_id, gid), _stocks.get(gid, 0)),
+            good.description,
+            f"BUY:{gid}",
+        ))
+    right = []
+    for gid, qty in (owned.inventory.items() if owned is not None else ()):
+        good = find_trade_good(gid)
+        right.append(pygame_split.SplitRow(
+            good.name,
+            pygame_ui.sell_cell(_sell_price(ctx, planet_id, gid), qty),
+            good.description,
+            f"SELL:{gid}",
+        ))
     return pygame_split.SplitFrame(
-        f"TRADE - {spec.name.upper()}", "Station Inventory", "Your Hold",
-        left, right,
-        f"Cargo: {owned.cargo_used if owned else 0}",
-        f"Credits: {ctx.stats.credits}",
-        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+        pygame_ui.terminal_title("TRADE", spec.name), "Station Inventory", "Your Hold",
+        tuple(left), tuple(right),
+        pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned),
+        pygame_split.SPLIT_SHOP_HINT,
     )
 
 

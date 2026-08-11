@@ -56,28 +56,33 @@ def _sell_price(item_id: str) -> int:
     return 0
 
 
-def _pygame_armory_frame(ctx: GameContext):
-    """Build a presentation-only armory split frame."""
+def _pygame_armory_frame(ctx: GameContext, planet_id: str = ""):
+    """Build a presentation-only armory split frame.
+
+    ``planet_id`` feeds the venue title (``ARMORY - <PLANET>``); empty
+    falls back to a bare ``ARMORY`` title.
+    """
     from .. import pygame_split
+    from .. import pygame_ui
     from ..data.ground_weapons import list_ground_weapons
     from ..data.ground_armor import list_ground_armor
-    _left = [pygame_split.SplitRow("--- WEAPONS ---", "", "", "", True)]
+    _left = [pygame_split.section_header("WEAPONS")]
     _left.extend(
         pygame_split.SplitRow(
             spec.name,
-            f"{spec.price}$",
+            pygame_ui.price_cell(spec.price),
             f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
             f"BUY_WEAPON:{spec.id}",
         )
         for spec in sorted(list_ground_weapons(), key=lambda item: item.price)
         if getattr(spec, "shop_available", True)
     )
-    _left.append(pygame_split.SplitRow("--- ARMOUR ---", "", "", "", True))
+    _left.append(pygame_split.section_header("ARMOUR"))
     _left.extend(
-        pygame_split.SplitRow(spec.name, f"{spec.price}$", spec.description, f"BUY_ARMOR:{spec.id}")
+        pygame_split.SplitRow(spec.name, pygame_ui.price_cell(spec.price), spec.description, f"BUY_ARMOR:{spec.id}")
         for spec in sorted(list_ground_armor(), key=lambda item: item.price)
     )
-    _right = [pygame_split.SplitRow("--- WEAPON SLOTS ---", "", "", "", True)]
+    _right = [pygame_split.section_header("WEAPON SLOTS")]
     weapons = list(ctx.equipped_ground_weapons)
     while len(weapons) < 2:
         weapons.append("")
@@ -88,28 +93,30 @@ def _pygame_armory_frame(ctx: GameContext):
             spec = find_ground_weapon(item_id)
             _right.append(pygame_split.SplitRow(
                 spec.name,
-                f"(sell {_sell_price(item_id)}$)",
+                pygame_ui.sell_cell(_sell_price(item_id)),
                 f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}",
                 f"SELL_WEAPON:{index}",
             ))
         else:
             _right.append(pygame_split.SplitRow("[empty]", "", "", "", False))
-    _right.append(pygame_split.SplitRow("--- ARMOUR SLOTS ---", "", "", "", True))
+    _right.append(pygame_split.section_header("ARMOUR SLOTS"))
     for slot in _ARMOR_SLOTS:
         item_id = ctx.equipped_ground_armor.get(slot)
         if item_id:
             spec = find_ground_armor(item_id)
             _right.append(pygame_split.SplitRow(
                 f"{_ARMOR_SLOT_LABELS[slot]}: {spec.name}",
-                f"(sell {_sell_price(item_id)}$)", spec.description,
+                pygame_ui.sell_cell(_sell_price(item_id)), spec.description,
                 f"SELL_ARMOR:{slot}",
             ))
         else:
             _right.append(pygame_split.SplitRow(f"{_ARMOR_SLOT_LABELS[slot]}: [empty]", "", "", "", False))
     return pygame_split.SplitFrame(
-        "ARMORY", "For Sale", "My Loadout", tuple(_left), tuple(_right),
-        f"Credits: {ctx.stats.credits}$", "",
-        "UP/DOWN navigate  TAB switch panel  ENTER buy/sell  ESC back",
+        pygame_ui.terminal_title("ARMORY", planet_id), "For Sale", "My Loadout",
+        tuple(_left), tuple(_right),
+        pygame_ui.credits_label(ctx.stats.credits),
+        f"Wpn: {len(ctx.equipped_ground_weapons)}/2  Arm: {len(ctx.equipped_ground_armor)}/5",
+        pygame_split.SPLIT_SHOP_HINT,
     )
 
 
@@ -157,7 +164,7 @@ def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     from .. import pygame_split
     pygame_split.run_interactive(
         ctx,
-        lambda: _pygame_armory_frame(ctx),
+        lambda: _pygame_armory_frame(ctx, planet_id),
         lambda action, focus, selected: _apply_pygame_armory_action(
             ctx, action, focus, selected,
         ),

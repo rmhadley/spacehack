@@ -116,7 +116,7 @@ def main() -> None:
     # --- Armory ---
     from src.spacehack.menus import _armory
 
-    estimate(_armory._pygame_armory_frame(base_ctx), "armory")
+    estimate(_armory._pygame_armory_frame(base_ctx, "earth"), "armory (earth)")
 
     # --- Station Trade (Earth) ---
     from src.spacehack import trade
