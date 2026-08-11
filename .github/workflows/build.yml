@@ -51,7 +51,11 @@ jobs:
           # drops those - making the downloaded app's signature INVALID
           # ("damaged", Open Anyway can't fix it). ditto stores them in
           # __MACOSX/._* files that Archive Utility restores on extract.
-          ditto -c -k --sequesterRsrc spacehack.app "Open Spacehack.command" spacehack-macos.zip
+          # ditto -c -k takes a single source, so archive the .app first,
+          # then append the launcher with plain zip (a plain script, no
+          # signature xattrs to preserve).
+          ditto -c -k --sequesterRsrc --keepParent spacehack.app spacehack-macos.zip
+          zip -r spacehack-macos.zip "Open Spacehack.command"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
