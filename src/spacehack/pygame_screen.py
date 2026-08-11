@@ -127,20 +127,30 @@ def _body_lines(font: Any, frame: ScreenFrame, width: int) -> tuple[str, ...]:
 
 
 def _non_body_height(font: Any, frame: ScreenFrame, width: int) -> int:
-    """Measure rows, fixed detail region, spacing, and footer."""
+    """Measure rows, fixed detail region, spacing, and footer.
+
+    Rows use the tallest capped viewport window and details are capped at
+    ``MAX_DETAIL_LINES``, so the fitted font — and therefore the rendered
+    look — is independent of list length and selection state.
+    """
     measure = lambda value: pygame_ui.measure_font(font, value)
     detail_width = width
-    detail_lines = pygame_ui.max_wrapped_lines(
-        (row.detail for row in frame.rows if row.selectable),
-        detail_width,
-        measure,
+    detail_lines = min(
+        pygame_ui.max_wrapped_lines(
+            (row.detail for row in frame.rows if row.selectable),
+            detail_width,
+            measure,
+        ),
+        pygame_ui.MAX_DETAIL_LINES,
     )
-    row_height = sum(
-        font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
-        for row in frame.rows
+    line_height = font.get_linesize()
+    row_height = pygame_ui.window_height(
+        frame.rows, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda row: row.selectable,
+        selectable_step=line_height + 14, info_step=line_height + 4,
     )
-    detail_height = max(1, detail_lines) * (font.get_linesize() + 2)
-    footer_height = (max(1, len(frame.footer)) + 1) * (font.get_linesize() + 3)
+    detail_height = max(1, detail_lines) * (line_height + 2)
+    footer_height = (max(1, len(frame.footer)) + 1) * (line_height + 3)
     rows_detail_gap = ROWS_DETAIL_GAP if row_height else 0
     return row_height + rows_detail_gap + detail_height + 12 + footer_height
 
@@ -183,11 +193,11 @@ def _fit_font(
     available_height = max(1, height - 70 - 84)
     if reserve_log:
         available_height -= pygame_ui.LOG_PANEL_HEIGHT + pygame_ui.FOOTER_PAD
-    for size in range(24, 11, -1):
-        font = pygame.font.Font(path, size)
-        if _layout_height(font, frame, content_width) <= available_height:
-            return font
-    return pygame.font.Font(path, 12)
+    return pygame_ui.fit_font(
+        pygame, path,
+        measure_height=lambda font: _layout_height(font, frame, content_width),
+        available_height=max(1, available_height),
+    )
 
 
 def _draw_frame(
@@ -250,11 +260,14 @@ def _draw_frame(
     # decision #9): anchor the content block between the title rule and
     # the footer zone instead of the top-left corner. Short content
     # (ship buy) sits balanced; content taller than the space falls back
-    # to the top anchor exactly as before.
+    # to the top anchor exactly as before. The rows block uses the capped
+    # window height so centering is list-length independent.
     body_block = min(len(visible_body), body_budget) * body_step
-    rows_block = sum(
-        font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
-        for row in frame.rows
+    rows_block = pygame_ui.window_height(
+        frame.rows, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda row: row.selectable,
+        selectable_step=font.get_linesize() + 14,
+        info_step=font.get_linesize() + 4,
     )
     body_rows_gap = BODY_ROWS_GAP if body_block else 0
     rows_detail_gap = ROWS_DETAIL_GAP if rows_block else 0
@@ -273,7 +286,12 @@ def _draw_frame(
             x, 64, color=palette.instruction,
         )
     y += body_rows_gap
-    for index, row in enumerate(frame.rows):
+    window_top, window_count = pygame_ui.visible_window(
+        frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda row: row.selectable,
+    )
+    for index in range(window_top, window_top + window_count):
+        row = frame.rows[index]
         row_height = font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
         if y + row_height > footer_start:
             break

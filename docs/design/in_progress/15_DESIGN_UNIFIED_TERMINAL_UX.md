@@ -438,19 +438,50 @@ and works via the unicode fallback. Code review: no blocking issues.
 Only where content can clip (menus with many items; screens with long
 lists). Ship buy / jump / story are tiny — skip them.
 
-- [ ] Shared font-solver in `pygame_ui` (one 24→11 loop; height fn
-      passed in) replaces the three `_fit_font` copies
-- [ ] Row/detail caps + viewport scroll ported to `pygame_menu`
-      (mission board, comms, character pickers, GO TO)
-- [ ] Row caps + viewport ported to `pygame_screen` (cargo, character
-      sheet, help guide)
-- [ ] Keep selection-independence tests green in both families
-- [ ] Smoke gate + `tools/_font_estimate.py` extended to report menu
-      and screen font sizes
+- [x] Shared font-solver in `pygame_ui` (one 24→11 loop; height fn
+      passed in) replaces the three `_fit_font` copies —
+      `pygame_ui.fit_font(pygame, path, *, measure_height,
+      available_height)`; `pygame_split` / `pygame_menu` /
+      `pygame_screen` are now thin wrappers. The specialized
+      capture families (quest log / batch / faction) keep their own
+      solvers (different geometry, out of scope); merchant stays a
+      fixed-size family.
+- [x] Row/detail caps + viewport scroll ported to `pygame_menu`
+      (mission board, comms, character pickers, GO TO) —
+      `_frame_height` caps items at `MAX_VISIBLE_ROWS` and description
+      lines at `MAX_DETAIL_LINES`; `_draw_frame` renders a
+      `pygame_ui.visible_window` (selection stays on screen) and
+      vertically centers the content block (decision #9 pattern, so
+      short menus — title, confirm dialogs — sit balanced instead of
+      top-left).
+- [x] Row caps + viewport ported to `pygame_screen` (cargo, character
+      sheet, help guide) — `_non_body_height` caps rows via the shared
+      tallest-window helper (`pygame_ui.window_height`) and detail at
+      `MAX_DETAIL_LINES`; `_draw_frame` renders the viewport window and
+      the centering math uses the capped window height (list-length
+      independent).
+- [x] Keep selection-independence tests green in both families —
+      `_frame_height` / `_non_body_height` never read `selected`;
+      new cap tests added for both families (mirror the split cap
+      test), plus `test_menu_font_fit_is_stable_once_items_exceed_cap`
+      and `test_screen_font_fit_is_stable_once_rows_exceed_cap`
+- [x] Smoke gate + `tools/_font_estimate.py` extended to report menu
+      and screen font sizes — `menu (mission board)` 24px @ 10 items;
+      `screen (cargo 20)` 19px @ 20 rows (drops below the cap like the
+      armory, decision #8 behavior). 548 passed, smoke PASS.
 
 **▸ PLAYTEST Phase 6:** guild master with 8+ contracts, comms with 6+
 contacts, character class list — all render at the same font as the
 split terminals, selection stays visible, no clipped rows.
+
+- [ ] Mission board (8+ contracts): 24px, DOWN scrolls, selection
+      visible, description follows the selected contract
+- [ ] Comms (6+ contacts) and the species/class pickers: same font,
+      selection stays on screen
+- [ ] Cargo list (many items): rows scroll instead of clipping;
+      character sheet STATS/help guide unchanged
+- [ ] Short menus (planet bump, title) sit vertically centered —
+      feels like the C screen, not top-left
 
 Passed: [ ]   Issues: _______________
 
@@ -639,8 +670,10 @@ NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
    split `  `) and nav wording varies (`ARROW KEYS / j,k` vs
    `UP/DOWN or j/k`).
 5. `_frame_height` counting un-capped rows — the root of the font drift.
-6. Three `_fit_font` 24→11 loops (split/screen/menu) + one in
-   `pygame_batch` + one in `pygame_merchant` — five font solvers.
+6. Three `_fit_font` 24→11 loops (split/screen/menu) — collapsed into
+   one shared `pygame_ui.fit_font` in Phase 6 (each family passes its own
+   height fn + budget). `pygame_batch` / `pygame_merchant` / the capture
+   families keep specialized solvers (different geometry).
 
 ### DRY strategy
 
@@ -679,8 +712,9 @@ NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
       and the key works from inside the modal (decision #2 overturned:
       `is_guide_key` unicode fallback fixes the `?` key)
 11. [x] One hint grammar (`modal_hint`) across all modal families
-12. [ ] Menus/screens that can clip render at the same font as terminals
-      (Phase 6) or are explicitly exempt (tiny content)
+12. [x] Menus/screens that can clip render at the same font as terminals
+      (Phase 6 — shared `pygame_ui.fit_font` + capped viewport) or are
+      explicitly exempt (tiny content: ship buy, jump, story)
 13. [ ] Ship hangar is a tabbed CARGO/LOADOUT screen (C-screen pattern)
       with Launch still reachable; no nested cargo/loadout modals
 14. [x] Every tunable (palette, fonts, title/hint/value formats, row

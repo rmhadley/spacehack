@@ -1744,6 +1744,225 @@ def test_split_font_fit_is_stable_once_rows_exceed_cap():
     assert font_huge.point_size == font_huger.point_size
 
 
+def test_menu_frame_height_caps_rows_and_detail_lines():
+    class Font:
+        def get_linesize(self) -> int:
+            return 29
+
+        def size(self, text):
+            return len(text) * 14, 29
+
+    def frame(row_count, detail="d"):
+        return pygame_menu.MenuFrame(
+            "Menu", "body",
+            tuple(
+                pygame_menu.MenuItem(f"Option {index}", detail, str(index))
+                for index in range(row_count)
+            ),
+            ("hint",), 0,
+        )
+
+    # Heights are identical at the cap and beyond (independent of list
+    # length), and the detail budget stops at MAX_DETAIL_LINES.
+    capped = pygame_menu._frame_height(
+        Font(), frame(pygame_ui.MAX_VISIBLE_ROWS), 800,
+    )
+    assert capped == pygame_menu._frame_height(Font(), frame(40), 800)
+    assert capped == pygame_menu._frame_height(Font(), frame(100), 800)
+    assert capped == (
+        1 * (29 + 3) + 10
+        + pygame_ui.MAX_VISIBLE_ROWS * (29 + 14)
+        + 1 * (29 + 2)
+        + 8 + 1 * (29 + 4)
+    )
+
+    wrapped = frame(1, detail="word " * 60)
+    assert pygame_menu._frame_height(Font(), wrapped, 800) == (
+        1 * (29 + 3) + 10
+        + (29 + 14)
+        + pygame_ui.MAX_DETAIL_LINES * (29 + 2)
+        + 8 + 1 * (29 + 4)
+    )
+
+
+def test_screen_non_body_height_caps_rows_and_detail_lines():
+    class Font:
+        def get_linesize(self) -> int:
+            return 29
+
+        def size(self, text):
+            return len(text) * 14, 29
+
+    def frame(row_count, detail="d"):
+        return pygame_screen.ScreenFrame(
+            "Screen", ("body",),
+            tuple(
+                pygame_screen.ScreenRow(f"Row {index}", detail, str(index))
+                for index in range(row_count)
+            ),
+            ("footer",), 0,
+        )
+
+    capped = pygame_screen._non_body_height(
+        Font(), frame(pygame_ui.MAX_VISIBLE_ROWS), 800,
+    )
+    assert capped == pygame_screen._non_body_height(Font(), frame(40), 800)
+    assert capped == pygame_screen._non_body_height(Font(), frame(100), 800)
+    assert capped == (
+        pygame_ui.MAX_VISIBLE_ROWS * (29 + 14)
+        + pygame_screen.ROWS_DETAIL_GAP
+        + 1 * (29 + 2)
+        + 12
+        + (max(1, 1) + 1) * (29 + 3)
+    )
+
+    wrapped = frame(1, detail="word " * 60)
+    assert pygame_screen._non_body_height(Font(), wrapped, 800) == (
+        (29 + 14)
+        + pygame_screen.ROWS_DETAIL_GAP
+        + pygame_ui.MAX_DETAIL_LINES * (29 + 2)
+        + 12
+        + (max(1, 1) + 1) * (29 + 3)
+    )
+
+
+def test_shared_font_solver_uses_the_24_to_11_ladder():
+    class FakePygame:
+        class font:
+            @staticmethod
+            def Font(_path, size):
+                return SimpleNamespace(point_size=size)
+
+    # Everything above 20px is too tall; 20px fits — the first fitting
+    # size on the 24→11 ladder wins.
+    def measure(font):
+        return 50 if font.point_size > 20 else 0 if font.point_size == 20 else 10
+
+    font = pygame_ui.fit_font(
+        FakePygame, None, measure_height=measure, available_height=40,
+    )
+    assert font.point_size == 20
+
+    # Never fitting content falls back to the 12px ladder floor.
+    tiny = pygame_ui.fit_font(
+        FakePygame, None, measure_height=lambda font: 9999, available_height=40,
+    )
+    assert tiny.point_size == 12
+
+
+def test_menu_font_fit_is_stable_once_items_exceed_cap():
+    class Font:
+        def __init__(self, size):
+            self.point_size = size
+
+        def get_linesize(self):
+            return int(self.point_size * 1.2) + 1
+
+        def size(self, text):
+            return int(len(text) * self.point_size * 0.6), self.point_size
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(_family):
+                return None
+
+            @staticmethod
+            def Font(_path, size):
+                return Font(size)
+
+    def frame(count):
+        return pygame_menu.MenuFrame(
+            "Guild Master - available work",
+            "Select a contract to review its details.",
+            tuple(
+                pygame_menu.MenuItem(
+                    f"Contract {index}",
+                    "Cargo and deadline details. " * 3,
+                    str(index),
+                )
+                for index in range(count)
+            ),
+            ("hint",), 0,
+        )
+
+    font_small = pygame_menu._fit_font(FakePygame, (frame(1),), 1600, 960, reserve_log=True)
+    font_huge = pygame_menu._fit_font(FakePygame, (frame(40),), 1600, 960, reserve_log=True)
+    font_huger = pygame_menu._fit_font(FakePygame, (frame(41),), 1600, 960, reserve_log=True)
+
+    assert font_small.point_size == 24
+    assert font_huge.point_size == font_huger.point_size
+
+
+def test_screen_font_fit_is_stable_once_rows_exceed_cap():
+    class Font:
+        def __init__(self, size):
+            self.point_size = size
+
+        def get_linesize(self):
+            return int(self.point_size * 1.2) + 1
+
+        def size(self, text):
+            return int(len(text) * self.point_size * 0.6), self.point_size
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(_family):
+                return None
+
+            @staticmethod
+            def Font(_path, size):
+                return Font(size)
+
+    def frame(count):
+        return pygame_screen.ScreenFrame(
+            "Cargo",
+            ("Select an item to inspect it.",),
+            tuple(
+                pygame_screen.ScreenRow(
+                    f"Item {index}", "short detail", f"ROW:{index}",
+                )
+                for index in range(count)
+            ),
+            ("ESC back",), 0,
+        )
+
+    font_small = pygame_screen._fit_font(FakePygame, frame(1), 1600, 960, reserve_log=True)
+    font_huge = pygame_screen._fit_font(FakePygame, frame(40), 1600, 960, reserve_log=True)
+    font_huger = pygame_screen._fit_font(FakePygame, frame(41), 1600, 960, reserve_log=True)
+
+    assert font_small.point_size == 24
+    assert font_huge.point_size == font_huger.point_size
+
+
+def test_menu_and_screen_viewports_reuse_the_shared_window():
+    items = tuple(
+        pygame_menu.MenuItem(f"Item {index}", "", str(index))
+        for index in range(30)
+    )
+    top, count = pygame_ui.visible_window(
+        items, 29, 13, is_selectable=lambda item: True,
+    )
+    assert top + count == len(items)
+    assert top <= 29 < top + count
+
+    rows = tuple(
+        pygame_screen.ScreenRow(
+            f"Row {index}", "", str(index), selectable=(index % 2 == 0),
+        )
+        for index in range(30)
+    )
+    top, count = pygame_ui.visible_window(
+        rows, 29, 13, is_selectable=lambda row: row.selectable,
+    )
+    assert top <= 28 < top + count
+    selectable_in_window = sum(
+        1 for index in range(top, top + count) if rows[index].selectable
+    )
+    assert selectable_in_window == 13
+
+
 def test_terminal_title_grammar():
     assert pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT") == "MECHANIC - SHIP LOADOUT"
     assert pygame_ui.terminal_title("TRADE", "earth") == "TRADE - EARTH"

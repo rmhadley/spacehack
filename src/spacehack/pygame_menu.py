@@ -104,19 +104,28 @@ def _content_width(width: int) -> int:
 
 
 def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
-    """Measure one frame with a fixed description region."""
+    """Measure one frame with a fixed description region.
+
+    Item and description counts are capped (``MAX_VISIBLE_ROWS`` /
+    ``MAX_DETAIL_LINES``) so the fitted font size — and therefore the
+    rendered look — no longer depends on catalog size or the selected
+    item's description length.
+    """
     measure = lambda text: pygame_ui.measure_font(font, text)
     line_height = font.get_linesize()
     body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
-    description_lines = pygame_ui.max_wrapped_lines(
-        (item.description for item in frame.items),
-        content_width - 28,
-        measure,
+    description_lines = min(
+        pygame_ui.max_wrapped_lines(
+            (item.description for item in frame.items),
+            content_width - 28,
+            measure,
+        ),
+        pygame_ui.MAX_DETAIL_LINES,
     )
     height = len(body_lines) * (line_height + 3) + 10
     if frame.art:
         height += len(frame.art) * line_height + 10
-    height += len(frame.items) * (line_height + 14)
+    height += min(len(frame.items), pygame_ui.MAX_VISIBLE_ROWS) * (line_height + 14)
     height += max(1, description_lines) * (line_height + 2)
     height += 8 + len(frame.hints) * (line_height + 4)
     return height
@@ -136,17 +145,25 @@ def _fit_font(
     available_height = max(1, height - 132)
     if reserve_log:
         available_height -= pygame_ui.LOG_PANEL_HEIGHT + pygame_ui.FOOTER_PAD
-    for size in range(24, 11, -1):
-        font = pygame.font.Font(path, size)
-        if all(
-            _frame_height(font, frame, content_width) <= available_height
+
+    def measure_height(font: Any) -> int:
+        # Reject sizes whose ASCII art would overflow the content column.
+        if any(
+            font.size(line)[0] > content_width
             for frame in frames
-        ) and max(
-            (font.size(line)[0] for frame in frames for line in frame.art),
+            for line in frame.art
+        ):
+            return available_height + 1
+        return max(
+            (_frame_height(font, frame, content_width) for frame in frames),
             default=0,
-        ) <= content_width:
-            return font
-    return pygame.font.Font(path, 12)
+        )
+
+    return pygame_ui.fit_font(
+        pygame, path,
+        measure_height=measure_height,
+        available_height=max(1, available_height),
+    )
 
 
 def _fit_shared_font(
@@ -222,48 +239,79 @@ def _draw_frame(
         if context is not None
         else panel.y + panel.height - 20
     )
-    y = panel.y + 76
     measure = lambda text: pygame_ui.measure_font(font, text)
-    y = _draw_art(
-        pygame, screen, font, panel, frame, y, content_width, measure,
+    line_height = font.get_linesize()
+    top = panel.y + 76
+    # --- measure the content block; rows use the capped window height so
+    # the layout is list-length independent ---
+    body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
+    body_height = len(body_lines) * (line_height + 3) + 10
+    if frame.art:
+        body_height += len(frame.art) * line_height + 10
+    window_top, window_count = pygame_ui.visible_window(
+        frame.items, frame.selected, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda item: True,
     )
-    for line in pygame_ui.wrap_text(frame.body, content_width, measure):
-        pygame_ui.draw_text(pygame, screen, font, line, x, y, color=palette.description)
-        y += font.get_linesize() + 3
-    y += 10
-    for index, item in enumerate(frame.items):
-        row_height = font.get_linesize() + 14
-        if y + row_height > content_bottom:
-            break
-        pygame_ui.draw_menu_row(
-            pygame, screen, font, item.label, x, y, content_width,
-            selected=index == frame.selected, palette=palette,
-        )
-        y += row_height
-    y += 8
+    rows_height = window_count * (line_height + 14)
     description_width = content_width - 28
-    if y < content_bottom:
-        pygame_ui.draw_wrapped_text(
-            pygame, screen, font,
-            frame.items[frame.selected].description if frame.items else "",
-            x + 28, y, description_width,
-            color=palette.description, line_gap=2,
-        )
-    description_lines = pygame_ui.max_wrapped_lines(
-        (item.description for item in frame.items),
-        description_width,
-        measure,
+    description = frame.items[frame.selected].description if frame.items else ""
+    description_lines = pygame_ui.wrap_text(description, description_width, measure)
+    description_height = max(1, len(description_lines)) * (line_height + 2)
+    hints_height = len(frame.hints) * (line_height + 4)
+    block = (
+        body_height + rows_height + 8 + description_height + 8 + hints_height
     )
-    y += max(1, description_lines) * (font.get_linesize() + 2)
-    y += 8
-    for hint in frame.hints:
-        if y + font.get_linesize() > content_bottom:
-            break
-        pygame_ui.draw_text(
-            pygame, screen, font, pygame_ui.fit_text(hint, content_width, measure),
-            x, y, color=palette.instruction,
+    # Vertical centering (decision #9): short menus sit balanced between the
+    # title rule and the footer zone; content taller than the space falls
+    # back to the top anchor exactly as before.
+    y = top + max(0, (content_bottom - 8 - top - block) // 2)
+    # Clip content to the panel interior (mirrors the split terminals): the
+    # solver caps descriptions at MAX_DETAIL_LINES so fonts stay large, so a
+    # selected description longer than that budget must never paint over the
+    # hints or the console-log band — it clips at the panel edge instead.
+    screen.set_clip(
+        pygame.Rect(
+            panel.x + 1, panel.y + 1,
+            max(1, panel.width - 2), max(1, panel.height - 2),
         )
-        y += font.get_linesize() + 4
+    )
+    try:
+        y = _draw_art(
+            pygame, screen, font, panel, frame, y, content_width, measure,
+        )
+        for line in body_lines:
+            pygame_ui.draw_text(pygame, screen, font, line, x, y, color=palette.description)
+            y += line_height + 3
+        y += 10
+        for index in range(window_top, window_top + window_count):
+            item = frame.items[index]
+            row_height = line_height + 14
+            if y + row_height > content_bottom:
+                break
+            pygame_ui.draw_menu_row(
+                pygame, screen, font, item.label, x, y, content_width,
+                selected=index == frame.selected, palette=palette,
+            )
+            y += row_height
+        y += 8
+        if frame.items and y < content_bottom:
+            pygame_ui.draw_wrapped_text(
+                pygame, screen, font, description,
+                x + 28, y, description_width,
+                color=palette.description, line_gap=2,
+            )
+        y += description_height
+        y += 8
+        for hint in frame.hints:
+            if y + line_height > content_bottom:
+                break
+            pygame_ui.draw_text(
+                pygame, screen, font, pygame_ui.fit_text(hint, content_width, measure),
+                x, y, color=palette.instruction,
+            )
+            y += line_height + 4
+    finally:
+        screen.set_clip(None)
     if context is not None:
         pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
 

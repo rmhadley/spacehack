@@ -166,6 +166,78 @@ def main() -> None:
     trade._unit_price = orig_unit
     trade._sell_price = orig_sell
 
+    # --- Selectable menu (mission board with a full contract list) ---
+    from src.spacehack import pygame_menu, pygame_ui
+
+    def estimate_menu() -> None:
+        fake = FakePygame()
+        frame = pygame_menu.MenuFrame(
+            title="Guild Master - available work",
+            body="Select a contract to review its details.",
+            items=tuple(
+                pygame_menu.MenuItem(
+                    f"[Delivery] Deliver to {name}",
+                    "Food crates for the colony. Cargo: 8 units, 12 days.",
+                    str(index),
+                )
+                for index, name in enumerate((
+                    "Mars", "Sirius", "Vega", "Procyon", "Wolf 359",
+                    "Tau Ceti", "Barnard's Star", "Luyten",
+                    "Groombridge", "Alpha Centauri",
+                ))
+            ),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER accept", "ESC walk away",
+                pygame_ui.GUIDE_HINT,
+            ),),
+            selected=0,
+        )
+        font = pygame_menu._fit_font(fake, (frame,), 1600, 960, reserve_log=True)
+        height = pygame_menu._frame_height(
+            font, frame, pygame_menu._content_width(1600),
+        )
+        label = "menu (mission board)"
+        print(
+            f"{label:<28} font={font.point_size:>2}px  "
+            f"items={len(frame.items):>2}  "
+            f"height={height}"
+        )
+
+    estimate_menu()
+
+    # --- Text screen (cargo-like long list) ---
+    from src.spacehack import pygame_screen
+
+    def estimate_screen() -> None:
+        fake = FakePygame()
+        frame = pygame_screen.ScreenFrame(
+            title="CARGO - SCOUT A",
+            body=("Select an item to inspect it.",),
+            rows=tuple(
+                pygame_screen.ScreenRow(
+                    f"Food Rations x{index}",
+                    "Sustenance units. Edible.",
+                    f"ROW:{index}",
+                )
+                for index in range(20)
+            ),
+            footer=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER use", "ESC back",
+                pygame_ui.GUIDE_HINT,
+            ),),
+            selected=0,
+        )
+        font = pygame_screen._fit_font(fake, frame, 1600, 960, reserve_log=True)
+        height = pygame_screen._layout_height(font, frame, 1520)
+        label = "screen (cargo 20)"
+        print(
+            f"{label:<28} font={font.point_size:>2}px  "
+            f"rows={len(frame.rows):>2}  "
+            f"height={height}"
+        )
+
+    estimate_screen()
+
     # --- Reference: what row budget yields 24px? ---
     from src.spacehack import pygame_split
 

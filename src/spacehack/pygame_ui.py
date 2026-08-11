@@ -102,6 +102,98 @@ LOG_PANEL_HEIGHT = 128
 # footer glyph may extend below it, so hints never touch the log border.
 FOOTER_PAD = 30
 
+# Row/detail caps for every selectable modal family (decision #8 in
+# 15_DESIGN_UNIFIED_TERMINAL_UX.md): the shared font solver budgets at most
+# this many selectable rows per list and this many wrapped detail lines, so
+# rendered fonts stay catalog-independent instead of shrinking as lists grow.
+# The viewport scrolls whatever exceeds the cap. EXPERIMENT: bumped from 10
+# to 13 at the user's request ("3 more items before scrolling"). At a
+# 1600x960 logical window the armory can no longer hold 13 rows at 24px, so
+# its font drops to ~19px; revert to 10 to restore uniform 24px everywhere.
+MAX_VISIBLE_ROWS = 13
+MAX_DETAIL_LINES = 2
+
+
+def fit_font(
+    pygame: Any,
+    path: str | None,
+    *,
+    measure_height: Callable[[Any], int],
+    available_height: int,
+) -> Any:
+    """Choose the largest font (24px down to 11px) that fits the content.
+
+    Single source of truth for the modal font ladder — every list family
+    (split terminals, selectable menus, text screens) sizes its font through
+    this one loop. Each family supplies its own pure ``measure_height``
+    (font -> fitted pixel height) and ``available_height`` (pixel budget).
+    """
+    for size in range(24, 11, -1):
+        font = pygame.font.Font(path, size)
+        if measure_height(font) <= available_height:
+            return font
+    return pygame.font.Font(path, 12)
+
+
+def visible_window(
+    items: tuple[Any, ...],
+    selected: int,
+    cap: int,
+    *,
+    is_selectable: Callable[[Any], bool],
+) -> tuple[int, int]:
+    """Return the ``(top, count)`` viewport window centered on ``selected``.
+
+    The window holds at most ``cap`` selectable items, widened to include
+    adjacent non-selectable rows (section headers, dividers), and the
+    selection is always inside it. An out-of-range selection clamps to the
+    nearest selectable item; empty or all-non-selectable collections yield
+    ``(0, 0)``.
+    """
+    indices = tuple(index for index, item in enumerate(items) if is_selectable(item))
+    if not indices or cap <= 0:
+        return 0, 0
+    if selected not in indices:
+        selected = min(indices, key=lambda index: abs(index - selected))
+    position = indices.index(selected)
+    start = max(0, min(position - cap // 2, len(indices) - cap))
+    first = indices[start]
+    last = indices[min(len(indices) - 1, start + cap - 1)]
+    top = first
+    while top > 0 and not is_selectable(items[top - 1]):
+        top -= 1
+    bottom = last + 1
+    while bottom < len(items) and not is_selectable(items[bottom]):
+        bottom += 1
+    return top, bottom - top
+
+
+def window_height(
+    items: tuple[Any, ...],
+    cap: int,
+    *,
+    is_selectable: Callable[[Any], bool],
+    selectable_step: int,
+    info_step: int,
+) -> int:
+    """Return the pixel height of the tallest capped viewport window.
+
+    Used by the font solvers so the fitted height is the worst case across
+    every scroll position — selection-independent and list-length-
+    independent once the list exceeds the cap.
+    """
+    indices = tuple(index for index, item in enumerate(items) if is_selectable(item))
+    if not indices or cap <= 0:
+        return 0
+    steps = [selectable_step if is_selectable(item) else info_step for item in items]
+    return max(
+        sum(steps[top:top + count])
+        for position in range(len(indices))
+        for top, count in (
+            visible_window(items, indices[position], cap, is_selectable=is_selectable),
+        )
+    )
+
 
 def _context_game_context(context: Any) -> Any | None:
     """Return the live GameContext attached to a shared runtime, if any."""

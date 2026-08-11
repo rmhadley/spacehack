@@ -89,20 +89,10 @@ def _selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
     return tuple(index for index, row in enumerate(rows) if not row.divider)
 
 
-# Font-fit budget for split panels: at most this many selectable rows per
-# panel are counted by the frame-height solver (and shown in a viewport
-# window), and at most this many wrapped detail lines count toward the
-# frame height. Capping the counted content makes the rendered font size
-# independent of catalog size — every terminal renders at the same size
-# instead of shrinking as lists grow (see 15_DESIGN_UNIFIED_TERMINAL_UX).
-# Row cap for the fit solver + viewport. EXPERIMENT (decision #8):
-# bumped from 10 to 13 at the user's request ("3 more items before
-# scrolling"). At a 1600x960 logical window the armory can no longer hold
-# 13 rows at 24px, so its font drops to ~19px and per-terminal fonts
-# diverge below the cap; on taller windows the budget scales and 13 rows
-# hold 24px. Revert to 10 to restore uniform 24px everywhere.
-MAX_VISIBLE_ROWS = 13
-MAX_DETAIL_LINES = 2
+# Row/detail caps for the fit solver + viewport — shared single source of
+# truth in pygame_ui (see 15_DESIGN_UNIFIED_TERMINAL_UX.md decision #8).
+MAX_VISIBLE_ROWS = pygame_ui.MAX_VISIBLE_ROWS
+MAX_DETAIL_LINES = pygame_ui.MAX_DETAIL_LINES
 
 # Pinned-detail geometry (decision #7 experiment): the focused panel's
 # description is anchored this many px above the panel bottom, with a
@@ -125,58 +115,32 @@ def section_header(label: str) -> SplitRow:
     return SplitRow(f"--- {label} ---", "", "", "", divider=True)
 
 
-def _window_span(
-    rows: tuple[SplitRow, ...], first: int, last: int,
-) -> tuple[int, int]:
-    """Widen a selectable-row span to include adjacent divider rows."""
-    top = first
-    while top > 0 and rows[top - 1].divider:
-        top -= 1
-    bottom = last + 1
-    while bottom < len(rows) and rows[bottom].divider:
-        bottom += 1
-    return top, bottom
-
-
 def _visible_window(
     rows: tuple[SplitRow, ...], selected: int, cap: int = MAX_VISIBLE_ROWS,
 ) -> tuple[int, int]:
     """Return the ``(top, count)`` viewport window centered on ``selected``.
 
-    The window holds at most ``cap`` selectable rows plus any dividers
-    between them, and the selection is always inside it. An out-of-range
-    selection clamps to the nearest selectable row; empty or divider-only
-    panels yield ``(0, 0)``.
+    Delegates to the shared :func:`pygame_ui.visible_window`; every
+    selectable row is eligible and dividers are the non-selectable rows
+    the window is widened to include.
     """
-    indices = _selectable_indices(rows)
-    if not indices:
-        return 0, 0
-    if selected not in indices:
-        selected = min(indices, key=lambda index: abs(index - selected))
-    position = indices.index(selected)
-    start = max(0, min(position - cap // 2, len(indices) - cap))
-    first = indices[start]
-    last = indices[min(len(indices) - 1, start + cap - 1)]
-    top, bottom = _window_span(rows, first, last)
-    return top, bottom - top
+    return pygame_ui.visible_window(
+        rows, selected, cap, is_selectable=lambda row: not row.divider,
+    )
 
 
 def _rows_height(font: Any, rows: tuple[SplitRow, ...], cap: int) -> int:
     """Height of the tallest visible window of at most ``cap`` selectable rows."""
     if not rows:
         return 0
-    indices = _selectable_indices(rows)
-    if not indices:
+    if not _selectable_indices(rows):
         return 0
     line = font.get_linesize()
-    heights = [line + 5 if row.divider else line + 14 for row in rows]
-    best = 0
-    for start in range(len(indices)):
-        first = indices[start]
-        last = indices[min(len(indices) - 1, start + cap - 1)]
-        top, bottom = _window_span(rows, first, last)
-        best = max(best, sum(heights[top:bottom]))
-    return best
+    return pygame_ui.window_height(
+        rows, cap,
+        is_selectable=lambda row: not row.divider,
+        selectable_step=line + 14, info_step=line + 5,
+    )
 
 
 def _clamp_selected(frame: SplitFrame) -> int:
@@ -221,17 +185,16 @@ def _frame_height(font: Any, frame: SplitFrame, width: int) -> int:
 
 def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
     """Choose the largest readable font that fits the split frame and log."""
-    height = pygame_ui.modal_footer_y(height)
     path = pygame_menu._font_path(pygame)
     # Budget = modal_footer_y - 80: mirrors the real panel bottom (footer
     # block of 2 lines + 20px, then a small pad) so the solver accepts the
     # same content the renderer can actually draw. The old -120 left ~70px
     # of empty panel and made lists scroll a row sooner than needed.
-    for size in range(24, 11, -1):
-        font = pygame.font.Font(path, size)
-        if _frame_height(font, frame, width) <= height - 80:
-            return font
-    return pygame.font.Font(path, 12)
+    return pygame_ui.fit_font(
+        pygame, path,
+        measure_height=lambda font: _frame_height(font, frame, width),
+        available_height=max(1, pygame_ui.modal_footer_y(height) - 80),
+    )
 
 
 def _draw_panel(
