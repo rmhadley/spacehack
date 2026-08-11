@@ -1845,6 +1845,11 @@ def run(context: tcod.context.Context) -> None:
                     caption="spacehack - save error",
                 )
             continue
+        if _menu_outcome is ui.TitleMenuOutcome.IGNORE:
+            # '?' on the title menu is a no-op (no game context exists
+            # to open the guide in) — re-run the menu, never fall
+            # through into character creation.
+            continue
         # --- New Game: character creation ---
         while True:
             outcome, species_id = _run_pick(context, ui.species_menu())

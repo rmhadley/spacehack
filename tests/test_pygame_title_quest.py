@@ -166,7 +166,7 @@ def test_quest_log_capture_excludes_header_block_message_log_and_trailing_blank_
 
 def test_quest_log_split_hint_moves_trailing_hint_out_of_content():
     hint_row = (pygame_quest_log.QuestSpan(
-        "ARROW KEYS navigate - A abandon - ESC close.", (255, 240, 175),
+        "UP/DOWN navigate   A abandon   ESC close   ? guide", (255, 240, 175),
     ),)
     rows = (
         (pygame_quest_log.QuestSpan("MAIN QUEST", (255, 255, 255)),),
@@ -175,7 +175,7 @@ def test_quest_log_split_hint_moves_trailing_hint_out_of_content():
 
     content, hint = pygame_quest_log._split_hint(rows)
 
-    assert hint == "ARROW KEYS navigate - A abandon - ESC close."
+    assert hint == "UP/DOWN navigate   A abandon   ESC close   ? guide"
     assert content == ((pygame_quest_log.QuestSpan("MAIN QUEST", (255, 255, 255)),),)
 
 

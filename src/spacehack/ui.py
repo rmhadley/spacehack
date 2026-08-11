@@ -18,6 +18,7 @@ import tcod.event
 
 from .data.species import list_species
 from .data.classes import list_classes
+from . import pygame_ui
 
 # Generic modal outcome type. Each modal defines its own enum subclass
 # with terminal outcomes plus an IGNORE member (which signals "this
@@ -80,7 +81,9 @@ def species_menu() -> MenuScreen:
     """Build the species-choices menu screen."""
     return MenuScreen(
         title="Choose Your Species",
-        instruction="ARROW KEYS navigate - ENTER select - ESC start over",
+        instruction=pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER select", "ESC start over",
+        ),
         options=tuple((s.id, s.name) for s in list_species()),
         descriptions={s.id: s.description for s in list_species()},
         selected=0,
@@ -91,7 +94,9 @@ def class_menu() -> MenuScreen:
     """Build the class-choices menu screen."""
     return MenuScreen(
         title="Choose Your Class",
-        instruction="ARROW KEYS navigate - ENTER select - ESC go back",
+        instruction=pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER select", "ESC go back",
+        ),
         options=tuple((c.id, c.name) for c in list_classes()),
         descriptions={c.id: c.description for c in list_classes()},
         selected=0,

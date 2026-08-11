@@ -235,7 +235,7 @@ def _pygame_comms_enabled() -> bool:
 
 def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
     """Return a Pygame-selected interaction enum, or None for fallback."""
-    from . import pygame_menu
+    from . import pygame_menu, pygame_ui
 
     items = tuple(
         pygame_menu.MenuItem(option, "Select this transmission action.", option)
@@ -246,7 +246,10 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
             title=f"{contact_name} - Hailing",
             body="\n".join(getattr(contact_spec, "comms_lines", ()) or ("...",)),
             items=items,
-            hints=("UP/DOWN or j/k navigate - ENTER select - ESC back.",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC back",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=index,
         )
         for index in range(max(1, len(items)))
@@ -487,7 +490,7 @@ def open_comms_direct(
 
 def _pygame_contact_result(ctx, contacts):
     """Run the contact list through Pygame and return selected contact."""
-    from . import pygame_menu
+    from . import pygame_menu, pygame_ui
 
     items = tuple(
         pygame_menu.MenuItem(
@@ -501,7 +504,10 @@ def _pygame_contact_result(ctx, contacts):
         pygame_menu.MenuFrame(
             f"COMMS - {len(contacts)} contacts in range",
             "Select a ship to hail.", items,
-            ("UP/DOWN or j/k navigate - ENTER hail - ESC close",), selected,
+            (pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER hail", "ESC close",
+                pygame_ui.GUIDE_HINT,
+            ),), selected,
         )
         for selected in range(max(1, len(items)))
     )

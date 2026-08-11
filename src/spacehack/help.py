@@ -1875,7 +1875,7 @@ def _run_pygame_help(
     initial_topic: str | int | None = None,
 ) -> bool | None:
     """Run the guide through the shared Pygame screen."""
-    from . import pygame_screen
+    from . import pygame_screen, pygame_ui
 
     list_frame = pygame_screen.ScreenFrame(
         title="SPACEHACK GUIDE",
@@ -1887,7 +1887,9 @@ def _run_pygame_help(
             )
             for index, section in enumerate(GUIDE_SECTIONS)
         ),
-        footer=("UP/DOWN or j/k select   ENTER open   ESC close",),
+        footer=(pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER open", "ESC close",
+        ),),
     )
     initial_index = _guide_index(initial_topic)
     frame = list_frame
@@ -1897,7 +1899,9 @@ def _run_pygame_help(
             title=section.title,
             body=tuple(section.body.split("\n")),
             rows=(),
-            footer=("PAGE UP/DOWN scroll   ESC topic list",),
+            footer=(pygame_ui.modal_hint(
+                "PAGE UP/DOWN scroll", "ESC topic list",
+            ),),
         )
     while True:
         outcome, action, selected = pygame_screen.run_for_context(
@@ -1913,7 +1917,9 @@ def _run_pygame_help(
                 title=section.title,
                 body=tuple(section.body.split("\n")),
                 rows=(),
-                footer=("PAGE UP/DOWN scroll   ESC topic list",),
+                footer=(pygame_ui.modal_hint(
+                    "PAGE UP/DOWN scroll", "ESC topic list",
+                ),),
             )
             continue
         if outcome == "TAB":

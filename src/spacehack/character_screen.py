@@ -43,7 +43,7 @@ _ARMOR_SLOT_LABELS: dict[str, str] = {
 
 def _character_frame(ctx: GameContext, tab: int, selected: int):
     """Build a Pygame snapshot for one Character tab."""
-    from . import pygame_screen
+    from . import pygame_screen, pygame_ui
     from .xp import xp_for_level, _xp_to_next
 
     level = ctx.player_level
@@ -64,14 +64,19 @@ def _character_frame(ctx: GameContext, tab: int, selected: int):
             f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
             f"Traits: {', '.join(ctx.player_traits) if ctx.player_traits else 'None'}",
         )
-        footer = ("UP/DOWN or j/k select   ENTER spend   TAB equipment   ESC close",)
+        footer = (pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",
+            "ESC close", pygame_ui.GUIDE_HINT,
+        ),)
     else:
         rows = tuple(
             pygame_screen.ScreenRow(text=line, selectable=False)
             for line in _equipment_lines(ctx)
         )
         body = ("Your installed ground gear",)
-        footer = ("TAB stats   ESC close",)
+        footer = (pygame_ui.modal_hint(
+            "TAB stats", "ESC close", pygame_ui.GUIDE_HINT,
+        ),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
         tabs=("STATS", "EQUIPMENT"), active_tab=tab,

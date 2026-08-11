@@ -126,10 +126,7 @@ def _action_for_key(pygame: Any, event: Any) -> str:
         return direct_actions[key_name]
     if key_name in {str(index) for index in range(1, 10)}:
         return f"WEAPON:{int(key_name) - 1}"
-    question_key = getattr(pygame, "K_QUESTION", None)
-    if question_key is not None and event.key == question_key:
-        return "GUIDE"
-    if getattr(event, "unicode", "") == "?":
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE"
     return ""
 

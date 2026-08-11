@@ -181,7 +181,11 @@ def _draw(
     _draw_panel(pygame, screen, font, left, "SYSTEM MAP", frame.map_rows)
     _draw_panel(pygame, screen, font, right, "AREAS OF INTEREST", frame.aoi_rows)
     pygame_ui.draw_text(pygame, screen, font, frame.position, 52, footer_y, color=palette.text)
-    pygame_ui.draw_text(pygame, screen, font, "ESC close   ? guide", width - 270, footer_y, color=palette.instruction)
+    pygame_ui.draw_text(
+        pygame, screen, font,
+        pygame_ui.modal_hint("ESC close", pygame_ui.GUIDE_HINT),
+        width - 270, footer_y, color=palette.instruction,
+    )
     if context is not None:
         pygame_ui.draw_context_log(pygame, screen, context)
 
@@ -194,8 +198,7 @@ def _handle_key(pygame: Any, event: Any) -> str:
         return "IGNORE"
     if event.key == pygame.K_ESCAPE:
         return "BACK"
-    question = getattr(pygame, "K_QUESTION", None)
-    if question is not None and event.key == question:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE"
     return "IGNORE"
 

@@ -13,6 +13,7 @@ import tcod.console
 import tcod.context
 import tcod.event
 from . import ui
+from . import pygame_ui
 from . import world
 from .engine import make_console, SCREEN_WIDTH, SCREEN_HEIGHT
 from .data.species import find_species
@@ -76,7 +77,9 @@ def _pygame_confirm_frame(species, klass):
         title="CHARACTER CREATION",
         body=body,
         items=(item,),
-        hints=("ENTER begin journey   ESC start over",),
+        hints=(pygame_ui.modal_hint(
+            "ENTER begin journey", "ESC start over",
+        ),),
         selected=0,
     )
 

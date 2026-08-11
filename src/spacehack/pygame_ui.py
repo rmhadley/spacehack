@@ -383,6 +383,14 @@ def draw_menu_row(
 
 HINT_SEP = "   "
 
+# Canonical modal phrases (single source of truth — decision #4 in
+# 15_DESIGN_UNIFIED_TERMINAL_UX.md): every modal hint navigates with the
+# same phrase, and ``GUIDE_HINT`` is advertised only where the modal's
+# runner actually opens the in-game guide on the ``?`` key (the key
+# itself works in every family via :func:`is_guide_key`).
+NAV_HINT = "UP/DOWN navigate"
+GUIDE_HINT = "? guide"
+
 
 def terminal_title(prefix: str, suffix: str = "") -> str:
     """Return the all-caps ``PREFIX - SUFFIX`` title, or bare ``PREFIX``.
@@ -436,6 +444,7 @@ def modal_hint(*parts: str) -> str:
     """Join hint parts with the canonical separator, dropping trailing dots.
 
     Single source of truth for hint grammar across every modal family:
-    ``"UP/DOWN navigate   ENTER select   ESC back   ? guide"``.
+    ``modal_hint(NAV_HINT, "ENTER select", "ESC back", GUIDE_HINT)``
+    → ``"UP/DOWN navigate   ENTER select   ESC back   ? guide"``.
     """
     return HINT_SEP.join(part.rstrip(".").strip() for part in parts)

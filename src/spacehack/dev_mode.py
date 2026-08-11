@@ -16,6 +16,7 @@ from typing import Any
 
 from . import ship as ship_module
 from . import ui
+from . import pygame_ui
 from .input_helpers import Outcome, _run_pick
 from .data.ground_armor import list_ground_armor
 
@@ -33,7 +34,9 @@ def main_quest_faction_menu() -> ui.MenuScreen:
     """Return the faction picker used by the Act 0 dev shortcut."""
     return ui.MenuScreen(
         title="Choose Act 0 Faction",
-        instruction="ARROW KEYS or J/K navigate - ENTER select - ESC cancel",
+        instruction=pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER select", "ESC cancel",
+        ),
         options=tuple(
             (faction_id, label)
             for faction_id, label, _ in _DEV_FACTION_OPTIONS

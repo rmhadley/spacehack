@@ -235,7 +235,7 @@ def render_loadout_view(console, ctx) -> None:
 
 def _pygame_loadout_frame(ctx):
     """Build a readable Pygame snapshot for the installed ship loadout."""
-    from .. import pygame_screen
+    from .. import pygame_screen, pygame_ui
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
 
@@ -283,7 +283,7 @@ def _pygame_loadout_frame(ctx):
         title=f"LOADOUT - {ship_module.ship_display_name(owned).upper()}",
         body=body,
         rows=tuple(rows),
-        footer=("ESC back   ? guide",),
+        footer=(pygame_ui.modal_hint("ESC back", pygame_ui.GUIDE_HINT),),
     )
 
 
@@ -375,7 +375,7 @@ def _pygame_ship_menu_enabled() -> bool:
 
 def _ship_menu_frames(ctx, ship: ship_module.Ship):
     """Build presentation-only frames for the Pygame ship hub."""
-    from .. import pygame_menu
+    from .. import pygame_menu, pygame_ui
 
     owned = ctx.player_owned_ship
     if owned is None:
@@ -387,7 +387,7 @@ def _ship_menu_frames(ctx, ship: ship_module.Ship):
             f"Fuel: {owned.fuel} / {ship.max_fuel}",
             f"Hull: {owned.hull_damage_pct}% damage",
             f"Speed: {_speed}",
-            f"Credits: {ctx.stats.credits}$",
+            pygame_ui.credits_label(ctx.stats.credits),
         ))
     _items = tuple(
         pygame_menu.MenuItem(label, "", action)
@@ -401,7 +401,10 @@ def _ship_menu_frames(ctx, ship: ship_module.Ship):
             title=f"Your {ship_module.ship_display_name(owned).upper()}",
             body=_body,
             items=_items,
-            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC back",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC back",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=index,
         )
         for index in range(len(_items))

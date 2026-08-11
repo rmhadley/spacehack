@@ -226,7 +226,7 @@ def _npc_pygame_items(npc, missions, quest_options=()):
 
 def _npc_pygame_frames(npc, quest_body, items):
     """Build selected-state frames for ordinary NPC talk."""
-    from . import pygame_menu
+    from . import pygame_menu, pygame_ui
 
     title = f"{npc.name} ({npc.guild})" if npc.guild else npc.name
     body = f'"{quest_body if quest_body else npc.flavor_text}"'
@@ -235,19 +235,18 @@ def _npc_pygame_frames(npc, quest_body, items):
             title=title,
             body=body,
             items=items,
-            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC walk away.",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC walk away",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=selected,
         )
         for selected in range(max(1, len(items)))
     )
 
 
-def _map_pygame_npc_result(ctx, outcome, action, missions):
+def _map_pygame_npc_result(outcome, action, missions):
     """Map a worker result to the existing NPC talk contract."""
-    if outcome == "GUIDE":
-        from .help import _run_help_guide
-        _run_help_guide(ctx)
-        return (TalkOutcome.BACK, None)
     if outcome == "QUIT":
         return (TalkOutcome.QUIT, None)
     if outcome != "SELECT":
@@ -271,12 +270,17 @@ def _run_pygame_npc_talk(ctx, npc, quest_body, missions, quest_options=()):
 
     items = _npc_pygame_items(npc, missions, quest_options)
     frames = _npc_pygame_frames(npc, quest_body, items)
-    outcome, action, _selected = _run_pygame_menu(
-        ctx,
-        frames,
-        caption=f"spacehack - {npc.name}",
-    )
-    return _map_pygame_npc_result(ctx, outcome, action, missions)
+    while True:
+        outcome, action, _selected = _run_pygame_menu(
+            ctx,
+            frames,
+            caption=f"spacehack - {npc.name}",
+        )
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        return _map_pygame_npc_result(outcome, action, missions)
 
 
 def _run_npc_talk(

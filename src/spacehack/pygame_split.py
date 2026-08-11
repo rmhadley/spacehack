@@ -111,11 +111,12 @@ DETAIL_BOTTOM_PAD = 8
 ROWS_DETAIL_GAP = 6
 
 # Canonical hint for every split buy/sell terminal (single source of
-# truth — see 15_DESIGN_UNIFIED_TERMINAL_UX.md). No "? guide": the guide
-# key is not a modal key (user decision, playtest Phase 3).
+# truth — see 15_DESIGN_UNIFIED_TERMINAL_UX.md). Advertises "? guide":
+# the ? key works in every modal via pygame_ui.is_guide_key, and the
+# split runner opens the guide on the GUIDE outcome (Phase 5 decision).
 SPLIT_SHOP_HINT = pygame_ui.modal_hint(
     "UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell",
-    "ESC back",
+    "ESC back", pygame_ui.GUIDE_HINT,
 )
 
 
@@ -392,8 +393,7 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
         return "IGNORE", frame.focus, selected
     if event.key == pygame.K_ESCAPE:
         return "BACK", frame.focus, selected
-    question = getattr(pygame, "K_QUESTION", None)
-    if question is not None and event.key == question:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", frame.focus, selected
     if event.key == pygame.K_TAB:
         other = SplitFrame(

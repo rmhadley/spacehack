@@ -257,7 +257,14 @@ def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selecte
     if confirm_abandon:
         ui.paint_line(console, col_x, detail_top, 'Press ENTER to abandon. ESC cancels.', fg=ui.COLOR_OPTION_HIGHLIGHT)
     else:
-        ui.paint_line(console, col_x, detail_top, 'ARROW KEYS navigate - A abandon - ESC close.', fg=ui.COLOR_INSTRUCTION)
+        ui.paint_line(
+            console, col_x, detail_top,
+            pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "A abandon", "ESC close",
+                pygame_ui.GUIDE_HINT,
+            ),
+            fg=ui.COLOR_INSTRUCTION,
+        )
 
     from .. import message_log
     message_log.render_message_log(console, ctx.log, screen_width=screen_width, screen_height=screen_height)

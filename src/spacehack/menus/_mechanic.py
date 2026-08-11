@@ -38,7 +38,7 @@ def _repair_preview(owned, ship_rec) -> int:
 
 def _mechanic_frame(ctx, ship_rec, selected: int):
     """Build a presentation snapshot for the mechanic terminal."""
-    from .. import pygame_screen
+    from .. import pygame_screen, pygame_ui
 
     owned = ctx.player_owned_ship
     _fuel_units, _fuel_cost = _refuel_preview(owned, ship_rec, ctx.stats.credits)
@@ -60,12 +60,15 @@ def _mechanic_frame(ctx, ship_rec, selected: int):
     body = (
         f"Ship: {ship_rec.name}",
         f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {owned.hull_damage_pct}% damage",
-        f"Credits: {ctx.stats.credits}$",
+        pygame_ui.credits_label(ctx.stats.credits),
         "Select Refuel or Repair to review the exact total before committing.",
     )
     return pygame_screen.ScreenFrame(
         "MECHANIC TERMINAL", body, rows,
-        ("UP/DOWN or j/k select   ENTER choose   ESC back",), selected,
+        (pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER choose", "ESC back",
+            pygame_ui.GUIDE_HINT,
+        ),), selected,
     )
 
 
@@ -181,7 +184,7 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
 
 def _ammo_frame(ctx, owned, missile_slots, selected):
     """Build a Pygame ammo-management snapshot."""
-    from .. import pygame_screen
+    from .. import pygame_screen, pygame_ui
 
     rows = []
     for slot in missile_slots:
@@ -194,9 +197,11 @@ def _ammo_frame(ctx, owned, missile_slots, selected):
         ))
     return pygame_screen.ScreenFrame(
         "BUY AMMO",
-        (f"Credits: {ctx.stats.credits}$",),
+        (pygame_ui.credits_label(ctx.stats.credits),),
         tuple(rows) or (pygame_screen.ScreenRow("No missile weapons installed", selectable=False),),
-        ("ENTER buy one round   ESC back",),
+        (pygame_ui.modal_hint(
+            "ENTER buy one round", "ESC back", pygame_ui.GUIDE_HINT,
+        ),),
         selected,
     )
 

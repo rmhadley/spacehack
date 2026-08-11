@@ -72,7 +72,7 @@ def frame_for(ctx: Any) -> FactionFrame:
         title="FACTION STANDINGS",
         subtitle="Your reputation across the frontier",
         rows=_faction_rows(ctx),
-        hint="ENTER / ESC back   ? guide",
+        hint=pygame_ui.modal_hint("ENTER / ESC back", pygame_ui.GUIDE_HINT),
     )
 
 
@@ -205,8 +205,7 @@ def _handle_key(pygame: Any, event: Any) -> str:
         return "IGNORE"
     if event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_KP_ENTER):
         return "BACK"
-    question = getattr(pygame, "K_QUESTION", None)
-    if question is not None and event.key == question:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE"
     return "IGNORE"
 

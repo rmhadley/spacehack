@@ -87,7 +87,7 @@ _LEGACY_HEADER_BLOCK = 5
 # extra spacing still extracts; keep these in sync if the terminal hint
 # strings are ever reworded in menus/_quest_log.py.
 _HINT_PREFIXES = (
-    "ARROW KEYS navigate",
+    "UP/DOWN navigate",
     "Press ENTER to abandon",
     "Press ESC to close",
 )
@@ -271,8 +271,7 @@ def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: in
         return "IGNORE", selected, True
     if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and confirm and count:
         return "ABANDONED", selected, confirm
-    question_key = getattr(pygame, "K_QUESTION", None)
-    if question_key is not None and event.key == question_key:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", selected, confirm
     return "IGNORE", selected, confirm
 

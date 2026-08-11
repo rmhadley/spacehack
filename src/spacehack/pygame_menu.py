@@ -287,8 +287,7 @@ def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str
         return "IGNORE", selected
     if event.key == pygame.K_ESCAPE:
         return "BACK", selected
-    question_key = getattr(pygame, "K_QUESTION", None)
-    if question_key is not None and event.key == question_key:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", selected
     if event.key in (pygame.K_UP, pygame.K_k) and count:
         return "IGNORE", (selected - 1) % count

@@ -29,7 +29,7 @@ def _pygame_trait_enabled() -> bool:
 
 def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | None:
     """Run mandatory trait selection through Pygame."""
-    from . import pygame_screen
+    from . import pygame_screen, pygame_ui
 
     frame = pygame_screen.ScreenFrame(
         title=f"TRAIT SELECTION - Level {ctx.player_level}",
@@ -42,27 +42,34 @@ def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | No
             )
             for trait in candidates
         ),
-        footer=("UP/DOWN or j/k select   ENTER choose",),
+        footer=(pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER choose", pygame_ui.GUIDE_HINT,
+        ),),
     )
-    outcome, action, _selected = pygame_screen.run_for_context(
-        ctx.context, frame, caption="spacehack - trait selection",
-    )
-    if outcome in {"BACK", "TAB"}:
-        return _run_pygame_trait_selection(ctx, candidates)
-    if outcome == "QUIT":
-        raise SystemExit
-    if outcome == "SELECT" and action.startswith("TRAIT:"):
-        trait_id = action.split(":", 1)[1]
-        picked = next((trait for trait in candidates if trait.id == trait_id), None)
-        if picked is None:
-            return None
-        ctx.player_traits.append(picked.id)
-        ctx.log.add_colored(
-            f"Trait gained: {picked.name} - {picked.description}",
-            message_log.COLOR_COMBAT_EVENT,
+    while True:
+        outcome, action, _selected = pygame_screen.run_for_context(
+            ctx.context, frame, caption="spacehack - trait selection",
         )
-        return True
-    return None
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            _run_help_guide(ctx)
+            continue
+        if outcome in {"BACK", "TAB"}:
+            continue
+        if outcome == "QUIT":
+            raise SystemExit
+        if outcome == "SELECT" and action.startswith("TRAIT:"):
+            trait_id = action.split(":", 1)[1]
+            picked = next((trait for trait in candidates if trait.id == trait_id), None)
+            if picked is None:
+                return None
+            ctx.player_traits.append(picked.id)
+            ctx.log.add_colored(
+                f"Trait gained: {picked.name} - {picked.description}",
+                message_log.COLOR_COMBAT_EVENT,
+            )
+            return True
+        return None
 
 
 def open_trait_selection(ctx: GameContext) -> None:

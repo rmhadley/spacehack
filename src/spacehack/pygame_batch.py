@@ -122,8 +122,7 @@ def _handle_key(pygame: Any, event: Any) -> str:
         return "IGNORE"
     if event.key == pygame.K_ESCAPE:
         return "BACK"
-    question_key = getattr(pygame, "K_QUESTION", None)
-    if question_key is not None and event.key == question_key:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE"
     return "IGNORE"
 

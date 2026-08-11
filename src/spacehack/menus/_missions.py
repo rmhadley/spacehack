@@ -206,7 +206,7 @@ def _run_pygame_interactive_missions(
     offerings: tuple[mission_module.MissionSpec, ...],
 ) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
     """Run mission offerings through the generic selectable worker."""
-    from .. import pygame_menu
+    from .. import pygame_menu, pygame_ui
 
     items = tuple(
         pygame_menu.MenuItem(_mission_board_label(mission), mission.description, str(index))
@@ -220,7 +220,10 @@ def _run_pygame_interactive_missions(
                 if offerings else "No work is available right now."
             ),
             items=items,
-            hints=("ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER accept", "ESC walk away",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=index,
         )
         for index in range(max(1, len(offerings)))

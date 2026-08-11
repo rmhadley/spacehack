@@ -124,7 +124,7 @@ def _pygame_interactive_enabled() -> bool:
 
 def _run_pygame_planet_menu(ctx, planet_obj, items):
     """Run the dynamic planet action list through the Pygame worker."""
-    from .. import pygame_menu
+    from .. import pygame_menu, pygame_ui
 
     frames = tuple(
         pygame_menu.MenuFrame(
@@ -134,7 +134,10 @@ def _run_pygame_planet_menu(ctx, planet_obj, items):
                 pygame_menu.MenuItem(label, description, outcome.name)
                 for label, description, outcome in items
             ),
-            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC leave.",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC leave",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=selected,
         )
         for selected in range(max(1, len(items)))

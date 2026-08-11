@@ -338,6 +338,34 @@ def test_combat_presentation_is_always_enabled():
     assert pygame_ui.presentation_enabled()
 
 
+def test_guide_key_accepts_unicode_question_mark_without_k_question():
+    """Shift+/ arrives as K_SLASH with unicode '?' on most keyboards,
+    so the guide key must match the unicode fallback, not only the
+    (usually absent) K_QUESTION keycode.
+    """
+    class FakePygame:
+        KEYDOWN = 2
+        # No K_QUESTION attribute — the SDL2 keyboards that fire
+        # shift+/ as K_SLASH never deliver a dedicated question key.
+
+    fake = FakePygame()
+    slash = SimpleNamespace(type=fake.KEYDOWN, key=47, unicode="?")
+    plain_slash = SimpleNamespace(type=fake.KEYDOWN, key=47, unicode="")
+    non_keydown = SimpleNamespace(type=99, key=47, unicode="?")
+
+    assert pygame_ui.is_guide_key(fake, slash) is True
+    assert pygame_ui.is_guide_key(fake, plain_slash) is False
+    assert pygame_ui.is_guide_key(fake, non_keydown) is False
+
+    class WithQuestionKey(FakePygame):
+        K_QUESTION = 14
+
+    assert pygame_ui.is_guide_key(
+        WithQuestionKey(),
+        SimpleNamespace(type=fake.KEYDOWN, key=14, unicode=""),
+    ) is True
+
+
 def test_quantity_key_mapping_clamps_and_confirms():
     class FakePygame:
         QUIT = 1
@@ -683,7 +711,7 @@ def test_merchant_frame_uses_live_content_and_selected_details():
     assert frame.selected == 1
     assert frame.description == "Medical supplies for Sirius."
     assert frame.hints == (
-        "ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",
+        "UP/DOWN navigate   ENTER accept   ESC walk away",
         "Reward: 400$ + 50xp",
     )
 
@@ -838,8 +866,8 @@ def test_ship_buy_frame_uses_modern_screen_contract_with_live_price():
     assert "3000$" in frame.rows[0].detail
     assert "Credits: 2000$" in frame.rows[0].detail
     assert frame.rows[0].action == "BUY"
-    assert frame.footer == ("ENTER buy   ESC walk away",)
-    assert "? guide" not in frame.footer[0]
+    assert frame.footer == ("ENTER buy   ESC walk away   ? guide",)
+    assert "? guide" in frame.footer[0]
 
 
 def test_ship_buy_frame_shows_trade_in_and_affordability():
@@ -1537,7 +1565,7 @@ def test_selectable_menu_wraps_long_mission_text_without_tiny_font():
         title="Guild Master - available work",
         body="Select a contract to review its details.",
         items=(pygame_menu.MenuItem("Deliver supplies", long_description, "0"),),
-        hints=("ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",),
+        hints=("UP/DOWN navigate   ENTER accept   ESC walk away",),
         selected=0,
     )
 
@@ -1754,12 +1782,12 @@ def test_split_section_header_builds_divider_row():
     assert row.value == ""
 
 
-def test_split_shop_hint_is_canonical_without_guide_key():
+def test_split_shop_hint_is_canonical_with_guide_key():
     assert pygame_split.SPLIT_SHOP_HINT == (
         "UP/DOWN navigate   TAB switch panel   ENTER buy/sell   "
-        "ESC back"
+        "ESC back   ? guide"
     )
-    assert "? guide" not in pygame_split.SPLIT_SHOP_HINT
+    assert "? guide" in pygame_split.SPLIT_SHOP_HINT
 
 
 def test_merchant_description_budget_is_selection_independent():

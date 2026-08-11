@@ -104,8 +104,7 @@ def _handle_key(pygame: Any, event: Any, frame: ScreenFrame) -> tuple[str, int]:
         return "PAGE_DOWN", selected
     if event.key == getattr(pygame, "K_PAGEUP", None):
         return "PAGE_UP", selected
-    question = getattr(pygame, "K_QUESTION", None)
-    if question is not None and event.key == question:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", selected
     if event.key in (pygame.K_UP, pygame.K_k) and indices:
         pos = indices.index(selected)

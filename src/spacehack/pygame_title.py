@@ -87,7 +87,9 @@ def frames(save_available: bool) -> tuple[pygame_menu.MenuFrame, ...]:
             title="SPACEHACK",
             body="The frontier is waiting.",
             items=items,
-            hints=("ARROW KEYS / j,k navigate   ENTER select   ESC exit",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC exit",
+            ),),
             selected=selected,
             initial_selected=1 if save_available else 0,
             art=art,
@@ -311,6 +313,10 @@ def run_for_context(context: Any, save_available: bool) -> tuple[ui.TitleMenuOut
     )
     if outcome in {"QUIT", "BACK"}:
         return ui.TitleMenuOutcome.EXIT, selected
+    if outcome == "GUIDE":
+        # The title screen has no game context yet, so the guide cannot
+        # open — treat ? as a no-op and keep the menu on screen.
+        return ui.TitleMenuOutcome.IGNORE, selected
     if outcome != "SELECT":
         raise RuntimeError("Pygame title menu returned no outcome")
     title_outcome = _TITLE_ACTIONS.get(action)

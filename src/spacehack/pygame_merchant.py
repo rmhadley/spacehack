@@ -163,12 +163,14 @@ def _frame_for(
     """Build renderer-neutral Merchant content from live mission specs."""
     safe_selected = selected % len(offerings) if offerings else 0
     options = tuple(label_for(mission) for mission in offerings)
-    hints = (
-        "ARROW KEYS / j,k navigate - ENTER accept - ESC walk away.",
-    )
+    hints = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER accept", "ESC walk away",
+    ),)
     if offerings:
         picked = offerings[safe_selected]
-        hints += (f"Reward: {picked.reward_credits}$ + {picked.reward_xp}xp",)
+        hints += (pygame_ui.reward_label(
+            picked.reward_credits, picked.reward_xp,
+        ),)
         if picked.recommended_class_id:
             hints += (f"Best suited for: {class_name(picked.recommended_class_id)}",)
         if picked.recommended_ship_min_cargo > 0:

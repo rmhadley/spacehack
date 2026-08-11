@@ -5,7 +5,7 @@ only the shared Pygame presentation; quest state remains in the caller.
 """
 from __future__ import annotations
 
-from . import pygame_menu
+from . import pygame_menu, pygame_ui
 
 
 def enabled() -> bool:
@@ -28,7 +28,9 @@ def dismiss(
         title=title,
         body=body,
         items=(),
-        hints=("Press ENTER to continue - ESC close",),
+        hints=(pygame_ui.modal_hint(
+            "ENTER continue", "ESC close", pygame_ui.GUIDE_HINT,
+        ),),
         selected=0,
         art=art,
         art_color=art_color,
@@ -57,7 +59,10 @@ def confirm(
         title=title,
         body=body,
         items=(item,),
-        hints=(f"ENTER {accept_label.lower()}   ESC {cancel_label.lower()}",),
+        hints=(pygame_ui.modal_hint(
+            f"ENTER {accept_label.lower()}",
+            f"ESC {cancel_label.lower()}", pygame_ui.GUIDE_HINT,
+        ),),
         selected=0,
     )
     outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
@@ -97,7 +102,10 @@ def choose(
             title=title,
             body=body,
             items=items,
-            hints=("ARROW KEYS / j,k navigate - ENTER select - ESC back",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC back",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=index,
         )
         for index in range(max(1, len(items)))

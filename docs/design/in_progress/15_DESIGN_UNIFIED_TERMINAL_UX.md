@@ -124,7 +124,7 @@ so the `pygame_screen` / `pygame_menu` modal families can adopt them too
 | `shortfall_label(short)` | `f"{short}$ short"` | inline afford text (ship buy) |
 | `reward_label(credits, xp)` | `f"Reward: {credits}$ + {xp}xp"` | inline merchant board hints |
 | `modal_hint(*parts)` | parts joined with `"   "`, trailing `.` stripped | 4 separator styles across ~15 modals; makes `? guide` a standard part |
-| `SPLIT_SHOP_HINT` | `modal_hint("UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell", "ESC back")` — no `? guide` (decision #2) | 4 copy-pasted hints |
+| `SPLIT_SHOP_HINT` | `modal_hint("UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell", "ESC back", "? guide")` (decision #2 overturned in Phase 5) | 4 copy-pasted hints |
 
 **Footer rule (matches loadout):** `footer_left = credits_label(...)`,
 `footer_right =` domain stat (loadout: `Wpn: x/y  Mod: x/y` unchanged;
@@ -193,7 +193,7 @@ accounted for; zero tcod `ui.Modal` call sites remain in `src/`.*
 |---|---|---|
 | `pygame_split` | Armory, Ship Loadout, Station Trade, NPC Trade | Layers 1+2+3 (Phases 1–3) |
 | `pygame_screen` | Ship buy, Cargo, Mechanic, Buy Ammo, read-only Loadout, Character sheet, Help guide, **Trait selection** | Layer 1 + `modal_hint` now; Layer 2 only if it demonstrably clips |
-| `pygame_menu` | Ship hangar, Planet, NPC talk, GO TO, Jump confirm, Comms ×2, Loot, Character pickers ×2, Story ×3 (dismiss/confirm/choose), **Dungeon breach confirm**, **Main-quest help offer**, **Active-mission delivery board**, Title, Dev picker | Layer 1 where prices appear, `modal_hint` (Phase 5, no `? guide` per decision #2), Layer 2 font floor (Phase 6); ship hangar moves to `pygame_screen` with CARGO/LOADOUT tabs (Phase 7) |
+| `pygame_menu` | Ship hangar, Planet, NPC talk, GO TO, Jump confirm, Comms ×2, Loot, Character pickers ×2, Story ×3 (dismiss/confirm/choose), **Dungeon breach confirm**, **Main-quest help offer**, **Active-mission delivery board**, Title, Dev picker | Layer 1 where prices appear, `modal_hint` + `? guide` (Phase 5; title menu is the one exception — no guide route), Layer 2 font floor (Phase 6); ship hangar moves to `pygame_screen` with CARGO/LOADOUT tabs (Phase 7) |
 | `pygame_merchant` | Guild master (mission board) | `reward_label`, `modal_hint` (title `{npc} - available work` already matches the screen-family grammar) |
 | Specialized | Quest log, Faction standings, Auto-nav map, **Quantity prompt** (sub-modal of trade/armory flows) | Conventions only — quest log/faction/nav already advertise `? guide`; quantity prompt is a single-line stepper, conventions light (see Phase 5 note) |
 
@@ -380,29 +380,56 @@ playtest.
 
 Layer 1 + Layer 3 only — no layout work.
 
-- [ ] `modal_hint` adopted across the inventory: ship hangar, planet,
+- [x] `modal_hint` adopted across the inventory: ship hangar, planet,
       NPC talk, GO TO, jump confirm, comms ×2, loot, story ×3,
       dungeon confirm, quest help offer, mission delivery board,
       trait selection, title, character pickers, ship buy, cargo,
       mechanic, ammo, merchant board, help guide
-- [ ] Quantity prompt: verify its hint/label style matches
-      (`UP/DOWN adjust   ENTER confirm   ESC cancel`)
-- [ ] NO modal hint advertises `? guide` (decision #2); reconcile the
-      pre-existing `? guide` footers (quest log, faction, nav) —
-      remove or verify they work
-- [ ] Value helpers where prices/rewards/credits appear (ship buy,
+- [x] Quantity prompt uses `QUANTITY_HINT =
+      modal_hint("UP/DOWN adjust", "ENTER confirm", "ESC cancel",
+      GUIDE_HINT)`; its runner opens the guide on `?`
+- [x] **Fix the `?` key itself (decision #2 OVERTURNED).** Root cause:
+      every modal key handler checked only the `K_QUESTION` keycode,
+      but shift+/ delivers `K_SLASH` + unicode `"?"` on real
+      keyboards — so `?` did nothing in any modal. All nine handlers
+      (split, menu, screen, faction, quest log, quantity, batch,
+      navigation, combat) now route through `pygame_ui.is_guide_key`
+      (keycode OR unicode fallback), and the two runners with no
+      GUIDE route (title → `IGNORE`, trait screen → open guide +
+      re-run) were wired so `?` never crashes or closes a modal.
+      Regression test added (`test_guide_key_accepts_unicode_
+      question_mark_without_k_question`).
+- [x] `? guide` re-advertised in every modal whose runner opens the
+      guide (decision #2 OVERTURNED — discoverability wins):
+      `SPLIT_SHOP_HINT`, ship buy footer, quest log, faction, nav
+      map, quantity, merchant board, trait selection; excluded only
+      where the runner has no guide route (title menu).
+- [x] Value helpers where prices/rewards/credits appear (ship buy,
       merchant board, loot, cargo, ammo, mechanic, ship hangar stats)
-- [ ] Unify nav phrase (`ARROW KEYS / j,k` vs `UP/DOWN or j/k`) via
-      one constant (decision #4)
-- [ ] Update the affected frame tests (hints/titles only)
-- [ ] Smoke gate
+- [x] Unify nav phrase via one constant (decision #4): `NAV_HINT =
+      "UP/DOWN navigate"` — every modal hint now opens with it
+- [x] Update the affected frame tests (hints/titles only)
+- [x] Smoke gate (542 passed, smoke PASS)
 
 **▸ PLAYTEST Phase 5:** walk the modal tree — planet bump, ship hangar,
 NPC talk, comms, guild master, GO TO, jump, ship buy, cargo, mechanic.
 Every hint reads the same style, every modal advertises `? guide`, and
 `?` opens the guide from each.
 
+- [ ] Planet bump / NPC talk / comms / guild master / GO TO / jump
+- [ ] Ship buy: footer reads `ENTER buy   ESC walk away   ? guide`;
+      `?` opens Ships & Equipment
+- [ ] Armory / loadout / trade: `?` opens the guide from the split
+      terminals
+- [ ] Quest log / faction / nav map: `?` opens the guide
+- [ ] Trait selection: `?` opens the guide and the modal reopens
+- [ ] Title menu: `?` is a no-op (no guide without a game context)
+
 Passed: [ ]   Issues: _______________
+
+Implemented: [x] — every modal hint runs through `modal_hint` with the
+`NAV_HINT` opener; every runner with a GUIDE route advertises `? guide`
+and works via the unicode fallback. Code review: no blocking issues.
 
 ---
 
@@ -497,20 +524,26 @@ Passed: [ ]   Issues: _______________
 1. **Footer slot roles.** Recommended (matches loadout): credits LEFT,
    domain stat RIGHT on every terminal. Trade currently reverses this.
    Flip is a one-line swap if undesired.
-2. **`? guide` in the hint.** ~~Recommended: yes~~ → **RESOLVED (Phase 3
-   playtest): NO.** The user reports `?` doesn't work inside modals
-   (`?` is an exploration-mode key) and directed its removal from the
-   hints. `SPLIT_SHOP_HINT` no longer advertises it; help.py guide text
-   updated. The key handler in `pygame_split` remains but is
-   unadvertised — the Phase 5 sweep reconciles the remaining
-   `? guide` footers (quest log, faction, nav).
+2. **`? guide` in the hint.** ~~Recommended: yes~~ → ~~RESOLVED (Phase 3
+   playtest): NO~~ → **OVERTURNED (Phase 5): YES, and the key is now
+   fixed.** The Phase 3 finding was a symptom, not a rule: `?`
+   "didn't work in modals" because every key handler checked only the
+   `K_QUESTION` keycode, while shift+/ delivers `K_SLASH` + unicode
+   `"?"` on real keyboards. Phase 5 fixes all nine handlers via
+   `pygame_ui.is_guide_key` (keycode OR unicode) and re-advertises
+   `? guide` wherever the modal's runner opens the guide. Excluded
+   only where there is no guide route (title menu → `IGNORE`).
+   `SPLIT_SHOP_HINT`, ship buy, quest log, faction, nav map,
+   quantity, merchant board, and trait selection all advertise it.
 3. **Ship-buy title casing.** ~~`SCOUT - FOR SALE` (all-caps, matches
    the terminal family) vs keeping `SCOUT - for sale`~~ → **RESOLVED
    (Phase 4): all-caps** — `SCOUT - FOR SALE` via `terminal_title`;
    one title grammar across terminals and ship buy.
 4. **Nav phrase.** `ARROW KEYS / j,k navigate` (menu family) vs
    `UP/DOWN or j/k navigate` (comms/cargo) vs `UP/DOWN navigate`
-   (split). Recommended: one canonical phrase via `NAV_HINT`.
+   (split). → **RESOLVED (Phase 5): `UP/DOWN navigate`** via
+   `pygame_ui.NAV_HINT` — user-approved ("UP/DOWN navigate"); every
+   modal hint now opens with it.
 5. **Title grammar per family.** Keep the two existing grammars
    (all-caps `X - Y` for terminals; `NAME - sentence suffix` for
    screens/merchant) or force one everywhere. Recommended: keep
@@ -558,7 +591,8 @@ Passed: [ ]   Issues: _______________
 
 **Where each decision lands (implementation stops for a user playtest):**
 #1→Phase 3 (approved: credits-left/cargo-right) · #2→Phase 3 (resolved:
-NO `? guide` in hints) · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→Phase 7
+NO `? guide` in hints) then **OVERTURNED in Phase 5 (fix `?` + advertise)**
+· #3→Phase 4 · #4→Phase 5 (RESOLVED: `UP/DOWN navigate`) · #5→Phase 5 · #6→Phase 7
 · #7→Phase 3 revision (RESOLVED: pin approved) · #8→Phase 3 revision
 (RESOLVED: cap 13 approved)· #9→Phase 4 revision (RESOLVED: centering + gaps approved)
 
@@ -629,9 +663,9 @@ NO `? guide` in hints) · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→P
 2. [x] Long panels scroll; selection is never off-screen
 3. [x] `ARMORY - <PLANET>` title; no empty footer slot anywhere
 4. [x] `Credits: N$` / `Cargo: N/M` everywhere they appear
-5. [x] One shared hint constant; the four split terminals no longer
-      advertise `? guide` (decision #2; the rest of the modal families
-      are swept in Phase 5)
+5. [x] One shared hint constant; the four split terminals advertise
+      `? guide` (decision #2 overturned in Phase 5 — the key now works
+      via the unicode fallback)
 6. [x] Zero duplicate string literals across the four builders
 7. [x] Loadout renders at the user-approved look: pinned description +
       shared hint (both playtest-approved); its chrome/font/values are
@@ -641,9 +675,10 @@ NO `? guide` in hints) · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→P
       helper-formatted prices/credits/shortfall, canonical hint — the
       playtest-approved changes are casing, the colon in the detail
       line, and the footer separators
-10. [ ] No modal advertises `? guide` (decision #2 — it's an
-      exploration-mode key, not a modal key)
-11. [ ] One hint grammar (`modal_hint`) across all modal families
+10. [x] Every modal whose runner opens the guide advertises `? guide`
+      and the key works from inside the modal (decision #2 overturned:
+      `is_guide_key` unicode fallback fixes the `?` key)
+11. [x] One hint grammar (`modal_hint`) across all modal families
 12. [ ] Menus/screens that can clip render at the same font as terminals
       (Phase 6) or are explicitly exempt (tiny content)
 13. [ ] Ship hangar is a tabbed CARGO/LOADOUT screen (C-screen pattern)

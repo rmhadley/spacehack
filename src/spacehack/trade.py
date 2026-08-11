@@ -371,14 +371,16 @@ class _LootOutcome(Enum):
 
 def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -> str | None:
     """Run the loot choice through the generic Pygame menu worker."""
-    from . import pygame_menu
+    from . import pygame_menu, pygame_ui
 
     item = pygame_menu.MenuItem(take_label, "", "TAKE")
     frame = pygame_menu.MenuFrame(
         title=title,
         body=body,
         items=(item,),
-        hints=("ENTER secure/take   ESC leave",),
+        hints=(pygame_ui.modal_hint(
+            "ENTER secure/take", "ESC leave", pygame_ui.GUIDE_HINT,
+        ),),
         selected=0,
     )
     outcome, action, _selected = pygame_menu.run_for_context(
@@ -938,7 +940,7 @@ def _pygame_cargo_enabled() -> bool:
 
 def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
     """Build a readable cargo snapshot with opaque jettison actions."""
-    from . import pygame_screen
+    from . import pygame_screen, pygame_ui
     from . import ship as ship_module
 
     items = []
@@ -961,7 +963,10 @@ def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
         f"Mission cargo reserved: {owned.mission_reserved}    Ammo: {owned.cargo_ammo}",
         f"Hull: {owned.hull_damage_pct}% damage",
     )
-    footer = ("UP/DOWN or j/k select   ENTER jettison selected   ESC close",)
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER jettison selected", "ESC close",
+        pygame_ui.GUIDE_HINT,
+    ),)
     return pygame_screen.ScreenFrame(
         f"CARGO - {ship_name.upper()}", body, tuple(items), footer, selected,
     )

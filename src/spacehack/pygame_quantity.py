@@ -20,6 +20,14 @@ class PygameQuantityQuit(RuntimeError):
     """Raised when the player closes the quantity window."""
 
 
+# Canonical stepper hint: the quantity prompt adjusts a number rather
+# than navigating a list, so it keeps the domain verb "adjust" while
+# sharing the modal_hint separator and the advertised guide key.
+QUANTITY_HINT = pygame_ui.modal_hint(
+    "UP/DOWN adjust", "ENTER confirm", "ESC cancel", pygame_ui.GUIDE_HINT,
+)
+
+
 def _handle_key(pygame: Any, event: Any, quantity: int, maximum: int) -> tuple[str, int]:
     """Map one Pygame event to ``(outcome, quantity)``."""
     if event.type == pygame.QUIT:
@@ -28,8 +36,7 @@ def _handle_key(pygame: Any, event: Any, quantity: int, maximum: int) -> tuple[s
         return "IGNORE", quantity
     if event.key == pygame.K_ESCAPE:
         return "BACK", quantity
-    question = getattr(pygame, "K_QUESTION", None)
-    if question is not None and event.key == question:
+    if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", quantity
     if event.key in (pygame.K_UP, pygame.K_k, getattr(pygame, "K_PLUS", -1), getattr(pygame, "K_EQUALS", -1)):
         return "IGNORE", min(maximum, quantity + 1)
@@ -76,8 +83,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
                     panel, 410, color=palette.description,
                 )
             pygame_ui.draw_centered_text(
-                pygame, screen, font,
-                "UP/DOWN or j/k adjust   ENTER confirm   ESC cancel",
+                pygame, screen, font, QUANTITY_HINT,
                 panel, 500, color=palette.instruction,
             )
             pygame.display.flip()
@@ -125,8 +131,7 @@ def run_shared(
                 panel, 410, color=palette.description,
             )
         pygame_ui.draw_centered_text(
-            pygame, screen, font,
-            "UP/DOWN or j/k adjust   ENTER confirm   ESC cancel",
+            pygame, screen, font, QUANTITY_HINT,
             panel, 500, color=palette.instruction,
         )
         pygame_ui.draw_context_log(pygame, screen, context)

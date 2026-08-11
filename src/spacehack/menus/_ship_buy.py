@@ -61,7 +61,9 @@ def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, se
         ),
     )
     footer = (
-        pygame_ui.modal_hint("ENTER buy", "ESC walk away"),
+        pygame_ui.modal_hint(
+            "ENTER buy", "ESC walk away", pygame_ui.GUIDE_HINT,
+        ),
     )
     return pygame_screen.ScreenFrame(
         pygame_ui.terminal_title(ship.name, "for sale"),

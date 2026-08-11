@@ -857,7 +857,7 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
     strict fallback. The parent process keeps destination objects private;
     the worker receives labels/descriptions and returns only an index.
     """
-    from . import pygame_menu
+    from . import pygame_menu, pygame_ui
 
     items = tuple(
         pygame_menu.MenuItem(
@@ -872,34 +872,38 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
             title="GO TO",
             body="Select a destination for auto-navigation.",
             items=items,
-            hints=("ARROW KEYS / j,k navigate - ENTER go - ESC cancel",),
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER go", "ESC cancel",
+                pygame_ui.GUIDE_HINT,
+            ),),
             selected=index,
         )
         for index in range(len(items))
     )
-    outcome, action, _selected = pygame_menu.run_for_context(
-        getattr(ctx, "context", ctx),
-        frames,
-        caption="spacehack - go to",
-    )
-    if outcome == "GUIDE":
-        from .help import _open_context_guide
-        _open_context_guide(ctx, "Navigation & Jump Gates")
-        return _run_pygame_goto_menu(ctx, destinations)
-    if outcome in {"BACK", "QUIT"}:
-        return True, None
-    if outcome != "SELECT":
-        return False, None
-    prefix, separator, raw_index = action.partition(":")
-    if prefix != "DEST" or not separator:
-        return False, None
-    try:
-        selected = int(raw_index)
-    except ValueError:
-        return False, None
-    if not 0 <= selected < len(destinations):
-        return False, None
-    return True, selected
+    while True:
+        outcome, action, _selected = pygame_menu.run_for_context(
+            getattr(ctx, "context", ctx),
+            frames,
+            caption="spacehack - go to",
+        )
+        if outcome == "GUIDE":
+            from .help import _open_context_guide
+            _open_context_guide(ctx, "Navigation & Jump Gates")
+            continue
+        if outcome in {"BACK", "QUIT"}:
+            return True, None
+        if outcome != "SELECT":
+            return False, None
+        prefix, separator, raw_index = action.partition(":")
+        if prefix != "DEST" or not separator:
+            return False, None
+        try:
+            selected = int(raw_index)
+        except ValueError:
+            return False, None
+        if not 0 <= selected < len(destinations):
+            return False, None
+        return True, selected
 
 
 def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
@@ -1126,7 +1130,7 @@ def update_jump_menu(event: tcod.event.Event) -> JumpMenuOutcome:
 
 def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_fuel: int | None):
     """Run the jump confirmation through the Pygame menu worker."""
-    from . import pygame_menu
+    from . import pygame_menu, pygame_ui
 
     target_system = solar_systems_module.find_solar_system(target_system_id)
     fuel_line = (
@@ -1143,23 +1147,26 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel: int | None, max_
             "Commit to the system transition.",
             "JUMP",
         ),),
-        hints=("ENTER jump   ESC fly past",),
+        hints=(pygame_ui.modal_hint(
+            "ENTER jump", "ESC fly past", pygame_ui.GUIDE_HINT,
+        ),),
         selected=0,
     )
-    outcome, action, _selected = pygame_menu.run_for_context(
-        getattr(ctx, "context", ctx),
-        (frame,),
-        caption="spacehack - jump gate",
-    )
-    if outcome == "GUIDE":
-        from .help import _open_context_guide
-        _open_context_guide(ctx, "Navigation & Jump Gates")
-        return _run_pygame_jump_menu(ctx, jp, target_system_id, fuel, max_fuel)
-    if outcome == "QUIT":
-        return JumpMenuOutcome.QUIT
-    if outcome == "SELECT" and action == "JUMP":
-        return JumpMenuOutcome.JUMP
-    return JumpMenuOutcome.BACK
+    while True:
+        outcome, action, _selected = pygame_menu.run_for_context(
+            getattr(ctx, "context", ctx),
+            (frame,),
+            caption="spacehack - jump gate",
+        )
+        if outcome == "GUIDE":
+            from .help import _open_context_guide
+            _open_context_guide(ctx, "Navigation & Jump Gates")
+            continue
+        if outcome == "QUIT":
+            return JumpMenuOutcome.QUIT
+        if outcome == "SELECT" and action == "JUMP":
+            return JumpMenuOutcome.JUMP
+        return JumpMenuOutcome.BACK
 
 
 def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
