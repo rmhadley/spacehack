@@ -1658,6 +1658,25 @@ def _guide_index(topic: str | int | None) -> int | None:
         None,
     )
 
+def _section_frame(section) -> Any:
+    """Build one scrollable guide-section frame.
+
+    ``scrollable`` keeps the fitted font constant for every section
+    (long bodies page with PAGE UP/DOWN instead of shrinking the text).
+    """
+    from . import pygame_screen, pygame_ui
+
+    return pygame_screen.ScreenFrame(
+        title=section.title,
+        body=tuple(section.body.split("\n")),
+        rows=(),
+        footer=(pygame_ui.modal_hint(
+            "ESC topic list", pygame_ui.GUIDE_HINT,
+        ),),
+        scrollable=True,
+    )
+
+
 def _run_pygame_help(
     ctx: GameContext,
     initial_topic: str | int | None = None,
@@ -1682,15 +1701,7 @@ def _run_pygame_help(
     initial_index = _guide_index(initial_topic)
     frame = list_frame
     if initial_index is not None:
-        section = GUIDE_SECTIONS[initial_index]
-        frame = pygame_screen.ScreenFrame(
-            title=section.title,
-            body=tuple(section.body.split("\n")),
-            rows=(),
-            footer=(pygame_ui.modal_hint(
-                "PAGE UP/DOWN scroll", "ESC topic list",
-            ),),
-        )
+        frame = _section_frame(GUIDE_SECTIONS[initial_index])
     while True:
         outcome, action, selected = pygame_screen.run_for_context(
             ctx.context, frame, caption="spacehack - guide",
@@ -1701,14 +1712,7 @@ def _run_pygame_help(
                 section = GUIDE_SECTIONS[index]
             except (ValueError, IndexError):
                 return None
-            frame = pygame_screen.ScreenFrame(
-                title=section.title,
-                body=tuple(section.body.split("\n")),
-                rows=(),
-                footer=(pygame_ui.modal_hint(
-                    "PAGE UP/DOWN scroll", "ESC topic list",
-                ),),
-            )
+            frame = _section_frame(section)
             continue
         if outcome == "TAB":
             frame = list_frame

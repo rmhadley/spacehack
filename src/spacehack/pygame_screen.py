@@ -52,6 +52,9 @@ class ScreenFrame:
     page_offset: int = 0
     tabs: tuple[str, ...] = ()
     active_tab: int = 0
+    # Long bodies page (PAGE UP/DOWN) instead of shrinking the fitted
+    # font to fit on one screen — keeps the font size consistent.
+    scrollable: bool = False
 
 
 def _frame_payload(frame: ScreenFrame) -> dict[str, Any]:
@@ -70,6 +73,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> ScreenFrame:
         page_offset=int(raw.get("page_offset", 0)),
         tabs=tuple(str(tab) for tab in raw.get("tabs", ())),
         active_tab=int(raw.get("active_tab", 0)),
+        scrollable=bool(raw.get("scrollable", False)),
     )
 
 
@@ -193,13 +197,25 @@ def _body_budget(
     return max(0, available // (font.get_linesize() + 3))
 
 
-def _layout_height(font: Any, frame: ScreenFrame, width: int) -> int:
+def _layout_height(
+    font: Any,
+    frame: ScreenFrame,
+    width: int,
+    *,
+    available_height: int | None = None,
+) -> int:
     """Measure the worst selectable state using renderer widths."""
     body_lines = _body_lines(font, frame, width)
     body_rows_gap = BODY_ROWS_GAP if body_lines else 0
-    return len(body_lines) * (font.get_linesize() + 3) + body_rows_gap + _non_body_height(
+    height = len(body_lines) * (font.get_linesize() + 3) + body_rows_gap + _non_body_height(
         font, frame, width - 28,
     )
+    if frame.scrollable and available_height is not None:
+        # Scrollable bodies page (PAGE UP/DOWN) instead of shrinking the
+        # font: measure a single screen so every section sizes its font
+        # identically regardless of body length.
+        return min(height, available_height)
+    return height
 
 
 def _fit_font(
@@ -218,7 +234,9 @@ def _fit_font(
         available_height -= pygame_ui.LOG_PANEL_HEIGHT + pygame_ui.FOOTER_PAD
     return pygame_ui.fit_font(
         pygame, path,
-        measure_height=lambda font: _layout_height(font, frame, content_width),
+        measure_height=lambda font: _layout_height(
+            font, frame, content_width, available_height=available_height,
+        ),
         available_height=max(1, available_height),
     )
 

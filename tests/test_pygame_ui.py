@@ -2278,6 +2278,44 @@ def test_draw_context_log_delegates_to_message_band(monkeypatch):
     assert seen == [log]
 
 
+def test_screen_frame_payload_round_trips_scrollable():
+    frame = pygame_screen.ScreenFrame(
+        "T", ("body",), (), selected=1, scrollable=True,
+    )
+    back = pygame_screen._frame_from_payload(pygame_screen._frame_payload(frame))
+
+    assert back.scrollable is True
+    assert back.title == "T"
+    assert back.selected == 1
+
+
+def test_layout_height_caps_scrollable_bodies():
+    long_body = tuple(f"paragraph {i} " + "text " * 40 for i in range(20))
+    plain = pygame_screen.ScreenFrame("T", long_body, (), footer=("ESC",))
+    scrollable = pygame_screen.ScreenFrame(
+        "T", long_body, (), footer=("ESC",), scrollable=True,
+    )
+    font = _FakeFont()
+
+    uncapped = pygame_screen._layout_height(font, plain, 200)
+    capped = pygame_screen._layout_height(
+        font, scrollable, 200, available_height=120,
+    )
+
+    assert capped == 120
+    assert uncapped > 120
+
+
+def test_guide_section_frame_is_scrollable():
+    from src.spacehack.help import GUIDE_SECTIONS, _section_frame
+
+    frame = _section_frame(GUIDE_SECTIONS[0])
+
+    assert frame.scrollable is True
+    assert frame.title == GUIDE_SECTIONS[0].title
+    assert frame.rows == ()
+
+
 def test_terminal_title_grammar():
     assert pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT") == "MECHANIC - SHIP LOADOUT"
     assert pygame_ui.terminal_title("TRADE", "earth") == "TRADE - EARTH"
