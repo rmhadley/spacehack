@@ -23,8 +23,10 @@ installs a `spacehack` command. Because the game runs as a Python script
 launched from the terminal, there is **no `.app` bundle for Gatekeeper or
 LaunchServices to assess at all** — no quarantine, no signature
 requirement, nothing to bypass, on any macOS. This is the most
-gatekeeper-proof path. First install pulls the tcod/pygame/numpy wheels
-from PyPI (~100 MB); later installs are cached by Homebrew.
+gatekeeper-proof path. Homebrew sandboxes builds (no network), so every
+pip dependency (tcod, pygame, numpy and their closure) is pinned as a
+`resource` in the formula and fetched as prebuilt wheels (~100 MB on
+first install; cached afterwards). Both arm64 and Intel are supported.
 
 ## Updating after a release
 
@@ -38,6 +40,15 @@ This updates **both** the cask (macOS zip sha256) and the formula (source
 tarball sha256) from the GitHub API. Or refresh just the current version's
 hashes with no arguments, and hash local files offline with `--zip` /
 `--tarball`. The script is stdlib-only — no brew or extra dependencies.
+
+Dependency wheels get stale between game releases — refresh them with:
+
+```bash
+python3 tools/refresh_resources.py
+```
+
+This resolves the newest compatible macOS wheels from PyPI's JSON API
+and rewrites the pinned `resource` blocks in the formula (stdlib-only).
 
 Commit and push; users then run `brew upgrade` / `brew upgrade --cask spacehack`.
 
@@ -55,6 +66,7 @@ Casks live in `Casks/`, formulae in `Formula/`.
 
 ## Notes
 
-- The release build is arm64-only (CI runs on Apple Silicon runners).
+- The release `.app` build is arm64-only (CI runs on Apple Silicon
+  runners); the formula installs on both arm64 and Intel.
 - Local sanity checks: `brew audit --cask Casks/spacehack.rb` and
   `brew audit --formula Formula/spacehack.rb`.
