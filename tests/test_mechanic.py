@@ -87,5 +87,11 @@ class TestMechanicFrameTabs:
         )
 
         assert frame.active_tab == loadout_index
-        assert any(row.action == "LOADOUT" for row in frame.rows)
+        actions = [row.action for row in frame.rows]
+        # The manage row leads the tab under its own header, so it reads
+        # as an action rather than an extra module slot.
+        assert frame.rows[0].text == "PARTS MARKET"
+        assert actions.index("LOADOUT") < next(
+            i for i, row in enumerate(frame.rows) if "WEAPON SLOTS" in row.text
+        )
         assert any("WEAPON SLOTS" in row.text for row in frame.rows)

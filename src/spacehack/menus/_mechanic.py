@@ -147,13 +147,16 @@ def _mechanic_frame(ctx, ship_rec, tab: int, selected: int, tabs, missile_slots)
         ),)
     else:  # LOADOUT
         from ._ship_menu import _loadout_rows
-        rows = _loadout_rows(owned, ship_rec) + (
+        # The market entry leads the tab under its own section header so
+        # it reads as an action, not as an extra module slot.
+        rows = (
+            pygame_screen.ScreenRow("PARTS MARKET", selectable=False),
             pygame_screen.ScreenRow(
                 "Manage Loadout - buy and sell parts",
                 "Opens the parts market for this planet (weapons + modules).",
                 "LOADOUT",
             ),
-        )
+        ) + _loadout_rows(owned, ship_rec)
         body = ("Buy and sell ship weapons and modules.",)
         footer = (pygame_ui.modal_hint(
             pygame_ui.NAV_HINT, "ENTER manage loadout", next_hint,
