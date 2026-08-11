@@ -5,52 +5,31 @@ ASCII-art sci-fi roguelike.
 
 ## Install
 
-Two ways to install:
-
 ```bash
 brew tap rmhadley/tap
-brew install --cask spacehack        # macOS .app in /Applications
-# or
-brew install spacehack               # `spacehack` command from a Cellar venv
+brew install --cask spacehack
 ```
 
-**Cask** — downloads the macOS `.app` release. Homebrew does not apply the
-`com.apple.quarantine` attribute to cask installs, so the app opens without
-a Gatekeeper bypass.
-
-**Formula** — builds the game into a Python venv inside the Cellar and
-installs a `spacehack` command. Because the game runs as a Python script
-launched from the terminal, there is **no `.app` bundle for Gatekeeper or
-LaunchServices to assess at all** — no quarantine, no signature
-requirement, nothing to bypass, on any macOS. This is the most
-gatekeeper-proof path. Homebrew sandboxes builds (no network), so every
-pip dependency (tcod, pygame, numpy and their closure) is pinned as a
-`resource` in the formula and fetched as prebuilt wheels (~100 MB on
-first install; cached afterwards). Both arm64 and Intel are supported.
+Installs the macOS `.app` release into `/Applications`. The cask's
+`postflight` step runs `xattr -cr` on the installed app, stripping every
+extended attribute (including any `com.apple.quarantine` left behind by
+browsers/Downloads) so the ad-hoc-signed build opens cleanly on macOS 15+
+with no Gatekeeper bypass and no `xattr -cr` needed by hand.
 
 ## Updating after a release
 
-Bump the tap to a new GitHub release (tag `v0.3.4`):
+Bump the cask to a new GitHub release (tag `v0.3.4`):
 
 ```bash
 python3 tools/update_cask.py --version 0.3.4
 ```
 
-This updates **both** the cask (macOS zip sha256) and the formula (source
-tarball sha256) from the GitHub API. Or refresh just the current version's
-hashes with no arguments, and hash local files offline with `--zip` /
-`--tarball`. The script is stdlib-only — no brew or extra dependencies.
+This fetches the new `spacehack-macos.zip` sha256 from the GitHub API and
+rewrites the cask's `version` and `sha256` stanzas. Or refresh just the
+current version's sha with no arguments, and hash a local zip offline with
+`--zip`. The script is stdlib-only — no brew or extra dependencies.
 
-Dependency wheels get stale between game releases — refresh them with:
-
-```bash
-python3 tools/refresh_resources.py
-```
-
-This resolves the newest compatible macOS wheels from PyPI's JSON API
-and rewrites the pinned `resource` blocks in the formula (stdlib-only).
-
-Commit and push; users then run `brew upgrade` / `brew upgrade --cask spacehack`.
+Commit and push; users then run `brew upgrade --cask spacehack`.
 
 ## Repository layout
 
@@ -62,11 +41,10 @@ account as the spacehack repo):
 gh repo create rmhadley/homebrew-tap --public --source packaging/homebrew-tap --push
 ```
 
-Casks live in `Casks/`, formulae in `Formula/`.
+Casks live in `Casks/`.
 
 ## Notes
 
 - The release `.app` build is arm64-only (CI runs on Apple Silicon
-  runners); the formula installs on both arm64 and Intel.
-- Local sanity checks: `brew audit --cask Casks/spacehack.rb` and
-  `brew audit --formula Formula/spacehack.rb`.
+  runners).
+- Local sanity check: `brew audit --cask Casks/spacehack.rb`.

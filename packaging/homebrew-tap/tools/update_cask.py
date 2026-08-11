@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""Update the spacehack tap for a release.
+"""Update the spacehack cask for a release.
 
-Patches the sha256 (and optionally the version) of:
-  Casks/spacehack.rb      - the macOS .app release zip
-  Formula/spacehack.rb    - the source tarball
+Patches the version and sha256 of Casks/spacehack.rb for the macOS .app
+release zip.
 
 Stdlib only (no brew, no requests) so it runs anywhere Python does.
 
 Usage:
-  python3 tools/update_cask.py                      # refresh both for the version already in the tap
+  python3 tools/update_cask.py                      # refresh sha256 for the version already in the tap
   python3 tools/update_cask.py --version 0.3.4      # bump version + sha256 for a new release tag v0.3.4
-  python3 tools/update_cask.py --zip path.zip       # cask sha256 from a local zip (no network)
-  python3 tools/update_cask.py --tarball path.tgz   # formula sha256 from a local tarball (no network)
+  python3 tools/update_cask.py --zip path.zip       # sha256 from a local zip (no network)
 """
 
 from __future__ import annotations
@@ -30,7 +28,6 @@ REPO = "rmhadley/spacehack"
 ASSET = "spacehack-macos.zip"
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CASK = ROOT / "Casks" / "spacehack.rb"
-DEFAULT_FORMULA = ROOT / "Formula" / "spacehack.rb"
 
 
 def _get(url: str, timeout: int):
@@ -52,7 +49,7 @@ def read_stanza(file: Path, name: str) -> str | None:
 
 
 def patch_stanza(file: Path, name: str, value: str) -> bool:
-    """Rewrite one ``name "value"`` stanza in place. Returns True if changed."""
+    """Rewrite one ``name \"value\"`` stanza in place. Returns True if changed."""
     text = file.read_text()
     pattern = re.compile(rf'^(\s*){name} "[^"]+"', re.MULTILINE)
     match = pattern.search(text)
@@ -61,27 +58,6 @@ def patch_stanza(file: Path, name: str, value: str) -> bool:
     if match.group(0).rsplit('"', 2)[-2] == value:
         return False
     file.write_text(pattern.sub(lambda m: f'{m.group(1)}{name} "{value}"', text, count=1))
-    return True
-
-
-def formula_url(version: str) -> str:
-    """Source tarball URL for the v<version> tag (literal - no version stanza in the formula)."""
-    return f"https://github.com/{REPO}/archive/refs/tags/v{version}.tar.gz"
-
-
-def patch_formula_url(formula: Path, version: str) -> bool:
-    """Rewrite the formula's literal tag URL in place. Returns True if changed."""
-    text = formula.read_text()
-    pattern = re.compile(r'^(\s*)url "([^"]*archive/refs/tags/v[^"/]+\.tar\.gz)"', re.MULTILINE)
-    match = pattern.search(text)
-    if match is None:
-        sys.exit(f"error: no tag url stanza found in {formula}")
-    new_uri = formula_url(version)
-    if match.group(2) == new_uri:
-        return False
-    formula.write_text(
-        pattern.sub(lambda m: f'{m.group(1)}url "{new_uri}"', text, count=1)
-    )
     return True
 
 
@@ -99,11 +75,6 @@ def release_asset_url(version: str) -> str:
         if asset.get("name") == ASSET:
             return asset["browser_download_url"]
     sys.exit(f"error: release v{version} has no {ASSET} asset")
-
-
-def source_tarball_url(version: str) -> str:
-    """URL of the source tarball for the v<version> tag."""
-    return f"https://github.com/{REPO}/archive/refs/tags/v{version}.tar.gz"
 
 
 def download_sha(url: str) -> str:
@@ -125,36 +96,21 @@ def download_sha(url: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", help="release tag version to bump to (e.g. 0.3.4); defaults to the tap's current version")
-    parser.add_argument("--zip", help="path to a local spacehack-macos.zip (cask only, no network)")
-    parser.add_argument("--tarball", help="path to a local source tarball (formula only, no network)")
+    parser.add_argument("--zip", help="path to a local spacehack-macos.zip (no network)")
     parser.add_argument("--cask", default=str(DEFAULT_CASK), help="path to the cask file")
-    parser.add_argument("--formula", default=str(DEFAULT_FORMULA), help="path to the formula file")
     args = parser.parse_args()
 
     cask = Path(args.cask)
-    formula = Path(args.formula)
-    version = args.version or read_stanza(cask, "version") or read_stanza(formula, "version")
+    version = args.version or read_stanza(cask, "version")
     if version is None:
-        sys.exit(f"error: could not read the version from {cask} or {formula}")
-    print(f"updating tap for v{version}")
+        sys.exit(f"error: could not read the version from {cask}")
+    print(f"updating cask for v{version}")
 
-    do_cask = do_formula = True
-    if args.zip or args.tarball:
-        do_cask = args.zip is not None
-        do_formula = args.tarball is not None
-
-    if do_cask:
-        new_sha = sha256_of(Path(args.zip)) if args.zip else download_sha(release_asset_url(version))
-        # The cask keeps a #{version}-interpolated url, so only its version
-        # and sha256 stanzas need patching.
-        changed = patch_stanza(cask, "version", version) | patch_stanza(cask, "sha256", new_sha)
-        print(f"cask:    version={version} sha256={new_sha} {'(changed)' if changed else '(up to date)'}")
-    if do_formula:
-        new_sha = sha256_of(Path(args.tarball)) if args.tarball else download_sha(source_tarball_url(version))
-        # The formula's URL is literal (version is derived from the tag), so
-        # a version bump rewrites the url line instead of a version stanza.
-        changed = patch_formula_url(formula, version) | patch_stanza(formula, "sha256", new_sha)
-        print(f"formula: tag={version} sha256={new_sha} {'(changed)' if changed else '(up to date)'}")
+    new_sha = sha256_of(Path(args.zip)) if args.zip else download_sha(release_asset_url(version))
+    # The cask keeps a #{version}-interpolated url, so only its version
+    # and sha256 stanzas need patching.
+    changed = patch_stanza(cask, "version", version) | patch_stanza(cask, "sha256", new_sha)
+    print(f"cask: version={version} sha256={new_sha} {'(changed)' if changed else '(up to date)'}")
     return 0
 
 
