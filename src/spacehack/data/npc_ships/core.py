@@ -83,14 +83,17 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         faction="pirate",
         weapons=("light_laser",),
         modules=("compact_reactor",),
-        # Cheap/loose scout: low accuracy, high dodge
+        # Cheap/loose scout: low accuracy, moderate dodge (dodge bonus
+        # cut 20 -> 10 so the tutorial bounty / tier-1 scouts read as an
+        # easy first kill instead of a kiter; also lowers the glancing
+        # threshold via pilot_piloting).
         cargo_goods=("food_rations", "fuel_cells"),
         cargo_count=1,
         ai_aggressiveness=60,
         ai_preferred_range=3,
         ai_flee_threshold=0.15,
         ai_accuracy_bonus=5,
-        ai_dodge_bonus=20,
+        ai_dodge_bonus=10,
         pilot_gunnery=15,
         pilot_piloting=20,
         pilot_engineering=10,
