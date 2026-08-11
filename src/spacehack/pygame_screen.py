@@ -308,15 +308,20 @@ def _draw_frame(
     # the footer zone instead of the top-left corner. Short content
     # (ship buy) sits balanced; content taller than the space falls back
     # to the top anchor exactly as before. The rows block uses the capped
-    # window height so centering is list-length independent.
+    # window height so centering is list-length independent. Scrollable
+    # bodies always anchor to the top — centering the remaining lines
+    # would make the text drift while paging through a section.
     body_block = min(len(visible_body), body_budget) * body_step
     rows_block = _rows_height(font, frame)
     body_rows_gap = BODY_ROWS_GAP if body_block else 0
     rows_detail_gap = ROWS_DETAIL_GAP if rows_block else 0
-    content_height = (
-        body_block + body_rows_gap + rows_block + rows_detail_gap + detail_height + 8
-    )
-    y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
+    y = body_start
+    if not frame.scrollable:
+        content_height = (
+            body_block + body_rows_gap + rows_block
+            + rows_detail_gap + detail_height + 8
+        )
+        y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
     for line in visible_body[:body_budget]:
         pygame_ui.draw_text(
             pygame, screen, font, line, x, y, color=palette.description,
