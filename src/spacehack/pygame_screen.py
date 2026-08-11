@@ -110,12 +110,18 @@ def _handle_key(pygame: Any, event: Any, frame: ScreenFrame) -> tuple[str, int]:
         return "PAGE_UP", selected
     if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", selected
-    if event.key in (pygame.K_UP, pygame.K_k) and indices:
-        pos = indices.index(selected)
-        return "IGNORE", indices[(pos - 1) % len(indices)]
-    if event.key in (pygame.K_DOWN, pygame.K_j) and indices:
-        pos = indices.index(selected)
-        return "IGNORE", indices[(pos + 1) % len(indices)]
+    if event.key in (pygame.K_UP, pygame.K_k):
+        if indices:
+            pos = indices.index(selected)
+            return "IGNORE", indices[(pos - 1) % len(indices)]
+        if frame.scrollable:
+            return "PAGE_UP", selected
+    if event.key in (pygame.K_DOWN, pygame.K_j):
+        if indices:
+            pos = indices.index(selected)
+            return "IGNORE", indices[(pos + 1) % len(indices)]
+        if frame.scrollable:
+            return "PAGE_DOWN", selected
     if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
         return ("SELECT", selected) if indices else ("BACK", selected)
     return "IGNORE", selected
@@ -363,7 +369,11 @@ def _draw_frame(
         )
     footer_lines = frame.footer
     if body_overflow:
-        footer_lines = ("PAGE UP/DOWN scroll for more",) + footer_lines
+        _scroll_hint = (
+            "PAGE UP/DOWN or j/k/arrows scroll for more"
+            if frame.scrollable else "PAGE UP/DOWN scroll for more"
+        )
+        footer_lines = (_scroll_hint,) + footer_lines
     footer_step = font.get_linesize() + 3
     footer_top = footer_start - len(footer_lines) * footer_step
     y = max(y + measure_detail_height + 8, footer_top)

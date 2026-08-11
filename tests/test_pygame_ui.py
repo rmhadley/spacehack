@@ -627,6 +627,48 @@ def test_screen_key_mapping_supports_tabs_and_paging():
     assert pygame_screen._handle_key(fake, key(fake.K_PAGEUP), frame) == ("PAGE_UP", 0)
 
 
+def test_scrollable_body_scrolls_with_vim_keys_and_arrows():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_TAB = 11
+        K_PAGEDOWN = 12
+        K_PAGEUP = 13
+        K_QUESTION = 14
+        K_UP = 15
+        K_DOWN = 16
+        K_k = 17
+        K_j = 18
+        K_RETURN = 19
+        K_KP_ENTER = 20
+
+    fake = FakePygame()
+    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
+    scrollable = pygame_screen.ScreenFrame(
+        "T", ("long body " * 200,), (), scrollable=True,
+    )
+
+    assert pygame_screen._handle_key(fake, key(fake.K_j), scrollable) == ("PAGE_DOWN", 0)
+    assert pygame_screen._handle_key(fake, key(fake.K_DOWN), scrollable) == ("PAGE_DOWN", 0)
+    assert pygame_screen._handle_key(fake, key(fake.K_k), scrollable) == ("PAGE_UP", 0)
+    assert pygame_screen._handle_key(fake, key(fake.K_UP), scrollable) == ("PAGE_UP", 0)
+
+    # Non-scrollable frames keep the old no-op behavior.
+    plain = pygame_screen.ScreenFrame("T", ("long body " * 200,), ())
+    assert pygame_screen._handle_key(fake, key(fake.K_j), plain) == ("IGNORE", 0)
+
+    # Scrollable frames with selectable rows keep row navigation.
+    rows = (
+        pygame_screen.ScreenRow("a", selectable=True),
+        pygame_screen.ScreenRow("b", selectable=True),
+    )
+    with_rows = pygame_screen.ScreenFrame("T", (), rows, scrollable=True)
+    assert pygame_screen._handle_key(fake, key(fake.K_j), with_rows) == ("IGNORE", 1)
+    # Row navigation wins over scrolling (wraps from row 0 to row 1).
+    assert pygame_screen._handle_key(fake, key(fake.K_k), with_rows) == ("IGNORE", 1)
+
+
 def test_fit_text_uses_renderer_metrics_and_ascii_ellipsis():
     font = _FakeFont()
 
