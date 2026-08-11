@@ -24,6 +24,26 @@ def test_overlay_segments_group_adjacent_cells_by_color_and_split_gaps():
     )
 
 
+def test_overlay_segments_carry_background_and_split_runs_on_bg_change():
+    # Mirrors the combat HUD shield line: the regen-rate cells share the
+    # bar's foreground but paint a white background, so they must become
+    # their own segment instead of merging into the unpainted run.
+    commands = (
+        world.WorldDrawCommand(5, 1, "#", (1, 2, 3), None),
+        world.WorldDrawCommand(6, 1, "#", (1, 2, 3), (255, 255, 255)),
+        world.WorldDrawCommand(7, 1, ".", (1, 2, 3), (255, 255, 255)),
+        world.WorldDrawCommand(8, 1, ".", (1, 2, 3), None),
+    )
+
+    assert pygame_overlay._segments(
+        commands, x_min=0, x_max=10, y_min=0, y_max=3,
+    ) == (
+        pygame_overlay.OverlaySegment(5, 1, "#", (1, 2, 3)),
+        pygame_overlay.OverlaySegment(6, 1, "#.", (1, 2, 3), (255, 255, 255)),
+        pygame_overlay.OverlaySegment(8, 1, ".", (1, 2, 3)),
+    )
+
+
 def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     from src.spacehack import hud, message_log
 
@@ -62,7 +82,9 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
 def test_overlay_payload_round_trips_segments_and_layout():
     frame = pygame_overlay.OverlayFrame(
         hud=(pygame_overlay.OverlaySegment(80, 0, "HUD", (1, 2, 3)),),
-        messages=(pygame_overlay.OverlaySegment(0, 54, "msg", (4, 5, 6)),),
+        messages=(
+            pygame_overlay.OverlaySegment(0, 54, "msg", (4, 5, 6), (255, 255, 255)),
+        ),
         hud_x=80,
         hud_top=0,
         hud_height=54,
@@ -73,9 +95,10 @@ def test_overlay_payload_round_trips_segments_and_layout():
     payload = pygame_overlay.payload(frame)
 
     assert payload["hud"][0] == {
-        "x": 80, "y": 0, "text": "HUD", "color": (1, 2, 3),
+        "x": 80, "y": 0, "text": "HUD", "color": (1, 2, 3), "bg": None,
     }
     assert payload["messages"][0]["text"] == "msg"
+    assert payload["messages"][0]["bg"] == (255, 255, 255)
     assert payload["hud_height"] == 54
     restored = pygame_overlay.frame_from_payload(payload)
     assert restored == frame
@@ -120,6 +143,57 @@ def test_draw_segments_offsets_text_inside_panel_padding(monkeypatch):
     )
 
     assert drawn == [("HUD", 1292, 36)]
+
+
+def test_draw_segments_paints_background_highlight_before_text(monkeypatch):
+    drawn = []
+    filled = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+        class draw:
+            @staticmethod
+            def rect(_screen, color, rect):
+                filled.append((color, rect))
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 12)
+
+        def get_linesize(self):
+            return 12
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    pygame_overlay._draw_segments(
+        FakePygame,
+        FakeScreen(),
+        FakeFont(),
+        (pygame_overlay.OverlaySegment(80, 2, "##", (1, 2, 3), (255, 255, 255)),),
+        origin_x=1280,
+        origin_y=0,
+        width=320,
+        height=864,
+        origin_cell_x=80,
+        origin_cell_y=0,
+    )
+
+    assert len(filled) == 1
+    fill_color, fill_rect = filled[0]
+    assert fill_color == (255, 255, 255)
+    assert fill_rect.args == (1292, 36, 32, 16)
+    assert drawn == [("##", 1292, 36)]
 
 
 def test_present_exploration_uses_shared_overlay_and_tcod_fallback(monkeypatch):

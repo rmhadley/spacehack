@@ -21,12 +21,29 @@ Color = tuple[int, int, int]
 
 @dataclass(frozen=True)
 class OverlaySegment:
-    """One contiguous same-color text segment in a logical cell row."""
+    """One contiguous same-color text segment in a logical cell row.
+
+    ``bg`` is the cell background color (``None`` when unpainted). The
+    domain HUD renders its shield-regen indicator as a white background
+    fill on the shield bar cells — the overlay pipeline must carry it
+    or the indicator silently vanishes in the Pygame renderer.
+    """
 
     x: int
     y: int
     text: str
     color: Color
+    bg: Color | None = None
+
+
+def _normalize_bg(value: Any) -> Color | None:
+    """Normalize a background color value (``None`` when unpainted)."""
+    return tuple(value) if value is not None else None
+
+
+def _bg_of(command: Any) -> Color | None:
+    """Normalize a command's background color (``None`` when unpainted)."""
+    return _normalize_bg(command.bg)
 
 
 @dataclass(frozen=True)
@@ -56,18 +73,24 @@ def _segments(commands: Any, *, x_min: int, x_max: int, y_min: int, y_max: int) 
         start = ordered[0].x
         chars = [ordered[0].char]
         color = tuple(ordered[0].fg)
+        bg = _bg_of(ordered[0])
         previous_x = ordered[0].x
         for command in ordered[1:]:
-            same_run = command.x == previous_x + 1 and tuple(command.fg) == color
+            same_run = (
+                command.x == previous_x + 1
+                and tuple(command.fg) == color
+                and _bg_of(command) == bg
+            )
             if same_run:
                 chars.append(command.char)
             else:
-                segments.append(OverlaySegment(start, y, "".join(chars), color))
+                segments.append(OverlaySegment(start, y, "".join(chars), color, bg))
                 start = command.x
                 chars = [command.char]
                 color = tuple(command.fg)
+                bg = _bg_of(command)
             previous_x = command.x
-        segments.append(OverlaySegment(start, y, "".join(chars), color))
+        segments.append(OverlaySegment(start, y, "".join(chars), color, bg))
     return tuple(segments)
 
 
@@ -154,6 +177,7 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
                 y=int(item["y"]),
                 text=str(item["text"]),
                 color=tuple(item["color"]),
+                bg=_normalize_bg(item.get("bg")),
             )
             for item in data.get(key, ())
         )
@@ -260,6 +284,14 @@ def _draw_segments(
         for segment in segments:
             x = origin_x + padding_x + (segment.x - origin_cell_x) * TILE_WIDTH
             y = origin_y + padding_y + (segment.y - origin_cell_y) * TILE_HEIGHT
+            # Background fill: paint a highlight spanning the segment's
+            # logical cells BEFORE the text so glyphs stay readable.
+            if segment.bg is not None:
+                pygame.draw.rect(
+                    screen,
+                    segment.bg,
+                    pygame.Rect(x, y, len(segment.text) * TILE_WIDTH, TILE_HEIGHT),
+                )
             text = pygame_ui.fit_text(
                 segment.text,
                 max(1, origin_x + width - padding_x - x),
