@@ -553,7 +553,10 @@ def open_comms(
         return None
 
     _pygame_contact = _pygame_contact_result(ctx, contacts)
-    if _pygame_contact in {"QUIT", "BACK", None}:
+    # Tuple membership (== comparison, no hashing): a selected contact is
+    # a ``(name, spec, entity)`` tuple whose ``entity`` is an unhashable
+    # ``world.Entity`` — a set lookup would raise ``TypeError``.
+    if _pygame_contact in ("QUIT", "BACK", None):
         return None
     _contact_name, _contact_spec, _contact_entity = _pygame_contact
     return _run_interaction_modal(

@@ -674,6 +674,55 @@ def test_pygame_comms_preserves_distress_beacon_line_breaks(monkeypatch):
     )
 
 
+def test_open_comms_accepts_contact_tuple_with_unhashable_entity(monkeypatch):
+    """Regression: a selected contact is a ``(name, spec, entity)`` tuple
+    whose ``entity`` is an unhashable ``world.Entity``. The sentinel check
+    must compare (tuple membership) instead of hashing (set membership),
+    which crashed with ``TypeError: unhashable type: 'Entity'``.
+    """
+    from src.spacehack import comms
+    from src.spacehack.world import Entity, Position
+
+    entity = Entity(
+        char="P", fg=(255, 0, 0), pos=Position(1, 1), npc_ship_id="pirate_scout",
+    )
+    contact = ("Pirate Scout", SimpleNamespace(comms_lines=()), entity)
+    ctx = SimpleNamespace(
+        game_map=SimpleNamespace(entities=[]),
+        faction_reputation={},
+        log=SimpleNamespace(add=lambda _message: None),
+        context=object(),
+    )
+    hailed = {}
+
+    monkeypatch.setattr(comms, "_scan_contacts", lambda _ctx, _player_pos: [contact])
+    monkeypatch.setattr(
+        comms,
+        "_run_interaction_modal",
+        lambda _ctx, _console, name, spec, ent: hailed.update(
+            name=name, spec=spec, ent=ent,
+        ),
+    )
+
+    # A selected contact tuple (unhashable entity inside) must NOT crash
+    # the sentinel check — it proceeds to hail the contact.
+    monkeypatch.setattr(comms, "_pygame_contact_result", lambda _ctx, _contacts: contact)
+    assert comms.open_comms(ctx, SimpleNamespace(x=0, y=0)) is None
+    assert hailed["ent"] is entity
+
+    # Every sentinel short-circuits without invoking the interaction modal.
+    for sentinel in ("QUIT", "BACK", None):
+        monkeypatch.setattr(
+            comms,
+            "_pygame_contact_result",
+            lambda _ctx, _contacts, _s=sentinel: _s,
+        )
+        assert comms.open_comms(ctx, SimpleNamespace(x=0, y=0)) is None
+        assert hailed == {
+            "name": "Pirate Scout", "spec": contact[1], "ent": entity,
+        }
+
+
 def test_merchant_frame_uses_live_content_and_selected_details():
     offerings = (
         SimpleNamespace(
