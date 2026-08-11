@@ -37,8 +37,12 @@ jobs:
 
       - name: Package .app as .zip
         run: |
+          # Ship the Gatekeeper launcher so downloaded builds open without
+          # a terminal: it clears quarantine xattrs on the .app and opens it.
+          cp "packaging/Open Spacehack.command" dist/
+          chmod +x "dist/Open Spacehack.command"
           cd dist
-          zip -r spacehack-macos.zip spacehack.app
+          zip -r spacehack-macos.zip spacehack.app "Open Spacehack.command"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

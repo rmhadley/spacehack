@@ -89,10 +89,21 @@ Grab the latest release for your platform from the
 - **macOS** — `spacehack-macos.zip` (a `.app` bundle)
 - **Windows** — `spacehack-windows.zip` (a standalone `.exe`)
 
-> The builds are unsigned, so macOS may warn "unidentified developer" —
-> right-click the app and choose **Open**, or run
-> `xattr -dr com.apple.quarantine /path/to/spacehack.app` to clear the
-> quarantine flag (or System Settings → Privacy & Security → "Open Anyway").
+> The builds are ad-hoc signed (no paid Developer ID), so macOS stamps a
+> quarantine attribute on the downloaded `.zip` and may reject the app as
+> "unidentified developer" or "damaged". Fixes, easiest first:
+>
+> 1. **Double-click `Open Spacehack.command`** (included in the zip, next to
+>    the app) — it clears the quarantine attributes and launches the game.
+> 2. Right-click the app → **Open** (one-time Gatekeeper bypass).
+> 3. In a terminal: `xattr -cr /path/to/spacehack.app` — `-cr` (clear,
+>    recursive) removes both `com.apple.quarantine` and, on macOS 13+,
+>    `com.apple.provenance`; the older `-dr com.apple.quarantine` alone is
+>    not enough on recent macOS.
+> 4. System Settings → Privacy & Security → "Open Anyway".
+>
+> The only way to eliminate this entirely is Apple notarization, which
+> requires a Developer ID certificate.
 
 ### From sourceRequires **Python 3.10+**. macOS / Linux:
 
