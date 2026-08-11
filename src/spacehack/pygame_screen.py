@@ -14,6 +14,13 @@ from typing import Any
 from . import pygame_menu, pygame_ui
 
 
+# Vertical breathing room between content sections (shared screen family,
+# see 15_DESIGN_UNIFIED_TERMINAL_UX.md decision #9). Only applied when the
+# section above actually exists, so body-less screens get no leading gap.
+BODY_ROWS_GAP = 24   # body text -> first selectable row
+ROWS_DETAIL_GAP = 20  # last row -> selected-item detail
+
+
 class PygameScreenUnavailable(RuntimeError):
     """Raised when the optional text-screen worker cannot return."""
 
@@ -135,7 +142,8 @@ def _non_body_height(font: Any, frame: ScreenFrame, width: int) -> int:
     )
     detail_height = max(1, detail_lines) * (font.get_linesize() + 2)
     footer_height = (max(1, len(frame.footer)) + 1) * (font.get_linesize() + 3)
-    return row_height + detail_height + 12 + footer_height
+    rows_detail_gap = ROWS_DETAIL_GAP if row_height else 0
+    return row_height + rows_detail_gap + detail_height + 12 + footer_height
 
 
 def _body_budget(
@@ -156,7 +164,8 @@ def _body_budget(
 def _layout_height(font: Any, frame: ScreenFrame, width: int) -> int:
     """Measure the worst selectable state using renderer widths."""
     body_lines = _body_lines(font, frame, width)
-    return len(body_lines) * (font.get_linesize() + 3) + 8 + _non_body_height(
+    body_rows_gap = BODY_ROWS_GAP if body_lines else 0
+    return len(body_lines) * (font.get_linesize() + 3) + body_rows_gap + _non_body_height(
         font, frame, width - 28,
     )
 
@@ -226,12 +235,34 @@ def _draw_frame(
                 color=palette.title if selected_tab else palette.description,
             )
     body_start = 126 if frame.tabs else 84
-    y = body_start
     body_lines = _body_lines(font, frame, width - 80)
     visible_body = body_lines[frame.page_offset:]
     body_step = font.get_linesize() + 3
     footer_start = pygame_ui.modal_footer_y(height) if context is not None else height - 70
-    body_budget = _body_budget(font, frame, width - 80, height, y, footer_start)
+    body_budget = _body_budget(font, frame, width - 80, height, body_start, footer_start)
+    body_overflow = len(visible_body) > body_budget
+    selected = _clamp(frame)
+    detail_width = width - 108
+    detail = frame.rows[selected].detail if 0 <= selected < len(frame.rows) else ""
+    detail_height = pygame_ui.wrapped_text_height(
+        detail, detail_width, measure, font.get_linesize(), 2,
+    )
+    # Vertical centering (EXPERIMENT, see 15_DESIGN_UNIFIED_TERMINAL_UX.md
+    # decision #9): anchor the content block between the title rule and
+    # the footer zone instead of the top-left corner. Short content
+    # (ship buy) sits balanced; content taller than the space falls back
+    # to the top anchor exactly as before.
+    body_block = min(len(visible_body), body_budget) * body_step
+    rows_block = sum(
+        font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
+        for row in frame.rows
+    )
+    body_rows_gap = BODY_ROWS_GAP if body_block else 0
+    rows_detail_gap = ROWS_DETAIL_GAP if rows_block else 0
+    content_height = (
+        body_block + body_rows_gap + rows_block + rows_detail_gap + detail_height + 8
+    )
+    y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
     for line in visible_body[:body_budget]:
         pygame_ui.draw_text(
             pygame, screen, font, line, x, y, color=palette.description,
@@ -242,9 +273,7 @@ def _draw_frame(
             pygame, screen, font, f"[page offset {frame.page_offset}]",
             x, 64, color=palette.instruction,
         )
-    y += 8
-    body_overflow = len(visible_body) > body_budget
-    selected = _clamp(frame)
+    y += body_rows_gap
     for index, row in enumerate(frame.rows):
         row_height = font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
         if y + row_height > footer_start:
@@ -261,11 +290,6 @@ def _draw_frame(
                 x, y, color=palette.description,
             )
             y += font.get_linesize() + 4
-    detail_width = width - 108
-    detail = frame.rows[selected].detail if 0 <= selected < len(frame.rows) else ""
-    detail_height = pygame_ui.wrapped_text_height(
-        detail, detail_width, measure, font.get_linesize(), 2,
-    )
     measure_detail_height = max(
         (
             pygame_ui.wrapped_text_height(
@@ -277,6 +301,7 @@ def _draw_frame(
         default=font.get_linesize() + 2,
     )
     if y + detail_height <= footer_start:
+        y += rows_detail_gap
         pygame_ui.draw_wrapped_text(
             pygame, screen, font, detail, x + 28, y,
             detail_width, color=palette.description, line_gap=2,
