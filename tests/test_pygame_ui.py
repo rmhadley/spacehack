@@ -1283,7 +1283,7 @@ def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
     assert frame.title.startswith("YOUR ")
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 2
-    assert "Fuel: 12/80" in frame.body
+    assert frame.body == ()  # ship stats live on the SHIP tab
     assert "WEAPONS (1/2 slots)" in [row.text for row in frame.rows]
     weapon_1 = next(row for row in frame.rows if row.text == "Weapon 1: Light Laser")
     assert "Damage" in weapon_1.detail

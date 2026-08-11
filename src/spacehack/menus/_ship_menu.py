@@ -237,18 +237,6 @@ def render_loadout_view(console, ctx) -> None:
     message_log.render_message_log(console, ctx.log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
 
-def _loadout_body(ctx, owned, ship_spec) -> tuple[str, ...]:
-    """Build the read-only loadout summary lines (the LOADOUT tab body)."""
-    return (
-        f"Fuel: {owned.fuel}/{ship_spec.max_fuel}",
-        f"Hull damage: {owned.hull_damage_pct}%",
-        f"Cargo: {owned.cargo_used}/{ship_module.effective_max_cargo(ship_spec, owned)}",
-        f"Shields: {_effective_shields(ship_spec, owned)}    "
-        f"Power: {_effective_power_gen(ship_spec, owned)}    "
-        f"Speed: {ship_module.effective_speed(ship_spec, owned)}",
-    )
-
-
 def _weapon_row(index: int, weapon_id: str):
     """Build one filled weapon-slot row (``Weapon N: <name>``)."""
     from .. import pygame_screen
@@ -446,7 +434,7 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
         ),)
     else:
         rows = _loadout_rows(owned, ship)
-        body = _loadout_body(ctx, owned, ship)
+        body = ()  # ship stats live on the SHIP tab
         footer = (pygame_ui.modal_hint(
             pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
         ),)

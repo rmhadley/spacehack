@@ -566,6 +566,10 @@ LOADOUT -- no need for launch button." Implemented:
   installed."). Installed rows stay selectable; empty rows are skipped
   by navigation. Shared `_slot_rows(prefix, slot_count, installed,
   make_row)` helper builds both sections (DRY). help.py updated.
+- **Refinement 2 (pending user test):** LOADOUT body dropped — the
+  fuel/hull/cargo/shields/power/speed lines duplicated the SHIP tab,
+  so `body=()` (the shared renderer handles an empty body: no
+  BODY_ROWS_GAP). `_loadout_body` deleted (single call site).
 - Runner: TAB cycles SHIP → CARGO → LOADOUT → SHIP (mod 3), resets
   selection; jettison only handled on tab 1. 555 passed, smoke PASS.
 - help.py "Your ship in the hangar" updated to describe the 3 tabs.
