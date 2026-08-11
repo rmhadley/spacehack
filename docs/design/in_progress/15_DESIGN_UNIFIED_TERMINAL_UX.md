@@ -342,19 +342,28 @@ a second stale line ("ENTER equips/unequips" → "ENTER sells").
 Layer 1 only (see section D) — ship buy's content is small, so no
 viewport/font work needed.
 
-- [ ] `_ship_buy.py` routes title/price/credits/shortfall through the
-      helpers
-- [ ] Update `test_ship_buy_frame_*` assertions to the helper output
-      (title becomes `SCOUT - FOR SALE` unless the helper is given an
-      explicit title-case suffix — decision #3)
-- [ ] `help.py` ship-buy section matches the new wording
-- [ ] Smoke gate
+- [x] `_ship_buy.py` routes title/price/credits/shortfall/hint through
+      the helpers (`terminal_title`, `price_cell`, `credits_label`,
+      `shortfall_label`, `modal_hint`)
+- [x] Update `test_ship_buy_frame_*` assertions to the helper output
+      (title is `SCOUT - FOR SALE` — decision #3 resolved by user:
+      all-caps, one grammar everywhere)
+- [x] `help.py` — no ship-buy wording to change (guide never quoted the
+      modal title/footer)
+- [x] Smoke gate (541 passed)
 
-**▸ PLAYTEST Phase 4:** Earth showroom — buy/trade-in a ship; modal looks
-and reads identically except for consistent casing/format; `? guide`
-still opens the guide.
+**▸ PLAYTEST Phase 4:** Earth showroom — buy/trade-in a ship. Changes to
+look at: title now `SCOUT - FOR SALE`; footer now `ENTER buy   ESC walk
+away` (triple-space, no `? guide` per decision #2); detail line now
+`Price 5000$  Credits: 1000$` (colon added); trade-in line now
+`Trade-in value: 3000$  -  Credits: 1000$`. Everything else — body,
+row text, shortfall sentence — is byte-identical.
 
 Passed: [ ]   Issues: _______________
+
+Implemented: [x] — 541 passed, smoke PASS. `? guide` dropped from the
+footer for decision-#2 consistency (the GUIDE key handler stays,
+unadvertised, like the split terminals).
 
 ---
 
@@ -486,9 +495,10 @@ Passed: [ ]   Issues: _______________
    updated. The key handler in `pygame_split` remains but is
    unadvertised — the Phase 5 sweep reconciles the remaining
    `? guide` footers (quest log, faction, nav).
-3. **Ship-buy title casing.** `SCOUT - FOR SALE` (all-caps, matches the
-   terminal family) vs keeping `SCOUT - for sale`. Recommended:
-   all-caps via `terminal_title`.
+3. **Ship-buy title casing.** ~~`SCOUT - FOR SALE` (all-caps, matches
+   the terminal family) vs keeping `SCOUT - for sale`~~ → **RESOLVED
+   (Phase 4): all-caps** — `SCOUT - FOR SALE` via `terminal_title`;
+   one title grammar across terminals and ship buy.
 4. **Nav phrase.** `ARROW KEYS / j,k navigate` (menu family) vs
    `UP/DOWN or j/k navigate` (comms/cargo) vs `UP/DOWN navigate`
    (split). Recommended: one canonical phrase via `NAV_HINT`.
@@ -602,8 +612,10 @@ NO `? guide` in hints) · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→P
       shared hint (both playtest-approved); its chrome/font/values are
       the regression baseline
 8. [x] All tests + smoke pass (541 passed); guide matches implementation
-9. [ ] Ship buy adopts the Layer 1 helpers (Phase 4) with no visual
-      regression
+9. [x] Ship buy adopts the Layer 1 helpers (Phase 4): all-caps title,
+      helper-formatted prices/credits/shortfall, canonical hint — the
+      playtest-approved changes are casing, the colon in the detail
+      line, and the footer separators
 10. [ ] No modal advertises `? guide` (decision #2 — it's an
       exploration-mode key, not a modal key)
 11. [ ] One hint grammar (`modal_hint`) across all modal families
