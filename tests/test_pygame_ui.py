@@ -1284,15 +1284,16 @@ def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 2
     assert frame.body == ()  # ship stats live on the SHIP tab
-    assert "WEAPONS (1/2 slots)" in [row.text for row in frame.rows]
-    weapon_1 = next(row for row in frame.rows if row.text == "Weapon 1: Light Laser")
-    assert "Damage" in weapon_1.detail
-    assert any(row.text == "Weapon 2: [empty slot]" for row in frame.rows)
-    assert any(row.text == "Module 1: Shield Mk. 1" for row in frame.rows)
+    assert "WEAPON SLOTS" in [row.text for row in frame.rows]
+    assert "MODULE SLOTS" in [row.text for row in frame.rows]
+    laser_row = next(row for row in frame.rows if row.text == "Light Laser")
+    assert "Damage" in laser_row.detail
+    assert any(row.text == "[empty]" for row in frame.rows)
+    assert any(row.text == "Shield Mk. 1" for row in frame.rows)
     assert all(row.action != "LAUNCH" for row in frame.rows)
     assert any("TAB ship" in hint for hint in frame.footer)
     selectable = [row.text for row in frame.rows if row.selectable]
-    assert selectable == ["Weapon 1: Light Laser", "Module 1: Shield Mk. 1"]
+    assert selectable == ["Light Laser", "Shield Mk. 1"]
 
 
 def test_hangar_loadout_tab_marks_empty_slots():
@@ -1308,38 +1309,30 @@ def test_hangar_loadout_tab_marks_empty_slots():
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
 
     texts = [row.text for row in frame.rows]
-    assert "WEAPONS (0/2 slots)" in texts
-    assert "Weapon 1: [empty slot]" in texts
-    assert "Weapon 2: [empty slot]" in texts
-    assert "MODULES (0/1 slots)" in texts
-    assert "Module 1: [empty slot]" in texts
+    assert "WEAPON SLOTS" in texts
+    assert "MODULE SLOTS" in texts
+    assert texts.count("[empty]") == 3  # 2 weapon slots + 1 module slot
     assert all(not row.selectable for row in frame.rows)
 
 
 def test_slot_rows_render_installed_gear_beyond_slot_count():
     from src.spacehack.menus import _ship_menu
 
-    rows = _ship_menu._slot_rows(
-        "Weapon", 1, ("light_laser", "light_laser"), _ship_menu._weapon_row,
-    )
+    rows = _ship_menu._slot_rows(1, ("light_laser", "light_laser"), _ship_menu._weapon_row)
 
-    assert [row.text for row in rows] == [
-        "Weapon 1: Light Laser", "Weapon 2: Light Laser",
-    ]
+    assert [row.text for row in rows] == ["Light Laser", "Light Laser"]
     assert all(row.selectable for row in rows)
 
 
 def test_slot_rows_mark_unknown_ids_and_empty_slots():
     from src.spacehack.menus import _ship_menu
 
-    rows = _ship_menu._slot_rows(
-        "Module", 2, ("not_a_real_module",), _ship_menu._module_row,
-    )
+    rows = _ship_menu._slot_rows(2, ("not_a_real_module",), _ship_menu._module_row)
 
-    assert rows[0].text == "Module 1: not_a_real_module"
+    assert rows[0].text == "not_a_real_module"
     assert rows[0].detail == "Unknown module specification"
-    assert rows[1].text == "Module 2: [empty slot]"
-    assert rows[1].detail == "No module installed."
+    assert rows[1].text == "[empty]"
+    assert rows[1].detail == ""
     assert rows[0].selectable is True
     assert rows[1].selectable is False
 

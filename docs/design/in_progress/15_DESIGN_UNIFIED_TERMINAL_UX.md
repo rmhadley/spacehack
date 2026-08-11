@@ -559,13 +559,12 @@ LOADOUT -- no need for launch button." Implemented:
 - LOADOUT tab: read-only loadout rows, no Launch. Footer:
   `NAV_HINT, "TAB ship", "ESC back", GUIDE_HINT`.
 - **Refinement (pending user test):** LOADOUT renders EVERY slot —
-  section headers `WEAPONS (n/m slots)` / `MODULES (n/m slots)`, filled
-  slots show the gear (`Weapon N: <name>` / `Module N: <name>`,
-  selectable), empty slots read `Weapon N: [empty slot]` /
-  `Module N: [empty slot]` (non-selectable, "No weapon/module
-  installed."). Installed rows stay selectable; empty rows are skipped
-  by navigation. Shared `_slot_rows(prefix, slot_count, installed,
-  make_row)` helper builds both sections (DRY). help.py updated.
+  section headers `WEAPON SLOTS` / `MODULE SLOTS`, filled slots show
+  the gear by name (selectable, stats/description detail), empty slots
+  read bare `[empty]` (non-selectable, no detail) — mirroring the
+  mechanic's My Ship right panel. Shared
+  `_slot_rows(slot_count, installed, make_row)` + `_weapon_row` /
+  `_module_row` build both sections (DRY). help.py updated.
 - **Refinement 2 (pending user test):** LOADOUT body dropped — the
   fuel/hull/cargo/shields/power/speed lines duplicated the SHIP tab,
   so `body=()` (the shared renderer handles an empty body: no
