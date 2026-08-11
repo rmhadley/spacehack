@@ -220,6 +220,18 @@ def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
     _ground_result = _run_combat_unified(console, ctx, game_map, _rules_ground)
     _apply_ground_combat_rep(ctx, _ground_result)
     tutorial_module.notify_ground_combat_ended(ctx)
+    if _ground_result is not None and _ground_result.outcome == "DEFEAT":
+        # Ground death shows the same full-screen death frame as space
+        # defeat: no HUD, no console log, any key returns to the main
+        # menu immediately, and no save is written.
+        from .combat._encounter import _render_death_screen as _show_death
+        _show_death(
+            ctx,
+            lines=(
+                "YOU DIED",
+                "You collapse from your wounds.",
+            ),
+        )
     return _ground_result
 
 

@@ -152,6 +152,61 @@ def _frame_from_payload(data: dict[str, Any]) -> tuple[pygame_world.WorldFrame, 
     return frame, overlay, bool(data.get("interactive", False))
 
 
+_DEATH_LINES: tuple[str, ...] = (
+    "SHIP DESTROYED",
+    "Your ship has been destroyed.",
+    "All crew lost. All cargo lost.",
+)
+
+
+def present_death(ctx: Any, *, lines: tuple[str, ...] = ()) -> None:
+    """Present a full-screen death frame: no HUD, no console log.
+
+    Paints the entire shared surface dark red with a centered final
+    message (``lines[0]`` is the title, the rest the body). The
+    caller owns input waiting — this function only draws and flips.
+    """
+    from . import pygame_menu
+
+    runtime = getattr(getattr(ctx, "context", None), "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameCombatUnavailable(
+            "Shared Pygame death presentation is not open"
+        )
+    lines = lines or _DEATH_LINES
+    if not lines:
+        raise PygameCombatUnavailable("Death frame has no text")
+    pygame = engine.pygame
+    screen = engine.logical_surface
+    width, height = screen.get_size()
+    font_path = pygame_menu._font_path(pygame)
+    title_font = pygame.font.Font(font_path, max(24, height // 15))
+    body_font = pygame.font.Font(font_path, max(14, height // 40))
+    screen.fill((40, 0, 0))  # dark red
+    content = pygame_ui.Rect(0, 0, width, height)
+    title, *body = lines
+    title_y = int(height * 0.38)
+    pygame_ui.draw_centered_text(
+        pygame, screen, title_font, title, content, title_y,
+        color=(255, 90, 90),
+    )
+    body_y = title_y + title_font.get_linesize() + 24
+    for line in body:
+        pygame_ui.draw_centered_text(
+            pygame, screen, body_font, line, content, body_y,
+            color=(235, 210, 210),
+        )
+        body_y += body_font.get_linesize() + 10
+    prompt_y = height - 130
+    pygame_ui.draw_centered_text(
+        pygame, screen, body_font,
+        "Press any key to return to the main menu",
+        content, prompt_y, color=(255, 240, 175),
+    )
+    engine.present()
+
+
 def present(ctx: Any, console: Any) -> None:
     """Present a combat frame through the shared Pygame runtime."""
     presenter = getattr(ctx, "_pygame_combat_presenter", None)

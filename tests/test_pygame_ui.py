@@ -240,6 +240,134 @@ def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
     assert kwargs["overlay"].messages[0].text == "M"
 
 
+def test_combat_present_death_requires_shared_runtime():
+    ctx = SimpleNamespace(
+        context=SimpleNamespace(_runtime=SimpleNamespace(engine=None)),
+    )
+
+    try:
+        pygame_combat.present_death(ctx)
+    except pygame_combat.PygameCombatUnavailable:
+        pass
+    else:
+        raise AssertionError("death frame must require the shared runtime")
+
+
+def test_combat_present_death_paints_full_surface_without_hud_or_log(monkeypatch):
+    """The death frame fills the whole surface — no HUD, no log band."""
+    class FakeFont:
+        def get_linesize(self):
+            return 24
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def Font(_path, _size):
+                return FakeFont()
+
+    class Surface:
+        def __init__(self):
+            self.size = (1600, 960)
+            self.filled = None
+
+        def get_size(self):
+            return self.size
+
+        def fill(self, color):
+            self.filled = color
+
+    surface = Surface()
+    presented = []
+    engine = SimpleNamespace(
+        pygame=FakePygame,
+        logical_surface=surface,
+        present=lambda: presented.append(1),
+    )
+    ctx = SimpleNamespace(
+        context=SimpleNamespace(_runtime=SimpleNamespace(engine=engine)),
+    )
+    drawn = []
+    monkeypatch.setattr(
+        pygame_ui, "draw_centered_text",
+        lambda _pygame, _screen, _font, text, _rect, _y, **_kwargs: drawn.append(text),
+    )
+    monkeypatch.setattr(pygame_menu, "_font_path", lambda _pygame: None)
+
+    pygame_combat.present_death(ctx, lines=("YOU DIED", "You collapse."))
+
+    assert surface.filled == (40, 0, 0)
+    assert presented == [1]
+    assert "YOU DIED" in drawn
+    assert "You collapse." in drawn
+    assert "Press any key to return to the main menu" in drawn
+
+
+def test_render_death_screen_presents_full_screen_and_waits_for_key(monkeypatch):
+    from src.spacehack.combat import _encounter
+    import tcod.event
+
+    calls = []
+    monkeypatch.setattr(
+        pygame_combat, "present_death",
+        lambda ctx, lines=(): calls.append((ctx, lines)),
+    )
+    key_down = tcod.event.KeyDown(
+        scancode=tcod.event.Scancode.UNKNOWN,
+        sym=tcod.event.KeySym.A,
+        mod=0,
+    )
+    monkeypatch.setattr(_encounter.tcod.event, "wait", lambda: (key_down,))
+
+    ctx = SimpleNamespace()
+    _encounter._render_death_screen(ctx)
+
+    assert calls == [(ctx, ())]
+
+
+def test_ground_defeat_shows_full_screen_death_frame(monkeypatch):
+    from src.spacehack import __main__ as game_main
+    from src.spacehack.combat import _encounter
+    from src.spacehack.combat._types import CombatResult
+
+    ctx = SimpleNamespace(
+        player=SimpleNamespace(pos=SimpleNamespace(x=1, y=1)),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    game_map = SimpleNamespace(sight_radius=8)
+    console = object()
+    hostiles = [SimpleNamespace()]
+    shown = []
+    monkeypatch.setattr(
+        "src.spacehack.ground_npcs.move_ground_npcs", lambda *args: None,
+    )
+    monkeypatch.setattr(
+        "src.spacehack.dungeon.reveal_around", lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(_encounter, "detect_ground_combat", lambda *args: hostiles)
+    monkeypatch.setattr(game_main, "_ground_init", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        game_main, "_run_combat_unified",
+        lambda *args: CombatResult(outcome="DEFEAT"),
+    )
+    monkeypatch.setattr(game_main, "_apply_ground_combat_rep", lambda *args: None)
+    monkeypatch.setattr(
+        game_main.tutorial_module, "maybe_ground_combat_intro", lambda *args: None,
+    )
+    monkeypatch.setattr(
+        game_main.tutorial_module, "notify_ground_combat_ended", lambda *args: None,
+    )
+    monkeypatch.setattr(
+        _encounter, "_render_death_screen",
+        lambda ctx, **kwargs: shown.append((ctx, kwargs)),
+    )
+
+    result = game_main._run_ground_combat_tick(ctx, console, game_map)
+
+    assert result.outcome == "DEFEAT"
+    assert shown and shown[0][0] is ctx
+    assert shown[0][1]["lines"] == ("YOU DIED", "You collapse from your wounds.")
+
+
 def test_navigation_capture_trims_empty_rows_for_readable_font_fit(monkeypatch):
     captured = pygame_world.CaptureConsole(100, 60)
 

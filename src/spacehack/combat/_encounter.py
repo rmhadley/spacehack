@@ -4,8 +4,9 @@ _handle_combat_encounter is the wrapper called from __main__.py
 to start combat and handle victory/defeat outcomes (bounty
 completion, death screen).
 
-_render_death_screen displays the dramatic "ship destroyed" overlay
-when the player loses.
+_render_death_screen presents a full-screen "ship destroyed" frame
+(no HUD, no console log) when the player loses; any key returns to
+the main menu immediately and no save is written.
 """
 
 from __future__ import annotations
@@ -14,7 +15,6 @@ import tcod.event
 
 from .. import world
 from .. import message_log as _ml
-from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 from ._loop import run_combat
 from . import _rules_space
 
@@ -217,7 +217,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
 
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
-        _render_death_screen(console, ctx, ctx.log)
+        _render_death_screen(ctx)
     elif _cr.outcome == "FLEE":
         # Apply cowardice rep penalty for fleeing combat.
         from ..faction import modify_rep, _COMBAT_FLEE_DELTAS
@@ -309,11 +309,15 @@ def detect_ground_combat(
     return visible_hostiles(ctx, game_map, player_pos, _radius)
 
 
-def _wait_for_death_input(ctx, console) -> None:
-    """Wait for dismissal through the shared Pygame presentation."""
+def _wait_for_death_input(ctx, lines: tuple[str, ...] = ()) -> None:
+    """Wait for dismissal through the shared Pygame presentation.
+
+    Presents the full-screen death frame (no HUD, no console log) and
+    returns on any key, or exits on window close.
+    """
     from .. import pygame_combat
 
-    pygame_combat.present(ctx, console)
+    pygame_combat.present_death(ctx, lines=lines)
     for event in tcod.event.wait():
         if isinstance(event, tcod.event.Quit):
             raise SystemExit()
@@ -321,45 +325,12 @@ def _wait_for_death_input(ctx, console) -> None:
             return
 
 
-def _render_death_screen(console, ctx, log) -> None:
+def _render_death_screen(ctx, *, lines: tuple[str, ...] = ()) -> None:
     """Display a dramatic full-screen death overlay and wait for input.
 
-    Renders a red-tinted screen with a final message and the message
-    log so the player can review how they died.
+    The entire shared surface is painted dark red with a centered
+    final message - no HUD column, no console-log band. Any key
+    returns to the main menu immediately; the death path never
+    writes a save.
     """
-    from .. import message_log as _ml
-
-    _lines = [
-        "",
-        "╔══════════════════════════════════════╗",
-        "║          SHIP DESTROYED              ║",
-        "╚══════════════════════════════════════╝",
-        "",
-        "Your ship has been destroyed.",
-        "All crew lost. All cargo lost.",
-        "",
-        "Press any key to return to the main menu...",
-    ]
-
-    while True:
-        console.clear()
-        console_bg = (40, 0, 0)  # dark red background
-        for y in range(SCREEN_HEIGHT):
-            for x in range(SCREEN_WIDTH):
-                console.print(x=x, y=y, string=" ", fg=(255, 255, 255), bg=console_bg)
-
-        # Centre the death message
-        _msg_y = SCREEN_HEIGHT // 2 - len(_lines) // 2
-        for _i, _line in enumerate(_lines):
-            _x = (SCREEN_WIDTH - len(_line)) // 2
-            console.print(x=_x, y=_msg_y + _i, string=_line, fg=(255, 80, 80))
-
-        # Show recent log entries at the bottom
-        _ml.render_message_log(
-            console, log,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-        )
-
-        _wait_for_death_input(ctx, console)
-        return
+    _wait_for_death_input(ctx, lines=lines)
