@@ -327,11 +327,6 @@ def _draw_frame(
             pygame, screen, font, line, x, y, color=palette.description,
         )
         y += body_step
-    if body_lines and frame.page_offset > 0:
-        pygame_ui.draw_text(
-            pygame, screen, font, f"[page offset {frame.page_offset}]",
-            x, 64, color=palette.instruction,
-        )
     y += body_rows_gap
     window_top, window_count = pygame_ui.visible_window(
         frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
