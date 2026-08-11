@@ -53,10 +53,14 @@ Run: `python3 tools/_font_estimate.py` (committed with Phase 1).
 | Trade (Earth) | **14px** | 15 (0 div) | many goods, details wrap to 2 lines |
 | NPC trade (6 goods) | 24px | 6 (0 div) | small stock |
 
-Frame-height budget at 1600×960 is 682px. At 24px a row costs 43px, a
-divider 34px, a wrapped detail line 31px. → **9 visible selectable rows
-per panel + up to 2 detail lines fits at 24px (667px).** 10 rows already
-overflows (710px).
+Frame-height budget at 1600×960 is 722px (``modal_footer_y - 80``,
+mirroring the real panel bottom). At 24px a row costs 43px, a divider
+34px, a wrapped detail line 31px — the pinned panel's physical maximum
+is **10 visible selectable rows at 24px**, verified against the real
+bundled DejaVu font. Decision #8 (user playtest) set the cap to **13**:
+at 1600×960 the armory then renders at ~19px and trade at ~21px while
+loadout/NPC stay 24px (fonts below the cap diverge per terminal); on a
+taller window the budget scales and 13 rows hold 24px.
 
 ### String drift (today)
 
@@ -83,7 +87,9 @@ overflows (710px).
 
 ### A. Deterministic font sizing (the headline fix) — `pygame_split.py`
 
-1. Add `MAX_VISIBLE_ROWS = 9` and `MAX_DETAIL_LINES = 2` constants.
+1. Add `MAX_VISIBLE_ROWS = 10` and `MAX_DETAIL_LINES = 2` constants
+   (10 = the most selectable rows the real panel holds at 24px —
+   measured with the bundled DejaVu font; 11 clips).
 2. `_frame_height()` counts **capped** rows per panel: iterate rows,
    counting selectable rows; once the count reaches `MAX_VISIBLE_ROWS`,
    stop accumulating (still add the current row's height). Wrapped detail
@@ -118,7 +124,7 @@ so the `pygame_screen` / `pygame_menu` modal families can adopt them too
 | `shortfall_label(short)` | `f"{short}$ short"` | inline afford text (ship buy) |
 | `reward_label(credits, xp)` | `f"Reward: {credits}$ + {xp}xp"` | inline merchant board hints |
 | `modal_hint(*parts)` | parts joined with `"   "`, trailing `.` stripped | 4 separator styles across ~15 modals; makes `? guide` a standard part |
-| `SPLIT_SHOP_HINT` | `modal_hint("UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell", "ESC back", "? guide")` | 4 copy-pasted hints |
+| `SPLIT_SHOP_HINT` | `modal_hint("UP/DOWN navigate", "TAB switch panel", "ENTER buy/sell", "ESC back")` — no `? guide` (decision #2) | 4 copy-pasted hints |
 
 **Footer rule (matches loadout):** `footer_left = credits_label(...)`,
 `footer_right =` domain stat (loadout: `Wpn: x/y  Mod: x/y` unchanged;
@@ -187,7 +193,7 @@ accounted for; zero tcod `ui.Modal` call sites remain in `src/`.*
 |---|---|---|
 | `pygame_split` | Armory, Ship Loadout, Station Trade, NPC Trade | Layers 1+2+3 (Phases 1–3) |
 | `pygame_screen` | Ship buy, Cargo, Mechanic, Buy Ammo, read-only Loadout, Character sheet, Help guide, **Trait selection** | Layer 1 + `modal_hint` now; Layer 2 only if it demonstrably clips |
-| `pygame_menu` | Ship hangar, Planet, NPC talk, GO TO, Jump confirm, Comms ×2, Loot, Character pickers ×2, Story ×3 (dismiss/confirm/choose), **Dungeon breach confirm**, **Main-quest help offer**, **Active-mission delivery board**, Title, Dev picker | Layer 1 where prices appear, `modal_hint` + `? guide` (Phase 5), Layer 2 font floor (Phase 6); ship hangar moves to `pygame_screen` with CARGO/LOADOUT tabs (Phase 7) |
+| `pygame_menu` | Ship hangar, Planet, NPC talk, GO TO, Jump confirm, Comms ×2, Loot, Character pickers ×2, Story ×3 (dismiss/confirm/choose), **Dungeon breach confirm**, **Main-quest help offer**, **Active-mission delivery board**, Title, Dev picker | Layer 1 where prices appear, `modal_hint` (Phase 5, no `? guide` per decision #2), Layer 2 font floor (Phase 6); ship hangar moves to `pygame_screen` with CARGO/LOADOUT tabs (Phase 7) |
 | `pygame_merchant` | Guild master (mission board) | `reward_label`, `modal_hint` (title `{npc} - available work` already matches the screen-family grammar) |
 | Specialized | Quest log, Faction standings, Auto-nav map, **Quantity prompt** (sub-modal of trade/armory flows) | Conventions only — quest log/faction/nav already advertise `? guide`; quantity prompt is a single-line stepper, conventions light (see Phase 5 note) |
 
@@ -242,7 +248,8 @@ an NPC trader in space. Open each.
       bottom (known cap trade-off — review flagged it; `set_clip`
       protects layout but a description can be cut mid-line)
 - [x] Loadout looks pixel-identical to before (regression baseline)
-- [x] `?` opens the guide from a split terminal
+- [x] `?` is NOT a modal key (decision #2 — the hint no longer
+      advertises it)
 
 Passed: [x]   Issues: none — user approved ("phase 1 is great").
 
@@ -271,28 +278,62 @@ Passed: [x]   Issues: none — no visual change, helpers unused by design.
 
 ### Phase 3 — Migrate the four terminals
 
-- [ ] `_loadout.py` → helpers; verify zero visual change
-- [ ] `_armory.py` → `planet_id` param, `ARMORY - <PLANET>` title,
+- [x] `_loadout.py` → helpers; verify zero visual change (chrome, font,
+      prices, footers identical — only the hint now uses the shared
+      `SPLIT_SHOP_HINT`, see note below)
+- [x] `_armory.py` → `planet_id` param, `ARMORY - <PLANET>` title,
       footer_right slot counts, `section_header` dividers
-- [ ] `trade.py` → `credits_label`/`cargo_label` footers, `price_cell`/
+- [x] `trade.py` → `credits_label`/`cargo_label` footers, `price_cell`/
       `sell_cell`, hint constant (both station + NPC trade)
-- [ ] Update existing frame tests that assert old strings (armory title,
+- [x] Update existing frame tests that assert old strings (armory title,
       trade footer)
-- [ ] `help.py` terminal sections updated ("My Ship", `? guide`)
-- [ ] Smoke gate
+- [x] `help.py` terminal sections updated ("My Loadout", `? guide`)
+- [x] Smoke gate
 
 **▸ PLAYTEST Phase 3:**
 
-- [ ] Armory title shows the planet: `ARMORY - EARTH`
-- [ ] Armory footer right shows `Wpn: 0/2  Arm: x/5` (no dead space)
-- [ ] Trade footer shows `Credits: N$` left, `Cargo: N/M` right
-- [ ] Sell cells all read `(sell N$)` / `(sell N$) xN`; buy cells `N$`
-      / `N$ (N)` — same style on every terminal
-- [ ] Guide sections for armory/trade/loadout match actual labels
-- [ ] Loadout unchanged; full buy/sell cycle works on all four terminals
-- [ ] ESC/QUIT from each terminal returns cleanly
+- [x] Armory title shows the planet: `ARMORY - EARTH` — approved
+- [x] Armory footer right shows `Wpn: 0/2  Arm: x/5` — approved
+- [x] Trade footer shows `Credits: N$` left, `Cargo: N/M` right — approved
+- [x] Sell cells all read `(sell N$)` / `(sell N$) xN`; buy cells `N$`
+      / `N$ (N)` — approved
+- [x] Guide sections for armory/trade/loadout match actual labels
+- [x] Loadout hint change approved ("change is fine")
+- [x] ESC/QUIT from each terminal returns cleanly
 
-Passed: [ ]   Issues: _______________
+Passed: [x]   Issues: two, both fixed in this revision — (a) lists
+scrolled a row sooner than needed (cap 9 left ~78px of empty panel;
+cap 10 + widened fit budget now fills it, verified at 24px with the
+real DejaVu font); (b) `? guide` removed from the hint and guide text
+(decision #2 — `?` is not a modal key). Re-test items below.
+
+**▸ RE-TEST (post-fix):**
+
+- [x] Long lists (armory 20 rows, trade 15) scroll only after the 13th
+      visible row; scrolling "feels natural" — user-approved
+- [x] All four terminals render at the decision-#8 fonts (loadout/NPC
+      24px, armory ~19px, trade ~21px) — approved ("lining up
+      perfectly")
+- [x] No terminal hint mentions `? guide`
+- [x] **EXPERIMENT (decision #7):** the focused panel's description is
+      pinned to the bottom edge of its panel (stable anchor while rows
+      scroll above it) — APPROVED by user ("I like that a lot better,
+      even on the loadout").
+- [x] **EXPERIMENT (decision #8):** row cap bumped 10 → 13 (user:
+      "3 more items before scrolling") — APPROVED ("this is lining up
+      perfectly. now scroll feels natural"). At 1600×960 logical the
+      armory renders at ~19px and trade at ~21px while loadout/NPC stay
+      24px (fonts below the cap diverge; the fit is stable once a list
+      exceeds the cap). On a taller window the budget scales and 13
+      rows hold 24px. Revert = one constant back to 10.
+
+Implemented: [x] — all four terminals render at 24px, 541 passed,
+smoke PASS. Code review caught and fixed one real bug: `_run_armory_menu`
+wasn't forwarding `planet_id` to the frame builder (title would have
+rendered bare `ARMORY` in-game); a regression test now pins the
+forwarding path. `_hold_cargo_label` extracted (killed duplicated footer
+computation in both trade frames) with a direct test. help.py also fixed
+a second stale line ("ENTER equips/unequips" → "ENTER sells").
 
 ---
 
@@ -327,9 +368,10 @@ Layer 1 + Layer 3 only — no layout work.
       trait selection, title, character pickers, ship buy, cargo,
       mechanic, ammo, merchant board, help guide
 - [ ] Quantity prompt: verify its hint/label style matches
-      (`UP/DOWN adjust   ENTER confirm   ESC cancel`), add `? guide`
-      only if it doesn't crowd the line
-- [ ] `? guide` added to every interactive modal hint
+      (`UP/DOWN adjust   ENTER confirm   ESC cancel`)
+- [ ] NO modal hint advertises `? guide` (decision #2); reconcile the
+      pre-existing `? guide` footers (quest log, faction, nav) —
+      remove or verify they work
 - [ ] Value helpers where prices/rewards/credits appear (ship buy,
       merchant board, loot, cargo, ammo, mechanic, ship hangar stats)
 - [ ] Unify nav phrase (`ARROW KEYS / j,k` vs `UP/DOWN or j/k`) via
@@ -404,7 +446,10 @@ Passed: [ ]   Issues: _______________
 ### Phase 8 — Final gates
 
 - [ ] `python3 tools/smoke.py && python3 tools/test.py` pass
-- [ ] `tools/_font_estimate.py` reports 24px on all four terminals
+- [ ] `tools/_font_estimate.py` reports the decision-#8 fonts (loadout/
+      NPC 24px, armory ~19px, trade ~21px at 1600×960) — Phase 3
+      revision verified with REAL pygame fonts (bundled DejaVu): all
+      four FIT with no clipping
 - [ ] Full playtest: buy/sell + scroll on every terminal, save → quit →
       Continue intact (no new mutable state — scroll is derived from
       selection, nothing to persist)
@@ -434,8 +479,13 @@ Passed: [ ]   Issues: _______________
 1. **Footer slot roles.** Recommended (matches loadout): credits LEFT,
    domain stat RIGHT on every terminal. Trade currently reverses this.
    Flip is a one-line swap if undesired.
-2. **`? guide` in the hint.** Recommended: yes — the renderer already
-   handles the key; hiding it violates discoverability.
+2. **`? guide` in the hint.** ~~Recommended: yes~~ → **RESOLVED (Phase 3
+   playtest): NO.** The user reports `?` doesn't work inside modals
+   (`?` is an exploration-mode key) and directed its removal from the
+   hints. `SPLIT_SHOP_HINT` no longer advertises it; help.py guide text
+   updated. The key handler in `pygame_split` remains but is
+   unadvertised — the Phase 5 sweep reconciles the remaining
+   `? guide` footers (quest log, faction, nav).
 3. **Ship-buy title casing.** `SCOUT - FOR SALE` (all-caps, matches the
    terminal family) vs keeping `SCOUT - for sale`. Recommended:
    all-caps via `terminal_title`.
@@ -451,9 +501,31 @@ Passed: [ ]   Issues: _______________
    (matches the current 3rd menu option). Alternatives: a hotkey
    (needs new key plumbing in `pygame_screen`) or a third tab
    (rejected — Launch is an action, not a view).
+7. **Pinned description (EXPERIMENT — Phase 3 revision).** Anchor the
+   focused panel's description to the panel's bottom edge (stable
+   position while rows scroll above it) vs today's
+   description-floating-after-the-rows. Implemented in
+   `pygame_split._draw_panel` with `DETAIL_BOTTOM_PAD` /
+   `ROWS_DETAIL_GAP`, applies to all four terminals through the shared
+   renderer (verified: all four still pick 24px; armory's 10-row window
+   fits with 22px slack above the pinned description). Trade-off: long
+   lists fill the panel; short lists (loadout, NPC trader) show a gap
+   between the last row and the pinned description.
+   **RESOLVED: user approves the pin** ("I like that a lot better,
+   even on the loadout").
+8. **Row depth vs font size (EXPERIMENT — Phase 3 revision).**
+   **RESOLVED: cap 13 approved** ("this is lining up perfectly. now
+   scroll feels natural"). The perceptual "room for 3 more" came from
+   the text gap below the last row (trade: 122px, loadout: 296px of
+   air above the pinned description); 13 full rows at 24px don't fit
+   the 1600×960 panel, so armory renders ~19px and trade ~21px while
+   loadout/NPC stay 24px. Revert to 10 is one constant.
 
 **Where each decision lands (implementation stops for a user playtest):**
-#1→Phase 3 · #2→Phase 3 · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→Phase 7
+#1→Phase 3 (approved: credits-left/cargo-right) · #2→Phase 3 (resolved:
+NO `? guide` in hints) · #3→Phase 4 · #4→Phase 5 · #5→Phase 5 · #6→Phase 7
+· #7→Phase 3 revision (RESOLVED: pin approved) · #8→Phase 3 revision
+(RESOLVED: cap 13 approved)
 
 ## Pre-implementation audit
 
@@ -515,23 +587,32 @@ Passed: [ ]   Issues: _______________
 
 ## Acceptance criteria
 
-1. [ ] All four split terminals render at the same font size (loadout's)
-2. [ ] Long panels scroll; selection is never off-screen
-3. [ ] `ARMORY - <PLANET>` title; no empty footer slot anywhere
-4. [ ] `Credits: N$` / `Cargo: N/M` everywhere they appear
-5. [ ] One shared hint constant; `? guide` works and is advertised
-6. [ ] Zero duplicate string literals across the four builders
-7. [ ] Loadout is visually unchanged (regression baseline)
-8. [ ] All tests + smoke pass; guide matches implementation
+1. [x] All four split terminals render at the same font size (loadout's)
+      — superseded by decision #8 (cap 13): long lists trade uniform
+      24px for depth (armory ~19px, trade ~21px, loadout/NPC 24px);
+      the fit is stable once a list exceeds the cap
+2. [x] Long panels scroll; selection is never off-screen
+3. [x] `ARMORY - <PLANET>` title; no empty footer slot anywhere
+4. [x] `Credits: N$` / `Cargo: N/M` everywhere they appear
+5. [x] One shared hint constant; the four split terminals no longer
+      advertise `? guide` (decision #2; the rest of the modal families
+      are swept in Phase 5)
+6. [x] Zero duplicate string literals across the four builders
+7. [x] Loadout renders at the user-approved look: pinned description +
+      shared hint (both playtest-approved); its chrome/font/values are
+      the regression baseline
+8. [x] All tests + smoke pass (541 passed); guide matches implementation
 9. [ ] Ship buy adopts the Layer 1 helpers (Phase 4) with no visual
       regression
-10. [ ] Every interactive modal advertises `? guide` and it works
+10. [ ] No modal advertises `? guide` (decision #2 — it's an
+      exploration-mode key, not a modal key)
 11. [ ] One hint grammar (`modal_hint`) across all modal families
 12. [ ] Menus/screens that can clip render at the same font as terminals
       (Phase 6) or are explicitly exempt (tiny content)
 13. [ ] Ship hangar is a tabbed CARGO/LOADOUT screen (C-screen pattern)
       with Launch still reachable; no nested cargo/loadout modals
-14. [ ] Every tunable (palette, fonts, title/hint/value formats) is a
-      single constant/helper — one edit updates all modals
+14. [x] Every tunable (palette, fonts, title/hint/value formats, row
+      cap, pin geometry) is a single constant/helper — one edit updates
+      all modals
 15. [ ] All six Open decisions resolved via user playtest (EXPERIMENT
       workflow), none silently guessed
