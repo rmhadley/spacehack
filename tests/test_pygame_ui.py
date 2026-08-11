@@ -3346,3 +3346,109 @@ def test_guide_says_esc_saves_and_confirms_before_exit():
         if section.title == "Controls & Keybindings"
     )
     assert "save and exit to the main menu (asks first)" in controls.body
+
+
+def test_font_path_prefers_bundled_font_over_system_match(monkeypatch):
+    families = []
+
+    class FakeFile:
+        exists = True
+
+        def is_file(self):
+            return self.exists
+
+        def __truediv__(self, _other):
+            return self
+
+    class FakePath:
+        def __init__(self, *_args):
+            self.parent = self
+
+        def __truediv__(self, _other):
+            return FakeFile()
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(family):
+                families.append(family)
+                return f"/system/{family}.ttf"
+
+    monkeypatch.setattr(pygame_merchant, "Path", FakePath)
+
+    assert pygame_merchant._font_path(FakePygame) is not None
+    # The bundled font wins; the system font table is never consulted.
+    assert families == []
+
+
+def test_font_path_falls_back_to_system_fonts_when_bundled_missing(monkeypatch):
+    families = []
+
+    class FakeFile:
+        def is_file(self):
+            return False
+
+        def __truediv__(self, _other):
+            return self
+
+    class FakePath:
+        def __init__(self, *_args):
+            self.parent = self
+
+        def __truediv__(self, _other):
+            return FakeFile()
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(family):
+                families.append(family)
+                return f"/system/{family}.ttf"
+
+    monkeypatch.setattr(pygame_merchant, "Path", FakePath)
+
+    assert (
+        pygame_merchant._font_path(FakePygame)
+        == "/system/DejaVu Sans Mono.ttf"
+    )
+    # Families are tried in order; the first system hit wins.
+    assert families == ["DejaVu Sans Mono"]
+
+
+def test_font_path_returns_none_when_no_font_is_found(monkeypatch):
+    families = []
+
+    class FakeFile:
+        def is_file(self):
+            return False
+
+        def __truediv__(self, _other):
+            return self
+
+    class FakePath:
+        def __init__(self, *_args):
+            self.parent = self
+
+        def __truediv__(self, _other):
+            return FakeFile()
+
+    class FakePygame:
+        class font:
+            @staticmethod
+            def match_font(family):
+                families.append(family)
+                return None
+
+    monkeypatch.setattr(pygame_merchant, "Path", FakePath)
+
+    assert pygame_merchant._font_path(FakePygame) is None
+    # Every candidate is exhausted before giving up.
+    assert families == ["DejaVu Sans Mono", "Liberation Mono", "Courier New"]
+
+
+def test_bundled_dejavu_mono_font_ships_with_the_package():
+    from pathlib import Path
+
+    bundled = Path(pygame_merchant.__file__).parent / "data" / "DejaVuSansMono.ttf"
+
+    assert bundled.is_file()

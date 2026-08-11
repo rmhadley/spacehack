@@ -144,13 +144,21 @@ def _load_pygame() -> Any:
 
 
 def _font_path(pygame: Any) -> str | None:
-    """Choose a readable monospace font, preferring a system font."""
+    """Choose a readable monospace font.
+
+    The bundled DejaVu Sans Mono wins so rendering is identical on every
+    machine (and it is the only reliable source in frozen builds, where
+    system font discovery may miss). System match_font is the fallback for
+    editable installs that predate the bundled file.
+    """
+    bundled = Path(__file__).parent / "data" / "DejaVuSansMono.ttf"
+    if bundled.is_file():
+        return str(bundled)
     for family in ("DejaVu Sans Mono", "Liberation Mono", "Courier New"):
         path = pygame.font.match_font(family)
         if path:
             return path
-    bundled = Path(__file__).parent / "data" / "Hack-Regular.ttf"
-    return str(bundled) if bundled.is_file() else None
+    return None
 
 
 def _frame_for(
