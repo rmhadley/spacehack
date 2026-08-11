@@ -6,7 +6,7 @@ Each sub-module owns one menu domain:
 * ``_missions.py`` — mission offerings screen
 * ``_quest_log.py`` — quest log overlay
 * ``_ship_menu.py`` — hangar ship menu (View Cargo / Launch)
-* ``_mechanic.py`` — mechanic terminal (Refuel, Repair, Loadout)
+* ``_mechanic.py`` — mechanic terminal (REPAIRS / AMMO / LOADOUT tabs)
 * ``_loadout.py`` — loadout management split-screen modal
 * ``_planet.py`` — planet-bump dialog
 

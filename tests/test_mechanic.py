@@ -9,7 +9,9 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.data.ships import find_ship
+from src.spacehack.menus import _mechanic
 from src.spacehack.menus._mechanic import _REPAIR_COST_PCT, _repair_preview
+from src.spacehack.ship import OwnedShip
 
 
 class TestRepairPreview:
@@ -45,3 +47,45 @@ class TestRepairPreview:
     def test_negative_damage_never_charges(self):
         owned = SimpleNamespace(hull_damage_pct=-10)
         assert _repair_preview(owned, find_ship("starter")) == 0
+
+
+class TestMechanicFrameTabs:
+    """Tabbed mechanic frame: REPAIRS / AMMO / LOADOUT."""
+
+    def _ctx(self, weapons):
+        return SimpleNamespace(
+            player_owned_ship=OwnedShip(ship_id="scout", weapons=weapons),
+            stats=SimpleNamespace(credits=1000),
+        )
+
+    def test_repairs_tab_lists_refuel_and_repair(self):
+        ctx = self._ctx(("light_laser",))
+        tabs = _mechanic._mechanic_tabs([])
+        frame = _mechanic._mechanic_frame(ctx, find_ship("scout"), 0, 0, tabs, [])
+
+        assert tabs == ("REPAIRS", "LOADOUT")
+        assert frame.active_tab == 0
+        assert [row.action for row in frame.rows] == ["REFUEL", "REPAIR"]
+
+    def test_ammo_tab_only_with_missile_launcher(self):
+        ctx = self._ctx(("light_laser", "light_missile"))
+        missile_slots = [1]
+        tabs = _mechanic._mechanic_tabs(missile_slots)
+
+        assert tabs == ("REPAIRS", "AMMO", "LOADOUT")
+        frame = _mechanic._mechanic_frame(ctx, find_ship("scout"), 1, 0, tabs, missile_slots)
+        assert frame.active_tab == 1
+        assert frame.rows
+        assert all(row.action.startswith("AMMO:") for row in frame.rows)
+
+    def test_loadout_tab_shows_parts_and_manage_row(self):
+        ctx = self._ctx(("light_laser", "light_missile"))
+        tabs = _mechanic._mechanic_tabs([1])
+        loadout_index = tabs.index("LOADOUT")
+        frame = _mechanic._mechanic_frame(
+            ctx, find_ship("scout"), loadout_index, 0, tabs, [1],
+        )
+
+        assert frame.active_tab == loadout_index
+        assert any(row.action == "LOADOUT" for row in frame.rows)
+        assert any("WEAPON SLOTS" in row.text for row in frame.rows)
