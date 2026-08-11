@@ -20,10 +20,9 @@ City mode (default):
 Space mode (when ``owned_ship`` is provided):
     +-----------------+----------+
     |                 | Spacehack|
-    |                 | SCOUT    |
-    |       MAP       |          |
-    |     REGION      | Fuel 90  |
-    |                 | Hull  0% |
+    |                 | SCOUT    |    |       MAP     |          |
+    |     REGION     | Fuel 90  |
+    |                 | Hull 100%|
     |                 | Cargo 0  |
     |                 | Wpn 0/2  |
     |                 | Mod 0/1  |
@@ -269,8 +268,7 @@ def render_hud(
         ship_name = _ship_cat_mod.ship_display_name(owned_ship)
         fuel = getattr(owned_ship, 'fuel', 0)
         max_fuel = getattr(ship_catalog, 'max_fuel', 1)
-        hull_damage = getattr(owned_ship, 'hull_damage_pct', 0)
-        hull_pct = 100 - hull_damage
+        hull_pct = _ship_cat_mod.hull_integrity_pct(owned_ship)
         cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
         weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
         weapon_slots = getattr(ship_catalog, 'weapon_slots', 0)

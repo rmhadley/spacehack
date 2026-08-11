@@ -179,6 +179,17 @@ def ship_display_name(owned: OwnedShip | None) -> str:
     return find_ship(owned.ship_id).name
 
 
+def hull_integrity_pct(owned: OwnedShip) -> int:
+    """Return hull integrity as a percentage: 100% pristine, 0% destroyed.
+
+    The inverse of :attr:`OwnedShip.hull_damage_pct` — combat and the
+    mechanic write damage; every status display (HUD, hangar, mechanic,
+    cargo) should read integrity so a fresh ship reads ``Hull 100%``
+    instead of ``Hull 0% damage``.
+    """
+    return max(0, min(100, 100 - getattr(owned, 'hull_damage_pct', 0)))
+
+
 def effective_speed(ship_spec: Ship, owned: OwnedShip) -> int:
     """Sum base ship speed + all module speed_bonuses.
 

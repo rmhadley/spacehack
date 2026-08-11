@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.ship import (
     total_ammo_cargo,
+    hull_integrity_pct,
     effective_speed,
     effective_max_cargo,
     smuggler_hold_capacity,
@@ -154,6 +155,32 @@ class TestSellPrice:
 
     def test_unknown_type(self):
         assert _sell_price("unknown", "anything") == 0
+
+
+# ---------------------------------------------------------------------------
+# hull_integrity_pct
+# ---------------------------------------------------------------------------
+
+class TestHullIntegrityPct:
+    """100% minus hull damage, clamped to 0-100."""
+
+    def test_pristine(self):
+        assert hull_integrity_pct(SimpleNamespace(hull_damage_pct=0)) == 100
+
+    def test_partial_damage(self):
+        assert hull_integrity_pct(SimpleNamespace(hull_damage_pct=5)) == 95
+
+    def test_destroyed(self):
+        assert hull_integrity_pct(SimpleNamespace(hull_damage_pct=100)) == 0
+
+    def test_missing_attr_is_pristine(self):
+        assert hull_integrity_pct(SimpleNamespace()) == 100
+
+    def test_negative_damage_clamped_to_full(self):
+        assert hull_integrity_pct(SimpleNamespace(hull_damage_pct=-10)) == 100
+
+    def test_damage_over_100_clamped_to_zero(self):
+        assert hull_integrity_pct(SimpleNamespace(hull_damage_pct=150)) == 0
 
 
 # ---------------------------------------------------------------------------
