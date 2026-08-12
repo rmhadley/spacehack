@@ -1770,6 +1770,39 @@ def test_character_equipment_rows_empty_gear_is_informational():
     assert rows[6].text == "Feet armor: None"
 
 
+def test_character_equipment_management_keeps_slots_selectable_without_pack_items():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={"body": "light_vest"},
+        ground_expedition_inventory=[],
+    )
+
+    rows = character_screen._equipment_rows(ctx, equipment_management=True)
+
+    # Managed slots remain actionable even when there is no compatible
+    # backpack item; Enter can then explain that the pack has no match.
+    assert rows[0].selectable is True
+    assert rows[0].action == "SWAP:weapon:0"
+    assert rows[2].selectable is True
+    assert rows[2].action == "SWAP:armor:head"
+    assert rows[3].selectable is True
+    assert rows[3].action == "SWAP:armor:body"
+    assert rows[7].text == "--- BACKPACK ITEMS (0/4) ---"
+
+
+def test_character_equipment_management_reports_empty_compatible_choices():
+    messages = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[],
+        log=SimpleNamespace(add=messages.append),
+    )
+
+    assert character_screen._swap_from_pack(ctx, "SWAP:weapon:0") is False
+    assert messages == ["No compatible items are in your Expedition Pack."]
+
+
 def test_screen_info_window_shows_informational_only_frames():
     frame = pygame_screen.ScreenFrame(
         "T", (),

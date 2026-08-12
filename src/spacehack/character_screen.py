@@ -144,6 +144,50 @@ def _swap_options(ctx: GameContext, item_type: str, slot: str) -> tuple[tuple[in
     return tuple(options)
 
 
+def _secondary_weapon_slot_enabled(
+    ctx: GameContext,
+    options: tuple[tuple[int, str, str], ...],
+    *,
+    swap_allowed: bool,
+) -> bool:
+    """Return whether Weapon 2 can offer a valid managed swap."""
+    if not swap_allowed or options:
+        return bool(swap_allowed)
+    if not ctx.ground_expedition_inventory:
+        return True
+    from . import ground_equipment
+
+    return any(
+        entry.item_type == "weapon"
+        and _weapon_is_one_handed(ground_equipment, entry.item_id)
+        for entry in ctx.ground_expedition_inventory
+    )
+
+
+def _weapon_is_one_handed(ground_equipment, item_id: str) -> bool:
+    """Return whether a catalog weapon can occupy the secondary slot."""
+    try:
+        return ground_equipment.weapon_hands(item_id) != 2
+    except KeyError:
+        return False
+
+
+def _managed_swap_enabled(
+    ctx: GameContext,
+    item_type: str,
+    slot: str,
+    options: tuple[tuple[int, str, str], ...],
+    *,
+    swap_allowed: bool,
+) -> bool:
+    """Return whether a management row should accept Enter."""
+    if item_type == "weapon" and slot == "1":
+        return _secondary_weapon_slot_enabled(
+            ctx, options, swap_allowed=swap_allowed,
+        )
+    return bool(swap_allowed)
+
+
 def _equipment_row(
     text: str,
     detail: str = "",
@@ -201,22 +245,34 @@ def _equipment_rows(
                 if spec.ammo_capacity > 0:
                     detail += f"   Ammo {spec.ammo_capacity}"
                 _options = _swap_options(ctx, "weapon", str(index - 1)) if equipment_management else ()
+                _managed = _managed_swap_enabled(
+                    ctx, "weapon", str(index - 1), _options,
+                    swap_allowed=swap_allowed,
+                ) if equipment_management else False
                 rows.append(_equipment_row(
                     f"{label}: {spec.name}", detail,
-                    action=f"SWAP:weapon:{index - 1}" if _options else "",
+                    action=(
+                        f"SWAP:weapon:{index - 1}"
+                        if _managed else ""
+                    ),
                     selectable=(
-                        True if not equipment_management
-                        else bool(_options) and swap_allowed
+                        True if not equipment_management else _managed
                     ),
                 ))
                 continue
             except KeyError:
                 pass
         _options = _swap_options(ctx, "weapon", str(index - 1)) if equipment_management else ()
+        _managed = _managed_swap_enabled(
+            ctx, "weapon", str(index - 1), _options,
+            swap_allowed=swap_allowed,
+        ) if equipment_management else False
         rows.append(_equipment_row(
             f"{label}: Fists", "",
-            action=f"SWAP:weapon:{index - 1}" if _options else "",
-            selectable=bool(_options) and swap_allowed,
+            action=f"SWAP:weapon:{index - 1}" if _managed else "",
+            selectable=(
+                False if not equipment_management else _managed
+            ),
         ))
     for slot in _ARMOR_SLOTS:
         item_id = ctx.equipped_ground_armor.get(slot)
@@ -225,23 +281,32 @@ def _equipment_rows(
             try:
                 spec = find_ground_armor(item_id)
                 _options = _swap_options(ctx, "armor", slot) if equipment_management else ()
+                _managed = _managed_swap_enabled(
+                    ctx, "armor", slot, _options,
+                    swap_allowed=swap_allowed,
+                ) if equipment_management else False
                 rows.append(_equipment_row(
                     f"{label}: {spec.name}",
                     f"Defense {spec.defense}   {spec.description}",
-                    action=f"SWAP:armor:{slot}" if _options else "",
+                    action=f"SWAP:armor:{slot}" if _managed else "",
                     selectable=(
-                        True if not equipment_management
-                        else bool(_options) and swap_allowed
+                        True if not equipment_management else _managed
                     ),
                 ))
                 continue
             except KeyError:
                 pass
         _options = _swap_options(ctx, "armor", slot) if equipment_management else ()
+        _managed = _managed_swap_enabled(
+            ctx, "armor", slot, _options,
+            swap_allowed=swap_allowed,
+        ) if equipment_management else False
         rows.append(_equipment_row(
             f"{label}: None", "",
-            action=f"SWAP:armor:{slot}" if _options else "",
-            selectable=bool(_options) and swap_allowed,
+            action=f"SWAP:armor:{slot}" if _managed else "",
+            selectable=(
+                False if not equipment_management else _managed
+            ),
         ))
     if equipment_management:
         capacity = _expedition_capacity(ctx)
