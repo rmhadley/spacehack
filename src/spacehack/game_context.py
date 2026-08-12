@@ -36,6 +36,7 @@ from . import message_log
 from . import mission as mission_module
 from . import ship as ship_module
 from . import world
+from . import ground_equipment as ground_equipment_module
 from .character import GroundStats as _GroundStats
 
 
@@ -294,11 +295,21 @@ class GameContext:
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
     # Ground combat stats (reflexes, strength, stamina).
     ground_stats: _GroundStats = dataclasses.field(default_factory=_GroundStats)
-    # Equipped ground weapon slots (up to 2). Empty slot = fists.
+    # Equipped ground weapon list. Two-handed specs occupy both logical
+    # weapon slots while remaining one ID in this normalized list.
     equipped_ground_weapons: list[str] = dataclasses.field(default_factory=list)
-    # Equipped ground armour by slot: slot -> GroundArmorSpec id.
+    # Equipped ground armor by slot: slot -> GroundArmorSpec id.
     # Slots: head, body, hands, legs, feet.
     equipped_ground_armor: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Unlimited terminal-only warehouse for owned ground equipment.
+    ground_armory_storage: list[ground_equipment_module.StoredGroundEquipment] = dataclasses.field(
+        default_factory=list,
+    )
+    # Limited reserve carried into dungeons. Capacity is derived from
+    # ground_stats.strength; equipped items do not consume these slots.
+    ground_expedition_inventory: list[ground_equipment_module.StoredGroundEquipment] = dataclasses.field(
+        default_factory=list,
+    )
     # Ground combat HP — set on dungeon entry, persisted across
     # combat encounters in the same dungeon visit. Default matches
     # the new-game formula 20 + stamina//3 at the base-10 start.

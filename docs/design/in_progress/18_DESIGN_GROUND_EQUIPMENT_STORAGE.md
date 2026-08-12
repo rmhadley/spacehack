@@ -397,15 +397,15 @@ Add or update a guide section explaining:
 
 ### Phase 1 - Two-tier inventory model, mutation, and save/load
 
-- [ ] Add the stored-ground-equipment data model.
-- [ ] Add `GameContext.ground_armory_storage` and
+- [x] Add the stored-ground-equipment data model.
+- [x] Add `GameContext.ground_armory_storage` and
   `GameContext.ground_expedition_inventory` with empty defaults.
-- [ ] Add the Strength-based expedition capacity helper.
-- [ ] Add transactional store/install/sell/pack-transfer helpers for weapons
+- [x] Add the Strength-based expedition capacity helper.
+- [x] Add transactional store/install/sell/pack-transfer helpers for weapons
   and armor.
-- [ ] Add one shared two-handed weapon fit calculation.
-- [ ] Add old-save defaults and malformed-entry filtering.
-- [ ] Add tests for duplicates, empty containers, capacity boundaries, invalid
+- [x] Add one shared two-handed weapon fit calculation.
+- [x] Add old-save defaults and malformed-entry filtering.
+- [x] Add tests for duplicates, empty containers, capacity boundaries, invalid
   indexes, two-handed conflicts, armor replacement, sell isolation, and
   round-trip persistence.
 
@@ -414,6 +414,16 @@ existing ground combat behaves exactly as before. Populate both containers in
 a developer fixture, including a full four-slot pack and a Strength bonus, then
 verify save/load preserves both containers, the active loadout, and combat
 stats unchanged.
+
+**Implementation checkpoint:** Phase 1 establishes the backend split between
+unlimited `ground_armory_storage` and Strength-scaled
+`ground_expedition_inventory`. `ground_equipment.py` owns catalog validation,
+capacity, normalized two-handed fit checks, atomic storage/installation,
+armor replacement, duplicate-safe transfers, and explicit sale removal.
+Existing saves default both containers empty; an intermediate
+`ground_equipment_storage` field migrates into Armory Storage. Focused mutation
+and save/load tests pass, while the armory and dungeon UI remain unchanged for
+Phase 2 and Phase 3.
 
 ### Phase 2 - Armory warehouse and expedition-pack UI
 
@@ -518,9 +528,9 @@ carried reserve gear, and active loadout clear.
 
 ## Current status
 
-The design is ready for Phase 1 implementation. The current armory already
-provides a Pygame split-screen presentation and the current combat model has a
-clear active-loadout contract. Phase 1 should establish the unlimited armory
+Phase 1 is complete. The backend now establishes the unlimited armory
 warehouse, the Strength-scaled four-slot expedition pack, and transactional
-movement between them without changing ground combat rules; later phases add
-the in-dungeon modal, 1-AP swaps, and loot capacity behavior.
+movement between them without changing ground combat rules. The armory and
+dungeon UI remain for later phases: Phase 2 adds terminal management, Phase 3
+adds in-dungeon 1-AP swaps and loot capacity behavior, and Phase 4 is the UX
+and regression pass.

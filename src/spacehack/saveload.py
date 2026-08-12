@@ -80,7 +80,7 @@ def _d(obj) -> object:
 
 
 def _stored_equipment_from_dict(raw: object):
-    """Parse one stored-equipment save entry, ignoring malformed records."""
+    """Parse one stored ship-equipment save entry, ignoring malformed records."""
     if not isinstance(raw, dict):
         return None
     item_type = raw.get("item_type")
@@ -106,6 +106,27 @@ def _stored_equipment_from_dict(raw: object):
             return None
     from . import ship as ship_module
     return ship_module.StoredEquipment(item_type, item_id, ammo)
+
+
+def _ground_equipment_from_dict(raw: object):
+    """Parse one stored ground-equipment entry, ignoring malformed records."""
+    if not isinstance(raw, dict):
+        return None
+    item_type = raw.get("item_type")
+    item_id = raw.get("item_id")
+    if item_type not in {"weapon", "armor"} or not isinstance(item_id, str) or not item_id:
+        return None
+    try:
+        if item_type == "weapon":
+            from .data.ground_weapons import find_ground_weapon
+            find_ground_weapon(item_id)
+        else:
+            from .data.ground_armor import find_ground_armor
+            find_ground_armor(item_id)
+    except (ImportError, KeyError):
+        return None
+    from .ground_equipment import StoredGroundEquipment
+    return StoredGroundEquipment(item_type, item_id)
 
 
 def _ctx_to_dict(ctx: GameContext) -> dict:
@@ -153,6 +174,8 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "ground_stats": _d(ctx.ground_stats),
         "equipped_ground_weapons": list(ctx.equipped_ground_weapons),
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
+        "ground_armory_storage": _d(ctx.ground_armory_storage),
+        "ground_expedition_inventory": _d(ctx.ground_expedition_inventory),
         "ground_hp": ctx.ground_hp,
         "ground_max_hp": ctx.ground_max_hp,
         # Main quest state (save/load contract — see
@@ -1116,6 +1139,18 @@ def load_game(context: PygameContext) -> GameContext | None:
     )
     _ctx.equipped_ground_weapons = list(_data.get("equipped_ground_weapons", []) or [])
     _ctx.equipped_ground_armor = dict(_data.get("equipped_ground_armor", {}) or {})
+    _legacy_ground_storage = _data.get("ground_equipment_storage", []) or []
+    _armory_storage_raw = _data.get("ground_armory_storage", _legacy_ground_storage) or []
+    _ctx.ground_armory_storage = [
+        _stored
+        for _entry in _armory_storage_raw
+        if (_stored := _ground_equipment_from_dict(_entry)) is not None
+    ]
+    _ctx.ground_expedition_inventory = [
+        _stored
+        for _entry in (_data.get("ground_expedition_inventory", []) or [])
+        if (_stored := _ground_equipment_from_dict(_entry)) is not None
+    ]
     _ctx.ground_hp = _data.get("ground_hp", 23)
     _ctx.ground_max_hp = _data.get("ground_max_hp", 23)
     _ctx.player_xp = _data.get("player_xp", 0)

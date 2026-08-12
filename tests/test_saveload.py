@@ -23,6 +23,7 @@ from src.spacehack import world
 from src.spacehack.saveload import save_game, load_game, delete_save
 from src.spacehack import dungeon_extensions
 from src.spacehack.ship import OwnedShip, StoredEquipment
+from src.spacehack.ground_equipment import StoredGroundEquipment
 
 
 def _build_test_ctx() -> GameContext:
@@ -736,6 +737,131 @@ class TestSaveLoadRoundTrip:
 
         assert loaded is not None
         assert loaded.ship_storage == []
+        delete_save()
+
+    def test_round_trip_ground_equipment_containers(self, monkeypatch, tmp_path):
+        """Ground loadout and both storage containers survive Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(53)
+        ctx = _build_test_ctx()
+        ctx.ground_stats.strength = 20
+        ctx.equipped_ground_weapons = ["laser_pistol", "combat_knife"]
+        ctx.equipped_ground_armor = {"body": "light_vest"}
+        ctx.ground_armory_storage = [
+            StoredGroundEquipment("weapon", "laser_rifle"),
+            StoredGroundEquipment("weapon", "laser_rifle"),
+            StoredGroundEquipment("armor", "heavy_vest"),
+        ]
+        ctx.ground_expedition_inventory = [
+            StoredGroundEquipment("weapon", "combat_knife"),
+            StoredGroundEquipment("armor", "light_helmet"),
+        ]
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == ctx.equipped_ground_weapons
+        assert loaded.equipped_ground_armor == ctx.equipped_ground_armor
+        assert loaded.ground_armory_storage == ctx.ground_armory_storage
+        assert loaded.ground_expedition_inventory == ctx.ground_expedition_inventory
+        delete_save()
+
+    def test_malformed_ground_equipment_entries_are_ignored(self, monkeypatch, tmp_path):
+        """Malformed ground records do not prevent Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(54)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload["ground_armory_storage"] = [
+            {"item_type": "weapon", "item_id": "laser_rifle"},
+            {"item_type": "weapon", "item_id": "missing_weapon"},
+            {"item_type": "module", "item_id": "shield_mk4"},
+            {"item_type": "armor", "item_id": "light_helmet"},
+            "not a record",
+        ]
+        payload["ground_expedition_inventory"] = [
+            {"item_type": "armor", "item_id": "heavy_vest"},
+            {"item_type": "unknown", "item_id": "light_helmet"},
+        ]
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_armory_storage == [
+            StoredGroundEquipment("weapon", "laser_rifle"),
+            StoredGroundEquipment("armor", "light_helmet"),
+        ]
+        assert loaded.ground_expedition_inventory == [
+            StoredGroundEquipment("armor", "heavy_vest"),
+        ]
+        delete_save()
+
+    def test_legacy_ground_storage_migrates_to_armory(self, monkeypatch, tmp_path):
+        """The intermediate single-storage name loads into Armory Storage."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(55)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("ground_armory_storage", None)
+        payload.pop("ground_expedition_inventory", None)
+        payload["ground_equipment_storage"] = [
+            {"item_type": "weapon", "item_id": "combat_knife"},
+            {"item_type": "armor", "item_id": "light_vest"},
+        ]
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_armory_storage == [
+            StoredGroundEquipment("weapon", "combat_knife"),
+            StoredGroundEquipment("armor", "light_vest"),
+        ]
+        assert loaded.ground_expedition_inventory == []
+        delete_save()
+
+    def test_legacy_save_without_ground_storage_loads_empty(self, monkeypatch, tmp_path):
+        """Pre-ground-storage saves load both containers empty."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(56)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("ground_armory_storage", None)
+        payload.pop("ground_expedition_inventory", None)
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_armory_storage == []
+        assert loaded.ground_expedition_inventory == []
         delete_save()
 
     def test_round_trip_owned_ship(self, monkeypatch, tmp_path):
