@@ -292,17 +292,26 @@ Manual playtest of the empty-locker Continue path remains before Phase 2.
 
 ### Phase 2 - First storage UI
 
-- [ ] Add a first-pass Storage view to the mechanic loadout flow.
-- [ ] Add explicit Store actions for installed weapons/modules.
-- [ ] Add explicit Install actions for stored weapons/modules.
-- [ ] Add visible remaining-ammo text for stored missile launchers.
-- [ ] Keep Sell separate and preserve current mechanic purchase behavior.
+- [x] Add a first-pass Storage view to the mechanic loadout flow.
+- [x] Add explicit Store actions for installed weapons/modules.
+- [x] Add explicit Install actions for stored weapons/modules.
+- [x] Add visible remaining-ammo text for stored missile launchers.
+- [x] Keep Sell separate and preserve current mechanic purchase behavior.
 
 **PLAYTEST:** At a mechanic, install a cheap weapon/module, open Storage, store
 it, verify it disappears from My Ship and appears in Storage, then install it
 again. Try an incompatible or full slot and verify the item remains stored with
 a clear message. Store a missile launcher with spent ammo and verify its ammo
-returns when reinstalled.
+returns when reinstalled. Also switch to SELL explicitly and verify selling a
+stored part does not affect installed equipment.
+
+**Implementation checkpoint:** Phase 2 adds a first-pass three-view loadout modal:
+FOR SALE, STORAGE, and SELL. The active ship panel offers STORE in the market
+and storage views; Storage offers INSTALL; Sell keeps selling explicit. Stored
+missile launchers display remaining ammo, and failed installs leave storage
+unchanged with a log explanation. The guide now documents the storage workflow.
+Focused UI, mechanic, and ship mutation validation passes; manual playtest of
+the complete Store -> Storage -> Install flow remains before Phase 3.
 
 ### Phase 3 - Ship upgrade preservation
 
@@ -367,6 +376,7 @@ These are intentionally deferred until the first playable UI exists:
 
 ## Current status
 
-Design phase only. No implementation has started. Phase 1 is the next step after
-reviewing this document. UI details are expected to change after playtesting;
-the persistent ownership and no-silent-destruction rules are the stable core.
+Phase 2 implementation is complete pending manual playtest. Phase 1 established
+the persistent storage backend; Phase 2 adds the first iterative mechanic UI.
+UI details are expected to change after playtesting; the persistent ownership
+and no-silent-destruction rules are the stable core.

@@ -1803,10 +1803,142 @@ def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
     )
 
     actions = [row.action for row in frame.left_rows if not row.divider]
-    assert actions == ["BUY_WEAPON:light_missile", "BUY_MODULE:armor_plating"]
+    assert actions == [
+        "TOGGLE_VIEW:STORAGE",
+        "BUY_WEAPON:light_missile",
+        "BUY_MODULE:armor_plating",
+    ]
 
 
-def test_loadout_sell_action_targets_selected_duplicate_slot():
+def test_loadout_storage_frame_shows_install_actions_and_spent_ammo():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
+        ship_storage=[
+            StoredEquipment("weapon", "light_missile", 1),
+            StoredEquipment("module", "shield_mk1"),
+        ],
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
+
+    assert frame.left_label == "Storage"
+    assert "ENTER install/store" in frame.hint
+    assert [row.action for row in frame.left_rows if not row.divider] == [
+        "TOGGLE_VIEW:SELL",
+        "INSTALL_STORED:0",
+        "INSTALL_STORED:1",
+    ]
+    missile = next(row for row in frame.left_rows if row.action == "INSTALL_STORED:0")
+    assert "Ammo: 1/4" in missile.detail
+    assert frame.right_rows[0].divider is True
+    assert any(row.action.startswith("STORE_") for row in frame.right_rows)
+
+
+def test_loadout_sell_view_has_mode_specific_hint():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    frame = _loadout._pygame_loadout_frame(ctx, mode="SELL")
+
+    assert "ENTER sell" in frame.hint
+    assert all(not row.action.startswith("STORE_") for row in frame.right_rows)
+
+
+def test_loadout_storage_view_handles_missing_and_malformed_storage():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        stats=SimpleNamespace(credits=1000),
+    )
+    frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
+    assert any(row.label == "[empty]" for row in frame.left_rows)
+    assert ctx.ship_storage == []
+
+    ctx.ship_storage = [None, {"item_id": "shield_mk1"}, "bad"]
+    frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
+    assert any(row.label == "[empty]" for row in frame.left_rows)
+
+
+def test_loadout_store_and_install_actions_preserve_partial_ammo():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_missile",)),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+    ctx.player_owned_ship.weapon_ammo[0] = 1
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "STORE_WEAPON_SLOT:0", 1, 0, "earth",
+    )
+    assert ctx.player_owned_ship.weapons == ()
+    assert ctx.ship_storage[0].ammo == 1
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "INSTALL_STORED:0", 0, 0, "earth",
+    )
+    assert ctx.player_owned_ship.weapons == ("light_missile",)
+    assert ctx.player_owned_ship.weapon_ammo == {0: 1}
+    assert ctx.ship_storage == []
+
+
+def test_loadout_install_full_slot_keeps_storage_and_logs_reason():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="starter", weapons=("light_laser", "light_laser"),
+        ),
+        ship_storage=[StoredEquipment("weapon", "heavy_laser")],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "INSTALL_STORED:0", 0, 0, "earth",
+    )
+    assert ctx.ship_storage == [StoredEquipment("weapon", "heavy_laser")]
+    assert any("No compatible weapon slot" in message for message in messages)
+
+
+def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
+        ship_storage=[StoredEquipment("module", "shield_mk1")],
+        stats=SimpleNamespace(credits=0),
+        log=SimpleNamespace(add=messages.append),
+    )
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "SELL_STORED:0", 0, 0, "earth",
+    )
+    assert ctx.ship_storage == []
+    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert ctx.stats.credits > 0
+
+
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
 
