@@ -241,6 +241,54 @@ def test_ascii_replacements_cover_known_runtime_glyphs():
     assert hud._UNLIMITED_AMMO_LABEL == "INF"
 
 
+def test_exploration_hud_advertises_console_log_in_space_and_ground_modes():
+    from src.spacehack.framebuffer import FrameBuffer
+
+    from src.spacehack.ship import OwnedShip
+
+    ctx = type("HudContext", (), {
+        "character_info": {
+            "species_name": "Human", "class_name": "Merchant",
+        },
+        "stats": hud.HudStats(10, 10, 100),
+        "player_owned_ship": OwnedShip(ship_id="starter"),
+        "player_xp": 0,
+        "player_level": 1,
+        "player_skill_points": 0,
+        "ground_stats": None,
+        "ground_hp": 10,
+        "ground_max_hp": 10,
+        "time_day": 1,
+        "time_month": 1,
+        "time_year": 2200,
+    })()
+
+    for mode in ("space", "dungeon"):
+        console = FrameBuffer(100, 54)
+        hud.render_hud(
+            console,
+            ctx,
+            screen_width=100,
+            hud_view_height=54,
+            mode=mode,
+        )
+        assert any(
+            command.char == "\\"
+            and "Console" in "".join(
+                cell.char
+                for cell in sorted(
+                    (
+                        item for item in console.commands
+                        if item.y == command.y and item.x >= 80
+                    ),
+                    key=lambda item: item.x,
+                )
+            )
+            for command in console.commands
+            if command.char == "\\"
+        )
+
+
 def test_primary_reading_palette_is_high_contrast_on_black():
     """Common text roles remain comfortably readable on the playfield."""
     for color in (

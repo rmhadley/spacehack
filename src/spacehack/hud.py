@@ -74,6 +74,8 @@ COLOR_SHIP_LABEL: tuple[int, int, int] = (240, 240, 230)            # near-white
 COLOR_FUEL_OK: tuple[int, int, int] = (110, 245, 125)               # green when fuel is adequate
 COLOR_FUEL_LOW: tuple[int, int, int] = (255, 190, 75)               # amber when fuel is low (< jump cost)
 COLOR_HELP_DESC: tuple[int, int, int] = (240, 240, 230)             # near-white key descriptions
+CONSOLE_LOG_KEY = "\\"
+CONSOLE_LOG_LABEL = "Console"
 
 
 @dataclass
@@ -349,6 +351,7 @@ def render_hud(
             ("T", "Comms"),
             ("C", "Character"),
             ("F", "Factions"),
+            (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
             ("?", "Guide"),
             ("numpad", "Move"),
         ])
@@ -448,6 +451,7 @@ def render_hud(
             ("I", "Cargo"),
             ("C", "Character"),
             ("F", "Factions"),
+            (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
             ("?", "Guide"),
             ("numpad", "Move"),
         ]
