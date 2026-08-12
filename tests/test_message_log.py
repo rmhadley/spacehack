@@ -40,7 +40,9 @@ def test_console_log_frame_formats_oldest_first_and_is_scrollable():
     assert frame.body == ("> departed Earth", "> enemy sighted")
     assert frame.rows == ()
     assert frame.scrollable is True
+    assert frame.start_at_end is True
     assert "ESC close" in frame.footer[0]
+    assert "PAGE UP/DOWN" not in frame.footer[0]
 
 
 def test_backslash_input_accepts_normalized_name_and_rejects_other_events():

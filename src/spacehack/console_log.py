@@ -25,10 +25,11 @@ def _frame(ctx: GameContext) -> pygame_screen.ScreenFrame:
         body=tuple(line for line, _color in history),
         rows=(),
         footer=(pygame_ui.modal_hint(
-            "PAGE UP/DOWN or j/k scroll", "ESC close", pygame_ui.GUIDE_HINT,
+            "ESC close", pygame_ui.GUIDE_HINT,
         ),),
         scrollable=True,
         body_colors=tuple(color for _line, color in history),
+        start_at_end=True,
     )
 
 

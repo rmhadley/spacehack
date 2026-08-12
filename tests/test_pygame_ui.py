@@ -2511,13 +2511,24 @@ def test_draw_context_log_delegates_to_message_band(monkeypatch):
 
 def test_screen_frame_payload_round_trips_scrollable():
     frame = pygame_screen.ScreenFrame(
-        "T", ("body",), (), selected=1, scrollable=True,
+        "T", ("body",), (), selected=1, scrollable=True, start_at_end=True,
     )
     back = pygame_screen._frame_from_payload(pygame_screen._frame_payload(frame))
 
     assert back.scrollable is True
+    assert back.start_at_end is True
     assert back.title == "T"
     assert back.selected == 1
+
+
+def test_scrollable_frame_can_start_at_end_without_changing_default():
+    font = _FakeFont()
+    body = tuple(f"line {index}" for index in range(100))
+    top = pygame_screen.ScreenFrame("T", body, (), scrollable=True)
+    end = pygame_screen.ScreenFrame("T", body, (), scrollable=True, start_at_end=True)
+
+    assert pygame_screen._initial_page_offset(font, top, 200, 960) == 0
+    assert pygame_screen._initial_page_offset(font, end, 200, 960) > 0
 
 
 def test_layout_height_caps_scrollable_bodies():

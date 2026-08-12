@@ -59,6 +59,9 @@ class ScreenFrame:
     # Optional per-body-line colours used by the console history. Existing
     # screens leave this empty and use the shared description colour.
     body_colors: tuple[tuple[int, int, int], ...] = ()
+    # Screens such as the full console history can request newest-first
+    # opening without changing the default top-of-document behavior.
+    start_at_end: bool = False
 
 
 def _frame_payload(frame: ScreenFrame) -> dict[str, Any]:
@@ -83,6 +86,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> ScreenFrame:
             for color in raw.get("body_colors", ())
             if isinstance(color, (list, tuple)) and len(color) == 3
         ),
+        start_at_end=bool(raw.get("start_at_end", False)),
     )
 
 
@@ -153,6 +157,22 @@ def _body_lines_with_colors(
 def _body_lines(font: Any, frame: ScreenFrame, width: int) -> tuple[str, ...]:
     """Wrap body paragraphs using the candidate font metrics."""
     return tuple(line for line, _color in _body_lines_with_colors(font, frame, width))
+
+
+def _initial_page_offset(
+    font: Any,
+    frame: ScreenFrame,
+    width: int,
+    height: int,
+) -> int:
+    """Return the first page offset for a scrollable frame."""
+    if not frame.start_at_end:
+        return frame.page_offset
+    body_lines = _body_lines(font, frame, width)
+    body_start = 126 if frame.tabs else 84
+    footer_start = pygame_ui.modal_footer_y(height)
+    body_budget = _body_budget(font, frame, width, height, body_start, footer_start)
+    return max(0, len(body_lines) - body_budget)
 
 
 def _page_offset(
@@ -331,7 +351,10 @@ def _draw_frame(
     body_step = font.get_linesize() + 3
     footer_start = pygame_ui.modal_footer_y(height) if context is not None else height - 70
     body_budget = _body_budget(font, frame, width - 80, height, body_start, footer_start)
-    body_overflow = len(visible_body) > body_budget
+    # Compare the complete document, not only the current page. A console
+    # opened at the end still needs one hint explaining that earlier pages
+    # are available via PAGE UP/j/k/arrows.
+    body_overflow = len(body_lines) > body_budget
     selected = _clamp(frame)
     detail_width = width - 108
     detail = frame.rows[selected].detail if 0 <= selected < len(frame.rows) else ""
@@ -448,6 +471,10 @@ def _run_worker(payload: dict[str, Any]) -> int:
     try:
         width, height = tuple(payload.get("screen_size", (1600, 960)))
         font = _fit_font(pygame, frame, width, height, reserve_log=True)
+        frame = replace(
+            frame,
+            page_offset=_initial_page_offset(font, frame, width - 80, height),
+        )
         screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption(str(payload.get("caption", "spacehack")))
         clock = pygame.time.Clock()
@@ -492,6 +519,10 @@ def run_shared(
     screen = engine.logical_surface
     width, height = screen.get_size()
     font = _fit_font(pygame, frame, width, height, reserve_log=True)
+    frame = replace(
+        frame,
+        page_offset=_initial_page_offset(font, frame, width - 80, height),
+    )
     while True:
         current = replace(frame, selected=_clamp(frame))
         _draw_shared_frame(pygame, screen, font, current, context)
