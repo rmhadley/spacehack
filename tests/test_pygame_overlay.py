@@ -114,6 +114,94 @@ def test_overlay_payload_round_trips_segments_and_layout():
     assert restored == frame
 
 
+def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
+    from src.spacehack.combat._stats import init_combat_state
+    from src.spacehack.data.npc_ships import find_npc_ship
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.data.pilot_skills import PilotSkills
+
+    scout = find_npc_ship("pirate_scout")
+    player_state, enemy = init_combat_state(
+        find_ship("starter"),
+        SimpleNamespace(
+            modules=(),
+            weapons=(),
+            weapon_ammo={},
+            hull_damage_pct=0,
+        ),
+        world.Position(1, 1),
+        PilotSkills(gunnery=10, piloting=10, engineering=10),
+        scout,
+        world.Position(3, 2),
+    )
+
+    assert player_state["max_shields"] == 0
+    assert enemy.shields == 0
+
+    game_map = world.GameMap(
+        width=8,
+        height=6,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)],
+        entities=[
+            world.Entity(
+                "p", (255, 100, 100), world.Position(3, 2),
+                npc_ship_id="pirate_scout",
+            ),
+        ],
+    )
+    assert pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=0,
+        camera_y=0,
+        region_w=8,
+        region_h=6,
+    ) == ()
+
+
+def test_shield_bubbles_omit_unshielded_pirate_scout():
+    game_map = world.GameMap(
+        width=8,
+        height=6,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)],
+        entities=[
+            world.Entity(
+                "p", (255, 100, 100), world.Position(3, 2),
+                npc_ship_id="pirate_scout",
+            ),
+        ],
+    )
+
+    assert pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=0,
+        camera_y=0,
+        region_w=8,
+        region_h=6,
+    ) == ()
+
+
+def test_shield_bubbles_use_npc_modules_without_hull_base_shields():
+    game_map = world.GameMap(
+        width=8,
+        height=6,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)],
+        entities=[
+            world.Entity(
+                "P", (220, 60, 60), world.Position(3, 2),
+                npc_ship_id="pirate_raider",
+            ),
+        ],
+    )
+
+    assert pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=0,
+        camera_y=0,
+        region_w=8,
+        region_h=6,
+    ) == (pygame_overlay.ShieldBubble(3, 2),)
+
+
 def test_shield_bubbles_include_shielded_ships_and_apply_camera_region_offset():
     game_map = world.GameMap(
         width=20,
@@ -134,7 +222,7 @@ def test_shield_bubbles_include_shielded_ships_and_apply_camera_region_offset():
             ),
             world.Entity(
                 "P", (255, 100, 100), world.Position(10, 6),
-                npc_ship_id="pirate_scout",
+                npc_ship_id="pirate_raider",
             ),
         ],
     )
