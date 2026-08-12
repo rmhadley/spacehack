@@ -207,6 +207,7 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
         ),
         left_tabs=_MODE_TABS,
         active_left_tab=_ARMORY_MODES.index(mode),
+        left_tab_modes=_ARMORY_MODES,
     )
 
 

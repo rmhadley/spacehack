@@ -1355,6 +1355,32 @@ def test_split_key_mapping_switches_panels_and_returns_opaque_action():
     assert pygame_split._handle_key(fake, SimpleNamespace(type=fake.QUIT), frame) == ("QUIT", 0, 0)
 
 
+def test_split_frame_explicit_tab_modes_override_label_defaults():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_b = 18
+        K_a = 19
+        K_e = 20
+
+    frame = pygame_split.SplitFrame(
+        "ARMORY", "Buy", "My Loadout", (), (), "", "", "",
+        left_tabs=("[B]uy", "[A]rmory", "[E]xpedition"),
+        left_tab_modes=("BUY", "ARMORY", "EXPEDITION"),
+    )
+
+    assert pygame_split._handle_key(
+        FakePygame, SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_b), frame,
+    ) == ("MODE:BUY", 0, 0)
+    assert pygame_split._handle_key(
+        FakePygame, SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_a), frame,
+    ) == ("MODE:ARMORY", 0, 0)
+    assert pygame_split._handle_key(
+        FakePygame, SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_e), frame,
+    ) == ("MODE:EXPEDITION", 0, 0)
+
+
 def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
@@ -1612,6 +1638,7 @@ def test_armory_frame_exposes_all_storage_modes_and_active_tab():
     }
 
     assert all(frame.left_tabs == ("[B]uy", "[A]rmory", "[E]xpedition") for frame in frames.values())
+    assert all(frame.left_tab_modes == ("BUY", "ARMORY", "EXPEDITION") for frame in frames.values())
     assert [frames[mode].active_left_tab for mode in _armory._ARMORY_MODES] == [0, 1, 2]
     assert frames["ARMORY"].left_rows[1].action == "MANAGE_ARMORY:0"
     assert frames["EXPEDITION"].left_rows[1].action == "MANAGE_EXPEDITION:0"

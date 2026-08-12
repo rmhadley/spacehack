@@ -54,6 +54,9 @@ class SplitFrame:
     # Empty preserves the original single-label panel header.
     left_tabs: tuple[str, ...] = ()
     active_left_tab: int = 0
+    # Optional explicit mode outcomes for each left tab. Empty preserves
+    # legacy label-based mappings used by existing terminals.
+    left_tab_modes: tuple[str, ...] = ()
 
 
 def _row_payload(row: SplitRow) -> dict[str, Any]:
@@ -84,6 +87,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> SplitFrame:
         selected=int(raw.get("selected", 0)),
         left_tabs=tuple(str(tab) for tab in raw.get("left_tabs", ())),
         active_left_tab=int(raw.get("active_left_tab", 0)),
+        left_tab_modes=tuple(str(mode) for mode in raw.get("left_tab_modes", ())),
     )
 
 
@@ -389,20 +393,19 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
             "[E]xpedition": "EXPEDITION",
         }
         tab_modes = {
-            getattr(pygame, f"K_{label[1].lower()}", None):
-            tab_modes_by_label.get(label, label[1].upper())
-            for label in frame.left_tabs
+            getattr(pygame, f"K_{label[1].lower()}", None): (
+                frame.left_tab_modes[index]
+                if index < len(frame.left_tab_modes)
+                else tab_modes_by_label.get(label, label[1].upper())
+            )
+            for index, label in enumerate(frame.left_tabs)
             if len(label) > 1 and label.startswith("[")
         }
         requested = tab_modes.get(event.key)
         if requested is not None:
             return f"MODE:{requested}", frame.focus, selected
     if event.key == pygame.K_TAB:
-        other = SplitFrame(
-            frame.title, frame.left_label, frame.right_label,
-            frame.left_rows, frame.right_rows, frame.footer_left,
-            frame.footer_right, frame.hint, 1 - frame.focus, 0,
-        )
+        other = replace(frame, focus=1 - frame.focus, selected=0)
         return "IGNORE", other.focus, _clamp_selected(other)
     if event.key in (pygame.K_UP, pygame.K_k) and indices:
         position = indices.index(selected)
