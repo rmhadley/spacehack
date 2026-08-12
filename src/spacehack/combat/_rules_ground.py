@@ -18,6 +18,7 @@ from .. import ui
 from .. import message_log as _ml
 from .. import animation_timing
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
+from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
@@ -88,7 +89,7 @@ class GroundEnemyInstance:
 class GroundCombatState:
     """Encapsulates all mutable state for one ground combat encounter."""
 
-    ctx: Any
+    ctx: GameContext
     game_map: world.GameMap
     enemies: list[GroundEnemyInstance] = field(default_factory=list)
     player_hp: int = 30

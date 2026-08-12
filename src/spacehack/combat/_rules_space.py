@@ -18,6 +18,7 @@ from .. import world
 from .. import hud as _hud
 from .. import message_log as _ml
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT
+from ..game_context import GameContext
 
 from ._types import EnemyInstance, CombatResult
 from ._stats import (
@@ -58,7 +59,7 @@ from ..xp import (
 class SpaceCombatState:
     """Encapsulates all mutable state for one space combat encounter."""
 
-    ctx: Any
+    ctx: GameContext
     console: Any
     game_map: Any
     log: Any

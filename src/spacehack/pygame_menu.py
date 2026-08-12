@@ -13,6 +13,7 @@ import sys
 from typing import Any
 
 from . import pygame_ui
+from .pygame_runtime import PygameContext
 
 
 class PygameMenuUnavailable(RuntimeError):
@@ -221,7 +222,7 @@ def _draw_frame(
     font: Any,
     frame: MenuFrame,
     *,
-    context: Any | None = None,
+    context: PygameContext | None = None,
 ) -> None:
     """Paint a menu frame with natural font spacing."""
     palette = pygame_ui.DEFAULT_PALETTE
@@ -321,7 +322,7 @@ def _draw_frame(
 
 
 def _draw_shared_frame(
-    pygame: Any, screen: Any, font: Any, frame: MenuFrame, context: Any,
+    pygame: Any, screen: Any, font: Any, frame: MenuFrame, context: PygameContext,
 ) -> None:
     """Draw a shared frame while preserving legacy renderer test doubles."""
     if "context" in inspect.signature(_draw_frame).parameters:
@@ -400,7 +401,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
 
 
 def run_shared(
-    context: Any,
+    context: PygameContext,
     frames: tuple[MenuFrame, ...],
     *,
     caption: str = "spacehack",
@@ -442,7 +443,7 @@ def run_shared(
 
 
 def run_for_context(
-    context: Any,
+    context: PygameContext,
     frames: tuple[MenuFrame, ...],
     *,
     caption: str = "spacehack",

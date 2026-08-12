@@ -29,7 +29,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TypedDict
 
-from typing import Any
+from .pygame_runtime import PygameContext
 
 from . import hud
 from . import message_log
@@ -165,7 +165,7 @@ class GameContext:
     Field-ownership contract (mutated by :func:`spacehack.__main__._run_game`
     + a few helper functions):
 
-    * :attr:`context` - libtcod terminal context; immutable for game lifetime.
+    * :attr:`context` - shared Pygame presentation context; immutable for game lifetime.
     * :attr:`character_info` - ``{species_name, class_name}``; immutable for
       game lifetime.
     * :attr:`log` - message log; mutated as events fire.
@@ -229,7 +229,7 @@ class GameContext:
     start as ``None``); everything else is required at construction.
     """
 
-    context: Any
+    context: PygameContext
     character_info: CharacterInfo
     log: message_log.MessageLog
     game_map: world.GameMap

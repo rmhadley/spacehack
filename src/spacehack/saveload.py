@@ -17,9 +17,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from . import world
-
-if TYPE_CHECKING:
-    from .game_context import GameContext
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 
 
 def _saves_dir() -> Path:
@@ -557,7 +556,7 @@ def _parse_pos(raw) -> tuple[int, int]:
     return (0, 0)
 
 
-def load_game(context: Any) -> GameContext | None:
+def load_game(context: PygameContext) -> GameContext | None:
     """Load the autosave and reconstruct a GameContext.
 
     Returns None if no save exists or the file is corrupted.
@@ -569,7 +568,7 @@ def load_game(context: Any) -> GameContext | None:
     from . import hud, message_log, mission as mission_module
     from . import ship as ship_module, world, solar_system as solar_system_module
     from .game_context import (
-        GameContext, PlayerCounters, BountySpawn, ProceduralSpawn,
+        PlayerCounters, BountySpawn, ProceduralSpawn,
         DungeonExtensionState,
     )
 

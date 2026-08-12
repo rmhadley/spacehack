@@ -1,6 +1,6 @@
 """Shared Pygame presentation for read-only modal screens.
 
-Screen modules render their existing tcod output into captured rows and send
+Screen modules render their existing captured rows into immutable spans and send
 only immutable presentation data here. This worker owns the isolated Pygame
 window and translates read-only modal keys back to the parent.
 """
@@ -12,6 +12,8 @@ import sys
 from typing import Any
 
 from . import pygame_quest_log, pygame_ui
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 
 class PygameBatchUnavailable(RuntimeError):
     """Raised when a batched Pygame modal cannot return a result."""
@@ -90,7 +92,7 @@ def _fit_font(pygame: Any, frame: BatchFrame, width: int, height: int) -> Any:
 
 def _draw_frame(
     pygame: Any, screen: Any, font: Any, frame: BatchFrame,
-    *, context: Any | None = None,
+    *, context: PygameContext | None = None,
 ) -> None:
     """Render captured rows with natural font spacing."""
     for row_index, row in enumerate(frame.rows):
@@ -148,7 +150,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.display.quit()
         pygame.quit()
 
-def run_shared(context: Any, render: Any) -> str:
+def run_shared(context: PygameContext, render: Any) -> str:
     """Render a read-only capture in the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -169,7 +171,7 @@ def run_shared(context: Any, render: Any) -> str:
         if outcome != "IGNORE":
             return outcome
 
-def run_for_context(context: Any, render: Any) -> str:
+def run_for_context(context: PygameContext, render: Any) -> str:
     """Run the read-only screen in the shared Pygame window."""
     from . import pygame_runtime
 

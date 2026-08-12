@@ -22,6 +22,7 @@ from . import pygame_engine
 from . import pygame_ui
 from . import world
 from .framebuffer import FrameBuffer
+from .game_context import GameContext
 from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 
 
@@ -78,7 +79,7 @@ def make_frame(
 
 
 def _ui_commands(
-    ctx: Any,
+    ctx: GameContext,
     *,
     mode: str,
     location: str,
@@ -114,7 +115,7 @@ def _ui_commands(
 
 
 def make_exploration_frame(
-    ctx: Any,
+    ctx: GameContext,
     game_map: world.GameMap,
     *,
     mode: str,
@@ -163,7 +164,7 @@ def make_exploration_frame(
 
 
 def make_mode_exploration_frame(
-    ctx: Any,
+    ctx: GameContext,
     game_map: world.GameMap,
     *,
     mode: str,

@@ -14,6 +14,8 @@ import sys
 from typing import Any
 
 from . import pygame_ui, pygame_world
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 
 
 class PygameQuestLogUnavailable(RuntimeError):
@@ -114,8 +116,8 @@ def _split_hint(rows: tuple[tuple[QuestSpan, ...], ...]) -> tuple[tuple[tuple[Qu
     return rows, ""
 
 
-def _capture_frame(ctx: Any, selected: int, confirm_abandon: bool) -> QuestFrame:
-    """Render one authoritative tcod Quest Log state into portable rows."""
+def _capture_frame(ctx: GameContext, selected: int, confirm_abandon: bool) -> QuestFrame:
+    """Render one authoritative Quest Log state into portable rows."""
     from .menus._quest_log import render_quest_log
     from .engine import SCREEN_HEIGHT, SCREEN_WIDTH
 
@@ -137,7 +139,7 @@ def _capture_frame(ctx: Any, selected: int, confirm_abandon: bool) -> QuestFrame
     )
 
 
-def _frames_for(ctx: Any) -> tuple[QuestFrame, ...]:
+def _frames_for(ctx: GameContext) -> tuple[QuestFrame, ...]:
     """Capture every reachable selection/confirmation presentation state."""
     count = len(ctx.player_active_missions)
     selections = tuple(range(count)) if count else (-1,)
@@ -208,7 +210,7 @@ def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: i
 
 def _draw_rows(
     pygame: Any, screen: Any, font: Any, frame: QuestFrame,
-    *, context: Any | None = None,
+    *, context: PygameContext | None = None,
 ) -> None:
     """Render captured rows inside the shared high-contrast panel treatment."""
     width, height = screen.get_size()
@@ -333,8 +335,8 @@ def _load_pygame() -> Any:
 
 
 def run_shared(
-    context: Any,
-    ctx: Any,
+    context: PygameContext,
+    ctx: GameContext,
     selected: int = 0,
     confirm_abandon: bool = False,
 ) -> tuple[str, int, bool]:
@@ -369,7 +371,7 @@ def run_shared(
 
 
 def run_for_context(
-    ctx: Any,
+    ctx: GameContext,
     selected: int = 0,
     confirm_abandon: bool = False,
 ) -> tuple[str, int, bool]:
@@ -382,7 +384,7 @@ def run_for_context(
 
 
 def run(
-    ctx: Any,
+    ctx: GameContext,
     selected: int = 0,
     confirm_abandon: bool = False,
 ) -> tuple[str, int, bool]:

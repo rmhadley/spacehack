@@ -803,8 +803,7 @@ def _run_pygame_goto_menu(ctx, destinations: list[tuple[str, object]]) -> tuple[
     """Run the GO TO destination selector through the Pygame worker.
 
     Returns ``(handled, selected)``. ``handled`` is false only when the
-    worker is unavailable, which preserves the native tcod selector as a
-    strict fallback. The parent process keeps destination objects private;
+    worker is unavailable,which preserves the strict fallback behavior. The parent process keeps destination objects private;
     the worker receives labels/descriptions and returns only an index.
     """
     from . import pygame_menu, pygame_ui

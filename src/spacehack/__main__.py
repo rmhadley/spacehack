@@ -73,7 +73,7 @@ from .time import tick_move, add_days_to_date
 from .saveload import save_game as _save_game
 from .npc_ships import move_npcs as _move_npcs, render_npc_flash_events
 from . import tutorial as tutorial_module
-from .pygame_runtime import open_runtime
+from .pygame_runtime import PygameContext, open_runtime
 
 
 # ---------------------------------------------------------------------------
@@ -507,7 +507,7 @@ def _prep_cached_dungeon(game_map) -> world.Position | None:
 
 
 def _run_game(
-    context: object,
+    context: PygameContext,
     species_id: str = "",
     class_id: str = "",
     *,
@@ -525,7 +525,7 @@ def _run_game(
 
 
 def _run_game_loop(
-    context: object,
+    context: PygameContext,
     species_id: str = "",
     class_id: str = "",
     *,
@@ -1831,7 +1831,7 @@ def _run_game_loop(
                 else:
                     log.add(f'You bump into {blocker.name}.')
 
-def run(context: object) -> None:
+def run(context: PygameContext) -> None:
     """Show title menu, then either new game or continue from save."""
     import os
     import struct

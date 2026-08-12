@@ -5,6 +5,7 @@ import random
 from typing import Any
 
 from . import pygame_menu, pygame_ui, ui
+from .pygame_runtime import PygameContext
 
 
 _TITLE_ART: tuple[str, ...] = tuple(getattr(ui, "_TITLE_ART", ()))
@@ -285,7 +286,7 @@ def _draw_splash(
     )
 
 
-def run_splash_for_context(context: Any) -> None:
+def run_splash_for_context(context: PygameContext) -> None:
     """Show the illustrated title splash in the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -305,7 +306,7 @@ def run_splash_for_context(context: Any) -> None:
             return
 
 
-def run_for_context(context: Any, save_available: bool) -> tuple[ui.TitleMenuOutcome, int]:
+def run_for_context(context: PygameContext, save_available: bool) -> tuple[ui.TitleMenuOutcome, int]:
     """Run the title menu in the existing shared Pygame window."""
     outcome, action, selected = pygame_menu.run_for_context(
         context,

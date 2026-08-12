@@ -15,6 +15,8 @@ import sys
 from typing import Any
 
 from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 
 
 class PygameWorkerUnavailable(RuntimeError):
@@ -197,7 +199,7 @@ def window_height(
     )
 
 
-def _context_game_context(context: Any) -> Any | None:
+def _context_game_context(context: PygameContext) -> GameContext | None:
     """Return the live GameContext attached to a shared runtime, if any."""
     runtime = getattr(context, "_runtime", None)
     return getattr(runtime, "game_context", None)
@@ -294,7 +296,7 @@ def draw_message_band(
 def draw_context_log(
     pygame: Any,
     screen: Any,
-    context: Any,
+    context: PygameContext,
     *,
     palette: Palette = DEFAULT_PALETTE,
 ) -> None:

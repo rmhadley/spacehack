@@ -13,7 +13,6 @@ from enum import Enum, auto
 
 from .data.species import list_species
 from .data.classes import list_classes
-from . import pygame_ui
 
 # High-contrast sci-fi palette for a black background. Normal reading text
 # stays neutral or warm-white; color is reserved for hierarchy and state so
@@ -61,13 +60,18 @@ class MenuScreen:
     def selected_id(self) -> str:
         return self.options[self.selected][0]
 
+def _modal_hint(*parts: str) -> str:
+    """Build a shared modal hint without importing presentation at module load."""
+    from . import pygame_ui
+
+    return pygame_ui.modal_hint(pygame_ui.NAV_HINT, *parts)
+
+
 def species_menu() -> MenuScreen:
     """Build the species-choices menu screen."""
     return MenuScreen(
         title="Choose Your Species",
-        instruction=pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER select", "ESC start over",
-        ),
+        instruction=_modal_hint("ENTER select", "ESC start over"),
         options=tuple((s.id, s.name) for s in list_species()),
         descriptions={s.id: s.description for s in list_species()},
         selected=0,
@@ -77,9 +81,7 @@ def class_menu() -> MenuScreen:
     """Build the class-choices menu screen."""
     return MenuScreen(
         title="Choose Your Class",
-        instruction=pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER select", "ESC go back",
-        ),
+        instruction=_modal_hint("ENTER select", "ESC go back"),
         options=tuple((c.id, c.name) for c in list_classes()),
         descriptions={c.id: c.description for c in list_classes()},
         selected=0,

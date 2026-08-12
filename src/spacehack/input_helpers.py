@@ -9,7 +9,7 @@ no event-loop internals.
 
 from __future__ import annotations
 from enum import Enum, auto
-from typing import Any
+from .pygame_runtime import PygameContext
 from . import pygame_engine
 from . import ui
 from . import pygame_ui
@@ -129,7 +129,7 @@ def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | No
             return Outcome.QUIT
         return None
 
-def _run_pick(context: Any, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
+def _run_pick(context: PygameContext, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
     """Run a character picker in the shared Pygame window."""
     if not _is_character_menu(menu):
         raise RuntimeError("Character picker requires the shared Pygame runtime")
@@ -138,7 +138,7 @@ def _run_pick(context: Any, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
         raise RuntimeError("Character picker returned no outcome")
     return result
 
-def _run_confirm(context: Any, species_id: str, class_id: str) -> Outcome:
+def _run_confirm(context: PygameContext, species_id: str, class_id: str) -> Outcome:
     """Run character confirmation in the shared Pygame window."""
     result = _run_pygame_confirm(context, species_id, class_id)
     if result is None:
@@ -158,8 +158,9 @@ def _is_q_press(event: pygame_engine.PygameInputEvent) -> bool:
     regression-guard the KeySym name lookup. Mirrors
     :func:`_movement_action`'s pattern of being a pure no-side-effect
     helper, so the dispatcher in :func:`_run_game` stays
-    declarative. ``getattr(..., "name", "")`` belt-and-suspenders
-    against a hypothetical tcod build whose ``sym`` lacks ``.name``.
+    declarative.    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
+
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'q'
 
@@ -179,8 +180,8 @@ def _is_m_press(event: pygame_engine.PygameInputEvent) -> bool:
     diagonal, so the map overlay silently shadowed vim movement in
     city mode and confused the player. ``M``/``m`` is unused by
     vim movement so it's a clean pick.
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'm'
 
@@ -205,8 +206,8 @@ def _is_g_press(event: pygame_engine.PygameInputEvent) -> bool:
     movement + planet-bump handlers.
 
     ``G``/``g`` is unused by vim movement so it's a clean pick.
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'g'
 
@@ -229,8 +230,8 @@ def _is_i_press(event: pygame_engine.PygameInputEvent) -> bool:
     modal; anything else returns False.
 
     ``I``/``i`` is unused by vim movement so it's a clean pick.
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'i'
 
@@ -246,8 +247,8 @@ def _is_t_press(event: pygame_engine.PygameInputEvent) -> bool:
     movement + planet-bump handlers.
 
     ``T``/``t`` is unused by vim movement so it's a clean pick.
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.is_keydown(event) and event.key_name == 't'
 
@@ -260,8 +261,8 @@ def _is_c_press(event: pygame_engine.PygameInputEvent) -> bool:
     sheet; anything else returns False.
 
     ``C``/``c`` is unused by vim movement so it's a clean pick.
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'c'
 
@@ -274,8 +275,8 @@ def _is_f_press(event: pygame_engine.PygameInputEvent) -> bool:
     anything else returns False.
 
     ``F``/``f`` is unused by vim movement so it's a clean pick.
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'f'
 
@@ -301,14 +302,14 @@ def _is_question_press(event: pygame_engine.PygameInputEvent) -> bool:
     ``/`` key) *plus* a shift modifier, not ``KeySym.QUESTION``.
     We check for both patterns:
 
-    * ``'QUESTION'`` — direct match (some platforms / tcod builds).
+    * ``'QUESTION'`` — direct match (some platforms).
     * ``'SLASH'`` + shift modifier (LSHIFT | RSHIFT) — universal.
 
     Unshifted ``/`` (``KeySym.SLASH`` without a shift modifier)
     returns False so plain-slash never opens the guide.
 
-    ``getattr(..., "name", "")`` belt-and-suspenders against a
-    hypothetical tcod build whose ``sym`` lacks ``.name``.
+    The project event already exposes a normalized key name, so this helper
+    stays independent of backend event classes.
     """
     return pygame_engine.guide_key(event)
 

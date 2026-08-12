@@ -19,6 +19,7 @@ from typing import Any
 from . import pygame_engine, pygame_overlay, pygame_ui, pygame_world
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
 from .framebuffer import FrameBuffer
+from .game_context import GameContext
 
 
 class PygameCombatUnavailable(RuntimeError):
@@ -121,7 +122,7 @@ _DEATH_LINES: tuple[str, ...] = (
 )
 
 
-def present_death(ctx: Any, *, lines: tuple[str, ...] = ()) -> None:
+def present_death(ctx: GameContext, *, lines: tuple[str, ...] = ()) -> None:
     """Present a full-screen death frame: no HUD, no console log.
 
     Paints the entire shared surface dark red with a centered final
@@ -169,7 +170,7 @@ def present_death(ctx: Any, *, lines: tuple[str, ...] = ()) -> None:
     engine.present()
 
 
-def present(ctx: Any, console: FrameBuffer) -> None:
+def present(ctx: GameContext, console: FrameBuffer) -> None:
     """Present a combat frame through the shared Pygame runtime."""
     presenter = getattr(ctx, "_pygame_combat_presenter", None)
     if presenter is not None:

@@ -845,8 +845,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         ctx.log.add("This terminal has nothing to trade.")
         return
 
-    # Preserve the tcod path's state gates before opening any optional
-    # presentation worker.
+    # Preserve the domain state gates before opening the presentation worker.
     from .faction import get_attitude
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)

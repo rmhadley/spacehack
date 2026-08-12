@@ -10,6 +10,7 @@ import sys
 from typing import Any
 
 from . import pygame_ui
+from .pygame_runtime import PygameContext
 
 
 class PygameQuantityUnavailable(RuntimeError):
@@ -99,7 +100,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
 
 
 def run_shared(
-    context: Any,
+    context: PygameContext,
     ctx: Any,
     label: str,
     maximum: int,
@@ -152,7 +153,7 @@ def run_shared(
 
 
 def run_for_context(
-    context: Any,
+    context: PygameContext,
     ctx: Any,
     label: str,
     maximum: int,

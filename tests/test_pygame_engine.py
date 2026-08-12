@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import get_type_hints
 
 import pytest
 
-from src.spacehack import pygame_engine, pygame_runtime
+from src.spacehack import game_context, pygame_engine, pygame_runtime, pygame_ui, saveload
 
 
 def test_default_config_matches_the_existing_logical_grid():
@@ -168,12 +169,19 @@ def test_shared_runtime_does_not_patch_third_party_event_queue():
     assert not hasattr(runtime, "_old_get")
 
 
+def test_phase4_uses_project_owned_context_contracts():
+    assert get_type_hints(game_context.GameContext)["context"] is pygame_runtime.PygameContext
+    assert get_type_hints(saveload.load_game)["context"] is pygame_runtime.PygameContext
+    assert get_type_hints(pygame_ui._context_game_context)["context"] is pygame_runtime.PygameContext
+    assert get_type_hints(pygame_ui._context_game_context)["return"] == game_context.GameContext | None
+    assert "convert_event" not in pygame_runtime.PygameContext.__dict__
+
+
 def test_shared_runtime_context_is_renderer_compatible():
     runtime = SimpleNamespace(present=lambda console: None)
     context = pygame_runtime.PygameContext(runtime)
     marker = object()
 
-    assert context.convert_event(marker) is marker
     assert context.present(marker) is None
 
 

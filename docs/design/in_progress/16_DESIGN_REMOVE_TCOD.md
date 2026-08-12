@@ -1,6 +1,6 @@
 # DESIGN: Remove the Remaining tcod Runtime Dependency
 
-> **Status: IN PROGRESS** — Phases 1, 2, and 3 implemented;
+> **Status: IN PROGRESS** — Phases 1, 2, 3, and 4 implemented;
 > later phases remain planned.
 >
 > **Priority: HIGH** — begin the decoupling now, but execute it in small
@@ -296,16 +296,63 @@ current logical size.
 
 ### Phase 4 — Remove tcod-shaped context and type contracts
 
-- [ ] Change `GameContext.context` to the project-owned runtime type/protocol.
-- [ ] Update `saveload.load_game()` and all context annotations.
-- [ ] Remove stale `tcod` names from docstrings, comments, and helper names.
-- [ ] Delete obsolete compatibility adapters and archived migration references
-      that are no longer useful as historical records.
-- [ ] Use a code-search gate to verify all exported symbol call sites after
+- [x] Change `GameContext.context` to the project-owned `PygameContext` type.
+- [x] Update `saveload.load_game()` and shared presentation context
+      annotations across the runtime, modal families, world/HUD overlays,
+      and combat adapters.
+- [x] Remove stale backend names from active docstrings, comments, and helper
+      descriptions; archived codemods and freeze-policy records remain
+      explicitly retained as historical records.
+- [x] Delete the obsolete `PygameContext.convert_event()` compatibility shim
+      and its regression fixture; shared-runtime detection remains centralized
+      in `pygame_runtime.is_shared_context()`.
+- [x] Use a code-search gate to verify all exported symbol call sites after
       signature changes.
 
 **Exit criteria:** production source imports and annotations contain no tcod
 references.
+
+#### Phase 4 pre-implementation audit
+
+**Existing modules/classes/helpers to extend or reuse**
+
+- `pygame_runtime.PygameContext` already owns the project presentation
+  boundary (`present`, `events`, and `wait_events`) and is the natural type for
+  `GameContext.context`.
+- `pygame_runtime.is_shared_context()` is the existing shared-window guard;
+  retain it rather than duplicating runtime-introspection checks in callers.
+- `pygame_runtime.PygameRuntime` and `GameRuntime` own lifecycle state and
+  remain the only runtime constructors. `pygame_ui._context_game_context()`
+  remains the one bridge for reading the live context from the shared runtime.
+- `saveload.load_game()` reconstructs `GameContext` in one place, so its input
+  annotation and reconstructed context wiring can be updated together.
+- `pygame_*` `run_shared()` / `run_for_context()` pairs already establish the
+  common presentation-context call shape; update their context annotations
+  without changing their event or rendering behavior.
+
+**Three potential duplication hotspots and DRY strategy**
+
+1. **Context annotations across modal runners.**
+   - Risk: replacing `Any` piecemeal could create several near-identical
+     protocol aliases or leave a mixed contract.
+   - Strategy: use the single project-owned `PygameContext` type from
+     `pygame_runtime`; keep `Any` only for actual Pygame/test-double values,
+     not the shared runtime context parameter.
+
+2. **Shared-runtime detection.**
+   - Risk: converting every `getattr(context, "_runtime", ...)` check into a
+     local variant would duplicate lifecycle logic.
+   - Strategy: keep `is_shared_context()` as the single guard and use the
+     existing private runtime access only where a renderer must draw directly
+     to the shared logical surface.
+
+3. **Compatibility naming and stale documentation.**
+   - Risk: deleting old adapters or renaming helpers can silently leave stale
+     call sites and misleading comments.
+   - Strategy: search every exported symbol after each signature change, update
+     active docstrings/comments in the same change, and leave explicitly
+     archived migration scripts outside the runtime inventory unless they are
+     still imported or executed by tests.
 
 ### Phase 5 — Dependency, packaging, and CI removal
 
@@ -609,3 +656,24 @@ and tileset loading.
 loads the CP437 bitmap entirely through Pygame. The remaining tcod dependency
 is now outside the active glyph/input/framebuffer presentation paths and is
 handled by the later context/dependency phases.
+
+### Phase 4 result — project-owned context contracts
+
+- [x] `GameContext.context` and `saveload.load_game(context)` now use the
+      project-owned `pygame_runtime.PygameContext` type.
+- [x] Shared modal runners, navigation, overlays, world frame builders, and
+      combat presentation state use explicit `PygameContext`/`GameContext`
+      annotations where those meanings are known; generic `Any` remains only
+      for actual Pygame modules, surfaces, payloads, and test doubles.
+- [x] Removed the unused `convert_event()` adapter and updated its runtime
+      contract test.
+- [x] Active production source has zero `tcod`/`libtcod` terminology or
+      imports; archived codemods and policy/design history remain intentionally
+      retained outside the active runtime contract.
+- [x] Focused and full validation pass with 640 tests; import/compile and
+      diff checks are clean.
+
+**Phase 4 result:** the last active presentation boundary is now explicitly
+project-owned. Runtime contexts no longer advertise a third-party console or
+event contract, while the existing Pygame lifecycle, event semantics,
+framebuffer behavior, save/load behavior, and modal call shapes remain intact.

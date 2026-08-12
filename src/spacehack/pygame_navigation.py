@@ -13,6 +13,8 @@ import math
 from typing import Any
 
 from . import pygame_ui
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 from .data import solar_systems as solar_system_module
 
 
@@ -175,7 +177,7 @@ def _native_data(system: Any, ship_pos: Any) -> tuple[tuple[NavigationAoiSection
     return sections, markers + (ship,)
 
 
-def _capture(ctx: Any, ship_pos: Any) -> NavigationFrame:
+def _capture(ctx: GameContext, ship_pos: Any) -> NavigationFrame:
     """Build a native frame directly from the authoritative system catalog."""
     from . import solar_system
 
@@ -406,7 +408,7 @@ def _draw_index(pygame: Any, screen: Any, font: Any, frame: NavigationFrame, pan
 
 def _draw(
     pygame: Any, screen: Any, font: Any, frame: NavigationFrame,
-    *, context: Any | None = None,
+    *, context: PygameContext | None = None,
 ) -> None:
     """Draw the native overview using the shared modal chrome."""
     width, height = screen.get_size()
@@ -455,7 +457,7 @@ def _handle_key(pygame: Any, event: Any) -> str:
     return "IGNORE"
 
 
-def run_shared(context: Any, ctx: Any, ship_pos: Any) -> str:
+def run_shared(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
     """Render navigation inside the already-open game window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -473,7 +475,7 @@ def run_shared(context: Any, ctx: Any, ship_pos: Any) -> str:
             return outcome
 
 
-def run_for_context(context: Any, ctx: Any, ship_pos: Any) -> str:
+def run_for_context(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
     """Use the shared runtime; otherwise request the normal fallback."""
     from . import pygame_runtime
 

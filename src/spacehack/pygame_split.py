@@ -12,6 +12,8 @@ from collections.abc import Callable
 from typing import Any
 
 from . import pygame_menu, pygame_ui
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 
 
 class PygameSplitUnavailable(RuntimeError):
@@ -283,7 +285,7 @@ def _draw_panel(
 
 def _draw_frame(
     pygame: Any, screen: Any, font: Any, frame: SplitFrame,
-    *, context: Any | None = None,
+    *, context: PygameContext | None = None,
 ) -> None:
     """Paint the split-screen frame."""
     width, height = screen.get_size()
@@ -425,7 +427,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
 
 
 def run_shared(
-    context: Any,
+    context: PygameContext,
     frame: SplitFrame,
     *,
     caption: str = "spacehack - terminal",
@@ -454,7 +456,7 @@ def run_shared(
 
 
 def run_interactive(
-    ctx: Any,
+    ctx: GameContext,
     build_frame: Callable[[], SplitFrame],
     apply_action: Callable[[str, int, int], bool],
     *,
@@ -504,7 +506,7 @@ def run_interactive(
         return outcome
 
 
-def _shared_runtime_enabled(ctx: Any) -> bool:
+def _shared_runtime_enabled(ctx: GameContext) -> bool:
     """Return whether this process owns the shared Pygame window."""
     from . import pygame_runtime
 

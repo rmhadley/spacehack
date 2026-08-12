@@ -8,6 +8,8 @@ import sys
 from typing import Any
 
 from . import pygame_menu, pygame_ui
+from .game_context import GameContext
+from .pygame_runtime import PygameContext
 
 
 class PygameFactionUnavailable(RuntimeError):
@@ -49,7 +51,7 @@ def enabled() -> bool:
     return pygame_ui.presentation_enabled()
 
 
-def _faction_rows(ctx: Any) -> tuple[FactionRow, ...]:
+def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
     """Build bright, renderer-neutral rows from live reputation state."""
     from .faction import _ALL_FACTIONS, get_attitude
     from .menus._ship_menu import _faction_progress_bar
@@ -66,7 +68,7 @@ def _faction_rows(ctx: Any) -> tuple[FactionRow, ...]:
     )
 
 
-def frame_for(ctx: Any) -> FactionFrame:
+def frame_for(ctx: GameContext) -> FactionFrame:
     """Build the current faction standings frame."""
     return FactionFrame(
         title="FACTION STANDINGS",
@@ -126,7 +128,7 @@ def _fit_font(pygame: Any, frame: FactionFrame, width: int, height: int) -> Any:
 
 def _draw_frame(
     pygame: Any, screen: Any, font: Any, frame: FactionFrame,
-    *, context: Any | None = None,
+    *, context: PygameContext | None = None,
 ) -> None:
     """Draw faction standings in the shared framed-screen style."""
     palette = pygame_ui.DEFAULT_PALETTE
@@ -186,7 +188,8 @@ def _draw_frame(
 
 
 def _draw_shared_frame(
-    pygame: Any, screen: Any, font: Any, frame: FactionFrame, context: Any,
+    pygame: Any, screen: Any, font: Any, frame: FactionFrame,    context: PygameContext,
+
 ) -> None:
     """Draw a faction frame while preserving legacy test doubles."""
     if "context" in inspect.signature(_draw_frame).parameters:
@@ -246,7 +249,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.quit()
 
 
-def run_shared(context: Any, ctx: Any) -> str:
+def run_shared(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings inside the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -269,7 +272,7 @@ def run_shared(context: Any, ctx: Any) -> str:
             return outcome
 
 
-def run_for_context(context: Any, ctx: Any) -> str:
+def run_for_context(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings in the already-open shared Pygame window."""
     from . import pygame_runtime
 
@@ -278,7 +281,7 @@ def run_for_context(context: Any, ctx: Any) -> str:
     return run_shared(context, ctx)
 
 
-def run(ctx: Any) -> str:
+def run(ctx: GameContext) -> str:
     """Run the isolated faction worker and return its outcome."""
     try:
         response = pygame_ui.run_json_worker(

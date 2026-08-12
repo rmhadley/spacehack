@@ -12,6 +12,7 @@ import sys
 from typing import Any
 
 from . import pygame_menu, pygame_ui
+from .pygame_runtime import PygameContext
 
 
 # Vertical breathing room between content sections (shared screen family,
@@ -253,7 +254,7 @@ def _draw_frame(
     font: Any,
     frame: ScreenFrame,
     *,
-    context: Any | None = None,
+    context: PygameContext | None = None,
 ) -> None:
     """Paint the current text screen."""
     palette = pygame_ui.DEFAULT_PALETTE
@@ -390,7 +391,7 @@ def _draw_frame(
 
 
 def _draw_shared_frame(
-    pygame: Any, screen: Any, font: Any, frame: ScreenFrame, context: Any,
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame, context: PygameContext,
 ) -> None:
     """Draw a shared frame while preserving legacy renderer test doubles."""
     if "context" in inspect.signature(_draw_frame).parameters:
@@ -444,7 +445,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
 
 
 def run_shared(
-    context: Any,
+    context: PygameContext,
     frame: ScreenFrame,
     *,
     caption: str = "spacehack",
@@ -478,7 +479,7 @@ def run_shared(
 
 
 def run_for_context(
-    context: Any,
+    context: PygameContext,
     frame: ScreenFrame,
     *,
     caption: str = "spacehack",

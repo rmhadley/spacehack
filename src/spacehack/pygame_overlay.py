@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from . import pygame_ui
+from .game_context import GameContext
+
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 
 
@@ -137,7 +139,7 @@ def _frame_from_commands(
 
 
 def capture(
-    ctx: Any,
+    ctx: GameContext,
     *,
     mode: str,
     location: str,
@@ -204,7 +206,7 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
 
 
 def present_exploration(
-    ctx: Any,
+    ctx: GameContext,
     console: Any,
     *,
     mode: str,

@@ -385,7 +385,7 @@ def run(
 ) -> tuple[str, int]:
     """Run the isolated Pygame Merchant worker and return its choice.
 
-    The default size matches the existing tcod canvas. The worker may reduce
+    The default size matches the game's native logical canvas. The worker may reduce
     the requested font to keep every row, description, and hint inside its
     content region.
     """

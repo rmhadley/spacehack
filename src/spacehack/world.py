@@ -1370,11 +1370,9 @@ def render_world_view(
 
 
 # Vim-style movement: lowercase letter -> (dx, dy) in city-space, where
-# y increases downward (matching tcod's convention). The standard
-# roguelike layout is h/j/k/l for cardinals and y/u/b/n for diagonals.
-# tcod's KeySym reports physical letter key presses as UPPERCASE
-# members (KeySym.H, KeySym.J, ...) which we lowercase for lookup, see
-# ``spacehack.input_helpers._movement_action``.
+# y increases downward. The standard roguelike layout is h/j/k/l for
+# cardinals and y/u/b/n for diagonals. Pygame key names are normalized to
+# lowercase for lookup by ``spacehack.input_helpers._movement_action``.
 VIM_DELTAS: dict[str, tuple[int, int]] = {
     "h": (-1,  0),  # west
     "j": ( 0,  1),  # south

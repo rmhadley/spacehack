@@ -7,14 +7,17 @@ patching a foreign event queue.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from . import pygame_engine
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, TILE_HEIGHT, TILE_WIDTH
 from .framebuffer import FrameBuffer
 
+if TYPE_CHECKING:
+    from .game_context import GameContext
 
-def is_shared_context(context: Any) -> bool:
+
+def is_shared_context(context: PygameContext) -> bool:
     """Return whether ``context`` belongs to the active shared runtime."""
     runtime = getattr(context, "_runtime", None)
     return getattr(runtime, "engine", None) is not None
@@ -41,18 +44,13 @@ class PygameContext:
         """Block until the next relevant input event is available."""
         return self._runtime.wait_events()
 
-    def convert_event(self, event: Any) -> Any:
-        """Retain the old adapter method for non-input compatibility callers."""
-        return event
-
-
 class PygameRuntime:
     """Own one Pygame engine and its explicit input queue."""
 
     def __init__(self, tileset: Any):
         self.tileset = tileset
         self.engine: pygame_engine.PygameEngine | None = None
-        self.game_context: Any | None = None
+        self.game_context: "GameContext | None" = None
         self.context = PygameContext(self)
 
     def __enter__(self) -> PygameContext:
@@ -135,7 +133,7 @@ class GameRuntime:
         self.tileset = tileset
         self._pygame: PygameRuntime | None = None
 
-    def __enter__(self) -> Any:
+    def __enter__(self) -> PygameContext:
         """Open the mandatory Pygame runtime."""
         self._pygame = PygameRuntime(self.tileset)
         return self._pygame.__enter__()

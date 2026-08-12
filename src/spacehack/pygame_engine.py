@@ -24,7 +24,7 @@ from .engine import (
 
 Color = tuple[int, int, int]
 
-# Match the responsive held-key feel of tcod's terminal input while keeping
+# Match the responsive held-key feel of the former terminal input while keeping
 # the initial press distinct from the repeated movement ticks.
 KEY_REPEAT_DELAY_MS: int = 400
 KEY_REPEAT_INTERVAL_MS: int = 55
