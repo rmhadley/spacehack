@@ -1,14 +1,14 @@
 """Standalone text-rendering comparison spike.
 
 This tool does not change the game renderer. It opens a separate Pygame
-window with the current loaded tcod bitmap raster on the left and Pygame
+window with the current loaded bitmap raster on the left and Pygame
 font-rendered samples on the right.
 
 Run from the project root in a virtual environment (recommended on macOS/Homebrew):
 
     python3 -m venv .venv
     source .venv/bin/activate
-    python -m pip install -e '.[visual]'
+    python -m pip install -e .
     python tools/text_render_spike.py
 
 Use ``--help`` for font, size, scaling, and antialiasing options. Close the
@@ -125,25 +125,14 @@ def choose_font_path(pygame: Any, requested: str | None) -> str | None:
 
 
 def _load_pygame() -> Any:
-    """Import Pygame lazily so the project remains tcod-only by default."""
+    """Import Pygame lazily so visual tools do not open a window at import time."""
     try:
         import pygame
     except ModuleNotFoundError as exc:
         raise SystemExit(
-            "Pygame is not installed. Create/activate .venv, then run: python -m pip install -e '.[visual]'"
+            "Pygame is not installed. Create/activate .venv, then run: python -m pip install -e ."
         ) from exc
     return pygame
-
-
-def _load_numpy() -> Any:
-    """Import NumPy only when the bitmap panel is actually rendered."""
-    try:
-        import numpy
-    except ModuleNotFoundError as exc:
-        raise SystemExit(
-            "NumPy is not installed. Create/activate .venv, then run: python -m pip install -e '.[visual]'"
-        ) from exc
-    return numpy
 
 
 def _project_root() -> Path:
@@ -152,7 +141,7 @@ def _project_root() -> Path:
 
 
 def _load_current_tileset():
-    """Load the exact bitmap tileset used by the active tcod renderer."""
+    """Load the exact bitmap tileset used by the active renderer."""
     root = _project_root()
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
@@ -208,9 +197,9 @@ def _load_merchant_screen_data() -> MerchantScreenData:
 
 
 def _tile_surface(pygame: Any, tile: Any, color: tuple[int, int, int], scale: int):
-    """Convert one tcod RGBA tile into a scaled, tinted Pygame surface."""
-    height, width = tile.shape[:2]
-    surface = pygame.image.frombuffer(tile.tobytes(), (width, height), "RGBA").convert_alpha()
+    """Convert one RGBA Pygame tile into a scaled, tinted surface."""
+    width, height = tile.get_size()
+    surface = tile.copy().convert_alpha()
     if color != (255, 255, 255):
         surface.fill((*color, 255), special_flags=pygame.BLEND_RGBA_MULT)
     if scale != 1:
@@ -247,8 +236,7 @@ def _draw_bitmap_line(
     scale: int,
     color: tuple[int, int, int],
 ) -> None:
-    """Draw a text line using the actual current tcod bitmap tiles."""
-    numpy = _load_numpy()
+    """Draw a text line using the current project bitmap tiles."""
     cursor_x = x
     cell_width = tileset.tile_width * scale
     for character in text:
@@ -256,10 +244,9 @@ def _draw_bitmap_line(
         if tile is None:
             cursor_x += cell_width
             continue
-        tile = numpy.asarray(tile)
         glyph = _tile_surface(pygame, tile, color, scale)
         screen.blit(glyph, (cursor_x, y))
-        cursor_x += tile.shape[1] * scale
+        cursor_x += tile.get_width() * scale
 
 
 def _wrap_by_measure(text: str, max_width: int, measure: Callable[[str], int]) -> tuple[str, ...]:
@@ -358,8 +345,8 @@ def _draw_font_text_lines(
 
 
 def _draw_bitmap_panel(pygame: Any, screen: Any, rect: PanelRect, tileset: Any, config: SpikeConfig, ui_font: Any) -> None:
-    """Render representative text using the current tcod bitmap raster."""
-    title = "CURRENT TCOD BITMAP (+3)"
+    """Render representative text using the current bitmap raster."""
+    title = "CURRENT BITMAP (+3)"
     _draw_panel_frame(pygame, screen, rect, title, ui_font)
     x = rect.x + 20
     y = rect.y + 72

@@ -1,19 +1,16 @@
-"""libtcod (python-tcod) setup helpers for spacehack.
+"""Engine setup helpers for spacehack.
 
-Everything in this module is pure setup: load the tileset, open a
-window context, and create an offscreen console. Keeping it isolated means
-the rest of the game
-can import plain data structures without dragging SDL/SDL3 in by
-accident.
+Everything in this module is pure setup: load the bitmap glyph atlas and
+create project-owned framebuffers. Keeping it isolated means the rest of the
+game can import plain data structures without opening a display at import
+time.
 """
 from __future__ import annotations
 
 import random as _random
 import sys
 from pathlib import Path
-
-import numpy as np
-import tcod.tileset
+from typing import Any
 
 from .framebuffer import FrameBuffer
 
@@ -110,11 +107,65 @@ def _data_path(filename: str) -> Path:
         return Path(sys._MEIPASS) / "spacehack" / "data" / filename
     return Path(__file__).resolve().parent / "data" / filename
 
+# The project-owned map is the exact 160-entry order used by the bundled
+# 32x8 sheet. Zero entries are intentionally blank slots in the source atlas.
+CP437_CHARMAP: tuple[int, ...] = (
+    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+    48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+    64, 91, 92, 93, 94, 95, 96, 123, 124, 125, 126, 9617, 9618, 9619,
+    9474, 9472, 9532, 9508, 9524, 9500, 9516, 9492, 9484, 9488, 9496,
+    9624, 9629, 9600, 9622, 9626, 9616, 9623, 8593, 8595, 8592, 8594,
+    9650, 9660, 9668, 9658, 8597, 8596, 9744, 9745, 9675, 9673, 9553,
+    9552, 9580, 9571, 9577, 9568, 9574, 9562, 9556, 9559, 9565, 0, 0, 0,
+    0, 0, 0, 0, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
+    78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 0, 0, 0, 0,
+    0, 0, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
+    110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 0,
+    0, 0, 0, 0, 0,
+)
+
+
+def _pygame_module() -> Any:
+    """Load Pygame only when the bitmap pipeline is used."""
+    try:
+        import pygame
+    except ModuleNotFoundError as exc:
+        raise EngineError("Pygame is required to load the bitmap tilesheet.") from exc
+    return pygame
+
+
+def _bitmap_to_alpha_tile(tile: Any) -> Any:
+    """Convert grayscale sheet pixels to white-alpha bitmap ink."""
+    pygame = _pygame_module()
+    result = pygame.Surface(tile.get_size(), pygame.SRCALPHA, 32)
+    width, height = tile.get_size()
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, _alpha = tile.get_at((x, y))
+            alpha = (red + green + blue) // 3
+            result.set_at((x, y), (255, 255, 255, alpha))
+    return result
+
+
+class PygameTileset:
+    """Project-owned processed glyph tiles loaded from the bundled PNG."""
+
+    def __init__(self, tile_width: int, tile_height: int):
+        self.tile_width = tile_width
+        self.tile_height = tile_height
+        self._tiles: dict[int, Any] = {}
+
+    def __getitem__(self, codepoint: int) -> Any:
+        return self._tiles[codepoint]
+
+    def __setitem__(self, codepoint: int, tile: Any) -> None:
+        self._tiles[codepoint] = tile
+
 # --- Procedural bitmap texture patches -------------------------------------
 #
 # The native sheet already supplies the text and box-drawing glyphs. These
 # patches fill the few game-specific texture codepoints that are absent or
-# inconsistent under CHARMAP_TCOD. Ordinary alphanumeric glyphs receive the
+# inconsistent in source atlases. Ordinary alphanumeric glyphs receive the
 # small readability widening pass below; spatial glyphs remain unscaled.
 
 # --- Procedural block elements / shades / suits ----------------------------
@@ -135,14 +186,16 @@ _BLOCK_AND_SHADES: dict[int, str] = {
     0x2593: "dark",    # ▓ dark shade
 }
 
-def _render_shade_tile(tw: int, th: int, kind: str) -> np.ndarray:
+def _render_shade_tile(tw: int, th: int, kind: str) -> Any:
     """Build one block/shade glyph tile (RGBA) matching the tilesheet look.
 
     ``kind`` is one of ``"full"`` / ``"light"`` / ``"medium"`` / ``"dark"``.
     All patterns are full-bleed so adjacent tiles read as one continuous
     surface.
     """
-    tile = np.zeros((th, tw, 4), dtype=np.uint8)
+    pygame = _pygame_module()
+    tile = pygame.Surface((tw, th), pygame.SRCALPHA, 32)
+    tile.fill((0, 0, 0, 0))
     for y in range(th):
         for x in range(tw):
             if kind == "full":
@@ -154,18 +207,20 @@ def _render_shade_tile(tw: int, th: int, kind: str) -> np.ndarray:
             else:  # dark
                 on = x % 4 != (0 if y % 2 == 0 else 2)
             if on:
-                tile[y, x] = (255, 255, 255, 255)
+                tile.set_at((x, y), (255, 255, 255, 255))
     return tile
 
 def _render_bitmap_tile(
     tw: int, th: int, rows: tuple[str, ...]
-) -> np.ndarray:
+) -> Any:
     """Build a centered glyph tile (RGBA) from '#'/'.' bitmap rows.
 
     The bundled bitmap patterns are authored at 16x16. Centering the
     pattern keeps procedural glyphs aligned in the native raster.
     """
-    tile = np.zeros((th, tw, 4), dtype=np.uint8)
+    pygame = _pygame_module()
+    tile = pygame.Surface((tw, th), pygame.SRCALPHA, 32)
+    tile.fill((0, 0, 0, 0))
     if not rows:
         return tile
     bitmap_width = max(map(len, rows), default=0)
@@ -177,7 +232,7 @@ def _render_bitmap_tile(
             target_x = x - crop_left + offset_x
             target_y = y + offset_y
             if ch == "#" and 0 <= target_x < tw and 0 <= target_y < th:
-                tile[target_y, target_x] = (255, 255, 255, 255)
+                tile.set_at((target_x, target_y), (255, 255, 255, 255))
     return tile
 
 # Floor middot — a clean 4x4 centred dot (reads as polished indoor floor).
@@ -260,8 +315,8 @@ _SUIT_BITMAPS: dict[int, tuple[str, ...]] = {
 }
 
 def _procedural_texture_glyphs(
-    tileset: tcod.tileset.Tileset,
-) -> tcod.tileset.Tileset:
+    tileset: PygameTileset,
+) -> PygameTileset:
     """Overwrite texture codepoints in ``tileset`` with tilesheet-style pixels.
 
     Returns the (mutated) tileset.  Covers the full block, the three
@@ -277,42 +332,47 @@ def _procedural_texture_glyphs(
     return tileset
 
 def _widen_glyph_tile(
-    tile: np.ndarray, extra_columns: int = _TEXT_GLYPH_EXTRA_COLUMNS
-) -> np.ndarray:
+    tile: Any, extra_columns: int = _TEXT_GLYPH_EXTRA_COLUMNS
+) -> Any:
     """Return a centered glyph with its ink widened by ``extra_columns``.
 
     Only the non-transparent horizontal ink bounds are resized. The tile
     remains the same shape, and nearest-neighbour sampling keeps the bitmap
     fully crisp.
     """
-    alpha = tile[..., 3]
-    _ys, xs = np.where(alpha > 0)
-    if not len(xs) or extra_columns <= 0:
+    pygame = _pygame_module()
+    width, height = tile.get_size()
+    xs = [
+        x for y in range(height)
+        for x in range(width)
+        if tile.get_at((x, y))[3] > 0
+    ]
+    if not xs or extra_columns <= 0:
         return tile.copy()
-    left, right = int(xs.min()), int(xs.max())
+    left, right = min(xs), max(xs)
     source_width = right - left + 1
-    target_width = min(tile.shape[1], source_width + extra_columns)
+    target_width = min(width, source_width + extra_columns)
     if target_width <= source_width:
         return tile.copy()
-    source = tile[:, left : right + 1, :]
-    source_columns = np.floor(
-        np.arange(target_width) * source_width / target_width
-    ).astype(int)
-    widened = source[:, source_columns, :]
-    result = np.zeros_like(tile)
-    target_left = (tile.shape[1] - target_width) // 2
-    result[:, target_left : target_left + target_width, :] = widened
+    result = pygame.Surface((width, height), pygame.SRCALPHA, 32)
+    result.fill((0, 0, 0, 0))
+    target_left = (width - target_width) // 2
+    for y in range(height):
+        for target_x in range(target_width):
+            source_x = left + (target_x * source_width // target_width)
+            result.set_at(
+                (target_left + target_x, y),
+                tile.get_at((source_x, y)),
+            )
     return result
 
-def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:
+def _widen_text_glyphs(tileset: PygameTileset) -> PygameTileset:
     """Tighten ordinary bitmap text while preserving the fixed cell grid."""
     for codepoint in _TEXT_GLYPHS:
-        tileset[codepoint] = _widen_glyph_tile(
-            np.asarray(tileset[codepoint])
-        )
+        tileset[codepoint] = _widen_glyph_tile(tileset[codepoint])
     return tileset
 
-def load_tileset() -> tcod.tileset.Tileset:
+def load_tileset() -> PygameTileset:
     """Load the native CP437 bitmap tileset.
 
     The bitmap is the sole rendering path so glyphs remain crisp and
@@ -325,18 +385,33 @@ def load_tileset() -> tcod.tileset.Tileset:
             f"No bitmap tileset found. Expected {TILESHEET_FILENAME} "
             "in the data/ directory."
         )
+    pygame = _pygame_module()
     try:
-        _sheet = tcod.tileset.load_tilesheet(
-            str(_tilesheet_path),
-            columns=TILESHEET_COLUMNS,
-            rows=TILESHEET_ROWS,
-            charmap=tcod.tileset.CHARMAP_TCOD,
-        )
-    except (OSError, RuntimeError, ValueError) as exc:
+        raw_sheet = pygame.image.load(str(_tilesheet_path))
+        if raw_sheet.get_size() != (
+            TILE_WIDTH * TILESHEET_COLUMNS,
+            TILE_HEIGHT * TILESHEET_ROWS,
+        ):
+            raise ValueError(
+                f"expected {TILE_WIDTH * TILESHEET_COLUMNS}x"
+                f"{TILE_HEIGHT * TILESHEET_ROWS}, got {raw_sheet.get_size()}"
+            )
+        if raw_sheet.get_bytesize() != 4 or not raw_sheet.get_masks()[3]:
+            raise ValueError("bitmap tilesheet must be a 32-bit RGBA surface")
+        sheet = PygameTileset(TILE_WIDTH, TILE_HEIGHT)
+        for index, codepoint in enumerate(CP437_CHARMAP):
+            if codepoint == 0:
+                continue
+            x = (index % TILESHEET_COLUMNS) * TILE_WIDTH
+            y = (index // TILESHEET_COLUMNS) * TILE_HEIGHT
+            sheet[codepoint] = _bitmap_to_alpha_tile(raw_sheet.subsurface(
+                (x, y, TILE_WIDTH, TILE_HEIGHT)
+            ))
+    except (OSError, RuntimeError, ValueError, pygame.error) as exc:
         raise EngineError(
             f"Failed to load bitmap tilesheet from {_tilesheet_path}: {exc}"
         ) from exc
-    return _widen_text_glyphs(_procedural_texture_glyphs(_sheet))
+    return _widen_text_glyphs(_procedural_texture_glyphs(sheet))
 
 # ---------------------------------------------------------------------------
 # Context + console

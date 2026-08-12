@@ -178,24 +178,9 @@
       "source": "\"tcod>=16\","
     },
     {
-      "path": "pyproject.toml",
-      "token": "tcod",
-      "source": "description = \"A traditional ASCII-art roguelike built on python-tcod.\""
-    },
-    {
       "path": "requirements.txt",
       "token": "tcod",
       "source": "tcod>=16"
-    },
-    {
-      "path": "spacehack.spec",
-      "token": "tcod",
-      "source": "# Hidden imports \u2014 tcod uses cffi + numpy, both of which can be missed by"
-    },
-    {
-      "path": "spacehack.spec",
-      "token": "tcod",
-      "source": "# standard spacehack.app/Contents/{MacOS,Frameworks} layout so every tcod /"
     },
     {
       "path": "spacehack.spec",
@@ -340,47 +325,7 @@
     {
       "path": "src/spacehack/engine.py",
       "token": "tcod",
-      "source": "\"\"\"libtcod (python-tcod) setup helpers for spacehack."
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset",
-      "source": "import tcod.tileset"
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.charmap_tcod",
-      "source": "charmap=tcod.tileset.CHARMAP_TCOD,"
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.load_tilesheet",
-      "source": "_sheet = tcod.tileset.load_tilesheet("
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.tileset",
-      "source": ") -> tcod.tileset.Tileset:"
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.tileset",
-      "source": "def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:"
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.tileset",
-      "source": "def _widen_text_glyphs(tileset: tcod.tileset.Tileset) -> tcod.tileset.Tileset:"
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.tileset",
-      "source": "def load_tileset() -> tcod.tileset.Tileset:"
-    },
-    {
-      "path": "src/spacehack/engine.py",
-      "token": "tcod.tileset.tileset",
-      "source": "tileset: tcod.tileset.Tileset,"
+      "source": "\"\"\"Convert grayscale sheet pixels to tcod-compatible white-alpha ink.\"\"\""
     },
     {
       "path": "src/spacehack/input_helpers.py",
@@ -440,27 +385,7 @@
     {
       "path": "src/spacehack/pygame_engine.py",
       "token": "tcod",
-      "source": "\"\"\"Build an atlas from the project's processed tcod tileset."
-    },
-    {
-      "path": "src/spacehack/pygame_engine.py",
-      "token": "tcod",
-      "source": "\"\"\"Use the same CP437 codepoint order as the existing tcod sheet.\"\"\""
-    },
-    {
-      "path": "src/spacehack/pygame_engine.py",
-      "token": "tcod",
       "source": "# Match the responsive held-key feel of tcod's terminal input while keeping"
-    },
-    {
-      "path": "src/spacehack/pygame_engine.py",
-      "token": "tcod.tileset",
-      "source": "import tcod.tileset"
-    },
-    {
-      "path": "src/spacehack/pygame_engine.py",
-      "token": "tcod.tileset.charmap_tcod",
-      "source": "return tuple(tcod.tileset.CHARMAP_TCOD)"
     },
     {
       "path": "src/spacehack/pygame_merchant.py",

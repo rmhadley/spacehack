@@ -1,6 +1,6 @@
 # DESIGN: Remove the Remaining tcod Runtime Dependency
 
-> **Status: IN PROGRESS** — Phases 1 and 2 implemented;
+> **Status: IN PROGRESS** — Phases 1, 2, and 3 implemented;
 > later phases remain planned.
 >
 > **Priority: HIGH** — begin the decoupling now, but execute it in small
@@ -73,9 +73,8 @@ turns this into a rug pull.
 - Do not redesign the UI while changing the backend boundary.
 - Do not promise that Pygame becomes a pure-Python deployment: Pygame still
   has native SDL dependencies and platform-specific wheels.
-- Do not remove NumPy automatically. First decide whether the final glyph
-  pipeline still needs it; eliminating an unnecessary NumPy runtime
-  dependency is desirable, but it is a separate choice.
+- NumPy removal is included only if the narrow glyph-processing port can
+  preserve the raster; it must not become an unrelated gameplay refactor.
 
 ## Current architecture audit
 
@@ -88,9 +87,9 @@ turns this into a rug pull.
 | Console framebuffer | `engine.make_console()`, `world.render_*()`, HUD/log/modal renderers | Project-owned `FrameBuffer` or cell/draw-command protocol |
 | Console-to-Pygame extraction | `pygame_runtime.PygameRuntime.present()` | Direct frame/draw-command consumption |
 | Context compatibility adapter | `pygame_runtime.PygameContext` | Project-owned `PygameContext` with no tcod-shaped promises |
-| Tilesheet loading | `engine.load_tileset()` and `tcod.tileset.load_tilesheet()` | Direct Pygame PNG/atlas loading |
-| CP437 mapping | `pygame_engine.GlyphAtlas._load_tcod_charmap()` | A project-owned immutable CP437 codepoint table |
-| Procedural glyph patches | `engine._procedural_texture_glyphs()` and text widening | Pygame-surface or array-based glyph processing |
+| Tilesheet loading | `engine.load_tileset()` | Direct Pygame PNG/atlas loading |
+| CP437 mapping | `engine.CP437_CHARMAP` | A project-owned immutable CP437 codepoint table |
+| Procedural glyph patches | `engine._procedural_texture_glyphs()` and text widening | Pygame-surface glyph processing |
 | Type annotations | `city.py`, `comms.py`, `dungeon.py`, `game_context.py`, `hud.py`, `message_log.py`, `navigation.py`, `npc_ships.py`, `world.py`, `saveload.py` | Project-owned protocols/types or untyped presentation adapters |
 | Direct test fixtures | `tests/test_dev_mode.py`, `tests/test_dungeon.py`, Pygame tests | Project-owned event fixtures and frame fixtures |
 | Packaging and documentation | `requirements.txt`, `pyproject.toml`, `spacehack.spec`, `tools/smoke.py`, README, `knowledge.md` | Pygame-only dependency and build documentation |
@@ -151,11 +150,10 @@ Removing tcod should, subject to dependency inspection:
 - reduce the number of native binaries that must be inspected and signed in
   frozen macOS builds.
 
-This is not automatically a NumPy removal. `engine.py` currently imports
-NumPy at module load time, while `pyproject.toml` lists it under the optional
-`visual` extra. Phase 0 must resolve that packaging inconsistency explicitly:
-retain NumPy as a declared runtime dependency, or finish the glyph-processing
-port without it and remove the dependency separately.
+Phase 3 resolves the earlier NumPy packaging inconsistency: the runtime and
+bitmap comparison spike now use Pygame surfaces only, so NumPy is no longer a
+runtime or visual-extra dependency. The optional visual path remains a Pygame
+path and does not require a second pixel-processing library.
 
 It will **not**:
 
@@ -212,8 +210,8 @@ No behavior change. This phase makes the later migration safer.
 - [ ] Establish visual baselines for city, space, dungeon, combat, title,
       modal, HUD, and message-log frames using the existing Pygame runtime.
 - [x] Confirm the existing full test and smoke gates pass before migration.
-- [ ] Decide whether the final runtime will retain NumPy for glyph processing
-      or replace that narrow use with Pygame surfaces.
+- [x] Decide to replace the narrow glyph-processing use of NumPy with Pygame
+      surfaces after parity testing in Phase 3.
 
 **Exit criteria:** new work can proceed without increasing the tcod inventory,
 and the visual/test baseline is recorded. The freeze audit is part of the
@@ -280,23 +278,21 @@ annotation; frame output matches the visual baseline.
 
 Remove `tcod.tileset` while preserving the current raster exactly.
 
-- [ ] Make the CP437 codepoint order a project-owned constant/table.
-- [ ] Load the bundled PNG through Pygame (or a deliberately isolated image
-      loader) into the existing `GlyphAtlas`.
-- [ ] Port `_procedural_texture_glyphs()` and `_widen_text_glyphs()` to the
-      chosen Pygame/array representation.
-- [ ] Preserve box-drawing, shade, block, middot, suit, and ordinary-text
+- [x] Make the CP437 codepoint order a project-owned constant/table.
+- [x] Load the bundled PNG through Pygame into the project-owned
+      `PygameTileset` and existing `GlyphAtlas`.
+- [x] Port `_procedural_texture_glyphs()` and `_widen_text_glyphs()` to
+      Pygame surfaces without changing the processed raster.
+- [x] Preserve box-drawing, shade, block, middot, suit, and ordinary-text
       glyph behavior from `engine.py`.
-- [ ] Add glyph parity tests for representative codepoints and pixel-size
-      invariants; keep a visual regression comparison for the full atlas.
-- [ ] Resolve the current packaging inconsistency: because `engine.py`
-      imports NumPy at module load time, either declare NumPy as a runtime
-      dependency or complete the glyph port without it. Do not leave NumPy
-      listed only under the optional `visual` extra if the core runtime still
-      imports it.
+- [x] Add representative codepoint, pixel-size, and full processed-raster
+      digest tests; measured parity is 140 mapped glyphs with zero mismatches.
+- [x] Remove NumPy from the runtime glyph path, visual extra, and frozen
+      hidden-import list.
 
 **Exit criteria:** `pygame_engine.GlyphAtlas` no longer imports tcod and the
-rendered atlas is visually equivalent at the current logical size.
+rendered atlas is byte-equivalent to the pre-Phase-3 processed raster at the
+current logical size.
 
 ### Phase 4 — Remove tcod-shaped context and type contracts
 
@@ -316,9 +312,9 @@ references.
 - [ ] Remove `tcod` from `requirements.txt` and `pyproject.toml`.
 - [ ] Update the package description and README credits/install guidance.
 - [ ] Remove tcod/cffi hidden imports from `spacehack.spec`.
-- [ ] Recheck `numpy` as required, optional, or removed based on Phase 3;
-      remove `cffi`/NumPy from the frozen hidden-import list only after
-      dependency inspection confirms no remaining consumer.
+- [ ] Recheck the final `cffi`/tcod dependency boundary after Phase 4 and
+      remove remaining native hidden imports only after dependency inspection
+      confirms no remaining consumer.
 - [ ] Update `tools/smoke.py` so it no longer claims to mount tcod and add a
       no-tcod import test.
 - [ ] Update Makefile, CI, release workflow, and Homebrew/build notes where
@@ -376,8 +372,7 @@ and launch the game; frozen artifacts contain no tcod/libtcod payload.
   tests — regression coverage to extend rather than replace.
 - `tools/text_render_spike.py` and `tools/_archived/` — classify as optional
   visual tooling or historical migration records; keep them out of runtime
-  imports and decide whether they should retain a documented tcod dependency
-  or be ported/retired in the final cleanup.
+  imports and port/retire stale dependency wording during final cleanup.
 - `spacehack.spec`, `.github/workflows/build.yml`, `Makefile`, and the
   Homebrew cask/tap documentation — existing distribution paths to preserve.
 
@@ -463,10 +458,8 @@ CP437 codepoints.
    compatibility, a stricter cell grid, or direct command streams everywhere?
    Recommendation: use a small frame protocol during migration and prefer
    immutable `WorldDrawCommand` streams for world output.
-2. **Glyph processing dependency:** keep NumPy as a required runtime
-   dependency, or move the narrow processing path to Pygame surfaces and
-   remove NumPy? Recommendation: remove NumPy if pixel parity and startup
-   performance remain acceptable; do not make this decision implicitly.
+2. **Glyph processing dependency:** Phase 3 selected Pygame surfaces and
+   removed NumPy after a 140-glyph zero-mismatch raster comparison.
 3. **Input type name:** promote `PygameInputEvent`, or rename it to a
    renderer-neutral `InputEvent` before migration? Recommendation: rename to
    `InputEvent` if future non-Pygame input/testing backends are likely.
@@ -595,3 +588,24 @@ is patched. The Phase 1 playtest passed.
 and the shared Pygame runtime consumes its command stream directly. Visual
 layout and gameplay behavior are unchanged; Phase 3 still owns direct glyph
 and tileset loading.
+
+### Phase 3 — direct Pygame glyph loading
+
+- [x] Replaced the tcod tileset loader with direct Pygame loading of the bundled
+      512x128 RGBA bitmap and a project-owned `CP437_CHARMAP`.
+- [x] Ported procedural texture/suit/middot patches and text widening to
+      Pygame surfaces.
+- [x] Removed NumPy from the engine glyph path, visual extra, and frozen hidden
+      imports; the comparison spike now uses the same Pygame tiles.
+- [x] Verified exact parity against the pre-Phase-3 processed raster: 140
+      mapped glyphs, zero mismatches, digest
+      `9211a90e2938fe9066050abb97e5e8658f81f346227ff0a79b498dcf0ce14cef`.
+- [x] Focused glyph/runtime tests pass; the full suite currently passes with
+      638 tests.
+- [ ] Complete the manual Phase 3 visual checklist: text, map glyphs, box
+      drawing, shades, floor dots, suits, entity tint, and fractional scaling.
+
+**Phase 3 result:** the active renderer no longer imports `tcod.tileset` and
+loads the CP437 bitmap entirely through Pygame. The remaining tcod dependency
+is now outside the active glyph/input/framebuffer presentation paths and is
+handled by the later context/dependency phases.

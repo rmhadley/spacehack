@@ -268,7 +268,7 @@ def _paint_range_line(
 
     The line updates immediately when the player switches weapons.    Uses ``~`` (tilde) as the line character so it's visible but
     doesn't fully obscure glyphs underneath. Tilde is a safe
-    choice for CP437-based tilesets (``CHARMAP_TCOD``).
+    choice for CP437-based bitmap atlases.
 
     ``game_map`` (when provided) keeps the line from painting over
     other entities — cells occupied by a non-target (another enemy,

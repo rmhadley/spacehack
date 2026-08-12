@@ -1,7 +1,7 @@
 [project]
 name = "spacehack"
 version = "0.0.1"
-description = "A traditional ASCII-art roguelike built on python-tcod."
+description = "A traditional ASCII-art sci-fi roguelike built on Pygame."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -14,7 +14,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
-visual = ["numpy>=1.26"]
 
 [project.scripts]
 spacehack = "spacehack.__main__:main"

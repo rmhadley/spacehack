@@ -17,9 +17,9 @@ from tools.text_render_spike import (
 
 
 def test_spike_does_not_eagerly_import_numpy():
-    """Help and configuration remain usable before visual dependencies load."""
+    """The direct bitmap spike has no NumPy dependency."""
     source = Path("tools/text_render_spike.py").read_text(encoding="utf-8")
-    assert "import numpy as np" not in source
+    assert "import numpy" not in source
 
 
 def test_merchant_bitmap_view_wraps_long_rows_to_panel_width():

@@ -16,6 +16,9 @@ from .engine import (
     TILE_HEIGHT,
     TILE_WIDTH,
     WINDOW_TITLE,
+    TILESHEET_COLUMNS,
+    TILESHEET_ROWS,
+    CP437_CHARMAP,
 )
 
 
@@ -183,7 +186,7 @@ def _load_pygame() -> Any:
         import pygame
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "Pygame is not installed. Install the optional visual extra."
+            "Pygame is not installed. Install the project with: python -m pip install -e ."
         ) from exc
     return pygame
 
@@ -225,26 +228,13 @@ class GlyphAtlas:
         self.surface = surface
         self.tile_width = tile_width
         self.tile_height = tile_height
-        self._codepoints = self._load_tcod_charmap()
-
-    @staticmethod
-    def _load_tcod_charmap() -> tuple[int, ...]:
-        """Use the same CP437 codepoint order as the existing tcod sheet."""
-        import tcod.tileset
-
-        return tuple(tcod.tileset.CHARMAP_TCOD)
+        self._codepoints = tuple(CP437_CHARMAP)
 
     @classmethod
     def from_processed_tileset(cls, pygame: Any, tileset: Any) -> "GlyphAtlas":
-        """Build an atlas from the project's processed tcod tileset.
-
-        ``engine.load_tileset`` applies the approved text widening and
-        procedural texture/box-drawing patches. Building the Pygame atlas from
-        those glyph arrays, rather than reloading the raw PNG, keeps both
-        renderers visually identical during the shared-renderer transition.
-        """
-        columns = 32
-        rows = 8
+        """Build an atlas from the processed project-owned glyph tiles."""
+        columns = TILESHEET_COLUMNS
+        rows = TILESHEET_ROWS
         tile_width = tileset.tile_width
         tile_height = tileset.tile_height
         atlas = pygame.Surface(
@@ -252,16 +242,13 @@ class GlyphAtlas:
             pygame.SRCALPHA,
         )
         atlas.fill((0, 0, 0, 0))
-        for index, codepoint in enumerate(cls._load_tcod_charmap()):
+        for index, codepoint in enumerate(CP437_CHARMAP):
             try:
                 tile = tileset[codepoint]
             except KeyError:
                 continue
-            tile_surface = pygame.image.frombuffer(
-                tile.tobytes(), (tile_width, tile_height), "RGBA",
-            ).convert_alpha()
             atlas.blit(
-                tile_surface,
+                tile,
                 ((index % columns) * tile_width,
                  (index // columns) * tile_height),
             )

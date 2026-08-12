@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import io
 import sys
 import tokenize
 from pathlib import Path
 
-import numpy as np
+import pygame
+import pytest
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -34,6 +36,20 @@ def _contrast_against_black(color: tuple[int, int, int]) -> float:
     return (_relative_luminance(color) + 0.05) / 0.05
 
 
+def test_engine_import_does_not_eagerly_import_pygame():
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import sys; import src.spacehack.engine; print('pygame' in sys.modules)"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert result.stdout.strip() == "False"
+
+
 def test_bitmap_tileset_is_native_and_is_the_only_font_configuration():
     """The game uses the bundled bitmap at its native dimensions."""
     data_dir = Path(__file__).resolve().parents[1] / "src" / "spacehack" / "data"
@@ -45,6 +61,76 @@ def test_bitmap_tileset_is_native_and_is_the_only_font_configuration():
     assert (data_dir / engine.TILESHEET_FILENAME).is_file()
     assert not hasattr(engine, "TRUETYPE_FONT_FILENAME")
     assert not hasattr(engine, "LEGACY_TRUETYPE_FONT_FILENAME")
+
+
+def test_project_charmap_matches_bundled_sheet_contract():
+    assert len(engine.CP437_CHARMAP) == 160
+    assert engine.CP437_CHARMAP[:3] == (32, 33, 34)
+    assert engine.CP437_CHARMAP[96:104] == tuple(range(ord("A"), ord("I")))
+    assert engine.CP437_CHARMAP[128:134] == tuple(range(ord("a"), ord("g")))
+    assert engine.CP437_CHARMAP[90] == 0
+
+
+def test_direct_bitmap_loader_preserves_native_dimensions_and_representative_glyphs():
+    tileset = engine.load_tileset()
+
+    assert isinstance(tileset, engine.PygameTileset)
+    assert (tileset.tile_width, tileset.tile_height) == (16, 16)
+    for codepoint in (ord("A"), ord("a"), ord("."), ord("@"), 0x2591, 0x00B7, 0x2663):
+        assert tileset[codepoint].get_size() == (16, 16)
+    assert tileset[0x2591].get_at((0, 0))[3] == 255
+    assert tileset[0x00B7].get_bounding_rect().size == (4, 4)
+
+
+def test_processed_glyph_raster_matches_the_phase_3_baseline_digest():
+    tileset = engine.load_tileset()
+    digest = hashlib.sha256()
+    count = 0
+    for codepoint in sorted(set(engine.CP437_CHARMAP)):
+        if codepoint in (0, 32):
+            continue
+        digest.update(codepoint.to_bytes(4, "little"))
+        digest.update(bytes(tileset[codepoint].get_view("0")))
+        count += 1
+
+    assert count == 140
+    assert digest.hexdigest() == (
+        "9211a90e2938fe9066050abb97e5e8658f81f346227ff0a79b498dcf0ce14cef"
+    )
+
+
+def test_bitmap_loader_rejects_wrong_dimensions(monkeypatch):
+    class FakeSheet:
+        def get_size(self):
+            return (16, 16)
+
+    fake_pygame = type(
+        "FakePygame",
+        (),
+        {
+            "image": type("Image", (), {"load": staticmethod(lambda _path: FakeSheet())}),
+            "error": RuntimeError,
+        },
+    )
+    monkeypatch.setattr(engine, "_pygame_module", lambda: fake_pygame)
+
+    with pytest.raises(engine.EngineError, match="expected"):
+        engine.load_tileset()
+
+
+def test_bitmap_loader_converts_pygame_errors_to_engine_error(monkeypatch):
+    class FakePygame:
+        error = RuntimeError
+        image = type(
+            "Image",
+            (),
+            {"load": staticmethod(lambda _path: (_ for _ in ()).throw(RuntimeError("bad png")))},
+        )
+
+    monkeypatch.setattr(engine, "_pygame_module", lambda: FakePygame)
+
+    with pytest.raises(engine.EngineError, match="bad png"):
+        engine.load_tileset()
 
 
 def test_bitmap_loader_raises_when_the_native_sheet_is_missing(monkeypatch):
@@ -61,25 +147,33 @@ def test_bitmap_loader_raises_when_the_native_sheet_is_missing(monkeypatch):
 def test_text_glyph_widening_is_the_tightened_bitmap_baseline():
     """The stronger readability pass widens letters without changing cells."""
     assert engine._TEXT_GLYPH_EXTRA_COLUMNS == 3
-    tile = np.zeros((16, 16, 4), dtype=np.uint8)
-    tile[:, 5:11, 3] = 255
+    tile = pygame.Surface((16, 16), pygame.SRCALPHA, 32)
+    tile.fill((0, 0, 0, 0))
+    for y in range(16):
+        for x in range(5, 11):
+            tile.set_at((x, y), (255, 255, 255, 255))
     widened = engine._widen_glyph_tile(tile)
-    assert widened.shape == tile.shape
-    assert np.count_nonzero(widened[..., 3]) > np.count_nonzero(tile[..., 3])
-    ys, xs = np.where(widened[..., 3] > 0)
-    assert (int(xs.min()), int(xs.max())) == (3, 11)
+    assert widened.get_size() == tile.get_size()
+    original_ink = sum(tile.get_at((x, y))[3] > 0 for y in range(16) for x in range(16))
+    widened_ink = sum(widened.get_at((x, y))[3] > 0 for y in range(16) for x in range(16))
+    assert widened_ink > original_ink
+    xs = [x for y in range(16) for x in range(16) if widened.get_at((x, y))[3] > 0]
+    assert (min(xs), max(xs)) == (3, 11)
 
 
 def test_bitmap_glyphs_center_in_the_native_raster():
     """Procedural texture glyphs stay aligned in the native bitmap tile."""
     tile = engine._render_bitmap_tile(16, 16, ("#",))
-    assert tile[7, 7, 3] == 255
-    assert tile[0, 0, 3] == 0
+    assert tile.get_at((7, 7))[3] == 255
+    assert tile.get_at((0, 0))[3] == 0
     offset_tile = engine._render_bitmap_tile(16, 16, ("", "##"))
-    assert offset_tile[8, 7, 3] == 255
+    assert offset_tile.get_at((7, 8))[3] == 255
     tall_tile = engine._render_bitmap_tile(16, 16, tuple("#" for _ in range(20)))
-    assert tall_tile.shape == (16, 16, 4)
-    assert not engine._render_bitmap_tile(16, 16, ()).any()
+    assert tall_tile.get_size() == (16, 16)
+    assert all(
+        engine._render_bitmap_tile(16, 16, ()).get_at((x, y))[3] == 0
+        for y in range(16) for x in range(16)
+    )
 
 
 def _runtime_string_tokens():

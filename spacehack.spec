@@ -10,15 +10,13 @@ import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Hidden imports — tcod uses cffi + numpy, both of which can be missed by
-# PyInstaller's auto-detection.  collect_submodules grabs every spacehack
-# submodule so dynamic/delayed imports don't get missed.
+# Hidden imports — collect_submodules grabs every spacehack submodule so
+# dynamic/delayed imports don't get missed.
 # ---------------------------------------------------------------------------
 from PyInstaller.utils.hooks import collect_submodules
 
 _hidden = [
     'cffi',
-    'numpy',
     'tcod',
 ] + collect_submodules('spacehack')
 
@@ -123,8 +121,8 @@ coll = COLLECT(
 # macOS (icon-windowed.icns lands in Contents/Resources/).
 # ---------------------------------------------------------------------------
 # macOS .app bundle (only built on macOS): wraps the COLLECT folder into a
-# standard spacehack.app/Contents/{MacOS,Frameworks} layout so every tcod /
-# numpy dylib is exposed transparently to the operating system.
+# standard spacehack.app/Contents/{MacOS,Frameworks} layout so every
+# required native library is exposed transparently to the operating system.
 #
 # macOS requires every nested binary to carry at least an ad-hoc signature
 # (mandatory on Apple Silicon); unsigned dylibs make the app open as
