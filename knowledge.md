@@ -1,6 +1,6 @@
 # spacehack — Agent knowledge
 
-A traditional ASCII-art sci-fi roguelike built on [Pygame](https://www.pygame.org/).
+A traditional ASCII-art sci-fi roguelike built on [Pygame](https://www.pygame.org/) via the Pygame Community Edition package (`pygame-ce`).
 
 ## Quick start
 

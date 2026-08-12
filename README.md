@@ -114,7 +114,7 @@ Grab the latest release for your platform from the
 
 ### From source
 
-Requires **Python 3.10+**. macOS / Linux:
+Requires **Python 3.10+**. The runtime uses the Pygame-compatible Community Edition package (`pygame-ce`), which provides prebuilt wheels for macOS ARM and current CPython releases. If upgrading an existing environment that installed standard `pygame`, recreate the virtual environment first. macOS / Linux:
 
 ```bash
  git clone https://github.com/rmhadley/spacehack.git
@@ -178,7 +178,7 @@ formulas, missions, and more.
 
 ## Credits
 
-- Built on [pygame](https://www.pygame.org/) with a project-owned
+- Built on [pygame-ce](https://pyga.me/) (the Pygame-compatible Community Edition) with a project-owned
   framebuffer, input layer, and CP437 glyph atlas
 - Typeface: [DejaVu Sans Mono](https://dejavu-fonts.github.io/) (bundled) —
   the in-game CP437 tilesheet is DejaVu-derived
