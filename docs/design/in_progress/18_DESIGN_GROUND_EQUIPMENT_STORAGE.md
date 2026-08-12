@@ -11,14 +11,23 @@ without selling or destroying it, keep it in storage, and equip it later when a
 mission or character build calls for it. The system should also make it safe to
 buy replacement armor or weapons without silently losing the previous item.
 
-The first version adds a global ground-equipment locker. It stores personal
-weapons and armor independently from the currently equipped ground loadout.
-The locker is deliberately unlimited at first so the system solves ownership
-and retention before adding capacity pressure or a more elaborate inventory
-economy.
+The first version has two distinct ownership layers:
 
-The UI/UX should build on the existing Pygame armory and character equipment
-screens. The first presentation should make the ownership distinction obvious:
+- **Armory storage:** an unlimited global warehouse accessible from armory
+  terminals. It can hold every owned ground weapon and armor item.
+- **Expedition inventory:** a limited personal pack prepared at the armory and
+  carried into a dungeon. It holds extra weapons and armor that can be swapped
+  into the active loadout while exploring. Equipped items do not consume pack
+  slots; the four initial slots represent reserve items only.
+
+This separation preserves the convenience of unlimited ownership while making
+expedition preparation and in-dungeon loadout decisions meaningful. Dungeon
+loot also enters the limited expedition inventory, so the player must make room
+or leave it behind.
+
+The UI/UX should build on the existing Pygame armory, character equipment, and
+combat screens. The first presentation should make the ownership distinction
+obvious:
 
 **Current implementation gap:** the existing armory directly appends a bought
 weapon when fewer than two weapon IDs are equipped and directly overwrites no
@@ -28,7 +37,8 @@ target contract, not claims about behavior already present. Phase 1 must add the
 transactional domain helpers before the armory UI adopts them.
 
 - **Buy:** ground equipment available at the current armory.
-- **Storage:** equipment the player owns but is not currently using.
+- **Armory Storage:** unlimited equipment ownership that stays at the armory.
+- **Expedition Pack:** limited reserve equipment brought into a dungeon.
 - **My Loadout:** weapons and armor currently equipped for ground combat.
 
 This design covers ground weapons and armor only. Ship equipment remains
@@ -38,16 +48,19 @@ covered by `docs/design/complete/17_DESIGN_SHIP_EQUIPMENT_STORAGE.md`.
 
 | Decision | Choice |
 |----------|--------|
-| **Storage scope** | One global locker accessible from every armory. |
-| **Capacity** | Unlimited in the first version. |
+| **Armory storage scope** | One global, unlimited warehouse accessible from every armory terminal. |
+| **Expedition inventory scope** | One limited personal pack prepared at an armory and carried into dungeons; it is not accessible from the armory warehouse while underground. |
+| **Expedition capacity** | Four reserve-item slots initially, plus `max(0, (Strength - 10) // 10)` bonus slots. Strength 10 therefore starts with four slots; equipped items do not consume these slots. |
 | **Equipment identity** | Catalog ID plus explicit per-item state if the ground combat model gains such state later. Duplicate items remain separate entries. |
-| **Equipment types** | Ground weapons and ground armor. Trade goods, ship equipment, and loot remain separate systems. |
+| **Equipment types** | Ground weapons and ground armor. Trade goods, ship equipment, and loot remain separate systems. Both spare weapons and spare armor use expedition slots. |
 | **Weapon slots** | The active loadout remains two weapon slots. The current armory only limits the list to two IDs; Phase 1 will make a two-handed weapon occupy both slots and prevent pairing it with another weapon. |
 | **Armor slots** | One item per fixed slot: `head`, `body`, `hands`, `legs`, and `feet`. The current armory rejects a purchase when its slot is occupied; Phase 1 will preserve the displaced item through storage-aware replacement. |
 | **Replacement behavior** | Phase 1 target: equipping an item into an occupied compatible slot stores the displaced item; it is never silently sold or destroyed. |
-| **Buying** | Buying creates one owned item, then the player chooses whether to equip it or store it. Payment is not lost if the destination choice is canceled or impossible. |
-| **Selling** | Selling is always explicit and separate from storing. Selling a stored item is supported. |
-| **Ammo** | The current ground-combat model does not persist weapon ammo; this first storage pass must not invent a partial ammo system. If ground ammo becomes persistent later, stored entries must gain explicit ammo state in a follow-up migration. |
+| **Buying** | Buying creates one owned item, then the player chooses whether to equip it, place it in the expedition pack, or leave it in armory storage. Payment is not lost if the destination choice is canceled or impossible. |
+| **Dungeon swapping** | During exploration and active combat, the player may exchange active gear with an expedition item. Each successful swap costs 1 AP; armory storage is unavailable until the player returns to an armory. |
+| **Dungeon loot** | Ground weapons and armor found in a dungeon require an available expedition slot. If the pack is full, the player must swap/drop an item or leave the loot. |
+| **Selling** | Selling is always explicit and separate from storing. Selling from armory storage or the expedition pack is supported; selling active gear uses the existing armory-only action. |
+| **Ammo** | The current ground-combat model does not persist weapon ammo; this first storage pass must not invent a partial ammo system. If ground ammo becomes persistent later, both storage layers must gain explicit ammo state in a follow-up migration. |
 | **Backward compatibility** | Existing saves load with empty ground storage. Existing equipped weapons and armor remain equipped exactly as before. |
 
 ## Philosophy alignment
@@ -55,7 +68,7 @@ covered by `docs/design/complete/17_DESIGN_SHIP_EQUIPMENT_STORAGE.md`.
 | Principle | Application |
 |----------|-------------|
 | **Data-first** | Stored entries reference the existing frozen ground weapon and armor catalogs by stable ID. |
-| **ctx-first** | The locker belongs to `GameContext`; it is not module-level state or UI state. |
+| **ctx-first** | Armory storage, expedition inventory, and active loadout belong to `GameContext`; none is module-level state or UI state. |
 | **Pure computation** | Slot compatibility, two-handed fit checks, sell prices, and display rows remain pure or narrowly testable helpers. |
 | **Explicit mutation** | Buy, store, install, replace, and sell are named actions with no implicit destruction path. |
 | **Save/load safety** | Storage and the equipped loadout survive Continue without duplication or loss. |
@@ -67,8 +80,9 @@ covered by `docs/design/complete/17_DESIGN_SHIP_EQUIPMENT_STORAGE.md`.
 ### Existing modules and helpers to extend or reuse
 
 - `src/spacehack/game_context.py`: `GameContext.equipped_ground_weapons`
-  and `GameContext.equipped_ground_armor` are the current ownership fields;
-  add one persistent ground-storage field beside them.
+  and `GameContext.equipped_ground_armor` are the current active-loadout
+  fields; add separate persistent armory-storage and expedition-inventory
+  fields beside them.
 - `src/spacehack/data/ground_weapons/__init__.py`: `GroundWeaponSpec`,
   `find_ground_weapon`, and `list_ground_weapons` define the stable catalog and
   expose the `hands` constraint needed for two-handed loadouts.
@@ -84,7 +98,15 @@ covered by `docs/design/complete/17_DESIGN_SHIP_EQUIPMENT_STORAGE.md`.
   character equipment details where possible.
 - `src/spacehack/combat/_rules_ground.py`: `init`, `player_weapons`, and armor
   defense calculation consume the equipped loadout. They must continue to see
-  only the active equipment after storage is introduced.
+  only active equipment; a successful expedition swap must update that loadout
+  before the next action and charge 1 AP.
+- `src/spacehack/__main__.py` and `src/spacehack/input_helpers.py`: the dungeon
+  input dispatch and existing modal-opening conventions are the integration
+  seam for an expedition equipment modal. The modal must pause the current
+  frame and must not advance NPCs or combat until it returns.
+- `src/spacehack/dungeon.py` and `src/spacehack/trade.py`: dungeon loot pickup
+  and entity removal are the likely seams for routing discovered ground gear
+  into the expedition pack instead of armory storage.
 - `src/spacehack/saveload.py`: `_ctx_to_dict`, `load_game`, and the existing
   equipped-ground fields are the save/load seam. New storage needs matching
   serialization, deserialization, and old-save defaults.
@@ -141,32 +163,49 @@ class StoredGroundEquipment:
 
 A list is preferable to a count dictionary. It preserves duplicate items as
 distinct owned parts and leaves room for explicit per-item state later. The
-first implementation should not add `ammo` because the current ground combat
-rules do not consume or persist player weapon ammunition. If that gameplay
-changes, add a deliberate migration and tests rather than inferring state from
-an item ID.
+same entry shape can be used by both armory storage and expedition inventory;
+the container determines the item's access and capacity rules.
+
+The first implementation should not add `ammo` because the current ground
+combat rules do not consume or persist player weapon ammunition. If that
+ gameplay changes, add a deliberate migration and tests rather than inferring
+state from an item ID.
 
 ### GameContext ownership
 
-Add one field conceptually equivalent to:
+Add two fields conceptually equivalent to:
 
 ```python
-ground_equipment_storage: list[StoredGroundEquipment] = field(
+ground_armory_storage: list[StoredGroundEquipment] = field(
+    default_factory=list,
+)
+ground_expedition_inventory: list[StoredGroundEquipment] = field(
     default_factory=list,
 )
 ```
 
 The exact class and field names may be refined during Phase 1, but the
-ownership contract is fixed: storage belongs to the player and is independent
-of the current armory, dungeon, or map.
+ownership contract is fixed: armory storage is the unlimited warehouse and
+expedition inventory is the limited carried reserve. Both are independent of
+the current map; only expedition inventory is available underground.
 
 The existing fields remain the active loadout:
 
 ```python
-equipped_ground_weapons: list[str]       # zero to two effective slots
-
+equipped_ground_weapons: list[str]       # normalized active weapon IDs
 equipped_ground_armor: dict[str, str]    # armor slot -> catalog ID
 ```
+
+The persisted weapon list stays compact: one-handed loadouts contain one or
+two IDs, while a two-handed weapon is represented by one ID occupying both
+logical weapon slots. No empty placeholder ID is stored for the second hand;
+the shared fit helper derives the logical occupancy from `GroundWeaponSpec.hands`.
+A transition from two one-handed weapons to a two-handed weapon must first
+move both displaced IDs atomically to the selected destination. In a dungeon,
+the expedition pack must have room for both displaced items after the selected
+weapon is removed; at an armory they may go to Armory Storage or the pack only
+through an explicit destination choice. A canceled or under-capacity transition
+leaves the source container and active loadout unchanged.
 
 ## Equipment movement rules
 
@@ -191,27 +230,41 @@ operation must fail without changing either loadout or storage.
 
 ### Install a stored weapon
 
-1. Validate that the item exists in storage.
+1. Validate that the item exists in the selected container (armory storage at
+   an armory, expedition inventory in a dungeon).
 2. Validate that the active loadout can fit the weapon's `hands` requirement.
-3. Remove exactly that storage entry.
-4. Add the weapon to the active loadout in a normalized slot arrangement.
-5. Log the action.
+3. For an armory install, resolve any displaced equipment into armory storage
+   or the expedition pack according to the player's explicit destination.
+4. For an expedition swap, require 1 AP and resolve displaced equipment back
+   into the expedition inventory.
+5. Remove exactly that source entry.
+6. Add the weapon to the active loadout in a normalized slot arrangement.
+7. Log the result.
 
-A two-handed weapon requires both weapon slots. Equipping it must either store
-the displaced one-handed weapons as part of the same atomic action or offer a
-clear replacement choice; it must never silently discard them. The first UI
-pass should use a compact replacement chooser when displacement is required.
-If there is no valid destination and the player cancels, storage and the active
-loadout remain unchanged.
+A two-handed weapon requires both logical weapon slots and is stored as one
+weapon ID in the normalized active list. Equipping it from a container must
+atomically move both currently equipped one-handed weapons to an explicit
+destination; it must never silently discard either one. In the expedition pack,
+the selected two-handed item is removed before capacity is checked for the two
+displaced items, but the complete transaction must still pass before any state
+is mutated. Replacing an active two-handed weapon with a one-handed weapon
+moves the two-handed item into the source container and installs the selected
+weapon. The first UI pass should use a compact replacement chooser when
+displacement is required. If there is no valid destination or the player
+cancels, the source container and active loadout remain unchanged.
 
 ### Install stored armor
 
-1. Validate that the armor entry exists in storage.
+1. Validate that the armor entry exists in the selected container.
 2. Determine its fixed catalog slot.
-3. If that slot is empty, remove the entry from storage and equip it.
+3. If that slot is empty, remove the entry from the source container and equip
+   it.
 4. If the slot is occupied, atomically move the currently equipped item into
-   storage, then equip the selected item.
-5. Log the replacement.
+   the destination container, then equip the selected item. During dungeon
+   swapping this means the displaced armor must fit in the expedition pack.
+5. Charge 1 AP only for a successful in-dungeon swap; armory management is
+   free.
+6. Log the replacement.
 
 Armor replacement must preserve the displaced item even when the player is
 installing a stronger item from storage.
@@ -219,12 +272,15 @@ installing a stronger item from storage.
 ### Buy ground equipment
 
 1. Validate credits and the current armory's catalog availability.
-2. Open an Install/Store destination chooser before mutating credits.
+2. Open an Install / Expedition Pack / Armory Storage destination chooser
+   before mutating credits.
 3. For Install, use the same weapon/armor compatibility and replacement rules
-   as storage installation.
-4. For Store, append one new entry without requiring an available active slot.
-5. Deduct credits only after the selected destination succeeds.
-6. Log the purchase and destination.
+   as armory loadout management.
+4. For Expedition Pack, require one available reserve slot and append one new
+   entry.
+5. For Armory Storage, append one new entry without a capacity check.
+6. Deduct credits only after the selected destination succeeds.
+7. Log the purchase and destination.
 
 A canceled, unaffordable, incompatible, or otherwise failed destination leaves
 credits, storage, and the active loadout unchanged.
@@ -240,7 +296,9 @@ Selling is an explicit action from either the active loadout or storage:
 5. Log the sale.
 
 Selling an equipped item must not shift an unrelated armor slot or duplicate a
-weapon. Selling an item from storage must not change the active combat loadout.
+weapon. Selling an item from armory storage or the expedition pack must not
+change the active combat loadout. Dungeon selling is not available; the player
+must return to an armory to sell expedition items.
 
 ## Domain changes
 
@@ -256,16 +314,23 @@ weapon. Selling an item from storage must not change the active combat loadout.
 
 ### Game context
 
-- Add one `ground_equipment_storage` field with an empty default.
-- Document that equipped fields contain only active combat gear and storage
-  contains unequipped owned gear.
+- Add `ground_armory_storage` and `ground_expedition_inventory` fields with
+  empty defaults.
+- Document that equipped fields contain active combat gear, armory storage is
+  unlimited terminal-only ownership, and expedition inventory is the limited
+  carried reserve.
 - Do not add module-level ground inventory state.
 
 ### Save/load
 
-- Serialize `ground_equipment_storage` in `_ctx_to_dict`.
-- Restore it in `load_game` with `[]` for old saves.
+- Serialize `ground_armory_storage` and `ground_expedition_inventory` in
+  `_ctx_to_dict`.
+- Restore both in `load_game` with `[]` for old saves. A migration may accept
+  the pre-expedition `ground_equipment_storage` name as armory storage if an
+  intermediate development save ever contains it.
 - Preserve duplicate weapon and armor entries exactly.
+- Save the expedition pack even while the player is underground so Continue
+  restores the same carried equipment and active loadout.
 - Validate item types and catalog IDs during load; malformed records should be
   ignored rather than crashing Continue or becoming a different item.
 - Preserve the current equipped loadout unchanged during migration.
@@ -274,13 +339,17 @@ weapon. Selling an item from storage must not change the active combat loadout.
 
 First UI pass should extend the existing armory split screen:
 
-- Add explicit `[B]uy` and `[S]torage` header tabs, following the ship-storage
-  interaction pattern.
+- Add explicit `[B]uy`, `[A]rmory`, and `[E]xpedition` destinations/views, or
+  an equally clear layout that distinguishes the unlimited warehouse from the
+  limited carried pack.
 - Keep the right panel as **My Loadout**, showing weapon slots and all five
   armor slots.
+- Show both storage containers with item counts such as `Pack 2/4` and
+  `Armory unlimited`.
 - Show stored weapons and armor with type, slot, hands, damage/defense, and
   price details where useful.
-- Use compact Install/Store and Sell actions consistent with the mechanic UI.
+- Use compact Install/Store/Pack/Sell actions consistent with the ship
+  mechanic UI. Selling is available at an armory, not underground.
 - Display a clear replacement prompt when a two-handed weapon would displace
   one-handed weapons or when armor occupies the same slot.
 - Keep empty slots visible and explain that Fists are the combat fallback when
@@ -295,7 +364,10 @@ phase demonstrates a compelling need for direct management outside an armory.
 
 - Continue reading only `equipped_ground_weapons` and
   `equipped_ground_armor` during combat initialization.
-- Do not let stored items affect weapon selection, AP, or armor defense.
+- Do not let armory-stored or expedition-reserve items affect weapon
+  selection, AP, or armor defense until an explicit swap succeeds.
+- A successful in-combat swap costs 1 AP and refreshes the combat weapon/armor
+  state before the next action; a failed or canceled swap costs nothing.
 - Preserve the current no-persistent-ammo behavior in the first storage pass.
 - If a future combat change adds ground ammo, update the stored-entry schema,
   combat sync, save/load, guide, and tests together in a separate phase.
@@ -304,91 +376,125 @@ phase demonstrates a compelling need for direct management outside an armory.
 
 Add or update a guide section explaining:
 
-- Ground Storage is global and unlimited in the first version.
-- Buy equipment into Storage when the active loadout is full.
-- Install and store actions preserve owned equipment; they are not sales.
-- Two-handed weapons require both weapon slots.
+- Armory Storage is global, terminal-only, and unlimited in the first version.
+- The Expedition Pack is a limited carried reserve with four base slots plus
+  the Strength bonus; equipped items do not consume reserve slots.
+- Pack weapons and armor can be swapped into the active loadout during
+  exploration or combat for 1 AP; Armory Storage is unavailable underground.
+- Buy equipment into Armory Storage or the Expedition Pack when active slots
+  are full, subject to pack capacity.
+- Install, pack, and store actions preserve owned equipment; they are not
+  sales.
+- Two-handed weapons occupy both logical weapon slots and atomically displace
+  both one-handed weapons.
 - Replacing armor stores the previous piece instead of destroying it.
-- Selling from Storage is explicit and returns the normal sell value.
+- Selling from Armory Storage or the Expedition Pack is explicit and returns
+  the normal sell value at an armory; selling is unavailable underground.
+- Ground-equipment loot consumes Expedition Pack capacity.
 - Ground weapons do not currently track persistent ammunition.
 
 ## Phased implementation plan
 
-### Phase 1 - Storage model, loadout mutation, and save/load
+### Phase 1 - Two-tier inventory model, mutation, and save/load
 
 - [ ] Add the stored-ground-equipment data model.
-- [ ] Add `GameContext.ground_equipment_storage` with an empty default.
-- [ ] Add transactional store/install/sell helpers for weapons and armor.
+- [ ] Add `GameContext.ground_armory_storage` and
+  `GameContext.ground_expedition_inventory` with empty defaults.
+- [ ] Add the Strength-based expedition capacity helper.
+- [ ] Add transactional store/install/sell/pack-transfer helpers for weapons
+  and armor.
 - [ ] Add one shared two-handed weapon fit calculation.
 - [ ] Add old-save defaults and malformed-entry filtering.
-- [ ] Add tests for duplicates, empty storage, invalid indexes, two-handed
-  conflicts, armor replacement, sell isolation, and round-trip persistence.
+- [ ] Add tests for duplicates, empty containers, capacity boundaries, invalid
+  indexes, two-handed conflicts, armor replacement, sell isolation, and
+  round-trip persistence.
 
 **PLAYTEST:** No major UI yet. Start a new game, save, Continue, and confirm
-existing ground combat behaves exactly as before. If a developer fixture
-populates storage, verify it survives save/load while the equipped loadout and
-combat stats remain unchanged.
+existing ground combat behaves exactly as before. Populate both containers in
+a developer fixture, including a full four-slot pack and a Strength bonus, then
+verify save/load preserves both containers, the active loadout, and combat
+stats unchanged.
 
-### Phase 2 - Armory storage UI
+### Phase 2 - Armory warehouse and expedition-pack UI
 
-- [ ] Add Buy/Storage tabs and direct `B`/`S` shortcuts to the armory.
+- [ ] Add clear Buy, Armory Storage, and Expedition Pack views or destinations.
+- [ ] Add pack capacity/count display and Strength bonus feedback.
 - [ ] Add stored weapon and armor rows with useful details.
-- [ ] Add compact Install/Store/Sell action choosers.
+- [ ] Add compact Install/Pack/Armory/Sell action choosers.
 - [ ] Keep the current armory buy/sell behavior working while making ownership
-  explicit.
+  and destination explicit.
 - [ ] Add replacement prompts for occupied armor slots and two-handed weapons.
 
 **PLAYTEST:** At an armory, buy a weapon and choose Install; buy another item
-and choose Store. Open Storage, install the stored item, then store it again.
-Replace an equipped armor piece and verify the old piece appears in Storage.
-Attempt to install a two-handed weapon with both weapon slots occupied and
-confirm the replacement/cancel paths never destroy equipment. Sell one stored
-item and verify only that item and the credits change.
+and choose Expedition Pack; fill all four pack slots and verify a fifth item
+can still be bought into unlimited Armory Storage. Move a reserve item back to
+Armory Storage, then add another pack item. Replace equipped armor and verify
+the old piece reaches the selected container. Sell one stored item and verify
+only that item and the credits change.
 
-### Phase 3 - Ground progression and loadout preservation
+### Phase 3 - Dungeon expedition swapping and loot
 
+- [ ] Add a dungeon equipment modal that manages expedition inventory and the
+  active loadout without opening armory storage.
+- [ ] Allow weapon and armor swaps during exploration and active combat at a
+  cost of 1 AP per successful swap.
+- [ ] Route discovered ground-equipment loot into the expedition inventory,
+  with clear full-pack behavior.
 - [ ] Ensure every ground loadout change uses the same storage-aware mutation
   helpers, including future scripted or developer loadout paths.
 - [ ] Verify dungeon entry, combat disengagement, death, and Continue preserve
-  the active loadout and storage contents.
+  the active loadout and both storage containers.
 - [ ] Add regression coverage for repeated armor replacement, duplicate weapons,
-  two-handed transitions, and save/load at each transition.
-- [ ] Update ground equipment and armory guide text with exact current rules.
+  two-handed transitions, swap AP cost, canceled swaps, full-pack loot, and
+  save/load at each transition.
 
 **PLAYTEST:** Build a varied loadout with a one-handed pair, a two-handed rifle,
-and armor in multiple slots. Store and reinstall items across several armory
-visits. Enter ground combat after each transition and verify weapon choices,
-AP, and total armor defense match the active loadout only. Save/Continue after
-replacement and confirm every owned item appears exactly once.
+and armor in multiple slots. Prepare four reserve items at the armory, enter a
+dungeon, and swap a gun and armor during exploration. In combat, verify a
+successful swap costs 1 AP and a canceled/insufficient-AP swap costs nothing.
+Collect ground-equipment loot with a free slot, then test the full-pack choice.
+Save/Continue underground and confirm the pack, active loadout, and armory
+warehouse are all preserved.
 
 ### Phase 4 - UX iteration and regression pass
 
 - [ ] Playtest the complete ground-equipment lifecycle.
-- [ ] Decide whether Storage belongs only in the armory, also in the Character
-  Equipment tab, or in both.
-- [ ] Refine labels, hints, replacement confirmation, and empty-state text.
+- [ ] Decide whether expedition management belongs only in the dungeon modal,
+  also in the Character Equipment tab, or in both.
+- [ ] Refine labels, hints, replacement confirmation, pack-full behavior, and
+  empty-state text.
 - [ ] Add final UI/action-mapping regression tests.
 - [ ] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
 
-**PLAYTEST:** Complete the full lifecycle: buy, install, store, replace, sell,
-enter ground combat, spend turns with the resulting loadout, save/Continue,
-and repeat with duplicate weapons and armor replacements. Confirm no item is
-lost, duplicated, or silently sold, and that the UI makes active versus stored
-ownership clear.
+**PLAYTEST:** Complete the full lifecycle: buy, install, pack, store, replace,
+swap during exploration, swap during combat, collect loot, sell at an armory,
+and save/Continue both above and underground. Repeat with duplicate weapons,
+armor replacements, a full pack, and a Strength capacity bonus. Confirm no item
+is lost, duplicated, or silently sold, and that the UI makes armory ownership,
+carried reserve gear, and active loadout clear.
 
 ## Acceptance criteria
 
 - A player can unequip a ground weapon or armor piece without selling or
   destroying it.
-- Ground storage is global, persistent, and unlimited in the first version.
-- A stored item can be installed later when its slot/hand requirements fit.
+- Armory storage is global, persistent, and unlimited in the first version.
+- Expedition inventory is persistent, carried into dungeons, and limited to
+  `4 + max(0, (Strength - 10) // 10)` reserve-item slots.
+- A reserve item can be installed later when its slot/hand requirements fit.
 - Two-handed weapon transitions never silently destroy one-handed weapons.
 - Replacing armor stores the previous item and preserves duplicates.
-- Buying into Storage works when active slots are full.
-- Selling is explicit and removes exactly one owned item.
-- Stored items do not affect active ground combat until installed.
-- Existing saves load successfully with empty ground storage by default.
-- Storage survives save/load with exact contents.
+- Buying into Armory Storage or the Expedition Pack works when active slots are
+  full, subject to pack capacity.
+- Swapping active gear with an expedition item costs 1 AP and is available
+  during exploration and active combat.
+- Dungeon loot uses expedition capacity and has a clear full-pack outcome.
+- Selling is explicit and removes exactly one owned item; underground selling
+  is unavailable.
+- Stored/reserve items do not affect active ground combat until installed.
+- Existing saves load successfully with empty Armory Storage and an empty
+  Expedition Pack by default; any legacy `ground_equipment_storage` records
+  migrate to Armory Storage.
+- Armory Storage and the Expedition Pack survive save/load with exact contents.
 - The current no-persistent-ammo ground rule remains unchanged in the first
   version.
 - The UI clearly distinguishes buying, storing, installing, replacing, and
@@ -398,13 +504,15 @@ ownership clear.
 
 ## Open questions for UI iteration
 
-1. Should Storage remain armory-only, or should the Character Equipment tab
-   eventually allow management away from a terminal?
-2. When installing a two-handed weapon would displace two one-handed weapons,
-   should the chooser offer `Store both`, `Store one`, or require manual setup?
-3. Should the storage list show individual duplicate rows or grouped counts?
-4. Should armor replacement be immediate after confirmation, or should the
-   player choose the destination for the displaced armor explicitly?
+1. Should expedition management eventually be available from the Character
+   Equipment tab as well as the dungeon modal?
+2. When a two-handed weapon would displace two one-handed weapons, should the
+   chooser label the transaction `Pack both`, `Armory both`, or another phrase?
+   The atomic displacement rule itself is locked.
+3. Should each armory show only the unlimited warehouse, or also a compact view
+   of the currently prepared expedition pack?
+4. Should the player be able to drop reserve gear directly onto the dungeon map
+   to make room for loot, or only leave loot behind?
 5. Should ground weapons eventually gain persistent ammo, and if so should ammo
    be per weapon instance or per catalog type?
 
@@ -412,6 +520,7 @@ ownership clear.
 
 The design is ready for Phase 1 implementation. The current armory already
 provides a Pygame split-screen presentation and the current combat model has a
-clear active-loadout contract, so the first implementation can focus on
-persistent ownership, transactional mutation, and save/load without changing
-ground combat rules.
+clear active-loadout contract. Phase 1 should establish the unlimited armory
+warehouse, the Strength-scaled four-slot expedition pack, and transactional
+movement between them without changing ground combat rules; later phases add
+the in-dungeon modal, 1-AP swaps, and loot capacity behavior.
