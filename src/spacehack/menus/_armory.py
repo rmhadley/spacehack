@@ -120,11 +120,12 @@ def _buy_rows():
 def _storage_rows(
     entries: list[ground_equipment.StoredGroundEquipment],
     action_prefix: str,
+    section_label: str = "OWNED EQUIPMENT",
 ):
     """Build rows for one owned equipment container."""
     from .. import pygame_split, pygame_ui
 
-    rows = [pygame_split.section_header("OWNED EQUIPMENT")]
+    rows = [pygame_split.section_header(section_label)]
     for index, entry in enumerate(entries):
         try:
             rows.append(
@@ -205,7 +206,9 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
         left_rows = _storage_rows(_armory_storage(ctx), "MANAGE_ARMORY")
         left_label = "Armory Storage"
     else:
-        left_rows = _storage_rows(_expedition_storage(ctx), "MANAGE_EXPEDITION")
+        left_rows = _storage_rows(
+            _expedition_storage(ctx), "MANAGE_EXPEDITION", "BACKPACK ITEMS",
+        )
         left_label = "Expedition Pack"
     capacity = ground_equipment.expedition_capacity(_strength(ctx))
     pack_count = len(_expedition_storage(ctx))
