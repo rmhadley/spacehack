@@ -22,6 +22,7 @@ from src.spacehack.world import GameMap, Entity, Position
 from src.spacehack import world
 from src.spacehack.saveload import save_game, load_game, delete_save
 from src.spacehack import dungeon_extensions
+from src.spacehack.ship import OwnedShip, StoredEquipment
 
 
 def _build_test_ctx() -> GameContext:
@@ -616,6 +617,89 @@ class TestSaveLoadRoundTrip:
         assert "engineering_power" in powered.dungeon_extension.state_flags
         assert getattr(powered.game_map, "power_restored", False)
 
+        delete_save()
+
+    def test_round_trip_ship_storage(self, monkeypatch, tmp_path):
+        """Storage preserves duplicate parts and partial missile ammo."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(49)
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="scout",
+            weapons=("light_laser",),
+            modules=(),
+        )
+        ctx.ship_storage = [
+            StoredEquipment("module", "shield_mk4"),
+            StoredEquipment("module", "shield_mk4"),
+            StoredEquipment("weapon", "light_missile", 2),
+        ]
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ship_storage == ctx.ship_storage
+        assert loaded.player_owned_ship is not None
+        assert loaded.player_owned_ship.weapons == ("light_laser",)
+        delete_save()
+
+    def test_malformed_ship_storage_entries_are_ignored(self, monkeypatch, tmp_path):
+        """Malformed storage records do not prevent Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(51)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload["ship_storage"] = [
+            {"item_type": "module", "item_id": "shield_mk4"},
+            {"item_type": "module", "item_id": "missing_module"},
+            {"item_type": "unknown", "item_id": "shield_mk4"},
+            {"item_type": "weapon", "item_id": "light_missile", "ammo": "bad"},
+            {"item_type": "weapon", "item_id": "light_laser", "ammo": None},
+            "not a record",
+        ]
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ship_storage == [
+            StoredEquipment("module", "shield_mk4"),
+            StoredEquipment("weapon", "light_laser"),
+        ]
+        delete_save()
+
+    def test_legacy_save_without_ship_storage_loads_empty(self, monkeypatch, tmp_path):
+        """Pre-storage saves load with an empty storage locker."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(50)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("ship_storage", None)
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ship_storage == []
         delete_save()
 
     def test_round_trip_owned_ship(self, monkeypatch, tmp_path):

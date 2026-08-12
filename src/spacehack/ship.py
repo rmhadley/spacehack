@@ -16,6 +16,15 @@ from dataclasses import dataclass, field
 from .data.ships import Ship, find_ship
 
 
+@dataclass(frozen=True)
+class StoredEquipment:
+    """One ship weapon or module held in the player's global storage."""
+
+    item_type: str
+    item_id: str
+    ammo: int | None = None
+
+
 def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
     """Cargo cells consumed by ammo for the supplied weapon list.
 
@@ -335,6 +344,131 @@ def _sell_price(item_type: str, item_id: str) -> int:
             return 0
         return max(1, spec.price // 2)
     return 0
+
+
+def can_install_stored_equipment(
+    owned: OwnedShip,
+    stored: StoredEquipment,
+    ship_spec: Ship,
+) -> bool:
+    """Return whether ``stored`` fits an available slot on ``owned``.
+
+    Invalid catalog ids and unknown storage item types are rejected without
+    mutating either the ship or storage. Module slot type is represented by
+    the stored item type; the catalog lookup verifies the module itself.
+    """
+    if stored.item_type == "weapon":
+        try:
+            from .data.weapons import find_weapon as _fw
+            _fw(stored.item_id)
+        except KeyError:
+            return False
+        return len(owned.weapons) < ship_spec.weapon_slots
+    if stored.item_type == "module":
+        try:
+            from .data.modules import find_module as _fm
+            _fm(stored.item_id)
+        except KeyError:
+            return False
+        return len(owned.modules) < ship_spec.module_slots
+    return False
+
+
+def store_weapon(
+    owned: OwnedShip,
+    storage: list[StoredEquipment],
+    slot_index: int,
+) -> bool:
+    """Move one installed weapon into storage, preserving missile ammo."""
+    if not (0 <= slot_index < len(owned.weapons)):
+        return False
+    weapon_id = owned.weapons[slot_index]
+    ammo: int | None = None
+    try:
+        from .data.weapons import find_weapon as _fw
+        weapon = _fw(weapon_id)
+    except KeyError:
+        return False
+    if weapon.slot_type == "missile":
+        ammo = owned.weapon_ammo.get(slot_index, weapon.ammo_capacity)
+    storage.append(StoredEquipment("weapon", weapon_id, ammo))
+    _remove_weapon(owned, slot_index)
+    return True
+
+
+def store_module(
+    owned: OwnedShip,
+    storage: list[StoredEquipment],
+    slot_index: int,
+) -> bool:
+    """Move one installed module into storage."""
+    if not (0 <= slot_index < len(owned.modules)):
+        return False
+    module_id = owned.modules[slot_index]
+    try:
+        from .data.modules import find_module as _fm
+        _fm(module_id)
+    except KeyError:
+        return False
+    storage.append(StoredEquipment("module", module_id))
+    _remove_module(owned, slot_index)
+    return True
+
+
+def install_stored_equipment(
+    owned: OwnedShip,
+    storage: list[StoredEquipment],
+    storage_index: int,
+    ship_spec: Ship,
+) -> bool:
+    """Install one stored part and remove it from storage on success."""
+    if not (0 <= storage_index < len(storage)):
+        return False
+    stored = storage[storage_index]
+    if not can_install_stored_equipment(owned, stored, ship_spec):
+        return False
+    if stored.item_type == "weapon":
+        if not _install_weapon(owned, stored.item_id, ship_spec):
+            return False
+        slot_index = len(owned.weapons) - 1
+        if stored.ammo is not None:
+            from .data.weapons import find_weapon as _fw
+            capacity = _fw(stored.item_id).ammo_capacity
+            owned.weapon_ammo[slot_index] = max(0, min(stored.ammo, capacity))
+    else:
+        if not _install_module(owned, stored.item_id, ship_spec):
+            return False
+    storage.pop(storage_index)
+    return True
+
+
+def move_installed_equipment_to_storage(
+    owned: OwnedShip,
+    storage: list[StoredEquipment],
+) -> None:
+    """Move every installed weapon and module into storage.
+
+    This is the shared transfer primitive for ship upgrades and a future
+    explicit "store all" action. The loop always removes slot zero so the
+    existing weapon-ammo re-indexing remains the single source of truth.
+    All catalog IDs are validated before the first mutation so a corrupt
+    legacy loadout cannot produce a partial transfer.
+    """
+    from .data.modules import find_module as _fm
+    from .data.weapons import find_weapon as _fw
+    try:
+        for weapon_id in owned.weapons:
+            _fw(weapon_id)
+        for module_id in owned.modules:
+            _fm(module_id)
+    except KeyError as exc:
+        raise ValueError("Cannot store an unknown installed item") from exc
+    while owned.weapons:
+        if not store_weapon(owned, storage, 0):
+            raise ValueError("Cannot store an installed weapon")
+    while owned.modules:
+        if not store_module(owned, storage, 0):
+            raise ValueError("Cannot store an installed module")
 
 
 def _find_weapon_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[str | None, int]]:

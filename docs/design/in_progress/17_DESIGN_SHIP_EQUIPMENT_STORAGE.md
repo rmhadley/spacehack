@@ -269,18 +269,26 @@ Add a guide section for:
 
 ### Phase 1 - Storage model, mutation, and save/load
 
-- [ ] Add the stored-equipment data model.
-- [ ] Add `GameContext.ship_storage` with an empty default.
-- [ ] Add pure compatibility/display helpers and tested storage mutation
+- [x] Add the stored-equipment data model.
+- [x] Add `GameContext.ship_storage` with an empty default.
+- [x] Add pure compatibility/display helpers and tested storage mutation
   wrappers for weapons, modules, and missile ammo.
-- [ ] Add save/load serialization with old-save defaults.
-- [ ] Add unit tests for duplicate parts, partial missile ammo, incompatible
+- [x] Add save/load serialization with old-save defaults.
+- [x] Add unit tests for duplicate parts, partial missile ammo, incompatible
   slots, empty storage, invalid indexes, and round-trip persistence.
 
 **PLAYTEST:** No major UI yet. Start a new game, save, Continue, and confirm the
 new empty storage state does not change existing ship behavior. If a developer
 fixture or temporary test setup populates storage, verify it survives save/load
 without changing installed equipment.
+
+**Implementation checkpoint:** Phase 1 backend storage is implemented. `StoredEquipment`
+keeps duplicate parts distinct and preserves partial missile ammo; `GameContext`
+owns a global locker; malformed or unknown storage records are ignored during
+load; old saves default to an empty locker. Focused mutation and save/load tests
+cover storage, and the existing UI remains unchanged. Automated validation:
+`python3 tools/smoke.py` passes and `python3 tools/test.py` passes with 678 tests.
+Manual playtest of the empty-locker Continue path remains before Phase 2.
 
 ### Phase 2 - First storage UI
 

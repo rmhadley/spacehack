@@ -13,7 +13,17 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.ship import OwnedShip, _install_weapon, _remove_weapon
+from src.spacehack.ship import (
+    OwnedShip,
+    StoredEquipment,
+    _install_weapon,
+    _remove_weapon,
+    can_install_stored_equipment,
+    install_stored_equipment,
+    move_installed_equipment_to_storage,
+    store_module,
+    store_weapon,
+)
 
 
 def _scout_spec() -> SimpleNamespace:
@@ -101,3 +111,98 @@ class TestRemoveWeapon:
         # Old slot 0 ammo is gone; old slot 1 shifts to 0.
         assert 0 in owned.weapon_ammo  # old slot 1 now at 0
         assert 1 not in owned.weapon_ammo  # old slot 0 discarded
+
+
+class TestEquipmentStorage:
+    def test_store_weapon_preserves_partial_missile_ammo(self):
+        owned = OwnedShip(ship_id="scout", weapons=("light_missile",))
+        owned.weapon_ammo[0] = 2
+        storage = []
+
+        assert store_weapon(owned, storage, 0) is True
+        assert owned.weapons == ()
+        assert storage == [StoredEquipment("weapon", "light_missile", 2)]
+
+    def test_store_module_preserves_duplicate_parts(self):
+        owned = OwnedShip(
+            ship_id="scout",
+            modules=("shield_mk1", "shield_mk1"),
+        )
+        storage = []
+
+        assert store_module(owned, storage, 0) is True
+        assert store_module(owned, storage, 0) is True
+        assert storage == [
+            StoredEquipment("module", "shield_mk1"),
+            StoredEquipment("module", "shield_mk1"),
+        ]
+
+    def test_install_stored_missile_restores_partial_ammo(self):
+        owned = OwnedShip(ship_id="scout")
+        storage = [StoredEquipment("weapon", "light_missile", 1)]
+
+        assert install_stored_equipment(
+            owned, storage, 0, _scout_spec(),
+        ) is True
+        assert owned.weapons == ("light_missile",)
+        assert owned.weapon_ammo == {0: 1}
+        assert storage == []
+
+    def test_incompatible_storage_entry_stays_in_storage(self):
+        owned = OwnedShip(
+            ship_id="starter",
+            weapons=("light_laser", "light_laser"),
+        )
+        storage = [StoredEquipment("weapon", "heavy_laser")]
+
+        assert can_install_stored_equipment(
+            owned, storage[0], SimpleNamespace(weapon_slots=2, module_slots=1),
+        ) is False
+        assert install_stored_equipment(
+            owned, storage, 0, SimpleNamespace(weapon_slots=2, module_slots=1),
+        ) is False
+        assert storage == [StoredEquipment("weapon", "heavy_laser")]
+
+    def test_invalid_indexes_are_noops(self):
+        owned = OwnedShip(ship_id="scout", weapons=("light_laser",))
+        storage = []
+
+        assert store_weapon(owned, storage, 4) is False
+        assert store_module(owned, storage, -1) is False
+        assert install_stored_equipment(
+            owned, storage, 0, _scout_spec(),
+        ) is False
+        assert owned.weapons == ("light_laser",)
+        assert storage == []
+
+    def test_bulk_transfer_validates_before_mutating(self):
+        owned = OwnedShip(
+            ship_id="scout",
+            weapons=("missing_weapon", "light_laser"),
+        )
+        storage = []
+
+        import pytest
+        with pytest.raises(ValueError):
+            move_installed_equipment_to_storage(owned, storage)
+        assert owned.weapons == ("missing_weapon", "light_laser")
+        assert storage == []
+
+    def test_move_all_installed_equipment_to_storage(self):
+        owned = OwnedShip(
+            ship_id="scout",
+            weapons=("light_laser", "light_missile"),
+            modules=("shield_mk1",),
+        )
+        owned.weapon_ammo[1] = 2
+        storage = []
+
+        move_installed_equipment_to_storage(owned, storage)
+
+        assert owned.weapons == ()
+        assert owned.modules == ()
+        assert storage == [
+            StoredEquipment("weapon", "light_laser"),
+            StoredEquipment("weapon", "light_missile", 2),
+            StoredEquipment("module", "shield_mk1"),
+        ]

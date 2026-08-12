@@ -79,6 +79,35 @@ def _d(obj) -> object:
     return obj
 
 
+def _stored_equipment_from_dict(raw: object):
+    """Parse one stored-equipment save entry, ignoring malformed records."""
+    if not isinstance(raw, dict):
+        return None
+    item_type = raw.get("item_type")
+    item_id = raw.get("item_id")
+    if item_type not in {"weapon", "module"} or not isinstance(item_id, str) or not item_id:
+        return None
+    try:
+        if item_type == "weapon":
+            from .data.weapons import find_weapon
+            find_weapon(item_id)
+        else:
+            from .data.modules import find_module
+            find_module(item_id)
+    except (ImportError, KeyError):
+        return None
+    ammo_raw = raw.get("ammo")
+    if ammo_raw is None:
+        ammo = None
+    else:
+        try:
+            ammo = int(ammo_raw)
+        except (TypeError, ValueError):
+            return None
+    from . import ship as ship_module
+    return ship_module.StoredEquipment(item_type, item_id, ammo)
+
+
 def _ctx_to_dict(ctx: GameContext) -> dict:
     """Serialize only the fields that survive a save/load cycle.
 
@@ -100,6 +129,7 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
             "engineering": ctx.stats.engineering,
         },
         "player_owned_ship": _d(ctx.player_owned_ship),
+        "ship_storage": _d(ctx.ship_storage),
         "player_active_missions": _d(ctx.player_active_missions),
         "completed_mission_ids": sorted(ctx.completed_mission_ids),
         "mission_boards": _d(ctx.mission_boards),
@@ -1065,6 +1095,11 @@ def load_game(context: PygameContext) -> GameContext | None:
         player_owned_ship=_owned_ship,
         player_active_missions=_active_missions,
     )
+    _ctx.ship_storage = [
+        _stored
+        for _entry in (_data.get("ship_storage", []) or [])
+        if (_stored := _stored_equipment_from_dict(_entry)) is not None
+    ]
     _ctx.completed_mission_ids = set(_data.get("completed_mission_ids", []) or [])
     _ctx.mission_boards = _mission_boards
     _ctx.bounty_spawns = _bounty_spawns

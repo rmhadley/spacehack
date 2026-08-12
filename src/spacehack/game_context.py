@@ -177,6 +177,8 @@ class GameContext:
       player gains credits, takes damage, etc.
     * :attr:`player_owned_ship` - ``OwnedShip | None``; ``None`` until the
       player buys their first ship, then mutated on refuel / sell-cargo.
+    * :attr:`ship_storage` - global stored weapons/modules independent of the
+      active ship; mutated by storage actions and preserved across upgrades.
     * :attr:`player_active_missions` - ``list[ActiveMission]``; up to
       :data:`mission.MAX_ACTIVE_MISSIONS` entries. Empty until the player
       accepts work, grows/shrinks on abandon / complete.
@@ -236,6 +238,9 @@ class GameContext:
     player: world.Entity
     stats: hud.HudStats
     player_owned_ship: ship_module.OwnedShip | None = None
+    ship_storage: list[ship_module.StoredEquipment] = dataclasses.field(
+        default_factory=list,
+    )
     player_active_missions: list[mission_module.ActiveMission] = dataclasses.field(
         default_factory=list,
     )
