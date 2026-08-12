@@ -22,7 +22,7 @@ _ARMOR_SLOT_LABELS: dict[str, str] = {
     "legs": "Legs", "feet": "Feet",
 }
 _ARMORY_MODES: tuple[str, ...] = ("BUY", "ARMORY", "EXPEDITION")
-_MODE_TABS: tuple[str, ...] = ("[B]uy", "[A]rmory", "[E]xpedition")
+_MODE_TABS: tuple[str, ...] = ("[B]uy", "[A]rmory")
 
 
 def _armory_storage(ctx: GameContext) -> list[ground_equipment.StoredGroundEquipment]:
@@ -208,6 +208,11 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
         left_rows = _storage_rows(_expedition_storage(ctx), "MANAGE_EXPEDITION")
         left_label = "Expedition Pack"
     capacity = ground_equipment.expedition_capacity(_strength(ctx))
+    pack_count = len(_expedition_storage(ctx))
+    left_tabs = (
+        *_MODE_TABS,
+        f"[E]xpedition ({pack_count}/{capacity})",
+    )
     return pygame_split.SplitFrame(
         pygame_ui.terminal_title("ARMORY", planet_id),
         left_label,
@@ -220,7 +225,7 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
             "UP/DOWN navigate", "TAB switch panel", "ENTER choose",
             "B buy", "A armory", "E expedition", "ESC back", pygame_ui.GUIDE_HINT,
         ),
-        left_tabs=_MODE_TABS,
+        left_tabs=left_tabs,
         active_left_tab=_ARMORY_MODES.index(mode),
         left_tab_modes=_ARMORY_MODES,
     )

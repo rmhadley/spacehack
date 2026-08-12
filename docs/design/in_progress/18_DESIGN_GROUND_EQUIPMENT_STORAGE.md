@@ -346,7 +346,8 @@ First UI pass should extend the existing armory split screen:
 - Keep the right panel as **My Loadout**, showing weapon slots and all five
   armor slots.
 - Show both storage containers with item counts such as `Pack 2/4` and
-  `Armory unlimited`.
+  `Armory unlimited`; the active Expedition tab should repeat the same
+  current/max count so pack status is visible while managing its contents.
 - Show stored weapons and armor with type, slot, hands, damage/defense, and
   price details where useful.
 - Use compact Equip/Store/Pack/Sell actions consistent with the ship

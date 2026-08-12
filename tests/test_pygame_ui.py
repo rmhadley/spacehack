@@ -1695,11 +1695,12 @@ def test_armory_frame_exposes_all_storage_modes_and_active_tab():
         for mode in _armory._ARMORY_MODES
     }
 
-    assert all(frame.left_tabs == ("[B]uy", "[A]rmory", "[E]xpedition") for frame in frames.values())
+    assert all(frame.left_tabs == ("[B]uy", "[A]rmory", "[E]xpedition (1/4)") for frame in frames.values())
     assert all(frame.left_tab_modes == ("BUY", "ARMORY", "EXPEDITION") for frame in frames.values())
     assert [frames[mode].active_left_tab for mode in _armory._ARMORY_MODES] == [0, 1, 2]
     assert frames["ARMORY"].left_rows[1].action == "MANAGE_ARMORY:0"
     assert frames["EXPEDITION"].left_rows[1].action == "MANAGE_EXPEDITION:0"
+    assert frames["EXPEDITION"].left_tabs[2] == "[E]xpedition (1/4)"
     assert "Pack: 1/4" in frames["EXPEDITION"].footer_right
 
 
