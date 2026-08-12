@@ -129,6 +129,10 @@ def test_shield_bubbles_include_shielded_ships_and_apply_camera_region_offset():
                 ship_id="starter", owned=False,
             ),
             world.Entity(
+                "T", (180, 180, 180), world.Position(6, 5),
+                ship_id="starter", owned=True,
+            ),
+            world.Entity(
                 "P", (255, 100, 100), world.Position(10, 6),
                 npc_ship_id="pirate_scout",
             ),
@@ -150,6 +154,62 @@ def test_shield_bubbles_include_shielded_ships_and_apply_camera_region_offset():
         pygame_overlay.ShieldBubble(6, 4),
         pygame_overlay.ShieldBubble(9, 5),
     )
+
+
+def test_shield_bubbles_keep_matching_owned_shield_loadout():
+    game_map = world.GameMap(
+        width=8,
+        height=6,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)],
+        entities=[
+            world.Entity(
+                "C", (180, 180, 180), world.Position(3, 2),
+                ship_id="cruiser", owned=True,
+            ),
+        ],
+    )
+
+    bubbles = pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=0,
+        camera_y=0,
+        region_w=8,
+        region_h=6,
+        player_owned_ship=SimpleNamespace(
+            ship_id="cruiser",
+            modules=("shield_mk1",),
+        ),
+    )
+
+    assert bubbles == (pygame_overlay.ShieldBubble(3, 2),)
+
+
+def test_shield_bubbles_omit_unshielded_owned_hull_when_loadout_is_shielded():
+    game_map = world.GameMap(
+        width=8,
+        height=6,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)],
+        entities=[
+            world.Entity(
+                "T", (180, 180, 180), world.Position(3, 2),
+                ship_id="starter", owned=True,
+            ),
+        ],
+    )
+
+    bubbles = pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=0,
+        camera_y=0,
+        region_w=8,
+        region_h=6,
+        player_owned_ship=SimpleNamespace(
+            ship_id="cruiser",
+            modules=("shield_mk1",),
+        ),
+    )
+
+    assert bubbles == ()
 
 
 def test_shield_bubbles_cull_ships_outside_the_viewport():

@@ -159,7 +159,12 @@ def _ship_shield_capacity(entity: Any, player_owned_ship: Any | None = None) -> 
     try:
         if getattr(entity, "owned", False) and getattr(entity, "ship_id", ""):
             _ship = ship_module.find_ship(entity.ship_id)
-            _owned = player_owned_ship if player_owned_ship is not None else _ship
+            _owned = (
+                player_owned_ship
+                if player_owned_ship is not None
+                and getattr(player_owned_ship, "ship_id", "") == entity.ship_id
+                else _ship
+            )
             return _calc_max_shields(_ship, _owned)
         npc_id = getattr(entity, "npc_ship_id", "")
         if npc_id:
