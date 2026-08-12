@@ -101,6 +101,7 @@ class JumpPoint:
             walkable=False,
             fg=self.fg,
             bg=(8, 8, 22),                       # matches DEEP_SPACE_BG
+            blocked_message=f"The {self.name.lower()} blocks your path.",
         )
 
 
@@ -157,6 +158,7 @@ class StationSpec:
             walkable=False,
             fg=self.fg,
             bg=(8, 8, 22),                       # matches DEEP_SPACE_BG
+            blocked_message=f"The {self.name.lower()} blocks your path.",
         )
 
 

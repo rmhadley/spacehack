@@ -316,7 +316,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
     return {
         "width": gm.width,
         "height": gm.height,
-        "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg), "bg_override": c.bg_override} for c in row] for row in gm.tiles],
+        "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg), "bg_override": c.bg_override, "blocked_message": c.blocked_message} for c in row] for row in gm.tiles],
         "entities": [
             {
                 "char": e.char,
@@ -348,6 +348,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                     if getattr(e, 'last_seen_pos', None) is not None else None
                 ),
                 "last_seen_ticks": getattr(e, 'last_seen_ticks', 0),
+                "blocked_message": getattr(e, 'blocked_message', "You bump into {name}."),
             }
             for e in gm.entities if e.char != '@'
         ],
@@ -433,6 +434,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
                     fg=tuple(t.get("fg", [0, 0, 0])),
                     bg=tuple(t.get("bg", [0, 0, 0])),
                     bg_override=t.get("bg_override", False),
+                    blocked_message=t.get("blocked_message", "A wall blocks your path."),
                 ))
         _dungeon_tiles.append(_tile_row)
     _dungeon_entities: list[world.Entity] = []
@@ -450,6 +452,7 @@ def _dungeon_from_dict(dd: dict) -> tuple:
             npc_id=_ed.get("npc_id", ""),
             squad_id=_ed.get("squad_id", ""),
             hp=_ed.get("hp", 0),
+            blocked_message=_ed.get("blocked_message", "You bump into {name}."),
         )
         _gp = _ed.get("guard_post")
         if isinstance(_gp, (list, tuple)) and len(_gp) >= 2:

@@ -76,22 +76,6 @@ from . import tutorial as tutorial_module
 from .pygame_runtime import PygameContext, open_runtime
 
 
-_SPACE_OBSTACLE_LABELS = {
-    "sun": "sun",
-    "planet": "planet",
-    "jump_point": "jump point",
-    "station": "station",
-}
-
-
-def _space_obstacle_message(tile_kind: str | None) -> str:
-    """Describe an impassable space object without calling it a wall."""
-    _label = _SPACE_OBSTACLE_LABELS.get(tile_kind)
-    if _label is None:
-        return "A wall blocks your path."
-    return f"The {_label} blocks your path."
-
-
 # ---------------------------------------------------------------------------
 # Space-mode helpers (combat + NPC movement shared by multiple input paths)
 # ---------------------------------------------------------------------------
@@ -1258,13 +1242,7 @@ def _run_game_loop(
                                 _save_game(ctx, mode=current_mode, city_id=current_city_id,
                                            system_id=solar_system_module.current_solar_system_id)
                             continue
-                _space_obstacle_kind = None
-                if current_mode == 'space':
-                    _target_x = player.pos.x + dx
-                    _target_y = player.pos.y + dy
-                    if game_map.in_bounds(_target_x, _target_y):
-                        _space_obstacle_kind = game_map.tiles[_target_y][_target_x].kind
-                log.add(_space_obstacle_message(_space_obstacle_kind))
+                log.add(world.blocked_message_for(blocker))
             elif code == 'occupied':
                 if blocker.ship_id:
                     ship = ship_module.find_ship(blocker.ship_id)
@@ -1429,7 +1407,7 @@ def _run_game_loop(
                                 log.add_colored("Emergency power restored. Interior sensors online.",
                                                  message_log.COLOR_IMPORTANT_EVENT)
                         continue
-                    log.add(f'You bump into {blocker.name}.')
+                    log.add(world.blocked_message_for(blocker))
                 elif blocker.npc_ship_id:
                     from .data.npc_ships import find_npc_ship as _find_ship
                     try:
@@ -1629,7 +1607,7 @@ def _run_game_loop(
                             continue
                     except KeyError:
                         pass
-                    log.add(f'You bump into {blocker.name}.')
+                    log.add(world.blocked_message_for(blocker))
                 elif blocker.npc_id:
                     npc_obj = npc_module.find_npc(blocker.npc_id)
                     # Look up planet's mission tier for filtering offerings.
@@ -1878,7 +1856,7 @@ def _run_game_loop(
                                             player_active_missions.append(_new_active)
                                             ctx.player_active_missions = player_active_missions
                 else:
-                    log.add(f'You bump into {blocker.name}.')
+                    log.add(world.blocked_message_for(blocker))
 
 def run(context: PygameContext) -> None:
     """Show title menu, then either new game or continue from save."""

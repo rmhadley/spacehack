@@ -36,6 +36,7 @@ class Tile:
     fg: tuple[int, int, int]
     bg: tuple[int, int, int]   # background painted under the glyph (darker than fg so the glyph reads on top)
     bg_override: bool = False  # layout-authored background, not a theme default
+    blocked_message: str = "A wall blocks your path."
 
 
 WALL = Tile(kind="wall", char="▓", walkable=False, fg=(155, 185, 215), bg=(50, 62, 78))     # dark shade — paneled bulkhead (perimeter)
@@ -294,6 +295,7 @@ class Entity:
     interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)
     last_seen_pos: Position | None = None  # ground hunter's remembered player cell
     last_seen_ticks: int = 0  # remaining dungeon ticks to pursue that cell
+    blocked_message: str = "You bump into {name}."
 
 
 # Anchor where the player's bought ship is parked outside the
@@ -1452,7 +1454,7 @@ def try_move(
     game_map: GameMap,
     dx: int,
     dy: int,
-) -> tuple[str, Entity | None]:
+) -> tuple[str, Tile | Entity | None]:
     """Attempt to move ``entity`` by ``(dx, dy)`` on ``game_map``.
 
     Returns a ``(code, blocker)`` pair:
@@ -1460,19 +1462,24 @@ def try_move(
       * ``code == "moved"``: success; ``entity.pos`` was updated and
         ``blocker`` is ``None``.
       * ``code == "wall"``: target tile was out-of-bounds or
-        unwalkable; ``blocker`` is ``None``.
+        unwalkable; ``blocker`` is the target :class:`Tile` when the
+        target is in bounds, otherwise ``None``.
       * ``code == "occupied"``: target tile was walkable but inside
         some other entity's footprint (so multi-cell ships block on
         every covered cell); ``blocker`` is that entity.
 
-    Returning the blocker with the code lets callers either log a
-    player-facing message or open a ship-buy / npc-talk dialog
-    without reverse-engineering the target tile.
+    Every in-bounds blocker is returned to the caller so its own
+    ``blocked_message`` can drive generic movement feedback. Special
+    interactions may inspect the same blocker before that fallback
+    message is logged.
     """
     target_x = entity.pos.x + dx
     target_y = entity.pos.y + dy
-    if not game_map.is_walkable(target_x, target_y):
+    if not game_map.in_bounds(target_x, target_y):
         return ("wall", None)
+    target_tile = game_map.tiles[target_y][target_x]
+    if not target_tile.walkable:
+        return ("wall", target_tile)
     blocker = game_map.blocking_entity_at(target_x, target_y, exclude=entity)
     if blocker is not None:
         return ("occupied", blocker)
@@ -1480,11 +1487,20 @@ def try_move(
     return ("moved", None)
 
 
+def blocked_message_for(blocker: Tile | Entity | None) -> str:
+    """Return the player-facing message owned by a movement blocker."""
+    if blocker is None:
+        return "A wall blocks your path."
+    if isinstance(blocker, Entity):
+        return blocker.blocked_message.replace("{name}", blocker.name)
+    return blocker.blocked_message
+
+
 def try_vim_move(
     entity: Entity,
     game_map: GameMap,
     letter: str,
-) -> tuple[str, Entity | None] | None:
+) -> tuple[str, Tile | Entity | None] | None:
     """If ``letter`` is a known vim movement key, dispatch to
     :func:`try_move` using that key's delta.
 

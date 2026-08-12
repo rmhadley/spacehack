@@ -838,6 +838,7 @@ def load_layout(
                         fg=_override.fg,
                         bg=_override.bg if _override.bg is not None else tile.bg,
                         bg_override=_override.bg is not None,
+                        blocked_message=tile.blocked_message,
                     )
 
     # --- Shared room flood-fill helper (reused by enemy scatter + loot scatter) ---

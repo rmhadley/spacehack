@@ -287,6 +287,7 @@ def _resolve_tile(
         fg=tile.fg,
         bg=tile.bg if tile.bg_override else _theme.bg,
         bg_override=tile.bg_override,
+        blocked_message=tile.blocked_message,
     )
 
 

@@ -109,6 +109,7 @@ def stamp_deep_cell(
                 fg=_tile.fg,
                 bg=_tile.bg,
                 bg_override=_tile.bg_override,
+                blocked_message=_tile.blocked_message,
             )
     stamp_dead_terminals(
         game_map,
