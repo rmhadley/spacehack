@@ -294,9 +294,9 @@ Manual playtest of the empty-locker Continue path remains before Phase 2.
 
 - [x] Add a first-pass Storage view to the mechanic loadout flow.
 - [x] Add the My Ship Store/Sell chooser for installed weapons/modules.
-- [x] Add explicit Install actions for stored weapons/modules.
+- [x] Add the compact Install/Sell chooser for stored weapons/modules.
 - [x] Add visible remaining-ammo text for stored missile launchers.
-- [x] Keep Sell inside the My Ship chooser and preserve current mechanic purchase behavior.
+- [x] Keep Sell inside compact My Ship and Storage choosers and preserve current mechanic purchase behavior.
 
 **PLAYTEST:** At a mechanic, install a cheap weapon/module, open Storage, store
 it, verify it disappears from My Ship and appears in Storage, then install it

@@ -1,9 +1,9 @@
 """Loadout management split-screen modal for the mechanic terminal.
 
-The modal has three small, deliberately explicit views:
+The modal has two small, deliberately explicit views:
 
 * ``STORE`` — buy catalog equipment and choose what to do with installed gear.
-* ``STORAGE`` — install stored equipment and choose what to do with installed gear.
+* ``STORAGE`` — choose whether to install or sell stored equipment.
 
 The view switch is intentionally local to this modal. The storage model and
 slot mutation remain in :mod:`spacehack.ship`, so this presentation can evolve
@@ -51,7 +51,7 @@ def _loadout_hint(mode: str) -> str:
 
     action_hint = {
         "STORE": "ENTER buy/choose",
-        "STORAGE": "ENTER install/choose",
+        "STORAGE": "ENTER choose",
     }[mode]
     return pygame_ui.modal_hint(
         "UP/DOWN navigate", "TAB switch panel", action_hint,
@@ -87,21 +87,30 @@ def _weapon_detail(spec, *, ammo: int | None = None) -> str:
 def _stored_row(stored, index: int, mode: str):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
-    from .. import pygame_ui
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
 
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
         detail = _weapon_detail(spec, ammo=stored.ammo)
-        value = "INSTALL"
     elif stored.item_type == "module":
         spec = find_module(stored.item_id)
         detail = spec.description
-        value = "INSTALL"
     else:
         raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
-    return pygame_split.SplitRow(spec.name, value, detail, f"INSTALL_STORED:{index}")
+    return pygame_split.SplitRow(spec.name, "", detail, f"MANAGE_STORED:{index}")
+
+
+def _stored_spec(stored):
+    """Return the catalog specification for one stored equipment entry."""
+    from ..data.modules import find_module
+    from ..data.weapons import find_weapon
+
+    if stored.item_type == "weapon":
+        return find_weapon(stored.item_id)
+    if stored.item_type == "module":
+        return find_module(stored.item_id)
+    raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
 
 
 def _storage_rows(ctx, mode: str):
@@ -258,10 +267,75 @@ def _apply_stored_install(ctx, action: str) -> None:
         ctx.log.add("That storage entry is no longer available.")
         return
     stored = storage[storage_index]
+    try:
+        _stored_spec(stored)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        ctx.log.add("That stored equipment is no longer available.")
+        return
     if ship_module.install_stored_equipment(owned, storage, storage_index, ship_spec):
         ctx.log.add(f"Installed {stored.item_id.replace('_', ' ').title()} from storage.")
         return
     _log_storage_failure(ctx, stored, ship_spec)
+
+
+def _choose_stored_action(ctx, action: str) -> str:
+    """Ask whether a stored part should be installed or sold."""
+    storage_index = int(action.split(":", 1)[1])
+    storage = _storage_list(ctx)
+    if not 0 <= storage_index < len(storage):
+        return "__BACK__"
+    stored = storage[storage_index]
+    try:
+        spec = _stored_spec(stored)
+        sell_price = ship_module._sell_price(stored.item_type, stored.item_id)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return "__BACK__"
+    from .. import pygame_story
+    return pygame_story.choose(
+        ctx,
+        title="STORED EQUIPMENT",
+        body=spec.name,
+        options=(
+            ("Install", f"INSTALL_STORED:{storage_index}"),
+            (f"Sell for {sell_price}$", f"SELL_STORED:{storage_index}"),
+        ),
+        caption="spacehack - stored equipment",
+        compact=True,
+    )
+
+
+def _apply_manage_stored_item(ctx, action: str) -> None:
+    """Open the Install/Sell chooser and apply its selected action."""
+    chosen = _choose_stored_action(ctx, action)
+    if chosen in {"__BACK__", "__GUIDE__"}:
+        return
+    if chosen == "__QUIT__":
+        raise SystemExit
+    if chosen.startswith("INSTALL_STORED:"):
+        _apply_stored_install(ctx, chosen)
+    elif chosen.startswith("SELL_STORED:"):
+        _apply_sell_stored(ctx, chosen)
+
+
+def _apply_sell_stored(ctx, action: str) -> None:
+    """Sell one stored weapon or module and return its purchase value share."""
+    storage_index = int(action.split(":", 1)[1])
+    storage = _storage_list(ctx)
+    if not 0 <= storage_index < len(storage):
+        ctx.log.add("That storage entry is no longer available.")
+        return
+    stored = storage[storage_index]
+    try:
+        sell_price = ship_module._sell_price(stored.item_type, stored.item_id)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        ctx.log.add("That storage entry is no longer available.")
+        return
+    if sell_price <= 0:
+        ctx.log.add("That storage entry is no longer available.")
+        return
+    storage.pop(storage_index)
+    ctx.stats.credits += sell_price
+    ctx.log.add(f"Sold {stored.item_id.replace('_', ' ').title()} for {sell_price}$.")
 
 
 def _choose_ship_action(ctx, action: str) -> str:
@@ -291,8 +365,14 @@ def _choose_ship_action(ctx, action: str) -> str:
         title="MANAGE EQUIPMENT",
         body=spec.name,
         options=(
-            ("Store", f"STORE_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
-            (f"Sell for {sell_price}$", f"SELL_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
+            (
+                "Store",
+                f"STORE_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}",
+            ),
+            (
+                f"Sell for {sell_price}$",
+                f"SELL_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}",
+            ),
         ),
         caption="spacehack - manage equipment",
         compact=True,
@@ -377,6 +457,7 @@ def _apply_buy_module(ctx, action: str) -> None:
 _LOADOUT_ACTION_HANDLERS = (
     ("BUY_WEAPON:", _apply_buy_weapon),
     ("BUY_MODULE:", _apply_buy_module),
+    ("MANAGE_STORED:", _apply_manage_stored_item),
     ("INSTALL_STORED:", _apply_stored_install),
     ("MANAGE_WEAPON_SLOT:", _apply_manage_ship_item),
     ("MANAGE_MODULE_SLOT:", _apply_manage_ship_item),
