@@ -1331,6 +1331,8 @@ def test_split_key_mapping_switches_panels_and_returns_opaque_action():
         K_j = 15
         K_RETURN = 16
         K_KP_ENTER = 17
+        K_b = 18
+        K_s = 19
 
     frame = pygame_split.SplitFrame(
         "ARMORY", "Sale", "Owned",
@@ -1343,6 +1345,13 @@ def test_split_key_mapping_switches_panels_and_returns_opaque_action():
 
     assert pygame_split._handle_key(fake, key(fake.K_TAB), frame) == ("IGNORE", 1, 0)
     assert pygame_split._handle_key(fake, key(fake.K_RETURN), frame) == ("SELECT", 0, 0)
+
+    tabbed = pygame_split.SplitFrame(
+        "LOADOUT", "Store", "My Ship", (), (), "", "", "",
+        left_tabs=("[B]uy", "[S]torage"),
+    )
+    assert pygame_split._handle_key(fake, key(fake.K_b), tabbed) == ("MODE:STORE", 0, 0)
+    assert pygame_split._handle_key(fake, key(fake.K_s), tabbed) == ("MODE:STORAGE", 0, 0)
     assert pygame_split._handle_key(fake, SimpleNamespace(type=fake.QUIT), frame) == ("QUIT", 0, 0)
 
 
@@ -1804,11 +1813,12 @@ def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
 
     actions = [row.action for row in frame.left_rows if not row.divider]
     assert actions == [
-        "TOGGLE_VIEW:STORAGE",
         "BUY_WEAPON:light_missile",
         "BUY_MODULE:armor_plating",
     ]
     assert frame.left_label == "Store"
+    assert frame.left_tabs == ("[B]uy", "[S]torage")
+    assert frame.active_left_tab == 0
 
 
 def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
@@ -1827,12 +1837,15 @@ def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
     frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
 
     assert frame.left_label == "Storage"
+    assert "B buy" in frame.hint
+    assert "S storage" in frame.hint
     assert "ENTER choose" in frame.hint
     assert [row.action for row in frame.left_rows if not row.divider] == [
-        "TOGGLE_VIEW:STORE",
         "MANAGE_STORED:0",
         "MANAGE_STORED:1",
     ]
+    assert frame.left_tabs == ("[B]uy", "[S]torage")
+    assert frame.active_left_tab == 1
     assert all(row.value == "" for row in frame.left_rows if row.action.startswith("MANAGE_STORED:"))
     missile = next(row for row in frame.left_rows if row.action == "MANAGE_STORED:0")
     assert "Ammo: 1/4" in missile.detail

@@ -297,6 +297,7 @@ Manual playtest of the empty-locker Continue path remains before Phase 2.
 - [x] Add the compact Install/Sell chooser for stored weapons/modules.
 - [x] Add visible remaining-ammo text for stored missile launchers.
 - [x] Keep Sell inside compact My Ship and Storage choosers and preserve current mechanic purchase behavior.
+- [x] Replace the View toggle with Buy/Storage header tabs and B/S shortcuts.
 
 **PLAYTEST:** At a mechanic, install a cheap weapon/module, open Storage, store
 it, verify it disappears from My Ship and appears in Storage, then install it
@@ -305,11 +306,8 @@ a clear message. Store a missile launcher with spent ammo and verify its ammo
 returns when reinstalled. Also switch to SELL explicitly and verify selling a
 stored part does not affect installed equipment.
 
-**Implementation checkpoint:** Phase 2 adds a first-pass two-view loadout modal:
-STORE and STORAGE. Installed My Ship rows are intentionally minimal;
-ENTER opens
-a small shared-Pygame chooser with Store and Sell for X$, and Escape leaves the
-part unchanged. Storage offers INSTALL; stored-equipment selling remains explicit.
+**Implementation checkpoint:**Phase 2 adds a first-pass two-view loadout modal: STORE and STORAGE. The left header uses [B]uy and [S]torage tabs; B and S switch modes directly. Installed My Ship rows are intentionally minimal; ENTER opens a small shared-Pygame chooser with Store and Sell for X$, and Escape leaves the part unchanged. Storage rows open a compact chooser with Install and Sell for X$.
+
 Stored missile launchers display remaining ammo, and failed installs leave storage
 unchanged with a log explanation. The guide now documents the storage workflow
 and the Store/Sell chooser. Focused UI, mechanic, and ship mutation validation

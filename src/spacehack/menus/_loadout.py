@@ -5,7 +5,7 @@ The modal has two small, deliberately explicit views:
 * ``STORE`` — buy catalog equipment and choose what to do with installed gear.
 * ``STORAGE`` — choose whether to install or sell stored equipment.
 
-The view switch is intentionally local to this modal. The storage model and
+The mode switch is intentionally local to this modal. The storage model and
 slot mutation remain in :mod:`spacehack.ship`, so this presentation can evolve
 without creating a second equipment system.
 """
@@ -30,10 +30,6 @@ _MODE_LABELS = {
     "STORE": "STORE",
     "STORAGE": "STORAGE",
 }
-_MODE_NEXT = {
-    "STORE": "STORAGE",
-    "STORAGE": "STORE",
-}
 
 
 def _storage_list(ctx):
@@ -54,21 +50,8 @@ def _loadout_hint(mode: str) -> str:
         "STORAGE": "ENTER choose",
     }[mode]
     return pygame_ui.modal_hint(
-        "UP/DOWN navigate", "TAB switch panel", action_hint,
-        "ESC back", pygame_ui.GUIDE_HINT,
-    )
-
-
-def _mode_selector(mode: str):
-    """Build the row that cycles to the next loadout view."""
-    from .. import pygame_split
-
-    next_mode = _MODE_NEXT[mode]
-    return pygame_split.SplitRow(
-        f"View: {_MODE_LABELS[mode]}",
-        f"next: {_MODE_LABELS[next_mode]}",
-        "Switch between buying equipment and installing stored equipment.",
-        f"TOGGLE_VIEW:{next_mode}",
+        "B buy", "S storage", "UP/DOWN navigate", "TAB switch panel",
+        action_hint, "ESC back", pygame_ui.GUIDE_HINT,
     )
 
 
@@ -84,7 +67,7 @@ def _weapon_detail(spec, *, ammo: int | None = None) -> str:
     return detail
 
 
-def _stored_row(stored, index: int, mode: str):
+def _stored_row(stored, index: int):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
     from ..data.modules import find_module
@@ -113,15 +96,15 @@ def _stored_spec(stored):
     raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
 
 
-def _storage_rows(ctx, mode: str):
-    """Build storage rows for installation."""
+def _storage_rows(ctx):
+    """Build storage rows for installation or sale."""
     from .. import pygame_split
 
-    rows = [_mode_selector(mode), pygame_split.section_header("OWNED EQUIPMENT")]
+    rows = [pygame_split.section_header("OWNED EQUIPMENT")]
     valid_rows = []
     for index, stored in enumerate(_storage_list(ctx)):
         try:
-            valid_rows.append(_stored_row(stored, index, mode))
+            valid_rows.append(_stored_row(stored, index))
         except (AttributeError, KeyError, TypeError, ValueError):
             continue
     if valid_rows:
@@ -142,7 +125,7 @@ def _market_rows(weapon_ids, module_ids):
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
 
-    rows = [_mode_selector("STORE"), pygame_split.section_header("WEAPONS")]
+    rows = [pygame_split.section_header("WEAPONS")]
     rows.extend(
         pygame_split.SplitRow(
             spec.name,
@@ -227,16 +210,23 @@ def _pygame_loadout_frame(
             module_ids = tuple(item.id for item in list_modules())
         left = _market_rows(weapon_ids, module_ids)
     else:
-        left = _storage_rows(ctx, mode)
+        left = _storage_rows(ctx)
     right = _ship_rows(ctx, ship_spec, mode)
     right_label = "My Ship"
     return pygame_split.SplitFrame(
-        pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
-        _MODE_LABELS[mode].title(), right_label,
-        left, right,
-        pygame_ui.credits_label(ctx.stats.credits),
-        f"Wpn: {len(owned.weapons)}/{ship_spec.weapon_slots}  Mod: {len(owned.modules)}/{ship_spec.module_slots}",
-        _loadout_hint(mode),
+        title=pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
+        left_label=_MODE_LABELS[mode].title(),
+        right_label=right_label,
+        left_rows=left,
+        right_rows=right,
+        footer_left=pygame_ui.credits_label(ctx.stats.credits),
+        footer_right=(
+            f"Wpn: {len(owned.weapons)}/{ship_spec.weapon_slots}  "
+            f"Mod: {len(owned.modules)}/{ship_spec.module_slots}"
+        ),
+        hint=_loadout_hint(mode),
+        left_tabs=("[B]uy", "[S]torage"),
+        active_left_tab=0 if mode == "STORE" else 1,
     )
 
 
@@ -515,7 +505,7 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
 
     def apply_action(action, focus, selected):
         nonlocal mode
-        if action.startswith("TOGGLE_VIEW:"):
+        if action.startswith("MODE:"):
             requested = action.split(":", 1)[1]
             if requested in _LOADOUT_MODES:
                 mode = requested

@@ -50,6 +50,10 @@ class SplitFrame:
     hint: str
     focus: int = 0
     selected: int = 0
+    # Optional two-choice header tabs used by terminals such as ship loadout.
+    # Empty preserves the original single-label panel header.
+    left_tabs: tuple[str, ...] = ()
+    active_left_tab: int = 0
 
 
 def _row_payload(row: SplitRow) -> dict[str, Any]:
@@ -78,6 +82,8 @@ def _frame_from_payload(raw: dict[str, Any]) -> SplitFrame:
         hint=str(raw.get("hint", "")),
         focus=int(raw.get("focus", 0)),
         selected=int(raw.get("selected", 0)),
+        left_tabs=tuple(str(tab) for tab in raw.get("left_tabs", ())),
+        active_left_tab=int(raw.get("active_left_tab", 0)),
     )
 
 
@@ -210,14 +216,27 @@ def _draw_panel(
     label: str,
     selected: int,
     focused: bool,
+    tabs: tuple[str, ...] = (),
+    active_tab: int = 0,
 ) -> None:
     """Draw one panel and its currently selected detail."""
     palette = pygame_ui.DEFAULT_PALETTE
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
-    pygame_ui.draw_text(
-        pygame, screen, font, label, panel.x + 20, panel.y + 18,
-        color=palette.title if focused else palette.description,
-    )
+    header_labels = tabs or (label,)
+    header_x = panel.x + 20
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    for tab_index, tab_label in enumerate(header_labels):
+        tab_width = measure(tab_label) + 24
+        tab_active = tab_index == active_tab
+        if tabs and tab_active:
+            highlight = pygame.Rect(header_x - 8, panel.y + 8, tab_width, font.get_linesize() + 10)
+            pygame.draw.rect(screen, palette.selected_background, highlight, border_radius=3)
+            pygame.draw.rect(screen, palette.selected_border, highlight, width=1, border_radius=3)
+        pygame_ui.draw_text(
+            pygame, screen, font, tab_label, header_x, panel.y + 18,
+            color=palette.title if tab_active and focused else palette.description,
+        )
+        header_x += tab_width + 10
     pygame_ui.draw_rule(
         pygame, screen, panel.x + 18, panel.y + 48,
         panel.width - 36, color=palette.border,
@@ -321,6 +340,8 @@ def _draw_frame(
         pygame, screen, font, frame, frame.left_rows,
         panel=left, label=frame.left_label, selected=selected,
         focused=frame.focus == 0,
+        tabs=frame.left_tabs,
+        active_tab=frame.active_left_tab,
     )
     _draw_panel(
         pygame, screen, font, frame, frame.right_rows,
@@ -360,6 +381,14 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
         return "BACK", frame.focus, selected
     if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", frame.focus, selected
+    if frame.left_tabs:
+        tab_keys = {
+            getattr(pygame, "K_b", None): "STORE",
+            getattr(pygame, "K_s", None): "STORAGE",
+        }
+        requested = tab_keys.get(event.key)
+        if requested is not None:
+            return f"MODE:{requested}", frame.focus, selected
     if event.key == pygame.K_TAB:
         other = SplitFrame(
             frame.title, frame.left_label, frame.right_label,
@@ -394,22 +423,13 @@ def _run_worker(payload: dict[str, Any]) -> int:
         pygame.display.set_caption(str(payload.get("caption", "spacehack")))
         clock = pygame.time.Clock()
         while True:
-            current = SplitFrame(
-                frame.title, frame.left_label, frame.right_label,
-                frame.left_rows, frame.right_rows, frame.footer_left,
-                frame.footer_right, frame.hint, frame.focus,
-                _clamp_selected(frame),
-            )
+            current = replace(frame, selected=_clamp_selected(frame))
             _draw_frame(pygame, screen, font, current)
             pygame.display.flip()
             for event in pygame.event.get():
                 outcome, focus, selected = _handle_key(pygame, event, current)
                 if outcome == "IGNORE":
-                    frame = SplitFrame(
-                        frame.title, frame.left_label, frame.right_label,
-                        frame.left_rows, frame.right_rows, frame.footer_left,
-                        frame.footer_right, frame.hint, focus, selected,
-                    )
+                    frame = replace(frame, focus=focus, selected=selected)
                     continue
                 row = _rows(current)
                 action = row[selected].action if outcome == "SELECT" else ""
@@ -489,9 +509,13 @@ def run_interactive(
             except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
                 raise PygameSplitUnavailable("Pygame split frame could not be rebuilt") from exc
             continue
-        if outcome == "SELECT":
+        if outcome == "SELECT" or outcome.startswith("MODE:"):
             try:
-                keep_open = apply_action(action, focus, selected)
+                keep_open = apply_action(
+                    action if outcome == "SELECT" else outcome,
+                    focus,
+                    selected,
+                )
             except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
                 raise PygameSplitUnavailable("Pygame split frame could not be rebuilt") from exc
             if keep_open:
@@ -540,7 +564,7 @@ def run(
         selected = int(response.get("selected", frame.selected))
     except (KeyError, TypeError, ValueError) as exc:
         raise PygameSplitUnavailable("Pygame split terminal returned no usable choice") from exc
-    if outcome not in {"BACK", "QUIT", "GUIDE", "SELECT"}:
+    if outcome not in {"BACK", "QUIT", "GUIDE", "SELECT"} and not outcome.startswith("MODE:"):
         raise PygameSplitUnavailable("Pygame split terminal returned an unknown choice")
     return outcome, action, focus, selected
 
