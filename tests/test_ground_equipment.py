@@ -7,6 +7,9 @@ import pytest
 from src.spacehack.ground_equipment import (
     ARMORY_STORAGE,
     EXPEDITION_INVENTORY,
+    add_stored,
+    remove_armor,
+    remove_weapon,
     StoredGroundEquipment,
     can_fit_weapons,
     expedition_capacity,
@@ -190,6 +193,47 @@ def test_transfer_item_respects_expedition_capacity_without_partial_mutation():
         )
     assert source == [StoredGroundEquipment("weapon", "combat_knife")]
     assert len(destination) == 4
+
+
+def test_add_stored_validates_and_appends_to_selected_container():
+    storage = []
+    entry = StoredGroundEquipment("weapon", "laser_pistol")
+
+    assert add_stored(
+        storage, entry,
+        container=ARMORY_STORAGE,
+    ) == entry
+    assert storage == [entry]
+
+
+def test_add_stored_rejects_full_expedition_pack_atomically():
+    storage = [
+        StoredGroundEquipment("armor", "light_helmet"),
+        StoredGroundEquipment("armor", "light_vest"),
+        StoredGroundEquipment("armor", "combat_boots"),
+        StoredGroundEquipment("weapon", "combat_knife"),
+    ]
+    original = list(storage)
+
+    with pytest.raises(ValueError, match="full"):
+        add_stored(
+            storage,
+            StoredGroundEquipment("weapon", "laser_pistol"),
+            container=EXPEDITION_INVENTORY,
+            strength=10,
+        )
+
+    assert storage == original
+
+
+def test_remove_active_ground_equipment_returns_owned_entry():
+    weapons = ["laser_pistol", "combat_knife"]
+    armor = {"body": "light_vest"}
+
+    assert remove_weapon(weapons, 0) == StoredGroundEquipment("weapon", "laser_pistol")
+    assert remove_armor(armor, "body") == StoredGroundEquipment("armor", "light_vest")
+    assert weapons == ["combat_knife"]
+    assert armor == {}
 
 
 def test_sell_stored_removes_exactly_one_duplicate():

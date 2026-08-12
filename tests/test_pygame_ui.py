@@ -1499,14 +1499,16 @@ def test_armory_frame_uses_shared_content_policy():
 
     assert frame.title == "ARMORY - EARTH"
     assert frame.footer_left == "Credits: 1000$"
-    assert frame.footer_right == "Wpn: 1/2  Arm: 0/5"
-    assert frame.hint == pygame_split.SPLIT_SHOP_HINT
+    assert frame.footer_right == "Pack: 0/4  Armory: unlimited"
+    assert "B buy" in frame.hint
+    assert "A armory" in frame.hint
+    assert "E expedition" in frame.hint
     assert frame.left_rows[0].label == "--- WEAPONS ---"
     assert frame.left_rows[0].divider is True
     buy_cells = [row.value for row in frame.left_rows if row.action.startswith("BUY_WEAPON:")]
     assert buy_cells and all(cell.endswith("$") and "(" not in cell for cell in buy_cells)
-    sell_cells = [row.value for row in frame.right_rows if row.action.startswith("SELL_WEAPON:")]
-    assert sell_cells and all(cell.startswith("(sell ") for cell in sell_cells)
+    manage_cells = [row.value for row in frame.right_rows if row.action.startswith("MANAGE_WEAPON:")]
+    assert manage_cells and all(cell.startswith("(sell ") for cell in manage_cells)
 
 
 def test_character_equipment_rows_mirror_loadout_slots():
@@ -1591,6 +1593,31 @@ def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):
     assert captured["frame"].title == "ARMORY - EARTH"
 
 
+def test_armory_frame_exposes_all_storage_modes_and_active_tab():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+        ],
+        ground_expedition_inventory=[
+            _armory.ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
+        ],
+        stats=SimpleNamespace(credits=1000),
+    )
+
+    frames = {
+        mode: _armory._pygame_armory_frame(ctx, "earth", mode)
+        for mode in _armory._ARMORY_MODES
+    }
+
+    assert all(frame.left_tabs == ("[B]uy", "[A]rmory", "[E]xpedition") for frame in frames.values())
+    assert [frames[mode].active_left_tab for mode in _armory._ARMORY_MODES] == [0, 1, 2]
+    assert frames["ARMORY"].left_rows[1].action == "MANAGE_ARMORY:0"
+    assert frames["EXPEDITION"].left_rows[1].action == "MANAGE_EXPEDITION:0"
+    assert "Pack: 1/4" in frames["EXPEDITION"].footer_right
+
+
 def test_armory_frame_without_planet_id_uses_bare_title():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
@@ -1629,13 +1656,128 @@ def test_armory_pygame_rejects_unknown_action():
         raise AssertionError("unknown Armory actions must trigger fallback")
 
 
-def test_armory_pygame_action_returns_keep_open_after_buy():
+def test_armory_buy_action_opens_destination_chooser(monkeypatch):
     messages = []
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
         equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=messages.append),
+    )
+    monkeypatch.setattr(
+        _armory, "_choose_destination",
+        lambda *_args: "BUY_ARMORY:weapon:laser_pistol",
+    )
+
+    keep_open = _armory._apply_pygame_armory_action(
+        ctx, "BUY_WEAPON:laser_pistol", 0, 1,
+    )
+
+    assert keep_open is True
+    assert ctx.equipped_ground_weapons == []
+    assert ctx.ground_armory_storage == [
+        _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+    ]
+    assert ctx.stats.credits < 1000
+    assert messages
+
+
+def test_armory_container_transfer_uses_domain_helper(monkeypatch):
+    from src.spacehack import pygame_story
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+        ],
+        ground_expedition_inventory=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda *_args, **_kwargs: "MOVE_TO_EXPEDITION:0",
+    )
+
+    assert _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0) is True
+    assert ctx.ground_armory_storage == []
+    assert ctx.ground_expedition_inventory == [
+        _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+    ]
+
+
+def test_armory_replacement_asks_for_displaced_destination(monkeypatch):
+    from src.spacehack import pygame_story
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+        ground_expedition_inventory=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    choices = iter(("INSTALL_ARMORY:0", "INSTALL_EXPEDITION:0"))
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda *_args, **_kwargs: next(choices),
+    )
+
+    _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
+
+    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.ground_armory_storage == []
+    assert ctx.ground_expedition_inventory == [
+        _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+        _armory.ground_equipment.StoredGroundEquipment("weapon", "kinetic_pistol"),
+    ]
+
+
+def test_armory_purchase_dismissal_preserves_credits_and_ownership(monkeypatch):
+    from src.spacehack import pygame_story
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda *_args, **_kwargs: "__DISMISS__",
+    )
+
+    _armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_pistol", 0, 0)
+
+    assert ctx.stats.credits == 1000
+    assert ctx.equipped_ground_weapons == []
+    assert ctx.ground_armory_storage == []
+    assert ctx.ground_expedition_inventory == []
+
+
+def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
+    messages = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+    monkeypatch.setattr(
+        _armory, "_choose_destination",
+        lambda *_args: "BUY_INSTALL:weapon:laser_pistol",
     )
 
     keep_open = _armory._apply_pygame_armory_action(

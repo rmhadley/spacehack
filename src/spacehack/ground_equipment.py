@@ -164,6 +164,49 @@ def store_armor(
     return entry
 
 
+def add_stored(
+    storage: list[StoredGroundEquipment],
+    entry: StoredGroundEquipment,
+    *,
+    container: str,
+    strength: int = 10,
+) -> StoredGroundEquipment:
+    """Add one owned entry to a container after validating capacity."""
+    _require_container(container)
+    _validate_entry(entry)
+    proposed_storage = [*storage, entry]
+    if container == EXPEDITION_INVENTORY:
+        _require_expedition_capacity(proposed_storage, strength)
+    storage.append(entry)
+    return entry
+
+
+def remove_weapon(
+    equipped_weapons: list[str],
+    slot_index: int,
+) -> StoredGroundEquipment:
+    """Remove one active weapon and return its owned-equipment entry."""
+    if not 0 <= slot_index < len(equipped_weapons):
+        raise IndexError("Invalid ground weapon slot")
+    entry = StoredGroundEquipment("weapon", equipped_weapons[slot_index])
+    _validate_entry(entry)
+    del equipped_weapons[slot_index]
+    return entry
+
+
+def remove_armor(
+    equipped_armor: dict[str, str],
+    slot: str,
+) -> StoredGroundEquipment:
+    """Remove one active armor piece and return its owned-equipment entry."""
+    if slot not in equipped_armor:
+        raise KeyError(f"No equipped armor in slot: {slot}")
+    entry = StoredGroundEquipment("armor", equipped_armor[slot])
+    _validate_entry(entry)
+    del equipped_armor[slot]
+    return entry
+
+
 def install_weapon(
     equipped_weapons: list[str],
     storage: list[StoredGroundEquipment],

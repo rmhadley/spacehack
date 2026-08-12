@@ -427,20 +427,21 @@ Phase 2 and Phase 3.
 
 ### Phase 2 - Armory warehouse and expedition-pack UI
 
-- [ ] Add clear Buy, Armory Storage, and Expedition Pack views or destinations.
-- [ ] Add pack capacity/count display and Strength bonus feedback.
-- [ ] Add stored weapon and armor rows with useful details.
-- [ ] Add compact Install/Pack/Armory/Sell action choosers.
-- [ ] Keep the current armory buy/sell behavior working while making ownership
+- [x] Add clear Buy, Armory Storage, and Expedition Pack views or destinations.
+- [x] Add pack capacity/count display and Strength bonus feedback.
+- [x] Add stored weapon and armor rows with useful details.
+- [x] Add compact Install/Pack/Armory/Sell action choosers.
+- [x] Keep the current armory buy/sell behavior working while making ownership
   and destination explicit.
-- [ ] Add replacement prompts for occupied armor slots and two-handed weapons.
+- [x] Add replacement prompts for occupied armor slots and two-handed weapons.
 
-**PLAYTEST:** At an armory, buy a weapon and choose Install; buy another item
-and choose Expedition Pack; fill all four pack slots and verify a fifth item
-can still be bought into unlimited Armory Storage. Move a reserve item back to
-Armory Storage, then add another pack item. Replace equipped armor and verify
-the old piece reaches the selected container. Sell one stored item and verify
-only that item and the credits change.
+**PLAYTEST:** At an armory, use `[B]uy`, `[A]rmory`, and `[E]xpedition` to
+switch views. Buy a weapon and choose Install; buy another item and choose
+Expedition Pack; fill all four pack slots and verify a fifth item can still be
+bought into unlimited Armory Storage. Move a reserve item back to Armory
+Storage, then add another pack item. Replace equipped armor and verify the old
+piece reaches the selected container. Sell one stored item and verify only that
+item and the credits change.
 
 ### Phase 3 - Dungeon expedition swapping and loot
 
@@ -528,9 +529,9 @@ carried reserve gear, and active loadout clear.
 
 ## Current status
 
-Phase 1 is complete. The backend now establishes the unlimited armory
-warehouse, the Strength-scaled four-slot expedition pack, and transactional
-movement between them without changing ground combat rules. The armory and
-dungeon UI remain for later phases: Phase 2 adds terminal management, Phase 3
-adds in-dungeon 1-AP swaps and loot capacity behavior, and Phase 4 is the UX
-and regression pass.
+Phase 2 is complete. The armory terminal now exposes `[B]uy`, `[A]rmory`, and
+`[E]xpedition` views, shows pack capacity and unlimited warehouse ownership,
+provides stored weapon/armor details, and routes purchase, install, transfer,
+store, and sale actions through the ground-equipment domain. Phase 3 adds
+in-dungeon 1-AP swaps and loot capacity behavior; Phase 4 remains the UX and
+regression pass.

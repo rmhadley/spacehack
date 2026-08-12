@@ -382,11 +382,19 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
     if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", frame.focus, selected
     if frame.left_tabs:
-        tab_keys = {
-            getattr(pygame, "K_b", None): "STORE",
-            getattr(pygame, "K_s", None): "STORAGE",
+        tab_modes_by_label = {
+            "[B]uy": "STORE",
+            "[S]torage": "STORAGE",
+            "[A]rmory": "ARMORY",
+            "[E]xpedition": "EXPEDITION",
         }
-        requested = tab_keys.get(event.key)
+        tab_modes = {
+            getattr(pygame, f"K_{label[1].lower()}", None):
+            tab_modes_by_label.get(label, label[1].upper())
+            for label in frame.left_tabs
+            if len(label) > 1 and label.startswith("[")
+        }
+        requested = tab_modes.get(event.key)
         if requested is not None:
             return f"MODE:{requested}", frame.focus, selected
     if event.key == pygame.K_TAB:
