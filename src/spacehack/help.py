@@ -1243,6 +1243,8 @@ _GUIDE_GROUND_GEAR = GuideSection(
         "\n"
         "- Reserve weapons and armour are prepared in the Expedition Pack"
         "and can be swapped during a dungeon run"
+        "\n"
+        "- Fists are the automatic no-weapon fallback, not a purchasable item"
         "\n\n"
         "Armour slots:"
         "\n"

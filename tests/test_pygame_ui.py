@@ -1590,6 +1590,8 @@ def test_armory_pygame_frame_builds_ground_weapon_details():
 
     assert actions
     assert "BUY_WEAPON:laser_pistol" in actions
+    assert all("fists" not in row.action.lower() for row in frame.left_rows)
+    assert all("Fists" not in row.label for row in frame.left_rows)
     assert all("Accuracy:" in row.detail for row in frame.left_rows if row.action.startswith("BUY_WEAPON:"))
 
 
