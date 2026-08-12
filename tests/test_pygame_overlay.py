@@ -631,6 +631,55 @@ def test_draw_segments_falls_back_to_cell_position_on_gap(monkeypatch):
     assert drawn == [("AB", 1292, 84), ("CD", 1340, 84)]
 
 
+def test_bubble_ring_width_thins_as_strength_drops():
+    assert pygame_overlay._bubble_ring_width(1.0) == 3
+    assert pygame_overlay._bubble_ring_width(0.75) == 3
+    assert pygame_overlay._bubble_ring_width(0.5) == 2
+    assert pygame_overlay._bubble_ring_width(0.25) == 1
+    assert pygame_overlay._bubble_ring_width(0.0) == 1
+    # Out-of-range strengths clamp to the hairline/full endpoints.
+    assert pygame_overlay._bubble_ring_width(-0.5) == 1
+    assert pygame_overlay._bubble_ring_width(1.5) == 3
+
+
+def test_draw_shield_bubbles_thins_ring_and_drops_inner_at_low_strength():
+    ellipses = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakeRect:
+        def __init__(self, x, y, width, height):
+            self.x, self.y, self.width, self.height = x, y, width, height
+
+        def inflate(self, dx, dy):
+            return FakeRect(self.x, self.y, self.width + dx, self.height + dy)
+
+    class FakePygame:
+        Rect = FakeRect
+
+        class draw:
+            @staticmethod
+            def ellipse(_screen, color, rect, width=0):
+                ellipses.append((color, rect, width))
+
+    pygame_overlay._draw_shield_bubbles(
+        FakePygame,
+        FakeScreen(),
+        (
+            pygame_overlay.ShieldBubble(1, 1, 1, 1, 1.0),
+            pygame_overlay.ShieldBubble(3, 1, 1, 1, 0.0),
+        ),
+        map_width=8,
+        map_height=6,
+    )
+
+    # Full shield: 3px outer ring + 1px inner ring. Depleted shield:
+    # a single 1px hairline with no inner ring.
+    assert [width for _color, _rect, width in ellipses] == [3, 1, 1]
+
+
 def test_present_exploration_uses_shared_overlay_without_fallback(monkeypatch):
     frame = object()
     shared_calls = []

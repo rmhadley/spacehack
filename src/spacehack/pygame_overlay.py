@@ -472,6 +472,16 @@ def _draw_segments(
         screen.set_clip(None)
 
 
+def _bubble_ring_width(strength: float) -> int:
+    """Map shield strength (0..1) to the shield-ring stroke width in px.
+
+    A nearly-depleted shield collapses to a 1px hairline; a full shield
+    draws a 3px ring, so the bubble visibly thins as shields approach
+    zero before popping at exactly 0.
+    """
+    return 1 + round(2 * max(0.0, min(1.0, strength)))
+
+
 def _draw_shield_bubbles(
     pygame: Any,
     screen: Any,
@@ -480,7 +490,12 @@ def _draw_shield_bubbles(
     map_width: int,
     map_height: int,
 ) -> None:
-    """Paint subtle cyan ellipses around shielded ships within the map."""
+    """Paint subtle cyan ellipses around shielded ships within the map.
+
+    The ring thickness scales with ``strength`` (current/max shields):
+    a full shield draws a chunky double ring, while a weak shield thins
+    to a single hairline just before the bubble disappears at zero.
+    """
     screen.set_clip(pygame.Rect(0, 0, map_width * TILE_WIDTH, map_height * TILE_HEIGHT))
     try:
         for bubble in bubbles:
@@ -494,9 +509,12 @@ def _draw_shield_bubbles(
                 int(center_x - radius_x), int(center_y - radius_y),
                 int(radius_x * 2), int(radius_y * 2),
             )
-            pygame.draw.ellipse(screen, bright, rect, width=2)
-            inner = rect.inflate(-6, -6)
-            if inner.width > 2 and inner.height > 2:
+            ring = _bubble_ring_width(strength)
+            pygame.draw.ellipse(screen, bright, rect, width=ring)
+            # Inner ring only while the outer stroke is >= 2px, i.e. roughly
+            # above 25% shields — weaker bubbles collapse to a single hairline.
+            inner = rect.inflate(-2 * ring, -2 * ring)
+            if ring >= 2 and inner.width > 2 and inner.height > 2:
                 pygame.draw.ellipse(screen, (55, 145, 220), inner, width=1)
     finally:
         screen.set_clip(None)
