@@ -314,6 +314,10 @@ def _run_combat_impl(
         _enemies = rules.get_enemies(ctx)
         if rules.combat_should_end(ctx, game_map, _enemies):
             _result = "VICTORY" if not _enemies else "DISENGAGED"
+            if _result == "DISENGAGED":
+                _on_disengage = getattr(rules, "on_disengage", None)
+                if _on_disengage is not None:
+                    _on_disengage(ctx, game_map)
             break
 
         # ---- Re-target if current target is dead ----

@@ -752,6 +752,17 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     _move_ground_npcs(ctx, game_map)
 
 
+def on_disengage(ctx, game_map: world.GameMap) -> None:
+    """Give surviving hunters a short memory of where LOS broke."""
+    from ..ground_npcs import remember_last_seen as _remember_last_seen
+
+    _survivors = [
+        _enemy.entity for _enemy in _state.enemies
+        if _enemy.alive and _enemy.entity in game_map.entities
+    ]
+    _remember_last_seen(_survivors, ctx.player.pos)
+
+
 def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
     """True when the player sees no hostile — LOS aggro end condition.
 

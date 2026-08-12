@@ -339,6 +339,11 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
                 "main_quest_step_id": getattr(e, 'main_quest_step_id', ''),
                 "dungeon_interaction": getattr(e, 'dungeon_interaction', ''),
                 "interaction_flavor": getattr(e, 'interaction_flavor', ''),
+                "last_seen_pos": (
+                    [e.last_seen_pos.x, e.last_seen_pos.y]
+                    if getattr(e, 'last_seen_pos', None) is not None else None
+                ),
+                "last_seen_ticks": getattr(e, 'last_seen_ticks', 0),
             }
             for e in gm.entities if e.char != '@'
         ],
@@ -464,6 +469,15 @@ def _dungeon_from_dict(dd: dict) -> tuple:
         _flavor = _ed.get("interaction_flavor", "")
         if _flavor:
             _e.interaction_flavor = str(_flavor)
+        _last_seen = _ed.get("last_seen_pos")
+        _last_seen_pair = _coordinate_pair(_last_seen)
+        try:
+            _last_seen_ticks = max(0, int(_ed.get("last_seen_ticks", 0)))
+        except (TypeError, ValueError):
+            _last_seen_ticks = 0
+        if _last_seen_pair is not None and _last_seen_ticks > 0:
+            _e.last_seen_pos = world.Position(*_last_seen_pair)
+            _e.last_seen_ticks = _last_seen_ticks
         _dungeon_entities.append(_e)
 
     _dungeon_map = world.GameMap(

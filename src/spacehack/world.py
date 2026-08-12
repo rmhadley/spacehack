@@ -292,6 +292,8 @@ class Entity:
     main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
     dungeon_interaction: str = ""  # reusable themed-extension interaction id
     interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)
+    last_seen_pos: Position | None = None  # ground hunter's remembered player cell
+    last_seen_ticks: int = 0  # remaining dungeon ticks to pursue that cell
 
 
 # Anchor where the player's bought ship is parked outside the

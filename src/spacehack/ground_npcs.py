@@ -29,6 +29,8 @@ _paths: dict[str, tuple[int, int, list[tuple[int, int]]]] = {}
 
 # How often NPCs attempt to move (per tick).
 _MOVE_CHANCE: float = 0.8
+_LAST_SEEN_TICKS: int = 5
+_PURSUIT_BEHAVIORS: frozenset[str] = frozenset(("hunter",))
 
 
 def _spec_behavior(ctx, entity: world.Entity) -> str:
@@ -144,19 +146,102 @@ def _patrol_path(
     return _cached[2]
 
 
+def _last_seen_goal(entity: world.Entity) -> tuple[int, int] | None:
+    """Return an active remembered player cell for a pursuit-capable NPC."""
+    _pos = getattr(entity, "last_seen_pos", None)
+    if getattr(entity, "last_seen_ticks", 0) <= 0 or _pos is None:
+        return None
+    return (_pos.x, _pos.y)
+
+
+def _clear_last_seen(entity: world.Entity) -> None:
+    """Discard an NPC's expired or reached last-seen player cell."""
+    entity.last_seen_pos = None
+    entity.last_seen_ticks = 0
+
+
+def _is_pursuit_capable(entity: world.Entity) -> bool:
+    """Return whether a known NPC catalog entry can pursue memory."""
+    _eid = getattr(entity, "npc_char_id", "")
+    if not _eid:
+        return False
+    try:
+        return _find_nc(_eid).behavior in _PURSUIT_BEHAVIORS
+    except KeyError:
+        return False
+
+
+def remember_last_seen(
+    entities: list[world.Entity], player_pos: world.Position,
+) -> int:
+    """Stamp a bounded pursuit memory onto hunter entities.
+
+    Guards and ambushers intentionally do not receive memory: guards defend
+    their post and ambushers remain a stationary surprise. Returns the number
+    of entities stamped.
+    """
+    _stamped = 0
+    for _entity in entities:
+        if getattr(_entity, "npc_char_id", "") == "":
+            continue
+        if not _is_pursuit_capable(_entity):
+            continue
+        _entity.last_seen_pos = world.Position(player_pos.x, player_pos.y)
+        _entity.last_seen_ticks = _LAST_SEEN_TICKS
+        _stamped += 1
+    return _stamped
+
+
+def _pursuit_path(
+    entity: world.Entity,
+    game_map: world.GameMap,
+    goal: tuple[int, int],
+) -> list[tuple[int, int]]:
+    """Find a path from an NPC to a remembered player cell."""
+    return world.find_path(
+        (entity.pos.x, entity.pos.y), {goal}, game_map,
+        exclude_entity=entity,
+    ) or []
+
+
+def _move_toward_last_seen(entity: world.Entity, game_map: world.GameMap) -> bool:
+    """Take one pursuit step; return whether the memory remains active."""
+    _goal = _last_seen_goal(entity)
+    if _goal is None:
+        return False
+    if (entity.pos.x, entity.pos.y) == _goal:
+        _clear_last_seen(entity)
+        return False
+    _path = _pursuit_path(entity, game_map, _goal)
+    if not _path:
+        _clear_last_seen(entity)
+        return False
+    _nx, _ny = _path[0]
+    _try_move_entity(entity, _nx - entity.pos.x, _ny - entity.pos.y, game_map)
+    entity.last_seen_ticks -= 1
+    if entity.last_seen_ticks <= 0 or (entity.pos.x, entity.pos.y) == _goal:
+        _clear_last_seen(entity)
+    return True
+
+
 def _move_squad(
     members: list[world.Entity],
     game_map: world.GameMap,
     is_hostile: bool,
     squad_id: str,
 ) -> None:
-    """Move one squad: leader patrols, followers trail, stragglers pulled."""
+    """Move one squad: pursue last-seen cells, patrol, or wander."""
     if not members:
         return
     _leader = members[0]
     _lx, _ly = _leader.pos.x, _leader.pos.y
 
     if is_hostile:
+        _pursuit_goal = _last_seen_goal(_leader)
+        if _pursuit_goal is not None:
+            for _member in members:
+                _move_toward_last_seen(_member, game_map)
+            return
         _path = _patrol_path(squad_id, _leader, game_map)
         if not _path:
             return
@@ -241,7 +326,10 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
         # only hunters patrol (and neutrals wander).
         if _spec_behavior(ctx, _e) in ("guard", "ambusher"):
             continue
-        if RNG.random() >= _MOVE_CHANCE:
+        if (
+            _last_seen_goal(_e) is None
+            and RNG.random() >= _MOVE_CHANCE
+        ):
             continue
         _sid = getattr(_e, 'squad_id', '')
         if _sid:
@@ -259,6 +347,9 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
     # ---- Move solos ----
     for _e in _solos:
         if _is_hostile(ctx, _e):
+            if _last_seen_goal(_e) is not None:
+                _move_toward_last_seen(_e, game_map)
+                continue
             # Solo-hostile: patrol without caching (A* per tick is fine for singles).
             _path = _patrol_path("", _e, game_map, cache={})
             if _path:
