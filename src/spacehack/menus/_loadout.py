@@ -412,41 +412,88 @@ def _apply_sell_installed(ctx, action: str) -> None:
     ctx.stats.credits += ship_module._sell_price("weapon" if item_type == "SELL_WEAPON_SLOT" else "module", item_id)
 
 
-def _apply_buy_weapon(ctx, action: str) -> None:
-    """Buy and install one weapon from the market."""
-    item_id = action.split(":", 1)[1]
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    from ..data.weapons import find_weapon
-    spec = find_weapon(item_id)
-    if len(owned.weapons) >= ship_spec.weapon_slots:
-        ctx.log.add("No compatible weapon slot is available on this ship.")
-    elif ctx.stats.credits < spec.price:
-        ctx.log.add(f"You need {spec.price}$ to install {spec.name}.")
-    elif ship_module._install_weapon(owned, item_id, ship_spec):
-        ctx.stats.credits -= spec.price
-        ctx.log.add(f"Installed {spec.name} for {spec.price}$.")
-
-
-def _apply_buy_module(ctx, action: str) -> None:
-    """Buy and install one module from the market."""
-    item_id = action.split(":", 1)[1]
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
+def _purchase_spec(item_type: str, item_id: str):
+    """Return the catalog specification for a purchasable ship part."""
     from ..data.modules import find_module
-    spec = find_module(item_id)
-    if len(owned.modules) >= ship_spec.module_slots:
-        ctx.log.add("No compatible module slot is available on this ship.")
-    elif ctx.stats.credits < spec.price:
-        ctx.log.add(f"You need {spec.price}$ to install {spec.name}.")
-    elif ship_module._install_module(owned, item_id, ship_spec):
-        ctx.stats.credits -= spec.price
-        ctx.log.add(f"Installed {spec.name} for {spec.price}$.")
+    from ..data.weapons import find_weapon
+
+    if item_type == "WEAPON":
+        return find_weapon(item_id)
+    if item_type == "MODULE":
+        return find_module(item_id)
+    raise ValueError(f"Unknown purchase type: {item_type!r}")
+
+
+def _choose_purchase_action(ctx, item_type: str, item_id: str) -> str:
+    """Ask whether a purchased part should be installed or stored."""
+    spec = _purchase_spec(item_type, item_id)
+    from .. import pygame_story
+
+    return pygame_story.choose(
+        ctx,
+        title="BUY EQUIPMENT",
+        body=spec.name,
+        options=(
+            ("Install", f"BUY_INSTALL_{item_type}:{item_id}"),
+            ("Store", f"BUY_STORE_{item_type}:{item_id}"),
+        ),
+        caption="spacehack - buy equipment",
+        compact=True,
+    )
+
+
+def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None:
+    """Complete a purchase after the player chooses its destination."""
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    spec = _purchase_spec(item_type, item_id)
+    if ctx.stats.credits < spec.price:
+        ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
+        return
+    if destination == "INSTALL":
+        installer = (
+            ship_module._install_weapon
+            if item_type == "WEAPON"
+            else ship_module._install_module
+        )
+        if not installer(owned, item_id, ship_spec):
+            slot_type = "weapon" if item_type == "WEAPON" else "module"
+            ctx.log.add(f"No compatible {slot_type} slot is available on this ship.")
+            return
+    else:
+        _storage_list(ctx).append(
+            ship_module.StoredEquipment(
+                "weapon" if item_type == "WEAPON" else "module",
+                item_id,
+            )
+        )
+    ctx.stats.credits -= spec.price
+    result = "Installed" if destination == "INSTALL" else "Stored"
+    ctx.log.add(f"{result} {spec.name} for {spec.price}$.")
+
+
+def _apply_buy(ctx, action: str) -> None:
+    """Validate funds, open the destination chooser, and complete a buy."""
+    action_type, item_id = action.split(":", 1)
+    item_type = action_type.removeprefix("BUY_")
+    spec = _purchase_spec(item_type, item_id)
+    if ctx.stats.credits < spec.price:
+        ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
+        return
+    chosen = _choose_purchase_action(ctx, item_type, item_id)
+    if chosen in {None, "__BACK__", "__GUIDE__"}:
+        return
+    if chosen == "__QUIT__":
+        raise SystemExit
+    if chosen.startswith(f"BUY_INSTALL_{item_type}:"):
+        _apply_purchase(ctx, item_type, item_id, "INSTALL")
+    elif chosen.startswith(f"BUY_STORE_{item_type}:"):
+        _apply_purchase(ctx, item_type, item_id, "STORE")
 
 
 _LOADOUT_ACTION_HANDLERS = (
-    ("BUY_WEAPON:", _apply_buy_weapon),
-    ("BUY_MODULE:", _apply_buy_module),
+    ("BUY_WEAPON:", _apply_buy),
+    ("BUY_MODULE:", _apply_buy),
     ("MANAGE_STORED:", _apply_manage_stored_item),
     ("INSTALL_STORED:", _apply_stored_install),
     ("MANAGE_WEAPON_SLOT:", _apply_manage_ship_item),

@@ -1821,6 +1821,110 @@ def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
     assert frame.active_left_tab == 0
 
 
+def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    choices = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda *args, **kwargs: choices.append(kwargs) or "__BACK__",
+    )
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "BUY_WEAPON:light_laser", 0, 0, "earth",
+    )
+    assert choices[0]["options"] == (
+        ("Install", "BUY_INSTALL_WEAPON:light_laser"),
+        ("Store", "BUY_STORE_WEAPON:light_laser"),
+    )
+    assert choices[0]["compact"] is True
+    assert ctx.stats.credits == 1000
+    assert ctx.player_owned_ship.weapons == ()
+    assert ctx.ship_storage == []
+
+
+def test_loadout_buy_install_charges_only_after_successful_install(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "BUY_INSTALL_WEAPON:light_laser")
+
+    _loadout._apply_pygame_loadout_action(
+        ctx, "BUY_WEAPON:light_laser", 0, 0, "earth",
+    )
+
+    assert ctx.stats.credits == 970
+    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert ctx.ship_storage == []
+
+
+def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="starter", weapons=("light_laser", "light_laser"),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "BUY_STORE_WEAPON:heavy_laser")
+
+    _loadout._apply_pygame_loadout_action(
+        ctx, "BUY_WEAPON:heavy_laser", 0, 0, "earth",
+    )
+
+    assert ctx.stats.credits == 910
+    assert ctx.player_owned_ship.weapons == ("light_laser", "light_laser")
+    assert len(ctx.ship_storage) == 1
+    assert ctx.ship_storage[0].item_id == "heavy_laser"
+    assert ctx.ship_storage[0].ammo is None
+
+
+def test_loadout_buy_install_full_slot_does_not_charge(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="starter", weapons=("light_laser", "light_laser"),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "BUY_INSTALL_WEAPON:heavy_laser")
+
+    _loadout._apply_pygame_loadout_action(
+        ctx, "BUY_WEAPON:heavy_laser", 0, 0, "earth",
+    )
+
+    assert ctx.stats.credits == 1000
+    assert ctx.ship_storage == []
+    assert any("No compatible weapon slot" in message for message in messages)
+
+
 def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip, StoredEquipment
