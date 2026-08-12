@@ -17,6 +17,7 @@ from src.spacehack import (
     pygame_quantity,
     pygame_combat,
     pygame_runtime,
+    pygame_engine,
     pygame_navigation,
     animation_timing,
 )
@@ -63,7 +64,9 @@ def test_combat_key_mapping_returns_opaque_actions():
     assert pygame_combat._action_for_key(fake, key(23)) == "WAIT"
 
     from src.spacehack.combat import _loop
-    assert _loop._tcod_action(SimpleNamespace(sym=SimpleNamespace(name="period"))) == "WAIT"
+    assert _loop._input_action(
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="period"),
+    ) == "WAIT"
 
 
 def test_combat_present_rejects_failed_presenter_without_shared_runtime(monkeypatch):
@@ -136,21 +139,15 @@ def test_combat_action_falls_back_when_presenter_stops():
 
 def test_combat_action_ignores_triggering_key_release_before_next_action(monkeypatch):
     from src.spacehack.combat import _loop
-    import tcod.event
-
-    key_up = tcod.event.KeyUp(
-        scancode=tcod.event.Scancode.UNKNOWN,
-        sym=tcod.event.KeySym.RIGHT,
-        mod=0,
-    )
-    key_down = tcod.event.KeyDown(
-        scancode=tcod.event.Scancode.UNKNOWN,
-        sym=tcod.event.KeySym.PERIOD,
-        mod=0,
-    )
+    key_up = pygame_engine.PygameInputEvent(kind="keyup", key_name="right")
+    key_down = pygame_engine.PygameInputEvent(kind="keydown", key_name="period")
     waits = iter(((key_up,), (key_down,)))
-    monkeypatch.setattr(_loop.tcod.event, "wait", lambda: next(waits))
-    shared_ctx = SimpleNamespace(context=SimpleNamespace(_runtime=SimpleNamespace(engine=object())))
+    shared_ctx = SimpleNamespace(
+        context=SimpleNamespace(
+            _runtime=SimpleNamespace(engine=object()),
+            wait_events=lambda: next(waits),
+        ),
+    )
     monkeypatch.setattr(
         pygame_runtime,
         "is_shared_context",
@@ -159,19 +156,15 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
 
     assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == "WAIT"
 
-    unknown_key = tcod.event.KeyDown(
-        scancode=tcod.event.Scancode.UNKNOWN,
-        sym=tcod.event.KeySym.A,
-        mod=0,
-    )
+    unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
     waits = iter(((unknown_key,), (key_down,)))
-    monkeypatch.setattr(_loop.tcod.event, "wait", lambda: next(waits))
+    monkeypatch.setattr(shared_ctx.context, "wait_events", lambda: next(waits))
     assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == ""
 
     monkeypatch.setattr(
-        _loop.tcod.event,
-        "wait",
-        lambda: (tcod.event.Quit(),),
+        shared_ctx.context,
+        "wait_events",
+        lambda: (pygame_engine.PygameInputEvent(kind="quit"),),
     )
     assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == "QUIT"
 
@@ -304,21 +297,16 @@ def test_combat_present_death_paints_full_surface_without_hud_or_log(monkeypatch
 
 def test_render_death_screen_presents_full_screen_and_waits_for_key(monkeypatch):
     from src.spacehack.combat import _encounter
-    import tcod.event
 
     calls = []
     monkeypatch.setattr(
         pygame_combat, "present_death",
         lambda ctx, lines=(): calls.append((ctx, lines)),
     )
-    key_down = tcod.event.KeyDown(
-        scancode=tcod.event.Scancode.UNKNOWN,
-        sym=tcod.event.KeySym.A,
-        mod=0,
+    key_down = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
+    ctx = SimpleNamespace(
+        context=SimpleNamespace(wait_events=lambda: (key_down,)),
     )
-    monkeypatch.setattr(_encounter.tcod.event, "wait", lambda: (key_down,))
-
-    ctx = SimpleNamespace()
     _encounter._render_death_screen(ctx)
 
     assert calls == [(ctx, ())]

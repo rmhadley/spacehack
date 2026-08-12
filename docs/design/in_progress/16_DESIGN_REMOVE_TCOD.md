@@ -1,7 +1,7 @@
 # DESIGN: Remove the Remaining tcod Runtime Dependency
 
-> **Status: PROPOSED** — architecture/design only; no implementation has
-> started.
+> **Status: IN PROGRESS** — Phase 1 native-input migration implemented;
+> later phases remain planned.
 >
 > **Priority: HIGH** — begin the decoupling now, but execute it in small
 > phases rather than as a big-bang rewrite.
@@ -224,25 +224,25 @@ pre-commit gate for the migration period.
 Replace the Pygame-to-tcod event conversion first because it is a narrow,
 well-tested boundary and currently relies on global monkey-patching.
 
-- [ ] Make `pygame_engine.PygameInputEvent` the canonical input type, or
+- [x] Make `pygame_engine.PygameInputEvent` the canonical input type, or
       introduce a similarly small project-owned `InputEvent` dataclass.
-- [ ] Preserve key normalization, modifiers, text, quit, key-up, and repeat
+- [x] Preserve key normalization, modifiers, text, quit, key-up, and repeat
       behavior exactly.
-- [ ] Update `input_helpers.py` predicates to consume the project event.
-- [ ] Update `__main__.py`, combat loops/animations, navigation, and quest-log
+- [x] Update `input_helpers.py` predicates to consume the project event.
+- [x] Update `__main__.py`, combat loops/animations, navigation, and quest-log
       input handlers.
-- [ ] Remove `tcod.event` imports and the `PygameRuntime` monkey-patch.
-- [ ] Replace direct tcod event fixtures in `tests/test_dev_mode.py`,
+- [x] Remove `tcod.event` imports and the `PygameRuntime` monkey-patch.
+- [x] Replace direct tcod event fixtures in `tests/test_dev_mode.py`,
       `tests/test_dungeon.py`, and the tcod-event portions of
       `tests/test_pygame_ui.py` / `tests/test_pygame_engine.py` with project
       event fixtures. Classify `tools/_archived/` scripts and
       `tools/text_render_spike.py` explicitly as historical/optional tooling;
       they must not be imported by the game or the no-tcod gate.
-- [ ] Define the event-loop contract before changing call sites: blocking
+- [x] Define the event-loop contract before changing call sites: blocking
       waits return the next translated event; polling returns all currently
       queued events; `QUIT`, `KEYDOWN`, `KEYUP`, modifiers, text, and key
       repeat retain their current semantics.
-- [ ] Add tests for letters, arrows, numpad, shifted punctuation, modifiers,
+- [x] Add tests for letters, arrows, numpad, shifted punctuation, modifiers,
       quit, unknown keys, blocking-vs-polling behavior, and Pygame key-repeat.
 
 **Exit criteria:** no runtime `tcod.event` import; input tests and a complete
@@ -523,7 +523,7 @@ CP437 codepoints.
       runs the freeze audit before platform builds.
 - [x] Freeze audit runs on normal `main` pushes and pull requests via the
       dedicated `.github/workflows/tcod-freeze.yml` workflow.
-- [ ] Implementation begins with Phase 1 after the freeze baseline is
+- [x] Implementation begins with Phase 1 after the freeze baseline is
       reviewed.
 
 **Phase 0 result:** the repository now permits existing tcod references but
@@ -534,3 +534,33 @@ pushes/PRs, and before platform builds. The audit implementation and its
 baseline are operational control files excluded from their own inventory;
 historical design docs, archived codemods, and the excluded text render spike
 remain outside the protected inventory.
+
+### Phase 1 — native Pygame input
+
+- [x] Promoted `pygame_engine.PygameInputEvent` to the canonical runtime event
+      type and added renderer-neutral predicates for keydown, keyup, quit,
+      Escape, Shift, guide, and movement lookup. Key repeat is preserved as a
+      project-owned `repeat` flag; raw Pygame events are not exposed.
+- [x] Added explicit `events()` polling and `wait_events()` blocking APIs to
+      `PygameRuntime` and `PygameContext`; both use the shared translator and
+      the global tcod event monkey-patch was removed.
+- [x] Migrated the main loop, combat loop/encounter/animations, navigation,
+      city transition, quest log, and input helpers to the project event
+      contract.
+- [x] Migrated the affected event fixtures and bridge tests to
+      `PygameInputEvent` fixtures, including key normalization, modifiers,
+      guide punctuation, quit, keyup filtering, and runtime polling seams.
+- [x] Removed runtime `tcod.event` references from protected production source;
+      the remaining tcod inventory is the intentional Phase 2 console/tileset
+      boundary plus approved historical/tooling references.
+- [x] Freeze audit, smoke gate, AST compilation, focused migration tests, and
+      full test suite pass. Focused migration tests: 618 passed; full suite:
+      618 passed.
+- [ ] Complete the manual input/modal/combat playtest checklist before closing
+      Phase 1's playtest exit criterion.
+
+**Phase 1 result:** native Pygame events now travel directly from the shared
+runtime to game consumers. Blocking waits preserve the old tuple-style loop
+contract while polling drains the current queue; no third-party event queue is
+patched. The code is ready for the Phase 1 playtest, with Phase 2 still frozen
+behind the project-owned framebuffer design.

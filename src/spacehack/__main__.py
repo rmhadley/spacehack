@@ -23,7 +23,6 @@ from __future__ import annotations
 import time
 import tcod.console
 import tcod.context
-import tcod.event
 from . import character
 from . import message_log
 from . import mission as mission_module
@@ -45,7 +44,8 @@ from .combat._loop import run_combat as _run_combat_unified
 from .combat import _rules_ground
 from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
-from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, load_tileset, make_console, seed_rng, should_quit
+from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, load_tileset, make_console, seed_rng
+from . import pygame_engine
 from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_p_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
@@ -509,7 +509,7 @@ def _prep_cached_dungeon(game_map) -> world.Position | None:
 
 
 def _run_game(
-    context: tcod.context.Context,
+    context: object,
     species_id: str = "",
     class_id: str = "",
     *,
@@ -527,7 +527,7 @@ def _run_game(
 
 
 def _run_game_loop(
-    context: tcod.context.Context,
+    context: object,
     species_id: str = "",
     class_id: str = "",
     *,
@@ -734,11 +734,11 @@ def _run_game_loop(
         if _overlay is None:
             raise RuntimeError("The shared Pygame runtime is required for gameplay presentation")
         ctx.context.present(console, overlay=_overlay)
-        for event in tcod.event.wait():
-            if should_quit(event):
-                # ESC confirms before leaving; a raw window close (Quit
-                # event) exits immediately — the window is already gone.
-                if isinstance(event, tcod.event.KeyDown):
+        for event in ctx.context.wait_events():
+            if pygame_engine.quit_or_escape(event):
+                # ESC confirms before leaving; a raw window close exits
+                # immediately — the window is already gone.
+                if pygame_engine.is_escape(event):
                     if not _run_pygame_exit_confirm(ctx):
                         continue
                 if current_mode == 'dungeon':
@@ -1833,7 +1833,7 @@ def _run_game_loop(
                 else:
                     log.add(f'You bump into {blocker.name}.')
 
-def run(context: tcod.context.Context) -> None:
+def run(context: object) -> None:
     """Show title menu, then either new game or continue from save."""
     import os
     import struct

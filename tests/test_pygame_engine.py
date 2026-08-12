@@ -54,42 +54,118 @@ def test_pygame_event_translation_is_renderer_neutral():
         MOUSEMOTION = 4
         MOUSEBUTTONDOWN = 5
         MOUSEBUTTONUP = 6
+        KMOD_SHIFT = 3
         key = SimpleNamespace(name=lambda key: {10: "Return"}[key])
 
-    event = SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=4, text="")
+    event = SimpleNamespace(
+        type=FakePygame.KEYDOWN, key=10, mod=3, text="", repeat=True,
+    )
 
-    translated = pygame_engine._event_from_pygame(FakePygame, event)
+    translated = pygame_engine.translate_event(FakePygame, event)
 
     assert translated.kind == "keydown"
     assert translated.key_name == "enter"
-    assert translated.modifiers == 4
-    assert translated.raw is event
+    assert translated.modifiers == 3
+    assert translated.shift is True
+    assert translated.repeat is True
+    assert not hasattr(translated, "raw")
 
 
-def test_shared_runtime_maps_pygame_keys_to_tcod_keysyms():
+def test_project_input_predicates_cover_quit_escape_shift_and_guide():
+    keydown = pygame_engine.PygameInputEvent(
+        kind="keydown", key_name="slash", modifiers=3, shift=True, text="?",
+    )
+    escape = pygame_engine.PygameInputEvent(kind="keydown", key_name="escape")
+    quit_event = pygame_engine.PygameInputEvent(kind="quit")
+    keyup = pygame_engine.PygameInputEvent(kind="keyup", key_name="j")
+
+    assert pygame_engine.is_keydown(keydown)
+    assert pygame_engine.has_shift(keydown)
+    assert pygame_engine.guide_key(keydown)
+    assert pygame_engine.is_escape(escape)
+    assert pygame_engine.is_quit(quit_event)
+    assert pygame_engine.quit_or_escape(escape)
+    assert pygame_engine.quit_or_escape(quit_event)
+    assert not pygame_engine.quit_or_escape(keyup)
+
+
+def test_translate_event_defaults_repeat_to_false():
     class FakePygame:
         QUIT = 1
         KEYDOWN = 2
         KEYUP = 3
-        key = SimpleNamespace(name=lambda key: {10: "Return", 11: "j"}[key])
+        MOUSEMOTION = 4
+        MOUSEBUTTONDOWN = 5
+        MOUSEBUTTONUP = 6
+        KMOD_SHIFT = 3
+        key = SimpleNamespace(name=lambda _key: "j")
 
-    enter = pygame_runtime._tcod_event_from_pygame(
-        FakePygame,
-        SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, unicode=""),
-    )
-    move = pygame_runtime._tcod_event_from_pygame(
-        FakePygame,
-        SimpleNamespace(type=FakePygame.KEYDOWN, key=11, mod=0, unicode="j"),
+    event = SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0)
+
+    assert pygame_engine.translate_event(FakePygame, event).repeat is False
+
+
+def test_shared_runtime_exposes_explicit_project_event_polling(monkeypatch):
+    events = (
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="j"),
     )
 
-    assert enter.sym.name == "RETURN"
-    assert move.sym.name == "J"
-    assert isinstance(
-        pygame_runtime._tcod_event_from_pygame(
-            FakePygame, SimpleNamespace(type=FakePygame.QUIT),
-        ),
-        __import__("tcod.event", fromlist=["Quit"]).Quit,
+    class FakeEngine:
+        pygame = SimpleNamespace()
+        def events(self):
+            return events
+
+    runtime = pygame_runtime.PygameRuntime(object())
+    runtime.engine = FakeEngine()
+
+    assert runtime.events() == events
+    assert runtime.context.events() == events
+
+
+def test_shared_runtime_wait_events_skips_irrelevant_events_and_returns_one():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        KEYUP = 3
+        MOUSEMOTION = 4
+        MOUSEBUTTONDOWN = 5
+        MOUSEBUTTONUP = 6
+        KMOD_SHIFT = 3
+        key = SimpleNamespace(name=lambda _key: "j")
+
+    waits = iter((
+        SimpleNamespace(type=99),
+        SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, repeat=False),
+    ))
+    fake_pygame = SimpleNamespace(
+        QUIT=FakePygame.QUIT,
+        KEYDOWN=FakePygame.KEYDOWN,
+        KEYUP=FakePygame.KEYUP,
+        MOUSEMOTION=FakePygame.MOUSEMOTION,
+        MOUSEBUTTONDOWN=FakePygame.MOUSEBUTTONDOWN,
+        MOUSEBUTTONUP=FakePygame.MOUSEBUTTONUP,
+        KMOD_SHIFT=FakePygame.KMOD_SHIFT,
+        key=FakePygame.key,
+        event=SimpleNamespace(wait=lambda: next(waits)),
     )
+    runtime = pygame_runtime.PygameRuntime(object())
+    runtime.engine = SimpleNamespace(pygame=fake_pygame)
+
+    assert runtime.wait_events() == (
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="j"),
+    )
+
+
+def test_shared_runtime_wait_events_is_empty_when_closed():
+    runtime = pygame_runtime.PygameRuntime(object())
+
+    assert runtime.wait_events() == ()
+
+
+def test_shared_runtime_does_not_patch_third_party_event_queue():
+    runtime = pygame_runtime.PygameRuntime(object())
+    assert not hasattr(runtime, "_old_wait")
+    assert not hasattr(runtime, "_old_get")
 
 
 def test_shared_runtime_context_is_renderer_compatible():
@@ -185,43 +261,6 @@ def test_game_runtime_always_uses_shared_pygame(monkeypatch):
 
     assert runtime.__enter__() is runtime._pygame.context
     runtime.__exit__(None, None, None)
-
-
-def test_pygame_runtime_installs_and_restores_tcod_event_bridge(monkeypatch):
-    original_wait = pygame_runtime.tcod.event.wait
-    original_get = pygame_runtime.tcod.event.get
-
-    class FakeEngine:
-        pygame = SimpleNamespace()
-        logical_surface = None
-        glyphs = None
-
-        def open(self):
-            return self
-
-        def close(self):
-            pass
-
-    monkeypatch.setattr(
-        pygame_runtime.pygame_engine,
-        "_load_pygame",
-        lambda: object(),
-    )
-    monkeypatch.setattr(
-        pygame_runtime.pygame_engine,
-        "PygameEngine",
-        lambda *args, **kwargs: FakeEngine(),
-    )
-
-    runtime = pygame_runtime.PygameRuntime(object())
-    runtime.__enter__()
-    assert pygame_runtime.tcod.event.wait != original_wait
-    assert pygame_runtime.tcod.event.get != original_get
-
-    runtime.close()
-
-    assert pygame_runtime.tcod.event.wait is original_wait
-    assert pygame_runtime.tcod.event.get is original_get
 
 
 def test_real_pygame_runtime_opens_one_shared_engine_when_available(monkeypatch):

@@ -10,7 +10,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import tcod.event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -22,6 +21,7 @@ from src.spacehack.world import (
     Entity, try_move, find_loot_near, find_path,
 )
 from src.spacehack.input_helpers import _is_p_press
+from src.spacehack.pygame_engine import PygameInputEvent
 from src.spacehack.dungeon import (
     init_fog,
     _cast_ray,
@@ -51,19 +51,12 @@ def _hull_at(gm: GameMap, x: int, y: int) -> None:
 class TestSoftLoot:
     def test_p_predicate_accepts_both_key_aliases(self):
         """Pickup is bound to P without stealing G from navigation."""
-        _left_shift = tcod.event.Modifier.LSHIFT.value
-        _event = tcod.event.KeyDown(
-            scancode=tcod.event.Scancode.P,
-            sym=tcod.event.KeySym.P,
-            mod=_left_shift,
-        )
+        _event = PygameInputEvent(kind="keydown", key_name="p")
 
         assert _is_p_press(_event)
-        assert not _is_p_press(tcod.event.KeyDown(
-            scancode=tcod.event.Scancode.G,
-            sym=tcod.event.KeySym.G,
-            mod=0,
-        ))
+        assert not _is_p_press(
+            PygameInputEvent(kind="keydown", key_name="g"),
+        )
 
     def test_loot_does_not_block_world_movement(self):
         """A player can walk through a loot pile instead of being trapped."""

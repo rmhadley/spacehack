@@ -12,6 +12,7 @@ from .. import pygame_ui
 from .. import mission as mission_module
 from ..game_context import GameContext
 from ..engine import MSG_LOG_HEIGHT
+from .. import pygame_engine
 
 def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
     """Run the Quest Log in the shared Pygame screen."""
@@ -45,7 +46,7 @@ class QuestLogOutcome(Enum):
     ABANDONED = auto()
     QUIT = auto()
 
-def render_quest_log(console: tcod.console.Console, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
+def render_quest_log(console: object, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
     """Paint the quest-log overlay — unified terminal look."""
     console.clear()
     missions = ctx.player_active_missions
@@ -332,17 +333,17 @@ def _smuggle_scan_risk(ctx, am) -> tuple[str, tuple[int, int, int]]:
             return _label, _fg
     return "High", (255, 80, 80)
 
-def _quest_log_navigate(event: tcod.event.Event, selected: int, n: int) -> int | None:
-    """If ``event`` drives quest log nav, return the new ``selected`` index."""
-    if n <= 0:
+def _quest_log_navigate(
+    event: pygame_engine.PygameInputEvent,
+    selected: int,
+    n: int,
+) -> int | None:
+    """If ``event`` drives quest-log navigation, return the new index."""
+    if n <= 0 or not pygame_engine.is_keydown(event):
         return None
-    if not isinstance(event, tcod.event.KeyDown):
-        return None
-    sym = event.sym
-    sym_name: str = getattr(sym, 'name', '').lower()
-    if sym in ui._UP_SYMS or sym_name == 'k':
+    if event.key_name in {"up", "k"}:
         return (selected - 1) % n
-    if sym in ui._DOWN_SYMS or sym_name == 'j':
+    if event.key_name in {"down", "j"}:
         return (selected + 1) % n
     return None
 

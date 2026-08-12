@@ -9,8 +9,8 @@ no event-loop internals.
 
 from __future__ import annotations
 from enum import Enum, auto
-import tcod.context
-import tcod.event
+from typing import Any
+from . import pygame_engine
 from . import ui
 from . import pygame_ui
 from . import world
@@ -129,7 +129,7 @@ def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | No
             return Outcome.QUIT
         return None
 
-def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
+def _run_pick(context: Any, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
     """Run a character picker in the shared Pygame window."""
     if not _is_character_menu(menu):
         raise RuntimeError("Character picker requires the shared Pygame runtime")
@@ -138,39 +138,20 @@ def _run_pick(context: tcod.context.Context, menu: ui.MenuScreen) -> tuple[Outco
         raise RuntimeError("Character picker returned no outcome")
     return result
 
-def _run_confirm(context: tcod.context.Context, species_id: str, class_id: str) -> Outcome:
+def _run_confirm(context: Any, species_id: str, class_id: str) -> Outcome:
     """Run character confirmation in the shared Pygame window."""
     result = _run_pygame_confirm(context, species_id, class_id)
     if result is None:
         raise RuntimeError("Character confirmation returned no outcome")
     return result
 
-def _movement_action(event: tcod.event.Event) -> tuple[int, int] | None:
-    """If ``event`` is a movement KeyDown, return (dx, dy); else None.
-
-    Accepts all three movement key families from
-    :data:`world.MOVE_KEYS`: vim keys (``h``/``j``/``k``/``l``,
-    ``y``/``u``/``b``/``n``), arrow keys, and the numpad
-    (``KP_1``-``KP_9``).
-
-    SDL/tcod reports physical key presses as UPPERCASE ``KeySym``
-    members (``KeySym.H.name`` is ``"H"``, not ``"h"`` - and
-    ``KeySym.h`` is a Python alias whose ``.name`` is also
-    ``"H"``). Without ``.lower()`` every press would miss the
-    lowercase-keyed dispatch table and the player would not move.
-
-    The ``getattr(..., "name", "")`` belt-and-suspenders means a
-    future tcod build that produces an event whose ``sym`` lacks a
-    ``.name`` attribute (e.g. an extension-event subclass) falls
-    through to an empty string and returns ``None`` instead of
-    crashing with AttributeError.
-    """
-    if not isinstance(event, tcod.event.KeyDown):
+def _movement_action(event: pygame_engine.PygameInputEvent) -> tuple[int, int] | None:
+    """If ``event`` is a project keydown for movement, return ``(dx, dy)``."""
+    if not pygame_engine.is_keydown(event):
         return None
-    sym_name: str = getattr(event.sym, 'name', '').lower()
-    return world.MOVE_KEYS.get(sym_name)
+    return world.MOVE_KEYS.get(pygame_engine.movement_key_name(event))
 
-def _is_q_press(event: tcod.event.Event) -> bool:
+def _is_q_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``Q`` key.
 
     Routes Q through a module-level helper so the smoke test can
@@ -180,11 +161,9 @@ def _is_q_press(event: tcod.event.Event) -> bool:
     declarative. ``getattr(..., "name", "")`` belt-and-suspenders
     against a hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    return getattr(event.sym, 'name', '') == 'Q'
+    return pygame_engine.is_keydown(event) and event.key_name == 'q'
 
-def _is_m_press(event: tcod.event.Event) -> bool:
+def _is_m_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``M`` key (or its
     lowercase alias).
 
@@ -203,23 +182,18 @@ def _is_m_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('M', 'm')
+    return pygame_engine.is_keydown(event) and event.key_name == 'm'
 
-def _is_period_press(event: tcod.event.Event) -> bool:
+def _is_period_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``.`` key (period).
 
     Period = wait one turn. In space mode this triggers the same
     post-move tick logic (combat detection, pirate movement, shield
     regen) without actually moving the player ship.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    return getattr(event.sym, 'name', '') == 'PERIOD'
+    return pygame_engine.is_keydown(event) and event.key_name in {'.', 'period'}
 
-def _is_g_press(event: tcod.event.Event) -> bool:
+def _is_g_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``G`` key (or its
     lowercase alias).
 
@@ -234,12 +208,9 @@ def _is_g_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('G', 'g')
+    return pygame_engine.is_keydown(event) and event.key_name == 'g'
 
-def _is_p_press(event: tcod.event.Event) -> bool:
+def _is_p_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``P`` key (or its
     lowercase alias).
 
@@ -247,12 +218,9 @@ def _is_p_press(event: tcod.event.Event) -> bool:
     and uppercase ``P`` both pick up nearby loot; anything else
     returns False so space-mode G remains dedicated to Go To.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('P', 'p')
+    return pygame_engine.is_keydown(event) and event.key_name == 'p'
 
-def _is_i_press(event: tcod.event.Event) -> bool:
+def _is_i_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``I`` key (or its
     lowercase alias).
 
@@ -264,12 +232,9 @@ def _is_i_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('I', 'i')
+    return pygame_engine.is_keydown(event) and event.key_name == 'i'
 
-def _is_t_press(event: tcod.event.Event) -> bool:
+def _is_t_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``T`` key (or its
     lowercase alias).
 
@@ -284,12 +249,9 @@ def _is_t_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('T', 't')
+    return pygame_engine.is_keydown(event) and event.key_name == 't'
 
-def _is_c_press(event: tcod.event.Event) -> bool:
+def _is_c_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``C`` key (or its
     lowercase alias).
 
@@ -301,12 +263,9 @@ def _is_c_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('C', 'c')
+    return pygame_engine.is_keydown(event) and event.key_name == 'c'
 
-def _is_f_press(event: tcod.event.Event) -> bool:
+def _is_f_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``F`` key (or its
     lowercase alias).
 
@@ -318,29 +277,24 @@ def _is_f_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    return sym_name in ('F', 'f')
+    return pygame_engine.is_keydown(event) and event.key_name == 'f'
 
-def _is_shift_press(event: tcod.event.Event, key_name: str) -> bool:
+def _is_shift_press(event: pygame_engine.PygameInputEvent, key_name: str) -> bool:
     """Return whether a key event has the requested key plus Shift."""
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    if getattr(event.sym, 'name', '') != key_name:
-        return False
-    mod = getattr(event, 'mod', 0)
-    shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
-    return bool(mod & shift)
+    return (
+        pygame_engine.is_keydown(event)
+        and event.key_name == key_name.lower()
+        and pygame_engine.has_shift(event)
+    )
 
-def _is_shift_x_press(event: tcod.event.Event) -> bool:
+def _is_shift_x_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+X.
 
     Used in dev mode (``SPACEHACK_DEV``) to award bonus XP.
     """
     return _is_shift_press(event, 'X')
 
-def _is_question_press(event: tcod.event.Event) -> bool:
+def _is_question_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``?`` key.
 
     On most platforms SDL reports ``KeySym.SLASH`` (the physical
@@ -356,25 +310,16 @@ def _is_question_press(event: tcod.event.Event) -> bool:
     ``getattr(..., "name", "")`` belt-and-suspenders against a
     hypothetical tcod build whose ``sym`` lacks ``.name``.
     """
-    if not isinstance(event, tcod.event.KeyDown):
-        return False
-    sym_name: str = getattr(event.sym, 'name', '')
-    if sym_name == 'QUESTION':
-        return True
-    if sym_name == 'SLASH':
-        mod = getattr(event, 'mod', 0)
-        shift = tcod.event.Modifier.LSHIFT.value | tcod.event.Modifier.RSHIFT.value
-        return bool(mod & shift)
-    return False
+    return pygame_engine.guide_key(event)
 
-def _is_shift_r_press(event: tcod.event.Event) -> bool:
+def _is_shift_r_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+R.
 
     Dev-mode only (``SPACEHACK_DEV``): fully reveals dungeon fog.
     """
     return _is_shift_press(event, 'R')
 
-def _is_shift_d_press(event: tcod.event.Event) -> bool:
+def _is_shift_d_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+D.
 
     Dev-mode only (``SPACEHACK_DEV``): skips 30 days of world clock
@@ -383,7 +328,7 @@ def _is_shift_d_press(event: tcod.event.Event) -> bool:
     """
     return _is_shift_press(event, 'D')
 
-def _is_shift_o_press(event: tcod.event.Event) -> bool:
+def _is_shift_o_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+O.
 
     Dev-mode only (``SPACEHACK_DEV``): advances Act 0 to the state
@@ -392,7 +337,7 @@ def _is_shift_o_press(event: tcod.event.Event) -> bool:
     """
     return _is_shift_press(event, 'O')
 
-def _try_open_guide(event: tcod.event.Event, ctx) -> bool:
+def _try_open_guide(event: pygame_engine.PygameInputEvent, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.
 
     Returns ``True`` if the guide was opened (caller should return its

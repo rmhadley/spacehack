@@ -2,7 +2,7 @@
 
 Single autosave file at ``~/.spacehack/saves/autosave.json``.
 Serialization converts GameContext fields to a JSON-safe dict,
-skipping non-serializable fields (tcod context, game_map, entities).
+skipping non-serializable runtime context, game_map, and entities.
 On load, game_map is regenerated from saved position + system info.
 
 Design doc: ``docs/design/in_progress/03_DESIGN_GAME_INFRASTRUCTURE.md``
@@ -557,7 +557,7 @@ def _parse_pos(raw) -> tuple[int, int]:
     return (0, 0)
 
 
-def load_game(context: "tcod.context.Context") -> GameContext | None:
+def load_game(context: Any) -> GameContext | None:
     """Load the autosave and reconstruct a GameContext.
 
     Returns None if no save exists or the file is corrupted.

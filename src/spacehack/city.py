@@ -20,7 +20,7 @@ def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entit
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the
-    moving ship and calls :meth:`tcod.context.Context.present`. Direction
+    moving ship and calls the shared Pygame context's ``present`` method. Direction
     is determined by the sign of ``target_y - ship_ent.pos.y``: negative
     walks north (off-screen above), positive walks south. After this
     returns, ``ship_ent.pos.y == target_y``.

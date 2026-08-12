@@ -10,7 +10,6 @@ import time
 import math
 from enum import Enum, auto
 import tcod.console
-import tcod.event
 from . import ui
 from . import world
 from . import message_log
@@ -1001,10 +1000,9 @@ def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, t
         _aborted = False
         _end = time.monotonic() + animation_timing.AUTO_NAV
         while time.monotonic() < _end:
-            for _ev in tcod.event.get():
-                if isinstance(_ev, tcod.event.KeyDown):
-                    _name = getattr(_ev.sym, 'name', '').lower()
-                    if _name in world.MOVE_KEYS or _name == 'period':
+            for _ev in ctx.context.events():
+                if _ev.kind == "keydown":
+                    if _ev.key_name in world.MOVE_KEYS or _ev.key_name in {".", "period"}:
                         _aborted = True
                         break
             if _aborted:
@@ -1281,16 +1279,16 @@ def _responsive_sleep(seconds: float) -> None:
     """Sleep for ``seconds`` while polling SDL events.
 
     Breaks the sleep into ~0.01 s chunks and calls
-    ``tcod.event.poll()`` on each iteration so SDL can
+    the Pygame event queue on each iteration so SDL can
     process OS-level events (mouse moves, window updates,
     etc.). Without this, macOS shows the spinning beach
     ball during animation loops that block with
     ``time.sleep``.
     """
     end = time.monotonic() + seconds
+    import pygame
     while time.monotonic() < end:
-        for _ in tcod.event.get():
-            pass
+        pygame.event.get()
         remaining = end - time.monotonic()
         if remaining > 0:
             time.sleep(min(remaining, 0.01))

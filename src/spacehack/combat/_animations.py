@@ -11,8 +11,7 @@ from __future__ import annotations
 import math
 import time
 
-import tcod.event
-
+from .. import pygame_engine
 from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
@@ -34,7 +33,12 @@ def _responsive_sleep(seconds: float) -> None:
     """Sleep while polling SDL events to keep the window responsive."""
     end = time.monotonic() + seconds
     while time.monotonic() < end:
-        for _ in tcod.event.get():
+        # Drain queued SDL input during animation frames so keys do not
+        # bleed into the next turn. The shared runtime owns the same queue.
+        try:
+            import pygame
+            pygame.event.get()
+        except ModuleNotFoundError:
             pass
         remaining = end - time.monotonic()
         if remaining > 0:
@@ -140,9 +144,9 @@ def _draw_damage_popup(
 
     The text starts one row above the impact cell (so it doesn't
     cover the impact star), climbs one row every 2 frames, and fades
-    toward dim grey as ``age`` grows toward the popup lifetime.
-    Cells outside the viewport are silently skipped so camera-edge
-    targets never crash tcod. ``damage`` is ``(text, color)``;
+    toward dim grey as ``age`` grows toward the popup lifetime.    Cells outside the viewport are silently skipped so camera-edge targets
+    never crash the renderer. ``damage`` is ``(text, color)``;
+
     ``None`` draws nothing (a miss).
     """
     if damage is None:

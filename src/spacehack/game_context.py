@@ -29,7 +29,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TypedDict
 
-import tcod.context
+from typing import Any
 
 from . import hud
 from . import message_log
@@ -229,7 +229,7 @@ class GameContext:
     start as ``None``); everything else is required at construction.
     """
 
-    context: tcod.context.Context
+    context: Any
     character_info: CharacterInfo
     log: message_log.MessageLog
     game_map: world.GameMap

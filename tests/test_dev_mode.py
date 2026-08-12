@@ -7,7 +7,6 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import tcod.event
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -22,24 +21,19 @@ from src.spacehack.dev_mode import (
     _dev_faction_label,
 )
 from src.spacehack.input_helpers import _is_shift_o_press
+from src.spacehack.pygame_engine import PygameInputEvent
 
 
-def _key_o(mod: int) -> tcod.event.KeyDown:
-    """Build an O key event with the requested modifier mask."""
-    return tcod.event.KeyDown(
-        scancode=tcod.event.Scancode.O,
-        sym=tcod.event.KeySym.O,
-        mod=mod,
-    )
+def _key_o(shift: bool) -> PygameInputEvent:
+    """Build an O key event with the requested modifier state."""
+    return PygameInputEvent(kind="keydown", key_name="o", shift=shift)
 
 
 def test_shift_o_predicate_requires_shift_modifier():
     """Only shifted O activates the dev shortcut."""
-    _shift = tcod.event.Modifier.LSHIFT.value
-
-    assert _is_shift_o_press(_key_o(_shift))
-    assert _is_shift_o_press(_key_o(tcod.event.Modifier.RSHIFT.value))
-    assert not _is_shift_o_press(_key_o(0))
+    assert _is_shift_o_press(_key_o(True))
+    assert _is_shift_o_press(_key_o(True))
+    assert not _is_shift_o_press(_key_o(False))
     assert not _is_shift_o_press(SimpleNamespace())
 
 

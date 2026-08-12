@@ -11,8 +11,7 @@ the main menu immediately and no save is written.
 
 from __future__ import annotations
 
-import tcod.event
-
+from .. import pygame_engine
 from .. import world
 from .. import message_log as _ml
 from ._loop import run_combat
@@ -318,10 +317,10 @@ def _wait_for_death_input(ctx, lines: tuple[str, ...] = ()) -> None:
     from .. import pygame_combat
 
     pygame_combat.present_death(ctx, lines=lines)
-    for event in tcod.event.wait():
-        if isinstance(event, tcod.event.Quit):
+    for event in ctx.context.wait_events():
+        if pygame_engine.is_quit(event):
             raise SystemExit()
-        if isinstance(event, tcod.event.KeyDown):
+        if pygame_engine.is_keydown(event):
             return
 
 

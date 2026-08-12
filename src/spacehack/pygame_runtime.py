@@ -1,17 +1,14 @@
 """Shared Pygame-owned runtime for the complete game flow.
 
-The game still uses tcod consoles as renderer-neutral framebuffers and tcod
-KeyDown objects as the domain input contract. This module owns the one default
-SDL window, converts console cells to the existing Pygame glyph atlas, and
-bridges Pygame events back to tcod events. Presentation is always owned by this Pygame runtime; tcod remains only
-as the renderer-neutral console and event contract.
+The game still uses legacy console framebuffers during the
+Phase 2 migration. Input is fully project-owned in this phase: the runtime
+polls Pygame and returns :class:`pygame_engine.PygameInputEvent` values without
+patching a foreign event queue.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
-
-import tcod.event
+from typing import Any
 
 from . import pygame_engine
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, TILE_HEIGHT, TILE_WIDTH
@@ -23,67 +20,8 @@ def is_shared_context(context: Any) -> bool:
     return getattr(runtime, "engine", None) is not None
 
 
-def _key_sym(name: str, text: str = "") -> Any | None:
-    """Map a Pygame key name to the installed tcod ``KeySym`` enum."""
-    if text == "?":
-        name = "question"
-    aliases = {
-        "return": "RETURN",
-        "kp enter": "KP_ENTER",
-        "escape": "ESCAPE",
-        "tab": "TAB",
-        "up": "UP",
-        "down": "DOWN",
-        "left": "LEFT",
-        "right": "RIGHT",
-        "period": "PERIOD",
-        ".": "PERIOD",
-        "slash": "SLASH",
-        "/": "SLASH",
-        "question": "QUESTION",
-        "?": "QUESTION",
-        "space": "SPACE",
-        "backspace": "BACKSPACE",
-        "delete": "DELETE",
-        "home": "HOME",
-        "end": "END",
-        "page up": "PAGEUP",
-        "page down": "PAGEDOWN",
-    }
-    lowered = name.strip().lower()
-    enum_name = aliases.get(lowered)
-    if enum_name is None:
-        if lowered.startswith("kp ") and lowered[3:].isdigit():
-            enum_name = f"KP_{lowered[3:]}"
-        elif lowered.isdigit():
-            enum_name = f"N{lowered}"
-        elif len(lowered) == 1 and lowered.isalpha():
-            enum_name = lowered.upper()
-        else:
-            enum_name = lowered.upper().replace(" ", "_")
-    return getattr(tcod.event.KeySym, enum_name, None)
-
-
-def _tcod_event_from_pygame(pygame: Any, event: Any) -> Any | None:
-    """Convert one Pygame event into the legacy tcod event contract."""
-    if event.type == pygame.QUIT:
-        return tcod.event.Quit()
-    if event.type not in (pygame.KEYDOWN, pygame.KEYUP):
-        return None
-    key_name = pygame.key.name(event.key)
-    sym = _key_sym(key_name, getattr(event, "unicode", ""))
-    if sym is None:
-        return None
-    event_type = tcod.event.KeyDown if event.type == pygame.KEYDOWN else tcod.event.KeyUp
-    return event_type(
-        scancode=tcod.event.Scancode.UNKNOWN,
-        sym=sym,
-        mod=int(getattr(event, "mod", 0)),
-    )
-
-
 def _commands_from_console(console: Any) -> tuple[Any, ...]:
-    """Extract renderer-neutral draw commands from a capture or tcod console."""
+    """Extract renderer-neutral draw commands from a capture or legacy console."""
     commands = getattr(console, "commands", None)
     if commands is not None:
         return tuple(commands)
@@ -112,7 +50,7 @@ def _commands_from_console(console: Any) -> tuple[Any, ...]:
 
 @dataclass(frozen=True)
 class CaptureConsoleCommand:
-    """Small command shape used when reading native tcod console planes."""
+    """Small command shape used when reading native console planes."""
 
     x: int
     y: int
@@ -122,7 +60,7 @@ class CaptureConsoleCommand:
 
 
 class PygameContext:
-    """Minimal tcod-context-compatible adapter backed by Pygame."""
+    """Project-owned presentation context backed by the shared Pygame runtime."""
 
     def __init__(self, runtime: "PygameRuntime"):
         self._runtime = runtime
@@ -134,24 +72,30 @@ class PygameContext:
         else:
             self._runtime.present(console, overlay=overlay)
 
+    def events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
+        """Poll all currently queued project-owned input events."""
+        return self._runtime.events()
+
+    def wait_events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
+        """Block until the next relevant input event is available."""
+        return self._runtime.wait_events()
+
     def convert_event(self, event: Any) -> Any:
-        """Keep the tcod-context API used by the jump menu compatibility path."""
+        """Retain the old adapter method for non-input compatibility callers."""
         return event
 
 
 class PygameRuntime:
-    """Own one Pygame engine and bridge the legacy tcod event functions."""
+    """Own one Pygame engine and its explicit input queue."""
 
     def __init__(self, tileset: Any):
         self.tileset = tileset
         self.engine: pygame_engine.PygameEngine | None = None
         self.game_context: Any | None = None
         self.context = PygameContext(self)
-        self._old_wait: Callable[..., Any] | None = None
-        self._old_get: Callable[..., Any] | None = None
 
     def __enter__(self) -> PygameContext:
-        """Open the shared window and install the event bridge."""
+        """Open the shared window without modifying global event functions."""
         pygame = pygame_engine._load_pygame()
         try:
             self.engine = pygame_engine.PygameEngine(
@@ -165,40 +109,31 @@ class PygameRuntime:
                 tileset=self.tileset,
             )
             self.engine.open()
-            self._old_wait = tcod.event.wait
-            self._old_get = tcod.event.get
-            tcod.event.wait = self._wait
-            tcod.event.get = self._get
         except Exception:
             self.close()
             raise
         return self.context
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        """Restore tcod event functions and close the shared window."""
+        """Close the shared window."""
         self.close()
 
-    def _wait(self, *_args: Any, **_kwargs: Any) -> tuple[Any, ...]:
-        """Block for Pygame input and return converted tcod events."""
+    def events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
+        """Poll Pygame once and return project-owned input events."""
+        if self.engine is None:
+            return ()
+        return self.engine.events()
+
+    def wait_events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
+        """Block until one relevant event, preserving the old tuple contract."""
         if self.engine is None:
             return ()
         pygame = self.engine.pygame
         while True:
             event = pygame.event.wait()
-            converted = _tcod_event_from_pygame(pygame, event)
-            if converted is not None:
-                return (converted,)
-
-    def _get(self, *_args: Any, **_kwargs: Any) -> tuple[Any, ...]:
-        """Poll Pygame input and return converted tcod events."""
-        if self.engine is None:
-            return ()
-        pygame = self.engine.pygame
-        return tuple(
-            converted
-            for event in pygame.event.get()
-            if (converted := _tcod_event_from_pygame(pygame, event)) is not None
-        )
+            translated = pygame_engine.translate_event(pygame, event)
+            if translated.kind != "other":
+                return (translated,)
 
     def present(self, console: Any, *, overlay: Any | None = None) -> None:
         """Render a console, then an optional native Pygame overlay."""
@@ -226,13 +161,7 @@ class PygameRuntime:
         self.engine.present()
 
     def close(self) -> None:
-        """Restore global bridges and release Pygame resources idempotently."""
-        if self._old_wait is not None:
-            tcod.event.wait = self._old_wait
-            self._old_wait = None
-        if self._old_get is not None:
-            tcod.event.get = self._old_get
-            self._old_get = None
+        """Release Pygame resources idempotently."""
         if self.engine is not None:
             self.engine.close()
             self.engine = None

@@ -1,8 +1,8 @@
 """libtcod (python-tcod) setup helpers for spacehack.
 
 Everything in this module is pure setup: load the tileset, open a
-window context, create an offscreen console, decide whether an event
-should quit the game. Keeping it isolated means the rest of the game
+window context, and create an offscreen console. Keeping it isolated means
+the rest of the game
 can import plain data structures without dragging SDL/SDL3 in by
 accident.
 """
@@ -14,7 +14,6 @@ from pathlib import Path
 
 import numpy as np
 import tcod.console
-import tcod.event
 import tcod.tileset
 
 # ---------------------------------------------------------------------------
@@ -350,26 +349,3 @@ def make_console(
         width if width is not None else SCREEN_WIDTH,
         height if height is not None else SCREEN_HEIGHT,
     )
-
-# ---------------------------------------------------------------------------
-# Events
-# ---------------------------------------------------------------------------
-
-def _safe_syms(*names: str) -> tuple:
-    """Resolve ``tcod.event.KeySym`` members by name, skipping any that
-    aren't exported by the installed tcod version.
-    """
-    return tuple(
-        s for s in (getattr(tcod.event.KeySym, name) for name in names)
-        if s is not None
-    )
-
-_ESCAPE_SYMS = _safe_syms("ESCAPE")
-
-def should_quit(event: tcod.event.Event) -> bool:
-    """Return True if ``event`` should make the main loop exit cleanly."""
-    if isinstance(event, tcod.event.Quit):
-        return True
-    if isinstance(event, tcod.event.KeyDown) and event.sym in _ESCAPE_SYMS:
-        return True
-    return False

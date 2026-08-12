@@ -9,8 +9,7 @@ here and receive a ``CombatResult`` back.
 
 from __future__ import annotations
 
-import tcod.event
-
+from .. import pygame_engine
 from .. import world
 from ..engine import RNG
 from ..world import MOVE_KEYS as _MOVE_KEYS
@@ -33,17 +32,15 @@ def _combat_action(ctx, console, *, presenter) -> str:
             raise pygame_combat.PygameCombatUnavailable(
                 "Combat requires the shared Pygame runtime"
             )
-        # GameRuntime installs a Pygame -> tcod event bridge, so this
-        # domain-level event contract still reads only from Pygame-owned SDL.
         while True:
-            for event in tcod.event.wait():
-                if isinstance(event, tcod.event.Quit):
+            for event in ctx.context.wait_events():
+                if pygame_engine.is_quit(event):
                     return "QUIT"
-                if not isinstance(event, tcod.event.KeyDown):
+                if not pygame_engine.is_keydown(event):
                     continue
                 if _try_open_guide(event, ctx):
                     break
-                return _tcod_action(event)
+                return _input_action(event)
     try:
         presenter.show(console, interactive=True)
         return presenter.wait_action()
@@ -53,9 +50,9 @@ def _combat_action(ctx, console, *, presenter) -> str:
         return "UNAVAILABLE"
 
 
-def _tcod_action(event) -> str:
-    """Translate a tcod key event to the same opaque combat action IDs."""
-    sym_name = getattr(event.sym, "name", "").lower()
+def _input_action(event: pygame_engine.PygameInputEvent) -> str:
+    """Translate a project input event to opaque combat action IDs."""
+    sym_name = event.key_name.lower()
     if sym_name == "tab":
         return "TARGET"
     if sym_name in _MOVE_KEYS:
@@ -290,8 +287,8 @@ def _run_combat_impl(
     _turn: int = 1
     _result: str | None = None
     # Combat presentation uses the already-open shared Pygame runtime.
-    # The tcod event bridge remains the input contract, so combat does not
-    # need a second persistent worker window.
+    # Input is read through the project-owned runtime event contract; combat
+    # does not need a second persistent worker window.
     _presenter = None
     ctx._pygame_combat_presenter = None
 

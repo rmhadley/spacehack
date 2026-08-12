@@ -3,8 +3,7 @@
 This module owns no gameplay state and imports Pygame lazily. The logical
 canvas stays at the game's native 100x60 cells (1600x960 pixels), while the
 physical window may be resized and letterboxed without changing map
-coordinates. Tcod remains available for headless algorithms; no tcod Context
-or tcod event pump is created here.
+coordinates. The presentation engine owns the input event shape and pump.
 """
 from __future__ import annotations
 
@@ -53,14 +52,60 @@ class Viewport:
 
 @dataclass(frozen=True)
 class PygameInputEvent:
-    """Renderer-neutral input event produced by the Pygame event pump."""
+    """Project-owned input event produced by the Pygame event pump."""
 
     kind: str
     key_name: str = ""
     modifiers: int = 0
+    shift: bool = False
+    repeat: bool = False
     position: tuple[int, int] | None = None
     text: str = ""
-    raw: Any = None
+
+
+
+def is_keydown(event: PygameInputEvent) -> bool:
+    """Return whether an input event represents a pressed key."""
+    return getattr(event, "kind", "") == "keydown"
+
+
+def is_keyup(event: PygameInputEvent) -> bool:
+    """Return whether an input event represents a released key."""
+    return getattr(event, "kind", "") == "keyup"
+
+
+def is_quit(event: PygameInputEvent) -> bool:
+    """Return whether an input event requests application shutdown."""
+    return getattr(event, "kind", "") == "quit"
+
+
+def is_escape(event: PygameInputEvent) -> bool:
+    """Return whether a keydown event is the Escape key."""
+    return is_keydown(event) and event.key_name == "escape"
+
+
+def has_shift(event: PygameInputEvent) -> bool:
+    """Return whether a key event carries a Shift modifier."""
+    return event.shift
+
+
+def movement_key_name(event: PygameInputEvent) -> str:
+    """Return the normalized key name used by movement/action tables."""
+    return event.key_name
+
+
+def guide_key(event: PygameInputEvent) -> bool:
+    """Return whether a keydown event represents the question-mark key."""
+    return is_keydown(event) and (
+        event.key_name in {"question", "?"}
+        or (event.key_name == "slash" and event.shift)
+        or event.text == "?"
+    )
+
+
+def quit_or_escape(event: PygameInputEvent) -> bool:
+    """Return whether an event is a window close or Escape press."""
+    return is_quit(event) or is_escape(event)
 
 
 _KEY_ALIASES: dict[str, str] = {
@@ -143,7 +188,7 @@ def _load_pygame() -> Any:
     return pygame
 
 
-def _event_from_pygame(pygame: Any, event: Any) -> PygameInputEvent:
+def translate_event(pygame: Any, event: Any) -> PygameInputEvent:
     """Translate one Pygame event without exposing it to game domains."""
     event_types = {
         pygame.QUIT: "quit",
@@ -159,14 +204,16 @@ def _event_from_pygame(pygame: Any, event: Any) -> PygameInputEvent:
     if kind in ("keydown", "keyup"):
         key_name = normalize_key_name(pygame.key.name(event.key))
     position = getattr(event, "pos", None)
-    text = getattr(event, "text", "")
+    text = getattr(event, "text", getattr(event, "unicode", ""))
+    shift_mask = int(getattr(pygame, "KMOD_SHIFT", 3))
     return PygameInputEvent(
         kind=kind,
         key_name=key_name,
         modifiers=modifiers,
+        shift=bool(modifiers & shift_mask),
+        repeat=bool(getattr(event, "repeat", False)),
         position=position,
         text=text,
-        raw=event,
     )
 
 
@@ -306,7 +353,7 @@ class PygameEngine:
     def events(self) -> tuple[PygameInputEvent, ...]:
         """Poll Pygame once and return renderer-neutral input events."""
         return tuple(
-            _event_from_pygame(self.pygame, event)
+            translate_event(self.pygame, event)
             for event in self.pygame.event.get()
         )
 
