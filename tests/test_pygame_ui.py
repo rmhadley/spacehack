@@ -278,6 +278,14 @@ def test_combat_key_mapping_returns_opaque_actions():
     assert _loop._input_action(
         pygame_engine.PygameInputEvent(kind="keydown", key_name="period"),
     ) == "WAIT"
+    # Top-row digits arrive as "1".."9" from the shared Pygame runtime
+    # (tcod-era "n1".."n9" names are gone) and map to weapon slots.
+    assert _loop._input_action(
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="1"),
+    ) == "WEAPON:0"
+    assert _loop._input_action(
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="9"),
+    ) == "WEAPON:8"
 
 
 def test_combat_present_rejects_failed_presenter_without_shared_runtime(monkeypatch):

@@ -73,12 +73,14 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
 # Shared helpers + unified loop
 # ---------------------------------------------------------------------------
 
-# Numeric key mapping for weapon toggle — top-row 1-9 only. Numpad
-# keys (kp_1..kp_9) are movement now (see world.MOVE_KEYS), so they
-# must NOT double as weapon toggles.
+# Numeric key mapping for weapon toggle — top-row 1-9 only. The
+# shared Pygame runtime reports these as plain "1".."9"; the old
+# tcod-era "n1".."n9" names no longer arrive. Numpad keys are
+# movement now (see world.MOVE_KEYS), so they must NOT double as
+# weapon toggles.
 _NUM_KEYS: dict[str, int] = {
-    "n1": 0, "n2": 1, "n3": 2, "n4": 3, "n5": 4,
-    "n6": 5, "n7": 6, "n8": 7, "n9": 8,
+    "1": 0, "2": 1, "3": 2, "4": 3, "5": 4,
+    "6": 5, "7": 6, "8": 7, "9": 8,
 }
 
 
