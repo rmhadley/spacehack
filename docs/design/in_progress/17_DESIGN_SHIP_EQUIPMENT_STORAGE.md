@@ -18,9 +18,9 @@ capacity pressure or a more elaborate inventory economy.
 The UI/UX is expected to evolve through playtesting. The initial presentation
 should make the ownership distinction obvious:
 
-- **For Sale:** catalog equipment available at the current mechanic.
+- **Store:** catalog equipment available at the current mechanic.
 - **Storage:** equipment the player owns but is not currently using.
-- **My Ship:** equipment installed on the active ship.
+- **My Ship:** equipment installed on the active ship; Enter opens Store/Sell.
 
 The first implementation does not add rarity, random prefixes, item modifiers,
 or a separate generated-item economy. "Finding a rare Shield Mk. 4" is the
@@ -232,7 +232,7 @@ Backing out or failing affordability must not mutate either ship or storage.
 First UI pass should extend the existing mechanic loadout rather than introduce
 an entirely new terminal:
 
-- Add a `STORAGE` view/tab alongside `FOR SALE` and `MY SHIP`, or use the
+- Add a `STORAGE` view/tab alongside `STORE` and `MY SHIP`, or use the
   closest equivalent supported by the current split-screen component.
 - Show item name, type, and useful details; show remaining ammo for missile
   launchers.
@@ -296,7 +296,7 @@ Manual playtest of the empty-locker Continue path remains before Phase 2.
 - [x] Add the My Ship Store/Sell chooser for installed weapons/modules.
 - [x] Add explicit Install actions for stored weapons/modules.
 - [x] Add visible remaining-ammo text for stored missile launchers.
-- [x] Keep Sell separate and preserve current mechanic purchase behavior.
+- [x] Keep Sell inside the My Ship chooser and preserve current mechanic purchase behavior.
 
 **PLAYTEST:** At a mechanic, install a cheap weapon/module, open Storage, store
 it, verify it disappears from My Ship and appears in Storage, then install it
@@ -305,8 +305,8 @@ a clear message. Store a missile launcher with spent ammo and verify its ammo
 returns when reinstalled. Also switch to SELL explicitly and verify selling a
 stored part does not affect installed equipment.
 
-**Implementation checkpoint:** Phase 2 adds a first-pass three-view loadout modal:
-FOR SALE, STORAGE, and SELL. Installed My Ship rows are intentionally minimal;
+**Implementation checkpoint:** Phase 2 adds a first-pass two-view loadout modal:
+STORE and STORAGE. Installed My Ship rows are intentionally minimal;
 ENTER opens
 a small shared-Pygame chooser with Store and Sell for X$, and Escape leaves the
 part unchanged. Storage offers INSTALL; stored-equipment selling remains explicit.

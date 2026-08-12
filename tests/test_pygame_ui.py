@@ -1808,6 +1808,7 @@ def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
         "BUY_WEAPON:light_missile",
         "BUY_MODULE:armor_plating",
     ]
+    assert frame.left_label == "Store"
 
 
 def test_loadout_storage_frame_shows_install_actions_and_spent_ammo():
@@ -1828,7 +1829,7 @@ def test_loadout_storage_frame_shows_install_actions_and_spent_ammo():
     assert frame.left_label == "Storage"
     assert "ENTER install/choose" in frame.hint
     assert [row.action for row in frame.left_rows if not row.divider] == [
-        "TOGGLE_VIEW:SELL",
+        "TOGGLE_VIEW:STORE",
         "INSTALL_STORED:0",
         "INSTALL_STORED:1",
     ]
@@ -1836,22 +1837,6 @@ def test_loadout_storage_frame_shows_install_actions_and_spent_ammo():
     assert "Ammo: 1/4" in missile.detail
     assert frame.right_rows[0].divider is True
     assert any(row.action.startswith("MANAGE_") for row in frame.right_rows)
-
-
-def test_loadout_sell_view_has_mode_specific_hint():
-    from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip
-
-    ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(ship_id="scout"),
-        ship_storage=[],
-        stats=SimpleNamespace(credits=1000),
-    )
-
-    frame = _loadout._pygame_loadout_frame(ctx, mode="SELL")
-
-    assert "ENTER sell" in frame.hint
-    assert all(row.action.startswith("MANAGE_") or not row.action for row in frame.right_rows)
 
 
 def test_loadout_storage_view_handles_missing_and_malformed_storage():
@@ -2051,14 +2036,6 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
         stats=SimpleNamespace(credits=0),
         log=SimpleNamespace(add=messages.append),
     )
-
-    assert _loadout._apply_pygame_loadout_action(
-        ctx, "SELL_STORED:0", 0, 0, "earth",
-    )
-    assert ctx.ship_storage == []
-    assert ctx.player_owned_ship.weapons == ("light_laser",)
-    assert ctx.stats.credits > 0
-
 
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip

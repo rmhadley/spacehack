@@ -2,9 +2,8 @@
 
 The modal has three small, deliberately explicit views:
 
-* ``FOR SALE`` — buy catalog equipment and store installed equipment.
-* ``STORAGE`` — install stored equipment and store installed equipment.
-* ``SELL`` — sell stored equipment or installed equipment.
+* ``STORE`` — buy catalog equipment and choose what to do with installed gear.
+* ``STORAGE`` — install stored equipment and choose what to do with installed gear.
 
 The view switch is intentionally local to this modal. The storage model and
 slot mutation remain in :mod:`spacehack.ship`, so this presentation can evolve
@@ -26,16 +25,14 @@ class _LoadoutOutcome(Enum):
     QUIT = auto()
 
 
-_LOADOUT_MODES: tuple[str, ...] = ("MARKET", "STORAGE", "SELL")
+_LOADOUT_MODES: tuple[str, ...] = ("STORE", "STORAGE")
 _MODE_LABELS = {
-    "MARKET": "FOR SALE",
+    "STORE": "STORE",
     "STORAGE": "STORAGE",
-    "SELL": "SELL",
 }
 _MODE_NEXT = {
-    "MARKET": "STORAGE",
-    "STORAGE": "SELL",
-    "SELL": "MARKET",
+    "STORE": "STORAGE",
+    "STORAGE": "STORE",
 }
 
 
@@ -53,9 +50,8 @@ def _loadout_hint(mode: str) -> str:
     from .. import pygame_ui
 
     action_hint = {
-        "MARKET": "ENTER buy/choose",
+        "STORE": "ENTER buy/choose",
         "STORAGE": "ENTER install/choose",
-        "SELL": "ENTER sell/choose",
     }[mode]
     return pygame_ui.modal_hint(
         "UP/DOWN navigate", "TAB switch panel", action_hint,
@@ -71,7 +67,7 @@ def _mode_selector(mode: str):
     return pygame_split.SplitRow(
         f"View: {_MODE_LABELS[mode]}",
         f"next: {_MODE_LABELS[next_mode]}",
-        "Switch between the parts market, storage, and explicit selling.",
+        "Switch between buying equipment and installing stored equipment.",
         f"TOGGLE_VIEW:{next_mode}",
     )
 
@@ -98,19 +94,18 @@ def _stored_row(stored, index: int, mode: str):
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
         detail = _weapon_detail(spec, ammo=stored.ammo)
-        value = "INSTALL" if mode == "STORAGE" else f"(sell {ship_module._sell_price('weapon', stored.item_id)}$)"
+        value = "INSTALL"
     elif stored.item_type == "module":
         spec = find_module(stored.item_id)
         detail = spec.description
-        value = "INSTALL" if mode == "STORAGE" else f"(sell {ship_module._sell_price('module', stored.item_id)}$)"
+        value = "INSTALL"
     else:
         raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
-    action = f"INSTALL_STORED:{index}" if mode == "STORAGE" else f"SELL_STORED:{index}"
-    return pygame_split.SplitRow(spec.name, value, detail, action)
+    return pygame_split.SplitRow(spec.name, value, detail, f"INSTALL_STORED:{index}")
 
 
 def _storage_rows(ctx, mode: str):
-    """Build storage rows for installation or explicit selling."""
+    """Build storage rows for installation."""
     from .. import pygame_split
 
     rows = [_mode_selector(mode), pygame_split.section_header("OWNED EQUIPMENT")]
@@ -138,7 +133,7 @@ def _market_rows(weapon_ids, module_ids):
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
 
-    rows = [_mode_selector("MARKET"), pygame_split.section_header("WEAPONS")]
+    rows = [_mode_selector("STORE"), pygame_split.section_header("WEAPONS")]
     rows.extend(
         pygame_split.SplitRow(
             spec.name,
@@ -200,7 +195,7 @@ def _pygame_loadout_frame(
     planet_id: str = "",
     weapon_ids: tuple[str, ...] | None = None,
     module_ids: tuple[str, ...] | None = None,
-    mode: str = "MARKET",
+    mode: str = "STORE",
 ):
     """Build one presentation-only loadout frame for ``mode``."""
     from .. import pygame_split
@@ -210,12 +205,12 @@ def _pygame_loadout_frame(
     if owned is None:
         return pygame_split.SplitFrame(
             pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
-            "For Sale", "My Ship", (), (), "", "", pygame_split.SPLIT_SHOP_HINT,
+            "Store", "My Ship", (), (), "", "", pygame_split.SPLIT_SHOP_HINT,
         )
     if mode not in _LOADOUT_MODES:
         raise ValueError(f"Unknown loadout mode: {mode!r}")
     ship_spec = ship_module.find_ship(owned.ship_id)
-    if mode == "MARKET":
+    if mode == "STORE":
         if weapon_ids is None or module_ids is None:
             from ..data.modules import list_modules
             from ..data.weapons import list_weapons
@@ -225,7 +220,7 @@ def _pygame_loadout_frame(
     else:
         left = _storage_rows(ctx, mode)
     right = _ship_rows(ctx, ship_spec, mode)
-    right_label = "Sell From Ship" if mode == "SELL" else "My Ship"
+    right_label = "My Ship"
     return pygame_split.SplitFrame(
         pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
         _MODE_LABELS[mode].title(), right_label,
@@ -267,23 +262,6 @@ def _apply_stored_install(ctx, action: str) -> None:
         ctx.log.add(f"Installed {stored.item_id.replace('_', ' ').title()} from storage.")
         return
     _log_storage_failure(ctx, stored, ship_spec)
-
-
-def _apply_stored_sell(ctx, action: str) -> None:
-    """Sell a selected stored entry as an explicit transaction."""
-    storage_index = int(action.split(":", 1)[1])
-    storage = _storage_list(ctx)
-    if not 0 <= storage_index < len(storage):
-        ctx.log.add("That storage entry is no longer available.")
-        return
-    stored = storage[storage_index]
-    price = ship_module._sell_price(stored.item_type, stored.item_id)
-    if price <= 0:
-        ctx.log.add("That stored equipment is no longer available.")
-        return
-    storage.pop(storage_index)
-    ctx.stats.credits += price
-    ctx.log.add(f"Sold stored {stored.item_id.replace('_', ' ').title()} for {price}$.")
 
 
 def _choose_ship_action(ctx, action: str) -> str:
@@ -400,7 +378,6 @@ _LOADOUT_ACTION_HANDLERS = (
     ("BUY_WEAPON:", _apply_buy_weapon),
     ("BUY_MODULE:", _apply_buy_module),
     ("INSTALL_STORED:", _apply_stored_install),
-    ("SELL_STORED:", _apply_stored_sell),
     ("MANAGE_WEAPON_SLOT:", _apply_manage_ship_item),
     ("MANAGE_MODULE_SLOT:", _apply_manage_ship_item),
     ("STORE_WEAPON_SLOT:", _apply_store),
@@ -444,7 +421,7 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
         modules = tuple(sorted(_lm(), key=lambda item: item.price))
 
     from .. import pygame_split
-    mode = "MARKET"
+    mode = "STORE"
 
     def build_frame():
         return _pygame_loadout_frame(
