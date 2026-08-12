@@ -44,7 +44,7 @@ from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, load_tileset, make_console, seed_rng
 from . import pygame_engine
-from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_p_press, _is_i_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
+from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_p_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -111,6 +111,27 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False) -> N
 
 
 # --- End space-mode helpers ---
+
+
+def _save_and_exit(ctx, current_mode, current_city_id, space_player) -> None:
+    """Save the active run using the current exploration mode."""
+    if current_mode == "dungeon":
+        _save_game(
+            ctx,
+            mode="dungeon",
+            city_id=current_city_id,
+            system_id=solar_system_module.current_solar_system_id,
+            space_player_pos=(space_player.pos.x, space_player.pos.y)
+            if space_player else None,
+        )
+        return
+    _save_game(
+        ctx,
+        mode=current_mode,
+        city_id=current_city_id,
+        system_id=solar_system_module.current_solar_system_id,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Ground-mode helpers (dungeon move + wait share one combat tick)
@@ -752,14 +773,7 @@ def _run_game_loop(
                 if pygame_engine.is_escape(event):
                     if not _run_pygame_exit_confirm(ctx):
                         continue
-                if current_mode == 'dungeon':
-                    _save_game(ctx, mode='dungeon', city_id=current_city_id,
-                               system_id=solar_system_module.current_solar_system_id,
-                               space_player_pos=(space_player.pos.x, space_player.pos.y)
-                               if space_player else None)
-                else:
-                    _save_game(ctx, mode=current_mode, city_id=current_city_id,
-                               system_id=solar_system_module.current_solar_system_id)
+                _save_and_exit(ctx, current_mode, current_city_id, space_player)
                 return
             # ? = open game guide (checked early so it can't be shadowed).
             if _try_open_guide(event, ctx):
@@ -892,6 +906,13 @@ def _run_game_loop(
                     combat._handle_combat_encounter(ctx, console, _goto_combat)
                     _run_combat_loop(ctx, console, player)
                     player_active_missions = ctx.player_active_missions
+                continue
+            # \\ = open the complete console history.
+            if _is_backslash_press(event):
+                from .console_log import open_console_log as _open_console_log
+                if _open_console_log(ctx) == "QUIT":
+                    _save_and_exit(ctx, current_mode, current_city_id, space_player)
+                    return
                 continue
             # I = open cargo menu (city or space).
             if _is_i_press(event):

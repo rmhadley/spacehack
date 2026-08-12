@@ -105,6 +105,8 @@ _GUIDE_CONTROLS = GuideSection(
         "\n"
         "- I: cargo hold"
         "\n"
+        "- \\: full console log (scrollable history)"
+        "\n"
         "- C: view character screen (level, skills, traits)"
         "\n""- T: comms panel (hail nearby ships)"
         "\n"

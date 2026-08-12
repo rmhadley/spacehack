@@ -221,6 +221,12 @@ def _is_p_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'p'
 
+def _is_backslash_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the backslash key."""
+    return pygame_engine.is_keydown(event) and event.key_name in {
+        "backslash", "nonusbackslash", "\\",
+    }
+
 def _is_i_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``I`` key (or its
     lowercase alias).

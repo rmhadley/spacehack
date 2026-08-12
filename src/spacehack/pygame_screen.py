@@ -56,6 +56,9 @@ class ScreenFrame:
     # Long bodies page (PAGE UP/DOWN) instead of shrinking the fitted
     # font to fit on one screen — keeps the font size consistent.
     scrollable: bool = False
+    # Optional per-body-line colours used by the console history. Existing
+    # screens leave this empty and use the shared description colour.
+    body_colors: tuple[tuple[int, int, int], ...] = ()
 
 
 def _frame_payload(frame: ScreenFrame) -> dict[str, Any]:
@@ -75,6 +78,11 @@ def _frame_from_payload(raw: dict[str, Any]) -> ScreenFrame:
         tabs=tuple(str(tab) for tab in raw.get("tabs", ())),
         active_tab=int(raw.get("active_tab", 0)),
         scrollable=bool(raw.get("scrollable", False)),
+        body_colors=tuple(
+            tuple(int(channel) for channel in color)
+            for color in raw.get("body_colors", ())
+            if isinstance(color, (list, tuple)) and len(color) == 3
+        ),
     )
 
 
@@ -128,13 +136,38 @@ def _handle_key(pygame: Any, event: Any, frame: ScreenFrame) -> tuple[str, int]:
     return "IGNORE", selected
 
 
+def _body_lines_with_colors(
+    font: Any,
+    frame: ScreenFrame,
+    width: int,
+) -> tuple[tuple[str, tuple[int, int, int] | None], ...]:
+    """Wrap body paragraphs while carrying optional line colours."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    lines: list[tuple[str, tuple[int, int, int] | None]] = []
+    for index, text in enumerate(frame.body):
+        color = frame.body_colors[index] if index < len(frame.body_colors) else None
+        lines.extend((line, color) for line in (pygame_ui.wrap_text(text, width, measure) or ("",)))
+    return tuple(lines)
+
+
 def _body_lines(font: Any, frame: ScreenFrame, width: int) -> tuple[str, ...]:
     """Wrap body paragraphs using the candidate font metrics."""
-    measure = lambda text: pygame_ui.measure_font(font, text)
-    lines: list[str] = []
-    for text in frame.body:
-        lines.extend(pygame_ui.wrap_text(text, width, measure) or ("",))
-    return tuple(lines)
+    return tuple(line for line, _color in _body_lines_with_colors(font, frame, width))
+
+
+def _page_offset(
+    font: Any,
+    frame: ScreenFrame,
+    width: int,
+    outcome: str,
+) -> int:
+    """Advance or rewind a scrollable body by one readable page."""
+    body_lines = _body_lines(font, frame, width)
+    if outcome == "PAGE_DOWN":
+        return min(max(0, len(body_lines) - 1), frame.page_offset + 8)
+    if outcome == "PAGE_UP":
+        return max(0, frame.page_offset - 8)
+    return frame.page_offset
 
 
 def _info_window(frame: ScreenFrame) -> tuple[int, int]:
@@ -292,8 +325,9 @@ def _draw_frame(
                 color=palette.title if selected_tab else palette.description,
             )
     body_start = 126 if frame.tabs else 84
-    body_lines = _body_lines(font, frame, width - 80)
-    visible_body = body_lines[frame.page_offset:]
+    body_lines_with_colors = _body_lines_with_colors(font, frame, width - 80)
+    body_lines = tuple(line for line, _color in body_lines_with_colors)
+    visible_body = body_lines_with_colors[frame.page_offset:]
     body_step = font.get_linesize() + 3
     footer_start = pygame_ui.modal_footer_y(height) if context is not None else height - 70
     body_budget = _body_budget(font, frame, width - 80, height, body_start, footer_start)
@@ -323,9 +357,10 @@ def _draw_frame(
             + rows_detail_gap + detail_height + 8
         )
         y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
-    for line in visible_body[:body_budget]:
+    for line, body_color in visible_body[:body_budget]:
         pygame_ui.draw_text(
-            pygame, screen, font, line, x, y, color=palette.description,
+            pygame, screen, font, line, x, y,
+            color=body_color or palette.description,
         )
         y += body_step
     y += body_rows_gap
@@ -423,13 +458,11 @@ def _run_worker(payload: dict[str, Any]) -> int:
             for event in pygame.event.get():
                 outcome, selected = _handle_key(pygame, event, current)
                 if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
-                    body_lines = _body_lines(font, current, width - 80)
-                    offset = frame.page_offset
-                    if outcome == "PAGE_DOWN":
-                        offset = min(max(0, len(body_lines) - 1), offset + 8)
-                    elif outcome == "PAGE_UP":
-                        offset = max(0, offset - 8)
-                    frame = replace(frame, selected=selected, page_offset=offset)
+                    frame = replace(
+                        frame,
+                        selected=selected,
+                        page_offset=_page_offset(font, current, width - 80, outcome),
+                    )
                     continue
                 row = current.rows[selected] if outcome == "SELECT" else None
                 print(json.dumps({
@@ -466,13 +499,11 @@ def run_shared(
         event = pygame.event.wait()
         outcome, selected = _handle_key(pygame, event, current)
         if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
-            body_lines = _body_lines(font, current, width - 80)
-            offset = frame.page_offset
-            if outcome == "PAGE_DOWN":
-                offset = min(max(0, len(body_lines) - 1), offset + 8)
-            elif outcome == "PAGE_UP":
-                offset = max(0, offset - 8)
-            frame = replace(frame, selected=selected, page_offset=offset)
+            frame = replace(
+                frame,
+                selected=selected,
+                page_offset=_page_offset(font, current, width - 80, outcome),
+            )
             continue
         row = current.rows[selected] if outcome == "SELECT" else None
         return outcome, row.action if row else "", selected

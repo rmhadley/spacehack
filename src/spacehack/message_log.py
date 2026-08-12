@@ -1,12 +1,11 @@
-"""Bottom-of-screen message log.
+"""The in-game console log.
 
-The log keeps an unbounded list of strings, but only the last ``capacity``
-are shown (and only the last ``capacity * 4`` are kept in memory so the
-list can't grow without bound during a long run).
+The HUD shows only the most recent ``capacity`` entries, while the backing
+history retains every entry for the player's full-run console viewer and
+save/load round trips.
 """
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass
 
 from .framebuffer import FrameBuffer
@@ -44,14 +43,11 @@ class MessageLog:
     the displayed slice (``recent(capacity)``).
     """
 
-    #: Maximum number of messages to retain in memory.
-    KEEP_BACKLOG: int = 64
-
     def __init__(self, capacity: int = 6) -> None:
         if capacity < 1:
             raise ValueError("capacity must be >= 1")
         self.capacity = capacity
-        self._messages: deque[MessageEntry] = deque(maxlen=self.KEEP_BACKLOG)
+        self._messages: list[MessageEntry] = []
 
     def add(self, msg: str) -> None:
         """Append ``msg`` to the log with default color."""
@@ -64,12 +60,20 @@ class MessageLog:
     def recent(self, n: int | None = None) -> list[MessageEntry]:
         """Return the last ``n`` entries, oldest first.
 
-        ``n`` defaults to ``self.capacity`` for easy rendering.
+        ``n`` defaults to ``self.capacity`` for easy HUD rendering.
         """
         n = n if n is not None else self.capacity
         if n <= 0:
             return []
-        return list(self._messages)[-n:]
+        return self._messages[-n:]
+
+    def history(self) -> list[MessageEntry]:
+        """Return the complete log history, oldest first."""
+        return list(self._messages)
+
+    def load_history(self, entries: list[MessageEntry]) -> None:
+        """Replace the history with validated entries from a save file."""
+        self._messages = list(entries)
 
     def __len__(self) -> int:
         return len(self._messages)

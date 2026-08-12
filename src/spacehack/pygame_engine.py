@@ -128,6 +128,8 @@ _KEY_ALIASES: dict[str, str] = {
     "kp 7": "kp_7",
     "kp 8": "kp_8",
     "kp 9": "kp_9",
+    "\\": "backslash",
+    "nonusbackslash": "backslash",
 }
 
 

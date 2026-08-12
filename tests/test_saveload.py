@@ -32,6 +32,8 @@ def _build_test_ctx() -> GameContext:
     gm.entities.append(player)
     stats = HudStats(hp=30, max_hp=30, credits=100)
     log = MessageLog(capacity=6)
+    log.add("Run started.")
+    log.add_colored("A hostile signal appears.", (255, 70, 70))
     ci = {
         "species_id": "human",
         "species_name": "Human",
@@ -129,6 +131,12 @@ class TestSaveLoadRoundTrip:
         """Compare every field that goes through save/load."""
         # Character info
         assert loaded.character_info == original.character_info
+
+        # Full console history, including colored entries
+        assert [entry.text for entry in loaded.log.history()] == [
+            entry.text for entry in original.log.history()
+        ] + ["Game loaded."]
+        assert loaded.log.history()[-2].fg == (255, 70, 70)
 
         # Stats
         assert loaded.stats.hp == original.stats.hp

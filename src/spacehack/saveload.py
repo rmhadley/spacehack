@@ -87,6 +87,10 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
     """
     return {
         "character_info": _d(ctx.character_info),
+        "message_history": [
+            {"text": entry.text, "fg": list(entry.fg)}
+            for entry in ctx.log.history()
+        ],
         "stats": {
             "hp": ctx.stats.hp,
             "max_hp": ctx.stats.max_hp,
@@ -759,6 +763,19 @@ def load_game(context: PygameContext) -> GameContext | None:
 
     # --- Log ---
     _log = message_log.MessageLog(capacity=6)
+    _history = []
+    for _entry in (_data.get("message_history", []) or []):
+        if not isinstance(_entry, dict) or not isinstance(_entry.get("text"), str):
+            continue
+        _fg = _entry.get("fg", message_log.COLOR_MESSAGE)
+        if not isinstance(_fg, (list, tuple)) or len(_fg) != 3:
+            _fg = message_log.COLOR_MESSAGE
+        try:
+            _color = tuple(max(0, min(255, int(_channel))) for _channel in _fg)
+        except (TypeError, ValueError):
+            _color = message_log.COLOR_MESSAGE
+        _history.append(message_log.MessageEntry(_entry["text"], _color))
+    _log.load_history(_history)
     _log.add("Game loaded.")
 
     # --- Regenerate map ---
