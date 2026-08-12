@@ -348,19 +348,27 @@ manual upgrade plus save/Continue playtest remains before Phase 4.
 
 ### Phase 4 - UX iteration, guide, and regression pass
 
-- [ ] Playtest the first UI with the full equipment progression and revise the
+- [x] Playtest the first UI with the full equipment progression and revise the
   layout, labels, hints, and confirmation behavior.
-- [ ] Decide whether storage belongs in the mechanic split view, the hangar tab
+- [x] Decide whether storage belongs in the mechanic split view, the hangar tab
   set, or both.
-- [ ] Add the guide section and update the ship/equipment help text.
-- [ ] Add final tests for the selected UX action mapping and edge cases.
-- [ ] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
+- [x] Add the guide section and update the ship/equipment help text.
+- [x] Add final tests for the selected UX action mapping and edge cases.
+- [x] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
 
-**PLAYTEST:** Run a full equipment lifecycle: find or buy equipment, install it,
-spend missile ammo, store it, upgrade ships multiple times, reinstall it, sell a
-different part, save/Continue at each stage, and verify no equipment duplicates,
-disappears, or changes ammo unexpectedly. Record UI friction and revise this
-doc before declaring the feature complete.
+**PLAYTEST:** A full equipment lifecycle passed: equipment was bought and
+installed, missile ammo was spent and retained, parts were stored and
+reinstalled, ships were upgraded multiple times, a separate part was sold, and
+save/Continue was used at each stage. No equipment duplicated, disappeared, or
+changed ammo unexpectedly. The mechanic split view was retained as the storage
+home because it keeps Buy, Storage, and My Ship in one workflow; the hangar tab
+set remains focused on ship status, cargo, and launch. The final polish also
+makes B/S tab routing explicit and treats dismissed choosers as safe no-ops.
+
+**Implementation checkpoint:** Phase 4 closes the first storage pass. The guide
+covers global storage, Buy -> Install/Store, Store/Sell, missile ammo retention,
+and ship-upgrade preservation. Final UI tests cover header tab state, B/S
+shortcuts, empty/malformed storage, chooser action mapping, and cancellation.
 
 ## Acceptance criteria
 
@@ -393,8 +401,9 @@ These are intentionally deferred until the first playable UI exists:
 
 ## Current status
 
-Phase 3 implementation is complete pending manual upgrade/save playtest. Phase 1
-established the persistent storage backend; Phase 2 added the first iterative
-mechanic UI; Phase 3 preserves installed equipment through ship upgrades. UI
-details are expected to change after playtesting; the persistent ownership and
-no-silent-destruction rules are the stable core.
+Phase 4 is complete after the full lifecycle playtest and regression pass. Phase
+1 established the persistent storage backend; Phase 2 added the mechanic UI;
+Phase 3 preserves installed equipment through ship upgrades; Phase 4 records the
+mechanic split view as the first storage home and closes the initial feature pass.
+The persistent ownership and no-silent-destruction rules remain the stable core;
+future capacity, filters, or hangar integration can be designed separately.

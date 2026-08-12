@@ -1355,6 +1355,59 @@ def test_split_key_mapping_switches_panels_and_returns_opaque_action():
     assert pygame_split._handle_key(fake, SimpleNamespace(type=fake.QUIT), frame) == ("QUIT", 0, 0)
 
 
+def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="starter"),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=321),
+    )
+
+    buy = _loadout._pygame_loadout_frame(
+        ctx, weapon_ids=("light_laser",), module_ids=(), mode="STORE",
+    )
+    storage = _loadout._pygame_loadout_frame(
+        ctx, weapon_ids=("light_laser",), module_ids=(), mode="STORAGE",
+    )
+
+    assert buy.left_tabs == ("[B]uy", "[S]torage")
+    assert storage.left_tabs == buy.left_tabs
+    assert buy.active_left_tab == 0
+    assert storage.active_left_tab == 1
+    assert buy.left_label == "Store"
+    assert storage.left_label == "Storage"
+    assert "B buy" in buy.hint
+    assert "S storage" in storage.hint
+
+
+def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="starter", weapons=("light_laser",),
+        ),
+        ship_storage=[_loadout.ship_module.StoredEquipment("module", "shield_mk1")],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: None)
+
+    _loadout._apply_manage_stored_item(ctx, "MANAGE_STORED:0")
+    _loadout._apply_manage_ship_item(ctx, "MANAGE_WEAPON_SLOT:0")
+
+    assert ctx.stats.credits == 1000
+    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert ctx.ship_storage == [_loadout.ship_module.StoredEquipment("module", "shield_mk1")]
+    assert messages == []
+    assert messages == []
+
+
 def test_split_worker_rejects_unknown_outcomes(monkeypatch):
     monkeypatch.setattr(
         pygame_ui,

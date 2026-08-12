@@ -297,7 +297,7 @@ def _choose_stored_action(ctx, action: str) -> str:
 def _apply_manage_stored_item(ctx, action: str) -> None:
     """Open the Install/Sell chooser and apply its selected action."""
     chosen = _choose_stored_action(ctx, action)
-    if chosen in {"__BACK__", "__GUIDE__"}:
+    if chosen in {None, "__BACK__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
         raise SystemExit
@@ -372,7 +372,7 @@ def _choose_ship_action(ctx, action: str) -> str:
 def _apply_manage_ship_item(ctx, action: str) -> None:
     """Open the Store/Sell chooser and apply its selected action."""
     chosen = _choose_ship_action(ctx, action)
-    if chosen in {"__BACK__", "__GUIDE__"}:
+    if chosen in {None, "__BACK__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
         raise SystemExit
