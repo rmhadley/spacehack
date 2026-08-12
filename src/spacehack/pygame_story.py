@@ -91,6 +91,7 @@ def choose(
     body: str,
     options: tuple[tuple[str, str], ...],
     caption: str,
+    compact: bool = False,
 ) -> str:
     """Run a small story choice and return its opaque action ID."""
     items = tuple(
@@ -107,6 +108,7 @@ def choose(
                 pygame_ui.GUIDE_HINT,
             ),),
             selected=index,
+            compact=compact,
         )
         for index in range(max(1, len(items)))
     )

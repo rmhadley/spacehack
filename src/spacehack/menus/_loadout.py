@@ -175,7 +175,7 @@ def _ship_rows(ctx, ship_spec, mode: str):
             continue
         spec = find_weapon(item_id)
         action = f"MANAGE_WEAPON_SLOT:{slot_index}"
-        value = "CHOOSE"
+        value = ""
         rows.append(
             pygame_split.SplitRow(
                 spec.name, value,
@@ -190,7 +190,7 @@ def _ship_rows(ctx, ship_spec, mode: str):
             continue
         spec = find_module(item_id)
         action = f"MANAGE_MODULE_SLOT:{slot_index}"
-        value = "CHOOSE"
+        value = ""
         rows.append(pygame_split.SplitRow(spec.name, value, spec.description, action))
     return tuple(rows)
 
@@ -304,15 +304,20 @@ def _choose_ship_action(ctx, action: str) -> str:
     from ..data.weapons import find_weapon
     spec = find_weapon(item_id) if item_type == "MANAGE_WEAPON_SLOT" else find_module(item_id)
     from .. import pygame_story
+    sell_price = ship_module._sell_price(
+        "weapon" if item_type == "MANAGE_WEAPON_SLOT" else "module",
+        item_id,
+    )
     return pygame_story.choose(
         ctx,
         title="MANAGE EQUIPMENT",
-        body=f"{spec.name}\n\nWhat would you like to do with this installed part?",
+        body=spec.name,
         options=(
             ("Store", f"STORE_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
-            ("Sell", f"SELL_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
+            (f"Sell for {sell_price}$", f"SELL_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
         ),
         caption="spacehack - manage equipment",
+        compact=True,
     )
 
 

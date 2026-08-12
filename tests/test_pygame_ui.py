@@ -1871,6 +1871,73 @@ def test_loadout_storage_view_handles_missing_and_malformed_storage():
     assert any(row.label == "[empty]" for row in frame.left_rows)
 
 
+def test_compact_menu_frame_round_trips_compact_flag():
+    frame = pygame_menu.MenuFrame(
+        "MANAGE EQUIPMENT", "Light Laser",
+        (
+            pygame_menu.MenuItem("Store", "", "STORE"),
+            pygame_menu.MenuItem("Sell for 15$", "", "SELL"),
+        ),
+        ("ENTER select", "ESC back"), 0, compact=True,
+    )
+
+    restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
+
+    assert restored == frame
+    assert restored.compact is True
+
+
+def test_compact_shared_menu_preserves_underlying_surface(monkeypatch):
+    from src.spacehack import pygame_menu
+
+    class Surface:
+        def __init__(self):
+            self.fills = 0
+
+        def get_size(self):
+            return (1600, 960)
+
+        def fill(self, _color):
+            self.fills += 1
+
+    class Events:
+        @staticmethod
+        def wait():
+            return SimpleNamespace(type=Pygame.KEYDOWN, key=Pygame.K_ESCAPE)
+
+    class Pygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 3
+        K_RETURN = 4
+        K_KP_ENTER = 5
+        K_UP = 6
+        K_DOWN = 7
+        K_k = 8
+        K_j = 9
+
+        event = Events()
+
+    surface = Surface()
+    engine = SimpleNamespace(
+        pygame=Pygame,
+        logical_surface=surface,
+        present=lambda: None,
+    )
+    context = SimpleNamespace(_runtime=SimpleNamespace(engine=engine))
+    frame = pygame_menu.MenuFrame(
+        "MANAGE", "Laser",
+        (pygame_menu.MenuItem("Store", "", "STORE"),),
+        (), 0, compact=True,
+    )
+    monkeypatch.setattr(pygame_menu, "_fit_shared_font", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(pygame_menu, "_draw_shared_frame", lambda *args, **kwargs: None)
+
+    pygame_menu.run_shared(context, (frame,))
+
+    assert surface.fills == 0
+
+
 def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
@@ -1895,7 +1962,7 @@ def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
     )
     assert chosen == [(
         ("Store", "STORE_WEAPON_SLOT:0"),
-        ("Sell", "SELL_WEAPON_SLOT:0"),
+        ("Sell for 15$", "SELL_WEAPON_SLOT:0"),
     )]
     assert ctx.player_owned_ship.weapons == ("light_laser",)
 

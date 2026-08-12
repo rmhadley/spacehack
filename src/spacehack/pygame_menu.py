@@ -50,6 +50,9 @@ class MenuFrame:
     # Pre-game screens (the title menu) must not paint the previous run's
     # console-log band; in-game menus leave this on.
     draw_log: bool = True
+    # Small contextual decisions can use a compact centered popup instead of
+    # occupying the full modal surface. Default preserves existing menus.
+    compact: bool = False
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -88,6 +91,7 @@ def _frame_from_payload(raw: dict[str, Any]) -> MenuFrame:
             else None
         ),
         draw_log=bool(raw.get("draw_log", True)),
+        compact=bool(raw.get("compact", False)),
     )
 
 
@@ -216,6 +220,55 @@ def _draw_art(
     return y + 10
 
 
+def _draw_compact_frame(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    frame: MenuFrame,
+) -> None:
+    """Paint a small centered two-choice popup."""
+    palette = pygame_ui.DEFAULT_PALETTE
+    width, height = screen.get_size()
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    lines = pygame_ui.wrap_text(frame.body, width // 3, measure)
+    row_height = font.get_linesize() + 18
+    popup_width = max(
+        360,
+        min(width - 160, max(
+            pygame_ui.measure_font(font, frame.title) + 64,
+            *(pygame_ui.measure_font(font, item.label) + 72 for item in frame.items),
+        )),
+    )
+    popup_height = 86 + len(lines) * (font.get_linesize() + 4) + len(frame.items) * row_height
+    popup = pygame_ui.Rect(
+        (width - popup_width) // 2,
+        (height - popup_height) // 2,
+        popup_width,
+        popup_height,
+    )
+    pygame_ui.draw_panel(pygame, screen, popup, palette=palette)
+    pygame_ui.draw_centered_text(
+        pygame, screen, font, frame.title, popup, popup.y + 22,
+        color=palette.title,
+    )
+    pygame_ui.draw_rule(
+        pygame, screen, popup.x + 22, popup.y + 54,
+        popup.width - 44, color=palette.border,
+    )
+    y = popup.y + 70
+    for line in lines:
+        pygame_ui.draw_centered_text(pygame, screen, font, line, popup, y, color=palette.description)
+        y += font.get_linesize() + 4
+    y += 8
+    for index, item in enumerate(frame.items):
+        pygame_ui.draw_menu_row(
+            pygame, screen, font, item.label, popup.x + 24, y,
+            popup.width - 48, selected=index == frame.selected,
+            palette=palette,
+        )
+        y += row_height
+
+
 def _draw_frame(
     pygame: Any,
     screen: Any,
@@ -225,6 +278,9 @@ def _draw_frame(
     context: PygameContext | None = None,
 ) -> None:
     """Paint a menu frame with natural font spacing."""
+    if frame.compact:
+        _draw_compact_frame(pygame, screen, font, frame)
+        return
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
     panel = pygame_ui.Rect(32, 28, width - 64, height - 56)
@@ -427,7 +483,11 @@ def run_shared(
     count = len(frames[0].items)
     while True:
         frame = frames[selected % len(frames)]
-        screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+        # Compact choices are true overlays: the caller's current screen
+        # remains underneath while the small popup is drawn on top. Full
+        # menus still clear the shared surface as before.
+        if not frame.compact:
+            screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
         event = pygame.event.wait()

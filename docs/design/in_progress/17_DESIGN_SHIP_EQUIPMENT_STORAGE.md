@@ -306,9 +306,10 @@ returns when reinstalled. Also switch to SELL explicitly and verify selling a
 stored part does not affect installed equipment.
 
 **Implementation checkpoint:** Phase 2 adds a first-pass three-view loadout modal:
-FOR SALE, STORAGE, and SELL. Installed My Ship rows now show CHOOSE; ENTER opens
-a small shared-Pygame chooser with STORE and SELL, and Escape leaves the part
-unchanged. Storage offers INSTALL; stored-equipment selling remains explicit.
+FOR SALE, STORAGE, and SELL. Installed My Ship rows are intentionally minimal;
+ENTER opens
+a small shared-Pygame chooser with Store and Sell for X$, and Escape leaves the
+part unchanged. Storage offers INSTALL; stored-equipment selling remains explicit.
 Stored missile launchers display remaining ammo, and failed installs leave storage
 unchanged with a log explanation. The guide now documents the storage workflow
 and the Store/Sell chooser. Focused UI, mechanic, and ship mutation validation

@@ -616,7 +616,7 @@ _GUIDE_SHIPS = GuideSection(
         "(sorted by price); ENTER buys the selected item"
         "\n"
         "- The My Ship panel shows installed parts; press ENTER to open a"
-        "small chooser with STORE and SELL"
+        "small chooser with Store and Sell for X$"
         "\n"
         "- STORAGE view: left panel lists owned stored equipment; ENTER"
         "installs a selected compatible part"
