@@ -52,7 +52,20 @@ def _default_background(console: Any) -> tuple[int, int, int] | None:
     return None if getter is None else getter()
 
 
-def _frame_payload(console: FrameBuffer, *, interactive: bool) -> dict[str, Any]:
+def _combat_shield_bubbles(ctx: GameContext | None) -> tuple:
+    """Return live space-combat bubbles without coupling the overlay to rules."""
+    if ctx is None:
+        return ()
+    from .combat import _rules_space
+    return _rules_space.presentation_shield_bubbles(ctx=ctx)
+
+
+def _frame_payload(
+    console: FrameBuffer,
+    *,
+    interactive: bool,
+    ctx: GameContext | None = None,
+) -> dict[str, Any]:
     """Serialize a map-only combat frame plus its native HUD/log overlay."""
     all_commands = _console_commands(console)
     commands = tuple(
@@ -64,7 +77,8 @@ def _frame_payload(console: FrameBuffer, *, interactive: bool) -> dict[str, Any]
         all_commands,
         screen_width=1600 // pygame_world.TILE_WIDTH,
         screen_height=960 // pygame_world.TILE_HEIGHT,
-        hud_view_height=(960 // pygame_world.TILE_HEIGHT) - pygame_world.MSG_LOG_HEIGHT,
+        hud_view_height=(960 // pygame_world.TILE_HEIGHT) - MSG_LOG_HEIGHT,
+        shields=_combat_shield_bubbles(ctx),
     )
     return {
         "logical_size": (1600, 960),
@@ -175,7 +189,7 @@ def present(ctx: GameContext, console: FrameBuffer) -> None:
     presenter = getattr(ctx, "_pygame_combat_presenter", None)
     if presenter is not None:
         try:
-            presenter.show(console, interactive=False)
+            presenter.show(console, interactive=False, ctx=ctx)
             return
         except PygameCombatUnavailable:
             presenter.close()
@@ -189,6 +203,7 @@ def present(ctx: GameContext, console: FrameBuffer) -> None:
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+            shields=_combat_shield_bubbles(ctx),
         )
         map_console = pygame_world.CaptureConsole(
             SCREEN_WIDTH,
@@ -333,13 +348,13 @@ class PygameCombatPresenter:
         """Whether the worker process is still available."""
         return not self._closed and self._process.poll() is None
 
-    def show(self, console: Any, *, interactive: bool) -> None:
+    def show(self, console: Any, *, interactive: bool, ctx: GameContext | None = None) -> None:
         """Send a captured console frame without waiting for input."""
         if not self.alive or self._process.stdin is None:
             raise PygameCombatUnavailable("Pygame combat worker stopped")
         try:
             self._process.stdin.write(
-                json.dumps(_frame_payload(console, interactive=interactive)) + "\n"
+                json.dumps(_frame_payload(console, interactive=interactive, ctx=ctx)) + "\n"
             )
             self._process.stdin.flush()
         except (BrokenPipeError, OSError, ValueError) as exc:

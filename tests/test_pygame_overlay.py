@@ -96,6 +96,7 @@ def test_overlay_payload_round_trips_segments_and_layout():
         hud_height=54,
         message_top=54,
         message_height=6,
+        shields=(pygame_overlay.ShieldBubble(12, 8, 2, 1, 0.75),),
     )
 
     payload = pygame_overlay.payload(frame)
@@ -106,8 +107,72 @@ def test_overlay_payload_round_trips_segments_and_layout():
     assert payload["messages"][0]["text"] == "msg"
     assert payload["messages"][0]["bg"] == (255, 255, 255)
     assert payload["hud_height"] == 54
+    assert payload["shields"] == ({
+        "x": 12, "y": 8, "width": 2, "height": 1, "strength": 0.75,
+    },)
     restored = pygame_overlay.frame_from_payload(payload)
     assert restored == frame
+
+
+def test_shield_bubbles_include_shielded_ships_and_apply_camera_region_offset():
+    game_map = world.GameMap(
+        width=20,
+        height=12,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(20)] for _ in range(12)],
+        entities=[
+            world.Entity(
+                "S", (100, 200, 255), world.Position(7, 5),
+                ship_id="scout", owned=True,
+            ),
+            world.Entity(
+                "t", (180, 180, 180), world.Position(8, 5),
+                ship_id="starter", owned=False,
+            ),
+            world.Entity(
+                "P", (255, 100, 100), world.Position(10, 6),
+                npc_ship_id="pirate_scout",
+            ),
+        ],
+    )
+
+    bubbles = pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=4,
+        camera_y=2,
+        region_x=3,
+        region_y=1,
+        region_w=8,
+        region_h=6,
+        player_owned_ship=SimpleNamespace(modules=()),
+    )
+
+    assert bubbles == (
+        pygame_overlay.ShieldBubble(6, 4),
+        pygame_overlay.ShieldBubble(9, 5),
+    )
+
+
+def test_shield_bubbles_cull_ships_outside_the_viewport():
+    game_map = world.GameMap(
+        width=20,
+        height=12,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(20)] for _ in range(12)],
+        entities=[
+            world.Entity(
+                "S", (100, 200, 255), world.Position(18, 5),
+                ship_id="scout", owned=True,
+            ),
+        ],
+    )
+
+    assert pygame_overlay.shield_bubbles_for_map(
+        game_map,
+        camera_x=0,
+        camera_y=0,
+        region_w=8,
+        region_h=6,
+        player_owned_ship=SimpleNamespace(modules=()),
+    ) == ()
 
 
 def test_draw_segments_offsets_text_inside_panel_padding(monkeypatch):

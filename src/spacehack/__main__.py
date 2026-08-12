@@ -713,11 +713,23 @@ def _run_game_loop(
         _has_mech = any(e.mech_terminal for e in game_map.entities) if current_mode == 'city' else False
         _has_armory = any(e.armory_terminal for e in game_map.entities) if current_mode == 'city' else False
         _overlay = None
+        _shield_bubbles = ()
         if getattr(ctx.context, "_runtime", None) is not None:
             # The native Pygame overlay is the sole HUD/log layer in the
             # shared runtime. Keep the bitmap console map-only so text is
             # not painted twice underneath the readable native layer.
             from . import pygame_overlay
+            if current_mode == 'space':
+                _shield_bubbles = pygame_overlay.shield_bubbles_for_map(
+                    game_map,
+                    camera_x=cam_x,
+                    camera_y=cam_y,
+                    region_w=view_w,
+                    region_h=view_h,
+                    region_x=rx,
+                    region_y=ry,
+                    player_owned_ship=ctx.player_owned_ship,
+                )
             _overlay = pygame_overlay.capture(
                 ctx,
                 mode=current_mode,
@@ -728,6 +740,7 @@ def _run_game_loop(
                 has_trade_terminal=_has_trade,
                 has_mech_terminal=_has_mech,
                 has_armory_terminal=_has_armory,
+                shields=_shield_bubbles,
             )
         if _overlay is None:
             raise RuntimeError("The shared Pygame runtime is required for gameplay presentation")

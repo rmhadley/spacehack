@@ -42,7 +42,7 @@ def _combat_action(ctx, console, *, presenter) -> str:
                     break
                 return _input_action(event)
     try:
-        presenter.show(console, interactive=True)
+        presenter.show(console, interactive=True, ctx=ctx)
         return presenter.wait_action()
     except pygame_combat.PygameCombatQuit:
         return "QUIT"

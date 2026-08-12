@@ -74,6 +74,7 @@ class SpaceCombatState:
     view_w: int = 80
     view_h: int = 54
     cr: CombatResult | None = None
+    active: bool = True
 
 
 _state: SpaceCombatState | None = None
@@ -401,6 +402,72 @@ def _calc_camera():
     return _cx, _cy
 
 
+def presentation_shield_bubbles(
+    *,
+    ctx: GameContext | None = None,
+    camera_x: int | None = None,
+    camera_y: int | None = None,
+) -> tuple:
+    """Return live shield bubbles in the current space-combat viewport."""
+    from ..pygame_overlay import _bubble_intersects_region, _shield_bubble
+
+    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
+        return ()
+    if camera_x is None or camera_y is None:
+        camera_x, camera_y = _calc_camera()
+    bubbles: list[ShieldBubble] = []
+    player_shields = max(0, int(_state.player_state.get("shields", 0)))
+    if player_shields > 0 and _state.player_ent is not None:
+        entity = _state.player_ent
+        bubble = _shield_bubble(
+            entity.pos.x,
+            entity.pos.y,
+            camera_x=camera_x,
+            camera_y=camera_y,
+            width=getattr(entity, "width", 1),
+            height=getattr(entity, "height", 1),
+            strength=player_shields / max(
+                1, _state.player_state.get("max_shields", player_shields),
+            ),
+        )
+        if _bubble_intersects_region(
+            bubble,
+            region_x=0,
+            region_y=0,
+            region_w=_state.view_w,
+            region_h=_state.view_h,
+        ):
+            bubbles.append(bubble)
+    for index, enemy in enumerate(_state.enemy_insts):
+        if not enemy.alive or enemy.shields <= 0:
+            continue
+        entity = _state.enemy_ents.get(index)
+        x, y = enemy.pos.x, enemy.pos.y
+        width = height = 1
+        if entity is not None:
+            x, y = entity.pos.x, entity.pos.y
+            width = max(1, getattr(entity, "width", 1))
+            height = max(1, getattr(entity, "height", 1))
+        bubble = _shield_bubble(
+            x,
+            y,
+            camera_x=camera_x,
+            camera_y=camera_y,
+            width=width,
+            height=height,
+            strength=enemy.shields / max(1, enemy.max_shields),
+        )
+        if _bubble_intersects_region(
+            bubble,
+            region_x=0,
+            region_y=0,
+            region_w=_state.view_w,
+            region_h=_state.view_h,
+        ):
+            bubbles.append(bubble)
+    return tuple(bubbles)
+
+
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
     _cam_x, _cam_y = _calc_camera()
@@ -408,10 +475,13 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         console, game_map,
         region_x=0, region_y=0,
         region_w=_state.view_w, region_h=_state.view_h,
-        camera_x=_cam_x, camera_y=_cam_y,
+        camera_x=_cam_x,        camera_y=_cam_y,
     )
 
+    # Native Pygame receives live shield amounts through the combat overlay
+    # path; the cell framebuffer remains renderer-neutral.
     # Range line
+
     _range_wid = None
     if _state.weapons_list and any(_state.active_weapons):
         from ..data.weapons import find_weapon as _fw
@@ -756,6 +826,7 @@ def reset_turn(ctx) -> None:
 def sync_state(ctx) -> None:
     _sync_back_hull(_state.player_state, ctx.player_owned_ship)
     _sync_back_ammo(_state.player_state, ctx.player_owned_ship)
+    _state.active = False
 
 
 def get_combat_result() -> CombatResult:

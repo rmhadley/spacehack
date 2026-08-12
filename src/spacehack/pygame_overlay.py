@@ -59,8 +59,19 @@ def _bg_of(command: Any) -> Color | None:
 
 
 @dataclass(frozen=True)
+class ShieldBubble:
+    """One native shield effect around a ship in map-cell coordinates."""
+
+    x: int
+    y: int
+    width: int = 1
+    height: int = 1
+    strength: float = 1.0
+
+
+@dataclass(frozen=True)
 class OverlayFrame:
-    """Captured HUD and message-log layers for one exploration frame."""
+    """Captured HUD, message-log, and native map-effect layers."""
 
     hud: tuple[OverlaySegment, ...]
     messages: tuple[OverlaySegment, ...]
@@ -69,6 +80,7 @@ class OverlayFrame:
     hud_height: int
     message_top: int
     message_height: int
+    shields: tuple[ShieldBubble, ...] = ()
 
 
 def _segments(commands: Any, *, x_min: int, x_max: int, y_min: int, y_max: int) -> tuple[OverlaySegment, ...]:
@@ -112,6 +124,7 @@ def _frame_from_commands(
     screen_width: int,
     screen_height: int,
     hud_view_height: int,
+    shields: tuple[ShieldBubble, ...] = (),
 ) -> OverlayFrame:
     """Build an overlay frame from an already-rendered console."""
     hud_x = screen_width - HUD_WIDTH
@@ -135,7 +148,110 @@ def _frame_from_commands(
         hud_height=hud_view_height,
         message_top=screen_height - MSG_LOG_HEIGHT,
         message_height=MSG_LOG_HEIGHT,
+        shields=tuple(shields),
     )
+
+
+def _ship_shield_capacity(entity: Any, player_owned_ship: Any | None = None) -> int:
+    """Return a space entity's installed shield capacity, or zero."""
+    from . import ship as ship_module
+    from .combat._stats import _calc_max_shields
+    try:
+        if getattr(entity, "owned", False) and getattr(entity, "ship_id", ""):
+            _ship = ship_module.find_ship(entity.ship_id)
+            _owned = player_owned_ship if player_owned_ship is not None else _ship
+            return _calc_max_shields(_ship, _owned)
+        npc_id = getattr(entity, "npc_ship_id", "")
+        if npc_id:
+            from .data.npc_ships import find_npc_ship
+            npc = find_npc_ship(npc_id)
+            _ship = ship_module.find_ship(npc.ship_id)
+            return _calc_max_shields(_ship, npc)
+    except (KeyError, ImportError):
+        return 0
+    return 0
+
+
+def _shield_bubble(
+    x: int,
+    y: int,
+    *,
+    camera_x: int,
+    camera_y: int,
+    width: int = 1,
+    height: int = 1,
+    strength: float = 1.0,
+) -> ShieldBubble:
+    """Build one bubble in the viewport's logical-cell coordinates."""
+    return ShieldBubble(
+        x - camera_x,
+        y - camera_y,
+        max(1, width),
+        max(1, height),
+        max(0.0, min(1.0, strength)),
+    )
+
+
+def _bubble_intersects_region(
+    bubble: ShieldBubble,
+    *,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+) -> bool:
+    """Return whether a bubble footprint intersects a map viewport."""
+    return not (
+        bubble.x + bubble.width <= region_x
+        or bubble.x >= region_x + region_w
+        or bubble.y + bubble.height <= region_y
+        or bubble.y >= region_y + region_h
+    )
+
+
+def shield_bubbles_for_map(
+    game_map: Any,
+    *,
+    camera_x: int,
+    camera_y: int,
+    region_w: int,
+    region_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+    player_owned_ship: Any | None = None,
+) -> tuple[ShieldBubble, ...]:
+    """Build shield effects for every shield-capable ship in a space view.
+
+    Normal space exploration has no persistent per-ship current-shield
+    field, so a ship's installed shield capacity is its active shield
+    state between encounters. Combat supplies live shield amounts through
+    :func:`combat._rules_space.presentation_shield_bubbles` instead.
+    """
+    bubbles: list[ShieldBubble] = []
+    for entity in getattr(game_map, "entities", ()):
+        if not (
+            getattr(entity, "owned", False) and getattr(entity, "ship_id", "")
+        ) and not getattr(entity, "npc_ship_id", ""):
+            continue
+        if _ship_shield_capacity(entity, player_owned_ship) <= 0:
+            continue
+        bubble = _shield_bubble(
+            entity.pos.x + region_x,
+            entity.pos.y + region_y,
+            camera_x=camera_x,
+            camera_y=camera_y,
+            width=getattr(entity, "width", 1),
+            height=getattr(entity, "height", 1),
+        )
+        if _bubble_intersects_region(
+            bubble,
+            region_x=region_x,
+            region_y=region_y,
+            region_w=region_w,
+            region_h=region_h,
+        ):
+            bubbles.append(bubble)
+    return tuple(bubbles)
 
 
 def capture(
@@ -149,6 +265,7 @@ def capture(
     has_trade_terminal: bool = False,
     has_mech_terminal: bool = False,
     has_armory_terminal: bool = False,
+    shields: tuple[ShieldBubble, ...] = (),
 ) -> OverlayFrame:
     """Capture the authoritative HUD and message log into overlay segments."""
     from . import hud, message_log
@@ -177,6 +294,7 @@ def capture(
         screen_width=screen_width,
         screen_height=screen_height,
         hud_view_height=hud_view_height,
+        shields=shields,
     )
 
 
@@ -194,6 +312,16 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
             for item in data.get(key, ())
         )
 
+    shields = tuple(
+        ShieldBubble(
+            x=int(item["x"]),
+            y=int(item["y"]),
+            width=int(item.get("width", 1)),
+            height=int(item.get("height", 1)),
+            strength=float(item.get("strength", 1.0)),
+        )
+        for item in data.get("shields", ())
+    )
     return OverlayFrame(
         hud=_segments_from("hud"),
         messages=_segments_from("messages"),
@@ -202,6 +330,7 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
         hud_height=int(data["hud_height"]),
         message_top=int(data["message_top"]),
         message_height=int(data["message_height"]),
+        shields=shields,
     )
 
 
@@ -217,6 +346,7 @@ def present_exploration(
     has_trade_terminal: bool = False,
     has_mech_terminal: bool = False,
     has_armory_terminal: bool = False,
+    shields: tuple[ShieldBubble, ...] = (),
 ) -> bool:
     """Present an exploration frame with native HUD/log text when shared."""
     from . import hud, message_log
@@ -251,6 +381,7 @@ def present_exploration(
         has_trade_terminal=has_trade_terminal,
         has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
+        shields=shields,
     )
     ctx.context.present(console, overlay=frame)
     return True
@@ -334,6 +465,36 @@ def _draw_segments(
         screen.set_clip(None)
 
 
+def _draw_shield_bubbles(
+    pygame: Any,
+    screen: Any,
+    bubbles: tuple[ShieldBubble, ...],
+    *,
+    map_width: int,
+    map_height: int,
+) -> None:
+    """Paint subtle cyan ellipses around shielded ships within the map."""
+    screen.set_clip(pygame.Rect(0, 0, map_width * TILE_WIDTH, map_height * TILE_HEIGHT))
+    try:
+        for bubble in bubbles:
+            center_x = (bubble.x + bubble.width / 2) * TILE_WIDTH
+            center_y = (bubble.y + bubble.height / 2) * TILE_HEIGHT
+            radius_x = max(12, bubble.width * TILE_WIDTH / 2 + 6)
+            radius_y = max(12, bubble.height * TILE_HEIGHT / 2 + 6)
+            strength = max(0.0, min(1.0, bubble.strength))
+            bright = tuple(int(base * (0.65 + 0.35 * strength)) for base in (80, 210, 255))
+            rect = pygame.Rect(
+                int(center_x - radius_x), int(center_y - radius_y),
+                int(radius_x * 2), int(radius_y * 2),
+            )
+            pygame.draw.ellipse(screen, bright, rect, width=2)
+            inner = rect.inflate(-6, -6)
+            if inner.width > 2 and inner.height > 2:
+                pygame.draw.ellipse(screen, (55, 145, 220), inner, width=1)
+    finally:
+        screen.set_clip(None)
+
+
 def draw(
     pygame: Any,
     screen: Any,
@@ -342,7 +503,14 @@ def draw(
     logical_width: int,
     logical_height: int,
 ) -> None:
-    """Paint framed native-text HUD and message-log regions over the map frame."""
+    """Paint native map effects, framed HUD, and message-log regions."""
+    _draw_shield_bubbles(
+        pygame,
+        screen,
+        frame.shields,
+        map_width=(logical_width // TILE_WIDTH) - HUD_WIDTH,
+        map_height=(logical_height // TILE_HEIGHT) - MSG_LOG_HEIGHT,
+    )
     palette = pygame_ui.DEFAULT_PALETTE
     screen_width = logical_width // TILE_WIDTH
     hud_height = min(frame.hud_height, logical_height // TILE_HEIGHT - frame.hud_top)

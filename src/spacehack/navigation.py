@@ -987,6 +987,14 @@ def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, t
         _rnfe(console, ctx, cam_x, cam_y, view_w, view_h)
         # Render ship HUD during auto-nav so the player sees fuel, shields, etc.
         from . import pygame_overlay
+        _shield_bubbles = pygame_overlay.shield_bubbles_for_map(
+            ctx.game_map,
+            camera_x=cam_x,
+            camera_y=cam_y,
+            region_w=view_w,
+            region_h=view_h,
+            player_owned_ship=ctx.player_owned_ship,
+        )
         pygame_overlay.present_exploration(
             ctx,
             console,
@@ -995,6 +1003,7 @@ def _run_goto(ctx, console, player_entity: world.Entity) -> tuple[GotoOutcome, t
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             hud_view_height=view_h,
+            shields=_shield_bubbles,
         )
         _aborted = False
         _end = time.monotonic() + animation_timing.AUTO_NAV
@@ -1314,6 +1323,14 @@ def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> Non
         world.render_world_view(console, ctx.game_map, region_x=0, region_y=0, region_w=_view_w, region_h=_view_h, camera_x=_cam_x, camera_y=_cam_y)
         if void:
             from . import pygame_overlay
+            _shield_bubbles = pygame_overlay.shield_bubbles_for_map(
+                ctx.game_map,
+                camera_x=_cam_x,
+                camera_y=_cam_y,
+                region_w=_view_w,
+                region_h=_view_h,
+                player_owned_ship=ctx.player_owned_ship,
+            )
             pygame_overlay.present_exploration(
                 ctx,
                 console,
@@ -1322,6 +1339,7 @@ def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> Non
                 screen_width=SCREEN_WIDTH,
                 screen_height=SCREEN_HEIGHT,
                 hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+                shields=_shield_bubbles,
             )
             _responsive_sleep(frame_s)
             return
@@ -1346,6 +1364,14 @@ def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> Non
             for fy in range(solar_system_module.SOL_VIEW_H):
                 console.print(x=0, y=fy, string=' ' * solar_system_module.SOL_VIEW_W, fg=(255, 255, 255), bg=(255, 255, 255))
         from . import pygame_overlay
+        _shield_bubbles = pygame_overlay.shield_bubbles_for_map(
+            ctx.game_map,
+            camera_x=_cam_x,
+            camera_y=_cam_y,
+            region_w=_view_w,
+            region_h=_view_h,
+            player_owned_ship=ctx.player_owned_ship,
+        )
         pygame_overlay.present_exploration(
             ctx,
             console,
@@ -1354,6 +1380,7 @@ def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> Non
             screen_width=SCREEN_WIDTH,
             screen_height=SCREEN_HEIGHT,
             hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+            shields=_shield_bubbles,
         )
         _responsive_sleep(frame_s)
     for rings in range(len(_JUMP_RING_CHARS)):
