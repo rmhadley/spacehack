@@ -15,10 +15,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 from PyInstaller.utils.hooks import collect_submodules
 
-_hidden = [
-    'cffi',
-    'tcod',
-] + collect_submodules('spacehack')
+_hidden = collect_submodules('spacehack')
 
 # ---------------------------------------------------------------------------
 # Data files: bundle the entire data/ tree so tilesheets, fonts, and
@@ -62,7 +59,9 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # Keep the frozen artifact free of retired and no-longer-runtime
+    # dependencies even when the build host happens to have them installed.
+    excludes=['cffi', 'numpy'],
     noarchive=False,
     optimize=0,
 )

@@ -67,7 +67,7 @@ zip: dist
 
 # ──────────────────────────────────────────────
 # pyinstaller — build standalone .app (macOS) or .exe (Windows)
-# Requires: pip install pyinstaller
+# Requires: Pygame runtime dependencies plus pip install pyinstaller
 # ──────────────────────────────────────────────
 pyinstaller:
 	$(PYTHON) -m pip install pyinstaller --quiet 2>/dev/null || true

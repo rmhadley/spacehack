@@ -8,7 +8,6 @@ license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "rmhadley" }]
 dependencies = [
-    "tcod>=16",
     "pygame>=2.5",
 ]
 

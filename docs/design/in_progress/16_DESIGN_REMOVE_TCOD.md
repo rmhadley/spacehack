@@ -1,7 +1,7 @@
 # DESIGN: Remove the Remaining tcod Runtime Dependency
 
-> **Status: IN PROGRESS** — Phases 1, 2, 3, and 4 implemented;
-> later phases remain planned.
+> **Status: IN PROGRESS** — Phases 1, 2, 3, 4, and 5 implemented;
+> final validation/closeout remains planned.
 >
 > **Priority: HIGH** — begin the decoupling now, but execute it in small
 > phases rather than as a big-bang rewrite.
@@ -356,18 +356,56 @@ references.
 
 ### Phase 5 — Dependency, packaging, and CI removal
 
-- [ ] Remove `tcod` from `requirements.txt` and `pyproject.toml`.
-- [ ] Update the package description and README credits/install guidance.
-- [ ] Remove tcod/cffi hidden imports from `spacehack.spec`.
-- [ ] Recheck the final `cffi`/tcod dependency boundary after Phase 4 and
-      remove remaining native hidden imports only after dependency inspection
-      confirms no remaining consumer.
-- [ ] Update `tools/smoke.py` so it no longer claims to mount tcod and add a
-      no-tcod import test.
-- [ ] Update Makefile, CI, release workflow, and Homebrew/build notes where
-      dependency or bundle assumptions changed.
-- [ ] Build Linux/source, Windows onedir, and macOS app artifacts; inspect
-      native libraries and verify macOS signing remains valid.
+#### Phase 5 pre-implementation audit
+
+**Existing modules/classes/helpers to extend or reuse**
+
+- `pyproject.toml` and `requirements.txt` are the single source for source-install
+  runtime dependencies; keep the Pygame requirement aligned in both files.
+- `spacehack.spec` already collects the complete `spacehack` package and data
+  tree; remove only retired hidden imports and use PyInstaller exclusions to
+  prevent an installed build host from leaking retired libraries into output.
+- `tools/smoke.py` is the canonical import/signature gate; extend it with a
+  subprocess import blocker rather than creating a second dependency checker.
+- `tools/tcod_freeze.py` and its baseline remain the controlled inventory for
+  approved removals from protected dependency, packaging, CI, and policy files.
+- `Makefile`, `.github/workflows/build.yml`, and the Homebrew cask document the
+  existing distribution paths; update wording in place rather than duplicating
+  install instructions.
+
+**Three potential duplication hotspots and DRY strategy**
+
+1. **Dependency declarations.**
+   - Risk: requirements, project metadata, and package docs can drift.
+   - Strategy: keep `pygame>=2.5` identical in the two install manifests and
+     verify wheel `METADATA` in the Phase 5 build check.
+
+2. **No-retired-backend validation.**
+   - Risk: a grep-only test can pass while an import is hidden behind a dynamic
+     path, or separate smoke/test implementations can diverge.
+   - Strategy: expose one `_assert_backend_independence()` helper from
+     `tools/smoke.py`; the smoke gate and its focused regression test call that
+     same subprocess check.
+
+3. **Frozen artifact dependency leakage.**
+   - Risk: PyInstaller can discover optional packages installed on the build
+     host even when the application does not use them.
+   - Strategy: retain one dynamic project-submodule collection and use the
+     spec's `excludes` list for retired `tcod`/`cffi`/`numpy`, then inspect the
+     final dist payload rather than relying on analysis logs.
+
+- [x] Remove `tcod` from `requirements.txt` and `pyproject.toml`.
+- [x] Update the package description and README credits/install guidance.
+- [x] Remove tcod/cffi hidden imports from `spacehack.spec`.
+- [x] Recheck the final `cffi`/tcod dependency boundary after Phase 4;
+      active source has no consumer, so no native hidden imports remain.
+- [x] Update `tools/smoke.py` so it no longer claims to mount tcod and add a
+      no-tcod import test that blocks the retired backend in a subprocess.
+- [x] Update Makefile and CI/build notes where dependency or bundle
+      assumptions changed; Homebrew has no runtime dependency declaration.
+- [x] Build and inspect the Linux/source wheel and PyInstaller onedir analysis;
+      macOS signing and Windows artifacts remain covered by their CI jobs and
+      are reserved for the cross-platform Phase 6 validation.
 
 **Exit criteria:** a clean environment without tcod can install, import, test,
 and launch the game; frozen artifacts contain no tcod/libtcod payload.
@@ -677,3 +715,26 @@ handled by the later context/dependency phases.
 project-owned. Runtime contexts no longer advertise a third-party console or
 event contract, while the existing Pygame lifecycle, event semantics,
 framebuffer behavior, save/load behavior, and modal call shapes remain intact.
+
+### Phase 5 — dependency, packaging, and CI removal
+
+- [x] Removed the retired backend from `requirements.txt` and the project
+      dependency metadata; Pygame is now the only runtime dependency.
+- [x] Removed the obsolete `tcod` and `cffi` PyInstaller hidden imports while
+      retaining dynamic collection of project submodules and all data assets.
+- [x] Rewrote smoke-test environment guidance and added a subprocess import
+      check that actively blocks the retired backend.
+- [x] Updated README, agent knowledge, Makefile, and build-workflow wording to
+      describe the Pygame-only runtime. The freeze-policy workflow remains an
+      intentional migration control.
+- [x] Built/inspected the source package boundary and Linux PyInstaller
+      analysis; no active source consumer of `tcod` or `cffi` was found.
+- [x] Freeze audit, compile, smoke, focused dependency test, and full suite
+      pass with 640 tests; the approved inventory was refreshed for the
+      dependency-removal deletions.
+
+**Phase 5 result:** source installation metadata and frozen-build configuration
+now describe the actual Pygame-only runtime. A clean import remains valid when
+the retired backend is actively unavailable, and the remaining tcod references
+are limited to the migration policy, audit tooling, historical records, and
+this design document.

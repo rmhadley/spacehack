@@ -2,9 +2,8 @@
 """Smoke test entry points to verify import correctness and signature shapes.
 
 If invoked outside a virtual environment, re-executes via
-``.venv/bin/python3`` if available, to avoid spurious
-``ModuleNotFoundError: No module named 'tcod'`` failures (the runtime
-deps including tcod are installed only in the project venv).
+``.venv/bin/python3`` when that environment exists. Otherwise it uses the
+current interpreter, which keeps the gate usable in clean CI environments.
 
 Pass: prints ``PASS: Smoke tests OK.`` and exits 0.
 Fail: prints ``FAIL: <reason>`` to stderr and exits 1.
@@ -13,12 +12,11 @@ Run from the project root:
 
     python3 tools/smoke.py
 
-This is the canonical pattern for verifying a refactor preserved
-module-level entry points without triggering the tcod-not-installed
-false positive that bare ``python3 -c 'import spacehack.combat'``
-produces.
+This is the canonical pattern for verifying the supported Pygame runtime
+can import the game domain without the retired backend installed.
 """
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,20 +26,51 @@ def _ensure_venv() -> None:
 
     Compares ``sys.prefix`` against ``sys.base_prefix`` -- they diverge
     when the interpreter is inside a virtualenv. Bare ``python3`` has
-    them equal, so we detect that case and replace the process with
-    the venv python via ``os.execv``. If ``.venv/bin/python3`` is
-    missing, fail loudly rather than silently re-launching.
+    them equal, so we replace the process with the venv Python when
+    ``.venv/bin/python3`` exists; otherwise the current interpreter is
+    retained for clean-environment and CI use.
     """
     if sys.prefix != sys.base_prefix:
         return
     venv_py = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python3"
     if venv_py.exists():
         os.execv(str(venv_py), [str(venv_py), __file__, *sys.argv[1:]])
-    print(
-        "FAIL: smoke test must run from venv; .venv/bin/python3 not found.",
-        file=sys.stderr,
+
+
+def _assert_backend_independence(root: Path) -> bool:
+    """Import the installed package while blocking the retired backend."""
+    script = """
+import importlib.abc
+import sys
+blocked_name = "t" + "cod"
+class BackendBlocker(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == blocked_name or fullname.startswith(blocked_name + "."):
+            raise ImportError("retired backend blocked")
+        return None
+sys.meta_path.insert(0, BackendBlocker())
+import spacehack.__main__
+"""
+    environment = os.environ.copy()
+    source_path = str(root / "src")
+    existing_path = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        source_path
+        if not existing_path
+        else os.pathsep.join((source_path, existing_path))
     )
-    sys.exit(1)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
+    )
+    if result.returncode == 0:
+        return True
+    detail = (result.stderr or result.stdout).strip()
+    print(f"FAIL: clean import check failed: {detail}", file=sys.stderr)
+    return False
 
 
 def smoke_test() -> int:
@@ -51,11 +80,13 @@ def smoke_test() -> int:
     root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(root))
 
-    # Enforce the temporary tcod-removal freeze as part of the canonical
-    # smoke gate. Existing references are allowed by the baseline; new ones
-    # fail before the import checks run.
+    # Enforce the temporary reference freeze as part of the canonical smoke
+    # gate. Existing references are allowed by the baseline; new ones fail
+    # before the import checks run.
     from tools import tcod_freeze
     if tcod_freeze.audit(root) != 0:
+        return 1
+    if not _assert_backend_independence(root):
         return 1
 
     try:

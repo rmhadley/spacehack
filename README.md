@@ -178,8 +178,8 @@ formulas, missions, and more.
 
 ## Credits
 
-- Built on [python-tcod](https://github.com/HexDecimal/python-tcod) with a
-  [pygame](https://www.pygame.org/) presentation layer
+- Built on [pygame](https://www.pygame.org/) with a project-owned
+  framebuffer, input layer, and CP437 glyph atlas
 - Typeface: [DejaVu Sans Mono](https://dejavu-fonts.github.io/) (bundled) —
   the in-game CP437 tilesheet is DejaVu-derived
 

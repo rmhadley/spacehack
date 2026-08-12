@@ -1,6 +1,6 @@
 # spacehack — Agent knowledge
 
-A traditional ASCII-art sci-fi roguelike built on [python-tcod](https://github.com/HexDecimal/python-tcod).
+A traditional ASCII-art sci-fi roguelike built on [Pygame](https://www.pygame.org/).
 
 ## Quick start
 
@@ -95,7 +95,7 @@ Always: `ctx.game_map`, `ctx.log`, etc.
 | Field | Type | Purpose |
 |-------|------|---------|
 | `species_name`, `class_name` | `str` | character identity |
-| `context` | `PygameContext` (tcod-context-compatible) | shared Pygame runtime adapter; pass to `pygame_*.run_for_context` |
+| `context` | `PygameContext` | shared Pygame runtime adapter; pass to `pygame_*.run_for_context` |
 | `character_info`, `player` | dataclasses | character + entity state |
 | `log` | `MessageLog` | in-game log + colour helpers |
 | `game_map` | `world.GameMap` | world / entity container |
@@ -140,9 +140,10 @@ migration is in progress. Existing references are tracked in
 `tools/tcod_freeze_baseline.json`; only approved removals or an explicitly
 approved migration phase may change that inventory.
 
-The smoke test auto-mounts `.venv/bin/python3` so the current runtime
-dependencies are resolved. It verifies all major modules import correctly and
-key entry points survived signature changes.
+The smoke test reuses `.venv/bin/python3` when available and otherwise runs
+with the current interpreter. It verifies that the Pygame runtime imports
+cleanly with the retired backend actively blocked, along with major modules
+and key entry points.
 
 The test runner (`tools/test.py`) also auto-mounts the venv and runs the
 pytest suite — formula-correctness tests for pure computation functions.
@@ -150,7 +151,7 @@ Never commit without all three gates passing.
 
 ### tcod removal freeze — mandatory
 
-The project is migrating away from tcod. Until
+The project is completing its migration away from tcod. Until
 `docs/design/in_progress/16_DESIGN_REMOVE_TCOD.md` is complete:
 
 - **Do not add new tcod usage.**
@@ -239,33 +240,28 @@ Pre-existing violations (faction bars were fixed; `═` in some titles remains b
   symbols, box drawing, and the logical grid remain unchanged.
 - **No runtime font fallback**: the project no longer bundles or loads TTF,
   OTF, or TTC fonts. This keeps rendering deterministic across platforms.
-- **Font gotcha**: libtcod scales a TTF to the tile height, then *shrinks* it
-  to tile width when the font's head-bbox width exceeds its em height —
-  Iosevka / JetBrains Mono / Fira Code / Cascadia Code render at ~50% size
-  at 16×16. Before adopting a font verify
+- **Font gotcha**: runtime TTF screens scale a font to the requested pixel
+  height and may narrow wide faces to fit their panels. Iosevka / JetBrains
+  Mono / Fira Code / Cascadia Code can render too narrow at small sizes.
+  Before adopting a font verify
   `head.xMax - head.xMin < hhea.ascent - hhea.descent` (fontTools).
   Hack and Source Code Pro pass.
-- **Box-drawing gotcha**: libtcod centers each glyph's *ink bounding box* in
-  its tile. Symmetric glyphs (─ │ ┼) center fine, but asymmetric corners
-  (┌ ┐ └ ┘, ╔ ╗ ╚ ╝) drift off the shared centerline — every font fails
-  this way, so font choice can't fix it. Instead, `engine.py` draws the
-  box-drawing block (U+2500-256C) **procedurally at load time**: single
-  strokes are adaptive 4px bands, with double bars positioned from the
-  active tile dimensions,
+- **Box-drawing gotcha**: asymmetric corners (┌ ┐ └ ┘, ╔ ╗ ╚ ╝) can drift
+  off a shared centerline when a renderer centers ink bounds. The bitmap
+  engine avoids that variability by drawing the box-drawing block
+  (U+2500-256C) **procedurally at load time**: single strokes are adaptive
+  4px bands, with double bars positioned from the active tile dimensions,
   mirroring the CP437 tilesheet geometry. `_procedural_texture_glyphs`
   similarly patches shades / block / dot / card-suit glyphs.
 - `load_tileset()`: load the native CP437 bitmap → apply procedural texture
   patches → apply the ordinary-text spacing pass. It raises `EngineError` if
   the bitmap cannot be loaded.
-- **Retina/fractional-scaling gotcha**: tcod 19.5+ (SDL3) defaults to
-  **NEAREST** texture scaling. On displays where the window backing scale
-  is not an exact integer multiple of the console (fractional Retina /
-  macOS "scaled" display modes), NEAREST drops pixel rows/columns and
-  glyphs render with missing pixels — same repo, same font, different
-  Macs, different result. Fix: `spacehack/__init__.py` sets
-  `SDL_RENDER_SCALE_QUALITY=linear` at package init, before any
-  `import tcod.*` initialises SDL (effectively identical at integer
-  scales).
+- **Retina/fractional-scaling gotcha**: SDL texture scaling can drop pixel
+  rows/columns when the window backing scale is not an exact integer multiple
+  of the logical grid (fractional Retina / macOS "scaled" display modes).
+  Fix: `spacehack/__init__.py` sets `SDL_RENDER_SCALE_QUALITY=linear` at
+  package init, before Pygame initialises SDL (effectively identical at
+  integer scales).
 - `pyproject.toml` package-data ships the bitmap `data/*.png` plus
   `layouts/` and `landmarks/`; `spacehack.spec` bundles the complete data
   tree for frozen builds.
