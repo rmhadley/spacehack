@@ -8,6 +8,7 @@ from __future__ import annotations
 from enum import Enum, auto
 
 from .. import ui
+from ..framebuffer import FrameBuffer
 from .. import pygame_ui
 from .. import mission as mission_module
 from ..game_context import GameContext
@@ -46,7 +47,7 @@ class QuestLogOutcome(Enum):
     ABANDONED = auto()
     QUIT = auto()
 
-def render_quest_log(console: object, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
+def render_quest_log(console: FrameBuffer, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
     """Paint the quest-log overlay — unified terminal look."""
     console.clear()
     missions = ctx.player_active_missions

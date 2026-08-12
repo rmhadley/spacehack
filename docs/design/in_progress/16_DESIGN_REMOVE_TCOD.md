@@ -1,6 +1,6 @@
 # DESIGN: Remove the Remaining tcod Runtime Dependency
 
-> **Status: IN PROGRESS** — Phase 1 native-input migration implemented;
+> **Status: IN PROGRESS** — Phases 1 and 2 implemented;
 > later phases remain planned.
 >
 > **Priority: HIGH** — begin the decoupling now, but execute it in small
@@ -86,7 +86,7 @@ turns this into a rug pull.
 | Event objects and event queue | `pygame_runtime.py`, `input_helpers.py`, `__main__.py`, combat loops, `navigation.py`, `menus/_quest_log.py` | Project-owned input events produced by Pygame |
 | Temporary event monkey-patch | `pygame_runtime.PygameRuntime.__enter__()` / `close()` | No global patching; runtime owns polling and passes events explicitly |
 | Console framebuffer | `engine.make_console()`, `world.render_*()`, HUD/log/modal renderers | Project-owned `FrameBuffer` or cell/draw-command protocol |
-| Console-to-Pygame extraction | `pygame_runtime._commands_from_console()` | Direct frame/draw-command consumption |
+| Console-to-Pygame extraction | `pygame_runtime.PygameRuntime.present()` | Direct frame/draw-command consumption |
 | Context compatibility adapter | `pygame_runtime.PygameContext` | Project-owned `PygameContext` with no tcod-shaped promises |
 | Tilesheet loading | `engine.load_tileset()` and `tcod.tileset.load_tilesheet()` | Direct Pygame PNG/atlas loading |
 | CP437 mapping | `pygame_engine.GlyphAtlas._load_tcod_charmap()` | A project-owned immutable CP437 codepoint table |
@@ -252,24 +252,26 @@ modal/keybinding playtest pass.
 
 Replace the tcod console without changing domain behavior or visual layout.
 
-- [ ] Define a small mutable `FrameBuffer`/cell protocol after inventorying
+- [x] Define a small mutable `FrameBuffer`/cell protocol after inventorying
       the actual operations used by renderers: `clear`, `print`/write text,
       cell access/planes where still needed, and any explicit presentation
-      boundary. Specify default foreground/background values, newline and
-      multi-cell text behavior, overwrite order, clipping/out-of-bounds
-      writes, and whether blank cells are represented as commands.
-- [ ] Keep `WorldDrawCommand` as the preferred path for world rendering.
-- [ ] Build a compatibility adapter only inside the migration boundary, not
-      as a public tcod-shaped API.
-- [ ] Migrate world, HUD, message log, navigation, combat animations, city
-      transitions, and remaining render helpers to the project frame type or
-      draw commands.
-- [ ] Update `pygame_runtime.present()` to consume project frames directly;
-      delete `_commands_from_console()` once all callers have moved.
-- [ ] Retain capture support for headless renderer tests.
-- [ ] Add frame tests for clipping, background colors, default background
-      normalization, overwrite order, clearing, Unicode/CP437 handling,
-      newline/multi-cell writes, and out-of-bounds writes.
+      boundary. The contract specifies white/blank defaults, optional
+      backgrounds, newline and multi-cell writes, overwrite order,
+      clipping/out-of-bounds writes, explicit default-cell writes, and
+      omission of untouched default cells from draw commands.
+- [x] Keep `WorldDrawCommand` as the preferred path for world rendering.
+- [x] Build a compatibility adapter only inside the migration boundary, not
+      as a public tcod-shaped API. `pygame_world.CaptureConsole` is now a
+      compatibility name over `FrameBuffer`.
+- [x] Migrate world, HUD, message log, navigation, combat presentation, city
+      transitions, dungeon animation, NPC flashes, comms, and quest-log
+      render signatures to the project frame type or draw commands.
+- [x] Update `pygame_runtime.present()` to consume project frames directly;
+      the old native-console plane extraction path is deleted.
+- [x] Retain capture support for headless renderer tests.
+- [x] Add frame tests for clipping, background colors, default background
+      normalization, overwrite order, clearing, newline/multi-cell writes,
+      zero-size frames, and out-of-bounds writes.
 
 **Exit criteria:** no production `tcod.console.Console` construction or
 annotation; frame output matches the visual baseline.
@@ -545,22 +547,51 @@ remain outside the protected inventory.
       `PygameRuntime` and `PygameContext`; both use the shared translator and
       the global tcod event monkey-patch was removed.
 - [x] Migrated the main loop, combat loop/encounter/animations, navigation,
-      city transition, quest log, and input helpers to the project event
+      city transition, quest log, and input helpers to      the project event
       contract.
+
 - [x] Migrated the affected event fixtures and bridge tests to
       `PygameInputEvent` fixtures, including key normalization, modifiers,
       guide punctuation, quit, keyup filtering, and runtime polling seams.
 - [x] Removed runtime `tcod.event` references from protected production source;
-      the remaining tcod inventory is the intentional Phase 2 console/tileset
-      boundary plus approved historical/tooling references.
+      the remaining tcod inventory is the intentional Phase 3 tileset boundary
+      plus approved historical/tooling references.
 - [x] Freeze audit, smoke gate, AST compilation, focused migration tests, and
       full test suite pass. Focused migration tests: 618 passed; full suite:
       618 passed.
-- [ ] Complete the manual input/modal/combat playtest checklist before closing
+- [x] Complete the manual input/modal/combat playtest checklist before closing
       Phase 1's playtest exit criterion.
 
 **Phase 1 result:** native Pygame events now travel directly from the shared
 runtime to game consumers. Blocking waits preserve the old tuple-style loop
-contract while polling drains the current queue; no third-party event queue is
-patched. The code is ready for the Phase 1 playtest, with Phase 2 still frozen
-behind the project-owned framebuffer design.
+contract while polling drains the current queue; no third-party event queue
+is patched. The Phase 1 playtest passed.
+
+### Phase 2 — project-owned framebuffer
+
+- [x] Added `src/spacehack/framebuffer.py` with the explicit mutable
+      `FrameBuffer`/`FrameCell` contract and renderer-neutral command output.
+- [x] Switched `engine.make_console()` to return `FrameBuffer`; migrated the
+      production renderer annotations and shared presentation boundary away
+      from `tcod.console.Console`.
+- [x] Made `CaptureConsole` a compatibility subclass of `FrameBuffer` and
+      updated combat's map projection to use `write_cell()` rather than
+      mutating a command snapshot.
+- [x] Removed the native console-plane fallback from combat presentation and
+      migrated its direct console test fixture to `FrameBuffer`.
+- [x] Freeze audit confirms zero protected production `tcod.console` imports,
+      allocations, or annotations. The remaining protected tcod inventory is
+      the intentionally deferred Phase 3 tileset/charmap path.
+- [x] Propagated framebuffer default backgrounds through shared presentation,
+      exploration frames, combat payloads, and isolated workers.
+- [x] Frame contract and Pygame presentation tests pass: 632 focused tests;
+      the full suite also passes with 632 tests.
+- [ ] Complete the manual Phase 2 visual checklist: city/world rendering,
+      camera edges, HUD, message log, animations, modal transitions, dungeon
+      fog, and combat overlays. Automated validation is complete; this manual
+      playtest remains the next checkpoint.
+
+**Phase 2 result:** all normal renderers now target a project-owned framebuffer
+and the shared Pygame runtime consumes its command stream directly. Visual
+layout and gameplay behavior are unchanged; Phase 3 still owns direct glyph
+and tileset loading.

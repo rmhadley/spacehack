@@ -270,7 +270,7 @@ def _run_combat_impl(
     resolution. Everything flavor-specific is delegated to ``rules``.
 
     Args:
-        console: tcod console for rendering.
+        console: project framebuffer for rendering.
         ctx: GameContext with all session state.
         game_map: the current GameMap.
         rules: a module exporting the combat rules contract

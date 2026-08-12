@@ -15,7 +15,7 @@ from __future__ import annotations
 import math
 from enum import Enum, auto
 
-import tcod.console
+from .framebuffer import FrameBuffer
 from .faction import get_attitude as _get_attitude
 from .data.npc_ships import find_npc_ship as _find_npc_ship
 from .engine import make_console
@@ -138,7 +138,7 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
 
 def _run_interaction_modal(
     ctx: GameContext,
-    console: tcod.console.Console,
+    console: FrameBuffer,
     contact_name: str,
     contact_spec: object,
     contact_entity: object,

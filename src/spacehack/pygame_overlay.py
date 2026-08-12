@@ -39,7 +39,7 @@ class OverlaySegment:
 def _normalize_bg(value: Any) -> Color | None:
     """Normalize a background color value (``None`` when unpainted).
 
-    Native tcod consoles report the default black background for every
+    Legacy console captures report the default black background for every
     cell the renderer never painted; treating that as a real background
     would paint black fills behind ordinary HUD text. Map it to ``None``
     so only intentionally painted backgrounds (e.g. the shield-regen

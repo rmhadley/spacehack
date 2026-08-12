@@ -21,8 +21,6 @@ another solid entity opens a context dialog:
 """
 from __future__ import annotations
 import time
-import tcod.console
-import tcod.context
 from . import character
 from . import message_log
 from . import mission as mission_module

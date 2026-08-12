@@ -2,7 +2,7 @@
 character-creation screens.
 
 This module is deliberately tiny and library-agnostic - it draws a
-single centered vertical menu onto an existing ``tcod.console.Console``
+single centered vertical menu onto an existing project framebuffer
 and translates key events into menu actions. Higher-level state
 sachines (species -> class -> confirm) live in :mod:`spacehack.__main__`.
 """

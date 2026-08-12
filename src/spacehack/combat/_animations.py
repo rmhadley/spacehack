@@ -1,6 +1,6 @@
 """Combat animations — visual effects for ship-to-ship battles.
 
-All functions here render directly to a tcod console and present
+All functions here render directly to a project framebuffer and present
 the context. They are called from the main combat loop to give
 the player visual feedback for laser shots, explosions, and target
 highlighting.
@@ -175,7 +175,7 @@ def _resolve_target(enemies: list, target_idx: int | None):
     sites can't drift out of sync. Returns ``None`` instead of
     raising — the highlight helper is purely visual and the right
     move for an invalid target is to skip painting rather than
-    crash the tcod context.
+    crash the presentation context.
     """
     if target_idx is None or not (0 <= target_idx < len(enemies)):
         return None
@@ -206,7 +206,7 @@ def _paint_target_highlight(
     tiles. This only touches the enemy's own cells — never overlaps
     neighbors — and works for any ship size (1x1 scouts, 2x2+
     larger ships). Cells outside the viewport are silently skipped
-    so camera-edge targets never crash tcod.
+    so camera-edge targets never crash the presentation layer.
 
     Color is gold ``(255, 220, 100)`` with a dark-gold background
     ``(60, 45, 20)``, matching the existing HUD's gold/weapon

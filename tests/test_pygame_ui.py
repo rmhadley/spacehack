@@ -196,17 +196,37 @@ def test_combat_frame_payload_filters_hud_and_log_from_bitmap_layer():
     assert payload["overlay"]["messages"][0]["text"] == "M"
 
 
-def test_combat_frame_payload_accepts_native_tcod_console():
-    import tcod.console
+def test_combat_frame_payload_accepts_project_framebuffer():
+    from src.spacehack.framebuffer import FrameBuffer
 
-    console = tcod.console.Console(2, 1, order="C")
-    console.print(x=0, y=0, string="@A", fg=(1, 2, 3), bg=(4, 5, 6))
+    frame = FrameBuffer(2, 1)
+    frame.print(x=0, y=0, string="@A", fg=(1, 2, 3), bg=(4, 5, 6))
 
-    payload = pygame_combat._frame_payload(console, interactive=False)
+    payload = pygame_combat._frame_payload(frame, interactive=False)
 
     assert [command["char"] for command in payload["commands"]] == ["@", "A"]
     assert payload["commands"][0]["fg"] == (1, 2, 3)
     assert payload["commands"][0]["bg"] == (4, 5, 6)
+
+
+def test_shared_combat_present_preserves_default_background(monkeypatch):
+    from src.spacehack.framebuffer import FrameBuffer
+
+    calls = []
+    ctx = SimpleNamespace(
+        _pygame_combat_presenter=None,
+        context=SimpleNamespace(
+            _runtime=object(),
+            present=lambda console, **kwargs: calls.append((console, kwargs)),
+        ),
+    )
+    frame = FrameBuffer(2, 1, background=(7, 8, 9))
+    frame.print(string="@")
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
+
+    pygame_combat.present(ctx, frame)
+
+    assert calls[0][0].default_background() == (7, 8, 9)
 
 
 def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):

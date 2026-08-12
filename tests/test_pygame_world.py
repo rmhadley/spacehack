@@ -178,16 +178,18 @@ def test_world_commands_cull_footprints_and_sort_loot_only_for_scrollable_view()
     assert game_map.entities == [ship, loot, offscreen]
 
 
-def test_world_frame_payload_round_trips_commands_and_size():
+def test_world_frame_payload_round_trips_commands_size_and_background():
     frame = pygame_world.WorldFrame(
         logical_size=(1280, 768),
         commands=(world.WorldDrawCommand(1, 2, "@", (255, 255, 255), None),),
+        default_bg=(7, 8, 9),
     )
 
     restored = pygame_world._frame_from_payload(frame.payload())
 
     assert restored == frame
     assert restored.logical_size == (1280, 768)
+    assert restored.default_bg == (7, 8, 9)
 
 
 def test_exploration_frame_uses_custom_logical_dimensions(monkeypatch):
@@ -296,6 +298,19 @@ def test_world_preview_starts_without_environment_flags(monkeypatch):
     )
 
     assert pygame_world.start_if_enabled() is sentinel
+
+
+def test_world_frame_draw_uses_frame_default_background():
+    fills = []
+    engine = SimpleNamespace(
+        logical_surface=SimpleNamespace(fill=lambda color: fills.append(color)),
+        glyphs=SimpleNamespace(),
+    )
+    frame = pygame_world.WorldFrame((1600, 960), (), default_bg=(7, 8, 9))
+
+    pygame_world._draw_frame(object(), engine, frame)
+
+    assert fills == [(7, 8, 9, 255)]
 
 
 def test_dead_world_preview_rejects_new_frames_without_writing():

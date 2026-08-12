@@ -21,6 +21,7 @@ from typing import Any
 from . import pygame_engine
 from . import pygame_ui
 from . import world
+from .framebuffer import FrameBuffer
 from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 
 
@@ -33,51 +34,19 @@ class WorldFrame:
 
     logical_size: tuple[int, int]
     commands: tuple[world.WorldDrawCommand, ...]
+    default_bg: Color | None = None
 
     def payload(self) -> dict[str, Any]:
         """Serialize this frame for the isolated worker process."""
         return {
             "logical_size": self.logical_size,
             "commands": [asdict(command) for command in self.commands],
+            "default_bg": self.default_bg,
         }
 
 
-class CaptureConsole:
-    """Minimal tcod-console protocol used to project existing UI renders."""
-
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-        self.commands: list[world.WorldDrawCommand] = []
-
-    def clear(self) -> None:
-        """Clear captured commands, matching the UI console protocol."""
-        self.commands.clear()
-
-    def print(
-        self,
-        *,
-        x: int = 0,
-        y: int = 0,
-        string: str = "",
-        fg: Color = (255, 255, 255),
-        bg: Color | None = None,
-        **_kwargs: Any,
-    ) -> None:
-        """Capture clipped per-cell commands from ``console.print`` calls."""
-        cell_x, cell_y = x, y
-        for character in str(string):
-            if character == "\n":
-                cell_x = x
-                cell_y += 1
-                continue
-            if 0 <= cell_x < self.width and 0 <= cell_y < self.height:
-                self.commands.append(
-                    world.WorldDrawCommand(
-                        cell_x, cell_y, character, tuple(fg), bg,
-                    )
-                )
-            cell_x += 1
+class CaptureConsole(FrameBuffer):
+    """FrameBuffer compatibility name for existing capture callers."""
 
 
 def make_frame(
@@ -235,14 +204,22 @@ def make_mode_exploration_frame(
     )
 
 
-def _command_from_payload(data: dict[str, Any]) -> world.WorldDrawCommand:
-    """Deserialize one renderer-neutral command from worker input."""
+def _command_from_data(data: Any) -> world.WorldDrawCommand:
+    """Normalize one renderer-neutral command from an object or mapping."""
+    if isinstance(data, dict):
+        return world.WorldDrawCommand(
+            x=int(data["x"]),
+            y=int(data["y"]),
+            char=str(data["char"]),
+            fg=tuple(data["fg"]),
+            bg=None if data.get("bg") is None else tuple(data["bg"]),
+        )
     return world.WorldDrawCommand(
-        x=int(data["x"]),
-        y=int(data["y"]),
-        char=str(data["char"]),
-        fg=tuple(data["fg"]),
-        bg=None if data.get("bg") is None else tuple(data["bg"]),
+        x=int(data.x),
+        y=int(data.y),
+        char=str(data.char),
+        fg=tuple(int(value) for value in data.fg),
+        bg=None if data.bg is None else tuple(int(value) for value in data.bg),
     )
 
 
@@ -250,7 +227,8 @@ def _frame_from_payload(data: dict[str, Any]) -> WorldFrame:
     """Deserialize one complete frame from worker input."""
     return WorldFrame(
         logical_size=tuple(data["logical_size"]),
-        commands=tuple(_command_from_payload(command) for command in data["commands"]),
+        commands=tuple(_command_from_data(command) for command in data["commands"]),
+        default_bg=None if data.get("default_bg") is None else tuple(data["default_bg"]),
     )
 
 
@@ -262,7 +240,8 @@ def _draw_frame(
     """Paint one exploration frame onto the worker's logical surface."""
     if engine.logical_surface is None or engine.glyphs is None:
         raise RuntimeError("Pygame world engine is not open")
-    engine.logical_surface.fill((0, 0, 0, 255))
+    clear_color = frame.default_bg or (0, 0, 0)
+    engine.logical_surface.fill((*clear_color, 255))
     for command in frame.commands:
         engine.glyphs.blit(
             engine.logical_surface,

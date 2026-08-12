@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-import tcod.console
+from .framebuffer import FrameBuffer
 
 from . import engine as _engine
 from . import main_quest as main_quest_module
@@ -939,7 +939,7 @@ _NPC_FLASH_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (
 
 
 def render_npc_flash_events(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     ctx: GameContext,
     cam_x: int, cam_y: int,
     view_w: int, view_h: int,

@@ -1,17 +1,17 @@
 """Shared Pygame-owned runtime for the complete game flow.
 
-The game still uses legacy console framebuffers during the
-Phase 2 migration. Input is fully project-owned in this phase: the runtime
+The game uses project-owned framebuffers during the Phase 2 migration.
+Input is fully project-owned in this phase: the runtime
 polls Pygame and returns :class:`pygame_engine.PygameInputEvent` values without
 patching a foreign event queue.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from . import pygame_engine
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, TILE_HEIGHT, TILE_WIDTH
+from .framebuffer import FrameBuffer
 
 
 def is_shared_context(context: Any) -> bool:
@@ -20,52 +20,13 @@ def is_shared_context(context: Any) -> bool:
     return getattr(runtime, "engine", None) is not None
 
 
-def _commands_from_console(console: Any) -> tuple[Any, ...]:
-    """Extract renderer-neutral draw commands from a capture or legacy console."""
-    commands = getattr(console, "commands", None)
-    if commands is not None:
-        return tuple(commands)
-    chars = getattr(console, "ch", None)
-    foreground = getattr(console, "fg", None)
-    background = getattr(console, "bg", None)
-    if chars is None or foreground is None or background is None:
-        raise TypeError("console does not expose capture commands or cell planes")
-    height, width = chars.shape
-    if foreground.shape != (height, width, 3):
-        raise ValueError("console foreground plane has an invalid shape")
-    if background.shape != (height, width, 3):
-        raise ValueError("console background plane has an invalid shape")
-    return tuple(
-        CaptureConsoleCommand(
-            x=x,
-            y=y,
-            char=chr(int(chars[y, x])),
-            fg=tuple(int(value) for value in foreground[y, x]),
-            bg=tuple(int(value) for value in background[y, x]),
-        )
-        for y in range(height)
-        for x in range(width)
-    )
-
-
-@dataclass(frozen=True)
-class CaptureConsoleCommand:
-    """Small command shape used when reading native console planes."""
-
-    x: int
-    y: int
-    char: str
-    fg: tuple[int, int, int]
-    bg: tuple[int, int, int] | None
-
-
 class PygameContext:
     """Project-owned presentation context backed by the shared Pygame runtime."""
 
     def __init__(self, runtime: "PygameRuntime"):
         self._runtime = runtime
 
-    def present(self, console: Any, *, overlay: Any | None = None) -> None:
+    def present(self, console: FrameBuffer, *, overlay: Any | None = None) -> None:
         """Paint one console and optional native text overlay into Pygame."""
         if overlay is None:
             self._runtime.present(console)
@@ -135,12 +96,12 @@ class PygameRuntime:
             if translated.kind != "other":
                 return (translated,)
 
-    def present(self, console: Any, *, overlay: Any | None = None) -> None:
+    def present(self, console: FrameBuffer, *, overlay: Any | None = None) -> None:
         """Render a console, then an optional native Pygame overlay."""
         if self.engine is None or self.engine.logical_surface is None or self.engine.glyphs is None:
             raise RuntimeError("Pygame runtime is not open")
-        self.engine.clear()
-        for command in _commands_from_console(console):
+        self.engine.clear(console.default_background() or (0, 0, 0))
+        for command in console.to_commands():
             self.engine.glyphs.blit(
                 self.engine.logical_surface,
                 command.char,

@@ -11,8 +11,8 @@ impossible: closures close over ``ctx`` (typed, single reference) instead of
 3-5 loose parameters, so adding a new dependency is a one-spot edit on the
 dataclass instead of threading through 3 call layers.
 
-**Why not put the ``tcod.console.Console`` on ctx?**  :func:`Modal.run`
-creates its own per-call console so :func:`spacehack.__main__._run_game` and
+**Why not put the ``FrameBuffer`` on ctx?**  :func:`Modal.run`
+creates its own per-call framebuffer so :func:`spacehack.__main__._run_game` and
 each modal can own independent framebuffers. Sharing one console across both
 would cause a 1-frame flicker when a modal returns and the next
 :func:`_run_game` render hasn't repainted yet. The cost (one extra

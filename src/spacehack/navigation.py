@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 import math
 from enum import Enum, auto
-import tcod.console
+from .framebuffer import FrameBuffer
 from . import ui
 from . import world
 from . import message_log
@@ -193,7 +193,7 @@ def _render_aoi_panel(console, system, ship_pos, *, x: int, y: int, width: int, 
 # Navigation overlay
 # ---------------------------------------------------------------------------
 
-def render_navigation(console: tcod.console.Console, ctx: GameContext, *, screen_width: int, screen_height: int, ship_pos: world.Position, system=None) -> None:
+def render_navigation(console: FrameBuffer, ctx: GameContext, *, screen_width: int, screen_height: int, ship_pos: world.Position, system=None) -> None:
     """Paint the current-solar-system navigation overlay."""
     console.clear()
     if system is None:
@@ -1293,7 +1293,7 @@ def _responsive_sleep(seconds: float) -> None:
         if remaining > 0:
             time.sleep(min(remaining, 0.01))
 
-def _animate_jump(ctx, console: tcod.console.Console, player_entity: world.Entity) -> None:
+def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> None:
     """Render a brief "jump drive" animation before the system swap.
 
     Draws the current space view with an expanding bright explosion

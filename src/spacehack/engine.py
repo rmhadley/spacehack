@@ -13,8 +13,9 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import tcod.console
 import tcod.tileset
+
+from .framebuffer import FrameBuffer
 
 # ---------------------------------------------------------------------------
 # Public configuration. Centralising the "magic numbers" here keeps the rest
@@ -343,9 +344,9 @@ def load_tileset() -> tcod.tileset.Tileset:
 
 def make_console(
     width: int | None = None, height: int | None = None
-) -> tcod.console.Console:
-    """Create an offscreen console. Default size resolves at call time."""
-    return tcod.console.Console(
+) -> FrameBuffer:
+    """Create a project-owned framebuffer. Default size resolves at call time."""
+    return FrameBuffer(
         width if width is not None else SCREEN_WIDTH,
         height if height is not None else SCREEN_HEIGHT,
     )

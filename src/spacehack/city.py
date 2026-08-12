@@ -5,7 +5,7 @@ and :func:`_return_to_city`.
 """
 
 from __future__ import annotations
-import tcod.console
+from .framebuffer import FrameBuffer
 from . import world
 from . import mission as mission_module
 from . import ship as ship_module
@@ -16,7 +16,7 @@ from . import animation_timing
 
 
 
-def _animate_ship_to_y(ctx, console: tcod.console.Console, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = animation_timing.CITY_TRANSITION, location: str = '') -> None:
+def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = animation_timing.CITY_TRANSITION, location: str = '') -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the
@@ -83,7 +83,7 @@ def _build_space_return(
     return _space_map, _space_player
 
 
-def _launch_to_space(ctx, console: tcod.console.Console, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
+def _launch_to_space(ctx, console: FrameBuffer, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
     """Animate ``hangar_ship_ent`` off the top of the city viewport and
     return ``(space_game_map, space_player_entity)``.
 

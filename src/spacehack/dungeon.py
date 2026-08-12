@@ -26,6 +26,7 @@ import sys
 from dataclasses import dataclass
 
 from . import world
+from .framebuffer import FrameBuffer
 
 
 # ---------------------------------------------------------------------------
@@ -1222,7 +1223,7 @@ def _find_walkable_near(
 
 def animate_breach(
     ctx,
-    console: tcod.console.Console,
+    console: FrameBuffer,
     game_map: world.GameMap,
     player_pos: world.Position,
     *,

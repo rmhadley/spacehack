@@ -177,6 +177,44 @@ def test_shared_runtime_context_is_renderer_compatible():
     assert context.present(marker) is None
 
 
+def test_pygame_runtime_present_uses_framebuffer_default_background():
+    from src.spacehack.framebuffer import FrameBuffer
+
+    fills = []
+    blits = []
+    presents = []
+
+    class FakeSurface:
+        def fill(self, color):
+            fills.append(color)
+
+    class FakeGlyphs:
+        tile_width = 16
+        tile_height = 16
+
+        def blit(self, *_args, **kwargs):
+            blits.append(kwargs)
+
+    fake_engine = SimpleNamespace(
+        logical_surface=FakeSurface(),
+        glyphs=FakeGlyphs(),
+        pygame=SimpleNamespace(),
+        config=pygame_engine.PygameEngineConfig(),
+        clear=lambda color: fills.append((*color, 255)),
+        present=lambda: presents.append(True),
+    )
+    runtime = pygame_runtime.PygameRuntime(object())
+    runtime.engine = fake_engine
+    frame = FrameBuffer(2, 1, background=(7, 8, 9))
+    frame.print(string="A")
+
+    runtime.present(frame)
+
+    assert fills == [(7, 8, 9, 255)]
+    assert blits[0]["bg"] is None
+    assert presents == [True]
+
+
 def test_pygame_engine_uses_injected_tileset(monkeypatch):
     calls = []
     repeat_calls = []

@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 
-import tcod.console
+from .framebuffer import FrameBuffer
 
 
 # Readable neutral log text. Secondary lines are still visibly dimmer,
@@ -76,7 +76,7 @@ class MessageLog:
 
 
 def render_message_log(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     log: MessageLog,
     *,
     screen_width: int,

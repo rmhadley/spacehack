@@ -19,7 +19,7 @@ import random
 
 from dataclasses import dataclass
 
-import tcod.console
+from .framebuffer import FrameBuffer
 
 
 # ---------------------------------------------------------------------------
@@ -1272,10 +1272,10 @@ def world_draw_commands(
 
 
 def _render_commands(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     commands: tuple[WorldDrawCommand, ...],
 ) -> None:
-    """Paint a renderer-neutral command stream onto a tcod console."""
+    """Paint a renderer-neutral command stream onto a project framebuffer."""
     for command in commands:
         kwargs = {"x": command.x, "y": command.y, "string": command.char, "fg": command.fg}
         if command.bg is not None:
@@ -1284,7 +1284,7 @@ def _render_commands(
 
 
 def render_world(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     game_map: GameMap,
     *,
     region_x: int,
@@ -1336,7 +1336,7 @@ def camera_for_view(
 
 
 def render_world_view(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     game_map: GameMap,
     *,
     region_x: int,

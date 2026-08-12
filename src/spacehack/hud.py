@@ -48,7 +48,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import tcod.console
+from .framebuffer import FrameBuffer
 
 from .engine import HUD_WIDTH
 from .ui import COLOR_DIVIDER, COLOR_VALUE_DIM, COLOR_VALUE_WHITE  # shared palette (single source)
@@ -92,7 +92,7 @@ class HudStats:
 # ---------------------------------------------------------------------------
 
 
-def _render_divider(console: tcod.console.Console, hud_x: int, y: int) -> None:
+def _render_divider(console: FrameBuffer, hud_x: int, y: int) -> None:
     """Print a full-width divider line at ``(hud_x, y)``.
 
     Pure print — caller owns y advancement.
@@ -101,7 +101,7 @@ def _render_divider(console: tcod.console.Console, hud_x: int, y: int) -> None:
 
 
 def _render_mission_line(
-    console: tcod.console.Console, hud_x: int, y: int, title: str,
+    console: FrameBuffer, hud_x: int, y: int, title: str,
 ) -> None:
     """Print the active mission title at ``(hud_x, y)`` with "M: " prefix.
 
@@ -112,7 +112,7 @@ def _render_mission_line(
 
 
 def _render_skill_line(
-    console: tcod.console.Console, hud_x: int, y: int, stats: HudStats,
+    console: FrameBuffer, hud_x: int, y: int, stats: HudStats,
 ) -> None:
     """Print the GUN/PIL/ENG skill line at ``(hud_x, y)``.
 
@@ -145,7 +145,7 @@ def _cargo_used_max(owned_ship, ship_catalog) -> tuple[int, int]:
 
 
 def _render_ground_stat_line(
-    console: tcod.console.Console, hud_x: int, y: int, ground_stats,
+    console: FrameBuffer, hud_x: int, y: int, ground_stats,
 ) -> None:
     """Print the REF/STR/STA ground stat line at ``(hud_x, y)``.
 
@@ -169,7 +169,7 @@ def _footer_rows(hud_view_height: int) -> tuple[int, int, int]:
 
 
 def _render_help_lines(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     hud_x: int,
     start_y: int,
     help_lines: list[tuple[str, str]],
@@ -190,7 +190,7 @@ def _render_help_lines(
 
 
 def render_hud(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     ctx: GameContext,
     *,
     screen_width: int,
@@ -547,7 +547,7 @@ def _hull_bar_color(pct: float) -> tuple[int, int, int]:
 
 
 def render_combat_hud(
-    console: tcod.console.Console,
+    console: FrameBuffer,
     *,
     screen_width: int,
     screen_height: int,

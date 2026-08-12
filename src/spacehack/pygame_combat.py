@@ -18,6 +18,7 @@ from typing import Any
 
 from . import pygame_engine, pygame_overlay, pygame_ui, pygame_world
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH
+from .framebuffer import FrameBuffer
 
 
 class PygameCombatUnavailable(RuntimeError):
@@ -33,51 +34,25 @@ def enabled() -> bool:
     return pygame_ui.presentation_enabled()
 
 
-def _console_commands(console: Any) -> tuple[pygame_world.world.WorldDrawCommand, ...]:
-    """Extract renderer-neutral cells from a capture or native tcod console."""
-    commands = getattr(console, "commands", None)
-    if commands is not None:
-        try:
-            return tuple(
-                pygame_world.world.WorldDrawCommand(
-                    x=int(command.x),
-                    y=int(command.y),
-                    char=str(command.char),
-                    fg=tuple(int(value) for value in command.fg),
-                    bg=None if command.bg is None else tuple(int(value) for value in command.bg),
-                )
-                for command in commands
-            )
-        except (AttributeError, IndexError, TypeError, ValueError) as exc:
-            raise PygameCombatUnavailable("Combat console cell data is invalid") from exc
-
-    chars = getattr(console, "ch", None)
-    foreground = getattr(console, "fg", None)
-    background = getattr(console, "bg", None)
-    if chars is None or foreground is None or background is None:
-        raise PygameCombatUnavailable("Combat console has no readable cell data")
-
-    height, width = chars.shape
-    if foreground.shape != (height, width, 3) or background.shape != (height, width, 3):
-        raise PygameCombatUnavailable("Combat console color planes have invalid shapes")
+def _console_commands(console: FrameBuffer) -> tuple[pygame_world.world.WorldDrawCommand, ...]:
+    """Extract cells from a framebuffer or renderer-neutral test fixture."""
     try:
-        return tuple(
-            pygame_world.world.WorldDrawCommand(
-                x=x,
-                y=y,
-                char=chr(int(chars[y, x])),
-                fg=tuple(int(value) for value in foreground[y, x]),
-                bg=tuple(int(value) for value in background[y, x]),
-            )
-            for y in range(height)
-            for x in range(width)
-        )
+        if hasattr(console, "to_commands"):
+            return console.to_commands()
+        commands = getattr(console, "commands")
+        return tuple(pygame_world._command_from_data(command) for command in commands)
     except (AttributeError, IndexError, TypeError, ValueError) as exc:
-        raise PygameCombatUnavailable("Combat console cell data is invalid") from exc
+        raise PygameCombatUnavailable("Combat frame cell data is invalid") from exc
 
 
-def _frame_payload(console: Any, *, interactive: bool) -> dict[str, Any]:
-    """Serialize a map-only combat console plus its native HUD/log overlay."""
+def _default_background(console: Any) -> tuple[int, int, int] | None:
+    """Return a framebuffer background when the object provides one."""
+    getter = getattr(console, "default_background", None)
+    return None if getter is None else getter()
+
+
+def _frame_payload(console: FrameBuffer, *, interactive: bool) -> dict[str, Any]:
+    """Serialize a map-only combat frame plus its native HUD/log overlay."""
     all_commands = _console_commands(console)
     commands = tuple(
         command for command in all_commands
@@ -93,6 +68,7 @@ def _frame_payload(console: Any, *, interactive: bool) -> dict[str, Any]:
     return {
         "logical_size": (1600, 960),
         "commands": [asdict(command) for command in commands],
+        "default_bg": _default_background(console),
         "overlay": pygame_overlay.payload(overlay),
         "interactive": interactive,
     }
@@ -131,23 +107,9 @@ def _action_for_key(pygame: Any, event: Any) -> str:
     return ""
 
 
-def _command_from_payload(data: dict[str, Any]):
-    """Deserialize one world draw command."""
-    return pygame_world.world.WorldDrawCommand(
-        x=int(data["x"]),
-        y=int(data["y"]),
-        char=str(data["char"]),
-        fg=tuple(data["fg"]),
-        bg=None if data.get("bg") is None else tuple(data["bg"]),
-    )
-
-
 def _frame_from_payload(data: dict[str, Any]) -> tuple[pygame_world.WorldFrame, pygame_overlay.OverlayFrame, bool]:
     """Deserialize a combat frame, native overlay, and input flag."""
-    frame = pygame_world.WorldFrame(
-        logical_size=tuple(data["logical_size"]),
-        commands=tuple(_command_from_payload(command) for command in data["commands"]),
-    )
+    frame = pygame_world._frame_from_payload(data)
     overlay = pygame_overlay.frame_from_payload(data["overlay"])
     return frame, overlay, bool(data.get("interactive", False))
 
@@ -207,7 +169,7 @@ def present_death(ctx: Any, *, lines: tuple[str, ...] = ()) -> None:
     engine.present()
 
 
-def present(ctx: Any, console: Any) -> None:
+def present(ctx: Any, console: FrameBuffer) -> None:
     """Present a combat frame through the shared Pygame runtime."""
     presenter = getattr(ctx, "_pygame_combat_presenter", None)
     if presenter is not None:
@@ -227,12 +189,23 @@ def present(ctx: Any, console: Any) -> None:
             screen_height=SCREEN_HEIGHT,
             hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
         )
-        map_console = pygame_world.CaptureConsole(SCREEN_WIDTH, SCREEN_HEIGHT)
-        map_console.commands.extend(
-            command for command in all_commands
-            if command.x < SCREEN_WIDTH - HUD_WIDTH
-            and command.y < SCREEN_HEIGHT - MSG_LOG_HEIGHT
+        map_console = pygame_world.CaptureConsole(
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            background=_default_background(console),
         )
+        for command in all_commands:
+            if (
+                command.x < SCREEN_WIDTH - HUD_WIDTH
+                and command.y < SCREEN_HEIGHT - MSG_LOG_HEIGHT
+            ):
+                map_console.write_cell(
+                    command.x,
+                    command.y,
+                    command.char,
+                    fg=command.fg,
+                    bg=command.bg,
+                )
         ctx.context.present(map_console, overlay=overlay)
         return
     raise PygameCombatUnavailable("Shared Pygame combat presentation is not open")
