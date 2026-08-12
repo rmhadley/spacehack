@@ -56,6 +56,141 @@ def test_character_c_opens_managed_equipment_in_every_game_mode(monkeypatch):
     ]
 
 
+def test_character_equipment_backpack_rows_are_selectable():
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+    )
+
+    rows = character_screen._equipment_rows(ctx, equipment_management=True)
+
+    backpack_row = rows[8]
+    assert backpack_row.text == "Laser Rifle"
+    assert backpack_row.action == "PACK_ITEM:0"
+    assert backpack_row.selectable is True
+
+
+def test_character_equipment_backpack_discard_removes_selected_item(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+        log=SimpleNamespace(add=messages.append),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda *_args, **_kwargs: "PACK_DISCARD:0",
+    )
+
+    assert character_screen._manage_pack_item(ctx, "PACK_ITEM:0") == "DISCARD"
+    assert ctx.ground_expedition_inventory == []
+    assert messages == ["Discarded Laser Rifle."]
+
+
+def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+
+    choices = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+        ground_stats=SimpleNamespace(strength=10),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    def choose(_ctx, **kwargs):
+        choices.append(kwargs)
+        return "PACK_EQUIP:0" if kwargs["title"] == "BACKPACK ITEM" else "__BACK__"
+
+    monkeypatch.setattr(pygame_story, "choose", choose)
+
+    assert character_screen._manage_pack_item(ctx, "PACK_ITEM:0") == "EQUIP"
+    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.ground_expedition_inventory[0].item_id == "laser_pistol"
+    assert choices[0]["options"] == (
+        ("Equip", "PACK_EQUIP:0"),
+        ("Discard", "PACK_DISCARD:0"),
+    )
+
+
+def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_available(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    captured = {}
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__",
+    )
+
+    assert character_screen._manage_pack_item(
+        ctx, "PACK_ITEM:0", swap_allowed=False,
+    ) is None
+    assert captured["options"] == (
+        ("Equip (requires 1 AP)", "PACK_EQUIP:0"),
+        ("Discard", "PACK_DISCARD:0"),
+    )
+    assert ctx.equipped_ground_weapons == ["laser_pistol"]
+    assert len(ctx.ground_expedition_inventory) == 1
+
+
+def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
+    ctx = SimpleNamespace(context=object())
+    monkeypatch.setattr(
+        character_screen,
+        "_combat_ap_available",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        character_screen,
+        "_character_frame",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        character_screen,
+        "_swap_from_pack",
+        lambda *_args, **_kwargs: True,
+    )
+    outcomes = iter((
+        ("TAB", "", 0),
+        ("SELECT", "SWAP:weapon:0", 0),
+    ))
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_for_context",
+        lambda *_args, **_kwargs: next(outcomes),
+    )
+
+    assert character_screen._run_pygame_character_screen(
+        ctx, equipment_management=True, in_ground_combat=True,
+    ) == 1
+
+
 def test_combat_character_action_charges_only_reported_swaps(monkeypatch):
     from src.spacehack.combat import _loop
 

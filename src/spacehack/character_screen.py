@@ -317,10 +317,11 @@ def _equipment_rows(
             f"--- BACKPACK ITEMS ({len(ctx.ground_expedition_inventory)}/{capacity}) ---",
         ))
         if ctx.ground_expedition_inventory:
-            for entry in ctx.ground_expedition_inventory:
+            for index, entry in enumerate(ctx.ground_expedition_inventory):
                 try:
                     rows.append(_equipment_row(
                         _pack_entry_name(entry), _pack_entry_detail(entry),
+                        action=f"PACK_ITEM:{index}", selectable=True,
                     ))
                 except (KeyError, TypeError, ValueError):
                     continue
@@ -329,9 +330,153 @@ def _equipment_rows(
     return tuple(rows)
 
 
+def _swap_pack_entry(
+    ctx: GameContext,
+    item_type: str,
+    slot: str,
+    pack_index: int,
+) -> bool:
+    """Swap one selected pack entry into an active slot."""
+    from . import ground_equipment
+
+    strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
+    try:
+        if item_type == "weapon":
+            ground_equipment.swap_weapon_from_expedition(
+                ctx.equipped_ground_weapons,
+                ctx.ground_expedition_inventory,
+                pack_index, int(slot), strength=strength,
+            )
+        else:
+            ground_equipment.swap_armor_from_expedition(
+                ctx.equipped_ground_armor,
+                ctx.ground_expedition_inventory,
+                pack_index, slot, strength=strength,
+            )
+    except (IndexError, KeyError, ValueError) as exc:
+        ctx.log.add(str(exc))
+        return False
+    ctx.log.add("Expedition gear swapped.")
+    return True
+
+
+def _pack_weapon_slots(ctx: GameContext, pack_index: int) -> tuple[str, ...]:
+    """Return active weapon slots compatible with one pack entry."""
+    entry = ctx.ground_expedition_inventory[pack_index]
+    return tuple(
+        str(slot)
+        for slot in range(2)
+        if any(
+            option[0] == pack_index
+            for option in _swap_options(ctx, "weapon", str(slot))
+        )
+    )
+
+
+def _discard_pack_item(ctx: GameContext, pack_index: int) -> bool:
+    """Discard one carried pack item."""
+    if not 0 <= pack_index < len(ctx.ground_expedition_inventory):
+        ctx.log.add("That backpack item is no longer available.")
+        return False
+    entry = ctx.ground_expedition_inventory.pop(pack_index)
+    try:
+        name = _pack_entry_name(entry)
+    except (KeyError, TypeError, ValueError):
+        name = "equipment"
+    ctx.log.add(f"Discarded {name}.")
+    return True
+
+
+def _equip_pack_item(
+    ctx: GameContext,
+    pack_index: int,
+    *,
+    swap_allowed: bool = True,
+) -> bool:
+    """Equip one selected pack item, choosing a weapon slot when needed."""
+    from . import pygame_story
+    from .data.ground_armor import find_ground_armor
+
+    if not swap_allowed:
+        ctx.log.add("You need 1 AP to equip backpack gear.")
+        return False
+    if not 0 <= pack_index < len(ctx.ground_expedition_inventory):
+        ctx.log.add("That backpack item is no longer available.")
+        return False
+    entry = ctx.ground_expedition_inventory[pack_index]
+    if entry.item_type == "armor":
+        try:
+            slot = find_ground_armor(entry.item_id).slot
+        except KeyError:
+            ctx.log.add("That backpack item is invalid.")
+            return False
+        return _swap_pack_entry(ctx, "armor", slot, pack_index)
+    slots = _pack_weapon_slots(ctx, pack_index)
+    if not slots:
+        ctx.log.add("That weapon cannot fit your active loadout.")
+        return False
+    if len(slots) == 1:
+        return _swap_pack_entry(ctx, "weapon", slots[0], pack_index)
+    choices = tuple(
+        (f"Weapon {int(slot) + 1}", f"PACK_EQUIP_SLOT:{pack_index}:{slot}")
+        for slot in slots
+    )
+    chosen = pygame_story.choose(
+        ctx, title="EQUIP BACKPACK ITEM", body=_pack_entry_name(entry),
+        options=choices, caption="spacehack - equipment slot", compact=True,
+    )
+    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
+        return False
+    if chosen == "__QUIT__":
+        raise SystemExit
+    _parts = chosen.split(":")
+    return _swap_pack_entry(ctx, "weapon", _parts[-1], pack_index)
+
+
+def _manage_pack_item(
+    ctx: GameContext,
+    action: str,
+    *,
+    swap_allowed: bool = True,
+) -> str | None:
+    """Offer Equip or Discard for one selectable backpack row."""
+    from . import pygame_story
+
+    pack_index = int(action.split(":", 1)[1])
+    if not 0 <= pack_index < len(ctx.ground_expedition_inventory):
+        ctx.log.add("That backpack item is no longer available.")
+        return None
+    entry = ctx.ground_expedition_inventory[pack_index]
+    try:
+        name = _pack_entry_name(entry)
+    except (KeyError, TypeError, ValueError):
+        ctx.log.add("That backpack item is invalid.")
+        return None
+    equip_label = "Equip" if swap_allowed else "Equip (requires 1 AP)"
+    chosen = pygame_story.choose(
+        ctx, title="BACKPACK ITEM", body=name,
+        options=(
+            (equip_label, f"PACK_EQUIP:{pack_index}"),
+            ("Discard", f"PACK_DISCARD:{pack_index}"),
+        ),
+        caption="spacehack - backpack", compact=True,
+    )
+    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
+        return None
+    if chosen == "__QUIT__":
+        raise SystemExit
+    if chosen.startswith("PACK_DISCARD:"):
+        return "DISCARD" if _discard_pack_item(ctx, pack_index) else None
+    if chosen.startswith("PACK_EQUIP:"):
+        return "EQUIP" if _equip_pack_item(
+            ctx, pack_index, swap_allowed=swap_allowed,
+        ) else None
+    return None
+
+
 def _swap_from_pack(ctx: GameContext, action: str) -> bool:
     """Open the backpack submenu and apply one selected equipment swap."""
-    from . import ground_equipment, pygame_story
+    from . import pygame_story
 
     _prefix, item_type, slot = action.split(":", 2)
     options = _swap_options(ctx, item_type, slot)
@@ -359,29 +504,7 @@ def _swap_from_pack(ctx: GameContext, action: str) -> bool:
         raise SystemExit
     _parts = chosen.split(":")
     pack_index = int(_parts[-1])
-    strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
-    try:
-        if item_type == "weapon":
-            ground_equipment.swap_weapon_from_expedition(
-                ctx.equipped_ground_weapons,
-                ctx.ground_expedition_inventory,
-                pack_index,
-                int(slot),
-                strength=strength,
-            )
-        else:
-            ground_equipment.swap_armor_from_expedition(
-                ctx.equipped_ground_armor,
-                ctx.ground_expedition_inventory,
-                pack_index,
-                slot,
-                strength=strength,
-            )
-    except (IndexError, KeyError, ValueError) as exc:
-        ctx.log.add(str(exc))
-        return False
-    ctx.log.add("Expedition gear swapped.")
-    return True
+    return _swap_pack_entry(ctx, item_type, slot, pack_index)
 
 
 def _run_pygame_character_screen(
@@ -424,9 +547,23 @@ def _run_pygame_character_screen(
                 if skill not in _SKILLS:
                     return None
                 _apply_skill_point(ctx, skill)
-            elif tab == 1 and equipment_management and action.startswith("SWAP:"):
-                if _swap_from_pack(ctx, action):
+            elif tab == 1 and equipment_management:
+                if action.startswith("SWAP:") and _swap_from_pack(ctx, action):
                     swap_count += 1
+                    if in_ground_combat:
+                        return swap_count
+                elif action.startswith("PACK_ITEM:"):
+                    _pack_result = _manage_pack_item(
+                        ctx,
+                        action,
+                        swap_allowed=(
+                            not in_ground_combat
+                            or _combat_ap_available(ctx, reserved=swap_count)
+                        ),
+                    )
+                    if _pack_result == "EQUIP" and in_ground_combat:
+                        swap_count += 1
+                        return swap_count
             continue
         if outcome in {"PAGE_UP", "PAGE_DOWN"}:
             continue
