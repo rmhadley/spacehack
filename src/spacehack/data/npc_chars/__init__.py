@@ -39,7 +39,9 @@ class NpcCharSpec:
         detect_radius: Chebyshev distance — triggers combat when player
             enters range AND has line-of-sight.
         loot_pool: trade good ids the NPC may drop on death.
-        loot_count: (min, max) number of loot items per kill.
+        equipment_loot_pool: optional ``(item_type, item_id)`` ground gear
+            entries dropped on death.
+        loot_count: (min, max) number of trade-good loot items per kill.
         xp_reward: XP awarded on kill.
         always_hostile: True = ignore faction reputation entirely;
             combat on sight (used for dungeon monsters — non-sentient
@@ -63,6 +65,7 @@ class NpcCharSpec:
     stamina: int = 10
     detect_radius: int = 4
     loot_pool: tuple[str, ...] = ()
+    equipment_loot_pool: tuple[tuple[str, str], ...] = ()
     loot_count: tuple[int, int] = (1, 2)
     xp_reward: int = 20
     always_hostile: bool = False

@@ -256,6 +256,29 @@ class TestGroundPointBlankFire:
         assert "Need 2 AP" in _reason
 
 
+def test_refresh_equipment_state_rebuilds_weapon_and_armor_cache(monkeypatch):
+    _ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={"body": "heavy_vest"},
+    )
+    monkeypatch.setattr(
+        _rules_ground,
+        "_state",
+        _rules_ground.GroundCombatState(
+        ctx=_ctx,
+        game_map=SimpleNamespace(),
+        active_weapon_list=[False, True],
+            armor_defense=0,
+        ),
+    )
+
+    _ctx.equipped_ground_weapons[:] = ["laser_rifle"]
+    _rules_ground.refresh_equipment_state(_ctx)
+
+    assert _rules_ground._state.active_weapon_list == [False]
+    assert _rules_ground._state.armor_defense == 5
+
+
 class TestCalcGroundMoveDodge:
     def test_no_movement(self):
         assert _calc_ground_move_dodge(0) == 0

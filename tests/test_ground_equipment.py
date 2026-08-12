@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.spacehack import trade
 from src.spacehack.ground_equipment import (
     ARMORY_STORAGE,
     EXPEDITION_INVENTORY,
@@ -20,6 +21,8 @@ from src.spacehack.ground_equipment import (
     sell_stored,
     store_armor,
     store_weapon,
+    swap_armor_from_expedition,
+    swap_weapon_from_expedition,
     transfer_item,
 )
 
@@ -243,6 +246,153 @@ def test_remove_active_ground_equipment_returns_owned_entry():
     assert remove_armor(armor, "body") == StoredGroundEquipment("armor", "light_vest")
     assert weapons == ["combat_knife"]
     assert armor == {}
+
+
+def test_swap_two_handed_weapon_cannot_target_weapon_two():
+    equipped = ["laser_pistol"]
+    pack = [StoredGroundEquipment("weapon", "laser_rifle")]
+
+    with pytest.raises(ValueError, match="Weapon 1"):
+        swap_weapon_from_expedition(equipped, pack, 0, 1)
+
+    assert equipped == ["laser_pistol"]
+    assert pack == [StoredGroundEquipment("weapon", "laser_rifle")]
+
+
+def test_swap_weapon_from_expedition_replaces_requested_slot():
+    equipped = ["laser_pistol", "combat_knife"]
+    pack = [StoredGroundEquipment("weapon", "stun_baton")]
+
+    trade_result = swap_weapon_from_expedition(
+        equipped, pack, 0, 1, strength=10,
+    )
+
+    assert trade_result.item_id == "stun_baton"
+    assert equipped == ["laser_pistol", "stun_baton"]
+    assert pack == [StoredGroundEquipment("weapon", "combat_knife")]
+
+
+def test_equipment_loot_pickup_adds_to_pack_and_removes_entity():
+    entity = type("Loot", (), {
+        "loot_data": {"item_type": "weapon", "item_id": "combat_knife"},
+    })()
+    ctx = type("Context", (), {
+        "ground_stats": type("Stats", (), {"strength": 10})(),
+        "ground_expedition_inventory": [],
+        "game_map": type("Map", (), {"entities": [entity]})(),
+        "log": type("Log", (), {"add": lambda self, _message: None})(),
+    })()
+
+    assert trade._apply_equipment_loot_pickup(ctx, entity)
+    assert ctx.ground_expedition_inventory == [
+        StoredGroundEquipment("weapon", "combat_knife"),
+    ]
+    assert entity not in ctx.game_map.entities
+
+
+def test_full_expedition_pack_leaves_equipment_loot_on_floor(monkeypatch):
+    entity = type("Loot", (), {
+        "loot_data": {"item_type": "armor", "item_id": "heavy_vest"},
+    })()
+    pack = [
+        StoredGroundEquipment("armor", "light_helmet"),
+        StoredGroundEquipment("armor", "light_vest"),
+        StoredGroundEquipment("armor", "combat_boots"),
+        StoredGroundEquipment("weapon", "combat_knife"),
+    ]
+    messages = []
+    ctx = type("Context", (), {
+        "ground_stats": type("Stats", (), {"strength": 10})(),
+        "ground_expedition_inventory": pack,
+        "game_map": type("Map", (), {"entities": [entity]})(),
+        "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
+    })()
+
+    monkeypatch.setattr(trade, "_choose_pack_drop", lambda *_args: None)
+    assert not trade._apply_equipment_loot_pickup(ctx, entity)
+    assert entity in ctx.game_map.entities
+    assert pack == [
+        StoredGroundEquipment("armor", "light_helmet"),
+        StoredGroundEquipment("armor", "light_vest"),
+        StoredGroundEquipment("armor", "combat_boots"),
+        StoredGroundEquipment("weapon", "combat_knife"),
+    ]
+    assert any("full" in message.lower() for message in messages)
+
+
+def test_full_pack_drop_options_skip_malformed_entries():
+    ctx = type("Context", (), {
+        "ground_expedition_inventory": [
+            StoredGroundEquipment("armor", "missing_armor"),
+            StoredGroundEquipment("weapon", "combat_knife"),
+        ],
+    })()
+
+    assert trade._pack_drop_options(ctx) == ((
+        "Drop Combat Knife", "DROP_PACK:1",
+    ),)
+
+
+def test_full_expedition_pack_can_drop_carried_item_for_new_loot(monkeypatch):
+    entity = type("Loot", (), {
+        "loot_data": {"item_type": "armor", "item_id": "heavy_vest"},
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+    })()
+    old_entry = StoredGroundEquipment("weapon", "combat_knife")
+    pack = [
+        StoredGroundEquipment("armor", "light_helmet"),
+        StoredGroundEquipment("armor", "light_vest"),
+        StoredGroundEquipment("armor", "combat_boots"),
+        old_entry,
+    ]
+    entities = [entity]
+    ctx = type("Context", (), {
+        "ground_stats": type("Stats", (), {"strength": 10})(),
+        "ground_expedition_inventory": pack,
+        "game_map": type("Map", (), {"entities": entities})(),
+        "log": type("Log", (), {"add": lambda self, _message: None})(),
+    })()
+    monkeypatch.setattr(trade, "_choose_pack_drop", lambda *_args: 3)
+
+    assert trade._apply_equipment_loot_pickup(ctx, entity)
+    assert pack == [
+        StoredGroundEquipment("armor", "light_helmet"),
+        StoredGroundEquipment("armor", "light_vest"),
+        StoredGroundEquipment("armor", "combat_boots"),
+        StoredGroundEquipment("armor", "heavy_vest"),
+    ]
+    assert entity not in entities
+    assert any(
+        dropped.loot_data == {"item_type": "weapon", "item_id": "combat_knife"}
+        for dropped in entities
+    )
+
+
+def test_invalid_equipment_loot_stays_on_floor():
+    entity = type("Loot", (), {
+        "loot_data": {"item_type": "weapon", "item_id": "missing"},
+    })()
+    messages = []
+    ctx = type("Context", (), {
+        "ground_stats": type("Stats", (), {"strength": 10})(),
+        "ground_expedition_inventory": [],
+        "game_map": type("Map", (), {"entities": [entity]})(),
+        "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
+    })()
+
+    assert not trade._apply_equipment_loot_pickup(ctx, entity)
+    assert entity in ctx.game_map.entities
+    assert any("unknown" in message.lower() for message in messages)
+
+
+def test_swap_armor_from_expedition_preserves_replaced_armor():
+    equipped = {"body": "light_vest"}
+    pack = [StoredGroundEquipment("armor", "heavy_vest")]
+
+    swap_armor_from_expedition(equipped, pack, 0, "body")
+
+    assert equipped == {"body": "heavy_vest"}
+    assert pack == [StoredGroundEquipment("armor", "light_vest")]
 
 
 def test_sell_stored_removes_exactly_one_duplicate():

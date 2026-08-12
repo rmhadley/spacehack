@@ -158,6 +158,13 @@ def _apply_ground_combat_rep(ctx, ground_result) -> None:
             pass
 
 
+def _open_character_for_mode(ctx) -> int:
+    """Open the Character screen with carried-gear management enabled."""
+    from .character_screen import open_character_screen
+
+    return open_character_screen(ctx, equipment_management=True)
+
+
 def _pickup_loot_near(ctx) -> bool:
     """Open pickup for loot on or next to the current player."""
     _loot = world.find_loot_near(ctx.game_map, ctx.player.pos)
@@ -931,10 +938,10 @@ def _run_game_loop(
                 from .menus._ship_menu import _run_faction_view
                 _run_faction_view(ctx)
                 continue
-            # C = Character screen (city or space).
+            # C = Character screen (city/space) or Expedition equipment
+            # management while exploring a dungeon.
             if _is_c_press(event):
-                from .character_screen import open_character_screen
-                open_character_screen(ctx)
+                _open_character_for_mode(ctx)
                 continue
             if _is_q_press(event):
                 outcome, abandoned_idx = _run_quest_log(ctx)

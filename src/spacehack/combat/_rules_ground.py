@@ -33,6 +33,7 @@ from ._stats import _distance
 from ._actions import (
     move_entity,
     _spawn_loot_at_position as _shared_loot,
+    _spawn_equipment_loot_at_position as _shared_equipment_loot,
 )
 from ._animations import (
     _bresenham_line,
@@ -255,6 +256,25 @@ def active_weapons(ctx) -> list[bool]:
 
 def set_active_weapons(ctx, active: list[bool]) -> None:
     _state.active_weapon_list = list(active)
+
+
+def refresh_equipment_state(ctx) -> None:
+    """Refresh cached ground-combat equipment after a character-screen swap."""
+    _weapons = list(ctx.equipped_ground_weapons) or ["fists"]
+    _state.active_weapon_list = [
+        _state.active_weapon_list[index]
+        if index < len(_state.active_weapon_list) else True
+        for index in range(len(_weapons))
+    ]
+    _armor_defense = 0
+    for armor_id in ctx.equipped_ground_armor.values():
+        if not armor_id:
+            continue
+        try:
+            _armor_defense += _find_ga(armor_id).defense
+        except KeyError:
+            continue
+    _state.armor_defense = _armor_defense
 
 
 # ---------------------------------------------------------------------------
@@ -644,11 +664,15 @@ def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
     if _ent is not None and _ent in game_map.entities:
         game_map.entities.remove(_ent)
 
-    if enemy.spec and enemy.spec.loot_pool:
+    if _ent is not None and enemy.spec and enemy.spec.loot_pool:
         _min, _max = enemy.spec.loot_count
         _shared_loot(
             game_map, _ent.pos, enemy.spec.loot_pool,
             count_range=(_min, _max), qty_range=(1, 2),
+        )
+    if _ent is not None and enemy.spec and enemy.spec.equipment_loot_pool:
+        _shared_equipment_loot(
+            game_map, _ent.pos, enemy.spec.equipment_loot_pool,
         )
 
     if enemy.spec:

@@ -28,6 +28,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(3, 5),        # swarmer — always hunts in packs
         always_hostile=True,
         loot_pool=("scrap_metal",),
+        equipment_loot_pool=(("weapon", "survival_axe"),),
         loot_count=(1, 2),
         xp_reward=10,
     ),
@@ -47,6 +48,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         always_hostile=True,
         loot_pool=("electronics", "machine_parts"),
+        equipment_loot_pool=(("armor", "light_helmet"),),
         loot_count=(1, 2),
         xp_reward=25,
     ),
@@ -104,6 +106,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         always_hostile=True,
         loot_pool=("electronics", "machine_parts", "ship_components"),
+        equipment_loot_pool=(("armor", "heavy_vest"),),
         loot_count=(1, 2),
         xp_reward=30,
     ),

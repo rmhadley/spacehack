@@ -36,6 +36,82 @@ class _FakeFont:
         return 24
 
 
+def test_character_c_opens_managed_equipment_in_every_game_mode(monkeypatch):
+    from src.spacehack import __main__ as game_main
+
+    calls = []
+    monkeypatch.setattr(
+        "src.spacehack.character_screen.open_character_screen",
+        lambda ctx, **kwargs: calls.append((ctx, kwargs)) or 0,
+    )
+    ctx = SimpleNamespace()
+
+    for mode in ("city", "space", "dungeon"):
+        assert game_main._open_character_for_mode(ctx) == 0
+
+    assert [kwargs for _ctx, kwargs in calls] == [
+        {"equipment_management": True},
+        {"equipment_management": True},
+        {"equipment_management": True},
+    ]
+
+
+def test_combat_character_action_charges_only_reported_swaps(monkeypatch):
+    from src.spacehack.combat import _loop
+
+    calls = []
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda message: calls.append(message)))
+    rules = SimpleNamespace(
+        player_ap=lambda _ctx: 3,
+        set_player_ap=lambda _ctx, value: calls.append(("ap", value)),
+        refresh_equipment_state=lambda _ctx: calls.append("refresh"),
+    )
+    monkeypatch.setattr(
+        _loop,
+        "_rules_ground",
+        rules,
+    )
+    monkeypatch.setattr(
+        "src.spacehack.character_screen.open_character_screen",
+        lambda *_args, **_kwargs: 1,
+    )
+
+    assert _loop._handle_character_action(ctx, rules) == 1
+    assert ("ap", 2) in calls
+    assert "refresh" in calls
+
+
+def test_combat_character_action_is_free_when_screen_reports_cancel(monkeypatch):
+    from src.spacehack.combat import _loop
+
+    calls = []
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda message: calls.append(message)))
+    rules = SimpleNamespace(
+        player_ap=lambda _ctx: 3,
+        set_player_ap=lambda _ctx, value: calls.append(("ap", value)),
+        refresh_equipment_state=lambda _ctx: calls.append("refresh"),
+    )
+    monkeypatch.setattr(_loop, "_rules_ground", rules)
+    monkeypatch.setattr(
+        "src.spacehack.character_screen.open_character_screen",
+        lambda *_args, **_kwargs: 0,
+    )
+
+    assert _loop._handle_character_action(ctx, rules) == 0
+    assert not any(item[0] == "ap" for item in calls if isinstance(item, tuple))
+
+
+def test_combat_character_action_is_unavailable_for_space_rules():
+    from src.spacehack.combat import _loop
+
+    messages = []
+    ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
+    rules = SimpleNamespace()
+
+    assert _loop._handle_character_action(ctx, rules) == 0
+    assert messages == ["The character screen is unavailable here."]
+
+
 def test_combat_key_mapping_returns_opaque_actions():
     class FakePygame:
         QUIT = 1
@@ -1626,6 +1702,27 @@ def test_armory_frame_uses_shared_content_policy():
     assert len(disabled) == 1
     assert disabled[0].action == ""
     assert disabled[0].selectable is False
+
+
+def test_character_equipment_rows_offer_only_weapon_one_for_two_handed_pack_items():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_armor={},
+        ground_expedition_inventory=(
+            __import__(
+                "src.spacehack.ground_equipment",
+                fromlist=["StoredGroundEquipment"],
+            ).StoredGroundEquipment(
+                "weapon", "laser_rifle",
+            ),
+        ),
+    )
+
+    rows = character_screen._equipment_rows(ctx, equipment_management=True)
+
+    assert rows[0].action == "SWAP:weapon:0"
+    assert rows[1].action == ""
+    assert rows[1].selectable is False
 
 
 def test_character_equipment_rows_mirror_loadout_slots():

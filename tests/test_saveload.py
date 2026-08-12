@@ -739,6 +739,52 @@ class TestSaveLoadRoundTrip:
         assert loaded.ship_storage == []
         delete_save()
 
+    def test_dungeon_equipment_loot_data_round_trips(self, monkeypatch, tmp_path):
+        """Uncollected ground gear remains identifiable after Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(57)
+        ctx = _build_test_ctx()
+        tiles = [[world.DUNGEON_FLOOR for _ in range(6)] for _ in range(6)]
+        player = Entity("@", (255, 255, 255), Position(2, 2), "Player")
+        loot = Entity(
+            "%", (255, 215, 0), Position(3, 2), "Loot",
+            loot_data={"item_type": "weapon", "item_id": "combat_knife"},
+        )
+        dungeon_map = GameMap(6, 6, tiles, [player, loot])
+        dungeon_map.entry_spawn = Position(2, 2)
+        dungeon_map.location_name = "Test Wreck"
+        ctx.game_map = dungeon_map
+        ctx.player = player
+        ctx.ground_expedition_inventory = [
+            StoredGroundEquipment("armor", "light_helmet"),
+        ]
+
+        save_game(
+            ctx,
+            mode="dungeon",
+            city_id="earth",
+            system_id="sol",
+            space_player_pos=(4, 4),
+        )
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        restored_loot = next(
+            entity for entity in loaded.game_map.entities
+            if entity.loot_data is not None
+        )
+        assert restored_loot.loot_data == {
+            "item_type": "weapon", "item_id": "combat_knife",
+        }
+        assert loaded.ground_expedition_inventory == [
+            StoredGroundEquipment("armor", "light_helmet"),
+        ]
+        delete_save()
+
     def test_round_trip_ground_equipment_containers(self, monkeypatch, tmp_path):
         """Ground loadout and both storage containers survive Continue."""
         monkeypatch.setattr(

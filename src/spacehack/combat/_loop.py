@@ -16,6 +16,7 @@ from ..world import MOVE_KEYS as _MOVE_KEYS
 from ..data.weapons import find_weapon as _fw
 from ..input_helpers import _try_open_guide
 
+from . import _rules_ground
 from ._types import CombatResult
 from ._animations import (
     _damage_popup_for,
@@ -63,6 +64,7 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         "s": "DEFENSE",
         "w": "WAIT",
         "f": "FIRE",
+        "c": "CHARACTER",
     }.get(sym_name, f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else "")
 
 
@@ -109,6 +111,26 @@ def _toggle_weapon(
                 _name = _weapons[idx]
             ctx.log.add(f"Weapon {idx + 1} ({_name}): {_state}")
     return active_weapons
+
+
+def _handle_character_action(ctx, rules) -> int:
+    """Open ground equipment management and charge successful swaps."""
+    if rules is not _rules_ground:
+        ctx.log.add("The character screen is unavailable here.")
+        return 0
+    from ..character_screen import open_character_screen
+
+    swaps = open_character_screen(
+        ctx,
+        equipment_management=True,
+        in_ground_combat=True,
+    )
+    for _ in range(swaps):
+        rules.set_player_ap(ctx, rules.player_ap(ctx) - 1)
+    refresh = getattr(rules, "refresh_equipment_state", None)
+    if refresh is not None:
+        refresh(ctx)
+    return swaps
 
 
 def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
@@ -356,6 +378,8 @@ def _run_combat_impl(
                     ctx.log.add("Blocked.")
         elif _action == "DEFENSE":
             rules.handle_defense(ctx)
+        elif _action == "CHARACTER":
+            _handle_character_action(ctx, rules)
         elif _action == "FIRE":
             _handle_fire(console, ctx, game_map, rules, _target_idx)
             _presenter = getattr(ctx, "_pygame_combat_presenter", None)

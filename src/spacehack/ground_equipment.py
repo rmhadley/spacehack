@@ -234,6 +234,101 @@ def remove_armor(
     return entry
 
 
+def _replace_weapon_slot(
+    equipped_weapons: list[str],
+    slot_index: int,
+    weapon_id: str,
+) -> list[StoredGroundEquipment]:
+    """Return the active weapons displaced by a slot-targeted swap."""
+    current = list(equipped_weapons)
+    selected_hands = weapon_hands(weapon_id)
+    if selected_hands == 2:
+        return [StoredGroundEquipment("weapon", item_id) for item_id in current]
+    if len(current) == 1 and weapon_hands(current[0]) == 2:
+        return [StoredGroundEquipment("weapon", current[0])]
+    if slot_index < len(current):
+        return [StoredGroundEquipment("weapon", current[slot_index])]
+    return []
+
+
+def swap_weapon_from_expedition(
+    equipped_weapons: list[str],
+    pack: list[StoredGroundEquipment],
+    pack_index: int,
+    slot_index: int,
+    *,
+    strength: int = 10,
+) -> StoredGroundEquipment:
+    """Swap one pack weapon into a requested active weapon slot atomically.
+
+    One-handed selections replace only the requested one-handed slot. A
+    two-handed selection replaces the complete active loadout. The selected
+    pack entry is removed before displaced gear is returned to the same pack,
+    so a full pack can still perform a no-net-capacity one-for-one swap.
+    """
+    if slot_index not in range(WEAPON_SLOT_COUNT):
+        raise IndexError("Invalid ground weapon slot")
+    if not 0 <= pack_index < len(pack):
+        raise IndexError("Invalid stored ground equipment index")
+    selected = pack[pack_index]
+    _validate_entry(selected)
+    if selected.item_type != "weapon":
+        raise ValueError("Stored item is not a weapon")
+    if slot_index == 1 and weapon_hands(selected.item_id) == 2:
+        raise ValueError("A two-handed weapon must use Weapon 1")
+    if slot_index == 1 and equipped_weapons and weapon_hands(equipped_weapons[0]) == 2:
+        raise ValueError("Weapon 2 is occupied by a two-handed weapon")
+    displaced = _replace_weapon_slot(equipped_weapons, slot_index, selected.item_id)
+    proposed_pack = [
+        entry for index, entry in enumerate(pack) if index != pack_index
+    ] + displaced
+    _require_expedition_capacity(proposed_pack, strength)
+    validate_storage(proposed_pack)
+    pack[:] = proposed_pack
+    selected_hands = weapon_hands(selected.item_id)
+    if selected_hands == 2:
+        equipped_weapons[:] = [selected.item_id]
+    elif len(equipped_weapons) == 1 and weapon_hands(equipped_weapons[0]) == 2:
+        equipped_weapons[:] = [selected.item_id]
+    elif slot_index < len(equipped_weapons):
+        equipped_weapons[slot_index] = selected.item_id
+    else:
+        equipped_weapons.append(selected.item_id)
+    return selected
+
+
+def swap_armor_from_expedition(
+    equipped_armor: dict[str, str],
+    pack: list[StoredGroundEquipment],
+    pack_index: int,
+    slot: str,
+    *,
+    strength: int = 10,
+) -> StoredGroundEquipment:
+    """Swap a same-slot pack armor item into an active armor slot atomically."""
+    if not 0 <= pack_index < len(pack):
+        raise IndexError("Invalid stored ground equipment index")
+    selected = pack[pack_index]
+    _validate_entry(selected)
+    if selected.item_type != "armor":
+        raise ValueError("Stored item is not armor")
+    selected_slot = find_ground_armor(selected.item_id).slot
+    if selected_slot != slot:
+        raise ValueError("Stored armor does not fit that slot")
+    displaced = (
+        [StoredGroundEquipment("armor", equipped_armor[slot])]
+        if equipped_armor.get(slot) else []
+    )
+    proposed_pack = [
+        entry for index, entry in enumerate(pack) if index != pack_index
+    ] + displaced
+    _require_expedition_capacity(proposed_pack, strength)
+    validate_storage(proposed_pack)
+    pack[:] = proposed_pack
+    equipped_armor[slot] = selected.item_id
+    return selected
+
+
 def install_weapon(
     equipped_weapons: list[str],
     storage: list[StoredGroundEquipment],

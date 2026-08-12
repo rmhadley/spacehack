@@ -448,27 +448,42 @@ item and verify only that item and the credits change.
 
 ### Phase 3 - Dungeon expedition swapping and loot
 
-- [ ] Add a dungeon equipment modal that manages expedition inventory and the
-  active loadout without opening armory storage.
-- [ ] Allow weapon and armor swaps during exploration and active combat at a
-  cost of 1 AP per successful swap.
-- [ ] Route discovered ground-equipment loot into the expedition inventory,
-  with clear full-pack behavior.
-- [ ] Ensure every ground loadout change uses the same storage-aware mutation
-  helpers, including future scripted or developer loadout paths.
-- [ ] Verify dungeon entry, combat disengagement, death, and Continue preserve
-  the active loadout and both storage containers.
-- [ ] Add regression coverage for repeated armor replacement, duplicate weapons,
+- [x] Add a dungeon equipment modal that manages expedition inventory and the
+  active loadout without opening armory storage. The Character screen's
+  Equipment tab is management-enabled from C; it shows BACKPACK ITEMS and
+  current/max capacity, while only compatible pack entries are offered by
+  ENTER on an equipped or empty slot.
+- [x] Allow weapon and armor swaps during exploration and active combat at a
+  cost of 1 AP per successful swap. Swaps outside active ground combat are
+  free; successful combat swaps consume 1 AP and refresh the cached combat
+  weapon/armor state.
+- [x] Route discovered ground-equipment loot into the expedition inventory,
+  with clear full-pack behavior. Equipment drops use a separate loot payload,
+  bypass ship cargo, and remain on the dungeon floor when the pack is full.
+- [x] Ensure every ground loadout change uses the same storage-aware mutation
+  helpers, including future scripted or developer loadout paths. Character
+  screen swaps call the transactional `ground_equipment` helpers.
+- [x] Verify dungeon entry, combat disengagement, death, and Continue preserve
+  the active loadout and both storage containers. Existing context save/load
+  serialization covers the active loadout, Armory Storage, and Expedition Pack.
+- [x] Add regression coverage for repeated armor replacement, duplicate weapons,
   two-handed transitions, swap AP cost, canceled swaps, full-pack loot, and
-  save/load at each transition.
+  save/load at each transition. Focused mutation, UI, combat-refresh, loot,
+  and save/load tests cover the Phase 3 seams.
 
 **PLAYTEST:** Build a varied loadout with a one-handed pair, a two-handed rifle,
 and armor in multiple slots. Prepare four reserve items at the armory, enter a
-dungeon, and swap a gun and armor during exploration. In combat, verify a
-successful swap costs 1 AP and a canceled/insufficient-AP swap costs nothing.
-Collect ground-equipment loot with a free slot, then test the full-pack choice.
-Save/Continue underground and confirm the pack, active loadout, and armory
-warehouse are all preserved.
+dungeon, and press C to open the Character Equipment tab. Confirm the tab shows
+BACKPACK ITEMS and Pack current/max capacity; press ENTER on an equipped slot or
+empty compatible slot and swap a gun and armor during exploration. These swaps
+are free. In combat, press C again, verify a successful swap costs 1 AP, and
+verify a canceled or insufficient-AP swap costs nothing. Collect authored
+ground-equipment loot with a free slot, then fill the pack and confirm a full
+pack leaves the loot on the floor with a clear log message. Save/Continue
+underground and confirm the pack, active loadout, and armory warehouse are all
+preserved. Press C in city or space as well to confirm the same carried-pack
+Equipment management is available outside combat without exposing Armory
+Storage.
 
 ### Phase 4 - UX iteration and regression pass
 
@@ -532,11 +547,12 @@ carried reserve gear, and active loadout clear.
 
 ## Current status
 
-Phase 2 is complete. The armory terminal now exposes `[B]uy`, `[A]rmory`, and
-`[E]xpedition` views, shows pack capacity and unlimited warehouse ownership,
-provides stored weapon/armor details, and routes purchase, equip, transfer,
-store, and sale actions through the ground-equipment domain. Displaced gear now
-routes to the Expedition Pack first and falls back to Armory Storage when full;
-the 2H second weapon slot is visibly unavailable. Phase 3 adds
-in-dungeon 1-AP swaps and loot capacity behavior; Phase 4 remains the UX and
-regression pass.
+Phase 3 is complete. The armory terminal exposes `[B]uy`, `[A]rmory`, and
+`[E]xpedition` views, while C opens the Character Equipment tab in city, space,
+dungeon exploration, and active ground combat. The management tab shows the
+active loadout, BACKPACK ITEMS, current/max pack capacity, aligned empty slots,
+and Enter-driven compatible swap choices. Outside active combat swaps are free;
+successful ground-combat swaps cost 1 AP and refresh combat state. Ground
+weapon/armor drops use a dedicated loot payload, go directly to the Expedition
+Pack, and remain on the floor when the pack is full. Phase 4 remains the UX and
+full-lifecycle regression pass.

@@ -19,6 +19,20 @@ from ..engine import RNG
 _MAX_LOOT_ENTITIES: int = 30
 
 
+def _append_loot_entity(
+    game_map: world.GameMap,
+    pos: world.Position,
+    loot_data: dict,
+) -> None:
+    """Append one neutral loot entity with the supplied payload."""
+    game_map.entities.append(world.Entity(
+        char="%", fg=(255, 215, 0),
+        pos=pos,
+        name="Loot", width=1, height=1,
+        loot_data=loot_data,
+    ))
+
+
 def _spawn_loot_at_position(
     game_map: world.GameMap,
     pos: world.Position,
@@ -26,26 +40,36 @@ def _spawn_loot_at_position(
     count_range: tuple[int, int] = (1, 2),
     qty_range: tuple[int, int] = (1, 2),
 ) -> None:
-    """Drop loot items at a death position using the given loot pool.
-
-    Shared by both ship combat (:func:`_spawn_loot_drops`) and ground
-    combat (:func:`spacehack.combat._ground._spawn_ground_loot`) so
-    loot-spawning behavior stays consistent between systems.
-    """
-    _items = list(loot_pool)
-    if not _items:
-        _items = ["scrap_metal"]
+    """Drop trade-good loot items at a death position using the pool."""
+    _items = list(loot_pool) or ["scrap_metal"]
     _min_c, _max_c = count_range
     _count = RNG.randint(_min_c, _max_c)
     for _ in range(_count):
         _good_id = RNG.choice(_items)
         _qty = RNG.randint(qty_range[0], qty_range[1])
-        game_map.entities.append(world.Entity(
-            char="%", fg=(255, 215, 0),
-            pos=pos,
-            name="Loot", width=1, height=1,
-            loot_data={"good_id": _good_id, "quantity": _qty},
-        ))
+        _append_loot_entity(
+            game_map, pos,
+            {"good_id": _good_id, "quantity": _qty},
+        )
+
+
+def _spawn_equipment_loot_at_position(
+    game_map: world.GameMap,
+    pos: world.Position,
+    equipment_pool: tuple[tuple[str, str], ...],
+    count_range: tuple[int, int] = (0, 1),
+) -> None:
+    """Drop ground-equipment loot using ``(item_type, item_id)`` entries."""
+    if not equipment_pool:
+        return
+    _min_c, _max_c = count_range
+    _count = RNG.randint(_min_c, _max_c)
+    for _ in range(_count):
+        item_type, item_id = RNG.choice(equipment_pool)
+        _append_loot_entity(
+            game_map, pos,
+            {"item_type": item_type, "item_id": item_id},
+        )
 
 
 def _remove_dead_entity(

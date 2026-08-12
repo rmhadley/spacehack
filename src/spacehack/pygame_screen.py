@@ -404,12 +404,11 @@ def _draw_frame(
                 selected=index == selected, palette=palette,
             )
         else:
-            pygame_ui.draw_text(
-                pygame, screen, font,
-                pygame_ui.fit_text(row.text, width - 80, measure),
-                x, y, color=palette.description,
+            y = pygame_ui.draw_informational_row(
+                pygame, screen, font, row.text,
+                x, y, width - 80,
+                color=palette.description,
             )
-            y += font.get_linesize() + 4
     measure_detail_height = max(
         (
             pygame_ui.wrapped_text_height(
