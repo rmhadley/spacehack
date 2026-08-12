@@ -566,6 +566,10 @@ def _run_game_loop(
     map_w = SCREEN_WIDTH - HUD_WIDTH
     map_h = SCREEN_HEIGHT - MSG_LOG_HEIGHT
     console = make_console()
+    # Fresh city/tutorial runs have no space map or player yet. Loaded
+    # dungeon runs overwrite these values from their saved context below.
+    space_game_map: world.GameMap | None = None
+    space_player: world.Entity | None = None
 
     if loaded_ctx is not None:
         # --- Resume from save ---
@@ -665,18 +669,7 @@ def _run_game_loop(
         solar_system_module.set_current_solar_system("sol")
 
     # --- Space state for dungeon boarding ---
-    # NOTE: These are bare annotations, NOT assignments with = None.
-    # The = None at the end would overwrite the loaded values from
-    # ctx._space_game_map / ctx._space_player in the load path above
-    # (lines ~197-198), causing the dungeon exit check to always fail
-    # on a loaded save because both variables would be None.
-    #
-    # Both variables are assigned by the three paths that need them:
-    #   - _launch_to_space return value (city → space transition)
-    #   - boarding a derelict (space → dungeon transition)
-    #   - loading a dungeon save (ctx._space_game_map / ctx._space_player)
-    space_game_map: world.GameMap | None
-    space_player: world.Entity | None
+    # Later city/space transitions overwrite these values when needed.
     runtime = getattr(context, "_runtime", None)
     if runtime is not None:
         runtime.game_context = ctx
