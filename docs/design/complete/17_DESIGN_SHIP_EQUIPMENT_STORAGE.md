@@ -1,7 +1,7 @@
 # DESIGN: Ship Equipment Storage and Loadout Transfer
 
-> **Status:** In progress. This document is the contract for the first
-> inventory/storage pass and is intentionally UI-iterative.
+> **Status:** Complete. Shipped 2026-08-12. This document records the first
+> inventory/storage pass and its UI iteration.
 
 ## Overview
 
@@ -385,25 +385,20 @@ shortcuts, empty/malformed storage, chooser action mapping, and cancellation.
 - The guide explains the storage behavior and upgrade-preservation rule.
 - Smoke and the full test suite pass.
 
-## Open questions for UI iteration
+## Deferred follow-ons
 
-These are intentionally deferred until the first playable UI exists:
+The following ideas are intentionally outside this completed first pass and
+should be designed separately if they become valuable:
 
-1. Should Storage be a third split-screen column/tab, a hangar tab, or both?
-2. Should Store/Install require confirmation, or should the action be reversible
-   enough that immediate execution is clearer?
-3. Should stored equipment be sorted by type, name, price, or slot compatibility?
-4. Should the Storage view show a count for duplicates, or individual rows for
-   every owned part?
-5. Should a full incompatible loadout offer a quick "Store all" operation?
-6. Should the player eventually pay a service fee to transfer or install stored
-   equipment? No fee is planned for the first pass.
+- Storage capacity, filters, grouping, or a hangar shortcut.
+- Transfer fees or an inventory economy.
+- Rarity, random modifiers, and generated equipment identity.
 
-## Current status
+## Final status
 
-Phase 4 is complete after the full lifecycle playtest and regression pass. Phase
-1 established the persistent storage backend; Phase 2 added the mechanic UI;
-Phase 3 preserves installed equipment through ship upgrades; Phase 4 records the
-mechanic split view as the first storage home and closes the initial feature pass.
-The persistent ownership and no-silent-destruction rules remain the stable core;
-future capacity, filters, or hangar integration can be designed separately.
+All four phases are complete after the full lifecycle playtest and regression
+pass. Phase 1 established the persistent storage backend; Phase 2 added the
+mechanic UI; Phase 3 preserves installed equipment through ship upgrades; Phase
+4 records the mechanic split view as the first storage home and closes the
+initial feature pass. The persistent ownership and no-silent-destruction rules
+are the stable core for future equipment inventories.
