@@ -53,9 +53,9 @@ def _loadout_hint(mode: str) -> str:
     from .. import pygame_ui
 
     action_hint = {
-        "MARKET": "ENTER buy/store",
-        "STORAGE": "ENTER install/store",
-        "SELL": "ENTER sell",
+        "MARKET": "ENTER buy/choose",
+        "STORAGE": "ENTER install/choose",
+        "SELL": "ENTER sell/choose",
     }[mode]
     return pygame_ui.modal_hint(
         "UP/DOWN navigate", "TAB switch panel", action_hint,
@@ -162,24 +162,20 @@ def _market_rows(weapon_ids, module_ids):
 
 
 def _ship_rows(ctx, ship_spec, mode: str):
-    """Build active-ship rows with Store or explicit Sell actions."""
+    """Build active-ship rows whose Enter action opens Store/Sell choices."""
     from .. import pygame_split
     from .. import pygame_ui
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
 
-    action_name = "SELL" if mode == "SELL" else "STORE"
     rows = [pygame_split.section_header("WEAPON SLOTS")]
     for item_id, slot_index in ship_module._find_weapon_slots(ctx.player_owned_ship, ship_spec):
         if item_id is None:
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
         spec = find_weapon(item_id)
-        action = f"{action_name}_WEAPON_SLOT:{slot_index}"
-        value = (
-            pygame_ui.sell_cell(ship_module._sell_price("weapon", item_id))
-            if action_name == "SELL" else "STORE"
-        )
+        action = f"MANAGE_WEAPON_SLOT:{slot_index}"
+        value = "CHOOSE"
         rows.append(
             pygame_split.SplitRow(
                 spec.name, value,
@@ -193,11 +189,8 @@ def _ship_rows(ctx, ship_spec, mode: str):
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
         spec = find_module(item_id)
-        action = f"{action_name}_MODULE_SLOT:{slot_index}"
-        value = (
-            pygame_ui.sell_cell(ship_module._sell_price("module", item_id))
-            if action_name == "SELL" else "STORE"
-        )
+        action = f"MANAGE_MODULE_SLOT:{slot_index}"
+        value = "CHOOSE"
         rows.append(pygame_split.SplitRow(spec.name, value, spec.description, action))
     return tuple(rows)
 
@@ -293,6 +286,49 @@ def _apply_stored_sell(ctx, action: str) -> None:
     ctx.log.add(f"Sold stored {stored.item_id.replace('_', ' ').title()} for {price}$.")
 
 
+def _choose_ship_action(ctx, action: str) -> str:
+    """Ask whether an installed part should be stored or sold."""
+    item_type, slot_text = action.split(":", 1)
+    slot = int(slot_text)
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    slots = (
+        ship_module._find_weapon_slots(owned, ship_spec)
+        if item_type == "MANAGE_WEAPON_SLOT"
+        else ship_module._find_module_slots(owned, ship_spec)
+    )
+    if not 0 <= slot < len(slots) or slots[slot][0] is None:
+        return "__BACK__"
+    item_id = slots[slot][0]
+    from ..data.modules import find_module
+    from ..data.weapons import find_weapon
+    spec = find_weapon(item_id) if item_type == "MANAGE_WEAPON_SLOT" else find_module(item_id)
+    from .. import pygame_story
+    return pygame_story.choose(
+        ctx,
+        title="MANAGE EQUIPMENT",
+        body=f"{spec.name}\n\nWhat would you like to do with this installed part?",
+        options=(
+            ("Store", f"STORE_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
+            ("Sell", f"SELL_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}"),
+        ),
+        caption="spacehack - manage equipment",
+    )
+
+
+def _apply_manage_ship_item(ctx, action: str) -> None:
+    """Open the Store/Sell chooser and apply its selected action."""
+    chosen = _choose_ship_action(ctx, action)
+    if chosen in {"__BACK__", "__GUIDE__"}:
+        return
+    if chosen == "__QUIT__":
+        raise SystemExit
+    if chosen.startswith("STORE_"):
+        _apply_store(ctx, chosen)
+    elif chosen.startswith("SELL_"):
+        _apply_sell_installed(ctx, chosen)
+
+
 def _apply_store(ctx, action: str) -> None:
     """Store one installed weapon or module."""
     item_type, slot_text = action.split(":", 1)
@@ -360,6 +396,8 @@ _LOADOUT_ACTION_HANDLERS = (
     ("BUY_MODULE:", _apply_buy_module),
     ("INSTALL_STORED:", _apply_stored_install),
     ("SELL_STORED:", _apply_stored_sell),
+    ("MANAGE_WEAPON_SLOT:", _apply_manage_ship_item),
+    ("MANAGE_MODULE_SLOT:", _apply_manage_ship_item),
     ("STORE_WEAPON_SLOT:", _apply_store),
     ("STORE_MODULE_SLOT:", _apply_store),
     ("SELL_WEAPON_SLOT:", _apply_sell_installed),

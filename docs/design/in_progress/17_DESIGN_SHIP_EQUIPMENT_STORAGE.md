@@ -293,7 +293,7 @@ Manual playtest of the empty-locker Continue path remains before Phase 2.
 ### Phase 2 - First storage UI
 
 - [x] Add a first-pass Storage view to the mechanic loadout flow.
-- [x] Add explicit Store actions for installed weapons/modules.
+- [x] Add the My Ship Store/Sell chooser for installed weapons/modules.
 - [x] Add explicit Install actions for stored weapons/modules.
 - [x] Add visible remaining-ammo text for stored missile launchers.
 - [x] Keep Sell separate and preserve current mechanic purchase behavior.
@@ -306,12 +306,15 @@ returns when reinstalled. Also switch to SELL explicitly and verify selling a
 stored part does not affect installed equipment.
 
 **Implementation checkpoint:** Phase 2 adds a first-pass three-view loadout modal:
-FOR SALE, STORAGE, and SELL. The active ship panel offers STORE in the market
-and storage views; Storage offers INSTALL; Sell keeps selling explicit. Stored
-missile launchers display remaining ammo, and failed installs leave storage
-unchanged with a log explanation. The guide now documents the storage workflow.
-Focused UI, mechanic, and ship mutation validation passes; manual playtest of
-the complete Store -> Storage -> Install flow remains before Phase 3.
+FOR SALE, STORAGE, and SELL. Installed My Ship rows now show CHOOSE; ENTER opens
+a small shared-Pygame chooser with STORE and SELL, and Escape leaves the part
+unchanged. Storage offers INSTALL; stored-equipment selling remains explicit.
+Stored missile launchers display remaining ammo, and failed installs leave storage
+unchanged with a log explanation. The guide now documents the storage workflow
+and the Store/Sell chooser. Focused UI, mechanic, and ship mutation validation
+passes; manual playtest of the complete chooser -> Store/Install lifecycle remains
+before Phase 3.
+
 
 ### Phase 3 - Ship upgrade preservation
 

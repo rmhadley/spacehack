@@ -1826,7 +1826,7 @@ def test_loadout_storage_frame_shows_install_actions_and_spent_ammo():
     frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
 
     assert frame.left_label == "Storage"
-    assert "ENTER install/store" in frame.hint
+    assert "ENTER install/choose" in frame.hint
     assert [row.action for row in frame.left_rows if not row.divider] == [
         "TOGGLE_VIEW:SELL",
         "INSTALL_STORED:0",
@@ -1835,7 +1835,7 @@ def test_loadout_storage_frame_shows_install_actions_and_spent_ammo():
     missile = next(row for row in frame.left_rows if row.action == "INSTALL_STORED:0")
     assert "Ammo: 1/4" in missile.detail
     assert frame.right_rows[0].divider is True
-    assert any(row.action.startswith("STORE_") for row in frame.right_rows)
+    assert any(row.action.startswith("MANAGE_") for row in frame.right_rows)
 
 
 def test_loadout_sell_view_has_mode_specific_hint():
@@ -1851,7 +1851,7 @@ def test_loadout_sell_view_has_mode_specific_hint():
     frame = _loadout._pygame_loadout_frame(ctx, mode="SELL")
 
     assert "ENTER sell" in frame.hint
-    assert all(not row.action.startswith("STORE_") for row in frame.right_rows)
+    assert all(row.action.startswith("MANAGE_") or not row.action for row in frame.right_rows)
 
 
 def test_loadout_storage_view_handles_missing_and_malformed_storage():
@@ -1869,6 +1869,60 @@ def test_loadout_storage_view_handles_missing_and_malformed_storage():
     ctx.ship_storage = [None, {"item_id": "shield_mk1"}, "bad"]
     frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
     assert any(row.label == "[empty]" for row in frame.left_rows)
+
+
+def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    chosen = []
+    monkeypatch.setattr(
+        _loadout.pygame_story if hasattr(_loadout, "pygame_story") else __import__(
+            "src.spacehack.pygame_story", fromlist=["choose"]
+        ),
+        "choose",
+        lambda *args, **kwargs: chosen.append(kwargs["options"]) or "__BACK__",
+    )
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    assert _loadout._apply_pygame_loadout_action(
+        ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth",
+    )
+    assert chosen == [(
+        ("Store", "STORE_WEAPON_SLOT:0"),
+        ("Sell", "SELL_WEAPON_SLOT:0"),
+    )]
+    assert ctx.player_owned_ship.weapons == ("light_laser",)
+
+
+def test_loadout_my_ship_chooser_store_and_sell_apply_selected_action(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=0),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "STORE_WEAPON_SLOT:0")
+    _loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth")
+    assert ctx.player_owned_ship.weapons == ()
+    assert ctx.ship_storage[0].item_id == "light_laser"
+
+    ctx.player_owned_ship = OwnedShip(ship_id="scout", weapons=("light_laser",))
+    ctx.ship_storage.clear()
+    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "SELL_WEAPON_SLOT:0")
+    _loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth")
+    assert ctx.player_owned_ship.weapons == ()
+    assert ctx.ship_storage == []
+    assert ctx.stats.credits > 0
 
 
 def test_loadout_store_and_install_actions_preserve_partial_ammo():
