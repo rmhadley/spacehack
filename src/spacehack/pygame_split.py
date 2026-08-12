@@ -141,20 +141,6 @@ def _visible_window(
     )
 
 
-def _rows_height(font: Any, rows: tuple[SplitRow, ...], cap: int) -> int:
-    """Height of the tallest visible window of at most ``cap`` selectable rows."""
-    if not rows:
-        return 0
-    if not _selectable_indices(rows):
-        return 0
-    line = font.get_linesize()
-    return pygame_ui.window_height(
-        rows, cap,
-        is_selectable=lambda row: not row.divider,
-        selectable_step=line + 14, info_step=line + 5,
-    )
-
-
 def _clamp_selected(frame: SplitFrame) -> int:
     """Clamp selection to a selectable row, or zero for an empty panel."""
     indices = _selectable_indices(_rows(frame))
@@ -170,7 +156,7 @@ def _content_width(width: int) -> int:
     return max(1, (width - 132) // 2)
 
 
-def _frame_height(font: Any, frame: SplitFrame, width: int) -> int:
+def _frame_height(font: Any, frame: SplitFrame) -> int:
     """Measure the split frame for font fitting.
 
     Row and detail counts are capped (``MAX_VISIBLE_ROWS`` /
@@ -178,21 +164,14 @@ def _frame_height(font: Any, frame: SplitFrame, width: int) -> int:
     size — no longer depends on catalog size.
     """
     line = font.get_linesize()
-    panel_width = (width - 64 - 20) // 2
-    detail_width = panel_width - 68
-    measure = lambda text: pygame_ui.measure_font(font, text)
-    rows = (*frame.left_rows, *frame.right_rows)
-    detail_lines = min(
-        pygame_ui.max_wrapped_lines(
-            (row.detail for row in rows if not row.divider),
-            detail_width,
-            measure,
-        ),
-        MAX_DETAIL_LINES,
-    )
-    left_rows_height = _rows_height(font, frame.left_rows, MAX_VISIBLE_ROWS)
-    right_rows_height = _rows_height(font, frame.right_rows, MAX_VISIBLE_ROWS)
-    return 150 + max(left_rows_height, right_rows_height) + max(1, detail_lines) * (line + 2)
+    # Reserve the full capped viewport for every frame, even when the
+    # current tab has only a few rows. Without this stable budget, switching
+    # between a dense Buy catalog and a sparse Storage view refits the font
+    # to different heights and causes an abrupt size jump.
+    row_height = MAX_VISIBLE_ROWS * (line + 14)
+    divider_height = 2 * (line + 5)
+    detail_height = MAX_DETAIL_LINES * (line + 2)
+    return 150 + row_height + divider_height + detail_height
 
 
 def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
@@ -204,7 +183,7 @@ def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
     # of empty panel and made lists scroll a row sooner than needed.
     return pygame_ui.fit_font(
         pygame, path,
-        measure_height=lambda font: _frame_height(font, frame, width),
+        measure_height=lambda font: _frame_height(font, frame),
         available_height=max(1, pygame_ui.modal_footer_y(height) - 80),
     )
 

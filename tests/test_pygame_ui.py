@@ -1298,6 +1298,28 @@ def test_read_only_batch_presentation_is_enabled():
     assert pygame_batch.enabled()
 
 
+def test_split_font_budget_is_stable_across_dense_and_sparse_frames():
+    sparse = pygame_split.SplitFrame(
+        "ARMORY", "Storage", "Loadout",
+        (pygame_split.SplitRow("One item", "", "short", "ITEM"),),
+        (pygame_split.SplitRow("Weapon", "", "short", "WEAPON"),),
+        "", "", "",
+    )
+    dense_rows = tuple(
+        pygame_split.SplitRow(f"Item {index}", "", "long detail", f"ITEM:{index}")
+        for index in range(pygame_split.MAX_VISIBLE_ROWS + 5)
+    )
+    dense = pygame_split.SplitFrame(
+        "ARMORY", "Buy", "Loadout", dense_rows, sparse.right_rows, "", "", "",
+    )
+
+    class Font:
+        def get_linesize(self):
+            return 24
+
+    assert pygame_split._frame_height(Font(), sparse) == pygame_split._frame_height(Font(), dense)
+
+
 def test_split_frame_payload_round_trips_rows_and_selection():
     frame = pygame_split.SplitFrame(
         title="ARMORY",
@@ -2780,7 +2802,7 @@ def test_fixed_description_layout_budgets_cover_all_selection_states():
         )
         for selected in range(2)
     )
-    assert len({pygame_split._frame_height(Font(), frame, 800) for frame in split_frames}) == 1
+    assert len({pygame_split._frame_height(Font(), frame) for frame in split_frames}) == 1
 
 
 def test_split_visible_window_keeps_selection_inside_and_capped():
@@ -2837,17 +2859,21 @@ def test_split_frame_height_caps_rows_and_detail_lines():
             (), "", "", "", 0, 0,
         )
 
-    # Heights are identical at the cap and beyond (independent of list
-    # length) but not below it: 9 rows < MAX_VISIBLE_ROWS is shorter.
-    capped = pygame_split._frame_height(Font(), frame(pygame_split.MAX_VISIBLE_ROWS), 800)
-    assert capped == pygame_split._frame_height(Font(), frame(40), 800)
-    assert capped == pygame_split._frame_height(Font(), frame(100), 800)
-    assert capped == 150 + pygame_split.MAX_VISIBLE_ROWS * (29 + 14) + 1 * (29 + 2)
-
-    wrapped = frame(1, detail="word " * 60)
-    assert pygame_split._frame_height(Font(), wrapped, 800) == (
-        150 + (29 + 14) + pygame_split.MAX_DETAIL_LINES * (29 + 2)
+    # Heights use one stable capped layout budget regardless of the
+    # current tab's list length.
+    capped = pygame_split._frame_height(Font(), frame(pygame_split.MAX_VISIBLE_ROWS))
+    assert capped == pygame_split._frame_height(Font(), frame(40))
+    assert capped == pygame_split._frame_height(Font(), frame(100))
+    assert capped == (
+        150
+        + pygame_split.MAX_VISIBLE_ROWS * (29 + 14)
+        + 2 * (29 + 5)
+        + pygame_split.MAX_DETAIL_LINES * (29 + 2)
     )
+
+    # Sparse rows and long details use the same reserved layout budget.
+    wrapped = frame(1, detail="word " * 60)
+    assert pygame_split._frame_height(Font(), wrapped) == capped
 
 
 def test_split_font_fit_is_stable_once_rows_exceed_cap():
@@ -2896,10 +2922,8 @@ def test_split_font_fit_is_stable_once_rows_exceed_cap():
     font_huge = pygame_split._fit_font(FakePygame, huge, 1600, 960)
     font_huger = pygame_split._fit_font(FakePygame, huger, 1600, 960)
 
-    # Below the cap the frame is small and fits the max font; once the
-    # list exceeds MAX_VISIBLE_ROWS the fit is catalog-independent.
-    assert font_small.point_size == 24
-    assert font_huge.point_size == font_huger.point_size
+    # The fit is catalog-independent, including for a sparse tab.
+    assert font_small.point_size == font_huge.point_size == font_huger.point_size
 
 
 def test_menu_frame_height_caps_rows_and_detail_lines():
