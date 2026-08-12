@@ -76,6 +76,22 @@ from . import tutorial as tutorial_module
 from .pygame_runtime import PygameContext, open_runtime
 
 
+_SPACE_OBSTACLE_LABELS = {
+    "sun": "sun",
+    "planet": "planet",
+    "jump_point": "jump point",
+    "station": "station",
+}
+
+
+def _space_obstacle_message(tile_kind: str | None) -> str:
+    """Describe an impassable space object without calling it a wall."""
+    _label = _SPACE_OBSTACLE_LABELS.get(tile_kind)
+    if _label is None:
+        return "A wall blocks your path."
+    return f"The {_label} blocks your path."
+
+
 # ---------------------------------------------------------------------------
 # Space-mode helpers (combat + NPC movement shared by multiple input paths)
 # ---------------------------------------------------------------------------
@@ -1242,7 +1258,13 @@ def _run_game_loop(
                                 _save_game(ctx, mode=current_mode, city_id=current_city_id,
                                            system_id=solar_system_module.current_solar_system_id)
                             continue
-                log.add('A wall blocks your path.')
+                _space_obstacle_kind = None
+                if current_mode == 'space':
+                    _target_x = player.pos.x + dx
+                    _target_y = player.pos.y + dy
+                    if game_map.in_bounds(_target_x, _target_y):
+                        _space_obstacle_kind = game_map.tiles[_target_y][_target_x].kind
+                log.add(_space_obstacle_message(_space_obstacle_kind))
             elif code == 'occupied':
                 if blocker.ship_id:
                     ship = ship_module.find_ship(blocker.ship_id)
