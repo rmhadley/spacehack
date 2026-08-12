@@ -80,12 +80,6 @@ def smoke_test() -> int:
     root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(root))
 
-    # Enforce the temporary reference freeze as part of the canonical smoke
-    # gate. Existing references are allowed by the baseline; new ones fail
-    # before the import checks run.
-    from tools import tcod_freeze
-    if tcod_freeze.audit(root) != 0:
-        return 1
     if not _assert_backend_independence(root):
         return 1
 

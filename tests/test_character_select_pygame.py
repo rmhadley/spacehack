@@ -85,7 +85,7 @@ def test_run_confirm_maps_pygame_terminal_outcomes(monkeypatch):
     assert input_helpers._run_confirm(SimpleNamespace(), "human", "pirate") is input_helpers.Outcome.CONFIRM
 
 
-def test_character_picker_rejects_non_character_menu_without_tcod_fallback():
+def test_character_picker_rejects_non_character_menu_without_fallback():
     menu = ui.MenuScreen(
         "Choose", "hint", (("human", "Human"),), {"human": "desc"},
     )
@@ -115,7 +115,7 @@ def test_character_picker_ignores_guide_then_preserves_quit(monkeypatch):
     )
 
 
-def test_character_picker_rejects_invalid_action_without_tcod_fallback(monkeypatch):
+def test_character_picker_rejects_invalid_action_without_fallback(monkeypatch):
     menu = ui.MenuScreen(
         "Choose Your Class", "hint", (("merchant", "Merchant"),), {"merchant": "desc"},
     )

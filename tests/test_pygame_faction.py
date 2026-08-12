@@ -118,4 +118,4 @@ def test_faction_runner_propagates_unavailable_shared_runtime(monkeypatch):
     except pygame_faction.PygameFactionUnavailable as exc:
         assert str(exc) == "missing"
     else:
-        raise AssertionError("faction view must not fall back to TCOD")
+        raise AssertionError("faction view must not fall back to an unavailable renderer")

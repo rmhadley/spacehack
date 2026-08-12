@@ -134,7 +134,7 @@ def test_title_runner_propagates_missing_shared_runtime(monkeypatch):
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
     else:
-        raise AssertionError("title must not fall back to TCOD")
+        raise AssertionError("title must not fall back to an unavailable renderer")
 
 
 def test_quest_log_capture_excludes_header_block_message_log_and_trailing_blank_rows():

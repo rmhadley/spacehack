@@ -7,20 +7,9 @@ on:
 
 jobs:
   # ────────────────────────────────────────────────
-  # Reference freeze / dependency boundary
-  # ────────────────────────────────────────────────
-  freeze:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify the reference freeze
-        run: python3 tools/tcod_freeze.py
-
-  # ────────────────────────────────────────────────
   # macOS .app bundle
   # ────────────────────────────────────────────────
   macos:
-    needs: [freeze]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +59,6 @@ jobs:
   # Windows .exe
   # ────────────────────────────────────────────────
   windows:
-    needs: [freeze]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

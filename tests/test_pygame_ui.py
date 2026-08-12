@@ -81,7 +81,7 @@ def test_combat_present_rejects_failed_presenter_without_shared_runtime(monkeypa
 
     ctx = SimpleNamespace(
         _pygame_combat_presenter=FailedPresenter(),
-        context=SimpleNamespace(present=lambda _console: calls.append("tcod")),
+        context=SimpleNamespace(present=lambda _console: calls.append("legacy")),
     )
 
     monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: False)
@@ -107,7 +107,7 @@ def test_invalid_combat_console_rejects_without_shared_runtime(monkeypatch):
 
     ctx = SimpleNamespace(
         _pygame_combat_presenter=Presenter(),
-        context=SimpleNamespace(present=lambda _console: calls.append("tcod")),
+        context=SimpleNamespace(present=lambda _console: calls.append("legacy")),
     )
 
     monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: False)
@@ -665,7 +665,7 @@ def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
     else:
-        raise AssertionError("unavailable shared menus must not fall back to tcod")
+        raise AssertionError("unavailable shared menus must not fall back to the legacy console")
 
 
 def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
@@ -1839,7 +1839,7 @@ def test_split_interactive_frame_build_failure_is_explicit(monkeypatch):
     except pygame_split.PygameSplitUnavailable as exc:
         assert "could not be built" in str(exc)
     else:
-        raise AssertionError("invalid split frames must not fall back to tcod")
+        raise AssertionError("invalid split frames must not fall back to the legacy console")
 
 
 def test_split_interactive_malformed_action_is_explicit(monkeypatch):
@@ -1860,7 +1860,7 @@ def test_split_interactive_malformed_action_is_explicit(monkeypatch):
     except pygame_split.PygameSplitUnavailable as exc:
         assert "could not be rebuilt" in str(exc)
     else:
-        raise AssertionError("invalid split actions must not fall back to tcod")
+        raise AssertionError("invalid split actions must not fall back to the legacy console")
 
 
 def test_hangar_ship_tab_shows_at_a_glance_stats_and_launch():
@@ -2912,7 +2912,7 @@ def test_story_dismiss_is_explicit_when_shared_runtime_unavailable(monkeypatch):
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
     else:
-        raise AssertionError("story presentation must not fall back to tcod")
+        raise AssertionError("story presentation must not fall back to the legacy console")
 
 
 def test_story_dismiss_preserves_worker_quit_outcome(monkeypatch):

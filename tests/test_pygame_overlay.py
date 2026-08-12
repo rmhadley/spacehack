@@ -418,7 +418,7 @@ def test_draw_segments_falls_back_to_cell_position_on_gap(monkeypatch):
     assert drawn == [("AB", 1292, 84), ("CD", 1340, 84)]
 
 
-def test_present_exploration_uses_shared_overlay_and_tcod_fallback(monkeypatch):
+def test_present_exploration_uses_shared_overlay_without_fallback(monkeypatch):
     frame = object()
     shared_calls = []
     shared_ctx = SimpleNamespace(

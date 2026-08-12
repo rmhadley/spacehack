@@ -160,7 +160,7 @@ def test_pygame_faction_picker_maps_back_quit_and_propagates_failure(monkeypatch
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
     else:
-        raise AssertionError("dev faction picker must not fall back to TCOD")
+        raise AssertionError("dev faction picker must not fall back to an unavailable renderer")
 
 
 def test_choose_main_quest_faction_delegates_to_picker(monkeypatch):

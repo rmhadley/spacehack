@@ -1,6 +1,6 @@
 """Tutorial-mode tests: board forcing, setup, loadout predicate, step state.
 
-The tutorial module's popup firing itself needs a live tcod context, so
+The tutorial module's popup firing itself needs a live graphics context, so
 the tests here cover the deterministic parts: the mission-board filter,
 the credit/board setup, the pure loadout predicate, and step-state
 idempotence + the tick's early returns (which must never fire a modal).
@@ -174,7 +174,7 @@ class TestTickOrder:
 
     ``_show_step`` is monkeypatched to a recorder that marks steps done
     (mimicking the real dismiss-then-mark flow) so the tick's gating
-    and ordering are testable without a tcod context.
+    and ordering are testable without a live graphics context.
     """
 
     @staticmethod
@@ -534,7 +534,7 @@ class TestStepState:
         assert ctx.tutorial_steps == {"intro"}
 
     def test_tick_returns_when_tutorial_complete(self):
-        """A finished tutorial never fires popups (no tcod context needed)."""
+        """A finished tutorial never fires popups (no graphics context needed)."""
         ctx = _StubCtx()
         ctx.tutorial_mode = True
         ctx.tutorial_complete = True
