@@ -86,6 +86,8 @@ _GUIDE_CONTROLS = GuideSection(
         "\n"
         "- In a dungeon, C opens the Equipment tab for Expedition Pack swaps"
         "\n"
+        "- Equipment: select a slot and press ENTER to swap from your backpack"
+        "\n"
         "- F: view faction standings"
 
         "\n"
@@ -110,7 +112,8 @@ _GUIDE_CONTROLS = GuideSection(
         "- \\: full console log (scrollable history)"
         "\n"
         "- C: view character screen (level, skills, traits); in a dungeon, "
-        "C opens the Equipment tab for Expedition Pack swaps"
+        "C opens the Equipment tab for Expedition Pack swaps. The pack shows "
+        "current/max capacity; Armory Storage is unavailable underground."
         "\n"
         "- T: comms panel (hail nearby ships)"
         "\n"

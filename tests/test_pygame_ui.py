@@ -1671,6 +1671,26 @@ def test_armory_pygame_frame_builds_ground_weapon_details():
     assert all("Accuracy:" in row.detail for row in frame.left_rows if row.action.startswith("BUY_WEAPON:"))
 
 
+def test_armory_empty_views_explain_storage_scope():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
+        stats=SimpleNamespace(credits=1000),
+        ground_stats=SimpleNamespace(strength=10),
+    )
+
+    armory = _armory._pygame_armory_frame(ctx, "earth", "ARMORY")
+    expedition = _armory._pygame_armory_frame(ctx, "earth", "EXPEDITION")
+
+    assert armory.left_rows[1].label == "[empty]"
+    assert "unlimited" in armory.left_rows[1].detail
+    assert expedition.left_rows[1].label == "[empty]"
+    assert "no reserve items" in expedition.left_rows[1].detail
+    assert "ENTER equip/manage" in armory.hint
+
+
 def test_armory_frame_uses_shared_content_policy():
     ctx = SimpleNamespace(
         equipped_ground_weapons=["laser_pistol"],
@@ -1768,6 +1788,28 @@ def test_character_equipment_rows_empty_gear_is_informational():
     assert all(not row.selectable for row in rows)
     assert rows[0].text == "Weapon slot 1: Fists"
     assert rows[6].text == "Feet armor: None"
+
+
+def test_character_equipment_management_explains_backpack_actions():
+    ctx = SimpleNamespace(
+        player_level=1,
+        player_xp=0,
+        player_skill_points=0,
+        player_traits=[],
+        character_info={"class_name": "merchant"},
+        stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[],
+    )
+
+    frame = character_screen._character_frame(
+        ctx, 1, 0, equipment_management=True,
+    )
+
+    assert frame.body[1] == "Select a slot and press ENTER to swap from your backpack."
+    assert frame.footer[0].endswith("ESC close   ? guide")
 
 
 def test_character_equipment_management_keeps_slots_selectable_without_pack_items():

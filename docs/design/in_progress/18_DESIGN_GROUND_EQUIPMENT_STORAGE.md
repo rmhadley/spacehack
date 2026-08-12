@@ -487,13 +487,21 @@ Storage.
 
 ### Phase 4 - UX iteration and regression pass
 
-- [ ] Playtest the complete ground-equipment lifecycle.
-- [ ] Decide whether expedition management belongs only in the dungeon modal,
-  also in the Character Equipment tab, or in both.
-- [ ] Refine labels, hints, replacement confirmation, pack-full behavior, and
-  empty-state text.
-- [ ] Add final UI/action-mapping regression tests.
-- [ ] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
+- [ ] Playtest the complete ground-equipment lifecycle. The current playtest
+  passes armory management and Character Equipment swapping; authored ground
+  loot pickup remains unverified until a reachable loot-drop scenario is
+  available in the build.
+- [x] Decide whether expedition management belongs only in the dungeon modal,
+  also in the Character Equipment tab, or in both. Keep it in both: C opens
+  the carried-pack Equipment view in city, space, dungeon exploration, and
+  active ground combat; Armory Storage remains terminal-only.
+- [x] Refine labels, hints, replacement confirmation, pack-full behavior, and
+  empty-state text. Armory empty states now distinguish unlimited Armory
+  Storage from an empty Expedition Pack, and the carried Equipment view tells
+  the player to select a slot and press ENTER.
+- [x] Add final UI/action-mapping regression tests for the managed Equipment
+  guidance and armory storage/pack empty states.
+- [x] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
 
 **PLAYTEST:** Complete the full lifecycle: buy, install, pack, store, replace,
 swap during exploration, swap during combat, collect loot, sell at an armory,
@@ -547,12 +555,14 @@ carried reserve gear, and active loadout clear.
 
 ## Current status
 
-Phase 3 is complete. The armory terminal exposes `[B]uy`, `[A]rmory`, and
-`[E]xpedition` views, while C opens the Character Equipment tab in city, space,
-dungeon exploration, and active ground combat. The management tab shows the
-active loadout, BACKPACK ITEMS, current/max pack capacity, aligned empty slots,
-and Enter-driven compatible swap choices. Outside active combat swaps are free;
-successful ground-combat swaps cost 1 AP and refresh combat state. Ground
-weapon/armor drops use a dedicated loot payload, go directly to the Expedition
-Pack, and remain on the floor when the pack is full. Phase 4 remains the UX and
-full-lifecycle regression pass.
+Phase 3 is complete, and Phase 4 UX refinement is partially complete. The
+armory terminal exposes `[B]uy`, `[A]rmory`, and `[E]xpedition` views, while C
+opens the Character Equipment tab in city, space, dungeon exploration, and
+active ground combat. The management tab shows the active loadout, BACKPACK
+ITEMS, current/max pack capacity, aligned empty slots, and Enter-driven
+compatible swap choices. Outside active combat swaps are free; successful
+ground-combat swaps cost 1 AP and refresh combat state. Ground weapon/armor
+drops use a dedicated loot payload, go directly to the Expedition Pack, and
+remain on the floor when the pack is full. Phase 4 now clarifies the two
+storage scopes and managed Equipment guidance; the complete lifecycle
+playtest remains open until ground-equipment loot can be exercised in-game.

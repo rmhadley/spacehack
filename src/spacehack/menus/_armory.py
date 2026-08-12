@@ -139,7 +139,11 @@ def _storage_rows(
         except (AttributeError, KeyError, TypeError, ValueError):
             continue
     if len(rows) == 1:
-        rows.append(pygame_split.SplitRow("[empty]", "", "No stored ground equipment.", "", False))
+        empty_detail = {
+            "OWNED EQUIPMENT": "Armory Storage is unlimited and shared between terminals.",
+            "BACKPACK ITEMS": "Your Expedition Pack has no reserve items.",
+        }.get(section_label, "No stored ground equipment.")
+        rows.append(pygame_split.SplitRow("[empty]", "", empty_detail, "", False))
     return tuple(rows)
 
 
@@ -225,7 +229,7 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
         pygame_ui.credits_label(ctx.stats.credits),
         f"Pack: {len(_expedition_storage(ctx))}/{capacity}  Armory: unlimited",
         pygame_ui.modal_hint(
-            "UP/DOWN navigate", "TAB switch panel", "ENTER choose",
+            "UP/DOWN navigate", "TAB switch panel", "ENTER equip/manage",
             "B buy", "A armory", "E expedition", "ESC back", pygame_ui.GUIDE_HINT,
         ),
         left_tabs=left_tabs,

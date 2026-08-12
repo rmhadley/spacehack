@@ -75,6 +75,9 @@ def _character_frame(
         body = (
             f"Equipped ground gear    Expedition Pack: "
             f"{len(ctx.ground_expedition_inventory)}/{capacity}",
+            "Select a slot and press ENTER to swap from your backpack."
+            if equipment_management
+            else "Equipment is read-only outside management mode.",
         )
         footer = (pygame_ui.modal_hint(
             pygame_ui.NAV_HINT,
