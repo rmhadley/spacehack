@@ -50,6 +50,33 @@ def can_fit_weapons(weapon_ids: Iterable[str], new_weapon_id: str) -> bool:
     return weapon_slot_occupancy(weapon_ids) + weapon_hands(new_weapon_id) <= WEAPON_SLOT_COUNT
 
 
+def displaced_weapon_count(
+    weapon_ids: Iterable[str], new_weapon_id: str,
+) -> int:
+    """Return how many active weapons an equip action must displace."""
+    current = tuple(weapon_ids)
+    return 0 if can_fit_weapons(current, new_weapon_id) else len(current)
+
+
+def preferred_displacement_container(
+    pack_count: int,
+    pack_capacity: int,
+    displaced_count: int,
+    source_container: str,
+) -> str:
+    """Prefer the expedition pack, falling back to unlimited armory storage.
+
+    Removing an item from the pack frees one slot before displaced gear is
+    added back to that same pack.
+    """
+    available = pack_capacity - pack_count
+    if source_container == EXPEDITION_INVENTORY:
+        available += 1
+    if displaced_count <= available:
+        return EXPEDITION_INVENTORY
+    return ARMORY_STORAGE
+
+
 def _validate_entry(entry: StoredGroundEquipment) -> None:
     """Raise ValueError when a stored entry is not a valid catalog item."""
     if entry.item_type == "weapon":

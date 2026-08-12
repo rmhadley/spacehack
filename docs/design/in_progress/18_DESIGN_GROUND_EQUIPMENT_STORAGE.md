@@ -55,7 +55,7 @@ covered by `docs/design/complete/17_DESIGN_SHIP_EQUIPMENT_STORAGE.md`.
 | **Equipment types** | Ground weapons and ground armor. Trade goods, ship equipment, and loot remain separate systems. Both spare weapons and spare armor use expedition slots. |
 | **Weapon slots** | The active loadout remains two weapon slots. The current armory only limits the list to two IDs; Phase 1 will make a two-handed weapon occupy both slots and prevent pairing it with another weapon. |
 | **Armor slots** | One item per fixed slot: `head`, `body`, `hands`, `legs`, and `feet`. The current armory rejects a purchase when its slot is occupied; Phase 1 will preserve the displaced item through storage-aware replacement. |
-| **Replacement behavior** | Phase 1 target: equipping an item into an occupied compatible slot stores the displaced item; it is never silently sold or destroyed. |
+| **Replacement behavior** | Equipping an item into an occupied compatible slot stores the displaced item; it is never silently sold or destroyed. The Expedition Pack is preferred, with Armory Storage as the automatic fallback when the pack lacks room. |
 | **Buying** | Buying creates one owned item, then the player chooses whether to equip it, place it in the expedition pack, or leave it in armory storage. Payment is not lost if the destination choice is canceled or impossible. |
 | **Dungeon swapping** | During exploration and active combat, the player may exchange active gear with an expedition item. Each successful swap costs 1 AP; armory storage is unavailable until the player returns to an armory. |
 | **Dungeon loot** | Ground weapons and armor found in a dungeon require an available expedition slot. If the pack is full, the player must swap/drop an item or leave the loot. |
@@ -201,11 +201,11 @@ two IDs, while a two-handed weapon is represented by one ID occupying both
 logical weapon slots. No empty placeholder ID is stored for the second hand;
 the shared fit helper derives the logical occupancy from `GroundWeaponSpec.hands`.
 A transition from two one-handed weapons to a two-handed weapon must first
-move both displaced IDs atomically to the selected destination. In a dungeon,
-the expedition pack must have room for both displaced items after the selected
-weapon is removed; at an armory they may go to Armory Storage or the pack only
-through an explicit destination choice. A canceled or under-capacity transition
-leaves the source container and active loadout unchanged.
+move both displaced IDs atomically. The Expedition Pack is preferred when both
+items fit; Armory Storage is the automatic fallback when the pack is full. In a
+dungeon, the expedition pack must have room for both displaced items after the
+selected weapon is removed. A canceled or under-capacity transition leaves the
+source container and active loadout unchanged.
 
 ## Equipment movement rules
 
@@ -233,8 +233,8 @@ operation must fail without changing either loadout or storage.
 1. Validate that the item exists in the selected container (armory storage at
    an armory, expedition inventory in a dungeon).
 2. Validate that the active loadout can fit the weapon's `hands` requirement.
-3. For an armory install, resolve any displaced equipment into armory storage
-   or the expedition pack according to the player's explicit destination.
+3. For an armory equip, route displaced equipment to the Expedition Pack first,
+   falling back to Armory Storage when the pack lacks capacity.
 4. For an expedition swap, require 1 AP and resolve displaced equipment back
    into the expedition inventory.
 5. Remove exactly that source entry.
@@ -243,17 +243,18 @@ operation must fail without changing either loadout or storage.
 
 A two-handed weapon requires both logical weapon slots and is stored as one
 weapon ID in the normalized active list. Equipping it from a container must
-atomically move both currently equipped one-handed weapons to an explicit
-destination; it must never silently discard either one. In the expedition pack,
+atomically move both currently equipped one-handed weapons; it must never
+silently discard either one. In the expedition pack,
 the selected two-handed item is removed before capacity is checked for the two
 displaced items, but the complete transaction must still pass before any state
 is mutated. Replacing an active two-handed weapon with a one-handed weapon
 moves the two-handed item into the source container and installs the selected
-weapon. The first UI pass should use a compact replacement chooser when
-displacement is required. If there is no valid destination or the player
-cancels, the source container and active loadout remain unchanged.
+weapon.The first UI pass routes displacement automatically; it does not ask for a
+second destination choice. If no valid destination exists, the source container
+and active loadout remain unchanged.
 
-### Install stored armor
+
+### Equip stored armor
 
 1. Validate that the armor entry exists in the selected container.
 2. Determine its fixed catalog slot.
@@ -272,8 +273,8 @@ installing a stronger item from storage.
 ### Buy ground equipment
 
 1. Validate credits and the current armory's catalog availability.
-2. Open an Install / Expedition Pack / Armory Storage destination chooser
-   before mutating credits.
+2. Open an Equip / Expedition Pack / Armory Storage destination chooser
+   before mutating credits; displaced gear routing is automatic.
 3. For Install, use the same weapon/armor compatibility and replacement rules
    as armory loadout management.
 4. For Expedition Pack, require one available reserve slot and append one new
@@ -348,10 +349,10 @@ First UI pass should extend the existing armory split screen:
   `Armory unlimited`.
 - Show stored weapons and armor with type, slot, hands, damage/defense, and
   price details where useful.
-- Use compact Install/Store/Pack/Sell actions consistent with the ship
+- Use compact Equip/Store/Pack/Sell actions consistent with the ship
   mechanic UI. Selling is available at an armory, not underground.
-- Display a clear replacement prompt when a two-handed weapon would displace
-  one-handed weapons or when armor occupies the same slot.
+- Route displaced gear to the Expedition Pack first, then Armory Storage when
+  the pack is full; do not ask for a second destination choice.
 - Keep empty slots visible and explain that Fists are the combat fallback when
   no weapon is equipped.
 - Reuse shared Pygame split-screen primitives rather than creating a second
@@ -383,7 +384,7 @@ Add or update a guide section explaining:
   exploration or combat for 1 AP; Armory Storage is unavailable underground.
 - Buy equipment into Armory Storage or the Expedition Pack when active slots
   are full, subject to pack capacity.
-- Install, pack, and store actions preserve owned equipment; they are not
+- Equip, pack, and store actions preserve owned equipment; they are not
   sales.
 - Two-handed weapons occupy both logical weapon slots and atomically displace
   both one-handed weapons.
@@ -430,18 +431,19 @@ Phase 2 and Phase 3.
 - [x] Add clear Buy, Armory Storage, and Expedition Pack views or destinations.
 - [x] Add pack capacity/count display and Strength bonus feedback.
 - [x] Add stored weapon and armor rows with useful details.
-- [x] Add compact Install/Pack/Armory/Sell action choosers.
+- [x] Add compact Equip/Pack/Armory/Sell action choosers.
 - [x] Keep the current armory buy/sell behavior working while making ownership
   and destination explicit.
-- [x] Add replacement prompts for occupied armor slots and two-handed weapons.
+- [x] Add automatic Expedition Pack-first displacement for occupied armor slots
+  and two-handed weapons, with Armory Storage fallback.
 
 **PLAYTEST:** At an armory, use `[B]uy`, `[A]rmory`, and `[E]xpedition` to
-switch views. Buy a weapon and choose Install; buy another item and choose
-Expedition Pack; fill all four pack slots and verify a fifth item can still be
-bought into unlimited Armory Storage. Move a reserve item back to Armory
-Storage, then add another pack item. Replace equipped armor and verify the old
-piece reaches the selected container. Sell one stored item and verify only that
-item and the credits change.
+switch views. Buy a weapon and choose Equip; buy another item and choose
+Expedition Pack. Fill all four pack slots, then equip a replacement and verify
+displaced gear goes automatically to Armory Storage. With pack space available,
+verify displaced gear goes into the Expedition Pack first. Equip a two-handed
+rifle and confirm Weapon 2 shows `---` and cannot be selected. Sell one stored
+item and verify only that item and the credits change.
 
 ### Phase 3 - Dungeon expedition swapping and loot
 
@@ -531,7 +533,9 @@ carried reserve gear, and active loadout clear.
 
 Phase 2 is complete. The armory terminal now exposes `[B]uy`, `[A]rmory`, and
 `[E]xpedition` views, shows pack capacity and unlimited warehouse ownership,
-provides stored weapon/armor details, and routes purchase, install, transfer,
-store, and sale actions through the ground-equipment domain. Phase 3 adds
+provides stored weapon/armor details, and routes purchase, equip, transfer,
+store, and sale actions through the ground-equipment domain. Displaced gear now
+routes to the Expedition Pack first and falls back to Armory Storage when full;
+the 2H second weapon slot is visibly unavailable. Phase 3 adds
 in-dungeon 1-AP swaps and loot capacity behavior; Phase 4 remains the UX and
 regression pass.

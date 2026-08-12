@@ -12,7 +12,9 @@ from src.spacehack.ground_equipment import (
     remove_weapon,
     StoredGroundEquipment,
     can_fit_weapons,
+    displaced_weapon_count,
     expedition_capacity,
+    preferred_displacement_container,
     install_armor,
     install_weapon,
     sell_stored,
@@ -28,6 +30,13 @@ def test_expedition_capacity_uses_strength_bonus():
     assert expedition_capacity(19) == 4
     assert expedition_capacity(20) == 5
     assert expedition_capacity(40) == 7
+
+
+def test_displacement_prefers_pack_then_falls_back_to_armory():
+    assert displaced_weapon_count(["laser_pistol", "kinetic_pistol"], "laser_rifle") == 2
+    assert preferred_displacement_container(1, 4, 2, ARMORY_STORAGE) == EXPEDITION_INVENTORY
+    assert preferred_displacement_container(3, 4, 2, ARMORY_STORAGE) == ARMORY_STORAGE
+    assert preferred_displacement_container(4, 4, 1, EXPEDITION_INVENTORY) == EXPEDITION_INVENTORY
 
 
 def test_two_handed_fit_uses_logical_slot_occupancy():

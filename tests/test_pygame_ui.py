@@ -1326,7 +1326,9 @@ def test_split_frame_payload_round_trips_rows_and_selection():
         left_label="For Sale",
         right_label="My Loadout",
         left_rows=(pygame_split.SplitRow("Laser", "100$", "damage", "BUY:laser"),),
-        right_rows=(pygame_split.SplitRow("[empty]", "", "", "", divider=False),),
+        right_rows=(pygame_split.SplitRow(
+            "[empty]", "", "", "", divider=False, selectable=False,
+        ),),
         footer_left="Credits: 100",
         footer_right="",
         hint="TAB switch",
@@ -1339,6 +1341,23 @@ def test_split_frame_payload_round_trips_rows_and_selection():
     )
 
     assert restored == frame
+    assert restored.right_rows[0].selectable is False
+
+
+def test_split_key_mapping_skips_informational_rows():
+    frame = pygame_split.SplitFrame(
+        "ARMORY", "Loadout", "Owned",
+        (
+            pygame_split.SplitRow("Weapon 1", "", "", "WEAPON"),
+            pygame_split.SplitRow(
+                "Weapon 2: --- (occupied by 2H)", "", "", "", False, False,
+            ),
+        ),
+        (), "", "", "", 0, 1,
+    )
+
+    assert pygame_split._clamp_selected(frame) == 0
+    assert pygame_split._selectable_indices(frame.left_rows) == (0,)
 
 
 def test_split_key_mapping_switches_panels_and_returns_opaque_action():
@@ -1558,6 +1577,16 @@ def test_armory_frame_uses_shared_content_policy():
     manage_cells = [row.value for row in frame.right_rows if row.action.startswith("MANAGE_WEAPON:")]
     assert manage_cells and all(cell.startswith("(sell ") for cell in manage_cells)
 
+    two_handed = _armory._pygame_armory_frame(SimpleNamespace(
+        equipped_ground_weapons=["laser_rifle"],
+        equipped_ground_armor={},
+        stats=SimpleNamespace(credits=1000),
+    ), "earth")
+    disabled = [row for row in two_handed.right_rows if "occupied by 2H" in row.label]
+    assert len(disabled) == 1
+    assert disabled[0].action == ""
+    assert disabled[0].selectable is False
+
 
 def test_character_equipment_rows_mirror_loadout_slots():
     ctx = SimpleNamespace(
@@ -1575,6 +1604,13 @@ def test_character_equipment_rows_mirror_loadout_slots():
     # Empty weapon slot: non-selectable Fists placeholder.
     assert not rows[1].selectable
     assert rows[1].text == "Weapon slot 2: Fists"
+
+    two_handed = character_screen._equipment_rows(SimpleNamespace(
+        equipped_ground_weapons=["laser_rifle"],
+        equipped_ground_armor={},
+    ))
+    assert not two_handed[1].selectable
+    assert two_handed[1].text == "Weapon slot 2: --- (occupied by 2H)"
     # Empty head slot first, then the filled body slot.
     assert not rows[2].selectable
     assert rows[2].text == "Head armor: None"
@@ -1707,6 +1743,7 @@ def test_armory_pygame_rejects_unknown_action():
 
 def test_armory_buy_action_opens_destination_chooser(monkeypatch):
     messages = []
+    captured = {}
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
         equipped_ground_armor={},
@@ -1715,10 +1752,12 @@ def test_armory_buy_action_opens_destination_chooser(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=messages.append),
     )
-    monkeypatch.setattr(
-        _armory, "_choose_destination",
-        lambda *_args: "BUY_ARMORY:weapon:laser_pistol",
-    )
+
+    def choose_destination(*args):
+        captured["args"] = args
+        return "BUY_ARMORY:weapon:laser_pistol"
+
+    monkeypatch.setattr(_armory, "_choose_destination", choose_destination)
 
     keep_open = _armory._apply_pygame_armory_action(
         ctx, "BUY_WEAPON:laser_pistol", 0, 1,
@@ -1731,6 +1770,22 @@ def test_armory_buy_action_opens_destination_chooser(monkeypatch):
     ]
     assert ctx.stats.credits < 1000
     assert messages
+    assert captured["args"] == (ctx, "weapon", "laser_pistol")
+
+
+def test_armory_purchase_chooser_labels_equip(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__",
+    )
+
+    _armory._choose_destination(SimpleNamespace(), "weapon", "laser_pistol")
+
+    assert captured["options"][0] == (
+        "Equip", "BUY_INSTALL:weapon:laser_pistol",
+    )
 
 
 def test_armory_container_transfer_uses_domain_helper(monkeypatch):
@@ -1759,9 +1814,12 @@ def test_armory_container_transfer_uses_domain_helper(monkeypatch):
     ]
 
 
-def test_armory_replacement_asks_for_displaced_destination(monkeypatch):
+def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
     from src.spacehack import pygame_story
 
+    monkeypatch.setattr(
+        pygame_story, "choose", lambda *_args, **_kwargs: "INSTALL_ARMORY:0",
+    )
     ctx = SimpleNamespace(
         equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
         equipped_ground_armor={},
@@ -1772,12 +1830,6 @@ def test_armory_replacement_asks_for_displaced_destination(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message: None),
     )
-    choices = iter(("INSTALL_ARMORY:0", "INSTALL_EXPEDITION:0"))
-    monkeypatch.setattr(
-        pygame_story,
-        "choose",
-        lambda *_args, **_kwargs: next(choices),
-    )
 
     _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
 
@@ -1787,6 +1839,67 @@ def test_armory_replacement_asks_for_displaced_destination(monkeypatch):
         _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
         _armory.ground_equipment.StoredGroundEquipment("weapon", "kinetic_pistol"),
     ]
+
+
+def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
+    from src.spacehack import pygame_story
+
+    monkeypatch.setattr(
+        pygame_story, "choose", lambda *_args, **_kwargs: "INSTALL_ARMORY:0",
+    )
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+        ground_expedition_inventory=[
+            _armory.ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
+            _armory.ground_equipment.StoredGroundEquipment("armor", "light_vest"),
+            _armory.ground_equipment.StoredGroundEquipment("armor", "combat_boots"),
+        ],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
+
+    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.ground_expedition_inventory[-1].item_id == "combat_boots"
+    assert ctx.ground_armory_storage == [
+        _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+        _armory.ground_equipment.StoredGroundEquipment("weapon", "kinetic_pistol"),
+    ]
+
+
+def test_armory_purchase_equip_uses_armory_fallback_when_pack_is_full(monkeypatch):
+    messages = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
+        equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[
+            _armory.ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
+            _armory.ground_equipment.StoredGroundEquipment("armor", "light_vest"),
+            _armory.ground_equipment.StoredGroundEquipment("armor", "combat_boots"),
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "combat_knife"),
+        ],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=messages.append),
+    )
+    monkeypatch.setattr(
+        _armory, "_choose_destination",
+        lambda *_args: "BUY_INSTALL:weapon:laser_rifle",
+    )
+
+    _armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_rifle", 0, 0)
+
+    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert [entry.item_id for entry in ctx.ground_armory_storage] == [
+        "laser_pistol", "kinetic_pistol",
+    ]
+    assert ctx.stats.credits < 1000
+    assert messages
 
 
 def test_armory_purchase_dismissal_preserves_credits_and_ownership(monkeypatch):

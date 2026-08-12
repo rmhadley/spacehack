@@ -151,10 +151,25 @@ def _loadout_rows(ctx: GameContext):
     rows = [pygame_split.section_header("WEAPON SLOTS")]
     weapons = list(ctx.equipped_ground_weapons)
     for index in range(max(2, len(weapons))):
+        try:
+            two_handed = bool(weapons) and ground_equipment.weapon_hands(weapons[0]) == 2
+        except KeyError:
+            two_handed = False
+        if index == 1 and two_handed:
+            rows.append(pygame_split.SplitRow(
+                "Weapon 2: --- (occupied by 2H)", "", "", "", False, False,
+            ))
+            continue
         if index >= len(weapons):
             rows.append(pygame_split.SplitRow(f"Weapon {index + 1}: [empty]", "", "", "", False))
             continue
-        spec = find_ground_weapon(weapons[index])
+        try:
+            spec = find_ground_weapon(weapons[index])
+        except KeyError:
+            rows.append(pygame_split.SplitRow(
+                f"Weapon {index + 1}: [unavailable]", "", "", "", False, False,
+            ))
+            continue
         rows.append(pygame_split.SplitRow(
             f"Weapon {index + 1}: {spec.name}",
             pygame_ui.sell_cell(_sell_price(spec.id)),
@@ -223,7 +238,7 @@ def _choose_destination(ctx, item_type: str, item_id: str) -> str:
         title="BUY GROUND EQUIPMENT",
         body=spec.name,
         options=(
-            ("Install", f"BUY_INSTALL:{item_type}:{item_id}"),
+            ("Equip", f"BUY_INSTALL:{item_type}:{item_id}"),
             ("Armory Storage", f"BUY_ARMORY:{item_type}:{item_id}"),
             ("Expedition Pack", f"BUY_EXPEDITION:{item_type}:{item_id}"),
         ),
@@ -242,24 +257,22 @@ def _needs_displacement(ctx, entry: ground_equipment.StoredGroundEquipment) -> b
     return bool(ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot))
 
 
-def _choose_install_destination(ctx, entries, index: int, container: str) -> str:
-    """Choose where displaced gear goes before an occupied-slot install."""
-    from .. import pygame_story
-
-    if container == ground_equipment.ARMORY_STORAGE:
-        options = (
-            ("Keep old gear in Armory", f"INSTALL_ARMORY:{index}"),
-            ("Move old gear to Pack", f"INSTALL_EXPEDITION:{index}"),
+def _displacement_container(ctx, entry, container: str) -> str:
+    """Choose Expedition Pack first, falling back to Armory Storage."""
+    if entry.item_type == "weapon":
+        displaced_count = ground_equipment.displaced_weapon_count(
+            ctx.equipped_ground_weapons, entry.item_id,
         )
     else:
-        options = (("Keep old gear in Pack", f"INSTALL_EXPEDITION:{index}"),)
-    return pygame_story.choose(
-        ctx,
-        title="REPLACE GROUND EQUIPMENT",
-        body="Choose where the displaced gear should go.",
-        options=options,
-        caption="spacehack - ground equipment replacement",
-        compact=True,
+        from ..data.ground_armor import find_ground_armor
+        displaced_count = int(
+            bool(ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot))
+        )
+    return ground_equipment.preferred_displacement_container(
+        len(_expedition_storage(ctx)),
+        ground_equipment.expedition_capacity(_strength(ctx)),
+        displaced_count,
+        container,
     )
 
 
@@ -267,26 +280,14 @@ def _install_from_container(
     ctx, entries, index: int, container: str,
     displaced_container: str | None = None,
 ) -> None:
-    """Install an owned item after choosing a displacement destination."""
+    """Equip an owned item, routing displaced gear automatically."""
     if not 0 <= index < len(entries):
         ctx.log.add("That equipment is no longer available.")
         return
     entry = entries[index]
     try:
         if displaced_container is None and _needs_displacement(ctx, entry):
-            chosen = _choose_install_destination(ctx, entries, index, container)
-            if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
-                return
-            if chosen == "__QUIT__":
-                raise SystemExit
-            if not chosen.startswith("INSTALL_"):
-                return
-            displaced_container = chosen.split(":", 1)[0].removeprefix("INSTALL_").lower()
-            if displaced_container not in {
-                ground_equipment.ARMORY_STORAGE,
-                ground_equipment.EXPEDITION_INVENTORY,
-            }:
-                return
+            displaced_container = _displacement_container(ctx, entry, container)
         displaced_storage = {
             ground_equipment.ARMORY_STORAGE: _armory_storage(ctx),
             ground_equipment.EXPEDITION_INVENTORY: _expedition_storage(ctx),
@@ -310,7 +311,7 @@ def _install_from_container(
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return
-    ctx.log.add(f"Installed {_equipment_name(entry)}.")
+    ctx.log.add(f"Equipped {_equipment_name(entry)}.")
 
 
 def _transfer_container_item(ctx, entries, index: int, source: str) -> None:
@@ -341,7 +342,7 @@ def _transfer_container_item(ctx, entries, index: int, source: str) -> None:
 
 
 def _choose_container_action(ctx, entries, index: int, container: str) -> str:
-    """Choose install, transfer, or sell for one stored item."""
+    """Choose equip, transfer, or sell for one stored item."""
     from .. import pygame_story
 
     if not 0 <= index < len(entries):
@@ -361,7 +362,7 @@ def _choose_container_action(ctx, entries, index: int, container: str) -> str:
         title="GROUND EQUIPMENT",
         body=name,
         options=(
-            ("Install", f"INSTALL_{container}:{index}"),
+            ("Equip", f"INSTALL_{container}:{index}"),
             (transfer_label, f"{transfer_action}:{index}"),
             (f"Sell for {price}$", f"SELL_{container}:{index}"),
         ),
@@ -371,7 +372,7 @@ def _choose_container_action(ctx, entries, index: int, container: str) -> str:
 
 
 def _apply_container_choice(ctx, entries, index: int, container: str) -> None:
-    """Apply an install, transfer, or sell choice from a storage container."""
+    """Apply an equip, transfer, or sell choice from a storage container."""
     chosen = _choose_container_action(ctx, entries, index, container)
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
         return
@@ -419,20 +420,28 @@ def _apply_purchase(ctx, action: str) -> None:
             raise ValueError(f"Unknown purchase destination: {_destination!r}")
         if _destination == "BUY_INSTALL":
             source = [entry]
+            displaced_container = _displacement_container(
+                ctx, entry, ground_equipment.ARMORY_STORAGE,
+            )
+            displaced_storage = (
+                pack
+                if displaced_container == ground_equipment.EXPEDITION_INVENTORY
+                else armory
+            )
             if item_type == "weapon":
                 ground_equipment.install_weapon(
                     ctx.equipped_ground_weapons, source, 0,
-                    displaced_storage=armory,
+                    displaced_storage=displaced_storage,
                     container=ground_equipment.ARMORY_STORAGE,
-                    displaced_container=ground_equipment.ARMORY_STORAGE,
+                    displaced_container=displaced_container,
                     strength=_strength(ctx),
                 )
             else:
                 ground_equipment.install_armor(
                     ctx.equipped_ground_armor, source, 0,
-                    displaced_storage=armory,
+                    displaced_storage=displaced_storage,
                     container=ground_equipment.ARMORY_STORAGE,
-                    displaced_container=ground_equipment.ARMORY_STORAGE,
+                    displaced_container=displaced_container,
                     strength=_strength(ctx),
                 )
         elif _destination == "BUY_ARMORY":

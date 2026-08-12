@@ -60,7 +60,7 @@ def _character_frame(ctx: GameContext, tab: int, selected: int):
         ),)
     else:
         rows = _equipment_rows(ctx)
-        body = ("Your installed ground gear",)
+        body = ("Your equipped ground gear",)
         footer = (pygame_ui.modal_hint(
             pygame_ui.NAV_HINT, "TAB stats", "ESC close",
             pygame_ui.GUIDE_HINT,
@@ -86,8 +86,19 @@ def _equipment_rows(ctx: GameContext) -> tuple:
     weapons = list(ctx.equipped_ground_weapons)
     while len(weapons) < 2:
         weapons.append("")
+    first_weapon_is_two_handed = False
+    if weapons[0]:
+        try:
+            first_weapon_is_two_handed = find_ground_weapon(weapons[0]).hands == 2
+        except KeyError:
+            pass
     for index, weapon_id in enumerate(weapons[:2], 1):
         label = f"Weapon slot {index}"
+        if index == 2 and first_weapon_is_two_handed:
+            rows.append(pygame_screen.ScreenRow(
+                f"{label}: --- (occupied by 2H)", "", selectable=False,
+            ))
+            continue
         if weapon_id:
             try:
                 spec = find_ground_weapon(weapon_id)

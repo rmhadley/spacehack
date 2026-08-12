@@ -34,6 +34,7 @@ class SplitRow:
     detail: str
     action: str
     divider: bool = False
+    selectable: bool = True
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,10 @@ def _rows(frame: SplitFrame) -> tuple[SplitRow, ...]:
 
 def _selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
     """Return row indices that can produce an action."""
-    return tuple(index for index, row in enumerate(rows) if not row.divider)
+    return tuple(
+        index for index, row in enumerate(rows)
+        if not row.divider and row.selectable and bool(row.action)
+    )
 
 
 # Row/detail caps for the fit solver + viewport — shared single source of
@@ -267,6 +271,14 @@ def _draw_panel(
                     x, y, color=palette.description,
                 )
                 y += font.get_linesize() + 5
+                continue
+            if not row.selectable or not row.action:
+                pygame_ui.draw_text(
+                    pygame, screen, font,
+                    pygame_ui.fit_text(row.label, panel.width - 40, measure),
+                    x, y, color=palette.description,
+                )
+                y += font.get_linesize() + 4
                 continue
             selected_row = focused and index == selected
             y = pygame_ui.draw_menu_row(
