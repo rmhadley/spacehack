@@ -321,12 +321,12 @@ before Phase 3.
 
 ### Phase 3 - Ship upgrade preservation
 
-- [ ] Route successful ship purchases through the installed-equipment transfer
+- [x] Route successful ship purchases through the installed-equipment transfer
   helper.
-- [ ] Move all old weapons/modules and missile ammo into storage before the new
+- [x] Move all old weapons/modules and missile ammo into storage before the new
   ship becomes active.
-- [ ] Preserve mission cargo reservations and existing trade-in pricing rules.
-- [ ] Add upgrade-flow regression tests for affordability failure, cancel/back,
+- [x] Preserve mission cargo reservations and existing trade-in pricing rules.
+- [x] Add upgrade-flow regression tests for affordability failure, cancel/back,
   duplicate equipment, full storage semantics, and successful transfer.
 
 **PLAYTEST:** Install a rare module such as Shield Mk. 4 on the current ship,
@@ -334,6 +334,17 @@ then buy a larger ship. Confirm the old shield is in Storage, the new ship has
 its expected starting loadout, and the shield can be installed if a compatible
 slot is available. Save/Continue between the purchase and reinstallation and
 verify the shield is still present exactly once.
+
+**Implementation checkpoint:** Phase 3 routes the successful trade-in branch
+through `_complete_ship_purchase`. It validates affordability before mutation,
+uses `move_installed_equipment_to_storage` to preserve every old weapon/module
+and slot-indexed missile magazine, then creates the purchased ship with its
+catalog starting loadout. Mission cargo reservations and the existing 50%
+trade-in price remain unchanged; the new ship capacity warning is preserved.
+Failed affordability and transfer validation leave credits, the old ship, its
+city entity, and storage unchanged. The guide now documents the preservation
+rule. Automated focused ship-purchase, mutation, UI, and exit tests pass;
+manual upgrade plus save/Continue playtest remains before Phase 4.
 
 ### Phase 4 - UX iteration, guide, and regression pass
 
@@ -382,7 +393,8 @@ These are intentionally deferred until the first playable UI exists:
 
 ## Current status
 
-Phase 2 implementation is complete pending manual playtest. Phase 1 established
-the persistent storage backend; Phase 2 adds the first iterative mechanic UI.
-UI details are expected to change after playtesting; the persistent ownership
-and no-silent-destruction rules are the stable core.
+Phase 3 implementation is complete pending manual upgrade/save playtest. Phase 1
+established the persistent storage backend; Phase 2 added the first iterative
+mechanic UI; Phase 3 preserves installed equipment through ship upgrades. UI
+details are expected to change after playtesting; the persistent ownership and
+no-silent-destruction rules are the stable core.

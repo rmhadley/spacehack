@@ -388,6 +388,101 @@ def _launch_owned_ship(
     )
 
 
+def _apply_ship_buy_result(
+    ctx,
+    city_game_map,
+    blocker,
+    ship,
+    player_owned_ship,
+    result,
+    effective_price: int,
+    trade_in_value: int,
+):
+    """Apply one ship-buy modal result and return the replacement ship."""
+    if result is ShipBuyOutcome.BUY:
+        return _complete_ship_purchase(
+            ctx,
+            city_game_map,
+            blocker,
+            ship,
+            player_owned_ship,
+            effective_price,
+            trade_in_value,
+        )
+    if result is ShipBuyOutcome.TOO_EXPENSIVE:
+        short = effective_price - ctx.stats.credits
+        ctx.log.add(
+            f"You cannot afford the {ship.name} - need {effective_price}$ "
+            f"(including {trade_in_value}$ trade-in), {short}$ short."
+        )
+    return None
+
+
+def _complete_ship_purchase(
+    ctx,
+    city_game_map,
+    blocker,
+    ship,
+    player_owned_ship,
+    effective_price: int,
+    trade_in_value: int,
+):
+    """Complete an affordable ship purchase without losing old equipment."""
+    if ctx.stats.credits < effective_price:
+        return None
+    _old_reserved = player_owned_ship.mission_reserved if player_owned_ship else 0
+    _storage_before = len(ctx.ship_storage)
+    if player_owned_ship is not None:
+        try:
+            ship_module.move_installed_equipment_to_storage(
+                player_owned_ship,
+                ctx.ship_storage,
+            )
+        except ValueError:
+            ctx.log.add("The trade-in could not safely transfer its equipment.")
+            return None
+    ctx.stats.credits -= effective_price
+    if player_owned_ship is not None:
+        _old_entity = next(
+            (
+                entity for entity in city_game_map.entities
+                if entity.owned and entity.ship_id == player_owned_ship.ship_id
+            ),
+            None,
+        )
+        if _old_entity is not None:
+            city_game_map.entities.remove(_old_entity)
+    blocker.pos = world.HANGAR_ANCHOR
+    blocker.owned = True
+    blocker.name = f"Your Ship: {ship.name}"
+    _new_owned = ship_module.OwnedShip(
+        ship_id=ship.id,
+        weapons=ship.start_weapons,
+        modules=ship.start_modules,
+        fuel=ship.max_fuel,
+        mission_reserved=_old_reserved,
+    )
+    _new_cap = ship_module.effective_max_cargo(ship, _new_owned)
+    if _old_reserved > _new_cap:
+        ctx.log.add(
+            f"WARNING: {ship.name} cannot hold your mission cargo "
+            f"({_old_reserved}/{_new_cap}). Some missions may be undeliverable."
+        )
+    ctx.player_owned_ship = _new_owned
+    if len(ctx.ship_storage) > _storage_before:
+        ctx.log.add("Your old ship's equipment was moved to Storage.")
+    if trade_in_value > 0:
+        ctx.log.add(
+            f"Traded in for the {ship.name} - paid "
+            f"{effective_price}$ (trade-in {trade_in_value}$)."
+        )
+    else:
+        ctx.log.add(
+            f"You bought the {ship.name} for {ship.price}$ and parked it in your hangar."
+        )
+    return _new_owned
+
+
 def _leave_dungeon_to_space(
     ctx,
     game_map,
@@ -1277,38 +1372,36 @@ def _run_game_loop(
                         if result is ShipBuyOutcome.QUIT:
                             return
                         if result is ShipBuyOutcome.BUY:
-                            if ctx.stats.credits < _effective_price:
-                                short = _effective_price - ctx.stats.credits
-                                log.add(f'Including trade-in ({_trade_in_value}$) you need {_effective_price}$, but you are {short}$ short.')
+                            _purchased_ship = _apply_ship_buy_result(
+                                ctx,
+                                city_game_map,
+                                blocker,
+                                ship,
+                                player_owned_ship,
+                                result,
+                                _effective_price,
+                                _trade_in_value,
+                            )
+                            if _purchased_ship is None:
+                                if ctx.stats.credits < _effective_price:
+                                    short = _effective_price - ctx.stats.credits
+                                    log.add(
+                                        f'Including trade-in ({_trade_in_value}$) you need '
+                                        f'{_effective_price}$, but you are {short}$ short.'
+                                    )
                                 continue
-                            stats.credits -= _effective_price
-                            # Remove the old owned entity from the city, if any.
-                            if player_owned_ship is not None:
-                                _old_entity = next((e for e in city_game_map.entities if e.owned and e.ship_id == player_owned_ship.ship_id), None)
-                                if _old_entity is not None:
-                                    try:
-                                        city_game_map.entities.remove(_old_entity)
-                                    except ValueError:
-                                        pass
-                            # Place the new ship in the hangar.
-                            blocker.pos = world.HANGAR_ANCHOR
-                            blocker.owned = True
-                            blocker.name = f'Your Ship: {ship.name}'
-                            # Preserve mission cargo from the old ship.
-                            _old_reserved = player_owned_ship.mission_reserved if player_owned_ship is not None else 0
-                            player_owned_ship = ship_module.OwnedShip(ship_id=ship.id, weapons=ship.start_weapons, modules=ship.start_modules, fuel=ship.max_fuel, mission_reserved=_old_reserved)
-                            # Warn if the new ship can't hold mission cargo.
-                            _new_cap = ship_module.effective_max_cargo(ship, player_owned_ship)
-                            if _old_reserved > _new_cap:
-                                log.add(f'WARNING: {ship.name} cannot hold your mission cargo ({_old_reserved}/{_new_cap}). Some missions may be undeliverable.')
-                            ctx.player_owned_ship = player_owned_ship
-                            if _trade_in_value > 0:
-                                log.add(f'Traded in for the {ship.name} - paid {_effective_price}$ (trade-in {_trade_in_value}$).')
-                            else:
-                                log.add(f'You bought the {ship.name} for {ship.price}$ and parked it in your hangar.')
+                            player_owned_ship = _purchased_ship
                         elif result is ShipBuyOutcome.TOO_EXPENSIVE:
-                            short = _effective_price - ctx.stats.credits
-                            log.add(f'You cannot afford the {ship.name} - need {_effective_price}$ (including {_trade_in_value}$ trade-in), {short}$ short.')
+                            _apply_ship_buy_result(
+                                ctx,
+                                city_game_map,
+                                blocker,
+                                ship,
+                                player_owned_ship,
+                                result,
+                                _effective_price,
+                                _trade_in_value,
+                            )
                 elif blocker.trade_terminal:
                     from .trade import open_trade as _open_trade
                     _open_trade(ctx, current_city_id)

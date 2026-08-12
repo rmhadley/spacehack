@@ -648,6 +648,42 @@ class TestSaveLoadRoundTrip:
         assert loaded.player_owned_ship.weapons == ("light_laser",)
         delete_save()
 
+    def test_ship_upgrade_transfer_round_trips_exactly(self, monkeypatch, tmp_path):
+        """Equipment moved by an upgrade remains exact after Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        from src.spacehack.ship import move_installed_equipment_to_storage
+        RNG.seed(52)
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="starter",
+            weapons=("light_missile", "light_laser"),
+            modules=("shield_mk1", "shield_mk1"),
+        )
+        ctx.player_owned_ship.weapon_ammo[0] = 1
+        move_installed_equipment_to_storage(
+            ctx.player_owned_ship,
+            ctx.ship_storage,
+        )
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.player_owned_ship is not None
+        assert loaded.player_owned_ship.weapons == ()
+        assert loaded.player_owned_ship.modules == ()
+        assert loaded.ship_storage == [
+            StoredEquipment("weapon", "light_missile", 1),
+            StoredEquipment("weapon", "light_laser"),
+            StoredEquipment("module", "shield_mk1"),
+            StoredEquipment("module", "shield_mk1"),
+        ]
+        delete_save()
+
     def test_malformed_ship_storage_entries_are_ignored(self, monkeypatch, tmp_path):
         """Malformed storage records do not prevent Continue."""
         monkeypatch.setattr(
