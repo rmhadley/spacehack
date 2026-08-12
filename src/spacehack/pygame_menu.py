@@ -140,6 +140,26 @@ def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
     return height
 
 
+COMPACT_MAX_VISIBLE_ROWS = 4
+
+
+def _compact_frame_height(font: Any, frame: MenuFrame, width: int) -> int:
+    """Measure a compact popup including wrapped title, body, and rows."""
+    popup_width, title_lines, body_lines = _compact_popup_layout(font, frame, width)
+    del popup_width
+    line_height = font.get_linesize()
+    title_step = line_height + 4
+    body_step = line_height + 4
+    row_height = line_height + 18
+    _top, visible_count = pygame_ui.visible_window(
+        frame.items, frame.selected, COMPACT_MAX_VISIBLE_ROWS,
+        is_selectable=lambda _item: True,
+    )
+    rule_y = 18 + max(1, len(title_lines)) * title_step + 12
+    body_y = rule_y + 16
+    return body_y + len(body_lines) * body_step + 16 + visible_count * row_height
+
+
 def _fit_font(
     pygame: Any,
     frames: tuple[MenuFrame, ...],
@@ -164,7 +184,12 @@ def _fit_font(
         ):
             return available_height + 1
         return max(
-            (_frame_height(font, frame, content_width) for frame in frames),
+            (
+                _compact_frame_height(font, frame, width)
+                if frame.compact
+                else _frame_height(font, frame, content_width)
+                for frame in frames
+            ),
             default=0,
         )
 
@@ -220,6 +245,31 @@ def _draw_art(
     return y + 10
 
 
+def _compact_popup_layout(
+    font: Any,
+    frame: MenuFrame,
+    width: int,
+) -> tuple[int, tuple[str, ...], tuple[str, ...]]:
+    """Return bounded popup width and wrapped title/body lines."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    title_width = measure(frame.title)
+    option_width = max(
+        (measure(item.label) for item in frame.items),
+        default=0,
+    )
+    max_popup_width = max(1, width - 160)
+    popup_width = min(
+        max_popup_width,
+        max(1, 360, title_width + 64, option_width + 72),
+    )
+    content_width = max(1, popup_width - 48)
+    return (
+        popup_width,
+        pygame_ui.wrap_text(frame.title, content_width, measure),
+        pygame_ui.wrap_text(frame.body, content_width, measure),
+    )
+
+
 def _draw_compact_frame(
     pygame: Any,
     screen: Any,
@@ -230,16 +280,19 @@ def _draw_compact_frame(
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
     measure = lambda text: pygame_ui.measure_font(font, text)
-    lines = pygame_ui.wrap_text(frame.body, width // 3, measure)
-    row_height = font.get_linesize() + 18
-    popup_width = max(
-        360,
-        min(width - 160, max(
-            pygame_ui.measure_font(font, frame.title) + 64,
-            *(pygame_ui.measure_font(font, item.label) + 72 for item in frame.items),
-        )),
+    popup_width, title_lines, body_lines = _compact_popup_layout(font, frame, width)
+    line_height = font.get_linesize()
+    title_step = line_height + 4
+    row_height = line_height + 18
+    title_y = 18
+    rule_y = title_y + max(1, len(title_lines)) * title_step + 12
+    body_y = rule_y + 16
+    popup_height = (
+        body_y
+        + len(body_lines) * (line_height + 4)
+        + 16
+        + len(frame.items) * row_height
     )
-    popup_height = 86 + len(lines) * (font.get_linesize() + 4) + len(frame.items) * row_height
     popup = pygame_ui.Rect(
         (width - popup_width) // 2,
         (height - popup_height) // 2,
@@ -247,23 +300,33 @@ def _draw_compact_frame(
         popup_height,
     )
     pygame_ui.draw_panel(pygame, screen, popup, palette=palette)
-    pygame_ui.draw_centered_text(
-        pygame, screen, font, frame.title, popup, popup.y + 22,
-        color=palette.title,
-    )
+    inset = min(24, max(1, popup.width // 2))
+    content_width = max(1, popup.width - 2 * inset)
+    y = popup.y + title_y
+    for line in title_lines or ("",):
+        pygame_ui.draw_centered_text(
+            pygame, screen, font, line, popup, y,
+            color=palette.title,
+        )
+        y += title_step
     pygame_ui.draw_rule(
-        pygame, screen, popup.x + 22, popup.y + 54,
-        popup.width - 44, color=palette.border,
+        pygame, screen, popup.x + inset, popup.y + rule_y,
+        content_width, color=palette.border,
     )
-    y = popup.y + 70
-    for line in lines:
+    y = popup.y + body_y
+    for line in body_lines:
         pygame_ui.draw_centered_text(pygame, screen, font, line, popup, y, color=palette.description)
         y += font.get_linesize() + 4
     y += 8
-    for index, item in enumerate(frame.items):
+    top, count = pygame_ui.visible_window(
+        frame.items, frame.selected, COMPACT_MAX_VISIBLE_ROWS,
+        is_selectable=lambda _item: True,
+    )
+    for index in range(top, top + count):
+        item = frame.items[index]
         pygame_ui.draw_menu_row(
-            pygame, screen, font, item.label, popup.x + 24, y,
-            popup.width - 48, selected=index == frame.selected,
+            pygame, screen, font, item.label, popup.x + inset, y,
+            content_width, selected=index == frame.selected,
             palette=palette,
         )
         y += row_height

@@ -2234,6 +2234,60 @@ def test_compact_menu_frame_round_trips_compact_flag():
     assert restored.compact is True
 
 
+def test_compact_popup_wraps_long_body_inside_popup_width():
+    frame = pygame_menu.MenuFrame(
+        "REPLACE GROUND EQUIPMENT",
+        "Choose where the displaced gear should go.",
+        (pygame_menu.MenuItem("Keep old gear in Armory", "", "KEEP"),),
+        (),
+        0,
+        compact=True,
+    )
+
+    popup_width, title_lines, body_lines = pygame_menu._compact_popup_layout(
+        _FakeFont(), frame, 1600,
+    )
+    measure = lambda text: _FakeFont().size(text)[0]
+
+    assert len(body_lines) > 1
+    assert title_lines == ("REPLACE GROUND EQUIPMENT",)
+    assert all(measure(line) <= popup_width - 48 for line in (*title_lines, *body_lines))
+
+
+def test_compact_popup_handles_long_titles_and_narrow_surfaces():
+    frame = pygame_menu.MenuFrame(
+        "A VERY LONG GROUND EQUIPMENT REPLACEMENT TITLE",
+        "",
+        (),
+        (),
+        0,
+        compact=True,
+    )
+    font = _FakeFont()
+
+    popup_width, title_lines, body_lines = pygame_menu._compact_popup_layout(
+        font, frame, 120,
+    )
+
+    assert popup_width == 1
+    assert title_lines
+    assert body_lines == ()
+    assert pygame_menu._compact_frame_height(font, frame, 120) > 0
+
+    many = pygame_menu.MenuFrame(
+        "MENU", "", tuple(
+            pygame_menu.MenuItem(f"Option {index}", "", str(index))
+            for index in range(pygame_menu.COMPACT_MAX_VISIBLE_ROWS + 3)
+        ), (), 0, compact=True,
+    )
+    four = pygame_menu.MenuFrame(
+        many.title, many.body, many.items[:pygame_menu.COMPACT_MAX_VISIBLE_ROWS],
+        many.hints, many.selected, compact=True,
+    )
+    assert pygame_menu._compact_frame_height(font, many, 1600) == \
+        pygame_menu._compact_frame_height(font, four, 1600)
+
+
 def test_compact_shared_menu_preserves_underlying_surface(monkeypatch):
     from src.spacehack import pygame_menu
 
