@@ -10,9 +10,9 @@ def test_blocked_tiles_own_their_movement_messages():
         walkable=False,
         fg=(255, 230, 120),
         bg=(140, 90, 30),
-        blocked_message="The sun blocks your path.",
+        blocked_message="Why would you do that!?"
     )
-    assert world.blocked_message_for(sun) == "The sun blocks your path."
+    assert world.blocked_message_for(sun) == "Why would you do that!?"
 
 
 def test_try_move_returns_the_blocking_tile():

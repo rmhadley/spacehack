@@ -70,7 +70,7 @@ SUN = world.Tile(
     kind="sun", char="O", walkable=False,
     fg=(255, 230, 120),                                  # warm yellow glow
     bg=(140, 90, 30),                                    # ambient orange wash so the 'O' pops off the void
-    blocked_message="The sun blocks your path.",
+    blocked_message="Why would you do that!?"
 )
 
 
