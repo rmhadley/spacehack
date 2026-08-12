@@ -500,6 +500,32 @@ def draw_menu_row(
     return y + row_height
 
 
+def draw_informational_row(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    label: str,
+    x: int,
+    y: int,
+    width: int,
+    *,
+    color: Color = DEFAULT_PALETTE.description,
+    antialias: bool = True,
+) -> int:
+    """Render a muted non-selectable row with menu-row geometry."""
+    row_height = font.get_linesize() + 14
+    marker = "  "
+    measure = lambda value: measure_font(font, value)
+    fitted_label = fit_text(label, width - measure(marker), measure)
+    draw_text(
+        pygame, screen, font, marker + fitted_label,
+        x + 12, y + 2,
+        color=color,
+        antialias=antialias,
+    )
+    return y + row_height
+
+
 # ---------------------------------------------------------------------------
 # Shared modal content conventions (single source of truth)
 # ---------------------------------------------------------------------------

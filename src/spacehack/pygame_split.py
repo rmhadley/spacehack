@@ -273,12 +273,11 @@ def _draw_panel(
                 y += font.get_linesize() + 5
                 continue
             if not row.selectable or not row.action:
-                pygame_ui.draw_text(
-                    pygame, screen, font,
-                    pygame_ui.fit_text(row.label, panel.width - 40, measure),
-                    x, y, color=palette.description,
+                y = pygame_ui.draw_informational_row(
+                    pygame, screen, font, row.label,
+                    x, y, panel.width - 40,
+                    color=palette.description,
                 )
-                y += font.get_linesize() + 4
                 continue
             selected_row = focused and index == selected
             y = pygame_ui.draw_menu_row(

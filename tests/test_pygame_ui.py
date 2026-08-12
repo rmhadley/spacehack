@@ -1344,6 +1344,44 @@ def test_split_frame_payload_round_trips_rows_and_selection():
     assert restored.right_rows[0].selectable is False
 
 
+def test_informational_split_rows_match_selectable_row_spacing():
+    class Font:
+        def get_linesize(self):
+            return 24
+
+        def size(self, text):
+            return len(text) * 10, 24
+
+        def render(self, text, _antialias, _color):
+            return text
+
+    class Screen:
+        def __init__(self):
+            self.blit_calls = []
+
+        def blit(self, surface, position):
+            self.blit_calls.append((surface, position))
+
+    class Pygame:
+        pass
+
+    font = Font()
+    selectable_screen = Screen()
+    informational_screen = Screen()
+    selectable_y = pygame_ui.draw_menu_row(
+        Pygame, selectable_screen, font, "Weapon 1: Laser Pistol",
+        100, 200, 400, selected=False,
+    )
+    informational_y = pygame_ui.draw_informational_row(
+        Pygame, informational_screen, font, "Weapon 2: [empty]",
+        100, 200, 400,
+    )
+
+    assert informational_y == selectable_y
+    assert selectable_screen.blit_calls[0][1] == informational_screen.blit_calls[0][1]
+    assert informational_screen.blit_calls[0][1] == (112, 202)
+
+
 def test_split_key_mapping_skips_informational_rows():
     frame = pygame_split.SplitFrame(
         "ARMORY", "Loadout", "Owned",
