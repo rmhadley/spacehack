@@ -44,7 +44,7 @@ from .combat._types import CombatResult
 from .xp import add_xp as _add_xp
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, load_tileset, make_console, seed_rng
 from . import pygame_engine
-from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_p_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
+from .input_helpers import Outcome, _run_pick, _run_confirm, _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import (
     ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome,
     MissionOutcome, QuestLogOutcome,
@@ -1063,6 +1063,30 @@ def _run_game_loop(
                     if _dctrl == "COMBAT":
                         continue
                 ctx.log.add('You wait.')
+                continue
+
+            # O = DCSS-style auto-explore inside dungeons: walk through
+            # unrevealed tiles until something interesting is in sight,
+            # combat begins, or the player presses a key to cancel.
+            if _is_o_press(event):
+                if current_mode != 'dungeon':
+                    ctx.log.add("Auto-explore only works inside dungeons.")
+                    continue
+                from .autoexplore import run_auto_explore
+                _ae_result = run_auto_explore(
+                    ctx,
+                    console,
+                    game_map,
+                    player,
+                    post_step_tick=_dungeon_post_move_tick,
+                    map_w=map_w,
+                    map_h=map_h,
+                    location=getattr(game_map, 'location_name', 'Derelict Ship'),
+                )
+                if _ae_result == "DEFEAT":
+                    return
+                if _ae_result == "COMBAT":
+                    continue
                 continue
 
             delta = _movement_action(event)

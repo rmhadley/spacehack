@@ -211,6 +211,18 @@ def _is_g_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'g'
 
+def _is_o_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` for the ``O`` key.
+
+    Routes O (dungeon auto-explore) through a module-level helper so
+    the smoke test can regression-guard the KeySym name lookup,
+    mirroring :func:`_is_g_press` exactly. The project event
+    normalizes key names to lowercase; Shift+O is consumed earlier by
+    the dev-mode dispatcher (``_is_shift_o_press``), so this helper
+    only ever sees the plain key.
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'o'
+
 def _is_p_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``P`` key (or its
     lowercase alias).

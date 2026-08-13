@@ -125,6 +125,11 @@ _GUIDE_CONTROLS = GuideSection(
         "\n"
         "- ?: this guide"
         "\n\n"
+        "Dungeon mode:"
+        "\n"
+        "- O: auto-explore (walk until something interesting is in"
+        " sight, combat begins, or any key is pressed)"
+        "\n\n"
         "Combat keys:"
         "\n"
         "- Arrow keys, h/j/k/l, or numpad: move on the tactical grid"
@@ -1736,10 +1741,26 @@ _GUIDE_TUTORIAL = GuideSection(
     ),
 )
 
+_GUIDE_AUTO_EXPLORE = GuideSection(
+    title="Auto-Explore",
+    body=(
+        "Press O in a dungeon or derelict to auto-explore: the game "
+        "walks you through unrevealed tiles until something interesting "
+        "comes into sight (stairs, the exit, a ship computer, a cache "
+        "of supplies, a quest NPC), a hostile opens fire, or you press "
+        "any key to cancel. Content already in view when you press O "
+        "does not stop the run, so you can explore past loot you "
+        "already spotted."
+        "\n\n"
+        "- O: start auto-explore in dungeons (any key cancels)"
+    ),
+)
+
 GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     _GUIDE_TUTORIAL,
     _GUIDE_GAME_OVERVIEW,
     _GUIDE_CONTROLS,
+    _GUIDE_AUTO_EXPLORE,
     _GUIDE_DUNGEON_EXTENSIONS,
     _GUIDE_COMBAT,
     _GUIDE_GROUND_COMBAT,

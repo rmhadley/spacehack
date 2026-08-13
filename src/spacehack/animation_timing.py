@@ -22,6 +22,8 @@ EXPLOSION_FLASH: float = 0.04
 EXPLOSION_SETTLE: float = 0.02
 GROUND_STEP: float = 0.025
 AUTO_NAV: float = 0.02
+# Per-step pacing for dungeon auto-explore (the O key).
+AUTO_EXPLORE: float = 0.02
 JUMP: float = 0.035
 CITY_TRANSITION: float = 0.045
 DUNGEON_BREACH: float = 0.045
