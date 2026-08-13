@@ -6,6 +6,7 @@ save/load round trips.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .framebuffer import FrameBuffer
@@ -32,8 +33,27 @@ class MessageEntry:
     fg: tuple[int, int, int] = COLOR_MESSAGE
 
 
+_REPEAT_SUFFIX = re.compile(r"^(.*) x(\d+)$")
+
+
+def _repeat_parts(text: str) -> tuple[str, int]:
+    """Split a displayed message into its base text and repeat count.
+
+    Coalesced entries are stored as ``"<base> x<count>"``; this recovers
+    both parts so a further repeat increments the count in place.
+    """
+    match = _REPEAT_SUFFIX.match(text)
+    if match:
+        return match.group(1), int(match.group(2))
+    return text, 1
+
+
 class MessageLog:
-    """An append-only log of recent in-game events.
+    """A log of recent in-game events.
+
+    Consecutive identical messages (same text and color) are coalesced into
+    a single entry with an ``x<count>`` suffix, e.g.
+    ``"A wall blocks your path. x3"``.
 
     Supports colored messages via :meth:`add_colored`. The plain
     :meth:`add` method uses :data:`COLOR_MESSAGE` for backward
@@ -51,10 +71,24 @@ class MessageLog:
 
     def add(self, msg: str) -> None:
         """Append ``msg`` to the log with default color."""
-        self._messages.append(MessageEntry(text=msg, fg=COLOR_MESSAGE))
+        self._append(msg, COLOR_MESSAGE)
 
     def add_colored(self, msg: str, fg: tuple[int, int, int]) -> None:
         """Append ``msg`` with an explicit foreground color."""
+        self._append(msg, fg)
+
+    def _append(self, msg: str, fg: tuple[int, int, int]) -> None:
+        """Append ``msg``, coalescing a consecutive identical repeat.
+
+        When the previous entry shows the same message in the same color,
+        it is rewritten as ``"<msg> x<count>"`` instead of growing the log.
+        """
+        if self._messages:
+            last = self._messages[-1]
+            base, count = _repeat_parts(last.text)
+            if last.fg == fg and base == msg:
+                last.text = f"{msg} x{count + 1}"
+                return
         self._messages.append(MessageEntry(text=msg, fg=fg))
 
     def recent(self, n: int | None = None) -> list[MessageEntry]:

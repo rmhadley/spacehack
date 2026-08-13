@@ -16,6 +16,54 @@ def test_message_log_keeps_full_history_but_recent_keeps_hud_capacity():
     assert log.history()[1].fg == (1, 2, 3)
 
 
+def test_repeat_messages_coalesce_with_count_suffix():
+    log = message_log.MessageLog()
+    log.add("A wall blocks your path.")
+    log.add("A wall blocks your path.")
+    log.add("A wall blocks your path.")
+
+    assert [entry.text for entry in log.history()] == ["A wall blocks your path. x3"]
+
+
+def test_repeat_coalescing_does_not_merge_across_colors():
+    log = message_log.MessageLog()
+    log.add("A wall blocks your path.")
+    log.add_colored("A wall blocks your path.", message_log.COLOR_IMPORTANT_EVENT)
+    log.add_colored("A wall blocks your path.", message_log.COLOR_IMPORTANT_EVENT)
+
+    assert [entry.text for entry in log.history()] == [
+        "A wall blocks your path.",
+        "A wall blocks your path. x2",
+    ]
+    assert [entry.fg for entry in log.history()] == [
+        message_log.COLOR_MESSAGE,
+        message_log.COLOR_IMPORTANT_EVENT,
+    ]
+
+
+def test_new_message_after_repeat_appends_fresh_entry():
+    log = message_log.MessageLog()
+    log.add("A wall blocks your path.")
+    log.add("A wall blocks your path.")
+    log.add("You move onward.")
+
+    assert [entry.text for entry in log.history()] == [
+        "A wall blocks your path. x2",
+        "You move onward.",
+    ]
+
+
+def test_repeat_parts_splits_suffix_and_plain_text():
+    assert message_log._repeat_parts("A wall blocks your path. x10") == (
+        "A wall blocks your path.",
+        10,
+    )
+    assert message_log._repeat_parts("A wall blocks your path.") == (
+        "A wall blocks your path.",
+        1,
+    )
+
+
 def test_message_log_load_history_replaces_entries():
     log = message_log.MessageLog()
     log.add("old")
