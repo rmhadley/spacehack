@@ -13,7 +13,7 @@
 #   ├── run_spacehack.bat           # Windows: double-click
 #   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
-.PHONY: dist zip app pyinstaller clean architecture lint test check
+.PHONY: dist zip app pyinstaller clean architecture lint test check save-debug
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -97,6 +97,13 @@ app: pyinstaller
 # ──────────────────────────────────────────────
 architecture:
 	$(PYTHON) tools/architecture_check.py
+
+# ──────────────────────────────────────────────
+# save-debug — inspect/simulate a save without opening Pygame
+# Usage: make save-debug ARGS='summary path/to/autosave.json'
+# ──────────────────────────────────────────────
+save-debug:
+	$(PYTHON) tools/save_debug.py $(ARGS)
 
 # ──────────────────────────────────────────────
 # lint  — pyflakes-only static check (undefined names, unused imports,

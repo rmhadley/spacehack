@@ -185,6 +185,28 @@ renderer-neutral tests with real Pygame merely because the dependency is
 installed; that makes them slower and more display-sensitive without adding
 meaningful coverage. Never commit without all four checks passing.
 
+### Headless save debugging
+
+Use ``tools/save_debug.py`` (or ``make save-debug ARGS='...'``) to inspect a
+user-provided save without opening Pygame or modifying the source file:
+
+```bash
+python3 tools/save_debug.py summary path/to/autosave.json
+python3 tools/save_debug.py validate path/to/autosave.json
+python3 tools/save_debug.py simulate path/to/autosave.json move:left wait advance:1
+python3 tools/save_debug.py snapshot path/to/autosave.json --out before.json
+python3 tools/save_debug.py diff before.json after.json
+```
+
+The reusable implementation lives in ``spacehack.debug_session``. It loads
+through the production deserializer, restores RNG state, reports mode-aware
+state, validates the reconstructed map, and runs non-visual actions such as
+movement, clock ticks, dungeon reveal, auto-explore, and goto. Simulation is
+in-memory and read-only with respect to the supplied save. It intentionally
+stops at the UI/combat boundary; use a focused repro or a real playtest when
+a scenario requires modal combat resolution. Keep supplied saves local and
+never stage them accidentally.
+
 ### Pygame test strategy
 
 The test suite uses a hybrid strategy. Lightweight, deterministic fakes are
