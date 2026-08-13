@@ -1523,8 +1523,11 @@ def try_step_with_slip(
     fall back to one perpendicular slip cell.
 
     Slip candidates match the NPC patrol passes: a diagonal step
-    splits into its axes, a cardinal step tries +/-1 on the other
-    axis. Never moves more than one cell per call.
+    splits into its axes; a cardinal step tries +/-1 on the other
+    axis AND the two pure-perpendicular cells (so a member wedged
+    against a body that spans both diagonal cells — e.g. a planet —
+    can still walk around it). Never moves more than one cell per
+    call.
 
     Returns ``True`` only when the DIRECT ``(dx, dy)`` step
     succeeded — a successful slip returns ``False`` so path-following
@@ -1541,9 +1544,9 @@ def try_step_with_slip(
     if dx != 0 and dy != 0:
         _slips = ((dx, 0), (0, dy))
     elif dx != 0:
-        _slips = ((dx, 1), (dx, -1))
+        _slips = ((dx, 1), (dx, -1), (0, 1), (0, -1))
     elif dy != 0:
-        _slips = ((1, dy), (-1, dy))
+        _slips = ((1, dy), (-1, dy), (1, 0), (-1, 0))
     else:
         return False
     for _sx, _sy in _slips:

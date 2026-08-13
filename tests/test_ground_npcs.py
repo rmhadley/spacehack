@@ -228,9 +228,33 @@ def test_unified_loop_does_not_stamp_memory_for_victory(monkeypatch):
     assert callbacks == []
 
 
-def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
-    """The cohesion pull moves a straggler ONE cell per tick — no
-    multi-cell snap back to the squad centre."""
+def test_cohesion_does_not_undo_patrol_progress(monkeypatch):
+    """A member that just took a patrol step is never yanked back by
+    the cohesion pull — the pull fighting the patrol is what froze the
+    stuck tau_ceti squad in place."""
+    player = world.Entity("@", (255, 255, 255), world.Position(17, 2))
+    members = [
+        world.Entity("S", (220, 120, 80), world.Position(5, 18),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+        world.Entity("S", (220, 120, 80), world.Position(14, 18),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+        world.Entity("S", (220, 120, 80), world.Position(16, 18),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+    ]
+    game_map = _squad_map(player, *members)
+    # Leader patrols one cell west; the centre is ~6 cells east, so a
+    # cohesion pull would snap it right back if it fought the patrol.
+    monkeypatch.setattr(ground_npcs, "_patrol_path", lambda *a, **k: [(4, 18)])
+
+    ground_npcs._move_squad(members, game_map, is_hostile=True, squad_id="squad")
+
+    # The patrol step stands — the leader is NOT pulled back east.
+    assert members[0].pos == world.Position(4, 18)
+
+
+def test_cohesion_pulls_blocked_member_one_cell(monkeypatch):
+    """A member that could not take a patrol step gets a ONE-cell pull
+    toward the centre — never a multi-cell snap."""
     player = world.Entity("@", (255, 255, 255), world.Position(17, 2))
     members = [
         world.Entity("S", (220, 120, 80), world.Position(5, 18),
@@ -241,42 +265,53 @@ def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
                      npc_char_id="pirate_raider", squad_id="squad"),
     ]
     game_map = _squad_map(player, *members)
-    # Leader (the straggler) patrols one cell west; cohesion then runs.
+    # Wall EVERY patrol step for the leader: direct, both diagonal
+    # slips, and both pure-perpendicular slips.
+    for _x, _y in ((4, 18), (4, 19), (4, 17), (5, 19), (5, 17)):
+        game_map.tiles[_y][_x] = world.DUNGEON_WALL
     monkeypatch.setattr(ground_npcs, "_patrol_path", lambda *a, **k: [(4, 18)])
 
     ground_npcs._move_squad(members, game_map, is_hostile=True, squad_id="squad")
 
     straggler = members[0]
-    # After the patrol step the straggler is at (4, 18); the pull may
-    # move it at most one cell from there (no (11, 10) snap).
-    assert max(abs(straggler.pos.x - 4), abs(straggler.pos.y - 18)) == 1
+    # The leader could not move during patrol, so the pull applies:
+    # exactly one cell toward the centre (11,11) -> (6,17).
+    assert straggler.pos == world.Position(6, 17)
 
 
-def test_squad_cohesion_slips_around_blocked_direct_cell(monkeypatch):
-    """A straggler whose direct centre step is blocked slips one cell
-    perpendicular — the old unstick behaviour, without teleporting."""
+def test_try_step_with_slip_pure_perpendicular_around_body():
+    """A member pulling cardinal toward a multi-cell body slips pure-
+    perpendicular (both diagonal slips hit the body, like planet tc_d)."""
     player = world.Entity("@", (255, 255, 255), world.Position(17, 2))
-    members = [
-        world.Entity("S", (220, 120, 80), world.Position(5, 18),
-                     npc_char_id="pirate_raider", squad_id="squad"),
-        world.Entity("S", (220, 120, 80), world.Position(14, 8),
-                     npc_char_id="pirate_raider", squad_id="squad"),
-        world.Entity("S", (220, 120, 80), world.Position(16, 9),
-                     npc_char_id="pirate_raider", squad_id="squad"),
-    ]
-    game_map = _squad_map(player, *members)
-    # Wall the direct pull cell (5, 17) AND the first slip candidate
-    # (5, 18) so the pull must take the second slip (4, 17).
-    game_map.tiles[17][5] = world.DUNGEON_WALL
-    game_map.tiles[18][5] = world.DUNGEON_WALL
-    monkeypatch.setattr(ground_npcs, "_patrol_path", lambda *a, **k: [(4, 18)])
+    game_map = _squad_map(player)
+    e = world.Entity("S", (220, 120, 80), world.Position(5, 5))
+    game_map.entities.append(e)
+    # Body wall spanning the whole row west of the member.
+    for _y in (4, 5, 6):
+        game_map.tiles[_y][4] = world.DUNGEON_WALL
 
-    ground_npcs._move_squad(members, game_map, is_hostile=True, squad_id="squad")
+    moved = world.try_step_with_slip(e, game_map, -1, 0)
 
-    straggler = members[0]
-    # Patrol: (5,18) -> (4,18). Pull: direct (5,17) and slip (5,18)
-    # blocked, so it takes the second slip -> (4,17) — exactly one cell.
-    assert straggler.pos == world.Position(4, 17)
+    # Direct (4,5) and both diagonals (4,6)/(4,4) are walls; the
+    # pure-perpendicular (5,6) is free -> the member steps one cell.
+    assert e.pos == world.Position(5, 6)
+    assert not moved  # slip, not a direct step
+
+
+def test_try_step_with_slip_splits_diagonal_when_blocked():
+    """A blocked diagonal step slips onto one of its axes (the
+    pre-existing slip pattern stays intact)."""
+    player = world.Entity("@", (255, 255, 255), world.Position(17, 2))
+    game_map = _squad_map(player)
+    e = world.Entity("S", (220, 120, 80), world.Position(5, 5))
+    game_map.entities.append(e)
+    game_map.tiles[4][6] = world.DUNGEON_WALL  # direct (6,4) blocked
+
+    moved = world.try_step_with_slip(e, game_map, 1, -1)
+
+    # Slips split the diagonal: (1,0)->(6,5) or (0,-1)->(5,4).
+    assert e.pos in (world.Position(6, 5), world.Position(5, 4))
+    assert not moved
 
 
 def test_invalid_pursuit_memory_is_ignored_on_dungeon_load():

@@ -880,6 +880,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         # Try the squad direction for each member (direct step with a
         # one-cell perpendicular slip when the cell is blocked).
         _leader_moved = False
+        _start_positions = {id(_m): _m.pos for _m in _members}
         for _m in _members:
             _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
             if _m is _leader and _direct:
@@ -890,13 +891,23 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         # step next tick. Don't recompute A* just because a cell was
         # temporarily occupied — the path is still valid.
         # Squad cohesion: step stragglers ONE cell toward the centre
-        # per tick (never a multi-cell snap), slipping around obstacles
-        # so a member wedged against a planet still rejoins the pack.
+        # per tick (never a multi-cell snap), but ONLY members that
+        # could not take a patrol step this tick. Yanking back a
+        # member that just moved fights the patrol: a single wedged
+        # member drags the centre, and the pull undoes everyone's
+        # patrol progress every tick — the whole pack freezes in
+        # place (the tau_ceti save bug). Slipping around obstacles
+        # keeps the unstick purpose — a member wedged against a
+        # planet can still rejoin the pack. (Known residual: a fully
+        # enclosed LEADER can still strand the pack — followers step
+        # toward it and bunch; rare, since A* paths avoid bodies, so
+        # only spawn pockets or squadmate occupancy cause it.)
         if _is_squad:
             _cx = sum(m.pos.x for m in _members) // len(_members)
             _cy = sum(m.pos.y for m in _members) // len(_members)
             for _m in _members:
-                if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4:
+                if (_m.pos == _start_positions[id(_m)]
+                        and max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4):
                     _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
                     _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
                     world.try_step_with_slip(_m, game_map, _dx, _dy)

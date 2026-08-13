@@ -104,9 +104,9 @@ def test_move_npcs_skips_combat_locked_entities(monkeypatch):
     assert _free.pos == world.Position(11, 15)
 
 
-def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
-    """The space cohesion pull steps a straggler ONE cell per tick —
-    the visible squad member can no longer snap across the system."""
+def test_cohesion_does_not_undo_patrol_progress(monkeypatch):
+    """The space cohesion pull never yanks back a member that just
+    took a patrol step — the pack keeps flowing (the tau_ceti freeze)."""
     _tiles = [[world.DUNGEON_FLOOR for _ in range(40)] for _ in range(30)]
     _game_map = world.GameMap(40, 30, _tiles, [])
     _straggler = _pirate_entity(world.Position(5, 18), "squad_c")
@@ -116,7 +116,7 @@ def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
 
     _ctx = _ctx_with(world.Position(30, 15))
     _ctx.npc_targets["squad_c"] = (30, 15)
-    _ctx.npc_paths["squad_c"] = [(6, 18)]  # leader steps east, then cohesion
+    _ctx.npc_paths["squad_c"] = [(6, 18)]  # leader steps east
 
     monkeypatch.setattr(npc_ships._engine, "RNG", _RNGStub())
     monkeypatch.setattr(
@@ -133,9 +133,78 @@ def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
 
     npc_ships.move_npcs(_ctx, _game_map)
 
-    # Patrol: (5,18) -> (6,18). Cohesion: at most one cell further
-    # (no (13, 10) snap to centre+1).
-    assert max(abs(_straggler.pos.x - 6), abs(_straggler.pos.y - 18)) == 1
+    # All three moved east via patrol; the centre is ~6 cells further
+    # east, so a cohesion pull would have yanked them back. It doesn't.
+    assert _straggler.pos == world.Position(6, 18)
+    assert _mate_a.pos == world.Position(15, 8)
+    assert _mate_b.pos == world.Position(17, 9)
+
+
+def test_wedged_squad_member_unfreezes_the_pack(monkeypatch):
+    """Repro of the tau_ceti save: 3 healthy pirates + 1 member wedged
+    against planet tc_d. The pack keeps patrolling (cohesion never
+    yanks back a member that just moved) and the wedged member slips
+    around the planet instead of freezing everyone."""
+    from src.spacehack import solar_system as _ss
+    from src.spacehack.data.npc_ships import find_npc_ship as _find_npc_ship
+    from src.spacehack.data.solar_systems import find_solar_system as _fss
+
+    _spec = _fss("tau_ceti")
+    _ss.set_current_solar_system("tau_ceti")
+    _game_map = _ss.make_solar_system(system=_spec)
+    _pspec = _find_npc_ship("pirate_scout")
+    _squad = "wedged_test"
+    for _x, _y in ((135, 102), (135, 103), (135, 101), (154, 102)):
+        _game_map.entities.append(world.Entity(
+            _pspec.char, _pspec.fg, world.Position(_x, _y),
+            name=_pspec.name, width=1, height=1,
+            npc_ship_id=_pspec.id, procedural_squad_id=_squad,
+        ))
+
+    _ctx = _ctx_with(world.Position(144, 119))
+    _ctx.npc_targets[_squad] = (58, 46)
+
+    class _RNG:
+        """Always move (0.5 < 0.8 gate); never per-tick spawn."""
+
+        def random(self) -> float:
+            return 0.5
+
+        def choice(self, seq):
+            return seq[0]
+
+        def randint(self, a: int, b: int) -> int:
+            return a
+
+    monkeypatch.setattr(npc_ships._engine, "RNG", _RNG())
+    monkeypatch.setattr(
+        npc_ships, "_solar_module",
+        SimpleNamespace(current_system=lambda: _spec),
+    )
+    monkeypatch.setattr(
+        npc_ships, "main_quest_module",
+        SimpleNamespace(
+            consortium_heat_active=lambda _ctx: False,
+            charged_cell_in_sol=lambda _ctx, _sid: False,
+        ),
+    )
+
+    for _ in range(40):
+        npc_ships.move_npcs(_ctx, _game_map)
+
+    _members = [
+        e for e in _game_map.entities
+        if getattr(e, "procedural_squad_id", "") == _squad
+    ]
+    assert len(_members) == 4
+    _healthy = sorted(_members, key=lambda m: m.pos.x)[:3]
+    _wedged = [m for m in _members if m not in _healthy][0]
+    # The pack made real progress toward the west target (~40 cells).
+    assert all(m.pos.x < 130 for m in _healthy), \
+        [(m.pos.x, m.pos.y) for m in _healthy]
+    # The wedged member escaped the planet's east edge and moved west.
+    assert _wedged.pos != world.Position(154, 102)
+    assert _wedged.pos.x < 154
 
 
 def test_move_npcs_counts_locked_ships_against_spawn_cap(monkeypatch):

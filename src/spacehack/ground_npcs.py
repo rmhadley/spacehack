@@ -12,9 +12,11 @@ Patterns by faction attitude:
 
 Squad cohesion: entities sharing the same ``squad_id`` move as a
 group. The leader's A* path is shared; followers trail in the same
-direction. Stragglers more than 4 cells from the squad centre step
-one cell toward it per tick (slipping around obstacles), so a squad
-member never teleports back to the pack.
+direction. Stragglers more than 4 cells from the squad centre that
+could not take a patrol step this tick get a one-cell pull toward it
+(slipping around obstacles), so a squad member never teleports back
+to the pack — and the pull never undoes a member's own patrol
+progress.
 """
 
 from __future__ import annotations
@@ -256,6 +258,7 @@ def _move_squad(
         # Try to move all members in the same direction (direct step
         # with a one-cell perpendicular slip when the cell is blocked).
         _leader_moved = False
+        _start_positions = {id(_m): _m.pos for _m in members}
         for _m in members:
             _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
             if _m is _leader and _direct:
@@ -269,13 +272,17 @@ def _move_squad(
         return
 
     # Squad cohesion: step stragglers ONE cell toward the centre per
-    # tick (never a multi-cell snap), slipping around obstacles so a
-    # member wedged against a wall can still rejoin the pack.
+    # tick (never a multi-cell snap), but ONLY members that could not
+    # take a patrol step this tick — yanking back a member that just
+    # moved fights the patrol and freezes the pack. Slipping around
+    # obstacles keeps the unstick purpose: a member wedged against a
+    # wall can still rejoin the pack.
     if len(members) > 1:
         _cx = sum(m.pos.x for m in members) // len(members)
         _cy = sum(m.pos.y for m in members) // len(members)
         for _m in members:
-            if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4:
+            if (_m.pos == _start_positions[id(_m)]
+                    and max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4):
                 _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
                 _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
                 world.try_step_with_slip(_m, game_map, _dx, _dy)
