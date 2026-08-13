@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import pygame_faction, pygame_ui
+from src.spacehack import pygame_faction
 
 
 def test_faction_frame_contains_bright_semantic_rows_and_safe_bars():

@@ -908,7 +908,7 @@ def test_quantity_worker_rejects_invalid_confirmed_amount(monkeypatch):
 
 
 def test_goto_menu_pygame_maps_destination_index(monkeypatch):
-    from src.spacehack import navigation, pygame_menu
+    from src.spacehack import pygame_menu
 
     destinations = [
         ("Mars", SimpleNamespace(name="Mars", description="Red world.")),
@@ -928,7 +928,7 @@ def test_goto_menu_pygame_maps_destination_index(monkeypatch):
 
 
 def test_goto_menu_pygame_back_is_handled_as_cancel(monkeypatch):
-    from src.spacehack import navigation, pygame_menu
+    from src.spacehack import pygame_menu
 
     monkeypatch.setattr(
         pygame_menu,
@@ -942,7 +942,7 @@ def test_goto_menu_pygame_back_is_handled_as_cancel(monkeypatch):
 
 
 def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
-    from src.spacehack import navigation, pygame_menu
+    from src.spacehack import pygame_menu
 
     monkeypatch.setattr(
         pygame_menu,
@@ -963,7 +963,7 @@ def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
 
 
 def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
-    from src.spacehack import navigation, pygame_menu
+    from src.spacehack import pygame_menu
 
     jump = SimpleNamespace(name="Gate", description="A stable gate.")
     monkeypatch.setattr(
@@ -3078,7 +3078,6 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
         log=SimpleNamespace(add=messages.append),
     )
 
-    from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
 
     ctx = SimpleNamespace(
@@ -3205,7 +3204,6 @@ def test_hangar_cargo_tab_reuses_cargo_rows_without_launch():
 
 
 def test_hangar_empty_hold_cargo_tab_has_no_selectable_rows():
-    from src.spacehack import pygame_screen
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 

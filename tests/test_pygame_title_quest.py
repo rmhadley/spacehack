@@ -240,7 +240,6 @@ def test_quest_log_worker_draws_panel_and_restores_clip():
             def __init__(self, *args):
                 self.args = args
 
-    monkeypatch = SimpleNamespace()
     frame = pygame_quest_log.QuestFrame(
         rows=((pygame_quest_log.QuestSpan("QUEST LOG", (255, 255, 255)),),),
         selected=0,

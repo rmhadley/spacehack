@@ -827,7 +827,6 @@ def _run_game_loop(
             ctx.main_quest_pending_objective = ""
         console.clear()
         if current_mode == 'space':
-            sys_now = solar_system_module.current_system()
             view_w = solar_system_module.SOL_VIEW_W
             view_h = solar_system_module.SOL_VIEW_H
             cam_x, cam_y, rx, ry = world.camera_for_view(

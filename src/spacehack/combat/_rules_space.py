@@ -12,12 +12,15 @@ a single module-level dataclass replacing the old scattered globals.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .. import world
 from .. import hud as _hud
 from .. import message_log as _ml
-from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT
+from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
+
+if TYPE_CHECKING:
+    from ..pygame_overlay import ShieldBubble
 from ..game_context import GameContext
 
 from ._types import EnemyInstance, CombatResult
@@ -34,7 +37,6 @@ from ._actions import (
     can_afford_action as _space_can_afford,
     _sync_back_hull,
     _sync_back_ammo,
-    _remove_dead_entity,
     _spawn_loot_drops,
     set_combat_locks,
 )

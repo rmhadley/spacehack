@@ -12,7 +12,6 @@ the main menu immediately and no save is written.
 from __future__ import annotations
 
 from .. import pygame_engine
-from .. import world
 from .. import message_log as _ml
 from ._loop import run_combat
 from . import _rules_space
@@ -28,7 +27,6 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
 
     Returns ``"VICTORY"``, ``"DEFEAT"``, or ``"FLEE"``.
     """
-    from .. import ui as _ui_module
 
     # Already dead from a previous defeat — no-op.
     if getattr(ctx, 'player_dead', False):

@@ -16,7 +16,6 @@ from ..engine import RNG
 from ..message_log import COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
 from ..data.weapons import find_weapon
 
-from ._types import EnemyInstance
 from ._messages import enemy_attack_line as _enemy_attack_line
 from ._stats import (
     calc_hit_chance,

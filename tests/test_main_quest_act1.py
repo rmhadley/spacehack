@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from types import SimpleNamespace
 
-from src.spacehack import dungeon_extensions, message_log, ui, world
+from src.spacehack import dungeon_extensions, message_log, world
 from src.spacehack.data.main_quest import find_main_quest_step
 from src.spacehack.data.main_quest.act1_post_prison import find_archive_disclosure
 from src.spacehack.data.planets.ac_station import SPEC as AC_STATION

@@ -121,7 +121,6 @@ def _map_pygame_npc_result(outcome, action, missions):
 
 def _run_pygame_npc_talk(ctx, npc, quest_body, missions, quest_options=()):
     """Run NPC talk through the shared selectable Pygame screen."""
-    from . import pygame_menu
 
     items = _npc_pygame_items(npc, missions, quest_options)
     frames = _npc_pygame_frames(npc, quest_body, items)

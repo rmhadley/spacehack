@@ -201,7 +201,6 @@ def render_navigation(console: FrameBuffer, ctx: GameContext, *, screen_width: i
     title = f'NAVIGATION - {system.name.upper()} SYSTEM'
     content_y = ui.screen_header(console, screen_width, title)
     inner_view_w = screen_width - HUD_WIDTH
-    inner_view_h = screen_height - MSG_LOG_HEIGHT
     nav_map_w = 40
     nav_map_h = 30
     map_off_x = (inner_view_w - nav_map_w) // 2
@@ -210,7 +209,6 @@ def render_navigation(console: FrameBuffer, ctx: GameContext, *, screen_width: i
     sample_y = system.height / nav_map_h
     bodies_for_overlay = list(system.planets) + list(system.jump_points)
     cell_step_x = max(1, int(sample_x))
-    cell_step_y = max(1, int(sample_y))
     for mini_y in range(nav_map_h):
         by_lo = int(mini_y * sample_y)
         by_hi = int((mini_y + 1) * sample_y) if mini_y + 1 < nav_map_h else system.height

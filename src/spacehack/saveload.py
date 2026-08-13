@@ -14,7 +14,6 @@ import dataclasses
 import json
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from . import world
 from .game_context import GameContext

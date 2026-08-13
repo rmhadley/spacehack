@@ -7,11 +7,16 @@ target, resetting per-turn resources, or moving an entity.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
 from ..data.modules import find_module as find_module_spec
 from ..engine import RNG
+
+if TYPE_CHECKING:
+    from ..ship import OwnedShip
 
 
 # Max number of loot entities allowed on the map at once.

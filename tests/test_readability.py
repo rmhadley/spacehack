@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack import engine, help as game_help, hud, message_log, ui, world
+from src.spacehack import engine, hud, message_log, ui, world
 
 
 

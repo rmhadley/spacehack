@@ -16,8 +16,8 @@ from unittest.mock import MagicMock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.world import (
-    GameMap, Tile, Position,
-    DUNGEON_WALL, DUNGEON_FLOOR, HULL_WALL, VOID, DUNGEON_DOOR,
+    GameMap, Position,
+    DUNGEON_WALL, DUNGEON_FLOOR, HULL_WALL, DUNGEON_DOOR,
     Entity, try_move, find_loot_near, find_path,
 )
 from src.spacehack.input_helpers import _is_p_press

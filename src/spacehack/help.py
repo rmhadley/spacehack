@@ -12,6 +12,7 @@ navigation, character skills, factions, and keybindings.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from .game_context import GameContext
 

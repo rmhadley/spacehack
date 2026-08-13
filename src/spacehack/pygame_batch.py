@@ -12,7 +12,6 @@ import sys
 from typing import Any
 
 from . import pygame_quest_log, pygame_ui
-from .game_context import GameContext
 from .pygame_runtime import PygameContext
 
 class PygameBatchUnavailable(RuntimeError):

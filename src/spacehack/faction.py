@@ -403,6 +403,5 @@ def modify_rep(ctx, faction: str, delta: int) -> None:
     if new_attitude != old_attitude:
         msg += f", {old_attitude.title()} → {new_attitude.title()}"
 
-    from . import message_log as _ml
     color = _REP_GAIN_COLOR if delta > 0 else _REP_LOSS_COLOR
     ctx.log.add_colored(msg, color)

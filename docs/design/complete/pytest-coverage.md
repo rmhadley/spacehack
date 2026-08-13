@@ -1,9 +1,8 @@
 # DESIGN: Automated test coverage (pytest)
 
 > **Status: COMPLETE** — all 4 phases implemented (2026-08-07).
-> **191 tests across 12 files, all green.** `knowledge.md` contracts
-> updated: pre-commit gate requires pytest, pure + mutation-wrapper
-> functions must ship with tests.
+> The current repository has 869 passing tests. `knowledge.md` contracts
+> require the canonical `make check` gate: smoke test, Ruff, and pytest.
 
 ## Rationale
 
@@ -102,13 +101,15 @@ a single `python3 tools/smoke.py` invocation.
 
 **Recommendation:** keep `tools/smoke.py` separate from `tools/test.py`.
 They test different things (import chain integrity vs. formula correctness)
-and run at different speeds. The pre-commit gate becomes:
+and run at different speeds. The canonical pre-commit gate is the Makefile
+wrapper:
 
 ```bash
-python3 tools/smoke.py && python3 tools/test.py
+make check
 ```
 
-but `tools/smoke.py` remains the canonical gate script.
+The Makefile preserves the separate scripts while giving local development
+and CI one command to invoke.
 
 ### RNG in tests
 
@@ -137,20 +138,20 @@ randomness is a Phase 2+ item if the seeded approach proves brittle.
 > Run the smoke test before each commit: `python3 tools/smoke.py`
 > Never commit without a passing smoke test.
 
-**Proposed update** (once the pytest suite exists and is stable):
+**Implemented update:**
 
-> Run the smoke test AND the pytest suite before each commit:
+> Run the canonical gate before each commit:
 >
 > ```bash
-> python3 tools/smoke.py && python3 tools/test.py
+> make check
 > ```
 >
-> Never commit without both passing. The smoke test guards import
-> integrity; the pytest suite guards formula and state correctness.
+> Never commit without it passing. The gate runs the smoke test, Ruff, and
+> the pytest suite; the smoke test guards import integrity while pytest guards
+> formula and state correctness.
 
-This goes into `knowledge.md` as part of Phase 1's implementation —
-update the Pre-commit gate section once `tools/test.py` exists and
-the first batch of tests passes.
+This is recorded in `knowledge.md` and enforced locally by the canonical
+`make check` target. CI integration is intentionally deferred.
 
 ---
 
@@ -285,10 +286,8 @@ tcod context). Flag it as a stretch item; it doesn't fit in early phases.
 - [x] Update `knowledge.md` Pre-commit gate section to require pytest
 - [x] Add "Pure function test contract" to `knowledge.md` (see section 6)
 
-**PLAYTEST:** Run `tools/test.py` — confirm all tests green. Run
-`tools/smoke.py` — confirm no regressions. Then run `python3 tools/smoke.py &&
-python3 tools/test.py` to verify the full pre-commit gate works as a single
-command chain.
+**PLAYTEST:** Run `make check` — confirm the canonical smoke, Ruff, and pytest
+validation gate is green.
 
 ### Phase 2: Economy + faction
 
@@ -299,7 +298,7 @@ command chain.
       design doc), `adjust_reward_pct`, `decay_rate`, `buy_price_modifier`,
       `sell_price_modifier`, `guild_to_faction`
 
-**PLAYTEST:** `tools/test.py` green, `tools/smoke.py` green.
+**PLAYTEST:** `make check` green.
 
 ### Phase 3: Ship stats + resolve_damage
 
@@ -309,7 +308,7 @@ command chain.
 - [x] `tests/combat/test_actions.py`: cover `resolve_damage` (seed RNG,
       verify damage output for known weapon + quality roll values)
 
-**PLAYTEST:** `tools/test.py` green, `tools/smoke.py` green.
+**PLAYTEST:** `make check` green.
 
 ### Phase 4: Save/load round-trip (stretch)
 
@@ -317,9 +316,9 @@ command chain.
       load, assert field-level equality for all serialized fields
 - [x] Requires: mock tcod context (or a real one from `tcod.context.new()`)
 
-**PLAYTEST:** `tools/test.py` green, `tools/smoke.py` green. Additionally,
-run a manual sniff test: start new game → play a few turns → save/quit →
-continue → verify exact state match.
+**PLAYTEST:** `make check` green. Additionally, run a manual sniff test:
+start new game → play a few turns → save/quit → continue → verify exact
+state match.
 
 ---
 
@@ -355,7 +354,7 @@ mechanism.
 - [ ] If the function was modified, was the test updated to match?
 - [ ] Does the test cover the function's key edge cases (boundaries, min/max,
       zero/empty inputs)?
-- [ ] Does `tools/test.py` pass?
+- [ ] Does `make check` pass?
 
 ---
 
@@ -364,10 +363,14 @@ mechanism.
 1. **`resolve_damage` RNG strategy** — Kept seeded RNG in Phase 3.
    No flakiness observed; all seeded values pinned as exact assertions.
 
-2. **`tools/test.py` vs `tools/smoke.py`** — Kept separate. Pre-commit
-   gate runs both: `python3 tools/smoke.py && python3 tools/test.py`.
+2. **`tools/test.py` vs `tools/smoke.py`** — Kept separate. The Makefile
+   `check` target runs both, along with Ruff, in one canonical gate.
 
-3. **CI integration** — Not yet wired; remains a follow-up ops change.
+3. **CI integration** — Deferred intentionally while the project remains a
+   single-user workflow. When CI is introduced, it should install the dev
+   dependencies and invoke the canonical `make check` gate. Ruff intentionally
+   covers `src/` and `tests/`; ad-hoc scripts under `tools/` are outside its
+   enforced scope.
 
 4. **Property-based testing** — Not pursued. Example-based tests proved
    sufficient for all 191 assertions; no edge-case gaps found.

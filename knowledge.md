@@ -7,7 +7,7 @@ A traditional ASCII-art sci-fi roguelike built on [Pygame](https://www.pygame.or
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 python -m spacehack           # run the game
 ```
 
@@ -40,7 +40,8 @@ launcher), `run_spacehack.bat` (Windows).
 6. **Boundary rule for cross-cutting changes.** A cross-cutting change (same edit repeated in many files) still counts as ONE commit, because the individual edits are meaningless without each other. Example: wiring `?` into 16 modal handlers across 6 files = one commit ("feat: wire ? into all modal sub-screens").
 
 7. **Never commit without the full pre-commit gate.** Run
-   ``python3 tools/smoke.py && python3 tools/test.py``.
+   ``make check``. This runs the smoke test, Ruff, and the full pytest suite
+   in one local gate.
 
 **Violation example from a real session:** After a session with 11 files changed, the agent made 2 commits instead of ~6. The second commit bundled 5+ unrelated changes (a feature, a refactor, a content restructure, a HUD addition, and a one-line fix). Each should have been separate.
 
@@ -132,21 +133,36 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 
 ### Pre-commit gate
 ```bash
-python3 tools/smoke.py && python3 tools/test.py
+make check
 ```
 
-The smoke test verifies that the Pygame runtime imports cleanly with the
-retired backend actively blocked, along with major modules and key entry
-points. The test runner executes the full pytest suite.
+The canonical gate runs three checks in order:
+
+1. `tools/smoke.py` verifies that the Pygame runtime imports cleanly with the
+   retired backend actively blocked, along with major modules and key entry
+   points.
+2. Ruff checks `src/` and `tests/` for undefined names, unused imports, and
+   syntax errors.
+3. `tools/test.py` executes the full pytest suite.
+
+CI integration is intentionally deferred for now. The `tools/` directory is
+outside the Ruff scope because it contains ad-hoc research and reproduction
+scripts; the maintained application and test code are the enforced lint scope.
 
 The smoke test reuses `.venv/bin/python3` when available and otherwise runs
 with the current interpreter. It verifies that the Pygame runtime imports
 cleanly with the retired backend actively blocked, along with major modules
 and key entry points.
 
+`ruff` runs pyflakes-only (undefined names, unused imports, shadowed
+definitions — see `[tool.ruff]` in `pyproject.toml`). It's the gate that
+catches the class of bug the test suite can miss: a real code path with an
+undefined name or stale import that just never got exercised by a test. It
+is deliberately not a style linter — no formatting opinions.
+
 The test runner (`tools/test.py`) also auto-mounts the venv and runs the
 pytest suite — formula-correctness tests for pure computation functions.
-Never commit without both gates passing.
+Never commit without all three gates passing.
 
 ### Runtime boundary
 
@@ -656,7 +672,7 @@ mutation-wrapper function:**
 - [ ] If the function was modified, was the test updated to match?
 - [ ] Does the test cover the function's key edge cases (boundaries,
       min/max, zero/empty inputs)?
-- [ ] Does ``tools/test.py`` pass?
+- [ ] Does ``make check`` pass?
 
 ---
 

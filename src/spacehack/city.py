@@ -7,7 +7,6 @@ and :func:`_return_to_city`.
 from __future__ import annotations
 from .framebuffer import FrameBuffer
 from . import world
-from . import mission as mission_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
 from .navigation import _add_bounty_spawns_to_map, _responsive_sleep

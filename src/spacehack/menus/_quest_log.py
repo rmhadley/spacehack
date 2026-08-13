@@ -17,7 +17,7 @@ from .. import pygame_engine
 
 def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
     """Run the Quest Log in the shared Pygame screen."""
-    from ..pygame_quest_log import PygameQuestLogUnavailable, run_for_context
+    from ..pygame_quest_log import run_for_context
 
     selected = 0
     confirm_abandon = False

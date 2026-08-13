@@ -21,7 +21,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import EnemySpawn, JumpPoint, SolarSystem
+from . import JumpPoint, SolarSystem
 
 
 # Anchor positions for Sol + the eight planets on the 200x140 map.

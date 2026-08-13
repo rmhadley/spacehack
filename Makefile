@@ -13,7 +13,7 @@
 #   ├── run_spacehack.bat           # Windows: double-click
 #   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
-.PHONY: dist zip app pyinstaller clean
+.PHONY: dist zip app pyinstaller clean lint test check
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -91,6 +91,28 @@ app: pyinstaller
 	else \
 		echo "─── .app bundle + codesign require macOS (skipped on $$(uname -s)) ───"; \
 	fi
+
+# ──────────────────────────────────────────────
+# lint  — pyflakes-only static check (undefined names, unused imports,
+# shadowed definitions); not a style linter, see [tool.ruff] in pyproject.toml.
+# Requires the development environment: pip install -e ".[dev]"
+# ──────────────────────────────────────────────
+lint:
+	$(PYTHON) -m ruff check src tests
+
+# ──────────────────────────────────────────────
+# test  — full pytest suite (see tools/test.py for single-file runs)
+# ──────────────────────────────────────────────
+test:
+	$(PYTHON) tools/test.py
+
+# ──────────────────────────────────────────────
+# check — pre-commit gate: smoke test + lint + full test suite
+# ──────────────────────────────────────────────
+check:
+	$(PYTHON) tools/smoke.py
+	$(MAKE) lint
+	$(MAKE) test
 
 # ──────────────────────────────────────────────
 # clean

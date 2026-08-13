@@ -279,7 +279,6 @@ def _draw_compact_frame(
     """Paint a small centered two-choice popup."""
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
-    measure = lambda text: pygame_ui.measure_font(font, text)
     popup_width, title_lines, body_lines = _compact_popup_layout(font, frame, width)
     line_height = font.get_linesize()
     title_step = line_height + 4

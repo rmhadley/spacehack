@@ -1239,7 +1239,6 @@ def animate_breach(
     breach tile is revealed.
     """
     from .navigation import _responsive_sleep
-    from .engine import SCREEN_HEIGHT, SCREEN_WIDTH
 
     # Find breach positions
     breach_positions: list[world.Position] = []

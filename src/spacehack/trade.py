@@ -1130,7 +1130,6 @@ def open_cargo(ctx: GameContext) -> None:
         return
 
     from . import ship as ship_module
-    from . import mission as mission_module
     ship_spec = ship_module.find_ship(owned.ship_id)
 
     # Cache static ship stats.

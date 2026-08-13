@@ -19,7 +19,6 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from . import pygame_engine
-from . import pygame_ui
 from . import world
 from .framebuffer import FrameBuffer
 from .game_context import GameContext

@@ -3,7 +3,6 @@
 from types import SimpleNamespace
 
 from src.spacehack import console_log, input_helpers, message_log, pygame_engine
-from src.spacehack.game_context import GameContext
 
 
 def test_message_log_keeps_full_history_but_recent_keeps_hud_capacity():

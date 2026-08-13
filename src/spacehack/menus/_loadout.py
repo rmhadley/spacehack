@@ -151,7 +151,6 @@ def _market_rows(weapon_ids, module_ids):
 def _ship_rows(ctx, ship_spec, mode: str):
     """Build active-ship rows whose Enter action opens Store/Sell choices."""
     from .. import pygame_split
-    from .. import pygame_ui
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
 

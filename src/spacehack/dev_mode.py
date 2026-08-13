@@ -17,7 +17,7 @@ from typing import Any
 from . import ship as ship_module
 from . import ui
 from . import pygame_ui
-from .input_helpers import Outcome, _run_pick
+from .input_helpers import Outcome
 from .data.ground_armor import list_ground_armor
 
 

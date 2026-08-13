@@ -362,7 +362,7 @@ def _swap_pack_entry(
 
 def _pack_weapon_slots(ctx: GameContext, pack_index: int) -> tuple[str, ...]:
     """Return active weapon slots compatible with one pack entry."""
-    entry = ctx.ground_expedition_inventory[pack_index]
+    ctx.ground_expedition_inventory[pack_index]  # bounds check
     return tuple(
         str(slot)
         for slot in range(2)

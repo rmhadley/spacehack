@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "ruff"]
 
 [project.scripts]
 spacehack = "spacehack.__main__:main"
@@ -26,3 +26,19 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 spacehack = ["data/*.png", "data/*.ttf", "data/layouts/*.layout", "data/landmarks/*.layout"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Kept intentionally narrow: pyflakes (undefined names, unused imports,
+# shadowed definitions -- the class of bug that causes a crash the test
+# suite can miss if the code path isn't exercised) plus real syntax errors.
+# Not a style linter -- E/W/formatting rules are deliberately left off.
+select = ["F", "E9"]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py files re-export names for their package's public API;
+# those imports are "unused" by pyflakes' own reading but intentional.
+"**/__init__.py" = ["F401"]
