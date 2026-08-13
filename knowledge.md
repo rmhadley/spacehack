@@ -187,14 +187,19 @@ meaningful coverage. Never commit without all four checks passing.
 
 ### Headless save debugging
 
+The save under test lives at ``saves/autosave.json`` in the repo root
+(the ``saves/`` directory is git-ignored). When a user reports a bug and supplies
+their save, drop it at that path first — it is the canonical location
+agents read when debugging.
+
 Use ``tools/save_debug.py`` (or ``make save-debug ARGS='...'``) to inspect a
 user-provided save without opening Pygame or modifying the source file:
 
 ```bash
-python3 tools/save_debug.py summary path/to/autosave.json
-python3 tools/save_debug.py validate path/to/autosave.json
-python3 tools/save_debug.py simulate path/to/autosave.json move:left wait advance:1
-python3 tools/save_debug.py snapshot path/to/autosave.json --out before.json
+python3 tools/save_debug.py summary saves/autosave.json
+python3 tools/save_debug.py validate saves/autosave.json
+python3 tools/save_debug.py simulate saves/autosave.json move:left wait advance:1
+python3 tools/save_debug.py snapshot saves/autosave.json --out before.json
 python3 tools/save_debug.py diff before.json after.json
 ```
 
