@@ -26,6 +26,11 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         detect_radius=4,
         tier=1,
         loot_pool=("food_rations", "fuel_cells", "scrap_metal"),
+        equipment_loot_pool=(
+            ("weapon", "combat_knife"),
+            ("weapon", "kinetic_pistol"),
+            ("armor", "light_helmet"),
+        ),
         loot_count=(1, 2),
         xp_reward=20,
     ),
@@ -43,6 +48,11 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         detect_radius=5,
         tier=2,
         loot_pool=("fuel_cells", "machine_parts", "electronics"),
+        equipment_loot_pool=(
+            ("weapon", "kinetic_rifle"),
+            ("weapon", "stun_baton"),
+            ("armor", "reinforced_gauntlets"),
+        ),
         loot_count=(1, 2),
         xp_reward=35,
     ),

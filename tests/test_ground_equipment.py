@@ -24,6 +24,7 @@ from src.spacehack.ground_equipment import (
     store_weapon,
     swap_armor_from_expedition,
     swap_weapon_from_expedition,
+    tier_filtered_equipment,
     transfer_item,
 )
 
@@ -50,6 +51,24 @@ def test_sum_armor_bonus_skips_empty_and_unknown_ids():
 def test_sum_armor_bonus_rejects_unknown_field():
     with pytest.raises(ValueError):
         sum_armor_bonus(["cybernetic_legs"], "defense")
+
+
+def test_tier_filtered_equipment_drops_items_above_tier():
+    pool = (("weapon", "survival_axe"), ("weapon", "railgun"), ("armor", "mag_boots"))
+    assert tier_filtered_equipment(pool, 1) == (("weapon", "survival_axe"),)
+
+
+def test_tier_filtered_equipment_keeps_at_or_below_tier():
+    pool = (("armor", "heavy_vest"), ("weapon", "plasma_pistol"))
+    assert tier_filtered_equipment(pool, 3) == (
+        ("armor", "heavy_vest"),
+        ("weapon", "plasma_pistol"),
+    )
+
+
+def test_tier_filtered_equipment_skips_unknown_ids():
+    pool = (("weapon", "missing_id"), ("weapon", "combat_knife"))
+    assert tier_filtered_equipment(pool, 1) == (("weapon", "combat_knife"),)
 
 
 def test_displacement_prefers_pack_then_falls_back_to_armory():

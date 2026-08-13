@@ -22,7 +22,10 @@ from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
-from ..ground_equipment import sum_armor_bonus as _sum_armor_bonus
+from ..ground_equipment import (
+    sum_armor_bonus as _sum_armor_bonus,
+    tier_filtered_equipment as _tier_loot,
+)
 from ..hud import _bar_str
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
@@ -740,9 +743,8 @@ def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
             count_range=(_min, _max), qty_range=(1, 2),
         )
     if _ent is not None and enemy.spec and enemy.spec.equipment_loot_pool:
-        _shared_equipment_loot(
-            game_map, _ent.pos, enemy.spec.equipment_loot_pool,
-        )
+        _pool = _tier_loot(enemy.spec.equipment_loot_pool, enemy.spec.tier)
+        _shared_equipment_loot(game_map, _ent.pos, _pool)
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp

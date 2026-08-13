@@ -43,6 +43,29 @@ def sum_armor_bonus(armor_ids: Iterable[str], attr: str) -> int:
     return total
 
 
+def tier_filtered_equipment(
+    pool: Iterable[tuple[str, str]], tier: int,
+) -> tuple[tuple[str, str], ...]:
+    """Return the ``(item_type, item_id)`` loot entries within ``tier``.
+
+    Drops an entry whose item ``tech_level`` exceeds ``tier`` (a T1 NPC
+    must never drop T4 gear), and skips unknown catalog ids so a stale
+    save entry never raises on kill.
+    """
+    filtered: list[tuple[str, str]] = []
+    for item_type, item_id in pool:
+        try:
+            if item_type == "weapon":
+                tech_level = find_ground_weapon(item_id).tech_level
+            else:
+                tech_level = find_ground_armor(item_id).tech_level
+        except KeyError:
+            continue
+        if tech_level <= tier:
+            filtered.append((item_type, item_id))
+    return tuple(filtered)
+
+
 @dataclass(frozen=True)
 class StoredGroundEquipment:
     """One owned ground weapon or armor item."""
