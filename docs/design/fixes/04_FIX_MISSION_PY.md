@@ -1,6 +1,6 @@
 # FIX: Break `mission.py` into a Package
 
-**Status:** Code complete — playtest pending
+**Status:** Complete — code validation and playtest passed.
 
 ## Problem
 
@@ -342,9 +342,9 @@ dispatch, and public generation. Legacy retains only compatibility aliases.
 - [x] Remove the obsolete `src/spacehack/mission.py` implementation; the
       compatibility-only `_legacy.py` shim is also removed after direct-import
       verification.
-- [ ] Run a short playtest: accept, complete, and abort delivery/bounty jobs;
+- [x] Run a short playtest: accept, complete, and abort delivery/bounty jobs;
       accept an intercept, smuggling, and salvage job; save, continue, and
-      inspect the quest log/board state. **Pending the user's morning playtest.**
+      inspect the quest log/board state. **Passed in the user's playtest.**
 
 ## Risks and mitigations
 
@@ -379,5 +379,5 @@ dispatch, and public generation. Legacy retains only compatibility aliases.
       modules remain responsibility-focused rather than arbitrary line-count
       targets.
 - [x] Smoke test, Ruff, focused tests, and the full test suite pass.
-- [ ] Save/load and the short mission playtest pass (code validation complete;
-      player playtest pending).
+- [x] Save/load and the short mission playtest pass (code validation and player
+      playtest complete).
