@@ -650,6 +650,29 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     return y + 1
 
 
+def enemy_detail_lines(enemy: GroundEnemyInstance) -> tuple[str, str]:
+    """Return the (armor, weapon) HUD lines for one enemy.
+
+    The armor line reports the enemy's flat DR (``ARM 0`` when
+    unarmored) so the player can decide between raw damage and armor
+    piercing. The weapon line names the weapon plus its damage and
+    range so a heavy ranged threat can be spotted before it fires.
+    """
+    armor = enemy.spec.armor if enemy.spec else 0
+    weapon = None
+    if enemy.weapon_id:
+        try:
+            weapon = _find_gw(enemy.weapon_id)
+        except KeyError:
+            weapon = None
+    if weapon is None:
+        return f"ARM {armor}", "Unarmed"
+    return (
+        f"ARM {armor}",
+        f"{weapon.name}  {weapon.damage}d  {weapon.min_range}-{weapon.max_range}",
+    )
+
+
 def _render_enemies_panel(console, ctx, alive, y: int) -> int:
     """Paint the alive-enemy list with HP bars; return the next row."""
     hud_x = SCREEN_WIDTH - HUD_WIDTH
@@ -667,6 +690,18 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             dist = int(_distance(ctx.player.pos, gei.pos))
             console.print(x=hud_x, y=y, string=f"  HP {e_bar} {e_pct}%  {dist}u", fg=name_fg)
             y += 1
+            if is_target:
+                _armor_line, _weapon_line = enemy_detail_lines(gei)
+                console.print(
+                    x=hud_x, y=y, string=f"  {_armor_line}"[:24],
+                    fg=ui.COLOR_VALUE_DIM,
+                )
+                y += 1
+                console.print(
+                    x=hud_x, y=y, string=f"  {_weapon_line}"[:24],
+                    fg=ui.COLOR_VALUE_DIM,
+                )
+                y += 1
     return y + 1
 
 

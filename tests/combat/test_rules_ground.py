@@ -117,6 +117,36 @@ class TestGroundDamageRaw:
         assert _ground_damage_raw("mono_blade", 40, 100) == 17  # 13 + 4 - 0
 
 
+class TestEnemyDetailLines:
+    def _enemy(self, armor=0, weapon_id=""):
+        return _rules_ground.GroundEnemyInstance(
+            entity=SimpleNamespace(),
+            spec=SimpleNamespace(armor=armor),
+            weapon_id=weapon_id,
+        )
+
+    def test_unarmored_enemy_reports_arm_0(self):
+        assert _rules_ground.enemy_detail_lines(self._enemy(armor=0)) == (
+            "ARM 0", "Unarmed",
+        )
+
+    def test_armored_enemy_reports_armor_value(self):
+        assert _rules_ground.enemy_detail_lines(
+            self._enemy(armor=3, weapon_id="drone_laser"),
+        )[0] == "ARM 3"
+
+    def test_weapon_line_names_damage_and_range(self):
+        _armor, _weapon = _rules_ground.enemy_detail_lines(
+            self._enemy(armor=1, weapon_id="frost_bolt"),
+        )
+        assert _weapon == "Frost Bolt  4d  1-5"
+
+    def test_unknown_weapon_falls_back_to_unarmed(self):
+        assert _rules_ground.enemy_detail_lines(
+            self._enemy(weapon_id="missing_weapon"),
+        )[1] == "Unarmed"
+
+
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     """Player melee vs an armored enemy: armor reduces, cyber arms add."""
     _enemy = _rules_ground.GroundEnemyInstance(
