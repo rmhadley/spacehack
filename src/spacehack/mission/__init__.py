@@ -7,38 +7,40 @@ remain in :mod:`spacehack.data.missions`.
 from __future__ import annotations
 
 from ._models import ActiveMission, MissionBoard, MissionStatus, MAX_ACTIVE_MISSIONS
-from ._legacy import (
-    abort_mission,
+from ._helpers import (
     active_is_deliverable_at,
     board_key,
+    destination_system_name,
+    find_board_for_mission,
+    find_deliverable,
+    find_deliverable_missions,
+    is_deliverable_at,
+    mission_spec_from_dict,
+    system_display_name,
+    system_name_for_planet,
+    _planet_to_system,
+)
+from ._legacy import (
+    abort_mission,
     board_offerings,
     board_remove,
     board_return_static,
     commit_accept_mission,
     complete_mission,
-    destination_system_name,
     ensure_board,
     fill_empty_slots,
-    find_board_for_mission,
-    find_deliverable,
-    find_deliverable_missions,
     find_mission,
     generate_bar_mission,
     generate_bounty_mission,
     generate_delivery_mission,
-    is_deliverable_at,
     list_missions,
-    mission_spec_from_dict,
     missions_offered_by,
     refresh_all_boards,
     release_mission_cargo,
-    system_display_name,
-    system_name_for_planet,
     try_accept_mission,
     _planet_npc_ids,
-    _planet_to_system,
 )
-from ._legacy import MissionSpec
+from ..data.missions import MissionSpec
 
 __all__ = [
     "ActiveMission",

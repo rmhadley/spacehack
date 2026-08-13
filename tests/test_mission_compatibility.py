@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from src.spacehack import mission
-from src.spacehack.mission import _models
+from src.spacehack.mission import _helpers, _legacy, _models
 from src.spacehack.saveload import delete_save, load_game, save_game
 from .test_saveload import _build_test_ctx
 
@@ -57,6 +57,48 @@ def test_mission_runtime_models_have_one_shared_identity():
     assert mission.MissionBoard is _models.MissionBoard
     assert mission.MissionStatus is _models.MissionStatus
     assert mission.MAX_ACTIVE_MISSIONS == _models.MAX_ACTIVE_MISSIONS
+
+
+def test_mission_helper_ownership_is_not_duplicated():
+    """Extracted helper functions retain one package-wide identity."""
+    assert mission._planet_to_system is _helpers._planet_to_system
+    assert _legacy._planet_to_system is _helpers._planet_to_system
+
+
+def test_board_key_preserves_legacy_and_city_scoped_forms():
+    """Board keys remain compatible while separating same-NPC cities."""
+    assert mission.board_key("guild_master") == "guild_master"
+    assert mission.board_key("guild_master", "earth") == "guild_master@earth"
+    assert mission.board_key("guild_master", "mars") != mission.board_key(
+        "guild_master", "earth",
+    )
+
+
+def test_mission_spec_from_dict_reconstructs_known_fields_only():
+    """Generated mission specs tolerate unknown or missing serialized keys."""
+    restored = mission.mission_spec_from_dict({
+        "id": "generated:test",
+        "title": "Test contract",
+        "description": "Carry a package.",
+        "giver_npc_id": "guild_master",
+        "mission_type": "bounty",
+        "tier": 3,
+        "reward_credits": 450,
+        "target_system_id": "sol",
+        "unknown_future_field": "ignored",
+    })
+
+    assert restored == mission.MissionSpec(
+        id="generated:test",
+        title="Test contract",
+        description="Carry a package.",
+        giver_npc_id="guild_master",
+        mission_type="bounty",
+        tier=3,
+        reward_credits=450,
+        target_system_id="sol",
+    )
+    assert not hasattr(restored, "unknown_future_field")
 
 
 def test_mission_models_round_trip_through_save_load(monkeypatch, tmp_path):

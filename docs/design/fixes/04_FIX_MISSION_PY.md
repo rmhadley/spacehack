@@ -1,6 +1,6 @@
 # FIX: Break `mission.py` into a Package
 
-**Status:** Planned — design revised to match the current runtime
+**Status:** In progress — through Phase 1b
 
 ## Problem
 
@@ -250,9 +250,18 @@ procedural phases begin.
 
 ### Phase 1b — Helpers
 
-- [ ] Move delivery predicates, searches, board lookup, display helpers, and
+- [x] Move delivery predicates, searches, board lookup, display helpers, and
       `mission_spec_from_dict` to `_helpers.py`.
-- [ ] Keep the compatibility shim and model identity tests green.
+- [x] Keep the compatibility shim and model identity tests green.
+- [x] Add direct tests for helper ownership/cache identity, composite board keys,
+      and generated-spec reconstruction.
+- [x] Run the focused mission/save-load suite (89 tests pass; full gate pending
+      final validation for this phase).
+
+`_helpers.py` now owns `_PLANET_SYSTEM_CACHE` and the display/system lookup
+functions; `_legacy.py` imports those symbols rather than maintaining a second
+implementation. Lifecycle, board, and procedural extraction remain future
+phases.
 
 ### Phase 2 — Lifecycle
 
