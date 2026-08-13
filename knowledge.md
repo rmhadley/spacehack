@@ -40,8 +40,8 @@ launcher), `run_spacehack.bat` (Windows).
 6. **Boundary rule for cross-cutting changes.** A cross-cutting change (same edit repeated in many files) still counts as ONE commit, because the individual edits are meaningless without each other. Example: wiring `?` into 16 modal handlers across 6 files = one commit ("feat: wire ? into all modal sub-screens").
 
 7. **Never commit without the full pre-commit gate.** Run
-   ``make check``. This runs the smoke test, Ruff, and the full pytest suite
-   in one local gate.
+   ``make check``. This runs smoke, the architecture ratchet, Ruff, and the
+   full pytest suite in one local gate.
 
 **Violation example from a real session:** After a session with 11 files changed, the agent made 2 commits instead of ~6. The second commit bundled 5+ unrelated changes (a feature, a refactor, a content restructure, a HUD addition, and a one-line fix). Each should have been separate.
 
@@ -136,18 +136,30 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 make check
 ```
 
-The canonical gate runs three checks in order:
+The canonical gate runs four checks in order:
 
 1. `tools/smoke.py` verifies that the Pygame runtime imports cleanly with the
    retired backend actively blocked, along with major modules and key entry
    points.
-2. Ruff checks `src/` and `tests/` for undefined names, unused imports, and
+2. `tools/architecture_check.py` enforces the local source-size ratchet:
+   existing oversized modules are reported but grandfathered while untouched;
+   any changed `src/spacehack/*.py` module must be at most 1000 lines and
+   contain no function over 40 lines. New oversized modules fail immediately.
+   This check is local by design; CI is intentionally deferred.
+3. Ruff checks `src/` and `tests/` for undefined names, unused imports, and
    syntax errors.
-3. `tools/test.py` executes the full pytest suite.
+4. `tools/test.py` executes the full pytest suite.
 
 CI integration is intentionally deferred for now. The `tools/` directory is
 outside the Ruff scope because it contains ad-hoc research and reproduction
 scripts; the maintained application and test code are the enforced lint scope.
+
+The architecture check is a ratchet, not a permanent exemption: when an
+existing oversized module is modified, that change must also reduce the module
+below the limit and split its oversized functions. Untouched legacy violations
+are printed as an explicit backlog so they remain visible without blocking
+unrelated documentation, data, or test changes. Do not add broad or anonymous
+size exemptions.
 
 The smoke test reuses `.venv/bin/python3` when available and otherwise runs
 with the current interpreter. It verifies that the Pygame runtime imports
@@ -162,7 +174,7 @@ is deliberately not a style linter — no formatting opinions.
 
 The test runner (`tools/test.py`) also auto-mounts the venv and runs the
 pytest suite — formula-correctness tests for pure computation functions.
-Never commit without all three gates passing.
+Never commit without all four checks passing.
 
 ### Runtime boundary
 
@@ -170,6 +182,16 @@ The game runtime and packaging are Pygame-only. Keep input, framebuffer, and
 presentation code on the project-owned `PygameInputEvent`, `FrameBuffer`,
 `WorldDrawCommand`, and `PygameContext` seams. The retired backend is not a
 supported dependency and must not be reintroduced.
+
+### Architecture-size workflow
+
+The source-size rule is enforced during the local development loop, not at
+push time. Before modifying a source module, run `make architecture` to see
+whether it is already in the grandfathered backlog. If it is oversized, the
+same logical change must include the extraction needed to bring the touched
+module within the 1000-line limit and all touched functions within 40 lines.
+Prefer extracting one cohesive responsibility per atomic refactor commit; do
+not solve the rule by deleting behavior or hiding code in an exception.
 
 ### Refactor philosophy
 - **Data-first.** New content is a file in `data/` backed by a frozen dataclass. No content lives in `__main__.py` or runtime modules.

@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Enforce source-size rules for changed application modules.
+
+Existing oversized modules are reported but grandfathered until touched. A
+changed source module must be at most 1000 lines and contain no function over
+40 lines. This is intentionally a local gate; CI is not required.
+"""
+from __future__ import annotations
+
+import ast
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SOURCE_ROOT = ROOT / "src" / "spacehack"
+MODULE_LIMIT = 1000
+FUNCTION_LIMIT = 40
+
+
+@dataclass(frozen=True)
+class Violation:
+    path: Path
+    kind: str
+    actual: int
+    limit: int
+    name: str = ""
+
+    def describe(self) -> str:
+        subject = f"{self.kind} {self.name}".strip()
+        return f"{self.path}: {subject} is {self.actual} lines (limit {self.limit})"
+
+
+def _git_names(args: tuple[str, ...]) -> set[str]:
+    try:
+        result = subprocess.run(
+            ("git", *args), cwd=ROOT, capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(f"git {' '.join(args)} failed: {exc}") from exc
+    return {line for line in result.stdout.splitlines() if line}
+
+
+def _changed_source_paths() -> tuple[Path, ...]:
+    changed = _git_names(("diff", "--name-only", "HEAD", "--"))
+    changed.update(_git_names(("ls-files", "--others", "--exclude-standard")))
+    paths = {
+        ROOT / name
+        for name in changed
+        if name.startswith("src/spacehack/") and name.endswith(".py")
+    }
+    return tuple(sorted((path for path in paths if path.is_file()), key=str))
+
+
+def violations_for_text(path: Path, text: str) -> tuple[Violation, ...]:
+    tree = ast.parse(text, filename=str(path))
+    violations: list[Violation] = []
+    line_count = len(text.splitlines())
+    if line_count > MODULE_LIMIT:
+        violations.append(Violation(path, "module", line_count, MODULE_LIMIT))
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        length = node.end_lineno - node.lineno + 1
+        if length > FUNCTION_LIMIT:
+            violations.append(Violation(path, "function", length, FUNCTION_LIMIT, node.name))
+    return tuple(violations)
+
+
+def _violations(path: Path) -> tuple[Violation, ...]:
+    return violations_for_text(path, path.read_text(encoding="utf-8"))
+
+
+def _format_backlog(violations: tuple[Violation, ...]) -> list[str]:
+    grouped: dict[Path, list[Violation]] = {}
+    for violation in violations:
+        grouped.setdefault(violation.path, []).append(violation)
+    lines = []
+    for path, items in sorted(grouped.items(), key=lambda item: str(item[0])):
+        modules = [item for item in items if item.kind == "module"]
+        functions = [item for item in items if item.kind == "function"]
+        detail = []
+        if modules:
+            detail.append(f"module {modules[0].actual}/{MODULE_LIMIT}")
+        if functions:
+            detail.append(f"{len(functions)} function(s) > {FUNCTION_LIMIT} lines")
+        lines.append(f"  {path.relative_to(ROOT)}: {', '.join(detail)}")
+    return lines
+
+
+def main() -> int:
+    try:
+        changed = set(_changed_source_paths())
+    except RuntimeError as exc:
+        print(f"FAIL: architecture check could not inspect Git state: {exc}")
+        return 1
+    all_violations = tuple(
+        violation
+        for path in SOURCE_ROOT.rglob("*.py")
+        for violation in _violations(path)
+    )
+    backlog = tuple(item for item in all_violations if item.path not in changed)
+    if backlog:
+        print("INFO: untouched architecture violations are grandfathered:")
+        print("\n".join(_format_backlog(backlog)))
+    blocking = tuple(item for item in all_violations if item.path in changed)
+    if blocking:
+        print("FAIL: changed source modules must be brought within architecture limits:")
+        print("\n".join(f"  {item.describe()}" for item in blocking))
+        return 1
+    changed_label = f"{len(changed)} changed source module(s)" if changed else "no changed source modules"
+    print(f"PASS: architecture check ({changed_label}; grandfathered backlog may remain).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

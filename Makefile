@@ -13,7 +13,7 @@
 #   ├── run_spacehack.bat           # Windows: double-click
 #   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
-.PHONY: dist zip app pyinstaller clean lint test check
+.PHONY: dist zip app pyinstaller clean architecture lint test check
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -93,6 +93,12 @@ app: pyinstaller
 	fi
 
 # ──────────────────────────────────────────────
+# architecture — local changed-source size ratchet
+# ──────────────────────────────────────────────
+architecture:
+	$(PYTHON) tools/architecture_check.py
+
+# ──────────────────────────────────────────────
 # lint  — pyflakes-only static check (undefined names, unused imports,
 # shadowed definitions); not a style linter, see [tool.ruff] in pyproject.toml.
 # Requires the development environment: pip install -e ".[dev]"
@@ -107,10 +113,11 @@ test:
 	$(PYTHON) tools/test.py
 
 # ──────────────────────────────────────────────
-# check — pre-commit gate: smoke test + lint + full test suite
+# check — pre-commit gate: smoke + architecture + lint + full test suite
 # ──────────────────────────────────────────────
 check:
 	$(PYTHON) tools/smoke.py
+	$(MAKE) architecture
 	$(MAKE) lint
 	$(MAKE) test
 
