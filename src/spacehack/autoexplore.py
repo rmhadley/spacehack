@@ -3,8 +3,8 @@
 Press ``O`` inside a derelict or dungeon to walk the player through
 unrevealed tiles until:
 
-* something interesting comes into sight (stairs, the exit, a hull
-  breach, a ship computer, a cache of supplies, a quest NPC),
+* something interesting comes into sight (stairs, the exit, a ship
+  computer, a cache of supplies, a quest NPC),
 * a hostile comes into view (the shared ground-combat tick starts the
   fight and auto-explore stops), or
 * the player presses any key to cancel.
@@ -35,11 +35,17 @@ from .animation_timing import AUTO_EXPLORE
 # steps onto them and never routes through them, so the run ends
 # beside them. Derived from ``_TILE_LABELS`` so the two tables cannot
 # drift apart.
+#
+# NOTE: ``breach`` is deliberately NOT here. In derelict layouts the
+# entry shaft the player spawns in is made of walkable ``breach``
+# tiles — excluding them sealed the player at spawn (auto-explore
+# reported 'everything explored' while the whole ship was dark). The
+# leave-transition is the ``exit`` tile; breach tiles are ordinary
+# passable floor.
 _TILE_LABELS = {
     "stairs_up": "a stairway up",
     "stairs_down": "a stairway down",
     "exit": "the exit",
-    "breach": "the hull breach",
 }
 _TRANSITION_KINDS = frozenset(_TILE_LABELS)
 
@@ -63,9 +69,8 @@ def interesting_at(game_map, x: int, y: int) -> str | None:
     """Return a short label for interesting content at ``(x, y)``, else
     ``None``.
 
-    Interesting = transition tiles (stairs/exit/breach) plus
-    interactable or loot entities (terminals, quest NPCs, supply
-    caches).
+    Interesting = transition tiles (stairs/exit) plus interactable
+    or loot entities (terminals, quest NPCs, supply caches).
     """
     if not game_map.in_bounds(x, y):
         return None

@@ -206,6 +206,68 @@ def test_newly_interesting_positions_empty_without_fog():
     assert newly_interesting_positions(gm, set()) == set()
 
 
+def test_next_explore_step_walks_through_breach_tiles():
+    """Derelict entry shafts are made of walkable ``breach`` tiles —
+    the player spawns on them and must walk through them. Regression:
+    they were excluded as transitions, cornering the player at spawn
+    with the whole ship still dark.
+    """
+    gm = _corridor()
+    gm.tiles[1][5] = world.Tile(kind="breach", char="X", walkable=True,
+                                fg=(255, 120, 50), bg=(80, 30, 10))
+    # Cells the player has already stood on are seen (reveal_around
+    # always marks the player's own cell).
+    gm.seen[1][0] = gm.seen[1][1] = gm.seen[1][2] = gm.seen[1][3] = True
+    gm.seen[1][4] = True
+    # Step onto the breach tile itself...
+    assert next_explore_step(gm, world.Position(4, 1)) == (1, 0)
+    # ...and through it to the unseen floor beyond.
+    gm.seen[1][5] = True
+    assert next_explore_step(gm, world.Position(5, 1)) == (1, 0)
+
+
+def test_interesting_at_does_not_flag_breach_tiles():
+    """Breach tiles are ordinary passable floor, not a leave-tile —
+    auto-explore must walk through them, not stop.
+    """
+    gm = _corridor()
+    gm.tiles[1][5] = world.Tile(kind="breach", char="X", walkable=True,
+                                fg=(255, 120, 50), bg=(80, 30, 10))
+    assert interesting_at(gm, 5, 1) is None
+
+
+def test_run_auto_explore_real_derelict_escapes_spawn_shaft():
+    """End-to-end on a real derelict layout (scout_a): the BFS must
+    escape the breach-tile entry shaft instead of reporting everything
+    explored, and the loop must make progress.
+    """
+    from src.spacehack.dungeon import load_layout, init_fog, reveal_around
+
+    gm, spawn = load_layout("scout_a")
+    assert spawn is not None
+    init_fog(gm)
+    # Strip scatter-RNG-dependent enemies so no entity can seal the
+    # shaft (loot placement is layout-fixed and stays for the
+    # interesting-stop).
+    gm.entities = [e for e in gm.entities if not e.npc_char_id]
+    player = world.Entity(char="@", fg=(255, 255, 255), pos=spawn)
+    reveal_around(gm, player.pos, radius=gm.sight_radius)
+
+    # The BFS must escape the shaft immediately (regression core).
+    assert next_explore_step(gm, player.pos) is not None
+
+    # The full loop must make progress and stop for a real reason
+    # (a cache sighting), never the cornered 'explored everything'.
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
+        return None
+
+    ctx, result = _run(gm, player, tick=tick)
+    assert result == "DONE"
+    assert player.pos != spawn
+    assert "explored every reachable area" not in ctx.log.recent(1)[0].text
+
+
 # ---------------------------------------------------------------------------
 # run_auto_explore — the loop
 # ---------------------------------------------------------------------------

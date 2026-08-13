@@ -10,7 +10,7 @@ DCSS-style auto-explore for dungeon / derelict interiors. Press `O`
 and the player walks through unrevealed tiles until:
 
 1. something **interesting** comes into sight (stairs, the exit, a
-   hull breach, a ship computer, a cache of supplies, a quest NPC),
+   ship computer, a cache of supplies, a quest NPC),
 2. a hostile becomes visible — the shared ground-combat tick starts
    the fight and auto-explore stops (`COMBAT`), or
 3. the player presses **any key** to cancel.
@@ -28,7 +28,7 @@ Pure, testable decision helpers + a thin presentation loop (mirrors
 
 | Function | Purpose |
 |----------|---------|
-| `interesting_at(game_map, x, y) -> str \| None` | Short label for interesting content at a cell (transition tiles `stairs_up/stairs_down/exit/breach`; entities with `loot_data`, `computer_terminal`, `main_quest_console`, `main_quest_door`, `npc_id`), else `None`. Table-driven labels. |
+| `interesting_at(game_map, x, y) -> str \| None` | Short label for interesting content at a cell (transition tiles `stairs_up/stairs_down/exit`; entities with `loot_data`, `computer_terminal`, `main_quest_console`, `main_quest_door`, `npc_id`), else `None`. Table-driven labels. |
 | `newly_interesting_positions(game_map, known) -> set[Position]` | Interesting cells in the current LOS frame (`game_map.visible`) not already in `known`. Empty when the map has no fog. |
 | `next_explore_step(game_map, player_pos) -> (dx, dy) \| None` | BFS over passable cells (walkable + unblocked by `blocking_entity_at`) toward the nearest **unseen** walkable cell; returns the first step. Transition tiles are never routed through or targeted — auto-explore stops *beside* stairs/exit and lets the player decide. `None` = nothing left to explore. |
 | `run_auto_explore(ctx, console, game_map, player, *, post_step_tick, map_w, map_h, location, present_frame=None) -> str` | The loop. Returns `"DONE"` (interesting sighting / exploration complete / standing on something), `"COMBAT"` (tick started a fight), `"DEFEAT"` (died in it), `"CANCELLED"` (keypress). `post_step_tick` and `present_frame` are injected (DI) so tests run headless; the default presenter renders the dungeon view + `pygame_overlay.present_exploration` exactly like the main loop. |
@@ -103,6 +103,39 @@ truth for NPC movement, LOS refresh, combat-on-sight, and activations.
 - [x] Gate green (842), self-audit, code review (blocking nit fixed:
       loop split into `_poll_cancel_window`; tables derived from one
       source).
+
+### Post-playtest fix (both bugs, one root cause) ✅
+
+**Bug:** auto-explore cornered the player at the derelict entry shaft
+and declared everything explored while the whole ship was dark; walls
+never revealed.
+
+**Root cause:** derelict entry shafts are made of walkable `breach`
+tiles (the player spawns on them and walks through them), but
+`breach` was in `_TRANSITION_KINDS` — the BFS refused to route
+through the very tiles the player stands on (0 steps from spawn, 746
+unseen cells unreachable). Verified with `tools/repro_autoexplore.py`
+on a real scout_a layout; after the fix the walk covers the ship
+(188 steps) and ends with 0 reachable unseen cells.
+
+- [x] Removed `breach` from `_TILE_LABELS`/`_TRANSITION_KINDS` — the
+      leave-transition is the `exit` tile (still excluded).
+- [x] Regression tests: breach passability (unit), breach not
+      interesting, real-layout escape-from-spawn (scout_a, enemies
+      stripped for determinism).
+
+## Playtest checklist
+
+- [x] Press `O` in a derelict with unrevealed rooms — walks there,
+      stops beside stairs/exit instead of stepping on them.
+- [ ] Loot in an unseen room: stops when it comes into view.
+- [ ] Loot already on screen when `O` pressed: does NOT re-stop.
+- [ ] Enemy comes into view: combat starts, auto-explore ends.
+- [ ] Any key cancels mid-run.
+- [ ] Everything explored: "You have explored every reachable area."
+- [ ] `O` in city/space logs the dungeon-only hint.
+- [ ] Press `O` right after entering a derelict (breach shaft) — the
+      walk must proceed into the ship instead of stopping instantly.
 
 ## Playtest checklist
 
