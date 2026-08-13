@@ -70,6 +70,24 @@ class ShieldBubble:
 
 
 @dataclass(frozen=True)
+class FloatingText:
+    """One native floating combat number rendered by Pygame, not the bitmap.
+
+    ``x``/``y`` are logical screen-cell coordinates (viewport-relative,
+    like :class:`ShieldBubble`). ``age`` is the frame age (0 = spawn) and
+    ``lifetime`` the total frame count; the renderer rises the text
+    ``age``*2px and fades its colour toward dim grey as it ages.
+    """
+
+    text: str
+    x: int
+    y: int
+    color: Color
+    age: int
+    lifetime: int
+
+
+@dataclass(frozen=True)
 class OverlayFrame:
     """Captured HUD, message-log, and native map-effect layers."""
 
@@ -81,6 +99,7 @@ class OverlayFrame:
     message_top: int
     message_height: int
     shields: tuple[ShieldBubble, ...] = ()
+    floaters: tuple[FloatingText, ...] = ()
 
 
 def _segments(commands: Any, *, x_min: int, x_max: int, y_min: int, y_max: int) -> tuple[OverlaySegment, ...]:
@@ -125,6 +144,7 @@ def _frame_from_commands(
     screen_height: int,
     hud_view_height: int,
     shields: tuple[ShieldBubble, ...] = (),
+    floaters: tuple[FloatingText, ...] = (),
 ) -> OverlayFrame:
     """Build an overlay frame from an already-rendered console."""
     hud_x = screen_width - HUD_WIDTH
@@ -149,6 +169,7 @@ def _frame_from_commands(
         message_top=screen_height - MSG_LOG_HEIGHT,
         message_height=MSG_LOG_HEIGHT,
         shields=tuple(shields),
+        floaters=tuple(floaters),
     )
 
 
@@ -329,6 +350,17 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
         )
         for item in data.get("shields", ())
     )
+    floaters = tuple(
+        FloatingText(
+            text=str(item["text"]),
+            x=int(item["x"]),
+            y=int(item["y"]),
+            color=tuple(item["color"]),
+            age=int(item.get("age", 0)),
+            lifetime=int(item.get("lifetime", 1)),
+        )
+        for item in data.get("floaters", ())
+    )
     return OverlayFrame(
         hud=_segments_from("hud"),
         messages=_segments_from("messages"),
@@ -338,6 +370,7 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
         message_top=int(data["message_top"]),
         message_height=int(data["message_height"]),
         shields=shields,
+        floaters=floaters,
     )
 
 
@@ -520,6 +553,48 @@ def _draw_shield_bubbles(
         screen.set_clip(None)
 
 
+def _draw_floaters(
+    pygame: Any,
+    screen: Any,
+    floaters: tuple[FloatingText, ...],
+    *,
+    map_width: int,
+    map_height: int,
+) -> None:
+    """Paint native floating combat numbers over the map region.
+
+    Each floater is drawn with the shared Pygame font at roughly one
+    cell wide, centred on its anchor cell, rising ``age``*2px per
+    frame and fading toward dim grey as it approaches ``lifetime``.
+    A four-way 1px shadow keeps the text readable over bright map
+    glyphs and explosions. Clipped to the map area so floaters never
+    spill into the HUD or message-log panels.
+    """
+    if not floaters:
+        return
+    screen.set_clip(pygame.Rect(0, 0, map_width * TILE_WIDTH, map_height * TILE_HEIGHT))
+    try:
+        font = pygame_ui.cell_font(pygame, line_height=22)
+        measure = lambda text: pygame_ui.measure_font(font, text)
+        shadow = (10, 10, 14)
+        for floater in floaters:
+            frac = max(0.0, 1.0 - floater.age / max(1, floater.lifetime))
+            color = tuple(
+                int(channel * frac + 90 * (1 - frac))
+                for channel in floater.color
+            )
+            x = floater.x * TILE_WIDTH + TILE_WIDTH // 2 - measure(floater.text) // 2
+            y = floater.y * TILE_HEIGHT - min(floater.age, floater.lifetime) * 2
+            for dx, dy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+                pygame_ui.draw_text(
+                    pygame, screen, font, floater.text,
+                    x + dx, y + dy, color=shadow, antialias=False,
+                )
+            pygame_ui.draw_text(pygame, screen, font, floater.text, x, y, color=color)
+    finally:
+        screen.set_clip(None)
+
+
 def draw(
     pygame: Any,
     screen: Any,
@@ -529,12 +604,21 @@ def draw(
     logical_height: int,
 ) -> None:
     """Paint native map effects, framed HUD, and message-log regions."""
+    map_width = (logical_width // TILE_WIDTH) - HUD_WIDTH
+    map_height = (logical_height // TILE_HEIGHT) - MSG_LOG_HEIGHT
     _draw_shield_bubbles(
         pygame,
         screen,
         frame.shields,
-        map_width=(logical_width // TILE_WIDTH) - HUD_WIDTH,
-        map_height=(logical_height // TILE_HEIGHT) - MSG_LOG_HEIGHT,
+        map_width=map_width,
+        map_height=map_height,
+    )
+    _draw_floaters(
+        pygame,
+        screen,
+        frame.floaters,
+        map_width=map_width,
+        map_height=map_height,
     )
     palette = pygame_ui.DEFAULT_PALETTE
     screen_width = logical_width // TILE_WIDTH

@@ -114,6 +114,47 @@ def test_overlay_payload_round_trips_segments_and_layout():
     assert restored == frame
 
 
+def test_overlay_payload_round_trips_floating_text():
+    frame = pygame_overlay.OverlayFrame(
+        hud=(),
+        messages=(),
+        hud_x=80,
+        hud_top=0,
+        hud_height=54,
+        message_top=54,
+        message_height=6,
+        shields=(),
+        floaters=(
+            pygame_overlay.FloatingText("-14", 32, 20, (255, 140, 70), 2, 8),
+            pygame_overlay.FloatingText("MISS", 12, 5, (170, 170, 185), 0, 6),
+        ),
+    )
+
+    payload = pygame_overlay.payload(frame)
+
+    assert payload["floaters"] == (
+        {"text": "-14", "x": 32, "y": 20, "color": (255, 140, 70),
+         "age": 2, "lifetime": 8},
+        {"text": "MISS", "x": 12, "y": 5, "color": (170, 170, 185),
+         "age": 0, "lifetime": 6},
+    )
+    assert pygame_overlay.frame_from_payload(payload) == frame
+
+
+def test_frame_from_commands_carries_floating_text_through():
+    floater = pygame_overlay.FloatingText("-4", 10, 8, (255, 140, 70), 1, 8)
+
+    frame = pygame_overlay._frame_from_commands(
+        (),
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+        floaters=(floater,),
+    )
+
+    assert frame.floaters == (floater,)
+
+
 def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
     from src.spacehack.combat._stats import init_combat_state
     from src.spacehack.data.npc_ships import find_npc_ship
