@@ -1,6 +1,6 @@
 # FIX: Break `mission.py` into a Package
 
-**Status:** In progress — through Phase 2
+**Status:** In progress — through Phase 6
 
 ## Problem
 
@@ -310,11 +310,15 @@ remain identity-compatible.
 
 ### Phase 6 — Bounty generator
 
-- [ ] Move bounty generation and name/enemy/loadout/squad helpers to
+- [x] Move bounty generation and name/enemy/loadout/squad helpers to
       `_proc_bounty.py`.
-- [ ] Preserve target pools, squad fields, rewards, deadlines, and generated
+- [x] Preserve target pools, squad fields, rewards, deadlines, and generated
       IDs.
-- [ ] Run bounty generator, navigation, combat, and save/load tests.
+- [x] Run bounty generator, movement/navigation, combat, and save/load tests
+      (198 focused tests pass).
+
+`_proc_bounty.py` owns bounty helper tables and generation; legacy retains only
+the public generator alias for compatibility.
 
 ### Phase 7 — Bar generators
 
