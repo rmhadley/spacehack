@@ -428,3 +428,55 @@ class TestRangeLineHidden:
         with pytest.raises(RuntimeError):
             _rules_ground.run_enemy_turns(_ctx, _game_map)
         assert _rules_ground._state.range_line_hidden is False
+
+
+# ---------------------------------------------------------------------------
+# combat_locked — engaged enemies must not be patrol-moved mid-fight
+# ---------------------------------------------------------------------------
+
+
+def test_init_locks_engaged_enemies():
+    """Combat participants are frozen from move_ground_npcs on init."""
+    _ctx, _game_map, _, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+
+    assert getattr(_enemy, "combat_locked", False) is True
+
+
+def test_check_reinforcements_locks_joins_before_patrol_tick(monkeypatch):
+    """Mid-fight joins (refresh_engaged) are frozen before move_ground_npcs."""
+    _ctx, _game_map, _, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    # Simulate a fresh join that was never locked by init: drop the flag
+    # and re-add the instance to the state.
+    _joiner = world.Entity(
+        "p", (255, 100, 100), world.Position(1, 1),
+        npc_char_id="dust_prowler",
+    )
+    _rules_ground._state.enemies.append(
+        _rules_ground.GroundEnemyInstance(entity=_joiner, spec=None)
+    )
+
+    from src.spacehack import ground_npcs
+    _lock_seen = []
+
+    def _fake_move(ctx, game_map):
+        _lock_seen.append(getattr(_joiner, "combat_locked", False))
+
+    monkeypatch.setattr(ground_npcs, "move_ground_npcs", _fake_move)
+
+    _rules_ground.check_reinforcements(_ctx, _game_map)
+
+    assert _lock_seen == [True]
+    assert getattr(_joiner, "combat_locked", False) is True
+
+
+def test_sync_state_releases_engaged_enemies():
+    """After the fight, survivors resume patrol/wander behaviour."""
+    _ctx, _game_map, _, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    assert getattr(_enemy, "combat_locked", False) is True
+
+    _rules_ground.sync_state(_ctx)
+
+    assert not hasattr(_enemy, "combat_locked")

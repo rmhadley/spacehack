@@ -34,6 +34,7 @@ from ._actions import (
     move_entity,
     _spawn_loot_at_position as _shared_loot,
     _spawn_equipment_loot_at_position as _shared_equipment_loot,
+    set_combat_locks,
 )
 from ._animations import (
     _has_los,
@@ -179,6 +180,11 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     # Ace Pilot trait: +1 AP per turn in combat.
     _player_ap_total = 4 + _ace_pilot_bonus(ctx)
 
+    # Clear combat locks from an abnormally-ended previous fight (e.g.
+    # an exception that skipped sync_state) so those NPCs patrol again.
+    if _state is not None:
+        _set_combat_locks(False)
+
     _state = GroundCombatState(
         ctx=ctx, game_map=game_map,
         enemies=_enemies,
@@ -188,6 +194,10 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
         active_weapon_list=[True] * len(_weapons),
         console=console,
     )
+    # Freeze the engaged set: the ambient patrol pass (move_ground_npcs
+    # via check_reinforcements) must never move combat participants —
+    # the combat AI is their only mover.
+    _set_combat_locks(True, _enemies)
 
     _names = ", ".join(_e.name for _e in _enemies)
     ctx.log.add_colored(
@@ -770,14 +780,29 @@ def refresh_engaged(ctx, game_map: world.GameMap) -> None:
         _announce_joins(ctx, _joined)
 
 
+def _set_combat_locks(locked: bool, instances=None) -> None:
+    """Freeze/release engaged enemies from the ``move_ground_npcs`` pass.
+
+    See :func:`combat._actions.set_combat_locks` for the flag contract.
+    """
+    _insts = instances if instances is not None else _state.enemies
+    set_combat_locks(locked, (_gei.entity for _gei in _insts))
+
+
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     """Move non-combat ground NPCs during combat (matches space behaviour).
 
     Combat joins no longer live here — :func:`refresh_engaged` handles
     them at loop top so new mobs are engaged immediately. Idle mobs
-    keep wandering so the dungeon stays alive around the fight.
+    keep wandering so the dungeon stays alive around the fight; the
+    engaged enemies are frozen (``combat_locked``) so the patrol pass
+    leaves them to the combat AI.
     """
     from ..ground_npcs import move_ground_npcs as _move_ground_npcs
+
+    # Freeze the engaged set (initial enemies + mid-fight joins) before
+    # the patrol tick.
+    _set_combat_locks(True)
     _move_ground_npcs(ctx, game_map)
 
 
@@ -824,6 +849,9 @@ def reset_turn(ctx) -> None:
 
 
 def sync_state(ctx) -> None:
+    # Release the engaged enemies: with the fight over they resume
+    # patrol/wander behaviour on the next dungeon tick.
+    _set_combat_locks(False)
     ctx.ground_hp = max(0, _state.player_hp)
     ctx.ground_max_hp = _state.player_max_hp
 

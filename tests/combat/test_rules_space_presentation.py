@@ -78,3 +78,54 @@ def test_presentation_bubbles_reject_unrelated_context():
         assert _rules_space.presentation_shield_bubbles(ctx=SimpleNamespace()) == ()
     finally:
         _rules_space._state = old_state
+
+
+# ---------------------------------------------------------------------------
+# Combat locks — combat participants must not be patrolled mid-fight
+# ---------------------------------------------------------------------------
+
+
+def test_check_reinforcements_locks_combat_entities_before_tick(monkeypatch):
+    """Enemies are frozen from the ambient patrol pass BEFORE move_npcs
+    runs, so they can't drift/despawn mid-combat (the 'enemy
+    disappeared' bug)."""
+    ctx, state = _state()
+    old_state = _rules_space._state
+    _rules_space._state = state
+    _lock_seen = []
+    try:
+        from src.spacehack import npc_ships, navigation
+
+        def _fake_tick(ctx, game_map):
+            _lock_seen.append(getattr(state.enemy_ents[0], "combat_locked", False))
+
+        monkeypatch.setattr(npc_ships, "move_npcs", _fake_tick)
+        monkeypatch.setattr(
+            navigation, "_detect_combat_encounter",
+            lambda *a, **k: None,
+        )
+
+        _rules_space.check_reinforcements(ctx, SimpleNamespace())
+    finally:
+        _rules_space._state = old_state
+
+    assert _lock_seen == [True]
+    assert getattr(state.enemy_ents[0], "combat_locked", False) is True
+
+
+def test_sync_state_releases_combat_locks(monkeypatch):
+    """When combat ends (victory/flee), the survivors resume patrolling."""
+    ctx, state = _state()
+    ctx.player_owned_ship = None  # read by sync_state before the patched helpers
+    state.enemy_ents[0].combat_locked = True
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        monkeypatch.setattr(_rules_space, "_sync_back_hull", lambda *a, **k: None)
+        monkeypatch.setattr(_rules_space, "_sync_back_ammo", lambda *a, **k: None)
+        _rules_space.sync_state(ctx)
+    finally:
+        _rules_space._state = old_state
+
+    assert not hasattr(state.enemy_ents[0], "combat_locked")
+    assert state.active is False

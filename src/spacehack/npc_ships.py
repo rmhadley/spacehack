@@ -686,10 +686,17 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         if _faction_of(_e) == 'pirate':
             _pirate_positions.append((_e.pos.x, _e.pos.y))
 
+    # Combat participants are locked out of the patrol pass: entities
+    # currently engaged in space combat carry ``combat_locked`` (set by
+    # combat/_rules_space.py at every reinforcement tick) so they are
+    # neither patrolled toward body goals nor despawned at gates/planets
+    # mid-fight. The rest of the system (per-tick spawns, other ships)
+    # keeps moving so reinforcements can still arrive.
     _npcs = [
         _e for _e in game_map.entities
         if not getattr(_e, 'owned', False)
         and getattr(_e, 'procedural_squad_id', '') != ''
+        and not getattr(_e, 'combat_locked', False)
     ]
     _squad_map: dict[str, list] = {}
     for _e in _npcs:

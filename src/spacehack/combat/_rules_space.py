@@ -36,6 +36,7 @@ from ._actions import (
     _sync_back_ammo,
     _remove_dead_entity,
     _spawn_loot_drops,
+    set_combat_locks,
 )
 from ._animations import (
     _animate_explosion,
@@ -78,6 +79,17 @@ class SpaceCombatState:
 
 
 _state: SpaceCombatState | None = None
+
+
+def _set_combat_locks(locked: bool, entities=None) -> None:
+    """Freeze/release combat entities from the ``move_npcs`` patrol pass.
+
+    See :func:`combat._actions.set_combat_locks` for the flag contract.
+    """
+    _ents = entities if entities is not None else _state.enemy_ents
+    if isinstance(_ents, dict):
+        _ents = _ents.values()
+    set_combat_locks(locked, _ents)
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +197,11 @@ def init(
     _cr = CombatResult()
     start_player_turn(_player_state)
 
+    # Clear combat locks from an abnormally-ended previous fight (e.g.
+    # an exception that skipped sync_state) so those ships patrol again.
+    if _state is not None:
+        _set_combat_locks(False)
+
     _state = SpaceCombatState(
         ctx=ctx, console=console, game_map=game_map, log=log,
         player_state=_player_state,
@@ -193,6 +210,9 @@ def init(
         weapons_list=_weapons_list, active_weapons=_active_weapons,
         cr=_cr,
     )
+    # Freeze the engaged set immediately: no patrol tick may move these
+    # ships, even before the first reinforcement pass.
+    _set_combat_locks(True, _enemy_ents)
 
 
 # ---------------------------------------------------------------------------
@@ -756,6 +776,12 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     from ..navigation import _detect_combat_encounter as _re_detect
     from .. import solar_system as _ss_module
 
+    # Freeze the current combatants before the patrol tick: they must
+    # not drift/despawn mid-fight. Covers initial enemies AND any
+    # squads that joined earlier this combat (all live in
+    # ``_state.enemy_ents``).
+    _set_combat_locks(True)
+
     _tick_npcs(ctx, game_map)
 
     for _i, _ent in _state.enemy_ents.items():
@@ -833,6 +859,9 @@ def reset_turn(ctx) -> None:
 
 
 def sync_state(ctx) -> None:
+    # Release the combatants: with the fight over they resume normal
+    # patrol movement on the next space tick.
+    _set_combat_locks(False)
     _sync_back_hull(_state.player_state, ctx.player_owned_ship)
     _sync_back_ammo(_state.player_state, ctx.player_owned_ship)
     _state.active = False

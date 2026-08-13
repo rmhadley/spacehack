@@ -36,6 +36,29 @@ def test_hunter_pursues_remembered_player_cell(monkeypatch):
     assert hunter.last_seen_ticks == 4
 
 
+def test_move_ground_npcs_skips_combat_locked_entities(monkeypatch):
+    """Engaged enemies (combat_locked) are frozen; others still move."""
+    player = world.Entity("@", (255, 255, 255), world.Position(7, 2))
+    locked = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    locked.combat_locked = True
+    free = world.Entity(
+        "p", (255, 100, 100), world.Position(5, 2),
+        npc_char_id="dust_prowler",
+    )
+    game_map = _floor_map(player, locked, free)
+    ctx = SimpleNamespace(player=player, faction_reputation={})
+    monkeypatch.setattr(ground_npcs, "_MOVE_CHANCE", 1.0)
+    monkeypatch.setattr(ground_npcs.RNG, "random", lambda: 0.0)
+
+    ground_npcs.move_ground_npcs(ctx, game_map)
+
+    assert locked.pos == world.Position(2, 2)  # frozen mid-combat
+    assert free.pos != world.Position(5, 2)    # patrolled/wandered normally
+
+
 def test_active_pursuit_bypasses_normal_move_roll(monkeypatch):
     player = world.Entity("@", (255, 255, 255), world.Position(7, 2))
     hunter = world.Entity(

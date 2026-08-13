@@ -72,6 +72,34 @@ def _spawn_equipment_loot_at_position(
         )
 
 
+def set_combat_locks(locked: bool, entities) -> None:
+    """Mark/unmark entities so ambient patrol systems leave them alone.
+
+    Both combat rule sets freeze their participants during a fight:
+    ``npc_ships.move_npcs`` (space) and ``ground_npcs.move_ground_npcs``
+    (ground) skip entities carrying ``combat_locked``, so engaged
+    enemies are neither patrolled toward body goals nor despawned at
+    gates/planets mid-fight (the "enemy disappeared" bug) — their
+    only mover is the combat AI.
+
+    ``combat_locked`` is a transient runtime flag: never serialized
+    (entities only persist declared dataclass fields on save) and
+    cleared by each rules module's ``sync_state`` when the fight ends.
+    ``None`` entries are skipped so callers can pass heterogeneous
+    lists safely.
+    """
+    for _ent in entities:
+        if _ent is None:
+            continue
+        if locked:
+            _ent.combat_locked = True
+        else:
+            try:
+                del _ent.combat_locked
+            except AttributeError:
+                pass
+
+
 def _remove_dead_entity(
     game_map: world.GameMap,
     enemy_ents: dict,

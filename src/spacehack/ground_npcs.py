@@ -322,6 +322,11 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
             continue
         if not getattr(_e, 'npc_char_id', ''):
             continue
+        # Combat participants are driven by the combat AI — the patrol
+        # pass must not also move them. Flag set by
+        # combat/_rules_ground.py, cleared when the fight ends.
+        if getattr(_e, 'combat_locked', False):
+            continue
         # Guards and ambushers hold their position out of combat —
         # only hunters patrol (and neutrals wander).
         if _spec_behavior(ctx, _e) in ("guard", "ambusher"):

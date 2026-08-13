@@ -11,13 +11,44 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from src.spacehack import world
 from src.spacehack.engine import RNG
-from src.spacehack.combat._actions import resolve_damage
+from src.spacehack.combat._actions import resolve_damage, set_combat_locks
 
 
 def _seed(n: int = 42) -> None:
     """Re-seed the global RNG for deterministic test output."""
     RNG.seed(n)
+
+
+def _entity() -> world.Entity:
+    return world.Entity("P", (255, 100, 100), world.Position(1, 1), "Pirate")
+
+
+class TestSetCombatLocks:
+    """Transient combat-lock flag: set on lock, removed on unlock."""
+
+    def test_lock_marks_entities(self):
+        a, b = _entity(), _entity()
+        set_combat_locks(True, [a, b])
+        assert a.combat_locked is True
+        assert b.combat_locked is True
+
+    def test_unlock_removes_flag(self):
+        a = _entity()
+        set_combat_locks(True, [a])
+        set_combat_locks(False, [a])
+        assert not hasattr(a, "combat_locked")
+
+    def test_unlock_without_flag_is_noop(self):
+        a = _entity()
+        set_combat_locks(False, [a])  # must not raise
+        assert not hasattr(a, "combat_locked")
+
+    def test_none_entities_are_skipped(self):
+        a = _entity()
+        set_combat_locks(True, [None, a])
+        assert a.combat_locked is True
 
 
 class TestResolveDamage:
