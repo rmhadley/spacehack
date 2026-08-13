@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.spacehack import world
 from src.spacehack.combat import _loop, _rules_ground
 from src.spacehack.combat._rules_ground import (
@@ -292,3 +294,137 @@ class TestCalcGroundMoveDodge:
     def test_cap(self):
         """7 cells → 30 (capped, not 35)."""
         assert _calc_ground_move_dodge(7) == 30
+
+
+# ---------------------------------------------------------------------------
+# range_line_hidden — targeting line suppressed during animations / enemy turn
+# ---------------------------------------------------------------------------
+
+def _ground_fixture():
+    """Minimal map + ctx + console for render_frame-style tests."""
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(7)] for _ in range(7)]
+    _game_map = world.GameMap(7, 7, _tiles, [])
+    _player = world.Entity(
+        "@", (255, 255, 255), world.Position(3, 3), "Player",
+    )
+    _enemy = world.Entity(
+        "D", (255, 100, 100), world.Position(3, 5), "Assault Drone",
+        npc_char_id="assault_drone",
+    )
+    _game_map.entities.extend((_player, _enemy))
+    _ctx = SimpleNamespace(
+        player=_player,
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        ground_hp=23,
+        ground_max_hp=23,
+        equipped_ground_weapons=["fists"],
+        equipped_ground_armor={},
+        player_traits=[],
+        log=SimpleNamespace(
+            add=lambda _message: None,
+            add_colored=lambda _message, _color: None,
+        ),
+    )
+    _console = SimpleNamespace(clear=lambda: None, print=lambda *a, **k: None)
+    return _ctx, _game_map, _console, _enemy
+
+
+def _patch_render_deps(monkeypatch, line_calls: list) -> None:
+    """Neutralize render_frame's heavy deps; record range-line calls."""
+    monkeypatch.setattr(
+        _rules_ground, "_ground_range_line",
+        lambda *a, **k: line_calls.append(a),
+    )
+    monkeypatch.setattr(
+        _rules_ground, "world",
+        SimpleNamespace(
+            camera_for_view=lambda *a, **k: (0, 0, 0, 0),
+            render_world_view=lambda *a, **k: None,
+        ),
+    )
+    monkeypatch.setattr(_rules_ground, "_paint_target_highlight", lambda *a, **k: None)
+    monkeypatch.setattr(
+        _rules_ground, "_ml",
+        SimpleNamespace(render_message_log=lambda *a, **k: None),
+    )
+    monkeypatch.setattr(_rules_ground, "_bar_str", lambda *a, **k: "########")
+
+
+class TestRangeLineHidden:
+    def test_render_frame_skips_line_when_flag_set(self, monkeypatch):
+        """The line is a player-turn affordance: drawn on the idle
+        frame, suppressed when range_line_hidden is set (animation /
+        enemy-turn frames)."""
+        _ctx, _game_map, _console, _enemy = _ground_fixture()
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _line_calls: list = []
+        _patch_render_deps(monkeypatch, _line_calls)
+
+        _rules_ground.render_frame(_console, _ctx, _game_map)
+        assert len(_line_calls) == 1  # idle frame: line drawn
+
+        _rules_ground._state.range_line_hidden = True
+        _rules_ground.render_frame(_console, _ctx, _game_map)
+        assert len(_line_calls) == 1  # suppressed: no new call
+
+    def test_animate_fire_hides_line_for_shot_duration(self, monkeypatch):
+        """The flag is set for the whole animation and restored after."""
+        _ctx, _game_map, _console, _enemy = _ground_fixture()
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _line_calls: list = []
+        _patch_render_deps(monkeypatch, _line_calls)
+
+        _flags_seen: list = []
+
+        def _fake_shot(console, ctx, game_map, from_pos, to_pos, weapon_id,
+                       *, is_hit, damage, render_callback):
+            _flags_seen.append(_rules_ground._state.range_line_hidden)
+            render_callback(console, ctx, game_map)  # one frame mid-shot
+
+        monkeypatch.setattr(_rules_ground, "_animate_ground_shot", _fake_shot)
+        _rules_ground._state.range_line_hidden = False
+
+        _rules_ground.animate_fire(
+            _console, _ctx, _game_map,
+            world.Position(3, 3), world.Position(3, 5), True,
+            None, weapon_id="fists",
+        )
+
+        assert _flags_seen == [True]
+        assert _line_calls == []  # the mid-shot frame drew no range line
+        assert _rules_ground._state.range_line_hidden is False  # restored
+
+    def test_run_enemy_turns_hides_line_for_whole_enemy_turn(self, monkeypatch):
+        """The flag is set across the entire enemy turn and restored."""
+        _ctx, _game_map, _, _enemy = _ground_fixture()
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+
+        _flags_seen: list = []
+
+        def _fake_impl(ctx, game_map, _enemy_ai):
+            _flags_seen.append(_rules_ground._state.range_line_hidden)
+            return 0
+
+        monkeypatch.setattr(_rules_ground, "_run_enemy_turns_impl", _fake_impl)
+        _rules_ground._state.range_line_hidden = False
+
+        _result = _rules_ground.run_enemy_turns(_ctx, _game_map)
+
+        assert _flags_seen == [True]
+        assert _result == 0
+        assert _rules_ground._state.range_line_hidden is False  # restored
+
+    def test_flag_restored_even_on_exception(self, monkeypatch):
+        """try/finally semantics: an error mid-turn leaves the flag clean."""
+        _ctx, _game_map, _, _enemy = _ground_fixture()
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+
+        def _boom(ctx, game_map, _enemy_ai):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(_rules_ground, "_run_enemy_turns_impl", _boom)
+        _rules_ground._state.range_line_hidden = False
+
+        with pytest.raises(RuntimeError):
+            _rules_ground.run_enemy_turns(_ctx, _game_map)
+        assert _rules_ground._state.range_line_hidden is False

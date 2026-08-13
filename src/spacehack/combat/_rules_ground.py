@@ -10,8 +10,9 @@ a single module-level dataclass replacing the old scattered globals.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Iterator
 
 from .. import world
 from .. import ui
@@ -97,6 +98,10 @@ class GroundCombatState:
     active_weapon_list: list[bool] = field(default_factory=list)
     target_idx: int = 0
     console: Any = None
+    # Presentation-only: while True, ``render_frame`` skips the player's
+    # range/accuracy line. Set during shot animations and the whole enemy
+    # turn so the line never clutters frames the player isn't acting on.
+    range_line_hidden: bool = False
 
 
 _state: GroundCombatState | None = None
@@ -511,7 +516,13 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         _weapons[i] for i in range(len(_weapons))
         if i < len(_state.active_weapon_list) and _state.active_weapon_list[i]
     ]
-    if _active_w and _state.target_idx < len(_alive):
+    # The range/accuracy line is a player-turn affordance only: hide it
+    # while shot animations run and during the enemy turn (range_line_hidden).
+    # The gold target highlight stays — it reads as the engaged target.
+    if (
+        _active_w and _state.target_idx < len(_alive)
+        and not _state.range_line_hidden
+    ):
         _tgt = _alive[_state.target_idx]
         _los_blocked = not _has_los(
             game_map,
@@ -600,21 +611,45 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
 # Animation
 # ---------------------------------------------------------------------------
 
+@contextmanager
+def _range_line_hidden() -> Iterator[None]:
+    """Context manager: suppress the player's range/accuracy line.
+
+    The line is a player-turn aiming affordance only. Shot animations
+    and the whole enemy turn wrap their frames in this so the beam /
+    tracer / enemy movement reads cleanly instead of sitting under a
+    line the player isn't aiming with. Restores the previous state on
+    exit (a shot fired mid-enemy-turn keeps it hidden, for example).
+    """
+    _was_hidden = _state.range_line_hidden
+    _state.range_line_hidden = True
+    try:
+        yield
+    finally:
+        _state.range_line_hidden = _was_hidden
+
+
 def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
     damage: DamagePopup = None,
     *, weapon_id: str = "",
 ) -> None:
-    """Animate one ground-combat shot with a weapon-appropriate effect."""
+    """Animate one ground-combat shot with a weapon-appropriate effect.
+
+    Hides the range/accuracy line for the duration of the animation so
+    the beam/tracer reads cleanly instead of being buried under the
+    player's own targeting aid.
+    """
     _wid = weapon_id or ((player_weapons(ctx) or ["fists"])[0])
-    _animate_ground_shot(
-        console, ctx, game_map,
-        from_pos, to_pos,
-        _wid, is_hit=is_hit,
-        damage=damage,
-        render_callback=render_frame,
-    )
+    with _range_line_hidden():
+        _animate_ground_shot(
+            console, ctx, game_map,
+            from_pos, to_pos,
+            _wid, is_hit=is_hit,
+            damage=damage,
+            render_callback=render_frame,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -662,6 +697,14 @@ def handle_defense(ctx) -> None:
 def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai_ground import run_ground_enemy_turn as _enemy_ai
 
+    # The enemy turn is not the player's aiming phase: hide the range
+    # line for every movement step and attack animation in it, then
+    # restore it for the player's next interactive frame.
+    with _range_line_hidden():
+        return _run_enemy_turns_impl(ctx, game_map, _enemy_ai)
+
+
+def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     _player_dodge = _calc_ground_move_dodge(_state.cells_moved_this_turn)
 
     _total_dmg = 0
