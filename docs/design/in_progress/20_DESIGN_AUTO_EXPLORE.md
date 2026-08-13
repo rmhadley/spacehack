@@ -124,6 +124,27 @@ on a real scout_a layout; after the fix the walk covers the ship
       interesting, real-layout escape-from-spawn (scout_a, enemies
       stripped for determinism).
 
+**Second fix (both remaining bugs — fog-edge walls):** the player's
+save showed `next_explore_step → None` with **8574/10800 cells dark**
+and **154 unseen wall cells** directly adjacent to seen floor: the
+BFS only targeted unseen *walkable* cells, but fog boundaries are
+made of unseen *walls* just beyond LOS. Once all reachable floor was
+seen it declared everything explored, and the run never walked up to
+boundary walls ("rooms explored up to the wall but the wall stayed
+dark").
+
+- [x] `next_explore_step` now targets ANY unseen cell — floor, wall,
+      or transition — so the run advances to the fog edge and reveals
+      it. Transitions are still never stepped on (an unseen one is
+      walked toward so it can be spotted). Verified on the user's
+      save: the walk runs (345 steps, boundary walls 154 → 26, all
+      reachable cells revealed) and on scout_a (263 steps, 0
+      reachable unseen).
+- [x] Tests reworked for the semantics (walls seeded as seen in
+      fixtures, like `reveal_around` in-game) + new wall-targeting
+      regressions (walk toward unseen walls, progress through walls,
+      none-when-walls-revealed).
+
 ## Playtest checklist
 
 - [x] Press `O` in a derelict with unrevealed rooms — walks there,
@@ -136,6 +157,9 @@ on a real scout_a layout; after the fix the walk covers the ship
 - [ ] `O` in city/space logs the dungeon-only hint.
 - [ ] Press `O` right after entering a derelict (breach shaft) — the
       walk must proceed into the ship instead of stopping instantly.
+- [ ] Mid-run on a well-explored map: the walk continues to the fog
+      edges (revealing boundary walls) instead of instantly reporting
+      everything explored.
 
 ## Playtest checklist
 

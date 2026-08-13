@@ -69,13 +69,30 @@ def _player(x, y):
 
 
 def _reveal_frame(game_map, cx, cy, radius):
-    """Mark a Chebyshev disc as both seen and visible — the
-    ``reveal_around`` simulation used by test ticks.
+    """Mark a Chebyshev disc (walls included) as both seen and visible —
+    the ``reveal_around`` simulation used by test ticks.
     """
     for y in range(max(0, cy - radius), min(game_map.height, cy + radius + 1)):
         for x in range(max(0, cx - radius), min(game_map.width, cx + radius + 1)):
             game_map.seen[y][x] = True
             game_map.visible[y][x] = True
+
+
+def _explored_corridor(gm, upto):
+    """Mark corridor cells x=0..``upto`` (floor AND walls) as seen — the
+    explored stretch a player would have revealed walking it.
+    """
+    for x in range(upto + 1):
+        for y in range(3):
+            gm.seen[y][x] = True
+
+
+def _seed_start(gm, player):
+    """Reveal a small disc around the start (walls included), like the
+    player's entry reveal — the corridor then only has unseen cells
+    ahead.
+    """
+    _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
 
 
 class _Events:
@@ -84,14 +101,6 @@ class _Events:
 
     def events(self):
         return tuple(self._events)
-
-
-def _seed_start(gm, player):
-    """Mark the starting cell and the one behind it as seen so the
-    corridor's only unseen direction is forward.
-    """
-    gm.seen[player.pos.y][player.pos.x] = True
-    gm.seen[player.pos.y][max(0, player.pos.x - 1)] = True
 
 
 def _run(gm, player, *, events=None, tick=None):
@@ -113,7 +122,7 @@ def _run(gm, player, *, events=None, tick=None):
 
 def test_next_explore_step_heads_toward_unseen():
     gm = _corridor()
-    gm.seen[1][0] = gm.seen[1][1] = gm.seen[1][2] = gm.seen[1][3] = True
+    _explored_corridor(gm, 3)
     assert next_explore_step(gm, world.Position(2, 1)) == (1, 0)
     assert next_explore_step(gm, world.Position(3, 1)) == (1, 0)
 
@@ -135,10 +144,11 @@ def test_next_explore_step_none_without_fog():
 def test_next_explore_step_stops_beside_stairs():
     gm = _corridor()
     gm.tiles[1][5] = _stairs(5, 1)
-    gm.seen[1][0] = gm.seen[1][1] = gm.seen[1][2] = gm.seen[1][3] = True
+    _explored_corridor(gm, 4)
+    # Walks toward the unseen stairs (so they get spotted)...
     assert next_explore_step(gm, world.Position(2, 1)) == (1, 0)
     assert next_explore_step(gm, world.Position(3, 1)) == (1, 0)
-    # Adjacent to the stairs with nothing beyond: no step onto them.
+    # ...but never steps onto them: nothing beyond, so no further step.
     assert next_explore_step(gm, world.Position(4, 1)) is None
 
 
@@ -146,7 +156,8 @@ def test_next_explore_step_blocked_by_solid_entity():
     gm = _corridor()
     gm.entities.append(world.Entity(char="S", fg=(255, 0, 0),
                                     pos=world.Position(4, 1)))
-    gm.seen[1][0] = gm.seen[1][1] = gm.seen[1][2] = gm.seen[1][3] = True
+    _explored_corridor(gm, 4)
+    # The solid entity seals the corridor — no step onto or past it.
     assert next_explore_step(gm, world.Position(2, 1)) is None
 
 
@@ -155,8 +166,56 @@ def test_next_explore_step_walks_over_loot():
     gm.entities.append(world.Entity(char="$", fg=(255, 255, 0),
                                     pos=world.Position(4, 1),
                                     loot_data={"good_id": "x", "quantity": 1}))
-    gm.seen[1][0] = gm.seen[1][1] = gm.seen[1][2] = gm.seen[1][3] = True
+    _explored_corridor(gm, 3)
     assert next_explore_step(gm, world.Position(2, 1)) == (1, 0)
+
+
+def test_next_explore_step_walks_toward_unseen_walls():
+    """Regression: the fog boundary is made of unseen wall cells just
+    beyond LOS — the BFS must walk toward them so the run reaches and
+    reveals them instead of declaring everything explored.
+    """
+    gm = _corridor()
+    _explored_corridor(gm, 3)
+    gm.seen[1][4] = True  # floor ahead is seen, but its wall at (4,0) is not
+    assert next_explore_step(gm, world.Position(2, 1)) == (1, 0)
+
+
+def test_next_explore_step_walk_progresses_through_walls():
+    """Walking toward the fog edge reveals the boundary walls and keeps
+    going: revealing wall (4,0) exposes the next target at (5,0).
+    """
+    gm = _corridor()
+    _explored_corridor(gm, 3)
+    gm.seen[1][4] = gm.seen[1][5] = True
+    assert next_explore_step(gm, world.Position(2, 1)) == (1, 0)
+    # Reveal the first fog wall (as reveal_around would when adjacent).
+    gm.seen[0][4] = gm.seen[2][4] = True
+    assert next_explore_step(gm, world.Position(3, 1)) == (1, 0)
+
+
+def test_next_explore_step_none_when_walls_revealed():
+    """Once the corridor and its walls are fully revealed, nothing left."""
+    gm = _corridor()
+    _explored_corridor(gm, 7)
+    assert next_explore_step(gm, world.Position(4, 1)) is None
+
+
+def test_next_explore_step_walks_through_breach_tiles():
+    """Derelict entry shafts are made of walkable ``breach`` tiles —
+    the player spawns on them and must walk through them. Regression:
+    they were excluded as transitions, cornering the player at spawn
+    with the whole ship still dark.
+    """
+    gm = _corridor()
+    gm.tiles[1][5] = world.Tile(kind="breach", char="X", walkable=True,
+                                fg=(255, 120, 50), bg=(80, 30, 10))
+    _explored_corridor(gm, 4)
+    # Step onto the breach tile itself...
+    assert next_explore_step(gm, world.Position(4, 1)) == (1, 0)
+    # ...and through it to the unseen floor beyond.
+    gm.seen[1][5] = True
+    assert next_explore_step(gm, world.Position(5, 1)) == (1, 0)
 
 
 # ---------------------------------------------------------------------------
@@ -206,26 +265,6 @@ def test_newly_interesting_positions_empty_without_fog():
     assert newly_interesting_positions(gm, set()) == set()
 
 
-def test_next_explore_step_walks_through_breach_tiles():
-    """Derelict entry shafts are made of walkable ``breach`` tiles —
-    the player spawns on them and must walk through them. Regression:
-    they were excluded as transitions, cornering the player at spawn
-    with the whole ship still dark.
-    """
-    gm = _corridor()
-    gm.tiles[1][5] = world.Tile(kind="breach", char="X", walkable=True,
-                                fg=(255, 120, 50), bg=(80, 30, 10))
-    # Cells the player has already stood on are seen (reveal_around
-    # always marks the player's own cell).
-    gm.seen[1][0] = gm.seen[1][1] = gm.seen[1][2] = gm.seen[1][3] = True
-    gm.seen[1][4] = True
-    # Step onto the breach tile itself...
-    assert next_explore_step(gm, world.Position(4, 1)) == (1, 0)
-    # ...and through it to the unseen floor beyond.
-    gm.seen[1][5] = True
-    assert next_explore_step(gm, world.Position(5, 1)) == (1, 0)
-
-
 def test_interesting_at_does_not_flag_breach_tiles():
     """Breach tiles are ordinary passable floor, not a leave-tile —
     auto-explore must walk through them, not stop.
@@ -234,38 +273,6 @@ def test_interesting_at_does_not_flag_breach_tiles():
     gm.tiles[1][5] = world.Tile(kind="breach", char="X", walkable=True,
                                 fg=(255, 120, 50), bg=(80, 30, 10))
     assert interesting_at(gm, 5, 1) is None
-
-
-def test_run_auto_explore_real_derelict_escapes_spawn_shaft():
-    """End-to-end on a real derelict layout (scout_a): the BFS must
-    escape the breach-tile entry shaft instead of reporting everything
-    explored, and the loop must make progress.
-    """
-    from src.spacehack.dungeon import load_layout, init_fog, reveal_around
-
-    gm, spawn = load_layout("scout_a")
-    assert spawn is not None
-    init_fog(gm)
-    # Strip scatter-RNG-dependent enemies so no entity can seal the
-    # shaft (loot placement is layout-fixed and stays for the
-    # interesting-stop).
-    gm.entities = [e for e in gm.entities if not e.npc_char_id]
-    player = world.Entity(char="@", fg=(255, 255, 255), pos=spawn)
-    reveal_around(gm, player.pos, radius=gm.sight_radius)
-
-    # The BFS must escape the shaft immediately (regression core).
-    assert next_explore_step(gm, player.pos) is not None
-
-    # The full loop must make progress and stop for a real reason
-    # (a cache sighting), never the cornered 'explored everything'.
-    def tick(ctx, console, game_map):
-        _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
-        return None
-
-    ctx, result = _run(gm, player, tick=tick)
-    assert result == "DONE"
-    assert player.pos != spawn
-    assert "explored every reachable area" not in ctx.log.recent(1)[0].text
 
 
 # ---------------------------------------------------------------------------
@@ -280,16 +287,19 @@ def test_run_auto_explore_walks_whole_dungeon():
     ticks = []
 
     def tick(ctx, console, game_map):
-        # Radius 0 keeps the seen frontier exactly one cell ahead, so
-        # the walk is monotonic cell-by-cell to the far end.
+        # Radius 1 keeps the seen frontier one cell ahead (walls
+        # included), so the walk is monotonic to the far end.
         ticks.append((player.pos.x, player.pos.y))
-        _reveal_frame(gm, player.pos.x, player.pos.y, radius=0)
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
         return None
 
     ctx, result = _run(gm, player, tick=tick)
     assert result == "DONE"
-    assert player.pos == world.Position(7, 1)  # far end of the corridor
     assert len(ticks) >= 5
+    # The walk reveals the entire corridor (walls included); it stops
+    # one step short of the far end because the last cell is already
+    # revealed when adjacent.
+    assert all(gm.seen[y][x] for x in range(8) for y in range(3))
     assert "explored every reachable area" in ctx.log.recent(1)[0].text
 
 
@@ -355,12 +365,15 @@ def test_run_auto_explore_ignores_already_visible_interesting():
     _seed_start(gm, player)
 
     def tick(ctx, console, game_map):
-        _reveal_frame(gm, player.pos.x, player.pos.y, radius=0)
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
         return None
 
     ctx, result = _run(gm, player, tick=tick)
     assert result == "DONE"
-    assert player.pos == world.Position(7, 1)  # walked past it to the end
+    # Walked past the already-spotted loot and revealed the whole
+    # corridor (walls included) without stopping on the loot again.
+    assert player.pos.x >= 5
+    assert all(gm.seen[y][x] for x in range(8) for y in range(3))
 
 
 def test_run_auto_explore_stops_when_standing_on_interesting():
@@ -381,3 +394,35 @@ def test_run_auto_explore_requires_dungeon_fog():
     ctx, result = _run(gm, player)
     assert result == "DONE"
     assert "inside dungeons" in ctx.log.recent(1)[0].text
+
+
+def test_run_auto_explore_real_derelict_escapes_spawn_shaft():
+    """End-to-end on a real derelict layout (scout_a): the BFS must
+    escape the breach-tile entry shaft instead of reporting everything
+    explored, and the loop must make progress.
+    """
+    from src.spacehack.dungeon import load_layout, init_fog, reveal_around
+
+    gm, spawn = load_layout("scout_a")
+    assert spawn is not None
+    init_fog(gm)
+    # Strip scatter-RNG-dependent enemies so no entity can seal the
+    # shaft (loot placement is layout-fixed and stays for the
+    # interesting-stop).
+    gm.entities = [e for e in gm.entities if not e.npc_char_id]
+    player = world.Entity(char="@", fg=(255, 255, 255), pos=spawn)
+    reveal_around(gm, player.pos, radius=gm.sight_radius)
+
+    # The BFS must escape the shaft immediately (regression core).
+    assert next_explore_step(gm, player.pos) is not None
+
+    # The full loop must make progress and stop for a real reason
+    # (a cache sighting), never the cornered 'explored everything'.
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
+        return None
+
+    ctx, result = _run(gm, player, tick=tick)
+    assert result == "DONE"
+    assert player.pos != spawn
+    assert "explored every reachable area" not in ctx.log.recent(1)[0].text

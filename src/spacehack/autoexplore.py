@@ -116,17 +116,28 @@ def newly_interesting_positions(
 # ---------------------------------------------------------------------------
 
 
+def _first_step_toward(_prev, _sx: int, _sy: int, _tx: int, _ty: int) -> tuple[int, int]:
+    """Walk the BFS parent chain back to the first step from the start."""
+    _cur = (_tx, _ty)
+    while _prev[_cur] != (_sx, _sy):
+        _cur = _prev[_cur]
+    return (_cur[0] - _sx, _cur[1] - _sy)
+
+
 def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
-    """First step toward the nearest unseen walkable cell, or ``None``.
+    """First step toward the nearest unrevealed cell, or ``None``.
 
     BFS over passable cells (walkable, unblocked by solid entities —
-    loot does not block). Transition tiles (stairs/exit/breach) are
-    never targets and are never routed through: auto-explore stops
-    beside them so the player decides when to descend or leave.
-    Returns ``(dx, dy)`` relative to ``player_pos``.
+    loot does not block). The target is any UNSEEN cell — floor, wall,
+    or transition — so the run advances to the fog edge and reveals
+    it: a room's boundary walls sit just beyond LOS and must be
+    walked up to, otherwise the run reports 'everything explored'
+    while the map is still dark. Transition tiles (stairs/exit) are
+    never stepped on, but an unseen one is walked toward so it can be
+    spotted. Returns ``(dx, dy)`` relative to ``player_pos``.
 
-    ``None`` means every reachable walkable cell has already been
-    seen (or nothing reachable remains unexplored).
+    ``None`` means every reachable cell, and every cell adjacent to
+    the explored region, has been revealed.
     """
     _seen = game_map.seen
     if _seen is None:
@@ -144,19 +155,22 @@ def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
             if not game_map.in_bounds(_nx, _ny) or (_nx, _ny) in _visited:
                 continue
             _tile = game_map.tiles[_ny][_nx]
-            if _tile.kind in _TRANSITION_KINDS:
+            if not _tile.walkable or _tile.kind in _TRANSITION_KINDS:
+                # Unseen wall or transition = fog edge: walk up to the
+                # adjacent passable cell (skipped when it is the
+                # player's own cell — adjacent cells are always
+                # revealed in-game, so this only guards synthetic
+                # states).
+                if not _seen[_ny][_nx] and (_cx, _cy) != (_sx, _sy):
+                    return _first_step_toward(_prev, _sx, _sy, _cx, _cy)
                 continue
-            if not _tile.walkable or game_map.blocking_entity_at(_nx, _ny):
+            if game_map.blocking_entity_at(_nx, _ny):
                 continue
             _visited.add((_nx, _ny))
             _prev[(_nx, _ny)] = (_cx, _cy)
             if not _seen[_ny][_nx]:
-                # Unseen walkable cell found — walk the parent chain
-                # back to the first step from the player.
-                _cur = (_nx, _ny)
-                while _prev[_cur] != (_sx, _sy):
-                    _cur = _prev[_cur]
-                return (_cur[0] - _sx, _cur[1] - _sy)
+                # Unseen walkable cell — walk toward it directly.
+                return _first_step_toward(_prev, _sx, _sy, _nx, _ny)
             _queue.append((_nx, _ny))
     return None
 
