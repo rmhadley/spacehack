@@ -1065,6 +1065,28 @@ def _run_game_loop(
                 ctx.log.add('You wait.')
                 continue
 
+            # G = go-to inside dungeons: pick a discovered destination
+            # (stairs, exit, consoles) and auto-walk to it with the
+            # same step machinery as O (stops at interesting things,
+            # combat, or a keypress; arrival is adjacent, not on top).
+            if current_mode == 'dungeon' and _is_g_press(event):
+                from .autoexplore import run_dungeon_goto
+                _g_result = run_dungeon_goto(
+                    ctx,
+                    console,
+                    game_map,
+                    player,
+                    post_step_tick=_dungeon_post_move_tick,
+                    map_w=map_w,
+                    map_h=map_h,
+                    location=getattr(game_map, 'location_name', 'Derelict Ship'),
+                )
+                if _g_result == "DEFEAT":
+                    return
+                if _g_result == "COMBAT":
+                    continue
+                continue
+
             # O = DCSS-style auto-explore inside dungeons: walk through
             # unrevealed tiles until something interesting is in sight,
             # combat begins, or the player presses a key to cancel.

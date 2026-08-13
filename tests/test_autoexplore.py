@@ -10,11 +10,15 @@ from types import SimpleNamespace
 
 from src.spacehack import world
 from src.spacehack.autoexplore import (
+    GotoTarget,
     blocking_way_entity,
+    goto_targets,
     interesting_at,
     newly_interesting_positions,
     next_explore_step,
+    next_goto_step,
     run_auto_explore,
+    run_goto,
 )
 from src.spacehack.message_log import MessageLog
 
@@ -110,6 +114,18 @@ def _run(gm, player, *, events=None, tick=None):
     tick = tick or (lambda ctx, console, game_map: None)
     result = run_auto_explore(
         ctx, console=None, game_map=gm, player=player,
+        post_step_tick=tick, map_w=8, map_h=3,
+        present_frame=lambda *a, **k: None,
+    )
+    return ctx, result
+
+
+def _run_goto(gm, player, target, *, events=None, tick=None):
+    """Run go-to headless with stub present/tick hooks."""
+    ctx = SimpleNamespace(log=MessageLog(20), context=_Events(*(events or ())))
+    tick = tick or (lambda ctx, console, game_map: None)
+    result = run_goto(
+        ctx, console=None, game_map=gm, player=player, target=target,
         post_step_tick=tick, map_w=8, map_h=3,
         present_frame=lambda *a, **k: None,
     )
@@ -558,3 +574,216 @@ def test_run_auto_explore_real_derelict_escapes_spawn_shaft():
     assert result == "DONE"
     assert player.pos != spawn
     assert "explored every reachable area" not in ctx.log.recent(1)[0].text
+
+
+# ---------------------------------------------------------------------------
+# goto_targets — discovered destinations for the G picker
+# ---------------------------------------------------------------------------
+
+
+def test_goto_targets_lists_discovered_transitions_and_interactables():
+    gm = _dungeon()
+    gm.tiles[3][3] = _stairs(3, 3)
+    gm.seen[3][3] = True
+    gm.tiles[3][8] = _stairs(8, 3, kind="stairs_up")
+    gm.seen[3][8] = True
+    gm.tiles[3][10] = _stairs(10, 3)  # unseen — not discovered, excluded
+    gm.entities.append(world.Entity(char="C", fg=(0, 200, 255),
+                                    pos=world.Position(5, 5),
+                                    computer_terminal=True))
+    gm.seen[5][5] = True
+    gm.entities.append(world.Entity(char="D", fg=(255, 0, 0),
+                                    pos=world.Position(9, 2),
+                                    main_quest_door=True))
+    gm.seen[2][9] = True
+    # A seen loot cache is NOT a goto destination (O handles pickup).
+    gm.entities.append(world.Entity(char="$", fg=(255, 255, 0),
+                                    pos=world.Position(7, 5),
+                                    loot_data={"good_id": "x", "quantity": 1}))
+    gm.seen[7][5] = True
+
+    targets = goto_targets(gm, world.Position(2, 2))
+    # Nearest first (Chebyshev from the player): stairs(1), computer(3),
+    # stairs up(6), sealed door(7).
+    assert [(t.title, t.x, t.y) for t in targets] == [
+        ("Stairs down", 3, 3),
+        ("Ship computer", 5, 5),
+        ("Stairs up", 8, 3),
+        ("Sealed door", 9, 2),
+    ]
+    assert targets[0].label == "a stairway down"
+    assert targets[1].label == "a ship computer"
+
+
+def test_goto_targets_npc_and_interaction_labels():
+    """NPC and dungeon-interaction entities are targets; interaction
+    entities have no prose label in ``interesting_at``, so the title is
+    the fallback."""
+    gm = _dungeon()
+    gm.entities.append(world.Entity(char="N", fg=(0, 255, 0),
+                                    pos=world.Position(4, 4), npc_id="smuggler"))
+    gm.seen[4][4] = True
+    gm.entities.append(world.Entity(char="D", fg=(255, 255, 0),
+                                    pos=world.Position(6, 6),
+                                    dungeon_interaction="signal_door"))
+    gm.seen[6][6] = True
+    targets = goto_targets(gm, world.Position(2, 2))
+    assert [(t.title, t.label) for t in targets] == [
+        ("NPC", "someone"),
+        ("Interactable", "Interactable"),
+    ]
+
+
+def test_goto_targets_entity_on_transition_keeps_tile_title():
+    gm = _dungeon()
+    gm.tiles[3][3] = _stairs(3, 3)
+    gm.seen[3][3] = True
+    # A terminal standing on the stairs cell dedupes into one target;
+    # the tile title wins over the entity title.
+    gm.entities.append(world.Entity(char="C", fg=(0, 200, 255),
+                                    pos=world.Position(3, 3),
+                                    computer_terminal=True))
+    targets = goto_targets(gm, world.Position(2, 2))
+    assert [(t.title, t.x, t.y) for t in targets] == [("Stairs down", 3, 3)]
+
+
+def test_goto_targets_empty_without_fog():
+    gm = _dungeon()
+    gm.seen = None
+    assert goto_targets(gm, world.Position(2, 2)) == []
+
+
+# ---------------------------------------------------------------------------
+# next_goto_step — goal-mode BFS
+# ---------------------------------------------------------------------------
+
+
+def test_next_goto_step_walks_toward_target_and_stops_adjacent():
+    gm = _corridor()
+    gm.tiles[1][6] = _stairs(6, 1)
+    assert next_goto_step(gm, world.Position(2, 1), 6, 1) == (1, 0)
+    assert next_goto_step(gm, world.Position(4, 1), 6, 1) == (1, 0)
+    # Adjacent to the stairs — arrival, no step (caller announces).
+    assert next_goto_step(gm, world.Position(5, 1), 6, 1) is None
+    assert next_goto_step(gm, world.Position(5, 0), 6, 1) is None
+
+
+def test_next_goto_step_visible_entity_blocks():
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="S", fg=(255, 0, 0),
+                                    pos=world.Position(4, 1)))
+    gm.visible[1][4] = True
+    gm.tiles[1][6] = _stairs(6, 1)
+    # The visible monster seals the 1-wide corridor — no path.
+    assert next_goto_step(gm, world.Position(2, 1), 6, 1) is None
+
+
+def test_next_goto_step_unseen_entity_does_not_block():
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
+                                    pos=world.Position(4, 1)))
+    gm.tiles[1][6] = _stairs(6, 1)
+    # Invisible — walked through and revealed, same as auto-explore.
+    assert next_goto_step(gm, world.Position(2, 1), 6, 1) == (1, 0)
+
+
+def test_next_goto_step_no_path():
+    gm = _corridor()
+    gm.tiles[1][4] = world.DUNGEON_WALL  # seal the corridor
+    gm.tiles[1][6] = _stairs(6, 1)
+    assert next_goto_step(gm, world.Position(2, 1), 6, 1) is None
+
+
+# ---------------------------------------------------------------------------
+# run_goto — the go-to loop
+# ---------------------------------------------------------------------------
+
+
+def test_run_goto_arrives_beside_stairs():
+    gm = _corridor()
+    gm.tiles[1][6] = _stairs(6, 1)
+    target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
+    player = _player(1, 1)
+
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
+        return None
+
+    ctx, result = _run_goto(gm, player, target, tick=tick)
+    assert result == "DONE"
+    assert player.pos == world.Position(5, 1)  # adjacent, never on top
+    assert "arrive at a stairway down" in ctx.log.recent(1)[0].text
+
+
+def test_run_goto_does_not_stop_at_own_target():
+    """The chosen target is seeded into the known set — coming into
+    view must not interrupt the approach."""
+    gm = _corridor()
+    gm.tiles[1][6] = _stairs(6, 1)
+    target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
+    player = _player(1, 1)
+
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
+        return None
+
+    ctx, result = _run_goto(gm, player, target, tick=tick)
+    assert result == "DONE"
+    assert player.pos == world.Position(5, 1)  # walked past the sighting
+    assert "arrive at a stairway down" in ctx.log.recent(1)[0].text
+
+
+def test_run_goto_stops_at_newly_visible_interesting():
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="$", fg=(255, 255, 0),
+                                    pos=world.Position(4, 1),
+                                    loot_data={"good_id": "x", "quantity": 1}))
+    gm.tiles[1][6] = _stairs(6, 1)
+    target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
+    player = _player(1, 1)
+
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
+        return None
+
+    ctx, result = _run_goto(gm, player, target, tick=tick)
+    assert result == "DONE"
+    assert player.pos == world.Position(3, 1)  # stopped at the cache
+    assert "cache of supplies" in ctx.log.recent(1)[0].text
+
+
+def test_run_goto_cancels_on_keypress():
+    gm = _corridor()
+    gm.tiles[1][6] = _stairs(6, 1)
+    target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
+    player = _player(1, 1)
+    key = SimpleNamespace(kind="keydown", key_name="h")
+    ctx, result = _run_goto(gm, player, target, events=[key])
+    assert result == "CANCELLED"
+    assert player.pos == world.Position(1, 1)  # never moved
+
+
+def test_run_goto_stops_when_combat_starts():
+    gm = _corridor()
+    gm.tiles[1][6] = _stairs(6, 1)
+    target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
+    player = _player(1, 1)
+
+    def tick(ctx, console, game_map):
+        return "COMBAT"
+
+    ctx, result = _run_goto(gm, player, target, tick=tick)
+    assert result == "COMBAT"
+    assert player.pos == world.Position(2, 1)  # one step taken
+
+
+def test_run_goto_cannot_reach_target():
+    gm = _corridor()
+    gm.tiles[1][4] = world.DUNGEON_WALL  # sealed corridor
+    gm.tiles[1][6] = _stairs(6, 1)
+    target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
+    player = _player(1, 1)
+    ctx, result = _run_goto(gm, player, target)
+    assert result == "DONE"
+    assert player.pos == world.Position(1, 1)  # never moved
+    assert "Cannot reach a stairway down" in ctx.log.recent(1)[0].text

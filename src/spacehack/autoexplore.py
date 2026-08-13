@@ -1,4 +1,4 @@
-"""DCSS-style auto-explore for dungeon mode — the ``O`` key.
+"""DCSS-style auto-explore (``O``) and go-to (``G``) for dungeon mode.
 
 Press ``O`` inside a derelict or dungeon to walk the player through
 unrevealed tiles until:
@@ -9,9 +9,16 @@ unrevealed tiles until:
   fight and auto-explore stops), or
 * the player presses any key to cancel.
 
+Press ``G`` to pick a *discovered* destination (stairs, the exit, a
+ship computer, a quest console/door, an NPC) and auto-walk to it with
+the same step machinery — stopping at newly-visible interesting
+content, when combat starts, or on any keypress. The walker stops
+8-adjacent to the target, never on top of it.
+
 Only *newly revealed* interesting content stops the run — things
-already in view when ``O`` is pressed are seeded into the known set so
-a single press never stalls next to loot the player already spotted.
+already in view when ``O``/``G`` is pressed are seeded into the known
+set so a single press never stalls next to loot the player already
+spotted.
 
 An entity the player cannot currently see never seals the route:
 pathing treats solid entities outside the current LOS frame as
@@ -31,6 +38,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from dataclasses import dataclass
 
 from . import world
 from .animation_timing import AUTO_EXPLORE
@@ -66,6 +74,83 @@ _ENTITY_INTEREST_FLAGS = (
     ("main_quest_door", "a sealed door"),
     ("npc_id", "someone"),
 )
+
+# ---------------------------------------------------------------------------
+# Go-to targets (the G key)
+# ---------------------------------------------------------------------------
+
+# Discovered destinations for the GO TO picker, keyed like the
+# interesting-content tables above (tile kind / entity flag -> picker
+# title). Loot caches are deliberately absent: O handles pickup, and a
+# dungeon can hold twenty caches — the picker would drown in them.
+_GOTO_TILE_TITLES = {
+    "stairs_up": "Stairs up",
+    "stairs_down": "Stairs down",
+    "exit": "Exit",
+}
+_GOTO_ENTITY_TITLES = {
+    "computer_terminal": "Ship computer",
+    "main_quest_console": "Quest console",
+    "main_quest_door": "Sealed door",
+    "npc_id": "NPC",
+    "dungeon_interaction": "Interactable",
+}
+
+
+@dataclass(frozen=True)
+class GotoTarget:
+    """One discovered goto destination.
+
+    ``title`` is the picker row; ``label`` is the prose form used in
+    log messages (resolved via :func:`interesting_at`, the single
+    source of prose truth); ``description`` feeds the picker hint.
+    """
+
+    title: str
+    label: str
+    x: int
+    y: int
+    description: str = "Walk to this destination."
+
+
+def goto_targets(game_map, player_pos) -> list[GotoTarget]:
+    """Discovered (seen) goto destinations, nearest first.
+
+    Transition tiles (stairs/exit) plus interactable entities
+    (computers, quest consoles/doors, NPCs, interaction tiles) whose
+    cells are in the player's seen memory. Loot caches are excluded
+    (auto-explore handles pickup). Returns ``[]`` without a fog grid.
+    """
+    _seen = game_map.seen
+    if _seen is None:
+        return []
+    _found: dict[tuple[int, int], str] = {}
+    for _y, _row in enumerate(_seen):
+        for _x, _on in enumerate(_row):
+            if not _on:
+                continue
+            _title = _GOTO_TILE_TITLES.get(game_map.tiles[_y][_x].kind)
+            if _title is not None:
+                _found[(_x, _y)] = _title
+    for _e in game_map.entities:
+        if not _seen[_e.pos.y][_e.pos.x]:
+            continue
+        for _flag, _title in _GOTO_ENTITY_TITLES.items():
+            if getattr(_e, _flag, None):
+                _found.setdefault((_e.pos.x, _e.pos.y), _title)
+                break
+    _sx, _sy = player_pos.x, player_pos.y
+    _targets = [
+        GotoTarget(
+            title=_title,
+            label=interesting_at(game_map, _x, _y) or _title,
+            x=_x,
+            y=_y,
+        )
+        for (_x, _y), _title in _found.items()
+    ]
+    _targets.sort(key=lambda _t: max(abs(_t.x - _sx), abs(_t.y - _sy)))
+    return _targets
 
 _NEIGHBORS_8 = (
     (0, -1), (-1, 0), (1, 0), (0, 1),
@@ -130,6 +215,11 @@ def _first_step_toward(_prev, _sx: int, _sy: int, _tx: int, _ty: int) -> tuple[i
     while _prev[_cur] != (_sx, _sy):
         _cur = _prev[_cur]
     return (_cur[0] - _sx, _cur[1] - _sy)
+
+
+def _adjacent(pos, tx: int, ty: int) -> bool:
+    """Chebyshev adjacency — within one cell of ``(tx, ty)``."""
+    return max(abs(pos.x - tx), abs(pos.y - ty)) <= 1
 
 
 def _visible_blocker(game_map, x: int, y: int, *, exclude=None):
@@ -263,7 +353,7 @@ def next_goto_step(game_map, player_pos, tx: int, ty: int) -> tuple[int, int] | 
     BESIDE a stairway or console). ``None`` means the player is
     already adjacent (the caller announces arrival) or no path exists.
     """
-    if max(abs(player_pos.x - tx), abs(player_pos.y - ty)) <= 1:
+    if _adjacent(player_pos, tx, ty):
         return None
     _step, _ = _plan_step(game_map, player_pos, target=(tx, ty))
     return _step
@@ -412,6 +502,23 @@ def _step_present_poll_move(
     return post_step_tick(ctx, console, game_map)
 
 
+def _stop_if_fresh(ctx, game_map, known) -> str | None:
+    """Log the first newly-visible interesting sighting and return
+    ``"DONE"``, or ``None`` when nothing fresh is on screen.
+
+    Shared by auto-explore and go-to: both walks interrupt on content
+    that just came into view (the currently-visible set is seeded into
+    ``known`` before the loop).
+    """
+    _fresh = newly_interesting_positions(game_map, known)
+    if _fresh:
+        _fx, _fy = min(_fresh)
+        _label = interesting_at(game_map, _fx, _fy)
+        ctx.log.add(f"You notice {_label} and stop.")
+        return "DONE"
+    return None
+
+
 def run_auto_explore(
     ctx,
     console,
@@ -455,12 +562,9 @@ def run_auto_explore(
     _known = newly_interesting_positions(game_map, set())
     ctx.log.add("Auto-explore engaged.")
     while True:
-        _fresh = newly_interesting_positions(game_map, _known)
-        if _fresh:
-            _fx, _fy = min(_fresh)
-            _label = interesting_at(game_map, _fx, _fy)
-            ctx.log.add(f"You notice {_label} and stop.")
-            return "DONE"
+        _fresh_stop = _stop_if_fresh(ctx, game_map, _known)
+        if _fresh_stop is not None:
+            return _fresh_stop
         _step = next_explore_step(game_map, player.pos)
         if _step is None:
             _blocker = blocking_way_entity(game_map, player.pos)
@@ -479,9 +583,102 @@ def run_auto_explore(
             ctx, console, game_map, player, _present,
             map_w, map_h, location, _dx, _dy, post_step_tick,
         )
-        if _ctrl == "CANCELLED":
-            return "CANCELLED"
-        if _ctrl == "DEFEAT":
-            return "DEFEAT"
-        if _ctrl == "COMBAT":
-            return "COMBAT"
+        if _ctrl is not None:
+            return _ctrl
+
+
+# ---------------------------------------------------------------------------
+# Go-to (the G key)
+# ---------------------------------------------------------------------------
+
+
+def run_goto(
+    ctx,
+    console,
+    game_map,
+    player,
+    *,
+    target: GotoTarget,
+    post_step_tick,
+    map_w: int,
+    map_h: int,
+    location: str = "Derelict Ship",
+    present_frame=None,
+) -> str:
+    """Auto-walk to a discovered ``target`` with the auto-explore step
+    machinery.
+
+    Stops when the player is 8-adjacent to the target (they then step
+    onto the stairs or bump the console manually), when newly-visible
+    interesting content interrupts the walk, when ``post_step_tick``
+    starts combat or reports defeat, or on any keypress. The target
+    itself is seeded into the known set, so approaching it does not
+    trigger its own interesting stop.
+
+    Returns ``"DONE"`` / ``"COMBAT"`` / ``"DEFEAT"`` /
+    ``"CANCELLED"`` like :func:`run_auto_explore`.
+    """
+    if game_map.seen is None or game_map.visible is None:
+        ctx.log.add("Go to only works inside dungeons.")
+        return "DONE"
+    _present = present_frame or _default_present_frame
+    _known = newly_interesting_positions(game_map, set())
+    _known.add((target.x, target.y))
+    ctx.log.add(f"Auto-nav engaged. Walking to {target.label}...")
+    while True:
+        if _adjacent(player.pos, target.x, target.y):
+            ctx.log.add(f"You arrive at {target.label}.")
+            return "DONE"
+        _fresh_stop = _stop_if_fresh(ctx, game_map, _known)
+        if _fresh_stop is not None:
+            return _fresh_stop
+        _step = next_goto_step(game_map, player.pos, target.x, target.y)
+        if _step is None:
+            ctx.log.add(f"Cannot reach {target.label}.")
+            return "DONE"
+        _dx, _dy = _step
+        _ctrl = _step_present_poll_move(
+            ctx, console, game_map, player, _present,
+            map_w, map_h, location, _dx, _dy, post_step_tick,
+        )
+        if _ctrl is not None:
+            return _ctrl
+
+
+def run_dungeon_goto(
+    ctx,
+    console,
+    game_map,
+    player,
+    *,
+    post_step_tick,
+    map_w: int,
+    map_h: int,
+    location: str = "Derelict Ship",
+    present_frame=None,
+) -> str:
+    """The ``G`` key: pick a discovered target, then auto-walk to it.
+
+    Opens the shared GO TO picker (``navigation._run_pygame_goto_menu``)
+    listing :func:`goto_targets` nearest-first, then hands off to
+    :func:`run_goto`. Backing out of the picker, or having nothing
+    discovered, returns ``"DONE"`` with a log line.
+    """
+    _targets = goto_targets(game_map, player.pos)
+    if not _targets:
+        ctx.log.add("You have not discovered anything to go to.")
+        return "DONE"
+    from .navigation import _run_pygame_goto_menu
+
+    _handled, _selected = _run_pygame_goto_menu(
+        ctx, [(t.title, t) for t in _targets],
+    )
+    if not _handled or _selected is None:
+        return "DONE"
+    return run_goto(
+        ctx, console, game_map, player,
+        target=_targets[_selected],
+        post_step_tick=post_step_tick,
+        map_w=map_w, map_h=map_h,
+        location=location, present_frame=present_frame,
+    )
