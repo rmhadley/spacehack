@@ -18,8 +18,8 @@ from ._helpers import (
     mission_spec_from_dict,
     system_display_name,
     system_name_for_planet,
-    _planet_to_system,
 )
+from ._proc_shared import _planet_npc_ids, _planet_to_system
 from ._lifecycle import (
     abort_mission,
     commit_accept_mission,
@@ -42,7 +42,6 @@ from ._legacy import (
     generate_delivery_mission,
     list_missions,
     missions_offered_by,
-    _planet_npc_ids,
 )
 from ..data.missions import MissionSpec
 

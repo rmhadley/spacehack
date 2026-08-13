@@ -9,9 +9,8 @@ import dataclasses
 
 from ..data.missions import MissionSpec, find_mission
 from ._models import ActiveMission, MissionBoard
+from ._proc_shared import _planet_to_system
 
-
-_PLANET_SYSTEM_CACHE: dict[str, str] | None = None
 
 
 def is_deliverable_at(
@@ -175,29 +174,6 @@ def mission_spec_from_dict(raw: dict) -> MissionSpec:
     return MissionSpec(**_kwargs)
 
 
-def _planet_to_system() -> dict[str, str]:
-    """Return ``{planet_id: system_id}`` for every planet (and station
-    city_planet_id) across all registered solar systems.
-
-    Lazy-built and cached so procedural generation doesn't re-scan the
-    system registry on every call.
-    """
-    global _PLANET_SYSTEM_CACHE
-    if _PLANET_SYSTEM_CACHE is not None:
-        return _PLANET_SYSTEM_CACHE
-
-    from ..data import solar_systems as _sys_mod
-    mapping: dict[str, str] = {}
-    for _sys in _sys_mod.list_solar_systems():
-        for _p in _sys.planets:
-            if not getattr(_p, 'sun', False):
-                mapping[_p.id] = _sys.id
-        # Stations with city_planet_id share the same system.
-        for _st in getattr(_sys, 'stations', ()) or ():
-            if _st.city_planet_id:
-                mapping[_st.city_planet_id] = _sys.id
-    _PLANET_SYSTEM_CACHE = mapping
-    return mapping
 
 
 def system_display_name(system_id: str | None) -> str:

@@ -21,6 +21,12 @@ import random
 
 from ..data.missions import MissionSpec, find_mission, list_missions, missions_offered_by
 from ._models import ActiveMission, MissionStatus, MAX_ACTIVE_MISSIONS
+from ._proc_shared import (
+    _dest_candidates_in_system,
+    _planet_npc_ids,
+    _planet_to_system,
+    _roll_tier,
+)
 from ._board import (
     board_offerings,
     board_remove,
@@ -37,7 +43,6 @@ from ._lifecycle import (
     try_accept_mission,
 )
 from ._helpers import (
-    _planet_to_system,
     active_is_deliverable_at,
     board_key,
     destination_system_name,
@@ -95,14 +100,6 @@ from ._helpers import (
 # Procedural delivery mission generator
 # ---------------------------------------------------------------------------
 
-def _roll_tier(max_tier: int, rng: random.Random) -> int:
-    """Weighted tier roll: min-of-two gives a natural rarity curve.
-
-    Shared by both delivery and bounty procedural generators.
-    Returns 1..max_tier with lower tiers more common.
-    """
-    _max = max(1, max_tier)
-    return min(rng.randint(1, _max), rng.randint(1, _max))
 
 
 
@@ -113,75 +110,8 @@ def _roll_tier(max_tier: int, rng: random.Random) -> int:
 
 
 
-def _planet_npc_ids(planet_id: str) -> list[str]:
-    """Return the NPC IDs present on ``planet_id`` (non-empty npc_ids
-    from the planet's building specs).
-
-    Used to pick a delivery target NPC for procedural missions.
-    Returns empty list if the planet is unknown or has no NPC buildings.
-    """
-    try:
-        from ..data.planets import find_planet_spec as _fps
-        spec = _fps(planet_id)
-    except KeyError:
-        return []
-    return [b.npc_id for b in spec.buildings if b.npc_id]
 
 
-def _dest_candidates_in_system(
-    system_id: str,
-    origin_planet_id: str,
-    hops: int,
-) -> list[tuple[str, str, int]]:
-    """Return ``[(planet_id, system_id, hops), ...]`` for every
-    landable planet (or station city_planet_id) in ``system_id``
-    that is not ``origin_planet_id`` and has at least one NPC.
-
-    Handles both same-system and remote-system destination lookup
-    with a single code path.
-    """
-    from ..data.planets import has_landable_port
-    from ..data import solar_systems as _sys_mod
-
-    try:
-        _sys = _sys_mod.find_solar_system(system_id)
-    except KeyError:
-        return []
-
-    result: list[tuple[str, str, int]] = []
-    # Track planet ids already added so a station's city_planet_id that
-    # is ALSO listed as a planet body (or shared by multiple stations,
-    # e.g. the two Luyten blockade stations) is only counted once.
-    # Without this, such landmarks get double weight in the rng.choice
-    # pool and show up ~2x more often than any other destination.
-    _seen: set[str] = set()
-    # Planets.
-    for _p in _sys.planets:
-        if getattr(_p, 'sun', False):
-            continue
-        if _p.id == origin_planet_id:
-            continue
-        if not has_landable_port(_p.id):
-            continue
-        if not _planet_npc_ids(_p.id):
-            continue
-        _seen.add(_p.id)
-        result.append((_p.id, system_id, hops))
-    # Stations (city_planet_id points to the planet spec).
-    for _st in getattr(_sys, 'stations', ()) or ():
-        if _st.city_planet_id == origin_planet_id:
-            continue
-        if not _st.city_planet_id:
-            continue
-        if _st.city_planet_id in _seen:
-            continue
-        if not has_landable_port(_st.city_planet_id):
-            continue
-        if not _planet_npc_ids(_st.city_planet_id):
-            continue
-        _seen.add(_st.city_planet_id)
-        result.append((_st.city_planet_id, system_id, hops))
-    return result
 
 
 def generate_delivery_mission(

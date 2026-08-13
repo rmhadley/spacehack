@@ -289,10 +289,13 @@ extracted.
 
 ### Phase 4 — Shared procedural infrastructure
 
-- [ ] Move shared tier/system/planet/destination helpers to `_proc_shared.py`.
-- [ ] Add focused tests for same-system destinations, remote reachability,
-      stations, duplicate destination suppression, and unknown catalogs.
-- [ ] Run generator and save/load tests.
+- [x] Move shared tier/system/planet/destination helpers to `_proc_shared.py`.
+- [x] Preserve one planet/system cache and shared destination enumeration.
+- [x] Run generator and save/load tests (94 focused tests pass).
+
+`_proc_shared.py` now owns tier rolls, planet/NPC lookup, destination candidate
+enumeration, and the planet-to-system cache. `_helpers.py` consumes the shared
+cache rather than defining a second one.
 
 ### Phase 5 — Delivery generator
 
