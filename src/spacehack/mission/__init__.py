@@ -27,19 +27,21 @@ from ._lifecycle import (
     release_mission_cargo,
     try_accept_mission,
 )
-from ._legacy import (
+from ._board import (
     board_offerings,
     board_remove,
     board_return_static,
     ensure_board,
     fill_empty_slots,
+    refresh_all_boards,
+)
+from ._legacy import (
     find_mission,
     generate_bar_mission,
     generate_bounty_mission,
     generate_delivery_mission,
     list_missions,
     missions_offered_by,
-    refresh_all_boards,
     _planet_npc_ids,
 )
 from ..data.missions import MissionSpec

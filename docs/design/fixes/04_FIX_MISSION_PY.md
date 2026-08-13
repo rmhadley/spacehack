@@ -278,10 +278,14 @@ legacy module re-exports those functions so existing imports remain stable.
 
 ### Phase 3 — Board management
 
-- [ ] Move board creation, offering lookup, fill/eviction, slot mutation, and
+- [x] Move board creation, offering lookup, fill/eviction, slot mutation, and
       monthly refresh to `_board.py`.
-- [ ] Preserve tutorial filtering, faction pay scaling, and per-planet keys.
-- [ ] Test board refresh and save/load round trips.
+- [x] Preserve tutorial filtering, faction pay scaling, and per-planet keys.
+- [x] Test board refresh and save/load round trips (94 focused tests pass).
+
+`_board.py` owns board state transitions and uses lazy procedural-generator
+lookup so board imports remain acyclic while later generator modules are
+extracted.
 
 ### Phase 4 — Shared procedural infrastructure
 
