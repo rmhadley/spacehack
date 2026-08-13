@@ -2,7 +2,8 @@
 
 When the ``SPACEHACK_DEV`` environment variable is set, the player
 starts with a super-powered frigate, maxed modules, 999,999 credits,
-two kinetic rifles, and the best available armor in every slot. Call
+the strongest ground weapon equipped, a pack of T4 weapons in the
+expedition backpack, and the best available armor in every slot. Call
 :func:`apply_dev_overrides` and :func:`apply_dev_ground_loadout` during
 new-game setup so the overrides are in place before the game loop starts.
 
@@ -14,11 +15,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import ground_equipment
 from . import ship as ship_module
 from . import ui
 from . import pygame_ui
 from .input_helpers import Outcome
 from .data.ground_armor import list_ground_armor
+from .data.ground_weapons import find_ground_weapon, list_ground_weapons
 
 
 _DEV_FACTION_OPTIONS = (
@@ -132,19 +135,45 @@ def _best_ground_armor() -> dict[str, str]:
     }
 
 
+def _best_ground_weapon() -> str:
+    """Return the strongest registered ground weapon id (highest damage)."""
+    return max(
+        list_ground_weapons(),
+        key=lambda _w: (_w.damage, _w.tech_level, _w.price),
+    ).id
+
+
+# T4 weapons seeded into the expedition backpack so the whole tier can
+# be playtested without hunting armories. The rocket launcher (the
+# strongest weapon) is equipped directly; the rest ride in the pack.
+_DEV_PACK_WEAPONS: tuple[str, ...] = (
+    "plasma_caster", "railgun", "power_fist", "power_fist",
+    "ion_blaster", "mono_blade",
+)
+
+
 def _dev_ground_loadout() -> tuple[list[str], dict[str, str]]:
     """Return the standard developer starting ground loadout."""
-    return ["kinetic_rifle", "kinetic_rifle"], _best_ground_armor()
+    return [_best_ground_weapon()], _best_ground_armor()
 
 
 def apply_dev_ground_loadout(ctx) -> None:
-    """Equip developer ground weapons and armor when dev mode is enabled."""
+    """Equip developer ground weapons, armor, and pack when dev mode is enabled."""
     import os as _os
 
     if not _os.environ.get("SPACEHACK_DEV"):
         return
     ctx.equipped_ground_weapons, ctx.equipped_ground_armor = _dev_ground_loadout()
-    ctx.log.add("[DEV MODE] Two kinetic rifles + best armor equipped.")
+    ctx.ground_expedition_inventory = [
+        ground_equipment.StoredGroundEquipment("weapon", _wid)
+        for _wid in _DEV_PACK_WEAPONS
+    ]
+    # The pack holds all 6 T4 weapons; capacity is 4 + (strength - 10) // 10,
+    # so raise strength to 30 so all 6 fit without breaking swaps.
+    if ctx.ground_stats.strength < 30:
+        ctx.ground_stats.strength = 30
+    _best_name = find_ground_weapon(_best_ground_weapon()).name
+    ctx.log.add(f"[DEV MODE] {_best_name} equipped + T4 pack + best armor.")
 
 
 def advance_main_quest(ctx, faction_id: str) -> None:
@@ -172,6 +201,22 @@ def advance_main_quest(ctx, faction_id: str) -> None:
     ctx.log.add(
         f"[DEV MODE] Act 0 skipped as {_dev_faction_label(faction_id)} - "
         "the Mars door can now be opened."
+    )
+
+
+def _dev_owned_ship() -> Any:
+    """Build the super-powered frigate loadout granted in dev mode."""
+    return ship_module.OwnedShip(
+        ship_id="frigate",
+        weapons=(
+            "plasma_cannon", "plasma_cannon", "plasma_cannon", "plasma_cannon",
+            "heavy_missile", "heavy_missile", "heavy_missile", "heavy_missile",
+        ),
+        modules=(
+            "reactor_mk4", "shield_mk4", "shield_recharger",
+            "targeting_mk4", "gyro_mk4", "armor_mk4",
+        ),
+        fuel=999,
     )
 
 
@@ -204,18 +249,7 @@ def apply_dev_overrides(
     starter_entity.fg = frigate.fg
     starter_entity.name = f"Your Ship: {frigate.name}"
     starter_entity.ship_id = frigate.id
-    player_owned_ship = ship_module.OwnedShip(
-        ship_id="frigate",
-        weapons=(
-            "plasma_cannon", "plasma_cannon", "plasma_cannon", "plasma_cannon",
-            "heavy_missile", "heavy_missile", "heavy_missile", "heavy_missile",
-        ),
-        modules=(
-            "reactor_mk4", "shield_mk4", "shield_recharger",
-            "targeting_mk4", "gyro_mk4", "armor_mk4",
-        ),
-        fuel=999,
-    )
+    player_owned_ship = _dev_owned_ship()
     stats.credits = 999999
     log.add("[DEV MODE] Super-powered frigate + 999,999 credits.")
     return starter_ship, starter_entity, player_owned_ship

@@ -18,6 +18,7 @@ from src.spacehack.dev_mode import (
     apply_dev_ground_loadout,
     main_quest_faction_menu,
     _best_ground_armor,
+    _best_ground_weapon,
     _dev_faction_label,
 )
 from src.spacehack.input_helpers import _is_shift_o_press
@@ -231,18 +232,25 @@ def test_best_ground_armor_selects_highest_defense_per_slot():
     }
 
 
-def test_dev_ground_loadout_equips_two_rifles_and_best_armor(monkeypatch):
+def test_best_ground_weapon_selects_highest_damage():
+    """Developer weapon selection returns the single strongest weapon."""
+    assert _best_ground_weapon() == "rocket_launcher"
+
+
+def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypatch):
     """Dev mode grants the complete ground loadout and logs it."""
     monkeypatch.setenv("SPACEHACK_DEV", "1")
     _ctx = SimpleNamespace(
         equipped_ground_weapons=[],
         equipped_ground_armor={},
+        ground_expedition_inventory=[],
+        ground_stats=SimpleNamespace(strength=10),
         log=MagicMock(),
     )
 
     apply_dev_ground_loadout(_ctx)
 
-    assert _ctx.equipped_ground_weapons == ["kinetic_rifle", "kinetic_rifle"]
+    assert _ctx.equipped_ground_weapons == ["rocket_launcher"]
     assert _ctx.equipped_ground_armor == {
         "head": "assault_helmet",
         "body": "powered_vest",
@@ -250,8 +258,13 @@ def test_dev_ground_loadout_equips_two_rifles_and_best_armor(monkeypatch):
         "legs": "assault_greaves",
         "feet": "mag_boots",
     }
+    assert [e.item_id for e in _ctx.ground_expedition_inventory] == [
+        "plasma_caster", "railgun", "power_fist", "power_fist",
+        "ion_blaster", "mono_blade",
+    ]
+    assert _ctx.ground_stats.strength == 30
     _ctx.log.add.assert_called_once_with(
-        "[DEV MODE] Two kinetic rifles + best armor equipped."
+        "[DEV MODE] Rocket Launcher equipped + T4 pack + best armor."
     )
 
 
