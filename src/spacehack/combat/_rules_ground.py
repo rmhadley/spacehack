@@ -108,9 +108,9 @@ class GroundCombatState:
     active_weapon_list: list[bool] = field(default_factory=list)
     target_idx: int = 0
     console: Any = None
-    # Presentation-only: the floating target card is hidden until the
-    # player toggles it (``v``) so it never obscures the action by default.
-    show_target_card: bool = False
+    # Presentation-only: the floating target card shows by default and
+    # can be toggled off with ``v``.
+    show_target_card: bool = True
     # Presentation-only: while True, ``render_frame`` skips the player's
     # range/accuracy line. Set during shot animations and the whole enemy
     # turn so the line never clutters frames the player isn't acting on.

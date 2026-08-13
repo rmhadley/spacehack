@@ -198,11 +198,12 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "corner may create a worse fight than expected."
             "\n\n"
             "Your current target's armour and weapon are shown in the right-hand "
-            "panel. Press V to show a floating card beside the enemy with your "
-            "chance to hit and their armour and action points; press V again to "
-            "hide it. Check them before you act: heavy armour means armour-piercing "
-            "or plasma will serve you better, and a long-range enemy weapon is "
-            "your cue to stay behind cover instead of trading shots."
+            "panel. A floating card beside the enemy shows your chance to hit and "
+            "their armour and action points; press V to hide it and V again to "
+            "bring it back. Check them before you act: heavy armour means "
+            "armour-piercing or plasma will serve you better, and a long-range "
+            "enemy weapon is your cue to stay behind cover instead of trading "
+            "shots."
         ),
     ),
     GuideSection(

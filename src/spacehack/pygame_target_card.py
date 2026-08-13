@@ -41,6 +41,7 @@ class TargetCard:
     y: int
     hit_chance: int | None = None
     avoid_cells: tuple[tuple[int, int], ...] = ()
+    player_cell: tuple[int, int] | None = None
 
 
 # The card reuses the HUD's gold/weapon palette cues so it reads as an
@@ -104,14 +105,38 @@ def _card_rect_clear(
     return not any(x <= ax < x + cw and y <= ay < y + ch for ax, ay in avoid)
 
 
-def _preferred_positions(tx: int, ty: int, cw: int, ch: int) -> tuple[tuple[int, int], ...]:
-    """Candidate top-left cells: above (1-cell gap), then below/right/left."""
-    return (
-        (tx - cw // 2, ty - 1 - ch),
-        (tx - cw // 2, ty + 1),
-        (tx + 1, ty - ch // 2),
-        (tx - 1 - cw, ty - ch // 2),
-    )
+def _preferred_positions(
+    tx: int,
+    ty: int,
+    cw: int,
+    ch: int,
+    px: int | None = None,
+    py: int | None = None,
+) -> tuple[tuple[int, int], ...]:
+    """Candidate top-left cells, ordered away-from-player first.
+
+    Favors the side of the target opposite the player (so the card never
+    covers the player), then the perpendicular axis, then the two
+    toward-player sides. Without a player cell it falls back to the fixed
+    order above/below/right/left.
+    """
+    positions = {
+        "above": (tx - cw // 2, ty - 1 - ch),
+        "below": (tx - cw // 2, ty + 1),
+        "right": (tx + 1, ty - ch // 2),
+        "left": (tx - 1 - cw, ty - ch // 2),
+    }
+    if px is None or py is None:
+        return (positions["above"], positions["below"], positions["right"], positions["left"])
+    away_x = tx - px
+    away_y = ty - py
+    h_away, h_toward = ("right", "left") if away_x > 0 else ("left", "right")
+    v_away, v_toward = ("below", "above") if away_y > 0 else ("above", "below")
+    if abs(away_x) >= abs(away_y):
+        order = (h_away, v_away, h_toward, v_toward)
+    else:
+        order = (v_away, h_away, v_toward, h_toward)
+    return tuple(positions[direction] for direction in order)
 
 
 def _clamp_card_cell(
@@ -159,12 +184,13 @@ def _target_card_cells(
 ) -> tuple[int, int]:
     """Choose the card's top-left cell, dodging visible chars/enemies.
 
-    Prefers 1 cell above the target; if that is out of bounds or covers
-    the player / an enemy, tries below, right, and left in order, then
-    falls back to the closest clear cell.
+    Favors the side of the target opposite the player, then falls back to
+    below/right/left and finally the closest clear cell.
     """
     avoid = set(card.avoid_cells)
-    for x, y in _preferred_positions(card.x, card.y, cw, ch):
+    _pc = card.player_cell
+    px, py = _pc if _pc is not None else (None, None)
+    for x, y in _preferred_positions(card.x, card.y, cw, ch, px, py):
         if _card_rect_clear(x, y, cw, ch, avoid, map_width, map_height):
             return x, y
     return _closest_clear_cell(card.x, card.y, cw, ch, avoid, map_width, map_height)
@@ -277,5 +303,10 @@ def target_card_from_payload(data: dict[str, Any]) -> TargetCard | None:
         ),
         avoid_cells=tuple(
             (int(_c[0]), int(_c[1])) for _c in target_data.get("avoid_cells", ())
+        ),
+        player_cell=(
+            (int(target_data["player_cell"][0]), int(target_data["player_cell"][1]))
+            if target_data.get("player_cell") is not None
+            else None
         ),
     )

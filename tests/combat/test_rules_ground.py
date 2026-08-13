@@ -635,6 +635,7 @@ class TestBuildTargetCard:
         assert card.max_ap == 4  # GroundEnemyInstance default ap_total
         assert card.hit_chance == 62
         assert (card.x, card.y) == (5, 3)
+        assert card.player_cell == (2, 2)
         assert card.avoid_cells == ((2, 2), (5, 3))
 
     def test_unarmed_enemy_has_blank_weapon_and_no_hit_chance(self):
@@ -690,24 +691,24 @@ class TestBuildTargetCard:
 
 
 class TestTargetCardToggle:
-    def test_card_hidden_until_toggled_on(self):
+    def test_card_shown_by_default_and_toggle_hides(self):
         _ctx, _game_map, _, _enemy = _ground_fixture()
         _rules_ground.init(_ctx, [_enemy], _game_map)
-
-        assert _rules_ground.presentation_target_card(ctx=_ctx) is None
-
-        _rules_ground.toggle_target_card(_ctx)
 
         card = _rules_ground.presentation_target_card(ctx=_ctx)
         assert card is not None
         assert card.name == "Assault Drone"
 
+        _rules_ground.toggle_target_card(_ctx)
+
+        assert _rules_ground.presentation_target_card(ctx=_ctx) is None
+
     def test_toggle_target_card_flips_state(self):
         _ctx, _game_map, _, _enemy = _ground_fixture()
         _rules_ground.init(_ctx, [_enemy], _game_map)
 
-        assert _rules_ground._state.show_target_card is False
-        _rules_ground.toggle_target_card(_ctx)
         assert _rules_ground._state.show_target_card is True
         _rules_ground.toggle_target_card(_ctx)
         assert _rules_ground._state.show_target_card is False
+        _rules_ground.toggle_target_card(_ctx)
+        assert _rules_ground._state.show_target_card is True

@@ -30,6 +30,13 @@ def enemy_weapon(enemy: Any):
         return None
 
 
+def _weapon_card_stats(weapon: Any) -> tuple[str, int, int, int]:
+    """Return ``(name, damage, min_range, max_range)``; unarmed defaults."""
+    if weapon is None:
+        return "", 0, 1, 1
+    return weapon.name, weapon.damage, weapon.min_range, weapon.max_range
+
+
 def enemy_detail_lines(enemy: Any) -> tuple[str, str, str]:
     """Return the (armor, weapon, stats) HUD lines for one enemy.
 
@@ -105,14 +112,15 @@ def build_target_card(
     sx, sy = rx + enemy.pos.x - cam_x, ry + enemy.pos.y - cam_y
     if not (0 <= sx < region_w and 0 <= sy < region_h):
         return None
-    weapon = enemy_weapon(enemy)
+    # Player is always in view; its cell drives away-from-player placement.
+    wname, wdmg, wmin, wmax = _weapon_card_stats(enemy_weapon(enemy))
     return TargetCard(
         name=enemy.name,
         armor=enemy.spec.armor if enemy.spec else 0,
-        weapon=weapon.name if weapon else "",
-        damage=weapon.damage if weapon else 0,
-        min_range=weapon.min_range if weapon else 1,
-        max_range=weapon.max_range if weapon else 1,
+        weapon=wname,
+        damage=wdmg,
+        min_range=wmin,
+        max_range=wmax,
         hp=enemy.hp,
         max_hp=enemy.max_hp,
         max_ap=getattr(enemy, "ap_total", 0),
@@ -122,6 +130,7 @@ def build_target_card(
             cam_x=cam_x, cam_y=cam_y, rx=rx, ry=ry,
             region_w=region_w, region_h=region_h,
         ),
+        player_cell=(rx + player_pos.x - cam_x, ry + player_pos.y - cam_y),
         x=sx,
         y=sy,
     )

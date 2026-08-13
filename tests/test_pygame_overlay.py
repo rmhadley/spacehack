@@ -178,7 +178,7 @@ def test_overlay_payload_round_trips_target_card():
         "name": "Assault Drone", "armor": 3, "weapon": "Monster Claws",
         "damage": 3, "min_range": 1, "max_range": 1, "hp": 18,
         "max_hp": 30, "max_ap": 4, "x": 14, "y": 9, "hit_chance": 62,
-        "avoid_cells": ((14, 9), (10, 11)),
+        "avoid_cells": ((14, 9), (10, 11)), "player_cell": None,
     }
     assert pygame_overlay.frame_from_payload(payload) == frame
 
@@ -293,6 +293,35 @@ def test_target_card_cells_fall_back_to_clear_cell_when_preferred_blocked():
 
     assert pygame_target_card._card_rect_clear(x, y, 2, 2, set(avoid), 10, 10)
     assert (x, y) not in {(4, 2), (4, 6), (6, 4), (2, 4)}
+
+
+def test_target_card_cells_favor_side_away_from_player():
+    card = pygame_target_card.TargetCard(
+        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
+        hp=1, max_hp=1, max_ap=0, x=5, y=5, player_cell=(2, 5),
+    )
+
+    cells = pygame_target_card._target_card_cells(
+        card, cw=3, ch=3, map_width=20, map_height=12,
+    )
+
+    # Player is directly left of the target, so the card goes to the far
+    # (right) side instead of the default above slot.
+    assert cells == (6, 4)
+
+
+def test_target_card_cells_favor_above_when_player_below():
+    card = pygame_target_card.TargetCard(
+        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
+        hp=1, max_hp=1, max_ap=0, x=5, y=5, player_cell=(5, 8),
+    )
+
+    cells = pygame_target_card._target_card_cells(
+        card, cw=3, ch=3, map_width=20, map_height=12,
+    )
+
+    # Player is directly below the target, so the card favors above.
+    assert cells == (4, 1)
 
 
 def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
