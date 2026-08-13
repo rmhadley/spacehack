@@ -161,13 +161,31 @@ dark").
       edges (revealing boundary walls) instead of instantly reporting
       everything explored.
 
-## Playtest checklist
+**Third fix (new save — invisible monster in the only door):** a
+second autosave (Mars Surface, player at 36,33) showed
+`next_explore_step → None` again with **7646/10800 cells dark**, but
+this time the sealing ring around the reachable pocket was **201 seen
+walls + exactly one walkable cell — (26,33), occupied by an
+invisible rock scavenger** (10 cells beyond sight radius 8, so it is
+never rendered). The monster was standing in the pocket's only
+doorway; with it passable, **487 unseen cells** open up behind it.
 
-- [ ] Press `O` in a derelict with unrevealed rooms — walks there,
-      stops beside stairs/exit instead of stepping on them.
-- [ ] Loot in an unseen room: stops when it comes into view.
-- [ ] Loot already on screen when `O` pressed: does NOT re-stop.
-- [ ] Enemy comes into view: combat starts, auto-explore ends.
-- [ ] Any key cancels mid-run.
-- [ ] Everything explored: "You have explored every reachable area."
-- [ ] `O` in city/space logs the dungeon-only hint.
+- [x] Pathing rule: an entity outside the current LOS frame can
+      never seal the route — the BFS treats it as passable, walks
+      toward it, and the shared LOS-aggro tick starts ground combat
+      the moment it comes into view (verified: BFS now returns
+      `(-1, 0)` from the player and the walk stops at (34,33) with
+      the scavenger visible). Design rule from the user: "a monster
+      the game knows about can't block moving if the player doesn't
+      know about it."
+- [x] Visible solid entities still block; when one sits in the only
+      exit of the explored region, `run_auto_explore` now logs
+      "A rock scavenger blocks the only way forward." instead of the
+      misleading "explored every reachable area." (DCSS-style
+      monster-in-the-way). Detector flood-checks that removing the
+      entity opens unseen territory, so an incidental visible
+      terminal inside a wall-sealed room does not trigger it.
+- [x] Tests: visible-blocks vs unseen-passes, way-out detector
+      (monster / invisible-monster / incidental-terminal / step-
+      available), loop stops at visible monster, loop walks to and
+      reveals an unseen monster.

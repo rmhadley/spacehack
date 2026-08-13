@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 from src.spacehack import world
 from src.spacehack.autoexplore import (
+    blocking_way_entity,
     interesting_at,
     newly_interesting_positions,
     next_explore_step,
@@ -152,13 +153,32 @@ def test_next_explore_step_stops_beside_stairs():
     assert next_explore_step(gm, world.Position(4, 1)) is None
 
 
-def test_next_explore_step_blocked_by_solid_entity():
+def test_next_explore_step_visible_solid_entity_blocks():
     gm = _corridor()
     gm.entities.append(world.Entity(char="S", fg=(255, 0, 0),
                                     pos=world.Position(4, 1)))
+    gm.visible[1][4] = True  # the player can see it on screen
     _explored_corridor(gm, 4)
-    # The solid entity seals the corridor — no step onto or past it.
+    # A visible solid entity seals the corridor — no step onto or past it.
     assert next_explore_step(gm, world.Position(2, 1)) is None
+
+
+def test_next_explore_step_unseen_solid_entity_does_not_block():
+    """Regression (new save): a monster camped in the only doorway
+    beyond LOS must NOT seal the route — the player cannot see it, so
+    auto-explore walks toward it and reveals it.
+    """
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
+                                    npc_char_id="rock_scavenger",
+                                    pos=world.Position(4, 1)))
+    _explored_corridor(gm, 3)
+    # Invisible (outside the LOS frame) — passable: the walk heads for
+    # the unseen floor beyond it.
+    assert next_explore_step(gm, world.Position(2, 1)) == (1, 0)
+    # Once it comes into view it seals the route again.
+    gm.visible[1][4] = True
+    assert next_explore_step(gm, world.Position(3, 1)) is None
 
 
 def test_next_explore_step_walks_over_loot():
@@ -276,6 +296,70 @@ def test_interesting_at_does_not_flag_breach_tiles():
 
 
 # ---------------------------------------------------------------------------
+# blocking_way_entity — the visible-only-way-out detector
+# ---------------------------------------------------------------------------
+
+
+def _sealed_room():
+    """Fully-seen 12x3 room with one 1-wide door in the east wall at
+    (7,1): a small unseen pocket at x=8..11 lies just beyond it, so a
+    monster standing on the door cell is the only obstruction."""
+    gm = world.GameMap(
+        width=12, height=3,
+        tiles=[[(world.DUNGEON_FLOOR if y == 1 else world.DUNGEON_WALL)
+                for x in range(12)] for y in range(3)],
+        entities=[],
+        seen=[[True] * 12 for _ in range(3)],
+        visible=[[False] * 12 for _ in range(3)],
+        sight_radius=8,
+    )
+    # Unseen pocket east of the door at (8,1).
+    gm.seen[1][8] = gm.seen[1][9] = gm.seen[1][10] = gm.seen[1][11] = False
+    return gm
+
+
+def test_blocking_way_entity_reports_visible_monster_in_door():
+    gm = _sealed_room()
+    gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
+                                    npc_char_id="rock_scavenger",
+                                    pos=world.Position(7, 1)))
+    gm.visible[1][7] = True  # the player sees it in the doorway
+    blocker = blocking_way_entity(gm, world.Position(3, 1))
+    assert blocker is not None
+    assert blocker.pos == world.Position(7, 1)
+
+
+def test_blocking_way_entity_none_for_invisible_monster_in_door():
+    gm = _sealed_room()
+    gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
+                                    pos=world.Position(7, 1)))
+    # Not in the LOS frame — the player does not know it is there, so
+    # it is walked through, never reported.
+    assert blocking_way_entity(gm, world.Position(3, 1)) is None
+
+
+def test_blocking_way_entity_none_for_incidental_visible_terminal():
+    """A visible terminal inside a wall-sealed room is not the way
+    out: removing it opens no unseen territory, so no message."""
+    gm = _sealed_room()
+    for x in range(8, 12):
+        gm.seen[1][x] = True  # fully seal it — no unseen anywhere
+    gm.entities.append(world.Entity(char="C", fg=(0, 200, 255),
+                                    pos=world.Position(4, 1),
+                                    computer_terminal=True))
+    gm.visible[1][4] = True
+    assert blocking_way_entity(gm, world.Position(3, 1)) is None
+
+
+def test_blocking_way_entity_none_when_unseen_reachable():
+    """If the BFS finds unseen territory it returns a step, and the
+    way-out detector reports nothing."""
+    gm = _corridor()
+    _explored_corridor(gm, 3)
+    assert blocking_way_entity(gm, world.Position(2, 1)) is None
+
+
+# ---------------------------------------------------------------------------
 # run_auto_explore — the loop
 # ---------------------------------------------------------------------------
 
@@ -374,6 +458,54 @@ def test_run_auto_explore_ignores_already_visible_interesting():
     # corridor (walls included) without stopping on the loot again.
     assert player.pos.x >= 5
     assert all(gm.seen[y][x] for x in range(8) for y in range(3))
+
+
+def test_run_auto_explore_stops_at_visible_monster_in_the_way():
+    """A visible monster camping the only exit of the explored room:
+    auto-explore stops with an honest message instead of 'explored
+    every reachable area' (the unseen corridor beyond the monster is
+    exactly what the player could not have explored past it).
+    """
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
+                                    npc_char_id="rock_scavenger",
+                                    pos=world.Position(4, 1)))
+    gm.visible[1][4] = True
+    player = _player(1, 1)
+    # The room is explored up to the doorway the monster camps: its
+    # cell and the flanking walls are seen; only the corridor beyond
+    # is dark.
+    _explored_corridor(gm, 4)
+    ctx, result = _run(gm, player)
+    assert result == "DONE"
+    assert player.pos == world.Position(1, 1)  # never moved
+    assert "rock scavenger blocks the only way forward" in ctx.log.recent(1)[0].text
+
+
+def test_run_auto_explore_walks_to_and_reveals_unseen_monster():
+    """Regression (new save): a monster in the only doorway beyond LOS
+    does not stop auto-explore — the walker advances, the monster
+    comes into view, and the run stops beside it with the way-forward
+    message (in the real game the LOS tick starts combat instead).
+    """
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
+                                    npc_char_id="rock_scavenger",
+                                    pos=world.Position(5, 1)))
+    player = _player(1, 1)
+    _explored_corridor(gm, 3)
+
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
+        return None
+
+    ctx, result = _run(gm, player, tick=tick)
+    assert result == "DONE"
+    # The walker advanced through the dark corridor and stopped one
+    # cell short of the now-visible monster.
+    assert player.pos == world.Position(4, 1)
+    assert gm.visible[1][5]
+    assert "rock scavenger blocks the only way forward" in ctx.log.recent(1)[0].text
 
 
 def test_run_auto_explore_stops_when_standing_on_interesting():

@@ -13,6 +13,14 @@ Only *newly revealed* interesting content stops the run — things
 already in view when ``O`` is pressed are seeded into the known set so
 a single press never stalls next to loot the player already spotted.
 
+An entity the player cannot currently see never seals the route:
+pathing treats solid entities outside the current LOS frame as
+passable, so a monster camping a doorway in the dark is revealed by
+walking toward it (the shared tick then starts LOS-based ground
+combat). Only visible solid entities block — and if one sits in the
+only exit, the run stops with ``A <name> blocks the only way
+forward.``
+
 The decision helpers (``interesting_at``, ``newly_interesting_positions``,
 ``next_explore_step``) are pure and testable without Pygame; the thin
 ``run_auto_explore`` loop owns presentation + interruption, mirroring
@@ -124,30 +132,50 @@ def _first_step_toward(_prev, _sx: int, _sy: int, _tx: int, _ty: int) -> tuple[i
     return (_cur[0] - _sx, _cur[1] - _sy)
 
 
-def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
-    """First step toward the nearest unrevealed cell, or ``None``.
+def _visible_blocker(game_map, x: int, y: int, *, exclude=None):
+    """Blocking entity at ``(x, y)`` the player can currently see, else
+    ``None``.
 
-    BFS over passable cells (walkable, unblocked by solid entities —
-    loot does not block). The target is any UNSEEN cell — floor, wall,
-    or transition — so the run advances to the fog edge and reveals
-    it: a room's boundary walls sit just beyond LOS and must be
-    walked up to, otherwise the run reports 'everything explored'
-    while the map is still dark. Transition tiles (stairs/exit) are
-    never stepped on, but an unseen one is walked toward so it can be
-    spotted. Returns ``(dx, dy)`` relative to ``player_pos``.
+    The player only knows about entities rendered in the current LOS
+    frame. An enemy standing in a dark corridor cannot seal the route:
+    auto-explore walks toward it and combat starts the moment it comes
+    into view (ground combat is LOS-based). ``exclude`` skips one
+    entity (used when re-flooding from a blocker's own cell).
 
-    ``None`` means every reachable cell, and every cell adjacent to
-    the explored region, has been revealed.
+    Note the asymmetry with the main BFS: a missing ``seen`` grid
+    aborts planning entirely, while a missing ``visible`` grid falls
+    back to *passable* here — ``run_auto_explore`` guards both grids,
+    so this only ever fires in synthetic states.
+    """
+    _ent = game_map.blocking_entity_at(x, y, exclude=exclude)
+    if _ent is None:
+        return None
+    _visible = game_map.visible
+    if _visible is not None and _visible[y][x]:
+        return _ent
+    return None
+
+
+def _plan_explore_step(game_map, player_pos):
+    """BFS over the reachable region; returns ``(step, blockers)``.
+
+    ``step`` is the first move toward the nearest unrevealed cell, or
+    ``None`` when the region is fully revealed. ``blockers`` lists the
+    visible solid entities encountered during expansion (nearest
+    first) — the only entities that can seal the route, since unseen
+    ones are walked through and revealed.
     """
     _seen = game_map.seen
     if _seen is None:
-        return None
+        return None, ()
     _sx, _sy = player_pos.x, player_pos.y
     if not game_map.in_bounds(_sx, _sy):
-        return None
+        return None, ()
     _prev: dict[tuple[int, int], tuple[int, int]] = {}
     _queue: deque[tuple[int, int]] = deque([(_sx, _sy)])
     _visited: set[tuple[int, int]] = {(_sx, _sy)}
+    _blockers: list = []
+    _blocker_ids: set[int] = set()
     while _queue:
         _cx, _cy = _queue.popleft()
         for _dx, _dy in _NEIGHBORS_8:
@@ -162,17 +190,112 @@ def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
                 # revealed in-game, so this only guards synthetic
                 # states).
                 if not _seen[_ny][_nx] and (_cx, _cy) != (_sx, _sy):
-                    return _first_step_toward(_prev, _sx, _sy, _cx, _cy)
+                    return _first_step_toward(_prev, _sx, _sy, _cx, _cy), _blockers
                 continue
-            if game_map.blocking_entity_at(_nx, _ny):
+            _ent = _visible_blocker(game_map, _nx, _ny)
+            if _ent is not None:
+                # Visible solid entity — the player knows it is there,
+                # so it genuinely seals the route.
+                if id(_ent) not in _blocker_ids:
+                    _blocker_ids.add(id(_ent))
+                    _blockers.append(_ent)
                 continue
             _visited.add((_nx, _ny))
             _prev[(_nx, _ny)] = (_cx, _cy)
             if not _seen[_ny][_nx]:
                 # Unseen walkable cell — walk toward it directly.
-                return _first_step_toward(_prev, _sx, _sy, _nx, _ny)
+                return _first_step_toward(_prev, _sx, _sy, _nx, _ny), _blockers
             _queue.append((_nx, _ny))
+    return None, _blockers
+
+
+def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
+    """First step toward the nearest unrevealed cell, or ``None``.
+
+    BFS over passable cells (walkable, unblocked by solid entities
+    the player can SEE — loot never blocks, and an entity outside the
+    current LOS frame cannot seal the route because walking toward it
+    reveals it). The target is any UNSEEN cell — floor, wall, or
+    transition — so the run advances to the fog edge and reveals it: a
+    room's boundary walls sit just beyond LOS and must be walked up
+    to, otherwise the run reports 'everything explored' while the map
+    is still dark. Transition tiles (stairs/exit) are never stepped
+    on, but an unseen one is walked toward so it can be spotted.
+    Returns ``(dx, dy)`` relative to ``player_pos``.
+
+    ``None`` means every reachable cell, and every cell adjacent to
+    the explored region, has been revealed.
+    """
+    _step, _ = _plan_explore_step(game_map, player_pos)
+    return _step
+
+
+def _flood_opens_unseen(game_map, x: int, y: int, *, exclude) -> bool:
+    """True if flooding from ``(x, y)`` (treating ``exclude`` as
+    passable) reaches at least one unseen cell.
+
+    Models the question "if this entity were not standing there, could
+    the player reach unexplored territory?" — the test that separates
+    a genuine way-blocker from an incidental visible entity inside a
+    wall-sealed room.
+    """
+    _seen = game_map.seen
+    if _seen is None:
+        return False
+    _queue: deque[tuple[int, int]] = deque([(x, y)])
+    _visited: set[tuple[int, int]] = {(x, y)}
+    while _queue:
+        _cx, _cy = _queue.popleft()
+        for _dx, _dy in _NEIGHBORS_8:
+            _nx, _ny = _cx + _dx, _cy + _dy
+            if not game_map.in_bounds(_nx, _ny) or (_nx, _ny) in _visited:
+                continue
+            _tile = game_map.tiles[_ny][_nx]
+            if not _tile.walkable or _tile.kind in _TRANSITION_KINDS:
+                continue
+            if _visible_blocker(game_map, _nx, _ny, exclude=exclude):
+                continue
+            _visited.add((_nx, _ny))
+            if not _seen[_ny][_nx]:
+                return True
+            _queue.append((_nx, _ny))
+    return False
+
+
+def blocking_way_entity(game_map, player_pos):
+    """Visible blocking entity sealing the only route to unseen
+    territory, or ``None``.
+
+    Called when ``next_explore_step`` returns ``None``: a visible
+    entity may still be standing in the region's only exit (e.g. a
+    monster camped in a doorway the player can see). Returns the
+    nearest such entity whose own cell, if passable, floods to at
+    least one unseen cell — a wall-sealed room with an incidental
+    terminal inside does not qualify.
+    """
+    _step, _blockers = _plan_explore_step(game_map, player_pos)
+    if _step is not None:
+        return None
+    for _ent in _blockers:
+        _bx, _by = _ent.pos.x, _ent.pos.y
+        if not game_map.in_bounds(_bx, _by):
+            continue
+        if not game_map.tiles[_by][_bx].walkable:
+            continue  # embedded in a wall — not a passage
+        if _flood_opens_unseen(game_map, _bx, _by, exclude=_ent):
+            return _ent
     return None
+
+
+def _blocker_label(_e) -> str | None:
+    """Display name for a blocking entity, lowercased for log prose."""
+    if getattr(_e, "npc_char_id", ""):
+        try:
+            from .data.npc_chars import find_npc_char
+            return find_npc_char(_e.npc_char_id).name.lower()
+        except (ImportError, KeyError):
+            pass
+    return _e.name or None
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +370,10 @@ def run_auto_explore(
     ``post_step_tick`` is the shared dungeon post-move tick (injected
     to avoid a circular import with ``__main__``); it returns
     ``"DEFEAT"`` / ``"COMBAT"`` / ``None`` like
-    ``__main__._dungeon_post_move_tick``.
+    ``__main__._dungeon_post_move_tick``. It MUST refresh the
+    LOS/visible frame after each step (as the real tick does) — a
+    stub that never reveals makes the walk oscillate between two
+    unseen cells.
     """
     if game_map.seen is None or game_map.visible is None:
         ctx.log.add("Auto-explore only works inside dungeons.")
@@ -270,6 +396,15 @@ def run_auto_explore(
             return "DONE"
         _step = next_explore_step(game_map, player.pos)
         if _step is None:
+            _blocker = blocking_way_entity(game_map, player.pos)
+            if _blocker is not None:
+                _label = _blocker_label(_blocker)
+                ctx.log.add(
+                    f"A {_label} blocks the only way forward."
+                    if _label
+                    else "Something blocks the only way forward."
+                )
+                return "DONE"
             ctx.log.add("You have explored every reachable area.")
             return "DONE"
         _dx, _dy = _step
