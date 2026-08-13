@@ -17,6 +17,7 @@ from ._animations import (
     _responsive_sleep,
     _present,
 )
+from ._messages import enemy_attack_line as _enemy_attack_line
 from ._shot_animations import _animate_ground_shot
 
 # Guards defend a post: beyond this euclidean distance from their
@@ -98,12 +99,18 @@ def run_ground_enemy_turn(
                     )
                     _popup = _damage_popup_for(_damage_dealt, 0, False)
                     ctx.log.add_colored(
-                        f"{enemy_spec.name} hits you for {_damage_dealt}!",
+                        _enemy_attack_line(
+                            enemy_spec.name, enemy_weapon_id, _ews.name,
+                            hit=True, hull_dmg=_damage_dealt,
+                        ),
                         _ml.COLOR_ENEMY_ACTION,
                     )
                 else:
                     ctx.log.add_colored(
-                        f"{enemy_spec.name} fires but misses!",
+                        _enemy_attack_line(
+                            enemy_spec.name, enemy_weapon_id, _ews.name,
+                            hit=False,
+                        ),
                         _ml.COLOR_ENEMY_ACTION,
                     )
                 # Animate the attack with an effect matching the enemy's

@@ -17,6 +17,7 @@ from ..message_log import COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
 from ..data.weapons import find_weapon
 
 from ._types import EnemyInstance
+from ._messages import enemy_attack_line as _enemy_attack_line
 from ._stats import (
     calc_hit_chance,
     calc_flee_chance,
@@ -164,6 +165,9 @@ def _run_enemy_turn(
                     _e_hit = RNG.randint(1, 100) <= _chance
                     # Resolve damage BEFORE animating so the floating
                     # damage number rides the shot's impact frames.
+                    # The weapon spec is resolved before the hit check
+                    # so the miss line can name the weapon too.
+                    _e_ws = find_weapon(_wid)
                     _e_dmg_popup = None
                     _e_dmg = 0
                     _e_sdmg = 0
@@ -171,7 +175,6 @@ def _run_enemy_turn(
                     _e_is_strip = False
                     _is_glancing = False
                     if _e_hit:
-                        _e_ws = find_weapon(_wid)
                         # Juggernaut trait: -50% missile damage taken.
                         _dmg_mult = 1.0
                         if (_e_ws.slot_type == "missile" and ctx is not None
@@ -212,11 +215,16 @@ def _run_enemy_turn(
                         state.player_state["hull"] = _e_fh
                         if ctx is not None:
                             ctx.player_counters.total_damage_taken += _e_dmg
-                        if _e_is_strip:
-                            _e_log(f"{_ei.name} strips {_e_sdmg} of your shields!", state.log)
-                        else:
-                            _verb = "glancing hit" if _is_glancing else "hits"
-                            _e_log(f"{_ei.name} {_verb} for {_e_dmg + _e_sdmg} damage!", state.log)
+                        _e_log(
+                            _enemy_attack_line(
+                                _ei.name, _wid, _e_ws.name,
+                                hit=True, hull_dmg=_e_dmg,
+                                shield_dmg=_e_sdmg,
+                                is_strip=_e_is_strip,
+                                is_glancing=_is_glancing and not _e_is_strip,
+                            ),
+                            state.log,
+                        )
                         if _e_fh <= 0:
                             _e_log("Your ship has been destroyed!", state.log)
                             _ecx, _ecy = calc_cam()
@@ -237,7 +245,12 @@ def _run_enemy_turn(
                             )
                             return "DEFEAT"
                     else:
-                        _e_log(f"{_ei.name} misses!", state.log)
+                        _e_log(
+                            _enemy_attack_line(
+                                _ei.name, _wid, _e_ws.name, hit=False,
+                            ),
+                            state.log,
+                        )
                     _ei.ap_remaining -= 1
                 else:
                     break

@@ -18,6 +18,7 @@ from ..input_helpers import _try_open_guide
 
 from . import _rules_ground
 from ._types import CombatResult
+from ._messages import player_attack_line as _player_attack_line
 from ._animations import (
     _damage_popup_for,
     _present,
@@ -238,20 +239,19 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
             _wname = _wid
 
         if _hit:
-            if _is_strip:
-                ctx.log.add_colored(
-                    f"{_wname} strips {_stripped} shields from "
-                    f"{rules.enemy_name(_target)}!",
-                    _ml.COLOR_PLAYER_ACTION,
-                )
-            else:
-                ctx.log.add_colored(
-                    f"{_wname} hits {rules.enemy_name(_target)} for {_dmg + _stripped}!",
-                    _ml.COLOR_PLAYER_ACTION,
-                )
+            ctx.log.add_colored(
+                _player_attack_line(
+                    _wid, _wname, rules.enemy_name(_target),
+                    hit=True, hull_dmg=_dmg, shield_dmg=_stripped,
+                    is_strip=_is_strip, is_glancing=_is_glancing,
+                ),
+                _ml.COLOR_PLAYER_ACTION,
+            )
         else:
             ctx.log.add_colored(
-                f"{_wname} misses {rules.enemy_name(_target)}!",
+                _player_attack_line(
+                    _wid, _wname, rules.enemy_name(_target), hit=False,
+                ),
                 _ml.COLOR_PLAYER_ACTION,
             )
 
