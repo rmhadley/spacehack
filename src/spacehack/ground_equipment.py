@@ -20,6 +20,27 @@ ARMORY_STORAGE = "armory"
 EXPEDITION_INVENTORY = "expedition"
 BASE_EXPEDITION_SLOTS = 4
 WEAPON_SLOT_COUNT = 2
+_ARMOR_BONUS_FIELDS: tuple[str, ...] = ("ap_bonus", "hit_bonus", "melee_bonus", "hp_bonus")
+
+
+def sum_armor_bonus(armor_ids: Iterable[str], attr: str) -> int:
+    """Sum one numeric armor bonus field across a list of armor ids.
+
+    Skips ``None``/empty ids and unknown catalog ids so a stale save
+    entry never raises. ``attr`` must be one of the four cybernetic
+    bonus fields on :class:`~spacehack.data.ground_armor.GroundArmorSpec`.
+    """
+    if attr not in _ARMOR_BONUS_FIELDS:
+        raise ValueError(f"unknown armor bonus field: {attr!r}")
+    total = 0
+    for armor_id in armor_ids:
+        if not armor_id:
+            continue
+        try:
+            total += getattr(find_ground_armor(armor_id), attr)
+        except KeyError:
+            continue
+    return total
 
 
 @dataclass(frozen=True)
@@ -259,13 +280,28 @@ def swap_weapon_from_expedition(
     *,
     strength: int = 10,
 ) -> StoredGroundEquipment:
-    """Swap one pack weapon into a requested active weapon slot atomically.
+    """Swap one pack weapon into a requested active weapon slot atomically."""
+    selected = _validated_swap_weapon(
+        equipped_weapons, pack, pack_index, slot_index,
+    )
+    displaced = _replace_weapon_slot(equipped_weapons, slot_index, selected.item_id)
+    proposed_pack = [
+        entry for index, entry in enumerate(pack) if index != pack_index
+    ] + displaced
+    _require_expedition_capacity(proposed_pack, strength)
+    validate_storage(proposed_pack)
+    pack[:] = proposed_pack
+    _set_swapped_weapon(equipped_weapons, slot_index, selected)
+    return selected
 
-    One-handed selections replace only the requested one-handed slot. A
-    two-handed selection replaces the complete active loadout. The selected
-    pack entry is removed before displaced gear is returned to the same pack,
-    so a full pack can still perform a no-net-capacity one-for-one swap.
-    """
+
+def _validated_swap_weapon(
+    equipped_weapons: list[str],
+    pack: list[StoredGroundEquipment],
+    pack_index: int,
+    slot_index: int,
+) -> StoredGroundEquipment:
+    """Validate a pack→loadout weapon swap and return the selected entry."""
     if slot_index not in range(WEAPON_SLOT_COUNT):
         raise IndexError("Invalid ground weapon slot")
     if not 0 <= pack_index < len(pack):
@@ -278,13 +314,15 @@ def swap_weapon_from_expedition(
         raise ValueError("A two-handed weapon must use Weapon 1")
     if slot_index == 1 and equipped_weapons and weapon_hands(equipped_weapons[0]) == 2:
         raise ValueError("Weapon 2 is occupied by a two-handed weapon")
-    displaced = _replace_weapon_slot(equipped_weapons, slot_index, selected.item_id)
-    proposed_pack = [
-        entry for index, entry in enumerate(pack) if index != pack_index
-    ] + displaced
-    _require_expedition_capacity(proposed_pack, strength)
-    validate_storage(proposed_pack)
-    pack[:] = proposed_pack
+    return selected
+
+
+def _set_swapped_weapon(
+    equipped_weapons: list[str],
+    slot_index: int,
+    selected: StoredGroundEquipment,
+) -> None:
+    """Install a swapped-in weapon into the requested active slot."""
     selected_hands = weapon_hands(selected.item_id)
     if selected_hands == 2:
         equipped_weapons[:] = [selected.item_id]
@@ -294,7 +332,6 @@ def swap_weapon_from_expedition(
         equipped_weapons[slot_index] = selected.item_id
     else:
         equipped_weapons.append(selected.item_id)
-    return selected
 
 
 def swap_armor_from_expedition(
@@ -339,13 +376,7 @@ def install_weapon(
     displaced_container: str | None = None,
     strength: int = 10,
 ) -> StoredGroundEquipment:
-    """Install a stored weapon, atomically preserving displaced weapons.
-
-    A one-handed weapon installs without displacement when the current
-    logical occupancy has room. A two-handed weapon, or a weapon installed
-    into a full loadout, replaces the current active weapons and requires an
-    explicit destination for every displaced item.
-    """
+    """Install a stored weapon, atomically preserving displaced weapons."""
     _require_container(container)
     if not 0 <= storage_index < len(storage):
         raise IndexError("Invalid stored ground equipment index")
@@ -353,28 +384,44 @@ def install_weapon(
     _validate_entry(selected)
     if selected.item_type != "weapon":
         raise ValueError("Stored item is not a weapon")
+    displaced, fits_without_replacement = _plan_weapon_install(
+        equipped_weapons, storage, selected.item_id, displaced_storage,
+        container, displaced_container, strength,
+    )
+    _apply_weapon_install(
+        equipped_weapons, storage, storage_index, selected.item_id,
+        displaced_storage, displaced, fits_without_replacement,
+    )
+    return selected
+
+
+def _plan_weapon_install(
+    equipped_weapons: list[str],
+    storage: list[StoredGroundEquipment],
+    weapon_id: str,
+    displaced_storage: list[StoredGroundEquipment] | None,
+    container: str,
+    displaced_container: str | None,
+    strength: int,
+) -> tuple[list[StoredGroundEquipment], bool]:
+    """Compute weapon displacement and validate the destination."""
     current = list(equipped_weapons)
-    fits_without_replacement = can_fit_weapons(current, selected.item_id)
+    fits_without_replacement = can_fit_weapons(current, weapon_id)
     displaced = [] if fits_without_replacement else [
-        StoredGroundEquipment("weapon", weapon_id) for weapon_id in current
+        StoredGroundEquipment("weapon", w) for w in current
     ]
     if displaced_storage is None and displaced:
         raise ValueError("A destination is required for displaced weapons")
     if displaced and displaced_container is None:
         raise ValueError("A destination container is required for displaced weapons")
     target_storage = displaced_storage if displaced_storage is not None else []
-    proposed_target = [*target_storage, *displaced]
     _validate_transfer_capacity(
         storage, target_storage, len(displaced),
         destination_container=displaced_container or container,
         strength=strength,
     )
-    validate_storage(proposed_target)
-    _apply_weapon_install(
-        equipped_weapons, storage, storage_index, selected.item_id,
-        displaced_storage, displaced, fits_without_replacement,
-    )
-    return selected
+    validate_storage([*target_storage, *displaced])
+    return displaced, fits_without_replacement
 
 
 def install_armor(
@@ -395,7 +442,28 @@ def install_armor(
     _validate_entry(selected)
     if selected.item_type != "armor":
         raise ValueError("Stored item is not armor")
-    slot = find_ground_armor(selected.item_id).slot
+    displaced, slot = _plan_armor_install(
+        equipped_armor, storage, selected.item_id, displaced_storage,
+        container, displaced_container, strength,
+    )
+    storage.pop(storage_index)
+    if displaced_storage is not None:
+        displaced_storage.extend(displaced)
+    equipped_armor[slot] = selected.item_id
+    return selected
+
+
+def _plan_armor_install(
+    equipped_armor: dict[str, str],
+    storage: list[StoredGroundEquipment],
+    armor_id: str,
+    displaced_storage: list[StoredGroundEquipment] | None,
+    container: str,
+    displaced_container: str | None,
+    strength: int,
+) -> tuple[list[StoredGroundEquipment], str]:
+    """Compute same-slot displacement and validate the destination."""
+    slot = find_ground_armor(armor_id).slot
     displaced_id = equipped_armor.get(slot)
     displaced = (
         [StoredGroundEquipment("armor", displaced_id)]
@@ -406,18 +474,13 @@ def install_armor(
     if displaced and displaced_container is None:
         raise ValueError("A destination container is required for displaced armor")
     target_storage = displaced_storage if displaced_storage is not None else []
-    proposed_target = [*target_storage, *displaced]
     _validate_transfer_capacity(
         storage, target_storage, len(displaced),
         destination_container=displaced_container or container,
         strength=strength,
     )
-    validate_storage(proposed_target)
-    storage.pop(storage_index)
-    if displaced_storage is not None:
-        displaced_storage.extend(displaced)
-    equipped_armor[slot] = selected.item_id
-    return selected
+    validate_storage([*target_storage, *displaced])
+    return displaced, slot
 
 
 def transfer_item(

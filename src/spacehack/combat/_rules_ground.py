@@ -22,6 +22,7 @@ from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
+from ..ground_equipment import sum_armor_bonus as _sum_armor_bonus
 from ..hud import _bar_str
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
@@ -149,36 +150,56 @@ def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
     )
 
 
+def _build_enemies(
+    enemy_entities: list[world.Entity],
+) -> list[GroundEnemyInstance]:
+    """Build combat instances for every valid enemy entity."""
+    enemies: list[GroundEnemyInstance] = []
+    for entity in enemy_entities:
+        instance = _build_enemy_instance(entity)
+        if instance is not None:
+            enemies.append(instance)
+    return enemies
+
+
+def _player_hp_state(ctx) -> tuple[int, int]:
+    """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
+    armor_ids = ctx.equipped_ground_armor.values()
+    max_hp = 20 + ctx.ground_stats.stamina // 3 + _sum_armor_bonus(armor_ids, "hp_bonus")
+    delta = max_hp - ctx.ground_max_hp
+    if delta > 0:
+        ctx.ground_hp += delta
+    return min(ctx.ground_hp, max_hp), max_hp
+
+
+def _armor_defense_total(ctx) -> int:
+    """Sum flat defense across equipped armor pieces."""
+    total = 0
+    for armor_id in ctx.equipped_ground_armor.values():
+        if armor_id:
+            try:
+                total += _find_ga(armor_id).defense
+            except KeyError:
+                pass
+    return total
+
+
+def _starting_ap_total(ctx) -> int:
+    """Per-turn AP pool: 4 + Ace Pilot trait + cybernetic legs."""
+    return 4 + _ace_pilot_bonus(ctx) + _sum_armor_bonus(
+        ctx.equipped_ground_armor.values(), "ap_bonus",
+    )
+
+
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
 
-    _enemies: list[GroundEnemyInstance] = []
-    for _ent in enemy_entities:
-        _inst = _build_enemy_instance(_ent)
-        if _inst is not None:
-            _enemies.append(_inst)
-
-    _player_max_hp = 20 + ctx.ground_stats.stamina // 3
-    _hp_delta = _player_max_hp - ctx.ground_max_hp
-    if _hp_delta > 0:
-        ctx.ground_hp += _hp_delta
-    _player_hp = min(ctx.ground_hp, _player_max_hp)
-
-    _armor_defense = 0
-    for _slot, _aid in ctx.equipped_ground_armor.items():
-        if _aid:
-            try:
-                _armor_defense += _find_ga(_aid).defense
-            except KeyError:
-                pass
-
-    _weapons = list(ctx.equipped_ground_weapons)
-    if not _weapons:
-        _weapons = ["fists"]
-
-    # Ace Pilot trait: +1 AP per turn in combat.
-    _player_ap_total = 4 + _ace_pilot_bonus(ctx)
+    _enemies = _build_enemies(enemy_entities)
+    _player_hp, _player_max_hp = _player_hp_state(ctx)
+    _armor_defense = _armor_defense_total(ctx)
+    _weapons = player_weapons(ctx)
+    _player_ap_total = _starting_ap_total(ctx)
 
     # Clear combat locks from an abnormally-ended previous fight (e.g.
     # an exception that skipped sync_state) so those NPCs patrol again.
@@ -199,9 +220,8 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     # the combat AI is their only mover.
     _set_combat_locks(True, _enemies)
 
-    _names = ", ".join(_e.name for _e in _enemies)
     ctx.log.add_colored(
-        f"Combat starts! {_names} engage!",
+        f"Combat starts! {', '.join(_e.name for _e in _enemies)} engage!",
         _ml.COLOR_COMBAT_EVENT,
     )
     _log_ambush_reveals(ctx, _enemies)
@@ -346,11 +366,19 @@ def _ground_hit_chance_raw(
 
 
 def _ground_damage_raw(
-    weapon_id: str, strength: int, armor_defense: int,
+    weapon_id: str, strength: int, armor_defense: int, melee_bonus: int = 0,
 ) -> int:
+    """Raw hit damage: base + melee bonuses - armor, minimum 1.
+
+    Plasma halves ``armor_defense``; ``melee_bonus`` (cybernetic arms)
+    applies only to melee weapons.
+    """
     _ws = _find_gw(weapon_id)
     _str_bonus = strength // 10 if _ws.damage_type == 'melee' else 0
-    return max(1, _ws.damage + _str_bonus - armor_defense)
+    _melee = melee_bonus if _ws.damage_type == 'melee' else 0
+    if _ws.damage_type == 'plasma':
+        armor_defense = armor_defense // 2
+    return max(1, _ws.damage + _str_bonus + _melee - armor_defense)
 
 
 def _ground_point_blank_penalty(weapon_id: str, distance: int) -> int:
@@ -380,8 +408,10 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _range_penalty = _ground_point_blank_penalty(
         weapon_id, _distance_cells,
     )
-    # Sharpshooter trait: +10% hit chance in combat.
-    _hit_bonus = _sharpshooter_bonus(ctx)
+    # Sharpshooter trait: +10% hit chance; cybernetic eyes add more.
+    _hit_bonus = _sharpshooter_bonus(ctx) + _sum_armor_bonus(
+        ctx.equipped_ground_armor.values(), "hit_bonus",
+    )
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
         target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
@@ -392,13 +422,17 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
 def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
     """Apply weapon damage to a ground enemy. Returns ``(dmg, False)``.
 
-    Ground combat has no glancing mechanic, but the unified loop
+    Enemy armor (``enemy.spec.armor``) is subtracted here, with plasma
+    halving it via :func:`_ground_damage_raw`; cybernetic arms add a melee
+    bonus. Ground combat has no glancing mechanic, but the unified loop
     unpacks ``(dmg, is_glancing)`` for both rule sets — ground always
     reports ``False``.
     """
-    _ws = _find_gw(weapon_id)
-    _str_bonus = ctx.ground_stats.strength // 10 if _ws.damage_type == 'melee' else 0
-    _dmg = max(1, _ws.damage + _str_bonus)
+    _armor = enemy.spec.armor if enemy.spec else 0
+    _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
+    _dmg = _ground_damage_raw(
+        weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
+    )
     enemy.hp -= _dmg
     # Wound persistence: sync to the map entity so a fight that ends
     # with survivors (LOS aggro) keeps their wounds on re-engagement.
@@ -501,120 +535,148 @@ def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y,
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
-    _cam_x, _cam_y, _rx, _ry = world.camera_for_view(
+    cam = _render_ground_world(console, ctx, game_map)
+    alive = get_enemies(ctx)
+    weapons = player_weapons(ctx)
+    active_w = _active_weapon_ids(ctx, weapons)
+    _render_range_line(console, ctx, game_map, active_w, alive, cam)
+    y = _render_player_panel(console, ctx)
+    y = _render_weapons_panel(console, ctx, weapons, alive, y)
+    y = _render_enemies_panel(console, ctx, alive, y)
+    _render_actions_panel(console, weapons, y)
+    _ml.render_message_log(
+        console, ctx.log,
+        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
+    )
+
+
+def _render_ground_world(
+    console, ctx, game_map: world.GameMap,
+) -> tuple[int, int, int, int]:
+    """Clear, render the world view, and paint the target highlight."""
+    cam_x, cam_y, rx, ry = world.camera_for_view(
         game_map, ctx.player.pos,
         region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
     )
     world.render_world_view(
         console, game_map,
-        region_x=_rx, region_y=_ry,
+        region_x=rx, region_y=ry,
         region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
-        camera_x=_cam_x, camera_y=_cam_y,
+        camera_x=cam_x, camera_y=cam_y,
     )
-
-    _alive = get_enemies(ctx)
-    if _state.target_idx < len(_alive):
+    alive = get_enemies(ctx)
+    if _state.target_idx < len(alive):
         _paint_target_highlight(
-            console, _cam_x, _cam_y, _RENDER_WIDTH, _RENDER_HEIGHT, _rx, _ry,
-            _alive[_state.target_idx].entity,
+            console, cam_x, cam_y, _RENDER_WIDTH, _RENDER_HEIGHT, rx, ry,
+            alive[_state.target_idx].entity,
         )
+    return cam_x, cam_y, rx, ry
 
-    _weapons = list(ctx.equipped_ground_weapons)
-    if not _weapons:
-        _weapons = ["fists"]
-    _active_w = [
-        _weapons[i] for i in range(len(_weapons))
+
+def _active_weapon_ids(ctx, weapons: list[str]) -> list[str]:
+    """Return equipped weapons still marked active in the combat state."""
+    return [
+        weapons[i] for i in range(len(weapons))
         if i < len(_state.active_weapon_list) and _state.active_weapon_list[i]
     ]
-    # The range/accuracy line is a player-turn affordance only: hide it
-    # while shot animations run and during the enemy turn (range_line_hidden).
-    # The gold target highlight stays — it reads as the engaged target.
-    if (
-        _active_w and _state.target_idx < len(_alive)
-        and not _state.range_line_hidden
-    ):
-        _tgt = _alive[_state.target_idx]
-        _los_blocked = not _has_los(
-            game_map,
-            ctx.player.pos.x, ctx.player.pos.y,
-            _tgt.pos.x, _tgt.pos.y,
-        )
-        _ground_range_line(
-            console, ctx.player.pos, _tgt.pos,
-            _active_w[0], _cam_x, _cam_y, _rx, _ry, game_map,
-            color_override=(255, 60, 60) if _los_blocked else None,
-        )
 
-    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+
+def _render_range_line(
+    console, ctx, game_map, active_w: list[str], alive, cam,
+) -> None:
+    """Draw the player's range/accuracy line unless hidden mid-animation."""
+    if not active_w or _state.target_idx >= len(alive) or _state.range_line_hidden:
+        return
+    cam_x, cam_y, rx, ry = cam
+    target = alive[_state.target_idx]
+    los_blocked = not _has_los(
+        game_map,
+        ctx.player.pos.x, ctx.player.pos.y,
+        target.pos.x, target.pos.y,
+    )
+    _ground_range_line(
+        console, ctx.player.pos, target.pos,
+        active_w[0], cam_x, cam_y, rx, ry, game_map,
+        color_override=(255, 60, 60) if los_blocked else None,
+    )
+
+
+def _render_player_panel(console, ctx) -> int:
+    """Paint the player HP/AP/evasion block; return the next HUD row."""
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
     y = 0
-    console.print(x=_hud_x, y=y, string="> GROUND COMBAT <", fg=_COLOR_GROUND_TITLE)
+    console.print(x=hud_x, y=y, string="> GROUND COMBAT <", fg=_COLOR_GROUND_TITLE)
     y += 2
+    console.print(x=hud_x, y=y, string="PLAYER", fg=_COLOR_GROUND_PLAYER)
+    y += 1
+    hp_bar = _bar_str(_state.player_hp, _state.player_max_hp, width=8)
+    hp_pct = _state.player_hp * 100 // max(_state.player_max_hp, 1)
+    console.print(x=hud_x, y=y, string=f"HP  {hp_bar} {hp_pct}%", fg=_COLOR_GROUND_PLAYER)
+    y += 1
+    console.print(x=hud_x, y=y, string=f"AP: {_state.player_ap}/{_state.player_ap_total}", fg=_COLOR_GROUND_ACTION)
+    y += 1
+    eva = _calc_ground_move_dodge(_state.cells_moved_this_turn)
+    console.print(x=hud_x, y=y, string=f"EVA: {eva}%", fg=_COLOR_GROUND_ACTION)
+    return y + 2
 
-    console.print(x=_hud_x, y=y, string="PLAYER", fg=_COLOR_GROUND_PLAYER)
-    y += 1
-    _hp_bar = _bar_str(_state.player_hp, _state.player_max_hp, width=8)
-    _hp_pct = _state.player_hp * 100 // max(_state.player_max_hp, 1)
-    console.print(x=_hud_x, y=y, string=f"HP  {_hp_bar} {_hp_pct}%", fg=_COLOR_GROUND_PLAYER)
-    y += 1
-    console.print(x=_hud_x, y=y, string=f"AP: {_state.player_ap}/{_state.player_ap_total}", fg=_COLOR_GROUND_ACTION)
-    y += 1
-    _eva = _calc_ground_move_dodge(_state.cells_moved_this_turn)
-    console.print(x=_hud_x, y=y, string=f"EVA: {_eva}%", fg=_COLOR_GROUND_ACTION)
-    y += 2
 
-    if _weapons:
-        console.print(x=_hud_x, y=y, string="WEAPONS", fg=_COLOR_GROUND_TITLE)
+def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
+    """Paint the weapon list with hit/damage/range; return the next row."""
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
+    console.print(x=hud_x, y=y, string="WEAPONS", fg=_COLOR_GROUND_TITLE)
+    y += 1
+    for i, wid in enumerate(weapons):
+        try:
+            ws = _find_gw(wid)
+        except KeyError:
+            continue
+        is_active = _state.active_weapon_list[i] if i < len(_state.active_weapon_list) else True
+        sel = "[x]" if is_active else "[ ]"
+        name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
+        console.print(x=hud_x, y=y, string=f"{sel}[{i+1}] {ws.name}"[:24], fg=name_fg)
         y += 1
-        for _i, _wid in enumerate(_weapons):
-            try:
-                _ws = _find_gw(_wid)
-            except KeyError:
-                continue
-            _is_active = _state.active_weapon_list[_i] if _i < len(_state.active_weapon_list) else True
-            _sel = "[x]" if _is_active else "[ ]"
-            _name_fg = _COLOR_GROUND_WEAPON if _is_active else _COLOR_GROUND_WEAPON_DIM
-            console.print(x=_hud_x, y=y, string=f"{_sel}[{_i+1}] {_ws.name}"[:24], fg=_name_fg)
-            y += 1
-            _hc = hit_chance(_wid, _alive[_state.target_idx], ctx) if _state.target_idx < len(_alive) else 0
-            console.print(x=_hud_x, y=y, string=f"     DMG {_ws.damage} HIT {_hc}%", fg=ui.COLOR_VALUE_DIM)
-            y += 1
-            _rng = f"{_ws.min_range}-{_ws.max_range}" if _ws.min_range > 0 else f"0-{_ws.max_range}"
-            console.print(x=_hud_x, y=y, string=f"     RNG {_rng} AP {_ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
-            y += 1
+        hc = hit_chance(wid, alive[_state.target_idx], ctx) if _state.target_idx < len(alive) else 0
+        console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
         y += 1
-
-    _alive_enemies = [e for e in _state.enemies if e.alive]
-    if _alive_enemies:
-        console.print(x=_hud_x, y=y, string="ENEMIES", fg=_COLOR_GROUND_TITLE)
+        rng = f"{ws.min_range}-{ws.max_range}" if ws.min_range > 0 else f"0-{ws.max_range}"
+        console.print(x=hud_x, y=y, string=f"     RNG {rng} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
         y += 1
-        for _i, _gei in enumerate(_alive_enemies):
-            _is_target = _i == _state.target_idx
-            _name_fg = _COLOR_GROUND_ENEMY_TARGET if _is_target else _COLOR_GROUND_ENEMY
-            _marker = ">" if _is_target else " "
-            console.print(x=_hud_x, y=y, string=f"{_marker}{_gei.name}"[:24], fg=_name_fg)
-            y += 1
-            _e_bar = _bar_str(_gei.hp, _gei.max_hp, width=8)
-            _e_pct = _gei.hp * 100 // max(_gei.max_hp, 1)
-            _dist = int(_distance(ctx.player.pos, _gei.pos))
-            console.print(x=_hud_x, y=y, string=f"  HP {_e_bar} {_e_pct}%  {_dist}u", fg=_name_fg)
-            y += 1
-    y += 1
+    return y + 1
 
-    console.print(x=_hud_x, y=y, string="ACTIONS", fg=_COLOR_GROUND_TITLE)
+
+def _render_enemies_panel(console, ctx, alive, y: int) -> int:
+    """Paint the alive-enemy list with HP bars; return the next row."""
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
+    if alive:
+        console.print(x=hud_x, y=y, string="ENEMIES", fg=_COLOR_GROUND_TITLE)
+        y += 1
+        for i, gei in enumerate(alive):
+            is_target = i == _state.target_idx
+            name_fg = _COLOR_GROUND_ENEMY_TARGET if is_target else _COLOR_GROUND_ENEMY
+            marker = ">" if is_target else " "
+            console.print(x=hud_x, y=y, string=f"{marker}{gei.name}"[:24], fg=name_fg)
+            y += 1
+            e_bar = _bar_str(gei.hp, gei.max_hp, width=8)
+            e_pct = gei.hp * 100 // max(gei.max_hp, 1)
+            dist = int(_distance(ctx.player.pos, gei.pos))
+            console.print(x=hud_x, y=y, string=f"  HP {e_bar} {e_pct}%  {dist}u", fg=name_fg)
+            y += 1
+    return y + 1
+
+
+def _render_actions_panel(console, weapons: list[str], y: int) -> None:
+    """Paint the action-key legend at the given HUD row."""
+    hud_x = SCREEN_WIDTH - HUD_WIDTH
+    console.print(x=hud_x, y=y, string="ACTIONS", fg=_COLOR_GROUND_TITLE)
     y += 1
-    _actions = [
+    actions = [
         ("[Tab]", "Target"), ("[m]", "Move"), ("[f]", "Fire"), ("[w]", "Wait"),
     ]
-    if len(_weapons) > 1:
-        _actions.insert(3, (f"[1-{len(_weapons)}]", "Toggle Wpn"))
-    for key, desc in _actions:
-        console.print(x=_hud_x, y=y, string=f"{key} {desc}", fg=_COLOR_GROUND_ACTION)
+    if len(weapons) > 1:
+        actions.insert(3, (f"[1-{len(weapons)}]", "Toggle Wpn"))
+    for key, desc in actions:
+        console.print(x=hud_x, y=y, string=f"{key} {desc}", fg=_COLOR_GROUND_ACTION)
         y += 1
-
-    _ml.render_message_log(
-        console, ctx.log,
-        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-    )
 
 
 # ---------------------------------------------------------------------------

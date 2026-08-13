@@ -96,6 +96,35 @@ class TestGroundDamageRaw:
         dmg = _ground_damage_raw("fists", 0, 100)
         assert dmg == 1
 
+    def test_plasma_halves_armor(self):
+        """plasma_pistol dmg 9 vs armor 6 → 6//2=3 → 6."""
+        assert _ground_damage_raw("plasma_pistol", 10, 6) == 6
+
+    def test_plasma_odd_armor_rounds_down(self):
+        """armor 5 → 5//2=2 → plasma_pistol 9 - 2 = 7."""
+        assert _ground_damage_raw("plasma_pistol", 10, 5) == 7
+
+    def test_melee_bonus_applies_to_melee_only(self):
+        assert _ground_damage_raw("fists", 10, 0, melee_bonus=2) == 4  # 1+1+2
+        assert _ground_damage_raw("laser_pistol", 50, 0, melee_bonus=2) == 4
+
+
+def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
+    """Player melee vs an armored enemy: armor reduces, cyber arms add."""
+    _enemy = _rules_ground.GroundEnemyInstance(
+        entity=SimpleNamespace(),
+        spec=SimpleNamespace(armor=3),
+        hp=30,
+    )
+    _ctx = SimpleNamespace(
+        ground_stats=SimpleNamespace(strength=20),
+        equipped_ground_armor={"hands": "cybernetic_arms"},
+    )
+    _dmg, _glance = _rules_ground.damage("fists", _enemy, _ctx)
+    assert _dmg == 2  # 1 + 2 (str) + 2 (cyber arms) - 3 (armor)
+    assert _glance is False
+    assert _enemy.hp == 28
+
 
 # ---------------------------------------------------------------------------
 # _calc_ground_move_dodge
@@ -441,6 +470,16 @@ def test_init_locks_engaged_enemies():
     _rules_ground.init(_ctx, [_enemy], _game_map)
 
     assert getattr(_enemy, "combat_locked", False) is True
+
+
+def test_init_applies_cybernetic_ap_and_hp_bonuses():
+    """Cybernetic legs add +1 AP; cybernetic torso adds +3 max ground HP."""
+    _ctx, _game_map, _, _enemy = _ground_fixture()
+    _ctx.equipped_ground_armor = {"legs": "cybernetic_legs", "body": "cybernetic_torso"}
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+
+    assert _rules_ground.player_ap_total(_ctx) == 5  # 4 + 1
+    assert _rules_ground.player_max_hp(_ctx) == 26  # 20 + 10//3 + 3
 
 
 def test_check_reinforcements_locks_joins_before_patrol_tick(monkeypatch):

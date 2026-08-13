@@ -56,7 +56,7 @@ def _shot_family(weapon_id: str, *, ground: bool = False) -> str:
     """Classify a weapon's animation family from its catalog spec.
 
     Ship weapons classify on ``slot_type`` (energy/plasma/missile);
-    ground weapons on ``damage_type`` (melee/kinetic/energy/explosive).
+    ground weapons on ``damage_type`` (melee/kinetic/energy/plasma/explosive).
     Unknown ids fall back to the laser beam so presentation never
     crashes on a catalog miss.
     """
@@ -66,6 +66,7 @@ def _shot_family(weapon_id: str, *, ground: bool = False) -> str:
                 "melee": "melee",
                 "kinetic": "kinetic",
                 "energy": "laser",
+                "plasma": "plasma",
                 "explosive": "explosive",
             }.get(find_ground_weapon(weapon_id).damage_type, "laser")
         return {
@@ -157,17 +158,37 @@ def _animate_impact(
     region_x: int = 0,
     region_y: int = 0,
 ) -> None:
-    """Impact flash + floating-text drift at the target cell.
-
-    A hit flashes the impact star white then gold while the damage
-    number floats up. A miss shows no star — only the grey ``MISS``
-    label drifting off the target. ``None`` popup (hit, no result)
-    draws nothing.
-    """
+    """Impact flash + floating-text drift at the target cell."""
     if damage is None:
         return
-    is_miss = _is_miss(damage)
-    lifetime = _popup_lifetime(damage)
+    _impact_flash(
+        console, driver, to_pos, damage, _is_miss(damage),
+        _popup_lifetime(damage),
+        cam_x, cam_y, view_w, view_h, region_x, region_y,
+    )
+    _animate_floater_tail(
+        driver, to_pos, damage, 2,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+        region_x=region_x, region_y=region_y,
+    )
+
+
+def _impact_flash(
+    console,
+    driver: _FrameDriver,
+    to_pos: world.Position,
+    damage: DamagePopup,
+    is_miss: bool,
+    lifetime: int,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int,
+    region_y: int,
+) -> None:
+    """Two impact-flash frames: white→gold star with floating text."""
     for flash in range(2):
         driver.base_frame()
         if not is_miss:
@@ -184,12 +205,6 @@ def _animate_impact(
         )
         driver.present()
         driver.sleep(animation_timing.COMBAT_IMPACT)
-    _animate_floater_tail(
-        driver, to_pos, damage, 2,
-        cam_x=cam_x, cam_y=cam_y,
-        view_w=view_w, view_h=view_h,
-        region_x=region_x, region_y=region_y,
-    )
 
 
 def _animate_burst(
@@ -205,15 +220,31 @@ def _animate_burst(
     region_x: int = 0,
     region_y: int = 0,
 ) -> None:
-    """Small explosion burst (3 rings + flash) with a floating label.
-
-    Used by missiles and lobbed explosives on arrival. On a miss the
-    label still floats at the original target cell even when the burst
-    center overshot past it.
-    """
+    """Small explosion burst (3 rings + flash) with a floating label."""
     if damage is None:
         return
     lifetime = _popup_lifetime(damage)
+    _burst_rings(
+        console, driver, center, to_pos, damage, lifetime,
+        cam_x, cam_y, view_w, view_h, region_x, region_y,
+    )
+    _burst_flash(
+        console, driver, center, to_pos, damage, lifetime,
+        cam_x, cam_y, view_w, view_h, region_x, region_y,
+    )
+    _animate_floater_tail(
+        driver, to_pos, damage, 4,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+        region_x=region_x, region_y=region_y,
+    )
+
+
+def _burst_rings(
+    console, driver, center, to_pos, damage, lifetime,
+    cam_x, cam_y, view_w, view_h, region_x, region_y,
+) -> None:
+    """Three expanding explosion rings with a floating label."""
     for ring in range(3):
         driver.base_frame()
         _draw_explosion_rings(
@@ -230,6 +261,13 @@ def _animate_burst(
         )
         driver.present()
         driver.sleep(animation_timing.EXPLOSION_RING)
+
+
+def _burst_flash(
+    console, driver, center, to_pos, damage, lifetime,
+    cam_x, cam_y, view_w, view_h, region_x, region_y,
+) -> None:
+    """Final flash frame after the rings, with a floating label."""
     driver.base_frame()
     _draw_flash(
         console, center,
@@ -245,12 +283,6 @@ def _animate_burst(
     )
     driver.present()
     driver.sleep(animation_timing.EXPLOSION_FLASH)
-    _animate_floater_tail(
-        driver, to_pos, damage, 4,
-        cam_x=cam_x, cam_y=cam_y,
-        view_w=view_w, view_h=view_h,
-        region_x=region_x, region_y=region_y,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -275,35 +307,46 @@ def _animate_beam(
     cells = _path_cells(from_pos, to_pos)
     lifetime = _popup_lifetime(damage)
     for frame in range(3):
-        driver.base_frame()
-        brightness = min(255, 150 + frame * 40)
-        color = (brightness, 95 + frame * 25, 70 + frame * 20)
-        for i, (bx, by) in enumerate(cells):
-            char = (
-                "*" if i == len(cells) - 1 else
-                "+" if i == 0 else
-                ("=" if i % 2 == 0 else "-")
-            )
-            _draw_path_glyph(
-                console, (bx, by), char, color,
-                cam_x=cam_x, cam_y=cam_y,
-                view_w=view_w, view_h=view_h,
-                region_x=region_x, region_y=region_y,
-            )
-        _set_frame_floater(
-            to_pos, damage, age=0, lifetime=lifetime,
-            cam_x=cam_x, cam_y=cam_y,
-            view_w=view_w, view_h=view_h,
-            region_x=region_x, region_y=region_y,
+        _beam_frame(
+            console, driver, cells, to_pos, damage, frame, lifetime,
+            cam_x, cam_y, view_w, view_h, region_x, region_y,
         )
-        driver.present()
-        driver.sleep(animation_timing.COMBAT_BEAM)
     _animate_impact(
         console, driver, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
         region_x=region_x, region_y=region_y,
     )
+
+
+def _beam_frame(
+    console, driver, cells, to_pos, damage, frame, lifetime,
+    cam_x, cam_y, view_w, view_h, region_x, region_y,
+) -> None:
+    """Draw one brightening beam frame with a floating label."""
+    driver.base_frame()
+    brightness = min(255, 150 + frame * 40)
+    color = (brightness, 95 + frame * 25, 70 + frame * 20)
+    for i, (bx, by) in enumerate(cells):
+        char = (
+            "*" if i == len(cells) - 1 else
+            "+" if i == 0 else
+            ("=" if i % 2 == 0 else "-")
+        )
+        _draw_path_glyph(
+            console, (bx, by), char, color,
+            cam_x=cam_x, cam_y=cam_y,
+            view_w=view_w, view_h=view_h,
+            region_x=region_x, region_y=region_y,
+        )
+    _set_frame_floater(
+        to_pos, damage, age=0, lifetime=lifetime,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+        region_x=region_x, region_y=region_y,
+    )
+    driver.present()
+    driver.sleep(animation_timing.COMBAT_BEAM)
 
 
 def _animate_plasma_bolt(
@@ -322,35 +365,46 @@ def _animate_plasma_bolt(
     """Plasma: a glowing green bolt traveling one cell per frame."""
     cells = _path_cells(from_pos, to_pos)
     for i, (bx, by) in enumerate(cells):
-        driver.base_frame()
-        # Two-cell fading trail behind the bolt head
-        for trail_idx in range(1, 3):
-            trail_j = i - trail_idx
-            if trail_j >= 0:
-                fade = 1.0 - trail_idx / 3
-                trail_color = (
-                    int(90 * fade), int(215 * fade), int(150 * fade),
-                )
-                _draw_path_glyph(
-                    console, cells[trail_j], "+", trail_color,
-                    cam_x=cam_x, cam_y=cam_y,
-                    view_w=view_w, view_h=view_h,
-                    region_x=region_x, region_y=region_y,
-                )
-        _draw_path_glyph(
-            console, (bx, by), "o", (140, 255, 180),
-            cam_x=cam_x, cam_y=cam_y,
-            view_w=view_w, view_h=view_h,
-            region_x=region_x, region_y=region_y,
+        _plasma_bolt_frame(
+            console, driver, cells, i, (bx, by),
+            cam_x, cam_y, view_w, view_h, region_x, region_y,
         )
-        driver.present()
-        driver.sleep(animation_timing.COMBAT_PROJECTILE)
     _animate_impact(
         console, driver, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
         region_x=region_x, region_y=region_y,
     )
+
+
+def _plasma_bolt_frame(
+    console, driver, cells, i, head,
+    cam_x, cam_y, view_w, view_h, region_x, region_y,
+) -> None:
+    """Draw one plasma bolt head with a fading two-cell trail."""
+    bx, by = head
+    driver.base_frame()
+    for trail_idx in range(1, 3):
+        trail_j = i - trail_idx
+        if trail_j >= 0:
+            fade = 1.0 - trail_idx / 3
+            trail_color = (
+                int(90 * fade), int(215 * fade), int(150 * fade),
+            )
+            _draw_path_glyph(
+                console, cells[trail_j], "+", trail_color,
+                cam_x=cam_x, cam_y=cam_y,
+                view_w=view_w, view_h=view_h,
+                region_x=region_x, region_y=region_y,
+            )
+    _draw_path_glyph(
+        console, (bx, by), "o", (140, 255, 180),
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+        region_x=region_x, region_y=region_y,
+    )
+    driver.present()
+    driver.sleep(animation_timing.COMBAT_PROJECTILE)
 
 
 def _animate_missile(
@@ -366,64 +420,82 @@ def _animate_missile(
     region_x: int = 0,
     region_y: int = 0,
 ) -> None:
-    """Missile: slow wobbling projectile with exhaust, bursting on arrival.
-
-    On a miss the missile keeps flying three cells past the target
-    before it bursts — a clean overshoot instead of a vanishing shot.
-    """
+    """Missile: slow wobbling projectile with exhaust, bursting on arrival."""
     cells = _path_cells(from_pos, to_pos)
-    is_miss = _is_miss(damage)
-    burst_center = cells[-1]
-    if is_miss and len(cells) >= 2:
-        dx = cells[-1][0] - cells[-2][0]
-        dy = cells[-1][1] - cells[-2][1]
-        burst_center = (burst_center[0] + dx * 3, burst_center[1] + dy * 3)
-
+    burst_center = _missile_burst_center(cells, _is_miss(damage))
     for i, (bx, by) in enumerate(cells):
-        driver.base_frame()
-        # Exhaust trail: two dim dots where the missile has been
-        for trail_idx in range(1, 3):
-            trail_j = i - trail_idx
-            if trail_j >= 0:
-                fade = 1.0 - trail_idx / 3
-                trail_color = (
-                    int(190 * fade), int(190 * fade), int(160 * fade),
-                )
-                char = "," if trail_idx == 1 else "."
-                _draw_path_glyph(
-                    console, cells[trail_j], char, trail_color,
-                    cam_x=cam_x, cam_y=cam_y,
-                    view_w=view_w, view_h=view_h,
-                    region_x=region_x, region_y=region_y,
-                )
-        # Perpendicular sine wobble reads as an unguided rocket
-        if i > 0:
-            step_x = bx - cells[i - 1][0]
-            step_y = by - cells[i - 1][1]
-            if (step_x, step_y) != (0, 0):
-                wobble = int(round(math.sin(i * 1.1) * 1.0))
-                _draw_path_glyph(
-                    console, (bx - step_y * wobble, by + step_x * wobble),
-                    "=", (255, 240, 180),
-                    cam_x=cam_x, cam_y=cam_y,
-                    view_w=view_w, view_h=view_h,
-                    region_x=region_x, region_y=region_y,
-                )
-        else:
-            _draw_path_glyph(
-                console, (bx, by), "=", (255, 240, 180),
-                cam_x=cam_x, cam_y=cam_y,
-                view_w=view_w, view_h=view_h,
-                region_x=region_x, region_y=region_y,
-            )
-        driver.present()
-        driver.sleep(animation_timing.COMBAT_MISSILE)
+        _missile_frame(
+            console, driver, cells, i, (bx, by),
+            cam_x, cam_y, view_w, view_h, region_x, region_y,
+        )
     _animate_burst(
         console, driver, burst_center, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
         region_x=region_x, region_y=region_y,
     )
+
+
+def _missile_burst_center(cells, is_miss: bool):
+    """Return the burst cell, overshooting three cells on a miss."""
+    burst_center = cells[-1]
+    if is_miss and len(cells) >= 2:
+        dx = cells[-1][0] - cells[-2][0]
+        dy = cells[-1][1] - cells[-2][1]
+        burst_center = (burst_center[0] + dx * 3, burst_center[1] + dy * 3)
+    return burst_center
+
+
+def _missile_exhaust(
+    console, cells, i,
+    cam_x, cam_y, view_w, view_h, region_x, region_y,
+) -> None:
+    """Draw the two dim exhaust dots where the missile has been."""
+    for trail_idx in range(1, 3):
+        trail_j = i - trail_idx
+        if trail_j >= 0:
+            fade = 1.0 - trail_idx / 3
+            trail_color = (
+                int(190 * fade), int(190 * fade), int(160 * fade),
+            )
+            char = "," if trail_idx == 1 else "."
+            _draw_path_glyph(
+                console, cells[trail_j], char, trail_color,
+                cam_x=cam_x, cam_y=cam_y,
+                view_w=view_w, view_h=view_h,
+                region_x=region_x, region_y=region_y,
+            )
+
+
+def _missile_frame(
+    console, driver, cells, i, head,
+    cam_x, cam_y, view_w, view_h, region_x, region_y,
+) -> None:
+    """Draw one wobbling missile frame with an exhaust trail."""
+    bx, by = head
+    driver.base_frame()
+    _missile_exhaust(console, cells, i, cam_x, cam_y, view_w, view_h, region_x, region_y)
+    if i > 0:
+        step_x = bx - cells[i - 1][0]
+        step_y = by - cells[i - 1][1]
+        if (step_x, step_y) != (0, 0):
+            wobble = int(round(math.sin(i * 1.1) * 1.0))
+            _draw_path_glyph(
+                console, (bx - step_y * wobble, by + step_x * wobble),
+                "=", (255, 240, 180),
+                cam_x=cam_x, cam_y=cam_y,
+                view_w=view_w, view_h=view_h,
+                region_x=region_x, region_y=region_y,
+            )
+    else:
+        _draw_path_glyph(
+            console, (bx, by), "=", (255, 240, 180),
+            cam_x=cam_x, cam_y=cam_y,
+            view_w=view_w, view_h=view_h,
+            region_x=region_x, region_y=region_y,
+        )
+    driver.present()
+    driver.sleep(animation_timing.COMBAT_MISSILE)
 
 
 def _tracer_char(cells: list[tuple[int, int]], index: int) -> str:
@@ -452,8 +524,31 @@ def _animate_tracer(
     region_y: int = 0,
 ) -> None:
     """Kinetic: a muzzle flash, then a fast tracer two cells per frame."""
-    cells = _path_cells(from_pos, to_pos)
-    # Muzzle flash at the shooter
+    _tracer_travel(
+        console, driver, from_pos, _path_cells(from_pos, to_pos),
+        cam_x, cam_y, view_w, view_h, region_x, region_y,
+    )
+    _animate_impact(
+        console, driver, to_pos, damage,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+        region_x=region_x, region_y=region_y,
+    )
+
+
+def _tracer_travel(
+    console,
+    driver: _FrameDriver,
+    from_pos: world.Position,
+    cells: list[tuple[int, int]],
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Muzzle flash, then a tracer traveling two cells per frame."""
     driver.base_frame()
     _draw_path_glyph(
         console, (from_pos.x, from_pos.y), "*", (255, 230, 140),
@@ -463,7 +558,6 @@ def _animate_tracer(
     )
     driver.present()
     driver.sleep(animation_timing.COMBAT_PROJECTILE)
-    # Tracer travels two cells per frame
     for i in range(0, len(cells), 2):
         driver.base_frame()
         _draw_path_glyph(
@@ -474,12 +568,6 @@ def _animate_tracer(
         )
         driver.present()
         driver.sleep(animation_timing.COMBAT_PROJECTILE)
-    _animate_impact(
-        console, driver, to_pos, damage,
-        cam_x=cam_x, cam_y=cam_y,
-        view_w=view_w, view_h=view_h,
-        region_x=region_x, region_y=region_y,
-    )
 
 
 def _animate_grenade(
@@ -624,12 +712,39 @@ def _animate_weapon_shot(
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
 ) -> None:
-    """Animate one ship-combat shot with a weapon-appropriate effect.
+    """Animate one ship-combat shot with a weapon-appropriate effect."""
+    driver = _space_frame_driver(
+        console, context, game_map, cam_x, cam_y, view_w, view_h,
+        player_state, enemies, target_idx, log, weapon_list,
+        active_weapons, evade_bonus, hit_chances, flee_chance,
+    )
+    _run_family_animation(
+        console, driver, shooter_pos, target_pos, weapon_id,
+        _MISS_POPUP if not is_hit else damage,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+    )
 
-    Resolves the weapon's animation family from its catalog spec and
-    plays the matching effect from shooter to target. A miss floats a
-    grey ``MISS`` label at the target instead of a damage number.
-    """
+
+def _space_frame_driver(
+    console,
+    context,
+    game_map: world.GameMap,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    player_state: dict,
+    enemies: list[EnemyInstance],
+    target_idx: int,
+    log,
+    weapon_list: tuple,
+    active_weapons: list[bool] | None,
+    evade_bonus: int | None,
+    hit_chances: dict[str, int] | None,
+    flee_chance: int | None,
+) -> _FrameDriver:
+    """Build the ship-combat animation frame driver."""
     def _base() -> None:
         _render_anim_frame(
             console, context, game_map,
@@ -642,17 +757,10 @@ def _animate_weapon_shot(
             flee_chance=flee_chance,
         )
 
-    driver = _FrameDriver(
+    return _FrameDriver(
         base_frame=_base,
         present=lambda: _present(context, console),
         sleep=_responsive_sleep,
-    )
-    effective_damage = _MISS_POPUP if not is_hit else damage
-    _run_family_animation(
-        console, driver, shooter_pos, target_pos, weapon_id,
-        effective_damage,
-        cam_x=cam_x, cam_y=cam_y,
-        view_w=view_w, view_h=view_h,
     )
 
 
@@ -673,18 +781,25 @@ def _animate_ground_shot(
     *,
     render_callback,
 ) -> None:
-    """Animate one ground-combat shot with a weapon-appropriate effect.
-
-    Ground frames render through the rules module's ``render_frame``
-    callback (player-centered camera), so the same per-family animators
-    as ship combat are reused with a different base-frame driver.
-    """
-    from ._rules_ground import (
-        _RENDER_WIDTH as _gw,
-        _RENDER_HEIGHT as _gh,
+    """Animate one ground-combat shot with a weapon-appropriate effect."""
+    driver, cam_x, cam_y, rx, ry, gw, gh = _ground_frame_driver(
+        ctx, console, game_map, render_callback,
+    )
+    _run_family_animation(
+        console, driver, from_pos, to_pos, weapon_id,
+        _MISS_POPUP if not is_hit else damage,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=gw, view_h=gh,
+        region_x=rx, region_y=ry,
+        ground=True,
     )
 
-    _cam_x, _cam_y, _rx, _ry = world.camera_for_view(
+
+def _ground_frame_driver(ctx, console, game_map, render_callback):
+    """Build the ground shot driver and its camera view."""
+    from ._rules_ground import _RENDER_WIDTH as _gw, _RENDER_HEIGHT as _gh
+
+    cam_x, cam_y, rx, ry = world.camera_for_view(
         game_map, ctx.player.pos, region_w=_gw, region_h=_gh,
     )
 
@@ -696,12 +811,4 @@ def _animate_ground_shot(
         present=lambda: _present(ctx, console),
         sleep=_responsive_sleep,
     )
-    effective_damage = _MISS_POPUP if not is_hit else damage
-    _run_family_animation(
-        console, driver, from_pos, to_pos, weapon_id,
-        effective_damage,
-        cam_x=_cam_x, cam_y=_cam_y,
-        view_w=_gw, view_h=_gh,
-        region_x=_rx, region_y=_ry,
-        ground=True,
-    )
+    return driver, cam_x, cam_y, rx, ry, _gw, _gh

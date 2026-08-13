@@ -19,6 +19,7 @@ from src.spacehack.ground_equipment import (
     install_armor,
     install_weapon,
     sell_stored,
+    sum_armor_bonus,
     store_armor,
     store_weapon,
     swap_armor_from_expedition,
@@ -33,6 +34,22 @@ def test_expedition_capacity_uses_strength_bonus():
     assert expedition_capacity(19) == 4
     assert expedition_capacity(20) == 5
     assert expedition_capacity(40) == 7
+
+
+def test_sum_armor_bonus_totals_a_single_field_across_armor():
+    assert sum_armor_bonus(["cybernetic_legs", "cybernetic_eyes"], "ap_bonus") == 1
+    assert sum_armor_bonus(["cybernetic_eyes"], "hit_bonus") == 8
+    assert sum_armor_bonus(["cybernetic_torso"], "hp_bonus") == 3
+
+
+def test_sum_armor_bonus_skips_empty_and_unknown_ids():
+    assert sum_armor_bonus([None, "missing_id", "cybernetic_arms"], "melee_bonus") == 2
+    assert sum_armor_bonus([], "ap_bonus") == 0
+
+
+def test_sum_armor_bonus_rejects_unknown_field():
+    with pytest.raises(ValueError):
+        sum_armor_bonus(["cybernetic_legs"], "defense")
 
 
 def test_displacement_prefers_pack_then_falls_back_to_armory():

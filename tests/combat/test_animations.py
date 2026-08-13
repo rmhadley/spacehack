@@ -65,6 +65,7 @@ def test_shot_family_classifies_ground_weapons_by_damage_type() -> None:
     assert _shot_animations._shot_family("combat_knife", ground=True) == "melee"
     assert _shot_animations._shot_family("kinetic_pistol", ground=True) == "kinetic"
     assert _shot_animations._shot_family("laser_rifle", ground=True) == "laser"
+    assert _shot_animations._shot_family("plasma_pistol", ground=True) == "plasma"
 
 
 def test_shot_family_falls_back_to_laser_on_unknown_id() -> None:
