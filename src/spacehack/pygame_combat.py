@@ -141,7 +141,13 @@ def _action_for_key(pygame: Any, event: Any) -> str:
         return "WAIT"
     if key_name in {"backslash", "nonusbackslash", "\\"}:
         return "HISTORY"
-    direct_actions = {"s": "DEFENSE", "w": "WAIT", "f": "FIRE", "c": "CHARACTER"}
+    direct_actions = {
+        "s": "DEFENSE",
+        "w": "WAIT",
+        "f": "FIRE",
+        "c": "CHARACTER",
+        "v": "TOGGLE_CARD",
+    }
     if key_name in direct_actions:
         return direct_actions[key_name]
     if key_name in {str(index) for index in range(1, 10)}:

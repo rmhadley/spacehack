@@ -68,6 +68,7 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         "w": "WAIT",
         "f": "FIRE",
         "c": "CHARACTER",
+        "v": "TOGGLE_CARD",
     }.get(sym_name, f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else "")
 
 
@@ -138,141 +139,103 @@ def _handle_character_action(ctx, rules) -> int:
     return swaps
 
 
-def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
-    """Fire all active weapons at the current target.
+def _fire_slot_indexes(weapons: list, active: list) -> list[int]:
+    """Return slot indexes the player has left active, by slot not weapon id."""
+    return [i for i in range(len(weapons)) if i < len(active) and active[i]]
 
-    Iterates active weapons, animates each shot, applies hit/miss
-    and damage, checks for kill. Returns ``True`` if the target
-    died (caller should check victory).
 
-    Uses only ``rules.*`` functions — works identically for space
-    and ground combat.
+def _resolve_shot_damage(rules, ctx, wid, target, hit: bool):
+    """Resolve a hit into ``(dmg, stripped, is_strip, is_glancing, popup)``.
+
+    A miss returns zeroed values. Ground enemies have no shields field;
+    ``getattr`` keeps the strip check safe across both combat modes.
     """
+    if not hit:
+        return 0, 0, False, False, None
+    _pre_shields = getattr(target, 'shields', 0)
+    _dmg, _is_glancing = rules.damage(wid, target, ctx)
+    _stripped = max(0, _pre_shields - getattr(target, 'shields', 0))
+    _is_strip = False
+    if _stripped > 0:
+        try:
+            _is_strip = _fw(wid).shield_strip > 0
+        except KeyError:
+            pass
+    _popup = _damage_popup_for(_dmg, _stripped, _is_strip, glancing=_is_glancing)
+    return _dmg, _stripped, _is_strip, _is_glancing, _popup
+
+
+def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -> tuple[bool, int]:
+    """Fire one weapon slot; return ``(hit, ap_cost)`` — 0 if it could not fire."""
     from .. import message_log as _ml
 
-    _weapons = rules.player_weapons(ctx)
-    _active = rules.active_weapons(ctx)
-    # Fire by SLOT index, not weapon id: ammo is tracked per installed
-    # launcher, so two of the same missile type keep separate magazines.
-    _fire_slots = [
-        i for i in range(len(_weapons))
-        if i < len(_active) and _active[i]
-    ]
+    _wid = rules.player_weapons(ctx)[slot]
+    _ok, _reason = rules.can_fire(slot, ctx)
+    try:
+        _wname = rules.weapon_name(_wid, ctx)
+    except KeyError:
+        _wname = _wid
+    if not _ok:
+        ctx.log.add(f"{_wname}: {_reason}")
+        return False, 0
+    if _reason:
+        ctx.log.add(_reason)
+    _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
+    _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
+        rules, ctx, _wid, target, _hit,
+    )
+    rules.animate_fire(
+        console, ctx, game_map, player_pos, rules.enemy_pos(target),
+        is_hit=_hit, damage=_popup, weapon_id=_wid,
+    )
+    if _hit:
+        ctx.log.add_colored(
+            _player_attack_line(
+                _wid, _wname, rules.enemy_name(target),
+                hit=True, hull_dmg=_dmg, shield_dmg=_stripped,
+                is_strip=_is_strip, is_glancing=_is_glancing,
+            ),
+            _ml.COLOR_PLAYER_ACTION,
+        )
+    else:
+        ctx.log.add_colored(
+            _player_attack_line(_wid, _wname, rules.enemy_name(target), hit=False),
+            _ml.COLOR_PLAYER_ACTION,
+        )
+    rules.consume_shot(slot, ctx)
+    return _hit, rules.weapon_ap_cost(_wid, ctx)
+
+
+def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
+    """Fire all active weapons; return True if the target died."""
+    from .. import message_log as _ml
+
+    _fire_slots = _fire_slot_indexes(rules.player_weapons(ctx), rules.active_weapons(ctx))
     if not _fire_slots:
         ctx.log.add("No active weapons to fire.")
         return False
-
     _enemies = rules.get_enemies(ctx)
     if target_idx >= len(_enemies) or not rules.enemy_alive(_enemies[target_idx]):
         ctx.log.add("No valid target.")
         return False
     _target = _enemies[target_idx]
-
     _player_pos = ctx.player.pos
-
-    # Burst-fire rule: track max AP among weapons that actually fire.
-    # Pay max(ap_cost) once after the loop, but consume ammo/energy per weapon.
+    # Burst-fire: pay max(ap_cost) once, consume ammo per weapon; a killing
+    # burst still costs its full AP (kill handling sits after the deduction).
     _max_ap_cost = 0
-    _any_fired = False
-    _hit = False
-
+    _any_hit = False
     for _slot in _fire_slots:
         if not rules.enemy_alive(_target):
             break
-
-        _wid = _weapons[_slot]
-        _ok, _reason = rules.can_fire(_slot, ctx)
-        if not _ok:
-            try:
-                _wname = rules.weapon_name(_wid, ctx)
-            except KeyError:
-                _wname = _wid
-            ctx.log.add(f"{_wname}: {_reason}")
-            continue
-        if _reason:
-            ctx.log.add(_reason)
-
-        _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, _target, ctx)
-
-        _any_fired = True
-        _max_ap_cost = max(_max_ap_cost, rules.weapon_ap_cost(_wid, ctx))
-
-        # Resolve damage BEFORE animating so the floating damage
-        # number can ride the shot's impact frames. ``rules.damage``
-        # mutates the target (hull/hp), which the animation only
-        # reads for position — safe to apply first. It returns
-        # ``(dmg, is_glancing)`` so the floating number can carry the
-        # same glance label the log line does.
-        _dmg_popup = None
-        _is_strip = False
-        _dmg = 0
-        _is_glancing = False
-        if _hit:
-            # Ground enemies (GroundEnemyInstance) have no shields field;
-            # getattr keeps the strip check safe across both combat modes.
-            _pre_shields = getattr(_target, 'shields', 0)
-            _dmg, _is_glancing = rules.damage(_wid, _target, ctx)
-            _stripped = max(0, _pre_shields - getattr(_target, 'shields', 0))
-            # Only EMP weapons produce a shield strip; ground weapons
-            # aren't in the ship-weapon catalog (mirrors the HUD's
-            # guarded lookup), so skip the lookup when nothing stripped.
-            if _stripped > 0:
-                try:
-                    _is_strip = _fw(_wid).shield_strip > 0
-                except KeyError:
-                    pass
-            _dmg_popup = _damage_popup_for(
-                _dmg, _stripped, _is_strip, glancing=_is_glancing,
-            )
-
-        rules.animate_fire(
-            console, ctx, game_map,
-            _player_pos, rules.enemy_pos(_target),
-            is_hit=_hit,
-            damage=_dmg_popup,
-            weapon_id=_wid,
-        )
-
-        try:
-            _wname = rules.weapon_name(_wid, ctx)
-        except KeyError:
-            _wname = _wid
-
-        if _hit:
-            ctx.log.add_colored(
-                _player_attack_line(
-                    _wid, _wname, rules.enemy_name(_target),
-                    hit=True, hull_dmg=_dmg, shield_dmg=_stripped,
-                    is_strip=_is_strip, is_glancing=_is_glancing,
-                ),
-                _ml.COLOR_PLAYER_ACTION,
-            )
-        else:
-            ctx.log.add_colored(
-                _player_attack_line(
-                    _wid, _wname, rules.enemy_name(_target), hit=False,
-                ),
-                _ml.COLOR_PLAYER_ACTION,
-            )
-
-        rules.consume_shot(_slot, ctx)
-
-    # Charge max AP once for the entire burst (only if something fired)
-    if _any_fired:
-        _ap_now = rules.player_ap(ctx)
-        rules.set_player_ap(ctx, _ap_now - _max_ap_cost)
-
-    # Kill handling AFTER AP deduction so killing the target still
-    # costs the full AP for the burst.  Must be outside the weapon
-    # loop (we don't want to return mid-burst before the AP deduction).
-    if _hit and not rules.enemy_alive(_target):
-        ctx.log.add_colored(
-            f"{rules.enemy_name(_target)} destroyed!",
-            _ml.COLOR_COMBAT_EVENT,
-        )
+        _hit, _ap_cost = _fire_weapon(console, ctx, game_map, rules, _slot, _target, _player_pos)
+        _max_ap_cost = max(_max_ap_cost, _ap_cost)
+        _any_hit = _any_hit or _hit
+    if _max_ap_cost > 0:
+        rules.set_player_ap(ctx, rules.player_ap(ctx) - _max_ap_cost)
+    if _any_hit and not rules.enemy_alive(_target):
+        ctx.log.add_colored(f"{rules.enemy_name(_target)} destroyed!", _ml.COLOR_COMBAT_EVENT)
         rules.on_kill(game_map, _target, ctx)
         return True
-
     return False
 
 
@@ -288,43 +251,10 @@ def _end_turn(ctx, game_map, rules) -> str | None:
     return None
 
 
-def _run_combat_impl(
-    console,
-    ctx,
-    game_map: world.GameMap,
-    rules,
-) -> CombatResult:
-    """Unified turn-based combat loop — space or ground.
-
-    The caller MUST have called ``rules.init(...)`` before calling
-    this function. The loop owns turn structure, AP management, key
-    dispatch, weapon fire orchestration, and victory/flee/death
-    resolution. Everything flavor-specific is delegated to ``rules``.
-
-    Args:
-        console: project framebuffer for rendering.
-        ctx: GameContext with all session state.
-        game_map: the current GameMap.
-        rules: a module exporting the combat rules contract
-            (e.g. ``_rules_space`` or ``_rules_ground``).
-
-    Returns:
-        A :class:`CombatResult` with ``outcome`` (``"VICTORY"``,
-        ``"DEFEAT"``, or ``"FLEE"``) and tracking of defeated
-        enemies.
-    """
+def _log_combat_start(ctx, rules) -> None:
+    """Log the initial combat banner."""
     from .. import message_log as _ml
 
-    _target_idx: int = 0
-    _turn: int = 1
-    _result: str | None = None
-    # Combat presentation uses the already-open shared Pygame runtime.
-    # Input is read through the project-owned runtime event contract; combat
-    # does not need a second persistent worker window.
-    _presenter = None
-    ctx._pygame_combat_presenter = None
-
-    # Initial combat log
     _enemies = rules.get_enemies(ctx)
     if _enemies:
         ctx.log.add_colored(
@@ -333,107 +263,154 @@ def _run_combat_impl(
             _ml.COLOR_COMBAT_EVENT,
         )
 
-    while True:
-        # ---- Refresh the engaged set: ground joins any mob now in the
-        # player's view so it is part of combat immediately (targetable
-        # and acting this round) — space has no mid-fight joins -------
-        rules.refresh_engaged(ctx, game_map)
 
-        # ---- End check ----
-        # Ground: the fight ends when the player sees no hostile (LOS
-        # aggro) — all engaged dead = VICTORY, survivors out of view =
-        # DISENGAGED. Space: VICTORY when no enemies remain.
+def _combat_end_check(ctx, game_map, rules) -> str | None:
+    """Return VICTORY/DISENGAGED when the fight is over, else ``None``.
+
+    Ground: the fight ends when the player sees no hostile (LOS aggro) —
+    all engaged dead = VICTORY, survivors out of view = DISENGAGED. Space:
+    VICTORY when no enemies remain.
+    """
+    _enemies = rules.get_enemies(ctx)
+    if not rules.combat_should_end(ctx, game_map, _enemies):
+        return None
+    if _enemies:
+        _on_disengage = getattr(rules, "on_disengage", None)
+        if _on_disengage is not None:
+            _on_disengage(ctx, game_map)
+        return "DISENGAGED"
+    return "VICTORY"
+
+
+def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
+    """Reset the target to the first enemy when the current one died."""
+    if target_idx >= len(enemies) or not rules.enemy_alive(enemies[target_idx]):
+        rules.set_target_idx(ctx, 0)
+        return 0
+    return target_idx
+
+
+def _handle_meta_action(action: str, ctx, presenter):
+    """Handle non-combat actions. Returns ``(action, presenter, result, redo)``.
+
+    ``result`` is ``"FLEE"`` when the fight must end, else ``None``.
+    ``redo`` is ``True`` when the loop should re-iterate without dispatching.
+    """
+    if action in {"QUIT", "FLEE"}:
+        return action, presenter, "FLEE", False
+    if action == "UNAVAILABLE":
+        if presenter is not None:
+            presenter.close()
+            ctx._pygame_combat_presenter = None
+            presenter = None
+        return action, presenter, None, True
+    if action == "GUIDE":
+        from ..help import _run_help_guide
+        _run_help_guide(ctx)
+        return action, presenter, None, True
+    if action == "HISTORY":
+        # Window-close inside the console log counts as FLEE, matching ESC.
+        from ..console_log import open_console_log as _open_console_log
+        _quit = _open_console_log(ctx) == "QUIT"
+        return action, presenter, "FLEE" if _quit else None, not _quit
+    return action, presenter, None, False
+
+
+def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int, presenter):
+    """Handle one in-combat action. Returns ``(target_idx, presenter)``."""
+    if action == "TARGET":
         _enemies = rules.get_enemies(ctx)
-        if rules.combat_should_end(ctx, game_map, _enemies):
-            _result = "VICTORY" if not _enemies else "DISENGAGED"
-            if _result == "DISENGAGED":
-                _on_disengage = getattr(rules, "on_disengage", None)
-                if _on_disengage is not None:
-                    _on_disengage(ctx, game_map)
-            break
+        target_idx = _cycle_target(target_idx, len(_enemies), 1)
+        rules.set_target_idx(ctx, target_idx)
+    elif action == "TOGGLE_CARD":
+        _toggle_card = getattr(rules, "toggle_target_card", None)
+        if _toggle_card is not None:
+            _toggle_card(ctx)
+    elif action.startswith("MOVE:"):
+        sym_name = action.partition(":")[2]
+        if rules.player_ap(ctx) > 0:
+            _dx, _dy = _MOVE_KEYS.get(sym_name, (0, 0))
+            if (_dx, _dy) != (0, 0) and not rules.try_move(ctx, game_map, _dx, _dy):
+                ctx.log.add("Blocked.")
+    elif action == "DEFENSE":
+        rules.handle_defense(ctx)
+    elif action == "CHARACTER":
+        _handle_character_action(ctx, rules)
+    elif action == "FIRE":
+        _handle_fire(console, ctx, game_map, rules, target_idx)
+        presenter = getattr(ctx, "_pygame_combat_presenter", None)
+    elif action.startswith("WEAPON:"):
+        _idx = int(action.partition(":")[2])
+        _toggle_weapon(_idx, rules.active_weapons(ctx), ctx, rules)
+    elif action == "WAIT":
+        # Waiting ends the player's turn and forfeits remaining AP.
+        rules.set_player_ap(ctx, 0)
+    return target_idx, presenter
 
-        # ---- Re-target if current target is dead ----
-        if _target_idx >= len(_enemies) or not rules.enemy_alive(_enemies[_target_idx]):
-            _target_idx = 0
-            rules.set_target_idx(ctx, _target_idx)
 
-        # ---- Render ----
-        rules.render_frame(console, ctx, game_map)
-        _present(ctx, console)
-        _presenter = getattr(ctx, "_pygame_combat_presenter", None)
+def _end_player_turn(ctx, game_map, rules, turn: int, presenter):
+    """Run enemies when AP is spent. Returns ``(turn, presenter, defeat_or_None)``."""
+    if rules.player_ap(ctx) > 0:
+        return turn, presenter, None
+    _end_result = _end_turn(ctx, game_map, rules)
+    presenter = getattr(ctx, "_pygame_combat_presenter", None)
+    if _end_result == "DEFEAT":
+        return turn, presenter, "DEFEAT"
+    rules.reset_turn(ctx)
+    return turn + 1, presenter, None
 
-        # ---- Wait for input ----
-        _action = _combat_action(ctx, console, presenter=_presenter)
-        if _action in {"QUIT", "FLEE"}:
-            _result = "FLEE"
-            break
-        if _action == "UNAVAILABLE":
-            if _presenter is not None:
-                _presenter.close()
-                _presenter = None
-                ctx._pygame_combat_presenter = None
-            continue
-        if _action == "GUIDE":
-            from ..help import _run_help_guide
-            _run_help_guide(ctx)
-            continue
-        if _action == "HISTORY":
-            # Combat is where players most want to review what just
-            # happened — the full console log is one backslash away,
-            # same as the main game loop. Window-close inside the log
-            # counts as quitting the fight (FLEE), matching ESC.
-            from ..console_log import open_console_log as _open_console_log
-            if _open_console_log(ctx) == "QUIT":
-                _result = "FLEE"
-                break
-            continue
-        if _action == "TARGET":
-            _target_idx = _cycle_target(_target_idx, len(_enemies), 1)
-            rules.set_target_idx(ctx, _target_idx)
-        elif _action.startswith("MOVE:"):
-            sym_name = _action.partition(":")[2]
-            if rules.player_ap(ctx) > 0:
-                _dx, _dy = _MOVE_KEYS.get(sym_name, (0, 0))
-                if (_dx, _dy) != (0, 0) and not rules.try_move(ctx, game_map, _dx, _dy):
-                    ctx.log.add("Blocked.")
-        elif _action == "DEFENSE":
-            rules.handle_defense(ctx)
-        elif _action == "CHARACTER":
-            _handle_character_action(ctx, rules)
-        elif _action == "FIRE":
-            _handle_fire(console, ctx, game_map, rules, _target_idx)
-            _presenter = getattr(ctx, "_pygame_combat_presenter", None)
 
-        elif _action.startswith("WEAPON:"):
-            _idx = int(_action.partition(":")[2])
-            _toggle_weapon(_idx, rules.active_weapons(ctx), ctx, rules)
-        elif _action == "WAIT":
-            # Waiting ends the player's turn and forfeits remaining AP.
-            rules.set_player_ap(ctx, 0)
-
-        # ---- End-turn guard: if AP ≤ 0, run enemy turns ----
-        if rules.player_ap(ctx) <= 0:
-            _end_result = _end_turn(ctx, game_map, rules)
-            _presenter = getattr(ctx, "_pygame_combat_presenter", None)
-            if _end_result == "DEFEAT":
-                _result = "DEFEAT"
-                break
-            _turn += 1
-            rules.reset_turn(ctx)
-
-    # ---- Sync state back ----
+def _finish_combat(ctx, rules, result: str | None, presenter) -> CombatResult:
+    """Sync state, close the presenter, and build the :class:`CombatResult`."""
     rules.sync_state(ctx)
-    if _presenter is not None:
-        _presenter.close()
+    if presenter is not None:
+        presenter.close()
     ctx._pygame_combat_presenter = None
-
-    # ---- Build result ----
     if hasattr(rules, 'get_combat_result'):
         _cr = rules.get_combat_result()
     else:
         _cr = CombatResult()
-    _cr.outcome = _result or "VICTORY"
+    _cr.outcome = result or "VICTORY"
     return _cr
+
+
+def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResult:
+    """Run the unified turn-based combat loop (space or ground).
+
+    The caller must call ``rules.init`` first. Owns turn structure, AP, key
+    dispatch, fire, and victory/flee/death; delegates flavor to ``rules``.
+    """
+    _target_idx: int = 0
+    _turn: int = 1
+    _result: str | None = None
+    _presenter = None
+    ctx._pygame_combat_presenter = None
+    _log_combat_start(ctx, rules)
+    while True:
+        rules.refresh_engaged(ctx, game_map)
+        _result = _combat_end_check(ctx, game_map, rules)
+        if _result is not None:
+            break
+        _enemies = rules.get_enemies(ctx)
+        _target_idx = _retarget_if_dead(ctx, rules, _target_idx, _enemies)
+        rules.render_frame(console, ctx, game_map)
+        _present(ctx, console)
+        _presenter = getattr(ctx, "_pygame_combat_presenter", None)
+        _action = _combat_action(ctx, console, presenter=_presenter)
+        _action, _presenter, _result_now, _redo = _handle_meta_action(_action, ctx, _presenter)
+        if _result_now is not None:
+            _result = _result_now
+            break
+        if _redo:
+            continue
+        _target_idx, _presenter = _dispatch_combat_action(
+            console, ctx, game_map, rules, _action, _target_idx, _presenter,
+        )
+        _turn, _presenter, _defeat = _end_player_turn(ctx, game_map, rules, _turn, _presenter)
+        if _defeat == "DEFEAT":
+            _result = "DEFEAT"
+            break
+    return _finish_combat(ctx, rules, _result, _presenter)
 
 
 def run_combat(

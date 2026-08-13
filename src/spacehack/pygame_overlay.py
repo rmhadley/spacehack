@@ -14,6 +14,11 @@ from typing import Any
 
 from . import pygame_ui
 from .game_context import GameContext
+from .pygame_target_card import (
+    TargetCard,
+    _draw_target_card,
+    target_card_from_payload,
+)
 
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 
@@ -85,33 +90,6 @@ class FloatingText:
     color: Color
     age: int
     lifetime: int
-
-
-@dataclass(frozen=True)
-class TargetCard:
-    """Native floating info card anchored to the targeted ground enemy.
-
-    ``x``/``y`` are viewport-relative logical screen-cell coordinates
-    (like :class:`ShieldBubble` and :class:`FloatingText`) marking the
-    target's cell. ``threat`` is the color of the distance/range state
-    (safe green, too-close orange, in-range red), computed by the rules
-    module so the renderer just paints it. ``weapon`` is ``""`` when the
-    enemy is unarmed, in which case ``damage``/``min_range``/``max_range``
-    are unused.
-    """
-
-    name: str
-    armor: int
-    weapon: str
-    damage: int
-    min_range: int
-    max_range: int
-    hp: int
-    max_hp: int
-    distance: int
-    threat: Color
-    x: int
-    y: int
 
 
 @dataclass(frozen=True)
@@ -439,27 +417,6 @@ def _floaters_from_payload(data: dict[str, Any]) -> tuple[FloatingText, ...]:
     )
 
 
-def _target_card_from_payload(data: dict[str, Any]) -> TargetCard | None:
-    """Deserialize the optional target card, or ``None``."""
-    target_data = data.get("target")
-    if target_data is None:
-        return None
-    return TargetCard(
-        name=str(target_data["name"]),
-        armor=int(target_data["armor"]),
-        weapon=str(target_data.get("weapon", "")),
-        damage=int(target_data.get("damage", 0)),
-        min_range=int(target_data.get("min_range", 1)),
-        max_range=int(target_data.get("max_range", 1)),
-        hp=int(target_data["hp"]),
-        max_hp=int(target_data["max_hp"]),
-        distance=int(target_data.get("distance", 0)),
-        threat=tuple(target_data["threat"]),
-        x=int(target_data["x"]),
-        y=int(target_data["y"]),
-    )
-
-
 def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
     """Deserialize an overlay frame sent to an isolated Pygame worker."""
     return OverlayFrame(
@@ -472,7 +429,7 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
         message_height=int(data["message_height"]),
         shields=_shields_from_payload(data),
         floaters=_floaters_from_payload(data),
-        target=_target_card_from_payload(data),
+        target=target_card_from_payload(data),
     )
 
 
@@ -743,139 +700,6 @@ def _draw_floaters(
                     x + dx, y + dy, color=shadow, antialias=False,
                 )
             pygame_ui.draw_text(pygame, screen, font, floater.text, x, y, color=color)
-    finally:
-        screen.set_clip(None)
-
-
-# Target-card palette and layout. The card reuses the HUD's gold/weapon
-# palette cues so it reads as an existing affordance, while the distance
-# segment inherits the threat color computed by the rules module.
-_TARGET_CARD_TITLE: Color = (255, 220, 100)
-_TARGET_CARD_TEXT: Color = (232, 236, 246)
-_TARGET_CARD_DIM: Color = (170, 170, 185)
-_TARGET_CARD_PAD_X: int = 12
-_TARGET_CARD_PAD_Y: int = 8
-_TARGET_CARD_GAP: int = 6
-
-
-def _target_card_rows(card: TargetCard) -> tuple[tuple[tuple[str, Color], ...], ...]:
-    """Format a target card into ``(segment_text, color)`` rows.
-
-    The distance segment is split onto the HP line and inherits ``card.threat``
-    so the "can they shoot me now" state is visible in color, mirroring the
-    space HUD's range tints. Unarmed enemies show no weapon/DMG rows.
-    """
-    hp_row: tuple[tuple[str, Color], ...] = (
-        (f"HP {card.hp}/{card.max_hp}", _TARGET_CARD_TEXT),
-        (f"  {card.distance}u", card.threat),
-    )
-    rows: list[tuple[tuple[str, Color], ...]] = [
-        ((card.name, _TARGET_CARD_TITLE),),
-        hp_row,
-        ((f"ARM {card.armor}", _TARGET_CARD_TEXT),),
-    ]
-    if card.weapon:
-        rows.append(((card.weapon, _TARGET_CARD_DIM),))
-        rows.append((
-            (f"DMG {card.damage}  RNG {card.min_range}-{card.max_range}", _TARGET_CARD_TEXT),
-        ))
-    else:
-        rows.append((("Unarmed", _TARGET_CARD_DIM),))
-    return tuple(rows)
-
-
-def _target_card_rect(
-    card: TargetCard,
-    *,
-    panel_w: int,
-    panel_h: int,
-    map_width: int,
-    map_height: int,
-) -> pygame_ui.Rect:
-    """Place the card's pixel rect, clamped inside the map viewport.
-
-    The card is centered horizontally on the target cell and prefers to
-    sit above it (so the gold highlight stays visible below); when the
-    top edge would clip it flips below the target, and both axes clamp
-    to a small margin inside the map region.
-    """
-    max_x = map_width * TILE_WIDTH - panel_w - 2
-    max_y = map_height * TILE_HEIGHT - panel_h - 2
-    tx = card.x * TILE_WIDTH
-    ty = card.y * TILE_HEIGHT
-    x = tx + TILE_WIDTH // 2 - panel_w // 2
-    x = max(2, min(x, max_x))
-    y = ty - _TARGET_CARD_GAP - panel_h
-    if y < 2:
-        y = ty + TILE_HEIGHT + _TARGET_CARD_GAP
-    y = max(2, min(y, max_y))
-    return pygame_ui.Rect(x, y, panel_w, panel_h)
-
-
-def _target_card_panel(card: TargetCard, font: Any):
-    """Return ``(rows, panel_w, panel_h, line_height)`` for a target card."""
-    measure = lambda text: pygame_ui.measure_font(font, text)
-    rows = _target_card_rows(card)
-    row_widths = [sum(measure(text) for text, _c in row) for row in rows]
-    line_height = font.get_linesize()
-    panel_w = max(row_widths) + 2 * _TARGET_CARD_PAD_X
-    panel_h = len(rows) * line_height + 2 * _TARGET_CARD_PAD_Y
-    return rows, panel_w, panel_h, line_height
-
-
-def _paint_target_card_rows(
-    pygame: Any,
-    screen: Any,
-    font: Any,
-    rows: tuple[tuple[tuple[str, Color], ...], ...],
-    measure: Any,
-    rect: pygame_ui.Rect,
-    line_height: int,
-) -> None:
-    """Paint the card's segment rows inside its panel rect."""
-    pygame_ui.draw_panel(pygame, screen, rect)
-    x = rect.x + _TARGET_CARD_PAD_X
-    y = rect.y + _TARGET_CARD_PAD_Y
-    for row in rows:
-        for text, color in row:
-            pygame_ui.draw_text(
-                pygame, screen, font, text, x, y, color=color,
-            )
-            x += measure(text)
-        x = rect.x + _TARGET_CARD_PAD_X
-        y += line_height
-
-
-def _draw_target_card(
-    pygame: Any,
-    screen: Any,
-    card: TargetCard,
-    *,
-    map_width: int,
-    map_height: int,
-) -> None:
-    """Paint the targeted enemy's info card as a native floating panel.
-
-    Drawn over the map region (clipped to it) near the target cell with
-    edge clamping, so the full stat block — name, HP + distance, armor,
-    weapon, damage/range — has room the 20-char HUD column never had.
-    """
-    font = pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT)
-    rows, panel_w, panel_h, line_height = _target_card_panel(card, font)
-    rect = _target_card_rect(
-        card,
-        panel_w=panel_w,
-        panel_h=panel_h,
-        map_width=map_width,
-        map_height=map_height,
-    )
-    clip = pygame.Rect(0, 0, map_width * TILE_WIDTH, map_height * TILE_HEIGHT)
-    screen.set_clip(clip)
-    try:
-        measure = lambda text: pygame_ui.measure_font(font, text)
-        _paint_target_card_rows(
-            pygame, screen, font, rows, measure, rect, line_height,
-        )
     finally:
         screen.set_clip(None)
 

@@ -619,6 +619,8 @@ class TestBuildTargetCard:
             player_pos=world.Position(2, 2),
             region_w=8,
             region_h=6,
+            hit_chance=62,
+            avoid_positions=(world.Position(2, 2), world.Position(5, 3)),
         )
 
         assert card is not None
@@ -630,11 +632,12 @@ class TestBuildTargetCard:
         assert card.max_range == 6
         assert card.hp == 12
         assert card.max_hp == 30
-        assert card.distance == 3  # int(hypot(3, 1))
-        assert card.threat == _ground_presentation.COLOR_DIST_DANGER
+        assert card.max_ap == 4  # GroundEnemyInstance default ap_total
+        assert card.hit_chance == 62
         assert (card.x, card.y) == (5, 3)
+        assert card.avoid_cells == ((2, 2), (5, 3))
 
-    def test_unarmed_enemy_has_blank_weapon_and_dim_threat(self):
+    def test_unarmed_enemy_has_blank_weapon_and_no_hit_chance(self):
         enemy = _target_card_enemy(weapon_id="")
         _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]
         _game_map = world.GameMap(8, 6, _tiles, [enemy.entity])
@@ -650,7 +653,25 @@ class TestBuildTargetCard:
         assert card is not None
         assert card.weapon == ""
         assert card.damage == 0
-        assert card.threat == _rules_ground.ui.COLOR_VALUE_DIM
+        assert card.hit_chance is None
+        assert card.avoid_cells == ()
+
+    def test_avoid_positions_are_culled_when_off_view(self):
+        enemy = _target_card_enemy()
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]
+        _game_map = world.GameMap(8, 6, _tiles, [enemy.entity])
+
+        card = _ground_presentation.build_target_card(
+            enemy,
+            game_map=_game_map,
+            player_pos=world.Position(2, 2),
+            region_w=8,
+            region_h=6,
+            avoid_positions=(world.Position(2, 2), world.Position(30, 30)),
+        )
+
+        # The (30, 30) position is outside the 8x6 viewport and is dropped.
+        assert card.avoid_cells == ((2, 2),)
 
     def test_off_viewport_target_returns_none(self):
         enemy = _target_card_enemy(x=15, y=5)
@@ -666,3 +687,27 @@ class TestBuildTargetCard:
         )
 
         assert card is None
+
+
+class TestTargetCardToggle:
+    def test_card_hidden_until_toggled_on(self):
+        _ctx, _game_map, _, _enemy = _ground_fixture()
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+
+        assert _rules_ground.presentation_target_card(ctx=_ctx) is None
+
+        _rules_ground.toggle_target_card(_ctx)
+
+        card = _rules_ground.presentation_target_card(ctx=_ctx)
+        assert card is not None
+        assert card.name == "Assault Drone"
+
+    def test_toggle_target_card_flips_state(self):
+        _ctx, _game_map, _, _enemy = _ground_fixture()
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+
+        assert _rules_ground._state.show_target_card is False
+        _rules_ground.toggle_target_card(_ctx)
+        assert _rules_ground._state.show_target_card is True
+        _rules_ground.toggle_target_card(_ctx)
+        assert _rules_ground._state.show_target_card is False

@@ -108,6 +108,9 @@ class GroundCombatState:
     active_weapon_list: list[bool] = field(default_factory=list)
     target_idx: int = 0
     console: Any = None
+    # Presentation-only: the floating target card is hidden until the
+    # player toggles it (``v``) so it never obscures the action by default.
+    show_target_card: bool = False
     # Presentation-only: while True, ``render_frame`` skips the player's
     # range/accuracy line. Set during shot animations and the whole enemy
     # turn so the line never clutters frames the player isn't acting on.
@@ -655,25 +658,40 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     return y + 1
 
 
+def toggle_target_card(ctx) -> None:
+    """Show/hide the floating target card (``v`` key)."""
+    _state.show_target_card = not _state.show_target_card
+
+
 def presentation_target_card(*, ctx: GameContext | None = None):
     """Return the native info card for the currently targeted enemy.
 
     Thin session wrapper around :func:`._ground_presentation.build_target_card`
-    — resolves the targeted enemy from combat state and delegates the
-    camera/card math. Returns ``None`` when there is no valid in-view
-    target (no fight, dead target, or the target scrolled off-screen).
+    — resolves the targeted enemy from combat state, computes the player's
+    hit chance and the visible cells to avoid, then delegates the camera /
+    card math. Returns ``None`` when the card is toggled off, there is no
+    valid in-view target, or the target scrolled off-screen.
     """
     if _state is None or (ctx is not None and _state.ctx is not ctx):
+        return None
+    if not _state.show_target_card:
         return None
     alive = get_enemies(ctx)
     if _state.target_idx >= len(alive):
         return None
+    _target = alive[_state.target_idx]
+    _active = _active_weapon_ids(ctx, player_weapons(ctx))
+    _hit = hit_chance(_active[0], _target, ctx) if _active else None
+    _avoid = [ctx.player.pos]
+    _avoid.extend(_e.pos for _e in alive)
     return _build_target_card(
-        alive[_state.target_idx],
+        _target,
         game_map=_state.game_map,
         player_pos=_state.ctx.player.pos,
         region_w=_RENDER_WIDTH,
         region_h=_RENDER_HEIGHT,
+        hit_chance=_hit,
+        avoid_positions=_avoid,
     )
 
 
@@ -718,6 +736,7 @@ def _render_actions_panel(console, weapons: list[str], y: int) -> None:
     y += 1
     actions = [
         ("[Tab]", "Target"), ("[m]", "Move"), ("[f]", "Fire"), ("[w]", "Wait"),
+        ("[v]", "Info"),
     ]
     if len(weapons) > 1:
         actions.insert(3, (f"[1-{len(weapons)}]", "Toggle Wpn"))

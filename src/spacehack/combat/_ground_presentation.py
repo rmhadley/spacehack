@@ -12,8 +12,7 @@ from typing import Any
 
 from .. import ui, world
 from ..data.ground_weapons import find_ground_weapon as _find_gw
-from ..pygame_overlay import TargetCard
-from ._stats import _distance
+from ..pygame_target_card import TargetCard
 
 # Distance-readout threat colors, mirroring the space HUD's range tints.
 COLOR_DIST_SAFE: tuple[int, int, int] = (100, 235, 115)     # out of enemy range
@@ -70,6 +69,25 @@ def enemy_threat_color(
     return COLOR_DIST_SAFE
 
 
+def _viewport_cells(
+    positions: tuple[world.Position, ...],
+    *,
+    cam_x: int,
+    cam_y: int,
+    rx: int,
+    ry: int,
+    region_w: int,
+    region_h: int,
+) -> tuple[tuple[int, int], ...]:
+    """Map map positions to viewport cells, dropping any off-screen."""
+    cells: list[tuple[int, int]] = []
+    for _p in positions:
+        _x, _y = rx + _p.x - cam_x, ry + _p.y - cam_y
+        if 0 <= _x < region_w and 0 <= _y < region_h:
+            cells.append((_x, _y))
+    return tuple(cells)
+
+
 def build_target_card(
     enemy: Any,
     *,
@@ -77,22 +95,17 @@ def build_target_card(
     player_pos: world.Position,
     region_w: int,
     region_h: int,
+    hit_chance: int | None = None,
+    avoid_positions: tuple[world.Position, ...] = (),
 ) -> TargetCard | None:
-    """Build the floating info card for ``enemy``, or None when off-view.
-
-    Resolves the camera exactly as :func:`_rules_ground._render_ground_world`
-    does and returns viewport-relative coordinates, so the renderer can
-    anchor the card to the target cell without knowing combat internals.
-    """
+    """Build the floating info card for ``enemy``, or None when off-view."""
     cam_x, cam_y, rx, ry = world.camera_for_view(
         game_map, player_pos, region_w=region_w, region_h=region_h,
     )
-    sx = rx + enemy.pos.x - cam_x
-    sy = ry + enemy.pos.y - cam_y
+    sx, sy = rx + enemy.pos.x - cam_x, ry + enemy.pos.y - cam_y
     if not (0 <= sx < region_w and 0 <= sy < region_h):
         return None
     weapon = enemy_weapon(enemy)
-    dist = int(_distance(player_pos, enemy.pos))
     return TargetCard(
         name=enemy.name,
         armor=enemy.spec.armor if enemy.spec else 0,
@@ -102,8 +115,13 @@ def build_target_card(
         max_range=weapon.max_range if weapon else 1,
         hp=enemy.hp,
         max_hp=enemy.max_hp,
-        distance=dist,
-        threat=enemy_threat_color(enemy, dist),
+        max_ap=getattr(enemy, "ap_total", 0),
+        hit_chance=hit_chance,
+        avoid_cells=_viewport_cells(
+            avoid_positions,
+            cam_x=cam_x, cam_y=cam_y, rx=rx, ry=ry,
+            region_w=region_w, region_h=region_h,
+        ),
         x=sx,
         y=sy,
     )
