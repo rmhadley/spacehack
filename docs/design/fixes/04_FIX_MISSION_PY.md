@@ -1,6 +1,6 @@
 # FIX: Break `mission.py` into a Package
 
-**Status:** In progress — through Phase 7
+**Status:** Code complete — playtest pending
 
 ## Problem
 
@@ -334,15 +334,17 @@ dispatch, and public generation. Legacy retains only compatibility aliases.
 
 ### Phase 8 — Cutover and removal
 
-- [ ] Verify all compatibility imports and package-level symbols.
-- [ ] Verify save/load for active missions, boards, generated missions, and
+- [x] Verify all compatibility imports and package-level symbols.
+- [x] Verify save/load for active missions, boards, generated missions, and
       status fields.
-- [ ] Run full mission, navigation, combat, tutorial, trade, and save/load tests.
-- [ ] Run `python3 tools/smoke.py`, `ruff check src tests`, and `python3 tools/test.py`.
-- [ ] Delete `src/spacehack/mission.py` only after the preceding checks pass.
+- [x] Run full mission, navigation, combat, tutorial, trade, and save/load tests.
+- [x] Run `python3 tools/smoke.py`, `ruff check src tests`, and `python3 tools/test.py`.
+- [x] Remove the obsolete `src/spacehack/mission.py` implementation; the
+      compatibility-only `_legacy.py` shim is also removed after direct-import
+      verification.
 - [ ] Run a short playtest: accept, complete, and abort delivery/bounty jobs;
       accept an intercept, smuggling, and salvage job; save, continue, and
-      inspect the quest log/board state.
+      inspect the quest log/board state. **Pending the user's morning playtest.**
 
 ## Risks and mitigations
 
@@ -363,18 +365,19 @@ dispatch, and public generation. Legacy retains only compatibility aliases.
 
 ## Acceptance criteria
 
-- [ ] `src/spacehack/mission/` package exists with the ownership structure above.
-- [ ] `src/spacehack/mission.py` is removed only after cutover verification.
-- [ ] Existing `spacehack.mission` imports and the audited compatibility surface
+- [x] `src/spacehack/mission/` package exists with the ownership structure above.
+- [x] `src/spacehack/mission.py` is removed only after cutover verification.
+- [x] Existing `spacehack.mission` imports and the audited compatibility surface
       continue to work without unnecessary call-site rewrites.
-- [ ] No serialized mission, board, generated-spec, or status field is lost or
+- [x] No serialized mission, board, generated-spec, or status field is lost or
       renamed.
-- [ ] Procedural delivery, bounty, intercept, smuggling, and salvage generation
+- [x] Procedural delivery, bounty, intercept, smuggling, and salvage generation
       preserve IDs, RNG ordering, fields, rewards, and deadlines.
-- [ ] Shared destination, cargo, reward, and generated-spec logic is not
+- [x] Shared destination, cargo, reward, and generated-spec logic is not
       duplicated across modules.
-- [ ] No new module-level function exceeds 40 lines without a documented reason;
+- [x] No new module-level function exceeds 40 lines without a documented reason;
       modules remain responsibility-focused rather than arbitrary line-count
       targets.
-- [ ] Smoke test, Ruff, focused tests, and the full test suite pass.
-- [ ] Save/load and the short mission playtest pass.
+- [x] Smoke test, Ruff, focused tests, and the full test suite pass.
+- [ ] Save/load and the short mission playtest pass (code validation complete;
+      player playtest pending).

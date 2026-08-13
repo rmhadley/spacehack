@@ -10,12 +10,10 @@ from ._helpers import board_key
 
 
 def _procedural_generators():
-    """Return board generator dispatch without importing during package load."""
-    from ._legacy import (
-        generate_bar_mission,
-        generate_bounty_mission,
-        generate_delivery_mission,
-    )
+    """Return board generator dispatch without importing the package shim."""
+    from ._proc_bar import generate_bar_mission
+    from ._proc_bounty import generate_bounty_mission
+    from ._proc_delivery import generate_delivery_mission
     return {
         "merchants": generate_delivery_mission,
         "bhguild": generate_bounty_mission,

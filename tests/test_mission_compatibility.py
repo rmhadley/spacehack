@@ -4,7 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import mission
-from src.spacehack.mission import _helpers, _legacy, _models
+from src.spacehack.mission import _helpers, _models
 from src.spacehack.saveload import delete_save, load_game, save_game
 from .test_saveload import _build_test_ctx
 
@@ -61,10 +61,22 @@ def test_mission_runtime_models_have_one_shared_identity():
     assert mission.MAX_ACTIVE_MISSIONS == _models.MAX_ACTIVE_MISSIONS
 
 
+def test_mission_package_implementation_modules_are_directly_usable():
+    """The package surface does not depend on the retired legacy shim."""
+    from src.spacehack.mission import _board, _proc_bar, _proc_bounty, _proc_delivery
+
+    assert mission.generate_delivery_mission is _proc_delivery.generate_delivery_mission
+    assert mission.generate_bounty_mission is _proc_bounty.generate_bounty_mission
+    assert mission.generate_bar_mission is _proc_bar.generate_bar_mission
+    assert _board._procedural_generators()["merchants"] is _proc_delivery.generate_delivery_mission
+
+
 def test_mission_helper_ownership_is_not_duplicated():
     """Extracted helper functions retain one package-wide identity."""
+    from src.spacehack.mission import _proc_shared
+
     assert mission._planet_to_system is _helpers._planet_to_system
-    assert _legacy._planet_to_system is _helpers._planet_to_system
+    assert mission._planet_to_system is _proc_shared._planet_to_system
 
 
 def test_board_key_preserves_legacy_and_city_scoped_forms():
@@ -115,7 +127,6 @@ def test_mission_lifecycle_ownership_is_not_duplicated():
         "complete_mission",
     ):
         assert getattr(mission, name) is getattr(_lifecycle, name)
-        assert getattr(_legacy, name) is getattr(_lifecycle, name)
 
 
 def test_accept_validation_does_not_mutate_then_commit_reserves_cargo():

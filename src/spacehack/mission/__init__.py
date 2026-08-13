@@ -38,12 +38,7 @@ from ._board import (
     fill_empty_slots,
     refresh_all_boards,
 )
-from ._legacy import (
-    find_mission,
-    list_missions,
-    missions_offered_by,
-)
-from ..data.missions import MissionSpec
+from ..data.missions import MissionSpec, find_mission, list_missions, missions_offered_by
 
 __all__ = [
     "ActiveMission",
