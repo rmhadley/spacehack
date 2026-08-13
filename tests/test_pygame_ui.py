@@ -1967,6 +1967,7 @@ def test_character_equipment_rows_mirror_loadout_slots():
     assert "Laser Pistol" in rows[0].text
     assert "Damage 4" in rows[0].detail
     assert "Accuracy 78%" in rows[0].detail
+    assert "Energy" in rows[0].detail
     # Empty weapon slot: non-selectable Fists placeholder.
     assert not rows[1].selectable
     assert rows[1].text == "Weapon slot 2: Fists"
@@ -1983,6 +1984,18 @@ def test_character_equipment_rows_mirror_loadout_slots():
     assert rows[3].selectable
     assert "Light Armor Vest" in rows[3].text
     assert "Defense 2" in rows[3].detail
+
+
+def test_character_equipment_rows_show_cybernetic_effects():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={"legs": "cybernetic_legs"},
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    legs_row = next(row for row in rows if "Legs armor" in row.text)
+    assert "+1 AP" in legs_row.detail
 
 
 def test_character_equipment_rows_empty_gear_is_informational():

@@ -63,8 +63,8 @@ def _weapon_detail(spec) -> str:
     """Format a ground weapon's useful armory details."""
     hands = "2H" if spec.hands == 2 else "1H"
     return (
-        f"{hands}  Damage: {spec.damage}  Accuracy: {spec.accuracy}%  "
-        f"Range: {spec.min_range}-{spec.max_range}"
+        f"{hands}  {spec.damage_type.title()}  Damage: {spec.damage}  "
+        f"Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}"
     )
 
 

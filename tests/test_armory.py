@@ -5,6 +5,7 @@ from __future__ import annotations
 from src.spacehack.data.ground_armor import find_ground_armor
 from src.spacehack.data.ground_weapons import find_ground_weapon
 from src.spacehack.data.planets import find_planet_spec, resolve_armory_inventory
+from src.spacehack.menus import _armory
 
 
 def test_earth_uses_fixed_t1_armory_stock_verbatim():
@@ -47,3 +48,17 @@ def test_low_tier_unfixed_planet_excludes_high_tier_gear():
     assert weapons
     assert all(find_ground_weapon(w).tech_level == 1 for w in weapons)
     assert all(find_ground_armor(a).tech_level == 1 for a in armor)
+
+
+def test_weapon_detail_shows_damage_type():
+    detail = _armory._weapon_detail(find_ground_weapon("plasma_caster"))
+
+    assert "Plasma" in detail
+    assert "Damage: 24" in detail
+
+
+def test_armor_detail_shows_cybernetic_effects():
+    detail = _armory._armor_detail(find_ground_armor("cybernetic_legs"))
+
+    assert "Defense: 0" in detail
+    assert "+1 AP" in detail

@@ -277,22 +277,22 @@ gear never drops (shop-only).
 
 ### Phase 5 — Guide + detail display + final gate
 
-- [ ] Update `data/guide/` ground-gear section
-- [ ] Armory/character detail lines show cybernetic effects + weapon damage type
-- [ ] `make check` (smoke + architecture + lint + full pytest)
+- [x] Update `data/guide/` ground-gear section
+- [x] Armory/character detail lines show cybernetic effects + weapon damage type
+- [x] `make check` (smoke + architecture + lint + full pytest)
 
 ## Acceptance criteria
 
-- [ ] Weapons span T1–T4 across melee/kinetic/energy/plasma/explosive.
-- [ ] Armor spans T1–T4 across all five slots; cybernetics occupy normal slots.
-- [ ] Armory mirrors the mechanic: fixed per-planet overrides + seeded RNG
+- [x] Weapons span T1–T4 across melee/kinetic/energy/plasma/explosive.
+- [x] Armor spans T1–T4 across all five slots; cybernetics occupy normal slots.
+- [x] Armory mirrors the mechanic: fixed per-planet overrides + seeded RNG
       subset, gated by `tech_level`.
-- [ ] Enemy equipment drops respect `npc.tier` (up to T3; T4 is shop-only).
-- [ ] Enemies with `armor > 0` reduce incoming damage; plasma halves that DR.
-- [ ] Cybernetic effects (AP/hit/melee/HP) apply in ground combat and survive
+- [x] Enemy equipment drops respect `npc.tier` (up to T3; T4 is shop-only).
+- [x] Enemies with `armor > 0` reduce incoming damage; plasma halves that DR.
+- [x] Cybernetic effects (AP/hit/melee/HP) apply in ground combat and survive
       save/load (no schema migration required).
-- [ ] Tutorial `earth_armory` beat names a T1 weapon that Earth actually stocks.
-- [ ] `make check` green; pure-function tests in the same commits.
+- [x] Tutorial `earth_armory` beat names a T1 weapon that Earth actually stocks.
+- [x] `make check` green; pure-function tests in the same commits.
 
 ## Resolved decisions
 

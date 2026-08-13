@@ -199,6 +199,47 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
         ),
     ),
     GuideSection(
+        title="Ground Gear",
+        body=(
+            "The armory terminal sells personal weapons and armour for when you "
+            "leave your ship. Stock varies by world: advanced settlements offer "
+            "better equipment, so gear you want may simply not be for sale where "
+            "you are. Check another armory, or take what a tougher world offers."
+            "\n\n"
+            "Weapons:"
+            "\n"
+            "- Kinetic weapons fire physical rounds and use limited ammunition."
+            "\n"
+            "- Energy weapons recharge, so they never run dry."
+            "\n"
+            "- Plasma weapons hit hard and cut through armour, so they stay "
+            "dangerous even against a shielded target."
+            "\n"
+            "- Explosive weapons deal heavy burst damage but are inaccurate."
+            "\n"
+            "- Melee weapons never need ammunition, but you must close the distance."
+            "\n"
+            "A two-handed weapon fills both weapon slots; one-handed weapons can "
+            "be paired. Every weapon lists its damage type, damage, accuracy, and "
+            "range in the armory and character screens."
+            "\n\n"
+            "Armour:"
+            "\n"
+            "- Armour covers five slots: head, body, hands, legs, and feet."
+            "\n"
+            "- Its defense reduces the damage of each hit you take."
+            "\n"
+            "- Some armour is cybernetic: it trades defense for an effect such as "
+            "an extra action point, better aim, stronger melee, or more health. "
+            "The effect is shown next to the defense value."
+            "\n\n"
+            "Enemies scale too. Armoured machines reduce your damage until a "
+            "plasma or heavy weapon punches through. Equipment found on defeated "
+            "enemies reflects how dangerous they were, so deeper sites and "
+            "tougher machines yield better gear."
+        ),
+    ),
+    GuideSection(
         title="Missions",
         body=(
             "Mission givers offer work from city buildings and guilds. Talk to "

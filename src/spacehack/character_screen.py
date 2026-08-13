@@ -40,7 +40,6 @@ def _character_frame(
     swap_allowed: bool = True,
 ):
     """Build a Pygame snapshot for one Character tab."""
-    from . import pygame_screen, pygame_ui
     from .xp import xp_for_level, _xp_to_next
 
     level = ctx.player_level
@@ -48,45 +47,73 @@ def _character_frame(
     needed = _xp_to_next(level)
     title = f"CHARACTER - Level {level} {ctx.character_info.get('class_name', '').title()}"
     if tab == 0:
-        rows = tuple(
-            pygame_screen.ScreenRow(
-                text=f"{skill.title():<12} {getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10):>3}  "
-                f"{'[+]' if ctx.player_skill_points > 0 and getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) < 100 else 'MAX' if getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) >= 100 else ''}",
-                detail=_SKILL_DESCRIPTIONS[skill],
-                action=f"SPEND:{skill}",
-            )
-            for index, skill in enumerate(_SKILLS)
+        return _stats_frame(ctx, title, current_xp, needed, selected)
+    return _equipment_frame(
+        ctx, title, selected,
+        equipment_management=equipment_management,
+        swap_allowed=swap_allowed,
+    )
+
+
+def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
+    """Build the Stats-tab frame (skills, XP, traits)."""
+    from . import pygame_screen, pygame_ui
+
+    rows = tuple(
+        pygame_screen.ScreenRow(
+            text=f"{skill.title():<12} {getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10):>3}  "
+            f"{'[+]' if ctx.player_skill_points > 0 and getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) < 100 else 'MAX' if getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) >= 100 else ''}",
+            detail=_SKILL_DESCRIPTIONS[skill],
+            action=f"SPEND:{skill}",
         )
-        body = (
-            f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
-            f"Traits: {', '.join(ctx.player_traits) if ctx.player_traits else 'None'}",
-        )
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",
-            "ESC close", pygame_ui.GUIDE_HINT,
-        ),)
-    else:
-        rows = _equipment_rows(
-            ctx,
-            equipment_management=equipment_management,
-            swap_allowed=swap_allowed,
-        )
-        capacity = _expedition_capacity(ctx)
-        body = (
-            f"Equipped ground gear    Expedition Pack: "
-            f"{len(ctx.ground_expedition_inventory)}/{capacity}",
-            "Select a slot and press ENTER to swap from your backpack."
-            if equipment_management
-            else "Equipment is read-only outside management mode.",
-        )
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT,
-            "ENTER swap" if equipment_management else "TAB stats",
-            "TAB stats", "ESC close", pygame_ui.GUIDE_HINT,
-        ),)
+        for index, skill in enumerate(_SKILLS)
+    )
+    body = (
+        f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
+        f"Traits: {', '.join(ctx.player_traits) if ctx.player_traits else 'None'}",
+    )
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",
+        "ESC close", pygame_ui.GUIDE_HINT,
+    ),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
-        tabs=("STATS", "EQUIPMENT"), active_tab=tab,
+        tabs=("STATS", "EQUIPMENT"), active_tab=0,
+    )
+
+
+def _equipment_frame(
+    ctx: GameContext,
+    title: str,
+    selected: int,
+    *,
+    equipment_management: bool,
+    swap_allowed: bool,
+):
+    """Build the Equipment-tab frame (loadout + backpack)."""
+    from . import pygame_screen, pygame_ui
+
+    rows = _equipment_rows(
+        ctx,
+        equipment_management=equipment_management,
+        swap_allowed=swap_allowed,
+    )
+    capacity = _expedition_capacity(ctx)
+    body = (
+        f"Equipped ground gear    Expedition Pack: "
+        f"{len(ctx.ground_expedition_inventory)}/{capacity}",
+        "Select a slot and press ENTER to swap from your backpack."
+        if equipment_management
+        else "Equipment is read-only outside management mode.",
+    )
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT,
+        "ENTER swap" if equipment_management else "TAB stats",
+        "TAB stats", "ESC close", pygame_ui.GUIDE_HINT,
+    ),)
+    return pygame_screen.ScreenFrame(
+        title, body, rows, footer, selected,
+        tabs=("STATS", "EQUIPMENT"), active_tab=1,
     )
 
 def _expedition_capacity(ctx: GameContext) -> int:
@@ -95,6 +122,20 @@ def _expedition_capacity(ctx: GameContext) -> int:
 
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
     return ground_equipment.expedition_capacity(strength)
+
+
+def _armor_effects(spec) -> str:
+    """Format one armor piece's cybernetic bonuses, or an empty string."""
+    bonuses = []
+    if spec.ap_bonus:
+        bonuses.append(f"+{spec.ap_bonus} AP")
+    if spec.hit_bonus:
+        bonuses.append(f"+{spec.hit_bonus}% Hit")
+    if spec.melee_bonus:
+        bonuses.append(f"+{spec.melee_bonus} Melee")
+    if spec.hp_bonus:
+        bonuses.append(f"+{spec.hp_bonus} HP")
+    return f"   {' '.join(bonuses)}" if bonuses else ""
 
 
 def _pack_entry_name(entry) -> str:
@@ -115,9 +156,12 @@ def _pack_entry_detail(entry) -> str:
     if entry.item_type == "weapon":
         spec = find_ground_weapon(entry.item_id)
         hands = "2H" if spec.hands == 2 else "1H"
-        return f"{hands}  Damage {spec.damage}  Accuracy {spec.accuracy}%  Range {spec.min_range}-{spec.max_range}"
+        return (
+            f"{hands}  {spec.damage_type.title()}  Damage {spec.damage}  "
+            f"Accuracy {spec.accuracy}%  Range {spec.min_range}-{spec.max_range}"
+        )
     spec = find_ground_armor(entry.item_id)
-    return f"{spec.slot.title()}  Defense {spec.defense}  {spec.description}"
+    return f"{spec.slot.title()}  Defense {spec.defense}{_armor_effects(spec)}  {spec.description}"
 
 
 def _swap_options(ctx: GameContext, item_type: str, slot: str) -> tuple[tuple[int, str, str], ...]:
@@ -218,116 +262,163 @@ def _equipment_rows(
     dungeon/combat management view. All rows use the same presentation shape;
     the screen renderer supplies identical spacing for empty and equipped rows.
     """
-    from .data.ground_weapons import find_ground_weapon
-    from .data.ground_armor import find_ground_armor
+    rows = _weapon_rows(ctx, equipment_management, swap_allowed)
+    rows += _armor_rows(ctx, equipment_management, swap_allowed)
+    if equipment_management:
+        rows += _backpack_rows(ctx)
+    return tuple(rows)
 
+
+def _weapon_rows(
+    ctx: GameContext, equipment_management: bool, swap_allowed: bool,
+) -> list:
+    """Build the two weapon-slot rows for the active ground loadout."""
     rows: list = []
     weapons = list(ctx.equipped_ground_weapons)
     while len(weapons) < 2:
         weapons.append("")
-    first_weapon_is_two_handed = False
-    if weapons[0]:
+    first_weapon_is_two_handed = _first_weapon_is_two_handed(weapons)
+    for index, weapon_id in enumerate(weapons[:2], 1):
+        rows.append(_weapon_row(
+            ctx, index, weapon_id,
+            occupied_by_two_handed=(
+                index == 2 and first_weapon_is_two_handed
+            ),
+            equipment_management=equipment_management,
+            swap_allowed=swap_allowed,
+        ))
+    return rows
+
+
+def _first_weapon_is_two_handed(weapons: list[str]) -> bool:
+    """Return whether the first equipped weapon is two-handed."""
+    from .data.ground_weapons import find_ground_weapon
+
+    if not weapons[0]:
+        return False
+    try:
+        return find_ground_weapon(weapons[0]).hands == 2
+    except KeyError:
+        return False
+
+
+def _weapon_row(
+    ctx: GameContext,
+    index: int,
+    weapon_id: str,
+    *,
+    occupied_by_two_handed: bool,
+    equipment_management: bool,
+    swap_allowed: bool,
+):
+    """Build one weapon-slot row (filled, empty, or occupied-by-2H)."""
+    from .data.ground_weapons import find_ground_weapon
+
+    label = f"Weapon slot {index}"
+    if occupied_by_two_handed:
+        return _equipment_row(f"{label}: --- (occupied by 2H)")
+    if weapon_id:
         try:
-            first_weapon_is_two_handed = find_ground_weapon(weapons[0]).hands == 2
+            spec = find_ground_weapon(weapon_id)
+            detail = (
+                f"{spec.damage_type.title()}   Damage {spec.damage}   "
+                f"Accuracy {spec.accuracy}%   Range {spec.min_range}-"
+                f"{spec.max_range}   AP {spec.ap_cost}"
+            )
+            if spec.ammo_capacity > 0:
+                detail += f"   Ammo {spec.ammo_capacity}"
+            _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
+            return _equipment_row(
+                f"{label}: {spec.name}", detail,
+                action=f"SWAP:weapon:{index - 1}" if _managed else "",
+                selectable=True if not equipment_management else _managed,
+            )
         except KeyError:
             pass
-    for index, weapon_id in enumerate(weapons[:2], 1):
-        label = f"Weapon slot {index}"
-        if index == 2 and first_weapon_is_two_handed:
-            rows.append(_equipment_row(
-                f"{label}: --- (occupied by 2H)",
-            ))
-            continue
-        if weapon_id:
-            try:
-                spec = find_ground_weapon(weapon_id)
-                detail = (
-                    f"Damage {spec.damage}   Accuracy {spec.accuracy}%   "
-                    f"Range {spec.min_range}-{spec.max_range}   AP {spec.ap_cost}"
-                )
-                if spec.ammo_capacity > 0:
-                    detail += f"   Ammo {spec.ammo_capacity}"
-                _options = _swap_options(ctx, "weapon", str(index - 1)) if equipment_management else ()
-                _managed = _managed_swap_enabled(
-                    ctx, "weapon", str(index - 1), _options,
-                    swap_allowed=swap_allowed,
-                ) if equipment_management else False
-                rows.append(_equipment_row(
-                    f"{label}: {spec.name}", detail,
-                    action=(
-                        f"SWAP:weapon:{index - 1}"
-                        if _managed else ""
-                    ),
-                    selectable=(
-                        True if not equipment_management else _managed
-                    ),
-                ))
-                continue
-            except KeyError:
-                pass
-        _options = _swap_options(ctx, "weapon", str(index - 1)) if equipment_management else ()
-        _managed = _managed_swap_enabled(
-            ctx, "weapon", str(index - 1), _options,
-            swap_allowed=swap_allowed,
-        ) if equipment_management else False
-        rows.append(_equipment_row(
-            f"{label}: Fists", "",
-            action=f"SWAP:weapon:{index - 1}" if _managed else "",
-            selectable=(
-                False if not equipment_management else _managed
-            ),
-        ))
+    _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
+    return _equipment_row(
+        f"{label}: Fists", "",
+        action=f"SWAP:weapon:{index - 1}" if _managed else "",
+        selectable=False if not equipment_management else _managed,
+    )
+
+
+def _weapon_managed(
+    ctx: GameContext, slot_index: int, equipment_management: bool, swap_allowed: bool,
+) -> bool:
+    """Return whether one weapon slot is actionable in management mode."""
+    if not equipment_management:
+        return False
+    _options = _swap_options(ctx, "weapon", str(slot_index))
+    return _managed_swap_enabled(
+        ctx, "weapon", str(slot_index), _options,
+        swap_allowed=swap_allowed,
+    )
+
+
+def _armor_rows(
+    ctx: GameContext, equipment_management: bool, swap_allowed: bool,
+) -> list:
+    """Build the five armor-slot rows for the active ground loadout."""
+    from .data.ground_armor import find_ground_armor
+
+    rows: list = []
     for slot in _ARMOR_SLOTS:
         item_id = ctx.equipped_ground_armor.get(slot)
         label = f"{_ARMOR_SLOT_LABELS[slot]} armor"
         if item_id:
             try:
                 spec = find_ground_armor(item_id)
-                _options = _swap_options(ctx, "armor", slot) if equipment_management else ()
-                _managed = _managed_swap_enabled(
-                    ctx, "armor", slot, _options,
-                    swap_allowed=swap_allowed,
-                ) if equipment_management else False
+                _managed = _armor_managed(ctx, slot, equipment_management, swap_allowed)
                 rows.append(_equipment_row(
                     f"{label}: {spec.name}",
-                    f"Defense {spec.defense}   {spec.description}",
+                    f"Defense {spec.defense}{_armor_effects(spec)}   {spec.description}",
                     action=f"SWAP:armor:{slot}" if _managed else "",
-                    selectable=(
-                        True if not equipment_management else _managed
-                    ),
+                    selectable=True if not equipment_management else _managed,
                 ))
                 continue
             except KeyError:
                 pass
-        _options = _swap_options(ctx, "armor", slot) if equipment_management else ()
-        _managed = _managed_swap_enabled(
-            ctx, "armor", slot, _options,
-            swap_allowed=swap_allowed,
-        ) if equipment_management else False
+        _managed = _armor_managed(ctx, slot, equipment_management, swap_allowed)
         rows.append(_equipment_row(
             f"{label}: None", "",
             action=f"SWAP:armor:{slot}" if _managed else "",
-            selectable=(
-                False if not equipment_management else _managed
-            ),
+            selectable=False if not equipment_management else _managed,
         ))
-    if equipment_management:
-        capacity = _expedition_capacity(ctx)
-        rows.append(_equipment_row(
-            f"--- BACKPACK ITEMS ({len(ctx.ground_expedition_inventory)}/{capacity}) ---",
-        ))
-        if ctx.ground_expedition_inventory:
-            for index, entry in enumerate(ctx.ground_expedition_inventory):
-                try:
-                    rows.append(_equipment_row(
-                        _pack_entry_name(entry), _pack_entry_detail(entry),
-                        action=f"PACK_ITEM:{index}", selectable=True,
-                    ))
-                except (KeyError, TypeError, ValueError):
-                    continue
-        else:
-            rows.append(_equipment_row("[empty]"))
-    return tuple(rows)
+    return rows
+
+
+def _armor_managed(
+    ctx: GameContext, slot: str, equipment_management: bool, swap_allowed: bool,
+) -> bool:
+    """Return whether one armor slot is actionable in management mode."""
+    if not equipment_management:
+        return False
+    _options = _swap_options(ctx, "armor", slot)
+    return _managed_swap_enabled(
+        ctx, "armor", slot, _options,
+        swap_allowed=swap_allowed,
+    )
+
+
+def _backpack_rows(ctx: GameContext) -> list:
+    """Build the backpack header and item rows for the management view."""
+    capacity = _expedition_capacity(ctx)
+    rows = [_equipment_row(
+        f"--- BACKPACK ITEMS ({len(ctx.ground_expedition_inventory)}/{capacity}) ---",
+    )]
+    if not ctx.ground_expedition_inventory:
+        rows.append(_equipment_row("[empty]"))
+        return rows
+    for index, entry in enumerate(ctx.ground_expedition_inventory):
+        try:
+            rows.append(_equipment_row(
+                _pack_entry_name(entry), _pack_entry_detail(entry),
+                action=f"PACK_ITEM:{index}", selectable=True,
+            ))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return rows
 
 
 def _swap_pack_entry(
@@ -394,9 +485,6 @@ def _equip_pack_item(
     swap_allowed: bool = True,
 ) -> bool:
     """Equip one selected pack item, choosing a weapon slot when needed."""
-    from . import pygame_story
-    from .data.ground_armor import find_ground_armor
-
     if not swap_allowed:
         ctx.log.add("You need 1 AP to equip backpack gear.")
         return False
@@ -405,12 +493,26 @@ def _equip_pack_item(
         return False
     entry = ctx.ground_expedition_inventory[pack_index]
     if entry.item_type == "armor":
-        try:
-            slot = find_ground_armor(entry.item_id).slot
-        except KeyError:
-            ctx.log.add("That backpack item is invalid.")
-            return False
-        return _swap_pack_entry(ctx, "armor", slot, pack_index)
+        return _equip_armor_pack_item(ctx, entry, pack_index)
+    return _equip_weapon_pack_item(ctx, entry, pack_index)
+
+
+def _equip_armor_pack_item(ctx: GameContext, entry, pack_index: int) -> bool:
+    """Equip one pack armor item into its matching slot."""
+    from .data.ground_armor import find_ground_armor
+
+    try:
+        slot = find_ground_armor(entry.item_id).slot
+    except KeyError:
+        ctx.log.add("That backpack item is invalid.")
+        return False
+    return _swap_pack_entry(ctx, "armor", slot, pack_index)
+
+
+def _equip_weapon_pack_item(ctx: GameContext, entry, pack_index: int) -> bool:
+    """Equip one pack weapon, prompting for a slot when two fit."""
+    from . import pygame_story
+
     slots = _pack_weapon_slots(ctx, pack_index)
     if not slots:
         ctx.log.add("That weapon cannot fit your active loadout.")
@@ -515,7 +617,6 @@ def _run_pygame_character_screen(
 ) -> int | None:
     """Run Character through the shared Pygame screen."""
     from . import pygame_screen
-    from .xp import _apply_skill_point
 
     tab = 0
     selected = 0
@@ -533,43 +634,80 @@ def _run_pygame_character_screen(
             ),
             caption="spacehack - character",
         )
-        if outcome == "GUIDE":
-            from .help import _open_context_guide
-            _open_context_guide(ctx, "Character & Skills")
-            continue
-        if outcome == "TAB":
-            tab = (tab + 1) % 2
-            selected = 0
-            continue
-        if outcome == "SELECT":
-            if tab == 0 and action.startswith("SPEND:"):
-                skill = action.split(":", 1)[1]
-                if skill not in _SKILLS:
-                    return None
-                _apply_skill_point(ctx, skill)
-            elif tab == 1 and equipment_management:
-                if action.startswith("SWAP:") and _swap_from_pack(ctx, action):
-                    swap_count += 1
-                    if in_ground_combat:
-                        return swap_count
-                elif action.startswith("PACK_ITEM:"):
-                    _pack_result = _manage_pack_item(
-                        ctx,
-                        action,
-                        swap_allowed=(
-                            not in_ground_combat
-                            or _combat_ap_available(ctx, reserved=swap_count)
-                        ),
-                    )
-                    if _pack_result == "EQUIP" and in_ground_combat:
-                        swap_count += 1
-                        return swap_count
-            continue
-        if outcome in {"PAGE_UP", "PAGE_DOWN"}:
-            continue
-        if outcome == "QUIT":
-            raise SystemExit
-        return swap_count
+        tab, selected, swap_count, done = _advance_character_screen(
+            ctx, outcome, action, tab, selected, swap_count,
+            equipment_management=equipment_management,
+            in_ground_combat=in_ground_combat,
+        )
+        if done:
+            return swap_count
+
+
+def _advance_character_screen(
+    ctx: GameContext,
+    outcome: str,
+    action: str,
+    tab: int,
+    selected: int,
+    swap_count: int,
+    *,
+    equipment_management: bool,
+    in_ground_combat: bool,
+) -> tuple[int, int, int, bool]:
+    """Advance one loop iteration; return ``(tab, selected, swap_count, done)``."""
+    if outcome == "GUIDE":
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "Character & Skills")
+        return tab, selected, swap_count, False
+    if outcome == "TAB":
+        return (tab + 1) % 2, 0, swap_count, False
+    if outcome == "SELECT":
+        swap_count, should_return = _apply_character_select(
+            ctx, action, tab, swap_count,
+            equipment_management=equipment_management,
+            in_ground_combat=in_ground_combat,
+        )
+        return tab, selected, swap_count, should_return
+    if outcome in {"PAGE_UP", "PAGE_DOWN"}:
+        return tab, selected, swap_count, False
+    if outcome == "QUIT":
+        raise SystemExit
+    return tab, selected, swap_count, True
+
+
+def _apply_character_select(
+    ctx: GameContext,
+    action: str,
+    tab: int,
+    swap_count: int,
+    *,
+    equipment_management: bool,
+    in_ground_combat: bool,
+) -> tuple[int, bool]:
+    """Apply one SELECT action; return ``(swap_count, should_return)``."""
+    from .xp import _apply_skill_point
+
+    if tab == 0 and action.startswith("SPEND:"):
+        skill = action.split(":", 1)[1]
+        if skill in _SKILLS:
+            _apply_skill_point(ctx, skill)
+        return swap_count, False
+    if tab == 1 and equipment_management:
+        if action.startswith("SWAP:") and _swap_from_pack(ctx, action):
+            swap_count += 1
+            return swap_count, in_ground_combat
+        if action.startswith("PACK_ITEM:"):
+            _pack_result = _manage_pack_item(
+                ctx,
+                action,
+                swap_allowed=(
+                    not in_ground_combat
+                    or _combat_ap_available(ctx, reserved=swap_count)
+                ),
+            )
+            if _pack_result == "EQUIP" and in_ground_combat:
+                return swap_count + 1, True
+    return swap_count, False
 
 def _combat_ap_available(ctx: GameContext, *, reserved: int = 0) -> bool:
     """Return whether an active ground combat session has AP to spend."""
