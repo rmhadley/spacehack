@@ -118,12 +118,13 @@ def _preferred_positions(
     Favors the side of the target opposite the player (so the card never
     covers the player), then the perpendicular axis, then the two
     toward-player sides. Without a player cell it falls back to the fixed
-    order above/below/right/left.
+    order above/below/right/left. Every candidate leaves one empty tile
+    between the card and the target.
     """
     positions = {
         "above": (tx - cw // 2, ty - 1 - ch),
-        "below": (tx - cw // 2, ty + 1),
-        "right": (tx + 1, ty - ch // 2),
+        "below": (tx - cw // 2, ty + 2),
+        "right": (tx + 2, ty - ch // 2),
         "left": (tx - 1 - cw, ty - ch // 2),
     }
     if px is None or py is None:
@@ -174,6 +175,11 @@ def _closest_clear_cell(
     return best
 
 
+def _target_keep_clear(tx: int, ty: int) -> set[tuple[int, int]]:
+    """The target cell and its 8 neighbors the card must not touch."""
+    return {(tx + dx, ty + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+
+
 def _target_card_cells(
     card: TargetCard,
     *,
@@ -185,9 +191,11 @@ def _target_card_cells(
     """Choose the card's top-left cell, dodging visible chars/enemies.
 
     Favors the side of the target opposite the player, then falls back to
-    below/right/left and finally the closest clear cell.
+    below/right/left and finally the closest clear cell. Every candidate
+    (including the fallback) must leave at least one empty tile between
+    the card and the target.
     """
-    avoid = set(card.avoid_cells)
+    avoid = set(card.avoid_cells) | _target_keep_clear(card.x, card.y)
     _pc = card.player_cell
     px, py = _pc if _pc is not None else (None, None)
     for x, y in _preferred_positions(card.x, card.y, cw, ch, px, py):

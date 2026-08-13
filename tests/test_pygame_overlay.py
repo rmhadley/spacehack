@@ -248,8 +248,8 @@ def test_target_card_rect_flips_below_when_no_room_above():
     )
 
     # cw=7, ch=5: the above slot (y=-3) is off-screen, so it falls below
-    # to cell (2, 4) → pixel (32, 64).
-    assert rect == pygame_overlay.pygame_ui.Rect(32, 64, 100, 80)
+    # to cell (2, 5) → pixel (32, 80), leaving one empty tile gap.
+    assert rect == pygame_overlay.pygame_ui.Rect(32, 80, 100, 80)
 
 
 def test_target_card_rect_centers_above_when_room_allows():
@@ -276,8 +276,9 @@ def test_target_card_cells_dodge_an_enemy_standing_above():
         card, cw=3, ch=3, map_width=20, map_height=12,
     )
 
-    # The above slot covers (5,2) — the enemy there — so it moves below.
-    assert cells == (4, 6)
+    # The above slot covers (5,2) — the enemy there — so it moves below
+    # with a one-tile gap (cell row 7, not 6).
+    assert cells == (4, 7)
 
 
 def test_target_card_cells_fall_back_to_clear_cell_when_preferred_blocked():
@@ -292,7 +293,7 @@ def test_target_card_cells_fall_back_to_clear_cell_when_preferred_blocked():
     )
 
     assert pygame_target_card._card_rect_clear(x, y, 2, 2, set(avoid), 10, 10)
-    assert (x, y) not in {(4, 2), (4, 6), (6, 4), (2, 4)}
+    assert (x, y) not in {(4, 2), (4, 7), (7, 4), (2, 4)}
 
 
 def test_target_card_cells_favor_side_away_from_player():
@@ -306,8 +307,25 @@ def test_target_card_cells_favor_side_away_from_player():
     )
 
     # Player is directly left of the target, so the card goes to the far
-    # (right) side instead of the default above slot.
-    assert cells == (6, 4)
+    # (right) side instead of the default above slot, with a one-tile gap.
+    assert cells == (7, 4)
+
+
+def test_target_card_cells_always_leave_a_tile_gap_from_enemy():
+    # Enemy in the top-left corner: every preferred slot is out of bounds,
+    # so the fallback must still land at least one tile away from it.
+    card = pygame_target_card.TargetCard(
+        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
+        hp=1, max_hp=1, max_ap=0, x=0, y=0,
+    )
+
+    cx, cy = pygame_target_card._target_card_cells(
+        card, cw=3, ch=3, map_width=20, map_height=12,
+    )
+
+    for yy in range(cy, cy + 3):
+        for xx in range(cx, cx + 3):
+            assert max(abs(xx), abs(yy)) >= 2
 
 
 def test_target_card_cells_favor_above_when_player_below():
@@ -895,8 +913,8 @@ def test_draw_target_card_paints_clamped_panel_and_rows(monkeypatch):
     assert len(panels) == 1
     # Widest row is the HP+HIT pair (16 chars = 128px) → panel_w 152.
     # cw=10, ch=7: the above slot is off-screen, so the card lands below
-    # at cell (0, 8) → pixel (0, 128).
-    assert panels[0] == pygame_overlay.pygame_ui.Rect(0, 128, 152, 112)
+    # at cell (0, 9) → pixel (0, 144), leaving a one-tile gap.
+    assert panels[0] == pygame_overlay.pygame_ui.Rect(0, 144, 152, 112)
     assert clipped[1] is None
     assert clipped[0].args == (0, 0, 80 * 16, 54 * 16)
     texts = [text for text, _x, _y, _c in drawn]
