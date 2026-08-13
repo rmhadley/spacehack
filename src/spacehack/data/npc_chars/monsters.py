@@ -4,7 +4,8 @@ Every monster sets ``always_hostile=True`` and ``faction=""`` so it
 fights on sight regardless of faction reputation and killing one
 changes no reputation score (``_COMBAT_KILL_DELTAS.get("", {})`` is
 a no-op). Behavior + squad size drive out-of-combat movement and
-procedural dungeon population.
+procedural dungeon population. ``tier`` gates equipment drops and
+``armor`` is flat DR the player must punch through (plasma halves it).
 
 Design doc: ``docs/design/in_progress/11_DESIGN_DUNGEON_MONSTERS.md``
 """
@@ -27,6 +28,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",
         squad_size=(3, 5),        # swarmer — always hunts in packs
         always_hostile=True,
+        tier=1,
         loot_pool=("scrap_metal",),
         equipment_loot_pool=(("weapon", "survival_axe"),),
         loot_count=(1, 2),
@@ -47,6 +49,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",         # holds position, fires at range
         squad_size=(1, 1),
         always_hostile=True,
+        tier=2,
+        armor=1,
         loot_pool=("electronics", "machine_parts"),
         equipment_loot_pool=(("armor", "light_helmet"),),
         loot_count=(1, 2),
@@ -67,6 +71,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="ambusher",      # holds still, bursts out on approach
         squad_size=(1, 2),
         always_hostile=True,
+        tier=1,
         loot_pool=("scrap_metal", "research_data"),
         loot_count=(1, 1),
         xp_reward=20,
@@ -86,6 +91,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # fast, aggressive single/duo hunter
         squad_size=(1, 2),
         always_hostile=True,
+        tier=1,
         loot_pool=("scrap_metal", "food_rations"),
         loot_count=(1, 2),
         xp_reward=18,
@@ -105,6 +111,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",         # armored bruiser — holds its post
         squad_size=(1, 1),
         always_hostile=True,
+        tier=3,
+        armor=3,
         loot_pool=("electronics", "machine_parts", "ship_components"),
         equipment_loot_pool=(("armor", "heavy_vest"),),
         loot_count=(1, 2),
@@ -125,6 +133,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # ranged harasser, hunts in pairs/trios
         squad_size=(2, 3),
         always_hostile=True,
+        tier=2,
         loot_pool=("research_data", "electronics"),
         loot_count=(1, 2),
         xp_reward=25,
@@ -144,6 +153,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="ambusher",      # lurks in derelicts, bursts out on approach
         squad_size=(2, 4),
         always_hostile=True,
+        tier=1,
         loot_pool=("scrap_metal", "research_data"),
         loot_count=(1, 1),
         xp_reward=15,

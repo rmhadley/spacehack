@@ -51,6 +51,9 @@ class NpcCharSpec:
             close, ``"guard"`` holds a position without roaming.
         squad_size: (min, max) squad members when procedurally
             spawned (dungeon population / layout ENEMY scatter).
+        tier: drop tier — equipment drops filter to ``tech_level <= tier``.
+        armor: flat damage reduction subtracted from player hits
+            (plasma halves it).
     """
     id: str
     name: str
@@ -71,6 +74,8 @@ class NpcCharSpec:
     always_hostile: bool = False
     behavior: str = "hunter"
     squad_size: tuple[int, int] = (1, 1)
+    tier: int = 1
+    armor: int = 0
 
 
 # ---------------------------------------------------------------------------

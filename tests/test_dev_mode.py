@@ -223,11 +223,11 @@ def test_advance_main_quest_rejects_unknown_faction():
 def test_best_ground_armor_selects_highest_defense_per_slot():
     """Developer armor selection covers every slot with strongest gear."""
     assert _best_ground_armor() == {
-        "head": "heavy_helmet",
-        "body": "heavy_vest",
-        "hands": "tactical_gloves",
-        "legs": "heavy_legs",
-        "feet": "combat_boots",
+        "head": "assault_helmet",
+        "body": "powered_vest",
+        "hands": "powered_gloves",
+        "legs": "assault_greaves",
+        "feet": "mag_boots",
     }
 
 
@@ -244,11 +244,11 @@ def test_dev_ground_loadout_equips_two_rifles_and_best_armor(monkeypatch):
 
     assert _ctx.equipped_ground_weapons == ["kinetic_rifle", "kinetic_rifle"]
     assert _ctx.equipped_ground_armor == {
-        "head": "heavy_helmet",
-        "body": "heavy_vest",
-        "hands": "tactical_gloves",
-        "legs": "heavy_legs",
-        "feet": "combat_boots",
+        "head": "assault_helmet",
+        "body": "powered_vest",
+        "hands": "powered_gloves",
+        "legs": "assault_greaves",
+        "feet": "mag_boots",
     }
     _ctx.log.add.assert_called_once_with(
         "[DEV MODE] Two kinetic rifles + best armor equipped."

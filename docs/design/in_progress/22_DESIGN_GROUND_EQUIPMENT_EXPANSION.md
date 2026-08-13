@@ -232,11 +232,11 @@ and pirates keep `armor=0`.
 
 ### Phase 1 — Schema + catalogs
 
-- [ ] Add `"plasma"` damage type docs + `plasma.py`/`explosive.py` weapon modules
-- [ ] Add new weapons across pistols/rifles/melee + the draft table
-- [ ] Add `ap_bonus`/`hit_bonus`/`melee_bonus`/`hp_bonus` to `GroundArmorSpec`
-- [ ] Add armor + cybernetic entries to `vests.py`
-- [ ] Add `tier` + `armor` fields to `NpcCharSpec`; assign existing values
+- [x] Add `"plasma"` damage type docs + `plasma.py`/`explosive.py` weapon modules
+- [x] Add new weapons across pistols/rifles/melee + the draft table
+- [x] Add `ap_bonus`/`hit_bonus`/`melee_bonus`/`hp_bonus` to `GroundArmorSpec`
+- [x] Add armor + cybernetic entries to `vests.py`
+- [x] Add `tier` + `armor` fields to `NpcCharSpec`; assign existing values
 
 **PLAYTEST:** `python -m pytest tests/` green; armory still lists the full
 catalog (gating lands in Phase 3), so no visible regression yet.

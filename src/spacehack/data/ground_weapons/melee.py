@@ -1,4 +1,4 @@
-"""Melee ground weapons — fists, knives, batons.
+"""Melee ground weapons — fists, knives, batons, blades.
 
 All share damage_type="melee", range=1, ammo_capacity=-1 (infinite).
 """
@@ -62,5 +62,47 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=45,
         tech_level=1,
+    ),
+    GroundWeaponSpec(
+        id="vibroblade",
+        name="Vibroblade",
+        damage_type="melee",
+        damage=8,
+        accuracy=80,
+        ap_cost=1,
+        hands=1,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=180,
+        tech_level=3,
+    ),
+    GroundWeaponSpec(
+        id="mono_blade",
+        name="Mono Blade",
+        damage_type="melee",
+        damage=13,
+        accuracy=78,
+        ap_cost=1,
+        hands=2,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=420,
+        tech_level=4,
+    ),
+    GroundWeaponSpec(
+        id="power_fist",
+        name="Power Fist",
+        damage_type="melee",
+        damage=16,
+        accuracy=74,
+        ap_cost=2,
+        hands=1,
+        min_range=1,
+        max_range=1,
+        ammo_capacity=-1,
+        price=560,
+        tech_level=4,
     ),
 )

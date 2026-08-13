@@ -2,8 +2,8 @@
 
 Each weapon is a frozen :class:`GroundWeaponSpec` dataclass, distinct
 from ship :class:`spacehack.data.weapons.WeaponSpec` — ground weapons
-use :attr:`damage_type` (melee/kinetic/energy/explosive) instead of
-``slot_type``, and ``hands`` instead of ship-system concepts.
+use :attr:`damage_type` (melee/kinetic/energy/plasma/explosive) instead
+of ``slot_type``, and ``hands`` instead of ship-system concepts.
 
 Adding a new weapon is one entry in a WARES tuple — no if/else chains.
 """
@@ -20,8 +20,9 @@ class GroundWeaponSpec:
     Attributes:
         id: registry key, e.g. ``combat_knife``.
         name: display name, e.g. ``Combat Knife``.
-        damage_type: ``"melee"``, ``"kinetic"``, ``"energy"``, or
-            ``"explosive"`` — determines armor interactions.
+        damage_type: ``"melee"``, ``"kinetic"``, ``"energy"``,
+            ``"plasma"``, or ``"explosive"`` — determines armor
+            interactions.
         damage: base damage per hit (before skill/range modifiers).
         accuracy: base hit % (0-100).
         ap_cost: action points to attack once.
@@ -40,7 +41,7 @@ class GroundWeaponSpec:
     """
     id: str
     name: str
-    damage_type: str              # "melee", "kinetic", "energy", "explosive"
+    damage_type: str              # "melee", "kinetic", "energy", "plasma", "explosive"
     damage: int
     accuracy: int                  # 0-100
     ap_cost: int = 1

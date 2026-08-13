@@ -21,6 +21,10 @@ class GroundArmorSpec:
         description: one-line flavour text.
         price: credits cost to buy from an armory.
         tech_level: minimum planet tech level to stock this item.
+        ap_bonus: +action points per ground-combat turn (cybernetics).
+        hit_bonus: +% hit chance (cybernetics).
+        melee_bonus: +flat melee damage (cybernetics).
+        hp_bonus: +flat max ground HP (cybernetics).
     """
     id: str
     name: str
@@ -29,6 +33,10 @@ class GroundArmorSpec:
     description: str
     price: int = 0
     tech_level: int = 1
+    ap_bonus: int = 0
+    hit_bonus: int = 0
+    melee_bonus: int = 0
+    hp_bonus: int = 0
 
 
 # ---------------------------------------------------------------------------
