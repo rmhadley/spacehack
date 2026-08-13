@@ -24,16 +24,7 @@ from src.spacehack import (
 from src.spacehack.menus import _armory, _missions, _planet, _ship_buy, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
 from src.spacehack.main_quest import _act0
-
-
-class _FakeFont:
-    """Monospace metric fake for pure layout tests."""
-
-    def size(self, text: str) -> tuple[int, int]:
-        return len(text) * 10, 24
-
-    def get_linesize(self) -> int:
-        return 24
+from tests.support.fake_pygame import FakeFont as _FakeFont
 
 
 def test_character_c_opens_managed_equipment_in_every_game_mode(monkeypatch):

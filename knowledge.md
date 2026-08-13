@@ -148,7 +148,11 @@ The canonical gate runs four checks in order:
    This check is local by design; CI is intentionally deferred.
 3. Ruff checks `src/` and `tests/` for undefined names, unused imports, and
    syntax errors.
-4. `tools/test.py` executes the full pytest suite.
+4. `tools/test.py` executes the full pytest suite. Renderer-neutral tests may
+   use deterministic Pygame-shaped fakes for input, layout, and framebuffer
+   logic; `tests/test_pygame_integration.py` exercises the real `pygame-ce`
+   runtime with SDL's dummy video driver for tileset loading, presentation,
+   and event translation.
 
 CI integration is intentionally deferred for now. The `tools/` directory is
 outside the Ruff scope because it contains ad-hoc research and reproduction
@@ -174,7 +178,23 @@ is deliberately not a style linter — no formatting opinions.
 
 The test runner (`tools/test.py`) also auto-mounts the venv and runs the
 pytest suite — formula-correctness tests for pure computation functions.
-Never commit without all four checks passing.
+Keep the two Pygame test layers intentional: use fakes when testing project
+logic independent of SDL, and use real Pygame integration tests for the
+runtime boundary, surfaces, assets, and event plumbing. Do not replace
+renderer-neutral tests with real Pygame merely because the dependency is
+installed; that makes them slower and more display-sensitive without adding
+meaningful coverage. Never commit without all four checks passing.
+
+### Pygame test strategy
+
+The test suite uses a hybrid strategy. Lightweight, deterministic fakes are
+appropriate for renderer-neutral contracts such as event translation, layout
+measurement, menu state, and framebuffer command generation. Real Pygame tests
+belong in `tests/test_pygame_integration.py` and run with
+`SDL_VIDEODRIVER=dummy`; they verify the actual tileset, surfaces, shared
+runtime presentation, and Pygame event objects. Shared reusable doubles live
+in `tests/support/fake_pygame.py`; specialized fakes may remain local when
+they model a narrow test-only API.
 
 ### Runtime boundary
 
