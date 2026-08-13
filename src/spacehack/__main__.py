@@ -261,6 +261,30 @@ def _run_ground_combat_tick(ctx, console, game_map) -> CombatResult | None:
     return _ground_result
 
 
+def _dungeon_post_move_tick(ctx, console, game_map) -> str | None:
+    """Run the shared post-step dungeon tick: move ground NPCs, refresh
+    the LOS frame, auto-start ground combat on sight, then fire tile
+    activations when no combat ran.
+
+    Shared by the dungeon move, wait, and auto-explore paths so every
+    player step (or wait) keeps NPC movement, LOS, and activation
+    state identical.
+
+    Returns ``"DEFEAT"`` (death screen shown — exit the game loop),
+    ``"COMBAT"`` (a fight ran and was resolved — re-render and
+    continue), or ``None`` (no combat — caller continues normal
+    post-step handling like stairs checks).
+    """
+    _ground_result = _run_ground_combat_tick(ctx, console, game_map)
+    if _ground_result is not None:
+        if _ground_result.outcome == "DEFEAT":
+            return "DEFEAT"
+        return "COMBAT"
+    from .dungeon_extensions import tick_activation
+    tick_activation(ctx)
+    return None
+
+
 def _first_walkable(game_map) -> world.Position | None:
     """Return the first walkable tile in ``game_map``, or ``None``.
 
@@ -1033,13 +1057,11 @@ def _run_game_loop(
                     # visible hostile starts the fight, and a pirate
                     # that steps while you wait stays on screen if
                     # still in sight (no stale-grid vanish).
-                    _ground_result = _run_ground_combat_tick(ctx, console, game_map)
-                    if _ground_result is not None:
-                        if _ground_result.outcome == "DEFEAT":
-                            return
+                    _dctrl = _dungeon_post_move_tick(ctx, console, game_map)
+                    if _dctrl == "DEFEAT":
+                        return
+                    if _dctrl == "COMBAT":
                         continue
-                    from .dungeon_extensions import tick_activation
-                    tick_activation(ctx)
                 ctx.log.add('You wait.')
                 continue
 
@@ -1077,16 +1099,14 @@ def _run_game_loop(
                 tick_move(ctx)
             if code == 'moved' and current_mode == 'dungeon':
                 # Move ground NPCs, refresh the LOS frame, then check
-                # for ground combat (shared with the wait handler).
-                _ground_result = _run_ground_combat_tick(ctx, console, game_map)
-                if _ground_result is not None:
-                    if _ground_result.outcome == "DEFEAT":
-                        return
+                # for ground combat (shared with the wait handler and
+                # auto-explore).
+                _dctrl = _dungeon_post_move_tick(ctx, console, game_map)
+                if _dctrl == "DEFEAT":
+                    return
+                if _dctrl == "COMBAT":
                     # After combat, refresh the map render
                     continue
-                if current_mode == 'dungeon':
-                    from .dungeon_extensions import tick_activation
-                    tick_activation(ctx)
                 # Themed dungeon extensions attach to ordinary dungeon
                 # connections. Entering from a parent surface keeps the
                 # existing outer-space return context unchanged.
