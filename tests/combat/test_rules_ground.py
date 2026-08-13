@@ -108,6 +108,14 @@ class TestGroundDamageRaw:
         assert _ground_damage_raw("fists", 10, 0, melee_bonus=2) == 4  # 1+1+2
         assert _ground_damage_raw("laser_pistol", 50, 0, melee_bonus=2) == 4
 
+    def test_armor_bypass_ignores_armor_entirely(self):
+        """mono_blade dmg 13, str 20 → +2, armor 3 ignored → 15."""
+        assert _ground_damage_raw("mono_blade", 20, 3) == 15
+
+    def test_armor_bypass_still_gets_strength_bonus(self):
+        """Bypass removes armor but keeps the melee strength bonus."""
+        assert _ground_damage_raw("mono_blade", 40, 100) == 17  # 13 + 4 - 0
+
 
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     """Player melee vs an armored enemy: armor reduces, cyber arms add."""

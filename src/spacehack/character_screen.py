@@ -156,9 +156,11 @@ def _pack_entry_detail(entry) -> str:
     if entry.item_type == "weapon":
         spec = find_ground_weapon(entry.item_id)
         hands = "2H" if spec.hands == 2 else "1H"
+        bypass = "  Armor bypass" if spec.armor_bypass else ""
         return (
             f"{hands}  {spec.damage_type.title()}  Damage {spec.damage}  "
             f"Accuracy {spec.accuracy}%  Range {spec.min_range}-{spec.max_range}"
+            f"{bypass}"
         )
     spec = find_ground_armor(entry.item_id)
     return f"{spec.slot.title()}  Defense {spec.defense}{_armor_effects(spec)}  {spec.description}"
@@ -320,16 +322,9 @@ def _weapon_row(
     if weapon_id:
         try:
             spec = find_ground_weapon(weapon_id)
-            detail = (
-                f"{spec.damage_type.title()}   Damage {spec.damage}   "
-                f"Accuracy {spec.accuracy}%   Range {spec.min_range}-"
-                f"{spec.max_range}   AP {spec.ap_cost}"
-            )
-            if spec.ammo_capacity > 0:
-                detail += f"   Ammo {spec.ammo_capacity}"
             _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
             return _equipment_row(
-                f"{label}: {spec.name}", detail,
+                f"{label}: {spec.name}", _weapon_detail_text(spec),
                 action=f"SWAP:weapon:{index - 1}" if _managed else "",
                 selectable=True if not equipment_management else _managed,
             )
@@ -341,6 +336,20 @@ def _weapon_row(
         action=f"SWAP:weapon:{index - 1}" if _managed else "",
         selectable=False if not equipment_management else _managed,
     )
+
+
+def _weapon_detail_text(spec) -> str:
+    """Format one weapon's stats, ammo, and armor-bypass detail line."""
+    detail = (
+        f"{spec.damage_type.title()}   Damage {spec.damage}   "
+        f"Accuracy {spec.accuracy}%   Range {spec.min_range}-"
+        f"{spec.max_range}   AP {spec.ap_cost}"
+    )
+    if spec.ammo_capacity > 0:
+        detail += f"   Ammo {spec.ammo_capacity}"
+    if spec.armor_bypass:
+        detail += "   Armor bypass"
+    return detail
 
 
 def _weapon_managed(

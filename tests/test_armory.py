@@ -57,6 +57,14 @@ def test_weapon_detail_shows_damage_type():
     assert "Damage: 24" in detail
 
 
+def test_weapon_detail_shows_armor_bypass():
+    bypass = _armory._weapon_detail(find_ground_weapon("mono_blade"))
+    normal = _armory._weapon_detail(find_ground_weapon("power_fist"))
+
+    assert "Armor bypass" in bypass
+    assert "Armor bypass" not in normal
+
+
 def test_armor_detail_shows_cybernetic_effects():
     detail = _armory._armor_detail(find_ground_armor("cybernetic_legs"))
 

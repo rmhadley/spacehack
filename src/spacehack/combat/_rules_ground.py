@@ -373,13 +373,16 @@ def _ground_damage_raw(
 ) -> int:
     """Raw hit damage: base + melee bonuses - armor, minimum 1.
 
-    Plasma halves ``armor_defense``; ``melee_bonus`` (cybernetic arms)
-    applies only to melee weapons.
+    ``armor_bypass`` weapons ignore armor entirely; plasma halves
+    ``armor_defense``; ``melee_bonus`` (cybernetic arms) applies only
+    to melee weapons.
     """
     _ws = _find_gw(weapon_id)
     _str_bonus = strength // 10 if _ws.damage_type == 'melee' else 0
     _melee = melee_bonus if _ws.damage_type == 'melee' else 0
-    if _ws.damage_type == 'plasma':
+    if _ws.armor_bypass:
+        armor_defense = 0
+    elif _ws.damage_type == 'plasma':
         armor_defense = armor_defense // 2
     return max(1, _ws.damage + _str_bonus + _melee - armor_defense)
 

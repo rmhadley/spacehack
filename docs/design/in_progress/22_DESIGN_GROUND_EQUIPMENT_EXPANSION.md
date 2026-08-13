@@ -56,9 +56,13 @@ existing five armor slots — see below).
 
 ## Data model
 
-### `GroundWeaponSpec` (unchanged schema, new values)
+### `GroundWeaponSpec` (schema extension)
 
-Add the `"plasma"` damage type to the documented set. No new fields.
+Add the `"plasma"` damage type to the documented set and one new field:
+
+```python
+armor_bypass: bool = False    # True ignores target armor DR entirely
+```
 
 ### `GroundArmorSpec` (schema extension)
 
@@ -106,7 +110,7 @@ Empty tuples → `resolve_armory_inventory` uses seeded RNG (see below).
 | plasma_rifle | plasma | 16 | 70 | 2 | 2 | 1-8 | -1 | 520 | 3 |
 | plasma_caster | plasma | 24 | 66 | 3 | 2 | 1-7 | -1 | 980 | 4 |
 | vibroblade | melee | 8 | 80 | 1 | 1 | 1 | -1 | 180 | 3 |
-| mono_blade | melee | 13 | 78 | 1 | 2 | 1 | -1 | 420 | 4 |
+| mono_blade | melee | 13 | 78 | 1 | 2 | 1 | -1 | 420 | 4 |  (armor bypass) |
 | power_fist | melee | 16 | 74 | 2 | 1 | 1 | -1 | 560 | 4 |
 | grenade_launcher | explosive | 15 | 62 | 2 | 2 | 3-7 | 6 | 480 | 3 |
 | rocket_launcher | explosive | 30 | 58 | 3 | 2 | 2-9 | 4 | 1100 | 4 |
@@ -115,6 +119,10 @@ Plasma: infinite ammo (like ship plasma), high damage, `ap_cost` scales with
 output, and it **halves the target's armor DR**. Explosive: heavy burst
 damage, low accuracy, finite `ammo_capacity` (like kinetic). No new reload
 mechanics — real ammo for all weapon types lands in doc 19.
+
+The mono blade carries `armor_bypass=True`: it **ignores enemy armor DR
+entirely** (a molecular edge cuts through plating), distinguishing it from
+the higher-damage, lower-accuracy power fist.
 
 ### Armor + cybernetics (new entries)
 
@@ -162,7 +170,8 @@ and pirates keep `armor=0`.
 4. **`combat/_shot_animations.py`** — extend the ground `_shot_family` mapping
    with `"plasma": "plasma"` (reuse the ship plasma bolt).
 5. **`combat/_rules_ground.py`**
-   - `_ground_damage_raw`: plasma halves `armor_defense` (`armor_defense // 2`).
+   - `_ground_damage_raw`: `armor_bypass` ignores `armor_defense` entirely;
+     plasma halves `armor_defense` (`armor_defense // 2`).
    - `damage()`: refactor to call `_ground_damage_raw(weapon_id, strength,
      enemy.spec.armor)` so enemy armor DR is applied (DRY — removes the
      duplicated formula).

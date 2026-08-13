@@ -23,6 +23,8 @@ class GroundWeaponSpec:
         damage_type: ``"melee"``, ``"kinetic"``, ``"energy"``,
             ``"plasma"``, or ``"explosive"`` — determines armor
             interactions.
+        armor_bypass: True ignores the target's armor DR entirely
+            (a molecular edge cuts through plating).
         damage: base damage per hit (before skill/range modifiers).
         accuracy: base hit % (0-100).
         ap_cost: action points to attack once.
@@ -53,6 +55,7 @@ class GroundWeaponSpec:
     price: int = 0
     tech_level: int = 1
     shop_available: bool = True
+    armor_bypass: bool = False    # True ignores target armor DR entirely
 
 
 # ---------------------------------------------------------------------------

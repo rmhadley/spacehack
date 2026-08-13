@@ -62,9 +62,11 @@ def _sell_price(item_id: str) -> int:
 def _weapon_detail(spec) -> str:
     """Format a ground weapon's useful armory details."""
     hands = "2H" if spec.hands == 2 else "1H"
+    bypass = "  Armor bypass" if spec.armor_bypass else ""
     return (
         f"{hands}  {spec.damage_type.title()}  Damage: {spec.damage}  "
         f"Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}"
+        f"{bypass}"
     )
 
 

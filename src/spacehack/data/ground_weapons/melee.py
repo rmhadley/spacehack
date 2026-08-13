@@ -81,6 +81,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         id="mono_blade",
         name="Mono Blade",
         damage_type="melee",
+        armor_bypass=True,
         damage=13,
         accuracy=78,
         ap_cost=1,
