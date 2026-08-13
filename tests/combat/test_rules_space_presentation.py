@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import world, pygame_overlay
-from src.spacehack.combat import _rules_space
+from src.spacehack import world, pygame_overlay, pygame_target_card
+from src.spacehack.combat import _rules_space, _space_presentation
+from src.spacehack.combat._types import EnemyInstance
 
 
 def _state(*, player_shields=12, enemy_shields=8, active=True):
@@ -129,3 +130,98 @@ def test_sync_state_releases_combat_locks(monkeypatch):
 
     assert not hasattr(state.enemy_ents[0], "combat_locked")
     assert state.active is False
+
+
+# ---------------------------------------------------------------------------
+# Floating target card
+# ---------------------------------------------------------------------------
+
+
+def _card_enemy():
+    return EnemyInstance(
+        spec_id="pirate_scout",
+        name="Pirate Scout",
+        char="P",
+        fg=(255, 100, 100),
+        hull=20,
+        max_hull=30,
+        shields=8,
+        max_shields=10,
+        ap_remaining=2,
+        ap_total=3,
+        pos=world.Position(5, 3),
+        weapons=("light_laser",),
+    )
+
+
+def _card_map(width=80, height=54):
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(width)] for _ in range(height)]
+    return world.GameMap(width, height, _tiles, [])
+
+
+def test_space_card_rows_show_hull_shield_ap_and_weapons():
+    rows = _space_presentation._space_card_rows(_card_enemy(), hit_chance=62)
+    _segs = [seg for row in rows for seg in row]
+    assert [t for t, _c in _segs] == [
+        "Pirate Scout", "HULL 20/30", "  HIT 62%", "SHD 8/10", "AP 2/3",
+        "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
+    ]
+
+
+def test_space_card_rows_omit_shield_when_unshielded():
+    enemy = _card_enemy()
+    enemy.shields = 0
+    enemy.max_shields = 0
+    rows = _space_presentation._space_card_rows(enemy, hit_chance=None)
+    _segs = [seg for row in rows for seg in row]
+    assert [t for t, _c in _segs] == [
+        "Pirate Scout", "HULL 20/30", "  HIT --", "AP 2/3",
+        "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
+    ]
+
+
+def test_space_build_target_card_anchors_and_avoids():
+    card = _space_presentation.build_target_card(
+        _card_enemy(),
+        game_map=_card_map(),
+        player_pos=world.Position(0, 0),
+        region_w=80,
+        region_h=54,
+        hit_chance=55,
+        avoid_positions=(world.Position(0, 0), world.Position(5, 3)),
+    )
+
+    assert card is not None
+    assert (card.x, card.y) == (5, 3)
+    assert card.player_cell == (0, 0)
+    assert card.avoid_cells == ((0, 0), (5, 3))
+
+
+def test_presentation_target_card_toggles_and_requires_active():
+    ctx = SimpleNamespace(player_traits=())
+    state = _rules_space.SpaceCombatState(
+        ctx=ctx,
+        console=None,
+        game_map=_card_map(),
+        log=None,
+        player_state={"pos": world.Position(0, 0)},
+        enemy_insts=[_card_enemy()],
+        target_idx=0,
+        weapons_list=(),
+        active_weapons=(),
+    )
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        card = _rules_space.presentation_target_card(ctx=ctx)
+        assert card is not None
+        assert card.rows[0] == (("Pirate Scout", pygame_target_card.TARGET_CARD_TITLE),)
+
+        _rules_space.toggle_target_card(ctx)
+        assert _rules_space.presentation_target_card(ctx=ctx) is None
+
+        _rules_space.toggle_target_card(ctx)
+        state.active = False
+        assert _rules_space.presentation_target_card(ctx=ctx) is None
+    finally:
+        _rules_space._state = old_state

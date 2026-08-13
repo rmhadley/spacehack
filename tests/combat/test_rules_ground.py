@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.spacehack import world
+from src.spacehack import world, pygame_target_card
 from src.spacehack.combat import _loop, _rules_ground
 from src.spacehack.combat import _ground_presentation
 from src.spacehack.combat._rules_ground import (
@@ -624,19 +624,16 @@ class TestBuildTargetCard:
         )
 
         assert card is not None
-        assert card.name == "Assault Drone"
-        assert card.armor == 3
-        assert card.weapon == "Drone Laser"
-        assert card.damage == 4
-        assert card.min_range == 1
-        assert card.max_range == 6
-        assert card.hp == 12
-        assert card.max_hp == 30
-        assert card.max_ap == 4  # GroundEnemyInstance default ap_total
-        assert card.hit_chance == 62
         assert (card.x, card.y) == (5, 3)
         assert card.player_cell == (2, 2)
         assert card.avoid_cells == ((2, 2), (5, 3))
+        _segs = [seg for row in card.rows for seg in row]
+        assert [t for t, _c in _segs] == [
+            "Assault Drone", "HP 12/30", "  HIT 62%", "ARM 3  AP 4",
+            "Drone Laser", "DMG 4  RNG 1-6", "[V] hide",
+        ]
+        assert _segs[0][1] == pygame_target_card.TARGET_CARD_TITLE
+        assert _segs[4][1] == pygame_target_card.TARGET_CARD_DIM
 
     def test_unarmed_enemy_has_blank_weapon_and_no_hit_chance(self):
         enemy = _target_card_enemy(weapon_id="")
@@ -652,10 +649,12 @@ class TestBuildTargetCard:
         )
 
         assert card is not None
-        assert card.weapon == ""
-        assert card.damage == 0
-        assert card.hit_chance is None
         assert card.avoid_cells == ()
+        _segs = [seg for row in card.rows for seg in row]
+        assert [t for t, _c in _segs] == [
+            "Assault Drone", "HP 12/30", "  HIT --", "ARM 3  AP 4",
+            "Unarmed", "[V] hide",
+        ]
 
     def test_avoid_positions_are_culled_when_off_view(self):
         enemy = _target_card_enemy()
@@ -697,7 +696,7 @@ class TestTargetCardToggle:
 
         card = _rules_ground.presentation_target_card(ctx=_ctx)
         assert card is not None
-        assert card.name == "Assault Drone"
+        assert card.rows[0] == (("Assault Drone", pygame_target_card.TARGET_CARD_TITLE),)
 
         _rules_ground.toggle_target_card(_ctx)
 

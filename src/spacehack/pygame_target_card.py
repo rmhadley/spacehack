@@ -1,8 +1,9 @@
-"""Native floating info card for the targeted ground enemy.
+"""Native floating info card for a targeted combatant.
 
-The card is renderer-neutral data (:class:`TargetCard`) plus its formatting,
-placement, and drawing. It is drawn over the map region by the Pygame overlay
-and anchored near the target cell while dodging the player and visible enemies.
+The card is renderer-neutral data (:class:`TargetCard`) plus its
+placement and drawing. Content rows are formatted by each combat mode's
+presentation module (ground/space); this module only anchors the card
+near the target and paints the rows, dodging the player and hostiles.
 """
 
 from __future__ import annotations
@@ -18,68 +19,49 @@ Color = tuple[int, int, int]
 
 @dataclass(frozen=True)
 class TargetCard:
-    """Native floating info card anchored to the targeted ground enemy.
+    """Native floating info card anchored to a targeted combatant.
 
-    ``x``/``y`` are viewport-relative logical screen-cell coordinates marking
-    the target's cell. ``hit_chance`` is the player's chance to hit the target
-    (``None`` when there is no active weapon). ``avoid_cells`` are viewport
-    cells the card must not cover — the player and every visible enemy.
-    ``weapon`` is ``""`` when the enemy is unarmed, in which case
-    ``damage``/``min_range``/``max_range`` are unused.
+    ``rows`` is the pre-formatted card body: a tuple of rows, each row a
+    tuple of ``(text, color)`` segments. ``x``/``y`` are the target's
+    viewport-relative cell; ``avoid_cells`` are cells the card must not
+    cover (player + visible hostiles); ``player_cell`` drives the
+    away-from-player placement preference.
     """
 
-    name: str
-    armor: int
-    weapon: str
-    damage: int
-    min_range: int
-    max_range: int
-    hp: int
-    max_hp: int
-    max_ap: int
+    rows: tuple[tuple[tuple[str, Color], ...], ...]
     x: int
     y: int
-    hit_chance: int | None = None
     avoid_cells: tuple[tuple[int, int], ...] = ()
     player_cell: tuple[int, int] | None = None
 
 
-# The card reuses the HUD's gold/weapon palette cues so it reads as an
-# existing affordance; the hit-chance segment sits on the HP line and the
-# last row is the toggle hint.
-_TARGET_CARD_TITLE: Color = (255, 220, 100)
-_TARGET_CARD_TEXT: Color = (232, 236, 246)
-_TARGET_CARD_DIM: Color = (170, 170, 185)
+# Standard palette shared by every domain's row builders so the card
+# reads as one affordance regardless of combat type.
+TARGET_CARD_TITLE: Color = (255, 220, 100)
+TARGET_CARD_TEXT: Color = (232, 236, 246)
+TARGET_CARD_DIM: Color = (170, 170, 185)
 _TARGET_CARD_PAD_X: int = 12
 _TARGET_CARD_PAD_Y: int = 8
 
 
-def _target_card_rows(card: TargetCard) -> tuple[tuple[tuple[str, Color], ...], ...]:
-    """Format a target card into ``(segment_text, color)`` rows.
+def title_row(text: str) -> tuple[tuple[str, Color], ...]:
+    """One gold title row."""
+    return ((text, TARGET_CARD_TITLE),)
 
-    The hit chance is split onto the HP line so the player reads "my odds
-    vs their HP" together; the armor line also carries the enemy's max AP;
-    the final row is the toggle hint. Unarmed enemies show no weapon/DMG rows.
-    """
-    hit_text = f"HIT {card.hit_chance}%" if card.hit_chance is not None else "HIT --"
-    hp_row: tuple[tuple[str, Color], ...] = (
-        (f"HP {card.hp}/{card.max_hp}", _TARGET_CARD_TEXT),
-        (f"  {hit_text}", _TARGET_CARD_TEXT),
-    )
-    rows: list[tuple[tuple[str, Color], ...]] = [
-        ((card.name, _TARGET_CARD_TITLE),),
-        hp_row,
-        ((f"ARM {card.armor}  AP {card.max_ap}", _TARGET_CARD_TEXT),),
-    ]
-    if card.weapon:
-        rows.append(((card.weapon, _TARGET_CARD_DIM),))
-        rows.append((
-            (f"DMG {card.damage}  RNG {card.min_range}-{card.max_range}", _TARGET_CARD_TEXT),
-        ))
-    else:
-        rows.append((("Unarmed", _TARGET_CARD_DIM),))
-    rows.append((("[V] hide", _TARGET_CARD_DIM),))
-    return tuple(rows)
+
+def text_row(text: str) -> tuple[tuple[str, Color], ...]:
+    """One body-text row."""
+    return ((text, TARGET_CARD_TEXT),)
+
+
+def dim_row(text: str) -> tuple[tuple[str, Color], ...]:
+    """One dimmed row (weapon names, hints)."""
+    return ((text, TARGET_CARD_DIM),)
+
+
+def hint_row() -> tuple[tuple[str, Color], ...]:
+    """The final ``[V] hide`` toggle hint row."""
+    return (("[V] hide", TARGET_CARD_DIM),)
 
 
 def _card_cells(panel_w: int, panel_h: int) -> tuple[int, int]:
@@ -223,7 +205,7 @@ def _target_card_rect(
 def _target_card_panel(card: TargetCard, font: Any):
     """Return ``(rows, panel_w, panel_h, line_height)`` for a target card."""
     measure = lambda text: pygame_ui.measure_font(font, text)
-    rows = _target_card_rows(card)
+    rows = card.rows
     row_widths = [sum(measure(text) for text, _c in row) for row in rows]
     line_height = font.get_linesize()
     panel_w = max(row_widths) + 2 * _TARGET_CARD_PAD_X
@@ -262,12 +244,11 @@ def _draw_target_card(
     map_width: int,
     map_height: int,
 ) -> None:
-    """Paint the targeted enemy's info card as a native floating panel.
+    """Paint the targeted combatant's info card as a native floating panel.
 
     Drawn over the map region (clipped to it) near the target cell, dodging
-    the player and other visible enemies, so the full stat block — name,
-    HP + hit chance, armor + AP, weapon, damage/range — has room the
-    20-char HUD column never had.
+    the player and other visible hostiles, so the full stat block has room
+    the 20-char HUD column never had.
     """
     font = pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT)
     rows, panel_w, panel_h, line_height = _target_card_panel(card, font)
@@ -289,26 +270,23 @@ def _draw_target_card(
         screen.set_clip(None)
 
 
+def _rgb(value: Any) -> tuple[int, int, int]:
+    """Coerce a serialized color (tuple or list) to an ``(r, g, b)`` tuple."""
+    return (int(value[0]), int(value[1]), int(value[2]))
+
+
 def target_card_from_payload(data: dict[str, Any]) -> TargetCard | None:
     """Deserialize the optional target card, or ``None``."""
     target_data = data.get("target")
     if target_data is None:
         return None
     return TargetCard(
-        name=str(target_data["name"]),
-        armor=int(target_data["armor"]),
-        weapon=str(target_data.get("weapon", "")),
-        damage=int(target_data.get("damage", 0)),
-        min_range=int(target_data.get("min_range", 1)),
-        max_range=int(target_data.get("max_range", 1)),
-        hp=int(target_data["hp"]),
-        max_hp=int(target_data["max_hp"]),
-        max_ap=int(target_data.get("max_ap", 0)),
+        rows=tuple(
+            tuple((str(_seg[0]), _rgb(_seg[1])) for _seg in row)
+            for row in target_data["rows"]
+        ),
         x=int(target_data["x"]),
         y=int(target_data["y"]),
-        hit_chance=(
-            int(target_data["hit_chance"]) if target_data.get("hit_chance") is not None else None
-        ),
         avoid_cells=tuple(
             (int(_c[0]), int(_c[1])) for _c in target_data.get("avoid_cells", ())
         ),

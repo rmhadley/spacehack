@@ -73,15 +73,19 @@ def _combat_floaters(ctx: GameContext | None) -> tuple:
 
 
 def _combat_target_card(ctx: GameContext | None):
-    """Return the native info card for the targeted ground enemy, if any.
+    """Return the native info card for the targeted combatant, if any.
 
-    Space combat has no card (its HUD already reads cleanly), so the
-    ground rules module owns the card and returns ``None`` when the
-    active session isn't ground combat or has no valid target.
+    Both rules modules own a ``presentation_target_card``; space is
+    checked first because its session carries an ``active`` flag, so a
+    stale ground card from an earlier fight can't leak into a space fight
+    (and vice versa).
     """
     if ctx is None:
         return None
-    from .combat import _rules_ground
+    from .combat import _rules_ground, _rules_space
+    _space = _rules_space.presentation_target_card(ctx=ctx)
+    if _space is not None:
+        return _space
     return _rules_ground.presentation_target_card(ctx=ctx)
 
 

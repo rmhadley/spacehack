@@ -111,6 +111,9 @@ class GroundCombatState:
     # Presentation-only: the floating target card shows by default and
     # can be toggled off with ``v``.
     show_target_card: bool = True
+    # Session-liveness flag, mirroring SpaceCombatState: cleared by
+    # ``sync_state`` so presentation functions stop returning stale cards.
+    active: bool = True
     # Presentation-only: while True, ``render_frame`` skips the player's
     # range/accuracy line. Set during shot animations and the whole enemy
     # turn so the line never clutters frames the player isn't acting on.
@@ -672,7 +675,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
     card math. Returns ``None`` when the card is toggled off, there is no
     valid in-view target, or the target scrolled off-screen.
     """
-    if _state is None or (ctx is not None and _state.ctx is not ctx):
+    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
         return None
     if not _state.show_target_card:
         return None
@@ -979,6 +982,7 @@ def sync_state(ctx) -> None:
     # Release the engaged enemies: with the fight over they resume
     # patrol/wander behaviour on the next dungeon tick.
     _set_combat_locks(False)
+    _state.active = False
     ctx.ground_hp = max(0, _state.player_hp)
     ctx.ground_max_hp = _state.player_max_hp
 

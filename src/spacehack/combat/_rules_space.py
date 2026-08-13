@@ -48,6 +48,7 @@ from ._animations import (
     DamagePopup,
 )
 from ._shot_animations import _animate_weapon_shot
+from ._space_presentation import build_target_card as _build_target_card
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -78,6 +79,8 @@ class SpaceCombatState:
     view_h: int = 54
     cr: CombatResult | None = None
     active: bool = True
+    # Presentation-only: target card shown by default, toggled with ``v``.
+    show_target_card: bool = True
 
 
 _state: SpaceCombatState | None = None
@@ -98,6 +101,121 @@ def _set_combat_locks(locked: bool, entities=None) -> None:
 # Init
 # ---------------------------------------------------------------------------
 
+def _build_initial_enemies(
+    ctx,
+    player_ship_catalog,
+    player_owned_ship,
+    player_pos: world.Position,
+    player_pilot_skills,
+    enemy_specs: list,
+    enemy_positions: list[world.Position],
+) -> tuple[dict, list[EnemyInstance]]:
+    """Build the player state dict + one EnemyInstance per enemy spec."""
+    _enemy_insts: list[EnemyInstance] = []
+    _player_state: dict = {}
+    _ap_bonus = _ace_pilot_bonus(ctx)
+    for _i in range(len(enemy_specs)):
+        _ps, _ei = init_combat_state(
+            player_ship_catalog, player_owned_ship,
+            player_pos, player_pilot_skills,
+            enemy_specs[_i], enemy_positions[_i],
+            ap_bonus=_ap_bonus,
+        )
+        if _i == 0:
+            _player_state = _ps
+        _enemy_insts.append(_ei)
+    return _player_state, _enemy_insts
+
+
+def _find_player_entity(game_map: world.GameMap) -> Any:
+    """Return the owned (player) entity on the map, or None."""
+    for _e in game_map.entities:
+        if getattr(_e, 'owned', False):
+            return _e
+    return None
+
+
+def _match_enemy_entities(
+    game_map: world.GameMap, player_ent: Any, enemy_insts: list[EnemyInstance],
+) -> dict[int, Any]:
+    """Map each enemy instance to its entity, stamping display names."""
+    _enemy_ents: dict[int, Any] = {}
+    _matched: set[int] = set()
+    for _i, _inst in enumerate(enemy_insts):
+        for _e in game_map.entities:
+            if _e is player_ent or getattr(_e, 'owned', False):
+                continue
+            if id(_e) in _matched:
+                continue
+            if _e.pos.x == _inst.pos.x and _e.pos.y == _inst.pos.y:
+                _enemy_ents[_i] = _e
+                _matched.add(id(_e))
+                break
+        _ent = _enemy_ents.get(_i)
+        if _ent is not None and getattr(_ent, 'name', ''):
+            _inst.name = _ent.name
+    return _enemy_ents
+
+
+def _dedupe_enemy_positions(game_map: world.GameMap, enemy_insts: list[EnemyInstance]) -> None:
+    """Shift overlapping enemy instances onto distinct walkable cells."""
+    _occupied: set[tuple[int, int]] = set()
+    for _inst in enemy_insts:
+        _key = (_inst.pos.x, _inst.pos.y)
+        if _key not in _occupied:
+            _occupied.add(_key)
+            continue
+        _placed = False
+        for _odx, _ody in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]:
+            _nk = (_inst.pos.x + _odx, _inst.pos.y + _ody)
+            if _nk not in _occupied and game_map.in_bounds(*_nk) and game_map.is_walkable(*_nk):
+                _inst.pos = world.Position(*_nk)
+                _occupied.add(_nk)
+                _placed = True
+                break
+        if not _placed:
+            _inst.pos = world.Position(_inst.pos.x + 2, _inst.pos.y)
+            _attempts = 0
+            while (_inst.pos.x, _inst.pos.y) in _occupied and _attempts < 20:
+                _nx = _inst.pos.x + 1
+                if not game_map.in_bounds(_nx, _inst.pos.y):
+                    break
+                _inst.pos = world.Position(_nx, _inst.pos.y)
+                _attempts += 1
+            _occupied.add((_inst.pos.x, _inst.pos.y))
+
+
+def _sync_enemy_entity_positions(enemy_ents: dict[int, Any], enemy_insts: list[EnemyInstance]) -> None:
+    """Copy deduped instance positions back onto their map entities."""
+    for _i, _ent in enemy_ents.items():
+        if _i < len(enemy_insts):
+            _ent.pos = enemy_insts[_i].pos
+
+
+def _activate_combat_state(
+    ctx, console, game_map, log,
+    player_state, enemy_insts, enemy_specs, enemy_ents, player_ent,
+    weapons_list, active_weapons,
+) -> None:
+    """Commit the assembled state and freeze the engaged set."""
+    global _state
+    _cr = CombatResult()
+    start_player_turn(player_state)
+    # Clear locks from an abnormally-ended previous fight.
+    if _state is not None:
+        _set_combat_locks(False)
+    _state = SpaceCombatState(
+        ctx=ctx, console=console, game_map=game_map, log=log,
+        player_state=player_state,
+        enemy_insts=enemy_insts, enemy_specs=enemy_specs,
+        enemy_ents=enemy_ents, player_ent=player_ent,
+        weapons_list=weapons_list, active_weapons=active_weapons,
+        cr=_cr,
+    )
+    # Freeze the engaged set immediately.
+    _set_combat_locks(True, enemy_ents)
+
+
 def init(
     ctx,
     console,
@@ -112,109 +230,23 @@ def init(
 ) -> None:
     """Set up combat session state for a space combat encounter."""
     global _state
-
     if not enemy_specs or not enemy_positions:
         return
-
-    _enemy_insts: list[EnemyInstance] = []
-    _enemy_specs = list(enemy_specs)
-    _player_state: dict = {}
-
-    # Ace Pilot trait: +1 AP per turn in combat.
-    _ap_bonus = _ace_pilot_bonus(ctx)
-
-    for _i in range(len(enemy_specs)):
-        if _i == 0:
-            _ps, _ei = init_combat_state(
-                player_ship_catalog, player_owned_ship,
-                player_pos, player_pilot_skills,
-                enemy_specs[_i], enemy_positions[_i],
-                ap_bonus=_ap_bonus,
-            )
-            _player_state = _ps
-        else:
-            _, _ei = init_combat_state(
-                player_ship_catalog, player_owned_ship,
-                player_pos, player_pilot_skills,
-                enemy_specs[_i], enemy_positions[_i],
-                ap_bonus=_ap_bonus,
-            )
-        _enemy_insts.append(_ei)
-
+    _player_state, _enemy_insts = _build_initial_enemies(
+        ctx, player_ship_catalog, player_owned_ship,
+        player_pos, player_pilot_skills, enemy_specs, enemy_positions,
+    )
     _weapons_list = list(getattr(player_owned_ship, 'weapons', ()) or ())
     _active_weapons = [True] * max(1, len(_weapons_list))
-
-    _player_ent = None
-    for _e in game_map.entities:
-        if getattr(_e, 'owned', False):
-            _player_ent = _e
-            break
-
-    _enemy_ents: dict[int, Any] = {}
-    _matched: set[int] = set()
-    for _i, _inst in enumerate(_enemy_insts):
-        for _e in game_map.entities:
-            if _e is _player_ent or getattr(_e, 'owned', False):
-                continue
-            if id(_e) in _matched:
-                continue
-            if _e.pos.x == _inst.pos.x and _e.pos.y == _inst.pos.y:
-                _enemy_ents[_i] = _e
-                _matched.add(id(_e))
-                break
-        _ent = _enemy_ents.get(_i)
-        if _ent is not None and getattr(_ent, 'name', ''):
-            _inst.name = _ent.name
-
-    # Deduplicate overlapping positions
-    _occupied: set[tuple[int, int]] = set()
-    for _inst in _enemy_insts:
-        _key = (_inst.pos.x, _inst.pos.y)
-        if _key in _occupied:
-            _placed = False
-            for _odx, _ody in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,-1),(-1,1),(1,1)]:
-                _nk = (_inst.pos.x + _odx, _inst.pos.y + _ody)
-                if _nk not in _occupied and game_map.in_bounds(*_nk) and game_map.is_walkable(*_nk):
-                    _inst.pos = world.Position(*_nk)
-                    _occupied.add(_nk)
-                    _placed = True
-                    break
-            if not _placed:
-                _inst.pos = world.Position(_inst.pos.x + 2, _inst.pos.y)
-                _attempts = 0
-                while (_inst.pos.x, _inst.pos.y) in _occupied and _attempts < 20:
-                    _nx = _inst.pos.x + 1
-                    if not game_map.in_bounds(_nx, _inst.pos.y):
-                        break
-                    _inst.pos = world.Position(_nx, _inst.pos.y)
-                    _attempts += 1
-                _occupied.add((_inst.pos.x, _inst.pos.y))
-        else:
-            _occupied.add(_key)
-
-    for _i, _ent in _enemy_ents.items():
-        if _i < len(_enemy_insts):
-            _ent.pos = _enemy_insts[_i].pos
-
-    _cr = CombatResult()
-    start_player_turn(_player_state)
-
-    # Clear combat locks from an abnormally-ended previous fight (e.g.
-    # an exception that skipped sync_state) so those ships patrol again.
-    if _state is not None:
-        _set_combat_locks(False)
-
-    _state = SpaceCombatState(
-        ctx=ctx, console=console, game_map=game_map, log=log,
-        player_state=_player_state,
-        enemy_insts=_enemy_insts, enemy_specs=_enemy_specs,
-        enemy_ents=_enemy_ents, player_ent=_player_ent,
-        weapons_list=_weapons_list, active_weapons=_active_weapons,
-        cr=_cr,
+    _player_ent = _find_player_entity(game_map)
+    _enemy_ents = _match_enemy_entities(game_map, _player_ent, _enemy_insts)
+    _dedupe_enemy_positions(game_map, _enemy_insts)
+    _sync_enemy_entity_positions(_enemy_ents, _enemy_insts)
+    _activate_combat_state(
+        ctx, console, game_map, log,
+        _player_state, _enemy_insts, list(enemy_specs),
+        _enemy_ents, _player_ent, _weapons_list, _active_weapons,
     )
-    # Freeze the engaged set immediately: no patrol tick may move these
-    # ships, even before the first reinforcement pass.
-    _set_combat_locks(True, _enemy_ents)
 
 
 # ---------------------------------------------------------------------------
@@ -430,42 +462,38 @@ def _calc_camera():
     return _cx, _cy
 
 
-def presentation_shield_bubbles(
-    *,
-    ctx: GameContext | None = None,
-    camera_x: int | None = None,
-    camera_y: int | None = None,
-) -> tuple:
-    """Return live shield bubbles in the current space-combat viewport."""
+def _player_shield_bubble(camera_x: int, camera_y: int) -> ShieldBubble | None:
+    """Return the player's shield bubble, or None when unshielded/off-view."""
     from ..pygame_overlay import _bubble_intersects_region, _shield_bubble
 
-    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
-        return ()
-    if camera_x is None or camera_y is None:
-        camera_x, camera_y = _calc_camera()
-    bubbles: list[ShieldBubble] = []
     player_shields = max(0, int(_state.player_state.get("shields", 0)))
-    if player_shields > 0 and _state.player_ent is not None:
-        entity = _state.player_ent
-        bubble = _shield_bubble(
-            entity.pos.x,
-            entity.pos.y,
-            camera_x=camera_x,
-            camera_y=camera_y,
-            width=getattr(entity, "width", 1),
-            height=getattr(entity, "height", 1),
-            strength=player_shields / max(
-                1, _state.player_state.get("max_shields", player_shields),
-            ),
-        )
-        if _bubble_intersects_region(
-            bubble,
-            region_x=0,
-            region_y=0,
-            region_w=_state.view_w,
-            region_h=_state.view_h,
-        ):
-            bubbles.append(bubble)
+    if player_shields <= 0 or _state.player_ent is None:
+        return None
+    entity = _state.player_ent
+    bubble = _shield_bubble(
+        entity.pos.x,
+        entity.pos.y,
+        camera_x=camera_x,
+        camera_y=camera_y,
+        width=getattr(entity, "width", 1),
+        height=getattr(entity, "height", 1),
+        strength=player_shields / max(
+            1, _state.player_state.get("max_shields", player_shields),
+        ),
+    )
+    if _bubble_intersects_region(
+        bubble, region_x=0, region_y=0,
+        region_w=_state.view_w, region_h=_state.view_h,
+    ):
+        return bubble
+    return None
+
+
+def _enemy_shield_bubbles(camera_x: int, camera_y: int) -> list[ShieldBubble]:
+    """Return shield bubbles for every shielded enemy in the viewport."""
+    from ..pygame_overlay import _bubble_intersects_region, _shield_bubble
+
+    bubbles: list[ShieldBubble] = []
     for index, enemy in enumerate(_state.enemy_insts):
         if not enemy.alive or enemy.shields <= 0:
             continue
@@ -486,30 +514,68 @@ def presentation_shield_bubbles(
             strength=enemy.shields / max(1, enemy.max_shields),
         )
         if _bubble_intersects_region(
-            bubble,
-            region_x=0,
-            region_y=0,
-            region_w=_state.view_w,
-            region_h=_state.view_h,
+            bubble, region_x=0, region_y=0,
+            region_w=_state.view_w, region_h=_state.view_h,
         ):
             bubbles.append(bubble)
+    return bubbles
+
+
+def presentation_shield_bubbles(
+    *,
+    ctx: GameContext | None = None,
+    camera_x: int | None = None,
+    camera_y: int | None = None,
+) -> tuple:
+    """Return live shield bubbles in the current space-combat viewport."""
+    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
+        return ()
+    if camera_x is None or camera_y is None:
+        camera_x, camera_y = _calc_camera()
+    bubbles: list[ShieldBubble] = []
+    _pb = _player_shield_bubble(camera_x, camera_y)
+    if _pb is not None:
+        bubbles.append(_pb)
+    bubbles.extend(_enemy_shield_bubbles(camera_x, camera_y))
     return tuple(bubbles)
 
 
-def render_frame(console, ctx, game_map: world.GameMap) -> None:
-    console.clear()
-    _cam_x, _cam_y = _calc_camera()
-    world.render_world_view(
-        console, game_map,
-        region_x=0, region_y=0,
-        region_w=_state.view_w, region_h=_state.view_h,
-        camera_x=_cam_x,        camera_y=_cam_y,
+def toggle_target_card(ctx) -> None:
+    """Show/hide the floating target card (``v`` key)."""
+    _state.show_target_card = not _state.show_target_card
+
+
+def presentation_target_card(*, ctx: GameContext | None = None):
+    """Return the native info card for the targeted enemy ship, or None."""
+    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
+        return None
+    if not _state.show_target_card:
+        return None
+    _target = _alive_target()
+    if _target is None:
+        return None
+    _active_ids = [
+        _state.weapons_list[i] for i in range(len(_state.weapons_list))
+        if i < len(_state.active_weapons) and _state.active_weapons[i]
+    ]
+    _hit = hit_chance(_active_ids[0], _target, ctx) if _active_ids else None
+    _avoid = [_state.player_state["pos"]]
+    _avoid.extend(_e.pos for _e in get_enemies(ctx))
+    return _build_target_card(
+        _target,
+        game_map=_state.game_map,
+        player_pos=_state.player_state["pos"],
+        region_w=_state.view_w,
+        region_h=_state.view_h,
+        hit_chance=_hit,
+        avoid_positions=_avoid,
     )
 
-    # Native Pygame receives live shield amounts through the combat overlay
-    # path; the cell framebuffer remains renderer-neutral.
-    # Range line
 
+def _render_combat_range_line(
+    console, game_map: world.GameMap, cam_x: int, cam_y: int,
+) -> str | None:
+    """Paint the active weapon's range line; return the weapon id drawn."""
     _range_wid = None
     if _state.weapons_list and any(_state.active_weapons):
         from ..data.weapons import find_weapon as _fw
@@ -519,31 +585,51 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         ]
         if _active_ids:
             _range_wid = min(_active_ids, key=lambda wid: _fw(wid).max_range)
-    if _range_wid is not None:
-        _tgt = _alive_target()
-        if _tgt is not None:
-            _los_ok = _has_los(
-                _state.game_map,
-                _state.player_state["pos"].x, _state.player_state["pos"].y,
-                _tgt.pos.x, _tgt.pos.y,
-            )
-            _paint_range_line(
-                console,
-                _state.player_state["pos"], _tgt.pos,
-                _range_wid,
-                _cam_x, _cam_y, _state.view_w, _state.view_h, 0, 0,
-                color_override=None if _los_ok else (255, 60, 60),
-                game_map=game_map,
-            )
+    if _range_wid is None:
+        return None
+    _tgt = _alive_target()
+    if _tgt is None:
+        return _range_wid
+    _los_ok = _has_los(
+        _state.game_map,
+        _state.player_state["pos"].x, _state.player_state["pos"].y,
+        _tgt.pos.x, _tgt.pos.y,
+    )
+    _paint_range_line(
+        console,
+        _state.player_state["pos"], _tgt.pos,
+        _range_wid,
+        cam_x, cam_y, _state.view_w, _state.view_h, 0, 0,
+        color_override=None if _los_ok else (255, 60, 60),
+        game_map=game_map,
+    )
+    return _range_wid
 
+
+def _paint_combat_target(console, cam_x: int, cam_y: int) -> None:
+    """Highlight the currently-targeted enemy, if any."""
     _tgt = _alive_target()
     if _tgt is not None:
         _paint_target_highlight(
-            console, _cam_x, _cam_y, _state.view_w, _state.view_h, 0, 0, _tgt,
+            console, cam_x, cam_y, _state.view_w, _state.view_h, 0, 0, _tgt,
         )
 
-    _hit_chances = _build_hit_chances(_alive_target())
 
+def render_frame(console, ctx, game_map: world.GameMap) -> None:
+    console.clear()
+    _cam_x, _cam_y = _calc_camera()
+    world.render_world_view(
+        console, game_map,
+        region_x=0, region_y=0,
+        region_w=_state.view_w, region_h=_state.view_h,
+        camera_x=_cam_x, camera_y=_cam_y,
+    )
+
+    # Native Pygame gets live shields via the overlay; cells stay neutral.
+    _range_wid = _render_combat_range_line(console, game_map, _cam_x, _cam_y)
+    _paint_combat_target(console, _cam_x, _cam_y)
+
+    _hit_chances = _build_hit_chances(_alive_target())
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
         int(_state.player_state.get("piloting", 0) * 0.5),
@@ -609,7 +695,8 @@ def animate_fire(
 # Resolution
 # ---------------------------------------------------------------------------
 
-def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
+def _pop_dead_entity(game_map: world.GameMap, enemy: EnemyInstance) -> Any:
+    """Remove the killed enemy from the map and return its entity."""
     _dead_ent = None
     for _i, _inst in enumerate(_state.enemy_insts):
         if _inst is enemy:
@@ -618,11 +705,13 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
             break
     if _dead_ent is not None and _dead_ent in game_map.entities:
         game_map.entities.remove(_dead_ent)
+    return _dead_ent
 
+
+def _animate_kill_explosion(ctx, game_map: world.GameMap, enemy: EnemyInstance) -> None:
+    """Play the death explosion animation for a killed enemy ship."""
     _cam_x, _cam_y = _calc_camera()
-
     _hit_chances = _build_hit_chances(enemy)
-
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
         int(_state.player_state.get("piloting", 0) * 0.5),
@@ -643,42 +732,63 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
         flee_chance=None,
     )
 
+
+def _spawn_heist_loot(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent: Any) -> None:
+    """Spawn mission-specific intercept cargo at the wreck, if any."""
+    _heist_id = getattr(dead_ent, 'heist_spawn_id', None) if dead_ent is not None else None
+    if _heist_id is None:
+        return
+    for _m in getattr(ctx, 'player_active_missions', []):
+        if getattr(_m, 'bounty_spawn_id', None) != _heist_id:
+            continue
+        _good_id = getattr(_m, 'heist_target_good_id', '')
+        if not _good_id:
+            break
+        _loot_ent = world.Entity(
+            char='%', fg=(0, 255, 255),
+            pos=enemy.pos,
+            name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
+            width=1, height=1,
+            loot_data={"good_id": _good_id, "quantity": 1},
+        )
+        # Mission-specific flag — set post-construction (not a dataclass
+        # field), same pattern as bounty_spawn_id / heist_spawn_id on
+        # spawn entities. Read by trade.open_loot_pickup via getattr.
+        _loot_ent.heist_mission = True
+        _loot_ent.heist_mission_id = _m.mission_id
+        game_map.entities.append(_loot_ent)
+        _state.log.add_colored(
+            f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+        break
+
+
+def _remove_procedural_squad(ctx, dead_ent: Any) -> None:
+    """Drop a killed procedural-squad spawn from the system's spawn list."""
+    if dead_ent is None:
+        return
+    _mid = getattr(dead_ent, 'procedural_squad_id', None)
+    _nid = getattr(dead_ent, 'npc_ship_id', None)
+    if not (_mid and _nid):
+        return
+    from .. import solar_system as _ss
+    _sys_id = _ss.current_solar_system_id
+    _spawns = ctx.procedural_spawns.get(_sys_id, [])
+    for _i, _sp in enumerate(_spawns):
+        if _sp.squad_id == _mid and _sp.npc_id == _nid:
+            _spawns.pop(_i)
+            break
+
+
+def _finalize_kill(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent: Any) -> None:
+    """Spawn loot, grant XP, and record defeat bookkeeping for a kill."""
     _correct_spec = next(
         (_sp for _sp in _state.enemy_specs if getattr(_sp, 'id', None) == enemy.spec_id),
         _state.enemy_specs[0] if _state.enemy_specs else None,
     )
     if _correct_spec is not None:
         _spawn_loot_drops(game_map, enemy.pos, _correct_spec)
-
-    # Heist/intercept: spawn mission-specific loot entity at death position.
-    _heist_id = getattr(_dead_ent, 'heist_spawn_id', None) if _dead_ent is not None else None
-    if _heist_id is not None:
-        _missions = getattr(ctx, 'player_active_missions', [])
-        for _m in _missions:
-            if getattr(_m, 'bounty_spawn_id', None) == _heist_id:
-                _good_id = getattr(_m, 'heist_target_good_id', '')
-                if _good_id:
-                    _loot_ent = world.Entity(
-                        char='%', fg=(0, 255, 255),
-                        pos=enemy.pos,
-                        name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
-                        width=1, height=1,
-                        loot_data={"good_id": _good_id, "quantity": 1},
-                    )
-                    # Mission-specific flag — set post-construction (not a
-                    # dataclass field), same pattern as bounty_spawn_id /
-                    # heist_spawn_id on spawn entities. Read by
-                    # trade.open_loot_pickup via getattr. Also link the
-                    # loot to its exact mission so two intercept missions
-                    # targeting the same good can't be confused.
-                    _loot_ent.heist_mission = True
-                    _loot_ent.heist_mission_id = _m.mission_id
-                    game_map.entities.append(_loot_ent)
-                    _state.log.add_colored(
-                        f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
-                        _ml.COLOR_IMPORTANT_EVENT,
-                    )
-                break
 
     from ..data.ships import find_ship as _find_ship_cat
     try:
@@ -693,27 +803,23 @@ def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
 
     _state.cr.defeated_names.append(enemy.name)
     _state.cr.defeated_spec_ids.append(enemy.spec_id)
-    if _dead_ent is not None:
-        _bid = getattr(_dead_ent, 'bounty_spawn_id', None)
-        _hid = getattr(_dead_ent, 'heist_spawn_id', None)
+    if dead_ent is not None:
+        _bid = getattr(dead_ent, 'bounty_spawn_id', None)
+        _hid = getattr(dead_ent, 'heist_spawn_id', None)
         # Intercept missions use bounty_spawn_id for spawn lifecycle but
         # must NOT auto-complete on kill — they complete on delivery.
         if _bid is not None and _hid is None:
             _state.cr.defeated_bounty_ids.append(_bid)
         if _hid is not None:
             _state.cr.defeated_heist_ids.append(_hid)
+    _remove_procedural_squad(ctx, dead_ent)
 
-    if _dead_ent is not None:
-        _mid = getattr(_dead_ent, 'procedural_squad_id', None)
-        _nid = getattr(_dead_ent, 'npc_ship_id', None)
-        if _mid and _nid:
-            from .. import solar_system as _ss
-            _sys_id = _ss.current_solar_system_id
-            _spawns = ctx.procedural_spawns.get(_sys_id, [])
-            for _i, _sp in enumerate(_spawns):
-                if _sp.squad_id == _mid and _sp.npc_id == _nid:
-                    _spawns.pop(_i)
-                    break
+
+def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
+    _dead_ent = _pop_dead_entity(game_map, enemy)
+    _animate_kill_explosion(ctx, game_map, enemy)
+    _spawn_heist_loot(ctx, game_map, enemy, _dead_ent)
+    _finalize_kill(ctx, game_map, enemy, _dead_ent)
 
 
 def on_player_death(ctx) -> None:
@@ -773,15 +879,80 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 # Reinforcements
 # ---------------------------------------------------------------------------
 
+def _find_reinforcement_entity(game_map: world.GameMap, pos: world.Position) -> Any:
+    """Return the unowned, non-loot entity at ``pos``, or None."""
+    for _ge in game_map.entities:
+        if getattr(_ge, 'owned', False):
+            continue
+        if getattr(_ge, 'loot_data', None) is not None:
+            continue
+        if _ge.pos.x == pos.x and _ge.pos.y == pos.y:
+            return _ge
+    return None
+
+
+def _build_reinforcement_enemy(spec, pos: world.Position) -> EnemyInstance | None:
+    """Build one reinforcement enemy instance, or None if the ship is unknown."""
+    from ..data.ships import find_ship as _fs
+    try:
+        _ship_cat = _fs(_state.ctx.player_owned_ship.ship_id)
+    except (KeyError, AttributeError):
+        return None
+
+    from ..data.pilot_skills import PilotSkills
+    _pilot = PilotSkills(
+        gunnery=_state.player_state.get("gunnery", 30),
+        piloting=_state.player_state.get("piloting", 30),
+        engineering=_state.player_state.get("engineering", 30),
+    )
+    _ap_bonus = _ace_pilot_bonus(_state.ctx)
+    _, _new_ei = init_combat_state(
+        _ship_cat, _state.ctx.player_owned_ship,
+        _state.player_state["pos"], _pilot,
+        spec, pos,
+        ap_bonus=_ap_bonus,
+    )
+    return _new_ei
+
+
+def _join_reinforcements(
+    ctx,
+    game_map: world.GameMap,
+    new_specs: list,
+    new_positions: list[world.Position],
+    existing_entity_ids: set[int],
+) -> None:
+    """Build and attach newly-detected reinforcement enemy instances."""
+    for _ns, _np in zip(new_specs, new_positions):
+        _found_entity = _find_reinforcement_entity(game_map, _np)
+        if _found_entity is not None and id(_found_entity) in existing_entity_ids:
+            continue
+        if any(
+            _ei.pos.x == _np.x and _ei.pos.y == _np.y
+            for _ei in _state.enemy_insts
+        ):
+            continue
+        _new_ei = _build_reinforcement_enemy(_ns, _np)
+        if _new_ei is None:
+            continue
+        _state.enemy_insts.append(_new_ei)
+        _state.enemy_specs.append(_ns)
+        if _found_entity is not None:
+            _state.enemy_ents[len(_state.enemy_insts) - 1] = _found_entity
+            if getattr(_found_entity, 'name', ''):
+                _new_ei.name = _found_entity.name
+        _state.log.add_colored(
+            f"{getattr(_found_entity, 'name', '') or _ns.name} joins the fight!",
+            _ml.COLOR_COMBAT_EVENT,
+        )
+
+
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     from ..npc_ships import move_npcs as _tick_npcs
     from ..navigation import _detect_combat_encounter as _re_detect
     from .. import solar_system as _ss_module
 
-    # Freeze the current combatants before the patrol tick: they must
-    # not drift/despawn mid-fight. Covers initial enemies AND any
-    # squads that joined earlier this combat (all live in
-    # ``_state.enemy_ents``).
+    # Freeze combatants before the patrol tick so they can't drift/despawn.
     _set_combat_locks(True)
 
     _tick_npcs(ctx, game_map)
@@ -796,56 +967,7 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 
     _new_specs, _new_positions = _new_encounter
     _existing_entity_ids = {id(_e) for _e in _state.enemy_ents.values()}
-
-    for _ni, (_ns, _np) in enumerate(zip(_new_specs, _new_positions)):
-        _found_entity = None
-        for _ge in game_map.entities:
-            if getattr(_ge, 'owned', False):
-                continue
-            if getattr(_ge, 'loot_data', None) is not None:
-                continue
-            if _ge.pos.x == _np.x and _ge.pos.y == _np.y:
-                _found_entity = _ge
-                break
-        if _found_entity is not None and id(_found_entity) in _existing_entity_ids:
-            continue
-        _already = any(
-            _ei.pos.x == _np.x and _ei.pos.y == _np.y
-            for _ei in _state.enemy_insts
-        )
-        if _already:
-            continue
-
-        from ..data.ships import find_ship as _fs
-        try:
-            _ship_cat = _fs(_state.ctx.player_owned_ship.ship_id)
-        except (KeyError, AttributeError):
-            continue
-
-        from ..data.pilot_skills import PilotSkills
-        _pilot = PilotSkills(
-            gunnery=_state.player_state.get("gunnery", 30),
-            piloting=_state.player_state.get("piloting", 30),
-            engineering=_state.player_state.get("engineering", 30),
-        )
-
-        _ap_bonus = _ace_pilot_bonus(_state.ctx)
-        _ps_dummy, _new_ei = init_combat_state(
-            _ship_cat, _state.ctx.player_owned_ship,
-            _state.player_state["pos"], _pilot,
-            _ns, _np,
-            ap_bonus=_ap_bonus,
-        )
-        _state.enemy_insts.append(_new_ei)
-        _state.enemy_specs.append(_ns)
-        if _found_entity is not None:
-            _state.enemy_ents[len(_state.enemy_insts) - 1] = _found_entity
-            if getattr(_found_entity, 'name', ''):
-                _new_ei.name = _found_entity.name
-        _state.log.add_colored(
-            f"{getattr(_found_entity, 'name', '') or _ns.name} joins the fight!",
-            _ml.COLOR_COMBAT_EVENT,
-        )
+    _join_reinforcements(ctx, game_map, _new_specs, _new_positions, _existing_entity_ids)
 
 
 # ---------------------------------------------------------------------------

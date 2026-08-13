@@ -157,9 +157,18 @@ def test_frame_from_commands_carries_floating_text_through():
 
 def test_overlay_payload_round_trips_target_card():
     card = pygame_target_card.TargetCard(
-        name="Assault Drone", armor=3, weapon="Monster Claws",
-        damage=3, min_range=1, max_range=1, hp=18, max_hp=30, max_ap=4,
-        x=14, y=9, hit_chance=62, avoid_cells=((14, 9), (10, 11)),
+        rows=(
+            (("Assault Drone", pygame_target_card.TARGET_CARD_TITLE),),
+            (
+                ("HP 18/30", pygame_target_card.TARGET_CARD_TEXT),
+                ("  HIT 62%", pygame_target_card.TARGET_CARD_TEXT),
+            ),
+            (("ARM 3  AP 4", pygame_target_card.TARGET_CARD_TEXT),),
+            (("Monster Claws", pygame_target_card.TARGET_CARD_DIM),),
+            (("DMG 3  RNG 1-1", pygame_target_card.TARGET_CARD_TEXT),),
+            (("[V] hide", pygame_target_card.TARGET_CARD_DIM),),
+        ),
+        x=14, y=9, avoid_cells=((14, 9), (10, 11)),
     )
     frame = pygame_overlay.OverlayFrame(
         hud=(),
@@ -174,20 +183,18 @@ def test_overlay_payload_round_trips_target_card():
 
     payload = pygame_overlay.payload(frame)
 
-    assert payload["target"] == {
-        "name": "Assault Drone", "armor": 3, "weapon": "Monster Claws",
-        "damage": 3, "min_range": 1, "max_range": 1, "hp": 18,
-        "max_hp": 30, "max_ap": 4, "x": 14, "y": 9, "hit_chance": 62,
-        "avoid_cells": ((14, 9), (10, 11)), "player_cell": None,
-    }
+    assert payload["target"]["x"] == 14
+    assert payload["target"]["y"] == 9
+    assert payload["target"]["avoid_cells"] == ((14, 9), (10, 11))
+    assert payload["target"]["player_cell"] is None
+    assert payload["target"]["rows"][0] == (("Assault Drone", (255, 220, 100)),)
     assert pygame_overlay.frame_from_payload(payload) == frame
 
 
 def test_frame_from_commands_carries_target_card_through():
     card = pygame_target_card.TargetCard(
-        name="Sentry Drone", armor=1, weapon="Drone Laser",
-        damage=4, min_range=1, max_range=6, hp=9, max_hp=20, max_ap=4,
-        x=5, y=7, hit_chance=55,
+        rows=((("Sentry Drone", pygame_target_card.TARGET_CARD_TITLE),),),
+        x=5, y=7,
     )
 
     frame = pygame_overlay._frame_from_commands(
@@ -201,47 +208,8 @@ def test_frame_from_commands_carries_target_card_through():
     assert frame.target == card
 
 
-def test_target_card_rows_show_hit_chance_ap_and_hint():
-    card = pygame_target_card.TargetCard(
-        name="Assault Drone", armor=3, weapon="Monster Claws",
-        damage=3, min_range=1, max_range=1, hp=18, max_hp=30, max_ap=4,
-        x=14, y=9, hit_chance=62,
-    )
-
-    rows = pygame_target_card._target_card_rows(card)
-
-    assert rows[0] == (("Assault Drone", pygame_target_card._TARGET_CARD_TITLE),)
-    assert rows[1] == (
-        ("HP 18/30", pygame_target_card._TARGET_CARD_TEXT),
-        ("  HIT 62%", pygame_target_card._TARGET_CARD_TEXT),
-    )
-    assert rows[2] == (("ARM 3  AP 4", pygame_target_card._TARGET_CARD_TEXT),)
-    assert rows[3] == (("Monster Claws", pygame_target_card._TARGET_CARD_DIM),)
-    assert rows[4] == (("DMG 3  RNG 1-1", pygame_target_card._TARGET_CARD_TEXT),)
-    assert rows[5] == (("[V] hide", pygame_target_card._TARGET_CARD_DIM),)
-
-
-def test_target_card_rows_unarmed_omits_weapon_and_dmg():
-    card = pygame_target_card.TargetCard(
-        name="Hull Parasite", armor=0, weapon="",
-        damage=0, min_range=1, max_range=1, hp=5, max_hp=5, max_ap=0,
-        x=0, y=0, hit_chance=None,
-    )
-
-    rows = pygame_target_card._target_card_rows(card)
-
-    assert [row[0][0] for row in rows] == [
-        "Hull Parasite", "HP 5/5", "ARM 0  AP 0", "Unarmed", "[V] hide",
-    ]
-    # No hit chance → a placeholder, not a bogus number.
-    assert rows[1][1] == ("  HIT --", pygame_target_card._TARGET_CARD_TEXT)
-
-
 def test_target_card_rect_flips_below_when_no_room_above():
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=5, y=3,
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=5, y=3)
 
     rect = pygame_target_card._target_card_rect(
         card, panel_w=100, panel_h=80, map_width=80, map_height=54,
@@ -253,10 +221,7 @@ def test_target_card_rect_flips_below_when_no_room_above():
 
 
 def test_target_card_rect_centers_above_when_room_allows():
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=40, y=20,
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=40, y=20)
 
     rect = pygame_target_card._target_card_rect(
         card, panel_w=100, panel_h=80, map_width=80, map_height=54,
@@ -267,10 +232,7 @@ def test_target_card_rect_centers_above_when_room_allows():
 
 
 def test_target_card_cells_dodge_an_enemy_standing_above():
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=5, y=5, avoid_cells=((5, 2),),
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=5, y=5, avoid_cells=((5, 2),))
 
     cells = pygame_target_card._target_card_cells(
         card, cw=3, ch=3, map_width=20, map_height=12,
@@ -283,10 +245,7 @@ def test_target_card_cells_dodge_an_enemy_standing_above():
 
 def test_target_card_cells_fall_back_to_clear_cell_when_preferred_blocked():
     avoid = ((4, 3), (4, 7), (7, 5), (2, 5))
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=5, y=5, avoid_cells=avoid,
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=5, y=5, avoid_cells=avoid)
 
     x, y = pygame_target_card._target_card_cells(
         card, cw=2, ch=2, map_width=10, map_height=10,
@@ -297,10 +256,7 @@ def test_target_card_cells_fall_back_to_clear_cell_when_preferred_blocked():
 
 
 def test_target_card_cells_favor_side_away_from_player():
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=5, y=5, player_cell=(2, 5),
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=5, y=5, player_cell=(2, 5))
 
     cells = pygame_target_card._target_card_cells(
         card, cw=3, ch=3, map_width=20, map_height=12,
@@ -314,10 +270,7 @@ def test_target_card_cells_favor_side_away_from_player():
 def test_target_card_cells_always_leave_a_tile_gap_from_enemy():
     # Enemy in the top-left corner: every preferred slot is out of bounds,
     # so the fallback must still land at least one tile away from it.
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=0, y=0,
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=0, y=0)
 
     cx, cy = pygame_target_card._target_card_cells(
         card, cw=3, ch=3, map_width=20, map_height=12,
@@ -329,10 +282,7 @@ def test_target_card_cells_always_leave_a_tile_gap_from_enemy():
 
 
 def test_target_card_cells_favor_above_when_player_below():
-    card = pygame_target_card.TargetCard(
-        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
-        hp=1, max_hp=1, max_ap=0, x=5, y=5, player_cell=(5, 8),
-    )
+    card = pygame_target_card.TargetCard(rows=(), x=5, y=5, player_cell=(5, 8))
 
     cells = pygame_target_card._target_card_cells(
         card, cw=3, ch=3, map_width=20, map_height=12,
@@ -902,8 +852,18 @@ def test_draw_target_card_paints_clamped_panel_and_rows(monkeypatch):
     )
 
     card = pygame_target_card.TargetCard(
-        name="A", armor=1, weapon="W", damage=3, min_range=1, max_range=6,
-        hp=9, max_hp=20, max_ap=4, x=5, y=7, hit_chance=62,
+        rows=(
+            (("A", pygame_target_card.TARGET_CARD_TITLE),),
+            (
+                ("HP 9/20", pygame_target_card.TARGET_CARD_TEXT),
+                ("  HIT 62%", pygame_target_card.TARGET_CARD_TEXT),
+            ),
+            (("ARM 1  AP 4", pygame_target_card.TARGET_CARD_TEXT),),
+            (("W", pygame_target_card.TARGET_CARD_DIM),),
+            (("DMG 3  RNG 1-6", pygame_target_card.TARGET_CARD_TEXT),),
+            (("[V] hide", pygame_target_card.TARGET_CARD_DIM),),
+        ),
+        x=5, y=7,
     )
 
     pygame_target_card._draw_target_card(
@@ -922,8 +882,8 @@ def test_draw_target_card_paints_clamped_panel_and_rows(monkeypatch):
         "A", "HP 9/20", "  HIT 62%", "ARM 1  AP 4", "W",
         "DMG 3  RNG 1-6", "[V] hide",
     ]
-    assert drawn[1][3] == pygame_target_card._TARGET_CARD_TEXT
-    assert drawn[2][3] == pygame_target_card._TARGET_CARD_TEXT
+    assert drawn[1][3] == pygame_target_card.TARGET_CARD_TEXT
+    assert drawn[2][3] == pygame_target_card.TARGET_CARD_TEXT
 
 
 def test_bubble_ring_width_thins_as_strength_drops():
