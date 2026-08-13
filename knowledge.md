@@ -330,11 +330,13 @@ def _do_thing(ctx, data):
     _apply_result(ctx, result)
 ```
 
-**Exempt:** The top-level game loop ``_run_game`` in ``__main__.py`` is a
-known legacy violation (~500 lines). New features must not add to it —
-extract to domain modules per the "Adding a new game domain" convention.
-When refactoring it, split into ``_handle_key_dispatch``,
-``_handle_wall_bump``, ``_handle_occupied_bump``, etc.
+The top-level title and gameplay loops are split across ``__main__.py``,
+``title_flow.py``, ``game_loop.py``, ``game_flow.py``, and
+``game_interactions.py``. Keep new orchestration thin: extract title
+selection, frame presentation, event groups, movement interactions, and
+state transitions into named module-level helpers rather than growing a
+single loop. ``__main__`` compatibility aliases are for existing callers;
+live gameplay imports concrete implementations from their owning modules.
 
 #### 3. Composition over inheritance
 
@@ -402,7 +404,8 @@ def _buy_good(ctx, planet_id, good_id, qty):
 - All 24+ data specs in ``data/`` use ``@dataclass(frozen=True)``.
 
 **Exempt:** Render functions (painting to console is inherently a side
-effect), modal runners, and the top-level game loop.
+effect) and modal runners. Event loops should remain thin coordinators;
+extract their presentation, dispatch, and mutation phases into helpers.
 
 #### 5. Performance awareness
 
@@ -557,10 +560,11 @@ If any piece of state is wrong, the save/load contract is violated.
 
 ### Game guide contract
 
-The in-game guide (``?`` key, ``help.py``) is the player's only
-built-in documentation. Every player-facing feature must have a
-corresponding ``GuideSection`` that explains how it works. If the
-guide is stale, the player has no way to learn the system.
+The in-game guide (``?`` key, ``help.py`` + ``data/guide/``) is the player's
+only built-in documentation. Every player-facing feature must have a
+corresponding player-facing guide entry. The manual should explain what
+the player needs to do and watch for, not expose implementation details or
+story spoilers.
 
 #### Principle
 
@@ -576,21 +580,21 @@ guide is stale, the player has no way to learn the system.
 Open the guide (``?`` from the main game loop) and verify:
 1. The new/changed feature has a section
 2. The section's body text accurately describes the current behavior
-3. Keybindings, formulas, and numbers match the implementation
+3. Keybindings and practical advice match the implementation without copying formulas or revealing spoilers
 
 #### Common gotchas
 
 | Pattern | How it breaks |
 |---------|---------------|
 | Adding a new interaction (keybinding, bump action, modal) without updating the guide | Player can't discover the feature exists. |
-| Changing formulas (damage, prices, XP curves) without updating numbers in the relevant section | Player sees wrong numbers in the guide — trust erodes. |
+| Changing player-facing behavior without reviewing the relevant manual section | The manual gives stale advice — trust erodes. |
 | Removing a feature without removing or updating its section | Dead section misleads the player into thinking a feature still exists. |
-| Adding a section with Unicode box-drawing chars (``│``, ``─``, ``█``) | Characters don't render on the CP437 tilesheet — garbled display. |
+| Adding implementation, developer, or story-spoiler text to the manual | New players get confusing or premature information. |
 
 **Checklist before shipping:**
 - [ ] Does this change affect player-facing behavior? (If no, stop here.)
 - [ ] Is the affected guide section updated? Or a new section added?
-- [ ] Do keybindings, formulas, and numbers match the implementation?
+- [ ] Do keybindings and practical explanations match the implementation without copying formulas or revealing spoilers?
 
 ---
 
