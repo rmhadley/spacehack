@@ -38,3 +38,6 @@ Thumbs.db
 # --- packaging/homebrew-tap is itself a git repo (the published tap) ---
 # Never sweep its .git into this repo.
 packaging/homebrew-tap/.git/
+
+# --- debugging autosaves ---
+autosave.json
