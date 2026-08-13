@@ -4,7 +4,7 @@
 > it does not enable persistent ground ammo yet.
 >
 > **Related:**
-> `docs/design/in_progress/18_DESIGN_GROUND_EQUIPMENT_STORAGE.md`
+> `docs/design/complete/18_DESIGN_GROUND_EQUIPMENT_STORAGE.md`
 >
 > **Scope:** persistent ground-weapon ammunition, reload actions, extra ammo
 > carried in the Expedition Pack, and future non-combat field items such as
