@@ -125,6 +125,8 @@ def _action_for_key(pygame: Any, event: Any) -> str:
         return f"MOVE:{key_name}"
     if key_name in {".", "period"}:
         return "WAIT"
+    if key_name in {"backslash", "nonusbackslash", "\\"}:
+        return "HISTORY"
     direct_actions = {"s": "DEFENSE", "w": "WAIT", "f": "FIRE", "c": "CHARACTER"}
     if key_name in direct_actions:
         return direct_actions[key_name]

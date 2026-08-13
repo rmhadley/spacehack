@@ -56,6 +56,8 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
     sym_name = event.key_name.lower()
     if sym_name == "tab":
         return "TARGET"
+    if sym_name in {"backslash", "nonusbackslash", "\\"}:
+        return "HISTORY"
     if sym_name in _MOVE_KEYS:
         return f"MOVE:{sym_name}"
     if sym_name in {".", "period"}:
@@ -374,6 +376,16 @@ def _run_combat_impl(
         if _action == "GUIDE":
             from ..help import _run_help_guide
             _run_help_guide(ctx)
+            continue
+        if _action == "HISTORY":
+            # Combat is where players most want to review what just
+            # happened — the full console log is one backslash away,
+            # same as the main game loop. Window-close inside the log
+            # counts as quitting the fight (FLEE), matching ESC.
+            from ..console_log import open_console_log as _open_console_log
+            if _open_console_log(ctx) == "QUIT":
+                _result = "FLEE"
+                break
             continue
         if _action == "TARGET":
             _target_idx = _cycle_target(_target_idx, len(_enemies), 1)

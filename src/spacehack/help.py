@@ -139,6 +139,8 @@ _GUIDE_CONTROLS = GuideSection(
         "\n"
         "- W: wait (end your turn)"
         "\n"
+        "- \\: full console log (scrollable history)"
+        "\n"
         "\n\n"
         "Modal keys (trade, cargo, menus):"
         "\n"

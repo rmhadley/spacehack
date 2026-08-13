@@ -261,7 +261,9 @@ def test_combat_key_mapping_returns_opaque_actions():
         class key:
             @staticmethod
             def name(value):
-                return {20: "f", 21: "1", 22: "?", 23: "period"}.get(value, "")
+                return {
+                    20: "f", 21: "1", 22: "?", 23: "period", 24: "backslash",
+                }.get(value, "")
 
     fake = FakePygame()
     key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value, unicode="")
@@ -273,11 +275,15 @@ def test_combat_key_mapping_returns_opaque_actions():
     assert pygame_combat._action_for_key(fake, key(20)) == "FIRE"
     assert pygame_combat._action_for_key(fake, key(21)) == "WEAPON:0"
     assert pygame_combat._action_for_key(fake, key(23)) == "WAIT"
+    assert pygame_combat._action_for_key(fake, key(24)) == "HISTORY"
 
     from src.spacehack.combat import _loop
     assert _loop._input_action(
         pygame_engine.PygameInputEvent(kind="keydown", key_name="period"),
     ) == "WAIT"
+    assert _loop._input_action(
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="backslash"),
+    ) == "HISTORY"
     # Top-row digits arrive as "1".."9" from the shared Pygame runtime
     # (tcod-era "n1".."n9" names are gone) and map to weapon slots.
     assert _loop._input_action(
@@ -354,6 +360,75 @@ def test_combat_action_falls_back_when_presenter_stops():
     assert _loop._combat_action(
         SimpleNamespace(), SimpleNamespace(), presenter=UnavailablePresenter(),
     ) == "UNAVAILABLE"
+
+
+def _combat_history_rules() -> SimpleNamespace:
+    """Minimal rules stub for driving _run_combat_impl to an input wait."""
+    from src.spacehack.combat._types import CombatResult
+
+    return SimpleNamespace(
+        refresh_engaged=lambda _ctx, _map: None,
+        get_enemies=lambda _ctx: [SimpleNamespace(alive=True, pos=(1, 1))],
+        enemy_name=lambda _e: "Pirate Scout",
+        combat_should_end=lambda _ctx, _map, _enemies: False,
+        set_target_idx=lambda _ctx, _idx: None,
+        enemy_alive=lambda _e: True,
+        render_frame=lambda _console, _ctx, _map: None,
+        sync_state=lambda _ctx: None,
+        get_combat_result=lambda: CombatResult(),
+    )
+
+
+def test_combat_history_opens_console_log_and_resumes(monkeypatch):
+    """\\ in combat opens the full console log; ESC returns to the fight."""
+    from src.spacehack.combat import _loop
+
+    opened = []
+    monkeypatch.setattr(
+        "src.spacehack.console_log.open_console_log",
+        lambda ctx: opened.append(ctx) or "BACK",
+    )
+    monkeypatch.setattr(_loop, "_present", lambda ctx, console: None)
+    actions = iter(("HISTORY", "FLEE"))
+    monkeypatch.setattr(
+        _loop,
+        "_combat_action",
+        lambda ctx, console, *, presenter: next(actions),
+    )
+
+    ctx = SimpleNamespace(
+        log=SimpleNamespace(add_colored=lambda *_args: None),
+        _pygame_combat_presenter=None,
+    )
+    result = _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
+
+    assert opened == [ctx]  # the log opened once, then the fight resumed
+    assert result.outcome == "FLEE"
+
+
+def test_combat_history_window_close_counts_as_flee(monkeypatch):
+    """Closing the log window quits the fight the same way ESC does."""
+    from src.spacehack.combat import _loop
+
+    monkeypatch.setattr(
+        "src.spacehack.console_log.open_console_log",
+        lambda ctx: "QUIT",
+    )
+    monkeypatch.setattr(_loop, "_present", lambda ctx, console: None)
+    actions = iter(("HISTORY",))
+    monkeypatch.setattr(
+        _loop,
+        "_combat_action",
+        lambda ctx, console, *, presenter: next(actions),
+    )
+
+    ctx = SimpleNamespace(
+        log=SimpleNamespace(add_colored=lambda *_args: None),
+        _pygame_combat_presenter=None,
+    )
+    result = _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
+
+    assert result.outcome == "FLEE"
 
 
 def test_combat_action_ignores_triggering_key_release_before_next_action(monkeypatch):
