@@ -20,105 +20,10 @@ from __future__ import annotations
 
 import dataclasses
 import random
-from dataclasses import dataclass, field
-from enum import Enum, auto
 
-from . import ship
-from .data.missions import MissionSpec, find_mission, list_missions, missions_offered_by
-
-MAX_ACTIVE_MISSIONS: int = 5
-
-
-@dataclass
-class MissionBoard:
-    """Per-NPC, per-city mission offering state.
-
-    Stored on :attr:`GameContext.mission_boards`, keyed by
-    ``(npc_id, planet_id)`` — every city keeps its own mission list.
-    Lazy-initialized on first NPC talk. Slots refill on month rollover.
-
-    Attributes:
-        npc_id: which NPC giver this board belongs to.
-        slots: mission spec IDs or generated keys. ``None`` = empty slot.
-        max_slots: how many missions this NPC can offer at once.
-        last_refresh_month: game month when the board was last populated
-            (0 = never populated). Used to prevent double-fill within
-            the same month.
-    """
-    npc_id: str
-    slots: list[str | None] = field(default_factory=list)
-    max_slots: int = 5
-    last_refresh_month: int = 0
-    planet_id: str = ""  # which planet this board belongs to (for refresh context)
-
-
-class MissionStatus(Enum):
-    """Lifecycle state of an :class:`ActiveMission`."""
-
-    IN_PROGRESS = auto()
-    COMPLETED = auto()
-    FAILED = auto()
-
-
-@dataclass
-class ActiveMission:
-    """Mutable state of one player-accepted mission.
-
-    Up to :data:`MAX_ACTIVE_MISSIONS` are tracked in
-    :attr:`GameContext.player_active_missions`. Each holds a snapshot
-    of delivery/reward/deadline fields so procedural missions don't
-    need a catalog lookup at runtime.
-    """
-
-    mission_id: str
-    is_procedural: bool = False
-    status: MissionStatus = MissionStatus.IN_PROGRESS
-    title: str = ""  # display title (snapshot from spec or generated)
-
-    # Delivery fields
-    required_cargo_size: int = 0
-    delivery_target_npc_id: str | None = None
-    delivery_target_planet_id: str | None = None
-
-    # Bounty fields
-    bounty_spawn_id: str | None = None
-    target_enemy_id: str | None = None
-    target_system_id: str | None = None
-    bounty_target_name: str | None = None
-    bounty_target_squad_size: int = 1
-    bounty_target_loadout_pct: int = 0
-    bounty_wingmate_enemy_id: str | None = None  # mixed squad: wingmate ship type (e.g. pirate escort)
-    tier: int = 1
-
-    # Intercept fields
-    heist_target_good_id: str | None = None
-    heist_good_secured: bool = False  # True once the mission's loot is secured in the hold
-
-    # Salvage fields
-    salvage_wreck_enemy_id: str | None = None  # derelict spec for the boarded wreck
-    salvage_layout_id: str | None = None       # interior layout id for the wreck
-    salvage_wreck_spawn_id: str | None = None  # BountySpawn id of the wreck (interior cache key + lifecycle)
-
-    # Smuggling fields
-    is_smuggle: bool = False       # cargo is hot — militia scans can confiscate it
-    smuggle_good_id: str | None = None  # flavor good id for quest log display
-
-    # Main-quest link (Act 0 chains): the chain step this mission
-    # belongs to (e.g. the bar chain's hot crate → "bar_q2_proof").
-    # Empty = ordinary mission. Read by the smuggle objective hooks
-    # (delivery completes the step; confiscation/abandon resets it).
-    main_quest_step_id: str = ""
-
-    # Deadline
-    time_deadline: tuple[int, int, int] | None = None  # (day, month, year)
-    deadline_days: int = 0
-    accept_day: int = 0  # absolute game day when accepted (for early-bonus calc)
-
-    # Reward
-    reward_credits: int = 0
-    reward_xp: int = 0
-    early_bonus_pct: int = 0
-
+from .. import ship
+from ..data.missions import MissionSpec, find_mission, list_missions, missions_offered_by
+from ._models import ActiveMission, MissionBoard, MissionStatus, MAX_ACTIVE_MISSIONS
 
 def try_accept_mission(
     mission: MissionSpec,
@@ -301,7 +206,7 @@ def _reserved_heist_volume(active: ActiveMission) -> int:
     if not _good_id:
         return 0
     try:
-        from .data.trade_goods import find_trade_good as _ftg
+        from ..data.trade_goods import find_trade_good as _ftg
         return _ftg(_good_id).volume
     except KeyError:
         return 0
@@ -408,7 +313,7 @@ def complete_mission(
 
     # --- XP gain ---
     if ctx is not None and xp > 0:
-        from .xp import add_xp
+        from ..xp import add_xp
         add_xp(ctx, xp)
         # Increment delivery/bounty counters.
         if hasattr(ctx, 'player_counters'):
@@ -441,7 +346,7 @@ def _apply_mission_rep(
     positive deltas get a +50% bonus (rounded up). Negative deltas
     are never boosted.
     """
-    from .faction import modify_rep, _MISSION_REP_DELTAS
+    from ..faction import modify_rep, _MISSION_REP_DELTAS
 
     # Resolve mission type from spec.
     mission_type: str | None = None
@@ -588,7 +493,7 @@ def _tutorial_live(ctx) -> bool:
     ``tutorial_complete`` or every non-bounty board would stay empty
     forever after the finale.
     """
-    from .tutorial import _active as _tutorial_active
+    from ..tutorial import _active as _tutorial_active
     return bool(ctx is not None and _tutorial_active(ctx))
 
 
@@ -618,7 +523,7 @@ def fill_empty_slots(
     if generated is None:
         generated = {}
     if rng is None:
-        from .engine import RNG
+        from ..engine import RNG
         rng = RNG
 
     # Evict completed/active missions from board slots.
@@ -639,7 +544,7 @@ def fill_empty_slots(
     # generation is suppressed below so the guided first run isn't
     # flooded with extra work.
     if _tutorial_live(ctx):
-        from .tutorial import TUTORIAL_MISSION_IDS as _tutorial_ids
+        from ..tutorial import TUTORIAL_MISSION_IDS as _tutorial_ids
         available = [_m for _m in available if _m.id in _tutorial_ids]
     available_ids = [m.id for m in available]
     rng.shuffle(available_ids)
@@ -662,7 +567,7 @@ def fill_empty_slots(
     # Resolve guild for procedural generation dispatch.
     _guild = ""
     try:
-        from .data.npcs import find_npc as _fnpc
+        from ..data.npcs import find_npc as _fnpc
         _guild = _fnpc(board.npc_id).guild
     except KeyError:
         pass
@@ -683,7 +588,7 @@ def fill_empty_slots(
     # gates (enemy refusal, tier cuts) were removed by design.
     _pay_pct = 0
     if ctx is not None:
-        from .faction import guild_to_faction, adjust_reward_pct, get_attitude
+        from ..faction import guild_to_faction, adjust_reward_pct, get_attitude
         _board_faction = guild_to_faction(_guild)
         _board_rep = ctx.faction_reputation.get(_board_faction, 0)
         _board_attitude = get_attitude(_board_rep)
@@ -745,7 +650,7 @@ def refresh_all_boards(ctx) -> None:
     Skips boards whose ``last_refresh_month`` matches the current month
     (already refreshed this month).
     """
-    from .engine import RNG
+    from ..engine import RNG
     active_ids = frozenset(m.mission_id for m in ctx.player_active_missions)
     completed_ids = frozenset(ctx.completed_mission_ids)
 
@@ -756,7 +661,7 @@ def refresh_all_boards(ctx) -> None:
         _tier = 1
         if board.planet_id:
             try:
-                from .data.planets import find_planet_spec as _fps
+                from ..data.planets import find_planet_spec as _fps
                 _tier = _fps(board.planet_id).mission_tier
             except KeyError:
                 pass
@@ -803,7 +708,7 @@ def _planet_to_system() -> dict[str, str]:
     if _PLANET_SYSTEM_CACHE is not None:
         return _PLANET_SYSTEM_CACHE
 
-    from .data import solar_systems as _sys_mod
+    from ..data import solar_systems as _sys_mod
     mapping: dict[str, str] = {}
     for _sys in _sys_mod.list_solar_systems():
         for _p in _sys.planets:
@@ -826,7 +731,7 @@ def system_display_name(system_id: str | None) -> str:
     if not system_id:
         return "unknown"
     try:
-        from .data.solar_systems import find_solar_system as _fss
+        from ..data.solar_systems import find_solar_system as _fss
         return _fss(system_id).name
     except (KeyError, ImportError):
         return system_id.replace('_', ' ').title()
@@ -872,7 +777,7 @@ def _planet_npc_ids(planet_id: str) -> list[str]:
     Returns empty list if the planet is unknown or has no NPC buildings.
     """
     try:
-        from .data.planets import find_planet_spec as _fps
+        from ..data.planets import find_planet_spec as _fps
         spec = _fps(planet_id)
     except KeyError:
         return []
@@ -891,8 +796,8 @@ def _dest_candidates_in_system(
     Handles both same-system and remote-system destination lookup
     with a single code path.
     """
-    from .data.planets import has_landable_port
-    from .data import solar_systems as _sys_mod
+    from ..data.planets import has_landable_port
+    from ..data import solar_systems as _sys_mod
 
     try:
         _sys = _sys_mod.find_solar_system(system_id)
@@ -963,7 +868,7 @@ def generate_delivery_mission(
         rng: shared :data:`engine.RNG` for deterministic generation.
         counter: unique per-fill counter appended to the generated ID.
     """
-    from .data.solar_systems import reachable_system_ids
+    from ..data.solar_systems import reachable_system_ids
 
     # 1. Weighted tier roll.
     tier = _roll_tier(max_tier, rng)
@@ -1042,13 +947,13 @@ def generate_delivery_mission(
     #    "Deliver to <landmark> in <system>" — the pickup planet is
     #    where the player is standing, so it's not spelled out.
     try:
-        from .data.planets import find_planet_spec as _fps_dest
+        from ..data.planets import find_planet_spec as _fps_dest
         dest_name = _fps_dest(dest_planet_id).name
     except KeyError:
         dest_name = dest_planet_id
 
     try:
-        from .data.solar_systems import find_solar_system as _fss
+        from ..data.solar_systems import find_solar_system as _fss
         dest_system_name = _fss(dest_system_id).name
     except KeyError:
         dest_system_name = dest_system_id
@@ -1214,9 +1119,9 @@ def generate_bounty_mission(
 
     Returns ``None`` if no suitable target system can be found.
     """
-    from .data.solar_systems import reachable_system_ids
-    from .data.npc_ships import find_npc_ship
-    from .data.ships import find_ship as _find_ship_cat
+    from ..data.solar_systems import reachable_system_ids
+    from ..data.npc_ships import find_npc_ship
+    from ..data.ships import find_ship as _find_ship_cat
 
     # 1. Tier roll (shared two-roll pattern for rarity curve).
     tier = _roll_tier(max_tier, rng)
@@ -1285,7 +1190,7 @@ def generate_bounty_mission(
     # 9. Danger text + description.
     _danger = _bounty_danger_text(tier, squad_size)
     try:
-        from .data.planets import find_planet_spec as _fps_origin
+        from ..data.planets import find_planet_spec as _fps_origin
         origin_name = _fps_origin(origin_planet_id).name
     except KeyError:
         origin_name = origin_planet_id
@@ -1377,7 +1282,7 @@ def _generate_bar_intercept(
     giver_npc_id: str,
 ) -> MissionSpec | None:
     """Generate a procedural intercept (merchant hunting) bar mission."""
-    from .data.solar_systems import reachable_system_ids
+    from ..data.solar_systems import reachable_system_ids
 
     p2s = _planet_to_system()
     origin_system_id = p2s.get(origin_planet_id)
@@ -1417,7 +1322,7 @@ def _generate_bar_intercept(
     xp = tier * 40 + hops * 10
 
     try:
-        from .data.npc_ships import find_npc_ship
+        from ..data.npc_ships import find_npc_ship
         enemy_name = find_npc_ship(enemy_id).name
     except KeyError:
         enemy_name = enemy_id
@@ -1459,7 +1364,7 @@ def _generate_bar_smuggling(
     giver_npc_id: str,
 ) -> MissionSpec | None:
     """Generate a procedural smuggling (contraband delivery) bar mission."""
-    from .data.solar_systems import reachable_system_ids
+    from ..data.solar_systems import reachable_system_ids
 
     p2s = _planet_to_system()
     origin_system_id = p2s.get(origin_planet_id)
@@ -1500,7 +1405,7 @@ def _generate_bar_smuggling(
     smuggle_good = rng.choice(_HEIST_GOODS)
 
     try:
-        from .data.planets import find_planet_spec
+        from ..data.planets import find_planet_spec
         dest_name = find_planet_spec(dest_planet_id).name
     except KeyError:
         dest_name = dest_planet_id
@@ -1541,7 +1446,7 @@ def _generate_bar_salvage(
     giver_npc_id: str,
 ) -> MissionSpec | None:
     """Generate a procedural salvage (wreck boarding) bar mission."""
-    from .data.solar_systems import reachable_system_ids
+    from ..data.solar_systems import reachable_system_ids
 
     p2s = _planet_to_system()
     origin_system_id = p2s.get(origin_planet_id)
@@ -1585,7 +1490,7 @@ def _generate_bar_salvage(
     xp = tier * 35 + hops * 7
 
     try:
-        from .data.npc_ships import find_npc_ship
+        from ..data.npc_ships import find_npc_ship
         patrol_name = find_npc_ship(patrol_id).name
     except KeyError:
         patrol_name = patrol_id

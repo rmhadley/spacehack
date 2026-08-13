@@ -13,8 +13,8 @@ NPCs live in two layers:
     without a second import line.
 
 Mirrors the pattern established by :mod:`spacehack.mission`, which
-re-exports its data module's symbols and defines its own runtime
-functions identically.
+re-exports its data module's symbols while keeping runtime functions
+in the mission package.
 """
 from __future__ import annotations
 
@@ -26,14 +26,14 @@ from .data.npcs import NPC, find_npc, list_npcs
 from .game_context import GameContext
 
 if TYPE_CHECKING:
-    from .mission import Mission
+    from .mission import ActiveMission
 
 class TalkOutcome(Enum):
     """What happened during a single NPC-talk dialog iteration.
 
     ESC walks away (BACK); Enter opens the NPC's mission offerings
     (WORK); when the player has an active delivery mission that
-    this NPC can fulfil (:data:`Mission.required_cargo_size` > 0
+    this NPC can fulfil (:data:`ActiveMission.required_cargo_size` > 0
     and giver matches), Enter drives :attr:`DELIVER` instead and
     the dialog paints an extra ``> Deliver <title> <`` row. Quit
     closes the window; anything else is IGNORE. Mirrors
@@ -141,7 +141,7 @@ def _run_npc_talk(
     npc: NPC,
     *,
     deliver_missions: list | None = None,
-) -> tuple[TalkOutcome, Mission | None]:
+) -> tuple[TalkOutcome, ActiveMission | None]:
     """Show the talk modal for ``npc`` and return the chosen outcome.
 
     Resolves main-quest dialogue for this NPC: the body text
