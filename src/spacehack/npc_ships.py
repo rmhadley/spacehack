@@ -877,58 +877,29 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         if abs(_dx) > 1 or abs(_dy) > 1:
             ctx.npc_paths.pop(_sid, None)
             continue
-        # Try the squad direction for each member.
+        # Try the squad direction for each member (direct step with a
+        # one-cell perpendicular slip when the cell is blocked).
         _leader_moved = False
         for _m in _members:
-            _nx = _m.pos.x + _dx
-            _ny = _m.pos.y + _dy
-            if (game_map.is_walkable(_nx, _ny)
-                    and game_map.blocking_entity_at(_nx, _ny, exclude=_m) is None):
-                _m.pos = world.Position(_nx, _ny)
-                if _m is _leader:
-                    _leader_moved = True
-            else:
-                # Blocked — try perpendicular slip-around.
-                if _dx != 0 and _dy != 0:
-                    for _sdx, _sdy in [(_dx, 0), (0, _dy)]:
-                        _snx = _m.pos.x + _sdx
-                        _sny = _m.pos.y + _sdy
-                        if (game_map.is_walkable(_snx, _sny)
-                                and game_map.blocking_entity_at(_snx, _sny, exclude=_m) is None):
-                            _m.pos = world.Position(_snx, _sny)
-                            break
-                elif _dx != 0:
-                    for _sdx, _sdy in [(_dx, 1), (_dx, -1)]:
-                        _snx = _m.pos.x + _sdx
-                        _sny = _m.pos.y + _sdy
-                        if (game_map.is_walkable(_snx, _sny)
-                                and game_map.blocking_entity_at(_snx, _sny, exclude=_m) is None):
-                            _m.pos = world.Position(_snx, _sny)
-                            break
-                else:  # _dy != 0
-                    for _sdx, _sdy in [(1, _dy), (-1, _dy)]:
-                        _snx = _m.pos.x + _sdx
-                        _sny = _m.pos.y + _sdy
-                        if (game_map.is_walkable(_snx, _sny)
-                                and game_map.blocking_entity_at(_snx, _sny, exclude=_m) is None):
-                            _m.pos = world.Position(_snx, _sny)
-                            break
+            _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
+            if _m is _leader and _direct:
+                _leader_moved = True
         if _leader_moved:
             ctx.npc_paths[_sid].pop(0)
         # On collision, preserve the path so the leader retries the same
         # step next tick. Don't recompute A* just because a cell was
         # temporarily occupied — the path is still valid.
-        # Squad cohesion: pull stragglers toward centre
+        # Squad cohesion: step stragglers ONE cell toward the centre
+        # per tick (never a multi-cell snap), slipping around obstacles
+        # so a member wedged against a planet still rejoins the pack.
         if _is_squad:
             _cx = sum(m.pos.x for m in _members) // len(_members)
             _cy = sum(m.pos.y for m in _members) // len(_members)
             for _m in _members:
                 if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4:
-                    _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
-                    _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
-                    if (game_map.is_walkable(_pull_x, _pull_y)
-                        and game_map.blocking_entity_at(_pull_x, _pull_y, exclude=_m) is None):
-                        _m.pos = world.Position(_pull_x, _pull_y)
+                    _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
+                    _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
+                    world.try_step_with_slip(_m, game_map, _dx, _dy)
 
 
 # ---------------------------------------------------------------------------

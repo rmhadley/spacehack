@@ -1511,3 +1511,46 @@ def try_vim_move(
     if delta is None:
         return None
     return try_move(entity, game_map, delta[0], delta[1])
+
+
+def try_step_with_slip(
+    entity: Entity,
+    game_map: GameMap,
+    dx: int,
+    dy: int,
+) -> bool:
+    """Step ``entity`` one cell by ``(dx, dy)``; on a blocked cell,
+    fall back to one perpendicular slip cell.
+
+    Slip candidates match the NPC patrol passes: a diagonal step
+    splits into its axes, a cardinal step tries +/-1 on the other
+    axis. Never moves more than one cell per call.
+
+    Returns ``True`` only when the DIRECT ``(dx, dy)`` step
+    succeeded — a successful slip returns ``False`` so path-following
+    callers (which advance their path only on a direct move) keep
+    their next cell and retry it next tick. Callers that don't care
+    about the direct/slip distinction can ignore the return value.
+    """
+    _nx = entity.pos.x + dx
+    _ny = entity.pos.y + dy
+    if (game_map.is_walkable(_nx, _ny)
+            and game_map.blocking_entity_at(_nx, _ny, exclude=entity) is None):
+        entity.pos = Position(_nx, _ny)
+        return True
+    if dx != 0 and dy != 0:
+        _slips = ((dx, 0), (0, dy))
+    elif dx != 0:
+        _slips = ((dx, 1), (dx, -1))
+    elif dy != 0:
+        _slips = ((1, dy), (-1, dy))
+    else:
+        return False
+    for _sx, _sy in _slips:
+        _sxp = entity.pos.x + _sx
+        _syp = entity.pos.y + _sy
+        if (game_map.is_walkable(_sxp, _syp)
+                and game_map.blocking_entity_at(_sxp, _syp, exclude=entity) is None):
+            entity.pos = Position(_sxp, _syp)
+            return False
+    return False

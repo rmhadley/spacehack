@@ -17,6 +17,15 @@ def _floor_map(*entities: world.Entity) -> world.GameMap:
     return world.GameMap(10, 5, tiles, list(entities))
 
 
+def _squad_map(*entities: world.Entity) -> world.GameMap:
+    """20x20 open floor so a far-flung squad has room to patrol."""
+    tiles = [
+        [world.DUNGEON_FLOOR for _ in range(20)]
+        for _ in range(20)
+    ]
+    return world.GameMap(20, 20, tiles, list(entities))
+
+
 def test_hunter_pursues_remembered_player_cell(monkeypatch):
     player = world.Entity("@", (255, 255, 255), world.Position(7, 2))
     hunter = world.Entity(
@@ -217,6 +226,57 @@ def test_unified_loop_does_not_stamp_memory_for_victory(monkeypatch):
 
     assert result.outcome == "VICTORY"
     assert callbacks == []
+
+
+def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
+    """The cohesion pull moves a straggler ONE cell per tick — no
+    multi-cell snap back to the squad centre."""
+    player = world.Entity("@", (255, 255, 255), world.Position(17, 2))
+    members = [
+        world.Entity("S", (220, 120, 80), world.Position(5, 18),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+        world.Entity("S", (220, 120, 80), world.Position(14, 8),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+        world.Entity("S", (220, 120, 80), world.Position(16, 9),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+    ]
+    game_map = _squad_map(player, *members)
+    # Leader (the straggler) patrols one cell west; cohesion then runs.
+    monkeypatch.setattr(ground_npcs, "_patrol_path", lambda *a, **k: [(4, 18)])
+
+    ground_npcs._move_squad(members, game_map, is_hostile=True, squad_id="squad")
+
+    straggler = members[0]
+    # After the patrol step the straggler is at (4, 18); the pull may
+    # move it at most one cell from there (no (11, 10) snap).
+    assert max(abs(straggler.pos.x - 4), abs(straggler.pos.y - 18)) == 1
+
+
+def test_squad_cohesion_slips_around_blocked_direct_cell(monkeypatch):
+    """A straggler whose direct centre step is blocked slips one cell
+    perpendicular — the old unstick behaviour, without teleporting."""
+    player = world.Entity("@", (255, 255, 255), world.Position(17, 2))
+    members = [
+        world.Entity("S", (220, 120, 80), world.Position(5, 18),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+        world.Entity("S", (220, 120, 80), world.Position(14, 8),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+        world.Entity("S", (220, 120, 80), world.Position(16, 9),
+                     npc_char_id="pirate_raider", squad_id="squad"),
+    ]
+    game_map = _squad_map(player, *members)
+    # Wall the direct pull cell (5, 17) AND the first slip candidate
+    # (5, 18) so the pull must take the second slip (4, 17).
+    game_map.tiles[17][5] = world.DUNGEON_WALL
+    game_map.tiles[18][5] = world.DUNGEON_WALL
+    monkeypatch.setattr(ground_npcs, "_patrol_path", lambda *a, **k: [(4, 18)])
+
+    ground_npcs._move_squad(members, game_map, is_hostile=True, squad_id="squad")
+
+    straggler = members[0]
+    # Patrol: (5,18) -> (4,18). Pull: direct (5,17) and slip (5,18)
+    # blocked, so it takes the second slip -> (4,17) — exactly one cell.
+    assert straggler.pos == world.Position(4, 17)
 
 
 def test_invalid_pursuit_memory_is_ignored_on_dungeon_load():

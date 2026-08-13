@@ -104,6 +104,40 @@ def test_move_npcs_skips_combat_locked_entities(monkeypatch):
     assert _free.pos == world.Position(11, 15)
 
 
+def test_squad_cohesion_steps_one_cell_toward_centre(monkeypatch):
+    """The space cohesion pull steps a straggler ONE cell per tick —
+    the visible squad member can no longer snap across the system."""
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(40)] for _ in range(30)]
+    _game_map = world.GameMap(40, 30, _tiles, [])
+    _straggler = _pirate_entity(world.Position(5, 18), "squad_c")
+    _mate_a = _pirate_entity(world.Position(14, 8), "squad_c")
+    _mate_b = _pirate_entity(world.Position(16, 9), "squad_c")
+    _game_map.entities.extend((_straggler, _mate_a, _mate_b))
+
+    _ctx = _ctx_with(world.Position(30, 15))
+    _ctx.npc_targets["squad_c"] = (30, 15)
+    _ctx.npc_paths["squad_c"] = [(6, 18)]  # leader steps east, then cohesion
+
+    monkeypatch.setattr(npc_ships._engine, "RNG", _RNGStub())
+    monkeypatch.setattr(
+        npc_ships, "_solar_module",
+        SimpleNamespace(current_system=_system),
+    )
+    monkeypatch.setattr(
+        npc_ships, "main_quest_module",
+        SimpleNamespace(
+            consortium_heat_active=lambda _ctx: False,
+            charged_cell_in_sol=lambda _ctx, _sid: False,
+        ),
+    )
+
+    npc_ships.move_npcs(_ctx, _game_map)
+
+    # Patrol: (5,18) -> (6,18). Cohesion: at most one cell further
+    # (no (13, 10) snap to centre+1).
+    assert max(abs(_straggler.pos.x - 6), abs(_straggler.pos.y - 18)) == 1
+
+
 def test_move_npcs_counts_locked_ships_against_spawn_cap(monkeypatch):
     """Locked ships are still on the map — the density cap counts them.
 

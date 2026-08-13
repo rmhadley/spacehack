@@ -12,8 +12,9 @@ Patterns by faction attitude:
 
 Squad cohesion: entities sharing the same ``squad_id`` move as a
 group. The leader's A* path is shared; followers trail in the same
-direction.  Stragglers more than 4 cells from the squad centre are
-pulled back toward it.
+direction. Stragglers more than 4 cells from the squad centre step
+one cell toward it per tick (slipping around obstacles), so a squad
+member never teleports back to the pack.
 """
 
 from __future__ import annotations
@@ -252,26 +253,13 @@ def _move_squad(
             _paths.pop(squad_id, None)
             return
 
-        # Try to move all members in the same direction.
+        # Try to move all members in the same direction (direct step
+        # with a one-cell perpendicular slip when the cell is blocked).
         _leader_moved = False
         for _m in members:
-            if _try_move_entity(_m, _dx, _dy, game_map):
-                if _m is _leader:
-                    _leader_moved = True
-            else:
-                # Blocked — try perpendicular slip-around.
-                if _dx != 0 and _dy != 0:
-                    for _sdx, _sdy in [(_dx, 0), (0, _dy)]:
-                        if _try_move_entity(_m, _sdx, _sdy, game_map):
-                            break
-                elif _dx != 0:
-                    for _sdx, _sdy in [(_dx, 1), (_dx, -1)]:
-                        if _try_move_entity(_m, _sdx, _sdy, game_map):
-                            break
-                else:  # _dy != 0
-                    for _sdx, _sdy in [(1, _dy), (-1, _dy)]:
-                        if _try_move_entity(_m, _sdx, _sdy, game_map):
-                            break
+            _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
+            if _m is _leader and _direct:
+                _leader_moved = True
         if _leader_moved:
             _path.pop(0)
     else:
@@ -280,15 +268,17 @@ def _move_squad(
             _wander_step(_m, game_map)
         return
 
-    # Squad cohesion: pull stragglers toward centre.
+    # Squad cohesion: step stragglers ONE cell toward the centre per
+    # tick (never a multi-cell snap), slipping around obstacles so a
+    # member wedged against a wall can still rejoin the pack.
     if len(members) > 1:
         _cx = sum(m.pos.x for m in members) // len(members)
         _cy = sum(m.pos.y for m in members) // len(members)
         for _m in members:
             if max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4:
-                _pull_x = _cx + (1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0)
-                _pull_y = _cy + (1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0)
-                _try_move_entity(_m, _pull_x - _m.pos.x, _pull_y - _m.pos.y, game_map)
+                _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
+                _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
+                world.try_step_with_slip(_m, game_map, _dx, _dy)
 
 
 def _wander_step(entity: world.Entity, game_map: world.GameMap) -> None:
