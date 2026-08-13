@@ -122,6 +122,16 @@ SPEC = PlanetSpec(
     ),
     mech_weapons=("light_laser", "heavy_laser", "light_missile"),
     mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo", "armor_plating"),
+    armory_weapons=(
+        "laser_pistol", "kinetic_pistol", "smg", "shotgun", "laser_rifle",
+        "plasma_pistol", "combat_knife", "stun_baton",
+    ),
+    armory_armor=(
+        "light_helmet", "heavy_helmet", "light_vest", "medium_vest",
+        "tactical_gloves", "reinforced_gauntlets", "armour_pads",
+        "heavy_legs", "combat_boots", "assault_boots",
+        "cybernetic_eyes", "cybernetic_arms",
+    ),
     tech_level=2,
     mission_tier=1,
     # The Mars surface is gated behind the prologue signal, so the

@@ -66,6 +66,8 @@ SPEC = PlanetSpec(
     ),
     mech_weapons=("light_laser", "light_missile"),
     mech_modules=("compact_reactor", "shield_mk1", "expanded_cargo"),
+    armory_weapons=("laser_pistol", "kinetic_pistol", "shotgun", "combat_knife"),
+    armory_armor=("light_helmet", "light_vest", "tactical_gloves", "armour_pads", "combat_boots"),
     tech_level=1,
     # mission_tier=4: Earth is the home bar — hand-crafted bar missions
     # (intercept + smuggling) are Earth-origin content and all tiers are

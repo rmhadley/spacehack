@@ -68,6 +68,28 @@ def _weapon_detail(spec) -> str:
     )
 
 
+def _armor_effects(spec) -> str:
+    """Format one armor piece's cybernetic bonuses, or an empty string."""
+    bonuses = []
+    if spec.ap_bonus:
+        bonuses.append(f"+{spec.ap_bonus} AP")
+    if spec.hit_bonus:
+        bonuses.append(f"+{spec.hit_bonus}% Hit")
+    if spec.melee_bonus:
+        bonuses.append(f"+{spec.melee_bonus} Melee")
+    if spec.hp_bonus:
+        bonuses.append(f"+{spec.hp_bonus} HP")
+    return f"  {' '.join(bonuses)}" if bonuses else ""
+
+
+def _armor_detail(spec) -> str:
+    """Format one armor piece's slot, defense, and cybernetic effects."""
+    return (
+        f"{spec.slot.title()}  Defense: {spec.defense}"
+        f"{_armor_effects(spec)}  {spec.description}"
+    )
+
+
 def _equipment_name(entry: ground_equipment.StoredGroundEquipment) -> str:
     """Resolve one stored item's display name."""
     if entry.item_type == "weapon":
@@ -84,15 +106,37 @@ def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
         return _weapon_detail(find_ground_weapon(entry.item_id))
     from ..data.ground_armor import find_ground_armor
     spec = find_ground_armor(entry.item_id)
-    return f"{spec.slot.title()}  Defense: {spec.defense}  {spec.description}"
+    return _armor_detail(spec)
 
 
-def _buy_rows():
+def _catalog_items(planet_id: str):
+    """Resolve the buyable ``(weapons, armor)`` for ``planet_id``.
+
+    With a known planet the armory's resolved stock is used; a blank
+    id falls back to the full shop-available catalog.
+    """
+    from ..data.ground_armor import find_ground_armor, list_ground_armor
+    from ..data.ground_weapons import find_ground_weapon, list_ground_weapons
+
+    if planet_id:
+        from ..data.planets import resolve_armory_inventory
+        weapon_ids, armor_ids = resolve_armory_inventory(planet_id)
+        return (
+            [find_ground_weapon(_w) for _w in weapon_ids],
+            [find_ground_armor(_a) for _a in armor_ids],
+        )
+    weapons = [
+        w for w in list_ground_weapons()
+        if getattr(w, "shop_available", True)
+    ]
+    return weapons, list_ground_armor()
+
+
+def _buy_rows(planet_id: str = ""):
     """Build catalog rows for the Buy view."""
     from .. import pygame_split, pygame_ui
-    from ..data.ground_armor import list_ground_armor
-    from ..data.ground_weapons import list_ground_weapons
 
+    weapons, armor = _catalog_items(planet_id)
     rows = [pygame_split.section_header("WEAPONS")]
     rows.extend(
         pygame_split.SplitRow(
@@ -101,18 +145,17 @@ def _buy_rows():
             _weapon_detail(spec),
             f"BUY_WEAPON:{spec.id}",
         )
-        for spec in sorted(list_ground_weapons(), key=lambda item: item.price)
-        if getattr(spec, "shop_available", True)
+        for spec in sorted(weapons, key=lambda item: item.price)
     )
     rows.append(pygame_split.section_header("ARMOUR"))
     rows.extend(
         pygame_split.SplitRow(
             spec.name,
             pygame_ui.price_cell(spec.price),
-            f"{spec.slot.title()}  Defense: {spec.defense}  {spec.description}",
+            _armor_detail(spec),
             f"BUY_ARMOR:{spec.id}",
         )
-        for spec in sorted(list_ground_armor(), key=lambda item: item.price)
+        for spec in sorted(armor, key=lambda item: item.price)
     )
     return tuple(rows)
 
@@ -147,10 +190,9 @@ def _storage_rows(
     return tuple(rows)
 
 
-def _loadout_rows(ctx: GameContext):
-    """Build selectable rows for the active ground loadout."""
+def _weapon_slot_rows(ctx: GameContext):
+    """Build the weapon-slot rows for the active ground loadout."""
     from .. import pygame_split, pygame_ui
-    from ..data.ground_armor import find_ground_armor
     from ..data.ground_weapons import find_ground_weapon
 
     rows = [pygame_split.section_header("WEAPON SLOTS")]
@@ -181,7 +223,15 @@ def _loadout_rows(ctx: GameContext):
             _weapon_detail(spec),
             f"MANAGE_WEAPON:{index}",
         ))
-    rows.append(pygame_split.section_header("ARMOUR SLOTS"))
+    return rows
+
+
+def _armor_slot_rows(ctx: GameContext):
+    """Build the armor-slot rows for the active ground loadout."""
+    from .. import pygame_split, pygame_ui
+    from ..data.ground_armor import find_ground_armor
+
+    rows = [pygame_split.section_header("ARMOUR SLOTS")]
     for slot in _ARMOR_SLOTS:
         item_id = ctx.equipped_ground_armor.get(slot)
         if not item_id:
@@ -191,10 +241,15 @@ def _loadout_rows(ctx: GameContext):
         rows.append(pygame_split.SplitRow(
             f"{_ARMOR_SLOT_LABELS[slot]}: {spec.name}",
             pygame_ui.sell_cell(_sell_price(item_id)),
-            f"Defense: {spec.defense}  {spec.description}",
+            f"Defense: {spec.defense}{_armor_effects(spec)}  {spec.description}",
             f"MANAGE_ARMOR:{slot}",
         ))
-    return tuple(rows)
+    return rows
+
+
+def _loadout_rows(ctx: GameContext):
+    """Build selectable rows for the active ground loadout."""
+    return tuple(_weapon_slot_rows(ctx) + _armor_slot_rows(ctx))
 
 
 def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY"):
@@ -204,7 +259,7 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
     if mode not in _ARMORY_MODES:
         raise ValueError(f"Unknown armory mode: {mode!r}")
     if mode == "BUY":
-        left_rows = _buy_rows()
+        left_rows = _buy_rows(planet_id)
         left_label = "Buy"
     elif mode == "ARMORY":
         left_rows = _storage_rows(_armory_storage(ctx), "MANAGE_ARMORY")
@@ -414,60 +469,71 @@ def _sell_from_container(ctx, entries, index: int) -> None:
     ctx.log.add(f"Sold {_equipment_name(entry)} for {price}$.")
 
 
-def _apply_purchase(ctx, action: str) -> None:
-    """Complete a validated purchase destination."""
-    _destination, item_type, item_id = action.split(":", 2)
+def _purchase_spec(item_type: str, item_id: str):
+    """Resolve the spec for one buy action."""
     from ..data.ground_armor import find_ground_armor
     from ..data.ground_weapons import find_ground_weapon
 
-    spec = find_ground_weapon(item_id) if item_type == "weapon" else find_ground_armor(item_id)
+    if item_type == "weapon":
+        return find_ground_weapon(item_id)
+    return find_ground_armor(item_id)
+
+
+def _install_purchase(ctx, entry, item_type: str) -> None:
+    """Equip a fresh purchase, routing displaced gear automatically."""
+    pack = _expedition_storage(ctx)
+    source = [entry]
+    displaced_container = _displacement_container(
+        ctx, entry, ground_equipment.ARMORY_STORAGE,
+    )
+    displaced_storage = (
+        pack
+        if displaced_container == ground_equipment.EXPEDITION_INVENTORY
+        else _armory_storage(ctx)
+    )
+    if item_type == "weapon":
+        ground_equipment.install_weapon(
+            ctx.equipped_ground_weapons, source, 0,
+            displaced_storage=displaced_storage,
+            container=ground_equipment.ARMORY_STORAGE,
+            displaced_container=displaced_container,
+            strength=_strength(ctx),
+        )
+    else:
+        ground_equipment.install_armor(
+            ctx.equipped_ground_armor, source, 0,
+            displaced_storage=displaced_storage,
+            container=ground_equipment.ARMORY_STORAGE,
+            displaced_container=displaced_container,
+            strength=_strength(ctx),
+        )
+
+
+def _apply_purchase(ctx, action: str) -> None:
+    """Complete a validated purchase destination."""
+    _destination, item_type, item_id = action.split(":", 2)
+    spec = _purchase_spec(item_type, item_id)
     if ctx.stats.credits < spec.price:
         ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
         return
     entry = ground_equipment.StoredGroundEquipment(item_type, item_id)
-    armory = _armory_storage(ctx)
-    pack = _expedition_storage(ctx)
     try:
-        if _destination not in {"BUY_INSTALL", "BUY_ARMORY", "BUY_EXPEDITION"}:
-            raise ValueError(f"Unknown purchase destination: {_destination!r}")
         if _destination == "BUY_INSTALL":
-            source = [entry]
-            displaced_container = _displacement_container(
-                ctx, entry, ground_equipment.ARMORY_STORAGE,
-            )
-            displaced_storage = (
-                pack
-                if displaced_container == ground_equipment.EXPEDITION_INVENTORY
-                else armory
-            )
-            if item_type == "weapon":
-                ground_equipment.install_weapon(
-                    ctx.equipped_ground_weapons, source, 0,
-                    displaced_storage=displaced_storage,
-                    container=ground_equipment.ARMORY_STORAGE,
-                    displaced_container=displaced_container,
-                    strength=_strength(ctx),
-                )
-            else:
-                ground_equipment.install_armor(
-                    ctx.equipped_ground_armor, source, 0,
-                    displaced_storage=displaced_storage,
-                    container=ground_equipment.ARMORY_STORAGE,
-                    displaced_container=displaced_container,
-                    strength=_strength(ctx),
-                )
+            _install_purchase(ctx, entry, item_type)
         elif _destination == "BUY_ARMORY":
             ground_equipment.add_stored(
-                armory, entry,
+                _armory_storage(ctx), entry,
                 container=ground_equipment.ARMORY_STORAGE,
                 strength=_strength(ctx),
             )
-        else:
+        elif _destination == "BUY_EXPEDITION":
             ground_equipment.transfer_item(
-                [entry], pack, 0,
+                [entry], _expedition_storage(ctx), 0,
                 destination_container=ground_equipment.EXPEDITION_INVENTORY,
                 strength=_strength(ctx),
             )
+        else:
+            raise ValueError(f"Unknown purchase destination: {_destination!r}")
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return
@@ -481,63 +547,75 @@ def _apply_purchase(ctx, action: str) -> None:
 
 
 
+def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
+    """Open the Store/Sell chooser for one active equipment slot."""
+    from .. import pygame_story
+
+    item_type = "weapon" if kind == "MANAGE_WEAPON" else "armor"
+    entry = ground_equipment.StoredGroundEquipment(item_type, item_id)
+    label = _equipment_name(entry)
+    if kind == "MANAGE_WEAPON":
+        options = (
+            ("Store in Armory", f"STORE_WEAPON:{slot}"),
+            (f"Sell for {_sell_price(item_id)}$", f"SELL_WEAPON:{slot}"),
+        )
+    else:
+        options = (
+            ("Store in Armory", f"STORE_ARMOR:{slot}"),
+            (f"Sell for {_sell_price(item_id)}$", f"SELL_ARMOR:{slot}"),
+        )
+    return pygame_story.choose(
+        ctx, title="MANAGE LOADOUT", body=label,
+        options=options,
+        caption="spacehack - manage loadout", compact=True,
+    )
+
+
+def _apply_manage_choice(ctx, chosen: str) -> None:
+    """Apply a Store/Sell choice from the manage-loadout chooser."""
+    try:
+        if chosen.startswith("STORE_WEAPON:"):
+            slot = int(chosen.split(":", 1)[1])
+            ground_equipment.store_weapon(
+                ctx.equipped_ground_weapons, _armory_storage(ctx), slot,
+            )
+        elif chosen.startswith("STORE_ARMOR:"):
+            ground_equipment.store_armor(
+                ctx.equipped_ground_armor, _armory_storage(ctx),
+                chosen.split(":", 1)[1],
+            )
+        elif chosen.startswith("SELL_WEAPON:"):
+            slot = int(chosen.split(":", 1)[1])
+            removed = ground_equipment.remove_weapon(ctx.equipped_ground_weapons, slot)
+            ctx.stats.credits += _sell_price(removed.item_id)
+        elif chosen.startswith("SELL_ARMOR:"):
+            removed = ground_equipment.remove_armor(
+                ctx.equipped_ground_armor, chosen.split(":", 1)[1],
+            )
+            ctx.stats.credits += _sell_price(removed.item_id)
+    except (IndexError, KeyError, ValueError) as exc:
+        ctx.log.add(str(exc))
+
+
 def _manage_loadout(ctx, action: str) -> None:
     """Open the active-loadout Store/Sell chooser."""
     kind, slot_text = action.split(":", 1)
-    from .. import pygame_story
     if kind == "MANAGE_WEAPON":
         slot = int(slot_text)
         if not 0 <= slot < len(ctx.equipped_ground_weapons):
             return
         item_id = ctx.equipped_ground_weapons[slot]
-        item_type = "weapon"
-        label = _equipment_name(ground_equipment.StoredGroundEquipment(item_type, item_id))
-        chosen = pygame_story.choose(
-            ctx, title="MANAGE LOADOUT", body=label,
-            options=(("Store in Armory", f"STORE_WEAPON:{slot}"), (f"Sell for {_sell_price(item_id)}$", f"SELL_WEAPON:{slot}")),
-            caption="spacehack - manage loadout", compact=True,
-        )
     else:
         slot = slot_text
         item_id = ctx.equipped_ground_armor.get(slot)
         if not item_id:
             return
-        label = _equipment_name(ground_equipment.StoredGroundEquipment("armor", item_id))
-        chosen = pygame_story.choose(
-            ctx, title="MANAGE LOADOUT", body=label,
-            options=(("Store in Armory", f"STORE_ARMOR:{slot}"), (f"Sell for {_sell_price(item_id)}$", f"SELL_ARMOR:{slot}")),
-            caption="spacehack - manage loadout", compact=True,
-        )
+    chosen = _manage_choice(ctx, kind, slot, item_id)
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
         raise SystemExit
-    if chosen.startswith("STORE_WEAPON:"):
-        try:
-            ground_equipment.store_weapon(ctx.equipped_ground_weapons, _armory_storage(ctx), int(chosen.split(":", 1)[1]))
-        except (IndexError, KeyError, ValueError) as exc:
-            ctx.log.add(str(exc))
-    elif chosen.startswith("STORE_ARMOR:"):
-        try:
-            ground_equipment.store_armor(ctx.equipped_ground_armor, _armory_storage(ctx), chosen.split(":", 1)[1])
-        except (IndexError, KeyError, ValueError) as exc:
-            ctx.log.add(str(exc))
-    elif chosen.startswith("SELL_WEAPON:"):
-        slot = int(chosen.split(":", 1)[1])
-        try:
-            removed = ground_equipment.remove_weapon(ctx.equipped_ground_weapons, slot)
-        except (IndexError, KeyError, ValueError) as exc:
-            ctx.log.add(str(exc))
-            return
-        ctx.stats.credits += _sell_price(removed.item_id)
-    elif chosen.startswith("SELL_ARMOR:"):
-        slot = chosen.split(":", 1)[1]
-        try:
-            removed = ground_equipment.remove_armor(ctx.equipped_ground_armor, slot)
-        except (IndexError, KeyError, ValueError) as exc:
-            ctx.log.add(str(exc))
-            return
-        ctx.stats.credits += _sell_price(removed.item_id)
+    _apply_manage_choice(ctx, chosen)
 
 
 def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selected: int) -> bool:

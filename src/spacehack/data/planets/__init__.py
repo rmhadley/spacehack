@@ -70,6 +70,11 @@ class PlanetSpec:
     # :func:`resolve_mech_inventory`).
     mech_weapons: tuple[str, ...] = ()
     mech_modules: tuple[str, ...] = ()
+    # Armory terminal inventory — ground weapon/armor IDs sold at this
+    # planet's armory terminal. Empty tuples = use seeded RNG (see
+    # :func:`resolve_armory_inventory`).
+    armory_weapons: tuple[str, ...] = ()
+    armory_armor: tuple[str, ...] = ()
     tech_level: int = 1               # max tech level stocked at this planet
     mission_tier: int = 1             # max mission tier offered at this planet's NPCs
     explorable_site_name: str = "Surface"  # label for the EXPLORE menu option (e.g. Mars = "signal")
@@ -154,48 +159,69 @@ def find_planet_spec(planet_id: str) -> PlanetSpec:
         raise KeyError(f"unknown planet id: {planet_id!r}") from None
 
 
+def _filter_by_tech_level(items, level: int) -> list:
+    """Return the items whose ``tech_level`` is at most ``level``."""
+    return [item for item in items if item.tech_level <= level]
+
+
+def _sample_stock(
+    override: tuple[str, ...],
+    items: list,
+    level: int,
+    count: int,
+    rng,
+    shop_filter: bool = False,
+) -> tuple[str, ...]:
+    """Return ``override`` verbatim, else a tier-gated RNG sample of ``items``."""
+    if override:
+        return override
+    pool = _filter_by_tech_level(items, level)
+    if shop_filter:
+        pool = [item for item in pool if getattr(item, "shop_available", True)]
+    if not pool:
+        return ()
+    pool.sort(key=lambda item: item.price)
+    return tuple(item.id for item in rng.sample(pool, min(count, len(pool))))
+
+
 def resolve_mech_inventory(
     planet_id: str,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Return ``(weapon_ids, module_ids)`` sold at ``planet_id``'s mechanic.
 
-    If the planet's :attr:`PlanetSpec.mech_weapons` / ``mech_modules`` is
-    non-empty, those lists are used verbatim (e.g. Earth/Mars have fixed
-    starter sets). Otherwise, uses the shared :data:`engine.RNG` to pick
-    a subset from items whose ``tech_level <= planet.tech_level``.
-
-    Inventory changes naturally each visit because the shared RNG state
-    advances with every call — no manual visit counter needed.
+    Fixed per-planet overrides win; otherwise a seeded RNG subset of
+tier-eligible items. Inventory changes naturally each visit because the
+shared RNG state advances with every call.
     """
     from ...engine import RNG
+    from ...data.modules import list_modules as _lm
+    from ...data.weapons import list_weapons as _lw
 
     spec = find_planet_spec(planet_id)
-
-    if spec.mech_weapons:
-        _w_ids = spec.mech_weapons
-    else:
-        from ...data.weapons import list_weapons as _lw
-        _all_w = [w for w in _lw() if w.tech_level <= spec.tech_level]
-        if not _all_w:
-            _w_ids = ()
-        else:
-            _all_w.sort(key=lambda _x: _x.price)
-            _count = min(4, len(_all_w))
-            _w_ids = tuple(_x.id for _x in RNG.sample(_all_w, _count))
-
-    if spec.mech_modules:
-        _m_ids = spec.mech_modules
-    else:
-        from ...data.modules import list_modules as _lm
-        _all_m = [m for m in _lm() if m.tech_level <= spec.tech_level]
-        if not _all_m:
-            _m_ids = ()
-        else:
-            _all_m.sort(key=lambda _x: _x.price)
-            _count = min(6, len(_all_m))
-            _m_ids = tuple(_x.id for _x in RNG.sample(_all_m, _count))
-
+    _w_ids = _sample_stock(spec.mech_weapons, _lw(), spec.tech_level, 4, RNG)
+    _m_ids = _sample_stock(spec.mech_modules, _lm(), spec.tech_level, 6, RNG)
     return _w_ids, _m_ids
+
+
+def resolve_armory_inventory(
+    planet_id: str,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return ``(weapon_ids, armor_ids)`` sold at ``planet_id``'s armory.
+
+    Mirrors :func:`resolve_mech_inventory` for ground gear: fixed
+per-planet overrides win, else a seeded RNG subset of tier-eligible
+shop items.
+    """
+    from ...engine import RNG
+    from ...data.ground_armor import list_ground_armor as _lga
+    from ...data.ground_weapons import list_ground_weapons as _lgw
+
+    spec = find_planet_spec(planet_id)
+    _w_ids = _sample_stock(
+        spec.armory_weapons, _lgw(), spec.tech_level, 4, RNG, shop_filter=True,
+    )
+    _a_ids = _sample_stock(spec.armory_armor, _lga(), spec.tech_level, 6, RNG)
+    return _w_ids, _a_ids
 
 
 def has_explorable_sites(planet_id: str) -> list[str]:
@@ -268,33 +294,43 @@ def hangar_anchor(planet_id: str) -> world.Position:
 
 
 def load_planet(planet_id: str) -> world.GameMap:
-    """Build the :class:`world.GameMap` for the named planet's on-surface city.
+    """Build the :class:`world.GameMap` for the named planet's city.
 
-    Shared decorative code (perimeter walls + 4 doors + roads + plaza +
-    sidewalks + grass patch) lives in :func:`world.make_city`; this
-    loader composes the skeleton with the planet-specific building
-    layout, showroom ships, and NPC overrides from the spec.
+    Shared decorative code lives in :func:`world.make_city`; this loader
+    composes the skeleton with the planet-specific building layout,
+    showroom ships, and NPC overrides from the spec.
     """
     spec = find_planet_spec(planet_id)
     width, height = spec.width, spec.height
-
     theme = spec.theme or world.EARTH_THEME
+    tiles = _city_tiles(width, height, theme)
+    entities: list[world.Entity] = []
+    _place_buildings(spec, tiles, entities)
+    _place_port_fixtures(spec, entities)
+    world._layout_outside(tiles, width, height, spec.buildings, theme=theme)
+    _paint_landing_pad(spec, tiles, width, height, theme)
+    return world.GameMap(
+        width=width, height=height,
+        tiles=tiles, entities=entities,
+    )
+
+
+def _city_tiles(width: int, height: int, theme) -> list[list[world.Tile]]:
+    """Build the floor grid with perimeter walls for one city map."""
     tiles: list[list[world.Tile]] = [
         [theme.floor for _ in range(width)] for _ in range(height)
     ]
-    # Perimeter walls (all WALL — the 4 perimeter "door" tiles were
-    # a traditional-roguelike holdover that served no purpose here).
     for x in range(width):
         tiles[0][x] = world.WALL
         tiles[height - 1][x] = world.WALL
     for y in range(height):
         tiles[y][0] = world.WALL
         tiles[y][width - 1] = world.WALL
+    return tiles
 
-    entities: list[world.Entity] = []
 
-    # Per-planet buildings + their NPC occupants (planet-local
-    # override or global catalog fallback).
+def _place_buildings(spec: PlanetSpec, tiles, entities) -> None:
+    """Place per-planet buildings and their NPC occupants onto ``tiles``."""
     for building in spec.buildings:
         occupant = _resolve_npc_entity(building.npc_id, spec)
         changes, occupants = world.make_building(
@@ -309,79 +345,59 @@ def load_planet(planet_id: str) -> world.GameMap:
             tiles[pos.y][pos.x] = tile
         entities.extend(occupants)
 
-    # Showroom ships inside the FIRST building (the spaceport).
+
+def _port_entities(spec: PlanetSpec, port) -> list[world.Entity]:
+    """Showroom ships + trade/mech/armory terminals outside the spaceport."""
+    entities: list[world.Entity] = []
+    for ship_id, off_x, off_y in spec.showroom_ships:
+        ship_obj = _resolve_ship(ship_id)
+        entities.append(world.Entity(
+            char=ship_obj.char,
+            fg=ship_obj.fg,
+            pos=world.Position(x=port.x_lo + off_x, y=port.y_lo + off_y),
+            name=f"Ship: {ship_obj.name}",
+            ship_id=ship_obj.id,
+            width=ship_obj.width,
+            height=ship_obj.height,
+        ))
+    _term = world.Position(x=port.door_x + 2, y=port.y_hi + 1)
+    entities.append(world.Entity(
+        char="=", fg=(100, 220, 255), pos=_term,
+        name="Trade Terminal", width=1, height=1, trade_terminal=True,
+    ))
+    _mech = world.Position(x=port.door_x - 2, y=port.y_hi + 1)
+    entities.append(world.Entity(
+        char="%", fg=(200, 220, 100), pos=_mech,
+        name="Mechanic Terminal", width=1, height=1, mech_terminal=True,
+    ))
+    _armory = world.Position(x=port.door_x - 5, y=port.y_hi + 1)
+    entities.append(world.Entity(
+        char="A", fg=(255, 160, 80), pos=_armory,
+        name="Armory Terminal", width=1, height=1, armory_terminal=True,
+    ))
+    return entities
+
+
+def _place_port_fixtures(spec: PlanetSpec, entities) -> None:
+    """Place showroom ships + terminals if the spec has a spaceport."""
     if spec.buildings:
-        port = spec.buildings[0]
-        for ship_id, off_x, off_y in spec.showroom_ships:
-            ship_obj = _resolve_ship(ship_id)
-            entities.append(world.Entity(
-                char=ship_obj.char,
-                fg=ship_obj.fg,
-                pos=world.Position(x=port.x_lo + off_x, y=port.y_lo + off_y),
-                name=f"Ship: {ship_obj.name}",
-                ship_id=ship_obj.id,
-                width=ship_obj.width,
-                height=ship_obj.height,
-            ))
-        # Trade terminal: auto-placed outside every spaceport.
-        # Every planet gets one — neutral goods from the full catalog
-        # are available even when ``produces``/``demands`` are empty.
-        _term_x = port.door_x + 2
-        _term_y = port.y_hi + 1  # just outside the south-wall door
-        entities.append(world.Entity(
-            char="=",
-            fg=(100, 220, 255),
-            pos=world.Position(x=_term_x, y=_term_y),
-            name="Trade Terminal",
-            width=1, height=1,
-            trade_terminal=True,
-        ))
-        # Mechanic terminal: placed on the opposite side of the door.
-        _mech_x = port.door_x - 2
-        _mech_y = port.y_hi + 1
-        entities.append(world.Entity(
-            char="%",
-            fg=(200, 220, 100),
-            pos=world.Position(x=_mech_x, y=_mech_y),
-            name="Mechanic Terminal",
-            width=1, height=1,
-            mech_terminal=True,
-        ))
-        # Armory terminal: placed further left of the mechanic terminal.
-        _armory_x = port.door_x - 5
-        _armory_y = port.y_hi + 1
-        entities.append(world.Entity(
-            char="A",
-            fg=(255, 160, 80),
-            pos=world.Position(x=_armory_x, y=_armory_y),
-            name="Armory Terminal",
-            width=1, height=1,
-            armory_terminal=True,
-        ))
+        entities.extend(_port_entities(spec, spec.buildings[0]))
 
-    # Shared decoration: roads, plaza, sidewalks, grass patch.
-    world._layout_outside(tiles, width, height, spec.buildings, theme=theme)
 
-    # Landing-pad tiles: painted south of the spaceport for ALL planets.
-    # Standard 60x40 planets already get this from _layout_outside above,
-    # but smaller planets (ac_station, future stations) skip that function
-    # entirely, so we always paint a pad here for every planet that has a
-    # spaceport building.
-    if spec.buildings and spec.buildings[0].label == world.SPACEPORT_LABEL:
-        port = spec.buildings[0]
-        anchor = spec.hangar_anchor
-        pad_x_lo = max(1, anchor.x - 3)
-        pad_x_hi = min(width - 2, anchor.x + 3)
-        pad_y_lo = port.y_hi + 1
-        pad_y_hi = min(height - 2, anchor.y + 1)
-        for py in range(pad_y_lo, pad_y_hi + 1):
-            for px in range(pad_x_lo, pad_x_hi + 1):
-                tiles[py][px] = theme.landing_pad if theme else world.LANDING_PAD
-
-    return world.GameMap(
-        width=width, height=height,
-        tiles=tiles, entities=entities,
-    )
+def _paint_landing_pad(spec: PlanetSpec, tiles, width, height, theme) -> None:
+    """Paint landing-pad tiles south of the spaceport for every planet."""
+    if not spec.buildings or spec.buildings[0].label != world.SPACEPORT_LABEL:
+        return
+    port = spec.buildings[0]
+    anchor = spec.hangar_anchor
+    pad_x_lo = max(1, anchor.x - 3)
+    pad_x_hi = min(width - 2, anchor.x + 3)
+    pad_y_lo = port.y_hi + 1
+    pad_y_hi = min(height - 2, anchor.y + 1)
+    pad_tile = theme.landing_pad if theme else world.LANDING_PAD
+    for py in range(pad_y_lo, pad_y_hi + 1):
+        for px in range(pad_x_lo, pad_x_hi + 1):
+            tiles[py][px] = pad_tile
 
 
 def _resolve_npc_entity(

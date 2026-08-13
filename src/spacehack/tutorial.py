@@ -153,8 +153,9 @@ _STEP_BODIES: dict[str, str] = {
     "earth_armory": (
         "Mars has hostile wildlife and raiders - bring a weapon. Visit "
         "the Armory terminal (the 'A' icon, left of the mechanic "
-        "terminal outside the space port) and buy a Kinetic Rifle.\n\n"
-        "You can carry two weapons; equip it from your ground loadout."
+        "terminal outside the space port) and buy a Shotgun.\n\n"
+        "It's two-handed, so it fills both weapon slots. Equip it from "
+        "your ground loadout."
     ),
     "armed_ground": (
         "Armed and ready. Launch your ship and press 'G' to "
