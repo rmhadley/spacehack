@@ -1,6 +1,6 @@
 # 20 — Auto-Explore in Dungeons (the `O` key)
 
-**Status:** in progress
+**Status:** complete
 **Owner:** agent + user
 **Depends on:** nothing (standalone QoL feature)
 
@@ -149,17 +149,23 @@ dark").
 
 - [x] Press `O` in a derelict with unrevealed rooms — walks there,
       stops beside stairs/exit instead of stepping on them.
-- [ ] Loot in an unseen room: stops when it comes into view.
-- [ ] Loot already on screen when `O` pressed: does NOT re-stop.
-- [ ] Enemy comes into view: combat starts, auto-explore ends.
-- [ ] Any key cancels mid-run.
-- [ ] Everything explored: "You have explored every reachable area."
-- [ ] `O` in city/space logs the dungeon-only hint.
-- [ ] Press `O` right after entering a derelict (breach shaft) — the
-      walk must proceed into the ship instead of stopping instantly.
-- [ ] Mid-run on a well-explored map: the walk continues to the fog
+- [x] Loot in an unseen room: stops when it comes into view.
+- [x] Loot already on screen when `O` pressed: does NOT re-stop.
+- [x] Enemy comes into view: combat starts, auto-explore ends.
+- [x] Any key cancels mid-run.
+- [x] Everything explored: "You have explored every reachable area."
+- [x] `O` in city/space logs the dungeon-only hint.
+- [x] Press `O` right after entering a derelict (breach shaft) — the
+      walk proceeds into the ship instead of stopping instantly.
+- [x] Mid-run on a well-explored map: the walk continues to the fog
       edges (revealing boundary walls) instead of instantly reporting
       everything explored.
+
+**PLAYTEST: COMPLETE.** Manual playtesting covered unrevealed-room traversal,
+interesting-content stops, already-visible content, enemy discovery and combat,
+keypress cancellation, exhausted maps, mode gating, breach-shaft entry, and
+fog-edge wall revelation. The follow-up monster-blocking behavior was also
+verified against the regression scenarios recorded above.
 
 **Third fix (new save — invisible monster in the only door):** a
 second autosave (Mars Surface, player at 36,33) showed

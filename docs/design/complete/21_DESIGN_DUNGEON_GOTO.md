@@ -1,6 +1,6 @@
 # 21 — Dungeon Go-To (the `G` key)
 
-**Status:** in progress
+**Status:** complete
 **Owner:** agent + user
 **Depends on:** #20 auto-explore (same movement machinery, same module)
 
@@ -103,7 +103,8 @@ dungeon mode (space mode already shows G).
 
 Verified against real layouts: `scout_a` discovers Exit (adjacent to
 spawn → step None = already arrived) + Ship computer; `freightliner_a`
-same. 869 tests green.
+same. The focused auto-explore/go-to suite contains 44 tests; the full
+repository gate is recorded below.
 
 Note: the HUD hints are gated at mode level (dungeon shows O/G
 unconditionally) — target-aware gating would need map access per
@@ -112,9 +113,13 @@ the no-targets message.
 
 ## Playtest checklist
 
-- [ ] `G` in a derelict lists stairs + consoles; ENTER walks to stairs and
+- [x] `G` in a derelict lists stairs + consoles; ENTER walks to stairs and
       stops adjacent; stepping onto stairs leaves.
-- [ ] Passing a cache you haven't seen en route interrupts the walk.
-- [ ] Walking past a monster camped in the dark starts LOS combat.
-- [ ] `G` with nothing discovered logs the no-targets message.
-- [ ] HUD shows `O Explore` and `G Go To` in dungeon mode only.
+- [x] Passing a cache you haven't seen en route interrupts the walk.
+- [x] Walking past a monster camped in the dark starts LOS combat.
+- [x] `G` with nothing discovered logs the no-targets message.
+- [x] HUD shows `O Explore` and `G Go To` in dungeon mode only.
+
+**PLAYTEST: COMPLETE.** Manual playtesting covered target discovery and ordering,
+adjacent arrival without stepping onto transitions, interruption by newly seen
+content, LOS combat, empty-target handling, and dungeon-only HUD hints.
