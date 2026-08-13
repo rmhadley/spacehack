@@ -299,10 +299,14 @@ cache rather than defining a second one.
 
 ### Phase 5 — Delivery generator
 
-- [ ] Move delivery generation to `_proc_delivery.py`.
-- [ ] Preserve generated IDs, RNG ordering, fields, rewards, deadlines, and
+- [x] Move delivery generation to `_proc_delivery.py`.
+- [x] Preserve generated IDs, RNG ordering, fields, rewards, deadlines, and
       destination selection.
-- [ ] Run delivery generator and board-refresh tests.
+- [x] Run delivery generator and board-refresh tests (94 focused tests pass).
+
+`_proc_delivery.py` owns the delivery generator and imports all shared lookup
+and tier primitives directly from `_proc_shared.py`; legacy and package aliases
+remain identity-compatible.
 
 ### Phase 6 — Bounty generator
 

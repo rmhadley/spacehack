@@ -20,6 +20,7 @@ from ._helpers import (
     system_name_for_planet,
 )
 from ._proc_shared import _planet_npc_ids, _planet_to_system
+from ._proc_delivery import generate_delivery_mission
 from ._lifecycle import (
     abort_mission,
     commit_accept_mission,
@@ -39,7 +40,6 @@ from ._legacy import (
     find_mission,
     generate_bar_mission,
     generate_bounty_mission,
-    generate_delivery_mission,
     list_missions,
     missions_offered_by,
 )
