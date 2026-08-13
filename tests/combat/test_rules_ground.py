@@ -17,6 +17,7 @@ import pytest
 
 from src.spacehack import world
 from src.spacehack.combat import _loop, _rules_ground
+from src.spacehack.combat import _ground_presentation
 from src.spacehack.combat._rules_ground import (
     _ground_hit_chance_raw,
     _ground_damage_raw,
@@ -165,18 +166,18 @@ class TestEnemyThreatColor:
     def test_in_range_is_danger(self):
         assert _rules_ground.enemy_threat_color(
             self._enemy("frost_bolt"), 3,
-        ) == _rules_ground._COLOR_DIST_DANGER
+        ) == _ground_presentation.COLOR_DIST_DANGER
 
     def test_out_of_range_is_safe(self):
         assert _rules_ground.enemy_threat_color(
             self._enemy("frost_bolt"), 9,
-        ) == _rules_ground._COLOR_DIST_SAFE
+        ) == _ground_presentation.COLOR_DIST_SAFE
 
     def test_inside_min_range_is_too_close(self):
         # kinetic_rifle min_range=2: adjacent is too close to fire.
         assert _rules_ground.enemy_threat_color(
             self._enemy("kinetic_rifle"), 1,
-        ) == _rules_ground._COLOR_DIST_TOO_CLOSE
+        ) == _ground_presentation.COLOR_DIST_TOO_CLOSE
 
     def test_unarmed_is_dim(self):
         assert _rules_ground.enemy_threat_color(
@@ -594,3 +595,74 @@ def test_sync_state_releases_engaged_enemies():
     _rules_ground.sync_state(_ctx)
 
     assert not hasattr(_enemy, "combat_locked")
+
+
+def _target_card_enemy(weapon_id="drone_laser", x=5, y=3, armor=3, name="Assault Drone"):
+    return _rules_ground.GroundEnemyInstance(
+        entity=world.Entity("D", (255, 100, 100), world.Position(x, y), name),
+        spec=SimpleNamespace(name=name, armor=armor),
+        weapon_id=weapon_id,
+        hp=12,
+        max_hp=30,
+    )
+
+
+class TestBuildTargetCard:
+    def test_resolves_weapon_stats_and_viewport_position(self):
+        enemy = _target_card_enemy()
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]
+        _game_map = world.GameMap(8, 6, _tiles, [enemy.entity])
+
+        card = _ground_presentation.build_target_card(
+            enemy,
+            game_map=_game_map,
+            player_pos=world.Position(2, 2),
+            region_w=8,
+            region_h=6,
+        )
+
+        assert card is not None
+        assert card.name == "Assault Drone"
+        assert card.armor == 3
+        assert card.weapon == "Drone Laser"
+        assert card.damage == 4
+        assert card.min_range == 1
+        assert card.max_range == 6
+        assert card.hp == 12
+        assert card.max_hp == 30
+        assert card.distance == 3  # int(hypot(3, 1))
+        assert card.threat == _ground_presentation.COLOR_DIST_DANGER
+        assert (card.x, card.y) == (5, 3)
+
+    def test_unarmed_enemy_has_blank_weapon_and_dim_threat(self):
+        enemy = _target_card_enemy(weapon_id="")
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]
+        _game_map = world.GameMap(8, 6, _tiles, [enemy.entity])
+
+        card = _ground_presentation.build_target_card(
+            enemy,
+            game_map=_game_map,
+            player_pos=world.Position(2, 2),
+            region_w=8,
+            region_h=6,
+        )
+
+        assert card is not None
+        assert card.weapon == ""
+        assert card.damage == 0
+        assert card.threat == _rules_ground.ui.COLOR_VALUE_DIM
+
+    def test_off_viewport_target_returns_none(self):
+        enemy = _target_card_enemy(x=15, y=5)
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(20)] for _ in range(12)]
+        _game_map = world.GameMap(20, 12, _tiles, [enemy.entity])
+
+        card = _ground_presentation.build_target_card(
+            enemy,
+            game_map=_game_map,
+            player_pos=world.Position(2, 2),
+            region_w=8,
+            region_h=6,
+        )
+
+        assert card is None

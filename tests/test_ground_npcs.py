@@ -175,15 +175,19 @@ def test_disengagement_stamps_surviving_hunter():
         npc_char_id="dust_prowler",
     )
     game_map = _floor_map(player, hunter)
+    _old_state = _rules_ground._state
     _rules_ground._state = SimpleNamespace(
         enemies=[SimpleNamespace(entity=hunter, alive=True)],
     )
-    ctx = SimpleNamespace(player=player)
+    try:
+        ctx = SimpleNamespace(player=player)
 
-    _rules_ground.on_disengage(ctx, game_map)
+        _rules_ground.on_disengage(ctx, game_map)
 
-    assert hunter.last_seen_pos == player.pos
-    assert hunter.last_seen_ticks == 5
+        assert hunter.last_seen_pos == player.pos
+        assert hunter.last_seen_ticks == 5
+    finally:
+        _rules_ground._state = _old_state
 
 
 def test_unified_loop_stamps_only_on_disengagement():

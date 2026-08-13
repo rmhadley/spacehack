@@ -72,6 +72,19 @@ def _combat_floaters(ctx: GameContext | None) -> tuple:
     return _animations.active_floaters()
 
 
+def _combat_target_card(ctx: GameContext | None):
+    """Return the native info card for the targeted ground enemy, if any.
+
+    Space combat has no card (its HUD already reads cleanly), so the
+    ground rules module owns the card and returns ``None`` when the
+    active session isn't ground combat or has no valid target.
+    """
+    if ctx is None:
+        return None
+    from .combat import _rules_ground
+    return _rules_ground.presentation_target_card(ctx=ctx)
+
+
 def _frame_payload(
     console: FrameBuffer,
     *,
@@ -92,6 +105,7 @@ def _frame_payload(
         hud_view_height=(960 // pygame_world.TILE_HEIGHT) - MSG_LOG_HEIGHT,
         shields=_combat_shield_bubbles(ctx),
         floaters=_combat_floaters(ctx),
+        target=_combat_target_card(ctx),
     )
     return {
         "logical_size": (1600, 960),
@@ -151,6 +165,32 @@ _DEATH_LINES: tuple[str, ...] = (
 )
 
 
+def _draw_death_lines(pygame: Any, screen: Any, lines: tuple[str, ...], font_path: str) -> None:
+    """Paint the death frame's centered title, body, and prompt lines."""
+    width, height = screen.get_size()
+    title_font = pygame.font.Font(font_path, max(24, height // 15))
+    body_font = pygame.font.Font(font_path, max(14, height // 40))
+    content = pygame_ui.Rect(0, 0, width, height)
+    title, *body = lines
+    title_y = int(height * 0.38)
+    pygame_ui.draw_centered_text(
+        pygame, screen, title_font, title, content, title_y,
+        color=(255, 90, 90),
+    )
+    body_y = title_y + title_font.get_linesize() + 24
+    for line in body:
+        pygame_ui.draw_centered_text(
+            pygame, screen, body_font, line, content, body_y,
+            color=(235, 210, 210),
+        )
+        body_y += body_font.get_linesize() + 10
+    pygame_ui.draw_centered_text(
+        pygame, screen, body_font,
+        "Press any key to return to the main menu",
+        content, height - 130, color=(255, 240, 175),
+    )
+
+
 def present_death(ctx: GameContext, *, lines: tuple[str, ...] = ()) -> None:
     """Present a full-screen death frame: no HUD, no console log.
 
@@ -169,34 +209,32 @@ def present_death(ctx: GameContext, *, lines: tuple[str, ...] = ()) -> None:
     lines = lines or _DEATH_LINES
     if not lines:
         raise PygameCombatUnavailable("Death frame has no text")
-    pygame = engine.pygame
     screen = engine.logical_surface
-    width, height = screen.get_size()
-    font_path = pygame_menu._font_path(pygame)
-    title_font = pygame.font.Font(font_path, max(24, height // 15))
-    body_font = pygame.font.Font(font_path, max(14, height // 40))
     screen.fill((40, 0, 0))  # dark red
-    content = pygame_ui.Rect(0, 0, width, height)
-    title, *body = lines
-    title_y = int(height * 0.38)
-    pygame_ui.draw_centered_text(
-        pygame, screen, title_font, title, content, title_y,
-        color=(255, 90, 90),
-    )
-    body_y = title_y + title_font.get_linesize() + 24
-    for line in body:
-        pygame_ui.draw_centered_text(
-            pygame, screen, body_font, line, content, body_y,
-            color=(235, 210, 210),
-        )
-        body_y += body_font.get_linesize() + 10
-    prompt_y = height - 130
-    pygame_ui.draw_centered_text(
-        pygame, screen, body_font,
-        "Press any key to return to the main menu",
-        content, prompt_y, color=(255, 240, 175),
-    )
+    _draw_death_lines(engine.pygame, screen, lines, pygame_menu._font_path(engine.pygame))
     engine.present()
+
+
+def _map_console(console: FrameBuffer, all_commands: tuple) -> pygame_world.CaptureConsole:
+    """Copy map-region cells into a capture console for shared presentation."""
+    map_console = pygame_world.CaptureConsole(
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        background=_default_background(console),
+    )
+    for command in all_commands:
+        if (
+            command.x < SCREEN_WIDTH - HUD_WIDTH
+            and command.y < SCREEN_HEIGHT - MSG_LOG_HEIGHT
+        ):
+            map_console.write_cell(
+                command.x,
+                command.y,
+                command.char,
+                fg=command.fg,
+                bg=command.bg,
+            )
+    return map_console
 
 
 def present(ctx: GameContext, console: FrameBuffer) -> None:
@@ -211,36 +249,110 @@ def present(ctx: GameContext, console: FrameBuffer) -> None:
             ctx._pygame_combat_presenter = None
     from . import pygame_runtime
 
-    if pygame_runtime.is_shared_context(ctx.context):
-        all_commands = _console_commands(console)
-        overlay = pygame_overlay._frame_from_commands(
-            all_commands,
-            screen_width=SCREEN_WIDTH,
-            screen_height=SCREEN_HEIGHT,
-            hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
-            shields=_combat_shield_bubbles(ctx),
-            floaters=_combat_floaters(ctx),
+    if not pygame_runtime.is_shared_context(ctx.context):
+        raise PygameCombatUnavailable("Shared Pygame combat presentation is not open")
+    all_commands = _console_commands(console)
+    overlay = pygame_overlay._frame_from_commands(
+        all_commands,
+        screen_width=SCREEN_WIDTH,
+        screen_height=SCREEN_HEIGHT,
+        hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        shields=_combat_shield_bubbles(ctx),
+        floaters=_combat_floaters(ctx),
+        target=_combat_target_card(ctx),
+    )
+    ctx.context.present(_map_console(console, all_commands), overlay=overlay)
+
+
+def _worker_open_engine(pygame: Any, first_frame: pygame_world.WorldFrame):
+    """Open the combat worker's persistent Pygame engine."""
+    logical_width, logical_height = first_frame.logical_size
+    config = pygame_engine.PygameEngineConfig(
+        logical_width=logical_width,
+        logical_height=logical_height,
+        window_width=logical_width,
+        window_height=logical_height,
+        title="spacehack - combat",
+    )
+    engine = pygame_engine.PygameEngine(pygame, config).open()
+    return engine, logical_width, logical_height
+
+
+def _frame_reader(frames: queue.Queue, stop: threading.Event) -> None:
+    """Read parent frames while the worker continues pumping events."""
+    try:
+        for line in sys.stdin:
+            if stop.is_set():
+                break
+            frame = _frame_from_payload(json.loads(line))
+            while True:
+                try:
+                    frames.get_nowait()
+                except queue.Empty:
+                    break
+            frames.put(frame)
+    except (EOFError, OSError, ValueError, KeyError, TypeError):
+        pass
+    finally:
+        stop.set()
+        try:
+            frames.put_nowait(None)
+        except queue.Full:
+            pass
+
+
+def _handle_worker_events(pygame: Any, stop: threading.Event, interactive: bool) -> bool:
+    """Translate one batch of worker events into opaque actions."""
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            print(json.dumps({"action": "QUIT"}), flush=True)
+            stop.set()
+            break
+        if not interactive:
+            continue
+        action = _action_for_key(pygame, event)
+        if not action:
+            continue
+        print(json.dumps({"action": action}), flush=True)
+        interactive = False
+        if action == "QUIT":
+            stop.set()
+            break
+    return interactive
+
+
+def _run_worker_loop(
+    pygame: Any,
+    engine: Any,
+    frames: queue.Queue,
+    stop: threading.Event,
+    logical_width: int,
+    logical_height: int,
+    first_frame: pygame_world.WorldFrame,
+    first_overlay: pygame_overlay.OverlayFrame,
+    first_interactive: bool,
+) -> None:
+    """Draw frames and pump input until the worker is told to stop."""
+    current, overlay, interactive = first_frame, first_overlay, first_interactive
+    clock = pygame.time.Clock()
+    while not stop.is_set():
+        try:
+            incoming = frames.get_nowait()
+        except queue.Empty:
+            incoming = None
+        if incoming is not None:
+            current, overlay, interactive = incoming
+        pygame_world._draw_frame(pygame, engine, current)
+        pygame_overlay.draw(
+            pygame,
+            engine.logical_surface,
+            overlay,
+            logical_width=logical_width,
+            logical_height=logical_height,
         )
-        map_console = pygame_world.CaptureConsole(
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
-            background=_default_background(console),
-        )
-        for command in all_commands:
-            if (
-                command.x < SCREEN_WIDTH - HUD_WIDTH
-                and command.y < SCREEN_HEIGHT - MSG_LOG_HEIGHT
-            ):
-                map_console.write_cell(
-                    command.x,
-                    command.y,
-                    command.char,
-                    fg=command.fg,
-                    bg=command.bg,
-                )
-        ctx.context.present(map_console, overlay=overlay)
-        return
-    raise PygameCombatUnavailable("Shared Pygame combat presentation is not open")
+        engine.present()
+        interactive = _handle_worker_events(pygame, stop, interactive)
+        clock.tick(60)
 
 
 def _worker_main() -> int:
@@ -254,79 +366,17 @@ def _worker_main() -> int:
     except (ValueError, KeyError, TypeError, RuntimeError):
         return 2
 
-    logical_width, logical_height = first_frame.logical_size
-    config = pygame_engine.PygameEngineConfig(
-        logical_width=logical_width,
-        logical_height=logical_height,
-        window_width=logical_width,
-        window_height=logical_height,
-        title="spacehack - combat",
-    )
-    engine = pygame_engine.PygameEngine(pygame, config).open()
+    engine, logical_width, logical_height = _worker_open_engine(pygame, first_frame)
     frames: queue.Queue[tuple[pygame_world.WorldFrame, pygame_overlay.OverlayFrame, bool] | None] = queue.Queue(maxsize=2)
     stop = threading.Event()
-
-    def _read_frames() -> None:
-        """Read parent frames while the worker continues pumping events."""
-        try:
-            for line in sys.stdin:
-                if stop.is_set():
-                    break
-                frame = _frame_from_payload(json.loads(line))
-                while True:
-                    try:
-                        frames.get_nowait()
-                    except queue.Empty:
-                        break
-                frames.put(frame)
-        except (EOFError, OSError, ValueError, KeyError, TypeError):
-            pass
-        finally:
-            stop.set()
-            try:
-                frames.put_nowait(None)
-            except queue.Full:
-                pass
-
-    reader = threading.Thread(target=_read_frames, daemon=True)
+    reader = threading.Thread(target=_frame_reader, args=(frames, stop), daemon=True)
     reader.start()
-    current = first_frame
-    overlay = first_overlay
-    interactive = first_interactive
-    clock = pygame.time.Clock()
     try:
-        while not stop.is_set():
-            try:
-                incoming = frames.get_nowait()
-            except queue.Empty:
-                incoming = None
-            if incoming is not None:
-                current, overlay, interactive = incoming
-            pygame_world._draw_frame(pygame, engine, current)
-            pygame_overlay.draw(
-                pygame,
-                engine.logical_surface,
-                overlay,
-                logical_width=logical_width,
-                logical_height=logical_height,
-            )
-            engine.present()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    print(json.dumps({"action": "QUIT"}), flush=True)
-                    stop.set()
-                    break
-                if not interactive:
-                    continue
-                action = _action_for_key(pygame, event)
-                if not action:
-                    continue
-                print(json.dumps({"action": action}), flush=True)
-                interactive = False
-                if action == "QUIT":
-                    stop.set()
-                    break
-            clock.tick(60)
+        _run_worker_loop(
+            pygame, engine, frames, stop,
+            logical_width, logical_height,
+            first_frame, first_overlay, first_interactive,
+        )
     finally:
         stop.set()
         reader.join(timeout=1)

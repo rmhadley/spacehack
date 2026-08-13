@@ -155,6 +155,114 @@ def test_frame_from_commands_carries_floating_text_through():
     assert frame.floaters == (floater,)
 
 
+def test_overlay_payload_round_trips_target_card():
+    card = pygame_overlay.TargetCard(
+        name="Assault Drone", armor=3, weapon="Monster Claws",
+        damage=3, min_range=1, max_range=1, hp=18, max_hp=30,
+        distance=2, threat=(255, 80, 80), x=14, y=9,
+    )
+    frame = pygame_overlay.OverlayFrame(
+        hud=(),
+        messages=(),
+        hud_x=80,
+        hud_top=0,
+        hud_height=54,
+        message_top=54,
+        message_height=6,
+        target=card,
+    )
+
+    payload = pygame_overlay.payload(frame)
+
+    assert payload["target"] == {
+        "name": "Assault Drone", "armor": 3, "weapon": "Monster Claws",
+        "damage": 3, "min_range": 1, "max_range": 1, "hp": 18,
+        "max_hp": 30, "distance": 2, "threat": (255, 80, 80),
+        "x": 14, "y": 9,
+    }
+    assert pygame_overlay.frame_from_payload(payload) == frame
+
+
+def test_frame_from_commands_carries_target_card_through():
+    card = pygame_overlay.TargetCard(
+        name="Sentry Drone", armor=1, weapon="Drone Laser",
+        damage=4, min_range=1, max_range=6, hp=9, max_hp=20,
+        distance=3, threat=(255, 80, 80), x=5, y=7,
+    )
+
+    frame = pygame_overlay._frame_from_commands(
+        (),
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+        target=card,
+    )
+
+    assert frame.target == card
+
+
+def test_target_card_rows_split_hp_and_threat_colored_distance():
+    card = pygame_overlay.TargetCard(
+        name="Assault Drone", armor=3, weapon="Monster Claws",
+        damage=3, min_range=1, max_range=1, hp=18, max_hp=30,
+        distance=2, threat=(255, 80, 80), x=14, y=9,
+    )
+
+    rows = pygame_overlay._target_card_rows(card)
+
+    assert rows[0] == (("Assault Drone", pygame_overlay._TARGET_CARD_TITLE),)
+    assert rows[1] == (
+        ("HP 18/30", pygame_overlay._TARGET_CARD_TEXT),
+        ("  2u", (255, 80, 80)),
+    )
+    assert rows[2] == (("ARM 3", pygame_overlay._TARGET_CARD_TEXT),)
+    assert rows[3] == (("Monster Claws", pygame_overlay._TARGET_CARD_DIM),)
+    assert rows[4] == (("DMG 3  RNG 1-1", pygame_overlay._TARGET_CARD_TEXT),)
+
+
+def test_target_card_rows_unarmed_omits_weapon_and_dmg():
+    card = pygame_overlay.TargetCard(
+        name="Hull Parasite", armor=0, weapon="",
+        damage=0, min_range=1, max_range=1, hp=5, max_hp=5,
+        distance=1, threat=(255, 80, 80), x=0, y=0,
+    )
+
+    rows = pygame_overlay._target_card_rows(card)
+
+    assert [row[0][0] for row in rows] == [
+        "Hull Parasite", "HP 5/5", "ARM 0", "Unarmed",
+    ]
+
+
+def test_target_card_rect_flips_below_when_no_room_above():
+    card = pygame_overlay.TargetCard(
+        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
+        hp=1, max_hp=1, distance=1, threat=(255, 80, 80), x=5, y=3,
+    )
+
+    rect = pygame_overlay._target_card_rect(
+        card, panel_w=100, panel_h=80, map_width=80, map_height=54,
+    )
+
+    # Above the target (y=48) would clip (48 - 6 - 80 < 2), so it flips
+    # below: y = 48 + 16 + 6 = 70. Horizontally centered: 80 + 8 - 50 = 38.
+    assert rect == pygame_overlay.pygame_ui.Rect(38, 70, 100, 80)
+
+
+def test_target_card_rect_centers_above_when_room_allows():
+    card = pygame_overlay.TargetCard(
+        name="X", armor=0, weapon="", damage=0, min_range=1, max_range=1,
+        hp=1, max_hp=1, distance=1, threat=(255, 80, 80), x=40, y=20,
+    )
+
+    rect = pygame_overlay._target_card_rect(
+        card, panel_w=100, panel_h=80, map_width=80, map_height=54,
+    )
+
+    # Plenty of room above (ty=320): stays above at 320 - 6 - 80 = 234.
+    assert rect == pygame_overlay.pygame_ui.Rect(598, 234, 100, 80)
+
+
 def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
     from src.spacehack.combat._stats import init_combat_state
     from src.spacehack.data.npc_ships import find_npc_ship
@@ -670,6 +778,68 @@ def test_draw_segments_falls_back_to_cell_position_on_gap(monkeypatch):
 
     # Non-contiguous segments keep their cell-aligned positions.
     assert drawn == [("AB", 1292, 84), ("CD", 1340, 84)]
+
+
+def test_draw_target_card_paints_clamped_panel_and_rows(monkeypatch):
+    drawn = []
+    panels = []
+    clipped = []
+
+    class FakeScreen:
+        def set_clip(self, clip):
+            clipped.append(clip)
+
+    class FakeRect:
+        def __init__(self, x, y, width, height):
+            self.args = (x, y, width, height)
+
+    class FakePygame:
+        Rect = FakeRect
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 8, 16)
+
+        def get_linesize(self):
+            return 16
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui, "cell_font",
+        lambda pygame, **kwargs: FakeFont(),
+    )
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui, "measure_font",
+        lambda font, text: len(text) * 8,
+    )
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui, "draw_text",
+        lambda pygame, screen, font, text, x, y, **kwargs: drawn.append(
+            (text, x, y, kwargs.get("color"))
+        ),
+    )
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui, "draw_panel",
+        lambda pygame, screen, rect, **kwargs: panels.append(rect),
+    )
+
+    card = pygame_overlay.TargetCard(
+        name="A", armor=1, weapon="W", damage=3, min_range=1, max_range=6,
+        hp=9, max_hp=20, distance=3, threat=(255, 80, 80), x=5, y=7,
+    )
+
+    pygame_overlay._draw_target_card(
+        FakePygame, FakeScreen(), card, map_width=80, map_height=54,
+    )
+
+    assert len(panels) == 1
+    # panel_w = 112 (widest row) + 24 padding; panel_h = 5*16 + 16.
+    assert panels[0] == pygame_overlay.pygame_ui.Rect(20, 10, 136, 96)
+    assert clipped[1] is None
+    assert clipped[0].args == (0, 0, 80 * 16, 54 * 16)
+    texts = [text for text, _x, _y, _c in drawn]
+    assert texts == ["A", "HP 9/20", "  3u", "ARM 1", "W", "DMG 3  RNG 1-6"]
+    assert drawn[1][3] == pygame_overlay._TARGET_CARD_TEXT
+    assert drawn[2][3] == (255, 80, 80)  # distance segment inherits threat color
 
 
 def test_bubble_ring_width_thins_as_strength_drops():

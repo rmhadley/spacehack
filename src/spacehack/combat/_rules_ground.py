@@ -47,6 +47,11 @@ from ._animations import (
     DamagePopup,
 )
 from ._shot_animations import _animate_ground_shot
+from ._ground_presentation import (
+    build_target_card as _build_target_card,
+    enemy_detail_lines,
+    enemy_threat_color,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -522,10 +527,6 @@ _COLOR_GROUND_ENEMY_TARGET: tuple[int, int, int] = (255, 220, 100)
 _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
-# Distance-readout threat colors, mirroring the space HUD's range tints.
-_COLOR_DIST_SAFE: tuple[int, int, int] = (100, 235, 115)     # out of enemy range
-_COLOR_DIST_DANGER: tuple[int, int, int] = (255, 80, 80)      # enemy can fire now
-_COLOR_DIST_TOO_CLOSE: tuple[int, int, int] = (255, 160, 60)  # inside min range
 
 
 def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y, region_x, region_y, game_map, *, color_override=None):
@@ -654,53 +655,26 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     return y + 1
 
 
-def _enemy_weapon(enemy: GroundEnemyInstance):
-    """Resolve an enemy's weapon spec, or None when unarmed/unknown."""
-    if not enemy.weapon_id:
-        return None
-    try:
-        return _find_gw(enemy.weapon_id)
-    except KeyError:
-        return None
+def presentation_target_card(*, ctx: GameContext | None = None):
+    """Return the native info card for the currently targeted enemy.
 
-
-def enemy_detail_lines(enemy: GroundEnemyInstance) -> tuple[str, str, str]:
-    """Return the (armor, weapon, stats) HUD lines for one enemy.
-
-    The armor line reports the enemy's flat DR (``ARM 0`` when
-    unarmored) so the player can decide between raw damage and armor
-    piercing. The weapon line names the weapon, and the stats line
-    shows ``DMG``/``RNG`` so a heavy ranged threat is spotted before
-    it fires (and melee is unmistakably ``RNG 1-1``).
+    Thin session wrapper around :func:`._ground_presentation.build_target_card`
+    — resolves the targeted enemy from combat state and delegates the
+    camera/card math. Returns ``None`` when there is no valid in-view
+    target (no fight, dead target, or the target scrolled off-screen).
     """
-    armor = enemy.spec.armor if enemy.spec else 0
-    weapon = _enemy_weapon(enemy)
-    if weapon is None:
-        return f"ARM {armor}", "Unarmed", ""
-    return (
-        f"ARM {armor}",
-        weapon.name,
-        f"DMG {weapon.damage}  RNG {weapon.min_range}-{weapon.max_range}",
+    if _state is None or (ctx is not None and _state.ctx is not ctx):
+        return None
+    alive = get_enemies(ctx)
+    if _state.target_idx >= len(alive):
+        return None
+    return _build_target_card(
+        alive[_state.target_idx],
+        game_map=_state.game_map,
+        player_pos=_state.ctx.player.pos,
+        region_w=_RENDER_WIDTH,
+        region_h=_RENDER_HEIGHT,
     )
-
-
-def enemy_threat_color(
-    enemy: GroundEnemyInstance, dist: int,
-) -> tuple[int, int, int]:
-    """Return the color for the enemy's distance readout.
-
-    Red when the enemy's weapon can fire at this distance, orange when
-    the player is inside the enemy's minimum range (too close to fire),
-    green when safely out of range.
-    """
-    weapon = _enemy_weapon(enemy)
-    if weapon is None:
-        return ui.COLOR_VALUE_DIM
-    if dist < weapon.min_range:
-        return _COLOR_DIST_TOO_CLOSE
-    if dist <= weapon.max_range:
-        return _COLOR_DIST_DANGER
-    return _COLOR_DIST_SAFE
 
 
 def _render_enemies_panel(console, ctx, alive, y: int) -> int:
