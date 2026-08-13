@@ -2,7 +2,7 @@
 
 Plasma halves the target's armor DR (see ``combat/_rules_ground``) and
 shares the ship plasma bolt animation. All entries share
-``damage_type=\"plasma\"`` and ``ammo_capacity=-1`` (no ammo).
+``damage_type="plasma"`` and ``ammo_capacity=-1`` (no ammo).
 """
 
 from . import GroundWeaponSpec

@@ -1,6 +1,6 @@
 """Explosive ground weapons — heavy burst damage with a finite magazine.
 
-All entries share ``damage_type=\"explosive\"`` and a limited ammo
+All entries share ``damage_type="explosive"`` and a limited ammo
 capacity. Real reload/ammo mechanics land with the ammo/field-items
 pass (design doc 19).
 """
