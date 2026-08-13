@@ -29,13 +29,13 @@ from ._actions import (
 )
 from .. import animation_timing
 from ._animations import (
-    _animate_laser_shot,
     _animate_explosion,
     _has_los,
     _render_anim_frame,
     _responsive_sleep,
     _damage_popup_for,
 )
+from ._shot_animations import _animate_weapon_shot
 from ..xp import has_trait as _has_trait
 
 
@@ -184,12 +184,15 @@ def _run_enemy_turn(
                             damage_taken_mult=_dmg_mult,
                         )
                         _e_is_strip = _e_ws.shield_strip > 0 and _e_sdmg > 0
-                        _e_dmg_popup = _damage_popup_for(_e_dmg, _e_sdmg, _e_is_strip)
+                        _e_dmg_popup = _damage_popup_for(
+                            _e_dmg, _e_sdmg, _e_is_strip,
+                            glancing=_is_glancing,
+                        )
                     _ecx, _ecy = calc_cam()
-                    _animate_laser_shot(
+                    _animate_weapon_shot(
                         state.console, state.ctx, state.game_map,
                         _ei.pos, state.player_state["pos"],
-                        is_hit=_e_hit,
+                        _wid, is_hit=_e_hit,
                         damage=_e_dmg_popup,
                         cam_x=_ecx, cam_y=_ecy,
                         view_w=state.view_w, view_h=state.view_h,

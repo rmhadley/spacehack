@@ -38,13 +38,13 @@ from ._actions import (
     _spawn_loot_drops,
 )
 from ._animations import (
-    _animate_laser_shot,
     _animate_explosion,
     _has_los,
     _paint_target_highlight,
     _paint_range_line,
     DamagePopup,
 )
+from ._shot_animations import _animate_weapon_shot
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -294,7 +294,13 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
     )
 
 
-def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
+def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
+    """Apply weapon damage to an enemy. Returns ``(hull_dmg, is_glancing)``.
+
+    The glance flag rides the return so the caller can label the
+    floating damage number (``GLANCE -X``) the same way the log line
+    does. Hull damage is the number the popup reports.
+    """
     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
         weapon_id, enemy.hull, enemy.shields,
         target_pilot_piloting=enemy.pilot_piloting,
@@ -304,7 +310,7 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
     enemy.hull = _fh
     if _fh <= 0:
         enemy.alive = False
-    return _prev_hull - enemy.hull
+    return _prev_hull - enemy.hull, _is_glancing
 
 
 # ---------------------------------------------------------------------------
@@ -545,7 +551,9 @@ def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
     damage: DamagePopup = None,
+    *, weapon_id: str = "",
 ) -> None:
+    """Animate one ship-combat shot with a weapon-appropriate effect."""
     _cam_x, _cam_y = _calc_camera()
 
     _hit_chances = _build_hit_chances(_alive_target())
@@ -555,10 +563,11 @@ def animate_fire(
         int(_state.player_state.get("piloting", 0) * 0.5),
     )
 
-    _animate_laser_shot(
+    _wid = weapon_id or (_state.weapons_list[0] if _state.weapons_list else "light_laser")
+    _animate_weapon_shot(
         console, ctx, game_map,
         from_pos, to_pos,
-        is_hit=is_hit,
+        _wid, is_hit=is_hit,
         damage=damage,
         cam_x=_cam_x, cam_y=_cam_y,
         view_w=_state.view_w, view_h=_state.view_h,

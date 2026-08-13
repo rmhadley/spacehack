@@ -60,6 +60,18 @@ def _combat_shield_bubbles(ctx: GameContext | None) -> tuple:
     return _rules_space.presentation_shield_bubbles(ctx=ctx)
 
 
+def _combat_floaters(ctx: GameContext | None) -> tuple:
+    """Return + consume the current frame's native floating combat text.
+
+    Consume-on-read: each presented frame draws whatever floaters the
+    shot animation queued, and a frame with no active shot draws none.
+    """
+    if ctx is None:
+        return ()
+    from .combat import _animations
+    return _animations.active_floaters()
+
+
 def _frame_payload(
     console: FrameBuffer,
     *,
@@ -79,6 +91,7 @@ def _frame_payload(
         screen_height=960 // pygame_world.TILE_HEIGHT,
         hud_view_height=(960 // pygame_world.TILE_HEIGHT) - MSG_LOG_HEIGHT,
         shields=_combat_shield_bubbles(ctx),
+        floaters=_combat_floaters(ctx),
     )
     return {
         "logical_size": (1600, 960),
@@ -204,6 +217,7 @@ def present(ctx: GameContext, console: FrameBuffer) -> None:
             screen_height=SCREEN_HEIGHT,
             hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
             shields=_combat_shield_bubbles(ctx),
+            floaters=_combat_floaters(ctx),
         )
         map_console = pygame_world.CaptureConsole(
             SCREEN_WIDTH,

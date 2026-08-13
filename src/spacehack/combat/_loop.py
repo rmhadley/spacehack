@@ -197,15 +197,18 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
         # Resolve damage BEFORE animating so the floating damage
         # number can ride the shot's impact frames. ``rules.damage``
         # mutates the target (hull/hp), which the animation only
-        # reads for position — safe to apply first.
+        # reads for position — safe to apply first. It returns
+        # ``(dmg, is_glancing)`` so the floating number can carry the
+        # same glance label the log line does.
         _dmg_popup = None
         _is_strip = False
         _dmg = 0
+        _is_glancing = False
         if _hit:
             # Ground enemies (GroundEnemyInstance) have no shields field;
             # getattr keeps the strip check safe across both combat modes.
             _pre_shields = getattr(_target, 'shields', 0)
-            _dmg = rules.damage(_wid, _target, ctx)
+            _dmg, _is_glancing = rules.damage(_wid, _target, ctx)
             _stripped = max(0, _pre_shields - getattr(_target, 'shields', 0))
             # Only EMP weapons produce a shield strip; ground weapons
             # aren't in the ship-weapon catalog (mirrors the HUD's
@@ -215,13 +218,16 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
                     _is_strip = _fw(_wid).shield_strip > 0
                 except KeyError:
                     pass
-            _dmg_popup = _damage_popup_for(_dmg, _stripped, _is_strip)
+            _dmg_popup = _damage_popup_for(
+                _dmg, _stripped, _is_strip, glancing=_is_glancing,
+            )
 
         rules.animate_fire(
             console, ctx, game_map,
             _player_pos, rules.enemy_pos(_target),
             is_hit=_hit,
             damage=_dmg_popup,
+            weapon_id=_wid,
         )
 
         try:

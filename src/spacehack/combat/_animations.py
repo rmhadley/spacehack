@@ -1,17 +1,22 @@
-"""Combat animations — visual effects for ship-to-ship battles.
+"""Combat animations — shared visual effects for space and ground combat.
 
-All functions here render directly to a project framebuffer and present
-the context. They are called from the main combat loop to give
-the player visual feedback for laser shots, explosions, and target
-highlighting.
+This module owns the renderer-neutral primitives shared by every combat
+effect: framebuffer presentation, line-of-sight helpers, explosion ring
+drawing, native floating combat text (hit / MISS / GLANCE numbers drawn
+as Pygame text, not bitmap cells), target highlighting, and the ship-kill
+explosion. The per-weapon shot animators (beam, bolt, missile, tracer,
+grenade, melee) live in :mod:`combat._shot_animations`.
+
+All functions render directly to a project framebuffer and present the
+context through the shared Pygame runtime.
 """
 
 from __future__ import annotations
 
 import math
 import time
+from dataclasses import dataclass, field
 
-from .. import pygame_engine
 from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
@@ -93,46 +98,144 @@ _COMBAT_EXPLOSION_RINGS: tuple[tuple[str, tuple[int, int, int]], ...] = (
     ("#", (180, 180, 255)),   # ring 4      - dimmer edge
 )
 
-# Floating damage popup: how many extra frames the number keeps
-# drifting up + fading after the impact flash. 2 flash frames + this
-# many = total popup lifetime (~0.45s at 0.05s/frame).
-_DAMAGE_POPUP_FRAMES: int = 7
+# ---------------------------------------------------------------------------
+# Native floating combat text (pygame-rendered, not bitmap cells)
+# ---------------------------------------------------------------------------
 
-# Damage popup colors: orange-red for hull damage, cyan for shield
-# strip. Kept module-level so callers and the drawing helper agree.
+# Floating number lifetimes (frames). The label is queued during the shot's
+# impact/burst frames and keeps drifting up + fading afterwards.
+_DAMAGE_POPUP_FRAMES: int = 8
+_MISS_POPUP_FRAMES: int = 6
+
+# Popup colors: orange-red for hull damage, cyan for shield strip, pale
+# gold for glancing hits, grey for misses. Kept module-level so callers
+# and the drawing helper agree.
 _COLOR_DAMAGE_HULL: tuple[int, int, int] = (255, 140, 70)
 _COLOR_DAMAGE_SHIELDS: tuple[int, int, int] = (120, 220, 255)
+_COLOR_DAMAGE_GLANCE: tuple[int, int, int] = (235, 205, 150)
+_COLOR_MISS: tuple[int, int, int] = (170, 170, 185)
 
-
-# Damage text shorthand: (label, color). ``None`` = no popup (miss).
+# Damage text shorthand: (label, color). ``None`` = no popup (a hit that
+# did nothing, e.g. an EMP against a shieldless target).
 DamagePopup = tuple[str, tuple[int, int, int]] | None
+
+# A rolled miss floats "MISS" instead of a damage number. Identity of the
+# label text is how animators tell a miss from a hit.
+_MISS_POPUP: DamagePopup = ("MISS", _COLOR_MISS)
 
 
 def _damage_popup_for(
     damage: int, strip: int, is_strip: bool,
+    *, glancing: bool = False,
 ) -> DamagePopup:
     """Build a damage popup tuple for a resolved hit, or ``None``.
 
-    EMP shield-strip hits show the stripped amount in cyan; all
-    other hits show TOTAL damage dealt (hull + shields absorbed) in
-    orange-red, so the floating number always matches the total the
-    log reports. A hit that did nothing (e.g. an EMP against a
-    shieldless target) shows no popup. Single factory so the
+    EMP shield-strip hits show the stripped amount in cyan; glancing
+    hits (halved by the target's piloting) are prefixed ``GLANCE`` in
+    pale gold; all other hits show TOTAL damage dealt (hull + shields
+    absorbed) in orange-red, so the floating number always matches the
+    total the log reports. A hit that did nothing (e.g. an EMP against
+    a shieldless target) shows no popup. Single factory so the
     player-fire and enemy-fire call sites can't drift apart.
     """
     if is_strip and strip > 0:
         return (f"-{strip}", _COLOR_DAMAGE_SHIELDS)
     total = damage + strip
     if total > 0:
+        if glancing:
+            return (f"GLANCE -{total}", _COLOR_DAMAGE_GLANCE)
         return (f"-{total}", _COLOR_DAMAGE_HULL)
     return None
 
 
-def _draw_damage_popup(
-    console,
+def _is_miss(damage: DamagePopup) -> bool:
+    """Whether a popup is the MISS label (a rolled miss, not a hit)."""
+    return damage is not None and damage[0] == "MISS"
+
+
+def _popup_lifetime(damage: DamagePopup) -> int:
+    """Frame lifetime for a popup — misses linger shorter than hits."""
+    return _MISS_POPUP_FRAMES if _is_miss(damage) else _DAMAGE_POPUP_FRAMES
+
+
+@dataclass
+class _CombatEffects:
+    """Ephemeral per-frame native combat effects (floating text).
+
+    Single module-level mutable global (guardrail: one dataclass, not
+    scattered globals). Presentation-only — nothing here is saved.
+    """
+
+    floaters: list = field(default_factory=list)
+
+
+_effects: _CombatEffects | None = None
+
+
+def active_floaters() -> tuple:
+    """Return the current frame's native floating texts, then clear them.
+
+    The overlay builders call this exactly once per presented frame; the
+    consume-on-read semantics guarantee a frame with no active shot never
+    re-draws a stale damage number.
+    """
+    holder = _effects
+    if holder is None:
+        return ()
+    result = tuple(holder.floaters)
+    holder.floaters = []
+    return result
+
+
+def _set_floaters(floaters) -> None:
+    """Queue the floating texts for the next presented frame."""
+    global _effects
+    if _effects is None:
+        _effects = _CombatEffects()
+    _effects.floaters = list(floaters)
+
+
+def _floater_for(
+    target_pos: world.Position,
+    popup: DamagePopup,
+    age: int,
+    lifetime: int,
+    *,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+):
+    """Build one viewport-relative FloatingText frame, or ``None``.
+
+    ``None`` popup (a hit with no result) draws nothing. The text starts
+    one row above the target cell so it never covers the impact flash.
+    Off-viewport targets return ``None`` — the renderer silently skips
+    camera-edge shots instead of crashing.
+    """
+    from ..pygame_overlay import FloatingText
+
+    if popup is None:
+        return None
+    text, color = popup
+    tx = region_x + target_pos.x - cam_x
+    ty = region_y + target_pos.y - 1 - cam_y
+    if not (0 <= tx < view_w and 0 <= ty < view_h):
+        return None
+    return FloatingText(
+        text=text, x=tx, y=ty, color=color,
+        age=age, lifetime=lifetime,
+    )
+
+
+def _set_frame_floater(
     target_pos: world.Position,
     damage: DamagePopup,
     age: int,
+    lifetime: int,
+    *,
     cam_x: int,
     cam_y: int,
     view_w: int,
@@ -140,25 +243,94 @@ def _draw_damage_popup(
     region_x: int = 0,
     region_y: int = 0,
 ) -> None:
-    """Draw one frame of a floating damage number at ``target_pos``.
+    """Queue the native floating text for the current animation frame."""
+    floater = _floater_for(
+        target_pos, damage, age, lifetime,
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+        region_x=region_x, region_y=region_y,
+    )
+    _set_floaters([floater] if floater is not None else [])
 
-    The text starts one row above the impact cell (so it doesn't
-    cover the impact star), climbs one row every 2 frames, and fades
-    toward dim grey as ``age`` grows toward the popup lifetime.    Cells outside the viewport are silently skipped so camera-edge targets
-    never crash the renderer. ``damage`` is ``(text, color)``;
 
-    ``None`` draws nothing (a miss).
-    """
-    if damage is None:
-        return
-    text, color = damage
-    tx = target_pos.x - cam_x
-    ty = target_pos.y - 1 - age // 2 - cam_y
-    if not (0 <= tx < view_w and 0 <= ty < view_h):
-        return
-    frac = max(0.0, 1.0 - age / (2 + _DAMAGE_POPUP_FRAMES))
-    fg = tuple(int(c * frac + 70 * (1 - frac)) for c in color)
-    console.print(x=region_x + tx, y=region_y + ty, string=text, fg=fg)
+# ---------------------------------------------------------------------------
+# Shared projectile/effect drawing primitives
+# ---------------------------------------------------------------------------
+
+
+def _draw_path_glyph(
+    console,
+    cell: tuple[int, int],
+    char: str,
+    color: tuple[int, int, int],
+    *,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Paint one projectile/effect glyph if its cell is inside the viewport."""
+    sx = region_x + cell[0] - cam_x
+    sy = region_y + cell[1] - cam_y
+    if 0 <= sx < view_w and 0 <= sy < view_h:
+        console.print(x=sx, y=sy, string=char, fg=color)
+
+
+def _draw_explosion_rings(
+    console,
+    center: tuple[int, int],
+    ring_count: int,
+    *,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Paint ``ring_count`` concentric explosion rings at ``center``."""
+    for ring_idx in range(min(ring_count, len(_COMBAT_EXPLOSION_RINGS))):
+        r_char, r_fg = _COMBAT_EXPLOSION_RINGS[ring_idx]
+        dist = ring_idx + 1  # 1-indexed manhattan radius
+        for dy in range(-dist, dist + 1):
+            for dx in range(-dist, dist + 1):
+                if abs(dx) + abs(dy) != dist:
+                    continue
+                _draw_path_glyph(
+                    console, (center[0] + dx, center[1] + dy),
+                    r_char, r_fg,
+                    cam_x=cam_x, cam_y=cam_y,
+                    view_w=view_w, view_h=view_h,
+                    region_x=region_x, region_y=region_y,
+                )
+
+
+def _draw_flash(
+    console,
+    center: tuple[int, int],
+    *,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int = 0,
+    region_y: int = 0,
+) -> None:
+    """Paint a white-hot flash block (manhattan radius 3) at ``center``."""
+    cx = region_x + center[0] - cam_x
+    cy = region_y + center[1] - cam_y
+    for dy in range(-4, 5):
+        for dx in range(-4, 5):
+            sx = cx + dx
+            sy = cy + dy
+            if 0 <= sx < view_w and 0 <= sy < view_h:
+                if abs(dx) + abs(dy) <= 3:
+                    console.print(
+                        x=sx, y=sy, string=" ",
+                        fg=(255, 255, 255), bg=(255, 255, 255),
+                    )
 
 
 # ---------------------------------------------------------------------------
@@ -442,128 +614,8 @@ def _render_anim_frame(
 
 
 # ---------------------------------------------------------------------------
-# Animation sequences
+# Explosion animation (ship kills)
 # ---------------------------------------------------------------------------
-
-
-def _animate_laser_shot(
-    console,
-    context,
-    game_map: world.GameMap,
-    shooter_pos: world.Position,
-    target_pos: world.Position,
-    is_hit: bool,
-    cam_x: int,
-    cam_y: int,
-    view_w: int,
-    view_h: int,
-    player_state: dict,
-    enemies: list[EnemyInstance],
-    target_idx: int,
-    log,
-    *,
-    weapon_list: tuple = (),
-    active_weapons: list[bool] | None = None,
-    evade_bonus: int | None = None,
-    hit_chances: dict[str, int] | None = None,
-    flee_chance: int | None = None,
-    damage: DamagePopup = None,
-) -> None:
-    """Animate a laser beam from shooter to target over 4 frames.
-
-    Draws a bright line of characters along the Bresenham path from
-    shooter to target, then (if ``is_hit``) two impact-flash frames
-    at the target position. When ``damage`` is a ``(text, color)``
-    tuple (i.e. a hit that dealt damage), the number floats up and
-    fades out over the flash + ``_DAMAGE_POPUP_FRAMES`` frames.
-    """
-    cells = list(_bresenham_line(
-        shooter_pos.x, shooter_pos.y,
-        target_pos.x, target_pos.y,
-    ))
-    # Make sure the end cell is included
-    if not cells or cells[-1] != (target_pos.x, target_pos.y):
-        cells.append((target_pos.x, target_pos.y))
-
-    # Beam frames: brighten over 4 frames
-    for frame in range(4):
-        _render_anim_frame(
-            console, context, game_map,
-            cam_x, cam_y, view_w, view_h,
-            player_state, enemies, target_idx, log,
-            weapon_list=weapon_list,
-            active_weapons=active_weapons,
-            evade_bonus=evade_bonus,
-            hit_chances=hit_chances,
-            flee_chance=flee_chance,
-        )
-        # Draw beam on top
-        brightness = min(255, 130 + frame * 30)
-        color = (brightness, brightness - 20, 100 + frame * 20)
-        for i, (bx, by) in enumerate(cells):
-            sx = bx - cam_x
-            sy = by - cam_y
-            if 0 <= sx < view_w and 0 <= sy < view_h:
-                if i == len(cells) - 1:
-                    char = "*"
-                elif i == 0:
-                    char = "+"
-                else:
-                    # Alternate beam chars along the path
-                    char = "=" if i % 2 == 0 else "-"
-                console.print(x=sx, y=sy, string=char, fg=color)
-        _present(context, console)
-        _responsive_sleep(animation_timing.COMBAT_BEAM)
-
-    # Impact flash (if hit): two quick bright pulses at target,
-    # with the damage number riding on top from the first frame.
-    if is_hit:
-        for flash in range(2):
-            _render_anim_frame(
-                console, context, game_map,
-                cam_x, cam_y, view_w, view_h,
-                player_state, enemies, target_idx, log,
-                weapon_list=weapon_list,
-                active_weapons=active_weapons,
-                evade_bonus=evade_bonus,
-                hit_chances=hit_chances,
-                flee_chance=flee_chance,
-            )
-            tx = target_pos.x - cam_x
-            ty = target_pos.y - cam_y
-            if 0 <= tx < view_w and 0 <= ty < view_h:
-                fg = (255, 255, 255) if flash == 0 else (255, 200, 100)
-                console.print(x=tx, y=ty, string="*", fg=fg)
-            if damage is not None:
-                _draw_damage_popup(
-                    console, target_pos, damage, age=flash,
-                    cam_x=cam_x, cam_y=cam_y,
-                    view_w=view_w, view_h=view_h,
-                )
-            _present(context, console)
-            _responsive_sleep(animation_timing.COMBAT_IMPACT)
-
-    # Damage number drift + fade frames after the impact. Ages 0-1
-    # were the flash frames above, so the drift starts at age 2.
-    if is_hit and damage is not None:
-        for _age in range(_DAMAGE_POPUP_FRAMES):
-            _render_anim_frame(
-                console, context, game_map,
-                cam_x, cam_y, view_w, view_h,
-                player_state, enemies, target_idx, log,
-                weapon_list=weapon_list,
-                active_weapons=active_weapons,
-                evade_bonus=evade_bonus,
-                hit_chances=hit_chances,
-                flee_chance=flee_chance,
-            )
-            _draw_damage_popup(
-                console, target_pos, damage, age=2 + _age,
-                cam_x=cam_x, cam_y=cam_y,
-                view_w=view_w, view_h=view_h,
-            )
-            _present(context, console)
-            _responsive_sleep(animation_timing.DAMAGE_POPUP)
 
 
 def _animate_explosion(
@@ -602,18 +654,11 @@ def _animate_explosion(
             hit_chances=hit_chances,
             flee_chance=flee_chance,
         )
-        # Draw explosion rings (manhattan distance)
-        for ring_idx in range(min(rings + 1, len(_COMBAT_EXPLOSION_RINGS))):
-            r_char, r_fg = _COMBAT_EXPLOSION_RINGS[ring_idx]
-            dist = ring_idx + 1  # 1-indexed manhattan radius
-            for dy in range(-dist, dist + 1):
-                for dx in range(-dist, dist + 1):
-                    if abs(dx) + abs(dy) != dist:
-                        continue
-                    sx = center_pos.x + dx - cam_x
-                    sy = center_pos.y + dy - cam_y
-                    if 0 <= sx < view_w and 0 <= sy < view_h:
-                        console.print(x=sx, y=sy, string=r_char, fg=r_fg)
+        _draw_explosion_rings(
+            console, (center_pos.x, center_pos.y), rings + 1,
+            cam_x=cam_x, cam_y=cam_y,
+            view_w=view_w, view_h=view_h,
+        )
         _present(context, console)
         _responsive_sleep(animation_timing.EXPLOSION_RING)
 
@@ -628,16 +673,11 @@ def _animate_explosion(
         hit_chances=hit_chances,
         flee_chance=flee_chance,
     )
-    cx = center_pos.x - cam_x
-    cy = center_pos.y - cam_y
-    for dy in range(-4, 5):
-        for dx in range(-4, 5):
-            sy = cy + dy
-            sx = cx + dx
-            if 0 <= sx < view_w and 0 <= sy < view_h:
-                if abs(dx) + abs(dy) <= 3:
-                    bg = (255, 255, 255)
-                    console.print(x=sx, y=sy, string=" ", fg=(255, 255, 255), bg=bg)
+    _draw_flash(
+        console, (center_pos.x, center_pos.y),
+        cam_x=cam_x, cam_y=cam_y,
+        view_w=view_w, view_h=view_h,
+    )
     _present(context, console)
     _responsive_sleep(animation_timing.EXPLOSION_FLASH)
 

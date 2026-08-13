@@ -6,7 +6,8 @@ with one sub-module per domain:
 * ``_types.py`` — data types (CombatPhase, CombatMode, EnemyInstance)
 * ``_stats.py`` — pure stat calculations (hull, hit/flee chance, init)
 * ``_actions.py`` — action resolution (damage, turns, movement)
-* ``_animations.py`` — visual effects (laser shots, explosions)
+* ``_animations.py`` — shared visual effects (floating damage text, explosions, highlights)
+* ``_shot_animations.py`` — per-weapon-family shot animators (beam, bolt, missile, tracer, grenade, melee)
 * ``_loop.py`` — main combat turn loop (run_combat)
 * ``_encounter.py`` — encounter wrapper + death screen
 
@@ -41,8 +42,11 @@ from ._animations import (
     _paint_target_highlight,
     _paint_range_line,
     _render_anim_frame,
-    _animate_laser_shot,
     _animate_explosion,
+)
+from ._shot_animations import (
+    _animate_weapon_shot,
+    _animate_ground_shot,
 )
 from ._loop import run_combat
 from ._encounter import _handle_combat_encounter, _render_death_screen

@@ -16,7 +16,6 @@ from typing import Any
 from .. import world
 from .. import ui
 from .. import message_log as _ml
-from .. import animation_timing
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
@@ -36,16 +35,12 @@ from ._actions import (
     _spawn_equipment_loot_at_position as _shared_equipment_loot,
 )
 from ._animations import (
-    _bresenham_line,
     _has_los,
-    _responsive_sleep,
     _paint_target_highlight,
     _draw_range_colored_line,
-    _draw_damage_popup,
-    _DAMAGE_POPUP_FRAMES,
     DamagePopup,
-    _present,
 )
+from ._shot_animations import _animate_ground_shot
 
 
 # ---------------------------------------------------------------------------
@@ -379,7 +374,13 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     )
 
 
-def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
+def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
+    """Apply weapon damage to a ground enemy. Returns ``(dmg, False)``.
+
+    Ground combat has no glancing mechanic, but the unified loop
+    unpacks ``(dmg, is_glancing)`` for both rule sets — ground always
+    reports ``False``.
+    """
     _ws = _find_gw(weapon_id)
     _str_bonus = ctx.ground_stats.strength // 10 if _ws.damage_type == 'melee' else 0
     _dmg = max(1, _ws.damage + _str_bonus)
@@ -388,7 +389,7 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     # with survivors (LOS aggro) keeps their wounds on re-engagement.
     if enemy.entity is not None:
         enemy.entity.hp = max(0, enemy.hp)
-    return _dmg
+    return _dmg, False
 
 
 # ---------------------------------------------------------------------------
@@ -603,56 +604,17 @@ def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
     damage: DamagePopup = None,
+    *, weapon_id: str = "",
 ) -> None:
-    _cam_x, _cam_y, _rx, _ry = world.camera_for_view(
-        game_map, from_pos,
-        region_w=_RENDER_WIDTH, region_h=_RENDER_HEIGHT,
+    """Animate one ground-combat shot with a weapon-appropriate effect."""
+    _wid = weapon_id or ((player_weapons(ctx) or ["fists"])[0])
+    _animate_ground_shot(
+        console, ctx, game_map,
+        from_pos, to_pos,
+        _wid, is_hit=is_hit,
+        damage=damage,
+        render_callback=render_frame,
     )
-    cells = list(_bresenham_line(from_pos.x, from_pos.y, to_pos.x, to_pos.y))
-    if not cells or cells[-1] != (to_pos.x, to_pos.y):
-        cells.append((to_pos.x, to_pos.y))
-
-    for frame in range(4):
-        render_frame(console, ctx, game_map)
-        brightness = min(255, 130 + frame * 30)
-        color = (brightness, brightness - 20, 100 + frame * 20)
-        for i, (bx, by) in enumerate(cells):
-            sx, sy = _rx + bx - _cam_x, _ry + by - _cam_y
-            if 0 <= sx < _RENDER_WIDTH and 0 <= sy < _RENDER_HEIGHT:
-                char = "*" if i == len(cells) - 1 else ("+" if i == 0 else ("=" if i % 2 == 0 else "-"))
-                console.print(x=sx, y=sy, string=char, fg=color)
-        _present(ctx, console)
-        _responsive_sleep(animation_timing.COMBAT_BEAM)
-
-    # Impact flash (if hit): two quick bright pulses with the damage
-    # number riding on top, then extra drift + fade frames.
-    if is_hit:
-        for flash in range(2):
-            render_frame(console, ctx, game_map)
-            tx, ty = _rx + to_pos.x - _cam_x, _ry + to_pos.y - _cam_y
-            if 0 <= tx < _RENDER_WIDTH and 0 <= ty < _RENDER_HEIGHT:
-                fg = (255, 255, 255) if flash == 0 else (255, 200, 100)
-                console.print(x=tx, y=ty, string="*", fg=fg)
-            if damage is not None:
-                _draw_damage_popup(
-                    console, to_pos, damage, age=flash,
-                    cam_x=_cam_x, cam_y=_cam_y,
-                    view_w=_RENDER_WIDTH, view_h=_RENDER_HEIGHT,
-                    region_x=_rx, region_y=_ry,
-                )
-            _present(ctx, console)
-            _responsive_sleep(animation_timing.COMBAT_IMPACT)
-        if damage is not None:
-            for _age in range(_DAMAGE_POPUP_FRAMES):
-                render_frame(console, ctx, game_map)
-                _draw_damage_popup(
-                    console, to_pos, damage, age=2 + _age,
-                    cam_x=_cam_x, cam_y=_cam_y,
-                    view_w=_RENDER_WIDTH, view_h=_RENDER_HEIGHT,
-                    region_x=_rx, region_y=_ry,
-                )
-                _present(ctx, console)
-                _responsive_sleep(animation_timing.COMBAT_BEAM)
 
 
 # ---------------------------------------------------------------------------

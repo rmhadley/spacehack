@@ -11,7 +11,13 @@ from .. import world
 from .. import message_log as _ml
 from ..engine import RNG
 from .. import animation_timing
-from ._animations import _has_los, _responsive_sleep, _present
+from ._animations import (
+    _damage_popup_for,
+    _has_los,
+    _responsive_sleep,
+    _present,
+)
+from ._shot_animations import _animate_ground_shot
 
 # Guards defend a post: beyond this euclidean distance from their
 # spawn position they disengage and return instead of chasing.
@@ -85,10 +91,12 @@ def run_ground_enemy_turn(
                     enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
                     target_dodge_bonus=player_dodge,
                 )
+                _popup = None
                 if _hit:
                     _damage_dealt = _ground_damage_raw(
                         enemy_weapon_id, enemy_spec.strength, armor_defense,
                     )
+                    _popup = _damage_popup_for(_damage_dealt, 0, False)
                     ctx.log.add_colored(
                         f"{enemy_spec.name} hits you for {_damage_dealt}!",
                         _ml.COLOR_ENEMY_ACTION,
@@ -97,6 +105,17 @@ def run_ground_enemy_turn(
                     ctx.log.add_colored(
                         f"{enemy_spec.name} fires but misses!",
                         _ml.COLOR_ENEMY_ACTION,
+                    )
+                # Animate the attack with an effect matching the enemy's
+                # weapon family (beam/bolt/tracer/melee slash) and a
+                # floating hit/MISS number on the player.
+                if console is not None and render_callback is not None:
+                    _animate_ground_shot(
+                        console, ctx, game_map,
+                        enemy_entity.pos, player_pos,
+                        enemy_weapon_id, is_hit=_hit,
+                        damage=_popup,
+                        render_callback=render_callback,
                     )
                 _result_ap -= _ews.ap_cost if _ews else 1
                 _fired = True
