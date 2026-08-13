@@ -522,6 +522,10 @@ _COLOR_GROUND_ENEMY_TARGET: tuple[int, int, int] = (255, 220, 100)
 _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
+# Distance-readout threat colors, mirroring the space HUD's range tints.
+_COLOR_DIST_SAFE: tuple[int, int, int] = (100, 235, 115)     # out of enemy range
+_COLOR_DIST_DANGER: tuple[int, int, int] = (255, 80, 80)      # enemy can fire now
+_COLOR_DIST_TOO_CLOSE: tuple[int, int, int] = (255, 160, 60)  # inside min range
 
 
 def _ground_range_line(console, player_pos, target_pos, weapon_id, cam_x, cam_y, region_x, region_y, game_map, *, color_override=None):
@@ -650,27 +654,53 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     return y + 1
 
 
-def enemy_detail_lines(enemy: GroundEnemyInstance) -> tuple[str, str]:
-    """Return the (armor, weapon) HUD lines for one enemy.
+def _enemy_weapon(enemy: GroundEnemyInstance):
+    """Resolve an enemy's weapon spec, or None when unarmed/unknown."""
+    if not enemy.weapon_id:
+        return None
+    try:
+        return _find_gw(enemy.weapon_id)
+    except KeyError:
+        return None
+
+
+def enemy_detail_lines(enemy: GroundEnemyInstance) -> tuple[str, str, str]:
+    """Return the (armor, weapon, stats) HUD lines for one enemy.
 
     The armor line reports the enemy's flat DR (``ARM 0`` when
     unarmored) so the player can decide between raw damage and armor
-    piercing. The weapon line names the weapon plus its damage and
-    range so a heavy ranged threat can be spotted before it fires.
+    piercing. The weapon line names the weapon, and the stats line
+    shows ``DMG``/``RNG`` so a heavy ranged threat is spotted before
+    it fires (and melee is unmistakably ``RNG 1-1``).
     """
     armor = enemy.spec.armor if enemy.spec else 0
-    weapon = None
-    if enemy.weapon_id:
-        try:
-            weapon = _find_gw(enemy.weapon_id)
-        except KeyError:
-            weapon = None
+    weapon = _enemy_weapon(enemy)
     if weapon is None:
-        return f"ARM {armor}", "Unarmed"
+        return f"ARM {armor}", "Unarmed", ""
     return (
         f"ARM {armor}",
-        f"{weapon.name}  {weapon.damage}d  {weapon.min_range}-{weapon.max_range}",
+        weapon.name,
+        f"DMG {weapon.damage}  RNG {weapon.min_range}-{weapon.max_range}",
     )
+
+
+def enemy_threat_color(
+    enemy: GroundEnemyInstance, dist: int,
+) -> tuple[int, int, int]:
+    """Return the color for the enemy's distance readout.
+
+    Red when the enemy's weapon can fire at this distance, orange when
+    the player is inside the enemy's minimum range (too close to fire),
+    green when safely out of range.
+    """
+    weapon = _enemy_weapon(enemy)
+    if weapon is None:
+        return ui.COLOR_VALUE_DIM
+    if dist < weapon.min_range:
+        return _COLOR_DIST_TOO_CLOSE
+    if dist <= weapon.max_range:
+        return _COLOR_DIST_DANGER
+    return _COLOR_DIST_SAFE
 
 
 def _render_enemies_panel(console, ctx, alive, y: int) -> int:
@@ -688,20 +718,22 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             e_bar = _bar_str(gei.hp, gei.max_hp, width=8)
             e_pct = gei.hp * 100 // max(gei.max_hp, 1)
             dist = int(_distance(ctx.player.pos, gei.pos))
-            console.print(x=hud_x, y=y, string=f"  HP {e_bar} {e_pct}%  {dist}u", fg=name_fg)
+            _hp_prefix = f"  HP {e_bar} {e_pct}%  "
+            console.print(x=hud_x, y=y, string=_hp_prefix, fg=name_fg)
+            console.print(
+                x=hud_x + len(_hp_prefix), y=y, string=f"{dist}u",
+                fg=enemy_threat_color(gei, dist),
+            )
             y += 1
             if is_target:
-                _armor_line, _weapon_line = enemy_detail_lines(gei)
-                console.print(
-                    x=hud_x, y=y, string=f"  {_armor_line}"[:24],
-                    fg=ui.COLOR_VALUE_DIM,
-                )
-                y += 1
-                console.print(
-                    x=hud_x, y=y, string=f"  {_weapon_line}"[:24],
-                    fg=ui.COLOR_VALUE_DIM,
-                )
-                y += 1
+                for _line in enemy_detail_lines(gei):
+                    if not _line:
+                        continue
+                    console.print(
+                        x=hud_x, y=y, string=f"  {_line}"[:24],
+                        fg=ui.COLOR_VALUE_DIM,
+                    )
+                    y += 1
     return y + 1
 
 

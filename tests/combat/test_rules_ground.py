@@ -127,7 +127,7 @@ class TestEnemyDetailLines:
 
     def test_unarmored_enemy_reports_arm_0(self):
         assert _rules_ground.enemy_detail_lines(self._enemy(armor=0)) == (
-            "ARM 0", "Unarmed",
+            "ARM 0", "Unarmed", "",
         )
 
     def test_armored_enemy_reports_armor_value(self):
@@ -135,16 +135,53 @@ class TestEnemyDetailLines:
             self._enemy(armor=3, weapon_id="drone_laser"),
         )[0] == "ARM 3"
 
-    def test_weapon_line_names_damage_and_range(self):
-        _armor, _weapon = _rules_ground.enemy_detail_lines(
+    def test_weapon_lines_split_name_from_dmg_range(self):
+        _armor, _name, _stats = _rules_ground.enemy_detail_lines(
             self._enemy(armor=1, weapon_id="frost_bolt"),
         )
-        assert _weapon == "Frost Bolt  4d  1-5"
+        assert _name == "Frost Bolt"
+        assert _stats == "DMG 4  RNG 1-5"
+
+    def test_melee_weapon_reports_range_1_1(self):
+        _armor, _name, _stats = _rules_ground.enemy_detail_lines(
+            self._enemy(weapon_id="combat_knife"),
+        )
+        assert _stats == "DMG 3  RNG 1-1"
 
     def test_unknown_weapon_falls_back_to_unarmed(self):
         assert _rules_ground.enemy_detail_lines(
             self._enemy(weapon_id="missing_weapon"),
         )[1] == "Unarmed"
+
+
+class TestEnemyThreatColor:
+    def _enemy(self, weapon_id=""):
+        return _rules_ground.GroundEnemyInstance(
+            entity=SimpleNamespace(),
+            spec=SimpleNamespace(armor=0),
+            weapon_id=weapon_id,
+        )
+
+    def test_in_range_is_danger(self):
+        assert _rules_ground.enemy_threat_color(
+            self._enemy("frost_bolt"), 3,
+        ) == _rules_ground._COLOR_DIST_DANGER
+
+    def test_out_of_range_is_safe(self):
+        assert _rules_ground.enemy_threat_color(
+            self._enemy("frost_bolt"), 9,
+        ) == _rules_ground._COLOR_DIST_SAFE
+
+    def test_inside_min_range_is_too_close(self):
+        # kinetic_rifle min_range=2: adjacent is too close to fire.
+        assert _rules_ground.enemy_threat_color(
+            self._enemy("kinetic_rifle"), 1,
+        ) == _rules_ground._COLOR_DIST_TOO_CLOSE
+
+    def test_unarmed_is_dim(self):
+        assert _rules_ground.enemy_threat_color(
+            self._enemy(), 3,
+        ) == _rules_ground.ui.COLOR_VALUE_DIM
 
 
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
