@@ -1,6 +1,6 @@
 # FIX: Break `mission.py` into a Package
 
-**Status:** In progress — through Phase 6
+**Status:** In progress — through Phase 7
 
 ## Problem
 
@@ -322,11 +322,15 @@ the public generator alias for compatibility.
 
 ### Phase 7 — Bar generators
 
-- [ ] Move intercept/heist, smuggling, salvage, and bar dispatch to
+- [x] Move intercept/heist, smuggling, salvage, and bar dispatch to
       `_proc_bar.py`.
-- [ ] Preserve heist, smuggling, salvage wreck/layout, patrol, and component
+- [x] Preserve heist, smuggling, salvage wreck/layout, patrol, and component
       fields exactly.
-- [ ] Run bar mission, trade, navigation, combat, and save/load tests.
+- [x] Run bar mission, trade, movement/navigation, combat, and save/load tests
+      (226 focused tests pass).
+
+`_proc_bar.py` now owns all bar mission constants, sub-generators, weighted
+dispatch, and public generation. Legacy retains only compatibility aliases.
 
 ### Phase 8 — Cutover and removal
 
