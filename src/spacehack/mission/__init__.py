@@ -20,13 +20,17 @@ from ._helpers import (
     system_name_for_planet,
     _planet_to_system,
 )
-from ._legacy import (
+from ._lifecycle import (
     abort_mission,
+    commit_accept_mission,
+    complete_mission,
+    release_mission_cargo,
+    try_accept_mission,
+)
+from ._legacy import (
     board_offerings,
     board_remove,
     board_return_static,
-    commit_accept_mission,
-    complete_mission,
     ensure_board,
     fill_empty_slots,
     find_mission,
@@ -36,8 +40,6 @@ from ._legacy import (
     list_missions,
     missions_offered_by,
     refresh_all_boards,
-    release_mission_cargo,
-    try_accept_mission,
     _planet_npc_ids,
 )
 from ..data.missions import MissionSpec

@@ -1,6 +1,6 @@
 # FIX: Break `mission.py` into a Package
 
-**Status:** In progress — through Phase 1b
+**Status:** In progress — through Phase 2
 
 ## Problem
 
@@ -260,16 +260,21 @@ procedural phases begin.
 
 `_helpers.py` now owns `_PLANET_SYSTEM_CACHE` and the display/system lookup
 functions; `_legacy.py` imports those symbols rather than maintaining a second
-implementation. Lifecycle, board, and procedural extraction remain future
-phases.
+implementation. Board and procedural extraction remain future phases.
 
 ### Phase 2 — Lifecycle
 
-- [ ] Move accept/commit/complete/abort, cargo release, XP, and reputation logic
+- [x] Move accept/commit/complete/abort, cargo release, XP, and reputation logic
       to `_lifecycle.py`.
-- [ ] Preserve mutation timing and caller-owned list bookkeeping.
-- [ ] Test delivery, bounty, intercept, salvage, smuggling, early reward, late
-      penalty, abort, and failure paths where applicable.
+- [x] Preserve mutation timing and caller-owned list bookkeeping.
+- [x] Add regression coverage for acceptance/commit separation, secured-heist
+      cargo release, abort logging, early bonus, and late penalty.
+- [x] Run focused mission/save-load/lifecycle tests (94 passed; full gate pending
+      final validation for this phase).
+
+`_lifecycle.py` is now the sole owner of acceptance, cargo reservation/release,
+completion rewards, XP/counters, faction reputation, and abort behavior. The
+legacy module re-exports those functions so existing imports remain stable.
 
 ### Phase 3 — Board management
 

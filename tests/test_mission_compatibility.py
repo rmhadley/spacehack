@@ -1,6 +1,8 @@
 """Compatibility contract for the mission package extraction."""
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from src.spacehack import mission
 from src.spacehack.mission import _helpers, _legacy, _models
 from src.spacehack.saveload import delete_save, load_game, save_game
@@ -99,6 +101,127 @@ def test_mission_spec_from_dict_reconstructs_known_fields_only():
         target_system_id="sol",
     )
     assert not hasattr(restored, "unknown_future_field")
+
+
+def test_mission_lifecycle_ownership_is_not_duplicated():
+    """Lifecycle functions have one implementation behind both shims."""
+    from src.spacehack.mission import _lifecycle
+
+    for name in (
+        "try_accept_mission",
+        "commit_accept_mission",
+        "release_mission_cargo",
+        "abort_mission",
+        "complete_mission",
+    ):
+        assert getattr(mission, name) is getattr(_lifecycle, name)
+        assert getattr(_legacy, name) is getattr(_lifecycle, name)
+
+
+def test_accept_validation_does_not_mutate_then_commit_reserves_cargo():
+    """Acceptance checks stay read-only until the explicit commit step."""
+    from src.spacehack.ship import OwnedShip
+
+    spec = mission.MissionSpec(
+        id="test_delivery",
+        title="Test delivery",
+        description="Carry a test crate.",
+        giver_npc_id="guild_master",
+        required_cargo_size=5,
+    )
+    owned = OwnedShip(ship_id="starter")
+    messages: list[str] = []
+    log = SimpleNamespace(add=messages.append)
+
+    assert mission.try_accept_mission(spec, owned, log) is True
+    assert owned.mission_reserved == 0
+
+    mission.commit_accept_mission(spec, owned, log)
+    assert owned.mission_reserved == 5
+    assert messages[-1].startswith("You accept: Test delivery.")
+
+
+def test_release_and_abort_include_secured_intercept_cargo():
+    """Abort releases both delivery reservation and secured heist volume."""
+    from src.spacehack.data.trade_goods import find_trade_good
+    from src.spacehack.mission import MissionStatus
+    from src.spacehack.ship import OwnedShip, effective_max_cargo
+    from src.spacehack.data.ships import find_ship
+
+    active = mission.ActiveMission(
+        mission_id="proc_intercept_test",
+        status=MissionStatus.IN_PROGRESS,
+        title="Test intercept",
+        required_cargo_size=4,
+        heist_target_good_id="electronics",
+        heist_good_secured=True,
+    )
+    owned = OwnedShip(ship_id="starter", mission_reserved=100)
+    expected = active.required_cargo_size + find_trade_good("electronics").volume
+    messages: list[str] = []
+
+    mission.abort_mission(active, owned, SimpleNamespace(add=messages.append))
+
+    assert owned.mission_reserved == 100 - expected
+    capacity = effective_max_cargo(find_ship(owned.ship_id), owned)
+    assert messages == [
+        f"Cargo released from abandoned 'Test intercept' "
+        f"({owned.cargo_used}/{capacity}).",
+    ]
+
+
+def test_complete_mission_applies_early_bonus_and_releases_cargo():
+    """Early completion pays the configured bonus and clears reservations."""
+    from src.spacehack.ship import OwnedShip
+
+    active = mission.ActiveMission(
+        mission_id="test_delivery",
+        title="Early delivery",
+        required_cargo_size=3,
+        reward_credits=100,
+        reward_xp=20,
+        deadline_days=10,
+        accept_day=1,
+        early_bonus_pct=25,
+    )
+    owned = OwnedShip(ship_id="starter", mission_reserved=3)
+    stats = SimpleNamespace(credits=0)
+    messages: list[str] = []
+
+    mission.complete_mission(
+        active, owned, stats, SimpleNamespace(add=messages.append),
+        current_day=3,
+    )
+
+    assert stats.credits == 125
+    assert owned.mission_reserved == 0
+    assert "+20xp" in messages[-1]
+    assert "Early delivery bonus: +25$." in messages[-1]
+
+
+def test_complete_mission_applies_late_penalty_and_zero_xp():
+    """Late completion halves credits and awards no XP."""
+    from src.spacehack.ship import OwnedShip
+
+    active = mission.ActiveMission(
+        mission_id="test_delivery",
+        title="Late delivery",
+        reward_credits=101,
+        reward_xp=20,
+        deadline_days=10,
+        accept_day=1,
+    )
+    stats = SimpleNamespace(credits=7)
+    messages: list[str] = []
+
+    mission.complete_mission(
+        active, OwnedShip(ship_id="starter"), stats,
+        SimpleNamespace(add=messages.append), current_day=20,
+    )
+
+    assert stats.credits == 57
+    assert "+0xp" in messages[-1]
+    assert "Late delivery - half pay." in messages[-1]
 
 
 def test_mission_models_round_trip_through_save_load(monkeypatch, tmp_path):
