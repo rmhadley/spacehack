@@ -243,12 +243,12 @@ catalog (gating lands in Phase 3), so no visible regression yet.
 
 ### Phase 2 — Combat effects (plasma, enemy armor, cybernetics)
 
-- [ ] Extend `_shot_family` ground mapping with `"plasma"`
-- [ ] `_ground_damage_raw` plasma armor bypass (half DR); `damage()` refactor to
+- [x] Extend `_shot_family` ground mapping with `"plasma"`
+- [x] `_ground_damage_raw` plasma armor bypass (half DR); `damage()` refactor to
       apply enemy `spec.armor`
-- [ ] `sum_armor_bonus` + wire `ap_bonus`/`hit_bonus`/`melee_bonus`/`hp_bonus`
+- [x] `sum_armor_bonus` + wire `ap_bonus`/`hit_bonus`/`melee_bonus`/`hp_bonus`
       into `init`/`hit_chance`/`damage`
-- [ ] Unit tests for each effect + plasma DR + enemy armor
+- [x] Unit tests for each effect + plasma DR + enemy armor
 
 **PLAYTEST:** equip cybernetic legs → AP shows 5 (4 + 1) in ground combat;
 cybernetic eyes raise hit %; plasma pistol deals full damage to an assault
@@ -256,20 +256,20 @@ drone (armor halved) while a kinetic rifle is reduced by its 3 armor.
 
 ### Phase 3 — Availability gating (armory mirrors mechanic)
 
-- [ ] Add `armory_weapons`/`armory_armor` to `PlanetSpec` + `resolve_armory_inventory`
-- [ ] `_buy_rows()` lists `resolve_armory_inventory`; bare-title fallback
-- [ ] Earth/Mars fixed armory starter sets
-- [ ] Update `tutorial.py` `earth_armory` text → T1 weapon (Shotgun)
-- [ ] Unit tests: Earth shows fixed T1 stock; a T4 planet samples T1–T4
+- [x] Add `armory_weapons`/`armory_armor` to `PlanetSpec` + `resolve_armory_inventory`
+- [x] `_buy_rows()` lists `resolve_armory_inventory`; bare-title fallback
+- [x] Earth/Mars fixed armory starter sets
+- [x] Update `tutorial.py` `earth_armory` text → T1 weapon (Shotgun)
+- [x] Unit tests: Earth shows fixed T1 stock; a T4 planet samples T1–T4
 
 **PLAYTEST:** Earth armory shows the curated starter set (incl. Shotgun, no
 Kinetic Rifle); tutorial popup text matches; Sirius/blockade show T3/T4 gear.
 
 ### Phase 4 — Enemy drops respect tier
 
-- [ ] Filter `equipment_loot_pool` by `tech_level <= npc.tier` at kill time
-- [ ] Expand monster + pirate equipment pools with tier-appropriate gear
-- [ ] Unit tests for the filter (T1 NPC never drops T4 gear)
+- [x] Filter `equipment_loot_pool` by `tech_level <= npc.tier` at kill time
+- [x] Expand monster + pirate equipment pools with tier-appropriate gear
+- [x] Unit tests for the filter (T1 NPC never drops T4 gear)
 
 **PLAYTEST:** clear a tier-1 cave — drops are T1 only; kill an assault drone
 (T3) — drops T3 gear; armor values visible via plasma-vs-kinetic damage. T4
