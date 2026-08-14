@@ -560,18 +560,22 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
     hull_pct = phull / max(pmax_hull, 1)
     hull_color = _hull_bar_color(hull_pct)
     if pmax_shields > 0:
-        _bar = _bar_str(pshields, pmax_shields, width=6)
-        # Regen shown in POINTS (paid S-key rate + free module bonus) so
-        # "+N" can't be misread as percentage points: 12/20 +3 → 15/20.
-        _regen = player_state.get("shield_regen_rate", 0) + player_state.get("shield_recharge_bonus", 0)
-        _shd = f"Shd  {_bar} {pshields}/{pmax_shields}"
-        if _regen > 0:
-            _shd += f" +{_regen}"
-        console.print(x=hud_x, y=y, string=_shd, fg=COLOR_SHIELD_BAR)
-        # Regen fill: N leftmost cells get a white bg regardless of fill.
-        if _regen > 0:
-            for _i in range(min(_regen, len(_bar))):
-                console.print(x=hud_x + 5 + _i, y=y, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
+        # Regen in POINTS so "+N" can't be misread as percentage points:
+        # 12/20 +4 means the shield bar fills toward 16/20 next turn.
+        _rate = player_state.get("shield_regen_rate", 0)   # S-key setting (paid)
+        _free = player_state.get("shield_recharge_bonus", 0)  # ship base + modules
+        _total = _rate + _free
+        # Bar width shrinks so the "+N" suffix always fits HUD_WIDTH,
+        # even for 3-digit shield values (135/135 +3 used to clip).
+        _suffix = f" {pshields}/{pmax_shields}"
+        if _total > 0:
+            _suffix += f" +{_total}"
+        _bar = _bar_str(pshields, pmax_shields, width=max(1, HUD_WIDTH - len("Shd  ") - len(_suffix)))
+        console.print(x=hud_x, y=y, string=f"Shd  {_bar}{_suffix}", fg=COLOR_SHIELD_BAR)
+        # Level indicator (white bg) tracks ONLY the S-key rate, so
+        # pressing S moves the highlight 1:1 with the setting.
+        for _i in range(min(_rate, len(_bar))):
+            console.print(x=hud_x + 5 + _i, y=y, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
         y += 1
     console.print(x=hud_x, y=y, string=f"Hull {_bar_str(phull, pmax_hull)} {int(hull_pct * 100)}%", fg=hull_color)
     return y + 1

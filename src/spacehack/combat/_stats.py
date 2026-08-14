@@ -167,83 +167,58 @@ def calc_flee_chance(
     return max(5, min(95, base))
 
 
-def init_combat_state(
-    player_ship_catalog: Ship,
-    player_owned_ship: OwnedShip,
-    player_pos: world.Position,
-    player_pilot_skills: PilotSkills,
-    enemy_spec: NpcShipSpec,
-    enemy_pos: world.Position,
-    ap_bonus: int = 0,
-) -> tuple[dict, EnemyInstance]:
-    """Create initial combat state dict for the player and EnemyInstance.
-
-    Returns (player_state, enemy_instance).
-    """
-    gunnery = player_pilot_skills.gunnery
-    piloting = player_pilot_skills.piloting
-    engineering = player_pilot_skills.engineering
-
-    # Module bonuses
-    shield_recharge_bonus = 0
-    for mod_id in getattr(player_owned_ship, 'modules', ()) or ():
+def _player_skill_bonuses(owned_ship: OwnedShip, skills: PilotSkills) -> tuple[int, int, int]:
+    """Sum module skill bonuses onto the pilot's base skill values."""
+    gunnery = skills.gunnery
+    piloting = skills.piloting
+    engineering = skills.engineering
+    for mod_id in getattr(owned_ship, 'modules', ()) or ():
         try:
             ms = find_module_spec(mod_id)
             gunnery += ms.gunnery_bonus
             piloting += ms.piloting_bonus
             engineering += ms.engineering_bonus
-            shield_recharge_bonus += ms.shield_recharge_bonus
         except KeyError:
             pass
+    return gunnery, piloting, engineering
 
-    ap = _calc_ap(piloting, ap_bonus)
-    pwr_gen = _calc_power_gen(player_ship_catalog, player_owned_ship)
-    max_shield = _calc_max_shields(player_ship_catalog, player_owned_ship)
-    hull = _calc_hull(player_ship_catalog, player_owned_ship)
-    max_hull = _calc_max_hull(player_ship_catalog, player_owned_ship)
 
-    # Build weapon ammo dict — player ammo is PERSISTENT across fights:
-    # the rounds remaining on the owned ship (weapon_ammo) carry into
-    # combat and spent rounds are written back by sync_state. Keyed by
-    # weapon SLOT index (not weapon id) so two launchers of the same
-    # type keep independent magazines. Enemies keep full magazines
-    # below (they're per-encounter spawns).
-    _owned_weapons = tuple(getattr(player_owned_ship, 'weapons', ()) or ())
-    _owned_ammo = getattr(player_owned_ship, 'weapon_ammo', None) or {}
+def _player_free_regen(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
+    """Free shield regen per turn: ship base + module recharge bonuses."""
+    total = getattr(ship_catalog, 'base_shield_recharge', 0)
+    for mod_id in getattr(owned_ship, 'modules', ()) or ():
+        try:
+            total += find_module_spec(mod_id).shield_recharge_bonus
+        except KeyError:
+            pass
+    return total
+
+
+def _player_weapon_ammo(owned_ship: OwnedShip) -> dict[int, int]:
+    """Player ammo keyed by weapon SLOT index; persistent across fights.
+
+    The rounds remaining on the owned ship (``weapon_ammo``) carry into
+    combat and spent rounds are written back by ``sync_state``. Keyed by
+    slot index so two launchers of the same type keep independent
+    magazines.
+    """
+    _owned = tuple(getattr(owned_ship, 'weapons', ()) or ())
+    _ammo = getattr(owned_ship, 'weapon_ammo', None) or {}
     w_ammo: dict[int, int] = {}
-    for i, wid in enumerate(_owned_weapons):
+    for i, wid in enumerate(_owned):
         try:
             ws = find_weapon(wid)
             if ws.ammo_capacity > 0:
-                w_ammo[i] = _owned_ammo.get(i, ws.ammo_capacity)
+                w_ammo[i] = _ammo.get(i, ws.ammo_capacity)
             else:
                 w_ammo[i] = -1
         except KeyError:
             w_ammo[i] = -1
+    return w_ammo
 
-    player_state = {
-        "hull": hull,
-        "max_hull": max_hull,
-        "shields": max_shield,
-        "max_shields": max_shield,
-        "shields_charged": False,
-        "power_pool": max(10, pwr_gen * 2) + engineering // 5,
-        "max_power": max(10, pwr_gen * 2) + engineering // 5,
-        "ap_remaining": ap,
-        "ap_total": ap,
-        "pos": player_pos,
-        "gunnery": gunnery,
-        "piloting": piloting,
-        "engineering": engineering,
-        "power_gen": pwr_gen,
-        "cells_moved_this_turn": 0,
-        "shield_regen_rate": 0,
-        "shield_recharge_bonus": shield_recharge_bonus,
-        "weapons": _owned_weapons,       # slot-ordered ids (ammo keyed by index)
-        "weapon_ammo": w_ammo,
-    }
 
-    # Enemy instance — uses ship_id to get actual hull value
+def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyInstance:
+    """Construct the EnemyInstance from an NPC ship template."""
     e_ap = _calc_ap(enemy_spec.pilot_piloting)
     e_ammo: dict[str, int] = {}
     for wid in enemy_spec.weapons:
@@ -255,7 +230,7 @@ def init_combat_state(
 
     enemy_max_hull = _calc_hull_for_enemy(enemy_spec)
 
-    enemy = EnemyInstance(
+    return EnemyInstance(
         spec_id=enemy_spec.id,
         name=enemy_spec.name,
         char=enemy_spec.char,
@@ -278,4 +253,42 @@ def init_combat_state(
         max_power=max(10, enemy_spec.min_power_gen * 2) + enemy_spec.pilot_engineering // 5,
     )
 
-    return player_state, enemy
+
+def init_combat_state(
+    player_ship_catalog: Ship, player_owned_ship: OwnedShip,
+    player_pos: world.Position, player_pilot_skills: PilotSkills,
+    enemy_spec: NpcShipSpec, enemy_pos: world.Position,
+    ap_bonus: int = 0,
+) -> tuple[dict, EnemyInstance]:
+    """Create initial combat state dict for the player and EnemyInstance."""
+    gunnery, piloting, engineering = _player_skill_bonuses(player_owned_ship, player_pilot_skills)
+    ap = _calc_ap(piloting, ap_bonus)
+    pwr_gen = _calc_power_gen(player_ship_catalog, player_owned_ship)
+    max_shield = _calc_max_shields(player_ship_catalog, player_owned_ship)
+    hull = _calc_hull(player_ship_catalog, player_owned_ship)
+    max_hull = _calc_max_hull(player_ship_catalog, player_owned_ship)
+    power_max = max(10, pwr_gen * 2) + engineering // 5
+
+    player_state = {
+        "hull": hull,
+        "max_hull": max_hull,
+        "shields": max_shield,
+        "max_shields": max_shield,
+        "shields_charged": False,
+        "power_pool": power_max,
+        "max_power": power_max,
+        "ap_remaining": ap,
+        "ap_total": ap,
+        "pos": player_pos,
+        "gunnery": gunnery,
+        "piloting": piloting,
+        "engineering": engineering,
+        "power_gen": pwr_gen,
+        "cells_moved_this_turn": 0,
+        "shield_regen_rate": 0,
+        "shield_recharge_bonus": _player_free_regen(player_ship_catalog, player_owned_ship),
+        "weapons": tuple(getattr(player_owned_ship, 'weapons', ()) or ()),
+        "weapon_ammo": _player_weapon_ammo(player_owned_ship),
+    }
+
+    return player_state, _build_enemy(enemy_spec, enemy_pos)

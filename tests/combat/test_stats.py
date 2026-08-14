@@ -26,7 +26,10 @@ from src.spacehack.combat._stats import (
     _calc_power_gen,
     _calc_max_shields,
     _distance,
+    init_combat_state,
+    _player_free_regen,
 )
+from src.spacehack.data.pilot_skills import PilotSkills
 from src.spacehack.world import Position
 
 
@@ -347,3 +350,70 @@ class TestDistance:
     def test_diagonal(self):
         dist = _distance(Position(0, 0), Position(3, 4))
         assert math.isclose(dist, 5.0)
+
+
+# ---------------------------------------------------------------------------
+# _player_free_regen, init_combat_state
+# ---------------------------------------------------------------------------
+
+_REGEN_MOD = SimpleNamespace(
+    max_hull_bonus=0, power_gen_bonus=0, max_shield_bonus=0,
+    gunnery_bonus=0, piloting_bonus=0, engineering_bonus=0,
+    shield_recharge_bonus=3,
+)
+
+
+class TestPlayerFreeRegen:
+    def test_ship_base_only(self):
+        """Ship model's base_shield_recharge is free regen (no modules)."""
+        cat = SimpleNamespace(base_shield_recharge=5)
+        owned = SimpleNamespace(modules=())
+        assert _player_free_regen(cat, owned) == 5
+
+    def test_base_plus_module_bonus(self):
+        """Base 5 + Shield Recharger +3 = 8 free regen."""
+        cat = SimpleNamespace(base_shield_recharge=5)
+        owned = SimpleNamespace(modules=("shield_recharger",))
+        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_REGEN_MOD):
+            assert _player_free_regen(cat, owned) == 8
+
+    def test_no_base_fallback(self):
+        """Catalog without the field contributes 0."""
+        cat = SimpleNamespace()
+        owned = SimpleNamespace(modules=())
+        assert _player_free_regen(cat, owned) == 0
+
+
+class TestInitCombatState:
+    """Combat state seeds the S-key rate at 0 and folds free regen in."""
+
+    def _fixtures(self):
+        cat = SimpleNamespace(
+            base_hull=100, base_power_gen=3, base_shield_max=20,
+            base_shield_recharge=5,
+        )
+        owned = SimpleNamespace(
+            modules=("shield_recharger",), weapons=(), weapon_ammo={}, hull_damage_pct=0,
+        )
+        skills = PilotSkills(gunnery=10, piloting=10, engineering=10)
+        enemy_spec = SimpleNamespace(
+            id="e1", name="Pirate", char="P", fg=(255, 0, 0),
+            ship_id="scout_a", faction="pirate", weapons=(), modules=(),
+            min_power_gen=3, pilot_piloting=10, pilot_gunnery=10,
+            pilot_engineering=10, ai_accuracy_bonus=0, ai_dodge_bonus=0,
+        )
+        return cat, owned, skills, enemy_spec
+
+    def test_free_regen_folds_ship_base_and_module(self):
+        """shield_recharge_bonus = ship base 5 + module 3; S rate starts 0."""
+        cat, owned, skills, enemy_spec = self._fixtures()
+        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_REGEN_MOD), mock.patch(
+            "src.spacehack.combat._stats._ship_mod.find_ship",
+            return_value=SimpleNamespace(base_hull=80),
+        ):
+            state, enemy = init_combat_state(
+                cat, owned, Position(1, 2), skills, enemy_spec, Position(5, 5),
+            )
+        assert state["shield_recharge_bonus"] == 8
+        assert state["shield_regen_rate"] == 0
+        assert enemy.name == "Pirate"
