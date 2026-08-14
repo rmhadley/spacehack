@@ -365,11 +365,11 @@ Migration rules:
 
 ### Phase 3 - Fire consumption and reload action
 
-- [ ] Gate `can_fire()` on loaded ammo.
-- [ ] Implement transactional `consume_shot()`.
-- [ ] Add reload computation, reserve transfer, AP cost, and combat action.
-- [ ] Close combat Equipment after successful reload.
-- [ ] Add HUD `loaded/capacity` and reserve counts.
+- [x] Gate `can_fire()` on loaded ammo.
+- [x] Implement transactional `consume_shot()`.
+- [x] Add reload computation, reserve transfer, AP cost, and combat action.
+- [x] Close combat Equipment after successful reload.
+- [x] Add HUD `loaded/capacity` and reserve counts.
 
 ### Phase 4 - Ammo sourcing and loot
 

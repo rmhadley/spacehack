@@ -32,9 +32,12 @@ class GroundWeaponSpec:
             2 (two-handed).
         min_range: minimum cells to target.
         max_range: maximum cells to target. 1 = melee-only.
-        ammo_capacity: -1 = infinite (melee/energy), >0 = max
+        ammo_capacity: -1 = infinite (melee/plasma), >0 = max
             rounds before needing resupply.
         ammo_per_shot: rounds consumed per attack.
+        ammo_type: reserve-ammo identity for reloadable weapons; ``None``
+            for infinite/melee weapons (design doc 19).
+        reload_ap_cost: action points to reload in ground combat.
         price: credits cost to buy from an armory.
         tech_level: minimum planet tech level to stock this item.
         shop_available: False hides the weapon from armories entirely
@@ -52,6 +55,8 @@ class GroundWeaponSpec:
     max_range: int = 1
     ammo_capacity: int = -1        # -1 = infinite
     ammo_per_shot: int = 1
+    ammo_type: str | None = None
+    reload_ap_cost: int = 1
     price: int = 0
     tech_level: int = 1
     shop_available: bool = True

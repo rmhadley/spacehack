@@ -15,8 +15,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.spacehack import world, pygame_target_card
+from src.spacehack import ui, world, pygame_target_card
 from src.spacehack.combat import _loop, _rules_ground
+from src.spacehack.combat import _ground_render
 from src.spacehack.combat import _ground_presentation
 from src.spacehack.combat._rules_ground import (
     _ground_hit_chance_raw,
@@ -24,7 +25,11 @@ from src.spacehack.combat._rules_ground import (
     _calc_ground_move_dodge,
     _ground_point_blank_penalty,
 )
-from src.spacehack.ground_equipment import weapon_instance as _weapon
+from src.spacehack.ground_equipment import (
+    GroundItemStack,
+    GroundWeaponInstance,
+    weapon_instance as _weapon,
+)
 
 
 def test_ground_volley_costs_uses_max_ap():
@@ -137,30 +142,30 @@ class TestEnemyDetailLines:
         )
 
     def test_unarmored_enemy_reports_arm_0(self):
-        assert _rules_ground.enemy_detail_lines(self._enemy(armor=0)) == (
+        assert _ground_presentation.enemy_detail_lines(self._enemy(armor=0)) == (
             "ARM 0", "Unarmed", "",
         )
 
     def test_armored_enemy_reports_armor_value(self):
-        assert _rules_ground.enemy_detail_lines(
+        assert _ground_presentation.enemy_detail_lines(
             self._enemy(armor=3, weapon_id="drone_laser"),
         )[0] == "ARM 3"
 
     def test_weapon_lines_split_name_from_dmg_range(self):
-        _armor, _name, _stats = _rules_ground.enemy_detail_lines(
+        _armor, _name, _stats = _ground_presentation.enemy_detail_lines(
             self._enemy(armor=1, weapon_id="frost_bolt"),
         )
         assert _name == "Frost Bolt"
         assert _stats == "DMG 4  RNG 1-5"
 
     def test_melee_weapon_reports_range_1_1(self):
-        _armor, _name, _stats = _rules_ground.enemy_detail_lines(
+        _armor, _name, _stats = _ground_presentation.enemy_detail_lines(
             self._enemy(weapon_id="combat_knife"),
         )
         assert _stats == "DMG 3  RNG 1-1"
 
     def test_unknown_weapon_falls_back_to_unarmed(self):
-        assert _rules_ground.enemy_detail_lines(
+        assert _ground_presentation.enemy_detail_lines(
             self._enemy(weapon_id="missing_weapon"),
         )[1] == "Unarmed"
 
@@ -174,25 +179,25 @@ class TestEnemyThreatColor:
         )
 
     def test_in_range_is_danger(self):
-        assert _rules_ground.enemy_threat_color(
+        assert _ground_presentation.enemy_threat_color(
             self._enemy("frost_bolt"), 3,
         ) == _ground_presentation.COLOR_DIST_DANGER
 
     def test_out_of_range_is_safe(self):
-        assert _rules_ground.enemy_threat_color(
+        assert _ground_presentation.enemy_threat_color(
             self._enemy("frost_bolt"), 9,
         ) == _ground_presentation.COLOR_DIST_SAFE
 
     def test_inside_min_range_is_too_close(self):
         # kinetic_rifle min_range=2: adjacent is too close to fire.
-        assert _rules_ground.enemy_threat_color(
+        assert _ground_presentation.enemy_threat_color(
             self._enemy("kinetic_rifle"), 1,
         ) == _ground_presentation.COLOR_DIST_TOO_CLOSE
 
     def test_unarmed_is_dim(self):
-        assert _rules_ground.enemy_threat_color(
+        assert _ground_presentation.enemy_threat_color(
             self._enemy(), 3,
-        ) == _rules_ground.ui.COLOR_VALUE_DIM
+        ) == ui.COLOR_VALUE_DIM
 
 
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
@@ -447,22 +452,22 @@ def _ground_fixture():
 def _patch_render_deps(monkeypatch, line_calls: list) -> None:
     """Neutralize render_frame's heavy deps; record range-line calls."""
     monkeypatch.setattr(
-        _rules_ground, "_ground_range_line",
+        _ground_render, "_ground_range_line",
         lambda *a, **k: line_calls.append(a),
     )
     monkeypatch.setattr(
-        _rules_ground, "world",
+        _ground_render, "world",
         SimpleNamespace(
             camera_for_view=lambda *a, **k: (0, 0, 0, 0),
             render_world_view=lambda *a, **k: None,
         ),
     )
-    monkeypatch.setattr(_rules_ground, "_paint_target_highlight", lambda *a, **k: None)
+    monkeypatch.setattr(_ground_render, "_paint_target_highlight", lambda *a, **k: None)
     monkeypatch.setattr(
-        _rules_ground, "_ml",
+        _ground_render, "_ml",
         SimpleNamespace(render_message_log=lambda *a, **k: None),
     )
-    monkeypatch.setattr(_rules_ground, "_bar_str", lambda *a, **k: "########")
+    monkeypatch.setattr(_ground_render, "_bar_str", lambda *a, **k: "########")
 
 
 class TestRangeLineHidden:
@@ -745,3 +750,59 @@ class TestTargetCardToggle:
         assert _rules_ground._state.show_target_card is False
         _rules_ground.toggle_target_card(_ctx)
         assert _rules_ground._state.show_target_card is True
+
+
+# ---------------------------------------------------------------------------
+# Ammo gating, consumption, and reload (design doc 19, Phase 3)
+# ---------------------------------------------------------------------------
+
+
+def _ammo_ctx(weapon_id: str, loaded: int, *, reserve: int = 0):
+    """Build a ground-combat ctx with one weapon instance and optional ammo."""
+    _ctx, _game_map, _, _enemy = _ground_fixture()
+    _ctx.equipped_ground_weapons = [GroundWeaponInstance(weapon_id, loaded)]
+    _ctx.ground_expedition_items = []
+    if reserve:
+        from src.spacehack.data.ground_weapons import find_ground_weapon
+        from src.spacehack.data.ground_items import list_ground_ammo
+        ammo_type = find_ground_weapon(weapon_id).ammo_type
+        ammo_id = next(a.id for a in list_ground_ammo() if a.ammo_type == ammo_type)
+        _ctx.ground_expedition_items = [GroundItemStack("ammo", ammo_id, reserve)]
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    return _ctx, _game_map, _enemy
+
+
+def test_can_fire_blocks_empty_magazine():
+    _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 0)
+    _ok, _reason = _rules_ground.can_fire(0, _ctx)
+    assert not _ok
+    assert "Empty magazine" in _reason
+
+
+def test_consume_shot_decrements_loaded_ammo():
+    _ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+    )
+    _rules_ground.consume_shot(0, _ctx)
+    assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 4)]
+
+
+def test_reload_weapon_fills_magazine_and_charges_ap():
+    _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 3, reserve=40)
+    _rules_ground.set_player_ap(_ctx, 3)
+
+    assert _rules_ground.reload_weapon(_ctx) is True
+
+    assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 31)]
+    assert _rules_ground.player_ap(_ctx) == 2
+
+
+def test_reload_weapon_missing_ammo_leaves_state_and_ap_unchanged():
+    _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 3)
+    _rules_ground.set_player_ap(_ctx, 3)
+
+    assert _rules_ground.reload_weapon(_ctx) is False
+
+    assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 3)]
+    assert _rules_ground.player_ap(_ctx) == 3

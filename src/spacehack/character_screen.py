@@ -447,10 +447,13 @@ def _backpack_equipment_rows(ctx: GameContext) -> list:
 def _backpack_item_rows(ctx: GameContext) -> list:
     """Build the field-item (ammo/consumable) stack rows for the backpack."""
     rows: list = []
-    for stack in getattr(ctx, "ground_expedition_items", []):
+    for index, stack in enumerate(getattr(ctx, "ground_expedition_items", [])):
         try:
+            selectable = stack.item_type == "ammo"
             rows.append(_equipment_row(
                 _item_stack_name(stack), _item_stack_detail(stack),
+                action=f"PACK_STACK:{index}" if selectable else "",
+                selectable=selectable,
             ))
         except (KeyError, TypeError, ValueError):
             continue
@@ -629,6 +632,97 @@ def _manage_pack_item(
     return None
 
 
+def _manage_pack_stack(
+    ctx: GameContext, action: str, *, in_ground_combat: bool,
+) -> str | None:
+    """Offer Reload or Discard for one selectable ammo stack."""
+    from . import pygame_story
+
+    index = int(action.split(":", 1)[1])
+    items = getattr(ctx, "ground_expedition_items", [])
+    if not 0 <= index < len(items):
+        ctx.log.add("That ammo is no longer available.")
+        return None
+    try:
+        name = _item_stack_name(items[index])
+    except (KeyError, TypeError, ValueError):
+        ctx.log.add("That item is invalid.")
+        return None
+    chosen = pygame_story.choose(
+        ctx, title="AMMO", body=name,
+        options=(
+            ("Reload", f"STACK_RELOAD:{index}"),
+            ("Discard", f"STACK_DISCARD:{index}"),
+        ),
+        caption="spacehack - ammo", compact=True,
+    )
+    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
+        return None
+    if chosen == "__QUIT__":
+        raise SystemExit
+    if chosen.startswith("STACK_RELOAD:"):
+        return "RELOAD" if _reload_pack_ammo(ctx, index, in_ground_combat) else None
+    if chosen.startswith("STACK_DISCARD:"):
+        return "DISCARD" if _discard_pack_stack(ctx, index) else None
+    return None
+
+
+def _reload_pack_ammo(ctx: GameContext, index: int, in_ground_combat: bool) -> bool:
+    """Reload a matching equipped weapon from one ammo stack; return success."""
+    from . import ground_equipment
+    from .combat import _rules_ground
+    from .data.ground_items import find_ground_ammo
+    from .data.ground_weapons import find_ground_weapon
+
+    items = getattr(ctx, "ground_expedition_items", [])
+    if not 0 <= index < len(items):
+        ctx.log.add("That ammo is no longer available.")
+        return False
+    if items[index].item_type != "ammo":
+        ctx.log.add("That item is not ammunition.")
+        return False
+    ammo_type = find_ground_ammo(items[index].item_id).ammo_type
+    slot = ground_equipment.reload_slot_for_ammo(
+        ctx.equipped_ground_weapons, ammo_type,
+    )
+    if slot is None:
+        ctx.log.add("No equipped weapon needs that ammo.")
+        return False
+    spec = find_ground_weapon(ctx.equipped_ground_weapons[slot].weapon_id)
+    if in_ground_combat and _rules_ground.player_ap(ctx) < spec.reload_ap_cost:
+        ctx.log.add(
+            f"Need {spec.reload_ap_cost} AP to reload "
+            f"(have {_rules_ground.player_ap(ctx)}).",
+        )
+        return False
+    try:
+        new_instance = ground_equipment.apply_reload(
+            ctx.equipped_ground_weapons, slot, items,
+        )
+    except (IndexError, KeyError, ValueError) as exc:
+        ctx.log.add(str(exc))
+        return False
+    if in_ground_combat:
+        _rules_ground.set_player_ap(ctx, _rules_ground.player_ap(ctx) - spec.reload_ap_cost)
+    ctx.log.add(f"Reloaded {spec.name} ({new_instance.loaded_ammo}/{spec.ammo_capacity}).")
+    return True
+
+
+def _discard_pack_stack(ctx: GameContext, index: int) -> bool:
+    """Discard one carried field-item stack."""
+    items = getattr(ctx, "ground_expedition_items", [])
+    if not 0 <= index < len(items):
+        ctx.log.add("That item is no longer available.")
+        return False
+    stack = items.pop(index)
+    try:
+        name = _item_stack_name(stack)
+    except (KeyError, TypeError, ValueError):
+        name = "item"
+    ctx.log.add(f"Discarded {name}.")
+    return True
+
+
 def _swap_from_pack(ctx: GameContext, action: str) -> bool:
     """Open the backpack submenu and apply one selected equipment swap."""
     from . import pygame_story
@@ -760,6 +854,12 @@ def _apply_character_select(
             )
             if _pack_result == "EQUIP" and in_ground_combat:
                 return swap_count + 1, True
+        if action.startswith("PACK_STACK:"):
+            _pack_result = _manage_pack_stack(
+                ctx, action, in_ground_combat=in_ground_combat,
+            )
+            if _pack_result == "RELOAD" and in_ground_combat:
+                return swap_count, True
     return swap_count, False
 
 def _combat_ap_available(ctx: GameContext, *, reserved: int = 0) -> bool:

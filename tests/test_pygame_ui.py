@@ -24,7 +24,11 @@ from src.spacehack import (
 from src.spacehack.menus import _armory, _missions, _planet, _ship_buy, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
 from src.spacehack.main_quest import _act0
-from src.spacehack.ground_equipment import weapon_instance
+from src.spacehack.ground_equipment import (
+    GroundItemStack,
+    GroundWeaponInstance,
+    weapon_instance,
+)
 from tests.support.fake_pygame import FakeFont as _FakeFont
 
 
@@ -149,6 +153,20 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
     )
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_pistol")]
     assert len(ctx.ground_expedition_inventory) == 1
+
+
+def test_character_equipment_ammo_stack_reloads_matching_weapon():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
+        equipped_ground_armor={},
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    assert character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False)
+
+    assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
 
 
 def test_combat_character_screen_returns_after_successful_swap(monkeypatch):

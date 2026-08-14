@@ -67,6 +67,7 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         "s": "DEFENSE",
         "w": "WAIT",
         "f": "FIRE",
+        "r": "RELOAD",
         "c": "CHARACTER",
         "v": "TOGGLE_CARD",
     }.get(sym_name, f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else "")
@@ -339,6 +340,12 @@ def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_i
     elif action == "FIRE":
         _handle_fire(console, ctx, game_map, rules, target_idx)
         presenter = getattr(ctx, "_pygame_combat_presenter", None)
+    elif action == "RELOAD":
+        _reload = getattr(rules, "reload_weapon", None)
+        if _reload is not None:
+            _reload(ctx)
+        else:
+            ctx.log.add("Reload is unavailable here.")
     elif action.startswith("WEAPON:"):
         _idx = int(action.partition(":")[2])
         _toggle_weapon(_idx, rules.active_weapons(ctx), ctx, rules)

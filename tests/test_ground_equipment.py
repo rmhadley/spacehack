@@ -26,8 +26,15 @@ from src.spacehack.ground_equipment import (
     swap_weapon_from_expedition,
     tier_filtered_equipment,
     transfer_item,
+    GroundItemStack,
     GroundWeaponInstance,
+    apply_reload,
+    consume_weapon_round,
+    matching_ammo_stack_index,
     parse_weapon_instance,
+    reload_amount,
+    reload_slot_for_ammo,
+    reserve_ammo_count,
     weapon_ids,
     weapon_instance,
 )
@@ -509,3 +516,106 @@ def test_parse_weapon_instance_forces_none_for_infinite_weapons():
     assert parse_weapon_instance(
         {"weapon_id": "combat_knife", "loaded_ammo": 30},
     ) == GroundWeaponInstance("combat_knife", None)
+
+
+# ---------------------------------------------------------------------------
+# Weapon ammo and reload (design doc 19, Phase 3)
+# ---------------------------------------------------------------------------
+
+
+def test_reloadable_weapons_have_ammo_type_and_infinite_do_not():
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    assert find_ground_weapon("kinetic_pistol").ammo_type == "kinetic_pistol"
+    assert find_ground_weapon("laser_rifle").ammo_type == "energy_cell"
+    assert find_ground_weapon("rocket_launcher").ammo_type == "rocket"
+    assert find_ground_weapon("combat_knife").ammo_type is None
+    assert find_ground_weapon("plasma_pistol").ammo_type is None
+
+
+def test_reload_amount_moves_min_of_missing_and_reserve():
+    assert reload_amount(3, 12, 40) == 9
+    assert reload_amount(10, 12, 40) == 2
+    assert reload_amount(0, 12, 5) == 5
+    assert reload_amount(12, 12, 40) == 0
+
+
+def test_consume_weapon_round_decrements_reloadable_ammo():
+    assert consume_weapon_round(
+        GroundWeaponInstance("kinetic_pistol", 3),
+    ) == GroundWeaponInstance("kinetic_pistol", 2)
+    assert consume_weapon_round(
+        GroundWeaponInstance("kinetic_pistol", 0),
+    ) == GroundWeaponInstance("kinetic_pistol", 0)
+
+
+def test_consume_weapon_round_leaves_infinite_weapons_untouched():
+    instance = GroundWeaponInstance("combat_knife", None)
+    assert consume_weapon_round(instance) is instance
+
+
+def test_matching_ammo_stack_index_finds_by_ammo_type():
+    items = [
+        GroundItemStack("ammo", "shotgun_shells", 10),
+        GroundItemStack("ammo", "rifle_rounds", 20),
+    ]
+    assert matching_ammo_stack_index(items, "rifle_round") == 1
+    assert matching_ammo_stack_index(items, "grenade") is None
+
+
+def test_reserve_ammo_count_sums_matching_stacks():
+    items = [
+        GroundItemStack("ammo", "rifle_rounds", 20),
+        GroundItemStack("ammo", "rifle_rounds", 5),
+        GroundItemStack("ammo", "shotgun_shells", 10),
+    ]
+    assert reserve_ammo_count(items, "rifle_round") == 25
+
+
+def test_apply_reload_fills_magazine_and_drains_stack():
+    equipped = [GroundWeaponInstance("kinetic_pistol", 3)]
+    items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    result = apply_reload(equipped, 0, items)
+    assert result == GroundWeaponInstance("kinetic_pistol", 12)
+    assert items == [GroundItemStack("ammo", "pistol_rounds", 31)]
+
+
+def test_apply_reload_partial_when_reserve_is_short():
+    equipped = [GroundWeaponInstance("kinetic_pistol", 10)]
+    items = [GroundItemStack("ammo", "pistol_rounds", 1)]
+    result = apply_reload(equipped, 0, items)
+    assert result == GroundWeaponInstance("kinetic_pistol", 11)
+    assert items == []
+
+
+def test_apply_reload_rejects_full_magazine_without_mutation():
+    equipped = [GroundWeaponInstance("kinetic_pistol", 12)]
+    items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    with pytest.raises(ValueError, match="full"):
+        apply_reload(equipped, 0, items)
+    assert items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+
+
+def test_apply_reload_rejects_missing_ammo_without_mutation():
+    equipped = [GroundWeaponInstance("kinetic_pistol", 3)]
+    items: list = []
+    with pytest.raises(ValueError, match="No kinetic_pistol ammo"):
+        apply_reload(equipped, 0, items)
+    assert equipped == [GroundWeaponInstance("kinetic_pistol", 3)]
+
+
+def test_apply_reload_rejects_non_reloadable_weapon():
+    equipped = [GroundWeaponInstance("combat_knife", None)]
+    items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    with pytest.raises(ValueError, match="cannot be reloaded"):
+        apply_reload(equipped, 0, items)
+
+
+def test_reload_slot_for_ammo_picks_first_matching_not_full():
+    equipped = [
+        GroundWeaponInstance("combat_knife", None),
+        GroundWeaponInstance("kinetic_pistol", 3),
+    ]
+    assert reload_slot_for_ammo(equipped, "kinetic_pistol") == 1
+    full = [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert reload_slot_for_ammo(full, "kinetic_pistol") is None

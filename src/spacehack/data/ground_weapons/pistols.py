@@ -18,6 +18,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         min_range=1,
         max_range=4,
         ammo_capacity=100,    # high-ammo rechargeable
+        ammo_type="energy_cell",
         price=50,
         tech_level=1,
     ),
@@ -32,6 +33,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         min_range=1,
         max_range=4,
         ammo_capacity=12,     # limited-ammo
+        ammo_type="kinetic_pistol",
         price=35,
         tech_level=1,
     ),
@@ -46,6 +48,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         min_range=1,
         max_range=4,
         ammo_capacity=30,
+        ammo_type="kinetic_pistol",
         price=120,
         tech_level=2,
     ),
@@ -60,6 +63,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         min_range=1,
         max_range=6,
         ammo_capacity=100,
+        ammo_type="energy_cell",
         price=240,
         tech_level=3,
     ),
