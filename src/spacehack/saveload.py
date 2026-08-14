@@ -18,6 +18,8 @@ from pathlib import Path
 from . import world
 from .game_context import GameContext
 from .pygame_runtime import PygameContext
+from .saveload_maps import _dungeon_from_dict, _dungeon_to_dict  # noqa: F401  # re-exported for tests/tools
+from .saveload_maps import rebuild_game_map
 
 
 def _saves_dir() -> Path:
@@ -128,12 +130,8 @@ def _ground_equipment_from_dict(raw: object):
     return StoredGroundEquipment(item_type, item_id)
 
 
-def _ctx_to_dict(ctx: GameContext) -> dict:
-    """Serialize only the fields that survive a save/load cycle.
-
-    Returns a flat dict — callers add mode / position / synced-spawn
-    fields before writing to disk.
-    """
+def _core_fields(ctx: GameContext) -> dict:
+    """Serialize character, ship, mission, economy, and clock fields."""
     return {
         "character_info": _d(ctx.character_info),
         "message_history": [
@@ -170,6 +168,12 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "generated_missions": _d(ctx.generated_missions),
         "economy_state": _d(ctx.economy_state),
         "militia_scanned": sorted(ctx.militia_scanned),
+    }
+
+
+def _ground_fields(ctx: GameContext) -> dict:
+    """Serialize ground combat and equipment fields."""
+    return {
         "ground_stats": _d(ctx.ground_stats),
         "equipped_ground_weapons": list(ctx.equipped_ground_weapons),
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
@@ -177,6 +181,12 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
         "ground_expedition_inventory": _d(ctx.ground_expedition_inventory),
         "ground_hp": ctx.ground_hp,
         "ground_max_hp": ctx.ground_max_hp,
+    }
+
+
+def _quest_fields(ctx: GameContext) -> dict:
+    """Serialize main-quest, tutorial, and extension state."""
+    return {
         # Main quest state (save/load contract — see
         # docs/design/in_progress/07_DESIGN_MAIN_QUEST.md).
         "main_quest_progress": _d(ctx.main_quest_progress),
@@ -199,6 +209,18 @@ def _ctx_to_dict(ctx: GameContext) -> dict:
     }
 
 
+def _ctx_to_dict(ctx: GameContext) -> dict:
+    """Serialize only the fields that survive a save/load cycle.
+
+    Returns a flat dict — callers add mode / position / synced-spawn
+    fields before writing to disk.
+    """
+    _data = _core_fields(ctx)
+    _data.update(_ground_fields(ctx))
+    _data.update(_quest_fields(ctx))
+    return _data
+
+
 def _save_loot(game_map) -> list[dict]:
     """Serialize all loot entities on the map."""
     _result: list[dict] = []
@@ -214,6 +236,92 @@ def _save_loot(game_map) -> list[dict]:
                 'main_quest_step_id': getattr(_e, 'main_quest_step_id', ''),
             })
     return _result
+
+
+def _index_npc_entities(ctx: GameContext) -> dict[str, list]:
+    """Index current-map entities by npc_ship_id for spawn position sync."""
+    by_type: dict[str, list] = {}
+    for e in ctx.game_map.entities:
+        eid = getattr(e, 'npc_ship_id', '')
+        if eid:
+            by_type.setdefault(eid, []).append(e)
+    return by_type
+
+
+def _sync_spawn_entry(ctx, ps, by_type, synced_targets, synced_paths):
+    """Return ``(pos, mid)`` for one spawn, or None if its entity died."""
+    candidates = by_type.get(ps.npc_id, [])
+    if not candidates:
+        return None
+    matched = candidates.pop(0)
+    cur_pos, cur_mid = matched.pos, matched.procedural_squad_id
+    target = ctx.npc_targets.get(cur_mid)
+    if target is not None:
+        synced_targets[cur_mid] = [target[0], target[1]]
+    path = ctx.npc_paths.get(cur_mid)
+    if path:
+        synced_paths[cur_mid] = [[x, y] for x, y in path]
+    return cur_pos, cur_mid
+
+
+def _sync_procedural_spawns(ctx: GameContext, system_id: str) -> tuple:
+    """Sync procedural spawn positions from live entities on the current map.
+
+    ``move_npcs`` moves entities without updating ``ProceduralSpawn.pos``, so
+    the spawn data holds the original spawn position. Entities are indexed by
+    ``npc_ship_id`` and popped one-at-a-time so every spawn gets a different
+    entity's position (the stacking bug). Returns
+    ``(spawns, mids, targets, paths)``.
+    """
+    from .game_context import ProceduralSpawn
+
+    synced_spawns: dict[str, list] = {}
+    synced_mids: dict[str, list] = {}
+    synced_targets: dict[str, list[int]] = {}
+    synced_paths: dict[str, list] = {}
+    for sys_id, spawns in ctx.procedural_spawns.items():
+        # Only the current system's map is in ctx.game_map — other systems
+        # keep their spawns as-is (no entity data to match).
+        by_type = _index_npc_entities(ctx) if sys_id == system_id else {}
+        updated: list = []
+        mids: list = []
+        for ps in spawns:
+            if sys_id == system_id:
+                synced = _sync_spawn_entry(ctx, ps, by_type, synced_targets, synced_paths)
+                if synced is None:
+                    continue  # entity was killed — drop its spawn
+                cur_pos, cur_mid = synced
+            else:
+                cur_pos, cur_mid = ps.pos, ""
+            updated.append(ProceduralSpawn(
+                npc_id=ps.npc_id, pos=cur_pos, squad_id=ps.squad_id,
+            ))
+            mids.append(cur_mid)
+        synced_spawns[sys_id] = updated
+        synced_mids[sys_id] = mids
+    return synced_spawns, synced_mids, synced_targets, synced_paths
+
+
+def _write_dungeon_and_interiors(ctx, data, mode, space_player_pos) -> None:
+    """Serialize the active dungeon and persistent wreck interiors."""
+    if mode == "dungeon":
+        data["dungeon"] = _dungeon_to_dict(ctx.game_map, space_player_pos)
+    # The autosave IS the on-disk cache: every boarded wreck interior is
+    # serialized here so crew stay dead, loot stays taken, and fog stays
+    # revealed across save/quit/continue.
+    if ctx.interiors:
+        data["interiors"] = {
+            key: _dungeon_to_dict(value, None)
+            for key, value in ctx.interiors.items()
+        }
+
+
+def _write_rng_state(data: dict) -> None:
+    """Persist the RNG stream state and the run's initial seed."""
+    from .engine import INIT_SEED, RNG
+    rng_state = RNG.getstate()
+    data["rng_state"] = [rng_state[0], list(rng_state[1]), rng_state[2]]
+    data["init_seed"] = INIT_SEED
 
 
 def save_game(
@@ -233,71 +341,9 @@ def save_game(
     player's ship position in the space map, needed to reconstruct the
     space side on load.
     """
-    # Sync procedural spawn positions from actual entity positions on
-    # the map.  move_npcs() moves entities but doesn't update the
-    # ProceduralSpawn.pos in ctx.procedural_spawns, so the spawn data
-    # holds the original spawn position.
-    #
-    # Entities are indexed by npc_ship_id and popped one-at-a-time
-    # per spawn so every spawn gets a *different* entity's position.
-    # Without pop()-based dedup, two solo spawns of the same type
-    # would both match the first entity found — the stacking bug.
-    from .game_context import ProceduralSpawn
-    _synced_spawns: dict[str, list] = {}               # sys_id → [synced ProceduralSpawn]
-    _synced_mids: dict[str, list] = {}                 # sys_id → [movement_id per spawn]
-    _synced_targets: dict[str, list[int]] = {}          # movement_id → [tx, ty]
-    _synced_paths: dict[str, list] = {}                 # movement_id → [[x,y],...]
-    for _sys_id, _spawns in ctx.procedural_spawns.items():
-        # Only the current system's map is in ctx.game_map — for other
-        # systems we keep all spawns as-is (no entity data to match).
-        _is_current = (_sys_id == system_id)
-
-        if _is_current:
-            # Build candidate list keyed by npc_ship_id.  Any entity with
-            # npc_ship_id is a candidate — including derelicts (which
-            # have npc_ship_id but NOT procedural_squad_id because
-            # their base_speed=0 omits squad registration).  pop(0) on
-            # match gives each spawn a different entity (prevents stacking).
-            _by_type: dict[str, list] = {}
-            for _e in ctx.game_map.entities:
-                _eid = getattr(_e, 'npc_ship_id', '')
-                if _eid:
-                    _by_type.setdefault(_eid, []).append(_e)
-
-        _updated: list = []
-        _mids: list = []
-        for _ps in _spawns:
-            _cur_pos = _ps.pos
-            _cur_mid = ""
-            if _is_current:
-                _candidates = _by_type.get(_ps.npc_id, [])
-                if _candidates:
-                    _matched = _candidates.pop(0)
-                    _cur_pos = _matched.pos
-                    _cur_mid = _matched.procedural_squad_id
-                else:
-                    # Entity was killed — remove its spawn so it doesn't
-                    # respawn on the next load.
-                    continue
-            else:
-                # For other systems preserve all spawns at their last
-                # recorded position (best-effort — no entity data).
-                pass
-            _updated.append(ProceduralSpawn(
-                npc_id=_ps.npc_id, pos=_cur_pos, squad_id=_ps.squad_id,
-            ))
-            _mids.append(_cur_mid)
-            # Capture the entity's current target and path.
-            if _cur_mid:
-                _tgt = ctx.npc_targets.get(_cur_mid)
-                if _tgt is not None:
-                    _synced_targets[_cur_mid] = [_tgt[0], _tgt[1]]
-                _pth = ctx.npc_paths.get(_cur_mid)
-                if _pth:
-                    _synced_paths[_cur_mid] = [[x, y] for x, y in _pth]
-        _synced_spawns[_sys_id] = _updated
-        _synced_mids[_sys_id] = _mids
-
+    _synced_spawns, _synced_mids, _synced_targets, _synced_paths = (
+        _sync_procedural_spawns(ctx, system_id)
+    )
     _data = _ctx_to_dict(ctx)
     _data["map_loot"] = _save_loot(ctx.game_map)
     _data["procedural_spawns"] = _d(_synced_spawns)
@@ -311,300 +357,11 @@ def save_game(
     _data["player_pos_y"] = ctx.player.pos.y
     ctx.current_city_id = city_id
 
-    # --- Dungeon mode: serialize dungeon map + space player position ---
-    if mode == "dungeon":
-        _data["dungeon"] = _dungeon_to_dict(ctx.game_map, space_player_pos)
-
-    # --- Persistent wreck interiors (salvage missions) ---
-    # The autosave IS the on-disk cache: every boarded wreck interior is
-    # serialized here and restored on load so crew stay dead, loot stays
-    # taken, and fog stays revealed across save/quit/continue.
-    if ctx.interiors:
-        _data["interiors"] = {
-            _k: _dungeon_to_dict(_v, None) for _k, _v in ctx.interiors.items()
-        }
-
-    # --- Save RNG state so Continue restores the exact same stream ---
-    from .engine import RNG
-    _rng_state = RNG.getstate()
-    _data["rng_state"] = [_rng_state[0], list(_rng_state[1]), _rng_state[2]]
+    _write_dungeon_and_interiors(ctx, _data, mode, space_player_pos)
+    _write_rng_state(_data)
 
     _path = _autosave_path()
     _path.write_text(json.dumps(_data, indent=2, ensure_ascii=False))
-
-
-# ---------------------------------------------------------------------------
-# Shared dungeon serialization (active dungeon + persistent interiors)
-# ---------------------------------------------------------------------------
-
-
-def _coordinate_pair(raw) -> tuple[int, int] | None:
-    """Return a valid integer coordinate pair, or ``None`` for bad data."""
-    if hasattr(raw, "x") and hasattr(raw, "y"):
-        _raw_pair = (raw.x, raw.y)
-    elif isinstance(raw, (list, tuple)) and len(raw) >= 2:
-        _raw_pair = (raw[0], raw[1])
-    else:
-        return None
-    try:
-        return int(_raw_pair[0]), int(_raw_pair[1])
-    except (TypeError, ValueError):
-        return None
-
-
-def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
-    """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict.
-
-    Shared by the active-dungeon save block AND the
-    ``ctx.interiors`` cache (salvage wrecks). ``space_player_pos`` is
-    only meaningful for the active dungeon (the player's ship position
-    in space while boarded); interiors pass ``None``.
-    """
-    _landmark_interaction_cells: list[list[int]] = []
-    for _cell in getattr(gm, "landmark_interaction_cells", ()):
-        _pair = _coordinate_pair(_cell)
-        if _pair is not None:
-            _landmark_interaction_cells.append([_pair[0], _pair[1]])
-    return {
-        "width": gm.width,
-        "height": gm.height,
-        "tiles": [[{"kind": c.kind, "char": c.char, "walkable": c.walkable, "fg": list(c.fg), "bg": list(c.bg), "bg_override": c.bg_override, "blocked_message": c.blocked_message} for c in row] for row in gm.tiles],
-        "entities": [
-            {
-                "char": e.char,
-                "fg_r": e.fg[0], "fg_g": e.fg[1], "fg_b": e.fg[2],
-                "x": e.pos.x, "y": e.pos.y,
-                "name": e.name,
-                "loot_data": e.loot_data,
-                "computer_terminal": e.computer_terminal,
-                "main_quest_console": bool(getattr(e, 'main_quest_console', False)),
-                "npc_char_id": e.npc_char_id,
-                "npc_id": getattr(e, 'npc_id', ''),
-                "squad_id": getattr(e, 'squad_id', ''),
-                "hp": getattr(e, 'hp', 0),
-                "guard_post": (
-                    [e.guard_post.x, e.guard_post.y]
-                    if getattr(e, 'guard_post', None) is not None else None
-                ),
-                "heist_mission": bool(getattr(e, 'heist_mission', False)),
-                "heist_mission_id": getattr(e, 'heist_mission_id', None),
-                "main_quest_door": bool(getattr(e, 'main_quest_door', False)),
-                # Quest cache / salvage loot (delve/salvage objectives):
-                # the main-quest step id whose completion this loot
-                # triggers. Lives in dungeon interiors (persisted here).
-                "main_quest_step_id": getattr(e, 'main_quest_step_id', ''),
-                "dungeon_interaction": getattr(e, 'dungeon_interaction', ''),
-                "interaction_flavor": getattr(e, 'interaction_flavor', ''),
-                "last_seen_pos": (
-                    [e.last_seen_pos.x, e.last_seen_pos.y]
-                    if getattr(e, 'last_seen_pos', None) is not None else None
-                ),
-                "last_seen_ticks": getattr(e, 'last_seen_ticks', 0),
-                "blocked_message": getattr(e, 'blocked_message', "You bump into {name}."),
-            }
-            for e in gm.entities if e.char != '@'
-        ],
-        "seen": gm.seen,
-        "sight_radius": gm.sight_radius,
-        "power_restored": getattr(gm, 'power_restored', False),
-        "space_player_x": space_player_pos[0] if space_player_pos else 0,
-        "space_player_y": space_player_pos[1] if space_player_pos else 0,
-        "location_name": getattr(gm, 'location_name', ''),
-        # Salvage-wreck interior anchors: the wreck's BountySpawn id
-        # (cache key + lifecycle) and the interior's entry spawn, so
-        # re-boarding a restored interior places the player correctly.
-        "wreck_spawn_id": getattr(gm, 'wreck_spawn_id', None),
-        "entry_spawn": (
-            [gm.entry_spawn.x, gm.entry_spawn.y]
-            if getattr(gm, 'entry_spawn', None) is not None else None
-        ),
-        "up_stair_pos": (
-            [gm.up_stair_pos.x, gm.up_stair_pos.y]
-            if getattr(gm, 'up_stair_pos', None) is not None else None
-        ),
-        "down_stair_pos": (
-            [gm.down_stair_pos.x, gm.down_stair_pos.y]
-            if getattr(gm, 'down_stair_pos', None) is not None else None
-        ),
-        "mars_stairs_pos": (
-            [gm.mars_stairs_pos.x, gm.mars_stairs_pos.y]
-            if getattr(gm, 'mars_stairs_pos', None) is not None else None
-        ),
-        "extension_id": getattr(gm, 'extension_id', ''),
-        "extension_floor": getattr(gm, 'extension_floor', 0),
-        "feature_theme": getattr(gm, 'feature_theme', ''),
-        "activation_positions": _d(getattr(gm, 'activation_positions', {})),
-        "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
-        "interior_cache_key": getattr(gm, 'interior_cache_key', ''),
-        "landmark_footprint": [
-            [int(_x), int(_y)]
-            for _x, _y in getattr(gm, 'landmark_footprint', set())
-        ],
-        "landmark_interaction_cells": _landmark_interaction_cells,
-        "landmark_variant_id": getattr(gm, 'landmark_variant_id', ''),
-    }
-
-
-def _dungeon_from_dict(dd: dict) -> tuple:
-    """Rebuild a dungeon :class:`world.GameMap` from a serialized dict.
-
-    Returns ``(game_map, space_player_pos)``. The player entity is NOT
-    included (the caller appends a fresh ``@`` at the saved position).
-    """
-    # Backward-compat fallback for old saves that stored kind strings.
-    _TILE_FROM_KIND: dict[str, world.Tile] = {
-        "dungeon_wall": world.DUNGEON_WALL,
-        "dungeon_floor": world.DUNGEON_FLOOR,
-        "dungeon_door": world.DUNGEON_DOOR,
-        "void": world.VOID,
-        "airlock": world.AIRLOCK,
-        "breach": world.BREACH,
-        "cockpit": world.COCKPIT,
-        "engine": world.ENGINE_TILE,
-        "debris": world.DEBRIS,
-        "exit": world.EXIT,
-        "stairs_down": world.STAIRS_DOWN,
-        "stairs_up": world.STAIRS_UP,
-        "hull_wall": world.HULL_WALL,
-    }
-    _dw = dd.get("width", 1)
-    _dh = dd.get("height", 1)
-    _raw_tiles = dd.get("tiles", [["void"]])
-    _dungeon_tiles: list[list[world.Tile]] = []
-    for row in _raw_tiles:
-        _tile_row: list[world.Tile] = []
-        for t in row:
-            if isinstance(t, str):
-                # Old save format: kind string → lookup default Tile.
-                _tile_row.append(_TILE_FROM_KIND.get(t, world.VOID))
-            else:
-                # New format: full tile dict with fg/bg preserved.
-                _tile_row.append(world.Tile(
-                    kind=t.get("kind", "void"),
-                    char=t.get("char", " "),
-                    walkable=t.get("walkable", False),
-                    fg=tuple(t.get("fg", [0, 0, 0])),
-                    bg=tuple(t.get("bg", [0, 0, 0])),
-                    bg_override=t.get("bg_override", False),
-                    blocked_message=t.get("blocked_message", "A wall blocks your path."),
-                ))
-        _dungeon_tiles.append(_tile_row)
-    _dungeon_entities: list[world.Entity] = []
-    for _ed in dd.get("entities", []):
-        _e = world.Entity(
-            char=_ed.get("char", "?"),
-            fg=(_ed.get("fg_r", 255), _ed.get("fg_g", 255), _ed.get("fg_b", 255)),
-            pos=world.Position(_ed.get("x", 0), _ed.get("y", 0)),
-            name=_ed.get("name", ""),
-            width=1, height=1,
-            loot_data=_ed.get("loot_data"),
-            computer_terminal=_ed.get("computer_terminal", False),
-            main_quest_console=_ed.get("main_quest_console", False),
-            npc_char_id=_ed.get("npc_char_id", ""),
-            npc_id=_ed.get("npc_id", ""),
-            squad_id=_ed.get("squad_id", ""),
-            hp=_ed.get("hp", 0),
-            blocked_message=_ed.get("blocked_message", "You bump into {name}."),
-        )
-        _gp = _ed.get("guard_post")
-        if isinstance(_gp, (list, tuple)) and len(_gp) >= 2:
-            # Guard leash anchor (LOS aggro): preserved across
-            # save/load so a guard re-engaging after Continue defends
-            # its ORIGINAL post, not the spot it happened to be at.
-            _e.guard_post = world.Position(int(_gp[0]), int(_gp[1]))
-        if _ed.get("heist_mission", False):
-            _e.heist_mission = True
-        _hmid = _ed.get("heist_mission_id")
-        if _hmid:
-            _e.heist_mission_id = _hmid
-        if _ed.get("main_quest_door", False):
-            _e.main_quest_door = True
-        _qsid = _ed.get("main_quest_step_id")
-        if _qsid:
-            _e.main_quest_step_id = _qsid
-        _interaction = _ed.get("dungeon_interaction", "")
-        if _interaction:
-            _e.dungeon_interaction = str(_interaction)
-        _flavor = _ed.get("interaction_flavor", "")
-        if _flavor:
-            _e.interaction_flavor = str(_flavor)
-        _last_seen = _ed.get("last_seen_pos")
-        _last_seen_pair = _coordinate_pair(_last_seen)
-        try:
-            _last_seen_ticks = max(0, int(_ed.get("last_seen_ticks", 0)))
-        except (TypeError, ValueError):
-            _last_seen_ticks = 0
-        if _last_seen_pair is not None and _last_seen_ticks > 0:
-            _e.last_seen_pos = world.Position(*_last_seen_pair)
-            _e.last_seen_ticks = _last_seen_ticks
-        _dungeon_entities.append(_e)
-
-    _dungeon_map = world.GameMap(
-        width=_dw, height=_dh,
-        tiles=_dungeon_tiles,
-        entities=_dungeon_entities,
-    )
-    _dungeon_map.seen = dd.get("seen")
-    _dungeon_map.sight_radius = dd.get("sight_radius", 8)
-    _dungeon_map.location_name = dd.get("location_name", "")
-    if dd.get("power_restored", False):
-        _dungeon_map.power_restored = True
-    _wsid = dd.get("wreck_spawn_id")
-    if _wsid:
-        _dungeon_map.wreck_spawn_id = _wsid
-    _es = dd.get("entry_spawn")
-    if isinstance(_es, (list, tuple)) and len(_es) >= 2:
-        _dungeon_map.entry_spawn = world.Position(int(_es[0]), int(_es[1]))
-    _usp = dd.get("up_stair_pos")
-    if isinstance(_usp, (list, tuple)) and len(_usp) >= 2:
-        _dungeon_map.up_stair_pos = world.Position(int(_usp[0]), int(_usp[1]))
-    _dsp = dd.get("down_stair_pos")
-    if isinstance(_dsp, (list, tuple)) and len(_dsp) >= 2:
-        _dungeon_map.down_stair_pos = world.Position(int(_dsp[0]), int(_dsp[1]))
-    _msp = dd.get("mars_stairs_pos")
-    if isinstance(_msp, (list, tuple)) and len(_msp) >= 2:
-        _dungeon_map.mars_stairs_pos = world.Position(int(_msp[0]), int(_msp[1]))
-    _extension_id = dd.get("extension_id", "")
-    if _extension_id:
-        _dungeon_map.extension_id = _extension_id
-    _extension_floor = dd.get("extension_floor", 0)
-    if _extension_floor:
-        _dungeon_map.extension_floor = int(_extension_floor)
-    _feature_theme = dd.get("feature_theme", "")
-    if _feature_theme:
-        _dungeon_map.feature_theme = str(_feature_theme)
-    _activation_positions = dd.get("activation_positions", {}) or {}
-    if _activation_positions:
-        _dungeon_map.activation_positions = {
-            str(_event_id): world.Position(int(_point[0]), int(_point[1]))
-            for _event_id, _point in _activation_positions.items()
-            if isinstance(_point, (list, tuple)) and len(_point) >= 2
-        }
-    _extension_entry_id = dd.get("extension_entry_id", "")
-    if _extension_entry_id:
-        _dungeon_map.extension_entry_id = str(_extension_entry_id)
-    _interior_cache_key = dd.get("interior_cache_key", "")
-    if _interior_cache_key:
-        _dungeon_map.interior_cache_key = str(_interior_cache_key)
-    _landmark_footprint = dd.get("landmark_footprint", []) or []
-    if _landmark_footprint:
-        _dungeon_map.landmark_footprint = {
-            (int(_point[0]), int(_point[1]))
-            for _point in _landmark_footprint
-            if isinstance(_point, (list, tuple)) and len(_point) >= 2
-        }
-    _landmark_interaction_cells = set()
-    for _point in dd.get("landmark_interaction_cells", []) or []:
-        _pair = _coordinate_pair(_point)
-        if _pair is not None:
-            _landmark_interaction_cells.add(_pair)
-    if _landmark_interaction_cells:
-        _dungeon_map.landmark_interaction_cells = _landmark_interaction_cells
-    _landmark_variant_id = dd.get("landmark_variant_id", "")
-    if _landmark_variant_id:
-        _dungeon_map.landmark_variant_id = str(_landmark_variant_id)
-    _space_pos = (dd.get("space_player_x", 0), dd.get("space_player_y", 0))
-    return _dungeon_map, _space_pos
 
 
 # ---------------------------------------------------------------------------
@@ -629,673 +386,526 @@ def _parse_pos(raw) -> tuple[int, int]:
     return (0, 0)
 
 
-def load_game(context: PygameContext) -> GameContext | None:
-    """Load the autosave and reconstruct a GameContext.
+@dataclasses.dataclass
+class _ParsedSave:
+    """Parsed save header (everything except the map rebuild)."""
 
-    Returns None if no save exists or the file is corrupted.
-    """
-    _data = _load_json(_autosave_path())
-    if _data is None:
+    character_info: object
+    stats: object
+    owned_ship: object
+    active_missions: list
+    mission_boards: dict
+    bounty_spawns: dict
+    proc_spawns: dict
+    proc_mid_map: dict
+    npc_targets: dict
+    npc_paths: dict
+    counters: object
+    economy_state: dict
+    generated_missions: dict
+    faction_reputation: dict
+    log: object
+
+
+def _parse_stats(data: dict):
+    """Rebuild :class:`hud.HudStats` from the save payload."""
+    from . import hud
+    s = data["stats"]
+    return hud.HudStats(
+        hp=s["hp"], max_hp=s["max_hp"], credits=s["credits"],
+        gunnery=s.get("gunnery", 0),
+        piloting=s.get("piloting", 0),
+        engineering=s.get("engineering", 0),
+    )
+
+
+def _parse_owned_ship(data: dict):
+    """Rebuild the player's :class:`ship.OwnedShip`, or None."""
+    from . import ship as ship_module
+    osh = data.get("player_owned_ship")
+    if osh is None or not osh.get("ship_id"):
         return None
-
-    from . import hud, message_log, mission as mission_module
-    from . import ship as ship_module, world, solar_system as solar_system_module
-    from .game_context import (
-        PlayerCounters, BountySpawn, ProceduralSpawn,
-        DungeonExtensionState,
-    )
-
-    # --- character_info ---
-    _ci = _data["character_info"]
-
-    # --- HudStats ---
-    _s = _data["stats"]
-    _stats = hud.HudStats(
-        hp=_s["hp"], max_hp=_s["max_hp"], credits=_s["credits"],
-        gunnery=_s.get("gunnery", 0),
-        piloting=_s.get("piloting", 0),
-        engineering=_s.get("engineering", 0),
-    )
-
-    # --- OwnedShip ---
-    _osh = _data.get("player_owned_ship")
-    _owned_ship: ship_module.OwnedShip | None = None
-    if _osh is not None and _osh.get("ship_id"):
-        # weapon_ammo migration: new saves key ammo by weapon SLOT index
-        # (ints serialized as strings by _d). Pre-fix saves keyed it by
-        # weapon id (shared magazine bug) — those entries are dropped so
-        # __post_init__ seeds each installed launcher a fresh full mag.
-        _ammo_raw = _osh.get("weapon_ammo", {}) or {}
-        _ammo: dict[int, int] = {}
-        for _k, _v in _ammo_raw.items():
-            try:
-                _ammo[int(_k)] = int(_v)
-            except (TypeError, ValueError):
-                continue  # legacy weapon-id key — discard
-        _owned_ship = ship_module.OwnedShip(
-            ship_id=_osh["ship_id"],
-            display_name=_osh.get("display_name"),
-            fuel=_osh.get("fuel", 0),
-            hull_damage_pct=_osh.get("hull_damage_pct", 0),
-            weapons=tuple(_osh.get("weapons", ()) or ()),
-            modules=tuple(_osh.get("modules", ()) or ()),
-            inventory=_osh.get("inventory", {}) or {},
-            mission_reserved=_osh.get("mission_reserved", 0),
-            weapon_ammo=_ammo,
-        )
-
-    # --- Active missions ---
-    _active_missions: list[mission_module.ActiveMission] = []
-    for _am in _data.get("player_active_missions", ()) or ():
-        _time_dl = None
-        if _am.get("time_deadline"):
-            _td = _am["time_deadline"]
-            _time_dl = (int(_td[0]), int(_td[1]), int(_td[2]))
-        _active_missions.append(mission_module.ActiveMission(
-            mission_id=_am["mission_id"],
-            is_procedural=_am.get("is_procedural", False),
-            status=mission_module.MissionStatus[_am["status"]] if _am.get("status") else mission_module.MissionStatus.IN_PROGRESS,
-            title=_am.get("title", ""),
-            required_cargo_size=_am.get("required_cargo_size", 0),
-            delivery_target_npc_id=_am.get("delivery_target_npc_id", ""),
-            delivery_target_planet_id=_am.get("delivery_target_planet_id", ""),
-            deadline_days=_am.get("deadline_days", 0),
-            accept_day=_am.get("accept_day", 1),
-            time_deadline=_time_dl,
-            reward_credits=_am.get("reward_credits", 0),
-            reward_xp=_am.get("reward_xp", 0),
-            early_bonus_pct=_am.get("early_bonus_pct", 0),
-            bounty_spawn_id=_am.get("bounty_spawn_id"),
-            target_enemy_id=_am.get("target_enemy_id"),
-            target_system_id=_am.get("target_system_id"),
-            bounty_target_name=_am.get("bounty_target_name"),
-            bounty_target_squad_size=_am.get("bounty_target_squad_size", 1),
-            bounty_target_loadout_pct=_am.get("bounty_target_loadout_pct", 0),
-            bounty_wingmate_enemy_id=_am.get("bounty_wingmate_enemy_id"),
-            tier=_am.get("tier", 1),
-            heist_target_good_id=_am.get("heist_target_good_id"),
-            heist_good_secured=_am.get("heist_good_secured", False),
-            salvage_wreck_enemy_id=_am.get("salvage_wreck_enemy_id"),
-            salvage_layout_id=_am.get("salvage_layout_id"),
-            salvage_wreck_spawn_id=_am.get("salvage_wreck_spawn_id"),
-            is_smuggle=_am.get("is_smuggle", False),
-            smuggle_good_id=_am.get("smuggle_good_id"),
-            main_quest_step_id=_am.get("main_quest_step_id", ""),
-        ))
-
-    # --- Mission boards ---
-    # Boards are keyed by (npc_id, planet_id) so every city keeps its
-    # own mission list. Old saves stored plain npc_id keys — re-key from
-    # each board's own fields so pre-fix saves upgrade automatically.
-    _mission_boards: dict[str, mission_module.MissionBoard] = {}
-    for _npc_id, _bd in (_data.get("mission_boards", {}) or {}).items():
-        _board = mission_module.MissionBoard(
-            npc_id=_bd.get("npc_id", _npc_id),
-            slots=list(_bd.get("slots", []) or []),
-            max_slots=_bd.get("max_slots", 5),
-            planet_id=_bd.get("planet_id", ""),
-        )
-        _board.last_refresh_month = _bd.get("last_refresh_month", 1)
-        _mission_boards[mission_module.board_key(
-            _board.npc_id, _board.planet_id,
-        )] = _board
-
-    # --- Bounty spawns ---
-    _bounty_spawns: dict[str, list] = {}
-    for _sys_id, _spawns in (_data.get("bounty_spawns", {}) or {}).items():
-        _bounty_spawns[_sys_id] = []
-        for _bs in (_spawns or []):
-            _px, _py = _parse_pos(_bs.get("pos", [0, 0]))
-            _bounty_spawns[_sys_id].append(BountySpawn(
-                spawn_id=_bs["spawn_id"],
-                enemy_id=_bs.get("enemy_id", ""),
-                pos=world.Position(_px, _py),
-                bounty_target_name=_bs.get("bounty_target_name"),
-                squad_size=_bs.get("squad_size", 1),
-                loadout_pct=_bs.get("loadout_pct", 0),
-                squad_group_id=_bs.get("squad_group_id"),
-                comms_warning_range=_bs.get("comms_warning_range", 0),
-                heist_spawn_id=_bs.get("heist_spawn_id"),
-                salvage_wreck=_bs.get("salvage_wreck", False),
-            ))
-
-    # --- Procedural spawns ---
-    _proc_data = _data.get("procedural_spawns", {}) or {}
-    _proc_mids = _data.get("procedural_mids", {}) or {}
-    _proc_spawns: dict[str, list] = {}
-    for _sys_id, _slist in _proc_data.items():
-        _proc_spawns[_sys_id] = []
-        for _i, _ps in enumerate(_slist or []):
-            _px, _py = _parse_pos(_ps.get("pos", [0, 0]))
-            _proc_spawns[_sys_id].append(ProceduralSpawn(
-                npc_id=_ps.get("npc_id", ""),
-                pos=world.Position(_px, _py),
-                squad_id=_ps.get("squad_id"),
-            ))
-    # Load saved movement IDs for each spawn (keyed by system, then index).
-    _proc_mid_map: dict[str, list[str]] = {}
-    for _sys_id, _mids in (_proc_mids or {}).items():
-        _proc_mid_map[_sys_id] = [str(m) for m in _mids]
-    # Load saved NPC targets and paths (keyed by movement_id).
-    _npc_targets: dict[str, tuple[int, int]] = {}
-    for _mid, _tgt in (_data.get("npc_targets", {}) or {}).items():
-        if isinstance(_tgt, list) and len(_tgt) >= 2:
-            _npc_targets[str(_mid)] = (int(_tgt[0]), int(_tgt[1]))
-    _npc_paths: dict[str, list[tuple[int, int]]] = {}
-    for _mid, _pth in (_data.get("npc_paths", {}) or {}).items():
-        _npc_paths[str(_mid)] = [
-            (int(p[0]), int(p[1])) for p in _pth if isinstance(p, list) and len(p) >= 2
-        ]
-
-    # --- PlayerCounters ---
-    _pc_data = _data.get("player_counters", {}) or {}
-    _counters = PlayerCounters(
-        laser_shots=_pc_data.get("laser_shots", 0),
-        missile_shots=_pc_data.get("missile_shots", 0),
-        plasma_shots=_pc_data.get("plasma_shots", 0),
-        merchant_kills=_pc_data.get("merchant_kills", 0),
-        total_kills=_pc_data.get("total_kills", 0),
-        bounties_completed=_pc_data.get("bounties_completed", 0),
-        deliveries_completed=_pc_data.get("deliveries_completed", 0),
-        total_damage_taken=_pc_data.get("total_damage_taken", 0),
-        combat_flees=_pc_data.get("combat_flees", 0),
-    )
-
-    # --- Economy & generated missions ---
-    _econ = _data.get("economy_state", {}) or {}
-    _gen = _data.get("generated_missions", {}) or {}
-    # Rebuild procedural MissionSpec objects — save/load flattens them
-    # into plain dicts, and the mission-board renderer reads fields like
-    # .salvage_wreck_enemy_id directly (crash without reconstruction).
-    _gen_restored: dict[str, mission_module.MissionSpec] = {}
-    for _mid, _md in _gen.items():
+    # weapon_ammo migration: new saves key ammo by weapon SLOT index
+    # (ints serialized as strings by _d). Pre-fix saves keyed it by
+    # weapon id (shared magazine bug) — those entries are dropped so
+    # __post_init__ seeds each installed launcher a fresh full mag.
+    ammo_raw = osh.get("weapon_ammo", {}) or {}
+    ammo: dict[int, int] = {}
+    for k, v in ammo_raw.items():
         try:
-            _gen_restored[_mid] = mission_module.mission_spec_from_dict(_md)
+            ammo[int(k)] = int(v)
+        except (TypeError, ValueError):
+            continue  # legacy weapon-id key — discard
+    return ship_module.OwnedShip(
+        ship_id=osh["ship_id"],
+        display_name=osh.get("display_name"),
+        fuel=osh.get("fuel", 0),
+        hull_damage_pct=osh.get("hull_damage_pct", 0),
+        weapons=tuple(osh.get("weapons", ()) or ()),
+        modules=tuple(osh.get("modules", ()) or ()),
+        inventory=osh.get("inventory", {}) or {},
+        mission_reserved=osh.get("mission_reserved", 0),
+        weapon_ammo=ammo,
+    )
+
+
+def _active_mission_from_dict(am: dict):
+    """Rebuild one active mission from a serialized dict."""
+    from . import mission as mission_module
+    time_dl = None
+    if am.get("time_deadline"):
+        td = am["time_deadline"]
+        time_dl = (int(td[0]), int(td[1]), int(td[2]))
+    return mission_module.ActiveMission(
+        mission_id=am["mission_id"],
+        is_procedural=am.get("is_procedural", False),
+        status=mission_module.MissionStatus[am["status"]]
+        if am.get("status") else mission_module.MissionStatus.IN_PROGRESS,
+        title=am.get("title", ""),
+        required_cargo_size=am.get("required_cargo_size", 0),
+        delivery_target_npc_id=am.get("delivery_target_npc_id", ""),
+        delivery_target_planet_id=am.get("delivery_target_planet_id", ""),
+        deadline_days=am.get("deadline_days", 0),
+        accept_day=am.get("accept_day", 1),
+        time_deadline=time_dl,
+        reward_credits=am.get("reward_credits", 0),
+        reward_xp=am.get("reward_xp", 0),
+        early_bonus_pct=am.get("early_bonus_pct", 0),
+        bounty_spawn_id=am.get("bounty_spawn_id"),
+        target_enemy_id=am.get("target_enemy_id"),
+        target_system_id=am.get("target_system_id"),
+        bounty_target_name=am.get("bounty_target_name"),
+        bounty_target_squad_size=am.get("bounty_target_squad_size", 1),
+        bounty_target_loadout_pct=am.get("bounty_target_loadout_pct", 0),
+        bounty_wingmate_enemy_id=am.get("bounty_wingmate_enemy_id"),
+        tier=am.get("tier", 1),
+        heist_target_good_id=am.get("heist_target_good_id"),
+        heist_good_secured=am.get("heist_good_secured", False),
+        salvage_wreck_enemy_id=am.get("salvage_wreck_enemy_id"),
+        salvage_layout_id=am.get("salvage_layout_id"),
+        salvage_wreck_spawn_id=am.get("salvage_wreck_spawn_id"),
+        is_smuggle=am.get("is_smuggle", False),
+        smuggle_good_id=am.get("smuggle_good_id"),
+        main_quest_step_id=am.get("main_quest_step_id", ""),
+    )
+
+
+def _parse_active_missions(data: dict) -> list:
+    """Rebuild the player's active missions."""
+    return [
+        _active_mission_from_dict(am)
+        for am in (data.get("player_active_missions", ()) or ())
+    ]
+
+
+def _parse_mission_boards(data: dict) -> dict:
+    """Rebuild mission boards, re-keying legacy npc_id keys automatically."""
+    from . import mission as mission_module
+    boards: dict[str, mission_module.MissionBoard] = {}
+    for npc_id, bd in (data.get("mission_boards", {}) or {}).items():
+        board = mission_module.MissionBoard(
+            npc_id=bd.get("npc_id", npc_id),
+            slots=list(bd.get("slots", []) or []),
+            max_slots=bd.get("max_slots", 5),
+            planet_id=bd.get("planet_id", ""),
+        )
+        board.last_refresh_month = bd.get("last_refresh_month", 1)
+        boards[mission_module.board_key(board.npc_id, board.planet_id)] = board
+    return boards
+
+
+def _parse_bounty_spawns(data: dict) -> dict:
+    """Rebuild bounty spawns from the save payload."""
+    from .game_context import BountySpawn
+    spawns: dict[str, list] = {}
+    for sys_id, raw_spawns in (data.get("bounty_spawns", {}) or {}).items():
+        spawns[sys_id] = []
+        for bs in (raw_spawns or []):
+            px, py = _parse_pos(bs.get("pos", [0, 0]))
+            spawns[sys_id].append(BountySpawn(
+                spawn_id=bs["spawn_id"],
+                enemy_id=bs.get("enemy_id", ""),
+                pos=world.Position(px, py),
+                bounty_target_name=bs.get("bounty_target_name"),
+                squad_size=bs.get("squad_size", 1),
+                loadout_pct=bs.get("loadout_pct", 0),
+                squad_group_id=bs.get("squad_group_id"),
+                comms_warning_range=bs.get("comms_warning_range", 0),
+                heist_spawn_id=bs.get("heist_spawn_id"),
+                salvage_wreck=bs.get("salvage_wreck", False),
+            ))
+    return spawns
+
+
+def _parse_procedural_spawns(data: dict) -> tuple:
+    """Rebuild procedural spawns, movement IDs, targets, and paths."""
+    from .game_context import ProceduralSpawn
+    proc_data = data.get("procedural_spawns", {}) or {}
+    proc_mids = data.get("procedural_mids", {}) or {}
+    proc_spawns: dict[str, list] = {}
+    for sys_id, slist in proc_data.items():
+        proc_spawns[sys_id] = []
+        for ps in (slist or []):
+            px, py = _parse_pos(ps.get("pos", [0, 0]))
+            proc_spawns[sys_id].append(ProceduralSpawn(
+                npc_id=ps.get("npc_id", ""),
+                pos=world.Position(px, py),
+                squad_id=ps.get("squad_id"),
+            ))
+    mid_map: dict[str, list[str]] = {
+        sys_id: [str(m) for m in mids] for sys_id, mids in (proc_mids or {}).items()
+    }
+    targets: dict[str, tuple[int, int]] = {}
+    for mid, tgt in (data.get("npc_targets", {}) or {}).items():
+        if isinstance(tgt, list) and len(tgt) >= 2:
+            targets[str(mid)] = (int(tgt[0]), int(tgt[1]))
+    paths: dict[str, list[tuple[int, int]]] = {}
+    for mid, pth in (data.get("npc_paths", {}) or {}).items():
+        paths[str(mid)] = [
+            (int(p[0]), int(p[1])) for p in pth if isinstance(p, list) and len(p) >= 2
+        ]
+    return proc_spawns, mid_map, targets, paths
+
+
+def _parse_counters(data: dict):
+    """Rebuild the player counters."""
+    from .game_context import PlayerCounters
+    pc = data.get("player_counters", {}) or {}
+    return PlayerCounters(
+        laser_shots=pc.get("laser_shots", 0),
+        missile_shots=pc.get("missile_shots", 0),
+        plasma_shots=pc.get("plasma_shots", 0),
+        merchant_kills=pc.get("merchant_kills", 0),
+        total_kills=pc.get("total_kills", 0),
+        bounties_completed=pc.get("bounties_completed", 0),
+        deliveries_completed=pc.get("deliveries_completed", 0),
+        total_damage_taken=pc.get("total_damage_taken", 0),
+        combat_flees=pc.get("combat_flees", 0),
+    )
+
+
+def _parse_economy_and_generated(data: dict) -> tuple:
+    """Rebuild economy state and generated mission specs."""
+    from . import mission as mission_module
+    econ = data.get("economy_state", {}) or {}
+    generated: dict[str, mission_module.MissionSpec] = {}
+    for mid, md in (data.get("generated_missions", {}) or {}).items():
+        try:
+            generated[mid] = mission_module.mission_spec_from_dict(md)
         except (TypeError, AttributeError):
             continue  # corrupt/stale entry — board_offerings skips it
-    _gen = _gen_restored
-    _rep = _data.get("faction_reputation", {}) or {}
+    return econ, generated
 
-    # --- Log ---
-    _log = message_log.MessageLog(capacity=6)
-    _history = []
-    for _entry in (_data.get("message_history", []) or []):
-        if not isinstance(_entry, dict) or not isinstance(_entry.get("text"), str):
+
+def _parse_log(data: dict):
+    """Rebuild the message log from the save payload."""
+    from . import message_log
+    log = message_log.MessageLog(capacity=6)
+    history = []
+    for entry in (data.get("message_history", []) or []):
+        if not isinstance(entry, dict) or not isinstance(entry.get("text"), str):
             continue
-        _fg = _entry.get("fg", message_log.COLOR_MESSAGE)
-        if not isinstance(_fg, (list, tuple)) or len(_fg) != 3:
-            _fg = message_log.COLOR_MESSAGE
+        fg = entry.get("fg", message_log.COLOR_MESSAGE)
+        if not isinstance(fg, (list, tuple)) or len(fg) != 3:
+            fg = message_log.COLOR_MESSAGE
         try:
-            _color = tuple(max(0, min(255, int(_channel))) for _channel in _fg)
+            color = tuple(max(0, min(255, int(channel))) for channel in fg)
         except (TypeError, ValueError):
-            _color = message_log.COLOR_MESSAGE
-        _history.append(message_log.MessageEntry(_entry["text"], _color))
-    _log.load_history(_history)
-    _log.add("Game loaded.")
+            color = message_log.COLOR_MESSAGE
+        history.append(message_log.MessageEntry(entry["text"], color))
+    log.load_history(history)
+    log.add("Game loaded.")
+    return log
 
-    # --- Regenerate map ---
-    _pos_x = _data.get("player_pos_x", 13)
-    _pos_y = _data.get("player_pos_y", 17)
-    _city_id = _data.get("current_city_id", "earth")
-    _mode = _data.get("current_mode", "city")
-    _system_id = _data.get("current_system_id", "sol")
 
-    if _mode == "space":
-        # --- Space mode: rebuild solar system ---
-        from .data.solar_systems import find_solar_system as _find_sys
-        from .data.npc_ships import find_npc_ship as _find_npc
-
-        try:
-            _sys_spec = _find_sys(_system_id)
-        except KeyError:
-            _log.add(f"Save references unknown system '{_system_id}' - loading Earth city.")
-            _mode = "city"
-            _city_id = "earth"
-
-        if _mode == "space":
-            _game_map = solar_system_module.make_solar_system(system=_sys_spec)
-            solar_system_module.current_solar_system_id = _system_id
-
-            # Add bounty NPCs directly from saved spawns.
-            for _bs in _bounty_spawns.get(_system_id, []):
-                try:
-                    _espec = _find_npc(_bs.enemy_id)
-                except (KeyError, ImportError):
-                    continue
-                _display_name = _bs.bounty_target_name or _espec.name
-                _ent = world.Entity(
-                    char=_espec.char, fg=_espec.fg,
-                    pos=_bs.pos, name=_display_name,
-                    width=1, height=1,
-                    npc_ship_id=_bs.enemy_id,
-                )
-                if _bs.salvage_wreck:
-                    # Non-combatant mission wreck: boardable, persists until
-                    # the component is secured. Tagged with its spawn id so
-                    # the boarding flow finds the mission + interior cache.
-                    # No bounty_spawn_id — it must never auto-complete.
-                    _ent.salvage_wreck_spawn_id = _bs.spawn_id
-                    _game_map.entities.append(_ent)
-                    continue
-                if not _bs.squad_group_id:
-                    _ent.bounty_spawn_id = _bs.spawn_id
-                    # Restore intercept linkage so on_kill still drops the
-                    # mission loot after a save/quit/continue (mirrors
-                    # navigation._add_bounty_spawns_to_map).
-                    if _bs.heist_spawn_id is not None:
-                        _ent.heist_spawn_id = _bs.heist_spawn_id
-                # Squad linkage for comms Attack (mirrors navigation.py).
-                _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
-                # Restore auto-hail range on all members too (mirrors
-                # navigation.py) so post-load behavior matches fresh spawn.
-                _ent.bounty_comms_range = _bs.comms_warning_range
-                _game_map.entities.append(_ent)
-
-            # Add procedural NPCs from saved spawns (don't generate new ones).
-            for _i, _ps in enumerate(_proc_spawns.get(_system_id, [])):
-                try:
-                    _espec = _find_npc(_ps.npc_id)
-                except (KeyError, ImportError):
-                    continue
-                # Use the saved movement ID if available, otherwise generate one.
-                _saved_mids = _proc_mid_map.get(_system_id, [])
-                _mid = (_saved_mids[_i] if _i < len(_saved_mids) and _saved_mids[_i]
-                        else _ps.squad_id
-                        or f"proc_loaded_{_system_id}_{_ps.npc_id}_{_i}")
-                _ent = world.Entity(
-                    char=_espec.char, fg=_espec.fg,
-                    pos=_ps.pos, name=_espec.name,
-                    width=1, height=1,
-                    npc_ship_id=_ps.npc_id,
-                )
-                # Stationary ships (base_speed=0, e.g. derelicts) don't get
-                # procedural_squad_id so move_npcs ignores them.
-                if getattr(_espec, 'base_speed', 0) > 0:
-                    _ent.procedural_squad_id = _mid
-                _game_map.entities.append(_ent)
-
-            # Place player ship entity at saved space position.
-            if _owned_ship is not None:
-                _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
-                _player_ent = world.Entity(
-                    char=_ship_spec.char, fg=_ship_spec.fg,
-                    pos=world.Position(_pos_x, _pos_y),
-                    name=f"Your Ship: {ship_module.ship_display_name(_owned_ship)}",
-                    ship_id=_owned_ship.ship_id, owned=True,
-                )
-            else:
-                _player_ent = world.Entity(
-                    char='@', fg=(255, 255, 255),
-                    pos=world.Position(_pos_x, _pos_y), name='Player',
-                )
-            _game_map.entities.append(_player_ent)
-
-    elif _mode == "dungeon":
-        # --- Dungeon mode: rebuild space map first, then dungeon map ---
-        from .data.solar_systems import find_solar_system as _find_sys
-        from .data.npc_ships import find_npc_ship as _find_npc
-
-        _dd = _data.get("dungeon", {})
-        if not _dd:
-            _log.add("Dungeon save data missing - loading Earth city.")
-            _mode = "city"
-            _city_id = "earth"
-        else:
-            try:
-                _sys_spec = _find_sys(_system_id)
-            except KeyError:
-                _log.add(f"Save references unknown system '{_system_id}' - loading Earth city.")
-                _mode = "city"
-                _city_id = "earth"
-
-        if _mode == "dungeon":
-            # 1. Build space map (same layout as space mode).
-            _space_map = solar_system_module.make_solar_system(system=_sys_spec)
-            solar_system_module.current_solar_system_id = _system_id
-
-            # Add bounty NPCs.
-            for _bs in _bounty_spawns.get(_system_id, []):
-                try:
-                    _espec = _find_npc(_bs.enemy_id)
-                except (KeyError, ImportError):
-                    continue
-                _display_name = _bs.bounty_target_name or _espec.name
-                _ent = world.Entity(
-                    char=_espec.char, fg=_espec.fg,
-                    pos=_bs.pos, name=_display_name,
-                    width=1, height=1,
-                    npc_ship_id=_bs.enemy_id,
-                )
-                if _bs.salvage_wreck:
-                    # Non-combatant mission wreck: boardable, persists until
-                    # the component is secured. Tagged with its spawn id so
-                    # the boarding flow finds the mission + interior cache.
-                    # No bounty_spawn_id — it must never auto-complete.
-                    _ent.salvage_wreck_spawn_id = _bs.spawn_id
-                    _space_map.entities.append(_ent)
-                    continue
-                if not _bs.squad_group_id:
-                    _ent.bounty_spawn_id = _bs.spawn_id
-                    # Restore intercept linkage so on_kill still drops the
-                    # mission loot after a save/quit/continue (mirrors
-                    # navigation._add_bounty_spawns_to_map).
-                    if _bs.heist_spawn_id is not None:
-                        _ent.heist_spawn_id = _bs.heist_spawn_id
-                # Squad linkage for comms Attack (mirrors navigation.py).
-                _ent.bounty_squad_id = _bs.squad_group_id or _bs.spawn_id
-                # Restore auto-hail range on all members too (mirrors
-                # navigation.py) so post-load behavior matches fresh spawn.
-                _ent.bounty_comms_range = _bs.comms_warning_range
-                _space_map.entities.append(_ent)
-
-            # Add procedural NPCs.
-            for _i, _ps in enumerate(_proc_spawns.get(_system_id, [])):
-                try:
-                    _espec = _find_npc(_ps.npc_id)
-                except (KeyError, ImportError):
-                    continue
-                _saved_mids = _proc_mid_map.get(_system_id, [])
-                _mid = (_saved_mids[_i] if _i < len(_saved_mids) and _saved_mids[_i]
-                        else _ps.squad_id
-                        or f"proc_loaded_{_system_id}_{_ps.npc_id}_{_i}")
-                _ent = world.Entity(
-                    char=_espec.char, fg=_espec.fg,
-                    pos=_ps.pos, name=_espec.name,
-                    width=1, height=1,
-                    npc_ship_id=_ps.npc_id,
-                )
-                if getattr(_espec, 'base_speed', 0) > 0:
-                    _ent.procedural_squad_id = _mid
-                _space_map.entities.append(_ent)
-
-            # Place the player's SHIP at the saved space position.
-            _space_px = _dd.get("space_player_x", _pos_x)
-            _space_py = _dd.get("space_player_y", _pos_y)
-            if _owned_ship is not None:
-                _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
-                _space_player_ent = world.Entity(
-                    char=_ship_spec.char, fg=_ship_spec.fg,
-                    pos=world.Position(_space_px, _space_py),
-                    name=f"Your Ship: {ship_module.ship_display_name(_owned_ship)}",
-                    ship_id=_owned_ship.ship_id, owned=True,
-                )
-            else:
-                _space_player_ent = world.Entity(
-                    char='@', fg=(255, 255, 255),
-                    pos=world.Position(_space_px, _space_py), name='Player',
-                )
-            _space_map.entities.append(_space_player_ent)
-
-            # 2. Rebuild dungeon map from saved data (shared helper —
-            #    preserves ground-combat squads, heist loot, wreck anchors).
-            _dungeon_map, _ = _dungeon_from_dict(_dd)
-
-            # 3. Create dungeon player entity at saved position.
-            _dungeon_player = world.Entity(
-                char='@', fg=(255, 255, 255),
-                pos=world.Position(_pos_x, _pos_y),
-                name='Player',
-            )
-            _dungeon_map.entities.append(_dungeon_player)
-
-            # 4. Set up return values.
-            _game_map = _dungeon_map
-            _player_ent = _dungeon_player
-            # Store space map/player for ctx assembly later.
-            _saved_space_map = _space_map
-            _saved_space_player = _space_player_ent
-
-    else:
-        # --- City mode: load planet map ---
-        from .data.planets import load_planet as planets_load_planet, hangar_anchor as _planet_anchor
-        from .data.solar_systems import find_solar_system as _find_sys
-
-        # Restore module-level current-system state (save/load contract —
-        # the space and dungeon branches both restore it; without this a
-        # city save on a non-Sol planet would rebuild the WRONG system on
-        # launch: _launch_to_space -> find_planet('barnards_b') in 'sol'
-        # raises KeyError). Fall back to Earth city on an unknown system,
-        # mirroring the space/dungeon branches' error handling.
-        try:
-            _find_sys(_system_id)
-        except KeyError:
-            _log.add(f"Save references unknown system '{_system_id}' - loading Earth city.")
-            _city_id = "earth"
-            _system_id = "sol"
-        solar_system_module.current_solar_system_id = _system_id
-
-        _game_map = planets_load_planet(_city_id)
-        _player_ent = world.Entity(
-            char='@', fg=(255, 255, 255),
-            pos=world.Position(_pos_x, _pos_y), name='Player',
-        )
-        _game_map.entities.append(_player_ent)
-
-        # Restore hangar ship at the planet's correct anchor position.
-        if _owned_ship is not None:
-            _ship_spec = ship_module.find_ship(_owned_ship.ship_id)
-            _hangar = world.Entity(
-                char=_ship_spec.char, fg=_ship_spec.fg,
-                pos=_planet_anchor(_city_id),
-                name=f"Your Ship: {ship_module.ship_display_name(_owned_ship)}",
-                ship_id=_owned_ship.ship_id, owned=True,
-            )
-            _game_map.entities.append(_hangar)
-
-    # --- Restore loot entities (space or city) ---
-    # Skip for dungeon mode: dungeon entities (including loot) are already
-    # restored from dungeon.entities above — appending map_loot too would
-    # duplicate each loot entity on every save/load cycle.
-    if _mode != "dungeon":
-        for _ld in _data.get("map_loot", []) or []:
-            _lx = _ld.get("x", 0)
-            _ly = _ld.get("y", 0)
-            _loot_e = world.Entity(
-                char='%', fg=(255, 215, 0),
-                pos=world.Position(_lx, _ly),
-                name='Loot', width=1, height=1,
-                loot_data=_ld.get("loot_data"),
-            )
-            if _ld.get("heist_mission", False):
-                _loot_e.heist_mission = True
-            _lmid = _ld.get("heist_mission_id")
-            if _lmid:
-                _loot_e.heist_mission_id = _lmid
-            _qsid = _ld.get("main_quest_step_id")
-            if _qsid:
-                _loot_e.main_quest_step_id = _qsid
-            _game_map.entities.append(_loot_e)
-
-    # --- Assemble GameContext ---
-    _ctx = GameContext(
-        context=context,
-        character_info=_ci,
-        log=_log,
-        game_map=_game_map,
-        player=_player_ent,
-        stats=_stats,
-        player_owned_ship=_owned_ship,
-        player_active_missions=_active_missions,
+def _parse_save_header(data: dict) -> _ParsedSave:
+    """Parse everything from the save payload except the map rebuild."""
+    proc_spawns, proc_mid_map, npc_targets, npc_paths = _parse_procedural_spawns(data)
+    economy_state, generated_missions = _parse_economy_and_generated(data)
+    return _ParsedSave(
+        character_info=data["character_info"],
+        stats=_parse_stats(data),
+        owned_ship=_parse_owned_ship(data),
+        active_missions=_parse_active_missions(data),
+        mission_boards=_parse_mission_boards(data),
+        bounty_spawns=_parse_bounty_spawns(data),
+        proc_spawns=proc_spawns,
+        proc_mid_map=proc_mid_map,
+        npc_targets=npc_targets,
+        npc_paths=npc_paths,
+        counters=_parse_counters(data),
+        economy_state=economy_state,
+        generated_missions=generated_missions,
+        faction_reputation=data.get("faction_reputation", {}) or {},
+        log=_parse_log(data),
     )
-    _ctx.ship_storage = [
-        _stored
-        for _entry in (_data.get("ship_storage", []) or [])
-        if (_stored := _stored_equipment_from_dict(_entry)) is not None
+
+
+def _parse_ship_storage(data: dict) -> list:
+    """Rebuild ship storage, ignoring malformed records."""
+    return [
+        stored
+        for entry in (data.get("ship_storage", []) or [])
+        if (stored := _stored_equipment_from_dict(entry)) is not None
     ]
-    _ctx.completed_mission_ids = set(_data.get("completed_mission_ids", []) or [])
-    _ctx.mission_boards = _mission_boards
-    _ctx.bounty_spawns = _bounty_spawns
-    _ctx.faction_reputation = _rep
-    _ctx.militia_scanned = set(_data.get("militia_scanned", []) or [])
-    # Ground stats: backward-compatible default of 10/10/10 (0-100 scale,
-    # matching the ship-skill base of 10).
-    _gsd = _data.get("ground_stats", {}) or {}
+
+
+def _restore_loot_entities(data: dict, game_map) -> None:
+    """Restore map loot entities (dungeon loot is already restored)."""
+    for ld in data.get("map_loot", []) or []:
+        loot = world.Entity(
+            char='%', fg=(255, 215, 0),
+            pos=world.Position(ld.get("x", 0), ld.get("y", 0)),
+            name='Loot', width=1, height=1,
+            loot_data=ld.get("loot_data"),
+        )
+        if ld.get("heist_mission", False):
+            loot.heist_mission = True
+        lmid = ld.get("heist_mission_id")
+        if lmid:
+            loot.heist_mission_id = lmid
+        qsid = ld.get("main_quest_step_id")
+        if qsid:
+            loot.main_quest_step_id = qsid
+        game_map.entities.append(loot)
+
+
+def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebuilt) -> None:
+    """Restore the mission/economy/clock scalar fields onto ``ctx``."""
+    ctx.ship_storage = _parse_ship_storage(data)
+    ctx.completed_mission_ids = set(data.get("completed_mission_ids", []) or [])
+    ctx.mission_boards = parsed.mission_boards
+    ctx.bounty_spawns = parsed.bounty_spawns
+    ctx.faction_reputation = parsed.faction_reputation
+    ctx.militia_scanned = set(data.get("militia_scanned", []) or [])
+    ctx.player_counters = parsed.counters
+    ctx.economy_state = parsed.economy_state
+    ctx.generated_missions = parsed.generated_missions
+    ctx.procedural_spawns = parsed.proc_spawns
+    ctx.npc_targets = parsed.npc_targets
+    ctx.npc_paths = parsed.npc_paths
+    ctx.current_city_id = rebuilt.city_id
+
+
+def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
+    """Restore ground combat and equipment fields."""
     from .character import GroundStats
-    _ctx.ground_stats = GroundStats(
-        reflexes=_gsd.get("reflexes", 10),
-        strength=_gsd.get("strength", 10),
-        stamina=_gsd.get("stamina", 10),
+    gsd = data.get("ground_stats", {}) or {}
+    ctx.ground_stats = GroundStats(
+        reflexes=gsd.get("reflexes", 10),
+        strength=gsd.get("strength", 10),
+        stamina=gsd.get("stamina", 10),
     )
-    _ctx.equipped_ground_weapons = list(_data.get("equipped_ground_weapons", []) or [])
-    _ctx.equipped_ground_armor = dict(_data.get("equipped_ground_armor", {}) or {})
-    _legacy_ground_storage = _data.get("ground_equipment_storage", []) or []
-    _armory_storage_raw = _data.get("ground_armory_storage", _legacy_ground_storage) or []
-    _ctx.ground_armory_storage = [
-        _stored
-        for _entry in _armory_storage_raw
-        if (_stored := _ground_equipment_from_dict(_entry)) is not None
+    ctx.equipped_ground_weapons = list(data.get("equipped_ground_weapons", []) or [])
+    ctx.equipped_ground_armor = dict(data.get("equipped_ground_armor", {}) or {})
+    legacy_storage = data.get("ground_equipment_storage", []) or []
+    armory_raw = data.get("ground_armory_storage", legacy_storage) or []
+    ctx.ground_armory_storage = [
+        stored
+        for entry in armory_raw
+        if (stored := _ground_equipment_from_dict(entry)) is not None
     ]
-    _ctx.ground_expedition_inventory = [
-        _stored
-        for _entry in (_data.get("ground_expedition_inventory", []) or [])
-        if (_stored := _ground_equipment_from_dict(_entry)) is not None
+    ctx.ground_expedition_inventory = [
+        stored
+        for entry in (data.get("ground_expedition_inventory", []) or [])
+        if (stored := _ground_equipment_from_dict(entry)) is not None
     ]
-    _ctx.ground_hp = _data.get("ground_hp", 23)
-    _ctx.ground_max_hp = _data.get("ground_max_hp", 23)
-    _ctx.player_xp = _data.get("player_xp", 0)
-    _ctx.player_level = _data.get("player_level", 1)
-    _ctx.player_skill_points = _data.get("player_skill_points", 0)
-    _ctx.player_gunnery_bonus = _data.get("player_gunnery_bonus", 0)
-    _ctx.player_piloting_bonus = _data.get("player_piloting_bonus", 0)
-    _ctx.player_engineering_bonus = _data.get("player_engineering_bonus", 0)
-    _ctx.player_traits = list(_data.get("player_traits", []) or [])
-    _ctx.player_counters = _counters
-    _ctx.time_day = _data.get("time_day", 1)
-    _ctx.time_month = _data.get("time_month", 1)
-    _ctx.time_year = _data.get("time_year", 2200)
-    _ctx.move_counter = _data.get("move_counter", 0)
-    _ctx.economy_state = _econ
-    _ctx.generated_missions = _gen
-    _ctx.procedural_spawns = _proc_spawns
-    _ctx.npc_targets = _npc_targets
-    _ctx.npc_paths = _npc_paths
-    _ctx.current_city_id = _city_id
-    # Main quest state (save/load contract). Defaults keep old saves
-    # loadable — a pre-main-quest save simply resumes with no quest.
-    _ctx.main_quest_progress = dict(_data.get("main_quest_progress", {}) or {})
-    _ctx.main_quest_unlocked_items = set(_data.get("main_quest_unlocked_items", []) or [])
-    _ctx.main_quest_path = _data.get("main_quest_path", "")
-    _ctx.main_quest_backing = set(_data.get("main_quest_backing", []) or [])
-    # Act 0 chain state: the locked-in faction chain, pending minimum-wait
-    # gates (next_step_id -> (day, month, year)), and any queued one-way
-    # summon message. Defaults keep old saves loadable.
-    _ctx.main_quest_chain = _data.get("main_quest_chain", "")
-    _gate_raw = _data.get("main_quest_gate", {}) or {}
-    _ctx.main_quest_gate = {
-        str(_k): tuple(int(_v) for _v in _v)
-        for _k, _v in _gate_raw.items()
-        if isinstance(_v, (list, tuple)) and len(_v) == 3
-    }
-    _ctx.main_quest_pending_message = _data.get("main_quest_pending_message", "")
-    _ctx.main_quest_pending_objective = _data.get("main_quest_pending_objective", "")
-    _ctx.main_quest_complete = _data.get("main_quest_complete", False)
-    _ctx.main_quest_disclosure = _data.get("main_quest_disclosure", "")
-    _ctx.post_prison_orbit_seen = bool(_data.get("post_prison_orbit_seen", False))
-    _ctx.post_prison_orbit_pending = bool(
-        _data.get("post_prison_orbit_pending", False)
-    )
-    # Tutorial mode — defaults keep non-tutorial saves loadable.
-    _ctx.tutorial_mode = bool(_data.get("tutorial_mode", False))
-    _ctx.tutorial_steps = set(_data.get("tutorial_steps", []) or [])
-    _ctx.tutorial_complete = bool(_data.get("tutorial_complete", False))
-    _extension_data = _data.get("dungeon_extension")
-    if isinstance(_extension_data, dict) and _extension_data.get("extension_id"):
-        _parent_position = _extension_data.get("parent_position")
-        _parent_pos = None
-        if isinstance(_parent_position, (list, tuple)) and len(_parent_position) >= 2:
-            _parent_pos = world.Position(
-                int(_parent_position[0]), int(_parent_position[1]),
-            )
-        _power_restored = bool(_extension_data.get("power_restored", False))
-        _state_flags = set(_extension_data.get("state_flags", []) or [])
-        if _power_restored:
-            _state_flags.add("engineering_power")
-        _ctx.dungeon_extension = DungeonExtensionState(
-            extension_id=str(_extension_data["extension_id"]),
-            current_floor=int(_extension_data.get("current_floor", 1)),
-            active=bool(_extension_data.get("active", False)),
-            parent_map_key=str(_extension_data.get("parent_map_key", "")),
-            parent_position=_parent_pos,
-            activated_events=set(_extension_data.get("activated_events", []) or []),
-            event_positions={
-                str(_event_id): [int(_point[0]), int(_point[1])]
-                for _event_id, _point in (_extension_data.get("event_positions", {}) or {}).items()
-                if isinstance(_point, (list, tuple)) and len(_point) >= 2
-            },
-            power_restored=_power_restored,
-            state_flags=_state_flags,
-        )
-    _ctx._loaded_mode = _mode  # type: ignore[attr-defined]
-    if _mode == "dungeon":
-        _ctx._space_game_map = _saved_space_map  # type: ignore[attr-defined]
-        _ctx._space_player = _saved_space_player  # type: ignore[attr-defined]
+    ctx.ground_hp = data.get("ground_hp", 23)
+    ctx.ground_max_hp = data.get("ground_max_hp", 23)
 
-    # --- Restore persistent wreck interiors (salvage missions) ---
-    # Each serialized interior carries its wreck's spawn id + entry spawn.
-    for _k, _idict in (_data.get("interiors", {}) or {}).items():
-        _imap, _ = _dungeon_from_dict(_idict)
-        _ctx.interiors[str(_k)] = _imap
+
+def _restore_progression_fields(ctx: GameContext, data: dict) -> None:
+    """Restore XP, skills, traits, and the game clock."""
+    ctx.player_xp = data.get("player_xp", 0)
+    ctx.player_level = data.get("player_level", 1)
+    ctx.player_skill_points = data.get("player_skill_points", 0)
+    ctx.player_gunnery_bonus = data.get("player_gunnery_bonus", 0)
+    ctx.player_piloting_bonus = data.get("player_piloting_bonus", 0)
+    ctx.player_engineering_bonus = data.get("player_engineering_bonus", 0)
+    ctx.player_traits = list(data.get("player_traits", []) or [])
+    ctx.time_day = data.get("time_day", 1)
+    ctx.time_month = data.get("time_month", 1)
+    ctx.time_year = data.get("time_year", 2200)
+    ctx.move_counter = data.get("move_counter", 0)
+
+
+def _restore_dungeon_extension(ctx: GameContext, data: dict) -> None:
+    """Restore the dungeon extension state, if present."""
+    from .game_context import DungeonExtensionState
+    extension_data = data.get("dungeon_extension")
+    if not (isinstance(extension_data, dict) and extension_data.get("extension_id")):
+        return
+    parent_position = extension_data.get("parent_position")
+    parent_pos = None
+    if isinstance(parent_position, (list, tuple)) and len(parent_position) >= 2:
+        parent_pos = world.Position(int(parent_position[0]), int(parent_position[1]))
+    power_restored = bool(extension_data.get("power_restored", False))
+    state_flags = set(extension_data.get("state_flags", []) or [])
+    if power_restored:
+        state_flags.add("engineering_power")
+    ctx.dungeon_extension = DungeonExtensionState(
+        extension_id=str(extension_data["extension_id"]),
+        current_floor=int(extension_data.get("current_floor", 1)),
+        active=bool(extension_data.get("active", False)),
+        parent_map_key=str(extension_data.get("parent_map_key", "")),
+        parent_position=parent_pos,
+        activated_events=set(extension_data.get("activated_events", []) or []),
+        event_positions={
+            str(event_id): [int(point[0]), int(point[1])]
+            for event_id, point in (extension_data.get("event_positions", {}) or {}).items()
+            if isinstance(point, (list, tuple)) and len(point) >= 2
+        },
+        power_restored=power_restored,
+        state_flags=state_flags,
+    )
+
+
+def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
+    """Restore main-quest, tutorial, and dungeon-extension state."""
+    ctx.main_quest_progress = dict(data.get("main_quest_progress", {}) or {})
+    ctx.main_quest_unlocked_items = set(data.get("main_quest_unlocked_items", []) or [])
+    ctx.main_quest_path = data.get("main_quest_path", "")
+    ctx.main_quest_backing = set(data.get("main_quest_backing", []) or [])
+    ctx.main_quest_chain = data.get("main_quest_chain", "")
+    gate_raw = data.get("main_quest_gate", {}) or {}
+    ctx.main_quest_gate = {
+        str(k): tuple(int(v) for v in v)
+        for k, v in gate_raw.items()
+        if isinstance(v, (list, tuple)) and len(v) == 3
+    }
+    ctx.main_quest_pending_message = data.get("main_quest_pending_message", "")
+    ctx.main_quest_pending_objective = data.get("main_quest_pending_objective", "")
+    ctx.main_quest_complete = data.get("main_quest_complete", False)
+    ctx.main_quest_disclosure = data.get("main_quest_disclosure", "")
+    ctx.post_prison_orbit_seen = bool(data.get("post_prison_orbit_seen", False))
+    ctx.post_prison_orbit_pending = bool(data.get("post_prison_orbit_pending", False))
+    ctx.tutorial_mode = bool(data.get("tutorial_mode", False))
+    ctx.tutorial_steps = set(data.get("tutorial_steps", []) or [])
+    ctx.tutorial_complete = bool(data.get("tutorial_complete", False))
+    _restore_dungeon_extension(ctx, data)
+
+
+def _active_interior_key(ctx: GameContext, rebuilt) -> str:
+    """Resolve the interior cache key for the active dungeon map."""
+    game_map = rebuilt.game_map
+    active_key = getattr(game_map, "interior_cache_key", "")
+    if not active_key and getattr(game_map, "wreck_spawn_id", None) is not None:
+        active_key = game_map.wreck_spawn_id
+    if not active_key and (
+        ctx.dungeon_extension is not None and ctx.dungeon_extension.active
+    ):
+        from .dungeon_extensions import floor_key as _extension_floor_key
+        active_key = _extension_floor_key(
+            ctx.dungeon_extension.extension_id, ctx.dungeon_extension.current_floor,
+        )
+    # Legacy planet-surface saves predate interior_cache_key. Restrict
+    # migration to maps carrying an unambiguous extension marker; a normal
+    # derelict has neither marker and is never rebound to a surface.
+    if not active_key and (
+        getattr(game_map, "extension_entry_id", "")
+        or getattr(game_map, "mars_stairs_pos", None) is not None
+    ):
+        active_key = f"surface:{rebuilt.city_id}"
+    return active_key
+
+
+def _restore_interiors(ctx: GameContext, data: dict, rebuilt) -> None:
+    """Restore persistent wreck interiors and rebind the active cache entry."""
+    for key, idict in (data.get("interiors", {}) or {}).items():
+        imap, _ = _dungeon_from_dict(idict)
+        ctx.interiors[str(key)] = imap
     # The active dungeon is authoritative when Continue resumes inside a
     # cached interior. Rebind the corresponding cache key to that exact
     # object so identity-based transition lookup works after deserialization.
-    if _mode == "dungeon":
-        _active_cache_key = getattr(_game_map, "interior_cache_key", "")
-        if not _active_cache_key and getattr(_game_map, "wreck_spawn_id", None) is not None:
-            _active_cache_key = _game_map.wreck_spawn_id
-        if not _active_cache_key and (
-            _ctx.dungeon_extension is not None
-            and _ctx.dungeon_extension.active
-        ):
-            from .dungeon_extensions import floor_key as _extension_floor_key
-            _active_cache_key = _extension_floor_key(
-                _ctx.dungeon_extension.extension_id,
-                _ctx.dungeon_extension.current_floor,
-            )
-        # Legacy planet-surface saves predate interior_cache_key. Restrict
-        # migration to maps carrying an unambiguous extension marker; a
-        # normal derelict has neither marker and is never rebound to a surface.
-        if not _active_cache_key and (
-            getattr(_game_map, "extension_entry_id", "")
-            or getattr(_game_map, "mars_stairs_pos", None) is not None
-        ):
-            _active_cache_key = f"surface:{_city_id}"
-        if _active_cache_key:
-            _ctx.interiors[_active_cache_key] = _game_map
-    # If the player is INSIDE a wreck (mode=dungeon), the active dungeon
-    # map is the authoritative copy — overwrite the restored cache entry
-    # with it so re-boarding after exit sees post-load progress (crew
-    # killed, loot taken), not a stale deserialized twin of the same map.
-    _cur_wsid = getattr(_game_map, 'wreck_spawn_id', None)
-    if _cur_wsid is not None:
-        _ctx.interiors[_cur_wsid] = _game_map
-    _extension_state = _ctx.dungeon_extension
-    if _extension_state is not None and _extension_state.active:
+    if rebuilt.mode == "dungeon":
+        active_key = _active_interior_key(ctx, rebuilt)
+        if active_key:
+            ctx.interiors[active_key] = rebuilt.game_map
+    cur_wsid = getattr(rebuilt.game_map, 'wreck_spawn_id', None)
+    if cur_wsid is not None:
+        ctx.interiors[cur_wsid] = rebuilt.game_map
+    extension_state = ctx.dungeon_extension
+    if extension_state is not None and extension_state.active:
         from .dungeon_extensions import (
             _ensure_floor_connections,
             floor_key as _extension_floor_key,
         )
         _ensure_floor_connections(
-            _game_map,
-            _extension_state.extension_id,
-            _extension_state.current_floor,
+            rebuilt.game_map, extension_state.extension_id, extension_state.current_floor,
         )
-        if _extension_state.power_restored:
-            _game_map.power_restored = True
-        _ctx.interiors[_extension_floor_key(
-            _extension_state.extension_id,
-            _extension_state.current_floor,
-        )] = _game_map
+        if extension_state.power_restored:
+            rebuilt.game_map.power_restored = True
+        ctx.interiors[_extension_floor_key(
+            extension_state.extension_id, extension_state.current_floor,
+        )] = rebuilt.game_map
 
-    # --- Restore quest-conditional NPCs ---
-    # The city map was rebuilt from the planet spec; add any dynamic
-    # NPCs that aren't in the static layout (e.g. old smuggler).
+
+def _restore_quest_npcs(ctx: GameContext, rebuilt) -> None:
+    """Spawn quest-conditional NPCs onto the rebuilt map."""
     from . import main_quest as _mq
-    _mq.spawn_quest_npcs(_ctx, _game_map, _city_id)
+    _mq.spawn_quest_npcs(ctx, rebuilt.game_map, rebuilt.city_id)
 
-    # --- Restore RNG state ---
-    _rng_state = _data.get("rng_state")
-    if _rng_state is not None:
-        from .engine import RNG
-        RNG.setstate((_rng_state[0], tuple(_rng_state[1]), _rng_state[2]))
 
-    return _ctx
+def _restore_rng_and_seed(data: dict) -> None:
+    """Restore the RNG stream and the run's initial seed."""
+    from .engine import RNG, set_init_seed
+    rng_state = data.get("rng_state")
+    if rng_state is not None:
+        RNG.setstate((rng_state[0], tuple(rng_state[1]), rng_state[2]))
+    init_seed = data.get("init_seed")
+    if init_seed is not None:
+        set_init_seed(int(init_seed))
+
+
+def _assemble_context(context, data: dict, parsed: _ParsedSave, rebuilt) -> GameContext:
+    """Build and fully restore a :class:`GameContext` from parsed save data."""
+    ctx = GameContext(
+        context=context,
+        character_info=parsed.character_info,
+        log=parsed.log,
+        game_map=rebuilt.game_map,
+        player=rebuilt.player_ent,
+        stats=parsed.stats,
+        player_owned_ship=parsed.owned_ship,
+        player_active_missions=parsed.active_missions,
+    )
+    if rebuilt.mode != "dungeon":
+        _restore_loot_entities(data, rebuilt.game_map)
+    _restore_core_fields(ctx, data, parsed, rebuilt)
+    _restore_ground_fields(ctx, data)
+    _restore_progression_fields(ctx, data)
+    _restore_quest_and_tutorial(ctx, data)
+    ctx._loaded_mode = rebuilt.mode  # type: ignore[attr-defined]
+    if rebuilt.mode == "dungeon":
+        ctx._space_game_map = rebuilt.space_map  # type: ignore[attr-defined]
+        ctx._space_player = rebuilt.space_player  # type: ignore[attr-defined]
+    _restore_interiors(ctx, data, rebuilt)
+    _restore_quest_npcs(ctx, rebuilt)
+    _restore_rng_and_seed(data)
+    return ctx
+
+
+def load_game(context: PygameContext) -> GameContext | None:
+    """Load the autosave and reconstruct a GameContext.
+
+    Returns None if no save exists or the file is corrupted.
+    """
+    data = _load_json(_autosave_path())
+    if data is None:
+        return None
+
+    parsed = _parse_save_header(data)
+    rebuilt = rebuild_game_map(
+        data,
+        owned_ship=parsed.owned_ship,
+        log=parsed.log,
+        pos_x=data.get("player_pos_x", 13),
+        pos_y=data.get("player_pos_y", 17),
+        mode=data.get("current_mode", "city"),
+        city_id=data.get("current_city_id", "earth"),
+        system_id=data.get("current_system_id", "sol"),
+        bounty_spawns=parsed.bounty_spawns,
+        proc_spawns=parsed.proc_spawns,
+        proc_mid_map=parsed.proc_mid_map,
+    )
+    return _assemble_context(context, data, parsed, rebuilt)

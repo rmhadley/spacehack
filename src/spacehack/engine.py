@@ -32,11 +32,11 @@ from .framebuffer import FrameBuffer
 RNG: _random.Random = _random.Random()
 
 # The initial seed value used for deterministic per-run operations
-# (e.g. mechanic inventory generation, planet loot tables). Saved
-# when :func:`seed_rng` is called so downstream helpers can create
-# isolated :class:`random.Random` instances seeded from a hash of
-# ``INIT_SEED + planet_id + refresh_count`` without mutating the
-# main RNG or depending on its ephemeral state.
+# (e.g. mechanic/armory shop stock, keyed on the month clock). Saved
+# when :func:`seed_rng` is called and persisted by the save/load system
+# so downstream helpers (see :func:`seeded_rng`) can build isolated
+# :class:`random.Random` streams without mutating the main RNG or
+# depending on its ephemeral state.
 INIT_SEED: int = 0
 
 def seed_rng(seed: int) -> None:
@@ -49,6 +49,31 @@ def seed_rng(seed: int) -> None:
     global RNG, INIT_SEED
     RNG = _random.Random(seed)
     INIT_SEED = seed
+
+
+def set_init_seed(seed: int) -> None:
+    """Restore the persisted initial seed without re-seeding the shared RNG.
+
+    Used by Continue (see :mod:`spacehack.saveload`) to re-establish the
+    run's original seed after the RNG state itself has been restored, so
+    per-run deterministic helpers keep producing the same stream.
+    """
+    global INIT_SEED
+    INIT_SEED = seed
+
+
+def seeded_rng(seed: int, *parts: object) -> _random.Random:
+    """Return an isolated, deterministic :class:`random.Random`.
+
+    Derives a stable key from ``seed`` and ``parts`` (e.g. planet id and
+    month) so the same inputs always yield the same stream, without
+    mutating the shared :data:`RNG`. The md5-based key is stable across
+    processes, unlike Python's string ``hash`` (salted per run).
+    """
+    import hashlib
+
+    key = "|".join(str(part) for part in (seed, *parts))
+    return _random.Random(int(hashlib.md5(key.encode()).hexdigest()[:8], 16))
 
 # Screen dimensions in character cells. With the native 16x16 bitmap
 # tiles this gives a 1600 x 960 logical-pixel window while preserving the

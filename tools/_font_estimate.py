@@ -94,7 +94,7 @@ def main() -> None:
     from src.spacehack.data.modules import list_modules
     from src.spacehack.data.weapons import list_weapons
 
-    weapon_ids, module_ids = resolve_mech_inventory("earth")
+    weapon_ids, module_ids = resolve_mech_inventory("earth", 1)
     print(
         f"earth mech inventory: {len(weapon_ids)} weapons, {len(module_ids)} modules "
         f"(full catalog: {len(list_weapons())} weapons, {len(list_modules())} modules)"

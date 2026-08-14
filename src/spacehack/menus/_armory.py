@@ -111,18 +111,18 @@ def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
     return _armor_detail(spec)
 
 
-def _catalog_items(planet_id: str):
+def _catalog_items(planet_id: str, month: int):
     """Resolve the buyable ``(weapons, armor)`` for ``planet_id``.
 
-    With a known planet the armory's resolved stock is used; a blank
-    id falls back to the full shop-available catalog.
+    With a known planet the armory's month-keyed resolved stock is used;
+a blank id falls back to the full shop-available catalog.
     """
     from ..data.ground_armor import find_ground_armor, list_ground_armor
     from ..data.ground_weapons import find_ground_weapon, list_ground_weapons
 
     if planet_id:
         from ..data.planets import resolve_armory_inventory
-        weapon_ids, armor_ids = resolve_armory_inventory(planet_id)
+        weapon_ids, armor_ids = resolve_armory_inventory(planet_id, month)
         return (
             [find_ground_weapon(_w) for _w in weapon_ids],
             [find_ground_armor(_a) for _a in armor_ids],
@@ -134,11 +134,10 @@ def _catalog_items(planet_id: str):
     return weapons, list_ground_armor()
 
 
-def _buy_rows(planet_id: str = ""):
-    """Build catalog rows for the Buy view."""
+def _buy_rows(weapons, armor):
+    """Build catalog rows for the Buy view from resolved stock lists."""
     from .. import pygame_split, pygame_ui
 
-    weapons, armor = _catalog_items(planet_id)
     rows = [pygame_split.section_header("WEAPONS")]
     rows.extend(
         pygame_split.SplitRow(
@@ -254,14 +253,23 @@ def _loadout_rows(ctx: GameContext):
     return tuple(_weapon_slot_rows(ctx) + _armor_slot_rows(ctx))
 
 
-def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY"):
+def _resolve_catalog(ctx: GameContext, planet_id: str, catalog):
+    """Return the buy catalog, resolving from the month clock when absent."""
+    if catalog is not None:
+        return catalog
+    from ..time import month_index
+    return _catalog_items(planet_id, month_index(ctx))
+
+
+def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY", catalog=None):
     """Build one armory frame for Buy, Armory, or Expedition mode."""
     from .. import pygame_split, pygame_ui
 
     if mode not in _ARMORY_MODES:
         raise ValueError(f"Unknown armory mode: {mode!r}")
     if mode == "BUY":
-        left_rows = _buy_rows(planet_id)
+        weapons, armor = _resolve_catalog(ctx, planet_id, catalog)
+        left_rows = _buy_rows(weapons, armor)
         left_label = "Buy"
     elif mode == "ARMORY":
         left_rows = _storage_rows(_armory_storage(ctx), "MANAGE_ARMORY")
@@ -657,11 +665,13 @@ def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selec
 def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     """Show the Phase 2 ground-equipment armory modal."""
     from .. import pygame_split
+    from ..time import month_index
 
+    catalog = _catalog_items(planet_id, month_index(ctx))
     mode = "BUY"
 
     def build_frame():
-        return _pygame_armory_frame(ctx, planet_id, mode)
+        return _pygame_armory_frame(ctx, planet_id, mode, catalog=catalog)
 
     def apply_action(action, focus, selected):
         nonlocal mode

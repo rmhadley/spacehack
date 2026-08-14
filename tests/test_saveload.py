@@ -127,6 +127,28 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_init_seed_survives_round_trip(self, monkeypatch, tmp_path):
+        """The run's initial seed persists so month-keyed stock stays consistent."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack import engine
+        engine.seed_rng(12345)
+
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        # Simulate a fresh process with a different seed, then Continue.
+        engine.seed_rng(99999)
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert engine.INIT_SEED == 12345
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     # ---- field-level assertions ----
 
     def _assert_fields_match(self, original: GameContext, loaded: GameContext) -> None:

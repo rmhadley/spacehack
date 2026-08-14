@@ -46,8 +46,9 @@ def advance_time(ctx: GameContext, days: int) -> None:
 def _on_month_change(ctx: GameContext) -> None:
     """Called by :func:`advance_time` when the month rolls over.
 
-    Logs a restock message. Shop inventory refreshes naturally
-    through the shared engine.RNG advancing with each visit.
+    Logs a restock message. Shop inventory is keyed off the month
+    clock (see :func:`resolve_mech_inventory` / :func:`resolve_armory_inventory`),
+    so it rolls over here rather than advancing with each terminal visit.
 
     Module-level (not an inner function) per reviewer checklist —
     it has no meaningful closure over ``advance_time``'s scope.
@@ -62,6 +63,19 @@ def _on_month_change(ctx: GameContext) -> None:
     # Apply monthly faction reputation decay.
     from .faction import apply_monthly_decay
     apply_monthly_decay(ctx)
+
+
+def month_index(ctx: GameContext) -> int:
+    """Return a unique integer for the current ``(year, month)`` pair.
+
+    ``year * 12 + month`` increases strictly across month AND year
+    rollovers, so state keyed off it (e.g. shop stock) refreshes on
+    every clock boundary. Missing fields fall back to the start date
+    so lightweight test doubles remain valid.
+    """
+    year = getattr(ctx, "time_year", 2200)
+    month = getattr(ctx, "time_month", 1)
+    return year * 12 + month
 
 
 def tick_move(ctx: GameContext) -> None:

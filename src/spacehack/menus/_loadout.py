@@ -181,6 +181,16 @@ def _ship_rows(ctx, ship_spec, mode: str):
     return tuple(rows)
 
 
+def _store_rows_for_mode(weapon_ids, module_ids):
+    """Resolve STORE-mode rows, defaulting to the full catalog."""
+    if weapon_ids is None or module_ids is None:
+        from ..data.modules import list_modules
+        from ..data.weapons import list_weapons
+        weapon_ids = tuple(item.id for item in list_weapons())
+        module_ids = tuple(item.id for item in list_modules())
+    return _market_rows(weapon_ids, module_ids)
+
+
 def _pygame_loadout_frame(
     ctx,
     planet_id: str = "",
@@ -202,20 +212,14 @@ def _pygame_loadout_frame(
         raise ValueError(f"Unknown loadout mode: {mode!r}")
     ship_spec = ship_module.find_ship(owned.ship_id)
     if mode == "STORE":
-        if weapon_ids is None or module_ids is None:
-            from ..data.modules import list_modules
-            from ..data.weapons import list_weapons
-            weapon_ids = tuple(item.id for item in list_weapons())
-            module_ids = tuple(item.id for item in list_modules())
-        left = _market_rows(weapon_ids, module_ids)
+        left = _store_rows_for_mode(weapon_ids, module_ids)
     else:
         left = _storage_rows(ctx)
     right = _ship_rows(ctx, ship_spec, mode)
-    right_label = "My Ship"
     return pygame_split.SplitFrame(
         title=pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
         left_label=_MODE_LABELS[mode].title(),
-        right_label=right_label,
+        right_label="My Ship",
         left_rows=left,
         right_rows=right,
         footer_left=pygame_ui.credits_label(ctx.stats.credits),
@@ -518,6 +522,23 @@ def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, pl
     return True
 
 
+def _resolve_loadout_catalog(ctx, planet_id: str):
+    """Resolve the sorted weapon/module specs for the loadout modal."""
+    from ..data.modules import find_module as _fm, list_modules as _lm
+    from ..data.planets import resolve_mech_inventory
+    from ..data.weapons import find_weapon as _fw, list_weapons as _lw
+    from ..time import month_index
+
+    if planet_id:
+        weapon_ids, module_ids = resolve_mech_inventory(planet_id, month_index(ctx))
+        weapons = tuple(sorted((_fw(i) for i in weapon_ids), key=lambda item: item.price))
+        modules = tuple(sorted((_fm(i) for i in module_ids), key=lambda item: item.price))
+    else:
+        weapons = tuple(sorted(_lw(), key=lambda item: item.price))
+        modules = tuple(sorted(_lm(), key=lambda item: item.price))
+    return weapons, modules
+
+
 def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     """Show the loadout management terminal in the shared Pygame window."""
     owned = ctx.player_owned_ship
@@ -525,17 +546,7 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
         ctx.log.add("You need a ship to manage its loadout.")
         return
 
-    from ..data.modules import find_module as _fm, list_modules as _lm
-    from ..data.planets import resolve_mech_inventory
-    from ..data.weapons import find_weapon as _fw, list_weapons as _lw
-
-    if planet_id:
-        weapon_ids, module_ids = resolve_mech_inventory(planet_id)
-        weapons = tuple(sorted((_fw(item_id) for item_id in weapon_ids), key=lambda item: item.price))
-        modules = tuple(sorted((_fm(item_id) for item_id in module_ids), key=lambda item: item.price))
-    else:
-        weapons = tuple(sorted(_lw(), key=lambda item: item.price))
-        modules = tuple(sorted(_lm(), key=lambda item: item.price))
+    weapons, modules = _resolve_loadout_catalog(ctx, planet_id)
 
     from .. import pygame_split
     mode = "STORE"

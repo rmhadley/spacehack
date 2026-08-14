@@ -186,41 +186,46 @@ def _sample_stock(
 
 def resolve_mech_inventory(
     planet_id: str,
+    month: int,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Return ``(weapon_ids, module_ids)`` sold at ``planet_id``'s mechanic.
 
-    Fixed per-planet overrides win; otherwise a seeded RNG subset of
-tier-eligible items. Inventory changes naturally each visit because the
-shared RNG state advances with every call.
+    Fixed per-planet overrides win; otherwise a deterministic subset of
+tier-eligible items keyed on the run seed + planet + ``month``. Stock is
+stable for a whole month and rolls over on the clock (like mission boards),
+rather than re-rolling with every terminal interaction.
     """
-    from ...engine import RNG
+    from ...engine import INIT_SEED, seeded_rng
     from ...data.modules import list_modules as _lm
     from ...data.weapons import list_weapons as _lw
 
     spec = find_planet_spec(planet_id)
-    _w_ids = _sample_stock(spec.mech_weapons, _lw(), spec.tech_level, 4, RNG)
-    _m_ids = _sample_stock(spec.mech_modules, _lm(), spec.tech_level, 6, RNG)
+    rng = seeded_rng(INIT_SEED, "mech", planet_id, month)
+    _w_ids = _sample_stock(spec.mech_weapons, _lw(), spec.tech_level, 4, rng)
+    _m_ids = _sample_stock(spec.mech_modules, _lm(), spec.tech_level, 6, rng)
     return _w_ids, _m_ids
 
 
 def resolve_armory_inventory(
     planet_id: str,
+    month: int,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Return ``(weapon_ids, armor_ids)`` sold at ``planet_id``'s armory.
 
     Mirrors :func:`resolve_mech_inventory` for ground gear: fixed
-per-planet overrides win, else a seeded RNG subset of tier-eligible
-shop items.
+per-planet overrides win, else a deterministic subset of tier-eligible
+shop items keyed on the run seed + planet + ``month``.
     """
-    from ...engine import RNG
+    from ...engine import INIT_SEED, seeded_rng
     from ...data.ground_armor import list_ground_armor as _lga
     from ...data.ground_weapons import list_ground_weapons as _lgw
 
     spec = find_planet_spec(planet_id)
+    rng = seeded_rng(INIT_SEED, "armory", planet_id, month)
     _w_ids = _sample_stock(
-        spec.armory_weapons, _lgw(), spec.tech_level, 4, RNG, shop_filter=True,
+        spec.armory_weapons, _lgw(), spec.tech_level, 4, rng, shop_filter=True,
     )
-    _a_ids = _sample_stock(spec.armory_armor, _lga(), spec.tech_level, 6, RNG)
+    _a_ids = _sample_stock(spec.armory_armor, _lga(), spec.tech_level, 6, rng)
     return _w_ids, _a_ids
 
 
