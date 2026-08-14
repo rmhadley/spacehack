@@ -26,7 +26,7 @@ from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     tier_filtered_equipment as _tier_loot,
 )
-from ..hud import _bar_str
+from ..hud import _bar_str, COLOR_HP_GOOD, COLOR_HP_LOW, volley_costs
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -506,9 +506,7 @@ def consume_shot(slot_idx: int, ctx) -> None:
 # ---------------------------------------------------------------------------
 
 def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
-    # Solid collision via the shared primitive: enemies and furniture
-    # block, while loot is a walkable floor object.
-    # combatant (melee attacks fire at range 1, there is no bump-attack).
+    # Enemies and furniture block; loot is a walkable floor object.
     _new_pos, ok = move_entity(
         ctx.player.pos, dx, dy, game_map, exclude=ctx.player,
     )
@@ -638,9 +636,15 @@ def _render_player_panel(console, ctx) -> int:
 
 
 def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
-    """Paint the weapon list with hit/damage/range; return the next row."""
+    """Paint the weapon list + armed-volley AP cost; return the next row."""
     hud_x = SCREEN_WIDTH - HUD_WIDTH
+    # Ground has no power economy: the burst AP (max-once) is the whole cost.
+    _count, _max_ap = volley_costs(weapons, _state.active_weapon_list, _find_gw)[:2]
     console.print(x=hud_x, y=y, string="WEAPONS", fg=_COLOR_GROUND_TITLE)
+    if _count:
+        console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=ui.COLOR_VALUE_DIM)
+        _ap_fg = COLOR_HP_GOOD if _max_ap <= _state.player_ap else COLOR_HP_LOW
+        console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
     y += 1
     for i, wid in enumerate(weapons):
         try:
@@ -655,8 +659,7 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
         hc = hit_chance(wid, alive[_state.target_idx], ctx) if _state.target_idx < len(alive) else 0
         console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
         y += 1
-        rng = f"{ws.min_range}-{ws.max_range}" if ws.min_range > 0 else f"0-{ws.max_range}"
-        console.print(x=hud_x, y=y, string=f"     RNG {rng} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y, string=f"     RNG {ws.min_range}-{ws.max_range} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
         y += 1
     return y + 1
 
@@ -747,7 +750,6 @@ def _render_actions_panel(console, weapons: list[str], y: int) -> None:
         actions.insert(3, (f"[1-{len(weapons)}]", "Toggle Wpn"))
     for key, desc in actions:
         console.print(x=hud_x, y=y, string=f"{key} {desc}", fg=_COLOR_GROUND_ACTION)
-        y += 1
 
 
 # ---------------------------------------------------------------------------

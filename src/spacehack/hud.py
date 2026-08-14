@@ -560,13 +560,17 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
     hull_pct = phull / max(pmax_hull, 1)
     hull_color = _hull_bar_color(hull_pct)
     if pmax_shields > 0:
-        _bar = _bar_str(pshields, pmax_shields)
-        shields_pct = pshields / max(pmax_shields, 1)
-        console.print(x=hud_x, y=y, string=f"Shd  {_bar} {int(shields_pct * 100)}%", fg=COLOR_SHIELD_BAR)
+        _bar = _bar_str(pshields, pmax_shields, width=6)
+        # Regen shown in POINTS (paid S-key rate + free module bonus) so
+        # "+N" can't be misread as percentage points: 12/20 +3 → 15/20.
+        _regen = player_state.get("shield_regen_rate", 0) + player_state.get("shield_recharge_bonus", 0)
+        _shd = f"Shd  {_bar} {pshields}/{pmax_shields}"
+        if _regen > 0:
+            _shd += f" +{_regen}"
+        console.print(x=hud_x, y=y, string=_shd, fg=COLOR_SHIELD_BAR)
         # Regen fill: N leftmost cells get a white bg regardless of fill.
-        _regen_rate = player_state.get("shield_regen_rate", 0)
-        if _regen_rate > 0:
-            for _i in range(min(_regen_rate, len(_bar))):
+        if _regen > 0:
+            for _i in range(min(_regen, len(_bar))):
                 console.print(x=hud_x + 5 + _i, y=y, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
         y += 1
     console.print(x=hud_x, y=y, string=f"Hull {_bar_str(phull, pmax_hull)} {int(hull_pct * 100)}%", fg=hull_color)
@@ -680,12 +684,45 @@ def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_c
     return y + 1
 
 
+def volley_costs(weapon_list, active_weapons, find_weapon) -> tuple[int, int, int]:
+    """Return ``(count, max_ap, sum_pow)`` for the armed volley's active weapons.
+
+    Burst AP is charged once as the highest per-weapon AP cost; power is
+    charged per energy/plasma weapon (so it sums). ``find_weapon`` is the
+    domain weapon catalog lookup (space or ground).
+    """
+    _count = 0
+    _max_ap = 0
+    _sum_pow = 0
+    for i, wid in enumerate(weapon_list):
+        is_active = active_weapons[i] if active_weapons else True
+        if not is_active:
+            continue
+        try:
+            ws = find_weapon(wid)
+        except KeyError:
+            continue
+        _count += 1
+        _max_ap = max(_max_ap, ws.ap_cost)
+        if getattr(ws, "slot_type", "") in ("energy", "plasma"):
+            _sum_pow += getattr(ws, "power_cost", 0)
+    return _count, _max_ap, _sum_pow
+
+
 def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player_state, hit_chances) -> int:
-    """Paint the WEAPONS list with hit/damage/cost rows; return next row."""
+    """Paint the WEAPONS list + armed-volley cost; return the next row."""
+    from .data.weapons import find_weapon as _fw
+    _count, _max_ap, _sum_pow = volley_costs(weapon_list, active_weapons, _fw)
     console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
+    if _count:
+        console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=COLOR_VALUE_DIM)
+        _ap_fg = COLOR_HP_GOOD if _max_ap <= player_state.get("ap_remaining", 0) else COLOR_HP_LOW
+        console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
+        if _sum_pow:
+            _pow_fg = COLOR_HP_GOOD if _sum_pow <= player_state.get("power_pool", 0) else COLOR_HP_LOW
+            console.print(x=hud_x + 16, y=y, string=f"{_sum_pow}POW", fg=_pow_fg)
     y += 1
     for i, wid in enumerate(weapon_list):
-        from .data.weapons import find_weapon as _fw
         try:
             ws = _fw(wid)
         except KeyError:

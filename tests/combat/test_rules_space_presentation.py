@@ -195,6 +195,19 @@ def test_space_card_rows_color_hit_chance_by_range_band():
     assert _segs[2] == ("  HIT --", pygame_target_card.TARGET_CARD_TEXT)
 
 
+def test_volley_costs_takes_max_ap_and_sums_power():
+    from src.spacehack.data.weapons import find_weapon
+    from src.spacehack.hud import volley_costs
+    # light_laser (energy, AP 1, POW 1), heavy_laser (energy, AP 1, POW 2),
+    # light_missile (missile, AP 2, no power): burst AP is the max-once
+    # cost, power genuinely sums across energy/plasma weapons only.
+    _weapons = ["light_laser", "heavy_laser", "light_missile"]
+    assert volley_costs(_weapons, [True, True, True], find_weapon) == (3, 2, 3)
+    assert volley_costs(_weapons, [True, False, True], find_weapon) == (2, 2, 1)
+    # No toggle data → every weapon counts (matches the display fallback).
+    assert volley_costs(_weapons, None, find_weapon) == (3, 2, 3)
+
+
 def test_range_band_color_matches_targeting_line():
     from src.spacehack.hud import (
         COLOR_RANGE_GREEN,

@@ -26,6 +26,15 @@ from src.spacehack.combat._rules_ground import (
 )
 
 
+def test_ground_volley_costs_uses_max_ap():
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+    from src.spacehack.hud import volley_costs
+    # fists (AP 1), power_fist (AP 2) — ground has no power economy, so
+    # the burst AP (max-once) is the whole volley cost.
+    assert volley_costs(["fists", "power_fist"], [True, True], find_ground_weapon) == (2, 2, 0)
+    assert volley_costs(["fists", "power_fist"], [True, False], find_ground_weapon) == (1, 1, 0)
+
+
 # ---------------------------------------------------------------------------
 # _ground_hit_chance_raw
 # ---------------------------------------------------------------------------
