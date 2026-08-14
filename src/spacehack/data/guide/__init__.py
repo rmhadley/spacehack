@@ -217,8 +217,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     GuideSection(
         title="Ground Gear",
         body=(
-            "The armory terminal sells personal weapons and armour for when you "
-            "leave your ship. Stock varies by world: advanced settlements offer "
+            "The armory terminal sells personal weapons, armour, and ground "
+            "ammunition for when you leave your ship. Stock varies by world: advanced settlements offer "
             "better equipment, so gear you want may simply not be for sale where "
             "you are. Check another armory, or take what a tougher world offers."
             "\n\n"
@@ -238,7 +238,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "entirely."
             "\n"
             "Reloadable weapons need matching ammunition in your Expedition Pack. "
-            "Press R in ground combat to reload, or select the ammo in the "
+            "Buy ground ammo at the Armory, choose Armory Storage or Expedition "
+            "Pack, then press R in ground combat to reload, or select the ammo in the "
             "character screen and choose Reload. Melee and plasma weapons never "
             "need ammunition."
             "\n"
@@ -396,7 +397,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "\n"
             "- Peek around corners and use doorways as cover."
             "\n"
-            "- Pick up useful loot with P."
+            "- Pick up useful loot with P. If several stacks are nearby, choose "
+            "which one to collect from the pickup list."
             "\n"
             "- Use C to inspect and swap carried equipment."
             "\n"

@@ -21,6 +21,7 @@ from enum import Enum, auto
 
 from .game_context import GameContext
 from .data.trade_goods import find_trade_good
+from .loot_selection import nearby_loot_entities
 
 
 class _LootOutcome(Enum):
@@ -58,6 +59,66 @@ def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -
     if outcome == "QUIT":
         return "QUIT"
     return "LEAVE"
+
+
+def _loot_choice_label(loot_entity) -> str:
+    """Build a friendly compact label for one nearby loot entity."""
+    data = loot_entity.loot_data or {}
+    item_type = data.get("item_type")
+    if item_type in {"weapon", "armor"}:
+        entry = _ground_equipment_loot_entry(loot_entity)
+        try:
+            return _ground_equipment_loot_name(entry)
+        except (KeyError, TypeError, ValueError):
+            return str(data.get("item_id", "Unknown equipment"))
+    if item_type in {"ammo", "consumable"}:
+        stack = _field_item_loot_stack(loot_entity)
+        if stack is not None:
+            try:
+                return f"{_field_item_loot_name(stack)} x{stack.quantity}"
+            except (KeyError, TypeError, ValueError):
+                pass
+        return str(data.get("item_id", "Unknown field item"))
+    if data.get("goods"):
+        return f"Quest Cache ({len(data['goods'])} stacks)"
+    good_id = data.get("good_id", "")
+    try:
+        name = find_trade_good(good_id).name
+    except (KeyError, TypeError, ValueError):
+        name = str(good_id or "Unknown cargo")
+    return f"{name} x{data.get('quantity', 1)}"
+
+
+def choose_loot_entity(ctx: GameContext, loot_entities):
+    """Let the player choose one nearby loot entity before opening pickup."""
+    from . import pygame_story
+
+    options = tuple(
+        (_loot_choice_label(entity), f"LOOT:{index}")
+        for index, entity in enumerate(loot_entities)
+    )
+    while True:
+        chosen = pygame_story.choose(
+            ctx,
+            title="CHOOSE LOOT",
+            body="Several items are within reach. Choose one to pick up.",
+            options=options,
+            caption="spacehack - choose loot",
+            compact=True,
+        )
+        if chosen == "__GUIDE__":
+            continue
+        if chosen in {None, "__BACK__", "__DISMISS__"}:
+            return None
+        if chosen == "__QUIT__":
+            raise SystemExit
+        try:
+            index = int(chosen.split(":", 1)[1])
+        except (AttributeError, IndexError, ValueError):
+            return None
+        if 0 <= index < len(loot_entities):
+            return loot_entities[index]
+        return None
 
 
 def _ground_equipment_loot_entry(loot_entity):
@@ -555,8 +616,8 @@ def _open_trade_good_loot(ctx: GameContext, loot_entity) -> None:
         ctx.log.add("Left the cargo debris in space.")
 
 
-def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
-    """Open a modal to pick up cargo, ground equipment, or field items."""
+def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
+    """Open the existing pickup flow for one selected loot entity."""
     item_type = loot_entity.loot_data.get("item_type")
     if item_type in {"weapon", "armor"}:
         _open_equipment_loot(ctx, loot_entity)
@@ -564,3 +625,14 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         _open_field_item_loot(ctx, loot_entity)
     else:
         _open_trade_good_loot(ctx, loot_entity)
+
+
+def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
+    """Choose among nearby loot entities, then open one pickup flow."""
+    nearby = nearby_loot_entities(ctx)
+    if len(nearby) > 1 and loot_entity in nearby:
+        selected = choose_loot_entity(ctx, nearby)
+        if selected is None:
+            return
+        loot_entity = selected
+    _open_single_loot_pickup(ctx, loot_entity)

@@ -112,6 +112,104 @@ class TestOpenLootPickup:
         assert "Grenade Launcher" in body
         assert "grenade_launcher" not in body
 
+    def test_p_pickup_chooser_lists_all_nearby_stacks(self, monkeypatch):
+        """Nearby loot selection lists friendly names and opens only the choice."""
+        from src.spacehack.loot import open_loot_pickup
+        from src.spacehack.world import GameMap, DUNGEON_FLOOR
+
+        first = self._loot_entity("ammo", "pistol_rounds")
+        first.pos = Position(1, 1)
+        first.loot_data["quantity"] = 2
+        second = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(2, 1),
+            loot_data={
+                "item_type": "ammo", "item_id": "rifle_rounds", "quantity": 3,
+            },
+        )
+        game_map = GameMap(3, 3, [[DUNGEON_FLOOR] * 3 for _ in range(3)], [first, second])
+        ctx = SimpleNamespace(
+            game_map=game_map,
+            player=Entity(char="@", fg=(255, 255, 255), pos=Position(1, 1)),
+            log=MagicMock(),
+        )
+        selected = {}
+        monkeypatch.setattr(
+            "src.spacehack.loot.choose_loot_entity",
+            lambda _ctx, entities: selected.update(entities=entities) or second,
+        )
+        opened = []
+        monkeypatch.setattr(
+            "src.spacehack.loot._run_pygame_loot",
+            lambda _ctx, title, body, take_label: opened.append((title, body)) or "LEAVE",
+        )
+
+        open_loot_pickup(ctx, first)
+
+        assert selected["entities"] == (first, second)
+        assert opened[0][0] == "FIELD ITEM"
+        assert "Rifle Rounds x3" in opened[0][1]
+        assert first in game_map.entities
+        assert second in game_map.entities
+
+    def test_choose_loot_entity_builds_a_compact_selection(self, monkeypatch):
+        """The chooser presents every nearby stack as a compact modal row."""
+        from src.spacehack.loot import choose_loot_entity
+
+        entities = (
+            self._loot_entity("ammo", "pistol_rounds"),
+            self._loot_entity("ammo", "rifle_rounds"),
+        )
+        entities[0].loot_data["quantity"] = 2
+        entities[1].loot_data["quantity"] = 1
+        captured = {}
+
+        def fake_choose(_ctx, **kwargs):
+            captured.update(kwargs)
+            return "LOOT:1"
+
+        monkeypatch.setattr("src.spacehack.pygame_story.choose", fake_choose)
+
+        selected = choose_loot_entity(SimpleNamespace(), entities)
+
+        assert selected is entities[1]
+        assert captured["title"] == "CHOOSE LOOT"
+        assert captured["compact"] is True
+        assert captured["options"] == (
+            ("Pistol Rounds x2", "LOOT:0"),
+            ("Rifle Rounds x1", "LOOT:1"),
+        )
+
+    def test_p_pickup_chooser_cancel_leaves_everything(self, monkeypatch):
+        """Canceling the nearby-loot chooser does not open or consume loot."""
+        from src.spacehack.loot import open_loot_pickup
+        from src.spacehack.world import GameMap, DUNGEON_FLOOR
+
+        first = self._loot_entity("ammo", "pistol_rounds")
+        first.pos = Position(1, 1)
+        first.loot_data["quantity"] = 2
+        second = self._loot_entity("ammo", "rifle_rounds")
+        second.pos = Position(2, 1)
+        game_map = GameMap(3, 3, [[DUNGEON_FLOOR] * 3 for _ in range(3)], [first, second])
+        ctx = SimpleNamespace(
+            game_map=game_map,
+            player=Entity(char="@", fg=(255, 255, 255), pos=Position(1, 1)),
+            log=MagicMock(),
+        )
+        monkeypatch.setattr(
+            "src.spacehack.loot.choose_loot_entity",
+            lambda _ctx, _entities: None,
+        )
+        opened = []
+        monkeypatch.setattr(
+            "src.spacehack.loot._run_pygame_loot",
+            lambda *_args: opened.append(True) or "TAKE",
+        )
+
+        open_loot_pickup(ctx, first)
+
+        assert opened == []
+        assert game_map.entities == [first, second]
+
     def test_ground_equipment_modal_falls_back_on_unknown_id(self, monkeypatch):
         """Unresolvable ids degrade to the raw id instead of crashing."""
         ctx = SimpleNamespace(log=MagicMock())
