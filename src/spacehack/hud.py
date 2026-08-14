@@ -288,32 +288,40 @@ def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -
 
 
 def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo_used, max_cargo, weapons_n, weapon_slots, modules_n, module_slots, eff_spd, stats, ground_stats) -> int:
-    """Paint the space-mode stat rows (fuel…speed + skills); return next row."""
+    """Paint the space-mode stat rows (fuel…speed + skills); return next row.
+
+    Fuel / Hull / Cargo share one label column and one value column
+    (10-cell bars); the equipment counts collapse onto a single row.
+    """
     _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
     console.print(
         x=hud_x, y=y,
-        string=f"Fuel  {_bar_str(fuel, max_fuel)} {fuel}/{max_fuel}"[:HUD_TEXT_MAX],
+        string=f"{'Fuel':<8}{_bar_str(fuel, max_fuel):<11}{fuel}/{max_fuel}"[:HUD_TEXT_MAX],
         fg=_fuel_fg,
     )
     y += 1
     _hull_fg = COLOR_HP_GOOD if hull_pct >= 50 else COLOR_HP_LOW
     console.print(
         x=hud_x, y=y,
-        string=f"Hull  {_bar_str(hull_pct, 100)} {hull_pct}%"[:HUD_TEXT_MAX],
+        string=f"{'Hull':<8}{_bar_str(hull_pct, 100):<11}{hull_pct}%"[:HUD_TEXT_MAX],
         fg=_hull_fg,
     )
     y += 1
-    console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_SHIP_LABEL)
-    console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_SHIP_VALUE)
+    console.print(
+        x=hud_x, y=y,
+        string=f"{'Cargo':<8}{_bar_str(cargo_used, max_cargo):<11}{cargo_used}/{max_cargo}"[:HUD_TEXT_MAX],
+        fg=COLOR_SHIP_VALUE,
+    )
     y += 1
-    console.print(x=hud_x, y=y, string="Wpn", fg=COLOR_SHIP_LABEL)
-    console.print(x=hud_x + 5, y=y, string=f"{weapons_n}/{weapon_slots}", fg=COLOR_SHIP_VALUE)
-    y += 1
-    console.print(x=hud_x, y=y, string="Mod", fg=COLOR_SHIP_LABEL)
-    console.print(x=hud_x + 5, y=y, string=f"{modules_n}/{module_slots}", fg=COLOR_SHIP_VALUE)
-    y += 1
-    console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
-    console.print(x=hud_x + 5, y=y, string=str(eff_spd), fg=COLOR_SHIP_VALUE)
+    console.print(
+        x=hud_x, y=y,
+        string=(
+            f"Wpn {weapons_n}/{weapon_slots}  "
+            f"Mod {modules_n}/{module_slots}  "
+            f"Spd {eff_spd}"
+        )[:HUD_TEXT_MAX],
+        fg=COLOR_SHIP_VALUE,
+    )
     y += 3
     y = _render_skill_line(console, hud_x, y, stats, ground_stats=ground_stats)
     return y
@@ -370,18 +378,33 @@ def _render_city_identity(console, hud_x, y, *, species_name, class_name, locati
 
 
 def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_catalog, ground_stats) -> int:
-    """Paint HP / cargo / credits / skill rows; return the next row."""
+    """Paint HP / cargo / credits / skill rows; return the next row.
+
+    All three stat rows share one label column and one value column so
+    the readouts line up; HP and Cargo render as 10-cell bars. Credits
+    has no capacity, so its value lands in the same value column.
+    """
     hp = max(0, ctx.ground_hp)
     max_hp = max(1, ctx.ground_max_hp)
     _hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
-    console.print(x=hud_x, y=y, string=f"HP  {_bar_str(hp, max_hp)} {hp}/{max_hp}"[:HUD_TEXT_MAX], fg=_hp_fg)
+    console.print(
+        x=hud_x, y=y,
+        string=f"{'HP':<8}{_bar_str(hp, max_hp):<11}{hp}/{max_hp}"[:HUD_TEXT_MAX],
+        fg=_hp_fg,
+    )
     y += 1
-    console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_LABEL)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
-    console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_VALUE_WHITE)
+    console.print(
+        x=hud_x, y=y,
+        string=f"{'Cargo':<8}{_bar_str(cargo_used, max_cargo):<11}{cargo_used}/{max_cargo}"[:HUD_TEXT_MAX],
+        fg=COLOR_VALUE_WHITE,
+    )
     y += 1
-    console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
-    console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
+    console.print(
+        x=hud_x, y=y,
+        string=f"{'Credits':<19}{stats.credits}"[:HUD_TEXT_MAX],
+        fg=COLOR_VALUE_WHITE,
+    )
     y += 3
     y = _render_skill_line(console, hud_x, y, stats, ground_stats=ground_stats)
     return y

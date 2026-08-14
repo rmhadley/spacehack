@@ -116,7 +116,22 @@ def test_city_hp_row_uses_the_bar_layout():
         ctx=ctx, stats=stats, owned_ship=None, ship_catalog=None, ground_stats=None,
     )
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
-    assert row == "HP  ########## 10/10"
+    assert row == "HP      ########## 10/10"
+
+
+def test_city_stat_values_line_up_in_one_column():
+    """HP / Cargo / Credits values all start at the same column."""
+    console = FrameBuffer(40, 3)
+    ctx = SimpleNamespace(ground_hp=10, ground_max_hp=10)
+    stats = SimpleNamespace(credits=1234, gunnery=4, piloting=3, engineering=2)
+    hud._render_city_stat_rows(
+        console, 0, 0,
+        ctx=ctx, stats=stats, owned_ship=None, ship_catalog=None, ground_stats=None,
+    )
+    rows = ["".join(console.cell(x, y).char for x in range(40)) for y in range(3)]
+    assert rows[0][19] == "1"  # 10/10
+    assert rows[1][19] == "0"  # 0/0 (no ship -> empty bar)
+    assert rows[2][19] == "1"  # 1234
 
 
 def test_space_fuel_hull_rows_use_bars():
@@ -131,8 +146,8 @@ def test_space_fuel_hull_rows_use_bars():
     )
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
-    assert row0.startswith("Fuel  ####") and row0.endswith("90/100")
-    assert row1.startswith("Hull  #####") and row1.endswith("67%")
+    assert row0.startswith("Fuel    ####") and row0.endswith("90/100")
+    assert row1.startswith("Hull    #####") and row1.endswith("67%")
 
 
 def test_skill_lines_pair_two_per_row():
