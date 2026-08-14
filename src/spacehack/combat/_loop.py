@@ -15,6 +15,7 @@ from ..engine import RNG
 from ..world import MOVE_KEYS as _MOVE_KEYS
 from ..data.weapons import find_weapon as _fw
 from ..input_helpers import _try_open_guide
+from ..saveload import delete_save as _delete_save
 
 from . import _rules_ground
 from ._types import CombatResult
@@ -482,8 +483,13 @@ def _end_player_turn(ctx, game_map, rules, turn: int, presenter):
 
 
 def _finish_combat(ctx, rules, result: str | None, presenter) -> CombatResult:
-    """Sync state, close the presenter, and build the :class:`CombatResult`."""
+    """Sync state, invalidate death saves, close presenter, and build result."""
     rules.sync_state(ctx)
+    if result == "DEFEAT":
+        # Continue deletes after a successful load; this handles death
+        # after a prior save during the same run. The shared loop owns
+        # both ground and space defeat transitions.
+        _delete_save()
     if presenter is not None:
         presenter.close()
     ctx._pygame_combat_presenter = None

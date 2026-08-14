@@ -817,6 +817,22 @@ class TestTargetCardToggle:
         assert _rules_ground._state.show_target_card is True
 
 
+def test_finish_combat_deletes_autosave_on_defeat(monkeypatch):
+    """The shared combat seam invalidates saves for ground and space death."""
+    deleted = []
+    monkeypatch.setattr(_loop, "_delete_save", lambda: deleted.append(True))
+    _rules = SimpleNamespace(
+        sync_state=lambda _ctx: None,
+        get_combat_result=lambda: SimpleNamespace(),
+    )
+    _ctx = SimpleNamespace()
+
+    _result = _loop._finish_combat(_ctx, _rules, "DEFEAT", None)
+
+    assert _result.outcome == "DEFEAT"
+    assert deleted == [True]
+
+
 # ---------------------------------------------------------------------------
 # Explosive splash and friendly fire
 # ---------------------------------------------------------------------------
