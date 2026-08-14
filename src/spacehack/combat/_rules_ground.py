@@ -25,6 +25,7 @@ from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     tier_filtered_equipment as _tier_loot,
 )
+from ..ground_consumables import ActiveConsumableEffect, effect_from_spec
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -115,6 +116,9 @@ class GroundCombatState:
     # range/accuracy line. Set during shot animations and the whole enemy
     # turn so the line never clutters frames the player isn't acting on.
     range_line_hidden: bool = False
+    active_consumable_effects: dict[str, ActiveConsumableEffect] = field(
+        default_factory=dict,
+    )
 
 
 _state: GroundCombatState | None = None
@@ -659,6 +663,41 @@ def handle_defense(ctx) -> None:
     pass
 
 
+def apply_consumable_effect(ctx, spec) -> bool:
+    """Apply a validated consumable effect to the active combat state."""
+    if spec.effect_id == "restore_hp":
+        _state.player_hp = min(
+            _state.player_max_hp,
+            _state.player_hp + spec.combat_heal_amount,
+        )
+    _effect = effect_from_spec(spec)
+    if _effect is not None:
+        _state.active_consumable_effects[spec.effect_id] = _effect
+    return spec.effect_id in {"restore_hp", "stim"}
+
+
+def _advance_consumable_effects() -> int:
+    """Apply regeneration and return the current temporary AP bonus."""
+    _ap_bonus = 0
+    _remaining: dict[str, ActiveConsumableEffect] = {}
+    for _effect_id, _effect in _state.active_consumable_effects.items():
+        if _effect.regen_amount:
+            _state.player_hp = min(
+                _state.player_max_hp,
+                _state.player_hp + _effect.regen_amount,
+            )
+        if _effect.ap_bonus:
+            _ap_bonus += _effect.ap_bonus
+        _next = _effect.remaining_turns - 1
+        if _next > 0:
+            _remaining[_effect_id] = ActiveConsumableEffect(
+                _effect.effect_id, _next,
+                _effect.regen_amount, _effect.ap_bonus,
+            )
+    _state.active_consumable_effects = _remaining
+    return _ap_bonus
+
+
 # ---------------------------------------------------------------------------
 # Enemy turns
 # ---------------------------------------------------------------------------
@@ -800,7 +839,7 @@ def set_player_ap(ctx, ap: int) -> None:
 
 
 def reset_turn(ctx) -> None:
-    _state.player_ap = _state.player_ap_total
+    _state.player_ap = _state.player_ap_total + _advance_consumable_effects()
     _state.cells_moved_this_turn = 0
     for _gei in _state.enemies:
         _gei.ap = _gei.ap_total

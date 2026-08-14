@@ -2079,7 +2079,7 @@ def test_character_equipment_management_explains_backpack_actions():
         ctx, 1, 0, equipment_management=True,
     )
 
-    assert frame.body[1] == "Select a slot and press ENTER to swap from your backpack."
+    assert frame.body[1] == "Select a row and press ENTER to equip, use, reload, or discard."
     assert frame.footer[0].endswith("ESC close   ? guide")
 
 

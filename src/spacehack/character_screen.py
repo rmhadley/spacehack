@@ -102,7 +102,7 @@ def _equipment_frame(
     body = (
         f"Equipped ground gear    Expedition Pack: "
         f"{_expedition_used_slots(ctx)}/{capacity}",
-        "Select a slot and press ENTER to swap from your backpack."
+        "Select a row and press ENTER to equip, use, reload, or discard."
         if equipment_management
         else "Equipment is read-only outside management mode.",
     )
@@ -449,11 +449,10 @@ def _backpack_item_rows(ctx: GameContext) -> list:
     rows: list = []
     for index, stack in enumerate(getattr(ctx, "ground_expedition_items", [])):
         try:
-            selectable = stack.item_type == "ammo"
             rows.append(_equipment_row(
                 _item_stack_name(stack), _item_stack_detail(stack),
-                action=f"PACK_STACK:{index}" if selectable else "",
-                selectable=selectable,
+                action=f"PACK_STACK:{index}",
+                selectable=True,
             ))
         except (KeyError, TypeError, ValueError):
             continue
@@ -474,7 +473,12 @@ def _item_stack_detail(stack) -> str:
     spec = find_ground_item(stack.item_type, stack.item_id)
     if stack.item_type == "ammo":
         return f"Ammo  {stack.quantity}/{spec.rounds_per_stack}  feeds {spec.ammo_type}"
-    return f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  effect {spec.effect_id}"
+    detail = f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  effect {spec.effect_id}"
+    if spec.outside_full_heal:
+        detail += f"  combat +{spec.combat_heal_amount} HP/+{spec.combat_regen_amount} HP x{spec.duration_turns}"
+    elif spec.combat_ap_bonus:
+        detail += f"  +{spec.combat_ap_bonus} AP x{spec.duration_turns}"
+    return detail
 
 
 def _swap_pack_entry(
@@ -632,22 +636,62 @@ def _manage_pack_item(
     return None
 
 
+def _manage_consumable_stack(
+    ctx: GameContext, index: int, *, in_ground_combat: bool,
+) -> str | None:
+    """Offer Use or Discard for one consumable stack."""
+    from . import pygame_story
+
+    stack = ctx.ground_expedition_items[index]
+    chosen = pygame_story.choose(
+        ctx,
+        title="CONSUMABLE",
+        body=_item_stack_name(stack),
+        options=(
+            ("Use", f"STACK_USE:{index}"),
+            ("Discard", f"STACK_DISCARD:{index}"),
+        ),
+        caption="spacehack - consumable", compact=True,
+    )
+    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
+        return None
+    if chosen == "__QUIT__":
+        raise SystemExit
+    if chosen.startswith("STACK_USE:"):
+        from .ground_consumables import use_consumable
+        return "USE" if use_consumable(
+            ctx, index, in_combat=in_ground_combat,
+        ) else None
+    if chosen.startswith("STACK_DISCARD:"):
+        return "DISCARD" if _discard_pack_stack(ctx, index) else None
+    return None
+
+
 def _manage_pack_stack(
     ctx: GameContext, action: str, *, in_ground_combat: bool,
 ) -> str | None:
-    """Offer Reload or Discard for one selectable ammo stack."""
-    from . import pygame_story
-
+    """Offer Reload/Use or Discard for one field-item stack."""
     index = int(action.split(":", 1)[1])
     items = getattr(ctx, "ground_expedition_items", [])
     if not 0 <= index < len(items):
-        ctx.log.add("That ammo is no longer available.")
+        ctx.log.add("That pack item is no longer available.")
         return None
     try:
-        name = _item_stack_name(items[index])
+        if items[index].item_type == "consumable":
+            return _manage_consumable_stack(
+                ctx, index, in_ground_combat=in_ground_combat,
+            )
+        return _manage_pack_ammo(ctx, index, in_ground_combat)
     except (KeyError, TypeError, ValueError):
         ctx.log.add("That item is invalid.")
         return None
+
+
+def _manage_pack_ammo(ctx: GameContext, index: int, in_ground_combat: bool) -> str | None:
+    """Offer Reload or Discard for one ammo stack."""
+    from . import pygame_story
+
+    name = _item_stack_name(ctx.ground_expedition_items[index])
     chosen = pygame_story.choose(
         ctx, title="AMMO", body=name,
         options=(
@@ -858,7 +902,7 @@ def _apply_character_select(
             _pack_result = _manage_pack_stack(
                 ctx, action, in_ground_combat=in_ground_combat,
             )
-            if _pack_result == "RELOAD" and in_ground_combat:
+            if _pack_result in {"RELOAD", "USE"} and in_ground_combat:
                 return swap_count, True
     return swap_count, False
 

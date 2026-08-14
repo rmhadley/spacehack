@@ -118,6 +118,13 @@ def test_buy_rows_include_authored_ground_ammo():
     assert any(row.label == "Pistol Rounds" for row in rows)
 
 
+def test_buy_rows_include_ground_consumables():
+    rows = _armory._buy_consumable_rows()
+
+    assert any(row.action == "BUY_CONSUMABLE:med_pack" for row in rows)
+    assert any(row.label == "Med Pack" for row in rows)
+
+
 def test_purchase_ground_ammo_to_armory_storage(monkeypatch):
     ctx = _ammo_purchase_context(credits=100)
     monkeypatch.setattr(
@@ -148,6 +155,22 @@ def test_purchase_ground_ammo_to_pack_respects_pack_capacity(monkeypatch):
     assert ctx.stats.credits == 60
     assert ctx.ground_expedition_items == [
         ground_equipment.GroundItemStack("ammo", "pistol_rounds", 40),
+    ]
+
+
+def test_purchase_ground_consumable_to_armory_storage(monkeypatch):
+    ctx = _ammo_purchase_context(credits=100)
+    monkeypatch.setattr(
+        _armory, "_choose_field_item_quantity", lambda *_args: 1,
+    )
+
+    _armory._purchase_field_item(
+        ctx, "med_pack", ground_equipment.ARMORY_STORAGE, "consumable",
+    )
+
+    assert ctx.stats.credits == 40
+    assert ctx.ground_armory_items == [
+        ground_equipment.GroundItemStack("consumable", "med_pack", 1),
     ]
 
 

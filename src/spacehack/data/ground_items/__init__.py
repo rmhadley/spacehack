@@ -48,7 +48,12 @@ class GroundConsumableSpec:
         effect_id: table key for the Phase 5 effect registry.
         quantity_per_stack: max charges carried in one pack slot.
         use_ap_cost: action points to use in combat.
-        price: credits cost to buy (Phase 4).
+        price: credits cost to buy.
+        outside_full_heal: whether exploration use restores full ground HP.
+        combat_heal_amount: immediate ground HP restored in combat.
+        combat_regen_amount: ground HP restored at each effect turn.
+        duration_turns: combat effect duration, starting at 3 for Phase 5.
+        combat_ap_bonus: temporary AP added to later combat turns.
     """
 
     id: str
@@ -57,6 +62,11 @@ class GroundConsumableSpec:
     quantity_per_stack: int
     use_ap_cost: int
     price: int
+    outside_full_heal: bool = False
+    combat_heal_amount: int = 0
+    combat_regen_amount: int = 0
+    duration_turns: int = 0
+    combat_ap_bonus: int = 0
 
 
 # ---------------------------------------------------------------------------

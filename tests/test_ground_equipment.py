@@ -726,3 +726,18 @@ def test_ground_enemy_field_item_loot_is_authored_and_typed():
     assert game_map.entities[0].loot_data["item_type"] == "ammo"
     assert game_map.entities[0].loot_data["item_id"] == "rifle_rounds"
     assert 1 <= game_map.entities[0].loot_data["quantity"] <= 5
+
+
+def test_ground_consumable_loot_is_typed_and_respects_stack_capacity():
+    from src.spacehack.combat._actions import _spawn_field_item_loot_at_position
+    from src.spacehack import world
+
+    game_map = world.GameMap(8, 8, [[world.DUNGEON_FLOOR] * 8 for _ in range(8)], [])
+    _spawn_field_item_loot_at_position(
+        game_map, world.Position(3, 3), (("consumable", "med_pack"),), count_range=(1, 1),
+    )
+
+    assert len(game_map.entities) == 1
+    assert game_map.entities[0].loot_data["item_type"] == "consumable"
+    assert game_map.entities[0].loot_data["item_id"] == "med_pack"
+    assert 1 <= game_map.entities[0].loot_data["quantity"] <= 3

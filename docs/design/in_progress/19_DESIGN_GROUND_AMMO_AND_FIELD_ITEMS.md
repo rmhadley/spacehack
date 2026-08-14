@@ -1,8 +1,8 @@
 # DESIGN: Ground Ammo, Reloads, and Field Items
 
-> **Status:** In progress. Phases 0-4 are implemented and covered by the
-> current regression suite; Phase 5 (consumables) is next. Phase 6 hardening
-> and a full manual lifecycle playtest remain pending.
+> **Status:** In progress. Phases 0-5 are implemented and covered by the
+> current regression suite; Phase 6 hardening and a full manual lifecycle
+> playtest remain pending.
 >
 > **Related:**
 > `docs/design/complete/18_DESIGN_GROUND_EQUIPMENT_STORAGE.md`
@@ -32,12 +32,12 @@ The proposed direction is:
 - Armory Storage remains unlimited terminal-only ownership. The Expedition Pack
   is the only field inventory available underground.
 
-Phases 0-4 have now landed: ground weapons use independent per-instance
+Phases 0-5 have now landed: ground weapons use independent per-instance
 magazines, firing consumes loaded rounds, `R` performs a transactional reload
-of the first eligible active weapon, and Ground Armory ammo purchases plus
-coded field-item loot are wired through the typed stack domain. The approved
-next UI refinement is to make `R` open a weapon chooser when multiple weapons
-can reload. Consumables remain gated behind Phase 5.
+of the first eligible active weapon, Ground Armory ammo purchases plus coded
+field-item loot are wired through the typed stack domain, and consumables now
+have data-driven use effects. The approved next UI refinement is to make `R`
+open a weapon chooser when multiple weapons can reload.
 
 ## Current-state audit
 
@@ -116,7 +116,7 @@ can reload. Consumables remain gated behind Phase 5.
 | Ammo pickup | Ground loot may contain typed ammo stacks. Pickup first fills matching partial stacks, then creates new stacks while slots remain; any remainder stays on the floor as a typed ammo stack. No rounds are silently discarded. Full-pack behavior uses the same deliberate drop/leave choice as other field items. |
 | Armory ownership | Armory Storage may own spare ammo without capacity. Moving ammo into the pack checks pack slots and stack limits. |
 | Armory purchasing | Buy ground ammo and consumables at the Ground Armory only. Every purchase explicitly chooses Armory Storage or Expedition Pack; credits are deducted only after destination and capacity validation succeed. The ship mechanic's missile-ammo UI remains separate. |
-| Consumables | Med packs, stims, and similar items are stackable field items with explicit effects and action costs. They are not weapons and do not enter the active loadout. Stim duration is data-driven per catalog entry, starting at 3 ground-combat turns for the initial stim. |
+| Consumables | Med packs, stims, and similar items are stackable field items with explicit effects and action costs. Med Packs fully heal outside combat; in combat they restore 5 HP immediately plus 2 HP at the start of the next 3 turns, refreshing rather than stacking. Combat Stims grant +1 AP on each of the next 3 turns. Values remain data-driven per catalog entry. |
 | Use location | Field consumables are available underground subject to their explicit action rules. Med packs are free to use during exploration and cost their catalog `use_ap_cost` in combat. Stims are combat-only; their effect exists only during the active ground combat and expires when that combat ends. Armory-only items remain unavailable underground. |
 | Discard | Discard removes the selected pack item/quantity explicitly and logs the result. It is never an implicit fallback for a failed equip or reload. |
 | Save/load | Serialize active weapon instance state, reserve stacks, and consumable stacks. Old saves load with deterministic full magazines and no new reserve items unless a migration source exists. |
@@ -404,13 +404,14 @@ Migration rules:
   weapon reserve behavior, reload timing, and pack pressure. A full manual
   lifecycle playtest remains part of Phase 6 hardening.
 
-### Phase 5 - Consumables
+### Phase 5 - Consumables ✅
 
-- [ ] Add med packs and one stim with explicit effect handlers.
-- [ ] Add `Use` / `Discard` chooser and combat AP semantics.
-- [ ] Add temporary-effect persistence and expiry rules if stims use duration.
-- [ ] Add authored consumable loot and armory purchasing.
-- [ ] Update guide and playtest the complete field-item lifecycle.
+- [x] Add med packs and one stim with explicit, data-driven effect handlers.
+- [x] Add `Use` / `Discard` chooser and combat AP semantics.
+- [x] Add combat-local temporary effects and expiry rules; effects are not
+      persisted outside an active combat session.
+- [x] Add authored consumable loot and Ground Armory purchasing.
+- [x] Update guide and add automated coverage for the field-item lifecycle.
 
 ### Phase 6 - Hardening and cleanup
 

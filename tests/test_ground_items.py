@@ -40,6 +40,16 @@ def test_consumable_catalog_resolves_effect_and_stack_size():
     spec = find_ground_consumable("med_pack")
     assert spec.effect_id == "restore_hp"
     assert spec.quantity_per_stack == 3
+    assert spec.outside_full_heal is True
+    assert spec.combat_heal_amount == 5
+    assert spec.combat_regen_amount == 2
+    assert spec.duration_turns == 3
+
+
+def test_stim_catalog_duration_and_ap_bonus_are_data_driven():
+    spec = find_ground_consumable("stim")
+    assert spec.duration_turns == 3
+    assert spec.combat_ap_bonus == 1
 
 
 def test_find_ground_item_dispatches_by_type():

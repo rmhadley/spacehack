@@ -197,6 +197,24 @@ def _buy_ammo_rows():
     return tuple(rows)
 
 
+def _buy_consumable_rows():
+    """Build buy rows for the ground consumable catalog."""
+    from .. import pygame_split, pygame_ui
+    from ..data.ground_items import list_ground_consumables
+
+    rows = [pygame_split.section_header("CONSUMABLES")]
+    rows.extend(
+        pygame_split.SplitRow(
+            spec.name,
+            pygame_ui.price_cell(spec.price),
+            f"Stack 0/{spec.quantity_per_stack}  {spec.effect_id}",
+            f"BUY_CONSUMABLE:{spec.id}",
+        )
+        for spec in sorted(list_ground_consumables(), key=lambda item: item.price)
+    )
+    return tuple(rows)
+
+
 def _storage_rows(
     entries: list[ground_equipment.StoredGroundEquipment],
     action_prefix: str,
@@ -354,7 +372,11 @@ def _armory_left_panel(ctx, planet_id: str, mode: str, catalog):
         raise ValueError(f"Unknown armory mode: {mode!r}")
     if mode == "BUY":
         weapons, armor = _resolve_catalog(ctx, planet_id, catalog)
-        return "Buy", _buy_rows(weapons, armor) + _buy_ammo_rows()
+        return "Buy", (
+            _buy_rows(weapons, armor)
+            + _buy_ammo_rows()
+            + _buy_consumable_rows()
+        )
     if mode == "ARMORY":
         return "Armory Storage", (
             _storage_rows(_armory_storage(ctx), "MANAGE_ARMORY")
@@ -410,66 +432,80 @@ def _choose_destination(ctx, item_type: str, item_id: str) -> str:
     )
 
 
-def _choose_field_item_destination(ctx, item_id: str) -> str:
-    """Choose Armory Storage or Expedition Pack before ammo payment."""
+def _choose_field_item_destination(ctx, item_type: str, item_id: str) -> str:
+    """Choose a destination before paying for a field item."""
     from .. import pygame_story
-    from ..data.ground_items import find_ground_ammo
+    from ..data.ground_items import find_ground_item
 
-    spec = find_ground_ammo(item_id)
+    spec = find_ground_item(item_type, item_id)
+    price = (
+        spec.price_per_round if item_type == "ammo" else spec.price
+    )
+    title = "BUY AMMUNITION" if item_type == "ammo" else "BUY CONSUMABLE"
+    unit = "$/round" if item_type == "ammo" else "$ each"
     return pygame_story.choose(
-        ctx,
-        title="BUY AMMUNITION",
-        body=f"{spec.name} - {spec.price_per_round}$/round",
+        ctx, title=title, body=f"{spec.name} - {price}{unit}",
         options=(
-            ("Armory Storage", f"BUY_ITEM_ARMORY:{item_id}"),
-            ("Expedition Pack", f"BUY_ITEM_EXPEDITION:{item_id}"),
+            ("Armory Storage", f"BUY_ITEM_ARMORY:{item_type}:{item_id}"),
+            ("Expedition Pack", f"BUY_ITEM_EXPEDITION:{item_type}:{item_id}"),
         ),
-        caption="spacehack - ammo purchase",
-        compact=True,
+        caption="spacehack - field-item purchase", compact=True,
     )
 
 
-def _field_item_purchase_maximum(ctx, item_id: str, destination: str) -> int:
-    """Return the affordable and destination-capacity-limited quantity."""
-    from ..data.ground_items import find_ground_ammo
+def _field_item_purchase_maximum(
+    ctx, item_type: str, item_id: str, destination: str,
+) -> int:
+    """Return affordable and destination-capacity-limited quantity."""
+    from ..data.ground_items import find_ground_item
 
-    spec = find_ground_ammo(item_id)
-    affordable = ctx.stats.credits // spec.price_per_round
+    spec = find_ground_item(item_type, item_id)
+    price = spec.price_per_round if item_type == "ammo" else spec.price
+    affordable = ctx.stats.credits // price
     if destination == ground_equipment.EXPEDITION_INVENTORY:
         capacity = ground_equipment.field_item_capacity(
             _expedition_storage(ctx), _expedition_items(ctx),
-            "ammo", item_id,
+            item_type, item_id,
             strength=_strength(ctx), container=destination,
         )
         return min(affordable, capacity or 0)
     return affordable
 
 
-def _choose_field_item_quantity(ctx, item_id: str, destination: str) -> int | None:
-    """Choose an ammo quantity after destination selection."""
+def _choose_field_item_quantity(
+    ctx, item_type: str, item_id: str, destination: str,
+) -> int | None:
+    """Choose a field-item quantity after destination selection."""
     from .. import pygame_quantity
-    from ..data.ground_items import find_ground_ammo
+    from ..data.ground_items import find_ground_item
 
-    spec = find_ground_ammo(item_id)
-    maximum = _field_item_purchase_maximum(ctx, item_id, destination)
+    spec = find_ground_item(item_type, item_id)
+    maximum = _field_item_purchase_maximum(
+        ctx, item_type, item_id, destination,
+    )
     if maximum < 1:
-        ctx.log.add("That destination cannot hold any more ammunition.")
+        ctx.log.add("That destination cannot hold any more field items.")
         return None
+    price = spec.price_per_round if item_type == "ammo" else spec.price
     return pygame_quantity.run_for_context(
-        ctx.context, ctx, f"BUY {spec.name}", maximum,
-        spec.price_per_round,
+        ctx.context, ctx, f"BUY {spec.name}", maximum, price,
     )
 
 
-def _purchase_field_item(ctx, item_id: str, destination: str) -> None:
-    """Buy exact ammo quantity after destination/capacity validation."""
-    from ..data.ground_items import find_ground_ammo
+def _purchase_field_item(
+    ctx, item_id: str, destination: str, item_type: str = "ammo",
+) -> None:
+    """Buy an exact field-item quantity after destination validation."""
+    from ..data.ground_items import find_ground_item
 
-    spec = find_ground_ammo(item_id)
-    quantity = _choose_field_item_quantity(ctx, item_id, destination)
+    spec = find_ground_item(item_type, item_id)
+    quantity = _choose_field_item_quantity(
+        ctx, item_type, item_id, destination,
+    )
     if quantity is None:
         return
-    cost = quantity * spec.price_per_round
+    unit_price = spec.price_per_round if item_type == "ammo" else spec.price
+    cost = quantity * unit_price
     if cost > ctx.stats.credits:
         ctx.log.add("You can no longer afford that ammunition.")
         return
@@ -486,7 +522,7 @@ def _purchase_field_item(ctx, item_id: str, destination: str) -> None:
     try:
         ground_equipment.add_item_quantity(
             destination_equipment, destination_items,
-            "ammo", item_id, quantity,
+            item_type, item_id, quantity,
             strength=_strength(ctx), container=destination,
         )
     except (KeyError, ValueError) as exc:
@@ -876,19 +912,21 @@ def _apply_buy_action(ctx: GameContext, action: str) -> None:
     if action.startswith(("BUY_INSTALL:", "BUY_ARMORY:", "BUY_EXPEDITION:")):
         _apply_purchase(ctx, action)
         return
-    if action.startswith("BUY_AMMO:"):
-        item_id = action.split(":", 1)[1]
-        chosen = _choose_field_item_destination(ctx, item_id)
+    if action.startswith(("BUY_AMMO:", "BUY_CONSUMABLE:")):
+        item_type, item_id = action.split(":", 1)
+        item_type = "ammo" if item_type == "BUY_AMMO" else "consumable"
+        chosen = _choose_field_item_destination(ctx, item_type, item_id)
         if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
             return
         if chosen == "__QUIT__":
             raise SystemExit
+        _parts = chosen.split(":", 2)
         destination = (
             ground_equipment.EXPEDITION_INVENTORY
-            if chosen.startswith("BUY_ITEM_EXPEDITION:")
+            if _parts[0].endswith("EXPEDITION")
             else ground_equipment.ARMORY_STORAGE
         )
-        _purchase_field_item(ctx, item_id, destination)
+        _purchase_field_item(ctx, _parts[2], destination, _parts[1])
         return
     item_type, item_id = action.split(":", 1)
     chosen = _choose_destination(ctx, item_type.removeprefix("BUY_").lower(), item_id)
