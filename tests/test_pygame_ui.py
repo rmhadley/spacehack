@@ -3027,6 +3027,32 @@ def test_compact_popup_wraps_long_body_inside_popup_width():
     assert all(measure(line) <= popup_width - 48 for line in (*title_lines, *body_lines))
 
 
+def test_compact_popup_draw_height_matches_visible_row_window(monkeypatch):
+    class Font:
+        def get_linesize(self):
+            return 29
+
+        def size(self, text):
+            return len(text) * 14, 29
+
+    frame = pygame_menu.MenuFrame(
+        "MENU", "", tuple(
+            pygame_menu.MenuItem(f"Option {index}", "", str(index))
+            for index in range(pygame_menu.COMPACT_MAX_VISIBLE_ROWS + 3)
+        ), (), 0, compact=True,
+    )
+    panels = []
+    monkeypatch.setattr(pygame_ui, "draw_panel", lambda *_args, **_kwargs: panels.append(_args[2]))
+    monkeypatch.setattr(pygame_ui, "draw_centered_text", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pygame_ui, "draw_rule", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pygame_ui, "draw_menu_row", lambda *_args, **_kwargs: None)
+    screen = SimpleNamespace(get_size=lambda: (1600, 960))
+
+    pygame_menu._draw_compact_frame(object(), screen, Font(), frame)
+
+    assert panels[0].height == pygame_menu._compact_frame_height(Font(), frame, 1600)
+
+
 def test_compact_popup_handles_long_titles_and_narrow_surfaces():
     frame = pygame_menu.MenuFrame(
         "A VERY LONG GROUND EQUIPMENT REPLACEMENT TITLE",

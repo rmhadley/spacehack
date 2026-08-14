@@ -270,42 +270,46 @@ def _compact_popup_layout(
     )
 
 
-def _draw_compact_frame(
+def _draw_compact_rows(
+    pygame: Any, screen: Any, font: Any, frame: MenuFrame,
+    popup: pygame_ui.Rect, inset: int, content_width: int,
+    y: int, top: int, count: int, row_height: int,
+) -> None:
+    """Paint the visible compact menu rows."""
+    for index in range(top, top + count):
+        item = frame.items[index]
+        pygame_ui.draw_menu_row(
+            pygame, screen, font, item.label, popup.x + inset, y,
+            content_width, selected=index == frame.selected,
+            palette=pygame_ui.DEFAULT_PALETTE,
+        )
+        y += row_height
+
+
+def _draw_compact_content(
     pygame: Any,
     screen: Any,
     font: Any,
     frame: MenuFrame,
+    popup: pygame_ui.Rect,
+    title_lines: tuple[str, ...],
+    body_lines: tuple[str, ...],
+    top: int,
+    count: int,
+    title_y: int,
+    rule_y: int,
+    body_y: int,
+    row_height: int,
 ) -> None:
-    """Paint a small centered two-choice popup."""
+    """Paint compact popup content inside its already-sized panel."""
     palette = pygame_ui.DEFAULT_PALETTE
-    width, height = screen.get_size()
-    popup_width, title_lines, body_lines = _compact_popup_layout(font, frame, width)
-    line_height = font.get_linesize()
-    title_step = line_height + 4
-    row_height = line_height + 18
-    title_y = 18
-    rule_y = title_y + max(1, len(title_lines)) * title_step + 12
-    body_y = rule_y + 16
-    popup_height = (
-        body_y
-        + len(body_lines) * (line_height + 4)
-        + 16
-        + len(frame.items) * row_height
-    )
-    popup = pygame_ui.Rect(
-        (width - popup_width) // 2,
-        (height - popup_height) // 2,
-        popup_width,
-        popup_height,
-    )
-    pygame_ui.draw_panel(pygame, screen, popup, palette=palette)
     inset = min(24, max(1, popup.width // 2))
     content_width = max(1, popup.width - 2 * inset)
+    title_step = row_height - 14
     y = popup.y + title_y
     for line in title_lines or ("",):
         pygame_ui.draw_centered_text(
-            pygame, screen, font, line, popup, y,
-            color=palette.title,
+            pygame, screen, font, line, popup, y, color=palette.title,
         )
         y += title_step
     pygame_ui.draw_rule(
@@ -314,21 +318,51 @@ def _draw_compact_frame(
     )
     y = popup.y + body_y
     for line in body_lines:
-        pygame_ui.draw_centered_text(pygame, screen, font, line, popup, y, color=palette.description)
+        pygame_ui.draw_centered_text(
+            pygame, screen, font, line, popup, y, color=palette.description,
+        )
         y += font.get_linesize() + 4
-    y += 8
+    _draw_compact_rows(
+        pygame, screen, font, frame, popup, inset, content_width,
+        y + 8, top, count, row_height,
+    )
+
+
+def _draw_compact_frame(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    frame: MenuFrame,
+) -> None:
+    """Paint a small centered two-choice popup."""
+    width, height = screen.get_size()
+    popup_width, title_lines, body_lines = _compact_popup_layout(font, frame, width)
+    line_height = font.get_linesize()
+    title_step = line_height + 4
+    row_height = line_height + 18
+    title_y = 18
+    rule_y = title_y + max(1, len(title_lines)) * title_step + 12
+    body_y = rule_y + 16
     top, count = pygame_ui.visible_window(
         frame.items, frame.selected, COMPACT_MAX_VISIBLE_ROWS,
         is_selectable=lambda _item: True,
     )
-    for index in range(top, top + count):
-        item = frame.items[index]
-        pygame_ui.draw_menu_row(
-            pygame, screen, font, item.label, popup.x + inset, y,
-            content_width, selected=index == frame.selected,
-            palette=palette,
-        )
-        y += row_height
+    popup_height = (
+        body_y + len(body_lines) * (line_height + 4) + 16 + count * row_height
+    )
+    popup = pygame_ui.Rect(
+        (width - popup_width) // 2,
+        (height - popup_height) // 2,
+        popup_width,
+        popup_height,
+    )
+    pygame_ui.draw_panel(
+        pygame, screen, popup, palette=pygame_ui.DEFAULT_PALETTE,
+    )
+    _draw_compact_content(
+        pygame, screen, font, frame, popup, title_lines, body_lines,
+        top, count, title_y, rule_y, body_y, row_height,
+    )
 
 
 def _draw_frame(
@@ -362,11 +396,17 @@ def _draw_frame(
         if context is not None and frame.draw_log
         else panel.y + panel.height - 20
     )
+    _draw_standard_content(
+        pygame, screen, font, frame, panel, x, content_width, content_bottom,
+    )
+    if context is not None and frame.draw_log:
+        pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
+
+
+def _standard_content_geometry(font: Any, frame: MenuFrame, content_width: int, content_bottom: int, top: int):
+    """Measure standard-menu content and return its drawing geometry."""
     measure = lambda text: pygame_ui.measure_font(font, text)
     line_height = font.get_linesize()
-    top = panel.y + 76
-    # --- measure the content block; rows use the capped window height so
-    # the layout is list-length independent ---
     body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
     body_height = len(body_lines) * (line_height + 3) + 10
     if frame.art:
@@ -375,68 +415,88 @@ def _draw_frame(
         frame.items, frame.selected, pygame_ui.MAX_VISIBLE_ROWS,
         is_selectable=lambda item: True,
     )
-    rows_height = window_count * (line_height + 14)
     description_width = content_width - 28
     description = frame.items[frame.selected].description if frame.items else ""
     description_lines = pygame_ui.wrap_text(description, description_width, measure)
     description_height = max(1, len(description_lines)) * (line_height + 2)
-    hints_height = len(frame.hints) * (line_height + 4)
-    block = (
-        body_height + rows_height + 8 + description_height + 8 + hints_height
-    )
-    # Vertical centering (decision #9): short menus sit balanced between the
-    # title rule and the footer zone; content taller than the space falls
-    # back to the top anchor exactly as before.
+    block = body_height + window_count * (line_height + 14) + 8 + description_height + 8
+    block += len(frame.hints) * (line_height + 4)
     y = top + max(0, (content_bottom - 8 - top - block) // 2)
-    # Clip content to the panel interior (mirrors the split terminals): the
-    # solver caps descriptions at MAX_DETAIL_LINES so fonts stay large, so a
-    # selected description longer than that budget must never paint over the
-    # hints or the console-log band — it clips at the panel edge instead.
-    screen.set_clip(
-        pygame.Rect(
-            panel.x + 1, panel.y + 1,
-            max(1, panel.width - 2), max(1, panel.height - 2),
+    return (
+        measure, line_height, body_lines, window_top, window_count,
+        description_width, description, description_height, y,
+    )
+
+
+def _draw_standard_body(
+    pygame: Any, screen: Any, font: Any, frame: MenuFrame, panel: pygame_ui.Rect,
+    x: int, content_width: int, content_bottom: int, geometry,
+) -> tuple[int, int]:
+    """Draw standard-menu art, body, rows, and description."""
+    measure, line_height, body_lines, window_top, window_count, description_width, description, description_height, y = geometry
+    y = _draw_art(pygame, screen, font, panel, frame, y, content_width, measure)
+    for line in body_lines:
+        pygame_ui.draw_text(pygame, screen, font, line, x, y, color=pygame_ui.DEFAULT_PALETTE.description)
+        y += line_height + 3
+    y += 10
+    for index in range(window_top, window_top + window_count):
+        item = frame.items[index]
+        row_height = line_height + 14
+        if y + row_height > content_bottom:
+            break
+        pygame_ui.draw_menu_row(
+            pygame, screen, font, item.label, x, y, content_width,
+            selected=index == frame.selected, palette=pygame_ui.DEFAULT_PALETTE,
         )
+        y += row_height
+    y += 8
+    if frame.items and y < content_bottom:
+        pygame_ui.draw_wrapped_text(
+            pygame, screen, font, description, x + 28, y, description_width,
+            color=pygame_ui.DEFAULT_PALETTE.description, line_gap=2,
+        )
+    return y + description_height + 8, line_height
+
+
+def _draw_standard_hints(
+    pygame: Any, screen: Any, font: Any, frame: MenuFrame, x: int,
+    content_width: int, content_bottom: int, measure: Any, y: int, line_height: int,
+) -> None:
+    """Draw standard-menu hints below the content block."""
+    palette = pygame_ui.DEFAULT_PALETTE
+    for hint in frame.hints:
+        if y + line_height > content_bottom:
+            break
+        pygame_ui.draw_text(
+            pygame, screen, font, pygame_ui.fit_text(hint, content_width, measure),
+            x, y, color=palette.instruction,
+        )
+        y += line_height + 4
+
+
+def _draw_standard_content(
+    pygame: Any, screen: Any, font: Any, frame: MenuFrame, panel: pygame_ui.Rect,
+    x: int, content_width: int, content_bottom: int,
+) -> None:
+    """Measure and paint standard-menu content inside the panel."""
+    geometry = _standard_content_geometry(
+        font, frame, content_width, content_bottom, panel.y + 76,
+    )
+    measure = geometry[0]
+    screen.set_clip(
+        pygame.Rect(panel.x + 1, panel.y + 1, max(1, panel.width - 2), max(1, panel.height - 2))
     )
     try:
-        y = _draw_art(
-            pygame, screen, font, panel, frame, y, content_width, measure,
+        y, line_height = _draw_standard_body(
+            pygame, screen, font, frame, panel, x, content_width,
+            content_bottom, geometry,
         )
-        for line in body_lines:
-            pygame_ui.draw_text(pygame, screen, font, line, x, y, color=palette.description)
-            y += line_height + 3
-        y += 10
-        for index in range(window_top, window_top + window_count):
-            item = frame.items[index]
-            row_height = line_height + 14
-            if y + row_height > content_bottom:
-                break
-            pygame_ui.draw_menu_row(
-                pygame, screen, font, item.label, x, y, content_width,
-                selected=index == frame.selected, palette=palette,
-            )
-            y += row_height
-        y += 8
-        if frame.items and y < content_bottom:
-            pygame_ui.draw_wrapped_text(
-                pygame, screen, font, description,
-                x + 28, y, description_width,
-                color=palette.description, line_gap=2,
-            )
-        y += description_height
-        y += 8
-        for hint in frame.hints:
-            if y + line_height > content_bottom:
-                break
-            pygame_ui.draw_text(
-                pygame, screen, font, pygame_ui.fit_text(hint, content_width, measure),
-                x, y, color=palette.instruction,
-            )
-            y += line_height + 4
+        _draw_standard_hints(
+            pygame, screen, font, frame, x, content_width, content_bottom,
+            measure, y, line_height,
+        )
     finally:
         screen.set_clip(None)
-    if context is not None and frame.draw_log:
-        pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
 
 
 def _draw_shared_frame(
@@ -470,14 +530,33 @@ def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str
     return "IGNORE", selected
 
 
+def _run_worker_loop(pygame: Any, screen: Any, font: Any, frames: tuple[MenuFrame, ...]) -> int:
+    """Render worker frames until a terminal menu outcome arrives."""
+    selected = _initial_selected(frames)
+    count = len(frames[0].items)
+    clock = pygame.time.Clock()
+    while True:
+        frame = frames[selected % len(frames)]
+        screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+        _draw_frame(pygame, screen, font, frame)
+        pygame.display.flip()
+        for event in pygame.event.get():
+            outcome, selected = _handle_key(pygame, event, selected, count)
+            if outcome == "IGNORE":
+                continue
+            action = frame.items[selected].action if outcome == "SELECT" and frame.items else ""
+            print(json.dumps({"outcome": outcome, "action": action, "selected": selected}))
+            return 0
+        clock.tick(60)
+
+
 def _run_worker(payload: dict[str, Any]) -> int:
     """Own one selectable Pygame window and print its terminal result."""
     try:
         import pygame
     except ModuleNotFoundError:
         return 2
-    raw_frames = payload.get("frames", [])
-    frames = tuple(_frame_from_payload(raw) for raw in raw_frames)
+    frames = tuple(_frame_from_payload(raw) for raw in payload.get("frames", []))
     if not frames:
         return 2
     pygame.init()
@@ -487,35 +566,36 @@ def _run_worker(payload: dict[str, Any]) -> int:
         font = _fit_shared_font(pygame, frames, width, height)
         screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption(str(payload.get("caption", "spacehack")))
-        selected = _initial_selected(frames)
-        count = len(frames[0].items)
-        clock = pygame.time.Clock()
-        while True:
-            frame = frames[selected % len(frames)]
-            screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-            _draw_frame(pygame, screen, font, frame)
-            pygame.display.flip()
-            for event in pygame.event.get():
-                outcome, selected = _handle_key(
-                    pygame, event, selected, count,
-                )
-                if outcome == "IGNORE":
-                    continue
-                action = (
-                    frame.items[selected].action
-                    if outcome == "SELECT" and frame.items
-                    else ""
-                )
-                print(json.dumps({
-                    "outcome": outcome,
-                    "action": action,
-                    "selected": selected,
-                }))
-                return 0
-            clock.tick(60)
+        return _run_worker_loop(pygame, screen, font, frames)
     finally:
         pygame.display.quit()
         pygame.quit()
+
+
+def _run_shared_loop(
+    pygame: Any,
+    engine: Any,
+    screen: Any,
+    font: Any,
+    frames: tuple[MenuFrame, ...],
+    context: PygameContext,
+) -> tuple[str, str, int]:
+    """Render shared menu frames until a terminal outcome arrives."""
+    selected = _initial_selected(frames)
+    count = len(frames[0].items)
+    while True:
+        frame = frames[selected % len(frames)]
+        if not frame.compact:
+            screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+        _draw_shared_frame(pygame, screen, font, frame, context)
+        engine.present()
+        outcome, selected = _handle_key(
+            pygame, pygame.event.wait(), selected, count,
+        )
+        if outcome == "IGNORE":
+            continue
+        action = frame.items[selected].action if outcome == "SELECT" and frame.items else ""
+        return outcome, action, selected
 
 
 def run_shared(
@@ -524,44 +604,20 @@ def run_shared(
     *,
     caption: str = "spacehack",
 ) -> tuple[str, str, int]:
-    """Run a menu inside the already-open shared Pygame window.
-
-    ``context`` is the :class:`pygame_runtime.PygameContext` owned by the
-    main game runtime. This path deliberately reuses its logical surface and
-    event pump instead of starting an additional window.
-    """
+    """Run a menu inside the already-open shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
     if engine is None or engine.logical_surface is None:
         raise PygameMenuUnavailable("Shared Pygame runtime is not open")
-    pygame = engine.pygame
-    screen = engine.logical_surface
     frames = tuple(frames)
     if not frames:
         raise PygameMenuUnavailable("Shared Pygame menu has no frames")
-    width, height = screen.get_size()
+    pygame = engine.pygame
+    width, height = engine.logical_surface.get_size()
     font = _fit_shared_font(pygame, frames, width, height)
-    selected = _initial_selected(frames)
-    count = len(frames[0].items)
-    while True:
-        frame = frames[selected % len(frames)]
-        # Compact choices are true overlays: the caller's current screen
-        # remains underneath while the small popup is drawn on top. Full
-        # menus still clear the shared surface as before.
-        if not frame.compact:
-            screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_shared_frame(pygame, screen, font, frame, context)
-        engine.present()
-        event = pygame.event.wait()
-        outcome, selected = _handle_key(pygame, event, selected, count)
-        if outcome == "IGNORE":
-            continue
-        action = (
-            frame.items[selected].action
-            if outcome == "SELECT" and frame.items
-            else ""
-        )
-        return outcome, action, selected
+    return _run_shared_loop(
+        pygame, engine, engine.logical_surface, font, frames, context,
+    )
 
 
 def run_for_context(
