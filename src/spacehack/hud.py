@@ -151,7 +151,11 @@ def _render_skill_line(
     """
     console.print(
         x=hud_x, y=y,
-        string=f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"[:HUD_TEXT_MAX],
+        string=(
+            f"GUNNERY {stats.gunnery} "
+            f"PILOTING {stats.piloting} "
+            f"ENGINEERING {stats.engineering}"
+        )[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_LABEL,
     )
 
@@ -185,9 +189,9 @@ def _render_ground_stat_line(
     console.print(
         x=hud_x, y=y,
         string=(
-            f"REF:{ground_stats.reflexes} "
-            f"STR:{ground_stats.strength} "
-            f"STA:{ground_stats.stamina}"
+            f"REFLEXES {ground_stats.reflexes} "
+            f"STRENGTH {ground_stats.strength} "
+            f"STAMINA {ground_stats.stamina}"
         )[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_LABEL,
     )
@@ -205,17 +209,22 @@ def _render_help_lines(
     start_y: int,
     help_lines: list[tuple[str, str]],
 ) -> int:
-    """Render a list of ``(key_label, description)`` pairs into
-    ``console`` starting at column ``hud_x``, row ``start_y``.
+    """Render ``(key_label, description)`` pairs, two per row.
 
-    Each line is formatted as ``{key:<9} {desc}`` with the whole
-    line in ``COLOR_HELP_DESC``. Returns the next available ``y``
-    row so the caller can continue painting below the block.
+    Each row holds two hints (``[Q] Quest Log  [I] Cargo``) so the
+    block uses the panel's full width and roughly half its height.
+    Returns the next available ``y`` row.
     """
     y = start_y
-    for key, desc in help_lines:
-        line = f"{key:<9} {desc}"
-        console.print(x=hud_x, y=y, string=line, fg=COLOR_HELP_DESC)
+    for i in range(0, len(help_lines), 2):
+        _key, _desc = help_lines[i]
+        left = f"[{_key:<5}] {_desc:<12}"
+        if i + 1 < len(help_lines):
+            _key2, _desc2 = help_lines[i + 1]
+            line = f"{left}[{_key2}] {_desc2}"
+        else:
+            line = left
+        console.print(x=hud_x, y=y, string=line[:HUD_TEXT_MAX], fg=COLOR_HELP_DESC)
         y += 1
     return y
 
@@ -264,11 +273,19 @@ def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -
 
 def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo_used, max_cargo, weapons_n, weapon_slots, modules_n, module_slots, eff_spd, stats, ground_stats) -> int:
     """Paint the space-mode stat rows (fuel…speed + skills); return next row."""
-    console.print(x=hud_x, y=y, string="Fuel", fg=COLOR_SHIP_LABEL)
-    console.print(x=hud_x + 5, y=y, string=f"{fuel}/{max_fuel}", fg=COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW)
+    _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
+    console.print(
+        x=hud_x, y=y,
+        string=f"Fuel  {_bar_str(fuel, max_fuel)} {fuel}/{max_fuel}"[:HUD_TEXT_MAX],
+        fg=_fuel_fg,
+    )
     y += 1
-    console.print(x=hud_x, y=y, string="Hull", fg=COLOR_SHIP_LABEL)
-    console.print(x=hud_x + 5, y=y, string=f"{hull_pct}%", fg=COLOR_HP_GOOD if hull_pct >= 50 else COLOR_HP_LOW)
+    _hull_fg = COLOR_HP_GOOD if hull_pct >= 50 else COLOR_HP_LOW
+    console.print(
+        x=hud_x, y=y,
+        string=f"Hull  {_bar_str(hull_pct, 100)} {hull_pct}%"[:HUD_TEXT_MAX],
+        fg=_hull_fg,
+    )
     y += 1
     console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_SHIP_LABEL)
     console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_SHIP_VALUE)
@@ -342,10 +359,10 @@ def _render_city_identity(console, hud_x, y, *, species_name, class_name, locati
 
 def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_catalog, ground_stats) -> int:
     """Paint HP / cargo / credits / skill rows; return the next row."""
-    console.print(x=hud_x, y=y, string="HP", fg=COLOR_LABEL)
     hp = max(0, ctx.ground_hp)
     max_hp = max(1, ctx.ground_max_hp)
-    console.print(x=hud_x + 3, y=y, string=f"{hp}/{max_hp}", fg=COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW)
+    _hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
+    console.print(x=hud_x, y=y, string=f"HP  {_bar_str(hp, max_hp)} {hp}/{max_hp}"[:HUD_TEXT_MAX], fg=_hp_fg)
     y += 1
     console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_LABEL)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
@@ -685,10 +702,12 @@ def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_c
     console.print(x=hud_x, y=y, string=name_str[:HUD_TEXT_MAX], fg=fg_wpn)
     y += 1
     _w_hc = hit_chances.get(wid) if hit_chances else None
+    _max_range = getattr(ws, "max_range", 0)
+    _rng = f" RNG {getattr(ws, 'min_range', 1)}-{_max_range}" if _max_range > 0 else ""
     if _w_hc is not None:
-        stats_line = f"     DMG {ws.damage} HIT {_w_hc}%"
+        stats_line = f"     DMG {ws.damage} HIT {_w_hc}%{_rng}"
     else:
-        stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%"
+        stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%{_rng}"
     console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     if ws.slot_type in ("energy", "plasma"):
@@ -749,8 +768,26 @@ def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player
     return y + 1
 
 
+def _render_action_pairs(console, hud_x, y, actions, fg) -> int:
+    """Paint combat key-hint pairs, two per row; return the next row.
+
+    Shared by space and ground combat so the ACTIONS block layout stays
+    consistent and uses the panel's full width.
+    """
+    for i in range(0, len(actions), 2):
+        _k1, _d1 = actions[i]
+        left = f"{_k1:<6} {_d1:<12}"
+        if i + 1 < len(actions):
+            _k2, _d2 = actions[i + 1]
+            console.print(x=hud_x, y=y, string=f"{left}{_k2} {_d2}"[:HUD_TEXT_MAX], fg=fg)
+        else:
+            console.print(x=hud_x, y=y, string=left[:HUD_TEXT_MAX], fg=fg)
+        y += 1
+    return y
+
+
 def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
-    """Paint the ACTIONS key list; return the next row."""
+    """Paint the ACTIONS key hints; return the next row."""
     console.print(x=hud_x, y=y, string="ACTIONS", fg=COLOR_DIVIDER)
     y += 1
     actions = [
@@ -765,10 +802,7 @@ def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
     # player doesn't expect digit 4..9 to work with 3 weapons mounted.
     if len(weapon_list) > 1:
         actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
-    for key, desc in actions:
-        console.print(x=hud_x, y=y, string=f"{key} {desc}"[:HUD_TEXT_MAX], fg=COLOR_COMBAT_ACTION)
-        y += 1
-    return y
+    return _render_action_pairs(console, hud_x, y, actions, COLOR_COMBAT_ACTION)
 
 
 def render_combat_hud(

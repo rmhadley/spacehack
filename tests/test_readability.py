@@ -264,7 +264,9 @@ def test_exploration_hud_advertises_console_log_in_space_and_ground_modes():
     })()
 
     for mode in ("space", "dungeon"):
-        console = FrameBuffer(100, 54)
+        # Match the live console width (one HUD-width extra) so full-width
+        # HUD rows are not clipped mid-cell like a legacy 100-wide frame.
+        console = FrameBuffer(100 + 20, 54)
         hud.render_hud(
             console,
             ctx,

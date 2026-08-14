@@ -26,7 +26,7 @@ from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     tier_filtered_equipment as _tier_loot,
 )
-from ..hud import _bar_str, COLOR_HP_GOOD, COLOR_HP_LOW, HUD_TEXT_MAX, volley_costs
+from ..hud import _bar_str, _render_action_pairs, COLOR_HP_GOOD, COLOR_HP_LOW, HUD_TEXT_MAX, volley_costs
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -748,8 +748,7 @@ def _render_actions_panel(console, weapons: list[str], y: int) -> None:
     ]
     if len(weapons) > 1:
         actions.insert(3, (f"[1-{len(weapons)}]", "Toggle Wpn"))
-    for key, desc in actions:
-        console.print(x=hud_x, y=y, string=f"{key} {desc}", fg=_COLOR_GROUND_ACTION)
+    _render_action_pairs(console, hud_x, y, actions, _COLOR_GROUND_ACTION)
 
 
 # ---------------------------------------------------------------------------
