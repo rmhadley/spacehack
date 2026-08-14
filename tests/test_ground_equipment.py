@@ -713,6 +713,16 @@ def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
     )
 
 
+def test_scout_derelict_pirates_have_consumable_loot_pools():
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    _raider = find_npc_char("pirate_raider")
+    _rifleman = find_npc_char("pirate_rifleman")
+
+    assert ("consumable", "med_pack") in _raider.field_item_loot_pool
+    assert ("consumable", "stim") in _rifleman.field_item_loot_pool
+
+
 def test_ground_enemy_field_item_loot_is_authored_and_typed():
     from src.spacehack.combat._actions import _spawn_field_item_loot_at_position
     from src.spacehack import world

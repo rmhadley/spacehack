@@ -31,7 +31,10 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("weapon", "kinetic_pistol"),
             ("armor", "light_helmet"),
         ),
-        field_item_loot_pool=(("ammo", "pistol_rounds"),),
+        field_item_loot_pool=(
+            ("ammo", "pistol_rounds"),
+            ("consumable", "med_pack"),
+        ),
         loot_count=(1, 2),
         xp_reward=20,
     ),
@@ -54,7 +57,10 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("weapon", "stun_baton"),
             ("armor", "reinforced_gauntlets"),
         ),
-        field_item_loot_pool=(("ammo", "rifle_rounds"),),
+        field_item_loot_pool=(
+            ("ammo", "rifle_rounds"),
+            ("consumable", "stim"),
+        ),
         loot_count=(1, 2),
         xp_reward=35,
     ),
