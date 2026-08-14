@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from .data.ground_armor import find_ground_armor
+from .data.ground_items import find_ground_ammo, find_ground_consumable
 from .data.ground_weapons import find_ground_weapon
 
 
@@ -21,6 +22,7 @@ EXPEDITION_INVENTORY = "expedition"
 BASE_EXPEDITION_SLOTS = 4
 WEAPON_SLOT_COUNT = 2
 _ARMOR_BONUS_FIELDS: tuple[str, ...] = ("ap_bonus", "hit_bonus", "melee_bonus", "hp_bonus")
+ITEM_STACK_TYPES: tuple[str, ...] = ("ammo", "consumable")
 
 
 def sum_armor_bonus(armor_ids: Iterable[str], attr: str) -> int:
@@ -72,6 +74,20 @@ class StoredGroundEquipment:
 
     item_type: str
     item_id: str
+
+
+@dataclass(frozen=True)
+class GroundItemStack:
+    """One stack of reserve field ammo or consumables.
+
+    ``item_type`` is ``"ammo"`` or ``"consumable"``; ``item_id`` resolves
+    through the ground-items catalog. Kept separate from
+    :class:`StoredGroundEquipment` so equipment validation stays strict.
+    """
+
+    item_type: str
+    item_id: str
+    quantity: int
 
 
 def expedition_capacity(strength: int) -> int:
@@ -538,3 +554,104 @@ def sell_stored(
     entry = storage[index]
     _validate_entry(entry)
     return storage.pop(index)
+
+
+# ---------------------------------------------------------------------------
+# Field items (ammo + consumables) — design doc 19, Phase 1
+# ---------------------------------------------------------------------------
+
+
+def item_stack_capacity(item_type: str, item_id: str) -> int:
+    """Return the max quantity for one stack of a field item."""
+    if item_type == "ammo":
+        return find_ground_ammo(item_id).rounds_per_stack
+    if item_type == "consumable":
+        return find_ground_consumable(item_id).quantity_per_stack
+    raise ValueError(f"Unknown field item type: {item_type!r}")
+
+
+def validate_item_stack(stack: GroundItemStack) -> None:
+    """Raise :class:`ValueError` for an invalid item stack."""
+    capacity = item_stack_capacity(stack.item_type, stack.item_id)
+    if not 0 < stack.quantity <= capacity:
+        raise ValueError(
+            f"Invalid stack quantity {stack.quantity} for {stack.item_id!r}"
+            f" (max {capacity})",
+        )
+
+
+def parse_item_stack(raw) -> GroundItemStack | None:
+    """Parse one serialized field-item stack, ignoring or clamping bad values.
+
+    Shared parser policy (save/load and future loot): malformed records
+    and unknown catalog ids return ``None``; a non-positive quantity is
+    dropped; an over-capacity quantity is clamped to the stack maximum.
+    """
+    if not isinstance(raw, dict):
+        return None
+    item_type = raw.get("item_type")
+    item_id = raw.get("item_id")
+    if item_type not in ITEM_STACK_TYPES or not isinstance(item_id, str) or not item_id:
+        return None
+    try:
+        quantity = int(raw.get("quantity"))
+    except (TypeError, ValueError):
+        return None
+    try:
+        capacity = item_stack_capacity(item_type, item_id)
+    except KeyError:
+        return None
+    if quantity <= 0:
+        return None
+    return GroundItemStack(item_type, item_id, min(quantity, capacity))
+
+
+def expedition_slot_count(equipment, items) -> int:
+    """Return Expedition Pack slot usage across equipment and item stacks."""
+    return len(tuple(equipment)) + len(tuple(items))
+
+
+def item_stack_merge_index(items, stack: GroundItemStack) -> int | None:
+    """Return the index of a matching stack with room, else ``None``."""
+    capacity = item_stack_capacity(stack.item_type, stack.item_id)
+    for index, existing in enumerate(items):
+        if existing.item_type != stack.item_type or existing.item_id != stack.item_id:
+            continue
+        if existing.quantity < capacity:
+            return index
+    return None
+
+
+def _merge_item_stack(items, index: int, stack: GroundItemStack) -> GroundItemStack:
+    """Merge ``stack`` into the existing stack at ``index`` in place."""
+    existing = items[index]
+    capacity = item_stack_capacity(stack.item_type, stack.item_id)
+    merged = GroundItemStack(
+        stack.item_type, stack.item_id,
+        min(existing.quantity + stack.quantity, capacity),
+    )
+    items[index] = merged
+    return merged
+
+
+def add_item_stack(
+    equipment,
+    items,
+    stack: GroundItemStack,
+    *,
+    strength: int,
+) -> GroundItemStack:
+    """Add or merge one field-item stack into the Expedition Pack.
+
+    Transactional: validation and capacity checks happen before any
+    mutation. Merging into an existing partial stack consumes no slot;
+    a new stack consumes one.
+    """
+    validate_item_stack(stack)
+    merge_index = item_stack_merge_index(items, stack)
+    if merge_index is not None:
+        return _merge_item_stack(items, merge_index, stack)
+    if expedition_slot_count(equipment, items) + 1 > expedition_capacity(strength):
+        raise ValueError("Expedition inventory is full")
+    items.append(stack)
+    return stack

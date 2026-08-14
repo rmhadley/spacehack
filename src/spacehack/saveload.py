@@ -179,6 +179,8 @@ def _ground_fields(ctx: GameContext) -> dict:
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
         "ground_armory_storage": _d(ctx.ground_armory_storage),
         "ground_expedition_inventory": _d(ctx.ground_expedition_inventory),
+        "ground_armory_items": _d(ctx.ground_armory_items),
+        "ground_expedition_items": _d(ctx.ground_expedition_items),
         "ground_hp": ctx.ground_hp,
         "ground_max_hp": ctx.ground_max_hp,
     }
@@ -710,8 +712,25 @@ def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
         for entry in (data.get("ground_expedition_inventory", []) or [])
         if (stored := _ground_equipment_from_dict(entry)) is not None
     ]
+    ctx.ground_armory_items = _parse_ground_item_stacks(
+        data.get("ground_armory_items"),
+    )
+    ctx.ground_expedition_items = _parse_ground_item_stacks(
+        data.get("ground_expedition_items"),
+    )
     ctx.ground_hp = data.get("ground_hp", 23)
     ctx.ground_max_hp = data.get("ground_max_hp", 23)
+
+
+def _parse_ground_item_stacks(raw) -> list:
+    """Rebuild field-item stacks, ignoring malformed records."""
+    from .ground_equipment import parse_item_stack
+
+    return [
+        stack
+        for entry in (raw or [])
+        if (stack := parse_item_stack(entry)) is not None
+    ]
 
 
 def _restore_progression_fields(ctx: GameContext, data: dict) -> None:

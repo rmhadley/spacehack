@@ -100,7 +100,7 @@ current ground weapons retain their existing no-persistent-ammo behavior.
 | Magazine size | Use the weapon catalog's `ammo_capacity` as the loaded-magazine maximum. `ammo_capacity == -1` means no reloadable ammo (melee/infinite weapons). |
 | Ammo identity | Give every reloadable weapon an `ammo_type` catalog field, such as `kinetic_pistol`, `rifle_round`, or `shotgun_shell`. Ammo items reference that type, not a weapon ID. |
 | Ammo stacks | Reserve ammo should be stackable by `ammo_type`, with a quantity. A stack is one backpack row, not one slot per round. |
-| Pack capacity | Keep the existing reserve-slot model initially: equipment and each ammo stack consume one slot. Add stack quantity limits separately so a single stack cannot become infinite. Revisit weighted capacity only after playtesting. |
+| Pack capacity | Keep the existing reserve-slot model: equipment and each ammo/consumable stack consume one slot. Add stack quantity limits separately so a single stack cannot become infinite. Revisit weighted capacity only after playtesting. **(locked — stack = 1 slot)** |
 | Reload action | Reload is explicit, costs AP, and ends/continues the turn according to normal AP rules. It must never happen automatically on fire. |
 | Partial reload | Support partial reloads when a magazine is not empty, but make the first implementation deterministic: reload up to capacity or available reserve, whichever is smaller. |
 | Tactical reload | Retain rounds already loaded. There is no detachable-magazine loss in the first pass. A later design can model magazines as items if that depth proves valuable. |
@@ -344,16 +344,16 @@ Migration rules:
 - [x] Make Expedition Pack rows selectable.
 - [x] Add compact `Equip` / `Discard` backpack actions for equipment rows.
 - [x] Preserve existing two-handed and armor-slot validation.
-- [ ] Review and approve the ammo/field-item architecture in this document.
+- [x] Review and approve the ammo/field-item architecture in this document.
 
 ### Phase 1 - General field-item container
 
-- [ ] Add explicit `GroundItemStack` / field-inventory data model without
+- [x] Add explicit `GroundItemStack` / field-inventory data model without
   weakening `StoredGroundEquipment` validation.
-- [ ] Add ammo and consumable catalogs with stable IDs and frozen specs.
-- [ ] Add pack capacity/stack helpers and malformed-entry filtering.
-- [ ] Render generalized rows in the Character Equipment tab.
-- [ ] Add save/load migration tests while ammo remains inactive.
+- [x] Add ammo and consumable catalogs with stable IDs and frozen specs.
+- [x] Add pack capacity/stack helpers and malformed-entry filtering.
+- [x] Render generalized rows in the Character Equipment tab.
+- [x] Add save/load migration tests while ammo remains inactive.
 
 ### Phase 2 - Ground weapon instances and magazine state
 
@@ -454,7 +454,9 @@ Migration rules:
 ## Open questions
 
 1. Is one pack slot per ammo stack the right first capacity rule, or should
-   ammo consume weighted capacity from the beginning?
+   ammo consume weighted capacity from the beginning? **(Resolved: one stack =
+   one slot, matching equipment; `rounds_per_stack` is the efficiency knob.
+   Weighted capacity deferred until the Phase 4 playtest.)**
 2. Should reload be `R` for the selected weapon, or should a chooser be
    required when multiple weapons can reload?
 3. Should a tactical reload ever waste loaded rounds, or should the first pass

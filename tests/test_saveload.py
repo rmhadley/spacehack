@@ -23,7 +23,7 @@ from src.spacehack import world
 from src.spacehack.saveload import save_game, load_game, delete_save
 from src.spacehack import dungeon_extensions
 from src.spacehack.ship import OwnedShip, StoredEquipment
-from src.spacehack.ground_equipment import StoredGroundEquipment
+from src.spacehack.ground_equipment import StoredGroundEquipment, GroundItemStack
 
 
 def _build_test_ctx() -> GameContext:
@@ -837,6 +837,69 @@ class TestSaveLoadRoundTrip:
         assert loaded.equipped_ground_armor == ctx.equipped_ground_armor
         assert loaded.ground_armory_storage == ctx.ground_armory_storage
         assert loaded.ground_expedition_inventory == ctx.ground_expedition_inventory
+        delete_save()
+
+    def test_round_trip_ground_item_stacks(self, monkeypatch, tmp_path):
+        """Field-item ammo and consumable stacks survive Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(58)
+        ctx = _build_test_ctx()
+        ctx.ground_armory_items = [
+            GroundItemStack("ammo", "rifle_rounds", 12),
+            GroundItemStack("consumable", "med_pack", 3),
+        ]
+        ctx.ground_expedition_items = [
+            GroundItemStack("ammo", "shotgun_shells", 7),
+        ]
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_armory_items == ctx.ground_armory_items
+        assert loaded.ground_expedition_items == ctx.ground_expedition_items
+        delete_save()
+
+    def test_malformed_ground_item_stacks_are_ignored(self, monkeypatch, tmp_path):
+        """Malformed field-item records do not prevent Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(59)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload["ground_armory_items"] = [
+            {"item_type": "ammo", "item_id": "rifle_rounds", "quantity": 12},
+            {"item_type": "ammo", "item_id": "missing_ammo", "quantity": 5},
+            {"item_type": "weapon", "item_id": "laser_pistol", "quantity": 1},
+            {"item_type": "ammo", "item_id": "rifle_rounds", "quantity": 999},
+            "not a record",
+        ]
+        payload["ground_expedition_items"] = [
+            {"item_type": "consumable", "item_id": "med_pack", "quantity": 0},
+            {"item_type": "consumable", "item_id": "med_pack", "quantity": 2},
+        ]
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_armory_items == [
+            GroundItemStack("ammo", "rifle_rounds", 12),
+            GroundItemStack("ammo", "rifle_rounds", 40),
+        ]
+        assert loaded.ground_expedition_items == [
+            GroundItemStack("consumable", "med_pack", 2),
+        ]
         delete_save()
 
     def test_malformed_ground_equipment_entries_are_ignored(self, monkeypatch, tmp_path):

@@ -310,6 +310,16 @@ class GameContext:
     ground_expedition_inventory: list[ground_equipment_module.StoredGroundEquipment] = dataclasses.field(
         default_factory=list,
     )
+    # Field-item stacks (ammo + consumables) owned in the unlimited
+    # terminal warehouse and the limited Expedition Pack. Kept separate
+    # from StoredGroundEquipment so equipment validation stays strict;
+    # each stack consumes one pack slot (design doc 19, Q1).
+    ground_armory_items: list[ground_equipment_module.GroundItemStack] = dataclasses.field(
+        default_factory=list,
+    )
+    ground_expedition_items: list[ground_equipment_module.GroundItemStack] = dataclasses.field(
+        default_factory=list,
+    )
     # Ground combat HP — set on dungeon entry, persisted across
     # combat encounters in the same dungeon visit. Default matches
     # the new-game formula 20 + stamina//3 at the base-10 start.

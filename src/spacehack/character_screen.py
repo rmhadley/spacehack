@@ -101,7 +101,7 @@ def _equipment_frame(
     capacity = _expedition_capacity(ctx)
     body = (
         f"Equipped ground gear    Expedition Pack: "
-        f"{len(ctx.ground_expedition_inventory)}/{capacity}",
+        f"{_expedition_used_slots(ctx)}/{capacity}",
         "Select a slot and press ENTER to swap from your backpack."
         if equipment_management
         else "Equipment is read-only outside management mode.",
@@ -122,6 +122,13 @@ def _expedition_capacity(ctx: GameContext) -> int:
 
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
     return ground_equipment.expedition_capacity(strength)
+
+
+def _expedition_used_slots(ctx: GameContext) -> int:
+    """Return Expedition Pack slot usage (equipment + item stacks)."""
+    return len(ctx.ground_expedition_inventory) + len(
+        getattr(ctx, "ground_expedition_items", []),
+    )
 
 
 def _armor_effects(spec) -> str:
@@ -411,14 +418,21 @@ def _armor_managed(
 
 
 def _backpack_rows(ctx: GameContext) -> list:
-    """Build the backpack header and item rows for the management view."""
+    """Build the backpack header plus equipment and field-item rows."""
     capacity = _expedition_capacity(ctx)
-    rows = [_equipment_row(
-        f"--- BACKPACK ITEMS ({len(ctx.ground_expedition_inventory)}/{capacity}) ---",
-    )]
-    if not ctx.ground_expedition_inventory:
+    used = _expedition_used_slots(ctx)
+    rows = [_equipment_row(f"--- BACKPACK ITEMS ({used}/{capacity}) ---")]
+    if not used:
         rows.append(_equipment_row("[empty]"))
         return rows
+    rows += _backpack_equipment_rows(ctx)
+    rows += _backpack_item_rows(ctx)
+    return rows
+
+
+def _backpack_equipment_rows(ctx: GameContext) -> list:
+    """Build the selectable equipment rows for the backpack view."""
+    rows: list = []
     for index, entry in enumerate(ctx.ground_expedition_inventory):
         try:
             rows.append(_equipment_row(
@@ -428,6 +442,36 @@ def _backpack_rows(ctx: GameContext) -> list:
         except (KeyError, TypeError, ValueError):
             continue
     return rows
+
+
+def _backpack_item_rows(ctx: GameContext) -> list:
+    """Build the field-item (ammo/consumable) stack rows for the backpack."""
+    rows: list = []
+    for stack in getattr(ctx, "ground_expedition_items", []):
+        try:
+            rows.append(_equipment_row(
+                _item_stack_name(stack), _item_stack_detail(stack),
+            ))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return rows
+
+
+def _item_stack_name(stack) -> str:
+    """Return the display name for one field-item stack."""
+    from .data.ground_items import find_ground_item
+
+    return find_ground_item(stack.item_type, stack.item_id).name
+
+
+def _item_stack_detail(stack) -> str:
+    """Return the useful detail text for one field-item stack."""
+    from .data.ground_items import find_ground_item
+
+    spec = find_ground_item(stack.item_type, stack.item_id)
+    if stack.item_type == "ammo":
+        return f"Ammo  {stack.quantity}/{spec.rounds_per_stack}  feeds {spec.ammo_type}"
+    return f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  effect {spec.effect_id}"
 
 
 def _swap_pack_entry(
