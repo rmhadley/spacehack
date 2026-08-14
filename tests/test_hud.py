@@ -135,14 +135,31 @@ def test_space_fuel_hull_rows_use_bars():
     assert row1.startswith("Hull  #####") and row1.endswith("67%")
 
 
-def test_skill_lines_span_the_panel():
-    """Skill rows use full labels to spread across the panel."""
-    console = FrameBuffer(40, 1)
-    hud._render_skill_line(
+def test_skill_lines_pair_two_per_row():
+    """Skills render two per row, values right-aligned in fixed slots."""
+    console = FrameBuffer(40, 3)
+    next_y = hud._render_skill_line(
         console, 0, 0, SimpleNamespace(gunnery=4, piloting=3, engineering=2),
     )
-    row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
-    assert row == "GUNNERY 4 PILOTING 3 ENGINEERING 2"
+    row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
+    assert "GUNNERY" in row0 and "PILOTING" in row0
+    assert "ENGINEERING" in row1 and "PILOTING" not in row1
+    # Values right-align to the same columns across both rows.
+    assert row0[13] == "4" and row0[29] == "3"
+    assert row1[13] == "2"
+    assert next_y == 2
+
+
+def test_skill_values_right_align_with_three_digit_room():
+    """3-digit values fill the value column without shifting the layout."""
+    console = FrameBuffer(40, 1)
+    hud._render_skill_line(
+        console, 0, 0, SimpleNamespace(gunnery=134, piloting=3, engineering=2),
+    )
+    row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    assert row0[11:14] == "134"   # 3-digit value fills the value column
+    assert row0[29] == "3"        # 1-digit value still lands at column 29
 
 
 def test_help_lines_pair_two_per_row():

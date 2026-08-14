@@ -142,21 +142,42 @@ def _render_mission_line(
     console.print(x=hud_x, y=y, string=f"M: {title[:room]}", fg=COLOR_HUD_TITLE)
 
 
+def _skill_slot(label: str, value: int) -> str:
+    """One aligned stat slot: 11-wide label + 3-digit right-aligned value.
+
+    ``ENGINEERING`` (the longest label) defines the 11-char field, so
+    every value lands in the same right-aligned column across rows.
+    """
+    return f"{label:<11}{value:>3}"
+
+
+def _render_stat_pairs(console: FrameBuffer, hud_x: int, y: int, pairs, fg) -> int:
+    """Render ``(label, value)`` pairs two per row in aligned slots.
+
+    Returns the next ``y`` row. Pure print — caller owns y advancement
+    via the returned value.
+    """
+    for i in range(0, len(pairs), 2):
+        _row = _skill_slot(*pairs[i])
+        if i + 1 < len(pairs):
+            _row += "  " + _skill_slot(*pairs[i + 1])
+        console.print(x=hud_x, y=y, string=_row[:HUD_TEXT_MAX], fg=fg)
+        y += 1
+    return y
+
+
 def _render_skill_line(
     console: FrameBuffer, hud_x: int, y: int, stats: HudStats,
-) -> None:
-    """Print the GUN/PIL/ENG skill line at ``(hud_x, y)``.
-
-    Pure print — caller owns y advancement.
-    """
-    console.print(
-        x=hud_x, y=y,
-        string=(
-            f"GUNNERY {stats.gunnery} "
-            f"PILOTING {stats.piloting} "
-            f"ENGINEERING {stats.engineering}"
-        )[:HUD_TEXT_MAX],
-        fg=COLOR_SHIP_LABEL,
+) -> int:
+    """Print the GUN/PIL/ENG skill rows (two per line); return next row."""
+    return _render_stat_pairs(
+        console, hud_x, y,
+        (
+            ("GUNNERY", stats.gunnery),
+            ("PILOTING", stats.piloting),
+            ("ENGINEERING", stats.engineering),
+        ),
+        COLOR_SHIP_LABEL,
     )
 
 
@@ -181,19 +202,16 @@ def _cargo_used_max(owned_ship, ship_catalog) -> tuple[int, int]:
 
 def _render_ground_stat_line(
     console: FrameBuffer, hud_x: int, y: int, ground_stats,
-) -> None:
-    """Print the REF/STR/STA ground stat line at ``(hud_x, y)``.
-
-    Pure print — caller owns y advancement.
-    """
-    console.print(
-        x=hud_x, y=y,
-        string=(
-            f"REFLEXES {ground_stats.reflexes} "
-            f"STRENGTH {ground_stats.strength} "
-            f"STAMINA {ground_stats.stamina}"
-        )[:HUD_TEXT_MAX],
-        fg=COLOR_SHIP_LABEL,
+) -> int:
+    """Print the REF/STR/STA ground stat rows (two per line); return next row."""
+    return _render_stat_pairs(
+        console, hud_x, y,
+        (
+            ("REFLEXES", ground_stats.reflexes),
+            ("STRENGTH", ground_stats.strength),
+            ("STAMINA", ground_stats.stamina),
+        ),
+        COLOR_SHIP_LABEL,
     )
 
 
@@ -299,11 +317,9 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo
     console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
     console.print(x=hud_x + 5, y=y, string=str(eff_spd), fg=COLOR_SHIP_VALUE)
     y += 3
-    _render_skill_line(console, hud_x, y, stats)
-    y += 1
+    y = _render_skill_line(console, hud_x, y, stats)
     if ground_stats is not None:
-        _render_ground_stat_line(console, hud_x, y, ground_stats)
-        y += 1
+        y = _render_ground_stat_line(console, hud_x, y, ground_stats)
     return y
 
 
@@ -371,11 +387,9 @@ def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_ca
     console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
     console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
     y += 3
-    _render_skill_line(console, hud_x, y, stats)
-    y += 1
+    y = _render_skill_line(console, hud_x, y, stats)
     if ground_stats is not None:
-        _render_ground_stat_line(console, hud_x, y, ground_stats)
-        y += 1
+        y = _render_ground_stat_line(console, hud_x, y, ground_stats)
     return y
 
 
