@@ -558,7 +558,8 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         _state.weapons_list[i] for i in range(len(_state.weapons_list))
         if i < len(_state.active_weapons) and _state.active_weapons[i]
     ]
-    _hit = hit_chance(_active_ids[0], _target, ctx) if _active_ids else None
+    _active_wid = _active_ids[0] if _active_ids else None
+    _hit = hit_chance(_active_wid, _target, ctx) if _active_wid else None
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))
     return _build_target_card(
@@ -568,6 +569,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         region_w=_state.view_w,
         region_h=_state.view_h,
         hit_chance=_hit,
+        hit_weapon_id=_active_wid,
         avoid_positions=_avoid,
     )
 

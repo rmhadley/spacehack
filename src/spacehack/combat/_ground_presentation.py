@@ -22,6 +22,7 @@ from ..pygame_target_card import (
     title_row,
 )
 from ._card_presentation import build_card as _build_card
+from ._card_presentation import hit_color_for_weapon
 
 # Distance-readout threat colors, mirroring the space HUD's range tints.
 COLOR_DIST_SAFE: tuple[int, int, int] = (100, 235, 115)     # out of enemy range
@@ -41,12 +42,14 @@ def enemy_weapon(enemy: Any):
 
 def _ground_card_rows(
     enemy: Any, weapon: Any, hit_chance: int | None,
+    hit_color: tuple[int, int, int] | None = None,
 ) -> tuple[tuple[tuple[str, tuple[int, int, int]], ...], ...]:
     """Format the ground card body: name, HP+hit, armor+AP, weapon."""
     hit_text = f"HIT {hit_chance}%" if hit_chance is not None else "HIT --"
+    _hit_fg = hit_color if (hit_chance is not None and hit_color is not None) else TARGET_CARD_TEXT
     hp_row = (
         (f"HP {enemy.hp}/{enemy.max_hp}", TARGET_CARD_TEXT),
-        (f"  {hit_text}", TARGET_CARD_TEXT),
+        (f"  {hit_text}", _hit_fg),
     )
     _armor = enemy.spec.armor if enemy.spec else 0
     rows = [
@@ -110,10 +113,14 @@ def build_target_card(
     region_w: int,
     region_h: int,
     hit_chance: int | None = None,
+    hit_weapon_id: str | None = None,
     avoid_positions: tuple[world.Position, ...] = (),
 ) -> TargetCard | None:
     """Build the floating info card for ``enemy``, or None when off-view."""
-    rows = _ground_card_rows(enemy, enemy_weapon(enemy), hit_chance)
+    rows = _ground_card_rows(
+        enemy, enemy_weapon(enemy), hit_chance,
+        hit_color_for_weapon(hit_weapon_id, enemy.pos, player_pos, _find_gw),
+    )
     return _build_card(
         enemy.pos,
         rows,

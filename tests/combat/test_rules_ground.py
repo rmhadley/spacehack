@@ -656,6 +656,30 @@ class TestBuildTargetCard:
             "Unarmed", "[V] hide",
         ]
 
+    def test_hit_chance_colored_by_range_band(self):
+        from src.spacehack.combat._card_presentation import COLOR_RANGE_YELLOW
+
+        enemy = _target_card_enemy()
+        _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]
+        _game_map = world.GameMap(8, 6, _tiles, [enemy.entity])
+
+        # Player (2,2) → enemy (5,3) is ~3.2u: inside frost_bolt's max
+        # range (5) but beyond its close-bonus zone (2) → yellow.
+        card = _ground_presentation.build_target_card(
+            enemy,
+            game_map=_game_map,
+            player_pos=world.Position(2, 2),
+            region_w=8,
+            region_h=6,
+            hit_chance=62,
+            hit_weapon_id="frost_bolt",
+            avoid_positions=(world.Position(2, 2), world.Position(5, 3)),
+        )
+
+        assert card is not None
+        _segs = [seg for row in card.rows for seg in row]
+        assert _segs[2] == ("  HIT 62%", COLOR_RANGE_YELLOW)
+
     def test_avoid_positions_are_culled_when_off_view(self):
         enemy = _target_card_enemy()
         _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]

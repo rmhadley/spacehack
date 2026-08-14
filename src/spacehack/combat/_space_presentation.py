@@ -20,21 +20,24 @@ from ..pygame_target_card import (
     title_row,
 )
 from ._card_presentation import build_card as _build_card
+from ._card_presentation import hit_color_for_weapon
 
 
 def _space_card_rows(
     enemy: Any, hit_chance: int | None,
+    hit_color: tuple[int, int, int] | None = None,
 ) -> tuple[tuple[tuple[str, tuple[int, int, int]], ...], ...]:
     """Format the space card body: name, hull+hit, shield, AP, weapons."""
     hit_text = f"HIT {hit_chance}%" if hit_chance is not None else "HIT --"
+    _hit_fg = hit_color if (hit_chance is not None and hit_color is not None) else TARGET_CARD_TEXT
     hull_row = (
         (f"HULL {enemy.hull}/{enemy.max_hull}", TARGET_CARD_TEXT),
-        (f"  {hit_text}", TARGET_CARD_TEXT),
+        (f"  {hit_text}", _hit_fg),
     )
     rows = [title_row(enemy.name), hull_row]
     if enemy.max_shields > 0:
         rows.append(text_row(f"SHD {enemy.shields}/{enemy.max_shields}"))
-    rows.append(text_row(f"AP {enemy.ap_remaining}/{enemy.ap_total}"))
+    rows.append(text_row(f"AP {enemy.ap_total}"))
     for _wid in enemy.weapons:
         try:
             _ws = _find_w(_wid)
@@ -56,10 +59,14 @@ def build_target_card(
     region_w: int,
     region_h: int,
     hit_chance: int | None = None,
+    hit_weapon_id: str | None = None,
     avoid_positions: tuple[world.Position, ...] = (),
 ) -> TargetCard | None:
     """Build the floating info card for ``enemy``, or None when off-view."""
-    rows = _space_card_rows(enemy, hit_chance)
+    rows = _space_card_rows(
+        enemy, hit_chance,
+        hit_color_for_weapon(hit_weapon_id, enemy.pos, player_pos, _find_w),
+    )
     return _build_card(
         enemy.pos,
         rows,

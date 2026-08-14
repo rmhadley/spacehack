@@ -163,7 +163,7 @@ def test_space_card_rows_show_hull_shield_ap_and_weapons():
     rows = _space_presentation._space_card_rows(_card_enemy(), hit_chance=62)
     _segs = [seg for row in rows for seg in row]
     assert [t for t, _c in _segs] == [
-        "Pirate Scout", "HULL 20/30", "  HIT 62%", "SHD 8/10", "AP 2/3",
+        "Pirate Scout", "HULL 20/30", "  HIT 62%", "SHD 8/10", "AP 3",
         "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
     ]
 
@@ -175,9 +175,77 @@ def test_space_card_rows_omit_shield_when_unshielded():
     rows = _space_presentation._space_card_rows(enemy, hit_chance=None)
     _segs = [seg for row in rows for seg in row]
     assert [t for t, _c in _segs] == [
-        "Pirate Scout", "HULL 20/30", "  HIT --", "AP 2/3",
+        "Pirate Scout", "HULL 20/30", "  HIT --", "AP 3",
         "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
     ]
+
+
+def test_space_card_rows_color_hit_chance_by_range_band():
+    from src.spacehack.combat._card_presentation import (
+        COLOR_RANGE_GREEN,
+        COLOR_RANGE_RED,
+    )
+    rows = _space_presentation._space_card_rows(
+        _card_enemy(), hit_chance=62, hit_color=COLOR_RANGE_GREEN,
+    )
+    _segs = [seg for row in rows for seg in row]
+    assert _segs[2] == ("  HIT 62%", COLOR_RANGE_GREEN)
+    # No hit chance (no active weapon) → plain text color.
+    rows = _space_presentation._space_card_rows(
+        _card_enemy(), hit_chance=None, hit_color=COLOR_RANGE_RED,
+    )
+    _segs = [seg for row in rows for seg in row]
+    assert _segs[2] == ("  HIT --", pygame_target_card.TARGET_CARD_TEXT)
+
+
+def test_range_band_color_matches_targeting_line():
+    from src.spacehack.combat._card_presentation import (
+        COLOR_RANGE_GREEN,
+        COLOR_RANGE_ORANGE,
+        COLOR_RANGE_RED,
+        COLOR_RANGE_YELLOW,
+        range_band_color,
+    )
+    # Green inside the close-bonus zone (max_range // 2).
+    assert range_band_color(2, 5, 1) == COLOR_RANGE_GREEN
+    # Yellow within normal range.
+    assert range_band_color(4, 5, 1) == COLOR_RANGE_YELLOW
+    # Red beyond max range.
+    assert range_band_color(7, 5, 1) == COLOR_RANGE_RED
+    # Orange reserved for inside-min-range bands the line itself uses.
+    assert range_band_color(3, 2, 4) == COLOR_RANGE_ORANGE
+
+
+def test_hit_color_for_weapon_none_when_unarmed_or_unknown():
+    from src.spacehack.combat._card_presentation import (
+        COLOR_RANGE_RED,
+        hit_color_for_weapon,
+    )
+    _pos = world.Position(5, 3)
+    _ppos = world.Position(0, 0)
+    assert hit_color_for_weapon(None, _pos, _ppos, _space_presentation._find_w) is None
+    assert hit_color_for_weapon("missing_gun", _pos, _ppos, _space_presentation._find_w) is None
+    # (0,0) → (5,3) is ~5.8u, beyond light_laser's max range (5) → red.
+    assert hit_color_for_weapon("light_laser", _pos, _ppos, _space_presentation._find_w) == COLOR_RANGE_RED
+
+
+def test_space_build_target_card_colors_hit_by_weapon_range():
+    from src.spacehack.combat._card_presentation import COLOR_RANGE_RED
+
+    card = _space_presentation.build_target_card(
+        _card_enemy(),
+        game_map=_card_map(),
+        player_pos=world.Position(0, 0),
+        region_w=80,
+        region_h=54,
+        hit_chance=55,
+        hit_weapon_id="light_laser",
+        avoid_positions=(world.Position(0, 0), world.Position(5, 3)),
+    )
+
+    assert card is not None
+    _segs = [seg for row in card.rows for seg in row]
+    assert _segs[2] == ("  HIT 55%", COLOR_RANGE_RED)
 
 
 def test_space_build_target_card_anchors_and_avoids():

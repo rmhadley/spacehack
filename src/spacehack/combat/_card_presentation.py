@@ -7,8 +7,64 @@ presentation module supplies just its row formatting.
 
 from __future__ import annotations
 
+import math
+from typing import Any, Callable
+
 from .. import world
 from ..pygame_target_card import TargetCard
+
+# Range-band colors matching the targeting line (:func:`._animations._draw_range_colored_line`)
+# so the card's HIT % reads the same way: green = close-bonus zone,
+# yellow = normal range, orange = inside min range (too close), red = beyond max range.
+COLOR_RANGE_GREEN: tuple[int, int, int] = (100, 235, 115)
+COLOR_RANGE_YELLOW: tuple[int, int, int] = (255, 220, 80)
+COLOR_RANGE_ORANGE: tuple[int, int, int] = (255, 160, 60)
+COLOR_RANGE_RED: tuple[int, int, int] = (255, 80, 80)
+
+
+def range_band_color(
+    dist: float,
+    weapon_max_range: int,
+    weapon_min_range: int = 0,
+) -> tuple[int, int, int]:
+    """Return the targeting-line color for a distance from the player.
+
+    Mirrors the range line's bands exactly: green within the close-bonus
+    zone (``max_range // 2``), yellow within ``max_range``, orange inside
+    ``min_range`` (when one exists), red beyond ``max_range``.
+    """
+    if dist <= weapon_max_range // 2:
+        return COLOR_RANGE_GREEN
+    if dist <= weapon_max_range:
+        return COLOR_RANGE_YELLOW
+    if weapon_min_range > 0 and dist <= weapon_min_range:
+        return COLOR_RANGE_ORANGE
+    return COLOR_RANGE_RED
+
+
+def hit_color_for_weapon(
+    weapon_id: str | None,
+    target_pos: world.Position,
+    player_pos: world.Position,
+    find_weapon: Callable[[str], Any],
+) -> tuple[int, int, int] | None:
+    """Range-band color for a weapon's HIT % on the target card, or None.
+
+    Resolves ``weapon_id`` through ``find_weapon`` and colors by the
+    targeting-line range bands between ``player_pos`` and ``target_pos``.
+    ``None`` for unarmed/unknown weapons so the card falls back to its
+    default text color.
+    """
+    if weapon_id is None:
+        return None
+    try:
+        _ws = find_weapon(weapon_id)
+    except KeyError:
+        return None
+    return range_band_color(
+        math.hypot(player_pos.x - target_pos.x, player_pos.y - target_pos.y),
+        _ws.max_range, _ws.min_range,
+    )
 
 
 def viewport_cells(
