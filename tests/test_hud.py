@@ -56,8 +56,8 @@ def test_no_suffix_when_no_regen_at_all():
     assert white == []
 
 
-def test_weapons_header_is_contiguous_and_fits():
-    """WEAPONS[4] 2AP 16POW renders as one 20-cell line, no scattered gaps."""
+def test_weapons_header_keeps_offset_layout_and_is_not_clipped():
+    """Header keeps its fixed-offset layout; POW's W survives past 20 cells."""
     console = FrameBuffer(40, 3)
     player_state = {
         "ap_remaining": 3, "power_pool": 20,
@@ -68,5 +68,19 @@ def test_weapons_header_is_contiguous_and_fits():
         ("plasma_cannon",) * 4, [True] * 4, player_state, None,
     )
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
-    assert row == "WEAPONS[4] 2AP 16POW"
-    assert len(row) <= 20
+    assert row == "WEAPONS [4] 2AP 16POW"
+    assert row.endswith("16POW")
+
+
+def test_shield_row_survives_the_wider_combat_console():
+    """A 26-cell shield line (hud_x=80) reaches the overlay uncut in a
+    SCREEN_WIDTH+HUD_WIDTH console (the combat console width)."""
+    from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
+    console = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 3)
+    player_state = {
+        "hull": 135, "max_hull": 135, "shields": 135, "max_shields": 135,
+        "shield_regen_rate": 0, "shield_recharge_bonus": 8,
+    }
+    hud._render_hull_shield_rows(console, SCREEN_WIDTH - HUD_WIDTH, 0, player_state)
+    row = "".join(console.cell(x, 0).char for x in range(SCREEN_WIDTH - HUD_WIDTH, SCREEN_WIDTH + HUD_WIDTH))
+    assert row.rstrip() == "Shd  ########## 135/135 +8"

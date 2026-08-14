@@ -44,6 +44,39 @@ def test_overlay_segments_carry_background_and_split_runs_on_bg_change():
     )
 
 
+def test_frame_from_commands_captures_hud_text_past_window_width():
+    """Combat consoles are one HUD-width wider than the window; hud_x_max
+    captures HUD lines that span past cell SCREEN_WIDTH so the half-width
+    panel shows them in full instead of clipping at 20 cells."""
+    from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
+
+    hud_start = SCREEN_WIDTH - HUD_WIDTH
+    line = "Shd  ########## 135/135 +8"
+    commands = tuple(
+        world.WorldDrawCommand(hud_start + i, 1, ch, (175, 230, 255), None)
+        for i, ch in enumerate(line)
+    )
+    frame = pygame_overlay._frame_from_commands(
+        commands,
+        screen_width=SCREEN_WIDTH,
+        screen_height=10,
+        hud_view_height=5,
+        hud_x_max=SCREEN_WIDTH + HUD_WIDTH,
+    )
+    text = "".join(segment.text for segment in frame.hud)
+    assert text == line
+
+    # Without hud_x_max the extra cells are dropped, as before.
+    frame = pygame_overlay._frame_from_commands(
+        commands,
+        screen_width=SCREEN_WIDTH,
+        screen_height=10,
+        hud_view_height=5,
+    )
+    text = "".join(segment.text for segment in frame.hud)
+    assert text == line[:HUD_WIDTH]
+
+
 def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     from src.spacehack import hud, message_log
 

@@ -422,6 +422,9 @@ def make_console(
 ) -> FrameBuffer:
     """Create a project-owned framebuffer. Default size resolves at call time."""
     return FrameBuffer(
-        width if width is not None else SCREEN_WIDTH,
+        # One HUD-width extra column: the overlay paints HUD text at roughly
+        # half cell width, so the right panel shows ~40 chars, not 20. The
+        # extra cells only exist for the HUD; region renderers ignore them.
+        width if width is not None else SCREEN_WIDTH + HUD_WIDTH,
         height if height is not None else SCREEN_HEIGHT,
     )

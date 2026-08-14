@@ -721,21 +721,14 @@ def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player
     """Paint the WEAPONS list + armed-volley cost; return the next row."""
     from .data.weapons import find_weapon as _fw
     _count, _max_ap, _sum_pow = volley_costs(weapon_list, active_weapons, _fw)
+    console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
     if _count:
-        # Contiguous header: "WEAPONS[4] 4AP 16POW". Segments start at the
-        # exact cell where the previous text ended so the overlay chains
-        # them with no gaps, and 20 cells total keeps it inside the panel.
-        _hdr = f"WEAPONS[{_count}] "
-        console.print(x=hud_x, y=y, string=_hdr, fg=COLOR_DIVIDER)
-        _x = len(_hdr)
+        console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=COLOR_VALUE_DIM)
         _ap_fg = COLOR_HP_GOOD if _max_ap <= player_state.get("ap_remaining", 0) else COLOR_HP_LOW
-        console.print(x=hud_x + _x, y=y, string=f"{_max_ap}AP ", fg=_ap_fg)
-        _x += len(f"{_max_ap}AP ")
+        console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
         if _sum_pow:
             _pow_fg = COLOR_HP_GOOD if _sum_pow <= player_state.get("power_pool", 0) else COLOR_HP_LOW
-            console.print(x=hud_x + _x, y=y, string=f"{_sum_pow}POW", fg=_pow_fg)
-    else:
-        console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
+            console.print(x=hud_x + 16, y=y, string=f"{_sum_pow}POW", fg=_pow_fg)
     y += 1
     for i, wid in enumerate(weapon_list):
         try:

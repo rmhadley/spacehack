@@ -107,6 +107,9 @@ def _frame_payload(
         screen_width=1600 // pygame_world.TILE_WIDTH,
         screen_height=960 // pygame_world.TILE_HEIGHT,
         hud_view_height=(960 // pygame_world.TILE_HEIGHT) - MSG_LOG_HEIGHT,
+        # The combat console is one HUD-width wider than the window so
+        # HUD lines can use the panel's full ~40 half-width characters.
+        hud_x_max=SCREEN_WIDTH + HUD_WIDTH,
         shields=_combat_shield_bubbles(ctx),
         floaters=_combat_floaters(ctx),
         target=_combat_target_card(ctx),

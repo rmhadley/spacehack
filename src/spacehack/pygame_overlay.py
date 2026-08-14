@@ -149,17 +149,20 @@ def _frame_from_commands(
     screen_width: int,
     screen_height: int,
     hud_view_height: int,
+    hud_x_max: int | None = None,
     shields: tuple[ShieldBubble, ...] = (),
     floaters: tuple[FloatingText, ...] = (),
     target: TargetCard | None = None,
 ) -> OverlayFrame:
     """Build an overlay frame from an already-rendered console."""
     hud_x = screen_width - HUD_WIDTH
+    # Combat consoles are one HUD-width wider; capture the extra HUD cells.
+    hud_x_max = hud_x_max if hud_x_max is not None else screen_width
     return OverlayFrame(
         hud=_segments(
             commands,
             x_min=hud_x,
-            x_max=screen_width,
+            x_max=hud_x_max,
             y_min=0,
             y_max=hud_view_height,
         ),
