@@ -123,12 +123,14 @@ def test_combat_med_pack_heals_and_refreshes_three_turn_regen():
     assert use_consumable(ctx, 0, in_combat=True)
     assert _rules_ground.player_hp(ctx) == 15
     assert _rules_ground.player_ap(ctx) == 3
+    assert "Med Pack: +5 HP." in ctx.messages
     effect = _rules_ground._state.active_consumable_effects["restore_hp"]
     assert effect.remaining_turns == 3
 
     _rules_ground.reset_turn(ctx)
     assert _rules_ground.player_hp(ctx) == 17
     assert _rules_ground.player_ap(ctx) == 4
+    assert "Med Pack regeneration: +2 HP." in ctx.messages
     assert _rules_ground._state.active_consumable_effects["restore_hp"].remaining_turns == 2
 
 

@@ -17,6 +17,8 @@ import pytest
 
 from src.spacehack import ui, world, pygame_target_card
 from src.spacehack.combat import _loop, _rules_ground
+from src.spacehack.engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH
+from src.spacehack.framebuffer import FrameBuffer
 from src.spacehack.combat import _ground_render
 from src.spacehack.combat import _ground_presentation
 from src.spacehack.combat._rules_ground import (
@@ -468,6 +470,33 @@ def _patch_render_deps(monkeypatch, line_calls: list) -> None:
         SimpleNamespace(render_message_log=lambda *a, **k: None),
     )
     monkeypatch.setattr(_ground_render, "_bar_str", lambda *a, **k: "########")
+
+
+def test_ground_player_hp_row_shows_current_max_and_active_regen():
+    """The player row uses numeric HP and shows the next regen amount."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.ground_hp = 10
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _rules_ground.apply_consumable_effect(
+        _ctx,
+        SimpleNamespace(
+            effect_id="restore_hp",
+            name="Med Pack",
+            combat_heal_amount=5,
+            combat_regen_amount=2,
+            combat_ap_bonus=0,
+            duration_turns=3,
+        ),
+    )
+    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    _ground_render._render_player_panel(_frame, _ctx)
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _row = "".join(
+        _frame.cell(x, 3).char
+        for x in range(_hud_x, SCREEN_WIDTH)
+    ).rstrip()
+    assert _row
+    assert "HP  ####... 15/23 +2" in _row
 
 
 class TestRangeLineHidden:

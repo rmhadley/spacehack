@@ -21,6 +21,7 @@ from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_armor import find_ground_armor as _find_ga
+from ..data.ground_items import list_ground_consumables as _list_gc
 from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     tier_filtered_equipment as _tier_loot,
@@ -666,14 +667,29 @@ def handle_defense(ctx) -> None:
 def apply_consumable_effect(ctx, spec) -> bool:
     """Apply a validated consumable effect to the active combat state."""
     if spec.effect_id == "restore_hp":
+        _before = _state.player_hp
         _state.player_hp = min(
             _state.player_max_hp,
             _state.player_hp + spec.combat_heal_amount,
         )
+        _healed = _state.player_hp - _before
+        if _healed > 0:
+            ctx.log.add_colored(
+                f"{spec.name}: +{_healed} HP.",
+                _ml.COLOR_PLAYER_ACTION,
+            )
     _effect = effect_from_spec(spec)
     if _effect is not None:
         _state.active_consumable_effects[spec.effect_id] = _effect
     return spec.effect_id in {"restore_hp", "stim"}
+
+
+def _consumable_name_for_effect(effect_id: str) -> str:
+    """Resolve a friendly catalog name for a temporary effect."""
+    for _spec in _list_gc():
+        if _spec.effect_id == effect_id:
+            return _spec.name
+    return "Regeneration"
 
 
 def _advance_consumable_effects() -> int:
@@ -682,10 +698,18 @@ def _advance_consumable_effects() -> int:
     _remaining: dict[str, ActiveConsumableEffect] = {}
     for _effect_id, _effect in _state.active_consumable_effects.items():
         if _effect.regen_amount:
+            _before = _state.player_hp
             _state.player_hp = min(
                 _state.player_max_hp,
                 _state.player_hp + _effect.regen_amount,
             )
+            _healed = _state.player_hp - _before
+            if _healed > 0:
+                _effect_name = _consumable_name_for_effect(_effect_id)
+                _state.ctx.log.add_colored(
+                    f"{_effect_name} regeneration: +{_healed} HP.",
+                    _ml.COLOR_PLAYER_ACTION,
+                )
         if _effect.ap_bonus:
             _ap_bonus += _effect.ap_bonus
         _next = _effect.remaining_turns - 1

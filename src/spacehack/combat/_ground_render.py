@@ -153,6 +153,14 @@ def _render_range_line(
     )
 
 
+def _active_regen_amount() -> int:
+    """Return the total HP regenerated at the next turn boundary."""
+    return sum(
+        effect.regen_amount
+        for effect in _rules()._state.active_consumable_effects.values()
+    )
+
+
 def _render_player_panel(console, ctx) -> int:
     """Paint the player HP/AP/evasion block; return the next HUD row."""
     _state = _rules()._state
@@ -162,9 +170,15 @@ def _render_player_panel(console, ctx) -> int:
     y += 2
     console.print(x=hud_x, y=y, string="PLAYER", fg=_COLOR_GROUND_PLAYER)
     y += 1
-    hp_bar = _bar_str(_state.player_hp, _state.player_max_hp, width=8)
-    hp_pct = _state.player_hp * 100 // max(_state.player_max_hp, 1)
-    console.print(x=hud_x, y=y, string=f"HP  {hp_bar} {hp_pct}%", fg=_COLOR_GROUND_PLAYER)
+    _regen = _active_regen_amount()
+    _regen_suffix = f" +{_regen}" if _regen > 0 else ""
+    _bar_width = 7 if _regen > 0 else 8
+    hp_bar = _bar_str(_state.player_hp, _state.player_max_hp, width=_bar_width)
+    console.print(
+        x=hud_x, y=y,
+        string=f"HP  {hp_bar} {_state.player_hp}/{_state.player_max_hp}{_regen_suffix}",
+        fg=_COLOR_GROUND_PLAYER,
+    )
     y += 1
     console.print(x=hud_x, y=y, string=f"AP: {_state.player_ap}/{_state.player_ap_total}", fg=_COLOR_GROUND_ACTION)
     y += 1

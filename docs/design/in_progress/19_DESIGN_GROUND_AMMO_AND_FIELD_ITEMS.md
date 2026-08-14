@@ -289,7 +289,10 @@ select a stack, press Enter, then choose `Use` or `Discard`. `Use` calls a
 catalog effect handler, decrements one quantity only after successful effect
 validation, and charges the item's AP cost in combat. Med packs are free to use
 in exploration; combat uses their catalog `use_ap_cost`. Combat-only stims are
-unavailable outside an active ground fight.
+unavailable outside an active ground fight. Ground combat displays player HP
+as `current/max`; an active Med Pack regeneration amount appears as a `+N`
+suffix, and the combat log reports both the immediate heal and each regeneration
+tick.
 
 ## Backpack UX
 
