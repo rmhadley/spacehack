@@ -270,12 +270,42 @@ def _compact_popup_layout(
     )
 
 
+def _draw_compact_scrollbar(
+    pygame: Any, screen: Any, frame: MenuFrame, popup: pygame_ui.Rect,
+    inset: int, row_y: int, row_height: int, top: int, count: int,
+) -> None:
+    """Paint a proportional scrollbar when compact options overflow."""
+    total = len(frame.items)
+    if total <= count:
+        return
+    track_height = count * row_height
+    track_width = 5
+    track_x = popup.x + popup.width - inset // 2 - track_width // 2
+    palette = pygame_ui.DEFAULT_PALETTE
+    pygame.draw.rect(
+        screen, palette.border,
+        pygame.Rect(track_x, row_y, track_width, track_height),
+        border_radius=2,
+    )
+    thumb_height = max(track_width, track_height * count // total)
+    thumb_range = track_height - thumb_height
+    thumb_y = row_y + thumb_range * top // max(1, total - count)
+    pygame.draw.rect(
+        screen, palette.selected_border,
+        pygame.Rect(track_x, thumb_y, track_width, thumb_height),
+        border_radius=2,
+    )
+
+
 def _draw_compact_rows(
     pygame: Any, screen: Any, font: Any, frame: MenuFrame,
     popup: pygame_ui.Rect, inset: int, content_width: int,
     y: int, top: int, count: int, row_height: int,
 ) -> None:
     """Paint the visible compact menu rows."""
+    _draw_compact_scrollbar(
+        pygame, screen, frame, popup, inset, y, row_height, top, count,
+    )
     for index in range(top, top + count):
         item = frame.items[index]
         pygame_ui.draw_menu_row(

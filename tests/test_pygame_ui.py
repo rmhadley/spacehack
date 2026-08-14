@@ -3046,11 +3046,74 @@ def test_compact_popup_draw_height_matches_visible_row_window(monkeypatch):
     monkeypatch.setattr(pygame_ui, "draw_centered_text", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(pygame_ui, "draw_rule", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(pygame_ui, "draw_menu_row", lambda *_args, **_kwargs: None)
+    class FakePygame:
+        class draw:
+            @staticmethod
+            def rect(*_args, **_kwargs):
+                return None
+
+        @staticmethod
+        def Rect(x, y, width, height):
+            return SimpleNamespace(x=x, y=y, width=width, height=height)
+
     screen = SimpleNamespace(get_size=lambda: (1600, 960))
 
-    pygame_menu._draw_compact_frame(object(), screen, Font(), frame)
+    pygame_menu._draw_compact_frame(FakePygame, screen, Font(), frame)
 
     assert panels[0].height == pygame_menu._compact_frame_height(Font(), frame, 1600)
+
+
+def test_compact_popup_scrollbar_tracks_selection_and_hides_when_not_needed(monkeypatch):
+    class Font:
+        def get_linesize(self):
+            return 29
+
+        def size(self, text):
+            return len(text) * 14, 29
+
+    class FakePygame:
+        class draw:
+            rects = []
+
+            @staticmethod
+            def rect(_screen, _color, rect, **_kwargs):
+                FakePygame.draw.rects.append(rect)
+
+        @staticmethod
+        def Rect(x, y, width, height):
+            return SimpleNamespace(x=x, y=y, width=width, height=height)
+
+    monkeypatch.setattr(pygame_ui, "draw_panel", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pygame_ui, "draw_centered_text", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pygame_ui, "draw_rule", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pygame_ui, "draw_menu_row", lambda *_args, **_kwargs: None)
+    screen = SimpleNamespace(get_size=lambda: (1600, 960))
+    items = tuple(
+        pygame_menu.MenuItem(f"Option {index}", "", str(index))
+        for index in range(pygame_menu.COMPACT_MAX_VISIBLE_ROWS + 3)
+    )
+
+    pygame_menu._draw_compact_frame(
+        FakePygame, screen, Font(),
+        pygame_menu.MenuFrame("MENU", "", items, (), 0, compact=True),
+    )
+    track, thumb = FakePygame.draw.rects
+    assert thumb.y == track.y
+
+    FakePygame.draw.rects.clear()
+    pygame_menu._draw_compact_frame(
+        FakePygame, screen, Font(),
+        pygame_menu.MenuFrame("MENU", "", items, (), len(items) - 1, compact=True),
+    )
+    track, thumb = FakePygame.draw.rects
+    assert thumb.y > track.y
+
+    FakePygame.draw.rects.clear()
+    pygame_menu._draw_compact_frame(
+        FakePygame, screen, Font(),
+        pygame_menu.MenuFrame("MENU", "", items[:4], (), 0, compact=True),
+    )
+    assert FakePygame.draw.rects == []
 
 
 def test_compact_popup_handles_long_titles_and_narrow_surfaces():
