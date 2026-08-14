@@ -131,6 +131,14 @@ def _activation_positions_to_dict(gm) -> dict:
     }
 
 
+def _autoexplore_memory_to_dict(gm) -> list[list[int]]:
+    """Serialize remembered auto-explore cells in stable map order."""
+    return [
+        [int(_x), int(_y)]
+        for _x, _y in sorted(getattr(gm, "autoexplore_ignored", set()))
+    ]
+
+
 def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
     """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict.
 
@@ -161,6 +169,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
         "extension_floor": getattr(gm, 'extension_floor', 0),
         "feature_theme": getattr(gm, 'feature_theme', ''),
         "activation_positions": _activation_positions_to_dict(gm),
+        "autoexplore_ignored": _autoexplore_memory_to_dict(gm),
         "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
         "interior_cache_key": getattr(gm, 'interior_cache_key', ''),
         "landmark_footprint": [
@@ -305,10 +314,26 @@ def _restore_landmark_fields(dungeon_map: world.GameMap, dd: dict) -> None:
         dungeon_map.landmark_variant_id = str(variant_id)
 
 
+def _restore_autoexplore_memory(dungeon_map: world.GameMap, dd: dict) -> None:
+    """Restore valid remembered auto-explore coordinates from a save."""
+    _memory = set()
+    for _point in dd.get("autoexplore_ignored", []) or []:
+        if not isinstance(_point, (list, tuple)) or len(_point) < 2:
+            continue
+        try:
+            _x, _y = int(_point[0]), int(_point[1])
+        except (TypeError, ValueError):
+            continue
+        if dungeon_map.in_bounds(_x, _y):
+            _memory.add((_x, _y))
+    dungeon_map.autoexplore_ignored = _memory
+
+
 def _apply_dungeon_attributes(dungeon_map: world.GameMap, dd: dict) -> None:
     """Restore optional dungeon-map attributes from a serialized dict."""
     dungeon_map.seen = dd.get("seen")
     dungeon_map.sight_radius = dd.get("sight_radius", 8)
+    _restore_autoexplore_memory(dungeon_map, dd)
     dungeon_map.location_name = dd.get("location_name", "")
     if dd.get("power_restored", False):
         dungeon_map.power_restored = True

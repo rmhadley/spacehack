@@ -204,6 +204,32 @@ def newly_interesting_positions(
     return _fresh
 
 
+def _ignored_positions(game_map) -> set[tuple[int, int]]:
+    """Return the map-owned memory of interesting cells already presented."""
+    _memory = getattr(game_map, "autoexplore_ignored", None)
+    if _memory is None:
+        _memory = set()
+        game_map.autoexplore_ignored = _memory
+    return _memory
+
+
+def _seed_known_interesting(game_map) -> set[tuple[int, int]]:
+    """Merge persistent memory with interesting content currently in view."""
+    _known = set(_ignored_positions(game_map))
+    _fresh = newly_interesting_positions(game_map, _known)
+    _ignored_positions(game_map).update(_fresh)
+    _known.update(_fresh)
+    return _known
+
+
+def _remember_fresh(game_map, known, fresh: set[tuple[int, int]]) -> None:
+    """Persist newly presented content and keep the current walk's set aligned."""
+    if not fresh:
+        return
+    _ignored_positions(game_map).update(fresh)
+    known.update(fresh)
+
+
 # ---------------------------------------------------------------------------
 # Step planning
 # ---------------------------------------------------------------------------
@@ -246,81 +272,76 @@ def _visible_blocker(game_map, x: int, y: int, *, exclude=None):
     return None
 
 
-def _plan_step(game_map, player_pos, *, target=None):
-    """BFS over the reachable region; returns ``(step, blockers)``.
+def _bfs_goal_step(prev, start, current, target):
+    """Return the first step when a goto BFS reaches its goal ring."""
+    if target is None or current == start:
+        return None
+    if max(abs(current[0] - target[0]), abs(current[1] - target[1])) > 1:
+        return None
+    return _first_step_toward(prev, start[0], start[1], *current)
 
-    Two goal modes share one passability rule set (walkable cells;
-    transitions never entered; ``_visible_blocker`` seals while unseen
-    entities are walked through):
 
-    * Explore mode (``target=None``): ``step`` is the first move
-      toward the nearest UNSEEN cell (floor, wall, or transition —
-      the fog edge), or ``None`` when the region is fully revealed.
-      ``blockers`` lists the visible solid entities encountered
-      (nearest first) — the only entities that can seal the route.
-    * Goto mode (``target=(tx, ty)``): ``step`` is the first move
-      toward the nearest cell 8-adjacent to the target, or ``None``
-      when already adjacent or unreachable. Fog is ignored — the
-      walker heads for a known destination.
-    """
+def _visit_bfs_neighbors(
+    game_map, current, start, target, seen, prev, visited, queue, blockers,
+    blocker_ids,
+):
+    """Visit one BFS cell and return a step when it reaches a goal."""
+    _cx, _cy = current
+    for _dx, _dy in _NEIGHBORS_8:
+        _nx, _ny = _cx + _dx, _cy + _dy
+        if not game_map.in_bounds(_nx, _ny) or (_nx, _ny) in visited:
+            continue
+        _tile = game_map.tiles[_ny][_nx]
+        if not _tile.walkable or _tile.kind in _TRANSITION_KINDS:
+            if target is None and not seen[_ny][_nx] and current != start:
+                return _first_step_toward(
+                    prev, start[0], start[1], current[0], current[1],
+                )
+            continue
+        _ent = _visible_blocker(game_map, _nx, _ny)
+        if _ent is not None:
+            if target is None and id(_ent) not in blocker_ids:
+                blocker_ids.add(id(_ent))
+                blockers.append(_ent)
+            continue
+        visited.add((_nx, _ny))
+        prev[(_nx, _ny)] = current
+        if target is None and not seen[_ny][_nx]:
+            return _first_step_toward(prev, *start, _nx, _ny)
+        queue.append((_nx, _ny))
+    return None
+
+
+def _bfs_step(game_map, start, target):
+    """Run the shared explore/goto BFS and return its step plus blockers."""
     _seen = game_map.seen
-    if _seen is None:
-        return None, ()
-    _sx, _sy = player_pos.x, player_pos.y
-    if not game_map.in_bounds(_sx, _sy):
-        return None, ()
-    _target_x = target[0] if target is not None else None
-    _target_y = target[1] if target is not None else None
-    _prev: dict[tuple[int, int], tuple[int, int]] = {}
-    _queue: deque[tuple[int, int]] = deque([(_sx, _sy)])
-    _visited: set[tuple[int, int]] = {(_sx, _sy)}
-    _blockers: list = []
-    _blocker_ids: set[int] = set()
+    _prev = {}
+    _queue = deque([start])
+    _visited = {start}
+    _blockers = []
+    _blocker_ids = set()
     while _queue:
-        _cx, _cy = _queue.popleft()
-        if (
-            target is not None
-            and (_cx, _cy) != (_sx, _sy)
-            and max(abs(_cx - _target_x), abs(_cy - _target_y)) <= 1
-        ):
-            # Adjacent to the goal — the walk ends here (the caller
-            # announces arrival). The start guard is redundant in-game
-            # (adjacent cells are always revealed) but keeps synthetic
-            # states safe.
-            return _first_step_toward(_prev, _sx, _sy, _cx, _cy), _blockers
-        for _dx, _dy in _NEIGHBORS_8:
-            _nx, _ny = _cx + _dx, _cy + _dy
-            if not game_map.in_bounds(_nx, _ny) or (_nx, _ny) in _visited:
-                continue
-            _tile = game_map.tiles[_ny][_nx]
-            if not _tile.walkable or _tile.kind in _TRANSITION_KINDS:
-                # Explore mode: an unseen wall or transition = fog
-                # edge, walk up to the adjacent passable cell (skipped
-                # when it is the player's own cell — adjacent cells
-                # are always revealed in-game, so this only guards
-                # synthetic states).
-                if (
-                    target is None
-                    and not _seen[_ny][_nx]
-                    and (_cx, _cy) != (_sx, _sy)
-                ):
-                    return _first_step_toward(_prev, _sx, _sy, _cx, _cy), _blockers
-                continue
-            _ent = _visible_blocker(game_map, _nx, _ny)
-            if _ent is not None:
-                # Visible solid entity — the player knows it is there,
-                # so it genuinely seals the route.
-                if target is None and id(_ent) not in _blocker_ids:
-                    _blocker_ids.add(id(_ent))
-                    _blockers.append(_ent)
-                continue
-            _visited.add((_nx, _ny))
-            _prev[(_nx, _ny)] = (_cx, _cy)
-            if target is None and not _seen[_ny][_nx]:
-                # Explore mode: unseen walkable cell — walk toward it.
-                return _first_step_toward(_prev, _sx, _sy, _nx, _ny), _blockers
-            _queue.append((_nx, _ny))
+        _current = _queue.popleft()
+        _goal = _bfs_goal_step(_prev, start, _current, target)
+        if _goal is not None:
+            return _goal, _blockers
+        _step = _visit_bfs_neighbors(
+            game_map, _current, start, target, _seen, _prev, _visited,
+            _queue, _blockers, _blocker_ids,
+        )
+        if _step is not None:
+            return _step, _blockers
     return None, _blockers
+
+
+def _plan_step(game_map, player_pos, *, target=None):
+    """Return the first shared-BFS step and visible blockers."""
+    if game_map.seen is None:
+        return None, ()
+    _start = (player_pos.x, player_pos.y)
+    if not game_map.in_bounds(*_start):
+        return None, ()
+    return _bfs_step(game_map, _start, target)
 
 
 def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
@@ -512,11 +533,45 @@ def _stop_if_fresh(ctx, game_map, known) -> str | None:
     """
     _fresh = newly_interesting_positions(game_map, known)
     if _fresh:
+        _remember_fresh(game_map, known, _fresh)
         _fx, _fy = min(_fresh)
         _label = interesting_at(game_map, _fx, _fy)
         ctx.log.add(f"You notice {_label} and stop.")
         return "DONE"
     return None
+
+
+def _explore_finish(ctx, game_map, player):
+    """Return a terminal result when exploration has no next step."""
+    _blocker = blocking_way_entity(game_map, player.pos)
+    if _blocker is not None:
+        _label = _blocker_label(_blocker)
+        ctx.log.add(
+            f"A {_label} blocks the only way forward."
+            if _label else "Something blocks the only way forward."
+        )
+    else:
+        ctx.log.add("You have explored every reachable area.")
+    return "DONE"
+
+
+def _run_explore_loop(
+    ctx, console, game_map, player, present, post_step_tick,
+    map_w, map_h, location, known,
+):
+    """Walk until memory, combat, cancellation, or exhaustion stops us."""
+    while True:
+        if _stop_if_fresh(ctx, game_map, known) is not None:
+            return "DONE"
+        _step = next_explore_step(game_map, player.pos)
+        if _step is None:
+            return _explore_finish(ctx, game_map, player)
+        _ctrl = _step_present_poll_move(
+            ctx, console, game_map, player, present,
+            map_w, map_h, location, *_step, post_step_tick,
+        )
+        if _ctrl is not None:
+            return _ctrl
 
 
 def run_auto_explore(
@@ -531,65 +586,52 @@ def run_auto_explore(
     location: str = "Derelict Ship",
     present_frame=None,
 ) -> str:
-    """Run DCSS-style auto-explore until a stop condition fires.
-
-    Returns one of:
-
-    * ``"DONE"`` — stopped for an interesting sighting, finished
-      exploring, or already standing on something interesting.
-    * ``"COMBAT"`` — ``post_step_tick`` started a ground fight.
-    * ``"DEFEAT"`` — the player died during that fight.
-    * ``"CANCELLED"`` — the player pressed a key to abort.
-
-    ``post_step_tick`` is the shared dungeon post-move tick (injected
-    to avoid a circular import with ``__main__``); it returns
-    ``"DEFEAT"`` / ``"COMBAT"`` / ``None`` like
-    ``__main__._dungeon_post_move_tick``. It MUST refresh the
-    LOS/visible frame after each step (as the real tick does) — a
-    stub that never reveals makes the walk oscillate between two
-    unseen cells.
-    """
+    """Run DCSS-style auto-explore until a stop condition fires."""
     if game_map.seen is None or game_map.visible is None:
         ctx.log.add("Auto-explore only works inside dungeons.")
         return "DONE"
     _present = present_frame or _default_present_frame
-    _standing = interesting_at(game_map, player.pos.x, player.pos.y)
-    if _standing:
+    _standing_pos = (player.pos.x, player.pos.y)
+    _standing = interesting_at(game_map, *_standing_pos)
+    _memory = _ignored_positions(game_map)
+    if _standing and _standing_pos not in _memory:
+        _memory.add(_standing_pos)
         ctx.log.add(f"You are standing at {_standing}.")
         return "DONE"
-    # Seed the known set with what is already in view so a press never
-    # re-stops on content the player has already spotted.
-    _known = newly_interesting_positions(game_map, set())
+    _known = _seed_known_interesting(game_map)
     ctx.log.add("Auto-explore engaged.")
-    while True:
-        _fresh_stop = _stop_if_fresh(ctx, game_map, _known)
-        if _fresh_stop is not None:
-            return _fresh_stop
-        _step = next_explore_step(game_map, player.pos)
-        if _step is None:
-            _blocker = blocking_way_entity(game_map, player.pos)
-            if _blocker is not None:
-                _label = _blocker_label(_blocker)
-                ctx.log.add(
-                    f"A {_label} blocks the only way forward."
-                    if _label
-                    else "Something blocks the only way forward."
-                )
-                return "DONE"
-            ctx.log.add("You have explored every reachable area.")
-            return "DONE"
-        _dx, _dy = _step
-        _ctrl = _step_present_poll_move(
-            ctx, console, game_map, player, _present,
-            map_w, map_h, location, _dx, _dy, post_step_tick,
-        )
-        if _ctrl is not None:
-            return _ctrl
+    return _run_explore_loop(
+        ctx, console, game_map, player, _present, post_step_tick,
+        map_w, map_h, location, _known,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Go-to (the G key)
 # ---------------------------------------------------------------------------
+
+
+def _run_goto_loop(
+    ctx, console, game_map, player, target, present, post_step_tick,
+    map_w, map_h, location, known,
+):
+    """Walk to a target while sharing auto-explore interruption rules."""
+    while True:
+        if _adjacent(player.pos, target.x, target.y):
+            ctx.log.add(f"You arrive at {target.label}.")
+            return "DONE"
+        if _stop_if_fresh(ctx, game_map, known) is not None:
+            return "DONE"
+        _step = next_goto_step(game_map, player.pos, target.x, target.y)
+        if _step is None:
+            ctx.log.add(f"Cannot reach {target.label}.")
+            return "DONE"
+        _ctrl = _step_present_poll_move(
+            ctx, console, game_map, player, present,
+            map_w, map_h, location, *_step, post_step_tick,
+        )
+        if _ctrl is not None:
+            return _ctrl
 
 
 def run_goto(
@@ -605,44 +647,18 @@ def run_goto(
     location: str = "Derelict Ship",
     present_frame=None,
 ) -> str:
-    """Auto-walk to a discovered ``target`` with the auto-explore step
-    machinery.
-
-    Stops when the player is 8-adjacent to the target (they then step
-    onto the stairs or bump the console manually), when newly-visible
-    interesting content interrupts the walk, when ``post_step_tick``
-    starts combat or reports defeat, or on any keypress. The target
-    itself is seeded into the known set, so approaching it does not
-    trigger its own interesting stop.
-
-    Returns ``"DONE"`` / ``"COMBAT"`` / ``"DEFEAT"`` /
-    ``"CANCELLED"`` like :func:`run_auto_explore`.
-    """
+    """Auto-walk to a discovered target with shared stop semantics."""
     if game_map.seen is None or game_map.visible is None:
         ctx.log.add("Go to only works inside dungeons.")
         return "DONE"
     _present = present_frame or _default_present_frame
-    _known = newly_interesting_positions(game_map, set())
+    _known = _seed_known_interesting(game_map)
     _known.add((target.x, target.y))
     ctx.log.add(f"Auto-nav engaged. Walking to {target.label}...")
-    while True:
-        if _adjacent(player.pos, target.x, target.y):
-            ctx.log.add(f"You arrive at {target.label}.")
-            return "DONE"
-        _fresh_stop = _stop_if_fresh(ctx, game_map, _known)
-        if _fresh_stop is not None:
-            return _fresh_stop
-        _step = next_goto_step(game_map, player.pos, target.x, target.y)
-        if _step is None:
-            ctx.log.add(f"Cannot reach {target.label}.")
-            return "DONE"
-        _dx, _dy = _step
-        _ctrl = _step_present_poll_move(
-            ctx, console, game_map, player, _present,
-            map_w, map_h, location, _dx, _dy, post_step_tick,
-        )
-        if _ctrl is not None:
-            return _ctrl
+    return _run_goto_loop(
+        ctx, console, game_map, player, target, _present, post_step_tick,
+        map_w, map_h, location, _known,
+    )
 
 
 def run_dungeon_goto(

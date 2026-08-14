@@ -474,6 +474,46 @@ def test_run_auto_explore_ignores_already_visible_interesting():
     # corridor (walls included) without stopping on the loot again.
     assert player.pos.x >= 5
     assert all(gm.seen[y][x] for x in range(8) for y in range(3))
+    assert (3, 1) in gm.autoexplore_ignored
+
+
+def test_run_auto_explore_remembers_left_loot_on_return_to_floor():
+    """Once auto-explore presents a cache, leaving it on purpose must not
+    make the next auto-explore run stop on the same cached-floor object."""
+    gm = _corridor()
+    gm.entities.append(world.Entity(char="$", fg=(255, 255, 0),
+                                    pos=world.Position(4, 1),
+                                    loot_data={"good_id": "x", "quantity": 1}))
+    player = _player(1, 1)
+    _seed_start(gm, player)
+
+    def tick(ctx, console, game_map):
+        _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
+        return None
+
+    first_ctx, first_result = _run(gm, player, tick=tick)
+    assert first_result == "DONE"
+    assert player.pos == world.Position(2, 1)
+    assert (4, 1) in gm.autoexplore_ignored
+    assert "cache of supplies" in first_ctx.log.recent(1)[0].text
+
+    second_ctx, second_result = _run(gm, player, tick=tick)
+    assert second_result == "DONE"
+    assert player.pos.x >= 5
+    assert "cache of supplies" not in " ".join(
+        entry.text for entry in second_ctx.log.history()
+    )
+
+
+def test_autoexplore_memory_round_trips_with_cached_floor():
+    """The ignored-cell memory survives the same map serialization used by
+    cached dungeon floors and autosaves."""
+    from src.spacehack.saveload_maps import _dungeon_from_dict, _dungeon_to_dict
+
+    gm = _corridor()
+    gm.autoexplore_ignored = {(2, 1), (6, 1)}
+    restored, _ = _dungeon_from_dict(_dungeon_to_dict(gm, None))
+    assert restored.autoexplore_ignored == {(2, 1), (6, 1)}
 
 
 def test_run_auto_explore_stops_at_visible_monster_in_the_way():

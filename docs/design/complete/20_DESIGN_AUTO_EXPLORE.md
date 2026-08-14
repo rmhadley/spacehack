@@ -15,9 +15,11 @@ and the player walks through unrevealed tiles until:
    the fight and auto-explore stops (`COMBAT`), or
 3. the player presses **any key** to cancel.
 
-Only *newly revealed* interesting content stops the run: content
-already in view when `O` is pressed is seeded into a known set, so a
-single press never stalls next to loot the player already spotted.
+Only *newly revealed* interesting content stops the run. Each dungeon
+floor also keeps a persistent set of interesting cells already presented
+to the player, so intentionally left loot is not reported again after a
+new `O` press or after leaving and returning to a cached floor. The same
+memory is serialized with dungeon interiors and autosaves.
 
 ## Design
 
@@ -55,9 +57,10 @@ truth for NPC movement, LOS refresh, combat-on-sight, and activations.
 ### Stop semantics (DCSS-faithful)
 
 1. Standing on interesting content at press → stop immediately.
-2. Seed `known` with currently visible interesting cells.
-3. Each iteration: fresh interesting in LOS → stop with a label
-   ("You notice a cache of supplies and stop.").
+2. Seed `known` with the floor's remembered cells and currently visible
+   interesting cells; persist newly visible cells immediately.
+3. Each iteration: fresh interesting in LOS → remember it and stop with a
+   label ("You notice a cache of supplies and stop.").
 4. No BFS target → "You have explored every reachable area." stop.
 5. Tick returns `COMBAT`/`DEFEAT` → stop (combat owns the frame).
 
@@ -195,3 +198,19 @@ doorway; with it passable, **487 unseen cells** open up behind it.
       (monster / invisible-monster / incidental-terminal / step-
       available), loop stops at visible monster, loop walks to and
       reveals an unseen monster.
+
+### Persistent interesting-cell memory ✅
+
+Auto-explore now stores the coordinates of interesting content it has
+already presented on each `GameMap`. The memory is floor-local: cached
+interiors retain their own cells, and the dungeon save format round-trips
+the set for Continue. Content already visible when `O` is pressed is
+recorded immediately; newly revealed content is recorded before the run
+stops. This means choosing to leave loot on the floor no longer causes
+successive auto-explore runs to repeat the same warning, while a different
+floor still gets its own independent discovery memory.
+
+- [x] Persist remembered cells on `GameMap`.
+- [x] Serialize/restore the memory for active and cached dungeon maps.
+- [x] Regression tests for repeated auto-explore and cached-floor
+      serialization.
