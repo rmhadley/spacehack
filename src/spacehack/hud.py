@@ -477,6 +477,11 @@ COLOR_COMBAT_LOG: tuple[int, int, int] = (235, 235, 230)           # bright silv
 COLOR_COMBAT_ACTION: tuple[int, int, int] = (245, 250, 235)        # near-white action text
 COLOR_COMBAT_MODE: tuple[int, int, int] = (255, 255, 150)          # yellow for mode indicator
 
+# The native overlay renders HUD text at roughly half the cell width, so
+# each combat line has room for ~40 characters; the cell renderer clips
+# at the screen edge. Truncate generously instead of at HUD_WIDTH (20).
+_COMBAT_TEXT_MAX: int = 40
+
 
 _BAR_CHAR_FULL: str = "#"   # full marker
 _BAR_CHAR_EMPTY: str = "."   # empty marker
@@ -560,18 +565,17 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
     hull_pct = phull / max(pmax_hull, 1)
     hull_color = _hull_bar_color(hull_pct)
     if pmax_shields > 0:
-        # Regen in POINTS so "+N" can't be misread as percentage points:
-        # 12/20 +4 means the shield bar fills toward 16/20 next turn.
+        # Same 10-cell bar as Hull below; the regen suffix is in POINTS so
+        # "+N" can't be misread as percentage points (12/20 +4 fills the
+        # bar toward 16/20 next turn).
         _rate = player_state.get("shield_regen_rate", 0)   # S-key setting (paid)
         _free = player_state.get("shield_recharge_bonus", 0)  # ship base + modules
         _total = _rate + _free
-        # Bar width shrinks so the "+N" suffix always fits HUD_WIDTH,
-        # even for 3-digit shield values (135/135 +3 used to clip).
-        _suffix = f" {pshields}/{pmax_shields}"
+        _bar = _bar_str(pshields, pmax_shields, width=10)
+        _shd = f"Shd  {_bar} {pshields}/{pmax_shields}"
         if _total > 0:
-            _suffix += f" +{_total}"
-        _bar = _bar_str(pshields, pmax_shields, width=max(1, HUD_WIDTH - len("Shd  ") - len(_suffix)))
-        console.print(x=hud_x, y=y, string=f"Shd  {_bar}{_suffix}", fg=COLOR_SHIELD_BAR)
+            _shd += f" +{_total}"
+        console.print(x=hud_x, y=y, string=_shd[:_COMBAT_TEXT_MAX], fg=COLOR_SHIELD_BAR)
         # Level indicator (white bg) tracks ONLY the S-key rate, so
         # pressing S moves the highlight 1:1 with the setting.
         for _i in range(min(_rate, len(_bar))):
@@ -670,21 +674,21 @@ def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_c
     sel_mark = "[x]" if is_active else "[ ]"
     name_str = f"{sel_mark}[{slot+1}] {ws.name}"
     fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
-    console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_wpn)
+    console.print(x=hud_x, y=y, string=name_str[:_COMBAT_TEXT_MAX], fg=fg_wpn)
     y += 1
     _w_hc = hit_chances.get(wid) if hit_chances else None
     if _w_hc is not None:
         stats_line = f"     DMG {ws.damage} HIT {_w_hc}%"
     else:
         stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%"
-    console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
+    console.print(x=hud_x, y=y, string=stats_line[:_COMBAT_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     if ws.slot_type in ("energy", "plasma"):
         cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
     else:
         ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else _UNLIMITED_AMMO_LABEL
         cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
-    console.print(x=hud_x, y=y, string=cost_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
+    console.print(x=hud_x, y=y, string=cost_line[:_COMBAT_TEXT_MAX], fg=COLOR_VALUE_DIM)
     return y + 1
 
 
@@ -717,14 +721,21 @@ def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player
     """Paint the WEAPONS list + armed-volley cost; return the next row."""
     from .data.weapons import find_weapon as _fw
     _count, _max_ap, _sum_pow = volley_costs(weapon_list, active_weapons, _fw)
-    console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
     if _count:
-        console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=COLOR_VALUE_DIM)
+        # Contiguous header: "WEAPONS[4] 4AP 16POW". Segments start at the
+        # exact cell where the previous text ended so the overlay chains
+        # them with no gaps, and 20 cells total keeps it inside the panel.
+        _hdr = f"WEAPONS[{_count}] "
+        console.print(x=hud_x, y=y, string=_hdr, fg=COLOR_DIVIDER)
+        _x = len(_hdr)
         _ap_fg = COLOR_HP_GOOD if _max_ap <= player_state.get("ap_remaining", 0) else COLOR_HP_LOW
-        console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
+        console.print(x=hud_x + _x, y=y, string=f"{_max_ap}AP ", fg=_ap_fg)
+        _x += len(f"{_max_ap}AP ")
         if _sum_pow:
             _pow_fg = COLOR_HP_GOOD if _sum_pow <= player_state.get("power_pool", 0) else COLOR_HP_LOW
-            console.print(x=hud_x + 16, y=y, string=f"{_sum_pow}POW", fg=_pow_fg)
+            console.print(x=hud_x + _x, y=y, string=f"{_sum_pow}POW", fg=_pow_fg)
+    else:
+        console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
     y += 1
     for i, wid in enumerate(weapon_list):
         try:
