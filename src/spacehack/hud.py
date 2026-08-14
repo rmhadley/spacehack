@@ -433,7 +433,10 @@ def _render_city_help_lines(console, hud_x, y, mode) -> int:
         ("?", "Guide"), ("numpad", "Move"),
     ]
     if mode == "dungeon":
-        _help_lines[0:0] = [("P", "Pickup"), ("O", "Explore"), ("G", "Go To")]
+        _help_lines[0:0] = [
+            ("P", "Pickup"), ("O", "Explore"),
+            ("G", "Go To"), ("R", "Reload"),
+        ]
     return _render_help_lines(console, hud_x, y, _help_lines)
 
 

@@ -213,6 +213,19 @@ def test_help_lines_pair_two_per_row():
     assert next_y == 3
 
 
+def test_dungeon_help_lines_show_reload_control():
+    """Dungeon exploration controls include the direct reload hotkey."""
+    console = FrameBuffer(40, 5)
+
+    hud._render_city_help_lines(console, 0, 0, "dungeon")
+
+    text = "\n".join(
+        "".join(console.cell(x, y).char for x in range(40)).rstrip()
+        for y in range(5)
+    )
+    assert "[R] Reload" in text
+
+
 def test_combat_actions_pair_two_per_row():
     """Combat key hints render two per row."""
     console = FrameBuffer(40, 4)
