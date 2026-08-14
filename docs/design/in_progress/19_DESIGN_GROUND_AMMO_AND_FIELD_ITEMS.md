@@ -34,10 +34,10 @@ The proposed direction is:
 
 Phases 0-5 have now landed: ground weapons use independent per-instance
 magazines, firing consumes loaded rounds, `R` performs a transactional reload
-of the first eligible active weapon, Ground Armory ammo purchases plus coded
-field-item loot are wired through the typed stack domain, and consumables now
-have data-driven use effects. The approved next UI refinement is to make `R`
-open a weapon chooser when multiple weapons can reload.
+of an eligible active weapon, Ground Armory ammo purchases plus coded field-item
+loot are wired through the typed stack domain, and consumables now have
+data-driven use effects. When multiple active weapons can reload, `R` opens a
+compact weapon chooser; a single eligible weapon reloads directly.
 
 ## Current-state audit
 
@@ -54,9 +54,8 @@ open a weapon chooser when multiple weapons can reload.
   instance after an accepted shot.
 - `src/spacehack/combat/_loop.py` calls `can_fire()` before resolving a shot
   and `consume_shot()` after a shot. The same loop dispatches `R` to the reload
-  action without duplicating fire orchestration; the current implementation
-  targets the first eligible active weapon, with a chooser approved as the
-  next UI refinement.
+  action without duplicating fire orchestration; ground rules open a compact
+  chooser when multiple active weapons have matching reserve ammo.
 - Ground combat reads per-instance state from
   `GameContext.equipped_ground_weapons`; duplicate catalog IDs have independent
   magazines.

@@ -871,3 +871,75 @@ def test_reload_weapon_missing_ammo_leaves_state_and_ap_unchanged():
 
     assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 3)]
     assert _rules_ground.player_ap(_ctx) == 3
+
+
+def _dual_wield_ammo_ctx():
+    """Build a two-weapon combat context with both magazines reloadable."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.equipped_ground_weapons = [
+        GroundWeaponInstance("kinetic_pistol", 3),
+        GroundWeaponInstance("kinetic_pistol", 11),
+    ]
+    _ctx.ground_expedition_items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _rules_ground.set_player_ap(_ctx, 3)
+    return _ctx
+
+
+def test_reload_weapon_chooses_between_multiple_active_weapons(monkeypatch):
+    from src.spacehack import pygame_story
+
+    _ctx = _dual_wield_ammo_ctx()
+    choices = []
+
+    def _choose(_ctx, **kwargs):
+        choices.append(kwargs["options"])
+        return "RELOAD_SLOT:1"
+
+    monkeypatch.setattr(pygame_story, "choose", _choose)
+
+    assert _rules_ground.reload_weapon(_ctx) is True
+    assert len(choices) == 1
+    assert choices[0] == (
+        ("Kinetic Pistol 3/12 RES 40", "RELOAD_SLOT:0"),
+        ("Kinetic Pistol 11/12 RES 40", "RELOAD_SLOT:1"),
+    )
+    assert _ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 3),
+        GroundWeaponInstance("kinetic_pistol", 12),
+    ]
+    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
+    assert _rules_ground.player_ap(_ctx) == 2
+
+
+def test_reload_weapon_modal_cancel_preserves_both_weapons(monkeypatch):
+    from src.spacehack import pygame_story
+
+    _ctx = _dual_wield_ammo_ctx()
+    monkeypatch.setattr(
+        pygame_story, "choose", lambda *_args, **_kwargs: "__BACK__",
+    )
+
+    assert _rules_ground.reload_weapon(_ctx) is False
+    assert _ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 3),
+        GroundWeaponInstance("kinetic_pistol", 11),
+    ]
+    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+    assert _rules_ground.player_ap(_ctx) == 3
+
+
+def test_reload_weapon_modal_rejects_an_invalid_slot(monkeypatch):
+    from src.spacehack import pygame_story
+
+    _ctx = _dual_wield_ammo_ctx()
+    monkeypatch.setattr(
+        pygame_story, "choose", lambda *_args, **_kwargs: "RELOAD_SLOT:99",
+    )
+
+    assert _rules_ground.reload_weapon(_ctx) is False
+    assert _ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 3),
+        GroundWeaponInstance("kinetic_pistol", 11),
+    ]
+    assert _rules_ground.player_ap(_ctx) == 3

@@ -519,43 +519,90 @@ def consume_shot(slot_idx: int, ctx) -> None:
     )
 
 
-def _first_active_slot(ctx) -> int | None:
-    """Return the first active weapon slot, or ``None`` when none active."""
-    _active = _state.active_weapon_list
-    for _i in range(len(ctx.equipped_ground_weapons)):
-        if _i < len(_active) and _active[_i]:
-            return _i
-    return None
+def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
+    """Return active weapons with a matching reserve and room to reload."""
+    from ..ground_equipment import reserve_ammo_count
+
+    candidates = []
+    for _slot, _instance in enumerate(ctx.equipped_ground_weapons):
+        if _slot >= len(_state.active_weapon_list) or not _state.active_weapon_list[_slot]:
+            continue
+        _spec = _find_gw(_instance.weapon_id)
+        if _instance.loaded_ammo is None or _instance.loaded_ammo >= _spec.ammo_capacity:
+            continue
+        _reserve = reserve_ammo_count(ctx.ground_expedition_items, _spec.ammo_type)
+        if _reserve > 0:
+            candidates.append((_slot, _instance, _spec, _reserve))
+    return tuple(candidates)
 
 
-def reload_weapon(ctx) -> bool:
-    """Reload the first active weapon from the Expedition Pack.
-
-    Returns True on success. Transactional: a full magazine, a missing
-    ammo stack, or insufficient AP leaves state unchanged.
-    """
+def _reload_slot(ctx, slot: int) -> bool:
+    """Reload one validated slot transactionally and charge its AP cost."""
     from ..ground_equipment import apply_reload
 
-    _slot = _first_active_slot(ctx)
-    if _slot is None:
-        ctx.log.add("No active weapon to reload.")
-        return False
-    _wid = ctx.equipped_ground_weapons[_slot].weapon_id
-    _wname = weapon_name(_wid, ctx)
-    _ap_cost = _find_gw(_wid).reload_ap_cost
-    if _state.player_ap < _ap_cost:
-        ctx.log.add(f"Need {_ap_cost} AP to reload (have {_state.player_ap}).")
+    _instance = ctx.equipped_ground_weapons[slot]
+    _spec = _find_gw(_instance.weapon_id)
+    _wname = _spec.name
+    if _state.player_ap < _spec.reload_ap_cost:
+        ctx.log.add(
+            f"Need {_spec.reload_ap_cost} AP to reload "
+            f"(have {_state.player_ap}).",
+        )
         return False
     try:
         _new = apply_reload(
-            ctx.equipped_ground_weapons, _slot, ctx.ground_expedition_items,
+            ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
         )
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(f"{_wname}: {exc}")
         return False
-    _state.player_ap -= _ap_cost
-    ctx.log.add(f"Reloaded {_wname} ({_new.loaded_ammo}/{_find_gw(_wid).ammo_capacity}).")
+    _state.player_ap -= _spec.reload_ap_cost
+    ctx.log.add(f"Reloaded {_wname} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
     return True
+
+
+def _choose_reload_slot(ctx, candidates) -> int | None:
+    """Show the compact weapon chooser and return the selected slot."""
+    from .. import pygame_story
+
+    options = tuple(
+        (
+            f"{_spec.name} {_instance.loaded_ammo}/{_spec.ammo_capacity} "
+            f"RES {_reserve}",
+            f"RELOAD_SLOT:{_slot}",
+        )
+        for _slot, _instance, _spec, _reserve in candidates
+    )
+    chosen = pygame_story.choose(
+        ctx,
+        title="RELOAD WEAPON",
+        body="Choose a weapon to reload.",
+        options=options,
+        caption="spacehack - reload",
+        compact=True,
+    )
+    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
+        return None
+    if chosen == "__QUIT__":
+        raise SystemExit
+    try:
+        _slot = int(chosen.split(":", 1)[1])
+    except (IndexError, ValueError):
+        ctx.log.add("That reload choice is invalid.")
+        return None
+    return _slot if _slot in {_candidate[0] for _candidate in candidates} else None
+
+
+def reload_weapon(ctx) -> bool:
+    """Reload one active weapon, choosing when multiple can reload."""
+    _candidates = _reloadable_slots(ctx)
+    if not _candidates:
+        ctx.log.add("No active weapon can be reloaded.")
+        return False
+    if len(_candidates) == 1:
+        return _reload_slot(ctx, _candidates[0][0])
+    _slot = _choose_reload_slot(ctx, _candidates)
+    return _slot is not None and _reload_slot(ctx, _slot)
 
 
 # ---------------------------------------------------------------------------
