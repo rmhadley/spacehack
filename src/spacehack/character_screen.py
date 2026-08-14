@@ -460,10 +460,13 @@ def _backpack_item_rows(ctx: GameContext) -> list:
 
 
 def _item_stack_name(stack) -> str:
-    """Return the display name for one field-item stack."""
+    """Return the display name and current/max quantity for one stack."""
     from .data.ground_items import find_ground_item
+    from .ground_equipment import item_stack_capacity
 
-    return find_ground_item(stack.item_type, stack.item_id).name
+    name = find_ground_item(stack.item_type, stack.item_id).name
+    capacity = item_stack_capacity(stack.item_type, stack.item_id)
+    return f"{name} [{stack.quantity}/{capacity}]"
 
 
 def _item_stack_detail(stack) -> str:

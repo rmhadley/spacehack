@@ -18,9 +18,28 @@ def test_character_rows_make_consumables_selectable():
 
     assert rows[0].action == "PACK_STACK:0"
     assert rows[0].selectable is True
+    assert rows[0].text == "Med Pack [1/3]"
     detail = _item_stack_detail(ctx.ground_expedition_items[0])
     assert "Restore HP" in detail
     assert "restore_hp" not in detail
+
+
+def test_character_rows_show_current_and_max_for_all_stackable_items():
+    from src.spacehack.character_screen import _backpack_item_rows
+
+    ctx = SimpleNamespace(
+        ground_expedition_items=[
+            GroundItemStack("ammo", "pistol_rounds", 12),
+            GroundItemStack("consumable", "med_pack", 3),
+            GroundItemStack("consumable", "stim", 1),
+        ],
+    )
+
+    assert [row.text for row in _backpack_item_rows(ctx)] == [
+        "Pistol Rounds [12/40]",
+        "Med Pack [3/3]",
+        "Combat Stim [1/2]",
+    ]
 
 
 def test_character_consumable_action_uses_a_charge(monkeypatch):
