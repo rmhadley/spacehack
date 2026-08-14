@@ -21,6 +21,7 @@ from .. import world
 from ._types import EnemyInstance
 from ..data.weapons import find_weapon
 from .. import animation_timing
+from ..hud import range_band_color
 
 
 def _present(context, console) -> None:
@@ -367,22 +368,10 @@ def _paint_target_highlight(
     region_y: int,
     enemy,
 ) -> None:
-    """Recolor the targeted enemy's own glyph to bright gold.
+    """Recolor the targeted enemy's glyphs to bright gold.
 
-    Replaces the old bracket-marker reticle (``>`` / ``<`` / ``^`` / ``v``
-    printed one cell outside the footprint) which overwrote adjacent
-    enemy ship glyphs when enemies stood close together.
-
-    The new approach paints the enemy's own ``char`` in bright gold
-    over a dark-gold background, directly on the enemy's footprint
-    tiles. This only touches the enemy's own cells — never overlaps
-    neighbors — and works for any ship size (1x1 scouts, 2x2+
-    larger ships). Cells outside the viewport are silently skipped
-    so camera-edge targets never crash the presentation layer.
-
-    Color is gold ``(255, 220, 100)`` with a dark-gold background
-    ``(60, 45, 20)``, matching the existing HUD's gold/weapon
-    palette cue so the highlight reads as an existing UI affordance.
+    Paints the enemy's own ``char`` over its footprint tiles so the
+    highlight never overlaps neighbors; cells off-view are skipped.
     """
     color_gold = (255, 220, 100)
     bg_gold = (60, 45, 20)
@@ -422,29 +411,9 @@ def _paint_range_line(
     color_override: tuple[int, int, int] | None = None,
     game_map: world.GameMap | None = None,
 ) -> None:
-    """Draw a range-accuracy line from player to target, colored by weapon range bands.
-
-    Delegates to :func:`_draw_range_colored_line` after resolving
-    the weapon spec — shared by both ship and ground combat.
-
-    Each cell along a Bresenham line is colored based on its distance
-    from the player and the selected weapon's range profile:
-
-      * **Green** — within ``max_range // 2`` (close-bonus zone)
-      * **Yellow** — within ``max_range`` (normal range)
-      * **Orange** — within ``min_range`` (too-close penalty, if min_range > 0)
-      * **Red** — beyond ``max_range`` (dist penalty active)
-
-    When ``color_override`` is set, all cells use that color instead
-    (e.g. solid red when LOS is blocked).
-
-    The line updates immediately when the player switches weapons.    Uses ``~`` (tilde) as the line character so it's visible but
-    doesn't fully obscure glyphs underneath. Tilde is a safe
-    choice for CP437-based bitmap atlases.
-
-    ``game_map`` (when provided) keeps the line from painting over
-    other entities — cells occupied by a non-target (another enemy,
-    loot, a terminal) are skipped so their glyphs stay readable."""
+    """Draw a range-accuracy line from player to target, colored by the
+    weapon's range bands (green/yellow/orange/red by distance). Shared
+    by ship and ground combat; ``color_override`` forces one color."""
     try:
         ws = find_weapon(weapon_id)
     except KeyError:
@@ -483,74 +452,96 @@ def _draw_range_colored_line(
     game_map: world.GameMap | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by
-    distance from the player and the weapon's range profile.
-
-    This is the core drawing logic extracted from
-    :func:`_paint_range_line` so both ship combat and ground combat
-    can share it with different weapon catalog lookups.
-
-    * **Green** — within ``max_range // 2`` (close-bonus zone)
-    * **Yellow** — within ``max_range`` (normal range)
-    * **Orange** — within ``min_range`` (too-close penalty)
-    * **Red** — beyond ``max_range`` (dist penalty active)
-
-    When ``color_override`` is set, all cells use that color instead
-    (e.g. solid red ``(255, 60, 60)`` when LOS is blocked).
-
-    ``game_map`` (when provided) makes the line yield to entities:
-    any cell occupied by a non-target (another enemy, loot, a
-    terminal) is skipped so those glyphs stay visible instead of
-    being painted over by ``~``.
-    """
-    half_range = weapon_max_range // 2
-    has_min_range = weapon_min_range > 0
-
-    _GREEN = (100, 235, 115)
-    _YELLOW = (255, 220, 80)
-    _ORANGE = (255, 160, 60)
-    _RED = (255, 80, 80)
-
+    distance and the weapon's range profile; ``color_override`` forces
+    one color for every cell."""
     for bx, by in _bresenham_line(
         player_pos.x, player_pos.y,
         target_pos.x, target_pos.y,
     ):
-        # Skip the target's own cell — the highlight/bg handles that
-        if bx == target_pos.x and by == target_pos.y:
-            continue
-
-        # Skip cells occupied by other entities so the line never
-        # draws over a non-target enemy, loot, or terminal glyph.
-        if game_map is not None and game_map.entity_at(bx, by) is not None:
-            continue
-
-        sx = bx - cam_x
-        sy = by - cam_y
-        if not (0 <= sx < view_w and 0 <= sy < view_h):
-            continue
-
-        if color_override is not None:
-            color = color_override
-        else:
-            dist = math.hypot(bx - player_pos.x, by - player_pos.y)
-            if dist <= half_range:
-                color = _GREEN
-            elif dist <= weapon_max_range:
-                color = _YELLOW
-            elif has_min_range and dist <= weapon_min_range:
-                color = _ORANGE
-            else:
-                color = _RED
-
-        console.print(
-            x=region_x + sx, y=region_y + sy,
-            string="~",
-            fg=color,
+        _paint_range_cell(
+            console, bx, by,
+            player_pos, target_pos,
+            weapon_max_range, weapon_min_range,
+            cam_x, cam_y, view_w, view_h, region_x, region_y,
+            color_override=color_override,
+            game_map=game_map,
         )
+
+
+def _paint_range_cell(
+    console,
+    bx: int,
+    by: int,
+    player_pos: world.Position,
+    target_pos: world.Position,
+    weapon_max_range: int,
+    weapon_min_range: int,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    region_x: int,
+    region_y: int,
+    *,
+    color_override: tuple[int, int, int] | None = None,
+    game_map: world.GameMap | None = None,
+) -> None:
+    """Paint one range-line cell, skipping off-view or occluded cells."""
+    if bx == target_pos.x and by == target_pos.y:
+        return
+    if game_map is not None and game_map.entity_at(bx, by) is not None:
+        return
+    sx = bx - cam_x
+    sy = by - cam_y
+    if not (0 <= sx < view_w and 0 <= sy < view_h):
+        return
+    if color_override is not None:
+        color = color_override
+    else:
+        dist = math.hypot(bx - player_pos.x, by - player_pos.y)
+        color = range_band_color(dist, weapon_max_range, weapon_min_range)
+    console.print(
+        x=region_x + sx, y=region_y + sy,
+        string="~",
+        fg=color,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Frame rendering
 # ---------------------------------------------------------------------------
+
+
+def _paint_combat_hud(
+    console,
+    player_state: dict,
+    enemies: list[EnemyInstance],
+    target_idx: int,
+    player_mode: str = "FIRING",
+    *,
+    active_weapons: list[bool] | None = None,
+    weapon_list: tuple = (),
+    evade_bonus: int | None = None,
+    hit_chances: dict[str, int] | None = None,
+    flee_chance: int | None = None,
+) -> None:
+    """Paint the combat HUD panel via the shared renderer."""
+    from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
+    from .. import hud as _hud
+    _hud.render_combat_hud(
+        console,
+        screen_width=SCREEN_WIDTH,
+        screen_height=SCREEN_HEIGHT,
+        player_state=player_state,
+        enemies=enemies,
+        target_idx=target_idx,
+        player_mode=player_mode,
+        active_weapons=active_weapons,
+        weapon_list=weapon_list,
+        evade_bonus=evade_bonus,
+        hit_chances=hit_chances,
+        flee_chance=flee_chance,
+    )
 
 
 def _render_anim_frame(
@@ -575,47 +566,59 @@ def _render_anim_frame(
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
     from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
-    from .. import hud as _hud
     from .. import message_log as _ml
     console.clear()
     world.render_world_view(
-        console, game_map,
-        region_x=0, region_y=0,
-        region_w=view_w, region_h=view_h,
-        camera_x=cam_x, camera_y=cam_y,
+        console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y,
     )
     # Targeted-enemy reticle — painted AFTER the world view so the
     # gold recolor sits on top of the enemy char.
     _tgt = _resolve_target(enemies, target_idx)
     if _tgt is not None:
-        _paint_target_highlight(
-            console, cam_x, cam_y, view_w, view_h, 0, 0, _tgt,
-        )
-    _hud.render_combat_hud(
-        console,
-        screen_width=SCREEN_WIDTH,
-        screen_height=SCREEN_HEIGHT,
-        player_state=player_state,
-        enemies=enemies,
-        target_idx=target_idx,
-        player_mode=player_mode,
-        active_weapons=active_weapons,
-        weapon_list=weapon_list,
-        evade_bonus=evade_bonus,
-        hit_chances=hit_chances,
-        flee_chance=flee_chance,
+        _paint_target_highlight(console, cam_x, cam_y, view_w, view_h, 0, 0, _tgt)
+    _paint_combat_hud(
+        console, player_state, enemies, target_idx, player_mode,
+        active_weapons=active_weapons, weapon_list=weapon_list, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance,
     )
-    _ml.render_message_log(
-        console, log,
-        screen_width=SCREEN_WIDTH,
-        screen_height=SCREEN_HEIGHT,
-    )
+    _ml.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
     _present(context, console)
 
 
 # ---------------------------------------------------------------------------
 # Explosion animation (ship kills)
 # ---------------------------------------------------------------------------
+
+
+def _explosion_frame(
+    console,
+    context,
+    game_map: world.GameMap,
+    cam_x: int,
+    cam_y: int,
+    view_w: int,
+    view_h: int,
+    player_state: dict,
+    enemies: list[EnemyInstance],
+    target_idx: int,
+    log,
+    *,
+    weapon_list: tuple = (),
+    active_weapons: list[bool] | None = None,
+    evade_bonus: int | None = None,
+    hit_chances: dict[str, int] | None = None,
+    flee_chance: int | None = None,
+) -> None:
+    """Render one explosion frame (base view + HUD + log)."""
+    _render_anim_frame(
+        console, context, game_map,
+        cam_x, cam_y, view_w, view_h,
+        player_state, enemies, target_idx, log,
+        weapon_list=weapon_list,
+        active_weapons=active_weapons,
+        evade_bonus=evade_bonus,
+        hit_chances=hit_chances,
+        flee_chance=flee_chance,
+    )
 
 
 def _animate_explosion(
@@ -638,58 +641,21 @@ def _animate_explosion(
     hit_chances: dict[str, int] | None = None,
     flee_chance: int | None = None,
 ) -> None:
-    """Animate an expanding explosion at ``center_pos`` (5 rings).
-
-    Each frame paints one more concentric ring outward so the effect
-    reads as a growing bright flash. Mirrors ``__main__._animate_jump``.
-    """
+    """Animate an expanding explosion at ``center_pos`` (5 rings)."""
     for rings in range(len(_COMBAT_EXPLOSION_RINGS)):
-        _render_anim_frame(
-            console, context, game_map,
-            cam_x, cam_y, view_w, view_h,
-            player_state, enemies, target_idx, log,
-            weapon_list=weapon_list,
-            active_weapons=active_weapons,
-            evade_bonus=evade_bonus,
-            hit_chances=hit_chances,
-            flee_chance=flee_chance,
-        )
+        _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance)
         _draw_explosion_rings(
             console, (center_pos.x, center_pos.y), rings + 1,
-            cam_x=cam_x, cam_y=cam_y,
-            view_w=view_w, view_h=view_h,
+            cam_x=cam_x, cam_y=cam_y, view_w=view_w, view_h=view_h,
         )
         _present(context, console)
         _responsive_sleep(animation_timing.EXPLOSION_RING)
-
-    # One frame of white flash
-    _render_anim_frame(
-        console, context, game_map,
-        cam_x, cam_y, view_w, view_h,
-        player_state, enemies, target_idx, log,
-        weapon_list=weapon_list,
-        active_weapons=active_weapons,
-        evade_bonus=evade_bonus,
-        hit_chances=hit_chances,
-        flee_chance=flee_chance,
-    )
+    _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance)
     _draw_flash(
         console, (center_pos.x, center_pos.y),
-        cam_x=cam_x, cam_y=cam_y,
-        view_w=view_w, view_h=view_h,
+        cam_x=cam_x, cam_y=cam_y, view_w=view_w, view_h=view_h,
     )
     _present(context, console)
     _responsive_sleep(animation_timing.EXPLOSION_FLASH)
-
-    # Brief void to let the flash settle
-    _render_anim_frame(
-        console, context, game_map,
-        cam_x, cam_y, view_w, view_h,
-        player_state, enemies, target_idx, log,
-        weapon_list=weapon_list,
-        active_weapons=active_weapons,
-        evade_bonus=evade_bonus,
-        hit_chances=hit_chances,
-        flee_chance=flee_chance,
-    )
+    _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance)
     _responsive_sleep(animation_timing.EXPLOSION_SETTLE)

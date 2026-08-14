@@ -13,6 +13,7 @@ from typing import Any
 
 from .. import ui, world
 from ..data.ground_weapons import find_ground_weapon as _find_gw
+from ..hud import COLOR_RANGE_GREEN, COLOR_RANGE_ORANGE, COLOR_RANGE_RED
 from ..pygame_target_card import (
     TARGET_CARD_TEXT,
     TargetCard,
@@ -24,10 +25,12 @@ from ..pygame_target_card import (
 from ._card_presentation import build_card as _build_card
 from ._card_presentation import hit_color_for_weapon
 
-# Distance-readout threat colors, mirroring the space HUD's range tints.
-COLOR_DIST_SAFE: tuple[int, int, int] = (100, 235, 115)     # out of enemy range
-COLOR_DIST_DANGER: tuple[int, int, int] = (255, 80, 80)     # enemy can fire now
-COLOR_DIST_TOO_CLOSE: tuple[int, int, int] = (255, 160, 60)  # inside min range
+# Distance-readout threat colors — aliases of the shared combat range
+# palette (hud.py) so the enemy-threat readout can never drift from the
+# targeting line / target cards.
+COLOR_DIST_SAFE = COLOR_RANGE_GREEN       # out of enemy range
+COLOR_DIST_DANGER = COLOR_RANGE_RED       # enemy can fire now
+COLOR_DIST_TOO_CLOSE = COLOR_RANGE_ORANGE  # inside min range
 
 
 def enemy_weapon(enemy: Any):

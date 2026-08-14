@@ -77,6 +77,34 @@ COLOR_HELP_DESC: tuple[int, int, int] = (240, 240, 230)             # near-white
 CONSOLE_LOG_KEY = "\\"
 CONSOLE_LOG_LABEL = "Console"
 
+# Combat range-band colors — SINGLE SOURCE shared by the targeting line
+# (combat/_animations), the enemy-distance readout below, and the target
+# cards' HIT % (combat/_card_presentation). Keep them defined here only.
+COLOR_RANGE_GREEN: tuple[int, int, int] = (100, 235, 115)     # close-bonus zone (max_range // 2)
+COLOR_RANGE_YELLOW: tuple[int, int, int] = (255, 220, 80)     # within max range
+COLOR_RANGE_ORANGE: tuple[int, int, int] = (255, 160, 60)     # inside min range (too close)
+COLOR_RANGE_RED: tuple[int, int, int] = (255, 80, 80)         # beyond max range
+
+
+def range_band_color(
+    dist: float,
+    weapon_max_range: int,
+    weapon_min_range: int = 0,
+) -> tuple[int, int, int]:
+    """Color for a combat distance, matching the targeting-line bands.
+
+    Green within the close-bonus zone (``max_range // 2``), yellow
+    within ``max_range``, orange inside ``min_range`` when one exists,
+    red beyond ``max_range``.
+    """
+    if dist <= weapon_max_range // 2:
+        return COLOR_RANGE_GREEN
+    if dist <= weapon_max_range:
+        return COLOR_RANGE_YELLOW
+    if weapon_min_range > 0 and dist <= weapon_min_range:
+        return COLOR_RANGE_ORANGE
+    return COLOR_RANGE_RED
+
 
 @dataclass
 class HudStats:
@@ -191,6 +219,206 @@ def _render_help_lines(
     return y
 
 
+def _resolve_ship_catalog(owned_ship):
+    """Resolve the owned ship's catalog spec, or None when unknown."""
+    if owned_ship is None:
+        return None
+    from . import ship as _ship_cat_mod
+    try:
+        return _ship_cat_mod.find_ship(owned_ship.ship_id)
+    except KeyError:
+        return None
+
+
+def _hud_xp_line(player_level: int, player_xp: int, ctx) -> tuple[str, tuple[int, int, int]]:
+    """Return ``(line, fg)`` for the HUD XP progress row."""
+    from .xp import xp_for_level as _xp_for_level, _xp_to_next as _xp_to_next
+    _xp_total = _xp_for_level(player_level) if player_level > 1 else 0
+    _xp_into = max(0, player_xp - _xp_total)
+    return _xp_hud_line(
+        player_level, _xp_into, _xp_to_next(player_level),
+        getattr(ctx, 'player_skill_points', 0),
+    )
+
+
+def _render_hud_footer(console, hud_x, hud_view_height, *, xp_line, xp_fg) -> None:
+    """Paint the XP bar + bottom hints anchored to the panel's bottom edge."""
+    _xp_y, _bump_y, _exit_y = _footer_rows(hud_view_height)
+    console.print(x=hud_x, y=_xp_y, string=xp_line, fg=xp_fg)
+    console.print(x=hud_x, y=_bump_y, string="bump to interact", fg=COLOR_VALUE_DIM)
+    console.print(x=hud_x, y=_exit_y, string="ESC to quit", fg=COLOR_VALUE_DIM)
+
+
+def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -> int:
+    """Paint the ship name / location / date rows; return the next row."""
+    console.print(x=hud_x, y=y, string=ship_name.upper(), fg=COLOR_SHIP_NAME)
+    y += 1
+    if location:
+        console.print(x=hud_x, y=y, string=location.upper(), fg=COLOR_VALUE_DIM)
+    y += 1
+    if date_str:
+        console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
+    return y + 1
+
+
+def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo_used, max_cargo, weapons_n, weapon_slots, modules_n, module_slots, eff_spd, stats, ground_stats) -> int:
+    """Paint the space-mode stat rows (fuel…speed + skills); return next row."""
+    console.print(x=hud_x, y=y, string="Fuel", fg=COLOR_SHIP_LABEL)
+    console.print(x=hud_x + 5, y=y, string=f"{fuel}/{max_fuel}", fg=COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW)
+    y += 1
+    console.print(x=hud_x, y=y, string="Hull", fg=COLOR_SHIP_LABEL)
+    console.print(x=hud_x + 5, y=y, string=f"{hull_pct}%", fg=COLOR_HP_GOOD if hull_pct >= 50 else COLOR_HP_LOW)
+    y += 1
+    console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_SHIP_LABEL)
+    console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_SHIP_VALUE)
+    y += 1
+    console.print(x=hud_x, y=y, string="Wpn", fg=COLOR_SHIP_LABEL)
+    console.print(x=hud_x + 5, y=y, string=f"{weapons_n}/{weapon_slots}", fg=COLOR_SHIP_VALUE)
+    y += 1
+    console.print(x=hud_x, y=y, string="Mod", fg=COLOR_SHIP_LABEL)
+    console.print(x=hud_x + 5, y=y, string=f"{modules_n}/{module_slots}", fg=COLOR_SHIP_VALUE)
+    y += 1
+    console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
+    console.print(x=hud_x + 5, y=y, string=str(eff_spd), fg=COLOR_SHIP_VALUE)
+    y += 3
+    _render_skill_line(console, hud_x, y, stats)
+    y += 1
+    if ground_stats is not None:
+        _render_ground_stat_line(console, hud_x, y, ground_stats)
+        y += 1
+    return y
+
+
+def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, hud_view_height, xp_line, xp_fg) -> None:
+    """Paint the space-mode HUD body below the title."""
+    from . import ship as _ship_mod
+    owned_ship = ctx.player_owned_ship
+    stats = ctx.stats
+    ground_stats = ctx.ground_stats
+    ship_name = _ship_mod.ship_display_name(owned_ship)
+    hull_pct = _ship_mod.hull_integrity_pct(owned_ship)
+    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
+    eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
+    weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
+    modules_n = len(getattr(owned_ship, 'modules', ()) or ())
+    y = _render_ship_identity(console, hud_x, 2, ship_name=ship_name, location=location, date_str=date_str)
+    y = _render_ship_stat_rows(
+        console, hud_x, y,
+        fuel=getattr(owned_ship, 'fuel', 0),
+        max_fuel=getattr(ship_catalog, 'max_fuel', 1),
+        hull_pct=hull_pct,
+        cargo_used=cargo_used, max_cargo=max_cargo,
+        weapons_n=weapons_n, weapon_slots=getattr(ship_catalog, 'weapon_slots', 0),
+        modules_n=modules_n, module_slots=getattr(ship_catalog, 'module_slots', 0),
+        eff_spd=eff_spd, stats=stats, ground_stats=ground_stats,
+    )
+    y += 1
+    _render_divider(console, hud_x, y)
+    y += 3
+    _render_help_lines(console, hud_x, y, [
+        ("G", "Go To"), ("P", "Pickup"), ("M", "Map"), ("I", "Cargo"),
+        ("T", "Comms"), ("C", "Character"), ("F", "Factions"),
+        (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL), ("?", "Guide"), ("numpad", "Move"),
+    ])
+    _render_hud_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
+
+
+def _render_city_identity(console, hud_x, y, *, species_name, class_name, location, date_str) -> int:
+    """Paint the species / class / location / date rows; return next row."""
+    if species_name:
+        console.print(x=hud_x, y=y, string=species_name.title(), fg=COLOR_VALUE_WHITE)
+    y += 1
+    if class_name:
+        console.print(x=hud_x, y=y, string=class_name.title(), fg=COLOR_VALUE_WHITE)
+    y += 1
+    if location:
+        console.print(x=hud_x, y=y, string=location, fg=COLOR_VALUE_DIM)
+    y += 1
+    if date_str:
+        console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
+    return y + 1
+
+
+def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_catalog, ground_stats) -> int:
+    """Paint HP / cargo / credits / skill rows; return the next row."""
+    console.print(x=hud_x, y=y, string="HP", fg=COLOR_LABEL)
+    hp = max(0, ctx.ground_hp)
+    max_hp = max(1, ctx.ground_max_hp)
+    console.print(x=hud_x + 3, y=y, string=f"{hp}/{max_hp}", fg=COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW)
+    y += 1
+    console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_LABEL)
+    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
+    console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_VALUE_WHITE)
+    y += 1
+    console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
+    console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
+    y += 3
+    _render_skill_line(console, hud_x, y, stats)
+    y += 1
+    if ground_stats is not None:
+        _render_ground_stat_line(console, hud_x, y, ground_stats)
+        y += 1
+    return y
+
+
+def _render_city_terminals(console, hud_x, y, *, has_armory_terminal, has_mech_terminal, has_trade_terminal) -> int:
+    """Paint the terminal indicator rows; return the next row."""
+    if has_armory_terminal:
+        console.print(x=hud_x, y=y, string="A  Armory", fg=COLOR_LABEL)
+        y += 1
+    if has_mech_terminal:
+        console.print(x=hud_x, y=y, string="%  Mechanic", fg=COLOR_LABEL)
+        y += 1
+    if has_trade_terminal:
+        console.print(x=hud_x, y=y, string="=  Trade", fg=COLOR_LABEL)
+    return y
+
+
+def _render_city_help_lines(console, hud_x, y, mode) -> int:
+    """Paint the movement key hints; return the next row."""
+    _help_lines = [
+        ("Q", "Quest Log"), ("I", "Cargo"), ("C", "Character"),
+        ("F", "Factions"), (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
+        ("?", "Guide"), ("numpad", "Move"),
+    ]
+    if mode == "dungeon":
+        _help_lines[0:0] = [("P", "Pickup"), ("O", "Explore"), ("G", "Go To")]
+    return _render_help_lines(console, hud_x, y, _help_lines)
+
+
+def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, mode, hud_view_height, xp_line, xp_fg, has_trade_terminal, has_mech_terminal, has_armory_terminal) -> None:
+    """Paint the city/dungeon-mode HUD body below the title."""
+    character = ctx.character_info
+    y = _render_city_identity(
+        console, hud_x, 2,
+        species_name=character.get("species_name", ""),
+        class_name=character.get("class_name", ""),
+        location=location, date_str=date_str,
+    )
+    _render_divider(console, hud_x, y)
+    y += 2
+    y = _render_city_stat_rows(
+        console, hud_x, y,
+        ctx=ctx, stats=ctx.stats,
+        owned_ship=ctx.player_owned_ship, ship_catalog=ship_catalog,
+        ground_stats=ctx.ground_stats,
+    )
+    y += 1
+    _render_divider(console, hud_x, y)
+    y += 1
+    y = _render_city_terminals(
+        console, hud_x, y,
+        has_armory_terminal=has_armory_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_trade_terminal=has_trade_terminal,
+    )
+    y += 1
+    _render_divider(console, hud_x, y)
+    y += 2
+    _render_city_help_lines(console, hud_x, y, mode)
+    _render_hud_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
+
+
 def render_hud(
     console: FrameBuffer,
     ctx: GameContext,
@@ -203,273 +431,32 @@ def render_hud(
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
     has_armory_terminal: bool = False,    # city mode: show A terminal hint
 ) -> None:
-    """Paint the right-side HUD into the top ``hud_view_height`` rows.
-
-    ``hud_view_height`` should be ``SCREEN_HEIGHT - MSG_LOG_HEIGHT`` so
-    we never paint into the message-log rows at the bottom.
-
-    ``location`` is the current location name — the planet name in
-    city mode (e.g. "Earth", "Mars") or the solar system name in
-    space mode (e.g. "Sol", "Alpha Centauri"). Shown below the
-    title in both modes so the player always knows where they are.
-
-    **Pull-from-ctx contract.** Everything except ``screen_width``,
-    ``hud_view_height``, ``location``, and the terminal flags is
-    extracted from ``ctx`` internally::
-
-        character      ->  ctx.character_info
-        stats          ->  ctx.stats
-        owned_ship     ->  ctx.player_owned_ship
-        ship_catalog   ->  resolved from ctx.player_owned_ship
-        date_str       ->  format_date(ctx)
-        player_xp      ->  ctx.player_xp
-        player_level   ->  ctx.player_level
-        ground_stats   ->  ctx.ground_stats
-
-    This means adding a new field to GameContext that the HUD should
-    display never requires updating call sites.
-    """
-    # ---- Extract all state from ctx ----
-    character = ctx.character_info
-    stats = ctx.stats
-    owned_ship = ctx.player_owned_ship
-    player_xp = ctx.player_xp
-    player_level = ctx.player_level
-    ground_stats = ctx.ground_stats
-    ship_catalog = None
-    if owned_ship is not None:
-        from . import ship as _ship_cat_mod
-        try:
-            ship_catalog = _ship_cat_mod.find_ship(owned_ship.ship_id)
-        except KeyError:
-            pass
+    """Paint the right-side HUD; everything except layout comes from ``ctx``."""
     from .time import format_date as _format_date
     date_str = _format_date(ctx)
-
     hud_x = screen_width - HUD_WIDTH
-    # Compute XP progress for both city and space modes.
-    from .xp import xp_for_level as _xp_for_level, _xp_to_next as _xp_to_next
-    _xp_total_for_level = _xp_for_level(player_level) if player_level > 1 else 0
-    _xp_into_level = max(0, player_xp - _xp_total_for_level)
-    _xp_needed = _xp_to_next(player_level)
-    _xp_line, _xp_fg = _xp_hud_line(
-        player_level, _xp_into_level, _xp_needed,
-        getattr(ctx, 'player_skill_points', 0),
-    )
-
-    # Title — always at row 0
-    console.print(
-        x=hud_x,
-        y=0,
-        string="Spacehack",
-        fg=COLOR_HUD_TITLE,
-    )
-
-    if mode == "space" and owned_ship is not None and ship_catalog is not None:
-        # ---- Space mode: ship stats + keybinding help ----
-        ship_name = _ship_cat_mod.ship_display_name(owned_ship)
-        fuel = getattr(owned_ship, 'fuel', 0)
-        max_fuel = getattr(ship_catalog, 'max_fuel', 1)
-        hull_pct = _ship_cat_mod.hull_integrity_pct(owned_ship)
-        cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
-        weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
-        weapon_slots = getattr(ship_catalog, 'weapon_slots', 0)
-        modules_n = len(getattr(owned_ship, 'modules', ()) or ())
-        module_slots = getattr(ship_catalog, 'module_slots', 0)
-
-        y = 2
-        # Ship name (bright cyan)
-        console.print(x=hud_x, y=y, string=ship_name.upper(), fg=COLOR_SHIP_NAME)
-        # Location (silver, below ship name)
-        y += 1
-        if location:
-            console.print(x=hud_x, y=y, string=location.upper(), fg=COLOR_VALUE_DIM)
-        # Date (silver, below location)
-        y += 1
-        if date_str:
-            console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
-        y += 1
-
-        # Fuel
-        console.print(x=hud_x, y=y, string="Fuel", fg=COLOR_SHIP_LABEL)
-        fuel_str = f"{fuel}/{max_fuel}"
-        fuel_color = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
-        console.print(x=hud_x + 5, y=y, string=fuel_str, fg=fuel_color)
-        y += 1
-
-        # Hull
-        console.print(x=hud_x, y=y, string="Hull", fg=COLOR_SHIP_LABEL)
-        hull_color = COLOR_HP_GOOD if hull_pct >= 50 else COLOR_HP_LOW
-        console.print(x=hud_x + 5, y=y, string=f"{hull_pct}%", fg=hull_color)
-        y += 1
-
-        # Cargo
-        console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_SHIP_LABEL)
-        console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_SHIP_VALUE)
-        y += 1
-
-        # Weapons
-        console.print(x=hud_x, y=y, string="Wpn", fg=COLOR_SHIP_LABEL)
-        console.print(x=hud_x + 5, y=y, string=f"{weapons_n}/{weapon_slots}", fg=COLOR_SHIP_VALUE)
-        y += 1
-
-        # Modules
-        console.print(x=hud_x, y=y, string="Mod", fg=COLOR_SHIP_LABEL)
-        console.print(x=hud_x + 5, y=y, string=f"{modules_n}/{module_slots}", fg=COLOR_SHIP_VALUE)
-        y += 1
-
-        # Speed (base + module bonuses)
-        from . import ship as _ship_mod
-        _eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
-        console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
-        console.print(x=hud_x + 5, y=y, string=str(_eff_spd), fg=COLOR_SHIP_VALUE)
-        y += 2
-
-        # Pilot skills (compact one-liner)
-        y += 1
-        _render_skill_line(console, hud_x, y, stats)
-        y += 1
-        # Ground stats (second line)
-        if ground_stats is not None:
-            _render_ground_stat_line(console, hud_x, y, ground_stats)
-            y += 1
-
-        # Divider
-        y += 1
-        _render_divider(console, hud_x, y)
-        y += 2
-
-        # Blank line before keybinding help.
-        y += 1
-
-        # Keybinding help
-        y = _render_help_lines(console, hud_x, y, [
-            ("G", "Go To"),
-            ("P", "Pickup"),
-            ("M", "Map"),
-            ("I", "Cargo"),
-            ("T", "Comms"),
-            ("C", "Character"),
-            ("F", "Factions"),
-            (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
-            ("?", "Guide"),
-            ("numpad", "Move"),
-        ])
-
-        # XP progress bar — between key hints and footer.
-        _xp_y, _bump_y, _exit_y = _footer_rows(hud_view_height)
-        console.print(x=hud_x, y=_xp_y, string=_xp_line, fg=_xp_fg)
-
-        # Bottom hints stay one full row inside the panel's bottom edge.
-        console.print(x=hud_x, y=_bump_y, string="bump to interact", fg=COLOR_VALUE_DIM)
-        console.print(x=hud_x, y=_exit_y, string="ESC to quit", fg=COLOR_VALUE_DIM)
-
+    _xp_line, _xp_fg = _hud_xp_line(ctx.player_level, ctx.player_xp, ctx)
+    console.print(x=hud_x, y=0, string="Spacehack", fg=COLOR_HUD_TITLE)
+    _ship_catalog = _resolve_ship_catalog(ctx.player_owned_ship)
+    if mode == "space" and ctx.player_owned_ship is not None and _ship_catalog is not None:
+        _render_space_hud(
+            console, hud_x, ctx,
+            ship_catalog=_ship_catalog,
+            location=location, date_str=date_str,
+            hud_view_height=hud_view_height,
+            xp_line=_xp_line, xp_fg=_xp_fg,
+        )
     else:
-        # ---- City / dungeon mode: character stats ----
-        # Species + class (two-line block)
-        species_name = character.get("species_name", "")
-        class_name = character.get("class_name", "")
-        y = 2
-        if species_name:
-            console.print(x=hud_x, y=y, string=species_name.title(), fg=COLOR_VALUE_WHITE)
-        y += 1
-        if class_name:
-            console.print(x=hud_x, y=y, string=class_name.title(), fg=COLOR_VALUE_WHITE)
-        # Location (silver, below class)
-        y += 1
-        if location:
-            console.print(x=hud_x, y=y, string=location, fg=COLOR_VALUE_DIM)
-        # Date (silver, below location)
-        y += 1
-        if date_str:
-            console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
-        y += 1
-
-        # Divider — separates identity from stats
-        y += 1
-        _render_divider(console, hud_x, y)
-
-        # HP (color depends on ratio) — ground HP is the LIVE value in
-        # city/dungeon: ground combat's sync_state writes damage back to
-        # ctx.ground_hp / ctx.ground_max_hp, while HudStats.hp is the
-        # character-creation snapshot and never updates. GameContext
-        # always defines these (defaults 23/23), so read them directly.
-        y += 2
-        console.print(x=hud_x, y=y, string="HP", fg=COLOR_LABEL)
-        hp = max(0, ctx.ground_hp)
-        max_hp = max(1, ctx.ground_max_hp)
-        hp_str = f"{hp}/{max_hp}"
-        hp_fg = COLOR_HP_GOOD if hp * 2 >= max_hp else COLOR_HP_LOW
-        console.print(x=hud_x + 3, y=y, string=hp_str, fg=hp_fg)
-
-        # Cargo (used/max — handy while shopping at trade terminals)
-        y += 1
-        console.print(x=hud_x, y=y, string="Cargo", fg=COLOR_LABEL)
-        cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
-        console.print(x=hud_x + 6, y=y, string=f"{cargo_used}/{max_cargo}", fg=COLOR_VALUE_WHITE)
-
-        # Credits
-        y += 1
-        console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
-        console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
-
-        # Blank line — separates the headline stats from the skills block.
-        y += 1
-
-        # Pilot skills (compact one-liner)
-        y += 1
-        _render_skill_line(console, hud_x, y, stats)
-        y += 1
-        # Ground stats (second line)
-        if ground_stats is not None:
-            _render_ground_stat_line(console, hud_x, y, ground_stats)
-            y += 1
-
-        # Divider — separates stats from terminals
-        y += 1
-        _render_divider(console, hud_x, y)
-
-        # Terminal indicators (each on its own line)
-        y += 1
-        if has_armory_terminal:
-            console.print(x=hud_x, y=y, string="A  Armory", fg=COLOR_LABEL)
-            y += 1
-        if has_mech_terminal:
-            console.print(x=hud_x, y=y, string="%  Mechanic", fg=COLOR_LABEL)
-            y += 1
-        if has_trade_terminal:
-            console.print(x=hud_x, y=y, string="=  Trade", fg=COLOR_LABEL)
-
-        # Divider — separates terminals from keybinding help
-        y += 1
-        _render_divider(console, hud_x, y)
-
-        # Movement key hints (below terminals, above footer)
-        y += 2
-        _help_lines = [
-            ("Q", "Quest Log"),
-            ("I", "Cargo"),
-            ("C", "Character"),
-            ("F", "Factions"),
-            (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
-            ("?", "Guide"),
-            ("numpad", "Move"),
-        ]
-        if mode == "dungeon":
-            _help_lines[0:0] = [
-                ("P", "Pickup"),
-                ("O", "Explore"),
-                ("G", "Go To"),
-            ]
-        y = _render_help_lines(console, hud_x, y, _help_lines)
-
-        # XP progress bar — between key hints and footer.
-        _xp_y, _bump_y, _exit_y = _footer_rows(hud_view_height)
-        console.print(x=hud_x, y=_xp_y, string=_xp_line, fg=_xp_fg)
-
-        # Footer hint at the bottom of the HUD, with a safe bottom inset.
-        console.print(x=hud_x, y=_bump_y, string="bump to interact", fg=COLOR_VALUE_DIM)
-        console.print(x=hud_x, y=_exit_y, string="ESC to quit", fg=COLOR_VALUE_DIM)
+        _render_city_hud(
+            console, hud_x, ctx,
+            ship_catalog=_ship_catalog,
+            location=location, date_str=date_str, mode=mode,
+            hud_view_height=hud_view_height,
+            xp_line=_xp_line, xp_fg=_xp_fg,
+            has_trade_terminal=has_trade_terminal,
+            has_mech_terminal=has_mech_terminal,
+            has_armory_terminal=has_armory_terminal,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -554,6 +541,183 @@ def _hull_bar_color(pct: float) -> tuple[int, int, int]:
     return COLOR_HULL_BAR_RED
 
 
+def _render_combat_header(console, hud_x, y, player_mode) -> int:
+    """Paint the combat title, mode indicator, and divider; return next row."""
+    console.print(x=hud_x, y=y, string="> COMBAT <", fg=COLOR_COMBAT_TITLE)
+    y += 1
+    console.print(x=hud_x, y=y, string=f"[{player_mode}]", fg=COLOR_COMBAT_MODE)
+    y += 2
+    console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
+    return y + 1
+
+
+def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
+    """Paint the player's hull + shield bars; return the next row."""
+    phull = player_state.get("hull", 100)
+    pmax_hull = player_state.get("max_hull", 100)
+    pshields = player_state.get("shields", 0)
+    pmax_shields = player_state.get("max_shields", 0)
+    hull_pct = phull / max(pmax_hull, 1)
+    hull_color = _hull_bar_color(hull_pct)
+    if pmax_shields > 0:
+        _bar = _bar_str(pshields, pmax_shields)
+        shields_pct = pshields / max(pmax_shields, 1)
+        console.print(x=hud_x, y=y, string=f"Shd  {_bar} {int(shields_pct * 100)}%", fg=COLOR_SHIELD_BAR)
+        # Regen fill: N leftmost cells get a white bg regardless of fill.
+        _regen_rate = player_state.get("shield_regen_rate", 0)
+        if _regen_rate > 0:
+            for _i in range(min(_regen_rate, len(_bar))):
+                console.print(x=hud_x + 5 + _i, y=y, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
+        y += 1
+    console.print(x=hud_x, y=y, string=f"Hull {_bar_str(phull, pmax_hull)} {int(hull_pct * 100)}%", fg=hull_color)
+    return y + 1
+
+
+def _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus) -> int:
+    """Paint the player's AP / evade / power rows; return the next row."""
+    pap = player_state.get("ap_remaining", 0)
+    pap_total = player_state.get("ap_total", 3)
+    console.print(x=hud_x, y=y, string=f"AP: {pap}/{pap_total}", fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED)
+    y += 1
+    if evade_bonus is not None:
+        # No colon so the row aligns with the bar-style Hull/Shd rows;
+        # green when movement has stacked any dodge bonus.
+        evade_color = COLOR_EVADE if evade_bonus > 0 else COLOR_VALUE_DIM
+        console.print(x=hud_x, y=y, string=f"Evade +{evade_bonus}%", fg=evade_color)
+        y += 1
+    ppow = player_state.get("power_pool", 0)
+    ppow_max = player_state.get("max_power", 10)
+    ppow_gen = player_state.get("power_gen", 0)
+    console.print(x=hud_x, y=y, string=f"Pow: {ppow}/{ppow_max} (+{ppow_gen})", fg=COLOR_POWER)
+    return y + 2
+
+
+def _render_player_block(console, hud_x, y, player_state, evade_bonus) -> int:
+    """Paint the PLAYER block (hull/shield/AP/evade/power); return next row."""
+    console.print(x=hud_x, y=y, string="PLAYER", fg=COLOR_LABEL)
+    y += 1
+    y = _render_hull_shield_rows(console, hud_x, y, player_state)
+    return _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus)
+
+
+def _enemy_distance_color(dist: int, range_weapon_id: str):
+    """Range-band color for an enemy's distance, or None when unknown."""
+    from .data.weapons import find_weapon as _fw
+    try:
+        _ws = _fw(range_weapon_id)
+    except KeyError:
+        return None
+    return range_band_color(dist, _ws.max_range, _ws.min_range)
+
+
+def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id) -> int:
+    """Paint one enemy's name + distance + bars; return the next row."""
+    marker = ">" if is_target else " "
+    _name = enemy.name[:9] if len(enemy.name) > 9 else enemy.name
+    _name_str = f"{marker}{_name}"
+    _name_fg = COLOR_COMBAT_TITLE if is_target else COLOR_VALUE_DIM
+    console.print(x=hud_x, y=y, string=_name_str, fg=_name_fg)
+    if ppos is not None and hasattr(enemy, 'pos'):
+        import math as _m
+        _dist = int(_m.hypot(ppos.x - enemy.pos.x, ppos.y - enemy.pos.y))
+        if range_weapon_id is not None:
+            _dc = _enemy_distance_color(_dist, range_weapon_id)
+            if _dc is not None:
+                console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(_dist), fg=_dc)
+        else:
+            console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(_dist), fg=COLOR_VALUE_DIM)
+    y += 1
+    if enemy.max_shields > 0:
+        _e_shd_pct = enemy.shields / max(enemy.max_shields, 1)
+        _shd_bar = _bar_str(enemy.shields, enemy.max_shields, width=5)
+        _shd_line = f"  Shd {_shd_bar} {int(_e_shd_pct * 100)}%"
+        console.print(x=hud_x, y=y, string=_shd_line[:HUD_WIDTH], fg=COLOR_SHIELD_BAR)
+        y += 1
+    _e_hull_pct = enemy.hull / max(enemy.max_hull, 1)
+    _bar = _bar_str(enemy.hull, enemy.max_hull, width=5)
+    _hull_line = f"  Hul {_bar} {int(_e_hull_pct * 100)}%"
+    console.print(x=hud_x, y=y, string=_hull_line[:HUD_WIDTH], fg=_hull_bar_color(_e_hull_pct))
+    return y + 1
+
+
+def _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height, player_state, range_weapon_id) -> int:
+    """Paint the ENEMIES list with name + distance + bars; return next row."""
+    console.print(x=hud_x, y=y, string="ENEMIES", fg=COLOR_DIVIDER)
+    y += 1
+    ppos = player_state.get("pos")
+    _alive_count = 0
+    for _ei, _e in enumerate(enemies):
+        if y > screen_height - 20:
+            break
+        if not getattr(_e, 'alive', True):
+            continue
+        is_target = _alive_count == target_idx
+        _alive_count += 1
+        y = _render_enemy_row(console, hud_x, y, _e, is_target, ppos, range_weapon_id)
+    return y + 1
+
+
+def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_chances) -> int:
+    """Paint one weapon's name / hit / cost rows; return the next row."""
+    sel_mark = "[x]" if is_active else "[ ]"
+    name_str = f"{sel_mark}[{slot+1}] {ws.name}"
+    fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
+    console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_wpn)
+    y += 1
+    _w_hc = hit_chances.get(wid) if hit_chances else None
+    if _w_hc is not None:
+        stats_line = f"     DMG {ws.damage} HIT {_w_hc}%"
+    else:
+        stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%"
+    console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
+    y += 1
+    if ws.slot_type in ("energy", "plasma"):
+        cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
+    else:
+        ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else _UNLIMITED_AMMO_LABEL
+        cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
+    console.print(x=hud_x, y=y, string=cost_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
+    return y + 1
+
+
+def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player_state, hit_chances) -> int:
+    """Paint the WEAPONS list with hit/damage/cost rows; return next row."""
+    console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
+    y += 1
+    for i, wid in enumerate(weapon_list):
+        from .data.weapons import find_weapon as _fw
+        try:
+            ws = _fw(wid)
+        except KeyError:
+            continue
+        wammo = player_state.get("weapon_ammo", {}).get(i, 0)
+        is_active = active_weapons[i] if active_weapons else True
+        y = _render_weapon_row(console, hud_x, y, i, wid, ws, wammo, is_active, hit_chances)
+    return y + 1
+
+
+def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
+    """Paint the ACTIONS key list; return the next row."""
+    console.print(x=hud_x, y=y, string="ACTIONS", fg=COLOR_DIVIDER)
+    y += 1
+    actions = [
+        ("[Tab]", "Target"),
+        ("[m]", "Move"),
+        ("[f]", "Fire"),
+        ("[s]", "Shields"),
+        ("[w]", "Wait"),
+    ]
+    # Only advertise the digit-swap affordance when there is something
+    # to swap between; the label embeds the real weapon count so the
+    # player doesn't expect digit 4..9 to work with 3 weapons mounted.
+    if len(weapon_list) > 1:
+        actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
+    for key, desc in actions:
+        console.print(x=hud_x, y=y, string=f"{key} {desc}"[:HUD_WIDTH-1], fg=COLOR_COMBAT_ACTION)
+        y += 1
+    return y
+
+
 def render_combat_hud(
     console: FrameBuffer,
     *,
@@ -572,239 +736,14 @@ def render_combat_hud(
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 
-    Layout (right panel, top to bottom):
-      COMBAT title (red)
-      Turn / mode line
-      ---
-      PLAYER block
-      Hull bar + %
-      Shield bar + %
-      AP / Power
-      ---
-      ENEMY block (target)
-      Hull bar + %
-      Shield bar + %
-      Distance
-      ---
-      WEAPONS list (numbered 1-N)
-      ---
-      ACTIONS
-      [w] Wait
-      [ESC] Flee
-      ---
-      Combat log (1-2 lines)
+    Right panel, top to bottom: COMBAT title, PLAYER block, ENEMIES
+    block, WEAPONS list, then ACTIONS key hints.
     """
     hud_x = screen_width - HUD_WIDTH
-    y = 0
-
-    # Title
-    console.print(x=hud_x, y=y, string="> COMBAT <", fg=COLOR_COMBAT_TITLE)
-    y += 1
-
-    # Mode indicator
-    mode_str = f"[{player_mode}]"
-    console.print(x=hud_x, y=y, string=mode_str, fg=COLOR_COMBAT_MODE)
-    y += 2
-
-    # Divider
-    console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
-    y += 1
-
-    # --- PLAYER block ---
-    console.print(x=hud_x, y=y, string="PLAYER", fg=COLOR_LABEL)
-    y += 1
-    phull = player_state.get("hull", 100)
-    pmax_hull = player_state.get("max_hull", 100)
-    pshields = player_state.get("shields", 0)
-    pmax_shields = player_state.get("max_shields", 0)
-    pap = player_state.get("ap_remaining", 0)
-    pap_total = player_state.get("ap_total", 3)
-    ppow = player_state.get("power_pool", 0)
-    ppow_max = player_state.get("max_power", 10)
-
-    hull_pct = phull / max(pmax_hull, 1)
-    hull_color = _hull_bar_color(hull_pct)
-    hull_pct_display = int(hull_pct * 100)
-
-    # Shield bar + regen rate (above hull, when shields exist)
-    if pmax_shields > 0:
-        shields_pct = pshields / max(pmax_shields, 1)
-        _bar = _bar_str(pshields, pmax_shields)
-        shield_line = f"Shd  {_bar} {int(shields_pct * 100)}%"
-        console.print(x=hud_x, y=y, string=shield_line, fg=COLOR_SHIELD_BAR)
-        # Regen rate fill: N leftmost cells get a white bg (0-10 cells),
-        # regardless of whether the shield is currently full (#) or empty (.).
-        _regen_rate = player_state.get("shield_regen_rate", 0)
-        if _regen_rate > 0:
-            _fill = min(_regen_rate, len(_bar))
-            for _i in range(_fill):
-                console.print(
-                    x=hud_x + 5 + _i, y=y,
-                    string=_bar[_i],
-                    fg=COLOR_SHIELD_BAR,
-                    bg=(255, 255, 255),
-                )
-        y += 1
-
-    # Hull bar
-    hull_line = f"Hull {_bar_str(phull, pmax_hull)} {hull_pct_display}%"
-    console.print(x=hud_x, y=y, string=hull_line, fg=hull_color)
-    y += 1
-
-    ap_line = f"AP: {pap}/{pap_total}"
-    console.print(x=hud_x, y=y, string=ap_line, fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED)
-    y += 1
-    # Player's current evade bonus: increases by +5% per cell moved
-    # (capped) plus a half-rate contribution from pilot piloting.
-    # Color signals when movement has actually paid off — gray when 0
-    # so the player reads "no dodge stacked yet", positive green
-    # accent when any bonus is in play.
-    if evade_bonus is not None:
-        # No colon so the row aligns with the bar-style Hull/Shd
-        # rows above it ("Hull ...", "Shd  ..."). Color flips
-        # positive-on-positive so the player sees movement paying
-        # off — the +X% value climbs with each move so the impact
-        # of spending AP on repositioning is visible at a glance.
-        evade_color = COLOR_EVADE if evade_bonus > 0 else COLOR_VALUE_DIM
-        evade_line = f"Evade +{evade_bonus}%"
-        console.print(x=hud_x, y=y, string=evade_line, fg=evade_color)
-        y += 1
-    ppow_gen = player_state.get("power_gen", 0)
-    pow_line = f"Pow: {ppow}/{ppow_max} (+{ppow_gen})"
-    console.print(x=hud_x, y=y, string=pow_line, fg=COLOR_POWER)
-    y += 2
-
-    # --- ENEMIES block ---
-    if enemies:
-        console.print(x=hud_x, y=y, string="ENEMIES", fg=COLOR_DIVIDER)
-        y += 1
-        ppos = player_state.get("pos")
-        _alive_count = 0
-        for _ei, _e in enumerate(enemies):
-            if y > screen_height - 20:
-                break
-            if not getattr(_e, 'alive', True):
-                continue
-            is_target = _alive_count == target_idx
-            _alive_count += 1
-            marker = ">" if is_target else " "
-            # Short name (trim to 9 chars at most)
-            _name = _e.name[:9] if len(_e.name) > 9 else _e.name
-            _dist_str = ""
-            if ppos and hasattr(_e, 'pos'):
-                import math as _m
-                _dist_str = f"{int(_m.hypot(ppos.x - _e.pos.x, ppos.y - _e.pos.y))}"
-            # Name line with distance
-            _name_str = f"{marker}{_name}"
-            _name_fg = COLOR_COMBAT_TITLE if is_target else COLOR_VALUE_DIM
-            # Render name + distance with separate colors for the distance
-            # number, matching the targeting-line range colors.
-            console.print(x=hud_x, y=y, string=_name_str, fg=_name_fg)
-            if _dist_str and range_weapon_id is not None:
-                from .data.weapons import find_weapon as _fw
-                try:
-                    _ws = _fw(range_weapon_id)
-                    _dist_val = int(_dist_str)
-                    _half = _ws.max_range // 2
-                    if _dist_val <= _half:
-                        _dc = (100, 235, 115)  # green
-                    elif _dist_val <= _ws.max_range:
-                        _dc = (255, 220, 80)   # yellow
-                    elif _ws.min_range > 0 and _dist_val <= _ws.min_range:
-                        _dc = (255, 160, 60)   # orange
-                    else:
-                        _dc = (255, 80, 80)    # red
-                    console.print(
-                        x=hud_x + len(_name_str) + 2, y=y,
-                        string=_dist_str, fg=_dc,
-                    )
-                except KeyError:
-                    pass
-            elif _dist_str:
-                # No range info available — print distance in default color
-                console.print(
-                    x=hud_x + len(_name_str) + 2, y=y,
-                    string=_dist_str, fg=COLOR_VALUE_DIM,
-                )
-            y += 1
-            # Shield bar (above hull when shields exist)
-            if _e.max_shields > 0:
-                _e_shd_pct = _e.shields / max(_e.max_shields, 1)
-                _shd_bar = _bar_str(_e.shields, _e.max_shields, width=5)
-                _shd_line = f"  Shd {_shd_bar} {int(_e_shd_pct * 100)}%"
-                console.print(x=hud_x, y=y, string=_shd_line[:HUD_WIDTH], fg=COLOR_SHIELD_BAR)
-                y += 1
-            # Hull bar (below shields)
-            _e_hull_pct = _e.hull / max(_e.max_hull, 1)
-            _e_pct_display = int(_e_hull_pct * 100)
-            _bar = _bar_str(_e.hull, _e.max_hull, width=5)
-            _hull_line = f"  Hul {_bar} {_e_pct_display}%"
-            console.print(x=hud_x, y=y, string=_hull_line[:HUD_WIDTH], fg=_hull_bar_color(_e_hull_pct))
-            y += 1
-        y += 1
-
-    # --- WEAPONS list ---
-    if weapon_list:
-        console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
-        y += 1
-        for i, wid in enumerate(weapon_list):
-            from .data.weapons import find_weapon as _fw
-            try:
-                ws = _fw(wid)
-            except KeyError:
-                continue
-            wammo = player_state.get("weapon_ammo", {}).get(i, 0)
-            is_active = active_weapons[i] if active_weapons else True
-            sel_mark = "[x]" if is_active else "[ ]"
-            name_str = f"{sel_mark}[{i+1}] {ws.name}"
-            fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
-            console.print(x=hud_x, y=y, string=name_str[:HUD_WIDTH-1], fg=fg_wpn)
-            y += 1
-
-            # Show effective hit chance (includes gunnery + distance + target
-            # dodge) for every weapon against the current target. Falls back
-            # to base weapon accuracy when no target is selected.
-            _w_hc = hit_chances.get(wid) if hit_chances else None
-            if _w_hc is not None:
-                stats_line = f"     DMG {ws.damage} HIT {_w_hc}%"
-            else:
-                stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%"
-            console.print(x=hud_x, y=y, string=stats_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
-            y += 1
-
-            if ws.slot_type in ("energy", "plasma"):
-                cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
-            else:
-                ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else _UNLIMITED_AMMO_LABEL
-                cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
-            console.print(x=hud_x, y=y, string=cost_line[:HUD_WIDTH-1], fg=COLOR_VALUE_DIM)
-            y += 1
-
-    y += 1
-
-    # --- ACTIONS ---
-    console.print(x=hud_x, y=y, string="ACTIONS", fg=COLOR_DIVIDER)
-    y += 1
-    actions = [
-        ("[Tab]", "Target"),
-        ("[m]", "Move"),
-        ("[f]", "Fire"),
-        ("[s]", "Shields"),
-        ("[w]", "Wait"),
-    ]
-    # Only advertise the digit-swap affordance when there is
-    # actually something to swap between; a single-weapon player
-    # has nothing to cycle through. The label embeds the real
-    # weapon count so the player doesn't expect digit 4..9 to
-    # work when they only have 3 weapons mounted (the previous
-    # hard-coded [1-N] lied about the upper bound). Sits
-    # between [f] Fire and [w] Wait so weapon actions group
-    # visually.
-    if len(weapon_list) > 1:
-        actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
-    for key, desc in actions:
-        line = f"{key} {desc}"
-        console.print(x=hud_x, y=y, string=line[:HUD_WIDTH-1], fg=COLOR_COMBAT_ACTION)
-        y += 1
+    y = _render_combat_header(console, hud_x, 0, player_mode)
+    y = _render_player_block(console, hud_x, y, player_state, evade_bonus)
+    y = _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height, player_state, range_weapon_id)
+    y = _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player_state, hit_chances)
+    _render_combat_actions(console, hud_x, y, weapon_list)
 
 

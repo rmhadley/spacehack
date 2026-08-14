@@ -657,7 +657,7 @@ class TestBuildTargetCard:
         ]
 
     def test_hit_chance_colored_by_range_band(self):
-        from src.spacehack.combat._card_presentation import COLOR_RANGE_YELLOW
+        from src.spacehack.hud import COLOR_RANGE_YELLOW
 
         enemy = _target_card_enemy()
         _tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(6)]

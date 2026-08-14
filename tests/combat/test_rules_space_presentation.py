@@ -181,10 +181,7 @@ def test_space_card_rows_omit_shield_when_unshielded():
 
 
 def test_space_card_rows_color_hit_chance_by_range_band():
-    from src.spacehack.combat._card_presentation import (
-        COLOR_RANGE_GREEN,
-        COLOR_RANGE_RED,
-    )
+    from src.spacehack.hud import COLOR_RANGE_GREEN, COLOR_RANGE_RED
     rows = _space_presentation._space_card_rows(
         _card_enemy(), hit_chance=62, hit_color=COLOR_RANGE_GREEN,
     )
@@ -199,7 +196,7 @@ def test_space_card_rows_color_hit_chance_by_range_band():
 
 
 def test_range_band_color_matches_targeting_line():
-    from src.spacehack.combat._card_presentation import (
+    from src.spacehack.hud import (
         COLOR_RANGE_GREEN,
         COLOR_RANGE_ORANGE,
         COLOR_RANGE_RED,
@@ -217,10 +214,8 @@ def test_range_band_color_matches_targeting_line():
 
 
 def test_hit_color_for_weapon_none_when_unarmed_or_unknown():
-    from src.spacehack.combat._card_presentation import (
-        COLOR_RANGE_RED,
-        hit_color_for_weapon,
-    )
+    from src.spacehack.combat._card_presentation import hit_color_for_weapon
+    from src.spacehack.hud import COLOR_RANGE_RED
     _pos = world.Position(5, 3)
     _ppos = world.Position(0, 0)
     assert hit_color_for_weapon(None, _pos, _ppos, _space_presentation._find_w) is None
@@ -230,7 +225,7 @@ def test_hit_color_for_weapon_none_when_unarmed_or_unknown():
 
 
 def test_space_build_target_card_colors_hit_by_weapon_range():
-    from src.spacehack.combat._card_presentation import COLOR_RANGE_RED
+    from src.spacehack.hud import COLOR_RANGE_RED
 
     card = _space_presentation.build_target_card(
         _card_enemy(),
