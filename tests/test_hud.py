@@ -151,6 +151,28 @@ def test_skill_lines_pair_two_per_row():
     assert next_y == 2
 
 
+def test_skill_grid_merges_ship_and_ground_stats():
+    """All six skills share one aligned 3-row grid, two per row."""
+    console = FrameBuffer(40, 4)
+    next_y = hud._render_skill_line(
+        console, 0, 0,
+        SimpleNamespace(gunnery=4, piloting=3, engineering=2),
+        ground_stats=SimpleNamespace(reflexes=10, strength=9, stamina=8),
+    )
+    rows = [
+        "".join(console.cell(x, y).char for x in range(40)).rstrip()
+        for y in range(4)
+    ]
+    assert "GUNNERY" in rows[0] and "PILOTING" in rows[0]
+    assert "ENGINEERING" in rows[1] and "REFLEXES" in rows[1]
+    assert "STRENGTH" in rows[2] and "STAMINA" in rows[2]
+    # Values stay in the same right-aligned columns across all three rows.
+    assert rows[0][13] == "4" and rows[0][29] == "3"
+    assert rows[1][13] == "2" and rows[1][28:30] == "10"
+    assert rows[2][13] == "9" and rows[2][29] == "8"
+    assert next_y == 3
+
+
 def test_skill_values_right_align_with_three_digit_room():
     """3-digit values fill the value column without shifting the layout."""
     console = FrameBuffer(40, 1)

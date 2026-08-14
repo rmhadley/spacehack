@@ -168,16 +168,26 @@ def _render_stat_pairs(console: FrameBuffer, hud_x: int, y: int, pairs, fg) -> i
 
 def _render_skill_line(
     console: FrameBuffer, hud_x: int, y: int, stats: HudStats,
+    ground_stats=None,
 ) -> int:
-    """Print the GUN/PIL/ENG skill rows (two per line); return next row."""
+    """Print the skill grid, two skills per row; return the next row.
+
+    Ship skills (GUN/PIL/ENG) always render; ground stats (REF/STR/STA)
+    join the same aligned grid when available.
+    """
+    _pairs = [
+        ("GUNNERY", stats.gunnery),
+        ("PILOTING", stats.piloting),
+        ("ENGINEERING", stats.engineering),
+    ]
+    if ground_stats is not None:
+        _pairs.extend([
+            ("REFLEXES", ground_stats.reflexes),
+            ("STRENGTH", ground_stats.strength),
+            ("STAMINA", ground_stats.stamina),
+        ])
     return _render_stat_pairs(
-        console, hud_x, y,
-        (
-            ("GUNNERY", stats.gunnery),
-            ("PILOTING", stats.piloting),
-            ("ENGINEERING", stats.engineering),
-        ),
-        COLOR_SHIP_LABEL,
+        console, hud_x, y, tuple(_pairs), COLOR_SHIP_LABEL,
     )
 
 
@@ -200,19 +210,7 @@ def _cargo_used_max(owned_ship, ship_catalog) -> tuple[int, int]:
     return cargo_used, max_cargo
 
 
-def _render_ground_stat_line(
-    console: FrameBuffer, hud_x: int, y: int, ground_stats,
-) -> int:
-    """Print the REF/STR/STA ground stat rows (two per line); return next row."""
-    return _render_stat_pairs(
-        console, hud_x, y,
-        (
-            ("REFLEXES", ground_stats.reflexes),
-            ("STRENGTH", ground_stats.strength),
-            ("STAMINA", ground_stats.stamina),
-        ),
-        COLOR_SHIP_LABEL,
-    )
+
 
 
 def _footer_rows(hud_view_height: int) -> tuple[int, int, int]:
@@ -317,9 +315,7 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo
     console.print(x=hud_x, y=y, string="Spd", fg=COLOR_SHIP_LABEL)
     console.print(x=hud_x + 5, y=y, string=str(eff_spd), fg=COLOR_SHIP_VALUE)
     y += 3
-    y = _render_skill_line(console, hud_x, y, stats)
-    if ground_stats is not None:
-        y = _render_ground_stat_line(console, hud_x, y, ground_stats)
+    y = _render_skill_line(console, hud_x, y, stats, ground_stats=ground_stats)
     return y
 
 
@@ -387,9 +383,7 @@ def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_ca
     console.print(x=hud_x, y=y, string="$", fg=COLOR_LABEL)
     console.print(x=hud_x + 2, y=y, string=str(stats.credits), fg=COLOR_VALUE_WHITE)
     y += 3
-    y = _render_skill_line(console, hud_x, y, stats)
-    if ground_stats is not None:
-        y = _render_ground_stat_line(console, hud_x, y, ground_stats)
+    y = _render_skill_line(console, hud_x, y, stats, ground_stats=ground_stats)
     return y
 
 
