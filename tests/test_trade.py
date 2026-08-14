@@ -172,6 +172,20 @@ class TestOpenLootPickup:
             GroundItemStack("ammo", "pistol_rounds", 2),
         ]
 
+    def test_long_loot_label_reserves_extra_compact_width(self):
+        """Long cargo labels receive width slack instead of early ellipsis."""
+        from src.spacehack.loot import _loot_menu_label
+
+        entity = Entity(
+            char="%", fg=(255, 215, 0), pos=Position(0, 0),
+            loot_data={"good_id": "electronics", "quantity": 1},
+        )
+
+        label = _loot_menu_label(entity)
+
+        assert label.startswith("Consumer Electronics x1")
+        assert len(label) == len("Consumer Electronics x1") + 8
+
     def test_choose_loot_entity_builds_a_compact_selection(self, monkeypatch):
         """The chooser presents every nearby stack as a compact modal row."""
         from src.spacehack.loot import choose_loot_entity

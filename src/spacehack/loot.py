@@ -51,12 +51,18 @@ def _loot_choice_label(loot_entity) -> str:
     return f"{name} x{data.get('quantity', 1)}"
 
 
+def _loot_menu_label(loot_entity) -> str:
+    """Add invisible width slack for long labels in compact menu rows."""
+    label = _loot_choice_label(loot_entity)
+    return label + (" " * 8 if len(label) > 20 else "")
+
+
 def choose_loot_entity(ctx: GameContext, loot_entities):
     """Let the player choose one nearby loot entity before opening pickup."""
     from . import pygame_story
 
     options = tuple(
-        (_loot_choice_label(entity), f"LOOT:{index}")
+        (_loot_menu_label(entity), f"LOOT:{index}")
         for index, entity in enumerate(loot_entities)
     )
     while True:
