@@ -358,7 +358,10 @@ def capture(
     from . import message_log
     from .pygame_world import CaptureConsole
 
-    capture_console = CaptureConsole(screen_width, screen_height)
+    # The HUD console is one HUD-width wider than the window (like the
+    # combat console) so HUD lines can use the panel's full ~36 half-width
+    # characters instead of clipping at HUD_WIDTH cells.
+    capture_console = CaptureConsole(screen_width + HUD_WIDTH, screen_height)
     _render_hud_capture(
         capture_console, ctx,
         screen_width=screen_width, hud_view_height=hud_view_height,
@@ -373,7 +376,9 @@ def capture(
     return _frame_from_commands(
         tuple(capture_console.commands),
         screen_width=screen_width, screen_height=screen_height,
-        hud_view_height=hud_view_height, shields=shields,
+        hud_view_height=hud_view_height,
+        hud_x_max=screen_width + HUD_WIDTH,
+        shields=shields,
     )
 
 

@@ -125,9 +125,10 @@ class HudStats:
 def _render_divider(console: FrameBuffer, hud_x: int, y: int) -> None:
     """Print a full-width divider line at ``(hud_x, y)``.
 
-    Pure print — caller owns y advancement.
+    Spans the panel's real glyph capacity (HUD_TEXT_MAX half-width
+    characters). Pure print — caller owns y advancement.
     """
-    console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
+    console.print(x=hud_x, y=y, string="-" * HUD_TEXT_MAX, fg=COLOR_DIVIDER)
 
 
 def _render_mission_line(
@@ -135,9 +136,9 @@ def _render_mission_line(
 ) -> None:
     """Print the active mission title at ``(hud_x, y)`` with "M: " prefix.
 
-    Truncates to fit HUD_WIDTH. Pure print — caller owns y advancement.
+    Truncates to fit HUD_TEXT_MAX. Pure print — caller owns y advancement.
     """
-    room = max(0, HUD_WIDTH - len("M: ") - 1)
+    room = max(0, HUD_TEXT_MAX - len("M: "))
     console.print(x=hud_x, y=y, string=f"M: {title[:room]}", fg=COLOR_HUD_TITLE)
 
 
@@ -150,7 +151,7 @@ def _render_skill_line(
     """
     console.print(
         x=hud_x, y=y,
-        string=f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"[:HUD_WIDTH],
+        string=f"GUN:{stats.gunnery} PIL:{stats.piloting} ENG:{stats.engineering}"[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_LABEL,
     )
 
@@ -187,7 +188,7 @@ def _render_ground_stat_line(
             f"REF:{ground_stats.reflexes} "
             f"STR:{ground_stats.strength} "
             f"STA:{ground_stats.stamina}"
-        )[:HUD_WIDTH],
+        )[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_LABEL,
     )
 
@@ -251,13 +252,13 @@ def _render_hud_footer(console, hud_x, hud_view_height, *, xp_line, xp_fg) -> No
 
 def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -> int:
     """Paint the ship name / location / date rows; return the next row."""
-    console.print(x=hud_x, y=y, string=ship_name.upper(), fg=COLOR_SHIP_NAME)
+    console.print(x=hud_x, y=y, string=ship_name.upper()[:HUD_TEXT_MAX], fg=COLOR_SHIP_NAME)
     y += 1
     if location:
-        console.print(x=hud_x, y=y, string=location.upper(), fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y, string=location.upper()[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     if date_str:
-        console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y, string=date_str[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     return y + 1
 
 
@@ -326,16 +327,16 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
 def _render_city_identity(console, hud_x, y, *, species_name, class_name, location, date_str) -> int:
     """Paint the species / class / location / date rows; return next row."""
     if species_name:
-        console.print(x=hud_x, y=y, string=species_name.title(), fg=COLOR_VALUE_WHITE)
+        console.print(x=hud_x, y=y, string=species_name.title()[:HUD_TEXT_MAX], fg=COLOR_VALUE_WHITE)
     y += 1
     if class_name:
-        console.print(x=hud_x, y=y, string=class_name.title(), fg=COLOR_VALUE_WHITE)
+        console.print(x=hud_x, y=y, string=class_name.title()[:HUD_TEXT_MAX], fg=COLOR_VALUE_WHITE)
     y += 1
     if location:
-        console.print(x=hud_x, y=y, string=location, fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y, string=location[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     if date_str:
-        console.print(x=hud_x, y=y, string=date_str, fg=COLOR_VALUE_DIM)
+        console.print(x=hud_x, y=y, string=date_str[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     return y + 1
 
 
@@ -477,10 +478,15 @@ COLOR_COMBAT_LOG: tuple[int, int, int] = (235, 235, 230)           # bright silv
 COLOR_COMBAT_ACTION: tuple[int, int, int] = (245, 250, 235)        # near-white action text
 COLOR_COMBAT_MODE: tuple[int, int, int] = (255, 255, 150)          # yellow for mode indicator
 
-# The native overlay renders HUD text at roughly half the cell width, so
-# each combat line has room for ~40 characters; the cell renderer clips
-# at the screen edge. Truncate generously instead of at HUD_WIDTH (20).
-_COMBAT_TEXT_MAX: int = 40
+# The native overlay renders HUD text at roughly half the cell width
+# (8px glyphs in 16px cells), so the 20-cell HUD panel fits ~36 characters.
+# HUD_TEXT_MAX matches that real glyph capacity for every HUD line (world
+# and combat); the cell renderer clips at the screen edge as a final guard.
+HUD_TEXT_MAX: int = 36
+
+# Space-combat enemy rows show name + distance on one line; 18 chars keeps
+# long names readable without crowding the distance readout off-panel.
+_ENEMY_NAME_MAX: int = 18
 
 
 _BAR_CHAR_FULL: str = "#"   # full marker
@@ -524,18 +530,20 @@ def _xp_hud_line(
     When ``points > 0`` (unspent skill points) the row renders in
     gold and appends the count (``LV 3 [####-] +9 PTS``) so the
     player remembers to open the Character screen (C) and spend
-    them. The bar shrinks to 5 cells to fit within ``HUD_WIDTH``.
+    them. The bar shrinks so the full suffix fits within
+    ``HUD_TEXT_MAX`` (the panel's real half-width glyph capacity).
     """
+    _base = f"LV {player_level:>2} ["
     if points > 0:
         # Shrink the bar so the full "+N PTS" suffix always fits within
-        # HUD_WIDTH, even for 2-3 digit point counts (9/level adds up).
-        _base = f"LV {player_level:>2} ["
+        # HUD_TEXT_MAX, even for 2-3 digit point counts (9/level adds up).
         _suffix = f" +{points} PTS"
-        _bar_width = max(1, HUD_WIDTH - len(_base) - len("]") - len(_suffix))
+        _bar_width = max(1, HUD_TEXT_MAX - len(_base) - len("]") - len(_suffix))
         _bar = _render_xp_bar(xp_into, xp_needed, width=_bar_width)
-        return (f"{_base}{_bar}]{_suffix}")[:HUD_WIDTH], COLOR_HUD_TITLE
-    _bar = _render_xp_bar(xp_into, xp_needed)
-    return f"LV {player_level:>2} [{_bar}]"[:HUD_WIDTH], COLOR_VALUE_DIM
+        return f"{_base}{_bar}]{_suffix}", COLOR_HUD_TITLE
+    _bar_width = max(1, HUD_TEXT_MAX - len(_base) - len("]"))
+    _bar = _render_xp_bar(xp_into, xp_needed, width=_bar_width)
+    return f"{_base}{_bar}]", COLOR_VALUE_DIM
 
 
 def _hull_bar_color(pct: float) -> tuple[int, int, int]:
@@ -552,7 +560,7 @@ def _render_combat_header(console, hud_x, y, player_mode) -> int:
     y += 1
     console.print(x=hud_x, y=y, string=f"[{player_mode}]", fg=COLOR_COMBAT_MODE)
     y += 2
-    console.print(x=hud_x, y=y, string="-" * HUD_WIDTH, fg=COLOR_DIVIDER)
+    console.print(x=hud_x, y=y, string="-" * HUD_TEXT_MAX, fg=COLOR_DIVIDER)
     return y + 1
 
 
@@ -575,7 +583,7 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
         _shd = f"Shd  {_bar} {pshields}/{pmax_shields}"
         if _total > 0:
             _shd += f" +{_total}"
-        console.print(x=hud_x, y=y, string=_shd[:_COMBAT_TEXT_MAX], fg=COLOR_SHIELD_BAR)
+        console.print(x=hud_x, y=y, string=_shd[:HUD_TEXT_MAX], fg=COLOR_SHIELD_BAR)
         # Level indicator (white bg) tracks ONLY the S-key rate, so
         # pressing S moves the highlight 1:1 with the setting.
         for _i in range(min(_rate, len(_bar))):
@@ -625,7 +633,7 @@ def _enemy_distance_color(dist: int, range_weapon_id: str):
 def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id) -> int:
     """Paint one enemy's name + distance + bars; return the next row."""
     marker = ">" if is_target else " "
-    _name = enemy.name[:9] if len(enemy.name) > 9 else enemy.name
+    _name = enemy.name[:_ENEMY_NAME_MAX] if len(enemy.name) > _ENEMY_NAME_MAX else enemy.name
     _name_str = f"{marker}{_name}"
     _name_fg = COLOR_COMBAT_TITLE if is_target else COLOR_VALUE_DIM
     console.print(x=hud_x, y=y, string=_name_str, fg=_name_fg)
@@ -643,12 +651,12 @@ def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id
         _e_shd_pct = enemy.shields / max(enemy.max_shields, 1)
         _shd_bar = _bar_str(enemy.shields, enemy.max_shields, width=5)
         _shd_line = f"  Shd {_shd_bar} {int(_e_shd_pct * 100)}%"
-        console.print(x=hud_x, y=y, string=_shd_line[:HUD_WIDTH], fg=COLOR_SHIELD_BAR)
+        console.print(x=hud_x, y=y, string=_shd_line[:HUD_TEXT_MAX], fg=COLOR_SHIELD_BAR)
         y += 1
     _e_hull_pct = enemy.hull / max(enemy.max_hull, 1)
     _bar = _bar_str(enemy.hull, enemy.max_hull, width=5)
     _hull_line = f"  Hul {_bar} {int(_e_hull_pct * 100)}%"
-    console.print(x=hud_x, y=y, string=_hull_line[:HUD_WIDTH], fg=_hull_bar_color(_e_hull_pct))
+    console.print(x=hud_x, y=y, string=_hull_line[:HUD_TEXT_MAX], fg=_hull_bar_color(_e_hull_pct))
     return y + 1
 
 
@@ -674,21 +682,21 @@ def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_c
     sel_mark = "[x]" if is_active else "[ ]"
     name_str = f"{sel_mark}[{slot+1}] {ws.name}"
     fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
-    console.print(x=hud_x, y=y, string=name_str[:_COMBAT_TEXT_MAX], fg=fg_wpn)
+    console.print(x=hud_x, y=y, string=name_str[:HUD_TEXT_MAX], fg=fg_wpn)
     y += 1
     _w_hc = hit_chances.get(wid) if hit_chances else None
     if _w_hc is not None:
         stats_line = f"     DMG {ws.damage} HIT {_w_hc}%"
     else:
         stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%"
-    console.print(x=hud_x, y=y, string=stats_line[:_COMBAT_TEXT_MAX], fg=COLOR_VALUE_DIM)
+    console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     if ws.slot_type in ("energy", "plasma"):
         cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
     else:
         ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else _UNLIMITED_AMMO_LABEL
         cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
-    console.print(x=hud_x, y=y, string=cost_line[:_COMBAT_TEXT_MAX], fg=COLOR_VALUE_DIM)
+    console.print(x=hud_x, y=y, string=cost_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     return y + 1
 
 
@@ -758,7 +766,7 @@ def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
     if len(weapon_list) > 1:
         actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
     for key, desc in actions:
-        console.print(x=hud_x, y=y, string=f"{key} {desc}"[:HUD_WIDTH-1], fg=COLOR_COMBAT_ACTION)
+        console.print(x=hud_x, y=y, string=f"{key} {desc}"[:HUD_TEXT_MAX], fg=COLOR_COMBAT_ACTION)
         y += 1
     return y
 

@@ -112,6 +112,35 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     assert frame.message_height == 6
 
 
+def test_capture_keeps_world_hud_text_past_window_width(monkeypatch):
+    """Exploration capture uses the wider console + hud_x_max so world HUD
+    lines can span the panel's full ~36 half-width glyphs instead of
+    clipping at HUD_WIDTH cells (same fix the combat path got)."""
+    from src.spacehack import hud, message_log
+
+    # Exactly HUD_TEXT_MAX chars: a full-width world-HUD line that starts
+    # at cell 80 and would be chopped at cell 100 by the old 20-cell window.
+    line = "M: " + "X" * (hud.HUD_TEXT_MAX - 3)
+    assert len(line) == hud.HUD_TEXT_MAX
+
+    def fake_hud(console, _ctx, **_kwargs):
+        console.print(x=80, y=2, string=line, fg=(10, 20, 30))
+
+    monkeypatch.setattr(hud, "render_hud", fake_hud)
+    monkeypatch.setattr(message_log, "render_message_log", lambda *_a, **_k: None)
+
+    frame = pygame_overlay.capture(
+        SimpleNamespace(log=object()),
+        mode="city",
+        location="Earth",
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+    )
+    text = "".join(segment.text for segment in frame.hud)
+    assert line in text
+
+
 def test_normalize_bg_maps_default_black_to_none():
     assert pygame_overlay._normalize_bg(None) is None
     assert pygame_overlay._normalize_bg((0, 0, 0)) is None

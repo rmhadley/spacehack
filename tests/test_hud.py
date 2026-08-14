@@ -72,6 +72,38 @@ def test_weapons_header_keeps_offset_layout_and_is_not_clipped():
     assert row.endswith("16POW")
 
 
+def test_world_hud_divider_spans_the_full_panel():
+    """Dividers use the panel's real ~36 half-width glyph capacity, not 20."""
+    console = FrameBuffer(40, 1)
+    hud._render_divider(console, 0, 0)
+    row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    assert len(row) == hud.HUD_TEXT_MAX
+    assert set(row) == {"-"}
+
+
+def test_enemy_name_is_not_clipped_to_nine_chars():
+    """Enemy names keep up to _ENEMY_NAME_MAX chars instead of 9."""
+    class Enemy:
+        name = "Pirate Interceptor"
+        max_shields = 0
+        shields = 0
+        max_hull = 30
+        hull = 20
+
+    console = FrameBuffer(40, 1)
+    hud._render_enemy_row(console, 0, 0, Enemy(), True, None, None)
+    row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    assert row == ">Pirate Interceptor"
+
+
+def test_xp_line_spans_the_full_panel():
+    """The XP row fills HUD_TEXT_MAX whether or not points are pending."""
+    line, _ = hud._xp_hud_line(3, 150, 300, 2)
+    assert len(line) == hud.HUD_TEXT_MAX
+    line, _ = hud._xp_hud_line(3, 150, 300, 0)
+    assert len(line) == hud.HUD_TEXT_MAX
+
+
 def test_shield_row_survives_the_wider_combat_console():
     """A 26-cell shield line (hud_x=80) reaches the overlay uncut in a
     SCREEN_WIDTH+HUD_WIDTH console (the combat console width)."""

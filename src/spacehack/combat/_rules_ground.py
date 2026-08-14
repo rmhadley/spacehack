@@ -26,7 +26,7 @@ from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     tier_filtered_equipment as _tier_loot,
 )
-from ..hud import _bar_str, COLOR_HP_GOOD, COLOR_HP_LOW, volley_costs
+from ..hud import _bar_str, COLOR_HP_GOOD, COLOR_HP_LOW, HUD_TEXT_MAX, volley_costs
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -654,7 +654,7 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
         is_active = _state.active_weapon_list[i] if i < len(_state.active_weapon_list) else True
         sel = "[x]" if is_active else "[ ]"
         name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
-        console.print(x=hud_x, y=y, string=f"{sel}[{i+1}] {ws.name}"[:24], fg=name_fg)
+        console.print(x=hud_x, y=y, string=f"{sel}[{i+1}] {ws.name}"[:HUD_TEXT_MAX], fg=name_fg)
         y += 1
         hc = hit_chance(wid, alive[_state.target_idx], ctx) if _state.target_idx < len(alive) else 0
         console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
@@ -713,7 +713,7 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             is_target = i == _state.target_idx
             name_fg = _COLOR_GROUND_ENEMY_TARGET if is_target else _COLOR_GROUND_ENEMY
             marker = ">" if is_target else " "
-            console.print(x=hud_x, y=y, string=f"{marker}{gei.name}"[:24], fg=name_fg)
+            console.print(x=hud_x, y=y, string=f"{marker}{gei.name}"[:HUD_TEXT_MAX], fg=name_fg)
             y += 1
             e_bar = _bar_str(gei.hp, gei.max_hp, width=8)
             e_pct = gei.hp * 100 // max(gei.max_hp, 1)
@@ -730,7 +730,7 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
                     if not _line:
                         continue
                     console.print(
-                        x=hud_x, y=y, string=f"  {_line}"[:24],
+                        x=hud_x, y=y, string=f"  {_line}"[:HUD_TEXT_MAX],
                         fg=ui.COLOR_VALUE_DIM,
                     )
                     y += 1
