@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.trade import trade_price
+from src.spacehack.trade import trade_price, open_loot_pickup
+from src.spacehack.world import Entity, Position
 
 
 class TestTradePrice:
@@ -81,3 +84,46 @@ class TestTradePrice:
         # clear truncation.
         # base=10, stock=3, target=10 → ratio=0.3, 10*(2.0-0.6)=14.0
         assert trade_price(10, 3, 10) == 14
+
+
+class TestOpenLootPickup:
+    """Ground-equipment loot modal shows friendly names, not ids."""
+
+    def _loot_entity(self, item_type: str, item_id: str) -> Entity:
+        return Entity(
+            char="%", fg=(255, 215, 0), pos=Position(0, 0),
+            loot_data={"item_type": item_type, "item_id": item_id},
+        )
+
+    def test_ground_equipment_modal_uses_friendly_name(self, monkeypatch):
+        """The pickup modal body shows the catalog name, not the raw id."""
+        ctx = SimpleNamespace(log=MagicMock())
+        calls = []
+        monkeypatch.setattr(
+            "src.spacehack.loot._run_pygame_loot",
+            lambda _ctx, title, body, take_label: calls.append((title, body))
+            or "LEAVE",
+        )
+
+        open_loot_pickup(ctx, self._loot_entity("weapon", "grenade_launcher"))
+
+        title, body = calls[0]
+        assert title == "GROUND EQUIPMENT"
+        assert "Grenade Launcher" in body
+        assert "grenade_launcher" not in body
+
+    def test_ground_equipment_modal_falls_back_on_unknown_id(self, monkeypatch):
+        """Unresolvable ids degrade to the raw id instead of crashing."""
+        ctx = SimpleNamespace(log=MagicMock())
+        calls = []
+        monkeypatch.setattr(
+            "src.spacehack.loot._run_pygame_loot",
+            lambda _ctx, title, body, take_label: calls.append((title, body))
+            or "LEAVE",
+        )
+
+        open_loot_pickup(ctx, self._loot_entity("weapon", "not_a_real_weapon"))
+
+        title, body = calls[0]
+        assert title == "GROUND EQUIPMENT"
+        assert "not_a_real_weapon" in body

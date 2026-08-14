@@ -353,10 +353,15 @@ def _run_cargo_loot_modal(
 
 def _open_equipment_loot(ctx: GameContext, loot_entity) -> None:
     """Handle the ground-equipment branch of loot pickup."""
+    entry = _ground_equipment_loot_entry(loot_entity)
+    try:
+        name = _ground_equipment_loot_name(entry)
+    except (KeyError, TypeError, ValueError):
+        name = loot_entity.loot_data.get("item_id", "unknown")
     outcome = _run_pygame_loot(
         ctx,
         "GROUND EQUIPMENT",
-        f"Found ground equipment: {loot_entity.loot_data.get('item_id', 'unknown')}. "
+        f"Found ground equipment: {name}. "
         "Pack it into the Expedition Pack?",
         "Pack",
     )
