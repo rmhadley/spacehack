@@ -246,11 +246,11 @@ def _storage_rows(
 
 
 def _field_item_name(stack: ground_equipment.GroundItemStack) -> str:
-    """Resolve one ammo/consumable stack's display name."""
+    """Resolve one stack's display name and current/max quantity."""
     from ..data.ground_items import find_ground_item
-
-    return find_ground_item(stack.item_type, stack.item_id).name
-
+    spec = find_ground_item(stack.item_type, stack.item_id)
+    maximum = spec.rounds_per_stack if stack.item_type == "ammo" else spec.quantity_per_stack
+    return f"{spec.name} [{stack.quantity}/{maximum}]"
 
 def _field_item_detail(stack: ground_equipment.GroundItemStack) -> str:
     """Format quantity and purchase details for one field-item stack."""

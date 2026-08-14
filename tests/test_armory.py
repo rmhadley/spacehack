@@ -127,6 +127,29 @@ def test_buy_rows_include_ground_consumables():
     assert "restore_hp" not in med_pack.detail
 
 
+def test_armory_and_expedition_rows_show_field_item_stack_quantities():
+    stacks = [
+        ground_equipment.GroundItemStack("ammo", "pistol_rounds", 12),
+        ground_equipment.GroundItemStack("consumable", "med_pack", 3),
+        ground_equipment.GroundItemStack("consumable", "stim", 1),
+    ]
+
+    armory_rows = _armory._field_item_rows(
+        stacks, "MANAGE_ARMORY_ITEM", "FIELD ITEMS",
+    )
+    expedition_rows = _armory._field_item_rows(
+        stacks, "MANAGE_EXPEDITION_ITEM", "FIELD ITEMS",
+    )
+
+    expected = (
+        "Pistol Rounds [12/40]",
+        "Med Pack [3/3]",
+        "Combat Stim [1/2]",
+    )
+    assert tuple(row.label for row in armory_rows[1:]) == expected
+    assert tuple(row.label for row in expedition_rows[1:]) == expected
+
+
 def test_purchase_ground_ammo_to_armory_storage(monkeypatch):
     ctx = _ammo_purchase_context(credits=100)
     monkeypatch.setattr(
