@@ -51,8 +51,35 @@ def test_changed_source_paths_include_staged_and_untracked_files(monkeypatch, tm
 
     monkeypatch.setattr(architecture_check, "ROOT", root)
     monkeypatch.setattr(architecture_check, "_git_names", fake_git_names)
+    monkeypatch.setattr(
+        architecture_check,
+        "_git_numstat",
+        lambda: {"src/spacehack/staged.py": 1},
+    )
 
     assert architecture_check._changed_source_paths() == (staged, untracked)
+
+
+def test_changed_source_paths_ignores_tracked_deletion_only_cleanup(monkeypatch, tmp_path):
+    root = tmp_path
+    source = root / "src" / "spacehack"
+    source.mkdir(parents=True)
+    deleted_only = source / "legacy.py"
+    deleted_only.write_text("value = 1\n")
+
+    monkeypatch.setattr(
+        architecture_check,
+        "_git_names",
+        lambda args: {"src/spacehack/legacy.py"}
+        if args[:2] == ("diff", "--name-only")
+        else set(),
+    )
+    monkeypatch.setattr(architecture_check, "_git_numstat", lambda: {
+        "src/spacehack/legacy.py": 0,
+    })
+    monkeypatch.setattr(architecture_check, "ROOT", root)
+
+    assert architecture_check._changed_source_paths() == ()
 
 
 def test_main_grandfathers_untouched_violations(monkeypatch, tmp_path, capsys):

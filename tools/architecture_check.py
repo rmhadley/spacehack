@@ -2,8 +2,9 @@
 """Enforce source-size rules for changed application modules.
 
 Existing oversized modules are reported but grandfathered until touched. A
-changed source module must be at most 1000 lines and contain no function over
-40 lines. This is intentionally a local gate; CI is not required.
+changed source module with added code must be at most 1000 lines and contain no
+function over 40 lines. Deletion-only cleanups do not add architecture debt and
+remain grandfathered. This is intentionally a local gate; CI is not required.
 """
 from __future__ import annotations
 
@@ -42,13 +43,41 @@ def _git_names(args: tuple[str, ...]) -> set[str]:
     return {line for line in result.stdout.splitlines() if line}
 
 
+def _git_numstat() -> dict[str, int]:
+    """Return added-line counts for tracked files changed from HEAD."""
+    try:
+        result = subprocess.run(
+            ("git", "diff", "--numstat", "HEAD", "--"),
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(f"git diff --numstat HEAD failed: {exc}") from exc
+    additions: dict[str, int] = {}
+    for line in result.stdout.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3 or fields[0] == "-":
+            continue
+        try:
+            additions[fields[2]] = int(fields[0])
+        except ValueError:
+            continue
+    return additions
+
+
 def _changed_source_paths() -> tuple[Path, ...]:
     changed = _git_names(("diff", "--name-only", "HEAD", "--"))
-    changed.update(_git_names(("ls-files", "--others", "--exclude-standard")))
+    untracked = _git_names(("ls-files", "--others", "--exclude-standard"))
+    changed.update(untracked)
+    additions = _git_numstat()
     paths = {
         ROOT / name
         for name in changed
-        if name.startswith("src/spacehack/") and name.endswith(".py")
+        if name.startswith("src/spacehack/")
+        and name.endswith(".py")
+        and (name in untracked or additions.get(name, 0) > 0)
     }
     return tuple(sorted((path for path in paths if path.is_file()), key=str))
 

@@ -17,7 +17,6 @@ from .navigation import JumpMenuOutcome, _pick_bounty_spawn_pos, _run_cargo_scan
 from .city import _animate_ship_to_y
 from .time import add_days_to_date
 from .npc import TalkOutcome, _run_npc_talk
-from .saveload import save_game as _save_game
 from .game_flow import _adopt_dungeon_transition, _apply_ship_buy_result, _first_walkable, _launch_owned_ship, _prep_cached_dungeon, _run_pygame_dungeon_confirm
 
 @dataclass
@@ -182,7 +181,6 @@ def _resolve_planet_wall(state, pid):
         if ctx.ground_hp < ctx.ground_max_hp:
             ctx.ground_hp = ctx.ground_max_hp
             log.add('You rest at the city and fully recover.')
-        _save_game(ctx, mode=state.current_mode, city_id=state.current_city_id, system_id=solar_system_module.current_solar_system_id)
     return 'CONTINUE'
 
 
