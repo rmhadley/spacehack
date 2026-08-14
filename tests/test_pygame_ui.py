@@ -1075,7 +1075,7 @@ def test_station_trade_frame_uses_shared_content_policy(monkeypatch):
 
 
 def test_loot_parent_apply_removes_entity_and_grants_inventory():
-    from src.spacehack import trade
+    from src.spacehack import loot
 
     entity = SimpleNamespace(loot_data={"good_id": "food_rations", "quantity": 2})
     owned = SimpleNamespace(inventory={}, mission_reserved=0)
@@ -1086,7 +1086,7 @@ def test_loot_parent_apply_removes_entity_and_grants_inventory():
     )
     good = SimpleNamespace(name="Food")
 
-    trade._apply_loot_pickup(ctx, entity, owned, False, [], "food", 2, good)
+    loot._apply_loot_pickup(ctx, entity, owned, False, [], "food", 2, good)
 
     assert owned.inventory == {"food": 2}
     assert entity not in ctx.game_map.entities

@@ -20,6 +20,7 @@ from enum import Enum, auto
 from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
+from .loot import open_loot_pickup  # noqa: F401  (re-exported for callers)
 
 NEUTRAL_TARGET: int = 8
 
@@ -112,6 +113,18 @@ def tick_economy(ctx: GameContext) -> None:
 # Transaction helpers
 # ---------------------------------------------------------------------------
 
+def _buy_problem(ctx, owned, good, quantity, volume, cost, current_stock) -> str | None:
+    """First reason the buy can't complete, or None when it can."""
+    if ctx.stats.credits < cost:
+        return f"Not enough credits to buy {quantity}x {good.name} ({cost}$ needed)."
+    free_cargo = _free_cargo(owned)
+    if free_cargo < volume:
+        return f"Not enough cargo space ({free_cargo} free, need {volume})."
+    if current_stock < quantity:
+        return f"The station only has {current_stock} units of {good.name} available."
+    return None
+
+
 def _buy_good(
     ctx: GameContext,
     planet_id: str,
@@ -122,41 +135,22 @@ def _buy_good(
 
     Returns True iff the purchase succeeded (enough stock, enough
     credits, enough cargo space).
-
-    Mutates:
-      - ``economy_state[planet_id][good_id]`` (decrement)
-      - ``owned_ship.inventory``           (increment)
-      - ``stats.credits``                   (decrement)
-
-    Logs failure reasons when the transaction can't complete.
     """
     owned = ctx.player_owned_ship
     if owned is None:
         ctx.log.add("You need a ship with cargo space to trade.")
         return False
-
     good = find_trade_good(good_id)
     volume = good.volume * quantity
     cost = _unit_price(ctx, planet_id, good_id) * quantity
-
-    if ctx.stats.credits < cost:
-        ctx.log.add(f"Not enough credits to buy {quantity}x {good.name} ({cost}$ needed).")
-        return False
-
-    free_cargo = _free_cargo(owned)
-    if free_cargo < volume:
-        ctx.log.add(f"Not enough cargo space ({free_cargo} free, need {volume}).")
-        return False
-
-    # Deduct stock (ensure it doesn't go below 0).
     stocks = ctx.economy_state.get(planet_id, {})
-    current = stocks.get(good_id, 0)
-    if current < quantity:
-        ctx.log.add(f"The station only has {current} units of {good.name} available.")
+    problem = _buy_problem(
+        ctx, owned, good, quantity, volume, cost, stocks.get(good_id, 0),
+    )
+    if problem:
+        ctx.log.add(problem)
         return False
-    stocks[good_id] = max(0, current - quantity)
-
-    # Complete the transaction.
+    stocks[good_id] = max(0, stocks.get(good_id, 0) - quantity)
     owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
     ctx.stats.credits -= cost
     ctx.log.add(f"Bought {quantity}x {good.name} for {cost}$.")
@@ -182,6 +176,16 @@ def _can_sell_here(planet_id: str, good_id: str) -> bool:
             return True
     return False
 
+def _sell_problem(owned, planet_id: str, good, quantity: int) -> str | None:
+    """First reason the sale can't complete, or None when it can."""
+    if not _can_sell_here(planet_id, good.id):
+        return f"No one here deals in {good.name} \u2014 contraband."
+    held = owned.inventory.get(good.id, 0)
+    if held < quantity:
+        return f"You only have {held} crates of {good.name}."
+    return None
+
+
 def _sell_good(
     ctx: GameContext,
     planet_id: str,
@@ -191,43 +195,23 @@ def _sell_good(
     """Sell ``quantity`` units of ``good_id`` back to the planet's market.
 
     Returns True iff the sale succeeded (player has enough crates).
-
-    Mutates:
-      - ``owned_ship.inventory``           (decrement, removing key at 0)
-      - ``economy_state[planet_id][good_id]`` (increment)
-      - ``stats.credits``                   (increment)
     """
     owned = ctx.player_owned_ship
     if owned is None:
         return False
-
     good = find_trade_good(good_id)
-
-    # Reject contraband at non-black-market planets.
-    if not _can_sell_here(planet_id, good_id):
-        ctx.log.add(f"No one here deals in {good.name} \u2014 contraband.")
+    problem = _sell_problem(owned, planet_id, good, quantity)
+    if problem:
+        ctx.log.add(problem)
         return False
-
-    held = owned.inventory.get(good_id, 0)
-    if held < quantity:
-        ctx.log.add(f"You only have {held} crates of {good.name}.")
-        return False
-
-    # Compute sell price (75% of buy price, rep + trait adjusted).
-    sell_price = _sell_price(ctx, planet_id, good_id)
-    revenue = sell_price * quantity
-
-    # Add to stock.
+    revenue = _sell_price(ctx, planet_id, good_id) * quantity
     stocks = ctx.economy_state.get(planet_id, {})
     stocks[good_id] = stocks.get(good_id, 0) + quantity
-
-    # Remove from inventory.
-    remaining = held - quantity
-    if remaining <= 0:
+    held = owned.inventory.get(good_id, 0)
+    if held <= quantity:
         del owned.inventory[good_id]
     else:
-        owned.inventory[good_id] = remaining
-
+        owned.inventory[good_id] = held - quantity
     ctx.stats.credits += revenue
     ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}$.")
     return True
@@ -305,372 +289,6 @@ def _run_quantity_prompt(
         raise SystemExit
 
 # ---------------------------------------------------------------------------
-# Trade modal
-# ---------------------------------------------------------------------------
-
-class _TradeOutcome(Enum):
-    IGNORE = auto()
-    BACK = auto()
-    QUIT = auto()
-
-class _LootOutcome(Enum):
-    IGNORE = auto()
-    TAKE = auto()
-    LEAVE = auto()
-    QUIT = auto()
-
-def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -> str | None:
-    """Run the loot choice through the generic Pygame menu worker."""
-    from . import pygame_menu, pygame_ui
-
-    item = pygame_menu.MenuItem(take_label, "", "TAKE")
-    frame = pygame_menu.MenuFrame(
-        title=title,
-        body=body,
-        items=(item,),
-        hints=(pygame_ui.modal_hint(
-            "ENTER secure/take", "ESC leave", pygame_ui.GUIDE_HINT,
-        ),),
-        selected=0,
-    )
-    outcome, action, _selected = pygame_menu.run_for_context(
-        getattr(ctx, "context", ctx),
-        (frame,),
-        caption=f"spacehack - {title.lower()}",
-    )
-    if outcome == "GUIDE":
-        from .help import _open_context_guide
-        _open_context_guide(ctx, "Trading & Economy")
-        return _run_pygame_loot(ctx, title, body, take_label)
-    if outcome == "SELECT" and action == "TAKE":
-        return "TAKE"
-    if outcome == "QUIT":
-        return "QUIT"
-    return "LEAVE"
-
-def _ground_equipment_loot_entry(loot_entity):
-    """Build and validate a stored entry from an equipment loot entity."""
-    from . import ground_equipment
-
-    loot_data = loot_entity.loot_data or {}
-    return ground_equipment.StoredGroundEquipment(
-        str(loot_data.get("item_type", "")),
-        str(loot_data.get("item_id", "")),
-    )
-
-
-def _ground_equipment_loot_name(entry) -> str:
-    """Return the catalog display name for an equipment loot entry."""
-    from .data.ground_armor import find_ground_armor
-    from .data.ground_weapons import find_ground_weapon
-
-    if entry.item_type == "weapon":
-        return find_ground_weapon(entry.item_id).name
-    return find_ground_armor(entry.item_id).name
-
-
-def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
-    """Drop one carried Expedition Pack item at the current loot position."""
-    from . import world
-
-    dropped = ctx.ground_expedition_inventory.pop(index)
-    dropped_entity = world.Entity(
-        char="%",
-        fg=(255, 215, 0),
-        pos=loot_entity.pos,
-        name="Dropped Ground Equipment",
-        loot_data={"item_type": dropped.item_type, "item_id": dropped.item_id},
-    )
-    ctx.game_map.entities.append(dropped_entity)
-    return dropped, dropped_entity
-
-
-def _pack_drop_options(ctx: GameContext) -> tuple[tuple[str, str], ...]:
-    """Build valid drop choices without exposing malformed pack entries."""
-    options = []
-    for index, entry in enumerate(ctx.ground_expedition_inventory):
-        try:
-            name = _ground_equipment_loot_name(entry)
-        except (KeyError, TypeError, ValueError):
-            continue
-        options.append((f"Drop {name}", f"DROP_PACK:{index}"))
-    return tuple(options)
-
-
-def _choose_pack_drop(ctx: GameContext, loot_entity) -> int | None:
-    """Offer a compact drop-or-leave choice when the Expedition Pack is full."""
-    from . import pygame_story
-
-    options = _pack_drop_options(ctx) + (("Leave new loot", "LEAVE_LOOT"),)
-    chosen = pygame_story.choose(
-        ctx,
-        title="EXPEDITION PACK FULL",
-        body="Drop one carried item to make room, or leave the new loot behind.",
-        options=options,
-        caption="spacehack - pack full",
-        compact=True,
-    )
-    if not chosen or chosen in {"__BACK__", "__DISMISS__", "LEAVE_LOOT"}:
-        return None
-    if chosen == "__QUIT__":
-        raise SystemExit
-    if not chosen.startswith("DROP_PACK:"):
-        return None
-    try:
-        _drop_index = int(chosen.split(":", 1)[1])
-    except ValueError:
-        return None
-    return _drop_index
-
-
-def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
-    """Move one ground-equipment drop into the carried Expedition Pack."""
-    from . import ground_equipment
-
-    entry = _ground_equipment_loot_entry(loot_entity)
-    try:
-        name = _ground_equipment_loot_name(entry)
-        strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
-        ground_equipment.add_stored(
-            ctx.ground_expedition_inventory,
-            entry,
-            container=ground_equipment.EXPEDITION_INVENTORY,
-            strength=strength,
-        )
-    except KeyError:
-        ctx.log.add("Unknown ground equipment - left it behind.")
-        return False
-    except ValueError:
-        drop_index = _choose_pack_drop(ctx, loot_entity)
-        if drop_index is not None:
-            if not 0 <= drop_index < len(ctx.ground_expedition_inventory):
-                return False
-            dropped, dropped_entity = _drop_expedition_entry_at_loot(
-                ctx, loot_entity, drop_index,
-            )
-            try:
-                ground_equipment.add_stored(
-                    ctx.ground_expedition_inventory,
-                    entry,
-                    container=ground_equipment.EXPEDITION_INVENTORY,
-                    strength=strength,
-                )
-            except (KeyError, ValueError):
-                ctx.game_map.entities.remove(dropped_entity)
-                ctx.ground_expedition_inventory.insert(drop_index, dropped)
-                ctx.log.add(f"Expedition Pack full - left the {name} behind.")
-                return False
-            ctx.log.add(f"Packed ground equipment: {name}.")
-            if loot_entity in ctx.game_map.entities:
-                ctx.game_map.entities.remove(loot_entity)
-            return True
-        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
-        return False
-    ctx.log.add(f"Packed ground equipment: {name}.")
-    if loot_entity in ctx.game_map.entities:
-        ctx.game_map.entities.remove(loot_entity)
-    return True
-
-
-def _apply_loot_pickup(
-    ctx: GameContext,
-    loot_entity,
-    owned,
-    is_quest: bool,
-    goods: list[tuple[str, int]],
-    good_id: str,
-    quantity: int,
-    good,
-) -> None:
-    """Apply a confirmed trade-good or quest loot pickup."""
-    if is_quest:
-        from . import main_quest as _mq
-        secured = _mq.secure_quest_loot(ctx, loot_entity, goods)
-        if not secured:
-            for gid, qty in goods:
-                owned.inventory[gid] = owned.inventory.get(gid, 0) + qty
-            ctx.log.add("Picked up leftover quest cache goods.")
-    else:
-        secured = False
-        if getattr(loot_entity, "heist_mission", False):
-            secured = _secure_heist_cargo(ctx, loot_entity, good_id, quantity)
-        if secured:
-            ctx.log.add(
-                f"Secured mission cargo: {good.name} x{quantity} "
-                "(reserved in hold). Do not sell!"
-            )
-        else:
-            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-            ctx.log.add(f"Picked up {good.name} x{quantity} from space debris.")
-    if loot_entity in ctx.game_map.entities:
-        ctx.game_map.entities.remove(loot_entity)
-
-def _secure_heist_cargo(ctx: GameContext, loot_entity, good_id: str, quantity: int) -> bool:
-    """Mark the intercept mission's loot as secured and reserve hold space.
-
-    Returns True if the loot belonged to an active (not-yet-secured)
-    intercept mission, in which case the mission's ``heist_good_secured``
-    flag is set and the cargo volume is reserved in
-    ``owned.mission_reserved`` (the MISSION CARGO hold concept).
-    The good does NOT enter the trade inventory — it cannot be sold
-    and buying the same good at a terminal does not count.
-
-    Returns False if no matching active mission exists (e.g. the
-    mission was abandoned) — the caller falls back to normal debris
-    pickup into the trade inventory.
-    """
-    _good_id = good_id
-    _qty = quantity
-    for _am in ctx.player_active_missions:
-        if getattr(_am, 'heist_target_good_id', None) != _good_id:
-            continue
-        # Prefer an exact mission link when the loot entity carries one.
-        _mid = getattr(loot_entity, 'heist_mission_id', None)
-        if _mid and _am.mission_id != _mid:
-            continue
-        if getattr(_am, 'heist_good_secured', False):
-            continue
-        # Reserve the same volume that mission._reserved_heist_volume
-        # releases on complete/abort (which assumes quantity 1). The
-        # flag is set AFTER this lookup so the two stay in sync.
-        try:
-            _vol = find_trade_good(_good_id).volume * _qty
-        except KeyError:
-            _vol = 0
-        _am.heist_good_secured = True
-        _owned = ctx.player_owned_ship
-        if _owned is not None:
-            _owned.mission_reserved += _vol
-        return True
-    return False
-
-def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
-    """Open a simple modal to pick up cargo, quest, or ground gear loot.
-
-    Shows what's available and lets the player take it (or leave it).
-    If cargo space is insufficient, logs the shortfall and stays in
-    space so the player can decide what to jettison.
-
-    Intercept-mission loot (``heist_mission`` set) is secured as
-    MISSION CARGO — reserved in the hold, kept out of the trade
-    inventory, and never sellable. The mission only completes when
-    that specific cargo is secured; buying the same good at a
-    terminal does not count.
-
-    Quest cache / salvage loot (``main_quest_step_id`` set) is
-    handled by :func:`spacehack.main_quest.secure_quest_loot`: the
-    goods authored in ``loot_data["goods"]`` are granted to the hold
-    and the main-quest step completes in the same action.
-    """
-    _loot_data = loot_entity.loot_data or {}
-    _equipment_type = _loot_data.get("item_type")
-    if _equipment_type in {"weapon", "armor"}:
-        _pygame_outcome = _run_pygame_loot(
-            ctx,
-            "GROUND EQUIPMENT",
-            f"Found ground equipment: {_loot_data.get('item_id', 'unknown')}. "
-            "Pack it into the Expedition Pack?",
-            "Pack",
-        )
-        if _pygame_outcome == "TAKE":
-            _apply_equipment_loot_pickup(ctx, loot_entity)
-        elif _pygame_outcome == "QUIT":
-            raise SystemExit
-        else:
-            ctx.log.add("Left the ground equipment behind.")
-        return
-
-    _quest_step_id = getattr(loot_entity, 'main_quest_step_id', '')
-    _is_quest = bool(_quest_step_id)
-    if _is_quest:
-        # Quest cache / salvage loot: goods are a [(good_id, qty)] list.
-        # Validate EVERY id up front so a typo'd secondary good can't
-        # silently land in the hold via secure_quest_loot's grant loop.
-        _goods: list[tuple[str, int]] = []
-        for _g in (loot_entity.loot_data.get("goods") or []):
-            try:
-                find_trade_good(str(_g[0]))
-            except KeyError:
-                ctx.log.add("The quest cache contains unknown goods - ignored.")
-                continue
-            _goods.append((str(_g[0]), int(_g[1])))
-        if not _goods:
-            ctx.log.add("An empty quest cache.")
-            return
-        good_id, quantity = _goods[0]
-    else:
-        _goods = []
-        good_id = loot_entity.loot_data.get("good_id", "")
-        quantity = loot_entity.loot_data.get("quantity", 1)
-        if not good_id:
-            return
-    try:
-        good = find_trade_good(good_id)
-    except KeyError:
-        ctx.log.add("Unknown cargo debris.")
-        # Remove the unresolvable loot entity so it doesn't block movement.
-        try:
-            ctx.game_map.entities.remove(loot_entity)
-        except ValueError:
-            pass
-        return
-
-    owned = ctx.player_owned_ship
-    if owned is None:
-        ctx.log.add("You need a ship with cargo space to pick up cargo.")
-        return
-
-    if _is_quest:
-        # Total volume across all quest goods.
-        volume = 0
-        for _gid, _qty in _goods:
-            try:
-                volume += find_trade_good(_gid).volume * _qty
-            except KeyError:
-                continue
-    else:
-        volume = good.volume * quantity
-    free_cargo = _free_cargo(owned)
-
-    if free_cargo < volume:
-        ctx.log.add(
-            f"Not enough cargo space to take {good.name} x{quantity} "
-            f"(need {volume}, have {free_cargo} free)."
-        )
-        return
-
-    _is_heist = getattr(loot_entity, 'heist_mission', False)
-    if _is_quest:
-        title = "QUEST CACHE"
-        parts = [
-            f"{find_trade_good(gid).name} x{qty}"
-            for gid, qty in _goods
-        ]
-        body = "Secured quest contents: " + ", ".join(parts)
-        take_label = "Secure"
-    elif _is_heist:
-        title = "MISSION CARGO"
-        body = f"Secured mission cargo: {good.name} x{quantity}"
-        take_label = "Secure"
-    else:
-        title = "CARGO DEBRIS"
-        body = (
-            f"You found {good.name} x{quantity}. "
-            f"Value: {good.base_price}$ each | Volume: {good.volume} crate(s)"
-        )
-        take_label = "Take"
-    pygame_outcome = _run_pygame_loot(ctx, title, body, take_label)
-    if pygame_outcome == "TAKE":
-        _apply_loot_pickup(
-            ctx, loot_entity, owned, _is_quest, _goods,
-            good_id, quantity, good,
-        )
-    elif pygame_outcome == "QUIT":
-        raise SystemExit
-    else:
-        ctx.log.add("Left the cargo debris in space.")
-
-# ---------------------------------------------------------------------------
 # NPC trade modal (Phase 4 — merchant ships from comms)
 # ---------------------------------------------------------------------------
 
@@ -730,44 +348,34 @@ def _pygame_npc_trade_frame(
         focus, selected,
     )
 
-def _npc_trade_transaction(
-    ctx: GameContext,
-    npc_spec,
-    npc_stock: dict[str, int],
-    buy_mult: float,
-    sell_mult: float,
-    kind: str,
-    good_id: str,
-) -> None:
-    """Apply one NPC buy/sell transaction after quantity confirmation."""
-    good = find_trade_good(good_id)
+def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
+    """Apply one BUY_NPC transaction (prompt quantity, move stock + credits)."""
     owned = ctx.player_owned_ship
-    if owned is None:
-        return
-    if kind == "BUY_NPC":
-        stock = npc_stock.get(good_id, 0)
-        price = int(good.base_price * buy_mult)
-        maximum = min(
-            stock,
-            _free_cargo(owned) // max(1, good.volume),
-            ctx.stats.credits // max(1, price),
+    stock = npc_stock.get(good_id, 0)
+    price = int(good.base_price * buy_mult)
+    maximum = min(
+        stock,
+        _free_cargo(owned) // max(1, good.volume),
+        ctx.stats.credits // max(1, price),
+    )
+    quantity = _run_quantity_prompt(
+        ctx, f"Buy {good.name} from {npc_spec.name}", maximum, price,
+    ) if maximum else None
+    if quantity:
+        cost = price * quantity
+        owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
+        npc_stock[good_id] = stock - quantity
+        ctx.stats.credits -= cost
+        ctx.log.add(f"Bought {quantity}x {good.name} from {npc_spec.name} for {cost}$.")
+    elif maximum == 0:
+        ctx.log.add(
+            f"{npc_spec.name} has insufficient stock or you cannot afford/store {good.name}."
         )
-        quantity = _run_quantity_prompt(
-            ctx, f"Buy {good.name} from {npc_spec.name}", maximum, price,
-        ) if maximum else None
-        if quantity:
-            cost = price * quantity
-            owned.inventory[good_id] = owned.inventory.get(good_id, 0) + quantity
-            npc_stock[good_id] = stock - quantity
-            ctx.stats.credits -= cost
-            ctx.log.add(f"Bought {quantity}x {good.name} from {npc_spec.name} for {cost}$.")
-        elif maximum == 0:
-            ctx.log.add(
-                f"{npc_spec.name} has insufficient stock or you cannot afford/store {good.name}."
-            )
-        return
-    if kind != "SELL_NPC":
-        raise ValueError(f"Unknown NPC trade kind: {kind!r}")
+
+
+def _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult) -> None:
+    """Apply one SELL_NPC transaction (prompt quantity, move stock + credits)."""
+    owned = ctx.player_owned_ship
     held = owned.inventory.get(good_id, 0)
     price = int(good.base_price * sell_mult)
     quantity = _run_quantity_prompt(
@@ -783,6 +391,27 @@ def _npc_trade_transaction(
         npc_stock[good_id] = npc_stock.get(good_id, 0) + quantity
         ctx.stats.credits += revenue
         ctx.log.add(f"Sold {quantity}x {good.name} to {npc_spec.name} for {revenue}$.")
+
+
+def _npc_trade_transaction(
+    ctx: GameContext,
+    npc_spec,
+    npc_stock: dict[str, int],
+    buy_mult: float,
+    sell_mult: float,
+    kind: str,
+    good_id: str,
+) -> None:
+    """Apply one NPC buy/sell transaction after quantity confirmation."""
+    if ctx.player_owned_ship is None:
+        return
+    good = find_trade_good(good_id)
+    if kind == "BUY_NPC":
+        _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult)
+    elif kind == "SELL_NPC":
+        _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult)
+    else:
+        raise ValueError(f"Unknown NPC trade kind: {kind!r}")
 
 def _apply_pygame_npc_trade_action(
     ctx: GameContext,
@@ -824,6 +453,40 @@ def _run_pygame_npc_trade(
     )
     return result is not None
 
+def _npc_attitude(ctx: GameContext, npc_spec) -> str:
+    """Faction attitude toward the player for this NPC ship."""
+    from .faction import get_attitude
+    _npc_faction = getattr(npc_spec, "faction", "civilian")
+    return get_attitude(ctx.faction_reputation.get(_npc_faction, 0))
+
+
+def _npc_trade_gate(ctx: GameContext, npc_spec) -> bool:
+    """Return False (logging why) when this NPC can't open trade."""
+    if _npc_attitude(ctx, npc_spec) in ("enemy", "disliked"):
+        ctx.log.add(f"{npc_spec.name} refuses to trade with you.")
+        return False
+    if ctx.player_owned_ship is None:
+        ctx.log.add("You need a ship with cargo space to trade.")
+        return False
+    return True
+
+
+def _npc_stock_pool(npc_spec, count: int) -> dict[str, int]:
+    """Build the ephemeral random stock pool for an NPC trader."""
+    from .engine import RNG
+    _cargo_list = list(npc_spec.cargo_goods)
+    RNG.shuffle(_cargo_list)
+    return {gid: RNG.randint(3, 8) for gid in _cargo_list[:count]}
+
+
+def _npc_price_multipliers(ctx: GameContext, attitude: str) -> tuple[float, float]:
+    """Buy/sell price multipliers for an NPC trade session (rep + trait)."""
+    from .faction import buy_price_modifier, sell_price_modifier
+    _buy = 1.2 * buy_price_modifier(attitude) * _trait_buy_mult(ctx)
+    _sell = 0.5 * sell_price_modifier(attitude) * _trait_sell_mult(ctx)
+    return _buy, _sell
+
+
 def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     """Open a trade modal with an NPC ship.
 
@@ -835,52 +498,77 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     Player buys from NPC at base_price plus 20% markup.
     Player sells to NPC at base_price minus 50% discount.
     """
-    # Faction rep gating: enemy/disliked can't trade.
-    _npc_faction = getattr(npc_spec, 'faction', 'civilian')
-    from .faction import get_attitude, buy_price_modifier, sell_price_modifier
-    _npc_rep = ctx.faction_reputation.get(_npc_faction, 0)
-    _npc_attitude = get_attitude(_npc_rep)
-    if _npc_attitude in ("enemy", "disliked"):
-        ctx.log.add(f"{npc_spec.name} refuses to trade with you.")
+    if not _npc_trade_gate(ctx, npc_spec):
         return
-
-    owned = ctx.player_owned_ship
-    if owned is None:
-        ctx.log.add("You need a ship with cargo space to trade.")
-        return
-
-    from .engine import RNG
-    _cargo_list = list(npc_spec.cargo_goods)
-    if not _cargo_list:
+    _npc_stock = _npc_stock_pool(npc_spec, npc_spec.cargo_count)
+    if not _npc_stock:
         ctx.log.add(f"{npc_spec.name} has nothing to trade.")
         return
-
-    RNG.shuffle(_cargo_list)
-    _selected = _cargo_list[:npc_spec.cargo_count]
-    _npc_stock: dict[str, int] = {
-        gid: RNG.randint(3, 8) for gid in _selected
-    }
-
-    # Price multipliers.
-    _BUY_MULT = 1.2   # player buys from NPC at markup
-    _SELL_MULT = 0.5  # player sells to NPC at discount
-
-    # Apply faction rep + Trade Route trait modifier on top of NPC trade base rates.
-    _BUY_MULT *= buy_price_modifier(_npc_attitude) * _trait_buy_mult(ctx)
-    _SELL_MULT *= sell_price_modifier(_npc_attitude) * _trait_sell_mult(ctx)
-
-    _npc_goods: list[str] = list(_npc_stock.keys())
-    _focus: int = 0        # 0 = NPC panel, 1 = player panel
-    _sel: int = 0
-
+    _buy_mult, _sell_mult = _npc_price_multipliers(
+        ctx, _npc_attitude(ctx, npc_spec),
+    )
     ctx.log.add(f"You open a trade channel with {npc_spec.name}.")
-
     result = _run_pygame_npc_trade(
-        ctx, npc_spec, _npc_stock, _BUY_MULT, _SELL_MULT,
+        ctx, npc_spec, _npc_stock, _buy_mult, _sell_mult,
     )
     if result is None:
         raise RuntimeError("NPC trade returned no outcome")
-    return
+
+
+def _station_goods_for(spec) -> list[str]:
+    """Ordered tradable goods: produces, then demands, then neutral catalog."""
+    _station_goods: list[str] = []
+    seen: set[str] = set()
+    for gid, _target in spec.produces:
+        if gid not in seen:
+            _station_goods.append(gid)
+            seen.add(gid)
+    for gid, _target in spec.demands:
+        if gid not in seen:
+            _station_goods.append(gid)
+            seen.add(gid)
+    # Neutral goods (non-contraband, not in produces/demands).
+    for gid in neutral_goods(spec):
+        if gid not in seen:
+            _station_goods.append(gid)
+            seen.add(gid)
+    return _station_goods
+
+
+def _terminal_trade_gate(ctx: GameContext) -> bool:
+    """Return False (logging why) when the terminal can't open trade."""
+    from .faction import get_attitude
+    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _attitude = get_attitude(_merchant_rep)
+    if _attitude in ("enemy", "disliked"):
+        ctx.log.add("The merchants refuse to trade with you.")
+        return False
+    if ctx.player_owned_ship is None:
+        ctx.log.add("You need a ship with cargo space to use this terminal.")
+        return False
+    return True
+
+
+def open_trade(ctx: GameContext, planet_id: str) -> None:
+    """Open the trade modal for ``planet_id``.
+
+    Shows a split-screen view: station inventory on the left, player
+    inventory on the right.  The player navigates with up/down on the
+    focused panel, switches panels with Tab, buys with Enter, and
+    sells with Shift+Enter.
+    """
+    _seed_economy(ctx, planet_id)
+    spec = find_planet_spec(planet_id)
+    _station_goods = _station_goods_for(spec)
+    if not _station_goods:
+        ctx.log.add("This terminal has nothing to trade.")
+        return
+    if not _terminal_trade_gate(ctx):
+        return
+    result = _run_pygame_trade(ctx, planet_id, _station_goods)
+    if result is None:
+        raise RuntimeError("Trade terminal returned no outcome")
+
 def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[str]):
     """Build a presentation-only station trade frame."""
     from . import pygame_split
@@ -952,56 +640,6 @@ def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]
     )
     return result is not None if result is not None else None
 
-def open_trade(ctx: GameContext, planet_id: str) -> None:
-    """Open the trade modal for ``planet_id``.
-
-    Shows a split-screen view: station inventory on the left, player
-    inventory on the right.  The player navigates with up/down on the
-    focused panel, switches panels with Tab, buys with Enter, and
-    sells with Shift+Enter.
-    """
-    _seed_economy(ctx, planet_id)
-    spec = find_planet_spec(planet_id)
-    _stocks = ctx.economy_state.get(planet_id, {})
-
-    # Build the ordered list of tradable goods for this planet.
-    # Produced goods first, then demands, then neutral goods
-    # (not in either list) from the full catalog.
-    _station_goods: list[str] = []
-    seen: set[str] = set()
-    for gid, _target in spec.produces:
-        if gid not in seen:
-            _station_goods.append(gid)
-            seen.add(gid)
-    for gid, _target in spec.demands:
-        if gid not in seen:
-            _station_goods.append(gid)
-            seen.add(gid)
-    # Neutral goods (non-contraband, not in produces/demands).
-    for gid in neutral_goods(spec):
-        if gid not in seen:
-            _station_goods.append(gid)
-            seen.add(gid)
-
-    if not _station_goods:
-        ctx.log.add("This terminal has nothing to trade.")
-        return
-
-    # Preserve the domain state gates before opening the presentation worker.
-    from .faction import get_attitude
-    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
-    _attitude = get_attitude(_merchant_rep)
-    if _attitude in ("enemy", "disliked"):
-        ctx.log.add("The merchants refuse to trade with you.")
-        return
-    if ctx.player_owned_ship is None:
-        ctx.log.add("You need a ship with cargo space to use this terminal.")
-        return
-
-    result = _run_pygame_trade(ctx, planet_id, _station_goods)
-    if result is None:
-        raise RuntimeError("Trade terminal returned no outcome")
-    return
 class _COut(Enum):
     IGNORE = auto()
     BACK = auto()

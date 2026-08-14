@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.spacehack import trade
+from src.spacehack import loot
 from src.spacehack.ground_equipment import (
     ARMORY_STORAGE,
     EXPEDITION_INVENTORY,
@@ -319,7 +319,7 @@ def test_equipment_loot_pickup_adds_to_pack_and_removes_entity():
         "log": type("Log", (), {"add": lambda self, _message: None})(),
     })()
 
-    assert trade._apply_equipment_loot_pickup(ctx, entity)
+    assert loot._apply_equipment_loot_pickup(ctx, entity)
     assert ctx.ground_expedition_inventory == [
         StoredGroundEquipment("weapon", "combat_knife"),
     ]
@@ -344,8 +344,8 @@ def test_full_expedition_pack_leaves_equipment_loot_on_floor(monkeypatch):
         "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
     })()
 
-    monkeypatch.setattr(trade, "_choose_pack_drop", lambda *_args: None)
-    assert not trade._apply_equipment_loot_pickup(ctx, entity)
+    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: None)
+    assert not loot._apply_equipment_loot_pickup(ctx, entity)
     assert entity in ctx.game_map.entities
     assert pack == [
         StoredGroundEquipment("armor", "light_helmet"),
@@ -364,7 +364,7 @@ def test_full_pack_drop_options_skip_malformed_entries():
         ],
     })()
 
-    assert trade._pack_drop_options(ctx) == ((
+    assert loot._pack_drop_options(ctx) == ((
         "Drop Combat Knife", "DROP_PACK:1",
     ),)
 
@@ -388,9 +388,9 @@ def test_full_expedition_pack_can_drop_carried_item_for_new_loot(monkeypatch):
         "game_map": type("Map", (), {"entities": entities})(),
         "log": type("Log", (), {"add": lambda self, _message: None})(),
     })()
-    monkeypatch.setattr(trade, "_choose_pack_drop", lambda *_args: 3)
+    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: 3)
 
-    assert trade._apply_equipment_loot_pickup(ctx, entity)
+    assert loot._apply_equipment_loot_pickup(ctx, entity)
     assert pack == [
         StoredGroundEquipment("armor", "light_helmet"),
         StoredGroundEquipment("armor", "light_vest"),
@@ -416,7 +416,7 @@ def test_invalid_equipment_loot_stays_on_floor():
         "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
     })()
 
-    assert not trade._apply_equipment_loot_pickup(ctx, entity)
+    assert not loot._apply_equipment_loot_pickup(ctx, entity)
     assert entity in ctx.game_map.entities
     assert any("unknown" in message.lower() for message in messages)
 
