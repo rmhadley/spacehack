@@ -44,12 +44,14 @@ def test_consumable_catalog_resolves_effect_and_stack_size():
     assert spec.combat_heal_amount == 5
     assert spec.combat_regen_amount == 2
     assert spec.duration_turns == 3
+    assert spec.effect_label == "Restore HP"
 
 
 def test_stim_catalog_duration_and_ap_bonus_are_data_driven():
     spec = find_ground_consumable("stim")
     assert spec.duration_turns == 3
     assert spec.combat_ap_bonus == 1
+    assert spec.effect_label == "Temporary AP boost"
 
 
 def test_find_ground_item_dispatches_by_type():

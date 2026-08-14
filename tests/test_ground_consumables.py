@@ -9,7 +9,7 @@ from src.spacehack.ground_equipment import GroundItemStack, weapon_instance
 
 
 def test_character_rows_make_consumables_selectable():
-    from src.spacehack.character_screen import _backpack_item_rows
+    from src.spacehack.character_screen import _backpack_item_rows, _item_stack_detail
 
     ctx = SimpleNamespace(
         ground_expedition_items=[GroundItemStack("consumable", "med_pack", 1)],
@@ -18,6 +18,9 @@ def test_character_rows_make_consumables_selectable():
 
     assert rows[0].action == "PACK_STACK:0"
     assert rows[0].selectable is True
+    detail = _item_stack_detail(ctx.ground_expedition_items[0])
+    assert "Restore HP" in detail
+    assert "restore_hp" not in detail
 
 
 def test_character_consumable_action_uses_a_charge(monkeypatch):

@@ -207,7 +207,7 @@ def _buy_consumable_rows():
         pygame_split.SplitRow(
             spec.name,
             pygame_ui.price_cell(spec.price),
-            f"Stack 0/{spec.quantity_per_stack}  {spec.effect_id}",
+            f"Stack 0/{spec.quantity_per_stack}  {spec.effect_label or spec.name}",
             f"BUY_CONSUMABLE:{spec.id}",
         )
         for spec in sorted(list_ground_consumables(), key=lambda item: item.price)
@@ -267,7 +267,11 @@ def _field_item_detail(stack: ground_equipment.GroundItemStack) -> str:
         if stack.item_type == "ammo"
         else f"{spec.price}$ each"
     )
-    return f"{stack.item_type.title()}  {stack.quantity}/{maximum}  {price}"
+    effect = (
+        f"  {spec.effect_label or spec.name}"
+        if stack.item_type == "consumable" else ""
+    )
+    return f"{stack.item_type.title()}  {stack.quantity}/{maximum}  {price}{effect}"
 
 
 def _field_item_rows(
@@ -521,8 +525,7 @@ def _purchase_field_item(
     )
     try:
         ground_equipment.add_item_quantity(
-            destination_equipment, destination_items,
-            item_type, item_id, quantity,
+            destination_equipment, destination_items, item_type, item_id, quantity,
             strength=_strength(ctx), container=destination,
         )
     except (KeyError, ValueError) as exc:

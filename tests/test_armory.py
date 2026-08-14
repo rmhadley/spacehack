@@ -122,7 +122,9 @@ def test_buy_rows_include_ground_consumables():
     rows = _armory._buy_consumable_rows()
 
     assert any(row.action == "BUY_CONSUMABLE:med_pack" for row in rows)
-    assert any(row.label == "Med Pack" for row in rows)
+    med_pack = next(row for row in rows if row.label == "Med Pack")
+    assert "Restore HP" in med_pack.detail
+    assert "restore_hp" not in med_pack.detail
 
 
 def test_purchase_ground_ammo_to_armory_storage(monkeypatch):

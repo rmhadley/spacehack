@@ -20,6 +20,7 @@ CONSUMABLES: tuple[GroundConsumableSpec, ...] = (
         combat_heal_amount=5,
         combat_regen_amount=2,
         duration_turns=3,
+        effect_label="Restore HP",
     ),
     GroundConsumableSpec(
         id="stim",
@@ -30,5 +31,6 @@ CONSUMABLES: tuple[GroundConsumableSpec, ...] = (
         price=80,
         duration_turns=3,
         combat_ap_bonus=1,
+        effect_label="Temporary AP boost",
     ),
 )

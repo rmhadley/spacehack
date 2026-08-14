@@ -473,7 +473,7 @@ def _item_stack_detail(stack) -> str:
     spec = find_ground_item(stack.item_type, stack.item_id)
     if stack.item_type == "ammo":
         return f"Ammo  {stack.quantity}/{spec.rounds_per_stack}  feeds {spec.ammo_type}"
-    detail = f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  effect {spec.effect_id}"
+    detail = f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  {spec.effect_label or spec.name}"
     if spec.outside_full_heal:
         detail += f"  combat +{spec.combat_heal_amount} HP/+{spec.combat_regen_amount} HP x{spec.duration_turns}"
     elif spec.combat_ap_bonus:

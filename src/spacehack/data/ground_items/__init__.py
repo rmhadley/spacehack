@@ -54,6 +54,7 @@ class GroundConsumableSpec:
         combat_regen_amount: ground HP restored at each effect turn.
         duration_turns: combat effect duration, starting at 3 for Phase 5.
         combat_ap_bonus: temporary AP added to later combat turns.
+        effect_label: friendly effect text shown in inventory and shops.
     """
 
     id: str
@@ -67,6 +68,7 @@ class GroundConsumableSpec:
     combat_regen_amount: int = 0
     duration_turns: int = 0
     combat_ap_bonus: int = 0
+    effect_label: str = ""
 
 
 # ---------------------------------------------------------------------------
