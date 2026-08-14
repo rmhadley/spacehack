@@ -211,6 +211,10 @@ def _secondary_weapon_slot_enabled(
     """Return whether Weapon 2 can offer a valid managed swap."""
     if not swap_allowed or options:
         return bool(swap_allowed)
+    if len(ctx.equipped_ground_weapons) > 1:
+        # An occupied Weapon 2 remains navigable even when the pack has no
+        # compatible replacement; Enter can then explain that to the player.
+        return True
     if not ctx.ground_expedition_inventory:
         return True
     from . import ground_equipment

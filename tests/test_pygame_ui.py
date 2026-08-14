@@ -2226,6 +2226,45 @@ def test_character_equipment_management_keeps_slots_selectable_without_pack_item
     assert rows[7].text == "--- BACKPACK ITEMS (0/4) ---"
 
 
+def test_character_equipment_down_reaches_second_active_weapon():
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 12),
+            GroundWeaponInstance("kinetic_pistol", 12),
+        ],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("armor", "light_vest"),
+        ],
+        ground_expedition_items=[],
+    )
+    frame = character_screen._equipment_frame(
+        ctx, "CHARACTER", 0, equipment_management=True, swap_allowed=True,
+    )
+
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 3
+        K_TAB = 4
+        K_PAGEDOWN = 5
+        K_PAGEUP = 6
+        K_QUESTION = 7
+        K_UP = 8
+        K_DOWN = 9
+        K_k = 10
+        K_j = 11
+        K_RETURN = 12
+        K_KP_ENTER = 13
+
+    event = SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_DOWN, unicode="")
+
+    assert frame.rows[1].selectable is True
+    assert pygame_screen._handle_key(FakePygame, event, frame) == ("IGNORE", 1)
+
+
 def test_character_equipment_management_reports_empty_compatible_choices():
     messages = []
     ctx = SimpleNamespace(
