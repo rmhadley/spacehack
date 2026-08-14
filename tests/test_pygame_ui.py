@@ -169,6 +169,77 @@ def test_character_equipment_ammo_stack_reloads_matching_weapon():
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
 
 
+def test_character_weapon_row_offers_reload_before_pack_swap(monkeypatch):
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[],
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    captured = {}
+
+    def _choose(_ctx, **kwargs):
+        captured.update(kwargs)
+        return "RELOAD_SLOT:0"
+
+    monkeypatch.setattr(pygame_story, "choose", _choose)
+
+    assert character_screen._swap_from_pack(ctx, "SWAP:weapon:0") is True
+    assert captured["options"][0] == ("Reload", "RELOAD_SLOT:0")
+    assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
+
+
+def test_character_ammo_reload_chooses_between_dual_wielded_weapons(monkeypatch):
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 2),
+            GroundWeaponInstance("kinetic_pistol", 11),
+        ],
+        equipped_ground_armor={},
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    captured = {}
+
+    def _choose(_ctx, **kwargs):
+        captured.update(kwargs)
+        return "RELOAD_SLOT:1"
+
+    monkeypatch.setattr(pygame_story, "choose", _choose)
+
+    assert character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False) is True
+    assert captured["title"] == "RELOAD WEAPON"
+    assert ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 2),
+        GroundWeaponInstance("kinetic_pistol", 12),
+    ]
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
+
+
+def test_character_ammo_reload_cancel_preserves_dual_wielded_weapons(monkeypatch):
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 2),
+            GroundWeaponInstance("kinetic_pistol", 11),
+        ],
+        equipped_ground_armor={},
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story, "choose", lambda *_args, **_kwargs: "__BACK__",
+    )
+
+    assert character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False) is False
+    assert ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 2),
+        GroundWeaponInstance("kinetic_pistol", 11),
+    ]
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+
+
 def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
     ctx = SimpleNamespace(context=object())
     monkeypatch.setattr(

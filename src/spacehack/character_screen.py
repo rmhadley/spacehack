@@ -692,67 +692,40 @@ def _manage_pack_stack(
 
 def _manage_pack_ammo(ctx: GameContext, index: int, in_ground_combat: bool) -> str | None:
     """Offer Reload or Discard for one ammo stack."""
-    from . import pygame_story
+    from .ground_reload_ui import manage_pack_ammo
 
-    name = _item_stack_name(ctx.ground_expedition_items[index])
-    chosen = pygame_story.choose(
-        ctx, title="AMMO", body=name,
-        options=(
-            ("Reload", f"STACK_RELOAD:{index}"),
-            ("Discard", f"STACK_DISCARD:{index}"),
-        ),
-        caption="spacehack - ammo", compact=True,
+    return manage_pack_ammo(ctx, index, in_ground_combat)
+
+
+def _weapon_reload_option(ctx: GameContext, slot: str) -> tuple[str, str] | None:
+    """Return the explicit Reload button for one equipped weapon, if valid."""
+    from .ground_reload_ui import weapon_reload_option
+
+    return weapon_reload_option(ctx, slot)
+
+
+def _reload_weapon_slot(
+    ctx: GameContext,
+    slot: int,
+    *,
+    in_ground_combat: bool,
+    charge_ap: bool,
+) -> bool:
+    """Reload one selected weapon, optionally charging combat AP."""
+    from .ground_reload_ui import reload_weapon_slot
+
+    return reload_weapon_slot(
+        ctx, slot,
+        in_ground_combat=in_ground_combat,
+        charge_ap=charge_ap,
     )
-    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
-        return None
-    if chosen == "__QUIT__":
-        raise SystemExit
-    if chosen.startswith("STACK_RELOAD:"):
-        return "RELOAD" if _reload_pack_ammo(ctx, index, in_ground_combat) else None
-    if chosen.startswith("STACK_DISCARD:"):
-        return "DISCARD" if _discard_pack_stack(ctx, index) else None
-    return None
 
 
 def _reload_pack_ammo(ctx: GameContext, index: int, in_ground_combat: bool) -> bool:
-    """Reload a matching equipped weapon from one ammo stack; return success."""
-    from . import ground_equipment
-    from .combat import _rules_ground
-    from .data.ground_items import find_ground_ammo
-    from .data.ground_weapons import find_ground_weapon
+    """Reload from one ammo stack, choosing among matching weapons."""
+    from .ground_reload_ui import reload_pack_ammo
 
-    items = getattr(ctx, "ground_expedition_items", [])
-    if not 0 <= index < len(items):
-        ctx.log.add("That ammo is no longer available.")
-        return False
-    if items[index].item_type != "ammo":
-        ctx.log.add("That item is not ammunition.")
-        return False
-    ammo_type = find_ground_ammo(items[index].item_id).ammo_type
-    slot = ground_equipment.reload_slot_for_ammo(
-        ctx.equipped_ground_weapons, ammo_type,
-    )
-    if slot is None:
-        ctx.log.add("No equipped weapon needs that ammo.")
-        return False
-    spec = find_ground_weapon(ctx.equipped_ground_weapons[slot].weapon_id)
-    if in_ground_combat and _rules_ground.player_ap(ctx) < spec.reload_ap_cost:
-        ctx.log.add(
-            f"Need {spec.reload_ap_cost} AP to reload "
-            f"(have {_rules_ground.player_ap(ctx)}).",
-        )
-        return False
-    try:
-        new_instance = ground_equipment.apply_reload(
-            ctx.equipped_ground_weapons, slot, items,
-        )
-    except (IndexError, KeyError, ValueError) as exc:
-        ctx.log.add(str(exc))
-        return False
-    if in_ground_combat:
-        _rules_ground.set_player_ap(ctx, _rules_ground.player_ap(ctx) - spec.reload_ap_cost)
-    ctx.log.add(f"Reloaded {spec.name} ({new_instance.loaded_ammo}/{spec.ammo_capacity}).")
-    return True
+    return reload_pack_ammo(ctx, index, in_ground_combat)
 
 
 def _discard_pack_stack(ctx: GameContext, index: int) -> bool:
@@ -770,27 +743,39 @@ def _discard_pack_stack(ctx: GameContext, index: int) -> bool:
     return True
 
 
-def _swap_from_pack(ctx: GameContext, action: str) -> bool:
-    """Open the backpack submenu and apply one selected equipment swap."""
+def _pack_manage_choices(ctx, item_type: str, slot: str, options, reload_option):
+    """Build weapon reload and compatible pack choices."""
+    choices = [reload_option] if reload_option is not None else []
+    choices.extend(
+        (name, f"PACK_SWAP:{item_type}:{slot}:{index}")
+        for index, name, _detail in options
+    )
+    return tuple(choices)
+
+
+def _swap_from_pack(
+    ctx: GameContext,
+    action: str,
+    *,
+    in_ground_combat: bool = False,
+) -> bool:
+    """Open the backpack submenu and offer swap plus weapon reload."""
     from . import pygame_story
 
     _prefix, item_type, slot = action.split(":", 2)
     options = _swap_options(ctx, item_type, slot)
-    if not options:
+    _reload_option = (
+        _weapon_reload_option(ctx, slot)
+        if item_type == "weapon" else None
+    )
+    if not options and _reload_option is None:
         ctx.log.add("No compatible items are in your Expedition Pack.")
         return False
-    choices = tuple(
-        (
-            f"{name}",
-            f"PACK_SWAP:{item_type}:{slot}:{index}",
-        )
-        for index, name, _detail in options
-    )
     chosen = pygame_story.choose(
         ctx,
         title="EXPEDITION PACK",
-        body=f"Swap gear into {('Weapon slot ' + str(int(slot) + 1)) if item_type == 'weapon' else slot.title() + ' armor'}.",
-        options=choices,
+        body=f"Manage {('Weapon slot ' + str(int(slot) + 1)) if item_type == 'weapon' else slot.title() + ' armor'}.",
+        options=_pack_manage_choices(ctx, item_type, slot, options, _reload_option),
         caption="spacehack - expedition equipment",
         compact=True,
     )
@@ -798,6 +783,13 @@ def _swap_from_pack(ctx: GameContext, action: str) -> bool:
         return False
     if chosen == "__QUIT__":
         raise SystemExit
+    if chosen.startswith("RELOAD_SLOT:"):
+        return _reload_weapon_slot(
+            ctx,
+            int(chosen.split(":", 1)[1]),
+            in_ground_combat=in_ground_combat,
+            charge_ap=False,
+        )
     _parts = chosen.split(":")
     pack_index = int(_parts[-1])
     return _swap_pack_entry(ctx, item_type, slot, pack_index)
@@ -878,7 +870,6 @@ def _apply_character_select(
     equipment_management: bool,
     in_ground_combat: bool,
 ) -> tuple[int, bool]:
-    """Apply one SELECT action; return ``(swap_count, should_return)``."""
     from .xp import _apply_skill_point
 
     if tab == 0 and action.startswith("SPEND:"):
@@ -887,7 +878,9 @@ def _apply_character_select(
             _apply_skill_point(ctx, skill)
         return swap_count, False
     if tab == 1 and equipment_management:
-        if action.startswith("SWAP:") and _swap_from_pack(ctx, action):
+        if action.startswith("SWAP:") and _swap_from_pack(
+            ctx, action, in_ground_combat=in_ground_combat,
+        ):
             swap_count += 1
             return swap_count, in_ground_combat
         if action.startswith("PACK_ITEM:"):

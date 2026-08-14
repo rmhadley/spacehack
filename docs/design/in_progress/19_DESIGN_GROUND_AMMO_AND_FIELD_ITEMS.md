@@ -301,16 +301,19 @@ The Equipment tab should become a general **Expedition Pack** view:
 - Header: `EXPEDITION PACK (current/max)`.
 - Active loadout rows remain at the top.
 - Backpack rows are selectable.
-- Weapon/armor row chooser: `Equip` / `Discard`.
+- Weapon row chooser: `Reload` when the equipped weapon has matching reserve
+  ammo, plus compatible pack weapons for swapping.
+- Weapon/armor row chooser: `Equip` / `Discard` for pack equipment.
 - Ammo row chooser: `Reload` / `Discard` when a matching active weapon exists;
-  otherwise `Discard` plus an explanation.
+  if multiple weapons use that ammo, `Reload` opens a weapon chooser; otherwise
+  `Discard` plus an explanation.
 - Consumable row chooser: `Use` / `Discard`.
 - Details show type, quantity, and useful state (`loaded/capacity`, reserve
   quantity, HP effect, or duration).
 - In combat, a successful Equip/Reload/Use action closes the menu so the player
   immediately sees AP drain and the enemy turn if AP reaches zero.
-- Outside combat, the menu may remain open after a successful item action so
-  the player can manage several items quickly.
+- Outside combat, Reload is free and the menu may remain open after a successful
+  item action so the player can prepare every active weapon before a fight.
 - Discard is always explicit and never silently removes a displaced item.
 - Full-pack messages must identify the item and the capacity boundary, and
   offer a deliberate leave/discard decision rather than silently destroying
