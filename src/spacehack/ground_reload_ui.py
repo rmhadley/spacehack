@@ -1,4 +1,4 @@
-"""Character-screen reload actions for ground weapons."""
+"""Shared reload actions for ground weapons."""
 
 from __future__ import annotations
 

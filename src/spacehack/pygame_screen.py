@@ -64,8 +64,6 @@ class ScreenFrame:
     # Screens such as the full console history can request newest-first
     # opening without changing the default top-of-document behavior.
     start_at_end: bool = False
-    # Optional direct keyboard actions, kept separate from row selection.
-    shortcuts: tuple[tuple[str, str], ...] = ()
 
 
 def _frame_payload(frame: ScreenFrame) -> dict[str, Any]:
@@ -91,11 +89,6 @@ def _frame_from_payload(raw: dict[str, Any]) -> ScreenFrame:
             if isinstance(color, (list, tuple)) and len(color) == 3
         ),
         start_at_end=bool(raw.get("start_at_end", False)),
-        shortcuts=tuple(
-            (str(key), str(action))
-            for key, action in raw.get("shortcuts", ())
-            if isinstance(key, str) and isinstance(action, str)
-        ),
     )
 
 
@@ -132,9 +125,6 @@ def _handle_key(pygame: Any, event: Any, frame: ScreenFrame) -> tuple[str, int]:
         return "PAGE_UP", selected
     if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE", selected
-    for key_name, action in frame.shortcuts:
-        if event.key == getattr(pygame, f"K_{key_name}", None):
-            return f"SHORTCUT:{action}", selected
     if event.key in (pygame.K_UP, pygame.K_k):
         if indices:
             pos = indices.index(selected)
@@ -538,12 +528,10 @@ def _draw_shared_frame(
 
 def _report_outcome(current: ScreenFrame, outcome: str, selected: int) -> int:
     """Print one terminal outcome for the worker and signal completion."""
-    _shortcut = outcome.partition(":")
-    _is_shortcut = _shortcut[0] == "SHORTCUT"
     row = current.rows[selected] if outcome == "SELECT" else None
     print(json.dumps({
-        "outcome": "SELECT" if _is_shortcut else outcome,
-        "action": _shortcut[2] if _is_shortcut else row.action if row else "",
+        "outcome": outcome,
+        "action": row.action if row else "",
         "selected": selected,
     }))
     return 0
@@ -620,9 +608,6 @@ def run_shared(
                 page_offset=_page_offset(font, current, width - 80, outcome),
             )
             continue
-        _shortcut = outcome.partition(":")
-        if _shortcut[0] == "SHORTCUT":
-            return "SELECT", _shortcut[2], selected
         row = current.rows[selected] if outcome == "SELECT" else None
         return outcome, row.action if row else "", selected
 
@@ -663,7 +648,7 @@ def run(frame: ScreenFrame, *, caption: str = "spacehack") -> tuple[str, str, in
     except (KeyError, TypeError, ValueError) as exc:
         raise PygameScreenUnavailable("Pygame text screen returned no usable choice") from exc
     if outcome not in {
-        "BACK", "QUIT", "GUIDE", "SELECT", "SHORTCUT", "TAB", "PAGE_DOWN", "PAGE_UP",
+        "BACK", "QUIT", "GUIDE", "SELECT", "TAB", "PAGE_DOWN", "PAGE_UP",
     }:
         raise PygameScreenUnavailable("Pygame text screen returned an unknown choice")
     return outcome, action, selected

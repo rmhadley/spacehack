@@ -53,7 +53,6 @@ def _character_frame(
         ctx, title, selected,
         equipment_management=equipment_management,
         swap_allowed=swap_allowed,
-        in_ground_combat=in_ground_combat,
     )
 
 
@@ -91,7 +90,6 @@ def _equipment_frame(
     *,
     equipment_management: bool,
     swap_allowed: bool,
-    in_ground_combat: bool = False,
 ):
     """Build the Equipment-tab frame (loadout + backpack)."""
     from . import pygame_screen, pygame_ui
@@ -109,20 +107,15 @@ def _equipment_frame(
         if equipment_management
         else "Equipment is read-only outside management mode.",
     )
-    footer = (pygame_ui.modal_hint(
-        pygame_ui.NAV_HINT,
-        "ENTER swap" if equipment_management else "TAB stats",
-        "[R] reload" if equipment_management and not in_ground_combat else "TAB stats",
-        "ESC close", pygame_ui.GUIDE_HINT,
-    ),)
-    shortcuts = (
-        (("r", f"RELOAD_SELECTED:{selected}"),)
-        if equipment_management and not in_ground_combat else ()
+    hint_parts = (
+        (pygame_ui.NAV_HINT, "ENTER swap", "TAB stats", "ESC close", pygame_ui.GUIDE_HINT)
+        if equipment_management else
+        (pygame_ui.NAV_HINT, "TAB stats", "ESC close", pygame_ui.GUIDE_HINT)
     )
+    footer = (pygame_ui.modal_hint(*hint_parts),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
         tabs=("STATS", "EQUIPMENT"), active_tab=1,
-        shortcuts=shortcuts,
     )
 
 def _expedition_capacity(ctx: GameContext) -> int:
@@ -878,18 +871,6 @@ def _apply_equipment_select(
     *,
     in_ground_combat: bool,
 ) -> tuple[int, bool]:
-    if action.startswith("RELOAD_SELECTED:"):
-        try:
-            _slot = int(action.split(":", 1)[1])
-        except (IndexError, ValueError):
-            _slot = -1
-        if 0 <= _slot < 2:
-            _reload_weapon_slot(
-                ctx, _slot, in_ground_combat=in_ground_combat, charge_ap=in_ground_combat,
-            )
-        else:
-            ctx.log.add("Select an equipped weapon to reload.")
-        return swap_count, False
     if action.startswith("SWAP:") and _swap_from_pack(
         ctx, action, in_ground_combat=in_ground_combat,
     ):
