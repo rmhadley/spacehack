@@ -419,12 +419,24 @@ Migration rules:
 
 ### Phase 6 - Hardening and cleanup
 
-- [ ] Audit every mutable field for save/load coverage.
-- [ ] Add legacy-save, malformed-item, duplicate-instance, and full-pack tests.
-- [ ] Update guide, smoke gate, and acceptance criteria.
-- [ ] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
+- [x] Audit every mutable field for save/load coverage.
+- [x] Add legacy-save, malformed-item, duplicate-instance, and full-pack tests.
+- [x] Update guide, smoke gate, and acceptance criteria.
+- [x] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
 - [ ] Move this design doc to `docs/design/complete/` only after all phases and
   playtests are complete.
+
+#### Phase 6 PLAYTEST
+
+- [ ] Save and Continue from city, space, and a Scout Derelict with ammo,
+  Med Packs, Stims, duplicate weapons, and mixed ground equipment.
+- [ ] Verify malformed or legacy ground records do not prevent Continue and
+  that valid equipment, field items, and magazines remain available.
+- [ ] Fill the Expedition Pack, then test ammo and consumable pickup, transfer,
+  purchase, and overflow paths; verify no item is lost or duplicated.
+- [ ] Complete a full ground-combat lifecycle with firing, reload, Med Pack,
+  Combat Stim, loot pickup, and persistence before moving this document to
+  `docs/design/complete/`.
 
 ## Pre-implementation audit
 
@@ -482,6 +494,8 @@ Migration rules:
   never silently lose or duplicate items.
 - Legacy saves without magazine fields migrate to deterministic full
   magazines; malformed field-item records are ignored without breaking load.
+- Malformed active ground stats, armor slots, and HP values are normalized
+  without breaking load or creating invalid runtime state.
 - The guide documents every shipped action and keybinding.
 - Smoke and the full test suite pass for every implementation phase.
 

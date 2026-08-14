@@ -689,19 +689,71 @@ def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebu
     ctx.current_city_id = rebuilt.city_id
 
 
+def _safe_ground_int(
+    raw, default: int, *, minimum: int = 0, maximum: int | None = 100,
+) -> int:
+    """Parse a bounded ground stat without letting malformed saves escape."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = default
+    value = max(minimum, value)
+    return min(value, maximum) if maximum is not None else value
+
+
+def _parse_equipped_ground_armor(raw) -> dict[str, str]:
+    """Rebuild valid armor slots, ignoring malformed or mismatched records."""
+    from .data.ground_armor import find_ground_armor
+
+    if not isinstance(raw, dict):
+        return {}
+    slots = {"head", "body", "hands", "legs", "feet"}
+    parsed: dict[str, str] = {}
+    for slot, item_id in raw.items():
+        if slot not in slots or not isinstance(item_id, str):
+            continue
+        try:
+            if find_ground_armor(item_id).slot != slot:
+                continue
+        except KeyError:
+            continue
+        parsed[slot] = item_id
+    return parsed
+
+
+def _restore_ground_stats(raw):
+    """Rebuild bounded ground stats from a save payload."""
+    from .character import GroundStats
+
+    values = raw if isinstance(raw, dict) else {}
+    return GroundStats(
+        reflexes=_safe_ground_int(values.get("reflexes", 10), 10),
+        strength=_safe_ground_int(values.get("strength", 10), 10),
+        stamina=_safe_ground_int(values.get("stamina", 10), 10),
+    )
+
+
+def _restore_ground_hp(data: dict) -> tuple[int, int]:
+    """Return normalized ``(current_hp, max_hp)`` from a save payload."""
+    maximum = max(
+        1, _safe_ground_int(data.get("ground_max_hp", 23), 23, maximum=None),
+    )
+    current = min(
+        maximum,
+        _safe_ground_int(data.get("ground_hp", 23), 23, maximum=None),
+    )
+    return current, maximum
+
+
 def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
     """Restore ground combat and equipment fields."""
-    from .character import GroundStats
-    gsd = data.get("ground_stats", {}) or {}
-    ctx.ground_stats = GroundStats(
-        reflexes=gsd.get("reflexes", 10),
-        strength=gsd.get("strength", 10),
-        stamina=gsd.get("stamina", 10),
-    )
+    ctx.ground_stats = _restore_ground_stats(data.get("ground_stats"))
     ctx.equipped_ground_weapons = _parse_equipped_ground_weapons(
         data.get("equipped_ground_weapons"),
     )
-    ctx.equipped_ground_armor = dict(data.get("equipped_ground_armor", {}) or {})
+    ctx.equipped_ground_armor = _parse_equipped_ground_armor(
+        data.get("equipped_ground_armor"),
+    )
     legacy_storage = data.get("ground_equipment_storage", []) or []
     armory_raw = data.get("ground_armory_storage", legacy_storage) or []
     ctx.ground_armory_storage = [
@@ -720,8 +772,7 @@ def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
     ctx.ground_expedition_items = _parse_ground_item_stacks(
         data.get("ground_expedition_items"),
     )
-    ctx.ground_hp = data.get("ground_hp", 23)
-    ctx.ground_max_hp = data.get("ground_max_hp", 23)
+    ctx.ground_hp, ctx.ground_max_hp = _restore_ground_hp(data)
 
 
 def _parse_ground_item_stacks(raw) -> list:

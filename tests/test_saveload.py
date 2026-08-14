@@ -1000,6 +1000,45 @@ class TestSaveLoadRoundTrip:
         ]
         delete_save()
 
+    def test_malformed_active_ground_fields_are_safely_normalized(
+        self, monkeypatch, tmp_path,
+    ):
+        """Malformed active armor, stats, and HP cannot poison Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(62)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload["ground_stats"] = {
+            "reflexes": "bad", "strength": 999, "stamina": -5,
+        }
+        payload["equipped_ground_armor"] = {
+            "body": "light_vest",
+            "head": "missing_armor",
+            "hands": "light_vest",
+            "invalid": "light_vest",
+        }
+        payload["ground_hp"] = "bad"
+        payload["ground_max_hp"] = 0
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_stats.reflexes == 10
+        assert loaded.ground_stats.strength == 100
+        assert loaded.ground_stats.stamina == 0
+        assert loaded.equipped_ground_armor == {"body": "light_vest"}
+        assert loaded.ground_max_hp == 1
+        assert loaded.ground_hp == 1
+        delete_save()
+
     def test_legacy_ground_storage_migrates_to_armory(self, monkeypatch, tmp_path):
         """The intermediate single-storage name loads into Armory Storage."""
         monkeypatch.setattr(
