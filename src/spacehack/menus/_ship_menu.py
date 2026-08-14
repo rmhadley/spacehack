@@ -112,9 +112,9 @@ def _loadout_rows(owned, ship_spec):
     """
     from .. import pygame_screen
 
-    rows: list = [pygame_screen.ScreenRow("WEAPON SLOTS", selectable=False)]
+    rows: list = [pygame_screen.ScreenRow("WEAPON SLOTS", selectable=False, header=True)]
     rows.extend(_slot_rows(ship_spec.weapon_slots, owned.weapons, _weapon_row))
-    rows.append(pygame_screen.ScreenRow("MODULE SLOTS", selectable=False))
+    rows.append(pygame_screen.ScreenRow("MODULE SLOTS", selectable=False, header=True))
     rows.extend(_slot_rows(ship_spec.module_slots, owned.modules, _module_row))
     return tuple(rows)
 
@@ -149,17 +149,61 @@ def _launch_row():
         "Launch", "Leave the hangar and enter space.", "LAUNCH",
     )
 
-def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
-    """Build one tabbed hangar snapshot (SHIP / CARGO / LOADOUT tabs).
+def _ship_section(ctx, owned, ship):
+    """Build the SHIP tab's body, rows, and footer."""
+    from .. import pygame_ui
 
-    SHIP shows the at-a-glance stats with the Launch action separated by
-    one blank line (EXPERIMENT, decision #6 revision — visible white
-    space, not a ton; the blank-line count is a one-line tweak). CARGO
-    reuses the shared cargo rows (jettison actions preserved); LOADOUT
-    reuses the read-only loadout rows. Launch lives only on the SHIP tab.
-    """
-    from .. import pygame_screen, pygame_ui
+    max_cargo = ship_module.effective_max_cargo(ship, owned)
+    body = (
+        ship.description,
+        "",
+        f"Fuel: {owned.fuel} / {ship.max_fuel}",
+        f"Hull: {ship_module.hull_integrity_pct(owned)}%",
+        f"Speed: {ship_module.effective_speed(ship, owned)}",
+        f"Shields: {_effective_shields(ship, owned)}",
+        f"Power: {_effective_power_gen(ship, owned)}",
+        f"Cargo: {owned.cargo_used} / {max_cargo}",
+        pygame_ui.credits_label(ctx.stats.credits),
+        "",
+    )
+    rows = (_launch_row(),)
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER launch", "TAB cargo",
+        "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return body, rows, footer
+
+
+def _cargo_section(_ctx, owned, ship):
+    """Build the CARGO tab's body, rows, and footer."""
+    from .. import pygame_ui
     from ..trade import _cargo_body, _cargo_rows
+
+    max_cargo = ship_module.effective_max_cargo(ship, owned)
+    rows = _cargo_rows(owned)
+    body = _cargo_body(owned, max_cargo)
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER jettison", "TAB loadout",
+        "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return body, rows, footer
+
+
+def _loadout_section(_ctx, owned, ship):
+    """Build the LOADOUT tab's body, rows, and footer."""
+    from .. import pygame_ui
+
+    rows = _loadout_rows(owned, ship)
+    body = ()  # ship stats live on the SHIP tab
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return body, rows, footer
+
+
+def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
+    """Build one tabbed hangar snapshot (SHIP / CARGO / LOADOUT tabs)."""
+    from .. import pygame_screen, pygame_ui
 
     owned = ctx.player_owned_ship
     if owned is None:
@@ -168,38 +212,12 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
             (pygame_ui.modal_hint("ESC back", pygame_ui.GUIDE_HINT),),
         )
     title = f"YOUR {ship_module.ship_display_name(owned).upper()}"
-    max_cargo = ship_module.effective_max_cargo(ship, owned)
-    if tab == 0:
-        body = (
-            ship.description,
-            "",
-            f"Fuel: {owned.fuel} / {ship.max_fuel}",
-            f"Hull: {ship_module.hull_integrity_pct(owned)}%",
-            f"Speed: {ship_module.effective_speed(ship, owned)}",
-            f"Shields: {_effective_shields(ship, owned)}",
-            f"Power: {_effective_power_gen(ship, owned)}",
-            f"Cargo: {owned.cargo_used} / {max_cargo}",
-            pygame_ui.credits_label(ctx.stats.credits),
-            "",
-        )
-        rows = (_launch_row(),)
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER launch", "TAB cargo",
-            "ESC back", pygame_ui.GUIDE_HINT,
-        ),)
-    elif tab == 1:
-        rows = _cargo_rows(owned)
-        body = _cargo_body(owned, max_cargo)
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER jettison", "TAB loadout",
-            "ESC back", pygame_ui.GUIDE_HINT,
-        ),)
-    else:
-        rows = _loadout_rows(owned, ship)
-        body = ()  # ship stats live on the SHIP tab
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
-        ),)
+    sections = {
+        0: _ship_section,
+        1: _cargo_section,
+        2: _loadout_section,
+    }
+    body, rows, footer = sections.get(tab, _loadout_section)(ctx, owned, ship)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
         tabs=_HANGAR_TABS, active_tab=tab,

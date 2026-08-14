@@ -20,6 +20,7 @@ from .pygame_runtime import PygameContext
 # section above actually exists, so body-less screens get no leading gap.
 BODY_ROWS_GAP = 24   # body text -> first selectable row
 ROWS_DETAIL_GAP = 20  # last row -> selected-item detail
+CONTENT_INDENT = 24   # selectable/informational rows under a section header
 
 
 class PygameScreenUnavailable(RuntimeError):
@@ -33,12 +34,13 @@ def enabled() -> bool:
 
 @dataclass(frozen=True)
 class ScreenRow:
-    """One selectable or informational row."""
+    """One selectable, informational, or section-header row."""
 
     text: str
     detail: str = ""
     action: str = ""
     selectable: bool = True
+    header: bool = False
 
 
 @dataclass(frozen=True)
@@ -301,6 +303,191 @@ def _fit_font(
     )
 
 
+def _draw_screen_header(
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
+    width: int, palette: Any,
+) -> int:
+    """Draw the title, rule, and tab bar; return the body's starting y."""
+    pygame_ui.draw_centered_text(
+        pygame, screen, font, frame.title,
+        pygame_ui.Rect(24, 16, width - 48, 42), 24,
+        color=palette.title,
+    )
+    pygame_ui.draw_rule(pygame, screen, 48, 62, width - 96, color=palette.border)
+    if not frame.tabs:
+        return 84
+    tab_width = max(1, (width - 80) // len(frame.tabs))
+    for index, tab in enumerate(frame.tabs):
+        tab_x = 40 + index * tab_width
+        selected_tab = index == frame.active_tab
+        tab_rect = pygame.Rect(tab_x, 72, tab_width - 8, 36)
+        pygame.draw.rect(
+            screen,
+            palette.selected_background if selected_tab else palette.panel,
+            tab_rect, border_radius=4,
+        )
+        pygame.draw.rect(
+            screen,
+            palette.selected_border if selected_tab else palette.border,
+            tab_rect, width=2 if selected_tab else 1, border_radius=4,
+        )
+        pygame_ui.draw_centered_text(
+            pygame, screen, font, tab,
+            pygame_ui.Rect(tab_x, 72, tab_width - 8, 36), 80,
+            color=palette.title if selected_tab else palette.description,
+        )
+    return 126
+
+
+@dataclass(frozen=True)
+class _ScreenLayout:
+    """Geometry computed once for a single text-screen render."""
+
+    visible_body: tuple[tuple[str, tuple[int, int, int] | None], ...]
+    body_step: int
+    body_budget: int
+    body_overflow: bool
+    body_rows_gap: int
+    rows_detail_gap: int
+    footer_start: int
+    detail_width: int
+    detail: str
+    detail_height: int
+    y: int
+
+
+def _layout_screen(font: Any, frame: ScreenFrame, width: int, height: int, body_start: int, context: Any) -> _ScreenLayout:
+    """Compute the geometry anchoring a text screen's content block."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    body_lines = _body_lines_with_colors(font, frame, width - 80)
+    visible_body = body_lines[frame.page_offset:]
+    body_step = font.get_linesize() + 3
+    footer_start = (
+        pygame_ui.modal_footer_y(height) if context is not None else height - 70
+    )
+    body_budget = _body_budget(font, frame, width - 80, height, body_start, footer_start)
+    body_overflow = len(body_lines) > body_budget
+    body_block = min(len(visible_body), body_budget) * body_step
+    rows_block = _rows_height(font, frame)
+    body_rows_gap = BODY_ROWS_GAP if body_block else 0
+    rows_detail_gap = ROWS_DETAIL_GAP if rows_block else 0
+    detail_width = width - 108
+    selected = _clamp(frame)
+    detail = frame.rows[selected].detail if 0 <= selected < len(frame.rows) else ""
+    detail_height = pygame_ui.wrapped_text_height(
+        detail, detail_width, measure, font.get_linesize(), 2,
+    )
+    y = body_start
+    if not frame.scrollable:
+        content_height = (
+            body_block + body_rows_gap + rows_block
+            + rows_detail_gap + detail_height + 8
+        )
+        y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
+    return _ScreenLayout(
+        visible_body=visible_body, body_step=body_step, body_budget=body_budget,
+        body_overflow=body_overflow, body_rows_gap=body_rows_gap,
+        rows_detail_gap=rows_detail_gap, footer_start=footer_start,
+        detail_width=detail_width, detail=detail, detail_height=detail_height,
+        y=y,
+    )
+
+
+def _draw_screen_body(pygame: Any, screen: Any, font: Any, layout: _ScreenLayout, palette: Any) -> int:
+    """Draw the visible body lines and return the y after the block."""
+    y = layout.y
+    for line, body_color in layout.visible_body[:layout.body_budget]:
+        pygame_ui.draw_text(
+            pygame, screen, font, line, 40, y,
+            color=body_color or palette.description,
+        )
+        y += layout.body_step
+    return y
+
+
+def _max_detail_height(frame: ScreenFrame, detail_width: int, measure: Any, font: Any) -> int:
+    """Return the tallest selectable-row detail, or a minimum fallback."""
+    return max(
+        (
+            pygame_ui.wrapped_text_height(
+                row.detail, detail_width, measure, font.get_linesize(), 2,
+            )
+            for row in frame.rows
+            if row.selectable
+        ),
+        default=font.get_linesize() + 2,
+    )
+
+
+def _draw_screen_rows(
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
+    width: int, y: int, layout: _ScreenLayout, palette: Any,
+) -> tuple[int, int]:
+    """Draw rows and the selected detail; return (y, detail block height)."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    selected = _clamp(frame)
+    window_top, window_count = pygame_ui.visible_window(
+        frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda row: row.selectable,
+    )
+    if window_count == 0:
+        window_top, window_count = _info_window(frame)
+    content_indent = CONTENT_INDENT if any(row.header for row in frame.rows) else 0
+    content_x, content_width = 40 + content_indent, width - 80 - content_indent
+    for index in range(window_top, window_top + window_count):
+        row = frame.rows[index]
+        row_height = font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
+        if y + row_height > layout.footer_start:
+            break
+        row_x = 40 if row.header else content_x
+        row_width = width - 80 if row.header else content_width
+        if row.selectable:
+            y = pygame_ui.draw_menu_row(
+                pygame, screen, font, row.text, row_x, y, row_width,
+                selected=index == selected, palette=palette,
+            )
+        else:
+            y = pygame_ui.draw_informational_row(
+                pygame, screen, font, row.text, row_x, y, row_width,
+                color=palette.description,
+            )
+    measure_detail_height = _max_detail_height(frame, layout.detail_width, measure, font)
+    if y + layout.detail_height <= layout.footer_start:
+        y += layout.rows_detail_gap
+        pygame_ui.draw_wrapped_text(
+            pygame, screen, font, layout.detail, 68, y,
+            layout.detail_width, color=palette.description, line_gap=2,
+        )
+    return y, measure_detail_height
+
+
+def _draw_screen_footer(
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
+    width: int, y: int, layout: _ScreenLayout, measure_detail_height: int, palette: Any,
+) -> int:
+    """Draw the footer block and return its final y."""
+    footer_lines = frame.footer
+    if layout.body_overflow:
+        scroll_hint = (
+            "PAGE UP/DOWN or j/k/arrows scroll for more"
+            if frame.scrollable else "PAGE UP/DOWN scroll for more"
+        )
+        footer_lines = (scroll_hint,) + footer_lines
+    footer_step = font.get_linesize() + 3
+    footer_top = layout.footer_start - len(footer_lines) * footer_step
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    y = max(y + measure_detail_height + 8, footer_top)
+    for line in footer_lines:
+        if y + font.get_linesize() > layout.footer_start:
+            break
+        pygame_ui.draw_text(
+            pygame, screen, font, pygame_ui.fit_text(line, width - 80, measure),
+            40, y, color=palette.instruction,
+        )
+        y += footer_step
+    return y
+
+
 def _draw_frame(
     pygame: Any,
     screen: Any,
@@ -313,136 +500,17 @@ def _draw_frame(
     palette = pygame_ui.DEFAULT_PALETTE
     width, height = screen.get_size()
     screen.fill(palette.background)
-    x = 40
-    measure = lambda text: pygame_ui.measure_font(font, text)
-    pygame_ui.draw_centered_text(
-        pygame, screen, font, frame.title,
-        pygame_ui.Rect(24, 16, width - 48, 42), 24,
-        color=palette.title,
+    body_start = _draw_screen_header(pygame, screen, font, frame, width, palette)
+    layout = _layout_screen(font, frame, width, height, body_start, context)
+    y = _draw_screen_body(pygame, screen, font, layout, palette)
+    y += layout.body_rows_gap
+    y, measure_detail_height = _draw_screen_rows(
+        pygame, screen, font, frame, width, y, layout, palette,
     )
-    pygame_ui.draw_rule(pygame, screen, 48, 62, width - 96, color=palette.border)
-    if frame.tabs:
-        tab_width = max(1, (width - 80) // len(frame.tabs))
-        for index, tab in enumerate(frame.tabs):
-            tab_x = 40 + index * tab_width
-            selected_tab = index == frame.active_tab
-            tab_rect = pygame.Rect(tab_x, 72, tab_width - 8, 36)
-            pygame.draw.rect(
-                screen,
-                palette.selected_background if selected_tab else palette.panel,
-                tab_rect,
-                border_radius=4,
-            )
-            pygame.draw.rect(
-                screen,
-                palette.selected_border if selected_tab else palette.border,
-                tab_rect,
-                width=2 if selected_tab else 1,
-                border_radius=4,
-            )
-            pygame_ui.draw_centered_text(
-                pygame, screen, font, tab, pygame_ui.Rect(tab_x, 72, tab_width - 8, 36), 80,
-                color=palette.title if selected_tab else palette.description,
-            )
-    body_start = 126 if frame.tabs else 84
-    body_lines_with_colors = _body_lines_with_colors(font, frame, width - 80)
-    body_lines = tuple(line for line, _color in body_lines_with_colors)
-    visible_body = body_lines_with_colors[frame.page_offset:]
-    body_step = font.get_linesize() + 3
-    footer_start = pygame_ui.modal_footer_y(height) if context is not None else height - 70
-    body_budget = _body_budget(font, frame, width - 80, height, body_start, footer_start)
-    # Compare the complete document, not only the current page. A console
-    # opened at the end still needs one hint explaining that earlier pages
-    # are available via PAGE UP/j/k/arrows.
-    body_overflow = len(body_lines) > body_budget
-    selected = _clamp(frame)
-    detail_width = width - 108
-    detail = frame.rows[selected].detail if 0 <= selected < len(frame.rows) else ""
-    detail_height = pygame_ui.wrapped_text_height(
-        detail, detail_width, measure, font.get_linesize(), 2,
+    _draw_screen_footer(
+        pygame, screen, font, frame, width, y, layout,
+        measure_detail_height, palette,
     )
-    # Vertical centering (EXPERIMENT, see 15_DESIGN_UNIFIED_TERMINAL_UX.md
-    # decision #9): anchor the content block between the title rule and
-    # the footer zone instead of the top-left corner. Short content
-    # (ship buy) sits balanced; content taller than the space falls back
-    # to the top anchor exactly as before. The rows block uses the capped
-    # window height so centering is list-length independent. Scrollable
-    # bodies always anchor to the top — centering the remaining lines
-    # would make the text drift while paging through a section.
-    body_block = min(len(visible_body), body_budget) * body_step
-    rows_block = _rows_height(font, frame)
-    body_rows_gap = BODY_ROWS_GAP if body_block else 0
-    rows_detail_gap = ROWS_DETAIL_GAP if rows_block else 0
-    y = body_start
-    if not frame.scrollable:
-        content_height = (
-            body_block + body_rows_gap + rows_block
-            + rows_detail_gap + detail_height + 8
-        )
-        y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
-    for line, body_color in visible_body[:body_budget]:
-        pygame_ui.draw_text(
-            pygame, screen, font, line, x, y,
-            color=body_color or palette.description,
-        )
-        y += body_step
-    y += body_rows_gap
-    window_top, window_count = pygame_ui.visible_window(
-        frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
-        is_selectable=lambda row: row.selectable,
-    )
-    if window_count == 0:
-        window_top, window_count = _info_window(frame)
-    for index in range(window_top, window_top + window_count):
-        row = frame.rows[index]
-        row_height = font.get_linesize() + 14 if row.selectable else font.get_linesize() + 4
-        if y + row_height > footer_start:
-            break
-        if row.selectable:
-            y = pygame_ui.draw_menu_row(
-                pygame, screen, font, row.text, x, y, width - 80,
-                selected=index == selected, palette=palette,
-            )
-        else:
-            y = pygame_ui.draw_informational_row(
-                pygame, screen, font, row.text,
-                x, y, width - 80,
-                color=palette.description,
-            )
-    measure_detail_height = max(
-        (
-            pygame_ui.wrapped_text_height(
-                row.detail, detail_width, measure, font.get_linesize(), 2,
-            )
-            for row in frame.rows
-            if row.selectable
-        ),
-        default=font.get_linesize() + 2,
-    )
-    if y + detail_height <= footer_start:
-        y += rows_detail_gap
-        pygame_ui.draw_wrapped_text(
-            pygame, screen, font, detail, x + 28, y,
-            detail_width, color=palette.description, line_gap=2,
-        )
-    footer_lines = frame.footer
-    if body_overflow:
-        _scroll_hint = (
-            "PAGE UP/DOWN or j/k/arrows scroll for more"
-            if frame.scrollable else "PAGE UP/DOWN scroll for more"
-        )
-        footer_lines = (_scroll_hint,) + footer_lines
-    footer_step = font.get_linesize() + 3
-    footer_top = footer_start - len(footer_lines) * footer_step
-    y = max(y + measure_detail_height + 8, footer_top)
-    for line in footer_lines:
-        if y + font.get_linesize() > footer_start:
-            break
-        pygame_ui.draw_text(
-            pygame, screen, font, pygame_ui.fit_text(line, width - 80, measure),
-            x, y, color=palette.instruction,
-        )
-        y += footer_step
     if context is not None:
         pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
 
@@ -456,6 +524,17 @@ def _draw_shared_frame(
         return
     _draw_frame(pygame, screen, font, frame)
     pygame_ui.draw_context_log(pygame, screen, context)
+
+
+def _report_outcome(current: ScreenFrame, outcome: str, selected: int) -> int:
+    """Print one terminal outcome for the worker and signal completion."""
+    row = current.rows[selected] if outcome == "SELECT" else None
+    print(json.dumps({
+        "outcome": outcome,
+        "action": row.action if row else "",
+        "selected": selected,
+    }))
+    return 0
 
 
 def _run_worker(payload: dict[str, Any]) -> int:
@@ -490,13 +569,7 @@ def _run_worker(payload: dict[str, Any]) -> int:
                         page_offset=_page_offset(font, current, width - 80, outcome),
                     )
                     continue
-                row = current.rows[selected] if outcome == "SELECT" else None
-                print(json.dumps({
-                    "outcome": outcome,
-                    "action": row.action if row else "",
-                    "selected": selected,
-                }))
-                return 0
+                return _report_outcome(current, outcome, selected)
             clock.tick(60)
     finally:
         pygame.display.quit()

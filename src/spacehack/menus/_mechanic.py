@@ -99,85 +99,123 @@ def _ammo_row(owned, slot: int):
     )
 
 
-def _mechanic_frame(ctx, ship_rec, tab: int, selected: int, tabs, missile_slots):
-    """Build one tabbed mechanic snapshot (REPAIRS / AMMO / LOADOUT).
-
-    ``tabs`` / ``missile_slots`` come from :func:`_mechanic_tabs` /
-    the runner so the AMMO tab tracks the installed loadout live.
-    """
+def _repairs_section(ctx, owned, ship_rec, next_hint, _missile_slots):
+    """Build the REPAIRS tab's rows, body, and footer."""
     from .. import pygame_screen, pygame_ui
+
+    _fuel_units, _fuel_cost = _refuel_preview(owned, ship_rec, ctx.stats.credits)
+    _repair_cost = _repair_preview(owned, ship_rec)
+    rows = (
+        pygame_screen.ScreenRow(
+            f"Refuel - {_fuel_cost}$ for {_fuel_units} units",
+            f"{ship_module.FUEL_COST_PER_UNIT}$/unit; fills the tank up to your available credits.",
+            "REFUEL",
+        ),
+        pygame_screen.ScreenRow(
+            f"Repair - {_repair_cost}$ to restore hull",
+            f"Restores {owned.hull_damage_pct}% damage; full repair costs 10% of the ship's value.",
+            "REPAIR",
+        ),
+    )
+    body = (
+        f"Ship: {ship_rec.name}",
+        f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {ship_module.hull_integrity_pct(owned)}%",
+        pygame_ui.credits_label(ctx.stats.credits),
+        "Select Refuel or Repair to review the exact total before committing.",
+    )
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER choose", next_hint,
+        "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return rows, body, footer
+
+
+def _ammo_section(ctx, owned, ship_rec, next_hint, missile_slots):
+    """Build the AMMO tab's rows, body, and footer."""
+    from .. import pygame_ui
+
+    rows = tuple(_ammo_row(owned, slot) for slot in missile_slots)
+    body = (
+        pygame_ui.credits_label(ctx.stats.credits),
+        "Buy one round per missile launcher.",
+    )
+    footer = (pygame_ui.modal_hint(
+        "ENTER buy one round", next_hint, "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return rows, body, footer
+
+
+def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
+    """Build the LOADOUT tab's rows, body, and footer."""
+    from .. import pygame_screen, pygame_ui
+    from ._ship_menu import _loadout_rows
+
+    rows = (
+        pygame_screen.ScreenRow("PARTS MARKET", selectable=False, header=True),
+        pygame_screen.ScreenRow(
+            "Manage Loadout - buy and sell parts",
+            "Opens the parts market for this planet (weapons + modules).",
+            "LOADOUT",
+        ),
+    ) + _loadout_rows(owned, ship_rec)
+    body = ("Buy and sell ship weapons and modules.",)
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER manage loadout", next_hint,
+        "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return rows, body, footer
+
+
+def _mechanic_frame(ctx, ship_rec, tab: int, selected: int, tabs, missile_slots):
+    """Build one tabbed mechanic snapshot (REPAIRS / AMMO / LOADOUT)."""
+    from .. import pygame_screen
 
     owned = ctx.player_owned_ship
     tab_name = tabs[tab]
-    next_name = tabs[(tab + 1) % len(tabs)]
-    next_hint = f"TAB {next_name.lower()}"
-    if tab_name == "REPAIRS":
-        _fuel_units, _fuel_cost = _refuel_preview(owned, ship_rec, ctx.stats.credits)
-        _repair_cost = _repair_preview(owned, ship_rec)
-        rows = (
-            pygame_screen.ScreenRow(
-                f"Refuel - {_fuel_cost}$ for {_fuel_units} units",
-                f"{ship_module.FUEL_COST_PER_UNIT}$/unit; fills the tank up to your available credits.",
-                "REFUEL",
-            ),
-            pygame_screen.ScreenRow(
-                f"Repair - {_repair_cost}$ to restore hull",
-                f"Restores {owned.hull_damage_pct}% damage; full repair costs 10% of the ship's value.",
-                "REPAIR",
-            ),
-        )
-        body = (
-            f"Ship: {ship_rec.name}",
-            f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {ship_module.hull_integrity_pct(owned)}%",
-            pygame_ui.credits_label(ctx.stats.credits),
-            "Select Refuel or Repair to review the exact total before committing.",
-        )
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER choose", next_hint,
-            "ESC back", pygame_ui.GUIDE_HINT,
-        ),)
-    elif tab_name == "AMMO":
-        rows = tuple(_ammo_row(owned, slot) for slot in missile_slots)
-        body = (
-            pygame_ui.credits_label(ctx.stats.credits),
-            "Buy one round per missile launcher.",
-        )
-        footer = (pygame_ui.modal_hint(
-            "ENTER buy one round", next_hint, "ESC back", pygame_ui.GUIDE_HINT,
-        ),)
-    else:  # LOADOUT
-        from ._ship_menu import _loadout_rows
-        # The market entry leads the tab under its own section header so
-        # it reads as an action, not as an extra module slot.
-        rows = (
-            pygame_screen.ScreenRow("PARTS MARKET", selectable=False),
-            pygame_screen.ScreenRow(
-                "Manage Loadout - buy and sell parts",
-                "Opens the parts market for this planet (weapons + modules).",
-                "LOADOUT",
-            ),
-        ) + _loadout_rows(owned, ship_rec)
-        body = ("Buy and sell ship weapons and modules.",)
-        footer = (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER manage loadout", next_hint,
-            "ESC back", pygame_ui.GUIDE_HINT,
-        ),)
+    next_hint = f"TAB {tabs[(tab + 1) % len(tabs)].lower()}"
+    sections = {
+        "REPAIRS": _repairs_section,
+        "AMMO": _ammo_section,
+        "LOADOUT": _loadout_section,
+    }
+    rows, body, footer = sections[tab_name](
+        ctx, owned, ship_rec, next_hint, missile_slots,
+    )
     return pygame_screen.ScreenFrame(
         title="MECHANIC TERMINAL", body=body, rows=rows, footer=footer,
         selected=selected, tabs=tabs, active_tab=tab,
     )
 
 
-def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
-    """Run the tabbed mechanic terminal through the shared Pygame screen.
+def _apply_mechanic_selection(ctx, owned, ship_rec, planet_id, tab_name, action):
+    """Apply one REPAIRS/AMMO/LOADOUT selection; the terminal stays open."""
+    if tab_name == "REPAIRS":
+        handler = _REPAIRS_ACTIONS.get(action)
+        if handler is not None:
+            handler(ctx, owned, ship_rec)
+        return
+    if tab_name == "AMMO" and action.startswith("AMMO:"):
+        try:
+            slot = int(action.split(":")[1])
+        except (IndexError, ValueError) as exc:
+            ctx.log.add(f"Invalid ammo selection: {exc}")
+            return
+        ok, cost, reason = ship_module.buy_ammo(owned, slot, 1, ctx.stats.credits)
+        if not ok:
+            ctx.log.add(reason)
+        else:
+            ctx.stats.credits -= cost
+            weapon = find_weapon(owned.weapons[slot])
+            ctx.log.add(f"Bought 1x {weapon.name} ammo for {cost}$.")
+        return
+    if tab_name == "LOADOUT" and action == "LOADOUT":
+        from ._loadout import _run_loadout_menu
+        _run_loadout_menu(ctx, planet_id)
+        return
 
-    TAB cycles REPAIRS → AMMO → LOADOUT (AMMO appears only while a
-    missile launcher is installed); ENTER refuels/repairs, buys one
-    round, or opens the loadout manager; ``?`` reopens the guide; ESC
-    walks away. The missile list is recomputed each frame so buying or
-    selling a launcher in the loadout manager adds/removes the AMMO
-    tab live.
-    """
+
+def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
+    """Run the tabbed mechanic terminal through the shared Pygame screen."""
     from .. import pygame_screen
 
     tab = 0
@@ -209,33 +247,10 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
         if outcome == "QUIT":
             raise SystemExit
         if outcome == "SELECT":
-            tab_name = tabs[tab]
-            if tab_name == "REPAIRS":
-                _handler = _REPAIRS_ACTIONS.get(action)
-                if _handler is not None:
-                    _handler(ctx, owned, ship_rec)
-                continue
-            if tab_name == "AMMO" and action.startswith("AMMO:"):
-                try:
-                    slot = int(action.split(":")[1])
-                except (IndexError, ValueError) as exc:
-                    ctx.log.add(f"Invalid ammo selection: {exc}")
-                    continue
-                ok, cost, reason = ship_module.buy_ammo(
-                    owned, slot, 1, ctx.stats.credits,
-                )
-                if not ok:
-                    ctx.log.add(reason)
-                else:
-                    ctx.stats.credits -= cost
-                    weapon = find_weapon(owned.weapons[slot])
-                    ctx.log.add(f"Bought 1x {weapon.name} ammo for {cost}$.")
-                continue
-            if tab_name == "LOADOUT" and action == "LOADOUT":
-                from ._loadout import _run_loadout_menu
-                _run_loadout_menu(ctx, planet_id)
-                continue
-            continue  # read-only rows: ENTER keeps the terminal open
+            _apply_mechanic_selection(
+                ctx, owned, ship_rec, planet_id, tabs[tab], action,
+            )
+            continue
         return True  # BACK
 
 
