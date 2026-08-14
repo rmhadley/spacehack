@@ -426,6 +426,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "- Use C to inspect and swap carried equipment, use consumables, or "
             "discard pack items."
             "\n"
+            "- Press R to reload a carried ground weapon before the next fight."
+            "\n"
             "- O can reveal safe routes automatically, but it stops when danger "
             "or something interesting appears. It remembers interesting cells "
             "you have already seen, including loot you chose to leave behind, "

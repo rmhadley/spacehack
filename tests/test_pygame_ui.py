@@ -172,6 +172,29 @@ def test_character_r_reload_prepares_selected_weapon_outside_combat():
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
 
 
+def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
+    from src.spacehack.ground_reload_ui import reload_exploration
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 2),
+            GroundWeaponInstance("kinetic_pistol", 11),
+        ],
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story, "choose", lambda *_args, **_kwargs: "RELOAD_SLOT:1",
+    )
+
+    assert reload_exploration(ctx) is True
+    assert ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 2),
+        GroundWeaponInstance("kinetic_pistol", 12),
+    ]
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
+
+
 def test_character_equipment_ammo_stack_reloads_matching_weapon():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],

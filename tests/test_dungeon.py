@@ -20,7 +20,7 @@ from src.spacehack.world import (
     DUNGEON_WALL, DUNGEON_FLOOR, HULL_WALL, DUNGEON_DOOR,
     Entity, try_move, find_loot_near, find_path,
 )
-from src.spacehack.input_helpers import _is_p_press
+from src.spacehack.input_helpers import _is_p_press, _is_r_press
 from src.spacehack.pygame_engine import PygameInputEvent
 from src.spacehack.dungeon import (
     init_fog,
@@ -49,6 +49,14 @@ def _hull_at(gm: GameMap, x: int, y: int) -> None:
 # ---------------------------------------------------------------------------
 
 class TestSoftLoot:
+    def test_r_predicate_accepts_the_reload_key(self):
+        _event = PygameInputEvent(kind="keydown", key_name="r")
+
+        assert _is_r_press(_event)
+        assert not _is_r_press(
+            PygameInputEvent(kind="keydown", key_name="f"),
+        )
+
     def test_p_predicate_accepts_both_key_aliases(self):
         """Pickup is bound to P without stealing G from navigation."""
         _event = PygameInputEvent(kind="keydown", key_name="p")
@@ -57,6 +65,49 @@ class TestSoftLoot:
         assert not _is_p_press(
             PygameInputEvent(kind="keydown", key_name="g"),
         )
+
+    def test_dungeon_r_dispatches_reload_without_a_turn_tick(self, monkeypatch):
+        from src.spacehack import game_loop
+
+        calls = []
+        monkeypatch.setattr(
+            "src.spacehack.ground_reload_ui.reload_exploration",
+            lambda ctx: calls.append(ctx) or True,
+        )
+        ctx = SimpleNamespace()
+        state = SimpleNamespace(
+            ctx=ctx,
+            console=SimpleNamespace(),
+            current_mode="dungeon",
+        )
+
+        result = game_loop._handle_space_modal_event(
+            state,
+            PygameInputEvent(kind="keydown", key_name="r"),
+        )
+
+        assert result == "HANDLED"
+        assert calls == [ctx]
+
+    def test_r_does_not_dispatch_reload_outside_dungeon(self, monkeypatch):
+        from src.spacehack import game_loop
+
+        calls = []
+        monkeypatch.setattr(
+            "src.spacehack.ground_reload_ui.reload_exploration",
+            lambda ctx: calls.append(ctx) or True,
+        )
+        state = SimpleNamespace(
+            ctx=SimpleNamespace(),
+            console=SimpleNamespace(),
+            current_mode="city",
+        )
+
+        assert game_loop._handle_space_modal_event(
+            state,
+            PygameInputEvent(kind="keydown", key_name="r"),
+        ) is None
+        assert calls == []
 
     def test_loot_does_not_block_world_movement(self):
         """A player can walk through a loot pile instead of being trapped."""

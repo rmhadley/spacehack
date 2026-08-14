@@ -19,12 +19,40 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .time import tick_move
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
 from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
 from .pygame_runtime import PygameContext
 from .game_interactions import GameLoopState, resolve_blocker
 from .game_flow import _run_combat_loop, _save_and_exit, _open_character_for_mode, _pickup_loot_near, _run_pygame_exit_confirm, _dungeon_post_move_tick, _adopt_dungeon_transition, _handle_dungeon_exit_tile, _maybe_show_post_prison_orbit_in_space
+
+def _present_overlay(state, ctx, console, map_h, location, space_view=None):
+    """Capture and present the Pygame HUD overlay."""
+    if getattr(ctx.context, '_runtime', None) is None:
+        raise RuntimeError('The shared Pygame runtime is required for gameplay presentation')
+    from . import pygame_overlay
+    _has_trade = any(e.trade_terminal for e in state.game_map.entities) if state.current_mode == 'city' else False
+    _has_mech = any(e.mech_terminal for e in state.game_map.entities) if state.current_mode == 'city' else False
+    _has_armory = any(e.armory_terminal for e in state.game_map.entities) if state.current_mode == 'city' else False
+    _shield_bubbles = ()
+    if space_view is not None:
+        _cam_x, _cam_y, _rx, _ry, _view_w, _view_h = space_view
+        _shield_bubbles = pygame_overlay.shield_bubbles_for_map(
+            state.game_map, camera_x=_cam_x, camera_y=_cam_y,
+            region_w=_view_w, region_h=_view_h, region_x=_rx, region_y=_ry,
+            player_owned_ship=ctx.player_owned_ship,
+        )
+    _overlay = pygame_overlay.capture(
+        ctx, mode=state.current_mode, location=location,
+        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
+        hud_view_height=map_h, has_trade_terminal=_has_trade,
+        has_mech_terminal=_has_mech, has_armory_terminal=_has_armory,
+        shields=_shield_bubbles,
+    )
+    if _overlay is None:
+        raise RuntimeError('The shared Pygame runtime is required for gameplay presentation')
+    ctx.context.present(console, overlay=_overlay)
+
 
 def _present_frame(state):
     """Present one gameplay frame."""
@@ -59,22 +87,32 @@ def _present_frame(state):
         _location = getattr(state.game_map, 'location_name', 'Derelict Ship')
     else:
         _location = state.current_city_id.replace('_', ' ').title()
-    _has_trade = any((e.trade_terminal for e in state.game_map.entities)) if state.current_mode == 'city' else False
-    _has_mech = any((e.mech_terminal for e in state.game_map.entities)) if state.current_mode == 'city' else False
-    _has_armory = any((e.armory_terminal for e in state.game_map.entities)) if state.current_mode == 'city' else False
-    _overlay = None
-    _shield_bubbles = ()
-    if getattr(ctx.context, '_runtime', None) is not None:
-        from . import pygame_overlay
-        if state.current_mode == 'space':
-            _shield_bubbles = pygame_overlay.shield_bubbles_for_map(state.game_map, camera_x=cam_x, camera_y=cam_y, region_w=view_w, region_h=view_h, region_x=rx, region_y=ry, player_owned_ship=ctx.player_owned_ship)
-        _overlay = pygame_overlay.capture(ctx, mode=state.current_mode, location=_location, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT, hud_view_height=map_h, has_trade_terminal=_has_trade, has_mech_terminal=_has_mech, has_armory_terminal=_has_armory, shields=_shield_bubbles)
-    if _overlay is None:
-        raise RuntimeError('The shared Pygame runtime is required for gameplay presentation')
-    ctx.context.present(console, overlay=_overlay)
+    _space_view = (
+        cam_x, cam_y, rx, ry, view_w, view_h
+    ) if state.current_mode == 'space' else None
+    _present_overlay(state, ctx, console, map_h, _location, _space_view)
+
+def _handle_dev_quest_event(state, event):
+    """Handle developer main-quest selection."""
+    if not _is_shift_o_press(event):
+        return None
+    import os as _os
+    if _os.environ.get('SPACEHACK_DEV'):
+        from .dev_mode import Outcome as _DevOutcome, advance_main_quest as _advance_main_quest, choose_main_quest_faction as _choose_main_quest_faction
+        ctx = state.ctx
+        if ctx.main_quest_chain:
+            state.log.add(f'[DEV MODE] Act 0 faction already set to {ctx.main_quest_chain}.')
+        else:
+            _faction_outcome, _faction_id = _choose_main_quest_faction(ctx.context)
+            if _faction_outcome is _DevOutcome.QUIT:
+                return 'QUIT'
+            if _faction_outcome is _DevOutcome.CONFIRM and _faction_id is not None:
+                _advance_main_quest(ctx, _faction_id)
+    return 'HANDLED'
+
 
 def _handle_dev_event(state, event):
-    """Handle developer-only input events."""
+    """Handle developer-only input."""
     ctx = state.ctx
     log = state.log
     if _is_shift_x_press(event):
@@ -102,20 +140,7 @@ def _handle_dev_event(state, event):
             _adv_time(ctx, 30)
             log.add('Dev: skipped 30 days.')
         return 'HANDLED'
-    if _is_shift_o_press(event):
-        import os as _os
-        if _os.environ.get('SPACEHACK_DEV'):
-            from .dev_mode import Outcome as _DevOutcome, advance_main_quest as _advance_main_quest, choose_main_quest_faction as _choose_main_quest_faction
-            if ctx.main_quest_chain:
-                log.add(f'[DEV MODE] Act 0 faction already set to {ctx.main_quest_chain}.')
-            else:
-                _faction_outcome, _faction_id = _choose_main_quest_faction(ctx.context)
-                if _faction_outcome is _DevOutcome.QUIT:
-                    return 'QUIT'
-                if _faction_outcome is _DevOutcome.CONFIRM and _faction_id is not None:
-                    _advance_main_quest(ctx, _faction_id)
-        return 'HANDLED'
-    return None
+    return _handle_dev_quest_event(state, event)
 
 def _handle_menu_event(state, event):
     """Handle character, faction, and quest-log input."""
@@ -154,25 +179,25 @@ def _handle_menu_event(state, event):
         return 'HANDLED'
     return None
 
-def _handle_space_modal_event(state, event):
-    """Handle space and shared modal input."""
+def _handle_map_navigation_event(state, event):
+    """Handle the space map shortcut."""
+    if state.current_mode != 'space' or not _is_m_press(event):
+        return None
+    if _run_navigation(state.ctx, state.player.pos) is NavigationOutcome.QUIT:
+        return 'QUIT'
+    return 'HANDLED'
+
+
+def _handle_common_modal_event(state, event):
+    """Handle dungeon/space pickup, reload, cargo, and log modals."""
     ctx = state.ctx
-    console = state.console
-    if state.current_mode == 'space' and _is_m_press(event):
-        outcome = _run_navigation(ctx, state.player.pos)
-        if outcome is NavigationOutcome.QUIT:
-            return 'QUIT'
+    if state.current_mode == 'dungeon' and _is_r_press(event):
+        from .ground_reload_ui import reload_exploration
+        reload_exploration(ctx)
         return 'HANDLED'
     if state.current_mode in ('dungeon', 'space') and _is_p_press(event):
         if _pickup_loot_near(ctx) and state.current_mode == 'space':
             tutorial_module.notify_pickup(ctx)
-        return 'HANDLED'
-    if state.current_mode == 'space' and _is_g_press(event):
-        _goto_outcome, _goto_combat = _run_goto(ctx, console, state.player)
-        if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-            combat._handle_combat_encounter(ctx, console, _goto_combat)
-            _run_combat_loop(ctx, console, state.player)
-            state.player_active_missions = ctx.player_active_missions
         return 'HANDLED'
     if _is_backslash_press(event):
         from .console_log import open_console_log as _open_console_log
@@ -184,25 +209,62 @@ def _handle_space_modal_event(state, event):
         from .trade import open_cargo as _open_cargo
         _open_cargo(ctx)
         return 'HANDLED'
-    if state.current_mode == 'space' and _is_t_press(event):
-        from .comms import open_comms as _open_comms
-        _attack_data = _open_comms(ctx, state.player.pos)
-        if _attack_data is not None:
-            combat._handle_combat_encounter(ctx, console, _attack_data)
-            state.player_active_missions = ctx.player_active_missions
-        return 'HANDLED'
-    if _is_period_press(event):
-        if state.current_mode == 'space' and state.player_owned_ship is not None:
-            _run_combat_loop(ctx, console, state.player, also_move_npcs=True)
-            state.player_active_missions = ctx.player_active_missions
-        elif state.current_mode == 'dungeon':
-            _dctrl = _dungeon_post_move_tick(ctx, console, state.game_map)
-            if _dctrl == 'DEFEAT':
-                return 'QUIT'
-            if _dctrl == 'COMBAT':
-                return 'HANDLED'
-        ctx.log.add('You wait.')
-        return 'HANDLED'
+    return None
+
+
+def _handle_goto_event(state, event):
+    """Handle space Go To."""
+    if state.current_mode != 'space' or not _is_g_press(event):
+        return None
+    _goto_outcome, _goto_combat = _run_goto(state.ctx, state.console, state.player)
+    if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
+        combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
+        _run_combat_loop(state.ctx, state.console, state.player)
+        state.player_active_missions = state.ctx.player_active_missions
+    return 'HANDLED'
+
+
+def _handle_comms_event(state, event):
+    """Handle space comms."""
+    if state.current_mode != 'space' or not _is_t_press(event):
+        return None
+    from .comms import open_comms as _open_comms
+    _attack_data = _open_comms(state.ctx, state.player.pos)
+    if _attack_data is not None:
+        combat._handle_combat_encounter(state.ctx, state.console, _attack_data)
+        state.player_active_missions = state.ctx.player_active_missions
+    return 'HANDLED'
+
+
+def _handle_wait_event(state, event):
+    """Handle period/wait in space or a dungeon."""
+    if not _is_period_press(event):
+        return None
+    if state.current_mode == 'space' and state.player_owned_ship is not None:
+        _run_combat_loop(state.ctx, state.console, state.player, also_move_npcs=True)
+        state.player_active_missions = state.ctx.player_active_missions
+    elif state.current_mode == 'dungeon':
+        _dctrl = _dungeon_post_move_tick(state.ctx, state.console, state.game_map)
+        if _dctrl == 'DEFEAT':
+            return 'QUIT'
+        if _dctrl == 'COMBAT':
+            return 'HANDLED'
+    state.ctx.log.add('You wait.')
+    return 'HANDLED'
+
+
+def _handle_space_modal_event(state, event):
+    """Handle space, dungeon, and shared modal input."""
+    for _handler in (
+        _handle_map_navigation_event,
+        _handle_common_modal_event,
+        _handle_goto_event,
+        _handle_comms_event,
+        _handle_wait_event,
+    ):
+        _result = _handler(state, event)
+        if _result is not None:
+            return _result
     return None
 
 def _handle_dungeon_automation_event(state, event):
@@ -257,72 +319,112 @@ def _handle_non_movement_event(state, event):
         return _result
     return None
 
-def _handle_dungeon_move(state, console, code):
-    """Handle dungeon post-move transitions."""
-    ctx = state.ctx
-    log = state.log
-    if code == 'moved' and state.current_mode == 'dungeon':
-        _dctrl = _dungeon_post_move_tick(ctx, console, state.game_map)
-        if _dctrl == 'DEFEAT':
-            return 'QUIT'
-        if _dctrl == 'COMBAT':
-            return 'HANDLED'
-        _tile = state.game_map.tiles[state.player.pos.y][state.player.pos.x]
-        if _tile.kind == 'stairs_down':
-            from .dungeon_extensions import enter_extension, extension_id_at, transition_floor
-            try:
-                if ctx.dungeon_extension is not None and ctx.dungeon_extension.active:
-                    _next_map, _next_player = transition_floor(ctx, 1)
-                    _transition_message = 'You descend deeper into the facility.'
-                else:
-                    _extension_id = extension_id_at(state.game_map, state.player.pos)
-                    _parent_key = next((_key for _key, _cached_map in ctx.interiors.items() if _cached_map is state.game_map), '')
-                    if _extension_id is None:
-                        raise ValueError('No dungeon extension is attached here')
-                    _next_map, _next_player = enter_extension(ctx, state.game_map, state.player, extension_id=_extension_id, parent_map_key=_parent_key)
-                    _transition_message = 'You descend into the alien facility.'
-            except (KeyError, ValueError):
-                log.add('The stairs lead nowhere yet.')
-            else:
-                state.game_map = _next_map
-                state.player = _next_player
-                _adopt_dungeon_transition(ctx, state.game_map, state.player)
-                state.current_mode = 'dungeon'
-                log.add(_transition_message)
-            return 'HANDLED'
-        if _tile.kind == 'stairs_up':
-            from .dungeon_extensions import leave_extension, transition_floor
-            try:
-                if ctx.dungeon_extension is not None and ctx.dungeon_extension.active and (ctx.dungeon_extension.current_floor > 1):
-                    _parent_map, _parent_player = transition_floor(ctx, -1)
-                    _transition_message = 'You climb back toward the upper prison.'
-                else:
-                    _parent_map, _parent_player = leave_extension(ctx, state.game_map)
-                    _transition_message = 'You return to the Mars surface.'
-            except ValueError:
-                log.add('The stairs are sealed.')
-            else:
-                state.game_map = _parent_map
-                state.player = _parent_player
-                ctx.game_map = state.game_map
-                ctx.player = state.player
-                log.add(_transition_message)
-            return 'HANDLED'
-        _exit_transition = _handle_dungeon_exit_tile(ctx, _tile.kind, state.game_map, state.space_game_map, state.space_player, state.player_owned_ship, state.player_active_missions, log)
-        if _tile.kind == 'exit':
-            if _exit_transition is None:
-                return 'HANDLED'
-            state.game_map, state.player, state.current_mode = _exit_transition
-            state.space_game_map, state.space_player = (state.game_map, state.player)
-            return 'HANDLED'
+def _handle_stairs_down(state):
+    """Handle a descending stair transition."""
+    ctx, log = state.ctx, state.log
+    from .dungeon_extensions import enter_extension, extension_id_at, transition_floor
+    try:
+        if ctx.dungeon_extension is not None and ctx.dungeon_extension.active:
+            _next_map, _next_player = transition_floor(ctx, 1)
+            _message = 'You descend deeper into the facility.'
+        else:
+            _extension_id = extension_id_at(state.game_map, state.player.pos)
+            _parent_key = next((_key for _key, _map in ctx.interiors.items() if _map is state.game_map), '')
+            if _extension_id is None:
+                raise ValueError('No dungeon extension is attached here')
+            _next_map, _next_player = enter_extension(
+                ctx, state.game_map, state.player,
+                extension_id=_extension_id, parent_map_key=_parent_key,
+            )
+            _message = 'You descend into the alien facility.'
+    except (KeyError, ValueError):
+        log.add('The stairs lead nowhere yet.')
+    else:
+        state.game_map, state.player = _next_map, _next_player
+        _adopt_dungeon_transition(ctx, state.game_map, state.player)
+        state.current_mode = 'dungeon'
+        log.add(_message)
+    return 'HANDLED'
+
+
+def _handle_stairs_up(state):
+    """Handle an ascending stair transition."""
+    ctx, log = state.ctx, state.log
+    from .dungeon_extensions import leave_extension, transition_floor
+    try:
+        if ctx.dungeon_extension is not None and ctx.dungeon_extension.active and ctx.dungeon_extension.current_floor > 1:
+            _parent_map, _parent_player = transition_floor(ctx, -1)
+            _message = 'You climb back toward the upper prison.'
+        else:
+            _parent_map, _parent_player = leave_extension(ctx, state.game_map)
+            _message = 'You return to the Mars surface.'
+    except ValueError:
+        log.add('The stairs are sealed.')
+    else:
+        state.game_map, state.player = _parent_map, _parent_player
+        ctx.game_map, ctx.player = state.game_map, state.player
+        log.add(_message)
+    return 'HANDLED'
+
+
+def _handle_dungeon_stairs(state, tile):
+    """Handle one dungeon stair transition, if present."""
+    if tile.kind == 'stairs_down':
+        return _handle_stairs_down(state)
+    if tile.kind == 'stairs_up':
+        return _handle_stairs_up(state)
     return None
 
+
+def _handle_dungeon_move(state, console, code):
+    """Handle dungeon post-move transitions."""
+    if code != 'moved' or state.current_mode != 'dungeon':
+        return None
+    _dctrl = _dungeon_post_move_tick(state.ctx, console, state.game_map)
+    if _dctrl in {'DEFEAT', 'COMBAT'}:
+        return 'QUIT' if _dctrl == 'DEFEAT' else 'HANDLED'
+    _tile = state.game_map.tiles[state.player.pos.y][state.player.pos.x]
+    _stairs_result = _handle_dungeon_stairs(state, _tile)
+    if _stairs_result is not None:
+        return _stairs_result
+    if _tile.kind != 'exit':
+        return None
+    _exit_transition = _handle_dungeon_exit_tile(
+        state.ctx, _tile.kind, state.game_map, state.space_game_map,
+        state.space_player, state.player_owned_ship,
+        state.player_active_missions, state.log,
+    )
+    if _exit_transition is None:
+        return 'HANDLED'
+    state.game_map, state.player, state.current_mode = _exit_transition
+    state.space_game_map, state.space_player = state.game_map, state.player
+    return 'HANDLED'
+
+def _apply_movement_interaction(state, code, blocker, dx, dy):
+    """Apply blocker interactions and copy state transitions back."""
+    _state = GameLoopState(
+        ctx=state.ctx, console=state.console, map_w=state.map_w, map_h=state.map_h,
+        log=state.log, stats=state.stats, game_map=state.game_map,
+        player=state.player, current_mode=state.current_mode,
+        current_city_id=state.current_city_id, city_game_map=state.city_game_map,
+        city_player=state.city_player, space_game_map=state.space_game_map,
+        space_player=state.space_player, player_owned_ship=state.player_owned_ship,
+        player_active_missions=state.player_active_missions,
+    )
+    _result = resolve_blocker(_state, code, blocker, dx, dy)
+    state.game_map, state.player = _state.game_map, _state.player
+    state.current_mode, state.current_city_id = _state.current_mode, _state.current_city_id
+    state.city_game_map, state.city_player = _state.city_game_map, _state.city_player
+    state.space_game_map, state.space_player = _state.space_game_map, _state.space_player
+    state.player_owned_ship = _state.player_owned_ship
+    state.player_active_missions = _state.player_active_missions
+    return _result
+
+
 def _handle_movement_event(state, event):
-    """Handle a movement event and its post-move transitions."""
+    """Handle movement and post-move transitions."""
     ctx = state.ctx
     console = state.console
-    map_w = state.map_w
-    map_h = state.map_h
     delta = _movement_action(event)
     if delta is None:
         return 'HANDLED'
@@ -348,14 +450,9 @@ def _handle_movement_event(state, event):
     _dungeon_result = _handle_dungeon_move(state, console, code)
     if _dungeon_result is not None:
         return _dungeon_result
-    _state = GameLoopState(ctx=ctx, console=console, map_w=map_w, map_h=map_h, log=state.log, stats=state.stats, game_map=state.game_map, player=state.player, current_mode=state.current_mode, current_city_id=state.current_city_id, city_game_map=state.city_game_map, city_player=state.city_player, space_game_map=state.space_game_map, space_player=state.space_player, player_owned_ship=state.player_owned_ship, player_active_missions=state.player_active_missions)
-    _interaction_result = resolve_blocker(_state, code, blocker, dx, dy)
-    state.game_map, state.player = (_state.game_map, _state.player)
-    state.current_mode, state.current_city_id = (_state.current_mode, _state.current_city_id)
-    state.city_game_map, state.city_player = (_state.city_game_map, _state.city_player)
-    state.space_game_map, state.space_player = (_state.space_game_map, _state.space_player)
-    state.player_owned_ship = _state.player_owned_ship
-    state.player_active_missions = _state.player_active_missions
+    _interaction_result = _apply_movement_interaction(
+        state, code, blocker, dx, dy,
+    )
     if _interaction_result == 'QUIT':
         return 'QUIT'
     if _interaction_result == 'CONTINUE':

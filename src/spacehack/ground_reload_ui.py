@@ -139,6 +139,18 @@ def reload_pack_ammo(ctx, index: int, in_ground_combat: bool) -> bool:
     )
 
 
+def reload_exploration(ctx) -> bool:
+    """Reload from the dungeon screen without spending a turn."""
+    slots = reloadable_pack_slots(ctx)
+    if not slots:
+        ctx.log.add("No equipped weapon can be reloaded.")
+        return False
+    slot = _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
+    return slot is not None and reload_weapon_slot(
+        ctx, slot, in_ground_combat=False, charge_ap=False,
+    )
+
+
 def manage_pack_ammo(ctx, index: int, in_ground_combat: bool) -> str | None:
     """Offer Reload or Discard for one ammo stack."""
     from . import pygame_story

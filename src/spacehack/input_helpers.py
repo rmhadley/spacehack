@@ -223,6 +223,10 @@ def _is_o_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'o'
 
+def _is_r_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a plain ``R`` key press."""
+    return pygame_engine.is_keydown(event) and event.key_name == 'r'
+
 def _is_p_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``P`` key (or its
     lowercase alias).
