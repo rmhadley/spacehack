@@ -1,7 +1,8 @@
 # DESIGN: Ground Ammo, Reloads, and Field Items
 
-> **Status:** In progress. This document is a design and architecture review;
-> it does not enable persistent ground ammo yet.
+> **Status:** In progress. Phases 0-4 are implemented and covered by the
+> current regression suite; Phase 5 (consumables) is next. Phase 6 hardening
+> and a full manual lifecycle playtest remain pending.
 >
 > **Related:**
 > `docs/design/complete/18_DESIGN_GROUND_EQUIPMENT_STORAGE.md`
@@ -12,10 +13,9 @@
 
 ## Overview
 
-Ground weapons already describe ammunition capacity, but ground combat does
-not currently consume or persist ammunition. The next inventory step should
-make ammunition a meaningful field resource without creating a second
-inventory system for every new item type.
+Ground weapons now consume and persist ammunition through per-instance
+magazines and typed reserve stacks. The next inventory step is to add
+consumables without creating a second inventory system for every new item type.
 
 The proposed direction is:
 
@@ -32,8 +32,12 @@ The proposed direction is:
 - Armory Storage remains unlimited terminal-only ownership. The Expedition Pack
   is the only field inventory available underground.
 
-This is intentionally a design first. Until an implementation phase lands,
-current ground weapons retain their existing no-persistent-ammo behavior.
+Phases 0-4 have now landed: ground weapons use independent per-instance
+magazines, firing consumes loaded rounds, `R` performs a transactional reload
+of the first eligible active weapon, and Ground Armory ammo purchases plus
+coded field-item loot are wired through the typed stack domain. The approved
+next UI refinement is to make `R` open a weapon chooser when multiple weapons
+can reload. Consumables remain gated behind Phase 5.
 
 ## Current-state audit
 
@@ -45,14 +49,17 @@ current ground weapons retain their existing no-persistent-ammo behavior.
   kinetic pistols, kinetic rifles, shotguns, and laser weapons. Melee weapons
   use the infinite-ammo convention.
 - `src/spacehack/combat/_rules_ground.py` owns the ground combat state and
-  exposes `can_fire()` and `consume_shot()`. `can_fire()` currently does not
-  reject an empty magazine, and `consume_shot()` is currently a no-op.
-- `src/spacehack/combat/_loop.py` already calls `can_fire()` before resolving a
-  shot and `consume_shot()` after a shot, which is the cleanest seam for adding
-  ammo without duplicating fire orchestration.
-- Ground combat reads active IDs from
-  `GameContext.equipped_ground_weapons`; it does not currently have per-weapon
-  instance state.
+  exposes `can_fire()` and `consume_shot()`. `can_fire()` rejects empty or
+  insufficient magazines, and `consume_shot()` decrements the selected weapon
+  instance after an accepted shot.
+- `src/spacehack/combat/_loop.py` calls `can_fire()` before resolving a shot
+  and `consume_shot()` after a shot. The same loop dispatches `R` to the reload
+  action without duplicating fire orchestration; the current implementation
+  targets the first eligible active weapon, with a chooser approved as the
+  next UI refinement.
+- Ground combat reads per-instance state from
+  `GameContext.equipped_ground_weapons`; duplicate catalog IDs have independent
+  magazines.
 - `src/spacehack/ground_equipment.py` stores owned ground weapons and armor as
   frozen `StoredGroundEquipment(item_type, item_id)` entries. That shape is
   sufficient for catalog ownership, but cannot represent magazine state.
@@ -63,11 +70,12 @@ current ground weapons retain their existing no-persistent-ammo behavior.
 - `src/spacehack/trade.py` and dungeon combat loot already have a separate
   ground-equipment loot path. Its reachability and full lifecycle still need a
   real in-game playtest before the broader ammo system is considered complete.
-- `src/spacehack/saveload.py` validates and round-trips the two existing ground
-  storage lists, but has no ammo or generalized field-item schema.
-- `src/spacehack/help.py` describes the current Expedition Pack and ground
-  equipment behavior. It must be updated together with every ammo/consumable
-  behavior change.
+- `src/spacehack/saveload.py` validates and round-trips active weapon
+  instances, Armory/Expedition field-item stacks, and legacy string-ID
+  migrations.
+- `src/spacehack/help.py` documents the shipped magazine, reserve-ammo, and
+  `R` reload behavior. It must be updated together with every new
+  ammo/consumable behavior change.
 
 ### Existing patterns to reuse
 
@@ -101,15 +109,15 @@ current ground weapons retain their existing no-persistent-ammo behavior.
 | Ammo identity | Give every reloadable weapon an `ammo_type` catalog field, such as `kinetic_pistol`, `rifle_round`, or `shotgun_shell`. Ammo items reference that type, not a weapon ID. |
 | Ammo stacks | Reserve ammo should be stackable by `ammo_type`, with a quantity. A stack is one backpack row, not one slot per round. |
 | Pack capacity | Keep the existing reserve-slot model: equipment and each ammo/consumable stack consume one slot. Add stack quantity limits separately so a single stack cannot become infinite. Revisit weighted capacity only after playtesting. **(locked — stack = 1 slot)** |
-| Reload action | Reload is explicit, costs AP, and ends/continues the turn according to normal AP rules. It must never happen automatically on fire. |
+| Reload action | `R` opens a compact chooser of active reloadable weapons, showing loaded/capacity and matching reserve. The player selects one; reload is explicit, costs AP, and follows normal turn rules. It never happens automatically on fire. |
 | Partial reload | Support partial reloads when a magazine is not empty, but make the first implementation deterministic: reload up to capacity or available reserve, whichever is smaller. |
-| Tactical reload | Retain rounds already loaded. There is no detachable-magazine loss in the first pass. A later design can model magazines as items if that depth proves valuable. |
+| Tactical reload | Retain rounds already loaded. Reload transfers only the missing rounds, with no detachable-magazine loss in the first pass. A later design can model magazines as items if that depth proves valuable. |
 | Empty fire | A weapon with insufficient loaded ammo cannot fire; `can_fire()` returns a player-facing reason. The burst still allows other active weapons to fire if they are valid. |
-| Ammo pickup | Ground loot may contain ammo stacks. Pickup uses Expedition Pack capacity and the same full-pack behavior as other field items. |
+| Ammo pickup | Ground loot may contain typed ammo stacks. Pickup first fills matching partial stacks, then creates new stacks while slots remain; any remainder stays on the floor as a typed ammo stack. No rounds are silently discarded. Full-pack behavior uses the same deliberate drop/leave choice as other field items. |
 | Armory ownership | Armory Storage may own spare ammo without capacity. Moving ammo into the pack checks pack slots and stack limits. |
-| Armory purchasing | Buy ammo at an armory/mechanic terminal, with a destination chooser only if the purchase UI supports both storage locations. Credits are deducted after capacity validation. |
-| Consumables | Med packs, stims, and similar items are stackable field items with explicit effects and action costs. They are not weapons and do not enter the active loadout. |
-| Use location | Field consumables are available in exploration and combat subject to their action cost. Armory-only items remain unavailable underground. |
+| Armory purchasing | Buy ground ammo and consumables at the Ground Armory only. Every purchase explicitly chooses Armory Storage or Expedition Pack; credits are deducted only after destination and capacity validation succeed. The ship mechanic's missile-ammo UI remains separate. |
+| Consumables | Med packs, stims, and similar items are stackable field items with explicit effects and action costs. They are not weapons and do not enter the active loadout. Stim duration is data-driven per catalog entry, starting at 3 ground-combat turns for the initial stim. |
+| Use location | Field consumables are available underground subject to their explicit action rules. Med packs are free to use during exploration and cost their catalog `use_ap_cost` in combat. Stims are combat-only; their effect exists only during the active ground combat and expires when that combat ends. Armory-only items remain unavailable underground. |
 | Discard | Discard removes the selected pack item/quantity explicitly and logs the result. It is never an implicit fallback for a failed equip or reload. |
 | Save/load | Serialize active weapon instance state, reserve stacks, and consumable stacks. Old saves load with deterministic full magazines and no new reserve items unless a migration source exists. |
 | Enemies | Enemy ammunition remains encounter-local initially. Persistent enemy magazines add complexity without improving the player's inventory loop. |
@@ -213,8 +221,13 @@ class GroundConsumableSpec:
 Effects must be table-driven and validated, for example:
 
 - `med_pack`: restore a bounded amount of ground HP.
-- `stim`: temporary combat modifier with an explicit duration/expiry field.
+- `stim`: temporary combat modifier with an explicit data-defined duration in
+  ground-combat turns; the initial catalog entry starts at 3 turns.
 - `adrenaline`: future example; not part of the first implementation.
+
+The consumable spec should gain an optional `duration_turns: int = 0` field so
+higher- or lower-quality stims can vary without runtime conditionals. Duration
+is combat-local and is not persisted outside an active combat session.
 
 Do not encode item behavior as a long `if/elif` chain in the UI. Dispatch
 validated `effect_id` values through a domain handler table, and keep pure
@@ -274,8 +287,9 @@ select among multiple reloadable weapons.
 A field-item action should follow the same pattern as backpack Equip/Discard:
 select a stack, press Enter, then choose `Use` or `Discard`. `Use` calls a
 catalog effect handler, decrements one quantity only after successful effect
-validation, and charges the item's AP cost in combat. Outside combat, effects
-that are safe in exploration may be free or use a separate explicit rule.
+validation, and charges the item's AP cost in combat. Med packs are free to use
+in exploration; combat uses their catalog `use_ap_cost`. Combat-only stims are
+unavailable outside an active ground fight.
 
 ## Backpack UX
 
@@ -326,9 +340,12 @@ Migration rules:
 
 - Ground combat drops can produce equipment, ammo, or consumables through
   explicit typed loot payloads. Existing trade-good/quest loot stays untouched.
-- Picking up ammo merges into an existing matching pack stack when the stack
-  has room; otherwise it uses another pack slot or leaves the item on the floor.
-- Picking up a consumable follows the same quantity/stack rules.
+- Picking up ammo fills matching partial pack stacks first, then uses additional
+  pack slots for new stacks. If the pack cannot accept the full quantity, the
+  accepted portion is packed and the remainder remains on the floor as a typed
+  loot stack. No quantity is silently lost.
+- Picking up a consumable follows the same quantity/stack rules, including
+  explicit overflow preservation.
 - Armory Storage can receive purchased or displaced ammo/items without a
   capacity check. The Expedition Pack is capacity-checked.
 - Underground selling remains unavailable. Discarding is not selling and gives
@@ -373,10 +390,15 @@ Migration rules:
 
 ### Phase 4 - Ammo sourcing and loot
 
-- [ ] Add armory/mechanic ammo purchasing and destination handling.
-- [ ] Add authored ammo loot and pickup/stack merging.
-- [ ] Add full-pack ammo behavior and save/load coverage.
-- [ ] Playtest ammo scarcity, duplicate weapons, reload timing, and pack pressure.
+- [x] Add Ground Armory ammo purchasing with explicit Armory Storage or
+  Expedition Pack destination handling; ship missile-ammo purchasing remains
+  separate.
+- [x] Add authored typed ammo loot and pickup/stack merging.
+- [x] Add partial pickup/full-pack overflow behavior and save/load coverage;
+  any uncollected quantity remains on the floor.
+- [x] Add focused regression coverage for ammo scarcity boundaries, duplicate
+  weapon reserve behavior, reload timing, and pack pressure. A full manual
+  lifecycle playtest remains part of Phase 6 hardening.
 
 ### Phase 5 - Consumables
 
@@ -436,7 +458,9 @@ Migration rules:
 - Successful combat equipment swaps close the menu before the next combat
   frame; AP loss and any enemy turn are visible.
 - Backpack equipment rows are selectable and Enter presents Equip/Discard.
-- Persistent ammo is not enabled until its implementation phase lands.
+- Persistent ammo is enabled for ground weapons: each active instance has an
+  independent magazine, reserve ammo is typed and stackable, and reloads are
+  transactional.
 - Reloadable weapons have independent loaded magazines after implementation.
 - Firing consumes ammo exactly once per weapon shot and blocks empty weapons
   without blocking valid weapons in the same burst.
@@ -447,7 +471,8 @@ Migration rules:
   invalid.
 - Ground loot, armory purchases, swaps, discards, reloads, and consumable use
   never silently lose or duplicate items.
-- Existing no-persistent-ammo behavior remains unchanged until Phase 3.
+- Legacy saves without magazine fields migrate to deterministic full
+  magazines; malformed field-item records are ignored without breaking load.
 - The guide documents every shipped action and keybinding.
 - Smoke and the full test suite pass for every implementation phase.
 
@@ -457,13 +482,18 @@ Migration rules:
    ammo consume weighted capacity from the beginning? **(Resolved: one stack =
    one slot, matching equipment; `rounds_per_stack` is the efficiency knob.
    Weighted capacity deferred until the Phase 4 playtest.)**
-2. Should reload be `R` for the selected weapon, or should a chooser be
-   required when multiple weapons can reload?
-3. Should a tactical reload ever waste loaded rounds, or should the first pass
-   always retain them as proposed here?
-4. Should med packs be usable outside combat at no AP cost, or should every
-   use consume a turn for consistency?
-5. Should stims provide a fixed duration or last until the current combat ends?
-6. Should ammo be purchasable at the Armory, the Mechanic, or both?
-7. Should item stacks merge automatically on pickup, or should the player
-   choose a stack destination when several partial stacks exist?
+2. **Resolved:** `R` opens a weapon chooser when multiple active weapons can
+   reload; the action validates the selected weapon before charging AP.
+3. **Resolved:** tactical reloads retain loaded rounds and transfer only the
+   missing amount.
+4. **Resolved:** med packs are free to use during exploration and consume their
+   catalog `use_ap_cost` during combat. Combat-only stims cannot be used outside
+   an active ground fight.
+5. **Resolved:** stims use a combat-local, data-defined duration measured in
+   ground-combat turns. The initial stim starts at 3 turns; effects end when
+   combat ends and are not persisted outside combat.
+6. **Resolved:** ground ammo and consumables are purchased at the Ground Armory
+   only; each purchase chooses Armory Storage or Expedition Pack before payment.
+7. **Resolved:** pickup auto-fills matching partial stacks, creates new stacks
+   while capacity remains, and leaves any overflow on the floor. No stack
+   destination chooser is needed in the first pass.

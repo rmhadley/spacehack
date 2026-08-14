@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from src.spacehack import ground_equipment
 from src.spacehack.data.ground_armor import find_ground_armor
 from src.spacehack.data.ground_weapons import find_ground_weapon
 from src.spacehack.data.planets import find_planet_spec, resolve_armory_inventory
@@ -93,3 +96,76 @@ def test_armory_stock_rolls_over_with_the_month_clock():
     month_2 = resolve_armory_inventory("blockade", 2)
 
     assert month_1 != month_2
+
+
+def _ammo_purchase_context(credits=100):
+    return SimpleNamespace(
+        context=object(),
+        stats=SimpleNamespace(credits=credits),
+        ground_stats=SimpleNamespace(strength=10),
+        ground_armory_items=[],
+        ground_expedition_items=[],
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+
+def test_buy_rows_include_authored_ground_ammo():
+    rows = _armory._buy_ammo_rows()
+
+    assert any(row.action == "BUY_AMMO:pistol_rounds" for row in rows)
+    assert any(row.label == "Pistol Rounds" for row in rows)
+
+
+def test_purchase_ground_ammo_to_armory_storage(monkeypatch):
+    ctx = _ammo_purchase_context(credits=100)
+    monkeypatch.setattr(
+        _armory, "_choose_field_item_quantity", lambda *_args: 12,
+    )
+
+    _armory._purchase_field_item(
+        ctx, "pistol_rounds", ground_equipment.ARMORY_STORAGE,
+    )
+
+    assert ctx.stats.credits == 88
+    assert ctx.ground_armory_items == [
+        ground_equipment.GroundItemStack("ammo", "pistol_rounds", 12),
+    ]
+    assert ctx.ground_expedition_items == []
+
+
+def test_purchase_ground_ammo_to_pack_respects_pack_capacity(monkeypatch):
+    ctx = _ammo_purchase_context(credits=100)
+    monkeypatch.setattr(
+        _armory, "_choose_field_item_quantity", lambda *_args: 40,
+    )
+
+    _armory._purchase_field_item(
+        ctx, "pistol_rounds", ground_equipment.EXPEDITION_INVENTORY,
+    )
+
+    assert ctx.stats.credits == 60
+    assert ctx.ground_expedition_items == [
+        ground_equipment.GroundItemStack("ammo", "pistol_rounds", 40),
+    ]
+
+
+def test_purchase_ground_ammo_does_not_mutate_when_pack_cannot_fit(monkeypatch):
+    ctx = _ammo_purchase_context(credits=100)
+    ctx.ground_expedition_inventory = [
+        ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
+        ground_equipment.StoredGroundEquipment("armor", "light_vest"),
+        ground_equipment.StoredGroundEquipment("armor", "combat_boots"),
+        ground_equipment.StoredGroundEquipment("weapon", "combat_knife"),
+    ]
+    monkeypatch.setattr(
+        _armory, "_choose_field_item_quantity", lambda *_args: 1,
+    )
+
+    _armory._purchase_field_item(
+        ctx, "pistol_rounds", ground_equipment.EXPEDITION_INVENTORY,
+    )
+
+    assert ctx.stats.credits == 100
+    assert ctx.ground_expedition_items == []

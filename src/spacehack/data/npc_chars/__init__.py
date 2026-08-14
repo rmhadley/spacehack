@@ -41,6 +41,8 @@ class NpcCharSpec:
         loot_pool: trade good ids the NPC may drop on death.
         equipment_loot_pool: optional ``(item_type, item_id)`` ground gear
             entries dropped on death.
+        field_item_loot_pool: optional typed ammo/consumable entries dropped
+            on death and packed into the Expedition Pack.
         loot_count: (min, max) number of trade-good loot items per kill.
         xp_reward: XP awarded on kill.
         always_hostile: True = ignore faction reputation entirely;
@@ -69,6 +71,8 @@ class NpcCharSpec:
     detect_radius: int = 4
     loot_pool: tuple[str, ...] = ()
     equipment_loot_pool: tuple[tuple[str, str], ...] = ()
+    field_item_loot_pool: tuple[tuple[str, str], ...] = ()
+    field_item_loot_count: tuple[int, int] = (0, 1)
     loot_count: tuple[int, int] = (1, 2)
     xp_reward: int = 20
     always_hostile: bool = False

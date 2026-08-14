@@ -62,6 +62,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("armor", "reinforced_gauntlets"),
             ("weapon", "smg"),
         ),
+        field_item_loot_pool=(("ammo", "energy_cells"),),
         loot_count=(1, 2),
         xp_reward=25,
     ),
@@ -129,6 +130,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("armor", "powered_gloves"),
             ("weapon", "vibroblade"),
         ),
+        field_item_loot_pool=(("ammo", "energy_cells"),),
         loot_count=(1, 2),
         xp_reward=30,
     ),
@@ -143,6 +145,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         reflexes=13,
         strength=10,
         stamina=12,
+        field_item_loot_pool=(("ammo", "energy_cells"),),
         detect_radius=6,
         behavior="hunter",        # ranged harasser, hunts in pairs/trios
         squad_size=(2, 3),

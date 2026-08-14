@@ -81,8 +81,22 @@ def _ground_equipment_loot_name(entry) -> str:
     return find_ground_armor(entry.item_id).name
 
 
+def _field_item_loot_stack(loot_entity):
+    """Parse one typed ammo/consumable loot stack."""
+    from . import ground_equipment
+
+    return ground_equipment.parse_item_stack(loot_entity.loot_data or {})
+
+
+def _field_item_loot_name(stack) -> str:
+    """Return the catalog display name for a field-item stack."""
+    from .data.ground_items import find_ground_item
+
+    return find_ground_item(stack.item_type, stack.item_id).name
+
+
 def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
-    """Drop one carried Expedition Pack item at the current loot position."""
+    """Drop one carried Expedition Pack equipment item at the loot position."""
     from . import world
 
     dropped = ctx.ground_expedition_inventory.pop(index)
@@ -97,6 +111,26 @@ def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
     return dropped, dropped_entity
 
 
+def _drop_expedition_stack_at_loot(ctx: GameContext, loot_entity, index: int):
+    """Drop one carried field-item stack at the loot position."""
+    from . import world
+
+    dropped = ctx.ground_expedition_items.pop(index)
+    dropped_entity = world.Entity(
+        char="%",
+        fg=(255, 215, 0),
+        pos=loot_entity.pos,
+        name="Dropped Field Item",
+        loot_data={
+            "item_type": dropped.item_type,
+            "item_id": dropped.item_id,
+            "quantity": dropped.quantity,
+        },
+    )
+    ctx.game_map.entities.append(dropped_entity)
+    return dropped, dropped_entity
+
+
 def _pack_drop_options(ctx: GameContext) -> tuple[tuple[str, str], ...]:
     """Build valid drop choices without exposing malformed pack entries."""
     options = []
@@ -106,10 +140,16 @@ def _pack_drop_options(ctx: GameContext) -> tuple[tuple[str, str], ...]:
         except (KeyError, TypeError, ValueError):
             continue
         options.append((f"Drop {name}", f"DROP_PACK:{index}"))
+    for index, stack in enumerate(getattr(ctx, "ground_expedition_items", [])):
+        try:
+            name = _field_item_loot_name(stack)
+        except (KeyError, TypeError, ValueError):
+            continue
+        options.append((f"Drop {name} x{stack.quantity}", f"DROP_STACK:{index}"))
     return tuple(options)
 
 
-def _choose_pack_drop(ctx: GameContext, loot_entity) -> int | None:
+def _choose_pack_drop(ctx: GameContext, loot_entity) -> str | None:
     """Offer a compact drop-or-leave choice when the Expedition Pack is full."""
     from . import pygame_story
 
@@ -126,13 +166,13 @@ def _choose_pack_drop(ctx: GameContext, loot_entity) -> int | None:
         return None
     if chosen == "__QUIT__":
         raise SystemExit
-    if not chosen.startswith("DROP_PACK:"):
+    if not chosen.startswith(("DROP_PACK:", "DROP_STACK:")):
         return None
     try:
-        _drop_index = int(chosen.split(":", 1)[1])
+        int(chosen.split(":", 1)[1])
     except ValueError:
         return None
-    return _drop_index
+    return chosen
 
 
 def _pack_loot(ctx: GameContext, entry) -> bool:
@@ -159,6 +199,30 @@ def _finish_loot_pickup(ctx: GameContext, loot_entity, message: str) -> None:
         ctx.game_map.entities.remove(loot_entity)
 
 
+def _drop_selected_pack_item(ctx: GameContext, loot_entity, chosen):
+    """Drop one selected equipment or field-item stack and return rollback data."""
+    if isinstance(chosen, int):
+        chosen = f"DROP_PACK:{chosen}"
+    try:
+        kind, index_text = chosen.split(":", 1)
+        index = int(index_text)
+    except (AttributeError, ValueError):
+        return None
+    if kind == "DROP_PACK":
+        if not 0 <= index < len(ctx.ground_expedition_inventory):
+            return None
+        dropped, entity = _drop_expedition_entry_at_loot(ctx, loot_entity, index)
+        rollback = lambda: ctx.ground_expedition_inventory.insert(index, dropped)
+    elif kind == "DROP_STACK":
+        if not 0 <= index < len(ctx.ground_expedition_items):
+            return None
+        dropped, entity = _drop_expedition_stack_at_loot(ctx, loot_entity, index)
+        rollback = lambda: ctx.ground_expedition_items.insert(index, dropped)
+    else:
+        return None
+    return entity, rollback
+
+
 def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     """Move one ground-equipment drop into the carried Expedition Pack."""
     entry = _ground_equipment_loot_entry(loot_entity)
@@ -170,21 +234,79 @@ def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     if _pack_loot(ctx, entry):
         _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
         return True
-    drop_index = _choose_pack_drop(ctx, loot_entity)
-    if drop_index is None:
+    chosen = _choose_pack_drop(ctx, loot_entity)
+    if chosen is None:
         ctx.log.add(f"Expedition Pack full - left the {name} behind.")
         return False
-    if not 0 <= drop_index < len(ctx.ground_expedition_inventory):
+    dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
+    if dropped is None:
         return False
-    dropped, dropped_entity = _drop_expedition_entry_at_loot(
-        ctx, loot_entity, drop_index,
-    )
+    dropped_entity, rollback = dropped
     if not _pack_loot(ctx, entry):
         ctx.game_map.entities.remove(dropped_entity)
-        ctx.ground_expedition_inventory.insert(drop_index, dropped)
+        rollback()
         ctx.log.add(f"Expedition Pack full - left the {name} behind.")
         return False
     _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
+    return True
+
+
+def _pack_field_item(ctx: GameContext, stack) -> object | None:
+    """Add a field-item stack and return an explicit floor remainder."""
+    from . import ground_equipment
+
+    strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
+    return ground_equipment.add_item_stack(
+        ctx.ground_expedition_inventory,
+        ctx.ground_expedition_items,
+        stack,
+        strength=strength,
+    )
+
+
+def _leave_field_item_remainder(loot_entity, remainder) -> None:
+    """Keep an uncollected field-item remainder on the same floor entity."""
+    loot_entity.loot_data = {
+        "item_type": remainder.item_type,
+        "item_id": remainder.item_id,
+        "quantity": remainder.quantity,
+    }
+
+
+def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
+    """Pack typed ammo/consumable loot without silently losing overflow."""
+    stack = _field_item_loot_stack(loot_entity)
+    if stack is None:
+        ctx.log.add("Unknown field item - left it behind.")
+        return False
+    try:
+        name = _field_item_loot_name(stack)
+        remainder = _pack_field_item(ctx, stack)
+    except (KeyError, TypeError, ValueError) as exc:
+        ctx.log.add(f"Invalid field item - left it behind ({exc}).")
+        return False
+    if remainder is None:
+        _finish_loot_pickup(ctx, loot_entity, f"Packed {name} x{stack.quantity}.")
+        return True
+    if remainder.quantity < stack.quantity:
+        _leave_field_item_remainder(loot_entity, remainder)
+        accepted = stack.quantity - remainder.quantity
+        ctx.log.add(f"Packed {name} x{accepted}; left {remainder.quantity} on the floor.")
+        return True
+    chosen = _choose_pack_drop(ctx, loot_entity)
+    if chosen is None:
+        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
+        return False
+    dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
+    if dropped is None:
+        return False
+    dropped_entity, rollback = dropped
+    if _pack_field_item(ctx, stack) is not None:
+        ctx.game_map.entities.remove(dropped_entity)
+        rollback()
+        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
+        return False
+    _finish_loot_pickup(ctx, loot_entity, f"Packed {name} x{stack.quantity}.")
     return True
 
 
@@ -351,6 +473,31 @@ def _run_cargo_loot_modal(
     return _run_pygame_loot(ctx, title, body, take_label)
 
 
+def _open_field_item_loot(ctx: GameContext, loot_entity) -> None:
+    """Handle typed ammo/consumable loot pickup."""
+    stack = _field_item_loot_stack(loot_entity)
+    if stack is None:
+        ctx.log.add("Unknown field item - left it behind.")
+        return
+    try:
+        name = _field_item_loot_name(stack)
+    except (KeyError, TypeError, ValueError):
+        ctx.log.add("Unknown field item - left it behind.")
+        return
+    outcome = _run_pygame_loot(
+        ctx,
+        "FIELD ITEM",
+        f"Found {name} x{stack.quantity}. Pack it into the Expedition Pack?",
+        "Pack",
+    )
+    if outcome == "TAKE":
+        _apply_field_item_loot_pickup(ctx, loot_entity)
+    elif outcome == "QUIT":
+        raise SystemExit
+    else:
+        ctx.log.add(f"Left {name} behind.")
+
+
 def _open_equipment_loot(ctx: GameContext, loot_entity) -> None:
     """Handle the ground-equipment branch of loot pickup."""
     entry = _ground_equipment_loot_entry(loot_entity)
@@ -373,15 +520,8 @@ def _open_equipment_loot(ctx: GameContext, loot_entity) -> None:
         ctx.log.add("Left the ground equipment behind.")
 
 
-def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
-    """Open a simple modal to pick up cargo, quest, or ground gear loot.
-
-    Shows what's available and lets the player take it (or leave it).
-    Insufficient cargo space logs the shortfall without taking anything.
-    """
-    if loot_entity.loot_data.get("item_type") in {"weapon", "armor"}:
-        _open_equipment_loot(ctx, loot_entity)
-        return
+def _open_trade_good_loot(ctx: GameContext, loot_entity) -> None:
+    """Handle trade-good debris, quest caches, and mission cargo."""
     is_quest = bool(getattr(loot_entity, "main_quest_step_id", ""))
     if is_quest:
         goods = _quest_loot_goods(loot_entity, ctx.log)
@@ -413,3 +553,14 @@ def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
         raise SystemExit
     else:
         ctx.log.add("Left the cargo debris in space.")
+
+
+def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
+    """Open a modal to pick up cargo, ground equipment, or field items."""
+    item_type = loot_entity.loot_data.get("item_type")
+    if item_type in {"weapon", "armor"}:
+        _open_equipment_loot(ctx, loot_entity)
+    elif item_type in {"ammo", "consumable"}:
+        _open_field_item_loot(ctx, loot_entity)
+    else:
+        _open_trade_good_loot(ctx, loot_entity)

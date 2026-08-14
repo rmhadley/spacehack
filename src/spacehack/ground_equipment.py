@@ -690,38 +690,128 @@ def item_stack_merge_index(items, stack: GroundItemStack) -> int | None:
     return None
 
 
-def _merge_item_stack(items, index: int, stack: GroundItemStack) -> GroundItemStack:
-    """Merge ``stack`` into the existing stack at ``index`` in place."""
-    existing = items[index]
-    capacity = item_stack_capacity(stack.item_type, stack.item_id)
-    merged = GroundItemStack(
-        stack.item_type, stack.item_id,
-        min(existing.quantity + stack.quantity, capacity),
-    )
-    items[index] = merged
-    return merged
-
-
 def add_item_stack(
     equipment,
     items,
     stack: GroundItemStack,
     *,
     strength: int,
-) -> GroundItemStack:
-    """Add or merge one field-item stack into the Expedition Pack.
+) -> GroundItemStack | None:
+    """Add as much of one field-item stack as the Expedition Pack accepts.
 
-    Transactional: validation and capacity checks happen before any
-    mutation. Merging into an existing partial stack consumes no slot;
-    a new stack consumes one.
+    Matching partial stacks fill first, then new slots are used. The return
+    value is an explicit remainder stack when the pack cannot accept the
+    complete input; ``None`` means every round/charge was stored. No input
+    quantity is silently discarded.
     """
     validate_item_stack(stack)
-    merge_index = item_stack_merge_index(items, stack)
-    if merge_index is not None:
-        return _merge_item_stack(items, merge_index, stack)
-    if expedition_slot_count(equipment, items) + 1 > expedition_capacity(strength):
-        raise ValueError("Expedition inventory is full")
-    items.append(stack)
+    remaining = stack.quantity
+    capacity = item_stack_capacity(stack.item_type, stack.item_id)
+    while remaining > 0:
+        partial = item_stack_merge_index(
+            items,
+            GroundItemStack(stack.item_type, stack.item_id, remaining),
+        )
+        if partial is not None:
+            existing = items[partial]
+            room = capacity - existing.quantity
+            amount = min(room, remaining)
+            items[partial] = GroundItemStack(
+                stack.item_type, stack.item_id, existing.quantity + amount,
+            )
+            remaining -= amount
+            continue
+        if expedition_slot_count(equipment, items) >= expedition_capacity(strength):
+            break
+        amount = min(capacity, remaining)
+        items.append(GroundItemStack(stack.item_type, stack.item_id, amount))
+        remaining -= amount
+    if remaining <= 0:
+        return None
+    return GroundItemStack(stack.item_type, stack.item_id, remaining)
+
+
+def field_item_capacity(
+    equipment,
+    items,
+    item_type: str,
+    item_id: str,
+    *,
+    strength: int,
+    container: str,
+) -> int | None:
+    """Return how many more charges fit, or ``None`` for Armory Storage."""
+    capacity = item_stack_capacity(item_type, item_id)
+    if container == ARMORY_STORAGE:
+        return None
+    if container != EXPEDITION_INVENTORY:
+        raise ValueError(f"Unknown field-item container: {container!r}")
+    partial_room = sum(
+        capacity - stack.quantity
+        for stack in items
+        if stack.item_type == item_type and stack.item_id == item_id
+    )
+    free_slots = max(0, expedition_capacity(strength) - expedition_slot_count(equipment, items))
+    return partial_room + free_slots * capacity
+
+
+def add_item_quantity(
+    equipment,
+    items,
+    item_type: str,
+    item_id: str,
+    quantity: int,
+    *,
+    strength: int,
+    container: str,
+) -> None:
+    """Add an exact quantity transactionally, splitting it into stacks.
+
+    Armory Storage is unlimited. Expedition Pack capacity is checked before
+    mutation, so a failed purchase or transfer cannot partially add charges.
+    """
+    if quantity <= 0:
+        raise ValueError("Field-item quantity must be positive")
+    stack_capacity = item_stack_capacity(item_type, item_id)
+    available = field_item_capacity(
+        equipment, items, item_type, item_id,
+        strength=strength, container=container,
+    )
+    if available is not None and quantity > available:
+        raise ValueError("Expedition inventory is full or lacks item capacity")
+    remaining = quantity
+    while remaining > 0:
+        amount = min(stack_capacity, remaining)
+        remainder = add_item_stack(
+            equipment, items,
+            GroundItemStack(item_type, item_id, amount),
+            strength=strength,
+        )
+        if remainder is not None:
+            raise ValueError("Field-item capacity changed during insertion")
+        remaining -= amount
+
+
+def transfer_item_stack(
+    source_items,
+    destination_equipment,
+    destination_items,
+    index: int,
+    *,
+    destination_container: str,
+    strength: int,
+) -> GroundItemStack:
+    """Move one complete field-item stack between owned containers."""
+    if not 0 <= index < len(source_items):
+        raise IndexError("Invalid field-item stack index")
+    stack = source_items[index]
+    validate_item_stack(stack)
+    add_item_quantity(
+        destination_equipment, destination_items,
+        stack.item_type, stack.item_id, stack.quantity,
+        strength=strength, container=destination_container,
+    )
+    source_items.pop(index)
     return stack
 
 

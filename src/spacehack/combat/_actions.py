@@ -77,6 +77,35 @@ def _spawn_equipment_loot_at_position(
         )
 
 
+def _spawn_field_item_loot_at_position(
+    game_map: world.GameMap,
+    pos: world.Position,
+    item_pool: tuple[tuple[str, str], ...],
+    count_range: tuple[int, int] = (0, 1),
+) -> None:
+    """Drop authored ammo/consumable stacks with valid quantities."""
+    if not item_pool:
+        return
+    from ..ground_equipment import item_stack_capacity
+
+    _min_c, _max_c = count_range
+    for _ in range(RNG.randint(_min_c, _max_c)):
+        item_type, item_id = RNG.choice(item_pool)
+        try:
+            _max_quantity = item_stack_capacity(item_type, item_id)
+        except (KeyError, ValueError):
+            continue
+        _quantity = RNG.randint(1, min(5, _max_quantity))
+        _append_loot_entity(
+            game_map, pos,
+            {
+                "item_type": item_type,
+                "item_id": item_id,
+                "quantity": _quantity,
+            },
+        )
+
+
 def set_combat_locks(locked: bool, entities) -> None:
     """Mark/unmark entities so ambient patrol systems leave them alone.
 
@@ -198,6 +227,24 @@ def can_afford_action(
     return True, ""
 
 
+def _damage_quality(target_pilot_piloting: int) -> tuple[float, bool]:
+    """Roll damage quality and return its multiplier plus glancing state."""
+    quality = RNG.randint(1, 100)
+    threshold = int(target_pilot_piloting * 0.5)
+    if quality <= threshold:
+        return 0.5, True
+    return 0.5 + (quality - threshold) / max(1, 100 - threshold), False
+
+
+def _apply_hull_and_shields(
+    damage: int, target_hull: int, target_shields: int,
+) -> tuple[int, int, int]:
+    """Split damage between shields and hull and return final hull."""
+    shield_damage = min(damage, target_shields) if target_shields > 0 else 0
+    hull_damage = damage - shield_damage
+    return hull_damage, shield_damage, max(0, target_hull - hull_damage)
+
+
 def resolve_damage(
     weapon_id: str,
     target_hull: int,
@@ -205,62 +252,18 @@ def resolve_damage(
     target_pilot_piloting: int = 0,
     damage_taken_mult: float = 1.0,
 ) -> tuple[int, int, int, bool]:
-    """Apply weapon damage to a target. Returns (hull_dmg, shield_dmg, final_hull, is_glancing).
-
-    The single RNG draw that decides hit/miss is also used here to
-    drive a margin-style damage curve and a pilot-piloting glancing
-    threshold (the fused A+C mechanic). The formula:
-
-        q                   = RNG.randint(1, 100)              # damage quality
-        glancing_threshold  = int(target_pilot_piloting * 0.5)
-        if q <= glancing_threshold:
-            damage_mult     = 0.5                              # cap at half
-        else:
-            damage_mult     = 0.5 + (q - glancing_threshold)
-                                       / max(1, 100 - glancing_threshold)
-        raw_dmg             = weapon.damage * damage_mult
-                              * RNG.uniform(0.8, 1.2)          # weapon variance
-
-    Half-rate piloting mirrors the gunnery half-rate in
-    :func:`calc_hit_chance` so the two systems feel symmetric. The
-    glancing flag is returned in-place so callers can prefix the log
-    line (\"Glancing hit...\" vs \"Hit...\") without re-deriving the
-    threshold. ``gunnery`` was previously a parameter but unused; the
-    return tuple now includes ``is_glancing`` so every call site has
-    to be updated once.
-    """
-    ws = find_weapon(weapon_id)
-
-    # EMP shield-stripper: on hit, strip shields instead of dealing
-    # hull damage. Ignores armor/hull entirely; runs before the normal
-    # damage path so 0-damage EMPs never fall into the 1-damage floor.
-    if ws.shield_strip > 0:
-        strip = min(ws.shield_strip, target_shields)
+    """Apply weapon damage and return hull, shield, final-hull, glancing state."""
+    weapon = find_weapon(weapon_id)
+    if weapon.shield_strip > 0:
+        strip = min(weapon.shield_strip, target_shields)
         return 0, strip, target_hull, False
-
-    q = RNG.randint(1, 100)
-    glancing_threshold = int(target_pilot_piloting * 0.5)
-    is_glancing = q <= glancing_threshold
-    if is_glancing:
-        damage_mult = 0.5
-    else:
-        damage_mult = 0.5 + (q - glancing_threshold) / max(1, 100 - glancing_threshold)
-    raw_dmg = ws.damage * damage_mult * RNG.uniform(0.8, 1.2)
-    # Damage-reduction mult (e.g. the Juggernaut trait's -50% missile
-    # damage) applies to the raw roll BEFORE the 1-damage floor, so
-    # heavy hits are halved but small glancing hits aren't pinned at 1.
-    raw_dmg *= damage_taken_mult
-    dmg = max(1, int(raw_dmg))
-
-    if target_shields > 0:
-        shield_dmg = min(dmg, target_shields)
-        hull_dmg = dmg - shield_dmg
-    else:
-        shield_dmg = 0
-        hull_dmg = dmg
-
-    final_hull = max(0, target_hull - hull_dmg)
-    return hull_dmg, shield_dmg, final_hull, is_glancing
+    quality, is_glancing = _damage_quality(target_pilot_piloting)
+    raw_damage = weapon.damage * quality * RNG.uniform(0.8, 1.2)
+    damage = max(1, int(raw_damage * damage_taken_mult))
+    hull_damage, shield_damage, final_hull = _apply_hull_and_shields(
+        damage, target_hull, target_shields,
+    )
+    return hull_damage, shield_damage, final_hull, is_glancing
 
 
 def start_player_turn(player_state: dict) -> None:

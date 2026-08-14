@@ -36,6 +36,7 @@ from ._actions import (
     move_entity,
     _spawn_loot_at_position as _shared_loot,
     _spawn_equipment_loot_at_position as _shared_equipment_loot,
+    _spawn_field_item_loot_at_position as _shared_field_item_loot,
     set_combat_locks,
 )
 from ._animations import (
@@ -634,6 +635,11 @@ def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
     if _ent is not None and enemy.spec and enemy.spec.equipment_loot_pool:
         _pool = _tier_loot(enemy.spec.equipment_loot_pool, enemy.spec.tier)
         _shared_equipment_loot(game_map, _ent.pos, _pool)
+    if _ent is not None and enemy.spec and enemy.spec.field_item_loot_pool:
+        _shared_field_item_loot(
+            game_map, _ent.pos, enemy.spec.field_item_loot_pool,
+            count_range=enemy.spec.field_item_loot_count,
+        )
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp

@@ -619,3 +619,110 @@ def test_reload_slot_for_ammo_picks_first_matching_not_full():
     assert reload_slot_for_ammo(equipped, "kinetic_pistol") == 1
     full = [GroundWeaponInstance("kinetic_pistol", 12)]
     assert reload_slot_for_ammo(full, "kinetic_pistol") is None
+
+
+def _field_loot_context(pack=None, items=None, messages=None):
+    return type("Context", (), {
+        "ground_stats": type("Stats", (), {"strength": 10})(),
+        "ground_expedition_inventory": list(pack or []),
+        "ground_expedition_items": list(items or []),
+        "game_map": type("Map", (), {"entities": []})(),
+        "log": type("Log", (), {
+            "add": lambda self, message: (messages.append(message) if messages is not None else None),
+        })(),
+    })()
+
+
+def test_field_ammo_loot_merges_and_leaves_remainder_on_floor():
+    messages = []
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+        },
+    })()
+    ctx = _field_loot_context(
+        pack=[
+            StoredGroundEquipment("armor", "light_helmet"),
+            StoredGroundEquipment("armor", "light_vest"),
+            StoredGroundEquipment("armor", "combat_boots"),
+        ],
+        items=[GroundItemStack("ammo", "pistol_rounds", 38)],
+        messages=messages,
+    )
+    ctx.game_map.entities.append(entity)
+
+    assert loot._apply_field_item_loot_pickup(ctx, entity)
+
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+    assert entity in ctx.game_map.entities
+    assert entity.loot_data["quantity"] == 3
+    assert any("left 3" in message for message in messages)
+
+
+def test_field_ammo_loot_leaves_full_pack_unchanged(monkeypatch):
+    messages = []
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+        },
+    })()
+    ctx = _field_loot_context(
+        pack=[
+            StoredGroundEquipment("armor", "light_helmet"),
+            StoredGroundEquipment("armor", "light_vest"),
+            StoredGroundEquipment("armor", "combat_boots"),
+            StoredGroundEquipment("weapon", "combat_knife"),
+        ],
+        messages=messages,
+    )
+    ctx.game_map.entities.append(entity)
+    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: None)
+
+    assert not loot._apply_field_item_loot_pickup(ctx, entity)
+
+    assert entity in ctx.game_map.entities
+    assert ctx.ground_expedition_items == []
+    assert any("full" in message.lower() for message in messages)
+
+
+def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+        },
+    })()
+    ctx = _field_loot_context(pack=[
+        StoredGroundEquipment("armor", "light_helmet"),
+        StoredGroundEquipment("armor", "light_vest"),
+        StoredGroundEquipment("armor", "combat_boots"),
+        StoredGroundEquipment("weapon", "combat_knife"),
+    ])
+    ctx.game_map.entities.append(entity)
+    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: "DROP_PACK:3")
+
+    assert loot._apply_field_item_loot_pickup(ctx, entity)
+
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 5)]
+    assert entity not in ctx.game_map.entities
+    assert any(
+        dropped.loot_data == {"item_type": "weapon", "item_id": "combat_knife"}
+        for dropped in ctx.game_map.entities
+    )
+
+
+def test_ground_enemy_field_item_loot_is_authored_and_typed():
+    from src.spacehack.combat._actions import _spawn_field_item_loot_at_position
+    from src.spacehack import world
+
+    game_map = world.GameMap(8, 8, [[world.DUNGEON_FLOOR] * 8 for _ in range(8)], [])
+    _spawn_field_item_loot_at_position(
+        game_map, world.Position(3, 3), (("ammo", "rifle_rounds"),), count_range=(1, 1),
+    )
+
+    assert len(game_map.entities) == 1
+    assert game_map.entities[0].loot_data["item_type"] == "ammo"
+    assert game_map.entities[0].loot_data["item_id"] == "rifle_rounds"
+    assert 1 <= game_map.entities[0].loot_data["quantity"] <= 5

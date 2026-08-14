@@ -18,11 +18,14 @@ from src.spacehack.data.ground_items import (
 )
 from src.spacehack.ground_equipment import (
     GroundItemStack,
+    add_item_quantity,
     add_item_stack,
     expedition_slot_count,
+    field_item_capacity,
     item_stack_capacity,
     item_stack_merge_index,
     parse_item_stack,
+    transfer_item_stack,
     validate_item_stack,
 )
 
@@ -131,47 +134,119 @@ def test_item_stack_merge_index_finds_partial_match_only():
 def test_add_item_stack_merges_into_partial_stack_without_new_slot():
     equipment = []
     items = [GroundItemStack("ammo", "pistol_rounds", 10)]
-    result = add_item_stack(
+    remainder = add_item_stack(
         equipment, items, GroundItemStack("ammo", "pistol_rounds", 5), strength=10,
     )
-    assert result == GroundItemStack("ammo", "pistol_rounds", 15)
+    assert remainder is None
     assert items == [GroundItemStack("ammo", "pistol_rounds", 15)]
 
 
-def test_add_item_stack_clamps_merge_to_capacity():
+def test_add_item_stack_preserves_overflow_in_a_new_stack():
     equipment = []
     items = [GroundItemStack("ammo", "shotgun_shells", 18)]
-    add_item_stack(
+    remainder = add_item_stack(
         equipment, items, GroundItemStack("ammo", "shotgun_shells", 5), strength=10,
     )
-    assert items == [GroundItemStack("ammo", "shotgun_shells", 20)]
+    assert remainder is None
+    assert items == [
+        GroundItemStack("ammo", "shotgun_shells", 20),
+        GroundItemStack("ammo", "shotgun_shells", 3),
+    ]
 
 
 def test_add_item_stack_appends_new_stack_and_uses_a_slot():
     equipment = []
     items = []
-    result = add_item_stack(
+    remainder = add_item_stack(
         equipment, items, GroundItemStack("consumable", "med_pack", 2), strength=10,
     )
-    assert result == GroundItemStack("consumable", "med_pack", 2)
+    assert remainder is None
     assert items == [GroundItemStack("consumable", "med_pack", 2)]
 
 
-def test_add_item_stack_rejects_full_pack_atomically():
+def test_add_item_stack_returns_remainder_when_pack_is_full():
     equipment = ["w1", "w2", "w3", "w4"]  # capacity 4 already used
     items = []
-    with pytest.raises(ValueError, match="full"):
-        add_item_stack(
-            equipment, items, GroundItemStack("ammo", "rifle_rounds", 5), strength=10,
-        )
+    remainder = add_item_stack(
+        equipment, items, GroundItemStack("ammo", "rifle_rounds", 5), strength=10,
+    )
+    assert remainder == GroundItemStack("ammo", "rifle_rounds", 5)
     assert items == []
 
 
-def test_add_item_stack_counts_existing_stacks_in_capacity():
+def test_add_item_stack_preserves_remainder_when_no_new_slot_exists():
     equipment = ["w1", "w2", "w3"]
     items = [GroundItemStack("ammo", "rifle_rounds", 5)]
-    with pytest.raises(ValueError, match="full"):
-        add_item_stack(
-            equipment, items, GroundItemStack("consumable", "med_pack", 1), strength=10,
-        )
+    remainder = add_item_stack(
+        equipment, items, GroundItemStack("consumable", "med_pack", 1), strength=10,
+    )
+    assert remainder == GroundItemStack("consumable", "med_pack", 1)
     assert items == [GroundItemStack("ammo", "rifle_rounds", 5)]
+
+
+def test_field_item_capacity_counts_partial_stacks_and_free_pack_slots():
+    equipment = ["weapon"]
+    items = [GroundItemStack("ammo", "pistol_rounds", 38)]
+
+    assert field_item_capacity(
+        equipment, items, "ammo", "pistol_rounds",
+        strength=10, container="expedition",
+    ) == 82
+
+
+def test_add_item_quantity_splits_purchase_into_valid_stacks():
+    equipment = []
+    items = []
+
+    add_item_quantity(
+        equipment, items, "ammo", "pistol_rounds", 45,
+        strength=10, container="armory",
+    )
+
+    assert items == [
+        GroundItemStack("ammo", "pistol_rounds", 40),
+        GroundItemStack("ammo", "pistol_rounds", 5),
+    ]
+
+
+def test_add_item_quantity_rejects_pack_overflow_before_mutating():
+    equipment = ["w1", "w2", "w3", "w4"]
+    items = []
+
+    with pytest.raises(ValueError, match="capacity"):
+        add_item_quantity(
+            equipment, items, "ammo", "pistol_rounds", 1,
+            strength=10, container="expedition",
+        )
+
+    assert items == []
+
+
+def test_transfer_item_stack_merges_into_a_partial_pack_stack():
+    source = [GroundItemStack("ammo", "pistol_rounds", 5)]
+    destination_equipment = []
+    destination = [GroundItemStack("ammo", "pistol_rounds", 35)]
+
+    moved = transfer_item_stack(
+        source, destination_equipment, destination, 0,
+        destination_container="expedition", strength=10,
+    )
+
+    assert moved == GroundItemStack("ammo", "pistol_rounds", 5)
+    assert source == []
+    assert destination == [GroundItemStack("ammo", "pistol_rounds", 40)]
+
+
+def test_transfer_item_stack_rejects_full_pack_without_removing_source():
+    source = [GroundItemStack("ammo", "pistol_rounds", 5)]
+    destination_equipment = ["w1", "w2", "w3", "w4"]
+    destination = []
+
+    with pytest.raises(ValueError, match="capacity"):
+        transfer_item_stack(
+            source, destination_equipment, destination, 0,
+            destination_container="expedition", strength=10,
+        )
+
+    assert source == [GroundItemStack("ammo", "pistol_rounds", 5)]
+    assert destination == []
