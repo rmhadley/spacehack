@@ -460,6 +460,67 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
     return _dmg, False
 
 
+def is_explosive(weapon_id: str) -> bool:
+    """Whether a ground weapon resolves as an area blast."""
+    return _find_gw(weapon_id).damage_type == "explosive"
+
+
+def _apply_explosive_enemy_hit(
+    weapon_id: str,
+    enemy: GroundEnemyInstance,
+    primary: GroundEnemyInstance,
+    ctx,
+) -> tuple[GroundEnemyInstance, int, bool] | None:
+    """Apply one enemy's primary-or-splash share of an explosion."""
+    if not enemy.alive:
+        return None
+    _dx = abs(enemy.pos.x - primary.pos.x)
+    _dy = abs(enemy.pos.y - primary.pos.y)
+    if _dx > 1 or _dy > 1:
+        return None
+    _armor = enemy.spec.armor if enemy.spec else 0
+    _full_damage = _ground_damage_raw(
+        weapon_id, ctx.ground_stats.strength, _armor,
+    )
+    _is_primary = enemy is primary
+    _damage = _full_damage if _is_primary else max(1, _full_damage // 2)
+    enemy.hp -= _damage
+    if enemy.entity is not None:
+        enemy.entity.hp = max(0, enemy.hp)
+    return enemy, _damage, _is_primary
+
+
+def explosive_blast(
+    weapon_id: str,
+    primary: GroundEnemyInstance,
+    ctx,
+) -> tuple[tuple[tuple[GroundEnemyInstance, int, bool], ...], int]:
+    """Resolve an explosive hit around ``primary`` with friendly fire.
+
+    The primary cell takes full post-armor damage. Every enemy and the
+    player in one of the eight neighboring cells takes half damage,
+    rounded down with a minimum of one. Returns enemy hit details and
+    player damage so the shared loop can log and process kills.
+    """
+    _enemy_hits = tuple(
+        _hit for _enemy in _state.enemies
+        if (_hit := _apply_explosive_enemy_hit(
+            weapon_id, _enemy, primary, ctx,
+        )) is not None
+    )
+    _player_dx = abs(ctx.player.pos.x - primary.pos.x)
+    _player_dy = abs(ctx.player.pos.y - primary.pos.y)
+    if _player_dx <= 1 and _player_dy <= 1:
+        _full_damage = _ground_damage_raw(
+            weapon_id, 0, _state.armor_defense,
+        )
+        _player_damage = max(1, _full_damage // 2)
+        _state.player_hp -= _player_damage
+    else:
+        _player_damage = 0
+    return _enemy_hits, _player_damage
+
+
 # ---------------------------------------------------------------------------
 # Weapon actions
 # ---------------------------------------------------------------------------

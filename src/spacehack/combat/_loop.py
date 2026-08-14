@@ -207,10 +207,113 @@ def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -
     return _hit, rules.weapon_ap_cost(_wid, ctx)
 
 
-def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
-    """Fire all active weapons; return True if the target died."""
+def _log_explosive_result(
+    ctx, rules, weapon_id: str, weapon_name: str, target,
+    enemy_hits: tuple, player_damage: int,
+) -> None:
+    """Log primary, splash, and friendly-fire results for one blast."""
     from .. import message_log as _ml
 
+    _primary_damage = next(
+        (_dmg for _enemy, _dmg, _primary in enemy_hits if _primary),
+        0,
+    )
+    ctx.log.add_colored(
+        _player_attack_line(
+            weapon_id, weapon_name, rules.enemy_name(target),
+            hit=True, hull_dmg=_primary_damage,
+        ),
+        _ml.COLOR_PLAYER_ACTION,
+    )
+    for _enemy, _dmg, _primary in enemy_hits:
+        if not _primary:
+            ctx.log.add_colored(
+                f"{weapon_name} blast hits {_enemy.name} for {_dmg} damage.",
+                _ml.COLOR_PLAYER_ACTION,
+            )
+    if player_damage > 0:
+        ctx.log.add_colored(
+            f"The {weapon_name.lower()} blast catches you for {player_damage} damage!",
+            _ml.COLOR_COMBAT_EVENT,
+        )
+
+
+def _process_explosive_kills(ctx, game_map, rules, enemy_hits: tuple) -> None:
+    """Run normal loot/XP handling for every enemy killed by a blast."""
+    from .. import message_log as _ml
+
+    for _enemy, _dmg, _primary in enemy_hits:
+        if rules.enemy_alive(_enemy):
+            continue
+        ctx.log.add_colored(
+            f"{rules.enemy_name(_enemy)} destroyed!",
+            _ml.COLOR_COMBAT_EVENT,
+        )
+        rules.on_kill(game_map, _enemy, ctx)
+
+
+def _fire_explosive_weapon(
+    console, ctx, game_map, rules, slot: int, target, player_pos,
+) -> tuple[bool, int]:
+    """Fire one explosive weapon and resolve its full friendly-fire blast."""
+    _wid = rules.player_weapons(ctx)[slot]
+    _ok, _reason = rules.can_fire(slot, ctx)
+    _wname = rules.weapon_name(_wid, ctx)
+    if not _ok:
+        ctx.log.add(f"{_wname}: {_reason}")
+        return False, 0
+    if _reason:
+        ctx.log.add(_reason)
+    _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
+    _enemy_hits: tuple = ()
+    _player_damage = 0
+    if _hit:
+        _enemy_hits, _player_damage = rules.explosive_blast(_wid, target, ctx)
+    _primary_damage = next(
+        (_dmg for _enemy, _dmg, _primary in _enemy_hits if _primary),
+        0,
+    )
+    _popup = _damage_popup_for(_primary_damage, 0, False)
+    rules.animate_fire(
+        console, ctx, game_map, player_pos, rules.enemy_pos(target),
+        is_hit=_hit, damage=_popup, weapon_id=_wid,
+    )
+    if _hit:
+        _log_explosive_result(
+            ctx, rules, _wid, _wname, target, _enemy_hits, _player_damage,
+        )
+        _process_explosive_kills(ctx, game_map, rules, _enemy_hits)
+    else:
+        from .. import message_log as _ml
+        ctx.log.add_colored(
+            _player_attack_line(_wid, _wname, rules.enemy_name(target), hit=False),
+            _ml.COLOR_PLAYER_ACTION,
+        )
+    rules.consume_shot(slot, ctx)
+    return _hit, rules.weapon_ap_cost(_wid, ctx)
+
+
+def _fire_active_slot(
+    console, ctx, game_map, rules, slot: int, target, player_pos,
+) -> tuple[bool, int, bool]:
+    """Fire one active slot and report whether it handled its own kills."""
+    _wid = rules.player_weapons(ctx)[slot]
+    _is_explosive = getattr(
+        rules, "is_explosive", lambda _weapon_id: False,
+    )(_wid)
+    if _is_explosive:
+        _hit, _ap_cost = _fire_explosive_weapon(
+            console, ctx, game_map, rules, slot, target, player_pos,
+        )
+    else:
+        _hit, _ap_cost = _fire_weapon(
+            console, ctx, game_map, rules, slot, target, player_pos,
+        )
+    return _hit, _ap_cost, _is_explosive and not rules.enemy_alive(target)
+
+
+def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
+    """Fire all active weapons; return True if the primary target died."""
     _fire_slots = _fire_slot_indexes(rules.player_weapons(ctx), rules.active_weapons(ctx))
     if not _fire_slots:
         ctx.log.add("No active weapons to fire.")
@@ -225,19 +328,27 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     # burst still costs its full AP (kill handling sits after the deduction).
     _max_ap_cost = 0
     _any_hit = False
+    _explosive_target_handled = False
     for _slot in _fire_slots:
         if not rules.enemy_alive(_target):
             break
-        _hit, _ap_cost = _fire_weapon(console, ctx, game_map, rules, _slot, _target, _player_pos)
+        _hit, _ap_cost, _handled_kills = _fire_active_slot(
+            console, ctx, game_map, rules, _slot, _target, _player_pos,
+        )
+        _explosive_target_handled = _explosive_target_handled or _handled_kills
         _max_ap_cost = max(_max_ap_cost, _ap_cost)
         _any_hit = _any_hit or _hit
     if _max_ap_cost > 0:
         rules.set_player_ap(ctx, rules.player_ap(ctx) - _max_ap_cost)
-    if _any_hit and not rules.enemy_alive(_target):
-        ctx.log.add_colored(f"{rules.enemy_name(_target)} destroyed!", _ml.COLOR_COMBAT_EVENT)
+    if _any_hit and not rules.enemy_alive(_target) and not _explosive_target_handled:
+        from .. import message_log as _ml
+        ctx.log.add_colored(
+            f"{rules.enemy_name(_target)} destroyed!",
+            _ml.COLOR_COMBAT_EVENT,
+        )
         rules.on_kill(game_map, _target, ctx)
         return True
-    return False
+    return _any_hit and not rules.enemy_alive(_target)
 
 
 def _end_turn(ctx, game_map, rules) -> str | None:
@@ -357,6 +468,9 @@ def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_i
 
 def _end_player_turn(ctx, game_map, rules, turn: int, presenter):
     """Run enemies when AP is spent. Returns ``(turn, presenter, defeat_or_None)``."""
+    if rules is _rules_ground and rules.player_hp(ctx) <= 0:
+        rules.on_player_death(ctx)
+        return turn, presenter, "DEFEAT"
     if rules.player_ap(ctx) > 0:
         return turn, presenter, None
     _end_result = _end_turn(ctx, game_map, rules)

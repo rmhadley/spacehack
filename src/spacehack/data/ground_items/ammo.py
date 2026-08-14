@@ -48,6 +48,6 @@ AMMO: tuple[GroundAmmoSpec, ...] = (
         name="Rockets",
         ammo_type="rocket",
         rounds_per_stack=4,
-        price_per_round=15,
+        price_per_round=20,
     ),
 )

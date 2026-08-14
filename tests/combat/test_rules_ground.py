@@ -115,12 +115,12 @@ class TestGroundDamageRaw:
         assert dmg == 1
 
     def test_plasma_halves_armor(self):
-        """plasma_pistol dmg 9 vs armor 6 → 6//2=3 → 6."""
-        assert _ground_damage_raw("plasma_pistol", 10, 6) == 6
+        """plasma_pistol dmg 8 vs armor 6 → 6//2=3 → 5."""
+        assert _ground_damage_raw("plasma_pistol", 10, 6) == 5
 
     def test_plasma_odd_armor_rounds_down(self):
-        """armor 5 → 5//2=2 → plasma_pistol 9 - 2 = 7."""
-        assert _ground_damage_raw("plasma_pistol", 10, 5) == 7
+        """armor 5 → 5//2=2 → plasma_pistol 8 - 2 = 6."""
+        assert _ground_damage_raw("plasma_pistol", 10, 5) == 6
 
     def test_melee_bonus_applies_to_melee_only(self):
         assert _ground_damage_raw("fists", 10, 0, melee_bonus=2) == 4  # 1+1+2
@@ -815,6 +815,116 @@ class TestTargetCardToggle:
         assert _rules_ground._state.show_target_card is False
         _rules_ground.toggle_target_card(_ctx)
         assert _rules_ground._state.show_target_card is True
+
+
+# ---------------------------------------------------------------------------
+# Explosive splash and friendly fire
+# ---------------------------------------------------------------------------
+
+
+def _explosive_fixture(*, player_pos=world.Position(3, 3)):
+    """Build a rocket-launcher combat state with adjacent enemies."""
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(9)] for _ in range(9)]
+    _game_map = world.GameMap(9, 9, _tiles, [])
+    _player = world.Entity(
+        "@", (255, 255, 255), player_pos, "Player",
+    )
+    _primary = world.Entity(
+        "D", (255, 100, 100), world.Position(3, 5), "Primary",
+        npc_char_id="assault_drone",
+    )
+    _neighbor = world.Entity(
+        "D", (255, 100, 100), world.Position(4, 5), "Neighbor",
+        npc_char_id="assault_drone",
+    )
+    _game_map.entities.extend((_player, _primary, _neighbor))
+    _ctx = SimpleNamespace(
+        player=_player,
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        ground_hp=23,
+        ground_max_hp=23,
+        equipped_ground_weapons=[_weapon("rocket_launcher")],
+        equipped_ground_armor={},
+        ground_expedition_items=[GroundItemStack("ammo", "rockets", 4)],
+        player_traits=[],
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        log=SimpleNamespace(
+            add=lambda _message: None,
+            add_colored=lambda _message, _color: None,
+        ),
+    )
+    _rules_ground.init(_ctx, [_primary, _neighbor], _game_map)
+    return _ctx, _game_map, _primary, _neighbor
+
+
+def test_explosive_blast_hits_primary_full_and_neighbors_half():
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
+
+    _primary_instance = _rules_ground._state.enemies[0]
+    _hits, _player_damage = _rules_ground.explosive_blast(
+        "rocket_launcher", _primary_instance, _ctx,
+    )
+
+    assert [(enemy.name, damage, primary) for enemy, damage, primary in _hits] == [
+        ("Assault Drone", 27, True),
+        ("Assault Drone", 13, False),
+    ]
+    assert _player_damage == 0
+    assert _primary.hp == 12
+    assert _neighbor.hp == 26
+
+
+def test_explosive_blast_has_friendly_fire_and_armor_mitigation():
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture(
+        player_pos=world.Position(3, 4),
+    )
+
+    _primary_instance = _rules_ground._state.enemies[0]
+    _hits, _player_damage = _rules_ground.explosive_blast(
+        "rocket_launcher", _primary_instance, _ctx,
+    )
+
+    assert _player_damage == 15  # half of the 30-damage unarmored blast
+    assert _rules_ground.player_hp(_ctx) == 8
+
+
+def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatch):
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
+    _rules_ground._state.enemies[1].hp = 5
+    _neighbor.hp = 5
+    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
+
+    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+
+    assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
+    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "rockets", 4)]
+    assert _neighbor not in _game_map.entities
+    assert _primary in _game_map.entities
+    assert _rules_ground.player_ap(_ctx) == 1
+
+
+def test_ground_balance_roles_keep_explosives_burstier_than_infinite_plasma():
+    """Catalog guardrails for the first hybrid-ammo balance pass."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    _rocket = find_ground_weapon("rocket_launcher")
+    _grenade = find_ground_weapon("grenade_launcher")
+    _caster = find_ground_weapon("plasma_caster")
+    _plasma_pistol = find_ground_weapon("plasma_pistol")
+    _carbine = find_ground_weapon("laser_carbine")
+    _vibroblade = find_ground_weapon("vibroblade")
+
+    assert (_rocket.damage, _rocket.accuracy, _rocket.reload_ap_cost) == (30, 55, 2)
+    assert (_grenade.damage, _grenade.accuracy) == (16, 60)
+    assert _rocket.damage > _caster.damage
+    assert _rocket.ammo_capacity == 4
+    assert _caster.ammo_capacity == -1
+    assert _plasma_pistol.ap_cost == 2
+    assert _carbine.ap_cost == 2
+    assert _vibroblade.ap_cost == 2
 
 
 # ---------------------------------------------------------------------------
