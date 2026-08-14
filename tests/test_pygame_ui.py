@@ -155,6 +155,23 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
     assert len(ctx.ground_expedition_inventory) == 1
 
 
+def test_character_r_reload_prepares_selected_weapon_outside_combat():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[],
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    assert character_screen._apply_character_select(
+        ctx, "RELOAD_SELECTED:0", 1, 0,
+        equipment_management=True, in_ground_combat=False,
+    ) == (0, False)
+    assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
+
+
 def test_character_equipment_ammo_stack_reloads_matching_weapon():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
@@ -1209,16 +1226,21 @@ def test_screen_key_mapping_supports_tabs_and_paging():
         K_j = 18
         K_RETURN = 19
         K_KP_ENTER = 20
+        K_r = 21
 
     fake = FakePygame()
     frame = pygame_screen.ScreenFrame(
         "T", (), (pygame_screen.ScreenRow("row", action="A"),),
+        shortcuts=(("r", "RELOAD_SELECTED:0"),),
     )
     key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
 
     assert pygame_screen._handle_key(fake, key(fake.K_TAB), frame) == ("TAB", 0)
     assert pygame_screen._handle_key(fake, key(fake.K_PAGEDOWN), frame) == ("PAGE_DOWN", 0)
     assert pygame_screen._handle_key(fake, key(fake.K_PAGEUP), frame) == ("PAGE_UP", 0)
+    assert pygame_screen._handle_key(fake, key(fake.K_r), frame) == (
+        "SHORTCUT:RELOAD_SELECTED:0", 0,
+    )
 
 
 def test_scrollable_body_scrolls_with_vim_keys_and_arrows():
@@ -2151,6 +2173,8 @@ def test_character_equipment_management_explains_backpack_actions():
     )
 
     assert frame.body[1] == "Select a row and press ENTER to equip, use, reload, or discard."
+    assert "[R] reload" in frame.footer[0]
+    assert frame.shortcuts == (("r", "RELOAD_SELECTED:0"),)
     assert frame.footer[0].endswith("ESC close   ? guide")
 
 

@@ -301,8 +301,9 @@ The Equipment tab should become a general **Expedition Pack** view:
 - Header: `EXPEDITION PACK (current/max)`.
 - Active loadout rows remain at the top.
 - Backpack rows are selectable.
-- Weapon row chooser: `Reload` when the equipped weapon has matching reserve
-  ammo, plus compatible pack weapons for swapping.
+- Outside combat, the Equipment footer shows `[R] reload`; pressing `R` on an
+  equipped weapon reloads it for free. The weapon row also offers `Reload`
+  alongside compatible pack weapons for swapping.
 - Weapon/armor row chooser: `Equip` / `Discard` for pack equipment.
 - Ammo row chooser: `Reload` / `Discard` when a matching active weapon exists;
   if multiple weapons use that ammo, `Reload` opens a weapon chooser; otherwise
