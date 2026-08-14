@@ -187,7 +187,7 @@ def _swap_options(ctx: GameContext, item_type: str, slot: str) -> tuple[tuple[in
                 if find_ground_armor(entry.item_id).slot != slot:
                     continue
             elif slot == "1" and ctx.equipped_ground_weapons:
-                if ground_equipment.weapon_hands(ctx.equipped_ground_weapons[0]) == 2:
+                if ground_equipment.weapon_hands(ctx.equipped_ground_weapons[0].weapon_id) == 2:
                     continue
                 if ground_equipment.weapon_hands(entry.item_id) == 2:
                     continue
@@ -283,7 +283,7 @@ def _weapon_rows(
 ) -> list:
     """Build the two weapon-slot rows for the active ground loadout."""
     rows: list = []
-    weapons = list(ctx.equipped_ground_weapons)
+    weapons = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
     while len(weapons) < 2:
         weapons.append("")
     first_weapon_is_two_handed = _first_weapon_is_two_handed(weapons)

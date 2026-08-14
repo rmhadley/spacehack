@@ -23,7 +23,11 @@ from src.spacehack import world
 from src.spacehack.saveload import save_game, load_game, delete_save
 from src.spacehack import dungeon_extensions
 from src.spacehack.ship import OwnedShip, StoredEquipment
-from src.spacehack.ground_equipment import StoredGroundEquipment, GroundItemStack
+from src.spacehack.ground_equipment import (
+    GroundItemStack,
+    GroundWeaponInstance,
+    StoredGroundEquipment,
+)
 
 
 def _build_test_ctx() -> GameContext:
@@ -817,7 +821,10 @@ class TestSaveLoadRoundTrip:
         RNG.seed(53)
         ctx = _build_test_ctx()
         ctx.ground_stats.strength = 20
-        ctx.equipped_ground_weapons = ["laser_pistol", "combat_knife"]
+        ctx.equipped_ground_weapons = [
+            GroundWeaponInstance("laser_pistol", 37),
+            GroundWeaponInstance("combat_knife", None),
+        ]
         ctx.equipped_ground_armor = {"body": "light_vest"}
         ctx.ground_armory_storage = [
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -837,6 +844,59 @@ class TestSaveLoadRoundTrip:
         assert loaded.equipped_ground_armor == ctx.equipped_ground_armor
         assert loaded.ground_armory_storage == ctx.ground_armory_storage
         assert loaded.ground_expedition_inventory == ctx.ground_expedition_inventory
+        delete_save()
+
+    def test_round_trip_duplicate_weapon_instances_keep_independent_ammo(
+        self, monkeypatch, tmp_path,
+    ):
+        """Two copies of the same weapon hold independent magazines."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(60)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("kinetic_pistol", 11),
+        ]
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("kinetic_pistol", 11),
+        ]
+        delete_save()
+
+    def test_legacy_string_weapons_migrate_to_full_magazines(
+        self, monkeypatch, tmp_path,
+    ):
+        """Pre-instance saves load as instances seeded at full magazines."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(61)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload["equipped_ground_weapons"] = ["kinetic_pistol", "combat_knife"]
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("kinetic_pistol", 12),
+            GroundWeaponInstance("combat_knife", None),
+        ]
         delete_save()
 
     def test_round_trip_ground_item_stacks(self, monkeypatch, tmp_path):

@@ -24,6 +24,7 @@ from src.spacehack import (
 from src.spacehack.menus import _armory, _missions, _planet, _ship_buy, _ship_menu
 from src.spacehack import navigation, npc, pygame_split
 from src.spacehack.main_quest import _act0
+from src.spacehack.ground_equipment import weapon_instance
 from tests.support.fake_pygame import FakeFont as _FakeFont
 
 
@@ -51,7 +52,7 @@ def test_character_equipment_backpack_rows_are_selectable():
     from src.spacehack.ground_equipment import StoredGroundEquipment
 
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -72,7 +73,7 @@ def test_character_equipment_backpack_discard_removes_selected_item(monkeypatch)
 
     messages = []
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -96,7 +97,7 @@ def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
 
     choices = []
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -112,7 +113,7 @@ def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
     monkeypatch.setattr(pygame_story, "choose", choose)
 
     assert character_screen._manage_pack_item(ctx, "PACK_ITEM:0") == "EQUIP"
-    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_expedition_inventory[0].item_id == "laser_pistol"
     assert choices[0]["options"] == (
         ("Equip", "PACK_EQUIP:0"),
@@ -125,7 +126,7 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
     from src.spacehack.ground_equipment import StoredGroundEquipment
 
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -146,7 +147,7 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
         ("Equip (requires 1 AP)", "PACK_EQUIP:0"),
         ("Discard", "PACK_DISCARD:0"),
     )
-    assert ctx.equipped_ground_weapons == ["laser_pistol"]
+    assert ctx.equipped_ground_weapons == [weapon_instance("laser_pistol")]
     assert len(ctx.ground_expedition_inventory) == 1
 
 
@@ -1932,7 +1933,7 @@ def test_armory_empty_views_explain_storage_scope():
 
 def test_armory_frame_uses_shared_content_policy():
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     )
@@ -1953,7 +1954,7 @@ def test_armory_frame_uses_shared_content_policy():
     assert manage_cells and all(cell.startswith("(sell ") for cell in manage_cells)
 
     two_handed = _armory._pygame_armory_frame(SimpleNamespace(
-        equipped_ground_weapons=["laser_rifle"],
+        equipped_ground_weapons=[weapon_instance("laser_rifle")],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     ), "earth")
@@ -1965,7 +1966,7 @@ def test_armory_frame_uses_shared_content_policy():
 
 def test_character_equipment_rows_offer_only_weapon_one_for_two_handed_pack_items():
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=(
             __import__(
@@ -1986,7 +1987,7 @@ def test_character_equipment_rows_offer_only_weapon_one_for_two_handed_pack_item
 
 def test_character_equipment_rows_mirror_loadout_slots():
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={"body": "light_vest"},
     )
 
@@ -2003,7 +2004,7 @@ def test_character_equipment_rows_mirror_loadout_slots():
     assert rows[1].text == "Weapon slot 2: Fists"
 
     two_handed = character_screen._equipment_rows(SimpleNamespace(
-        equipped_ground_weapons=["laser_rifle"],
+        equipped_ground_weapons=[weapon_instance("laser_rifle")],
         equipped_ground_armor={},
     ))
     assert not two_handed[1].selectable
@@ -2066,7 +2067,7 @@ def test_character_equipment_management_explains_backpack_actions():
 
 def test_character_equipment_management_keeps_slots_selectable_without_pack_items():
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={"body": "light_vest"},
         ground_expedition_inventory=[],
     )
@@ -2087,7 +2088,7 @@ def test_character_equipment_management_keeps_slots_selectable_without_pack_item
 def test_character_equipment_management_reports_empty_compatible_choices():
     messages = []
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[],
         log=SimpleNamespace(add=messages.append),
@@ -2300,7 +2301,7 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
         pygame_story, "choose", lambda *_args, **_kwargs: "INSTALL_ARMORY:0",
     )
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_rifle"),
@@ -2312,7 +2313,7 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
 
     _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
 
-    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_armory_storage == []
     assert ctx.ground_expedition_inventory == [
         _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
@@ -2327,7 +2328,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
         pygame_story, "choose", lambda *_args, **_kwargs: "INSTALL_ARMORY:0",
     )
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_rifle"),
@@ -2343,7 +2344,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
 
     _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
 
-    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_expedition_inventory[-1].item_id == "combat_boots"
     assert ctx.ground_armory_storage == [
         _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
@@ -2354,7 +2355,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
 def test_armory_purchase_equip_uses_armory_fallback_when_pack_is_full(monkeypatch):
     messages = []
     ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol", "kinetic_pistol"],
+        equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
         equipped_ground_armor={},
         ground_armory_storage=[],
         ground_expedition_inventory=[
@@ -2373,7 +2374,7 @@ def test_armory_purchase_equip_uses_armory_fallback_when_pack_is_full(monkeypatc
 
     _armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_rifle", 0, 0)
 
-    assert ctx.equipped_ground_weapons == ["laser_rifle"]
+    assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert [entry.item_id for entry in ctx.ground_armory_storage] == [
         "laser_pistol", "kinetic_pistol",
     ]
@@ -2426,7 +2427,7 @@ def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
     )
 
     assert keep_open is True
-    assert ctx.equipped_ground_weapons == ["laser_pistol"]
+    assert ctx.equipped_ground_weapons == [weapon_instance("laser_pistol")]
     assert ctx.stats.credits < 1000
     assert messages
 

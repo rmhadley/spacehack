@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 from src.spacehack import mission
 from src.spacehack import tutorial
+from src.spacehack.ground_equipment import GroundWeaponInstance
 from src.spacehack.ship import OwnedShip
 
 
@@ -54,7 +55,7 @@ class _StubCtx:
         self.mission_boards: dict = {}
         self.player_active_missions: list = []
         self.player_owned_ship = None
-        self.equipped_ground_weapons: list[str] = []
+        self.equipped_ground_weapons: list[GroundWeaponInstance] = []
         self.current_city_id = "earth"
         self.main_quest_progress: dict = {}
         self.faction_reputation: dict = {}
@@ -388,12 +389,12 @@ class TestMarsAndFinale:
     def test_armed_ground_fires_after_armory_buy(self):
         ctx = self._tutorial_ctx()
         assert self._run(ctx, "city") == ["earth_armory"]
-        ctx.equipped_ground_weapons = ["kinetic_rifle"]
+        ctx.equipped_ground_weapons = [GroundWeaponInstance("kinetic_rifle", 20)]
         assert self._run(ctx, "city") == ["armed_ground"]
 
     def test_armed_ground_gated_on_armory_beat(self):
         ctx = self._tutorial_ctx()
-        ctx.equipped_ground_weapons = ["kinetic_rifle"]  # bought early
+        ctx.equipped_ground_weapons = [GroundWeaponInstance("kinetic_rifle", 20)]  # bought early
         assert self._run(ctx, "city") == ["earth_armory"]  # armory first
         assert self._run(ctx, "city") == ["armed_ground"]
 

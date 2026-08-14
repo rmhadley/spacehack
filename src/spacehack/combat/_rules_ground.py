@@ -290,7 +290,7 @@ def player_ap_total(ctx) -> int:
 
 
 def player_weapons(ctx) -> list[str]:
-    _w = list(ctx.equipped_ground_weapons)
+    _w = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
     return _w if _w else ["fists"]
 
 
@@ -304,7 +304,7 @@ def set_active_weapons(ctx, active: list[bool]) -> None:
 
 def refresh_equipment_state(ctx) -> None:
     """Refresh cached ground-combat equipment after a character-screen swap."""
-    _weapons = list(ctx.equipped_ground_weapons) or ["fists"]
+    _weapons = [instance.weapon_id for instance in ctx.equipped_ground_weapons] or ["fists"]
     _state.active_weapon_list = [
         _state.active_weapon_list[index]
         if index < len(_state.active_weapon_list) else True

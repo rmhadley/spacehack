@@ -357,11 +357,11 @@ Migration rules:
 
 ### Phase 2 - Ground weapon instances and magazine state
 
-- [ ] Add per-instance active weapon state and legacy string-ID migration.
-- [ ] Seed legacy reloadable weapons deterministically at full magazines.
-- [ ] Serialize duplicate weapon instances independently.
-- [ ] Update armory purchase/store/install paths transactionally.
-- [ ] Preserve two-handed transitions and displaced gear.
+- [x] Add per-instance active weapon state and legacy string-ID migration.
+- [x] Seed legacy reloadable weapons deterministically at full magazines.
+- [x] Serialize duplicate weapon instances independently.
+- [x] Update armory purchase/store/install paths transactionally.
+- [x] Preserve two-handed transitions and displaced gear.
 
 ### Phase 3 - Fire consumption and reload action
 

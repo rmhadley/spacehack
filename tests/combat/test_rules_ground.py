@@ -24,6 +24,7 @@ from src.spacehack.combat._rules_ground import (
     _calc_ground_move_dodge,
     _ground_point_blank_penalty,
 )
+from src.spacehack.ground_equipment import weapon_instance as _weapon
 
 
 def test_ground_volley_costs_uses_max_ap():
@@ -242,7 +243,7 @@ class TestGroundCanFire:
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             ground_hp=23,
             ground_max_hp=23,
-            equipped_ground_weapons=["kinetic_rifle"],
+            equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
@@ -281,7 +282,7 @@ class TestGroundPointBlankFire:
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             ground_hp=23,
             ground_max_hp=23,
-            equipped_ground_weapons=["kinetic_rifle", "kinetic_rifle"],
+            equipped_ground_weapons=[_weapon("kinetic_rifle"), _weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
@@ -317,7 +318,7 @@ class TestGroundPointBlankFire:
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             ground_hp=23,
             ground_max_hp=23,
-            equipped_ground_weapons=["kinetic_rifle"],
+            equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
@@ -354,7 +355,7 @@ class TestGroundPointBlankFire:
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             ground_hp=23,
             ground_max_hp=23,
-            equipped_ground_weapons=["kinetic_rifle"],
+            equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
@@ -374,7 +375,7 @@ class TestGroundPointBlankFire:
 
 def test_refresh_equipment_state_rebuilds_weapon_and_armor_cache(monkeypatch):
     _ctx = SimpleNamespace(
-        equipped_ground_weapons=["laser_pistol"],
+        equipped_ground_weapons=[_weapon("laser_pistol")],
         equipped_ground_armor={"body": "heavy_vest"},
     )
     monkeypatch.setattr(
@@ -388,7 +389,7 @@ def test_refresh_equipment_state_rebuilds_weapon_and_armor_cache(monkeypatch):
         ),
     )
 
-    _ctx.equipped_ground_weapons[:] = ["laser_rifle"]
+    _ctx.equipped_ground_weapons[:] = [_weapon("laser_rifle")]
     _rules_ground.refresh_equipment_state(_ctx)
 
     assert _rules_ground._state.active_weapon_list == [False]
@@ -431,7 +432,7 @@ def _ground_fixture():
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
         ground_hp=23,
         ground_max_hp=23,
-        equipped_ground_weapons=["fists"],
+        equipped_ground_weapons=[_weapon("fists")],
         equipped_ground_armor={},
         player_traits=[],
         log=SimpleNamespace(

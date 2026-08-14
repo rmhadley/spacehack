@@ -197,7 +197,7 @@ def _weapon_slot_rows(ctx: GameContext):
     from ..data.ground_weapons import find_ground_weapon
 
     rows = [pygame_split.section_header("WEAPON SLOTS")]
-    weapons = list(ctx.equipped_ground_weapons)
+    weapons = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
     for index in range(max(2, len(weapons))):
         try:
             two_handed = bool(weapons) and ground_equipment.weapon_hands(weapons[0]) == 2
@@ -614,7 +614,7 @@ def _manage_loadout(ctx, action: str) -> None:
         slot = int(slot_text)
         if not 0 <= slot < len(ctx.equipped_ground_weapons):
             return
-        item_id = ctx.equipped_ground_weapons[slot]
+        item_id = ctx.equipped_ground_weapons[slot].weapon_id
     else:
         slot = slot_text
         item_id = ctx.equipped_ground_armor.get(slot)

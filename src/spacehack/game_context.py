@@ -295,9 +295,12 @@ class GameContext:
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
     # Ground combat stats (reflexes, strength, stamina).
     ground_stats: _GroundStats = dataclasses.field(default_factory=_GroundStats)
-    # Equipped ground weapon list. Two-handed specs occupy both logical
-    # weapon slots while remaining one ID in this normalized list.
-    equipped_ground_weapons: list[str] = dataclasses.field(default_factory=list)
+    # Equipped ground weapon instances. Two-handed specs occupy both
+    # logical weapon slots while remaining one entry in this normalized
+    # list. Each instance carries its own magazine (design doc 19, Phase 2).
+    equipped_ground_weapons: list[ground_equipment_module.GroundWeaponInstance] = dataclasses.field(
+        default_factory=list,
+    )
     # Equipped ground armor by slot: slot -> GroundArmorSpec id.
     # Slots: head, body, hands, legs, feet.
     equipped_ground_armor: dict[str, str] = dataclasses.field(default_factory=dict)

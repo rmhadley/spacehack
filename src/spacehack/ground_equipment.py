@@ -90,6 +90,19 @@ class GroundItemStack:
     quantity: int
 
 
+@dataclass(frozen=True)
+class GroundWeaponInstance:
+    """One active ground weapon with its per-instance magazine state.
+
+    ``loaded_ammo`` is ``None`` for infinite/melee weapons and an int
+    clamped to ``[0, ammo_capacity]`` for reloadable weapons. Duplicate
+    weapon ids are separate instances with independent magazines.
+    """
+
+    weapon_id: str
+    loaded_ammo: int | None
+
+
 def expedition_capacity(strength: int) -> int:
     """Return reserve-item capacity for a character's Strength."""
     return BASE_EXPEDITION_SLOTS + max(0, (strength - 10) // 10)
@@ -100,21 +113,69 @@ def weapon_hands(weapon_id: str) -> int:
     return find_ground_weapon(weapon_id).hands
 
 
+def weapon_instance(weapon_id: str) -> GroundWeaponInstance:
+    """Build a fresh instance for a catalog weapon, seeded at full magazine."""
+    spec = find_ground_weapon(weapon_id)
+    if spec.ammo_capacity <= 0:
+        return GroundWeaponInstance(weapon_id, None)
+    return GroundWeaponInstance(weapon_id, spec.ammo_capacity)
+
+
+def weapon_ids(instances: Iterable[GroundWeaponInstance]) -> list[str]:
+    """Return the weapon ids from a list of active weapon instances."""
+    return [instance.weapon_id for instance in instances]
+
+
+def parse_weapon_instance(raw) -> GroundWeaponInstance | None:
+    """Parse a serialized weapon instance or a legacy string id.
+
+    Legacy ``list[str]`` save entries are seeded at full magazine; a dict
+    carrying ``weapon_id`` + ``loaded_ammo`` is validated and clamped to
+    ``[0, ammo_capacity]``. Unknown ids return ``None``.
+    """
+    if isinstance(raw, str):
+        try:
+            return weapon_instance(raw)
+        except KeyError:
+            return None
+    if not isinstance(raw, dict):
+        return None
+    weapon_id = raw.get("weapon_id")
+    if not isinstance(weapon_id, str) or not weapon_id:
+        return None
+    try:
+        spec = find_ground_weapon(weapon_id)
+    except KeyError:
+        return None
+    if spec.ammo_capacity <= 0:
+        return GroundWeaponInstance(weapon_id, None)
+    loaded = raw.get("loaded_ammo")
+    if loaded is None:
+        return GroundWeaponInstance(weapon_id, spec.ammo_capacity)
+    try:
+        loaded = int(loaded)
+    except (TypeError, ValueError):
+        return GroundWeaponInstance(weapon_id, spec.ammo_capacity)
+    return GroundWeaponInstance(weapon_id, min(max(0, loaded), spec.ammo_capacity))
+
+
 def weapon_slot_occupancy(weapon_ids: Iterable[str]) -> int:
     """Return logical hand occupancy for an active weapon list."""
     return sum(weapon_hands(weapon_id) for weapon_id in weapon_ids)
 
 
-def can_fit_weapons(weapon_ids: Iterable[str], new_weapon_id: str) -> bool:
+def can_fit_weapons(
+    instances: Iterable[GroundWeaponInstance], new_weapon_id: str,
+) -> bool:
     """Return whether a weapon can fit without replacing active weapons."""
-    return weapon_slot_occupancy(weapon_ids) + weapon_hands(new_weapon_id) <= WEAPON_SLOT_COUNT
+    return weapon_slot_occupancy(weapon_ids(instances)) + weapon_hands(new_weapon_id) <= WEAPON_SLOT_COUNT
 
 
 def displaced_weapon_count(
-    weapon_ids: Iterable[str], new_weapon_id: str,
+    instances: Iterable[GroundWeaponInstance], new_weapon_id: str,
 ) -> int:
     """Return how many active weapons an equip action must displace."""
-    current = tuple(weapon_ids)
+    current = tuple(instances)
     return 0 if can_fit_weapons(current, new_weapon_id) else len(current)
 
 
@@ -188,7 +249,7 @@ def _validate_transfer_capacity(
 
 
 def _apply_weapon_install(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     storage: list[StoredGroundEquipment],
     storage_index: int,
     weapon_id: str,
@@ -200,14 +261,15 @@ def _apply_weapon_install(
     storage.pop(storage_index)
     if displaced_storage is not None:
         displaced_storage.extend(displaced)
+    instance = weapon_instance(weapon_id)
     if fits_without_replacement:
-        equipped_weapons.append(weapon_id)
+        equipped_weapons.append(instance)
     else:
-        equipped_weapons[:] = [weapon_id]
+        equipped_weapons[:] = [instance]
 
 
 def store_weapon(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     storage: list[StoredGroundEquipment],
     slot_index: int,
     *,
@@ -218,8 +280,8 @@ def store_weapon(
     _require_container(container)
     if not 0 <= slot_index < len(equipped_weapons):
         raise IndexError("Invalid ground weapon slot")
-    weapon_id = equipped_weapons[slot_index]
-    entry = StoredGroundEquipment("weapon", weapon_id)
+    instance = equipped_weapons[slot_index]
+    entry = StoredGroundEquipment("weapon", instance.weapon_id)
     _validate_entry(entry)
     proposed_storage = [*storage, entry]
     if container == EXPEDITION_INVENTORY:
@@ -269,13 +331,14 @@ def add_stored(
 
 
 def remove_weapon(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     slot_index: int,
 ) -> StoredGroundEquipment:
     """Remove one active weapon and return its owned-equipment entry."""
     if not 0 <= slot_index < len(equipped_weapons):
         raise IndexError("Invalid ground weapon slot")
-    entry = StoredGroundEquipment("weapon", equipped_weapons[slot_index])
+    instance = equipped_weapons[slot_index]
+    entry = StoredGroundEquipment("weapon", instance.weapon_id)
     _validate_entry(entry)
     del equipped_weapons[slot_index]
     return entry
@@ -295,7 +358,7 @@ def remove_armor(
 
 
 def _replace_weapon_slot(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     slot_index: int,
     weapon_id: str,
 ) -> list[StoredGroundEquipment]:
@@ -303,16 +366,19 @@ def _replace_weapon_slot(
     current = list(equipped_weapons)
     selected_hands = weapon_hands(weapon_id)
     if selected_hands == 2:
-        return [StoredGroundEquipment("weapon", item_id) for item_id in current]
-    if len(current) == 1 and weapon_hands(current[0]) == 2:
-        return [StoredGroundEquipment("weapon", current[0])]
+        return [
+            StoredGroundEquipment("weapon", instance.weapon_id)
+            for instance in current
+        ]
+    if len(current) == 1 and weapon_hands(current[0].weapon_id) == 2:
+        return [StoredGroundEquipment("weapon", current[0].weapon_id)]
     if slot_index < len(current):
-        return [StoredGroundEquipment("weapon", current[slot_index])]
+        return [StoredGroundEquipment("weapon", current[slot_index].weapon_id)]
     return []
 
 
 def swap_weapon_from_expedition(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     pack: list[StoredGroundEquipment],
     pack_index: int,
     slot_index: int,
@@ -335,7 +401,7 @@ def swap_weapon_from_expedition(
 
 
 def _validated_swap_weapon(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     pack: list[StoredGroundEquipment],
     pack_index: int,
     slot_index: int,
@@ -351,26 +417,27 @@ def _validated_swap_weapon(
         raise ValueError("Stored item is not a weapon")
     if slot_index == 1 and weapon_hands(selected.item_id) == 2:
         raise ValueError("A two-handed weapon must use Weapon 1")
-    if slot_index == 1 and equipped_weapons and weapon_hands(equipped_weapons[0]) == 2:
+    if slot_index == 1 and equipped_weapons and weapon_hands(equipped_weapons[0].weapon_id) == 2:
         raise ValueError("Weapon 2 is occupied by a two-handed weapon")
     return selected
 
 
 def _set_swapped_weapon(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     slot_index: int,
     selected: StoredGroundEquipment,
 ) -> None:
     """Install a swapped-in weapon into the requested active slot."""
     selected_hands = weapon_hands(selected.item_id)
+    instance = weapon_instance(selected.item_id)
     if selected_hands == 2:
-        equipped_weapons[:] = [selected.item_id]
-    elif len(equipped_weapons) == 1 and weapon_hands(equipped_weapons[0]) == 2:
-        equipped_weapons[:] = [selected.item_id]
+        equipped_weapons[:] = [instance]
+    elif len(equipped_weapons) == 1 and weapon_hands(equipped_weapons[0].weapon_id) == 2:
+        equipped_weapons[:] = [instance]
     elif slot_index < len(equipped_weapons):
-        equipped_weapons[slot_index] = selected.item_id
+        equipped_weapons[slot_index] = instance
     else:
-        equipped_weapons.append(selected.item_id)
+        equipped_weapons.append(instance)
 
 
 def swap_armor_from_expedition(
@@ -406,7 +473,7 @@ def swap_armor_from_expedition(
 
 
 def install_weapon(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     storage: list[StoredGroundEquipment],
     storage_index: int,
     *,
@@ -435,7 +502,7 @@ def install_weapon(
 
 
 def _plan_weapon_install(
-    equipped_weapons: list[str],
+    equipped_weapons: list[GroundWeaponInstance],
     storage: list[StoredGroundEquipment],
     weapon_id: str,
     displaced_storage: list[StoredGroundEquipment] | None,
@@ -447,7 +514,8 @@ def _plan_weapon_install(
     current = list(equipped_weapons)
     fits_without_replacement = can_fit_weapons(current, weapon_id)
     displaced = [] if fits_without_replacement else [
-        StoredGroundEquipment("weapon", w) for w in current
+        StoredGroundEquipment("weapon", instance.weapon_id)
+        for instance in current
     ]
     if displaced_storage is None and displaced:
         raise ValueError("A destination is required for displaced weapons")

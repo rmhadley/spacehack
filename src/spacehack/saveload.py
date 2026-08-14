@@ -175,7 +175,7 @@ def _ground_fields(ctx: GameContext) -> dict:
     """Serialize ground combat and equipment fields."""
     return {
         "ground_stats": _d(ctx.ground_stats),
-        "equipped_ground_weapons": list(ctx.equipped_ground_weapons),
+        "equipped_ground_weapons": _d(ctx.equipped_ground_weapons),
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
         "ground_armory_storage": _d(ctx.ground_armory_storage),
         "ground_expedition_inventory": _d(ctx.ground_expedition_inventory),
@@ -698,7 +698,9 @@ def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
         strength=gsd.get("strength", 10),
         stamina=gsd.get("stamina", 10),
     )
-    ctx.equipped_ground_weapons = list(data.get("equipped_ground_weapons", []) or [])
+    ctx.equipped_ground_weapons = _parse_equipped_ground_weapons(
+        data.get("equipped_ground_weapons"),
+    )
     ctx.equipped_ground_armor = dict(data.get("equipped_ground_armor", {}) or {})
     legacy_storage = data.get("ground_equipment_storage", []) or []
     armory_raw = data.get("ground_armory_storage", legacy_storage) or []
@@ -730,6 +732,17 @@ def _parse_ground_item_stacks(raw) -> list:
         stack
         for entry in (raw or [])
         if (stack := parse_item_stack(entry)) is not None
+    ]
+
+
+def _parse_equipped_ground_weapons(raw) -> list:
+    """Rebuild active weapon instances, migrating legacy string ids."""
+    from .ground_equipment import parse_weapon_instance
+
+    return [
+        instance
+        for entry in (raw or [])
+        if (instance := parse_weapon_instance(entry)) is not None
     ]
 
 

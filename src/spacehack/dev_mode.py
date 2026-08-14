@@ -152,9 +152,9 @@ _DEV_PACK_WEAPONS: tuple[str, ...] = (
 )
 
 
-def _dev_ground_loadout() -> tuple[list[str], dict[str, str]]:
+def _dev_ground_loadout() -> tuple[list[ground_equipment.GroundWeaponInstance], dict[str, str]]:
     """Return the standard developer starting ground loadout."""
-    return [_best_ground_weapon()], _best_ground_armor()
+    return [ground_equipment.weapon_instance(_best_ground_weapon())], _best_ground_armor()
 
 
 def apply_dev_ground_loadout(ctx) -> None:

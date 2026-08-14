@@ -23,6 +23,7 @@ from src.spacehack.dev_mode import (
 )
 from src.spacehack.input_helpers import _is_shift_o_press
 from src.spacehack.pygame_engine import PygameInputEvent
+from src.spacehack.ground_equipment import GroundWeaponInstance
 
 
 def _key_o(shift: bool) -> PygameInputEvent:
@@ -250,7 +251,9 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
 
     apply_dev_ground_loadout(_ctx)
 
-    assert _ctx.equipped_ground_weapons == ["rocket_launcher"]
+    assert _ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("rocket_launcher", 4),
+    ]
     assert _ctx.equipped_ground_armor == {
         "head": "assault_helmet",
         "body": "powered_vest",
