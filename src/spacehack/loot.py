@@ -17,48 +17,10 @@ completes in the same action.
 """
 from __future__ import annotations
 
-from enum import Enum, auto
-
 from .game_context import GameContext
 from .data.trade_goods import find_trade_good
 from .loot_selection import nearby_loot_entities
 
-
-class _LootOutcome(Enum):
-    IGNORE = auto()
-    TAKE = auto()
-    LEAVE = auto()
-    QUIT = auto()
-
-
-def _run_pygame_loot(ctx: GameContext, title: str, body: str, take_label: str) -> str | None:
-    """Run the loot choice through the generic Pygame menu worker."""
-    from . import pygame_menu, pygame_ui
-
-    item = pygame_menu.MenuItem(take_label, "", "TAKE")
-    frame = pygame_menu.MenuFrame(
-        title=title,
-        body=body,
-        items=(item,),
-        hints=(pygame_ui.modal_hint(
-            "ENTER secure/take", "ESC leave", pygame_ui.GUIDE_HINT,
-        ),),
-        selected=0,
-    )
-    outcome, action, _selected = pygame_menu.run_for_context(
-        getattr(ctx, "context", ctx),
-        (frame,),
-        caption=f"spacehack - {title.lower()}",
-    )
-    if outcome == "GUIDE":
-        from .help import _open_context_guide
-        _open_context_guide(ctx, "Trading & Economy")
-        return _run_pygame_loot(ctx, title, body, take_label)
-    if outcome == "SELECT" and action == "TAKE":
-        return "TAKE"
-    if outcome == "QUIT":
-        return "QUIT"
-    return "LEAVE"
 
 
 def _loot_choice_label(loot_entity) -> str:
@@ -101,7 +63,7 @@ def choose_loot_entity(ctx: GameContext, loot_entities):
         chosen = pygame_story.choose(
             ctx,
             title="CHOOSE LOOT",
-            body="Several items are within reach. Choose one to pick up.",
+            body="Choose an item to pick up.",
             options=options,
             caption="spacehack - choose loot",
             compact=True,
@@ -502,87 +464,18 @@ def _cargo_room(ctx: GameContext, good, quantity: int, goods, is_quest: bool, ow
     return False
 
 
-def _run_cargo_loot_modal(
-    ctx: GameContext,
-    loot_entity,
-    good,
-    quantity: int,
-    goods: list[tuple[str, int]],
-    is_quest: bool,
-    is_heist: bool,
-) -> str:
-    """Build and run the cargo/quest/heist pickup modal; return its outcome."""
-    if is_quest:
-        title = "QUEST CACHE"
-        parts = [
-            f"{find_trade_good(gid).name} x{qty}"
-            for gid, qty in goods
-        ]
-        body = "Secured quest contents: " + ", ".join(parts)
-        take_label = "Secure"
-    elif is_heist:
-        title = "MISSION CARGO"
-        body = f"Secured mission cargo: {good.name} x{quantity}"
-        take_label = "Secure"
-    else:
-        title = "CARGO DEBRIS"
-        body = (
-            f"You found {good.name} x{quantity}. "
-            f"Value: {good.base_price}$ each | Volume: {good.volume} crate(s)"
-        )
-        take_label = "Take"
-    return _run_pygame_loot(ctx, title, body, take_label)
+def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:
+    """Immediately pack typed ammo/consumable loot."""
+    _apply_field_item_loot_pickup(ctx, loot_entity)
 
 
-def _open_field_item_loot(ctx: GameContext, loot_entity) -> None:
-    """Handle typed ammo/consumable loot pickup."""
-    stack = _field_item_loot_stack(loot_entity)
-    if stack is None:
-        ctx.log.add("Unknown field item - left it behind.")
-        return
-    try:
-        name = _field_item_loot_name(stack)
-    except (KeyError, TypeError, ValueError):
-        ctx.log.add("Unknown field item - left it behind.")
-        return
-    outcome = _run_pygame_loot(
-        ctx,
-        "FIELD ITEM",
-        f"Found {name} x{stack.quantity}. Pack it into the Expedition Pack?",
-        "Pack",
-    )
-    if outcome == "TAKE":
-        _apply_field_item_loot_pickup(ctx, loot_entity)
-    elif outcome == "QUIT":
-        raise SystemExit
-    else:
-        ctx.log.add(f"Left {name} behind.")
+def _apply_equipment_loot(ctx: GameContext, loot_entity) -> None:
+    """Immediately pack one ground-equipment loot entity."""
+    _apply_equipment_loot_pickup(ctx, loot_entity)
 
 
-def _open_equipment_loot(ctx: GameContext, loot_entity) -> None:
-    """Handle the ground-equipment branch of loot pickup."""
-    entry = _ground_equipment_loot_entry(loot_entity)
-    try:
-        name = _ground_equipment_loot_name(entry)
-    except (KeyError, TypeError, ValueError):
-        name = loot_entity.loot_data.get("item_id", "unknown")
-    outcome = _run_pygame_loot(
-        ctx,
-        "GROUND EQUIPMENT",
-        f"Found ground equipment: {name}. "
-        "Pack it into the Expedition Pack?",
-        "Pack",
-    )
-    if outcome == "TAKE":
-        _apply_equipment_loot_pickup(ctx, loot_entity)
-    elif outcome == "QUIT":
-        raise SystemExit
-    else:
-        ctx.log.add("Left the ground equipment behind.")
-
-
-def _open_trade_good_loot(ctx: GameContext, loot_entity) -> None:
-    """Handle trade-good debris, quest caches, and mission cargo."""
+def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
+    """Immediately secure trade-good debris, quest caches, or mission cargo."""
     is_quest = bool(getattr(loot_entity, "main_quest_step_id", ""))
     if is_quest:
         goods = _quest_loot_goods(loot_entity, ctx.log)
@@ -604,33 +497,26 @@ def _open_trade_good_loot(ctx: GameContext, loot_entity) -> None:
         return
     if not _cargo_room(ctx, good, quantity, goods, is_quest, owned):
         return
-    outcome = _run_cargo_loot_modal(
-        ctx, loot_entity, good, quantity, goods, is_quest,
-        getattr(loot_entity, "heist_mission", False),
+    _apply_loot_pickup(
+        ctx, loot_entity, owned, is_quest, goods, good_id, quantity, good,
     )
-    if outcome == "TAKE":
-        _apply_loot_pickup(ctx, loot_entity, owned, is_quest, goods, good_id, quantity, good)
-    elif outcome == "QUIT":
-        raise SystemExit
-    else:
-        ctx.log.add("Left the cargo debris in space.")
 
 
 def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open the existing pickup flow for one selected loot entity."""
     item_type = loot_entity.loot_data.get("item_type")
     if item_type in {"weapon", "armor"}:
-        _open_equipment_loot(ctx, loot_entity)
+        _apply_equipment_loot(ctx, loot_entity)
     elif item_type in {"ammo", "consumable"}:
-        _open_field_item_loot(ctx, loot_entity)
+        _apply_field_item_loot(ctx, loot_entity)
     else:
-        _open_trade_good_loot(ctx, loot_entity)
+        _apply_trade_good_loot(ctx, loot_entity)
 
 
 def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Choose among nearby loot entities, then open one pickup flow."""
     nearby = nearby_loot_entities(ctx)
-    if len(nearby) > 1 and loot_entity in nearby:
+    if nearby and loot_entity in nearby:
         selected = choose_loot_entity(ctx, nearby)
         if selected is None:
             return

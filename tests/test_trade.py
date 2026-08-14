@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.spacehack.ground_equipment import GroundItemStack
 from src.spacehack.trade import trade_price, open_loot_pickup
 from src.spacehack.world import Entity, Position
 
@@ -87,7 +88,7 @@ class TestTradePrice:
 
 
 class TestOpenLootPickup:
-    """Ground-equipment loot modal shows friendly names, not ids."""
+    """Loot selection and immediate pickup behavior."""
 
     def _loot_entity(self, item_type: str, item_id: str) -> Entity:
         return Entity(
@@ -95,22 +96,13 @@ class TestOpenLootPickup:
             loot_data={"item_type": item_type, "item_id": item_id},
         )
 
-    def test_ground_equipment_modal_uses_friendly_name(self, monkeypatch):
-        """The pickup modal body shows the catalog name, not the raw id."""
-        ctx = SimpleNamespace(log=MagicMock())
-        calls = []
-        monkeypatch.setattr(
-            "src.spacehack.loot._run_pygame_loot",
-            lambda _ctx, title, body, take_label: calls.append((title, body))
-            or "LEAVE",
-        )
+    def test_loot_choice_uses_friendly_equipment_name(self):
+        """The compact chooser label shows the catalog name, not the id."""
+        from src.spacehack.loot import _loot_choice_label
 
-        open_loot_pickup(ctx, self._loot_entity("weapon", "grenade_launcher"))
+        label = _loot_choice_label(self._loot_entity("weapon", "grenade_launcher"))
 
-        title, body = calls[0]
-        assert title == "GROUND EQUIPMENT"
-        assert "Grenade Launcher" in body
-        assert "grenade_launcher" not in body
+        assert label == "Grenade Launcher"
 
     def test_p_pickup_chooser_lists_all_nearby_stacks(self, monkeypatch):
         """Nearby loot selection lists friendly names and opens only the choice."""
@@ -130,6 +122,9 @@ class TestOpenLootPickup:
         ctx = SimpleNamespace(
             game_map=game_map,
             player=Entity(char="@", fg=(255, 255, 255), pos=Position(1, 1)),
+            ground_stats=SimpleNamespace(strength=10),
+            ground_expedition_inventory=[],
+            ground_expedition_items=[],
             log=MagicMock(),
         )
         selected = {}
@@ -137,19 +132,45 @@ class TestOpenLootPickup:
             "src.spacehack.loot.choose_loot_entity",
             lambda _ctx, entities: selected.update(entities=entities) or second,
         )
-        opened = []
-        monkeypatch.setattr(
-            "src.spacehack.loot._run_pygame_loot",
-            lambda _ctx, title, body, take_label: opened.append((title, body)) or "LEAVE",
-        )
-
         open_loot_pickup(ctx, first)
 
         assert selected["entities"] == (first, second)
-        assert opened[0][0] == "FIELD ITEM"
-        assert "Rifle Rounds x3" in opened[0][1]
+        assert second not in game_map.entities
         assert first in game_map.entities
-        assert second in game_map.entities
+        assert ctx.ground_expedition_items == [
+            GroundItemStack("ammo", "rifle_rounds", 3),
+        ]
+
+    def test_single_pickup_still_uses_the_compact_chooser(self, monkeypatch):
+        """One reachable stack is picked up directly after chooser selection."""
+        from src.spacehack.loot import open_loot_pickup
+        from src.spacehack.world import GameMap, DUNGEON_FLOOR
+
+        loot_entity = self._loot_entity("ammo", "pistol_rounds")
+        loot_entity.pos = Position(1, 1)
+        loot_entity.loot_data["quantity"] = 2
+        game_map = GameMap(3, 3, [[DUNGEON_FLOOR] * 3 for _ in range(3)], [loot_entity])
+        ctx = SimpleNamespace(
+            game_map=game_map,
+            player=Entity(char="@", fg=(255, 255, 255), pos=Position(1, 1)),
+            ground_stats=SimpleNamespace(strength=10),
+            ground_expedition_inventory=[],
+            ground_expedition_items=[],
+            log=MagicMock(),
+        )
+        chosen = []
+        monkeypatch.setattr(
+            "src.spacehack.loot.choose_loot_entity",
+            lambda _ctx, entities: chosen.append(entities) or loot_entity,
+        )
+
+        open_loot_pickup(ctx, loot_entity)
+
+        assert chosen == [(loot_entity,)]
+        assert loot_entity not in game_map.entities
+        assert ctx.ground_expedition_items == [
+            GroundItemStack("ammo", "pistol_rounds", 2),
+        ]
 
     def test_choose_loot_entity_builds_a_compact_selection(self, monkeypatch):
         """The chooser presents every nearby stack as a compact modal row."""
@@ -173,6 +194,7 @@ class TestOpenLootPickup:
 
         assert selected is entities[1]
         assert captured["title"] == "CHOOSE LOOT"
+        assert captured["body"] == "Choose an item to pick up."
         assert captured["compact"] is True
         assert captured["options"] == (
             ("Pistol Rounds x2", "LOOT:0"),
@@ -193,35 +215,25 @@ class TestOpenLootPickup:
         ctx = SimpleNamespace(
             game_map=game_map,
             player=Entity(char="@", fg=(255, 255, 255), pos=Position(1, 1)),
+            ground_stats=SimpleNamespace(strength=10),
+            ground_expedition_inventory=[],
+            ground_expedition_items=[],
             log=MagicMock(),
         )
         monkeypatch.setattr(
             "src.spacehack.loot.choose_loot_entity",
             lambda _ctx, _entities: None,
         )
-        opened = []
-        monkeypatch.setattr(
-            "src.spacehack.loot._run_pygame_loot",
-            lambda *_args: opened.append(True) or "TAKE",
-        )
-
         open_loot_pickup(ctx, first)
 
-        assert opened == []
         assert game_map.entities == [first, second]
 
-    def test_ground_equipment_modal_falls_back_on_unknown_id(self, monkeypatch):
-        """Unresolvable ids degrade to the raw id instead of crashing."""
+    def test_unknown_equipment_pickup_logs_and_leaves_item(self):
+        """Unresolvable equipment is not consumed by immediate pickup."""
         ctx = SimpleNamespace(log=MagicMock())
-        calls = []
-        monkeypatch.setattr(
-            "src.spacehack.loot._run_pygame_loot",
-            lambda _ctx, title, body, take_label: calls.append((title, body))
-            or "LEAVE",
-        )
 
         open_loot_pickup(ctx, self._loot_entity("weapon", "not_a_real_weapon"))
 
-        title, body = calls[0]
-        assert title == "GROUND EQUIPMENT"
-        assert "not_a_real_weapon" in body
+        ctx.log.add.assert_called_once_with(
+            "Unknown ground equipment - left it behind.",
+        )

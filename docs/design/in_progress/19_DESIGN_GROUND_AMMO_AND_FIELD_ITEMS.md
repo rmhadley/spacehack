@@ -340,9 +340,10 @@ Migration rules:
 
 - Ground combat drops can produce equipment, ammo, or consumables through
   explicit typed loot payloads. Existing trade-good/quest loot stays untouched.
-- Pressing `P` with multiple reachable loot stacks opens a compact chooser
-  listing every reachable stack; only the selected stack enters the existing
-  pickup flow and unselected loot remains in place.
+- Pressing `P` opens a compact chooser listing every reachable loot stack,
+  including when there is only one; pressing ENTER immediately attempts to
+  pick up the selected stack. Unselected loot remains in place, and capacity
+  failures use the existing explicit overflow/drop behavior.
 - Picking up ammo fills matching partial pack stacks first, then uses additional
   pack slots for new stacks. If the pack cannot accept the full quantity, the
   accepted portion is packed and the remainder remains on the floor as a typed
