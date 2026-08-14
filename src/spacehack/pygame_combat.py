@@ -270,6 +270,9 @@ def present(ctx: GameContext, console: FrameBuffer) -> None:
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
         hud_view_height=SCREEN_HEIGHT - MSG_LOG_HEIGHT,
+        # The combat console is one HUD-width wider than the window so
+        # HUD lines can use the panel's full ~40 half-width characters.
+        hud_x_max=SCREEN_WIDTH + HUD_WIDTH,
         shields=_combat_shield_bubbles(ctx),
         floaters=_combat_floaters(ctx),
         target=_combat_target_card(ctx),

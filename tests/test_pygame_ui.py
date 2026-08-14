@@ -538,6 +538,36 @@ def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
     assert kwargs["overlay"].messages[0].text == "M"
 
 
+def test_shared_combat_present_captures_hud_text_past_window_width(monkeypatch):
+    """The live shared present() path must capture combat HUD cells past
+    cell SCREEN_WIDTH (the worker-only hud_x_max fix). A 24-cell shield
+    row starting at hud_x=80 spans past cell 100; dropping it clips the
+    shield readout at 20 cells."""
+    from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
+    from src.spacehack.framebuffer import FrameBuffer
+
+    calls = []
+    ctx = SimpleNamespace(
+        _pygame_combat_presenter=None,
+        context=SimpleNamespace(
+            _runtime=object(),
+            present=lambda console, **kwargs: calls.append((console, kwargs)),
+        ),
+    )
+    console = FrameBuffer(SCREEN_WIDTH + HUD_WIDTH, 2)
+    line = "Shd  ########## 135/135 +12"
+    console.print(x=SCREEN_WIDTH - HUD_WIDTH, y=1, string=line)
+    console.print(x=1, y=1, string="@")
+
+    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
+    pygame_combat.present(ctx, console)
+
+    rendered_console, kwargs = calls[0]
+    assert [command.char for command in rendered_console.commands] == ["@"]
+    hud_text = "".join(segment.text for segment in kwargs["overlay"].hud)
+    assert line in hud_text
+
+
 def test_combat_present_death_requires_shared_runtime():
     ctx = SimpleNamespace(
         context=SimpleNamespace(_runtime=SimpleNamespace(engine=None)),
