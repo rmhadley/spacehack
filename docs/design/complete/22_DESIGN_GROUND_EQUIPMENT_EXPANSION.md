@@ -1,6 +1,6 @@
 # Ground Equipment Expansion — weapons, armor, cybernetics, plasma, tier gating
 
-> Status: in progress — reviewed and fully resolved; ready to implement.
+> **Status:** Complete. All phases implemented and playtested.
 
 ## Overview
 

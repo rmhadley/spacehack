@@ -134,15 +134,15 @@ if ws.shield_strip > 0:
 
 ## Playtest checklist
 
-- [ ] Buy Light Missile on Earth, launch, engage pirate — missile hits hard from
+- [x] Buy Light Missile on Earth, launch, engage pirate — missile hits hard from
       range 2-9; after 4 shots it's dry
-- [ ] Land, mechanic → Buy Ammo — rounds refill at 8$/rd, credits deducted
-- [ ] Save & Continue — ammo count survives (persistent ammo save/load contract)
-- [ ] Equip EMP Missile vs a shielded militia cruiser — hull damage 0, shields
+- [x] Land, mechanic → Buy Ammo — rounds refill at 8$/rd, credits deducted
+- [x] Save & Continue — ammo count survives (persistent ammo save/load contract)
+- [x] Equip EMP Missile vs a shielded militia cruiser — hull damage 0, shields
       drop 20/hit, no "hits for 0!" log
-- [ ] Missile at point-blank (inside min_range) — accuracy penalty applies
+- [x] Missile at point-blank (inside min_range) — accuracy penalty applies
 
-## Open questions
+## Resolved decisions
 
-- Should enemies also track persistent ammo? (No — they're per-encounter spawns;
-  full mags keep AI simple.)
+- Enemies do not track persistent ammo — they're per-encounter spawns; full
+  mags keep the AI simple.
