@@ -51,10 +51,12 @@ def _loot_choice_label(loot_entity) -> str:
     return f"{name} x{data.get('quantity', 1)}"
 
 
-def _loot_menu_label(loot_entity) -> str:
-    """Add invisible width slack for long labels in compact menu rows."""
-    label = _loot_choice_label(loot_entity)
-    return label + (" " * 8 if len(label) > 20 else "")
+def _loot_popup_title(loot_entities) -> str:
+    """Reserve popup width for the longest visible loot label."""
+    title = "CHOOSE LOOT"
+    longest = max((len(_loot_choice_label(entity)) for entity in loot_entities), default=0)
+    padding = max(0, longest + 16 - len(title))
+    return title + (" " * padding)
 
 
 def choose_loot_entity(ctx: GameContext, loot_entities):
@@ -62,13 +64,13 @@ def choose_loot_entity(ctx: GameContext, loot_entities):
     from . import pygame_story
 
     options = tuple(
-        (_loot_menu_label(entity), f"LOOT:{index}")
+        (_loot_choice_label(entity), f"LOOT:{index}")
         for index, entity in enumerate(loot_entities)
     )
     while True:
         chosen = pygame_story.choose(
             ctx,
-            title="CHOOSE LOOT",
+            title=_loot_popup_title(loot_entities),
             body="Choose an item to pick up.",
             options=options,
             caption="spacehack - choose loot",

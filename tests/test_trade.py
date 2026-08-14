@@ -174,17 +174,19 @@ class TestOpenLootPickup:
 
     def test_long_loot_label_reserves_extra_compact_width(self):
         """Long cargo labels receive width slack instead of early ellipsis."""
-        from src.spacehack.loot import _loot_menu_label
+        from src.spacehack.loot import _loot_choice_label, _loot_popup_title
 
         entity = Entity(
             char="%", fg=(255, 215, 0), pos=Position(0, 0),
             loot_data={"good_id": "electronics", "quantity": 1},
         )
 
-        label = _loot_menu_label(entity)
+        label = _loot_choice_label(entity)
+        title = _loot_popup_title((entity,))
 
-        assert label.startswith("Consumer Electronics x1")
-        assert len(label) == len("Consumer Electronics x1") + 8
+        assert label == "Consumer Electronics x1"
+        assert title.startswith("CHOOSE LOOT")
+        assert len(title) >= len(label) + 16
 
     def test_choose_loot_entity_builds_a_compact_selection(self, monkeypatch):
         """The chooser presents every nearby stack as a compact modal row."""
@@ -207,7 +209,7 @@ class TestOpenLootPickup:
         selected = choose_loot_entity(SimpleNamespace(), entities)
 
         assert selected is entities[1]
-        assert captured["title"] == "CHOOSE LOOT"
+        assert captured["title"].startswith("CHOOSE LOOT")
         assert captured["body"] == "Choose an item to pick up."
         assert captured["compact"] is True
         assert captured["options"] == (
