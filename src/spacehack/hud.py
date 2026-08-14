@@ -229,12 +229,14 @@ def _render_help_lines(
 
     Each row holds two hints (``[Q] Quest Log  [I] Cargo``) so the
     block uses the panel's full width and roughly half its height.
+    Keys render unpadded; a long key like ``numpad`` simply sticks out
+    on its own row instead of padding every other key to match.
     Returns the next available ``y`` row.
     """
     y = start_y
     for i in range(0, len(help_lines), 2):
         _key, _desc = help_lines[i]
-        left = f"[{_key:<5}] {_desc:<12}"
+        left = f"[{_key}] {_desc:<12}"
         if i + 1 < len(help_lines):
             _key2, _desc2 = help_lines[i + 1]
             line = f"{left}[{_key2}] {_desc2}"
