@@ -1,8 +1,7 @@
 # DESIGN: Ground Ammo, Reloads, and Field Items
 
-> **Status:** In progress. Phases 0-5 are implemented and covered by the
-> current regression suite; Phase 6 hardening and a full manual lifecycle
-> playtest remain pending.
+> **Status:** Complete. Phases 0-6 are implemented, covered by the current
+> regression suite, and the full manual lifecycle playtest passed on 2026-08-14.
 >
 > **Related:**
 > `docs/design/complete/18_DESIGN_GROUND_EQUIPMENT_STORAGE.md`
@@ -66,9 +65,9 @@ compact weapon chooser; a single eligible weapon reloads directly.
   rows. Enter opens `Equip` / `Discard`; compatible equipped slots still open
   swap choices. In active ground combat, a successful gear swap closes the
   screen so AP loss and the enemy turn are visible immediately.
-- `src/spacehack/trade.py` and dungeon combat loot already have a separate
-  ground-equipment loot path. Its reachability and full lifecycle still need a
-  real in-game playtest before the broader ammo system is considered complete.
+- `src/spacehack/trade.py` and dungeon combat loot provide the separate
+  ground-equipment loot path; its reachability and full lifecycle passed the
+  Phase 6 manual playtest.
 - `src/spacehack/saveload.py` validates and round-trips active weapon
   instances, Armory/Expedition field-item stacks, and legacy string-ID
   migrations.
@@ -425,20 +424,25 @@ Migration rules:
 - [x] Add legacy-save, malformed-item, duplicate-instance, and full-pack tests.
 - [x] Update guide, smoke gate, and acceptance criteria.
 - [x] Run `python3 tools/smoke.py` and `python3 tools/test.py`.
-- [ ] Move this design doc to `docs/design/complete/` only after all phases and
+- [x] Move this design doc to `docs/design/complete/` after all phases and
   playtests are complete.
 
 #### Phase 6 PLAYTEST
 
-- [ ] Save and Continue from city, space, and a Scout Derelict with ammo,
+- [x] Save and Continue from city, space, and a Scout Derelict with ammo,
   Med Packs, Stims, duplicate weapons, and mixed ground equipment.
-- [ ] Verify malformed or legacy ground records do not prevent Continue and
+- [x] Verify malformed or legacy ground records do not prevent Continue and
   that valid equipment, field items, and magazines remain available.
-- [ ] Fill the Expedition Pack, then test ammo and consumable pickup, transfer,
+- [x] Fill the Expedition Pack, then test ammo and consumable pickup, transfer,
   purchase, and overflow paths; verify no item is lost or duplicated.
-- [ ] Complete a full ground-combat lifecycle with firing, reload, Med Pack,
-  Combat Stim, loot pickup, and persistence before moving this document to
-  `docs/design/complete/`.
+- [x] Complete a full ground-combat lifecycle with firing, reload, Med Pack,
+  Combat Stim, loot pickup, and persistence.
+
+**PLAYTEST RESULT — COMPLETE (2026-08-14):** The full ground-equipment
+lifecycle was manually confirmed good across city, space, Scout Derelict,
+Expedition Pack capacity/overflow, duplicate-weapon reloads, consumable use,
+loot pickup, combat feedback, and save/Continue boundaries. The compact loot
+chooser and its scrollbar were also verified for long option lists.
 
 ## Pre-implementation audit
 
