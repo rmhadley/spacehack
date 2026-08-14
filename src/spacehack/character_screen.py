@@ -285,13 +285,14 @@ def _weapon_rows(
 ) -> list:
     """Build the two weapon-slot rows for the active ground loadout."""
     rows: list = []
-    weapons = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
-    while len(weapons) < 2:
-        weapons.append("")
-    first_weapon_is_two_handed = _first_weapon_is_two_handed(weapons)
-    for index, weapon_id in enumerate(weapons[:2], 1):
+    instances = list(ctx.equipped_ground_weapons)
+    while len(instances) < 2:
+        instances.append(None)
+    weapon_ids = [instance.weapon_id if instance is not None else "" for instance in instances]
+    first_weapon_is_two_handed = _first_weapon_is_two_handed(weapon_ids)
+    for index, instance in enumerate(instances[:2], 1):
         rows.append(_weapon_row(
-            ctx, index, weapon_id,
+            ctx, index, instance,
             occupied_by_two_handed=(
                 index == 2 and first_weapon_is_two_handed
             ),
@@ -316,7 +317,7 @@ def _first_weapon_is_two_handed(weapons: list[str]) -> bool:
 def _weapon_row(
     ctx: GameContext,
     index: int,
-    weapon_id: str,
+    instance,
     *,
     occupied_by_two_handed: bool,
     equipment_management: bool,
@@ -328,12 +329,13 @@ def _weapon_row(
     label = f"Weapon slot {index}"
     if occupied_by_two_handed:
         return _equipment_row(f"{label}: --- (occupied by 2H)")
-    if weapon_id:
+    if instance is not None:
         try:
-            spec = find_ground_weapon(weapon_id)
+            spec = find_ground_weapon(instance.weapon_id)
             _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
             return _equipment_row(
-                f"{label}: {spec.name}", _weapon_detail_text(spec),
+                f"{label}: {spec.name}{_weapon_ammo_indicator(spec, instance)}",
+                _weapon_detail_text(spec),
                 action=f"SWAP:weapon:{index - 1}" if _managed else "",
                 selectable=True if not equipment_management else _managed,
             )
@@ -347,15 +349,21 @@ def _weapon_row(
     )
 
 
+def _weapon_ammo_indicator(spec, instance) -> str:
+    """Return the current/max magazine indicator for reloadable weapons."""
+    if spec.ammo_capacity <= 0:
+        return ""
+    loaded = instance.loaded_ammo if instance.loaded_ammo is not None else 0
+    return f" [{loaded}/{spec.ammo_capacity}]"
+
+
 def _weapon_detail_text(spec) -> str:
-    """Format one weapon's stats, ammo, and armor-bypass detail line."""
+    """Format one weapon's stats and armor-bypass detail line."""
     detail = (
         f"{spec.damage_type.title()}   Damage {spec.damage}   "
         f"Accuracy {spec.accuracy}%   Range {spec.min_range}-"
         f"{spec.max_range}   AP {spec.ap_cost}"
     )
-    if spec.ammo_capacity > 0:
-        detail += f"   Ammo {spec.ammo_capacity}"
     if spec.armor_bypass:
         detail += "   Armor bypass"
     return detail

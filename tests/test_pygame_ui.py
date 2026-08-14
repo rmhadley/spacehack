@@ -2155,6 +2155,33 @@ def test_character_equipment_rows_empty_gear_is_informational():
     assert rows[6].text == "Feet armor: None"
 
 
+def test_character_equipment_weapon_rows_show_magazine_state():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 5),
+            GroundWeaponInstance("kinetic_pistol", 0),
+        ],
+        equipped_ground_armor={},
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    assert rows[0].text == "Weapon slot 1: Kinetic Pistol [5/12]"
+    assert rows[1].text == "Weapon slot 2: Kinetic Pistol [0/12]"
+
+
+def test_character_equipment_weapon_rows_omit_indicator_for_non_ammo_weapons():
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("combat_knife", None)],
+        equipped_ground_armor={},
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    assert rows[0].text == "Weapon slot 1: Combat Knife"
+    assert "[" not in rows[0].text
+
+
 def test_character_equipment_management_explains_backpack_actions():
     ctx = SimpleNamespace(
         player_level=1,
