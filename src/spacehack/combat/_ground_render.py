@@ -57,6 +57,7 @@ _COLOR_GROUND_ENEMY_TARGET: tuple[int, int, int] = (255, 220, 100)
 _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
+_COLOR_GROUND_TEMP_AP: tuple[int, int, int] = (100, 170, 255)
 
 
 def _ground_range_line(
@@ -161,6 +162,14 @@ def _active_regen_amount() -> int:
     )
 
 
+def _active_ap_bonus() -> int:
+    """Return the temporary AP added on the next turn boundary."""
+    return sum(
+        effect.ap_bonus
+        for effect in _rules()._state.active_consumable_effects.values()
+    )
+
+
 def _render_player_panel(console, ctx) -> int:
     """Paint the player HP/AP/evasion block; return the next HUD row."""
     _state = _rules()._state
@@ -180,7 +189,14 @@ def _render_player_panel(console, ctx) -> int:
         fg=_COLOR_GROUND_PLAYER,
     )
     y += 1
-    console.print(x=hud_x, y=y, string=f"AP: {_state.player_ap}/{_state.player_ap_total}", fg=_COLOR_GROUND_ACTION)
+    _ap_text = f"AP: {_state.player_ap}/{_state.player_ap_total}"
+    console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
+    _ap_bonus = _active_ap_bonus()
+    if _ap_bonus > 0:
+        console.print(
+            x=hud_x + len(_ap_text) + 1, y=y,
+            string=f"+{_ap_bonus}", fg=_COLOR_GROUND_TEMP_AP,
+        )
     y += 1
     eva = _rules()._calc_ground_move_dodge(_state.cells_moved_this_turn)
     console.print(x=hud_x, y=y, string=f"EVA: {eva}%", fg=_COLOR_GROUND_ACTION)

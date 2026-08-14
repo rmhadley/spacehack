@@ -499,6 +499,42 @@ def test_ground_player_hp_row_shows_current_max_and_active_regen():
     assert "HP  ####... 15/23 +2" in _row
 
 
+def test_ground_ap_row_shows_blue_temporary_stim_bonus():
+    """An active Combat Stim is visible beside the base AP pool."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _rules_ground.apply_consumable_effect(
+        _ctx,
+        SimpleNamespace(
+            effect_id="stim",
+            name="Combat Stim",
+            combat_heal_amount=0,
+            combat_regen_amount=0,
+            combat_ap_bonus=1,
+            duration_turns=3,
+        ),
+    )
+    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    _ground_render._render_player_panel(_frame, _ctx)
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _row = "".join(
+        _frame.cell(x, 4).char
+        for x in range(_hud_x, SCREEN_WIDTH)
+    ).rstrip()
+    assert _row == "AP: 4/4 +1"
+    assert _frame.cell(_hud_x + 8, 4).fg == _ground_render._COLOR_GROUND_TEMP_AP
+
+    for _ in range(4):
+        _rules_ground.reset_turn(_ctx)
+    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    _ground_render._render_player_panel(_frame, _ctx)
+    _row = "".join(
+        _frame.cell(x, 4).char
+        for x in range(_hud_x, SCREEN_WIDTH)
+    ).rstrip()
+    assert _row == "AP: 4/4"
+
+
 class TestRangeLineHidden:
     def test_render_frame_skips_line_when_flag_set(self, monkeypatch):
         """The line is a player-turn affordance: drawn on the idle
