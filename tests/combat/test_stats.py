@@ -19,6 +19,8 @@ from src.spacehack.combat._stats import (
     calc_hit_chance,
     _calc_dodge_bonus,
     _calc_ap,
+    _calc_ap_tenths,
+    _roll_ap,
     _calc_hull,
     _calc_max_hull,
     _calc_hull_for_enemy,
@@ -127,21 +129,25 @@ class TestCalcDodgeBonus:
 
 
 # ---------------------------------------------------------------------------
-# _calc_ap
+# _calc_ap / _calc_ap_tenths / _roll_ap (fractional AP with carry)
 # ---------------------------------------------------------------------------
 
 class TestCalcAp:
     def test_baseline(self):
-        """piloting=0 → 3 AP."""
+        """piloting=0 → 3 AP in the first round."""
         assert _calc_ap(0) == 3
 
     def test_piloting_breakpoint(self):
-        """piloting=20 → 3 + 2 = 5 AP (per-10 steps)."""
+        """piloting=20 → 3 + 2 = 5 AP (integer part of a 5.0 gain)."""
         assert _calc_ap(20) == 5
 
     def test_piloting_breakpoint_40(self):
         """piloting=40 → 3 + 4 = 7 AP."""
         assert _calc_ap(40) == 7
+
+    def test_piloting_15_floors_to_4(self):
+        """piloting=15 → first round 4 AP (gain 4.5, the .5 carries)."""
+        assert _calc_ap(15) == 4
 
     def test_ap_bonus(self):
         """Ace Pilot trait: +1."""
@@ -150,6 +156,115 @@ class TestCalcAp:
     def test_min_1(self):
         """Negative piloting still gives at least 1 AP."""
         assert _calc_ap(-1000) == 1
+
+
+class TestCalcApTenths:
+    def test_gain_in_tenths(self):
+        """piloting=15 → 4.5 AP per round = 45 tenths."""
+        assert _calc_ap_tenths(15) == 45
+
+    def test_baseline(self):
+        """piloting=0 → 30 tenths (3.0 AP)."""
+        assert _calc_ap_tenths(0) == 30
+
+    def test_bonus_scales_by_ten(self):
+        """Ace Pilot +1 AP = +10 tenths."""
+        assert _calc_ap_tenths(20, ap_bonus=1) == 60
+
+    def test_min_gain(self):
+        """Negative piloting floors the gain at 1.0 AP."""
+        assert _calc_ap_tenths(-1000) == 10
+
+
+class TestRollAp:
+    def test_integer_gain_no_carry(self):
+        """A whole 5.0 gain spends 5 and carries nothing."""
+        assert _roll_ap(0, 50) == (5, 0)
+
+    def test_fractional_gain_carries(self):
+        """4.5 gain spends 4 and banks 5 tenths."""
+        assert _roll_ap(0, 45) == (4, 5)
+
+    def test_carry_pays_out_next_round(self):
+        """Banked 5 tenths + 4.5 gain → a 5-AP round."""
+        assert _roll_ap(5, 45) == (5, 0)
+
+    def test_carry_accumulates(self):
+        """3 tenths banked + 4.4 gain → 4.7 spends 4, banks 7."""
+        assert _roll_ap(3, 44) == (4, 7)
+
+    def test_carry_cycle_averages_gain(self):
+        """A 4.5 gain cycles 4,5,4,5 — averaging exactly 4.5 AP/round."""
+        avail = []
+        carry = 0
+        for _ in range(8):
+            _avail, carry = _roll_ap(carry, 45)
+            avail.append(_avail)
+        assert avail == [4, 5, 4, 5, 4, 5, 4, 5]
+
+    def test_every_5_piloting_points_visible(self):
+        """15 vs 10 piloting: 4.5 vs 4.0 average — one extra action per 2 rounds."""
+        def _avg(piloting: int, rounds: int = 20) -> float:
+            carry = 0
+            total = 0
+            for _ in range(rounds):
+                _avail, carry = _roll_ap(carry, _calc_ap_tenths(piloting))
+                total += _avail
+            return total / rounds
+        assert abs(_avg(15) - 4.5) < 0.001
+        assert abs(_avg(10) - 4.0) < 0.001
+
+
+class TestStartPlayerTurnCarry:
+    def test_round_reset_rolls_carry(self):
+        """start_player_turn rolls 4,5,4,5... for a 15-piloting pilot."""
+        from src.spacehack.combat._actions import start_player_turn
+
+        ps = {
+            "piloting": 15,
+            "ap_gain_tenths": 45,
+            "ap_carry_tenths": 0,
+            "ap_total": 4,
+            "ap_remaining": 4,
+            "power_pool": 10,
+            "max_power": 10,
+            "power_gen": 1,
+            "max_shields": 0,
+            "shields": 0,
+            "engineering": 10,
+            "shield_regen_rate": 0,
+            "shield_recharge_bonus": 0,
+        }
+        avail = []
+        for _ in range(6):
+            start_player_turn(ps)
+            avail.append(ps["ap_remaining"])
+        assert avail == [4, 5, 4, 5, 4, 5]
+        assert ps["ap_carry_tenths"] == 0
+
+    def test_initial_state_matches_first_round(self):
+        """init sets ap_total/ap_remaining to the same floor start_player_turn produces."""
+        from src.spacehack.combat._actions import start_player_turn
+
+        ps = {
+            "piloting": 15,
+            "ap_gain_tenths": 45,
+            "ap_carry_tenths": 0,
+            "ap_total": _calc_ap(15),
+            "ap_remaining": _calc_ap(15),
+            "power_pool": 10,
+            "max_power": 10,
+            "power_gen": 1,
+            "max_shields": 0,
+            "shields": 0,
+            "engineering": 10,
+            "shield_regen_rate": 0,
+            "shield_recharge_bonus": 0,
+        }
+        start_player_turn(ps)
+        assert ps["ap_remaining"] == 4
+        assert ps["ap_total"] == 4
+        assert ps["ap_carry_tenths"] == 5
 
 
 # ---------------------------------------------------------------------------

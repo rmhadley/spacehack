@@ -578,6 +578,20 @@ def _bar_str(value: int, max_value: int, width: int = 10) -> str:
     return _BAR_CHAR_FULL * full + _BAR_CHAR_EMPTY * (width - full)
 
 
+def ap_pool_str(available: int, carry_tenths: int = 0) -> str:
+    """Format a combat AP pool that may carry a fractional tenths credit.
+
+    ``available`` is the spendable integer AP this round and
+    ``carry_tenths`` (0-9) is the banked fraction of the pool that
+    rolls into the next round. Returns ``"4"`` or ``"4.5"`` so the
+    HUD reads ``AP: 3/4.5`` — the fraction is the small indicator
+    that the pilot's real speed exceeds the spendable integer.
+    """
+    if not carry_tenths:
+        return str(available)
+    return f"{available}.{carry_tenths}"
+
+
 def _render_xp_bar(current: int, needed: int, width: int = 10) -> str:
     """Return a compact XP progress bar using CP437-safe chars.
 
@@ -670,7 +684,12 @@ def _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus) -> i
     """Paint the player's AP / evade / power rows; return the next row."""
     pap = player_state.get("ap_remaining", 0)
     pap_total = player_state.get("ap_total", 3)
-    console.print(x=hud_x, y=y, string=f"AP: {pap}/{pap_total}", fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED)
+    pap_carry = player_state.get("ap_carry_tenths", 0)
+    console.print(
+        x=hud_x, y=y,
+        string=f"AP: {pap}/{ap_pool_str(pap_total, pap_carry)}",
+        fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED,
+    )
     y += 1
     if evade_bonus is not None:
         # No colon so the row aligns with the bar-style Hull/Shd rows;

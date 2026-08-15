@@ -38,7 +38,7 @@ from ..xp import (
 )
 
 from ._types import CombatResult
-from ._stats import _distance
+from ._stats import _distance, _roll_ap
 from ._ground_math import (
     calc_ground_move_dodge as _calc_ground_move_dodge,
     ground_point_blank_penalty as _ground_point_blank_penalty,
@@ -117,6 +117,13 @@ class GroundCombatState:
     player_max_hp: int = 30
     player_ap: int = 4
     player_ap_total: int = 4
+    # Fractional AP (TE4-style): per-round gain in tenths and the
+    # banked fraction that rolls into the next round's pool. Ground
+    # gains are integer today (4 + trait/armor bonuses), so the carry
+    # stays 0 — the mechanism is uniform with ship combat for future
+    # fractional bonuses.
+    player_ap_gain_tenths: int = 40
+    player_ap_carry_tenths: int = 0
     armor_defense: int = 0
     cells_moved_this_turn: int = 0
     active_weapon_list: list[bool] = field(default_factory=list)
@@ -212,6 +219,12 @@ def _starting_ap_total(ctx) -> int:
         ctx.equipped_ground_armor.values(), "ap_bonus",
     )
 
+def _starting_ap_gain_tenths(ctx) -> int:
+    """Per-round AP gain in tenths: 4 + Ace Pilot trait + cybernetic legs."""
+    return 40 + 10 * (_ace_pilot_bonus(ctx) + _sum_armor_bonus(
+        ctx.equipped_ground_armor.values(), "ap_bonus",
+    ))
+
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
     global _state
@@ -221,6 +234,7 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     _armor_defense = _armor_defense_total(ctx)
     _weapons = player_weapons(ctx)
     _player_ap_total = _starting_ap_total(ctx)
+    _player_ap_gain = _starting_ap_gain_tenths(ctx)
 
     # Clear combat locks from an abnormally-ended previous fight (e.g.
     # an exception that skipped sync_state) so those NPCs patrol again.
@@ -232,6 +246,7 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
         enemies=_enemies,
         player_hp=_player_hp, player_max_hp=_player_max_hp,
         player_ap=_player_ap_total, player_ap_total=_player_ap_total,
+        player_ap_gain_tenths=_player_ap_gain, player_ap_carry_tenths=0,
         armor_defense=_armor_defense,
         active_weapon_list=[True] * len(_weapons),
         console=console,
@@ -951,7 +966,13 @@ def set_player_ap(ctx, ap: int) -> None:
     _state.player_ap = ap
 
 def reset_turn(ctx) -> None:
-    _state.player_ap = _state.player_ap_total + _advance_consumable_effects()
+    # Consumable AP bonuses (stim effects) add to this round's gain
+    # before the fractional roll, so a temporary +1 is a full extra AP.
+    _gain = _state.player_ap_gain_tenths + 10 * _advance_consumable_effects()
+    _avail, _carry = _roll_ap(_state.player_ap_carry_tenths, _gain)
+    _state.player_ap_carry_tenths = _carry
+    _state.player_ap_total = _avail
+    _state.player_ap = _avail
     _state.cells_moved_this_turn = 0
     for _gei in _state.enemies:
         _gei.ap = _gei.ap_total

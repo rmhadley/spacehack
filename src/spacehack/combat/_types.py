@@ -40,6 +40,10 @@ class EnemyInstance:
     power_pool: int = 5
     ap_remaining: int = 3
     ap_total: int = 3
+    # Fractional AP (TE4-style): gain per round in tenths and the
+    # banked fraction that rolls into the next round's pool.
+    ap_gain_tenths: int = 30
+    ap_carry_tenths: int = 0
     pos: world.Position = field(default_factory=lambda: world.Position(0, 0))
     weapons: tuple[str, ...] = ()
     modules: tuple[str, ...] = ()

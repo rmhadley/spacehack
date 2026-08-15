@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from .. import world
 from ._types import EnemyInstance
+from ._stats import _roll_ap
 from ..data.weapons import find_weapon
 from ..data.modules import find_module as find_module_spec
 from ..engine import RNG
@@ -271,6 +272,22 @@ def resolve_damage(
     return hull_damage, shield_damage, final_hull, is_glancing
 
 
+def _reset_ap_carry(player_state: dict) -> None:
+    """Roll the next round's fractional AP pool (gain + carry).
+
+    TE4-style speed: the banked tenths plus this round's gain form the
+    pool; the integer part is spendable and the remainder rolls
+    forward, so every point of Piloting shifts the average AP.
+    """
+    _avail, _carry = _roll_ap(
+        player_state.get("ap_carry_tenths", 0),
+        player_state.get("ap_gain_tenths", 30 + player_state.get("piloting", 10)),
+    )
+    player_state["ap_carry_tenths"] = _carry
+    player_state["ap_total"] = _avail
+    player_state["ap_remaining"] = _avail
+
+
 def start_player_turn(player_state: dict) -> None:
     """Reset per-turn resources for the player and apply shield regen.
 
@@ -278,6 +295,7 @@ def start_player_turn(player_state: dict) -> None:
       - Base rate (player-set via S key): costs power, proportional,
         with engineering discount.
       - Module bonus (shield_recharge_bonus): free regen, no power cost.
+    AP is reset by :func:`_reset_ap_carry` (fractional with carry).
     """
     # Power generation first
     player_state["power_pool"] = min(
@@ -307,7 +325,7 @@ def start_player_turn(player_state: dict) -> None:
         if module_bonus > 0 and room > 0:
             free_regen = min(module_bonus, room)
             player_state["shields"] += free_regen
-    player_state["ap_remaining"] = player_state["ap_total"]
+    _reset_ap_carry(player_state)
     player_state["cells_moved_this_turn"] = 0
 
 
@@ -315,7 +333,8 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     """Reset per-turn resources for an enemy and apply shield regen.
 
     Mirrors :func:`start_player_turn` — base regen costs power with
-    engineering discount; module recharge bonus is free.
+    engineering discount; module recharge bonus is free. AP uses the
+    same fractional regeneration with carry as the player.
     """
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
     # Module shield recharge bonus.
@@ -340,7 +359,10 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
         # Tier 2: free regen from module bonus.
         if _module_recharge > 0 and room > 0:
             enemy.shields += min(_module_recharge, room)
-    enemy.ap_remaining = enemy.ap_total
+    _avail, _carry = _roll_ap(enemy.ap_carry_tenths, enemy.ap_gain_tenths)
+    enemy.ap_carry_tenths = _carry
+    enemy.ap_total = _avail
+    enemy.ap_remaining = _avail
     enemy.cells_moved_this_turn = 0
 
 

@@ -11,6 +11,7 @@ from typing import Any
 
 from .. import world
 from ..data.weapons import find_weapon as _find_w
+from ..hud import ap_pool_str
 from ..pygame_target_card import (
     TARGET_CARD_TEXT,
     TargetCard,
@@ -37,7 +38,7 @@ def _space_card_rows(
     rows = [title_row(enemy.name), hull_row]
     if enemy.max_shields > 0:
         rows.append(text_row(f"SHD {enemy.shields}/{enemy.max_shields}"))
-    rows.append(text_row(f"AP {enemy.ap_total}"))
+    rows.append(text_row(f"AP {ap_pool_str(enemy.ap_total, enemy.ap_carry_tenths)}"))
     for _wid in enemy.weapons:
         try:
             _ws = _find_w(_wid)

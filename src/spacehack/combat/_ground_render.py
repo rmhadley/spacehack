@@ -23,6 +23,7 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..hud import (
     _bar_str,
     _render_action_pairs,
+    ap_pool_str,
     COLOR_HP_GOOD,
     COLOR_HP_LOW,
     HUD_TEXT_MAX,
@@ -206,7 +207,7 @@ def _render_player_panel(console, ctx) -> int:
         fg=_COLOR_GROUND_ACTION,
     )
     y += 1
-    _ap_text = f"AP: {_state.player_ap}/{_state.player_ap_total}"
+    _ap_text = f"AP: {_state.player_ap}/{ap_pool_str(_state.player_ap_total, _state.player_ap_carry_tenths)}"
     console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
     _ap_bonus = _active_ap_bonus()
     if _ap_bonus > 0:

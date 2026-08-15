@@ -15,18 +15,42 @@ Leveling grants **5 skill points per level** (each point adds +1 to any of the s
 **Keybinding:** `C` opens the Character screen. Cargo was moved to `I` (Inventory) to free up `C`. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
 - **Gunnery** → weapon accuracy (`gunnery * 0.5` added to hit chance)
-- **Piloting** → AP per turn (`3 + piloting // 10`), dodge bonus (`piloting * 0.5`)
+- **Piloting** → AP per round (`3 + piloting / 10`, fractional with carry), dodge bonus (`piloting * 0.5`)
 - **Engineering** → max power pool (`power_gen * 2 + engineering // 5`)
 
 > **Update (per-5 stat steps):** every stat effect steps at 5-point
 > granularity so a 5-point investment is always visible. Piloting's AP
-> formula was `3 + piloting // 20` (dead zones of 19 points); it now
-> steps every 10 (`3 + piloting // 10`), and piloting's dodge still
-> moves every 2 points. Player Strength now adds +1 melee damage per 5
-> points (was per 10) and +1 Expedition Pack slot per 5 points above 10
-> (was per 10); monsters keep the legacy 10-point divisor so their
-> tuned damage is unchanged. Gunnery/Reflexes (per 2), Engineering
-> power (per 5), and Stamina HP (per 3) already satisfied the rule.
+> formula was `3 + piloting // 20` (dead zones of 19 points), then
+> `3 + piloting // 10` (dead zones of 9 points); it is now **fractional
+> with carry** (see below) so every single point shifts the average.
+> Pilot dodge still moves every 2 points. Player Strength now adds +1
+> melee damage per 5 points (was per 10) and +1 Expedition Pack slot
+> per 5 points above 10 (was per 10); monsters keep the legacy
+> 10-point divisor so their tuned damage is unchanged.
+> Gunnery/Reflexes (per 2), Engineering power (per 5), and Stamina HP
+> (per 3) already satisfied the rule.
+
+### Fractional AP (speed with carry)
+
+AP regenerates **fractionally with carry** — a TE4/DCSS-style speed
+system that keeps the current round structure. Each round an actor
+banks a gain of `3 + piloting / 10` AP (in tenths, so the math is
+exact), spends the integer part, and the leftover tenths roll into the
+next round's pool:
+
+- Piloting 15 → gain 4.5 AP/round → rounds of **4, 5, 4, 5, …** (avg 4.5)
+- Piloting 10 → gain 4.0 AP/round → a flat **4** every round
+- Piloting 5 → gain 3.5 AP/round → rounds of **3, 4, 3, 4, …** (avg 3.5)
+
+Every 5 piloting points is worth an extra action every two rounds, and
+every single point shifts the long-run average — no dead zones. The
+combat HUD shows the real pool as the denominator: `AP: 3/4.5` means
+3 spendable AP plus 0.5 banked. Ground combat uses the same mechanism
+with its flat gain (`4 + Ace Pilot + armor` bonuses); today those
+bonuses are integers so ground rounds stay whole.
+
+Unspent AP is still forfeited at round end (waiting ends the turn);
+only the *fraction* carries, never banked whole AP.
 
 | Level | Unlock |
 |-------|--------|

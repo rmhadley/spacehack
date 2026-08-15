@@ -307,3 +307,23 @@ def test_shield_row_survives_the_wider_combat_console():
     hud._render_hull_shield_rows(console, SCREEN_WIDTH - HUD_WIDTH, 0, player_state)
     row = "".join(console.cell(x, 0).char for x in range(SCREEN_WIDTH - HUD_WIDTH, SCREEN_WIDTH + HUD_WIDTH))
     assert row.rstrip() == "Shd  ########## 135/135 +8"
+
+
+def test_ap_pool_str_shows_fractional_carry():
+    """AP pool renders the banked tenths as a fraction: 4/4.5, 5/5."""
+    assert hud.ap_pool_str(4, 0) == "4"
+    assert hud.ap_pool_str(4, 5) == "4.5"
+    assert hud.ap_pool_str(5, 0) == "5"
+    assert hud.ap_pool_str(2, 7) == "2.7"
+
+
+def test_ap_row_shows_pool_with_carry():
+    """The AP row uses the fractional pool as its denominator."""
+    console = FrameBuffer(40, 3)
+    player_state = {
+        "ap_remaining": 3, "ap_total": 4, "ap_carry_tenths": 5,
+        "power_pool": 10, "max_power": 10, "power_gen": 1,
+    }
+    hud._render_ap_evade_pow_rows(console, 0, 0, player_state, None)
+    row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
+    assert row.startswith("AP: 3/4.5")
