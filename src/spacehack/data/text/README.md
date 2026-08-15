@@ -12,6 +12,8 @@ No code edits, no sync step.
 |---|---|
 | `step.<id>.title` | Quest-log step title |
 | `step.<id>.description` | Quest-log objective text (L) |
+| `step.<id>.completion_flavor` | Completion log line + wait-gate popup + waiting breadcrumb |
+| `step.<id>.ready_message` | The "INCOMING MESSAGE" summon when a wait gate elapses |
 | `step.<id>.dialogue.<npc>.intro` | NPC talk while the step is on offer |
 | `step.<id>.dialogue.<npc>.active` | NPC talk while the step is in progress |
 | `step.<id>.dialogue.<npc>.complete` | NPC talk after the step is done |
@@ -32,5 +34,7 @@ No code edits, no sync step.
 ## Regenerating the baseline
 
 These files are generated from the Python data. Run
-`python3 tools/extract_act0_text.py` ONLY when new story content lands
-in the code — it overwrites everything. Writer edits live here.
+`python3 tools/extract_act0_text.py` when new story content lands in
+the code or dead keys are removed from it. It MERGES: existing values
+here always win, new keys are added, keys that no longer exist in the
+code are pruned. It can never overwrite a writer edit.

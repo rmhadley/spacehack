@@ -42,6 +42,8 @@ def overlay_dir(tmp_path, monkeypatch):
                 "npc.barkeep.flavor_text": "Overridden flavor.",
                 "runtime.transmission_title": "STATIC BURST",
                 "disclosure.diagnostic_fragment.label": "Override label",
+                "step.lab_q2_delivery.completion_flavor": "Overridden flavor line.",
+                "step.lab_q2_delivery.ready_message": "Overridden summon.",
             }
         ),
         encoding="utf-8",
@@ -84,6 +86,12 @@ def test_runtime_get_falls_back_to_shipped_default(overlay_dir):
 
 def test_runtime_get_falls_back_to_literal_default(overlay_dir):
     assert text_module.get("runtime.no_such_key", "fallback") == "fallback"
+
+
+def test_overlay_overrides_completion_flavor_and_ready_message(overlay_dir):
+    _step = find_main_quest_step("lab_q2_delivery")
+    assert _step.completion_flavor == "Overridden flavor line."
+    assert _step.ready_message == "Overridden summon."
 
 
 def test_disclosure_overlay_applies(overlay_dir):
@@ -158,6 +166,8 @@ def test_shipped_overlay_keys_resolve():
     for _step in list_main_quest_steps():
         _known.add(f"step.{_step.id}.title")
         _known.add(f"step.{_step.id}.description")
+        _known.add(f"step.{_step.id}.completion_flavor")
+        _known.add(f"step.{_step.id}.ready_message")
         for _npc_id, _dialogue in _step.dialogues.items():
             for _variant in ("intro", "active", "complete", "locked", "option_label"):
                 _known.add(f"step.{_step.id}.dialogue.{_npc_id}.{_variant}")

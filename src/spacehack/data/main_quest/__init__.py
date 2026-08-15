@@ -182,7 +182,8 @@ class MainQuestStep:
 def _apply_text_overlay(_step: MainQuestStep) -> MainQuestStep:
     """Overlay JSON story text over one step's authored strings.
 
-    Looks up ``step.<id>.title`` / ``.description`` and
+    Looks up ``step.<id>.title`` / ``.description`` /
+    ``.completion_flavor`` / ``.ready_message`` and
     ``step.<id>.dialogue.<npc>.<variant>`` in the runtime text
     overlay (:mod:`spacehack.text`), returning a new step with the
     overrides applied. Missing keys fall back to the Python default,
@@ -191,7 +192,7 @@ def _apply_text_overlay(_step: MainQuestStep) -> MainQuestStep:
     from ...text import overlay as _text_overlay
     _text = _text_overlay()
     _changes: dict[str, object] = {}
-    for _field in ("title", "description"):
+    for _field in ("title", "description", "completion_flavor", "ready_message"):
         _key = f"step.{_step.id}.{_field}"
         if _key in _text:
             _changes[_field] = _text[_key]

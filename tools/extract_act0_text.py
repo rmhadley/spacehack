@@ -11,6 +11,8 @@ Keys are stable paths into the game data:
 
     step.<id>.title
     step.<id>.description
+    step.<id>.completion_flavor
+    step.<id>.ready_message
     step.<id>.dialogue.<npc>.intro|active|complete|locked|option_label
     npc.<id>.flavor_text
 
@@ -70,6 +72,10 @@ def _step_keys(step_id: str) -> dict[str, str]:
     _keys: dict[str, str] = {f"step.{step_id}.title": _step.title}
     if _step.description:
         _keys[f"step.{step_id}.description"] = _step.description
+    if _step.completion_flavor:
+        _keys[f"step.{step_id}.completion_flavor"] = _step.completion_flavor
+    if _step.ready_message:
+        _keys[f"step.{step_id}.ready_message"] = _step.ready_message
     for _npc_id, _dialogue in _step.dialogues.items():
         for _variant in _DIALOGUE_VARIANTS:
             _text = getattr(_dialogue, _variant, "")

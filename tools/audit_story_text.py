@@ -87,6 +87,10 @@ def _all_overlay_keys() -> set[str]:
         _keys.add(f"step.{_step.id}.title")
         if _step.description:
             _keys.add(f"step.{_step.id}.description")
+        if _step.completion_flavor:
+            _keys.add(f"step.{_step.id}.completion_flavor")
+        if _step.ready_message:
+            _keys.add(f"step.{_step.id}.ready_message")
         for _npc_id, _dlg in _step.dialogues.items():
             for _variant in _VARIANTS:
                 if getattr(_dlg, _variant, ""):
@@ -354,6 +358,21 @@ def main() -> int:
         f"disclosure.{_spec.key}.{_field}"
         for _spec in ARCHIVE_DISCLOSURES
         for _field in _DISCLOSURE_FIELDS
+    }
+    # completion_flavor renders in the completion log line, the
+    # wait-days gate popup, and the waiting breadcrumb; ready_message
+    # renders as the gate-elapse summon (INCOMING MESSAGE). Both fire
+    # outside the modal-state simulation below, so credit them by
+    # construction too.
+    _displayed |= {
+        f"step.{_step.id}.completion_flavor"
+        for _step in list_main_quest_steps()
+        if _step.completion_flavor
+    }
+    _displayed |= {
+        f"step.{_step.id}.ready_message"
+        for _step in list_main_quest_steps()
+        if _step.ready_message
     }
     for _chain, _steps in _CHAINS.items():
         _displayed |= _q1_offer_keys(_chain)
