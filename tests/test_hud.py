@@ -135,6 +135,36 @@ def test_dungeon_stat_rows_show_current_ground_armor():
     assert row == "ARM     3"
 
 
+def test_city_hud_shows_current_ground_armor():
+    """The Earth/city HUD exposes the equipped ground armor total."""
+    ctx = SimpleNamespace(
+        character_info={"species_name": "Human", "class_name": "Merchant"},
+        stats=hud.HudStats(10, 10, 100),
+        player_owned_ship=None,
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        ground_stats=None,
+        ground_hp=10,
+        ground_max_hp=10,
+        equipped_ground_armor={"body": "light_vest"},
+        time_day=1,
+        time_month=1,
+        time_year=2200,
+    )
+    console = FrameBuffer(120, 54)
+
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="city",
+    )
+
+    rows = [
+        "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
+        for y in range(54)
+    ]
+    assert "ARM     2" in rows
+
+
 def test_city_stat_values_line_up_in_one_column():
     """HP / Cargo / Credits values all start at the same column."""
     console = FrameBuffer(40, 3)

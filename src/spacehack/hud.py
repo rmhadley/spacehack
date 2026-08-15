@@ -473,11 +473,8 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
         ctx=ctx, stats=ctx.stats,
         owned_ship=ctx.player_owned_ship, ship_catalog=ship_catalog,
         ground_stats=ctx.ground_stats,
-        ground_armor=(
-            _sum_armor_defense(
-                getattr(ctx, "equipped_ground_armor", {}).values(),
-            )
-            if mode == "dungeon" else None
+        ground_armor=_sum_armor_defense(
+            getattr(ctx, "equipped_ground_armor", {}).values(),
         ),
     )
     y += 1
