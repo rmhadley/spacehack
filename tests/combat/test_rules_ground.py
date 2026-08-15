@@ -975,6 +975,7 @@ def test_ground_balance_roles_keep_explosives_burstier_than_infinite_plasma():
 
     _rocket = find_ground_weapon("rocket_launcher")
     _grenade = find_ground_weapon("grenade_launcher")
+    _railgun = find_ground_weapon("railgun")
     _caster = find_ground_weapon("plasma_caster")
     _plasma_pistol = find_ground_weapon("plasma_pistol")
     _carbine = find_ground_weapon("laser_carbine")
@@ -982,6 +983,7 @@ def test_ground_balance_roles_keep_explosives_burstier_than_infinite_plasma():
 
     assert (_rocket.damage, _rocket.accuracy, _rocket.reload_ap_cost) == (30, 55, 2)
     assert (_grenade.damage, _grenade.accuracy) == (16, 60)
+    assert _railgun.ap_cost == 2
     assert _rocket.damage > _caster.damage
     assert _rocket.ammo_capacity == 4
     assert _caster.ammo_capacity == -1
