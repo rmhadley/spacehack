@@ -210,7 +210,7 @@ def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -
 
 def _log_explosive_result(
     ctx, rules, weapon_id: str, weapon_name: str, target,
-    enemy_hits: tuple, player_damage: int,
+    enemy_hits: tuple, player_damage: int, *, primary_hit: bool = True,
 ) -> None:
     """Log primary, splash, and friendly-fire results for one blast."""
     from .. import message_log as _ml
@@ -222,7 +222,7 @@ def _log_explosive_result(
     ctx.log.add_colored(
         _player_attack_line(
             weapon_id, weapon_name, rules.enemy_name(target),
-            hit=True, hull_dmg=_primary_damage,
+            hit=primary_hit, hull_dmg=_primary_damage if primary_hit else 0,
         ),
         _ml.COLOR_PLAYER_ACTION,
     )
@@ -266,10 +266,9 @@ def _fire_explosive_weapon(
     if _reason:
         ctx.log.add(_reason)
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
-    _enemy_hits: tuple = ()
-    _player_damage = 0
-    if _hit:
-        _enemy_hits, _player_damage = rules.explosive_blast(_wid, target, ctx)
+    _enemy_hits, _player_damage = rules.explosive_blast(
+        _wid, target, ctx, primary_hit=_hit,
+    )
     _primary_damage = next(
         (_dmg for _enemy, _dmg, _primary in _enemy_hits if _primary),
         0,
@@ -279,9 +278,10 @@ def _fire_explosive_weapon(
         console, ctx, game_map, player_pos, rules.enemy_pos(target),
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
-    if _hit:
+    if _hit or _enemy_hits or _player_damage:
         _log_explosive_result(
             ctx, rules, _wid, _wname, target, _enemy_hits, _player_damage,
+            primary_hit=_hit,
         )
         _process_explosive_kills(ctx, game_map, rules, _enemy_hits)
     else:

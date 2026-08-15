@@ -470,6 +470,8 @@ def _apply_explosive_enemy_hit(
     enemy: GroundEnemyInstance,
     primary: GroundEnemyInstance,
     ctx,
+    *,
+    primary_hit: bool = True,
 ) -> tuple[GroundEnemyInstance, int, bool] | None:
     """Apply one enemy's primary-or-splash share of an explosion."""
     if not enemy.alive:
@@ -483,6 +485,8 @@ def _apply_explosive_enemy_hit(
         weapon_id, ctx.ground_stats.strength, _armor,
     )
     _is_primary = enemy is primary
+    if _is_primary and not primary_hit:
+        return None
     _damage = _full_damage if _is_primary else max(1, _full_damage // 2)
     enemy.hp -= _damage
     if enemy.entity is not None:
@@ -494,18 +498,18 @@ def explosive_blast(
     weapon_id: str,
     primary: GroundEnemyInstance,
     ctx,
+    *,
+    primary_hit: bool = True,
 ) -> tuple[tuple[tuple[GroundEnemyInstance, int, bool], ...], int]:
-    """Resolve an explosive hit around ``primary`` with friendly fire.
+    """Resolve an explosive impact around ``primary`` with friendly fire.
 
-    The primary cell takes full post-armor damage. Every enemy and the
-    player in one of the eight neighboring cells takes half damage,
-    rounded down with a minimum of one. Returns enemy hit details and
-    player damage so the shared loop can log and process kills.
+    A direct hit damages primary fully; a miss leaves it unharmed but applies
+    half damage to neighboring cells. The player also takes half damage nearby.
     """
     _enemy_hits = tuple(
         _hit for _enemy in _state.enemies
         if (_hit := _apply_explosive_enemy_hit(
-            weapon_id, _enemy, primary, ctx,
+            weapon_id, _enemy, primary, ctx, primary_hit=primary_hit,
         )) is not None
     )
     _player_dx = abs(ctx.player.pos.x - primary.pos.x)
