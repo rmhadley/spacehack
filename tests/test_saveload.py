@@ -238,6 +238,47 @@ class TestSaveLoadRoundTrip:
         # Active missions — default empty
         assert loaded.player_active_missions == []
 
+    def test_quicksave_round_trip_is_independent_of_autosave(
+        self, monkeypatch, tmp_path,
+    ):
+        """Dev quicksave/quickload round-trips and never touches the autosave."""
+        from src.spacehack.dev_mode import quick_load, quick_save
+
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        monkeypatch.setattr(
+            "src.spacehack.dev_mode._quicksave_path",
+            lambda: tmp_path / "quicksave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(42)
+
+        # No checkpoint yet -> quick_load returns None, not a crash.
+        assert quick_load(MagicMock()) is None
+
+        ctx = _build_test_ctx()
+        quick_save(ctx, mode="city", city_id="earth", system_id="sol")
+
+        # Quicksave is a separate file — the autosave stays untouched.
+        assert not (tmp_path / "autosave.json").exists()
+        assert (tmp_path / "quicksave.json").exists()
+
+        loaded = quick_load(ctx.context)
+        assert loaded is not None
+        self._assert_fields_match(ctx, loaded)
+
+        # Reusable checkpoint: loading does not delete the file, and a
+        # second save overwrites it in place.
+        assert (tmp_path / "quicksave.json").exists()
+        quick_save(ctx, mode="city", city_id="earth", system_id="sol")
+        assert (tmp_path / "quicksave.json").exists()
+
+        (tmp_path / "quicksave.json").unlink()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     def test_legacy_save_without_extension_state_loads(self, monkeypatch, tmp_path):
         """Pre-extension saves load with no active extension state."""
         monkeypatch.setattr(

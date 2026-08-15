@@ -333,15 +333,13 @@ def save_game(
     city_id: str = "earth",
     system_id: str = "sol",
     space_player_pos: tuple[int, int] | None = None,
+    path: Path | None = None,
 ) -> None:
-    """Save the current game state to the autosave file.
+    """Save the current game state to a save file (autosave by default).
 
-    ``mode``, ``city_id``, and ``system_id`` are passed by the caller
-    so save/load doesn't need to reach into ``_run_game``'s closure locals.
-
-    ``space_player_pos`` is required when ``mode == "dungeon"`` — the
-    player's ship position in the space map, needed to reconstruct the
-    space side on load.
+    ``mode``/``city_id``/``system_id`` come from the caller (the loop's
+    closure locals). ``space_player_pos`` is required for ``dungeon``
+    mode; ``path`` overrides the destination (dev quicksave).
     """
     _synced_spawns, _synced_mids, _synced_targets, _synced_paths = (
         _sync_procedural_spawns(ctx, system_id)
@@ -362,7 +360,7 @@ def save_game(
     _write_dungeon_and_interiors(ctx, _data, mode, space_player_pos)
     _write_rng_state(_data)
 
-    _path = _autosave_path()
+    _path = path or _autosave_path()
     _path.write_text(json.dumps(_data, indent=2, ensure_ascii=False))
 
 
@@ -972,12 +970,16 @@ def _assemble_context(context, data: dict, parsed: _ParsedSave, rebuilt) -> Game
     return ctx
 
 
-def load_game(context: PygameContext) -> GameContext | None:
-    """Load the autosave and reconstruct a GameContext.
+def load_game(
+    context: PygameContext,
+    *,
+    path: Path | None = None,
+) -> GameContext | None:
+    """Load a save file (autosave by default); ``path`` overrides it.
 
     Returns None if no save exists or the file is corrupted.
     """
-    data = _load_json(_autosave_path())
+    data = _load_json(path or _autosave_path())
     if data is None:
         return None
 

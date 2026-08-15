@@ -13,13 +13,16 @@ make dev-mode easy to extend (debug overlay, god-mode toggle, etc.)
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from . import ground_equipment
 from . import ship as ship_module
 from . import ui
 from . import pygame_ui
+from .game_context import GameContext
 from .input_helpers import Outcome
+from .pygame_runtime import PygameContext
 from .data.ground_armor import list_ground_armor
 from .data.ground_weapons import find_ground_weapon, list_ground_weapons
 
@@ -114,6 +117,41 @@ def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
     if result is None:
         raise RuntimeError("Developer faction picker returned no outcome")
     return result
+
+
+def _quicksave_path() -> Path:
+    """Full path to the dev-mode quicksave checkpoint file."""
+    return Path.home() / ".spacehack" / "saves" / "quicksave.json"
+
+
+def quick_save(
+    ctx: GameContext,
+    *,
+    mode: str = "city",
+    city_id: str = "earth",
+    system_id: str = "sol",
+    space_player_pos: tuple[int, int] | None = None,
+) -> None:
+    """Write the dev-mode quicksave checkpoint (same payload as autosave).
+
+    Unlike the autosave, the quicksave is *not* deleted on load or on
+    death — it is a reusable dev checkpoint. Each call overwrites it.
+    """
+    from .saveload import save_game as _save_game
+    _save_game(
+        ctx,
+        mode=mode,
+        city_id=city_id,
+        system_id=system_id,
+        space_player_pos=space_player_pos,
+        path=_quicksave_path(),
+    )
+
+
+def quick_load(context: PygameContext) -> GameContext | None:
+    """Load the dev-mode quicksave checkpoint, or None if absent/corrupt."""
+    from .saveload import load_game as _load_game
+    return _load_game(context, path=_quicksave_path())
 
 
 _GROUND_ARMOR_SLOTS = ("head", "body", "hands", "legs", "feet")

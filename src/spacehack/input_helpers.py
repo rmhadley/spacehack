@@ -369,6 +369,22 @@ def _is_f5_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'f5'
 
+def _is_f6_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the F6 key.
+
+    Dev-mode only (``SPACEHACK_DEV``): writes the quicksave checkpoint
+    (saves/quicksave.json), independent of the autosave flow.
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'f6'
+
+def _is_f9_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the F9 key.
+
+    Dev-mode only (``SPACEHACK_DEV``): restores the quicksave checkpoint
+    written by F6, replacing the live game state in place.
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'f9'
+
 def _try_open_guide(event: pygame_engine.PygameInputEvent, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.
 
