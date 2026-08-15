@@ -289,6 +289,36 @@ def test_stun_baton_hit_reduces_enemy_ap_by_one():
     assert _enemy.ap == 3
 
 
+def test_stun_baton_reduction_resets_after_the_next_enemy_turn(monkeypatch):
+    _enemy = _rules_ground.GroundEnemyInstance(
+        entity=SimpleNamespace(),
+        spec=SimpleNamespace(armor=0),
+        hp=30,
+        ap=4,
+        ap_total=4,
+    )
+    _ctx = SimpleNamespace(
+        ground_stats=SimpleNamespace(strength=10),
+        equipped_ground_armor={},
+        player_traits=[],
+    )
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
+    assert _enemy.ap == 3
+
+    monkeypatch.setattr(
+        _rules_ground,
+        "_state",
+        _rules_ground.GroundCombatState(
+            ctx=_ctx,
+            game_map=SimpleNamespace(),
+            enemies=[_enemy],
+        ),
+    )
+    _rules_ground.reset_turn(_ctx)
+
+    assert _enemy.ap == 4
+
+
 def test_stun_baton_cannot_reduce_enemy_ap_below_zero():
     _enemy = _rules_ground.GroundEnemyInstance(
         entity=SimpleNamespace(),

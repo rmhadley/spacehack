@@ -312,7 +312,7 @@ Space mode:
 
 - [x] Create `data/ground_weapons/__init__.py` with `GroundWeaponSpec` frozen dataclass
 - [x] Fields: `id`, `name`, `damage_type` (melee/kinetic/energy/explosive), `damage`, `accuracy`, `ap_cost`, `hands` (1 or 2), `min_range`, `max_range`, `ammo_capacity` (-1=infinite), `ammo_per_shot`, `price`, `tech_level`
-- [x] `data/ground_weapons/melee.py` — fists, combat_knife, stun_baton, survival_axe (all damage_type="melee", base range=1, infinite ammo; Stun Baton removes 1 enemy AP per hit)
+- [x] `data/ground_weapons/melee.py` — fists, combat_knife, stun_baton, survival_axe (all damage_type="melee", base range=1, infinite ammo; Stun Baton removes 1 enemy AP for its next turn per hit)
 - [x] `data/ground_weapons/pistols.py` — laser_pistol (100 ammo, damage_type="energy"), kinetic_pistol (12 ammo, damage_type="kinetic")
 - [x] `data/ground_weapons/rifles.py` — laser_rifle, kinetic_rifle, shotgun (2-handed, longer range)
 
