@@ -181,10 +181,10 @@ Each level costs `50 + level * 20` XP:
 | 8 | 210 | 1,050 | 63 | |
 | 9 | 230 | 1,280 | 72 | |
 | 10 | 250 | 1,530 | 81 | |
-| 11-19 | 270-430 | 2,070-6,930 | 90-162 | |
-| 20 | 450 | 7,380 | 171 | **Major trait** |
-| 21-29 | 470-630 | 7,850-12,210 | 180-252 | |
-| 30 | 650 | 12,860 | 261 | **Capstone trait** |
+| 11-19 | 270-430 | 1,800-4,680 | 90-162 | |
+| 20 | 450 | 5,130 | 171 | **Major trait** |
+| 21-29 | 470-630 | 5,600-10,080 | 180-252 | |
+| 30 | 650 | 10,730 | 261 | **Capstone trait** |
 
 Formula: `xp_for_level(n) = 50 + n * 20` for n > 1.
 
@@ -192,7 +192,7 @@ Formula: `xp_for_level(n) = 50 + n * 20` for n > 1.
 - Early levels (2-5) cost ~90-150 XP — a mission or two, or 3-5 combat kills
 - Mid levels (10-15) cost ~250-350 XP — a T2/T3 mission worth of effort
 - Late levels (20-30) cost ~450-650 XP — significant but achievable with T3/T4 missions
-- Cumulative XP to reach cap is ~12,860 — achievable in a long successful run
+- Cumulative XP to reach cap is ~10,730 — achievable in a long successful run
 
 A T1 mission gives ~20 XP. A T4 mission gives ~300 XP. A combat kill gives ~30-200 XP.
 
