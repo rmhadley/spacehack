@@ -56,13 +56,13 @@ ACE_PILOT = Trait(
     id="ace_pilot",
     name="Ace Pilot",
     description="+1 AP per turn in combat",
-    counters=(("combat_flees", 10),),
+    counters=(("piloting", 40),),
 )
 
 JUGGERNAUT = Trait(
     id="juggernaut",
     name="Juggernaut",
-    description="-50% missile damage taken",
+    description="Take 1 less damage from each ground attack",
     counters=(("total_kills", 30),),
 )
 

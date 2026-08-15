@@ -101,7 +101,6 @@ class PlayerCounters:
     bounties_completed: int = 0
     deliveries_completed: int = 0
     total_damage_taken: int = 0
-    combat_flees: int = 0
 
 
 @dataclasses.dataclass(frozen=True)

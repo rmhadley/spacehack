@@ -30,6 +30,7 @@ from ..ground_consumables import ActiveConsumableEffect, effect_from_spec
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
+    apply_ground_damage_reduction as ground_damage_taken,
 )
 
 from ._types import CombatResult
@@ -516,7 +517,7 @@ def explosive_blast(
         _full_damage = _ground_damage_raw(
             weapon_id, 0, _state.armor_defense,
         )
-        _player_damage = max(1, _full_damage // 2)
+        _player_damage = ground_damage_taken(ctx, max(1, _full_damage // 2))
         _state.player_hp -= _player_damage
     else:
         _player_damage = 0
@@ -848,7 +849,6 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 
 def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     _player_dodge = _calc_ground_move_dodge(_state.cells_moved_this_turn)
-
     _total_dmg = 0
     for _gei in _state.enemies:
         if not _gei.alive or _gei.ap <= 0 or not _gei.weapon_id:
@@ -880,6 +880,7 @@ def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
         _gei.ap = _new_ap
 
         if _dmg > 0:
+            _dmg = ground_damage_taken(ctx, _dmg)
             _state.player_hp -= _dmg
             _total_dmg += _dmg
             if _state.player_hp <= 0:

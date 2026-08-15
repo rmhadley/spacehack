@@ -36,7 +36,6 @@ from ._animations import (
     _damage_popup_for,
 )
 from ._shot_animations import _animate_weapon_shot
-from ..xp import has_trait as _has_trait
 
 
 def _e_log(msg: str, log) -> None:
@@ -174,16 +173,10 @@ def _run_enemy_turn(
                     _e_is_strip = False
                     _is_glancing = False
                     if _e_hit:
-                        # Juggernaut trait: -50% missile damage taken.
-                        _dmg_mult = 1.0
-                        if (_e_ws.slot_type == "missile" and ctx is not None
-                                and _has_trait(ctx, "juggernaut")):
-                            _dmg_mult = 0.5
                         _e_dmg, _e_sdmg, _e_fh, _is_glancing = resolve_damage(
                             _wid, state.player_state["hull"],
                             state.player_state["shields"],
                             target_pilot_piloting=state.player_state.get("piloting", 0),
-                            damage_taken_mult=_dmg_mult,
                         )
                         _e_is_strip = _e_ws.shield_strip > 0 and _e_sdmg > 0
                         _e_dmg_popup = _damage_popup_for(

@@ -134,7 +134,7 @@ class TestResolveDamage:
         assert glancing is True
 
     def test_damage_taken_mult(self):
-        """Juggernaut trait: damage_taken_mult=0.5 halves damage (3 vs 6)."""
+        '''The generic damage multiplier halves damage (3 vs 6).'''
         _seed(42)
         hull_dmg_mult, _, _, _ = resolve_damage(
             "medium_laser", target_hull=100, target_shields=0,
@@ -149,7 +149,7 @@ class TestResolveDamage:
         assert hull_dmg_full == 6
 
     def test_min_1_damage(self):
-        """Damage floor of 1 even with piloting=100 + mult=0.01."""
+        '''Damage floor of 1 even with piloting=100 + mult=0.01.'''
         _seed(12345)
         hull_dmg, shield_dmg, final_hull, glancing = resolve_damage(
             "light_laser", target_hull=100, target_shields=0,

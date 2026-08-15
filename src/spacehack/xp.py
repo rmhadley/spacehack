@@ -140,6 +140,16 @@ def ace_pilot_ap_bonus(ctx: GameContext) -> int:
     return 1 if has_trait(ctx, "ace_pilot") else 0
 
 
+def ground_damage_reduction(ctx: GameContext) -> int:
+    """Juggernaut trait: reduce each incoming ground hit by 1."""
+    return 1 if has_trait(ctx, "juggernaut") else 0
+
+
+def apply_ground_damage_reduction(ctx: GameContext, damage: int) -> int:
+    """Reduce one ground damage event without allowing zero damage."""
+    return max(1, damage - ground_damage_reduction(ctx))
+
+
 # ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------

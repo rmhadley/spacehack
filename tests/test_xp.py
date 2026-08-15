@@ -9,10 +9,16 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.xp import xp_for_level, _xp_to_next
+from src.spacehack.xp import (
+    _qualifying_traits,
+    _xp_to_next,
+    ground_damage_reduction,
+    xp_for_level,
+)
 
 
 # Design doc table (docs/design/complete/02_DESIGN_XP_LEVELING.md).
@@ -71,6 +77,46 @@ class TestXpForLevel:
             cur = xp_for_level(level)
             assert cur > prev, f"Level {level}: {cur} <= {prev}"
             prev = cur
+
+
+class TestTraitQualification:
+    def _ctx(self, *, piloting=10, total_kills=0):
+        return SimpleNamespace(
+            stats=SimpleNamespace(
+                gunnery=10, piloting=piloting, engineering=10,
+            ),
+            player_counters=SimpleNamespace(
+                deliveries_completed=0,
+                total_kills=total_kills,
+            ),
+            player_traits=[],
+            faction_reputation={},
+        )
+
+    def test_ace_pilot_uses_piloting_not_flee_counter(self):
+        _traits = _qualifying_traits(
+            self._ctx(piloting=40),
+        )
+
+        assert "ace_pilot" in {trait.id for trait in _traits}
+
+    def test_ace_pilot_does_not_use_old_flee_counter(self):
+        _traits = _qualifying_traits(self._ctx(piloting=10))
+
+        assert "ace_pilot" not in {trait.id for trait in _traits}
+
+    def test_juggernaut_keeps_kill_requirement(self):
+        _traits = _qualifying_traits(self._ctx(total_kills=30))
+
+        assert "juggernaut" in {trait.id for trait in _traits}
+
+    def test_juggernaut_reduces_each_ground_hit(self):
+        assert ground_damage_reduction(
+            SimpleNamespace(player_traits=["juggernaut"]),
+        ) == 1
+        assert ground_damage_reduction(
+            SimpleNamespace(player_traits=[]),
+        ) == 0
 
 
 class TestXpToNext:

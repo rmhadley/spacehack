@@ -202,6 +202,13 @@ class TestEnemyThreatColor:
         ) == ui.COLOR_VALUE_DIM
 
 
+def test_ground_damage_taken_applies_juggernaut_after_armor():
+    _ctx = SimpleNamespace(player_traits=["juggernaut"])
+
+    assert _rules_ground.ground_damage_taken(_ctx, 6) == 5
+    assert _rules_ground.ground_damage_taken(_ctx, 1) == 1
+
+
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     """Player melee vs an armored enemy: armor reduces, cyber arms add."""
     _enemy = _rules_ground.GroundEnemyInstance(
@@ -892,6 +899,21 @@ def test_explosive_blast_hits_primary_full_and_neighbors_half():
     assert _neighbor.hp == 26
 
 
+def test_explosive_blast_juggernaut_reduces_friendly_fire_after_splash():
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture(
+        player_pos=world.Position(3, 4),
+    )
+    _ctx.player_traits = ["juggernaut"]
+
+    _primary_instance = _rules_ground._state.enemies[0]
+    _hits, _player_damage = _rules_ground.explosive_blast(
+        "rocket_launcher", _primary_instance, _ctx,
+    )
+
+    assert _player_damage == 14
+    assert _rules_ground.player_hp(_ctx) == 9
+
+
 def test_explosive_blast_has_friendly_fire_and_armor_mitigation():
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture(
         player_pos=world.Position(3, 4),
@@ -940,6 +962,23 @@ def test_explosive_miss_can_still_damage_player_with_friendly_fire():
     assert _player_damage == 15
     assert _rules_ground.player_hp(_ctx) == 8
     assert _primary.hp == 26
+
+
+def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _enemy.npc_char_id = "sentry_drone"
+    _ctx.player_traits = ["juggernaut"]
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+
+    from src.spacehack.combat import _ai_ground
+    monkeypatch.setattr(
+        _ai_ground, "RNG", SimpleNamespace(randint=lambda *_args: 1),
+    )
+
+    _damage = _rules_ground.run_enemy_turns(_ctx, _game_map)
+
+    assert _damage == 3
+    assert _rules_ground.player_hp(_ctx) == 20
 
 
 def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatch):

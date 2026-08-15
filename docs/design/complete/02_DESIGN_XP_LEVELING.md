@@ -28,10 +28,10 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 |-------|-----------|----------|--------|
 | Sharpshooter | 20/30 | 40+ gunnery | +10% hit chance |
 | Trade Route | 20/30 | 10+ deliveries | -5% buy / +5% sell prices |
-| Ace Pilot | 20/30 | 10+ combat flees | +1 AP per turn |
-| Juggernaut | 20/30 | 30+ total kills | -50% missile damage taken |
+| Ace Pilot | 20/30 | 40+ piloting | +1 AP per turn |
+| Juggernaut | 20/30 | 30+ total kills | Take 1 less damage from each ground attack |
 
-These 4 traits test 4 different counter types: skill value, delivery count, flee count, kill count.
+These 4 traits test skill-value, delivery-count, piloting, and kill-count requirements.
 
 ## Philosophy alignment
 
@@ -116,7 +116,6 @@ class PlayerCounters:
     bounties_completed: int = 0
     deliveries_completed: int = 0
     total_damage_taken: int = 0
-    combat_flees: int = 0
 ```
 
 Incremented via: `ctx.player_counters.total_kills += 1`. One field on ctx. Extensible — add a counter to the dataclass, update the trait catalog, done.
@@ -275,13 +274,13 @@ ACE_PILOT = Trait(
     id="ace_pilot",
     name="Ace Pilot",
     description="+1 AP per turn in combat",
-    counters=(("combat_flees", 10),),
+    counters=(("piloting", 40),),
 )
 
 JUGGERNAUT = Trait(
     id="juggernaut",
     name="Juggernaut",
-    description="-50% missile damage taken",
+    description="Take 1 less damage from each ground attack",
     counters=(("total_kills", 30),),
 )
 
@@ -438,7 +437,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - `mission.py` — `deliveries_completed` / `bounties_completed` incremented in `complete_mission()` via `ctx.player_counters`
 - `combat/_weapons.py` — per-shot counters (laser/missile/plasma) incremented via `ctx.player_counters` in fire path
 - `combat/_encounter.py` — per-kill counters (`total_kills`, `merchant_kills`) incremented via `ctx.player_counters` in VICTORY path
-- `combat/_loop.py` — `combat_flees` incremented on flee; `total_damage_taken` incremented on damage
+- `combat/_loop.py` — `total_damage_taken` incremented on damage
 - `faction.py` — reputation-gated traits (future) check `ctx.faction_reputation`
 
 **Three duplication hotspots:**
