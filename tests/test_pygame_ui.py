@@ -6,10 +6,8 @@ from types import SimpleNamespace
 
 from src.spacehack import (
     character_screen,
-    pygame_batch,
     pygame_screen,
     pygame_menu,
-    pygame_merchant,
     pygame_quest_log,
     pygame_story,
     pygame_ui,
@@ -352,36 +350,8 @@ def test_combat_character_action_is_unavailable_for_space_rules():
 
 
 def test_combat_key_mapping_returns_opaque_actions():
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        K_ESCAPE = 10
-        K_TAB = 11
-        K_UP = 12
-        K_DOWN = 13
-        K_LEFT = 14
-        K_RIGHT = 15
-
-        class key:
-            @staticmethod
-            def name(value):
-                return {
-                    20: "f", 21: "1", 22: "?", 23: "period", 24: "backslash",
-                }.get(value, "")
-
-    fake = FakePygame()
-    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value, unicode="")
-
-    assert pygame_combat._action_for_key(fake, SimpleNamespace(type=fake.QUIT)) == "QUIT"
-    assert pygame_combat._action_for_key(fake, key(fake.K_ESCAPE)) == ""  # ESC is unbound in combat
-    assert pygame_combat._action_for_key(fake, key(fake.K_TAB)) == "TARGET"
-    assert pygame_combat._action_for_key(fake, key(fake.K_UP)) == "MOVE:up"
-    assert pygame_combat._action_for_key(fake, key(20)) == "FIRE"
-    assert pygame_combat._action_for_key(fake, key(21)) == "WEAPON:0"
-    assert pygame_combat._action_for_key(fake, key(23)) == "WAIT"
-    assert pygame_combat._action_for_key(fake, key(24)) == "HISTORY"
-
     from src.spacehack.combat import _loop
+
     assert _loop._input_action(
         pygame_engine.PygameInputEvent(kind="keydown", key_name="period"),
     ) == "WAIT"
@@ -398,19 +368,9 @@ def test_combat_key_mapping_returns_opaque_actions():
     ) == "WEAPON:8"
 
 
-def test_combat_present_rejects_failed_presenter_without_shared_runtime(monkeypatch):
-    calls = []
-
-    class FailedPresenter:
-        def show(self, *_args, **_kwargs):
-            raise pygame_combat.PygameCombatUnavailable("stopped")
-
-        def close(self):
-            calls.append("close")
-
+def test_combat_present_requires_shared_runtime(monkeypatch):
     ctx = SimpleNamespace(
-        _pygame_combat_presenter=FailedPresenter(),
-        context=SimpleNamespace(present=lambda _console: calls.append("legacy")),
+        context=SimpleNamespace(present=lambda _console: None),
     )
 
     monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: False)
@@ -420,50 +380,6 @@ def test_combat_present_rejects_failed_presenter_without_shared_runtime(monkeypa
         pass
     else:
         raise AssertionError("combat must require the shared Pygame runtime")
-    assert calls == ["close"]
-    assert ctx._pygame_combat_presenter is None
-
-
-def test_invalid_combat_console_rejects_without_shared_runtime(monkeypatch):
-    calls = []
-
-    class Presenter:
-        def show(self, console, **_kwargs):
-            pygame_combat._frame_payload(console, interactive=False)
-
-        def close(self):
-            calls.append("close")
-
-    ctx = SimpleNamespace(
-        _pygame_combat_presenter=Presenter(),
-        context=SimpleNamespace(present=lambda _console: calls.append("legacy")),
-    )
-
-    monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: False)
-    try:
-        pygame_combat.present(ctx, SimpleNamespace(commands=[SimpleNamespace(x=0)]))
-    except pygame_combat.PygameCombatUnavailable:
-        pass
-    else:
-        raise AssertionError("combat must require the shared Pygame runtime")
-    assert calls == ["close"]
-    assert ctx._pygame_combat_presenter is None
-
-
-def test_combat_action_falls_back_when_presenter_stops():
-    class UnavailablePresenter:
-        def show(self, *_args, **_kwargs):
-            raise pygame_combat.PygameCombatUnavailable("stopped")
-
-        def wait_action(self):
-            raise AssertionError("wait_action must not run after show fails")
-
-    assert pygame_combat.PygameCombatUnavailable.__name__ == "PygameCombatUnavailable"
-    from src.spacehack.combat import _loop
-
-    assert _loop._combat_action(
-        SimpleNamespace(), SimpleNamespace(), presenter=UnavailablePresenter(),
-    ) == "UNAVAILABLE"
 
 
 def _combat_history_rules() -> SimpleNamespace:
@@ -497,12 +413,11 @@ def test_combat_history_opens_console_log_and_resumes(monkeypatch):
     monkeypatch.setattr(
         _loop,
         "_combat_action",
-        lambda ctx, console, *, presenter: next(actions),
+        lambda ctx, console: next(actions),
     )
 
     ctx = SimpleNamespace(
         log=SimpleNamespace(add_colored=lambda *_args: None),
-        _pygame_combat_presenter=None,
     )
     import pytest
     with pytest.raises(SystemExit):
@@ -520,12 +435,11 @@ def test_combat_window_close_quits_game(monkeypatch):
     monkeypatch.setattr(
         _loop,
         "_combat_action",
-        lambda ctx, console, *, presenter: next(actions),
+        lambda ctx, console: next(actions),
     )
 
     ctx = SimpleNamespace(
         log=SimpleNamespace(add_colored=lambda *_args: None),
-        _pygame_combat_presenter=None,
     )
     import pytest
     with pytest.raises(SystemExit):
@@ -549,59 +463,20 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
         lambda _context: True,
     )
 
-    assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == "WAIT"
+    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == "WAIT"
 
     unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
     waits = iter(((unknown_key,), (key_down,)))
     monkeypatch.setattr(shared_ctx.context, "wait_events", lambda: next(waits))
-    assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == ""
+    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == ""
 
     monkeypatch.setattr(
         shared_ctx.context,
         "wait_events",
         lambda: (pygame_engine.PygameInputEvent(kind="quit"),),
     )
-    assert _loop._combat_action(shared_ctx, SimpleNamespace(), presenter=None) == "QUIT"
+    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == "QUIT"
 
-
-def test_combat_frame_payload_preserves_commands_and_mode():
-    console = SimpleNamespace(commands=[SimpleNamespace(x=1, y=2, char="@", fg=(1, 2, 3), bg=None)])
-
-    payload = pygame_combat._frame_payload(console, interactive=True)
-
-    assert payload["logical_size"] == (1600, 960)
-    assert payload["interactive"] is True
-    assert payload["commands"][0]["char"] == "@"
-
-
-def test_combat_frame_payload_filters_hud_and_log_from_bitmap_layer():
-    commands = [
-        SimpleNamespace(x=10, y=10, char="@", fg=(1, 2, 3), bg=None),
-        SimpleNamespace(x=80, y=10, char="H", fg=(4, 5, 6), bg=None),
-        SimpleNamespace(x=10, y=54, char="M", fg=(7, 8, 9), bg=None),
-    ]
-
-    payload = pygame_combat._frame_payload(
-        SimpleNamespace(commands=commands),
-        interactive=False,
-    )
-
-    assert [command["char"] for command in payload["commands"]] == ["@"]
-    assert payload["overlay"]["hud"][0]["text"] == "H"
-    assert payload["overlay"]["messages"][0]["text"] == "M"
-
-
-def test_combat_frame_payload_accepts_project_framebuffer():
-    from src.spacehack.framebuffer import FrameBuffer
-
-    frame = FrameBuffer(2, 1)
-    frame.print(x=0, y=0, string="@A", fg=(1, 2, 3), bg=(4, 5, 6))
-
-    payload = pygame_combat._frame_payload(frame, interactive=False)
-
-    assert [command["char"] for command in payload["commands"]] == ["@", "A"]
-    assert payload["commands"][0]["fg"] == (1, 2, 3)
-    assert payload["commands"][0]["bg"] == (4, 5, 6)
 
 
 def test_shared_combat_present_preserves_default_background(monkeypatch):
@@ -609,7 +484,7 @@ def test_shared_combat_present_preserves_default_background(monkeypatch):
 
     calls = []
     ctx = SimpleNamespace(
-        _pygame_combat_presenter=None,
+        log=SimpleNamespace(recent=lambda _n: []),
         context=SimpleNamespace(
             _runtime=object(),
             present=lambda console, **kwargs: calls.append((console, kwargs)),
@@ -627,7 +502,9 @@ def test_shared_combat_present_preserves_default_background(monkeypatch):
 def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
     calls = []
     ctx = SimpleNamespace(
-        _pygame_combat_presenter=None,
+        log=SimpleNamespace(recent=lambda _n: [
+            SimpleNamespace(text="Hit for 5", fg=(100, 235, 115)),
+        ]),
         context=SimpleNamespace(
             _runtime=object(),
             present=lambda console, **kwargs: calls.append((console, kwargs)),
@@ -643,22 +520,23 @@ def test_shared_combat_present_uses_native_overlay_and_map_only(monkeypatch):
     pygame_combat.present(ctx, console)
 
     rendered_console, kwargs = calls[0]
+    # Only map cells reach the bitmap layer; HUD and message band are native.
     assert [command.char for command in rendered_console.commands] == ["@"]
     assert kwargs["overlay"].hud[0].text == "H"
-    assert kwargs["overlay"].messages[0].text == "M"
+    assert kwargs["overlay"].messages[0].text == "> Hit for 5"
 
 
 def test_shared_combat_present_captures_hud_text_past_window_width(monkeypatch):
     """The live shared present() path must capture combat HUD cells past
-    cell SCREEN_WIDTH (the worker-only hud_x_max fix). A 24-cell shield
-    row starting at hud_x=80 spans past cell 100; dropping it clips the
-    shield readout at 20 cells."""
+    cell SCREEN_WIDTH (the hud_x_max fix). A 24-cell shield row starting
+    at hud_x=80 spans past cell 100; dropping it clips the shield readout
+    at 20 cells."""
     from src.spacehack.engine import HUD_WIDTH, SCREEN_WIDTH
     from src.spacehack.framebuffer import FrameBuffer
 
     calls = []
     ctx = SimpleNamespace(
-        _pygame_combat_presenter=None,
+        log=SimpleNamespace(recent=lambda _n: []),
         context=SimpleNamespace(
             _runtime=object(),
             present=lambda console, **kwargs: calls.append((console, kwargs)),
@@ -1008,36 +886,6 @@ def test_quantity_key_mapping_clamps_and_confirms():
     assert pygame_quantity._handle_key(fake, SimpleNamespace(type=fake.QUIT), 1, 2) == ("QUIT", 1)
 
 
-def test_quantity_worker_propagates_quit(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui,
-        "run_json_worker",
-        lambda *args, **kwargs: {"outcome": "QUIT", "quantity": 1},
-    )
-
-    try:
-        pygame_quantity.run(SimpleNamespace(), "Buy", 3, 10)
-    except pygame_quantity.PygameQuantityQuit:
-        pass
-    else:
-        raise AssertionError("quantity window close must remain distinct from cancel")
-
-
-def test_quantity_worker_rejects_invalid_confirmed_amount(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui,
-        "run_json_worker",
-        lambda *args, **kwargs: {"outcome": "CONFIRM", "quantity": 8},
-    )
-
-    try:
-        pygame_quantity.run(SimpleNamespace(), "Buy", 3, 10)
-    except pygame_quantity.PygameQuantityUnavailable as exc:
-        assert "invalid quantity" in str(exc)
-    else:
-        raise AssertionError("quantity worker must reject out-of-range values")
-
-
 def test_goto_menu_pygame_maps_destination_index(monkeypatch):
     from src.spacehack import pygame_menu
 
@@ -1200,18 +1048,6 @@ def test_loot_parent_apply_removes_entity_and_grants_inventory():
 
     assert owned.inventory == {"food": 2}
     assert entity not in ctx.game_map.entities
-
-
-def test_screen_frame_payload_round_trips_page_offset_and_rows():
-    frame = pygame_screen.ScreenFrame(
-        "Guide", ("body",),
-        (pygame_screen.ScreenRow("Pick", "Details", "ACTION"),),
-        ("ESC close",), 0, 4,
-    )
-
-    assert pygame_screen._frame_from_payload(
-        pygame_screen._frame_payload(frame),
-    ) == frame
 
 
 def test_screen_key_mapping_supports_tabs_and_paging():
@@ -1380,169 +1216,6 @@ def test_open_comms_accepts_contact_tuple_with_unhashable_entity(monkeypatch):
         }
 
 
-def test_merchant_frame_uses_live_content_and_selected_details():
-    offerings = (
-        SimpleNamespace(
-            title="Deliver to Mars",
-            description="Food crates for Mars.",
-            reward_credits=100,
-            reward_xp=20,
-            recommended_class_id="merchant",
-            recommended_ship_min_cargo=5,
-        ),
-        SimpleNamespace(
-            title="Deliver to Sirius",
-            description="Medical supplies for Sirius.",
-            reward_credits=400,
-            reward_xp=50,
-            recommended_class_id=None,
-            recommended_ship_min_cargo=0,
-        ),
-    )
-    npc = SimpleNamespace(name="Guild Master")
-
-    frame = pygame_merchant._frame_for(
-        npc,
-        offerings,
-        3,
-        lambda mission: f"[Delivery] {mission.title} @ Sol ({mission.reward_credits}$)",
-        lambda class_id: "Merchant",
-    )
-
-    assert frame.title == "Guild Master - available work"
-    assert frame.options == (
-        "[Delivery] Deliver to Mars @ Sol (100$)",
-        "[Delivery] Deliver to Sirius @ Sol (400$)",
-    )
-    assert frame.selected == 1
-    assert frame.description == "Medical supplies for Sirius."
-    assert frame.hints == (
-        "UP/DOWN navigate   ENTER accept   ESC walk away",
-        "Reward: 400$ + 50xp",
-    )
-
-
-def test_default_merchant_window_matches_game_canvas():
-    assert pygame_merchant._default_screen_size() == (1600, 960)
-
-
-def test_merchant_layout_matches_game_canvas_and_keeps_content_inside_panel():
-    layout = pygame_merchant._merchant_layout(1600, 960, 34)
-
-    assert layout.panel == pygame_ui.Rect(40, 32, 1520, 896)
-    assert layout.content.x == layout.panel.x + 34
-    assert layout.content.y > layout.rule_y
-    assert layout.content.x + layout.content.width < layout.panel.x + layout.panel.width
-    assert layout.content.y + layout.content.height < layout.panel.y + layout.panel.height
-
-
-def test_font_fit_uses_each_candidate_font_metrics(monkeypatch):
-    class FakePygame:
-        class font:
-            @staticmethod
-            def Font(_path, size):
-                return SimpleNamespace(
-                    get_linesize=lambda: size + 20,
-                    size=lambda text: (len(text) * size, size),
-                )
-
-    frame = pygame_merchant.MerchantFrame(
-        "title",
-        ("row",),
-        "description",
-        ("hint",),
-        0,
-    )
-    font = pygame_merchant._fit_font(
-        FakePygame,
-        None,
-        24,
-        (frame,),
-        1600,
-        960,
-    )
-
-    assert font.get_linesize() == 44
-
-
-def test_worker_payload_carries_display_configuration():
-    frame = pygame_merchant.MerchantFrame("title", ("row",), "desc", ("hint",), 0)
-
-    payload = pygame_merchant._worker_payload((frame,), (1600, 960), 24, True)
-
-    assert payload["screen_size"] == (1600, 960)
-    assert payload["font_size"] == 24
-    assert payload["antialias"] is True
-    assert payload["frames"][0]["options"] == ("row",)
-
-
-def test_merchant_key_mapping_matches_existing_modal_contract():
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        K_ESCAPE = 10
-        K_RETURN = 11
-        K_KP_ENTER = 12
-        K_UP = 13
-        K_DOWN = 14
-        K_k = 15
-        K_j = 16
-
-    fake = FakePygame()
-    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.QUIT), 0, 3) == ("QUIT", 0)
-    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.KEYDOWN, key=fake.K_UP), 0, 3) == ("IGNORE", 2)
-    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.KEYDOWN, key=fake.K_DOWN), 2, 3) == ("IGNORE", 0)
-    assert pygame_merchant._handle_key(
-        fake,
-        SimpleNamespace(type=fake.KEYDOWN, key=fake.K_RETURN),
-        1,
-        3,
-    ) == ("ACCEPT", 1)
-    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=fake.KEYDOWN, key=fake.K_ESCAPE), 1, 3) == ("BACK", 1)
-    assert pygame_merchant._handle_key(fake, SimpleNamespace(type=99, key=0), 1, 3) == ("IGNORE", 1)
-
-
-def test_json_worker_rejects_nonzero_worker_exit(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui.subprocess,
-        "run",
-        lambda *args, **kwargs: SimpleNamespace(returncode=2, stdout=""),
-    )
-
-    try:
-        pygame_ui.run_json_worker(
-            ["python"],
-            {},
-            unavailable_message="unavailable",
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        assert str(exc) == "unavailable"
-    else:
-        raise AssertionError("nonzero worker exits must use the fallback path")
-
-
-def test_json_worker_returns_last_json_line_and_uses_supplied_environment(monkeypatch):
-    captured = {}
-
-    def fake_run(command, **kwargs):
-        captured["command"] = command
-        captured.update(kwargs)
-        return SimpleNamespace(returncode=0, stdout="worker noise\n{\"outcome\": \"BACK\"}\n")
-
-    monkeypatch.setattr(pygame_ui.subprocess, "run", fake_run)
-
-    result = pygame_ui.run_json_worker(
-        ["python", "-m", "worker"],
-        {"value": 1},
-        unavailable_message="unavailable",
-        environment={"TEST": "1"},
-    )
-
-    assert result == {"outcome": "BACK"}
-    assert captured["command"] == ["python", "-m", "worker"]
-    assert captured["env"] == {"TEST": "1"}
-    assert captured["input"] == '{"value": 1}'
-
 
 def test_captured_quest_rows_merge_cells_by_color():
     capture = pygame_world.CaptureConsole(6, 1)
@@ -1641,21 +1314,6 @@ def test_pygame_presentation_is_enabled_without_migration_flags():
     assert pygame_ui.presentation_enabled()
 
 
-def test_quest_frame_payload_round_trips_text_colors_and_state():
-    frame = pygame_quest_log.QuestFrame(
-        rows=((pygame_quest_log.QuestSpan("> Mission", (255, 255, 255)),),),
-        selected=2,
-        confirm_abandon=True,
-    )
-
-    payload = pygame_quest_log._worker_payload((frame,))
-    restored = pygame_quest_log._frame_from_payload(
-        payload["frames"][pygame_quest_log._frame_key(2, True)]
-    )
-
-    assert restored == frame
-
-
 def test_quest_key_mapping_preserves_navigation_and_confirmation_contract():
     class FakePygame:
         QUIT = 1
@@ -1681,47 +1339,6 @@ def test_quest_key_mapping_preserves_navigation_and_confirmation_contract():
     assert pygame_quest_log._handle_key(fake, SimpleNamespace(type=fake.QUIT), 1, False, 3) == ("QUIT", 1, False)
 
 
-def test_empty_quest_log_uses_a_non_abandonable_worker_state():
-    frame = pygame_quest_log.QuestFrame(rows=((),), selected=-1, confirm_abandon=False)
-    payload = pygame_quest_log._worker_payload((frame,))
-
-    assert pygame_quest_log._frame_key(-1, False) in payload["frames"]
-
-
-
-def test_batch_frame_payload_round_trips_text_and_colors():
-    frame = pygame_batch.BatchFrame(
-        rows=((pygame_quest_log.QuestSpan("NAVIGATION", (1, 2, 3)),),),
-        key="readonly",
-    )
-
-    restored = pygame_batch._frame_from_payload(
-        pygame_batch.frame_payload(frame)["frame"]
-    )
-
-    assert restored == frame
-
-
-def test_batch_key_mapping_preserves_read_only_modal_contract():
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        K_ESCAPE = 10
-        K_QUESTION = 11
-
-    fake = FakePygame()
-    key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
-
-    assert pygame_batch._handle_key(fake, SimpleNamespace(type=fake.QUIT)) == "QUIT"
-    assert pygame_batch._handle_key(fake, key(fake.K_ESCAPE)) == "BACK"
-    assert pygame_batch._handle_key(fake, key(fake.K_QUESTION)) == "GUIDE"
-    assert pygame_batch._handle_key(fake, SimpleNamespace(type=99, key=0)) == "IGNORE"
-
-
-
-def test_read_only_batch_presentation_is_enabled():
-    assert pygame_batch.enabled()
-
 
 def test_split_font_budget_is_stable_across_dense_and_sparse_frames():
     sparse = pygame_split.SplitFrame(
@@ -1743,30 +1360,6 @@ def test_split_font_budget_is_stable_across_dense_and_sparse_frames():
             return 24
 
     assert pygame_split._frame_height(Font(), sparse) == pygame_split._frame_height(Font(), dense)
-
-
-def test_split_frame_payload_round_trips_rows_and_selection():
-    frame = pygame_split.SplitFrame(
-        title="ARMORY",
-        left_label="For Sale",
-        right_label="My Loadout",
-        left_rows=(pygame_split.SplitRow("Laser", "100$", "damage", "BUY:laser"),),
-        right_rows=(pygame_split.SplitRow(
-            "[empty]", "", "", "", divider=False, selectable=False,
-        ),),
-        footer_left="Credits: 100",
-        footer_right="",
-        hint="TAB switch",
-        focus=0,
-        selected=0,
-    )
-
-    restored = pygame_split._frame_from_payload(
-        pygame_split._frame_payload(frame),
-    )
-
-    assert restored == frame
-    assert restored.right_rows[0].selectable is False
 
 
 def test_informational_split_rows_match_selectable_row_spacing():
@@ -1936,22 +1529,6 @@ def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
     assert ctx.ship_storage == [_loadout.ship_module.StoredEquipment("module", "shield_mk1")]
     assert messages == []
     assert messages == []
-
-
-def test_split_worker_rejects_unknown_outcomes(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui,
-        "run_json_worker",
-        lambda *args, **kwargs: {"outcome": "MUTATE"},
-    )
-    frame = pygame_split.SplitFrame("T", "L", "R", (), (), "", "", "")
-
-    try:
-        pygame_split.run(frame)
-    except pygame_split.PygameSplitUnavailable as exc:
-        assert "unknown choice" in str(exc)
-    else:
-        raise AssertionError("unknown split outcomes must use fallback")
 
 
 def test_split_interactive_preserves_initial_focus_and_selection(monkeypatch):
@@ -3025,21 +2602,6 @@ def test_loadout_storage_view_handles_missing_and_malformed_storage():
     frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
     assert any(row.label == "[empty]" for row in frame.left_rows)
 
-
-def test_compact_menu_frame_round_trips_compact_flag():
-    frame = pygame_menu.MenuFrame(
-        "MANAGE EQUIPMENT", "Light Laser",
-        (
-            pygame_menu.MenuItem("Store", "", "STORE"),
-            pygame_menu.MenuItem("Sell for 15$", "", "SELL"),
-        ),
-        ("ENTER select", "ESC back"), 0, compact=True,
-    )
-
-    restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
-
-    assert restored == frame
-    assert restored.compact is True
 
 
 def test_compact_popup_wraps_long_body_inside_popup_width():
@@ -4119,18 +3681,6 @@ def test_draw_context_log_delegates_to_message_band(monkeypatch):
     assert seen == [log]
 
 
-def test_screen_frame_payload_round_trips_scrollable():
-    frame = pygame_screen.ScreenFrame(
-        "T", ("body",), (), selected=1, scrollable=True, start_at_end=True,
-    )
-    back = pygame_screen._frame_from_payload(pygame_screen._frame_payload(frame))
-
-    assert back.scrollable is True
-    assert back.start_at_end is True
-    assert back.title == "T"
-    assert back.selected == 1
-
-
 def test_scrollable_frame_can_start_at_end_without_changing_default():
     font = _FakeFont()
     body = tuple(f"line {index}" for index in range(100))
@@ -4221,31 +3771,6 @@ def test_merchant_description_budget_is_selection_independent():
 
         def size(self, text):
             return len(text) * 8, 20
-
-    frames = (
-        pygame_merchant.MerchantFrame("M", ("A", "B"), "short", (), 0),
-        pygame_merchant.MerchantFrame("M", ("A", "B"), "long detail " * 12, (), 1),
-    )
-    height = pygame_merchant._description_height(Font(), frames, 500)
-    assert pygame_merchant._content_height(Font(), frames[0], 500, height) == \
-        pygame_merchant._content_height(Font(), frames[1], 500, height)
-
-
-def test_selectable_menu_frame_payload_round_trips_actions_and_ascii_art():
-    frame = pygame_menu.MenuFrame(
-        title="Mars",
-        body="Choose an action.",
-        items=(pygame_menu.MenuItem("Land", "Dock", "LAND"),),
-        hints=("ESC back",),
-        selected=0,
-        art=("~=~=~", "=+=+=",),
-        art_color=(150, 95, 255),
-        art_colors=((150, 95, 255), (140, 80, 255)),
-    )
-
-    restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
-
-    assert restored == frame
 
 
 def test_ascii_art_increases_selectable_frame_height():
@@ -4349,22 +3874,6 @@ def test_screen_body_budget_reserves_rows_and_footer():
 
     assert budget > 0
     assert budget * (20 + 3) + pygame_screen._non_body_height(Font(), frame, 500) <= 480 - 70 - 84 - 8
-
-
-def test_screen_worker_rejects_unknown_outcome(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui,
-        "run_json_worker",
-        lambda *args, **kwargs: {"outcome": "MUTATE"},
-    )
-    frame = pygame_screen.ScreenFrame("T", (), ())
-
-    try:
-        pygame_screen.run(frame)
-    except pygame_screen.PygameScreenUnavailable as exc:
-        assert "unknown choice" in str(exc)
-    else:
-        raise AssertionError("unknown text-screen outcomes must use fallback")
 
 
 def test_story_menu_dismisses_with_enter_without_items():
@@ -4590,22 +4099,6 @@ def test_selectable_menu_key_mapping_preserves_navigation_and_actions():
     assert pygame_menu._handle_key(fake, key(fake.K_RETURN), 1, 2) == ("SELECT", 1)
 
 
-def test_selectable_menu_rejects_unknown_worker_outcomes(monkeypatch):
-    monkeypatch.setattr(
-        pygame_ui,
-        "run_json_worker",
-        lambda *args, **kwargs: {"outcome": "MUTATE"},
-    )
-    frame = pygame_menu.MenuFrame("title", "body", (), (), 0)
-
-    try:
-        pygame_menu.run((frame,))
-    except pygame_menu.PygameMenuUnavailable as exc:
-        assert "unknown choice" in str(exc)
-    else:
-        raise AssertionError("unknown menu outcomes must be rejected")
-
-
 def test_interactive_batch_is_enabled():
     assert pygame_menu.enabled()
 
@@ -4641,24 +4134,6 @@ def test_npc_pygame_actions_map_back_to_existing_outcomes(monkeypatch):
     )
 
     assert result == (npc.TalkOutcome.DELIVER, mission)
-
-
-def test_pygame_backend_reports_unavailable_when_loader_fails(monkeypatch):
-    assert not pygame_merchant.PygameMerchantUnavailable.__module__.endswith("ui")
-
-    monkeypatch.setattr(
-        pygame_merchant,
-        "_load_pygame",
-        lambda: (_ for _ in ()).throw(
-            pygame_merchant.PygameMerchantUnavailable("missing")
-        ),
-    )
-    try:
-        pygame_merchant._load_pygame()
-    except pygame_merchant.PygameMerchantUnavailable:
-        pass
-    else:
-        raise AssertionError("missing Pygame must remain an explicit fallback condition")
 
 
 def test_shared_menu_runner_uses_existing_engine_and_returns_action(monkeypatch):
@@ -4746,7 +4221,7 @@ def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
     assert captured["frames"][0].items[0].action == "WORK"
 
 
-def test_all_shared_adapters_bypass_workers(monkeypatch):
+def test_all_shared_adapters_route_through_run_shared(monkeypatch):
     from src.spacehack import pygame_runtime
 
     monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
@@ -4756,11 +4231,6 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
     )
     screen_frame = pygame_screen.ScreenFrame(
         "Screen", (), (pygame_screen.ScreenRow("Go", action="GO"),),
-    )
-    split_frame = pygame_split.SplitFrame(
-        "Split", "Left", "Right",
-        (pygame_split.SplitRow("Go", "", "", "GO"),), (),
-        "", "", "", 0, 0,
     )
     context = object()
     game_ctx = SimpleNamespace(context=context)
@@ -4775,10 +4245,6 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
         lambda *args, **kwargs: calls.append("screen") or ("BACK", "", 0),
     )
     monkeypatch.setattr(
-        pygame_batch, "run_shared",
-        lambda *args, **kwargs: calls.append("batch") or "BACK",
-    )
-    monkeypatch.setattr(
         pygame_split, "run_shared",
         lambda *args, **kwargs: calls.append("split") or ("BACK", "", 0, 0),
     )
@@ -4791,27 +4257,11 @@ def test_all_shared_adapters_bypass_workers(monkeypatch):
         lambda *args, **kwargs: calls.append("quest_log") or ("BACK", 0),
     )
 
-    for module in (
-        pygame_menu, pygame_screen, pygame_split,
-        pygame_quantity, pygame_quest_log,
-    ):
-        monkeypatch.setattr(
-            module, "run", lambda *args, **kwargs: (_ for _ in ()).throw(
-                AssertionError(f"{module.__name__} started a worker")
-            ),
-        )
     assert pygame_menu.run_for_context(context, (menu_frame,))[0] == "BACK"
     assert pygame_screen.run_for_context(context, screen_frame)[0] == "BACK"
-    assert pygame_batch.run_for_context(context, lambda _console: None) == "BACK"
     assert pygame_quantity.run_for_context(context, game_ctx, "Buy", 1) is None
     assert pygame_quest_log.run_for_context(game_ctx)[0] == "BACK"
-
-    assert pygame_split.run_interactive(
-        game_ctx, lambda: split_frame, lambda *_args: True, caption="test",
-    ) == "BACK"
-    assert calls == [
-        "menu", "screen", "batch", "quantity", "quest_log", "split",
-    ]
+    assert calls == ["menu", "screen", "quantity", "quest_log"]
 
 
 def test_story_adapters_use_the_shared_menu_runner(monkeypatch):
@@ -4822,13 +4272,6 @@ def test_story_adapters_use_the_shared_menu_runner(monkeypatch):
         lambda context, frames, **kwargs: captured.append(
             (context, frames),
         ) or ("DISMISS", "", 0),
-    )
-    monkeypatch.setattr(
-        pygame_menu,
-        "run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("shared story adapters must not start a worker")
-        ),
     )
     ctx = SimpleNamespace(context=object())
 
@@ -4911,21 +4354,6 @@ def test_title_menu_frames_without_save_omit_continue():
     assert all(item.action != "CONTINUE" for frame in frames for item in frame.items)
     assert frames[0].initial_selected == 0
 
-
-def test_menu_draw_log_flag_round_trips_payload():
-    frame = pygame_menu.MenuFrame(
-        title="Mars",
-        body="Choose an action.",
-        items=(pygame_menu.MenuItem("Land", "Dock", "LAND"),),
-        hints=("ESC back",),
-        selected=0,
-        draw_log=False,
-    )
-
-    restored = pygame_menu._frame_from_payload(pygame_menu._frame_payload(frame))
-
-    assert restored == frame
-    assert restored.draw_log is False
 
 
 def test_menu_draw_frame_skips_log_when_flag_is_off(monkeypatch):
@@ -5056,9 +4484,9 @@ def test_font_path_prefers_bundled_font_over_system_match(monkeypatch):
                 families.append(family)
                 return f"/system/{family}.ttf"
 
-    monkeypatch.setattr(pygame_merchant, "Path", FakePath)
+    monkeypatch.setattr(pygame_ui, "Path", FakePath)
 
-    assert pygame_merchant._font_path(FakePygame) is not None
+    assert pygame_ui._font_path(FakePygame) is not None
     # The bundled font wins; the system font table is never consulted.
     assert families == []
 
@@ -5087,10 +4515,10 @@ def test_font_path_falls_back_to_system_fonts_when_bundled_missing(monkeypatch):
                 families.append(family)
                 return f"/system/{family}.ttf"
 
-    monkeypatch.setattr(pygame_merchant, "Path", FakePath)
+    monkeypatch.setattr(pygame_ui, "Path", FakePath)
 
     assert (
-        pygame_merchant._font_path(FakePygame)
+        pygame_ui._font_path(FakePygame)
         == "/system/DejaVu Sans Mono.ttf"
     )
     # Families are tried in order; the first system hit wins.
@@ -5121,9 +4549,9 @@ def test_font_path_returns_none_when_no_font_is_found(monkeypatch):
                 families.append(family)
                 return None
 
-    monkeypatch.setattr(pygame_merchant, "Path", FakePath)
+    monkeypatch.setattr(pygame_ui, "Path", FakePath)
 
-    assert pygame_merchant._font_path(FakePygame) is None
+    assert pygame_ui._font_path(FakePygame) is None
     # Every candidate is exhausted before giving up.
     assert families == ["DejaVu Sans Mono", "Liberation Mono", "Courier New"]
 
@@ -5131,6 +4559,6 @@ def test_font_path_returns_none_when_no_font_is_found(monkeypatch):
 def test_bundled_dejavu_mono_font_ships_with_the_package():
     from pathlib import Path
 
-    bundled = Path(pygame_merchant.__file__).parent / "data" / "DejaVuSansMono.ttf"
+    bundled = Path(pygame_ui.__file__).parent / "data" / "DejaVuSansMono.ttf"
 
     assert bundled.is_file()

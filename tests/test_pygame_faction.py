@@ -27,14 +27,6 @@ def test_faction_frame_contains_bright_semantic_rows_and_safe_bars():
     assert all(all(ord(char) < 128 for char in row.bar) for row in frame.rows)
 
 
-def test_faction_frame_round_trips_payload():
-    frame = pygame_faction.frame_for(SimpleNamespace(faction_reputation={}))
-
-    assert pygame_faction._frame_from_payload(
-        pygame_faction._frame_payload(frame),
-    ) == frame
-
-
 def test_faction_key_mapping_preserves_close_guide_and_quit():
     class FakePygame:
         QUIT = 1

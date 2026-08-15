@@ -1,15 +1,12 @@
-"""Pygame selectable-menu presentation and isolated worker protocol.
+"""Pygame selectable-menu presentation in the shared runtime.
 
-The parent process supplies immutable menu frames and receives only an opaque
-selected action. Domain modules map that action to their existing outcomes and
-perform all gameplay mutations in-process.
+The domain modules supply immutable menu frames and receive only an opaque
+selected action, mapping it to their existing outcomes in-process.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import inspect
-import json
-import sys
 from typing import Any
 
 from . import pygame_ui
@@ -56,43 +53,8 @@ class MenuFrame:
 
 
 def _font_path(pygame: Any) -> str | None:
-    """Reuse the readable font selection from the Merchant screen."""
-    from .pygame_merchant import _font_path as merchant_font_path
-
-    return merchant_font_path(pygame)
-
-
-def _frame_payload(frame: MenuFrame) -> dict[str, Any]:
-    """Serialize one menu frame for the worker process."""
-    return asdict(frame)
-
-
-def _frame_from_payload(raw: dict[str, Any]) -> MenuFrame:
-    """Deserialize one menu frame from worker input."""
-    return MenuFrame(
-        title=str(raw["title"]),
-        body=str(raw["body"]),
-        items=tuple(MenuItem(**item) for item in raw["items"]),
-        hints=tuple(str(hint) for hint in raw["hints"]),
-        selected=int(raw["selected"]),
-        art=tuple(str(line) for line in raw.get("art", ())),
-        art_color=(
-            tuple(int(channel) for channel in raw["art_color"])
-            if raw.get("art_color") is not None
-            else None
-        ),
-        art_colors=tuple(
-            tuple(int(channel) for channel in color)
-            for color in raw.get("art_colors", ())
-        ),
-        initial_selected=(
-            int(raw["initial_selected"])
-            if raw.get("initial_selected") is not None
-            else None
-        ),
-        draw_log=bool(raw.get("draw_log", True)),
-        compact=bool(raw.get("compact", False)),
-    )
+    """Reuse the shared readable font selection."""
+    return pygame_ui._font_path(pygame)
 
 
 def _initial_selected(frames: tuple[MenuFrame, ...]) -> int:
@@ -542,7 +504,7 @@ def _draw_shared_frame(
 
 
 def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str, int]:
-    """Map one worker event to navigation or a terminal menu outcome."""
+    """Map one menu event to navigation or a terminal menu outcome."""
     if event.type == pygame.QUIT:
         return "QUIT", selected
     if event.type != pygame.KEYDOWN:
@@ -558,49 +520,6 @@ def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str
     if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
         return ("SELECT", selected) if count else ("DISMISS", selected)
     return "IGNORE", selected
-
-
-def _run_worker_loop(pygame: Any, screen: Any, font: Any, frames: tuple[MenuFrame, ...]) -> int:
-    """Render worker frames until a terminal menu outcome arrives."""
-    selected = _initial_selected(frames)
-    count = len(frames[0].items)
-    clock = pygame.time.Clock()
-    while True:
-        frame = frames[selected % len(frames)]
-        screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-        _draw_frame(pygame, screen, font, frame)
-        pygame.display.flip()
-        for event in pygame.event.get():
-            outcome, selected = _handle_key(pygame, event, selected, count)
-            if outcome == "IGNORE":
-                continue
-            action = frame.items[selected].action if outcome == "SELECT" and frame.items else ""
-            print(json.dumps({"outcome": outcome, "action": action, "selected": selected}))
-            return 0
-        clock.tick(60)
-
-
-def _run_worker(payload: dict[str, Any]) -> int:
-    """Own one selectable Pygame window and print its terminal result."""
-    try:
-        import pygame
-    except ModuleNotFoundError:
-        return 2
-    frames = tuple(_frame_from_payload(raw) for raw in payload.get("frames", []))
-    if not frames:
-        return 2
-    pygame.init()
-    pygame.font.init()
-    try:
-        width, height = tuple(payload.get("screen_size", (1600, 960)))
-        font = _fit_shared_font(pygame, frames, width, height)
-        screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption(str(payload.get("caption", "spacehack")))
-        return _run_worker_loop(pygame, screen, font, frames)
-    finally:
-        pygame.display.quit()
-        pygame.quit()
-
 
 def _run_shared_loop(
     pygame: Any,
@@ -664,36 +583,3 @@ def run_for_context(
     return run_shared(context, frames, caption=caption)
 
 
-def run(frames: tuple[MenuFrame, ...],
-
-    *,
-    caption: str = "spacehack",
-    screen_size: tuple[int, int] = (1600, 960),
-) -> tuple[str, str, int]:
-    """Run the selectable worker and return ``(outcome, action, index)``."""
-    try:
-        response = pygame_ui.run_json_worker(
-            pygame_ui.worker_command(f"{__package__}.pygame_menu"),
-            {
-                "frames": [_frame_payload(frame) for frame in frames],
-                "caption": caption,
-                "screen_size": screen_size,
-            },
-            unavailable_message="Pygame selectable menu unavailable",
-            environment=pygame_ui.worker_environment(),
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        raise PygameMenuUnavailable(str(exc)) from exc
-    try:
-        outcome = str(response["outcome"])
-        action = str(response.get("action", ""))
-        selected = int(response.get("selected", 0))
-    except (KeyError, TypeError, ValueError) as exc:
-        raise PygameMenuUnavailable("Pygame menu returned no usable choice") from exc
-    if outcome not in {"BACK", "QUIT", "GUIDE", "SELECT", "DISMISS"}:
-        raise PygameMenuUnavailable("Pygame menu returned an unknown choice")
-    return outcome, action, selected
-
-
-if __name__ == "__main__":
-    raise SystemExit(_run_worker(json.load(sys.stdin)) if "--worker" in sys.argv else 2)

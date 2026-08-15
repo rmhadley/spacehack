@@ -220,9 +220,7 @@ def _panels(width: int, height: int, *, has_context: bool) -> tuple[pygame_ui.Re
 
 def _font(pygame: Any, frame: NavigationFrame, width: int, height: int) -> Any:
     """Choose a readable font that fits the destination index."""
-    from .pygame_merchant import _font_path
-
-    path = _font_path(pygame)
+    path = pygame_ui._font_path(pygame)
     _, _, index_panel = _panels(width, height, has_context=True)
     content_height = index_panel.height - 74
     content_width = max(1, index_panel.width - 44)

@@ -1,13 +1,11 @@
-"""Optional Pygame worker for two-panel split-screen terminals.
+"""Pygame presentation for two-panel split-screen terminals.
 
-The parent process owns all domain state. This worker receives only a
-presentation snapshot and returns an opaque panel/action selection.
+The game process owns all domain state and supplies presentation snapshots;
+the shared runtime returns an opaque panel/action selection.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, replace
-import json
-import sys
+from dataclasses import dataclass, replace
 from collections.abc import Callable
 from typing import Any
 
@@ -17,7 +15,7 @@ from .pygame_runtime import PygameContext
 
 
 class PygameSplitUnavailable(RuntimeError):
-    """Raised when the optional split-screen worker cannot return."""
+    """Raised when the split-screen presentation cannot return."""
 
 
 def enabled() -> bool:
@@ -58,38 +56,6 @@ class SplitFrame:
     # Optional explicit mode outcomes for each left tab. Empty preserves
     # legacy label-based mappings used by existing terminals.
     left_tab_modes: tuple[str, ...] = ()
-
-
-def _row_payload(row: SplitRow) -> dict[str, Any]:
-    """Serialize one split row."""
-    return asdict(row)
-
-
-def _frame_payload(frame: SplitFrame) -> dict[str, Any]:
-    """Serialize one split frame for the worker."""
-    payload = asdict(frame)
-    payload["left_rows"] = [_row_payload(row) for row in frame.left_rows]
-    payload["right_rows"] = [_row_payload(row) for row in frame.right_rows]
-    return payload
-
-
-def _frame_from_payload(raw: dict[str, Any]) -> SplitFrame:
-    """Deserialize one split frame from worker input."""
-    return SplitFrame(
-        title=str(raw["title"]),
-        left_label=str(raw["left_label"]),
-        right_label=str(raw["right_label"]),
-        left_rows=tuple(SplitRow(**row) for row in raw.get("left_rows", ())),
-        right_rows=tuple(SplitRow(**row) for row in raw.get("right_rows", ())),
-        footer_left=str(raw.get("footer_left", "")),
-        footer_right=str(raw.get("footer_right", "")),
-        hint=str(raw.get("hint", "")),
-        focus=int(raw.get("focus", 0)),
-        selected=int(raw.get("selected", 0)),
-        left_tabs=tuple(str(tab) for tab in raw.get("left_tabs", ())),
-        active_left_tab=int(raw.get("active_left_tab", 0)),
-        left_tab_modes=tuple(str(mode) for mode in raw.get("left_tab_modes", ())),
-    )
 
 
 def _rows(frame: SplitFrame) -> tuple[SplitRow, ...]:
@@ -465,45 +431,6 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
     return "IGNORE", frame.focus, selected
 
 
-def _run_worker(payload: dict[str, Any]) -> int:
-    """Own one split-screen window and print one terminal result."""
-    try:
-        import pygame
-    except ModuleNotFoundError:
-        return 2
-    frame = _frame_from_payload(payload)
-    pygame.init()
-    pygame.font.init()
-    try:
-        width, height = tuple(payload.get("screen_size", (1600, 960)))
-        font = _fit_font(pygame, frame, width, height)
-        screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption(str(payload.get("caption", "spacehack")))
-        clock = pygame.time.Clock()
-        while True:
-            current = replace(frame, selected=_clamp_selected(frame))
-            _draw_frame(pygame, screen, font, current)
-            pygame.display.flip()
-            for event in pygame.event.get():
-                outcome, focus, selected = _handle_key(pygame, event, current)
-                if outcome == "IGNORE":
-                    frame = replace(frame, focus=focus, selected=selected)
-                    continue
-                row = _rows(current)
-                action = row[selected].action if outcome == "SELECT" else ""
-                print(json.dumps({
-                    "outcome": outcome,
-                    "action": action,
-                    "focus": focus,
-                    "selected": selected,
-                }))
-                return 0
-            clock.tick(60)
-    finally:
-        pygame.display.quit()
-        pygame.quit()
-
-
 def run_shared(
     context: PygameContext,
     frame: SplitFrame,
@@ -601,37 +528,3 @@ def _shared_runtime_enabled(ctx: GameContext) -> bool:
     return pygame_runtime.is_shared_context(getattr(ctx, "context", None))
 
 
-def run(
-    frame: SplitFrame,
-    *,
-    caption: str = "spacehack - terminal",
-    screen_size: tuple[int, int] = (1600, 960),
-) -> tuple[str, str, int, int]:
-    """Run the split worker and return outcome, action, focus, selection."""
-    try:
-        response = pygame_ui.run_json_worker(
-            pygame_ui.worker_command(f"{__package__}.pygame_split"),
-            {
-                **_frame_payload(frame),
-                "caption": caption,
-                "screen_size": screen_size,
-            },
-            unavailable_message="Pygame split terminal unavailable",
-            environment=pygame_ui.worker_environment(),
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        raise PygameSplitUnavailable(str(exc)) from exc
-    try:
-        outcome = str(response["outcome"])
-        action = str(response.get("action", ""))
-        focus = int(response.get("focus", frame.focus))
-        selected = int(response.get("selected", frame.selected))
-    except (KeyError, TypeError, ValueError) as exc:
-        raise PygameSplitUnavailable("Pygame split terminal returned no usable choice") from exc
-    if outcome not in {"BACK", "QUIT", "GUIDE", "SELECT"} and not outcome.startswith("MODE:"):
-        raise PygameSplitUnavailable("Pygame split terminal returned an unknown choice")
-    return outcome, action, focus, selected
-
-
-if __name__ == "__main__":
-    raise SystemExit(_run_worker(json.load(sys.stdin)) if "--worker" in sys.argv else 2)

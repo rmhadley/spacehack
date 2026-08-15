@@ -1048,27 +1048,24 @@ def test_present_exploration_uses_shared_overlay_without_fallback(monkeypatch):
     ) is True
     assert shared_calls == [("console", {"overlay": frame})]
 
-    fallback_calls = []
-    fallback_ctx = SimpleNamespace(
+    legacy_ctx = SimpleNamespace(
         log=object(),
         context=SimpleNamespace(
-            present=lambda console: fallback_calls.append(("present", console)),
+            present=lambda console: None,
         ),
     )
-    from src.spacehack import hud, message_log
-    monkeypatch.setattr(hud, "render_hud", lambda *args, **kwargs: fallback_calls.append(("hud", args[0])))
-    monkeypatch.setattr(message_log, "render_message_log", lambda *args, **kwargs: fallback_calls.append(("log", args[0])))
+    import pytest
 
-    assert pygame_overlay.present_exploration(
-        fallback_ctx,
-        "console",
-        mode="city",
-        location="Earth",
-        screen_width=100,
-        screen_height=60,
-        hud_view_height=54,
-    ) is False
-    assert fallback_calls == [("hud", "console"), ("log", "console"), ("present", "console")]
+    with pytest.raises(RuntimeError):
+        pygame_overlay.present_exploration(
+            legacy_ctx,
+            "console",
+            mode="city",
+            location="Earth",
+            screen_width=100,
+            screen_height=60,
+            hud_view_height=54,
+        )
 
 
 def test_shared_context_preserves_legacy_present_call_without_overlay():

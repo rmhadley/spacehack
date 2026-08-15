@@ -606,10 +606,6 @@ def _patch_render_deps(monkeypatch, line_calls: list) -> None:
         ),
     )
     monkeypatch.setattr(_ground_render, "_paint_target_highlight", lambda *a, **k: None)
-    monkeypatch.setattr(
-        _ground_render, "_ml",
-        SimpleNamespace(render_message_log=lambda *a, **k: None),
-    )
     monkeypatch.setattr(_ground_render, "_bar_str", lambda *a, **k: "########")
 
 
@@ -988,7 +984,7 @@ def test_finish_combat_deletes_autosave_on_defeat(monkeypatch):
     )
     _ctx = SimpleNamespace()
 
-    _result = _loop._finish_combat(_ctx, _rules, "DEFEAT", None)
+    _result = _loop._finish_combat(_ctx, _rules, "DEFEAT")
 
     assert _result.outcome == "DEFEAT"
     assert deleted == [True]

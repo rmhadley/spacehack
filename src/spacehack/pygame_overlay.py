@@ -360,25 +360,24 @@ def _message_segments(
 ) -> tuple[OverlaySegment, ...]:
     """Build the bottom log band from the raw log, without cell truncation.
 
-    ``render_message_log`` hard-cuts each line at ``screen_width`` cells,
-    but the native Pygame font is narrower than the 16px cells, so the
-    message band can fit nearly twice as many characters. Building the
-    segments from the full text lets :func:`_paint_segment` fit them to
-    the real pixel width (with an ellipsis) — matching the menu log
-    band (:func:`pygame_ui.draw_message_band`) exactly.
+    A cell console would hard-cut each line at ``screen_width`` cells, but
+    the native Pygame font is narrower than the 16px cells, so the message
+    band can fit nearly twice as many characters. Building the segments
+    from the full text lets :func:`_paint_segment` fit them to the real
+    pixel width (with an ellipsis) — matching the menu log band
+    (:func:`pygame_ui.draw_message_band`) exactly. Rows come from the
+    shared :func:`pygame_ui.log_band_rows` builder.
     """
-    n = min(ctx.log.capacity, MSG_LOG_HEIGHT)
+    from . import pygame_ui
+
+    n = MSG_LOG_HEIGHT
     msg_y_top = screen_height - n
-    entries = ctx.log.recent(n)
-    padded: list[Any | None] = [None] * (n - len(entries)) + entries
-    segments: list[OverlaySegment] = []
-    for i, entry in enumerate(padded):
-        if entry is None or not entry.text:
-            continue
-        segments.append(
-            OverlaySegment(0, msg_y_top + i, "> " + entry.text, tuple(entry.fg)),
-        )
-    return tuple(segments)
+    rows = pygame_ui.log_band_rows(ctx.log)
+    offset = n - len(rows)
+    return tuple(
+        OverlaySegment(0, msg_y_top + offset + i, text, color)
+        for i, (text, color) in enumerate(rows)
+    )
 
 
 def capture(
@@ -477,42 +476,6 @@ def frame_from_payload(data: dict[str, Any]) -> OverlayFrame:
     )
 
 
-def _present_exploration_fallback(
-    ctx: GameContext,
-    console: Any,
-    *,
-    mode: str,
-    location: str,
-    screen_width: int,
-    screen_height: int,
-    hud_view_height: int,
-    has_trade_terminal: bool,
-    has_mech_terminal: bool,
-    has_armory_terminal: bool,
-) -> bool:
-    """Present on the legacy (non-shared) path; returns ``False``."""
-    from . import message_log
-
-    _render_hud_capture(
-        console,
-        ctx,
-        screen_width=screen_width,
-        hud_view_height=hud_view_height,
-        location=location,
-        mode=mode,
-        has_trade_terminal=has_trade_terminal,
-        has_mech_terminal=has_mech_terminal,
-        has_armory_terminal=has_armory_terminal,
-    )
-    message_log.render_message_log(
-        console, ctx.log,
-        screen_width=screen_width,
-        screen_height=screen_height,
-    )
-    ctx.context.present(console)
-    return False
-
-
 def present_exploration(
     ctx: GameContext,
     console: Any,
@@ -527,16 +490,9 @@ def present_exploration(
     has_armory_terminal: bool = False,
     shields: tuple[ShieldBubble, ...] = (),
 ) -> bool:
-    """Present an exploration frame with native HUD/log text when shared."""
+    """Present an exploration frame with native HUD/log text."""
     if getattr(ctx.context, "_runtime", None) is None:
-        return _present_exploration_fallback(
-            ctx, console,
-            mode=mode, location=location,
-            screen_width=screen_width, screen_height=screen_height,
-            hud_view_height=hud_view_height,
-            has_trade_terminal=has_trade_terminal, has_mech_terminal=has_mech_terminal,
-            has_armory_terminal=has_armory_terminal,
-        )
+        raise RuntimeError("Shared Pygame runtime is not open")
 
     frame = capture(
         ctx,

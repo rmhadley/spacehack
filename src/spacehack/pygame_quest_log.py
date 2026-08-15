@@ -1,16 +1,13 @@
 """Pygame presentation for the Quest Log modal.
 
 The game process remains the source of truth for quest-log content: it renders
-an existing Quest Log frame into a small capture console, then sends the
-captured cell text and colours to an isolated Pygame worker. The worker owns
-only presentation and modal key translation; it never receives mutable game
-objects or changes mission state.
+the authoritative Quest Log frame into a small capture console, then paints the
+captured cell text and colours natively in the shared Pygame runtime. The
+presentation never receives mutable game objects or changes mission state.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-import json
-import sys
+from dataclasses import dataclass
 from typing import Any
 
 from . import pygame_ui, pygame_world
@@ -19,7 +16,7 @@ from .pygame_runtime import PygameContext
 
 
 class PygameQuestLogUnavailable(RuntimeError):
-    """Raised when the optional Quest Log worker cannot return a choice."""
+    """Raised when the Quest Log presentation cannot return a choice."""
 
 
 @dataclass(frozen=True)
@@ -150,44 +147,9 @@ def _frames_for(ctx: GameContext) -> tuple[QuestFrame, ...]:
     )
 
 
-def _frame_key(selected: int, confirm_abandon: bool) -> str:
-    """Build a stable payload key for one Quest Log state."""
-    return f"{selected}:{int(confirm_abandon)}"
-
-
-def _worker_payload(frames: tuple[QuestFrame, ...]) -> dict[str, Any]:
-    """Serialize captured frames for the isolated worker."""
-    return {
-        "frames": {
-            _frame_key(frame.selected, frame.confirm_abandon): asdict(frame)
-            for frame in frames
-        },
-        "screen_size": (1600, 960),
-        "font_size": 18,
-    }
-
-
-def _frame_from_payload(raw: dict[str, Any]) -> QuestFrame:
-    """Deserialize one captured frame from worker input."""
-    return QuestFrame(
-        rows=tuple(
-            tuple(
-                QuestSpan(text=span["text"], fg=tuple(span["fg"]))
-                for span in row
-            )
-            for row in raw["rows"]
-        ),
-        selected=int(raw["selected"]),
-        confirm_abandon=bool(raw["confirm_abandon"]),
-        hint=str(raw.get("hint", "")),
-    )
-
-
 def _font_path(pygame: Any) -> str | None:
-    """Choose the same readable font family as the Merchant screen."""
-    from .pygame_merchant import _font_path as merchant_font_path
-
-    return merchant_font_path(pygame)
+    """Choose the shared readable font family."""
+    return pygame_ui._font_path(pygame)
 
 
 def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: int) -> Any:
@@ -206,6 +168,25 @@ def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: i
         ):
             return font
     return pygame.font.Font(path, 12)
+
+
+def _draw_captured_rows(
+    pygame: Any, screen: Any, font: Any, frame: QuestFrame, content: pygame_ui.Rect,
+) -> None:
+    """Paint captured row spans inside the clipped content region."""
+    screen.set_clip(pygame.Rect(content.x, content.y, content.width, content.height))
+    try:
+        for row_index, row in enumerate(frame.rows):
+            x = content.x
+            y = content.y + row_index * font.get_linesize()
+            for span in row:
+                pygame_ui.draw_text(
+                    pygame, screen, font, span.text, x, y,
+                    color=span.fg, antialias=True,
+                )
+                x += pygame_ui.measure_font(font, span.text)
+    finally:
+        screen.set_clip(None)
 
 
 def _draw_rows(
@@ -233,19 +214,7 @@ def _draw_rows(
         panel.x + 34, panel.y + 76,
         max(1, panel.width - 68), max(1, panel.height - 100),
     )
-    screen.set_clip(pygame.Rect(content.x, content.y, content.width, content.height))
-    try:
-        for row_index, row in enumerate(frame.rows):
-            x = content.x
-            y = content.y + row_index * font.get_linesize()
-            for span in row:
-                pygame_ui.draw_text(
-                    pygame, screen, font, span.text, x, y,
-                    color=span.fg, antialias=True,
-                )
-                x += pygame_ui.measure_font(font, span.text)
-    finally:
-        screen.set_clip(None)
+    _draw_captured_rows(pygame, screen, font, frame, content)
     if frame.hint:
         hint_y = (
             pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
@@ -258,7 +227,7 @@ def _draw_rows(
 
 
 def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: int) -> tuple[str, int, bool]:
-    """Map worker key events to the existing Quest Log contract."""
+    """Map key events to the existing Quest Log contract."""
     if event.type == pygame.QUIT:
         return "QUIT", selected, confirm
     if event.type != pygame.KEYDOWN:
@@ -277,61 +246,6 @@ def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: in
         return "GUIDE", selected, confirm
     return "IGNORE", selected, confirm
 
-
-def _run_worker(payload: dict[str, Any]) -> int:
-    """Own the Quest Log window and return one modal outcome."""
-    pygame = _load_pygame()
-    raw_frames = payload["frames"]
-    frames = {
-        key: _frame_from_payload(raw)
-        for key, raw in raw_frames.items()
-    }
-    if not frames:
-        return 2
-    pygame.init()
-    pygame.font.init()
-    try:
-        width, height = tuple(payload.get("screen_size", (1600, 960)))
-        all_frames = tuple(frames.values())
-        font = _fit_font(pygame, all_frames, width, height)
-        screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("spacehack - Quest Log")
-        count = len({
-            frame.selected for frame in all_frames
-            if frame.selected >= 0 and not frame.confirm_abandon
-        })
-        selected = int(payload.get("selected", 0)) if count else -1
-        confirm = bool(payload.get("confirm_abandon", False))
-        clock = pygame.time.Clock()
-        while True:
-            frame = frames[_frame_key(selected, confirm)]
-            screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-            _draw_rows(pygame, screen, font, frame)
-            pygame.display.flip()
-            for event in pygame.event.get():
-                outcome, selected, confirm = _handle_key(
-                    pygame, event, selected, confirm, count,
-                )
-                if outcome != "IGNORE":
-                    print(json.dumps({
-                        "outcome": outcome,
-                        "selected": selected,
-                        "confirm_abandon": confirm,
-                    }))
-                    return 0
-            clock.tick(60)
-    finally:
-        pygame.display.quit()
-        pygame.quit()
-
-
-def _load_pygame() -> Any:
-    """Load Pygame lazily without importing it in the normal game process."""
-    try:
-        import pygame
-    except ModuleNotFoundError as exc:
-        raise PygameQuestLogUnavailable("Pygame is not installed") from exc
-    return pygame
 
 
 def run_shared(
@@ -381,39 +295,3 @@ def run_for_context(
     if not pygame_runtime.is_shared_context(ctx.context):
         raise PygameQuestLogUnavailable("Shared Pygame runtime is not open")
     return run_shared(ctx.context, ctx, selected, confirm_abandon)
-
-
-def run(
-    ctx: GameContext,
-    selected: int = 0,
-    confirm_abandon: bool = False,
-) -> tuple[str, int, bool]:
-    """Run the Quest Log worker and return its modal outcome."""
-    frames = _frames_for(ctx)
-    try:
-        response = pygame_ui.run_json_worker(
-            pygame_ui.worker_command(f"{__package__}.pygame_quest_log"),
-            {
-                **_worker_payload(frames),
-                "selected": selected,
-                "confirm_abandon": confirm_abandon,
-            },
-            unavailable_message="Pygame Quest Log unavailable",
-            environment=pygame_ui.worker_environment(),
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        raise PygameQuestLogUnavailable(str(exc)) from exc
-    try:
-        return (
-            str(response["outcome"]),
-            int(response["selected"]),
-            bool(response.get("confirm_abandon", confirm_abandon)),
-        )
-    except (KeyError, TypeError, ValueError) as exc:
-        raise PygameQuestLogUnavailable(
-            "Pygame Quest Log returned no usable choice"
-        ) from exc
-
-
-if __name__ == "__main__":
-    raise SystemExit(_run_worker(json.load(sys.stdin)) if "--worker" in sys.argv else 2)

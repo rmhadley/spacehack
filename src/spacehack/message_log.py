@@ -9,8 +9,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .framebuffer import FrameBuffer
-
 
 # Readable neutral log text. Secondary lines are still visibly dimmer,
 # but avoid dark blue so they remain legible against the black playfield.
@@ -113,37 +111,4 @@ class MessageLog:
         return len(self._messages)
 
 
-def render_message_log(
-    console: FrameBuffer,
-    log: MessageLog,
-    *,
-    screen_width: int,
-    screen_height: int,
-    capacity: int | None = None,
-) -> None:
-    """Paint the bottom ``log.capacity`` (or ``capacity``) rows of the
-    screen with the most recent messages, oldest at the top row.
 
-    Each message uses its own foreground color (set via
-    :meth:`MessageLog.add_colored` or the default from
-    :meth:`MessageLog.add`).
-    """
-    n = capacity if capacity is not None else log.capacity
-    msg_y_top = screen_height - n
-
-    entries = log.recent(n)
-    # Pad with empty entries to always paint n rows so prior-frame text
-    # from a longer historical log doesn't linger in the message area.
-    padded: list[MessageEntry | None] = [None] * (n - len(entries)) + entries
-
-    for i, entry in enumerate(padded):
-        row = msg_y_top + i
-        if entry is None or not entry.text:
-            continue
-        line = ("> " + entry.text)[:max(0, screen_width)]
-        console.print(
-            x=0,
-            y=row,
-            string=line,
-            fg=entry.fg,
-        )

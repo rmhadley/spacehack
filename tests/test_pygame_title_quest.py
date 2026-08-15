@@ -188,22 +188,6 @@ def test_quest_log_split_hint_keeps_unknown_trailing_rows():
     assert content == rows
 
 
-def test_quest_log_frame_payload_round_trips_hint():
-    frame = pygame_quest_log.QuestFrame(
-        rows=((pygame_quest_log.QuestSpan("MAIN QUEST", (255, 255, 255)),),),
-        selected=0,
-        confirm_abandon=False,
-        hint="Press ESC to close.",
-    )
-
-    payload = pygame_quest_log._worker_payload((frame,))
-    restored = pygame_quest_log._frame_from_payload(
-        payload["frames"][pygame_quest_log._frame_key(0, False)]
-    )
-
-    assert restored == frame
-
-
 def test_quest_log_confirmation_freezes_selection():
     class FakePygame:
         QUIT = 1

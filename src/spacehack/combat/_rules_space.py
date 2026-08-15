@@ -652,10 +652,8 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         range_weapon_id=_range_wid,
         focus_active=_space_focus.is_focus_active(_state.ctx),
     )
-    _ml.render_message_log(
-        console, _state.log,
-        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-    )
+    # The message band is painted natively by pygame_combat.present from
+    # ctx.log via the shared log_band_rows builder — no cell capture.
 
 def animate_fire(
     console, ctx, game_map: world.GameMap,

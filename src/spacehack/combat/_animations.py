@@ -567,8 +567,6 @@ def _render_anim_frame(
     player_mode: str = "FIRING",
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
-    from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
-    from .. import message_log as _ml
     console.clear()
     world.render_world_view(
         console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y,
@@ -582,7 +580,8 @@ def _render_anim_frame(
         console, player_state, enemies, target_idx, player_mode,
         active_weapons=active_weapons, weapon_list=weapon_list, evade_bonus=evade_bonus, hit_chances=hit_chances,
     )
-    _ml.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+    # The message band is painted natively by pygame_combat.present from
+    # ctx.log via the shared log_band_rows builder — no cell capture.
     _present(context, console)
 
 

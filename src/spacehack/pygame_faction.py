@@ -1,10 +1,8 @@
 """Pygame presentation for the faction standings screen."""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import inspect
-import json
-import sys
 from typing import Any
 
 from . import pygame_menu, pygame_ui
@@ -78,30 +76,6 @@ def frame_for(ctx: GameContext) -> FactionFrame:
     )
 
 
-def _frame_payload(frame: FactionFrame) -> dict[str, Any]:
-    """Serialize one faction frame."""
-    return asdict(frame)
-
-
-def _frame_from_payload(raw: dict[str, Any]) -> FactionFrame:
-    """Deserialize one faction frame."""
-    return FactionFrame(
-        title=str(raw["title"]),
-        subtitle=str(raw["subtitle"]),
-        rows=tuple(
-            FactionRow(
-                label=str(row["label"]),
-                reputation=int(row["reputation"]),
-                attitude=str(row["attitude"]),
-                bar=str(row["bar"]),
-                color=tuple(int(channel) for channel in row["color"]),
-            )
-            for row in raw.get("rows", ())
-        ),
-        hint=str(raw.get("hint", "ENTER / ESC back")),
-    )
-
-
 def _font_path(pygame: Any) -> str | None:
     """Reuse the approved readable font selection."""
     return pygame_menu._font_path(pygame)
@@ -149,12 +123,28 @@ def _draw_frame(
         pygame, screen, panel.x + 24, panel.y + 54,
         panel.width - 48, color=palette.border,
     )
+    _draw_standing_rows(pygame, screen, font, frame, panel)
+    hint_y = (
+        pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
+        if context is not None
+        else panel.y + panel.height - 48
+    )
+    pygame_ui.draw_centered_text(
+        pygame, screen, font, frame.hint, panel, hint_y,
+        color=palette.instruction,
+    )
+
+
+def _draw_standing_rows(
+    pygame: Any, screen: Any, font: Any, frame: FactionFrame, panel: pygame_ui.Rect,
+) -> None:
+    """Paint subtitle, standing rows, and reputation bars."""
     x = panel.x + 42
     content_width = panel.width - 84
     y = panel.y + 82
     pygame_ui.draw_text(
         pygame, screen, font, frame.subtitle, x, y,
-        color=palette.description,
+        color=pygame_ui.DEFAULT_PALETTE.description,
     )
     y += font.get_linesize() + 24
     row_height = font.get_linesize() + 42
@@ -176,20 +166,11 @@ def _draw_frame(
             color=row.color,
         )
         y += row_height
-    hint_y = (
-        pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
-        if context is not None
-        else panel.y + panel.height - 48
-    )
-    pygame_ui.draw_centered_text(
-        pygame, screen, font, frame.hint, panel, hint_y,
-        color=palette.instruction,
-    )
 
 
 def _draw_shared_frame(
-    pygame: Any, screen: Any, font: Any, frame: FactionFrame,    context: PygameContext,
-
+    pygame: Any, screen: Any, font: Any, frame: FactionFrame,
+    context: PygameContext,
 ) -> None:
     """Draw a faction frame while preserving legacy test doubles."""
     if "context" in inspect.signature(_draw_frame).parameters:
@@ -211,42 +192,6 @@ def _handle_key(pygame: Any, event: Any) -> str:
     if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE"
     return "IGNORE"
-
-
-def _load_pygame() -> Any:
-    """Load Pygame lazily for the isolated worker."""
-    try:
-        import pygame
-    except ModuleNotFoundError as exc:
-        raise PygameFactionUnavailable("Pygame is not installed") from exc
-    return pygame
-
-
-def _run_worker(payload: dict[str, Any]) -> int:
-    """Own one worker window and print its terminal outcome."""
-    pygame = _load_pygame()
-    frame = _frame_from_payload(payload["frame"])
-    pygame.init()
-    pygame.font.init()
-    try:
-        width, height = tuple(payload.get("screen_size", (1600, 960)))
-        font = _fit_font(pygame, frame, width, height)
-        screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("spacehack - factions")
-        clock = pygame.time.Clock()
-        while True:
-            screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-            _draw_frame(pygame, screen, font, frame)
-            pygame.display.flip()
-            for event in pygame.event.get():
-                outcome = _handle_key(pygame, event)
-                if outcome != "IGNORE":
-                    print(json.dumps({"outcome": outcome}))
-                    return 0
-            clock.tick(60)
-    finally:
-        pygame.display.quit()
-        pygame.quit()
 
 
 def run_shared(context: PygameContext, ctx: GameContext) -> str:
@@ -281,25 +226,3 @@ def run_for_context(context: PygameContext, ctx: GameContext) -> str:
     return run_shared(context, ctx)
 
 
-def run(ctx: GameContext) -> str:
-    """Run the isolated faction worker and return its outcome."""
-    try:
-        response = pygame_ui.run_json_worker(
-            pygame_ui.worker_command(f"{__package__}.pygame_faction"),
-            {
-                "frame": _frame_payload(frame_for(ctx)),
-                "screen_size": (1600, 960),
-            },
-            unavailable_message="Pygame faction standings unavailable",
-            environment=pygame_ui.worker_environment(),
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        raise PygameFactionUnavailable(str(exc)) from exc
-    outcome = str(response.get("outcome", ""))
-    if outcome not in {"BACK", "QUIT", "GUIDE"}:
-        raise PygameFactionUnavailable("Pygame faction standings returned an unknown choice")
-    return outcome
-
-
-if __name__ == "__main__":
-    raise SystemExit(_run_worker(json.load(sys.stdin)) if "--worker" in sys.argv else 2)

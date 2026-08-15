@@ -8,10 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-import json
-import os
-import subprocess
-import sys
+from pathlib import Path
 from typing import Any
 
 from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT
@@ -19,50 +16,9 @@ from .game_context import GameContext
 from .pygame_runtime import PygameContext
 
 
-class PygameWorkerUnavailable(RuntimeError):
-    """Raised when a Pygame worker cannot return a result."""
-
-
-def run_json_worker(
-    command: list[str],
-    payload: dict[str, Any],
-    *,
-    unavailable_message: str,
-    environment: dict[str, str] | None = None,
-) -> dict[str, Any]:
-    """Run a JSON-in/JSON-out worker with one consistent fallback path."""
-    try:
-        result = subprocess.run(
-            command,
-            input=json.dumps(payload),
-            text=True,
-            capture_output=True,
-            check=False,
-            env=environment or os.environ.copy(),
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise PygameWorkerUnavailable(unavailable_message) from exc
-    if result.returncode != 0:
-        raise PygameWorkerUnavailable(unavailable_message)
-    try:
-        return json.loads(result.stdout.strip().splitlines()[-1])
-    except (IndexError, KeyError, ValueError, json.JSONDecodeError) as exc:
-        raise PygameWorkerUnavailable(unavailable_message) from exc
-
-
 def presentation_enabled() -> bool:
     """Return whether the mandatory Pygame presentation is available."""
     return True
-
-
-def worker_environment() -> dict[str, str]:
-    """Return the environment used by isolated Pygame workers."""
-    return {**os.environ, "PYGAME_HIDE_SUPPORT_PROMPT": "1"}
-
-
-def worker_command(module: str) -> list[str]:
-    """Build a worker command for the current Python environment."""
-    return [sys.executable, "-m", module, "--worker"]
 
 
 Color = tuple[int, int, int]
@@ -237,20 +193,55 @@ def is_guide_key(pygame: Any, event: Any) -> bool:
     )
 
 
+def _font_path(pygame: Any) -> str | None:
+    """Choose a readable monospace font.
+
+    The bundled DejaVu Sans Mono wins so rendering is identical on every
+    machine (and it is the only reliable source in frozen builds, where
+    system font discovery may miss). System match_font is the fallback for
+    editable installs that predate the bundled file.
+    """
+    bundled = Path(__file__).parent / "data" / "DejaVuSansMono.ttf"
+    if bundled.is_file():
+        return str(bundled)
+    for family in ("DejaVu Sans Mono", "Liberation Mono", "Courier New"):
+        path = pygame.font.match_font(family)
+        if path:
+            return path
+    return None
+
+
 def cell_font(pygame: Any, *, line_height: int) -> Any:
     """Choose the largest native font that fits one cell row.
 
     Shared by the world overlay and the modal console log so both bands
     render text at the same size (no size jump when a modal opens).
     """
-    from .pygame_menu import _font_path
-
     path = _font_path(pygame)
     for size in range(20, 9, -1):
         candidate = pygame.font.Font(path, size)
         if candidate.get_linesize() <= line_height:
             return candidate
     return pygame.font.Font(path, 10)
+
+
+def log_band_rows(log: Any) -> tuple[tuple[str, tuple[int, int, int]], ...]:
+    """Return the message-band rows as ``(text, fg)``, bottom-aligned.
+
+    Single source of truth for the console-log band content, shared by
+    the menu painter (:func:`draw_message_band`) and the exploration
+    overlay (:mod:`spacehack.pygame_overlay`). Returns only the
+    non-empty rows, in display order — painters place them on the
+    bottom ``MSG_LOG_HEIGHT`` rows so a short log stays put when more
+    entries arrive.
+    """
+    entries = log.recent(MSG_LOG_HEIGHT)
+    rows: list[tuple[str, tuple[int, int, int]]] = []
+    for entry in entries:
+        if entry is None or not entry.text:
+            continue
+        rows.append(("> " + entry.text, tuple(entry.fg)))
+    return tuple(rows)
 
 
 def draw_message_band(
@@ -265,29 +256,30 @@ def draw_message_band(
     Full-width panel, ``MSG_LOG_HEIGHT`` rows at ``TILE_HEIGHT`` each,
     messages bottom-aligned on cell rows with the shared cell font and
     12px side padding — the same geometry the world renderer produces,
-    so log text never jumps when a modal opens.
+    so log text never jumps when a modal opens. Content comes from
+    :func:`log_band_rows`, the same builder the world overlay uses.
     """
     width, height = screen.get_size()
     band_height = MSG_LOG_HEIGHT * TILE_HEIGHT
     panel = Rect(0, max(0, height - band_height), width, band_height)
     draw_panel(pygame, screen, panel, palette=palette)
     font = cell_font(pygame, line_height=TILE_HEIGHT)
-    entries = log.recent(MSG_LOG_HEIGHT)
+    rows = log_band_rows(log)
     measure = lambda text: measure_font(font, text)
     content_x = panel.x + 12
     content_width = max(1, panel.width - 24)
     # Bottom-aligned like the world capture: the newest entry sits on the
     # last band row, so a short log stays put when more entries arrive.
-    top = panel.y + (MSG_LOG_HEIGHT - len(entries)) * TILE_HEIGHT
+    top = panel.y + (MSG_LOG_HEIGHT - len(rows)) * TILE_HEIGHT
     clip = pygame.Rect(panel.x, panel.y, panel.width, panel.height)
     screen.set_clip(clip)
     try:
-        for index, entry in enumerate(entries):
-            line = fit_text("> " + entry.text, content_width, measure)
+        for index, (line_text, color) in enumerate(rows):
+            line = fit_text(line_text, content_width, measure)
             draw_text(
                 pygame, screen, font, line,
                 content_x, top + index * TILE_HEIGHT,
-                color=entry.fg,
+                color=color,
             )
     finally:
         screen.set_clip(None)

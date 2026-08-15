@@ -1,14 +1,13 @@
-"""Reusable Pygame worker for text-heavy interactive screens.
+"""Reusable Pygame presentation for text-heavy interactive screens.
 
-The parent supplies immutable rows and opaque actions. The worker owns only
-presentation and input; all game state remains in the parent process.
+The game process supplies immutable rows and opaque actions. The shared
+runtime owns only presentation and input; all game state remains in the game
+process.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 import inspect
-import json
-import sys
 from typing import Any
 
 from . import pygame_menu, pygame_ui
@@ -24,7 +23,7 @@ CONTENT_INDENT = 24   # selectable/informational rows under a section header
 
 
 class PygameScreenUnavailable(RuntimeError):
-    """Raised when the optional text-screen worker cannot return."""
+    """Raised when the text-screen presentation cannot return."""
 
 
 def enabled() -> bool:
@@ -64,32 +63,6 @@ class ScreenFrame:
     # Screens such as the full console history can request newest-first
     # opening without changing the default top-of-document behavior.
     start_at_end: bool = False
-
-
-def _frame_payload(frame: ScreenFrame) -> dict[str, Any]:
-    """Serialize one screen frame."""
-    return asdict(frame)
-
-
-def _frame_from_payload(raw: dict[str, Any]) -> ScreenFrame:
-    """Deserialize one screen frame."""
-    return ScreenFrame(
-        title=str(raw["title"]),
-        body=tuple(str(line) for line in raw.get("body", ())),
-        rows=tuple(ScreenRow(**row) for row in raw.get("rows", ())),
-        footer=tuple(str(line) for line in raw.get("footer", ())),
-        selected=int(raw.get("selected", 0)),
-        page_offset=int(raw.get("page_offset", 0)),
-        tabs=tuple(str(tab) for tab in raw.get("tabs", ())),
-        active_tab=int(raw.get("active_tab", 0)),
-        scrollable=bool(raw.get("scrollable", False)),
-        body_colors=tuple(
-            tuple(int(channel) for channel in color)
-            for color in raw.get("body_colors", ())
-            if isinstance(color, (list, tuple)) and len(color) == 3
-        ),
-        start_at_end=bool(raw.get("start_at_end", False)),
-    )
 
 
 def _selectable(frame: ScreenFrame) -> tuple[int, ...]:
@@ -526,56 +499,6 @@ def _draw_shared_frame(
     pygame_ui.draw_context_log(pygame, screen, context)
 
 
-def _report_outcome(current: ScreenFrame, outcome: str, selected: int) -> int:
-    """Print one terminal outcome for the worker and signal completion."""
-    row = current.rows[selected] if outcome == "SELECT" else None
-    print(json.dumps({
-        "outcome": outcome,
-        "action": row.action if row else "",
-        "selected": selected,
-    }))
-    return 0
-
-
-def _run_worker(payload: dict[str, Any]) -> int:
-    """Own one Pygame text screen and print one outcome."""
-    try:
-        import pygame
-    except ModuleNotFoundError:
-        return 2
-    frame = _frame_from_payload(payload)
-    pygame.init()
-    pygame.font.init()
-    try:
-        width, height = tuple(payload.get("screen_size", (1600, 960)))
-        font = _fit_font(pygame, frame, width, height, reserve_log=True)
-        frame = replace(
-            frame,
-            page_offset=_initial_page_offset(font, frame, width - 80, height),
-        )
-        screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption(str(payload.get("caption", "spacehack")))
-        clock = pygame.time.Clock()
-        while True:
-            current = replace(frame, selected=_clamp(frame))
-            _draw_frame(pygame, screen, font, current)
-            pygame.display.flip()
-            for event in pygame.event.get():
-                outcome, selected = _handle_key(pygame, event, current)
-                if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
-                    frame = replace(
-                        frame,
-                        selected=selected,
-                        page_offset=_page_offset(font, current, width - 80, outcome),
-                    )
-                    continue
-                return _report_outcome(current, outcome, selected)
-            clock.tick(60)
-    finally:
-        pygame.display.quit()
-        pygame.quit()
-
-
 def run_shared(
     context: PygameContext,
     frame: ScreenFrame,
@@ -626,33 +549,3 @@ def run_for_context(
     return run_shared(context, frame, caption=caption)
 
 
-def run(frame: ScreenFrame, *, caption: str = "spacehack") -> tuple[str, str, int]:
-    """Run the worker and return ``(outcome, action, selected)``."""
-    try:
-        response = pygame_ui.run_json_worker(
-            pygame_ui.worker_command(f"{__package__}.pygame_screen"),
-            {
-                **_frame_payload(frame),
-                "caption": caption,
-                "screen_size": (1600, 960),
-            },
-            unavailable_message="Pygame text screen unavailable",
-            environment=pygame_ui.worker_environment(),
-        )
-    except pygame_ui.PygameWorkerUnavailable as exc:
-        raise PygameScreenUnavailable(str(exc)) from exc
-    try:
-        outcome = str(response["outcome"])
-        action = str(response.get("action", ""))
-        selected = int(response.get("selected", frame.selected))
-    except (KeyError, TypeError, ValueError) as exc:
-        raise PygameScreenUnavailable("Pygame text screen returned no usable choice") from exc
-    if outcome not in {
-        "BACK", "QUIT", "GUIDE", "SELECT", "TAB", "PAGE_DOWN", "PAGE_UP",
-    }:
-        raise PygameScreenUnavailable("Pygame text screen returned an unknown choice")
-    return outcome, action, selected
-
-
-if __name__ == "__main__":
-    raise SystemExit(_run_worker(json.load(sys.stdin)) if "--worker" in sys.argv else 2)

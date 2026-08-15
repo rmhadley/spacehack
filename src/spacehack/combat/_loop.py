@@ -26,31 +26,23 @@ from ._animations import (
 )
 
 
-def _combat_action(ctx, console, *, presenter) -> str:
+def _combat_action(ctx, console) -> str:
     """Render one interactive combat frame and return its opaque action."""
     from .. import pygame_combat, pygame_runtime
 
-    if presenter is None:
-        if not pygame_runtime.is_shared_context(getattr(ctx, "context", None)):
-            raise pygame_combat.PygameCombatUnavailable(
-                "Combat requires the shared Pygame runtime"
-            )
-        while True:
-            for event in ctx.context.wait_events():
-                if pygame_engine.is_quit(event):
-                    return "QUIT"
-                if not pygame_engine.is_keydown(event):
-                    continue
-                if _try_open_guide(event, ctx):
-                    break
-                return _input_action(event)
-    try:
-        presenter.show(console, interactive=True, ctx=ctx)
-        return presenter.wait_action()
-    except pygame_combat.PygameCombatQuit:
-        return "QUIT"
-    except pygame_combat.PygameCombatUnavailable:
-        return "UNAVAILABLE"
+    if not pygame_runtime.is_shared_context(getattr(ctx, "context", None)):
+        raise pygame_combat.PygameCombatUnavailable(
+            "Combat requires the shared Pygame runtime"
+        )
+    while True:
+        for event in ctx.context.wait_events():
+            if pygame_engine.is_quit(event):
+                return "QUIT"
+            if not pygame_engine.is_keydown(event):
+                continue
+            if _try_open_guide(event, ctx):
+                break
+            return _input_action(event)
 
 
 def _input_action(event: pygame_engine.PygameInputEvent) -> str:
@@ -448,8 +440,8 @@ def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
     return target_idx
 
 
-def _handle_meta_action(action: str, ctx, presenter):
-    """Handle non-combat actions. Returns ``(action, presenter, result, redo)``.
+def _handle_meta_action(action: str, ctx):
+    """Handle non-combat actions. Returns ``(action, result, redo)``.
 
     ``result`` is the outcome when the fight must end, else ``None``;
     ``redo`` is ``True`` when the loop should re-iterate without
@@ -458,27 +450,21 @@ def _handle_meta_action(action: str, ctx, presenter):
     """
     if action == "QUIT":
         raise SystemExit
-    if action == "UNAVAILABLE":
-        if presenter is not None:
-            presenter.close()
-            ctx._pygame_combat_presenter = None
-            presenter = None
-        return action, presenter, None, True
     if action == "GUIDE":
         from ..help import _run_help_guide
         _run_help_guide(ctx)
-        return action, presenter, None, True
+        return action, None, True
     if action == "HISTORY":
         from ..console_log import open_console_log as _open_console_log
         _quit = _open_console_log(ctx) == "QUIT"
         if _quit:
             raise SystemExit
-        return action, presenter, None, True
-    return action, presenter, None, False
+        return action, None, True
+    return action, None, False
 
 
-def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int, presenter):
-    """Handle one in-combat action. Returns ``(target_idx, presenter)``."""
+def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int):
+    """Handle one in-combat action. Returns the new ``target_idx``."""
     if action == "TARGET":
         _enemies = rules.get_enemies(ctx)
         target_idx = _cycle_target(target_idx, len(_enemies), 1)
@@ -499,7 +485,6 @@ def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_i
         _handle_character_action(ctx, rules)
     elif action == "FIRE":
         _handle_fire(console, ctx, game_map, rules, target_idx)
-        presenter = getattr(ctx, "_pygame_combat_presenter", None)
     elif action == "RELOAD":
         _reload = getattr(rules, "reload_weapon", None)
         if _reload is not None:
@@ -512,35 +497,31 @@ def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_i
     elif action == "WAIT":
         # Waiting ends the player's turn and forfeits remaining AP.
         rules.set_player_ap(ctx, 0)
-    return target_idx, presenter
+    return target_idx
 
 
-def _end_player_turn(ctx, game_map, rules, turn: int, presenter):
-    """Run enemies when AP is spent. Returns ``(turn, presenter, defeat_or_None)``."""
+def _end_player_turn(ctx, game_map, rules, turn: int):
+    """Run enemies when AP is spent. Returns ``(turn, defeat_or_None)``."""
     if rules is _rules_ground and rules.player_hp(ctx) <= 0:
         rules.on_player_death(ctx)
-        return turn, presenter, "DEFEAT"
+        return turn, "DEFEAT"
     if rules.player_ap(ctx) > 0:
-        return turn, presenter, None
+        return turn, None
     _end_result = _end_turn(ctx, game_map, rules)
-    presenter = getattr(ctx, "_pygame_combat_presenter", None)
     if _end_result == "DEFEAT":
-        return turn, presenter, "DEFEAT"
+        return turn, "DEFEAT"
     rules.reset_turn(ctx)
-    return turn + 1, presenter, None
+    return turn + 1, None
 
 
-def _finish_combat(ctx, rules, result: str | None, presenter) -> CombatResult:
-    """Sync state, invalidate death saves, close presenter, and build result."""
+def _finish_combat(ctx, rules, result: str | None) -> CombatResult:
+    """Sync state, invalidate death saves, and build the result."""
     rules.sync_state(ctx)
     if result == "DEFEAT":
         # Continue deletes after a successful load; this handles death
         # after a prior save during the same run. The shared loop owns
         # both ground and space defeat transitions.
         _delete_save()
-    if presenter is not None:
-        presenter.close()
-    ctx._pygame_combat_presenter = None
     if hasattr(rules, 'get_combat_result'):
         _cr = rules.get_combat_result()
     else:
@@ -558,8 +539,6 @@ def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResu
     _target_idx: int = 0
     _turn: int = 1
     _result: str | None = None
-    _presenter = None
-    ctx._pygame_combat_presenter = None
     _log_combat_start(ctx, rules)
     while True:
         rules.refresh_engaged(ctx, game_map)
@@ -570,22 +549,21 @@ def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResu
         _target_idx = _retarget_if_dead(ctx, rules, _target_idx, _enemies)
         rules.render_frame(console, ctx, game_map)
         _present(ctx, console)
-        _presenter = getattr(ctx, "_pygame_combat_presenter", None)
-        _action = _combat_action(ctx, console, presenter=_presenter)
-        _action, _presenter, _result_now, _redo = _handle_meta_action(_action, ctx, _presenter)
+        _action = _combat_action(ctx, console)
+        _action, _result_now, _redo = _handle_meta_action(_action, ctx)
         if _result_now is not None:
             _result = _result_now
             break
         if _redo:
             continue
-        _target_idx, _presenter = _dispatch_combat_action(
-            console, ctx, game_map, rules, _action, _target_idx, _presenter,
+        _target_idx = _dispatch_combat_action(
+            console, ctx, game_map, rules, _action, _target_idx,
         )
-        _turn, _presenter, _defeat = _end_player_turn(ctx, game_map, rules, _turn, _presenter)
+        _turn, _defeat = _end_player_turn(ctx, game_map, rules, _turn)
         if _defeat == "DEFEAT":
             _result = "DEFEAT"
             break
-    return _finish_combat(ctx, rules, _result, _presenter)
+    return _finish_combat(ctx, rules, _result)
 
 
 def run_combat(
@@ -594,12 +572,6 @@ def run_combat(
     game_map: world.GameMap,
     rules,
 ) -> CombatResult:
-    """Run combat and always release a transient Pygame presenter."""
-    try:
-        return _run_combat_impl(console, ctx, game_map, rules)
-    finally:
-        _presenter = getattr(ctx, "_pygame_combat_presenter", None)
-        if _presenter is not None:
-            _presenter.close()
-            ctx._pygame_combat_presenter = None
+    """Run combat through the shared Pygame runtime."""
+    return _run_combat_impl(console, ctx, game_map, rules)
 

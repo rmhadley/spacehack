@@ -16,8 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from .. import ui, world
-from .. import message_log as _ml
-from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
+from ..engine import SCREEN_WIDTH, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..hud import (
@@ -95,10 +94,8 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     y = _render_weapons_panel(console, ctx, weapons, alive, y)
     y = _render_enemies_panel(console, ctx, alive, y)
     _render_actions_panel(console, weapons, y)
-    _ml.render_message_log(
-        console, ctx.log,
-        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-    )
+    # The message band is painted natively by pygame_combat.present from
+    # ctx.log via the shared log_band_rows builder — no cell capture.
 
 
 def _render_ground_world(
