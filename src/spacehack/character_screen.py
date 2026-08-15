@@ -19,11 +19,11 @@ _SKILLS: tuple[str, ...] = (
 # Stats tab. Kept in sync with the guide's Character & Skills section.
 _SKILL_DESCRIPTIONS: dict[str, str] = {
     "gunnery": "+0.5% hit chance per point in space combat",
-    "piloting": "AP per turn (3 + Piloting//20) and dodge (cap 60%)",
-    "engineering": "shield regen costs -1 power per 20 pts; +1 max power per 5",
-    "reflexes": "ranged accuracy and dodge bonus on foot",
-    "strength": "melee damage and two-handed weapon efficiency",
-    "stamina": "HP pool (20 + Stamina//3) and damage resistance",
+    "piloting": "AP per round (3 + Piloting/10, fractional with carry) and +0.5% dodge/pt",
+    "engineering": "+1 max power per 5 pts; paid shield regen -1 power per 20 pts",
+    "reflexes": "+0.5% accuracy and +0.5% dodge per point on foot",
+    "strength": "+1 melee damage per 5 pts; +1 pack slot per 5 pts above 10",
+    "stamina": "max ground HP 20 + Stamina//3 (+1 HP per 3 pts)",
 }
 _ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
 _ARMOR_SLOT_LABELS: dict[str, str] = {
