@@ -37,6 +37,8 @@ def overlay_dir(tmp_path, monkeypatch):
                     "Overridden intro."
                 ),
                 "npc.barkeep.flavor_text": "Overridden flavor.",
+                "runtime.transmission_title": "STATIC BURST",
+                "disclosure.diagnostic_fragment.label": "Override label",
             }
         ),
         encoding="utf-8",
@@ -69,12 +71,34 @@ def test_missing_key_falls_back_to_default(overlay_dir):
     assert find_main_quest_step("prologue_mars_unlocked").title == "Mars"
 
 
+def test_runtime_get_overrides(overlay_dir):
+    assert text_module.get("runtime.transmission_title") == "STATIC BURST"
+
+
+def test_runtime_get_falls_back_to_shipped_default(overlay_dir):
+    assert text_module.get("runtime.summon_title") == "INCOMING MESSAGE"
+
+
+def test_runtime_get_falls_back_to_literal_default(overlay_dir):
+    assert text_module.get("runtime.no_such_key", "fallback") == "fallback"
+
+
+def test_disclosure_overlay_applies(overlay_dir):
+    from src.spacehack.data.main_quest.act1_post_prison import (
+        find_archive_disclosure,
+    )
+
+    _spec = find_archive_disclosure("diagnostic_fragment")
+    assert _spec.label == "Override label"
+    assert _spec.log_message  # un-overridden fields keep defaults
+
+
 def test_shipped_overlay_keys_resolve():
     """Every shipped overlay key maps to a real catalog string.
 
     Guards against orphan keys (typos / keys the loader can't apply).
     """
-    _known: set[str] = set()
+    _known: set[str] = set(text_module.RUNTIME)
     for _step in list_main_quest_steps():
         _known.add(f"step.{_step.id}.title")
         _known.add(f"step.{_step.id}.description")
@@ -83,5 +107,13 @@ def test_shipped_overlay_keys_resolve():
                 _known.add(f"step.{_step.id}.dialogue.{_npc_id}.{_variant}")
     for _npc in list_npcs():
         _known.add(f"npc.{_npc.id}.flavor_text")
+    from src.spacehack.data.main_quest.act1_post_prison import ARCHIVE_DISCLOSURES
+
+    for _spec in ARCHIVE_DISCLOSURES:
+        for _field in (
+            "label", "log_message", "followup_message",
+            "waiting_title", "waiting_description", "ready_message",
+        ):
+            _known.add(f"disclosure.{_spec.key}.{_field}")
     _unknown = sorted(set(text_module.overlay()) - _known)
     assert _unknown == []

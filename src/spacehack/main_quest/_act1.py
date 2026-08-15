@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import Enum
 
 from .. import message_log
+from ..text import get as t_get
 from ..data.main_quest.act1_post_prison import (
     ARCHIVE_DISCLOSURES,
     find_archive_disclosure,
@@ -23,18 +24,11 @@ _DISCLOSURE_OPTIONS = tuple(
     for spec in ARCHIVE_DISCLOSURES
 )
 
-_FACTION_READINGS = {
-    "militia": "The Militia calls it a containment record and warns you not to transmit it.",
-    "merchants": "The Guild sees infrastructure: routes, stations, and technology someone will try to own.",
-    "bar": "The Bar hears a route to a score - and recognizes the shape of an old warning underneath it.",
-    "lab": "The Lab calls it layered structure, not language, and refuses to separate the warning from the route.",
-}
-
 def _faction_reading(ctx) -> str:
     """Return the chosen faction's first, deliberately incomplete reading."""
-    return _FACTION_READINGS.get(
-        ctx.main_quest_chain,
-        "The recovered archive has no trusted interpreter yet; its layers resist a clean reading.",
+    return t_get(
+        f"runtime.orbit_faction_{ctx.main_quest_chain}",
+        default=t_get("runtime.orbit_faction_unknown"),
     )
 
 def _unlock_research_immediately(ctx) -> None:
@@ -76,13 +70,13 @@ def _pygame_orbit_choice(ctx) -> str | None:
         for disclosure, spec in _DISCLOSURE_OPTIONS
     )
     body = (
-        "The recovered archive has begun interacting with your communications array.\n\n"
+        f"{t_get('runtime.orbit_body_intro')}\n\n"
         f"{_faction_reading(ctx)}\n\n"
-        "One layer may be a route beyond the Luyten blockade. The others remain unread."
+        f"{t_get('runtime.orbit_body_route')}"
     )
     return choose(
         ctx,
-        title="THE FIRST READING",
+        title=t_get("runtime.orbit_title"),
         body=body,
         options=options,
         caption="spacehack - the first reading",

@@ -371,11 +371,10 @@ def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
         )
         if call.args
     ).lower()
+    from src.spacehack.text import RUNTIME as _RUNTIME
     _open_overlay = " ".join(
-        str(value)
+        str(_RUNTIME.get(f"runtime.door_open_{key}", ""))
         for key in ("meta", "body", "highlight")
-        for value in act0._DOOR_OVERLAYS["open"].get(key, ())
-        if isinstance(value, str)
     ).lower()
     assert "data is recovered" not in _door_log
     assert "data: recovered" not in _open_overlay

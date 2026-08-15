@@ -6,6 +6,7 @@ Foundation module — every other module in this package depends on it.
 from __future__ import annotations
 
 from .. import message_log
+from ..text import get as t_get
 from ..time import add_days_to_date as _add_days_to_date
 from ..data.main_quest import (
     find_main_quest_step,
@@ -121,22 +122,16 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
     from .. import mission as _mission
     _owned = ctx.player_owned_ship
     if _owned is None:
-        ctx.log.add("You don't have a ship to carry the crate.")
+        ctx.log.add(t_get("runtime.no_ship_log"))
         return False
     if len(ctx.player_active_missions) >= _mission.MAX_ACTIVE_MISSIONS:
-        ctx.log.add(
-            f"Your mission log is full "
-            f"({_mission.MAX_ACTIVE_MISSIONS}/{_mission.MAX_ACTIVE_MISSIONS}). "
-            "Abandon one first (Q)."
-        )
+        ctx.log.add(t_get("runtime.mission_log_full").format(
+            max=_mission.MAX_ACTIVE_MISSIONS))
         return False
     _size = _step.smuggle_cargo_size
     if _size > 0:
-        # Mission cargo is virtual hold space (``mission_reserved``), not
-        # trade inventory — a main-quest crate is story-required, so it
-        # always loads regardless of current trade cargo.  No capacity
-        # rejection here: failing silently would strand the player with
-        # the step AVAILABLE and no delivery target (and no retry path).
+        # Story crates always load (virtual ``mission_reserved`` space) —
+        # a silent fail would strand the player with no delivery target.
         _owned.mission_reserved += _size
     _am = _mission.ActiveMission(
         mission_id=f"mq:{_step.id}",
@@ -155,8 +150,7 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
     start_step(ctx, _step.id)
     _good = _step.smuggle_good_id.replace('_', ' ')
     ctx.log.add_colored(
-        f"{_good} loaded into your mission hold. Deliver it to "
-        "complete the job.",
+        t_get("runtime.smuggle_loaded_log").format(good=_good),
         message_log.COLOR_IMPORTANT_EVENT,
     )
     return True
@@ -177,7 +171,7 @@ def _complete_smuggle_handover(ctx, _step) -> bool:
     if _am is not None:
         ctx.player_active_missions.remove(_am)
     ctx.log.add_colored(
-        "The crate is handed over.",
+        t_get("runtime.smuggle_handover_log"),
         message_log.COLOR_IMPORTANT_EVENT,
     )
     return complete_step(ctx, _step.id)
@@ -205,7 +199,7 @@ def _consume_goods(ctx, requires_goods) -> None:
             _owned.inventory.pop(_gid, None)
         else:
             _owned.inventory[_gid] = _remaining
-    ctx.log.add("The required goods are handed over.")
+    ctx.log.add(t_get("runtime.goods_handed_over_log"))
 
 
 # ---------------------------------------------------------------------------
@@ -252,8 +246,7 @@ def _complete_bump_objective(ctx) -> str:
     if _step_id is None:
         return ""
     ctx.log.add_colored(
-        "You chip a fragment of the alien material off the door's "
-        "surface. The seal holds.",
+        t_get("runtime.chip_fragment_log"),
         message_log.COLOR_IMPORTANT_EVENT,
     )
     complete_step(ctx, _step_id)

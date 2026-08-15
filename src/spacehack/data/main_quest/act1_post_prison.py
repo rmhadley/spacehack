@@ -9,9 +9,18 @@ Design doc: docs/design/in_progress/07_DESIGN_MAIN_QUEST.md
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from . import MainQuestStep, QuestDialogue
+
+_DISCLOSURE_FIELDS = (
+    "label",
+    "log_message",
+    "followup_message",
+    "waiting_title",
+    "waiting_description",
+    "ready_message",
+)
 
 
 @dataclass(frozen=True)
@@ -20,7 +29,6 @@ class ArchiveDisclosure:
 
     key: str
     label: str
-    menu_description: str
     log_message: str
     followup_message: str
     waiting_title: str = ""
@@ -32,10 +40,6 @@ ARCHIVE_DISCLOSURES: tuple[ArchiveDisclosure, ...] = (
     ArchiveDisclosure(
         key="diagnostic_fragment",
         label="Transmit a diagnostic fragment",
-        menu_description=(
-            "Give the faction a small raw sample. They can start reading, but "
-            "they will know how valuable the archive is."
-        ),
         log_message=(
             "A diagnostic fragment leaves the ship. The remote analysis will take "
             "time, and the result will determine what the lab can safely ask of the "
@@ -61,10 +65,6 @@ ARCHIVE_DISCLOSURES: tuple[ArchiveDisclosure, ...] = (
     ArchiveDisclosure(
         key="archive_sealed",
         label="Keep the archive sealed",
-        menu_description=(
-            "Share nothing yet. Bring the untouched record to a research contact "
-            "and keep control of the evidence."
-        ),
         log_message=(
             "The archive remains sealed and under your control. Take the intact "
             "record to the Research Officer at Alpha Centauri's Science Port now; "
@@ -78,10 +78,6 @@ ARCHIVE_DISCLOSURES: tuple[ArchiveDisclosure, ...] = (
     ArchiveDisclosure(
         key="safe_destination",
         label="Ask for a safe destination",
-        menu_description=(
-            "Reveal no data. Ask the faction to arrange a secure handoff; they will "
-            "tell you where to take the archive after their preliminary review."
-        ),
         log_message=(
             "You transmit a request for a safe handoff, not the archive. The contact "
             "network will arrange a route that does not broadcast the archive's value."
@@ -110,11 +106,23 @@ _DISCLOSURES_BY_KEY = {spec.key: spec for spec in ARCHIVE_DISCLOSURES}
 
 
 def find_archive_disclosure(key: str) -> ArchiveDisclosure:
-    """Look up one orbit disclosure by its persisted key."""
+    """Look up one orbit disclosure by its persisted key.
+
+    Applies the runtime text overlay (``disclosure.<key>.<field>``)
+    so writer edits in the JSON files are live without code changes.
+    """
     try:
-        return _DISCLOSURES_BY_KEY[key]
+        _spec = _DISCLOSURES_BY_KEY[key]
     except KeyError:
         raise KeyError(f"unknown archive disclosure key: {key!r}") from None
+    from ...text import overlay as _text_overlay
+    _text = _text_overlay()
+    _changes: dict[str, str] = {}
+    for _field in _DISCLOSURE_FIELDS:
+        _overlay_key = f"disclosure.{key}.{_field}"
+        if _overlay_key in _text:
+            _changes[_field] = _text[_overlay_key]
+    return replace(_spec, **_changes) if _changes else _spec
 
 
 STEPS: tuple[MainQuestStep, ...] = (

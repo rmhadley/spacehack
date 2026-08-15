@@ -35,7 +35,11 @@ from src.spacehack.data.main_quest import (  # noqa: E402
     list_main_quest_steps,
     main_quest_step_after,
 )
+from src.spacehack.data.main_quest.act1_post_prison import (  # noqa: E402
+    ARCHIVE_DISCLOSURES,
+)
 from src.spacehack.data.npcs import list_npcs  # noqa: E402
+from src.spacehack.text import RUNTIME  # noqa: E402
 
 STATUS_ACTIVE = "active"
 STATUS_AVAILABLE = "available"
@@ -62,9 +66,23 @@ def _all_npc_ids() -> tuple[str, ...]:
     return tuple(sorted(_ids))
 
 
+_DISCLOSURE_FIELDS = (
+    "label",
+    "log_message",
+    "followup_message",
+    "waiting_title",
+    "waiting_description",
+    "ready_message",
+)
+
+
 def _all_overlay_keys() -> set[str]:
-    """Every step.* / npc.* key the extractor can emit."""
-    _keys: set[str] = set()
+    """Every step.* / npc.* / runtime.* / disclosure.* key the extractor emits."""
+    _keys: set[str] = set(RUNTIME)
+    for _spec in ARCHIVE_DISCLOSURES:
+        for _field in _DISCLOSURE_FIELDS:
+            if getattr(_spec, _field, ""):
+                _keys.add(f"disclosure.{_spec.key}.{_field}")
     for _step in list_main_quest_steps():
         _keys.add(f"step.{_step.id}.title")
         if _step.description:
@@ -328,7 +346,15 @@ _CHAINS: dict[str, tuple[str, ...]] = {
 
 def main() -> int:
     _all = _all_overlay_keys()
-    _displayed: set[str] = set()
+    # Runtime strings and disclosure fields render whenever their code
+    # path fires (not gated by quest state), so they display by
+    # construction; the state simulation below covers step.* / npc.*.
+    _displayed: set[str] = set(RUNTIME)
+    _displayed |= {
+        f"disclosure.{_spec.key}.{_field}"
+        for _spec in ARCHIVE_DISCLOSURES
+        for _field in _DISCLOSURE_FIELDS
+    }
     for _chain, _steps in _CHAINS.items():
         _displayed |= _q1_offer_keys(_chain)
         for _progress, _crates in _walk(_chain, _steps):

@@ -18,6 +18,7 @@ from ..engine import (
     SCREEN_WIDTH,
     make_console,
 )
+from ..text import get as t_get
 from ..data.main_quest import find_main_quest_step, main_quest_step_after
 from ._core import (
     STATUS_ACTIVE,
@@ -75,12 +76,10 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
         return False
     ctx.main_quest_progress["prologue_signal"] = STATUS_AVAILABLE
     ctx.log.add_colored(
-        "STATIC... a garbled transmission cuts through the noise.",
+        t_get("runtime.signal_log_static"),
         message_log.COLOR_IMPORTANT_EVENT,
     )
-    ctx.log.add(
-        "Your ship crunches the data and outputs coordinates on mars."
-    )
+    ctx.log.add(t_get("runtime.signal_log_coordinates"))
     complete_step(ctx, "prologue_signal")
     return True
 
@@ -459,11 +458,9 @@ def _chip_bump_objective(ctx, bumped_step: str) -> None:
     # spring an ambush in the door's room the moment it's chipped.
     if bumped_step == "lab_q1_sample" and _spawn_door_ambush(ctx):
         show_gate_popup(
-            ctx, "Pirate Raiders",
-            "Raiders pour out of the shadows around the sealed "
-            "door - they were watching the dig site, waiting for "
-            "someone to come back for the sample. They want it.",
-            title="AMBUSH!",
+            ctx, t_get("runtime.door_ambush_faction"),
+            t_get("runtime.door_ambush_body"),
+            title=t_get("runtime.door_ambush_title"),
         )
 
 
@@ -477,13 +474,10 @@ def bump_mars_door(ctx) -> None:
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
         complete_step(ctx, "prologue_open")
         ctx.log.add_colored(
-            "The seal gives way. Inside: an empty cell built for something enormous - "
-            "and a dark terminal interface waiting to be accessed.",
+            t_get("runtime.door_open_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
-        ctx.log.add(
-            "The entrance is open. Beyond it, the facility descends into darkness."
-        )
+        ctx.log.add(t_get("runtime.door_open_log2"))
         animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
         show_sealed_door_overlay(ctx, "open")
         return
@@ -491,15 +485,15 @@ def bump_mars_door(ctx) -> None:
     if _entrance_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
         complete_step(ctx, "prologue_mars_entrance")
         ctx.log.add_colored(
-            "An undulating wall of alien make, set into the red dust.",
+            t_get("runtime.door_discover_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
         show_sealed_door_overlay(ctx, "discover")
         return
     if step_status(ctx, "prologue_open") == STATUS_COMPLETED:
-        ctx.log.add("The opened entrance gapes dark and empty.")
+        ctx.log.add(t_get("runtime.door_gapes_log"))
         return
-    ctx.log.add("The sealed door holds fast. It needs a tool you don't have.")
+    ctx.log.add(t_get("runtime.door_holds_log"))
 
 # ---------------------------------------------------------------------------
 # Delve site preparation
@@ -663,14 +657,8 @@ _SIGNAL_ART_COLORS: tuple[tuple[int, int, int], ...] = (
 def show_prologue_transmission(ctx) -> None:
     _show_pygame_dismiss(
         ctx,
-        title="INCOMING TRANSMISSION",
-        body=(
-            "Comms lights up with a strange signal.It's mostly noise and "
-            "static. But through the incomprehensible chatter the systems "
-            "detect a pattern.\n\n"
-            "Coordinates that appear to be pointing to a remote part of "
-            "Mars in Sol."
-        ),
+        title=t_get("runtime.transmission_title"),
+        body=t_get("runtime.transmission_body"),
         caption="spacehack - incoming transmission",
         art=_SIGNAL_ART,
         art_color=_SIGNAL_TRACE_FG,
@@ -685,7 +673,7 @@ def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
     _body = message if not objective else f"{message}\n\n{objective}"
     _show_pygame_dismiss(
         ctx,
-        title="INCOMING MESSAGE",
+        title=t_get("runtime.summon_title"),
         body=_body,
         caption="spacehack - incoming message",
     )
@@ -694,8 +682,10 @@ def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
 # Gate popup (time-gate explanation)
 # ---------------------------------------------------------------------------
 
-def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "THE WORK BEGINS") -> None:
+def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "") -> None:
     """Show a dismiss-only modal popup (time-gate explanation, ambush, etc.)."""
+    if not title:
+        title = t_get("runtime.gate_popup_default_title")
     _show_pygame_dismiss(
         ctx,
         title=title,
@@ -773,48 +763,27 @@ _DOOR_ART_OPEN: tuple[str, ...] = (
     "  '=========================='  ",
 )
 
-_DOOR_OVERLAYS: dict[str, dict[str, object]] = {
-    "discover": {
-        "title": "SEALED ENTRANCE",
-        "meta": "MAKE: ALIEN    MECHANISM: NONE VISIBLE    AGE: UNKNOWN",
-        "art": _DOOR_ART_SEALED,
-        "body": (
-            "The martian rock merges with high tech metal machinery.",
-            "You see a wall that undulates before you as you examine it.",
-            "An alien console stands before it, still with power.",
-            "But a mystery you can't solve alone.",
-        ),
-        "highlight": "The console just hums and ignores your input.",
-        "instruction": "Press ENTER to acknowledge",
-    },
-    "open": {
-        "title": "THE SEAL GIVES WAY",
-        "meta": "SEAL: BROKEN    CHAMBER: EMPTY    ACCESS: GRANTED",
-        "art": _DOOR_ART_OPEN,
-        "body": (
-            "The seal gives way - cleanly, as if it were waiting.",
-            "Inside: an empty cell built for something enormous -",
-            "and a dark terminal interface waiting for input.",
-        ),
-        "highlight": "The entrance is open. The way forward leads deeper into the facility.",
-        "instruction": "Press ENTER to continue",
-    },
+_DOOR_ART: dict[str, tuple[str, ...]] = {
+    "discover": _DOOR_ART_SEALED,
+    "open": _DOOR_ART_OPEN,
 }
 
 def show_sealed_door_overlay(ctx, beat: str) -> None:
-    _content = _DOOR_OVERLAYS[beat]
+    _title = t_get(f"runtime.door_{beat}_title")
+    _art = _DOOR_ART[beat]
     _show_pygame_dismiss(
         ctx,
-        title=str(_content["title"]),
-        body="\n".join((*_content["body"], str(_content["highlight"]))),
-        caption=f"spacehack - {str(_content['title']).lower()}",
-        art=tuple((str(_content["meta"]), "", *_DOOR_RUNES, *_content["art"])),
+        title=_title,
+        body=t_get(f"runtime.door_{beat}_body")
+        + "\n" + t_get(f"runtime.door_{beat}_highlight"),
+        caption=f"spacehack - {_title.lower()}",
+        art=tuple((t_get(f"runtime.door_{beat}_meta"), "", *_DOOR_RUNES, *_art)),
         art_color=_DOOR_ART_FG,
         art_colors=tuple((
             ui.COLOR_VALUE_DIM,
             ui.COLOR_VALUE_DIM,
             *(_DOOR_RUNE_FG for _ in _DOOR_RUNES),
-            *(_DOOR_ART_FG for _ in _content["art"]),
+            *(_DOOR_ART_FG for _ in _art),
         )),
     )
 

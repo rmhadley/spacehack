@@ -41,10 +41,23 @@ os.environ["SPACEHACK_TEXT_DIR"] = tempfile.mkdtemp()
 
 from src.spacehack.data.main_quest import find_main_quest_step  # noqa: E402
 from src.spacehack.data.npcs import find_npc  # noqa: E402
+from src.spacehack.text import RUNTIME  # noqa: E402
+from src.spacehack.data.main_quest.act1_post_prison import (  # noqa: E402
+    ARCHIVE_DISCLOSURES,
+)
 
 OUT_DIR = ROOT / "src" / "spacehack" / "data" / "text"
 
 _DIALOGUE_VARIANTS = ("intro", "active", "complete", "locked", "option_label")
+
+_DISCLOSURE_FIELDS = (
+    "label",
+    "log_message",
+    "followup_message",
+    "waiting_title",
+    "waiting_description",
+    "ready_message",
+)
 
 
 def _step_keys(step_id: str) -> dict[str, str]:
@@ -98,12 +111,23 @@ def _build_end() -> dict[str, str]:
     _keys: dict[str, str] = {}
     for _sid in ("prologue_open", "act1_prison", "research_alpha", "research_alpha_report"):
         _keys.update(_step_keys(_sid))
+    for _spec in ARCHIVE_DISCLOSURES:
+        for _field in _DISCLOSURE_FIELDS:
+            _value = getattr(_spec, _field, "")
+            if _value:
+                _keys[f"disclosure.{_spec.key}.{_field}"] = _value
     return _keys
+
+
+def _build_runtime() -> dict[str, str]:
+    """File 00: runtime overlay text (transmissions, log lines, popups)."""
+    return dict(RUNTIME)
 
 
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     _sections = {
+        "00_runtime.json": _build_runtime(),
         "01_beginning.json": _build_beginning(),
         "02_merchants.json": _build_chain(
             ("mer_q1_contract", "mer_q2_strike", "mer_q3_transport",

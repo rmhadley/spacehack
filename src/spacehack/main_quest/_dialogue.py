@@ -22,6 +22,7 @@ from ._core import (
     _consume_goods,
 )
 from .. import message_log
+from ..text import get as t_get
 
 
 def _dialogue_is_locked(ctx, dialogue: "QuestDialogue") -> bool:
@@ -120,6 +121,49 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
     return (_dialogue.option_label, _step.id)
 
 
+def _goods_ok(ctx, step) -> bool:
+    """True when the player's hold covers a goods step's requirement."""
+    if step_status(ctx, step.id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+        return False
+    if not _hold_has_goods(ctx, step.requires_goods):
+        ctx.log.add(t_get("runtime.missing_goods_log"))
+        return False
+    _consume_goods(ctx, step.requires_goods)
+    return True
+
+
+def _lock_in_chain(ctx, dialogue) -> None:
+    """Record a locks_chain faction choice and its unlock item/backing."""
+    if (dialogue.locks_chain and dialogue.backing_faction
+            and not ctx.main_quest_chain):
+        ctx.main_quest_chain = dialogue.backing_faction
+        ctx.log.add_colored(
+            t_get("runtime.chain_lockin_log").format(
+                faction=dialogue.backing_faction.capitalize(),
+            ),
+            message_log.COLOR_IMPORTANT_EVENT,
+        )
+    if dialogue.backing_faction:
+        ctx.main_quest_backing.add(dialogue.backing_faction)
+    if dialogue.unlock_item:
+        ctx.main_quest_unlocked_items.add(dialogue.unlock_item)
+
+
+def _start_salvage_step(ctx, step) -> bool:
+    """Start a salvage step from NPC talk (loads cargo, marks active)."""
+    if step_status(ctx, step.id) == STATUS_ACTIVE:
+        return False
+    _started = start_step(ctx, step.id)
+    if _started and step.smuggle_good_id:
+        _owned = ctx.player_owned_ship
+        if _owned is not None and step.smuggle_cargo_size > 0:
+            _owned.inventory[step.smuggle_good_id] = (
+                _owned.inventory.get(step.smuggle_good_id, 0)
+                + step.smuggle_cargo_size
+            )
+    return _started
+
+
 def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     """Advance step_id from an NPC-talk quest option selection."""
     _step = find_main_quest_step(step_id)
@@ -127,55 +171,18 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     if _dialogue is None:
         return False
     if _step.objective_type == "goods" and _step.requires_goods:
-        if step_status(ctx, step_id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+        if not _goods_ok(ctx, _step):
             return False
-        if not _hold_has_goods(ctx, _step.requires_goods):
-            ctx.log.add("You don't have the required goods for this task.")
-            return False
-        _consume_goods(ctx, _step.requires_goods)
-    if _dialogue.locks_chain and _dialogue.backing_faction and not ctx.main_quest_chain:
-        ctx.main_quest_chain = _dialogue.backing_faction
-        ctx.log.add_colored(
-            f"You've agreed to work with the "
-            f"{_dialogue.backing_faction.capitalize()} - the plan is in motion.",
-            message_log.COLOR_IMPORTANT_EVENT,
-        )
-    if _dialogue.backing_faction:
-        ctx.main_quest_backing.add(_dialogue.backing_faction)
-    if _dialogue.unlock_item:
-        ctx.main_quest_unlocked_items.add(_dialogue.unlock_item)
+    _lock_in_chain(ctx, _dialogue)
     if _step.objective_type == "smuggle":
         if step_status(ctx, step_id) == STATUS_ACTIVE:
             return _complete_smuggle_handover(ctx, _step)
         return _trigger_smuggle_crate(ctx, _step)
     if _step.objective_type == "salvage":
-        # Salvage steps: talking to the NPC starts the step (loads
-        # cargo, marks active) — completion happens later when the
-        # quest-tagged loot is secured from the derelict interior.
-        if step_status(ctx, step_id) == STATUS_ACTIVE:
-            return False
-        _started = start_step(ctx, step_id)
-        if _started and _step.smuggle_good_id:
-            _owned = ctx.player_owned_ship
-            if _owned is not None and _step.smuggle_cargo_size > 0:
-                _owned.inventory[_step.smuggle_good_id] = (
-                    _owned.inventory.get(_step.smuggle_good_id, 0)
-                    + _step.smuggle_cargo_size
-                )
-        return _started
+        return _start_salvage_step(ctx, _step)
     if _step.objective_type == "visit":
-        # Visit steps: talking to the expert NPC completes the step
-        # (fires the quest popup).  No trigger_on_talk needed — the
-        # player selects the option_label from the NPC menu.  The step
-        # may be AVAILABLE (never started) or ACTIVE — complete_step
-        # handles both.
         from ._objectives import maybe_complete_visit as _maybe_visit
         return _maybe_visit(ctx, _step.requires_npc_id)
     if _step.objective_type == "bump":
-        # Bump steps (e.g. lab_q1_sample): accepting the assignment
-        # does NOT complete the step — the player must physically chip
-        # the sample from the Mars door (bump_mars_door →
-        # _complete_bump_objective).  Return True so the dialogue is
-        # consumed; the step stays available until the bump.
         return True
     return complete_step(ctx, step_id)

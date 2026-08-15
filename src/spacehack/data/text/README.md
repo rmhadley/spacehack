@@ -18,12 +18,15 @@ No code edits, no sync step.
 | `step.<id>.dialogue.<npc>.locked` | NPC talk when another faction was chosen |
 | `step.<id>.dialogue.<npc>.option_label` | The quest menu row in the talk modal |
 | `npc.<id>.flavor_text` | NPC idle chatter when no quest is live |
+| `runtime.<name>` | Overlay text: transmissions, log lines, popups (file `00_runtime.json`) |
+| `disclosure.<key>.<field>` | Orbit archive-disclosure choices (file `06_end.json`) |
 
 ## Rules
 
 - **Delete a key** to fall back to the shipped default text.
 - Set a value to `""` to blank a line intentionally.
-- `{placeholders}` are filled in by the game — keep them verbatim.
+- `{placeholders}` like `{good}`, `{faction}`, `{max}` are filled in by the game — keep them verbatim.
+- In `00_runtime.json`, `\n` inside a string becomes a line break in-game.
 - JSON is strict: no trailing commas, no comments.
 
 ## Regenerating the baseline

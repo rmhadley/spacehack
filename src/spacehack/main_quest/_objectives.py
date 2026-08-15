@@ -14,6 +14,7 @@ from ._core import (
     _maybe_auto_trigger_next_smuggle,
 )
 from .. import message_log
+from ..text import get as t_get
 
 
 def _remove_quest_spawn_group(ctx, step) -> None:
@@ -66,10 +67,8 @@ def show_step_readout(ctx, _step) -> bool:
     )
     if (_next_step is not None
             and _next_step.id in ctx.main_quest_gate):
-        _what_next = (
-            f"The {_next_step.chain.capitalize()} will contact "
-            "you when they're ready for the next step. "
-            "Check your quest log (Q) for updates."
+        _what_next = t_get("runtime.readout_wait_hint").format(
+            faction=_next_step.chain.capitalize(),
         )
     elif _next_step is not None:
         _what_next = _next_step.description
@@ -172,8 +171,7 @@ def fail_smuggle_step(ctx, active) -> bool:
         # Contraband (bar chain): the giver NPC re-offers the crate
         # via their quest dialogue option.
         ctx.log.add_colored(
-            "The crate is lost. Talk to the quest giver for another "
-            "one.",
+            t_get("runtime.smuggle_lost_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
         return True
@@ -182,7 +180,7 @@ def fail_smuggle_step(ctx, active) -> bool:
     # player with a live step and no delivery target.
     if _trigger_smuggle_crate(ctx, _step):
         ctx.log.add_colored(
-            f"The {_good} is re-secured in your mission hold.",
+            t_get("runtime.smuggle_resecured_log").format(good=_good),
             message_log.COLOR_IMPORTANT_EVENT,
         )
     return True
