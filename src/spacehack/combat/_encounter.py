@@ -17,206 +17,216 @@ from ._loop import run_combat
 from . import _rules_space
 
 
-def _handle_combat_encounter(ctx, console, encounter) -> str:
-    """Resolve a combat encounter triggered by the dispatcher.
+def _resolve_combat_inputs(ctx, encounter):
+    """Validate encounter data + player readiness; returns ``(outcome, inputs)``.
 
-    Was inlined in __main__._handle_combat_encounter pre-N1; promoted
-    to combat.py so the dispatcher stays combat-unaware. The
-    encounter param is normally a tuple ``(specs, positions)``
-    produced by ``navigation._detect_combat_encounter``.
-
-    Returns ``"VICTORY"``, ``"DEFEAT"``, or ``"FLEE"``.
+    ``outcome`` is ``"DEFEAT"`` (player already dead) or ``"FLEE"``
+    (combat cannot start) — each failure path logs why. Otherwise
+    ``inputs`` is ``(specs, positions, ship_cat, pilot_skills)``.
+    Pilot skills come from ``ctx.stats``, the source of truth that
+    folds in species/class base and XP skill-point growth; module
+    bonuses are layered on inside ``init_combat_state`` — not here.
     """
-
-    # Already dead from a previous defeat — no-op.
     if getattr(ctx, 'player_dead', False):
-        return "DEFEAT"
-
+        return "DEFEAT", None
     if not encounter:
         ctx.log.add("Encounter data missing.")
-        return "FLEE"
-
+        return "FLEE", None
     try:
         _specs, _positions = encounter
     except (ValueError, TypeError):
         ctx.log.add("Corrupted encounter data.")
-        return "FLEE"
-
-    # Resolve the player's live pilot skills from ctx.stats — the
-    # source of truth that already folds in species/class base and
-    # XP skill-point growth.  (ctx.pilot_skills was never set on
-    # GameContext, so the old code silently fell back to a hard-
-    # coded 30/30/30 and AP never grew past 4 no matter how high
-    # the player raised piloting.)  Module bonuses are layered on
-    # inside init_combat_state, so don't add them here.
+        return "FLEE", None
+    if ctx.player_owned_ship is None:
+        ctx.log.add("No ship - cannot start combat.")
+        return "FLEE", None
     from ..data.pilot_skills import PilotSkills
     _pilot_skills = PilotSkills(
         gunnery=ctx.stats.gunnery,
         piloting=ctx.stats.piloting,
         engineering=ctx.stats.engineering,
     )
-
-    # Sanity: player must have a ship catalog and owned ship.
-    if ctx.player_owned_ship is None:
-        ctx.log.add("No ship - cannot start combat.")
-        return "FLEE"
-
-    _ship_cat = None
     from ..data.ships import find_ship as _find_ship_catalog
     try:
         _ship_cat = _find_ship_catalog(ctx.player_owned_ship.ship_id)
     except (KeyError, AttributeError):
         ctx.log.add("Ship catalog mismatch - cannot start combat.")
-        return "FLEE"
+        return "FLEE", None
+    return None, (_specs, _positions, _ship_cat, _pilot_skills)
 
-    # Militia live-fire test (mil_q5_livefire): temporarily mount the
-    # breach charge prototype as a ship weapon for this combat only.
-    # Dismounted after combat (win/flee/defeat) so it never persists.
-    _breach_mounted = False
-    _breach_wid = "breach_charge_test"
-    if (_breach_wid not in (ctx.player_owned_ship.weapons or ())
-            and ctx.main_quest_chain == "militia"):
-        from .. import main_quest as _mq_check
-        if _mq_check.step_status(ctx, "mil_q5_livefire") in (
-            _mq_check.STATUS_AVAILABLE, _mq_check.STATUS_ACTIVE,
-        ):
-            from .. import solar_system as _ss
-            if _ss.current_solar_system_id == "cygni":
-                ctx.player_owned_ship.weapons = (
-                    ctx.player_owned_ship.weapons + (_breach_wid,)
-                )
-                _breach_mounted = True
-                ctx.log.add_colored(
-                    "BREACH CHARGE ARMED - prototype mounted for live-fire test.",
-                    _ml.COLOR_IMPORTANT_EVENT,
-                )
 
-    from ._rules_space import init as _rs_init
-    # Tutorial: explain space combat before the combat UI takes over
-    # (fires once, only in tutorial runs).
-    from ..tutorial import maybe_space_combat_intro as _tut_space_intro
-    _tut_space_intro(ctx)
-    _rs_init(
-        ctx, console,
-        _ship_cat, ctx.player_owned_ship,
-        ctx.player.pos, _pilot_skills,
-        _specs, _positions,
-        ctx.game_map, ctx.log,
+def _mount_breach_charge(ctx) -> tuple[bool, str]:
+    """Mount the militia live-fire prototype for this combat, if due.
+
+    Returns ``(mounted, weapon_id)``; the caller dismounts after
+    combat (win/flee/defeat) so it never persists.
+    """
+    _wid = "breach_charge_test"
+    if (_wid in (ctx.player_owned_ship.weapons or ())
+            or ctx.main_quest_chain != "militia"):
+        return False, _wid
+    from .. import main_quest as _mq_check
+    if _mq_check.step_status(ctx, "mil_q5_livefire") not in (
+        _mq_check.STATUS_AVAILABLE, _mq_check.STATUS_ACTIVE,
+    ):
+        return False, _wid
+    from .. import solar_system as _ss
+    if _ss.current_solar_system_id != "cygni":
+        return False, _wid
+    ctx.player_owned_ship.weapons = ctx.player_owned_ship.weapons + (_wid,)
+    ctx.log.add_colored(
+        "BREACH CHARGE ARMED - prototype mounted for live-fire test.",
+        _ml.COLOR_IMPORTANT_EVENT,
     )
-    _cr = run_combat(console, ctx, ctx.game_map, _rules_space)
+    return True, _wid
 
-    # Dismount the breach charge prototype if it was temporarily
-    # mounted for the militia live-fire test (mil_q5_livefire).
-    if _breach_mounted and _breach_wid in (ctx.player_owned_ship.weapons or ()):
-        ctx.player_owned_ship.weapons = tuple(
-            w for w in ctx.player_owned_ship.weapons
-            if w != _breach_wid
-        )
-        ctx.log.add_colored(
-            "BREACH CHARGE DISARMED - prototype test complete.",
-            _ml.COLOR_IMPORTANT_EVENT,
-        )
+
+def _dismount_breach_charge(ctx, mounted: bool, weapon_id: str) -> None:
+    """Remove the militia live-fire prototype after combat."""
+    if not mounted or weapon_id not in (ctx.player_owned_ship.weapons or ()):
+        return
+    ctx.player_owned_ship.weapons = tuple(
+        w for w in ctx.player_owned_ship.weapons if w != weapon_id
+    )
+    ctx.log.add_colored(
+        "BREACH CHARGE DISARMED - prototype test complete.",
+        _ml.COLOR_IMPORTANT_EVENT,
+    )
+
+
+def _apply_kill_reputation(ctx, _cr, _specs) -> None:
+    """Apply per-kill playstyle counters and faction rep for a victory.
+
+    Kill XP and the ``total_kills`` counter are granted at kill time by
+    ``_rules_space._finalize_kill``; this pass only records the
+    merchant-kill counter and reputation. Squad bonus (+1 to positive
+    deltas) folds in when the entire original group is wiped (2+).
+    """
+    from ..faction import modify_rep, _COMBAT_KILL_DELTAS
+    from ..data.npc_ships import find_npc_ship as _fns
+    _all_killed = len(_cr.defeated_spec_ids) == len(_specs)
+    _squad_bonus = _all_killed and len(_cr.defeated_spec_ids) >= 2
+    for _dsid in _cr.defeated_spec_ids:
+        try:
+            _es = _fns(_dsid)
+            if hasattr(ctx, 'player_counters'):
+                if getattr(_es, 'faction', '') == 'merchant':
+                    ctx.player_counters.merchant_kills += 1
+            # Faction reputation deltas.
+            _deltas = _COMBAT_KILL_DELTAS.get(_es.faction, {})
+            for _fac, _delta in _deltas.items():
+                if _squad_bonus and _delta > 0:
+                    _delta += 1
+                modify_rep(ctx, _fac, _delta)
+        except (KeyError, ImportError):
+            pass
+
+
+def _complete_bounty_missions(ctx, _cr) -> None:
+    """Complete missions whose bounty target died this fight.
+
+    Only the specific bounty target entity triggers completion;
+    salvage-mission patrols are cleaned up without completing.
+    """
+    _missions = getattr(ctx, 'player_active_missions', [])
+    for _m in _missions:
+        _m_spawn = getattr(_m, 'bounty_spawn_id', None)
+        if _m_spawn is None or _m_spawn not in _cr.defeated_bounty_ids:
+            continue
+        # Salvage missions: killing the guard patrol does NOT complete
+        # the mission — the component is secured from the wreck's
+        # interior and delivered to the barkeep. Still clean up the
+        # dead patrol's BountySpawn so it doesn't linger.
+        if getattr(_m, 'salvage_layout_id', None) is not None:
+            from ..navigation import _remove_bounty_spawn
+            _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
+            continue
+        from ..mission import complete_mission as _complete
+        _today = ctx.time_day + (ctx.time_month - 1) * 30
+        _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today, ctx=ctx)
+        if not _m.is_procedural:
+            ctx.completed_mission_ids.add(_m.mission_id)
+        try:
+            _missions.remove(_m)
+        except ValueError:
+            pass
+        ctx.player_active_missions = _missions
+        ctx.log.add(f"Bounty complete! {_m.title}")
+        # Clean up the BountySpawn so re-detect doesn't find it.
+        from ..navigation import _remove_bounty_spawn
+        _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
+
+
+def _cleanup_heist_spawns(ctx, _cr) -> None:
+    """Remove intercept BountySpawn entries so re-detect can't refind them.
+
+    The loot entity is spawned in ``_rules_space.on_kill`` where the
+    death position is available.
+    """
+    _missions = getattr(ctx, 'player_active_missions', [])
+    _hei_missions = [
+        _m for _m in (_missions or [])
+        if getattr(_m, 'bounty_spawn_id', None) is not None
+        and getattr(_m, 'heist_target_good_id', None) is not None
+        # Salvage missions reuse heist_target_good_id for the component
+        # but their patrol carries no heist_spawn_id — exclude them.
+        and getattr(_m, 'salvage_layout_id', None) is None
+    ]
+    for _hm in _hei_missions:
+        _hm_spawn = getattr(_hm, 'bounty_spawn_id', None)
+        if _hm_spawn is not None and _hm_spawn in _cr.defeated_heist_ids:
+            from ..navigation import _remove_bounty_spawn
+            _remove_bounty_spawn(ctx, _hm_spawn, getattr(_hm, 'target_system_id', None))
+
+
+def _handle_victory(ctx, _cr, _specs) -> None:
+    """Apply victory bookkeeping: log, per-kill rewards, missions."""
+    if len(_cr.defeated_names) == 1:
+        ctx.log.add(f"Victory! {_cr.defeated_names[0]} destroyed.")
+    else:
+        ctx.log.add(f"Victory! {len(_cr.defeated_names)} enemies destroyed.")
+    _apply_kill_reputation(ctx, _cr, _specs)
+    _complete_bounty_missions(ctx, _cr)
+    # Main-quest bounty objective (Act 0 chains): a quest-tagged
+    # spawn defeated completes the matching chain step. Runs AFTER
+    # the mission-bounty loop so mission spawns don't double-trigger.
+    from .. import main_quest as _mq_module
+    _mq_module.maybe_complete_bounty(ctx, _cr.defeated_bounty_ids)
+    _cleanup_heist_spawns(ctx, _cr)
+    # Dead enemies are already removed individually during combat by
+    # rules.on_kill() (which calls _remove_dead_entity and cleans up
+    # procedural spawns matched by squad_id + npc_id). No post-combat
+    # sweep needed.
+
+
+def _handle_combat_encounter(ctx, console, encounter) -> str:
+    """Resolve a combat encounter triggered by the dispatcher.
+
+    The encounter param is normally ``(specs, positions)`` from
+    ``navigation._detect_combat_encounter``. Returns ``"VICTORY"``,
+    ``"DEFEAT"``, or ``"FLEE"``.
+    """
+    _blocked, _inputs = _resolve_combat_inputs(ctx, encounter)
+    if _blocked is not None:
+        return _blocked
+    _specs, _positions, _ship_cat, _pilot_skills = _inputs
+
+    _breach_mounted, _breach_wid = _mount_breach_charge(ctx)
+    from ._rules_space import init as _rs_init
+    from ..tutorial import maybe_space_combat_intro as _tut_space_intro
+    _tut_space_intro(ctx)  # one-time tutorial intro, tutorial runs only
+    _rs_init(ctx, console, _ship_cat, ctx.player_owned_ship,
+             ctx.player.pos, _pilot_skills, _specs, _positions,
+             ctx.game_map, ctx.log)
+    _cr = run_combat(console, ctx, ctx.game_map, _rules_space)
+    _dismount_breach_charge(ctx, _breach_mounted, _breach_wid)
 
     if _cr.outcome == "VICTORY":
-        if len(_cr.defeated_names) == 1:
-            ctx.log.add(f"Victory! {_cr.defeated_names[0]} destroyed.")
-        else:
-            ctx.log.add(f"Victory! {len(_cr.defeated_names)} enemies destroyed.")
-
-        # Apply combat kill reputation changes + XP per defeated enemy.
-        # Squad bonus (+1 to positive deltas) folds in when the
-        # entire original group is wiped (2+ enemies).
-        from ..faction import modify_rep, _COMBAT_KILL_DELTAS
-        from ..data.npc_ships import find_npc_ship as _fns
-        from ..data.ships import find_ship as _find_ship_cat
-        from ..xp import add_xp as _add_xp
-        _all_killed = len(_cr.defeated_spec_ids) == len(_specs)
-        _squad_bonus = _all_killed and len(_cr.defeated_spec_ids) >= 2
-        for _dsid in _cr.defeated_spec_ids:
-            try:
-                _es = _fns(_dsid)
-                # Combat XP: enemy base hull * 2 per kill.
-                try:
-                    _sc = _find_ship_cat(_es.ship_id)
-                    _add_xp(ctx, _sc.base_hull * 2)
-                except (KeyError, ImportError):
-                    pass
-                # Playstyle kill counters.
-                if hasattr(ctx, 'player_counters'):
-                    ctx.player_counters.total_kills += 1
-                    if getattr(_es, 'faction', '') == 'merchant':
-                        ctx.player_counters.merchant_kills += 1
-                # Faction reputation deltas.
-                _deltas = _COMBAT_KILL_DELTAS.get(_es.faction, {})
-                for _fac, _delta in _deltas.items():
-                    if _squad_bonus and _delta > 0:
-                        _delta += 1
-                    modify_rep(ctx, _fac, _delta)
-            except (KeyError, ImportError):
-                pass
-
-        # Check bounty completion: match defeated bounty_spawn_ids
-        # collected during combat against active missions. Only the
-        # specific bounty target entity triggers completion.
-        _missions = getattr(ctx, 'player_active_missions', [])
-        for _m in _missions:
-            _m_spawn = getattr(_m, 'bounty_spawn_id', None)
-            if _m_spawn is not None and _m_spawn in _cr.defeated_bounty_ids:
-                # Salvage missions: killing the guard patrol does NOT complete
-                # the mission — the component is secured from the wreck's
-                # interior and delivered to the barkeep. Still clean up the
-                # dead patrol's BountySpawn so it doesn't linger.
-                if getattr(_m, 'salvage_layout_id', None) is not None:
-                    from ..navigation import _remove_bounty_spawn
-                    _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
-                    continue
-                from ..mission import complete_mission as _complete
-                _today = ctx.time_day + (ctx.time_month - 1) * 30
-                _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today, ctx=ctx)
-                if not _m.is_procedural:
-                    ctx.completed_mission_ids.add(_m.mission_id)
-                try:
-                    _missions.remove(_m)
-                except ValueError:
-                    pass
-                ctx.player_active_missions = _missions
-                ctx.log.add(f"Bounty complete! {_m.title}")
-                # Clean up the BountySpawn so re-detect doesn't find it.
-                from ..navigation import _remove_bounty_spawn
-                _remove_bounty_spawn(ctx, _m_spawn, getattr(_m, 'target_system_id', None))
-
-        # Main-quest bounty objective (Act 0 chains): a quest-tagged
-        # spawn defeated completes the matching chain step. Runs AFTER
-        # the mission-bounty loop so mission spawns don't double-trigger.
-        from .. import main_quest as _mq_module
-        _mq_module.maybe_complete_bounty(ctx, _cr.defeated_bounty_ids)
-
-        # --- Intercept/heist cleanup: remove BountySpawn entries so re-detect doesn't find them.
-        # (Loot entity is spawned in _rules_space.on_kill where the death position is available.)
-        _hei_missions = [
-            _m for _m in (_missions or [])
-            if getattr(_m, 'bounty_spawn_id', None) is not None
-            and getattr(_m, 'heist_target_good_id', None) is not None
-            # Salvage missions reuse heist_target_good_id for the component
-            # but their patrol carries no heist_spawn_id — exclude them.
-            and getattr(_m, 'salvage_layout_id', None) is None
-        ]
-        for _hm in _hei_missions:
-            _hm_spawn = getattr(_hm, 'bounty_spawn_id', None)
-            if _hm_spawn is not None and _hm_spawn in _cr.defeated_heist_ids:
-                from ..navigation import _remove_bounty_spawn
-                _remove_bounty_spawn(ctx, _hm_spawn, getattr(_hm, 'target_system_id', None))
-
-        # Dead enemies are already removed individually during combat
-        # by rules.on_kill() (which calls _remove_dead_entity and cleans
-        # up procedural spawns matched by squad_id + npc_id).
-        # No post-combat sweep needed.
-
+        _handle_victory(ctx, _cr, _specs)
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
         _render_death_screen(ctx)
     elif _cr.outcome == "FLEE":
-        # Apply cowardice rep penalty for fleeing combat.
         from ..faction import modify_rep, _COMBAT_FLEE_DELTAS
         for _fac, _delta in _COMBAT_FLEE_DELTAS.items():
             modify_rep(ctx, _fac, _delta)
@@ -248,22 +258,8 @@ def noise_hostiles(
     return []
 
 
-def visible_hostiles(
-    ctx,
-    game_map,
-    player_pos,
-    radius: int,
-) -> list:
-    """Hostiles the player can currently see: within ``radius`` + clear LOS.
-
-    The single player-LOS aggro predicate (design doc 12) shared by the
-    combat trigger, the mid-fight join scan, and the end-of-combat
-    check. Side-effect free: no squad linkage, no assist radius, no
-    auto-reveal — the fight is exactly what the player sees. The noise
-    seam (decision #3) ORs in here; ``noise_hostiles`` is the only
-    additional source of hostiles, so future gunfire-drawn mobs need
-    no consumer changes.
-    """
+def _visible_hostile_entities(ctx, game_map, player_pos, radius) -> list:
+    """Hostile map entities within ``radius`` with clear LOS to the player."""
     from ..data.npc_chars import find_npc_char as _fnc
     from .. import faction as _faction
     from ._animations import _has_los
@@ -286,6 +282,26 @@ def visible_hostiles(
         if not _has_los(game_map, player_pos.x, player_pos.y, _e.pos.x, _e.pos.y):
             continue
         _result.append(_e)
+    return _result
+
+
+def visible_hostiles(
+    ctx,
+    game_map,
+    player_pos,
+    radius: int,
+) -> list:
+    """Hostiles the player can currently see: within ``radius`` + clear LOS.
+
+    The single player-LOS aggro predicate (design doc 12) shared by the
+    combat trigger, the mid-fight join scan, and the end-of-combat
+    check. Side-effect free: no squad linkage, no assist radius, no
+    auto-reveal — the fight is exactly what the player sees. The noise
+    seam (decision #3) ORs in here; ``noise_hostiles`` is the only
+    additional source of hostiles, so future gunfire-drawn mobs need
+    no consumer changes.
+    """
+    _result = _visible_hostile_entities(ctx, game_map, player_pos, radius)
     # Noise seam: mobs drawn by gunfire OR into the visible set here.
     # Empty stub in v1 — the single OR-in point for the future system.
     _result.extend(noise_hostiles(ctx, game_map, player_pos, radius))

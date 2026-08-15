@@ -771,14 +771,17 @@ def _finalize_kill(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent:
     )
     if _correct_spec is not None:
         _spawn_loot_drops(game_map, enemy.pos, _correct_spec)
-
-    from ..data.ships import find_ship as _find_ship_cat
-    try:
-        _sc = _find_ship_cat(enemy.spec_id)
-        from ..xp import add_xp as _add_xp
-        _add_xp(ctx, _sc.base_hull * 2)
-    except (KeyError, ImportError):
-        pass
+        # Kill XP: enemy base hull * 2, granted at kill time so it lands
+        # regardless of how the encounter resolves. (The old lookup passed
+        # the NPC-spec id straight to the ship catalog, which always raised
+        # KeyError — kills only earned XP through the victory pass.)
+        from ..data.ships import find_ship as _find_ship_cat
+        try:
+            _sc = _find_ship_cat(_correct_spec.ship_id)
+            from ..xp import add_xp as _add_xp
+            _add_xp(ctx, _sc.base_hull * 2)
+        except (KeyError, ImportError):
+            pass
 
     if hasattr(ctx, 'player_counters'):
         ctx.player_counters.total_kills += 1

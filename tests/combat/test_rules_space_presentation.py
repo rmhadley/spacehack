@@ -301,3 +301,55 @@ def test_presentation_target_card_toggles_and_requires_active():
         assert _rules_space.presentation_target_card(ctx=ctx) is None
     finally:
         _rules_space._state = old_state
+
+
+# ---------------------------------------------------------------------------
+# Kill XP (granted at kill time, not in the victory pass)
+# ---------------------------------------------------------------------------
+
+def test_finalize_kill_awards_hull_based_xp_and_counts_kill_once(monkeypatch):
+    """A space kill grants base_hull * 2 XP at kill time and one total_kills.
+
+    Regression: the old lookup passed the NPC-spec id (``pirate_scout``)
+    straight to the ship catalog, which raised KeyError and silently
+    dropped the XP until the victory pass (and flee-adjacent paths missed
+    it entirely).
+    """
+    from src.spacehack.data.npc_ships import find_npc_ship
+    from src.spacehack.data.ships import find_ship
+
+    monkeypatch.setattr(_rules_space, "_spawn_loot_drops", lambda *a, **k: None)
+
+    ctx = SimpleNamespace(
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        player_traits=[],
+        player_counters=SimpleNamespace(total_kills=0),
+        log=SimpleNamespace(add_colored=lambda *a, **k: None),
+    )
+    state = _rules_space.SpaceCombatState(
+        ctx=ctx,
+        console=None,
+        game_map=SimpleNamespace(entities=[]),
+        log=None,
+        enemy_specs=[find_npc_ship("pirate_scout")],
+        enemy_insts=[EnemyInstance(
+            spec_id="pirate_scout", name="Pirate Scout", char="p",
+            fg=(255, 100, 100), pos=world.Position(11, 6),
+        )],
+        cr=_rules_space.CombatResult(),
+    )
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        _rules_space._finalize_kill(
+            ctx, SimpleNamespace(entities=[]), state.enemy_insts[0], None,
+        )
+    finally:
+        _rules_space._state = old_state
+
+    _sc = find_ship("scout")
+    assert ctx.player_xp == _sc.base_hull * 2
+    assert ctx.player_counters.total_kills == 1
+    assert state.cr.defeated_spec_ids == ["pirate_scout"]
