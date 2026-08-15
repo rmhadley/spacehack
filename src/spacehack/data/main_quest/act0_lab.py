@@ -41,22 +41,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "reference data preserved at Procyon C. Report to the Research Officer "
             "on Mercury; she will explain what the sample still cannot tell us."
         ),
-        dialogues={
-            "research_officer": QuestDialogue(
-                npc_id="research_officer",
-                trigger_on_talk=True,
-                intro=(
-                    "Good. You found a door, not an answer. Return to Mars and take a controlled "
-                    "fragment from its surface. Leave the seal untouched. I will "
-                    "compare the material's resonance with the transmission; if "
-                    "the pattern is stable, we can build a key that asks the door "
-                    "to recognize the signal."
-                ),
-                option_label="Accept the assignment",
-                backing_faction="lab",
-                dialogue_planet_id="mercury",
-            ),
-        },
         rewards_xp=50,
     ),
     MainQuestStep(

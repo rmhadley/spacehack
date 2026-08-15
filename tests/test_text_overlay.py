@@ -9,7 +9,10 @@ catalog string).
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
+from pathlib import Path
 
 import pytest
 
@@ -91,6 +94,59 @@ def test_disclosure_overlay_applies(overlay_dir):
     _spec = find_archive_disclosure("diagnostic_fragment")
     assert _spec.label == "Override label"
     assert _spec.log_message  # un-overridden fields keep defaults
+
+
+def test_extractor_merge_preserves_writer_edits(tmp_path, monkeypatch):
+    """Re-running the extractor must never overwrite writer edits.
+
+    Regression: the tool used to regenerate JSON from the code
+    defaults, clobbering values the writer had edited in the JSON.
+    The merge keeps existing JSON values and only adds new keys /
+    prunes keys that no longer exist in the code.
+    """
+    _script = Path(__file__).resolve().parent.parent / "tools" / "extract_act0_text.py"
+    _spec = importlib.util.spec_from_file_location("extract_act0_text", _script)
+    assert _spec is not None and _spec.loader is not None
+    _mod = importlib.util.module_from_spec(_spec)
+
+    # The script points the overlay at an empty temp dir at import
+    # time — save and restore the real env var around it.
+    _old_env = os.environ.get("SPACEHACK_TEXT_DIR")
+    try:
+        _spec.loader.exec_module(_mod)
+
+        _out = tmp_path / "text"
+        _out.mkdir()
+        # Seed a file with a writer edit (differs from the code
+        # default) plus a stale key that no longer exists in the code.
+        (_out / "01_beginning.json").write_text(
+            json.dumps(
+                {
+                    "npc.research_officer.flavor_text": "WRITER EDITED FLAVOR",
+                    "step.gone_step.title": "stale",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr(_mod, "OUT_DIR", _out)
+        assert _mod.main() == 0
+
+        _merged = json.loads(
+            (_out / "01_beginning.json").read_text(encoding="utf-8")
+        )
+        # Writer edit survives the merge.
+        assert _merged["npc.research_officer.flavor_text"] == "WRITER EDITED FLAVOR"
+        # Dead key from the seeded file is pruned.
+        assert "step.gone_step.title" not in _merged
+        # Live code content is added back in.
+        assert "step.prologue_signal.title" in _merged
+    finally:
+        if _old_env is None:
+            os.environ.pop("SPACEHACK_TEXT_DIR", None)
+        else:
+            os.environ["SPACEHACK_TEXT_DIR"] = _old_env
+        text_module.reload()
 
 
 def test_shipped_overlay_keys_resolve():

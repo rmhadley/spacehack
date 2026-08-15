@@ -14,8 +14,12 @@ Keys are stable paths into the game data:
     step.<id>.dialogue.<npc>.intro|active|complete|locked|option_label
     npc.<id>.flavor_text
 
-Run this ONLY when new story content lands in the code: it overwrites
-the JSON baseline. Writer edits live in the JSON files themselves.
+Run this when new story content lands in the code or dead keys are
+removed from it. It MERGES with the existing files — the JSON is the
+source of truth for VALUES (writer edits always win) and the code is
+the source of truth for the KEY SET (new keys are added, keys that
+no longer exist in the code are pruned). It never overwrites a
+writer's edit.
 
 Usage: ``python3 tools/extract_act0_text.py``
 """
@@ -124,6 +128,31 @@ def _build_runtime() -> dict[str, str]:
     return dict(RUNTIME)
 
 
+def _merge_payload(path: Path, fresh: dict[str, str]) -> dict[str, str]:
+    """Merge code keys onto the existing overlay file.
+
+    The JSON is the source of truth for values (writer edits win);
+    the code is the source of truth for the key set. So:
+
+    * key in both -> keep the existing JSON value
+    * key only in code -> add it (new content landed in the code)
+    * key only in JSON -> drop it (dead key pruned from the code)
+
+    Re-running this tool is therefore safe: it can add new keys and
+    prune deleted ones, but can never change an existing value.
+    """
+    _existing: dict[str, str] = {}
+    if path.is_file():
+        try:
+            _existing = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            pass  # corrupt file — rebuild from the code defaults
+    _payload = {
+        _key: _existing.get(_key, _value) for _key, _value in fresh.items()
+    }
+    return dict(sorted(_payload.items()))
+
+
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     _sections = {
@@ -154,7 +183,7 @@ def main() -> int:
     }
     _count = 0
     for _name, _keys in _sections.items():
-        _payload = {_key: _keys[_key] for _key in sorted(_keys)}
+        _payload = _merge_payload(OUT_DIR / _name, _keys)
         (OUT_DIR / _name).write_text(
             json.dumps(_payload, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",

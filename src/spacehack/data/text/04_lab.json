@@ -1,8 +1,6 @@
 {
   "npc.xenolinguist.flavor_text": "The station says the signal isn't human. If there's a reference dataset out there, it could crack the whole thing open. Bring it to me.",
   "step.lab_q1_sample.description": "The Research Officer wants a controlled fragment of the door's material. Return to Mars and take only what the analysis requires. The seal must remain intact; a sample is evidence, not permission. Bring it back for resonance analysis.",
-  "step.lab_q1_sample.dialogue.research_officer.intro": "Good. You found a door, not an answer. Return to Mars and take a controlled fragment from its surface. Leave the seal untouched. I will compare the material's resonance with the transmission; if the pattern is stable, we can build a key that asks the door to recognize the signal.",
-  "step.lab_q1_sample.dialogue.research_officer.option_label": "Accept the assignment",
   "step.lab_q1_sample.title": "The Sample",
   "step.lab_q2_delivery.description": "The door fragment is in your mission hold. Deliver it to the Research Officer on Mercury before the material's response decays.",
   "step.lab_q2_delivery.dialogue.research_officer.active": "The fragment is in your mission hold. Hand it over and let the instruments tell us whether the pattern is stable. First readings should arrive before the station decides what story to attach to them.",
