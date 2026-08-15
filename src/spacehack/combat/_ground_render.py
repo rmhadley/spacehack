@@ -192,6 +192,12 @@ def _render_player_panel(console, ctx) -> int:
         fg=_COLOR_GROUND_PLAYER,
     )
     y += 1
+    console.print(
+        x=hud_x, y=y,
+        string=f"ARM: {_state.armor_defense}",
+        fg=_COLOR_GROUND_ACTION,
+    )
+    y += 1
     _ap_text = f"AP: {_state.player_ap}/{_state.player_ap_total}"
     console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
     _ap_bonus = _active_ap_bonus()

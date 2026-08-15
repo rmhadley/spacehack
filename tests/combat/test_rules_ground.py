@@ -655,21 +655,41 @@ def test_ground_ap_row_shows_blue_temporary_stim_bonus():
     _ground_render._render_player_panel(_frame, _ctx)
     _hud_x = SCREEN_WIDTH - HUD_WIDTH
     _row = "".join(
-        _frame.cell(x, 4).char
+        _frame.cell(x, 5).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
     assert _row == "AP: 4/4 +1"
-    assert _frame.cell(_hud_x + 8, 4).fg == _ground_render._COLOR_GROUND_TEMP_AP
+    assert _frame.cell(_hud_x + 8, 5).fg == _ground_render._COLOR_GROUND_TEMP_AP
 
     for _ in range(4):
         _rules_ground.reset_turn(_ctx)
     _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
     _ground_render._render_player_panel(_frame, _ctx)
     _row = "".join(
-        _frame.cell(x, 4).char
+        _frame.cell(x, 5).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
     assert _row == "AP: 4/4"
+
+
+def test_ground_player_panel_shows_current_armor():
+    """The player panel exposes the combined flat armor defense."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.equipped_ground_armor = {
+        "head": "light_helmet",
+        "body": "light_vest",
+    }
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    _ground_render._render_player_panel(_frame, _ctx)
+
+    _hud_x = SCREEN_WIDTH - HUD_WIDTH
+    _row = "".join(
+        _frame.cell(x, 4).char
+        for x in range(_hud_x, SCREEN_WIDTH)
+    ).rstrip()
+    assert _row == "ARM: 3"
 
 
 class TestRangeLineHidden:
