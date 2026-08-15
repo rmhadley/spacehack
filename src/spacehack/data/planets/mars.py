@@ -134,10 +134,7 @@ SPEC = PlanetSpec(
     ),
     tech_level=2,
     mission_tier=1,
-    # The Mars surface is gated behind the prologue signal, so the
-    # explore option reads "Explore signal" rather than a generic
-    # "Explore Surface".
-    explorable_site_name="signal",
+    explorable_site_name="signal coordinates",
     dungeon_params=DungeonParams(
         width=120,
         height=90,
@@ -155,7 +152,7 @@ SPEC = PlanetSpec(
         # Desert fauna + signal-ruins security: scavenger packs and
         # prowlers, with sentry + assault drones at the ruins. Tier 1
         # keeps the first-combat dive light.
-        monster_pool=("rock_scavenger", "dust_prowler", "sentry_drone", "assault_drone"),
+        monster_pool=("rock_scavenger", "dust_prowler", "sentry_drone"),
         monster_density=1.2,
         cache_guardian_pool=("sentry_drone",),
         cache_guardian_count=1,

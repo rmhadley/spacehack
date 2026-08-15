@@ -38,6 +38,6 @@
   "runtime.smuggle_lost_log": "The crate is lost. Talk to the quest giver for another one.",
   "runtime.smuggle_resecured_log": "The {good} is re-secured in your mission hold.",
   "runtime.summon_title": "INCOMING MESSAGE",
-  "runtime.transmission_body": "Comms lights up with a strange signal.It's mostly noise and static. But through the incomprehensible chatter the systems detect a pattern.\n\nCoordinates that appear to be pointing to a remote part of Mars in Sol.",
+  "runtime.transmission_body": "Comms lights up with a strange signal. It's mostly noise and static. But through the incomprehensible chatter the systems detect a pattern.\n\nCoordinates that appear to be pointing to a remote part of Mars in Sol.",
   "runtime.transmission_title": "INCOMING TRANSMISSION"
 }
