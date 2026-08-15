@@ -16,7 +16,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.spacehack.xp import (
     _qualifying_traits,
     _xp_to_next,
+    demolitionist_splash_bonus,
     ground_damage_reduction,
+    ground_evade_bonus,
+    ground_max_hp_bonus,
+    laser_specialist_hit_bonus,
+    missileer_hit_bonus,
+    pack_mule_capacity_bonus,
+    plasma_savant_ap_discount,
+    systems_expert_power_bonus,
     xp_for_level,
 )
 
@@ -89,7 +97,12 @@ class TestTraitQualification:
                 deliveries_completed=0,
                 total_kills=total_kills,
                 melee_kills=0,
+                explosive_hits=0,
+                laser_shots=0,
+                missile_shots=0,
+                plasma_shots=0,
             ),
+            ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             player_traits=[],
             faction_reputation={},
         )
@@ -131,6 +144,39 @@ class TestTraitQualification:
         assert ground_damage_reduction(
             SimpleNamespace(player_traits=[]),
         ) == 0
+
+    def test_specialization_requirements_use_their_focus_counters(self):
+        _ctx = self._ctx()
+        _ctx.ground_stats = SimpleNamespace(reflexes=40, strength=40, stamina=40)
+        _ctx.stats.engineering = 40
+        _ctx.player_counters.explosive_hits = 15
+        _ctx.player_counters.laser_shots = 100
+        _ctx.player_counters.missile_shots = 15
+        _ctx.player_counters.plasma_shots = 100
+
+        _ids = {trait.id for trait in _qualifying_traits(_ctx)}
+
+        assert {
+            "evasive", "pack_mule", "ironclad", "systems_expert",
+            "demolitionist", "laser_specialist", "missileer", "plasma_savant",
+        } <= _ids
+
+    def test_specialization_effect_helpers(self):
+        _ctx = SimpleNamespace(
+            player_traits=[
+                "evasive", "pack_mule", "ironclad", "systems_expert",
+                "demolitionist", "laser_specialist", "missileer", "plasma_savant",
+            ],
+        )
+
+        assert ground_evade_bonus(_ctx) == 5
+        assert pack_mule_capacity_bonus(_ctx) == 2
+        assert ground_max_hp_bonus(_ctx) == 6
+        assert systems_expert_power_bonus(_ctx) == 10
+        assert demolitionist_splash_bonus(_ctx) == 25
+        assert laser_specialist_hit_bonus(_ctx) == 10
+        assert missileer_hit_bonus(_ctx) == 10
+        assert plasma_savant_ap_discount(_ctx) == 1
 
 
 class TestXpToNext:

@@ -211,8 +211,13 @@ def can_afford_action(
     except KeyError:
         return False, "Unknown weapon"
 
-    if player_state["ap_remaining"] < ws.ap_cost:
-        return False, f"Need {ws.ap_cost} AP (have {player_state['ap_remaining']})"
+    _ap_discount = (
+        player_state.get("plasma_ap_discount", 0)
+        if ws.slot_type == "plasma" else 0
+    )
+    _effective_ap = max(1, ws.ap_cost - _ap_discount)
+    if player_state["ap_remaining"] < _effective_ap:
+        return False, f"Need {_effective_ap} AP (have {player_state['ap_remaining']})"
 
     if ws.slot_type in ("energy", "plasma"):
         if player_state["power_pool"] < ws.power_cost:

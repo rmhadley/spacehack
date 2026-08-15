@@ -210,7 +210,10 @@ def _pack_loot(ctx: GameContext, entry) -> bool:
     """Add the entry to the pack; False when the pack is full."""
     from . import ground_equipment
 
+    from .xp import pack_mule_capacity_bonus
+
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
+    strength += pack_mule_capacity_bonus(ctx) * 10
     if ground_equipment.expedition_slot_count(
         ctx.ground_expedition_inventory,
         getattr(ctx, "ground_expedition_items", []),
@@ -303,7 +306,10 @@ def _pack_field_item(ctx: GameContext, stack) -> object | None:
     """Add a field-item stack and return an explicit floor remainder."""
     from . import ground_equipment
 
+    from .xp import pack_mule_capacity_bonus
+
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
+    strength += pack_mule_capacity_bonus(ctx) * 10
     return ground_equipment.add_item_stack(
         ctx.ground_expedition_inventory,
         ctx.ground_expedition_items,

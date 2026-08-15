@@ -1064,6 +1064,31 @@ def test_explosive_blast_juggernaut_reduces_friendly_fire_after_splash():
     assert _rules_ground.player_hp(_ctx) == 9
 
 
+def test_demolitionist_increases_explosive_splash_without_increasing_primary():
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
+    _ctx.player_traits = ["demolitionist"]
+
+    _primary_instance = _rules_ground._state.enemies[0]
+    _hits, _player_damage = _rules_ground.explosive_blast(
+        "rocket_launcher", _primary_instance, _ctx,
+    )
+
+    assert [(damage, primary) for _enemy, damage, primary in _hits] == [
+        (27, True), (20, False),
+    ]
+
+
+def test_explosive_fire_counts_successful_primary_hits(monkeypatch):
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
+    _ctx.player_counters = SimpleNamespace(explosive_hits=0)
+    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
+
+    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+
+    assert _ctx.player_counters.explosive_hits == 1
+
+
 def test_explosive_blast_has_friendly_fire_and_armor_mitigation():
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture(
         player_pos=world.Position(3, 4),
@@ -1112,6 +1137,18 @@ def test_explosive_miss_can_still_damage_player_with_friendly_fire():
     assert _player_damage == 15
     assert _rules_ground.player_hp(_ctx) == 8
     assert _primary.hp == 26
+
+
+def test_plasma_savant_reduces_ground_plasma_ap_cost():
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.equipped_ground_weapons = [_weapon("plasma_pistol")]
+    _ctx.player_traits = ["plasma_savant"]
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+
+    _rules_ground.set_player_ap(_ctx, 1)
+
+    assert _rules_ground.weapon_ap_cost("plasma_pistol", _ctx) == 1
+    assert _rules_ground.can_fire(0, _ctx)[0] is True
 
 
 def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):

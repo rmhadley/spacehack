@@ -173,6 +173,14 @@ def _active_ap_bonus() -> int:
     )
 
 
+def _ground_evasion(ctx) -> int:
+    """Return current movement evade plus the Evasive trait bonus."""
+    from ..xp import ground_evade_bonus
+    return _rules()._calc_ground_move_dodge(
+        _rules()._state.cells_moved_this_turn,
+    ) + ground_evade_bonus(ctx)
+
+
 def _render_player_panel(console, ctx) -> int:
     """Paint the player HP/AP/evasion block; return the next HUD row."""
     _state = _rules()._state
@@ -207,7 +215,7 @@ def _render_player_panel(console, ctx) -> int:
             string=f"+{_ap_bonus}", fg=_COLOR_GROUND_TEMP_AP,
         )
     y += 1
-    eva = _rules()._calc_ground_move_dodge(_state.cells_moved_this_turn)
+    eva = _ground_evasion(ctx)
     console.print(x=hud_x, y=y, string=f"EVA: {eva}%", fg=_COLOR_GROUND_ACTION)
     return y + 2
 

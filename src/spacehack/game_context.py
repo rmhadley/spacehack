@@ -89,8 +89,8 @@ class PlayerCounters:
     All counters reset on death (fresh run). Incremented during
     normal gameplay by combat, missions, and trade paths.
 
-    One field on :class:`GameContext` (``player_counters``) instead
-    of nine individual fields — extendable by adding a counter to
+    One field on :class:`GameContext` (``player_counters``)    instead of individual fields — extendable by adding a counter to
+
     this dataclass and updating the trait catalog.
     """
     laser_shots: int = 0
@@ -102,6 +102,7 @@ class PlayerCounters:
     deliveries_completed: int = 0
     total_damage_taken: int = 0
     melee_kills: int = 0
+    explosive_hits: int = 0
 
 
 @dataclasses.dataclass(frozen=True)

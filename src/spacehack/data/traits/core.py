@@ -16,8 +16,9 @@ class Trait:
     """One player trait — earned at level 20 or 30 if requirements met.
 
     ``counters`` is a tuple of ``(field_name, min_value)`` pairs.
-    For skill fields (gunnery/piloting/engineering) the check reads
-    from ``ctx.stats``; for playstyle counters it reads from
+    For ship skill fields (gunnery/piloting/engineering) the check reads
+    from ``ctx.stats``; ground skill fields (reflexes/strength/stamina)
+    read from ``ctx.ground_stats``; playstyle counters read from
     ``ctx.player_counters``.  ALL must be met for the trait to
     appear at a milestone.
 
@@ -34,9 +35,8 @@ class Trait:
 
 # ---------------------------------------------------------------------------
 # Registry — shared pool for both level 20 and 30 milestones.
-# Initial set: 4 traits testing 4 different counter types.
-# Full trait design pass will come later.
-# ---------------------------------------------------------------------------
+# Traits reward both focused skill investment and repeated playstyle choices.
+
 
 SHARPSHOOTER = Trait(
     id="sharpshooter",
@@ -73,12 +73,76 @@ CHARGER = Trait(
     counters=(("melee_kills", 40),),
 )
 
+EVASIVE = Trait(
+    id="evasive",
+    name="Evasive",
+    description="+5% baseline ground evade",
+    counters=(("reflexes", 40),),
+)
+
+PACK_MULE = Trait(
+    id="pack_mule",
+    name="Pack Mule",
+    description="+2 Expedition Pack slots",
+    counters=(("strength", 40),),
+)
+
+IRONCLAD = Trait(
+    id="ironclad",
+    name="Ironclad",
+    description="+6 maximum ground HP",
+    counters=(("stamina", 40),),
+)
+
+SYSTEMS_EXPERT = Trait(
+    id="systems_expert",
+    name="Systems Expert",
+    description="+10 maximum ship power",
+    counters=(("engineering", 40),),
+)
+
+DEMOLITIONIST = Trait(
+    id="demolitionist",
+    name="Demolitionist",
+    description="+25% explosive splash damage",
+    counters=(("explosive_hits", 15),),
+)
+
+LASER_SPECIALIST = Trait(
+    id="laser_specialist",
+    name="Laser Specialist",
+    description="+10% laser hit chance",
+    counters=(("laser_shots", 100),),
+)
+
+MISSILEER = Trait(
+    id="missileer",
+    name="Missileer",
+    description="+10% missile hit chance",
+    counters=(("missile_shots", 15),),
+)
+
+PLASMA_SAVANT = Trait(
+    id="plasma_savant",
+    name="Plasma Savant",
+    description="Plasma weapons cost 1 less AP",
+    counters=(("plasma_shots", 100),),
+)
+
 ALL_TRAITS: tuple[Trait, ...] = (
     SHARPSHOOTER,
     TRADE_ROUTE,
     ACE_PILOT,
     JUGGERNAUT,
     CHARGER,
+    EVASIVE,
+    PACK_MULE,
+    IRONCLAD,
+    SYSTEMS_EXPERT,
+    DEMOLITIONIST,
+    LASER_SPECIALIST,
+    MISSILEER,
+    PLASMA_SAVANT,
 )
 
 

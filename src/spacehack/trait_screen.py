@@ -11,7 +11,44 @@ from __future__ import annotations
 
 from . import message_log
 from .game_context import GameContext
-from .xp import _qualifying_traits
+from .xp import _qualifying_traits, ground_max_hp_bonus
+
+
+def _apply_ironclad_hp(ctx: GameContext, trait_id: str) -> None:
+    """Apply Ironclad's max-HP increase immediately after selection."""
+    if trait_id != "ironclad":
+        return
+    from .ground_equipment import sum_armor_bonus
+    _new_max_hp = (
+        20 + ctx.ground_stats.stamina // 3
+        + sum_armor_bonus(ctx.equipped_ground_armor.values(), "hp_bonus")
+        + ground_max_hp_bonus(ctx)
+    )
+    _delta = _new_max_hp - ctx.ground_max_hp
+    if _delta > 0:
+        ctx.ground_hp += _delta
+    ctx.ground_max_hp = _new_max_hp
+    from .combat import _rules_ground
+    _state = _rules_ground._state
+    if _state is not None and _state.ctx is ctx:
+        _state.player_hp += max(0, _delta)
+        _state.player_max_hp = _new_max_hp
+
+
+def _pick_trait(ctx: GameContext, candidates: list, action: str) -> bool | None:
+    """Apply a valid trait action and log the new specialization."""
+    trait_id = action.split(":", 1)[1]
+    picked = next((trait for trait in candidates if trait.id == trait_id), None)
+    if picked is None:
+        return None
+    ctx.player_traits.append(picked.id)
+    _apply_ironclad_hp(ctx, picked.id)
+    ctx.log.add_colored(
+        f"Trait gained: {picked.name} - {picked.description}",
+        message_log.COLOR_COMBAT_EVENT,
+    )
+    return True
+
 
 def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | None:
     """Run mandatory trait selection through Pygame."""
@@ -45,16 +82,7 @@ def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | No
         if outcome == "QUIT":
             raise SystemExit
         if outcome == "SELECT" and action.startswith("TRAIT:"):
-            trait_id = action.split(":", 1)[1]
-            picked = next((trait for trait in candidates if trait.id == trait_id), None)
-            if picked is None:
-                return None
-            ctx.player_traits.append(picked.id)
-            ctx.log.add_colored(
-                f"Trait gained: {picked.name} - {picked.description}",
-                message_log.COLOR_COMBAT_EVENT,
-            )
-            return True
+            return _pick_trait(ctx, candidates, action)
         return None
 
 def open_trait_selection(ctx: GameContext) -> None:

@@ -127,7 +127,7 @@ def _apply_skill_point(ctx: GameContext, skill: str) -> bool:
 
 def has_trait(ctx: GameContext, trait_id: str) -> bool:
     """Check if the player has taken *trait_id*."""
-    return trait_id in ctx.player_traits
+    return trait_id in getattr(ctx, "player_traits", ())
 
 
 def sharpshooter_hit_bonus(ctx: GameContext) -> int:
@@ -150,11 +150,54 @@ def apply_ground_damage_reduction(ctx: GameContext, damage: int) -> int:
     return max(1, damage - ground_damage_reduction(ctx))
 
 
+def ground_evade_bonus(ctx: GameContext) -> int:
+    """Evasive trait: add a flat baseline dodge chance on the ground."""
+    return 5 if has_trait(ctx, "evasive") else 0
+
+
+def pack_mule_capacity_bonus(ctx: GameContext) -> int:
+    """Pack Mule trait: add two reserve-pack slots."""
+    return 2 if has_trait(ctx, "pack_mule") else 0
+
+
+def ground_max_hp_bonus(ctx: GameContext) -> int:
+    """Ironclad trait: add six maximum ground HP."""
+    return 6 if has_trait(ctx, "ironclad") else 0
+
+
+def systems_expert_power_bonus(ctx: GameContext) -> int:
+    """Systems Expert trait: add ten maximum ship power."""
+    return 10 if has_trait(ctx, "systems_expert") else 0
+
+
+def demolitionist_splash_bonus(ctx: GameContext) -> int:
+    """Demolitionist trait: add 25 percentage points to splash damage."""
+    return 25 if has_trait(ctx, "demolitionist") else 0
+
+
+def laser_specialist_hit_bonus(ctx: GameContext) -> int:
+    """Laser Specialist trait: add 10% to laser hit chance."""
+    return 10 if has_trait(ctx, "laser_specialist") else 0
+
+
+def missileer_hit_bonus(ctx: GameContext) -> int:
+    """Missileer trait: add 10% to missile hit chance."""
+    return 10 if has_trait(ctx, "missileer") else 0
+
+
+def plasma_savant_ap_discount(ctx: GameContext) -> int:
+    """Plasma Savant trait: reduce plasma weapon AP cost by one."""
+    return 1 if has_trait(ctx, "plasma_savant") else 0
+
+
 # ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------
 
-_SKILL_FIELDS: frozenset[str] = frozenset({"gunnery", "piloting", "engineering"})
+_SKILL_FIELDS: frozenset[str] = frozenset({
+    "gunnery", "piloting", "engineering", "reflexes", "strength", "stamina",
+})
+_GROUND_SKILL_FIELDS: frozenset[str] = frozenset({"reflexes", "strength", "stamina"})
 
 
 def _qualifying_traits(ctx: GameContext) -> list:
@@ -174,7 +217,14 @@ def _qualifying_traits(ctx: GameContext) -> list:
         _met = True
         for _field, _min in _trait.counters:
             if _field in _SKILL_FIELDS:
-                if getattr(ctx.stats, _field, 0) < _min:
+                _target = (
+                    getattr(ctx, "ground_stats", None)
+                    if _field in _GROUND_SKILL_FIELDS else ctx.stats
+                )
+                if _target is None:
+                    _met = False
+                    break
+                if getattr(_target, _field, 0) < _min:
                     _met = False
                     break
             else:

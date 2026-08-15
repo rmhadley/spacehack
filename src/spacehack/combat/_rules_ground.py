@@ -31,6 +31,10 @@ from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
     apply_ground_damage_reduction as ground_damage_taken,
+    ground_evade_bonus as _ground_evade_bonus,
+    ground_max_hp_bonus as _ground_max_hp_bonus,
+    demolitionist_splash_bonus as _demolitionist_splash_bonus,
+    plasma_savant_ap_discount as _plasma_ap_discount,
 )
 
 from ._types import CombatResult
@@ -65,7 +69,6 @@ from ._ground_render import (
     toggle_target_card as toggle_target_card,
 )
 
-
 # ---------------------------------------------------------------------------
 # GroundEnemyInstance — per-enemy state during combat
 # ---------------------------------------------------------------------------
@@ -98,7 +101,6 @@ class GroundEnemyInstance:
     @property
     def name(self) -> str:
         return self.spec.name if self.spec else "Unknown"
-
 
 # ---------------------------------------------------------------------------
 # GroundCombatState — all session state in one place
@@ -134,13 +136,11 @@ class GroundCombatState:
         default_factory=dict,
     )
 
-
 _state: GroundCombatState | None = None
 
 # Rendering constants
 _RENDER_WIDTH: int = SCREEN_WIDTH - HUD_WIDTH
 _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
-
 
 # ---------------------------------------------------------------------------
 # Init
@@ -178,7 +178,6 @@ def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
         hp=_cur_hp, max_hp=_max_hp, ap=4, ap_total=4,
     )
 
-
 def _build_enemies(
     enemy_entities: list[world.Entity],
 ) -> list[GroundEnemyInstance]:
@@ -190,28 +189,28 @@ def _build_enemies(
             enemies.append(instance)
     return enemies
 
-
 def _player_hp_state(ctx) -> tuple[int, int]:
     """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
     armor_ids = ctx.equipped_ground_armor.values()
-    max_hp = 20 + ctx.ground_stats.stamina // 3 + _sum_armor_bonus(armor_ids, "hp_bonus")
+    max_hp = (
+        20 + ctx.ground_stats.stamina // 3
+        + _sum_armor_bonus(armor_ids, "hp_bonus")
+        + _ground_max_hp_bonus(ctx)
+    )
     delta = max_hp - ctx.ground_max_hp
     if delta > 0:
         ctx.ground_hp += delta
     return min(ctx.ground_hp, max_hp), max_hp
 
-
 def _armor_defense_total(ctx) -> int:
     """Sum flat defense across equipped armor pieces."""
     return _sum_armor_defense(ctx.equipped_ground_armor.values())
-
 
 def _starting_ap_total(ctx) -> int:
     """Per-turn AP pool: 4 + Ace Pilot trait + cybernetic legs."""
     return 4 + _ace_pilot_bonus(ctx) + _sum_armor_bonus(
         ctx.equipped_ground_armor.values(), "ap_bonus",
     )
-
 
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
@@ -248,7 +247,6 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     )
     _log_ambush_reveals(ctx, _enemies)
 
-
 def _log_ambush_reveals(
     ctx,
     enemy_instances: list[GroundEnemyInstance],
@@ -268,7 +266,6 @@ def _log_ambush_reveals(
                 _ml.COLOR_IMPORTANT_EVENT,
             )
 
-
 def _announce_joins(ctx, joined: list[GroundEnemyInstance]) -> None:
     """Log newly joined mobs — ambushers burst out, others join in."""
     for _inst in joined:
@@ -283,31 +280,24 @@ def _announce_joins(ctx, joined: list[GroundEnemyInstance]) -> None:
 def player_hp(ctx) -> int:
     return _state.player_hp
 
-
 def player_max_hp(ctx) -> int:
     return _state.player_max_hp
-
 
 def player_ap(ctx) -> int:
     return _state.player_ap
 
-
 def player_ap_total(ctx) -> int:
     return _state.player_ap_total
-
 
 def player_weapons(ctx) -> list[str]:
     _w = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
     return _w if _w else ["fists"]
 
-
 def active_weapons(ctx) -> list[bool]:
     return list(_state.active_weapon_list)
 
-
 def set_active_weapons(ctx, active: list[bool]) -> None:
     _state.active_weapon_list = list(active)
-
 
 def refresh_equipment_state(ctx) -> None:
     """Refresh cached ground-combat equipment after a character-screen swap."""
@@ -319,7 +309,6 @@ def refresh_equipment_state(ctx) -> None:
     ]
     _state.armor_defense = _sum_armor_defense(ctx.equipped_ground_armor.values())
 
-
 # ---------------------------------------------------------------------------
 # Enemy accessors
 # ---------------------------------------------------------------------------
@@ -327,26 +316,20 @@ def refresh_equipment_state(ctx) -> None:
 def set_target_idx(ctx, idx: int) -> None:
     _state.target_idx = idx
 
-
 def get_enemies(ctx) -> list[GroundEnemyInstance]:
     return [e for e in _state.enemies if e.alive]
-
 
 def enemy_pos(enemy: GroundEnemyInstance) -> world.Position:
     return enemy.pos
 
-
 def enemy_name(enemy: GroundEnemyInstance) -> str:
     return enemy.name
-
 
 def enemy_hp(enemy: GroundEnemyInstance) -> int:
     return enemy.hp
 
-
 def enemy_max_hp(enemy: GroundEnemyInstance) -> int:
     return enemy.max_hp
-
 
 def enemy_alive(enemy: GroundEnemyInstance) -> bool:
     return enemy.alive
@@ -376,7 +359,6 @@ def _ground_hit_chance_raw(
         - target_dodge_bonus + hit_bonus - range_penalty,
     ))
 
-
 def _ground_damage_raw(
     weapon_id: str, strength: int, armor_defense: int, melee_bonus: int = 0,
 ) -> int:
@@ -394,7 +376,6 @@ def _ground_damage_raw(
     elif _ws.damage_type == 'plasma':
         armor_defense = armor_defense // 2
     return max(1, _ws.damage + _str_bonus + _melee - armor_defense)
-
 
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _er = enemy.spec.reflexes if enemy.spec else 10
@@ -414,7 +395,6 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
         target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
         range_penalty=_range_penalty,
     )
-
 
 def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
     """Apply weapon damage to a ground enemy. Returns ``(dmg, False)``.
@@ -440,11 +420,9 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
         enemy.entity.hp = max(0, enemy.hp)
     return _dmg, False
 
-
 def is_explosive(weapon_id: str) -> bool:
     """Whether a ground weapon resolves as an area blast."""
     return _find_gw(weapon_id).damage_type == "explosive"
-
 
 def _apply_explosive_enemy_hit(
     weapon_id: str,
@@ -466,12 +444,15 @@ def _apply_explosive_enemy_hit(
         weapon_id, ctx.ground_stats.strength, _armor,
     )
     _is_primary = enemy is primary and primary_hit
-    _damage = _full_damage if _is_primary else max(1, _full_damage // 2)
+    if _is_primary:
+        _damage = _full_damage
+    else:
+        _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
+        _damage = max(1, _full_damage * _splash_pct // 100)
     enemy.hp -= _damage
     if enemy.entity is not None:
         enemy.entity.hp = max(0, enemy.hp)
     return enemy, _damage, _is_primary
-
 
 def explosive_blast(
     weapon_id: str,
@@ -497,12 +478,13 @@ def explosive_blast(
         _full_damage = _ground_damage_raw(
             weapon_id, 0, _state.armor_defense,
         )
-        _player_damage = ground_damage_taken(ctx, max(1, _full_damage // 2))
+        _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
+        _splash_damage = max(1, _full_damage * _splash_pct // 100)
+        _player_damage = ground_damage_taken(ctx, _splash_damage)
         _state.player_hp -= _player_damage
     else:
         _player_damage = 0
     return _enemy_hits, _player_damage
-
 
 # ---------------------------------------------------------------------------
 # Weapon actions
@@ -530,33 +512,48 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
     elif _dist < _ws.min_range:
         _penalty = _ground_point_blank_penalty(_wid, _dist)
         _reason = f"Emergency point-blank shot: {_penalty}% accuracy penalty."
-    if (_state.player_ap <= 0 if _is_charge else _state.player_ap < _ws.ap_cost):
-        return False, "Need AP to charge" if _is_charge else f"Need {_ws.ap_cost} AP (have {_state.player_ap})"
+    _ap_cost = (
+        _charge_attack_ap_cost(ctx, _wid, _state.player_ap)
+        if _is_charge else weapon_ap_cost(_wid, ctx)
+    )
+    if _state.player_ap < _ap_cost:
+        return False, "Need AP to charge" if _is_charge else f"Need {_ap_cost} AP (have {_state.player_ap})"
     if not _is_charge and not _has_los(
         _state.game_map,
         ctx.player.pos.x, ctx.player.pos.y,
         _target.pos.x, _target.pos.y,
     ):
         return False, "Blocked by wall"
+    _ammo_reason = _ground_ammo_reason(ctx, slot_idx, _ws)
+    if _ammo_reason:
+        return False, _ammo_reason
+    return True, _reason
+
+def _ground_ammo_reason(ctx, slot_idx: int, spec) -> str:
+    """Return the firing failure reason for a reloadable weapon."""
     _instance = (
         ctx.equipped_ground_weapons[slot_idx]
         if slot_idx < len(ctx.equipped_ground_weapons) else None
     )
-    if _instance is not None and _instance.loaded_ammo is not None:
-        if _instance.loaded_ammo <= 0:
-            return False, "Empty magazine - reload (R)."
-        if _instance.loaded_ammo < _ws.ammo_per_shot:
-            return False, "Not enough rounds loaded."
-    return True, _reason
+    if _instance is None or _instance.loaded_ammo is None:
+        return ""
+    if _instance.loaded_ammo <= 0:
+        return "Empty magazine - reload (R)."
+    if _instance.loaded_ammo < spec.ammo_per_shot:
+        return "Not enough rounds loaded."
+    return ""
 
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
-    return _charge_attack_ap_cost(ctx, weapon_id, _state.player_ap)
-
+    _spec = _find_gw(weapon_id)
+    _discount = (
+        _plasma_ap_discount(ctx)
+        if getattr(_spec, "damage_type", "") == "plasma" else 0
+    )
+    return max(1, _charge_attack_ap_cost(ctx, weapon_id, _state.player_ap) - _discount)
 
 def weapon_name(weapon_id: str, ctx) -> str:
     return _find_gw(weapon_id).name
-
 
 def consume_shot(slot_idx: int, ctx) -> None:
     """Decrement one weapon instance's loaded ammo after an accepted shot."""
@@ -567,7 +564,6 @@ def consume_shot(slot_idx: int, ctx) -> None:
     ctx.equipped_ground_weapons[slot_idx] = consume_weapon_round(
         ctx.equipped_ground_weapons[slot_idx],
     )
-
 
 def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
     """Return active weapons with a matching reserve and room to reload."""
@@ -584,7 +580,6 @@ def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
         if _reserve > 0:
             candidates.append((_slot, _instance, _spec, _reserve))
     return tuple(candidates)
-
 
 def _reload_slot(ctx, slot: int) -> bool:
     """Reload one validated slot transactionally and charge its AP cost."""
@@ -609,7 +604,6 @@ def _reload_slot(ctx, slot: int) -> bool:
     _state.player_ap -= _spec.reload_ap_cost
     ctx.log.add(f"Reloaded {_wname} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
     return True
-
 
 def _choose_reload_slot(ctx, candidates) -> int | None:
     """Show the compact weapon chooser and return the selected slot."""
@@ -642,7 +636,6 @@ def _choose_reload_slot(ctx, candidates) -> int | None:
         return None
     return _slot if _slot in {_candidate[0] for _candidate in candidates} else None
 
-
 def reload_weapon(ctx) -> bool:
     """Reload one active weapon, choosing when multiple can reload."""
     _candidates = _reloadable_slots(ctx)
@@ -653,7 +646,6 @@ def reload_weapon(ctx) -> bool:
         return _reload_slot(ctx, _candidates[0][0])
     _slot = _choose_reload_slot(ctx, _candidates)
     return _slot is not None and _reload_slot(ctx, _slot)
-
 
 # ---------------------------------------------------------------------------
 # Player movement
@@ -672,7 +664,6 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
     from ..dungeon import reveal_around as _reveal_around
     _reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
     return True
-
 
 # ---------------------------------------------------------------------------
 # Animation
@@ -695,7 +686,6 @@ def _range_line_hidden() -> Iterator[None]:
     finally:
         _state.range_line_hidden = _was_hidden
 
-
 def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
@@ -717,7 +707,6 @@ def animate_fire(
             damage=damage,
             render_callback=render_frame,
         )
-
 
 # ---------------------------------------------------------------------------
 # Resolution
@@ -751,15 +740,12 @@ def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
 
     enemy.hp = 0
 
-
 def on_player_death(ctx) -> None:
     ctx.player_dead = True
     ctx.log.add_colored("You collapse from your wounds...", _ml.COLOR_COMBAT_EVENT)
 
-
 def handle_defense(ctx) -> None:
     pass
-
 
 def apply_consumable_effect(ctx, spec) -> bool:
     """Apply a validated consumable effect to the active combat state."""
@@ -780,14 +766,12 @@ def apply_consumable_effect(ctx, spec) -> bool:
         _state.active_consumable_effects[spec.effect_id] = _effect
     return spec.effect_id in {"restore_hp", "stim"}
 
-
 def _consumable_name_for_effect(effect_id: str) -> str:
     """Resolve a friendly catalog name for a temporary effect."""
     for _spec in _list_gc():
         if _spec.effect_id == effect_id:
             return _spec.name
     return "Regeneration"
-
 
 def _advance_consumable_effects() -> int:
     """Apply regeneration and return the current temporary AP bonus."""
@@ -818,7 +802,6 @@ def _advance_consumable_effects() -> int:
     _state.active_consumable_effects = _remaining
     return _ap_bonus
 
-
 # ---------------------------------------------------------------------------
 # Enemy turns
 # ---------------------------------------------------------------------------
@@ -832,9 +815,13 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     with _range_line_hidden():
         return _run_enemy_turns_impl(ctx, game_map, _enemy_ai)
 
+def _player_ground_dodge(ctx) -> int:
+    """Return current ground dodge including the Evasive trait."""
+    return _calc_ground_move_dodge(_state.cells_moved_this_turn) + _ground_evade_bonus(ctx)
+
 
 def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
-    _player_dodge = _calc_ground_move_dodge(_state.cells_moved_this_turn)
+    _player_dodge = _player_ground_dodge(ctx)
     _total_dmg = 0
     for _gei in _state.enemies:
         if not _gei.alive or _gei.ap <= 0 or not _gei.weapon_id:
@@ -874,7 +861,6 @@ def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
 
     return _total_dmg
 
-
 def refresh_engaged(ctx, game_map: world.GameMap) -> None:
     """Join scan: any hostile now visible to the player joins immediately.
 
@@ -898,7 +884,6 @@ def refresh_engaged(ctx, game_map: world.GameMap) -> None:
         _state.enemies.extend(_joined)
         _announce_joins(ctx, _joined)
 
-
 def _set_combat_locks(locked: bool, instances=None) -> None:
     """Freeze/release engaged enemies from the ``move_ground_npcs`` pass.
 
@@ -906,7 +891,6 @@ def _set_combat_locks(locked: bool, instances=None) -> None:
     """
     _insts = instances if instances is not None else _state.enemies
     set_combat_locks(locked, (_gei.entity for _gei in _insts))
-
 
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     """Move non-combat ground NPCs during combat (matches space behaviour).
@@ -924,7 +908,6 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     _set_combat_locks(True)
     _move_ground_npcs(ctx, game_map)
 
-
 def on_disengage(ctx, game_map: world.GameMap) -> None:
     """Give surviving hunters a short memory of where LOS broke."""
     from ..ground_npcs import remember_last_seen as _remember_last_seen
@@ -934,7 +917,6 @@ def on_disengage(ctx, game_map: world.GameMap) -> None:
         if _enemy.alive and _enemy.entity in game_map.entities
     ]
     _remember_last_seen(_survivors, ctx.player.pos)
-
 
 def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
     """True when the player sees no hostile — LOS aggro end condition.
@@ -950,14 +932,12 @@ def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
     _radius = getattr(game_map, "sight_radius", 8)
     return not _vh(ctx, game_map, ctx.player.pos, _radius)
 
-
 # ---------------------------------------------------------------------------
 # State sync
 # ---------------------------------------------------------------------------
 
 def set_player_ap(ctx, ap: int) -> None:
     _state.player_ap = ap
-
 
 def reset_turn(ctx) -> None:
     _state.player_ap = _state.player_ap_total + _advance_consumable_effects()
@@ -966,7 +946,6 @@ def reset_turn(ctx) -> None:
         _gei.ap = _gei.ap_total
         _gei.cells_moved_this_turn = 0
 
-
 def sync_state(ctx) -> None:
     # Release the engaged enemies: with the fight over they resume
     # patrol/wander behaviour on the next dungeon tick.
@@ -974,7 +953,6 @@ def sync_state(ctx) -> None:
     _state.active = False
     ctx.ground_hp = max(0, _state.player_hp)
     ctx.ground_max_hp = _state.player_max_hp
-
 
 def get_combat_result() -> CombatResult:
     _cr = CombatResult()

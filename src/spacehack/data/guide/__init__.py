@@ -407,6 +407,14 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "When you have skill points, select a skill and press ENTER. You do "
             "not need to spend every point immediately. A focused build is strong "
             "at its specialty; a balanced build gives you more answers."
+            "\n\n"
+            "At levels 20 and 30 you choose one qualifying trait from the shared "
+            "pool. Traits reward focus: Evasive follows high Reflexes, Pack Mule "
+            "follows Strength, Ironclad follows Stamina, and Systems Expert follows "
+            "Engineering. Charger rewards melee kills; Demolitionist rewards "
+            "explosive hits; Laser Specialist, Missileer, and Plasma Savant reward "
+            "repeated use of their weapon families. The Character screen lists the "
+            "traits you have earned and their effects."
         ),
     ),
     GuideSection(

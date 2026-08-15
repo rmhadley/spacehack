@@ -18,6 +18,7 @@ from .. import world
 from .. import hud as _hud
 from .. import message_log as _ml
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
+from ..data.weapons import find_weapon as _find_weapon
 
 if TYPE_CHECKING:
     from ..pygame_overlay import ShieldBubble
@@ -52,8 +53,11 @@ from ._space_presentation import build_target_card as _build_target_card
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
+    laser_specialist_hit_bonus as _laser_specialist_bonus,
+    missileer_hit_bonus as _missileer_bonus,
+    plasma_savant_ap_discount as _plasma_ap_discount,
+    systems_expert_power_bonus as _systems_expert_bonus,
 )
-
 
 # ---------------------------------------------------------------------------
 # SpaceCombatState — all session state in one place
@@ -82,9 +86,7 @@ class SpaceCombatState:
     # Presentation-only: target card shown by default, toggled with ``v``.
     show_target_card: bool = True
 
-
 _state: SpaceCombatState | None = None
-
 
 def _set_combat_locks(locked: bool, entities=None) -> None:
     """Freeze/release combat entities from the ``move_npcs`` patrol pass.
@@ -95,7 +97,6 @@ def _set_combat_locks(locked: bool, entities=None) -> None:
     if isinstance(_ents, dict):
         _ents = _ents.values()
     set_combat_locks(locked, _ents)
-
 
 # ---------------------------------------------------------------------------
 # Init
@@ -120,12 +121,13 @@ def _build_initial_enemies(
             player_pos, player_pilot_skills,
             enemy_specs[_i], enemy_positions[_i],
             ap_bonus=_ap_bonus,
+            plasma_ap_discount=_plasma_ap_discount(ctx),
+            max_power_bonus=_systems_expert_bonus(ctx),
         )
         if _i == 0:
             _player_state = _ps
         _enemy_insts.append(_ei)
     return _player_state, _enemy_insts
-
 
 def _find_player_entity(game_map: world.GameMap) -> Any:
     """Return the owned (player) entity on the map, or None."""
@@ -133,7 +135,6 @@ def _find_player_entity(game_map: world.GameMap) -> Any:
         if getattr(_e, 'owned', False):
             return _e
     return None
-
 
 def _match_enemy_entities(
     game_map: world.GameMap, player_ent: Any, enemy_insts: list[EnemyInstance],
@@ -155,7 +156,6 @@ def _match_enemy_entities(
         if _ent is not None and getattr(_ent, 'name', ''):
             _inst.name = _ent.name
     return _enemy_ents
-
 
 def _dedupe_enemy_positions(game_map: world.GameMap, enemy_insts: list[EnemyInstance]) -> None:
     """Shift overlapping enemy instances onto distinct walkable cells."""
@@ -184,13 +184,11 @@ def _dedupe_enemy_positions(game_map: world.GameMap, enemy_insts: list[EnemyInst
                 _attempts += 1
             _occupied.add((_inst.pos.x, _inst.pos.y))
 
-
 def _sync_enemy_entity_positions(enemy_ents: dict[int, Any], enemy_insts: list[EnemyInstance]) -> None:
     """Copy deduped instance positions back onto their map entities."""
     for _i, _ent in enemy_ents.items():
         if _i < len(enemy_insts):
             _ent.pos = enemy_insts[_i].pos
-
 
 def _activate_combat_state(
     ctx, console, game_map, log,
@@ -214,7 +212,6 @@ def _activate_combat_state(
     )
     # Freeze the engaged set immediately.
     _set_combat_locks(True, enemy_ents)
-
 
 def init(
     ctx,
@@ -248,7 +245,6 @@ def init(
         _enemy_ents, _player_ent, _weapons_list, _active_weapons,
     )
 
-
 # ---------------------------------------------------------------------------
 # State accessors
 # ---------------------------------------------------------------------------
@@ -256,30 +252,23 @@ def init(
 def player_hp(ctx) -> int:
     return _state.player_state.get("hull", 100)
 
-
 def player_max_hp(ctx) -> int:
     return _state.player_state.get("max_hull", 100)
-
 
 def player_ap(ctx) -> int:
     return _state.player_state.get("ap_remaining", 0)
 
-
 def player_ap_total(ctx) -> int:
     return _state.player_state.get("ap_total", 3)
-
 
 def player_weapons(ctx) -> list[str]:
     return list(_state.weapons_list)
 
-
 def active_weapons(ctx) -> list[bool]:
     return list(_state.active_weapons)
 
-
 def set_active_weapons(ctx, active: list[bool]) -> None:
     _state.active_weapons = list(active)
-
 
 # ---------------------------------------------------------------------------
 # Enemy accessors
@@ -288,47 +277,37 @@ def set_active_weapons(ctx, active: list[bool]) -> None:
 def set_target_idx(ctx, idx: int) -> None:
     _state.target_idx = idx
 
-
 def _alive_target():
     _alive = [e for e in _state.enemy_insts if e.alive]
     if 0 <= _state.target_idx < len(_alive):
         return _alive[_state.target_idx]
     return None
 
-
 def get_enemies(ctx) -> list[EnemyInstance]:
     return [e for e in _state.enemy_insts if e.alive]
-
 
 def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
     """Space keeps the classic end: VICTORY when no enemies remain."""
     return not enemies
 
-
 def refresh_engaged(ctx, game_map: world.GameMap) -> None:
     """Space has no mid-fight joins — the enemy set is fixed at init."""
     pass
 
-
 def enemy_pos(enemy: EnemyInstance) -> world.Position:
     return enemy.pos
-
 
 def enemy_name(enemy: EnemyInstance) -> str:
     return enemy.name
 
-
 def enemy_hp(enemy: EnemyInstance) -> int:
     return enemy.hull
-
 
 def enemy_max_hp(enemy: EnemyInstance) -> int:
     return enemy.max_hull
 
-
 def enemy_alive(enemy: EnemyInstance) -> bool:
     return enemy.alive
-
 
 # ---------------------------------------------------------------------------
 # Combat math
@@ -340,13 +319,20 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
         enemy.cells_moved_this_turn,
         int(enemy.pilot_piloting * 0.5),
     )
-    # Sharpshooter trait: +10% hit chance in combat.
+    # Sharpshooter plus weapon-specialist traits add permanent hit chance.
     _hit_bonus = _sharpshooter_bonus(ctx)
+    try:
+        _slot_type = _find_weapon(weapon_id).slot_type
+    except KeyError:
+        _slot_type = ""
+    if _slot_type == "energy":
+        _hit_bonus += _laser_specialist_bonus(ctx)
+    elif _slot_type == "missile":
+        _hit_bonus += _missileer_bonus(ctx)
     return _space_hit_chance(
         weapon_id, _state.player_state["gunnery"], _dist, _dodge,
         hit_bonus=_hit_bonus,
     )
-
 
 def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
     """Apply weapon damage to an enemy. Returns ``(hull_dmg, is_glancing)``.
@@ -366,7 +352,6 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
         enemy.alive = False
     return _prev_hull - enemy.hull, _is_glancing
 
-
 # ---------------------------------------------------------------------------
 # Weapon actions
 # ---------------------------------------------------------------------------
@@ -385,16 +370,15 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
             return False, "Blocked by obstacle"
     return True, ""
 
-
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
     from ..data.weapons import find_weapon as _fw
-    return _fw(weapon_id).ap_cost
-
+    _spec = _fw(weapon_id)
+    _discount = _plasma_ap_discount(ctx) if _spec.slot_type == "plasma" else 0
+    return max(1, _spec.ap_cost - _discount)
 
 def weapon_name(weapon_id: str, ctx) -> str:
     from ..data.weapons import find_weapon as _fw
     return _fw(weapon_id).name
-
 
 def consume_shot(slot_idx: int, ctx) -> None:
     from ..data.weapons import find_weapon as _fw
@@ -402,12 +386,18 @@ def consume_shot(slot_idx: int, ctx) -> None:
     if not (0 <= slot_idx < len(_weapons)):
         return
     _ws = _fw(_weapons[slot_idx])
+    if hasattr(ctx, "player_counters"):
+        if _ws.slot_type == "energy":
+            ctx.player_counters.laser_shots += 1
+        elif _ws.slot_type == "missile":
+            ctx.player_counters.missile_shots += 1
+        elif _ws.slot_type == "plasma":
+            ctx.player_counters.plasma_shots += 1
     if _ws.slot_type in ("energy", "plasma"):
         _state.player_state["power_pool"] -= _ws.power_cost
     elif _ws.slot_type == "missile":
         old = _state.player_state["weapon_ammo"].get(slot_idx, 0)
         _state.player_state["weapon_ammo"][slot_idx] = max(0, old - _ws.ammo_per_shot)
-
 
 # ---------------------------------------------------------------------------
 # Player movement
@@ -426,7 +416,6 @@ def try_move(ctx, game_map: world.GameMap, dx: int, dy: int) -> bool:
             _state.player_ent.pos = new_pos
     return ok
 
-
 # ---------------------------------------------------------------------------
 # Rendering
 # ---------------------------------------------------------------------------
@@ -441,18 +430,23 @@ def _build_hit_chances(target) -> dict[str, int]:
         target.cells_moved_this_turn,
         int(target.pilot_piloting * 0.5),
     )
-    # Sharpshooter trait: +10% hit chance in combat.
+    # Sharpshooter plus weapon-specialist traits add permanent hit chance.
     _hit_bonus = _sharpshooter_bonus(_state.ctx)
     for _wid in _state.weapons_list:
         try:
+            _weapon_bonus = _hit_bonus
+            _slot_type = _find_weapon(_wid).slot_type
+            if _slot_type == "energy":
+                _weapon_bonus += _laser_specialist_bonus(_state.ctx)
+            elif _slot_type == "missile":
+                _weapon_bonus += _missileer_bonus(_state.ctx)
             _result[_wid] = _space_hit_chance(
                 _wid, _state.player_state["gunnery"], _dist, _target_dodge,
-                hit_bonus=_hit_bonus,
+                hit_bonus=_weapon_bonus,
             )
         except KeyError:
             pass
     return _result
-
 
 def _calc_camera():
     _cw = max(0, _state.game_map.width - _state.view_w)
@@ -460,7 +454,6 @@ def _calc_camera():
     _cx = max(0, min(_state.player_state["pos"].x - _state.view_w // 2, _cw))
     _cy = max(0, min(_state.player_state["pos"].y - _state.view_h // 2, _ch))
     return _cx, _cy
-
 
 def _player_shield_bubble(camera_x: int, camera_y: int) -> ShieldBubble | None:
     """Return the player's shield bubble, or None when unshielded/off-view."""
@@ -487,7 +480,6 @@ def _player_shield_bubble(camera_x: int, camera_y: int) -> ShieldBubble | None:
     ):
         return bubble
     return None
-
 
 def _enemy_shield_bubbles(camera_x: int, camera_y: int) -> list[ShieldBubble]:
     """Return shield bubbles for every shielded enemy in the viewport."""
@@ -520,7 +512,6 @@ def _enemy_shield_bubbles(camera_x: int, camera_y: int) -> list[ShieldBubble]:
             bubbles.append(bubble)
     return bubbles
 
-
 def presentation_shield_bubbles(
     *,
     ctx: GameContext | None = None,
@@ -539,11 +530,9 @@ def presentation_shield_bubbles(
     bubbles.extend(_enemy_shield_bubbles(camera_x, camera_y))
     return tuple(bubbles)
 
-
 def toggle_target_card(ctx) -> None:
     """Show/hide the floating target card (``v`` key)."""
     _state.show_target_card = not _state.show_target_card
-
 
 def presentation_target_card(*, ctx: GameContext | None = None):
     """Return the native info card for the targeted enemy ship, or None."""
@@ -572,7 +561,6 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         hit_weapon_id=_active_wid,
         avoid_positions=_avoid,
     )
-
 
 def _render_combat_range_line(
     console, game_map: world.GameMap, cam_x: int, cam_y: int,
@@ -607,7 +595,6 @@ def _render_combat_range_line(
     )
     return _range_wid
 
-
 def _paint_combat_target(console, cam_x: int, cam_y: int) -> None:
     """Highlight the currently-targeted enemy, if any."""
     _tgt = _alive_target()
@@ -615,7 +602,6 @@ def _paint_combat_target(console, cam_x: int, cam_y: int) -> None:
         _paint_target_highlight(
             console, cam_x, cam_y, _state.view_w, _state.view_h, 0, 0, _tgt,
         )
-
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
@@ -656,7 +642,6 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
     )
 
-
 def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
@@ -692,7 +677,6 @@ def animate_fire(
         flee_chance=None,
     )
 
-
 # ---------------------------------------------------------------------------
 # Resolution
 # ---------------------------------------------------------------------------
@@ -708,7 +692,6 @@ def _pop_dead_entity(game_map: world.GameMap, enemy: EnemyInstance) -> Any:
     if _dead_ent is not None and _dead_ent in game_map.entities:
         game_map.entities.remove(_dead_ent)
     return _dead_ent
-
 
 def _animate_kill_explosion(ctx, game_map: world.GameMap, enemy: EnemyInstance) -> None:
     """Play the death explosion animation for a killed enemy ship."""
@@ -733,7 +716,6 @@ def _animate_kill_explosion(ctx, game_map: world.GameMap, enemy: EnemyInstance) 
         hit_chances=_hit_chances,
         flee_chance=None,
     )
-
 
 def _spawn_heist_loot(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent: Any) -> None:
     """Spawn mission-specific intercept cargo at the wreck, if any."""
@@ -765,7 +747,6 @@ def _spawn_heist_loot(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_e
         )
         break
 
-
 def _remove_procedural_squad(ctx, dead_ent: Any) -> None:
     """Drop a killed procedural-squad spawn from the system's spawn list."""
     if dead_ent is None:
@@ -781,7 +762,6 @@ def _remove_procedural_squad(ctx, dead_ent: Any) -> None:
         if _sp.squad_id == _mid and _sp.npc_id == _nid:
             _spawns.pop(_i)
             break
-
 
 def _finalize_kill(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent: Any) -> None:
     """Spawn loot, grant XP, and record defeat bookkeeping for a kill."""
@@ -816,18 +796,15 @@ def _finalize_kill(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent:
             _state.cr.defeated_heist_ids.append(_hid)
     _remove_procedural_squad(ctx, dead_ent)
 
-
 def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
     _dead_ent = _pop_dead_entity(game_map, enemy)
     _animate_kill_explosion(ctx, game_map, enemy)
     _spawn_heist_loot(ctx, game_map, enemy, _dead_ent)
     _finalize_kill(ctx, game_map, enemy, _dead_ent)
 
-
 def on_player_death(ctx) -> None:
     """Mark the player dead; the encounter wrapper owns presentation."""
     ctx.player_dead = True
-
 
 # ---------------------------------------------------------------------------
 # Defense toggle
@@ -847,7 +824,6 @@ def handle_defense(ctx) -> None:
             )
     else:
         _state.log.add_colored("No shields installed.", _ml.COLOR_PLAYER_ACTION)
-
 
 # ---------------------------------------------------------------------------
 # Enemy turns
@@ -876,7 +852,6 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
         return 999
     return 0
 
-
 # ---------------------------------------------------------------------------
 # Reinforcements
 # ---------------------------------------------------------------------------
@@ -891,7 +866,6 @@ def _find_reinforcement_entity(game_map: world.GameMap, pos: world.Position) -> 
         if _ge.pos.x == pos.x and _ge.pos.y == pos.y:
             return _ge
     return None
-
 
 def _build_reinforcement_enemy(spec, pos: world.Position) -> EnemyInstance | None:
     """Build one reinforcement enemy instance, or None if the ship is unknown."""
@@ -913,9 +887,10 @@ def _build_reinforcement_enemy(spec, pos: world.Position) -> EnemyInstance | Non
         _state.player_state["pos"], _pilot,
         spec, pos,
         ap_bonus=_ap_bonus,
+        plasma_ap_discount=_plasma_ap_discount(_state.ctx),
+        max_power_bonus=_systems_expert_bonus(_state.ctx),
     )
     return _new_ei
-
 
 def _join_reinforcements(
     ctx,
@@ -948,7 +923,6 @@ def _join_reinforcements(
             _ml.COLOR_COMBAT_EVENT,
         )
 
-
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     from ..npc_ships import move_npcs as _tick_npcs
     from ..navigation import _detect_combat_encounter as _re_detect
@@ -971,7 +945,6 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
     _existing_entity_ids = {id(_e) for _e in _state.enemy_ents.values()}
     _join_reinforcements(ctx, game_map, _new_specs, _new_positions, _existing_entity_ids)
 
-
 # ---------------------------------------------------------------------------
 # State sync
 # ---------------------------------------------------------------------------
@@ -979,10 +952,8 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 def set_player_ap(ctx, ap: int) -> None:
     _state.player_state["ap_remaining"] = ap
 
-
 def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)
-
 
 def sync_state(ctx) -> None:
     # Release the combatants: with the fight over they resume normal
@@ -991,7 +962,6 @@ def sync_state(ctx) -> None:
     _sync_back_hull(_state.player_state, ctx.player_owned_ship)
     _sync_back_ammo(_state.player_state, ctx.player_owned_ship)
     _state.active = False
-
 
 def get_combat_result() -> CombatResult:
     return _state.cr

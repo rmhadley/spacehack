@@ -540,7 +540,8 @@ def _configure_new_context(ctx, species_id, class_id, tutorial):
         runtime.game_context = ctx
     ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
     ctx.ground_stats = character.starting_ground_stats(species_id, class_id)
-    ctx.ground_max_hp = 20 + ctx.ground_stats.stamina // 3
+    from .xp import ground_max_hp_bonus as _ground_max_hp_bonus
+    ctx.ground_max_hp = 20 + ctx.ground_stats.stamina // 3 + _ground_max_hp_bonus(ctx)
     ctx.ground_hp = ctx.ground_max_hp
     from .dev_mode import apply_dev_ground_loadout as _apply_dev_ground_loadout
     _apply_dev_ground_loadout(ctx)

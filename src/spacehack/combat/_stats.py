@@ -259,6 +259,8 @@ def init_combat_state(
     player_pos: world.Position, player_pilot_skills: PilotSkills,
     enemy_spec: NpcShipSpec, enemy_pos: world.Position,
     ap_bonus: int = 0,
+    plasma_ap_discount: int = 0,
+    max_power_bonus: int = 0,
 ) -> tuple[dict, EnemyInstance]:
     """Create initial combat state dict for the player and EnemyInstance."""
     gunnery, piloting, engineering = _player_skill_bonuses(player_owned_ship, player_pilot_skills)
@@ -267,8 +269,7 @@ def init_combat_state(
     max_shield = _calc_max_shields(player_ship_catalog, player_owned_ship)
     hull = _calc_hull(player_ship_catalog, player_owned_ship)
     max_hull = _calc_max_hull(player_ship_catalog, player_owned_ship)
-    power_max = max(10, pwr_gen * 2) + engineering // 5
-
+    power_max = max(10, pwr_gen * 2) + engineering // 5 + max_power_bonus
     player_state = {
         "hull": hull,
         "max_hull": max_hull,
@@ -284,6 +285,7 @@ def init_combat_state(
         "piloting": piloting,
         "engineering": engineering,
         "power_gen": pwr_gen,
+        "plasma_ap_discount": plasma_ap_discount,
         "cells_moved_this_turn": 0,
         "shield_regen_rate": 0,
         "shield_recharge_bonus": _player_free_regen(player_ship_catalog, player_owned_ship),

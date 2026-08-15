@@ -750,7 +750,20 @@ def _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height,
     return y + 1
 
 
-def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_chances) -> int:
+def _effective_weapon_ap_cost(ws, player_state=None) -> int:
+    """Return a combat HUD weapon cost after trait discounts."""
+    player_state = player_state or {}
+    discount = (
+        player_state.get("plasma_ap_discount", 0)
+        if ws.slot_type == "plasma" else 0
+    )
+    return max(1, ws.ap_cost - discount)
+
+
+def _render_weapon_row(
+    console, hud_x, y, slot, wid, ws, wammo, is_active, hit_chances,
+    player_state=None,
+) -> int:
     """Paint one weapon's name / hit / cost rows; return the next row."""
     sel_mark = "[x]" if is_active else "[ ]"
     name_str = f"{sel_mark}[{slot+1}] {ws.name}"
@@ -766,8 +779,9 @@ def _render_weapon_row(console, hud_x, y, slot, wid, ws, wammo, is_active, hit_c
         stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%{_rng}"
     console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
+    _ap_cost = _effective_weapon_ap_cost(ws, player_state)
     if ws.slot_type in ("energy", "plasma"):
-        cost_line = f"     POW {ws.power_cost} AP {ws.ap_cost}"
+        cost_line = f"     POW {ws.power_cost} AP {_ap_cost}"
     else:
         ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else _UNLIMITED_AMMO_LABEL
         cost_line = f"     AMMO {ammo_str} AP {ws.ap_cost}"
@@ -807,6 +821,14 @@ def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player
     console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
     if _count:
         console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=COLOR_VALUE_DIM)
+        _active_specs = (
+            _fw(_wid) for _i, _wid in enumerate(weapon_list)
+            if not active_weapons or active_weapons[_i]
+        )
+        _max_ap = max(
+            (_effective_weapon_ap_cost(_spec, player_state) for _spec in _active_specs),
+            default=0,
+        )
         _ap_fg = COLOR_HP_GOOD if _max_ap <= player_state.get("ap_remaining", 0) else COLOR_HP_LOW
         console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
         if _sum_pow:
@@ -820,7 +842,10 @@ def _render_weapons_block(console, hud_x, y, weapon_list, active_weapons, player
             continue
         wammo = player_state.get("weapon_ammo", {}).get(i, 0)
         is_active = active_weapons[i] if active_weapons else True
-        y = _render_weapon_row(console, hud_x, y, i, wid, ws, wammo, is_active, hit_chances)
+        y = _render_weapon_row(
+            console, hud_x, y, i, wid, ws, wammo, is_active, hit_chances,
+            player_state,
+        )
     return y + 1
 
 

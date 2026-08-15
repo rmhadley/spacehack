@@ -15,7 +15,6 @@ from __future__ import annotations
 from .. import ground_equipment
 from ..game_context import GameContext
 
-
 _ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
 _ARMOR_SLOT_LABELS: dict[str, str] = {
     "head": "Head", "body": "Body", "hands": "Hands",
@@ -23,7 +22,6 @@ _ARMOR_SLOT_LABELS: dict[str, str] = {
 }
 _ARMORY_MODES: tuple[str, ...] = ("BUY", "ARMORY", "EXPEDITION")
 _MODE_TABS: tuple[str, ...] = ("[B]uy", "[A]rmory")
-
 
 def _armory_storage(ctx: GameContext) -> list[ground_equipment.StoredGroundEquipment]:
     """Return the unlimited armory warehouse."""
@@ -33,7 +31,6 @@ def _armory_storage(ctx: GameContext) -> list[ground_equipment.StoredGroundEquip
         ctx.ground_armory_storage = storage
     return storage
 
-
 def _expedition_storage(ctx: GameContext) -> list[ground_equipment.StoredGroundEquipment]:
     """Return the limited expedition pack."""
     storage = getattr(ctx, "ground_expedition_inventory", None)
@@ -41,7 +38,6 @@ def _expedition_storage(ctx: GameContext) -> list[ground_equipment.StoredGroundE
         storage = []
         ctx.ground_expedition_inventory = storage
     return storage
-
 
 def _armory_items(ctx: GameContext) -> list[ground_equipment.GroundItemStack]:
     """Return unlimited Armory Storage field-item stacks."""
@@ -51,7 +47,6 @@ def _armory_items(ctx: GameContext) -> list[ground_equipment.GroundItemStack]:
         ctx.ground_armory_items = items
     return items
 
-
 def _expedition_items(ctx: GameContext) -> list[ground_equipment.GroundItemStack]:
     """Return Expedition Pack field-item stacks."""
     items = getattr(ctx, "ground_expedition_items", None)
@@ -60,11 +55,10 @@ def _expedition_items(ctx: GameContext) -> list[ground_equipment.GroundItemStack
         ctx.ground_expedition_items = items
     return items
 
-
 def _strength(ctx: GameContext) -> int:
-    """Return Strength with the base-10 legacy-context fallback."""
-    return int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
-
+    """Return effective Strength for pack-capacity calculations."""
+    from ..xp import pack_mule_capacity_bonus
+    return int(getattr(getattr(ctx, "ground_stats", None), "strength", 10)) + pack_mule_capacity_bonus(ctx) * 10
 
 def _sell_price(item_id: str) -> int:
     """Return half the catalog price for one ground item."""
@@ -76,7 +70,6 @@ def _sell_price(item_id: str) -> int:
     except KeyError:
         return find_ground_armor(item_id).price // 2
 
-
 def _weapon_detail(spec) -> str:
     """Format a ground weapon's useful armory details."""
     hands = "2H" if spec.hands == 2 else "1H"
@@ -86,7 +79,6 @@ def _weapon_detail(spec) -> str:
         f"Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}"
         f"{bypass}"
     )
-
 
 def _armor_effects(spec) -> str:
     """Format one armor piece's cybernetic bonuses, or an empty string."""
@@ -101,14 +93,12 @@ def _armor_effects(spec) -> str:
         bonuses.append(f"+{spec.hp_bonus} HP")
     return f"  {' '.join(bonuses)}" if bonuses else ""
 
-
 def _armor_detail(spec) -> str:
     """Format one armor piece's slot, defense, and cybernetic effects."""
     return (
         f"{spec.slot.title()}  Defense: {spec.defense}"
         f"{_armor_effects(spec)}  {spec.description}"
     )
-
 
 def _equipment_name(entry: ground_equipment.StoredGroundEquipment) -> str:
     """Resolve one stored item's display name."""
@@ -118,7 +108,6 @@ def _equipment_name(entry: ground_equipment.StoredGroundEquipment) -> str:
     from ..data.ground_armor import find_ground_armor
     return find_ground_armor(entry.item_id).name
 
-
 def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
     """Resolve one stored item's display details."""
     if entry.item_type == "weapon":
@@ -127,7 +116,6 @@ def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
     from ..data.ground_armor import find_ground_armor
     spec = find_ground_armor(entry.item_id)
     return _armor_detail(spec)
-
 
 def _catalog_items(planet_id: str, month: int):
     """Resolve the buyable ``(weapons, armor)`` for ``planet_id``.
@@ -150,7 +138,6 @@ a blank id falls back to the full shop-available catalog.
         if getattr(w, "shop_available", True)
     ]
     return weapons, list_ground_armor()
-
 
 def _buy_rows(weapons, armor):
     """Build catalog rows for the Buy view from resolved stock lists."""
@@ -178,7 +165,6 @@ def _buy_rows(weapons, armor):
     )
     return tuple(rows)
 
-
 def _buy_ammo_rows():
     """Build buy rows for the ground ammo catalog."""
     from .. import pygame_split, pygame_ui
@@ -196,7 +182,6 @@ def _buy_ammo_rows():
     )
     return tuple(rows)
 
-
 def _buy_consumable_rows():
     """Build buy rows for the ground consumable catalog."""
     from .. import pygame_split, pygame_ui
@@ -213,7 +198,6 @@ def _buy_consumable_rows():
         for spec in sorted(list_ground_consumables(), key=lambda item: item.price)
     )
     return tuple(rows)
-
 
 def _storage_rows(
     entries: list[ground_equipment.StoredGroundEquipment],
@@ -243,7 +227,6 @@ def _storage_rows(
         rows.append(pygame_split.SplitRow("[empty]", "", empty_detail, "", False))
     return tuple(rows)
 
-
 def _field_item_name(stack: ground_equipment.GroundItemStack) -> str:
     """Resolve one stack's display name and current/max quantity."""
     from ..data.ground_items import find_ground_item
@@ -272,7 +255,6 @@ def _field_item_detail(stack: ground_equipment.GroundItemStack) -> str:
     )
     return f"{stack.item_type.title()}  {stack.quantity}/{maximum}  {price}{effect}"
 
-
 def _field_item_rows(
     entries: list[ground_equipment.GroundItemStack],
     action_prefix: str,
@@ -297,7 +279,6 @@ def _field_item_rows(
             "[empty]", "", "No field-item stacks.", "", False,
         ))
     return tuple(rows)
-
 
 def _weapon_slot_rows(ctx: GameContext):
     """Build the weapon-slot rows for the active ground loadout."""
@@ -334,7 +315,6 @@ def _weapon_slot_rows(ctx: GameContext):
         ))
     return rows
 
-
 def _armor_slot_rows(ctx: GameContext):
     """Build the armor-slot rows for the active ground loadout."""
     from .. import pygame_split, pygame_ui
@@ -355,11 +335,9 @@ def _armor_slot_rows(ctx: GameContext):
         ))
     return rows
 
-
 def _loadout_rows(ctx: GameContext):
     """Build selectable rows for the active ground loadout."""
     return tuple(_weapon_slot_rows(ctx) + _armor_slot_rows(ctx))
-
 
 def _resolve_catalog(ctx: GameContext, planet_id: str, catalog):
     """Return the buy catalog, resolving from the month clock when absent."""
@@ -367,7 +345,6 @@ def _resolve_catalog(ctx: GameContext, planet_id: str, catalog):
         return catalog
     from ..time import month_index
     return _catalog_items(planet_id, month_index(ctx))
-
 
 def _armory_left_panel(ctx, planet_id: str, mode: str, catalog):
     """Return the active armory panel label and rows."""
@@ -392,7 +369,6 @@ def _armory_left_panel(ctx, planet_id: str, mode: str, catalog):
         + _field_item_rows(_expedition_items(ctx), "MANAGE_EXPEDITION_ITEM", "FIELD ITEMS")
     )
 
-
 def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY", catalog=None):
     """Build one armory frame for Buy, Armory, or Expedition mode."""
     from .. import pygame_split, pygame_ui
@@ -412,7 +388,6 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
         left_tabs=left_tabs, active_left_tab=_ARMORY_MODES.index(mode),
         left_tab_modes=_ARMORY_MODES,
     )
-
 
 def _choose_destination(ctx, item_type: str, item_id: str) -> str:
     """Ask where a ground-equipment purchase should go."""
@@ -434,7 +409,6 @@ def _choose_destination(ctx, item_type: str, item_id: str) -> str:
         compact=True,
     )
 
-
 def _choose_field_item_destination(ctx, item_type: str, item_id: str) -> str:
     """Choose a destination before paying for a field item."""
     from .. import pygame_story
@@ -455,7 +429,6 @@ def _choose_field_item_destination(ctx, item_type: str, item_id: str) -> str:
         caption="spacehack - field-item purchase", compact=True,
     )
 
-
 def _field_item_purchase_maximum(
     ctx, item_type: str, item_id: str, destination: str,
 ) -> int:
@@ -473,7 +446,6 @@ def _field_item_purchase_maximum(
         )
         return min(affordable, capacity or 0)
     return affordable
-
 
 def _choose_field_item_quantity(
     ctx, item_type: str, item_id: str, destination: str,
@@ -493,7 +465,6 @@ def _choose_field_item_quantity(
     return pygame_quantity.run_for_context(
         ctx.context, ctx, f"BUY {spec.name}", maximum, price,
     )
-
 
 def _purchase_field_item(
     ctx, item_id: str, destination: str, item_type: str = "ammo",
@@ -534,7 +505,6 @@ def _purchase_field_item(
     label = "Expedition Pack" if destination == ground_equipment.EXPEDITION_INVENTORY else "Armory Storage"
     ctx.log.add(f"Bought {spec.name} x{quantity} into {label} for {cost}$.")
 
-
 def _needs_displacement(ctx, entry: ground_equipment.StoredGroundEquipment) -> bool:
     """Return whether installing an entry would displace active equipment."""
     if entry.item_type == "weapon":
@@ -543,7 +513,6 @@ def _needs_displacement(ctx, entry: ground_equipment.StoredGroundEquipment) -> b
         )
     from ..data.ground_armor import find_ground_armor
     return bool(ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot))
-
 
 def _displacement_container(ctx, entry, container: str) -> str:
     """Choose Expedition Pack first, falling back to Armory Storage."""
@@ -562,7 +531,6 @@ def _displacement_container(ctx, entry, container: str) -> str:
         displaced_count,
         container,
     )
-
 
 def _install_from_container(
     ctx, entries, index: int, container: str,
@@ -601,7 +569,6 @@ def _install_from_container(
         return
     ctx.log.add(f"Equipped {_equipment_name(entry)}.")
 
-
 def _transfer_container_item(ctx, entries, index: int, source: str) -> None:
     """Move one stored item between the armory and expedition containers."""
     destination = (
@@ -628,7 +595,6 @@ def _transfer_container_item(ctx, entries, index: int, source: str) -> None:
         "Moved equipment to "
         + ("the Expedition Pack." if destination == ground_equipment.EXPEDITION_INVENTORY else "Armory Storage.")
     )
-
 
 def _choose_container_action(ctx, entries, index: int, container: str) -> str:
     """Choose equip, transfer, or sell for one stored item."""
@@ -659,7 +625,6 @@ def _choose_container_action(ctx, entries, index: int, container: str) -> str:
         compact=True,
     )
 
-
 def _apply_container_choice(ctx, entries, index: int, container: str) -> None:
     """Apply an equip, transfer, or sell choice from a storage container."""
     chosen = _choose_container_action(ctx, entries, index, container)
@@ -673,7 +638,6 @@ def _apply_container_choice(ctx, entries, index: int, container: str) -> None:
         _transfer_container_item(ctx, entries, index, container)
     elif chosen.startswith("SELL_"):
         _sell_from_container(ctx, entries, index)
-
 
 def _choose_field_item_action(ctx, entries, index: int, container: str) -> str:
     """Choose transfer or discard for one owned field-item stack."""
@@ -700,7 +664,6 @@ def _choose_field_item_action(ctx, entries, index: int, container: str) -> str:
         ctx, title="FIELD ITEM", body=name,
         options=options, caption="spacehack - field item", compact=True,
     )
-
 
 def _transfer_field_item(ctx, entries, index: int, source: str) -> None:
     """Move one complete field-item stack between Armory and Pack."""
@@ -730,7 +693,6 @@ def _transfer_field_item(ctx, entries, index: int, source: str) -> None:
     label = "the Expedition Pack" if destination == ground_equipment.EXPEDITION_INVENTORY else "Armory Storage"
     ctx.log.add(f"Moved field item stack to {label}.")
 
-
 def _apply_field_item_choice(ctx, entries, index: int, container: str) -> None:
     """Apply one transfer/discard choice for an owned field-item stack."""
     chosen = _choose_field_item_action(ctx, entries, index, container)
@@ -743,7 +705,6 @@ def _apply_field_item_choice(ctx, entries, index: int, container: str) -> None:
     elif chosen.startswith("DISCARD_ITEM:") and 0 <= index < len(entries):
         entries.pop(index)
         ctx.log.add("Discarded field item stack.")
-
 
 def _sell_from_container(ctx, entries, index: int) -> None:
     """Sell one owned item from a warehouse or expedition pack."""
@@ -760,7 +721,6 @@ def _sell_from_container(ctx, entries, index: int) -> None:
     ctx.stats.credits += price
     ctx.log.add(f"Sold {_equipment_name(entry)} for {price}$.")
 
-
 def _purchase_spec(item_type: str, item_id: str):
     """Resolve the spec for one buy action."""
     from ..data.ground_armor import find_ground_armor
@@ -769,7 +729,6 @@ def _purchase_spec(item_type: str, item_id: str):
     if item_type == "weapon":
         return find_ground_weapon(item_id)
     return find_ground_armor(item_id)
-
 
 def _install_purchase(ctx, entry, item_type: str) -> None:
     """Equip a fresh purchase, routing displaced gear automatically."""
@@ -799,7 +758,6 @@ def _install_purchase(ctx, entry, item_type: str) -> None:
             displaced_container=displaced_container,
             strength=_strength(ctx),
         )
-
 
 def _apply_purchase(ctx, action: str) -> None:
     """Complete a validated purchase destination."""
@@ -838,7 +796,6 @@ def _apply_purchase(ctx, action: str) -> None:
     }[_destination]
     ctx.log.add(f"Bought {spec.name} into {destination_label}.")
 
-
 def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
     """Open the Store/Sell chooser for one active equipment slot."""
     from .. import pygame_story
@@ -861,7 +818,6 @@ def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
         options=options,
         caption="spacehack - manage loadout", compact=True,
     )
-
 
 def _apply_manage_choice(ctx, chosen: str) -> None:
     """Apply a Store/Sell choice from the manage-loadout chooser."""
@@ -888,7 +844,6 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
 
-
 def _manage_loadout(ctx, action: str) -> None:
     """Open the active-loadout Store/Sell chooser."""
     kind, slot_text = action.split(":", 1)
@@ -908,7 +863,6 @@ def _manage_loadout(ctx, action: str) -> None:
     if chosen == "__QUIT__":
         raise SystemExit
     _apply_manage_choice(ctx, chosen)
-
 
 def _apply_buy_action(ctx: GameContext, action: str) -> None:
     """Apply an equipment or ammo purchase action."""
@@ -939,7 +893,6 @@ def _apply_buy_action(ctx: GameContext, action: str) -> None:
         raise SystemExit
     _apply_purchase(ctx, chosen)
 
-
 def _apply_storage_action(ctx: GameContext, action: str) -> None:
     """Apply one equipment or field-item storage action."""
     prefix, index_text = action.split(":", 1)
@@ -952,7 +905,6 @@ def _apply_storage_action(ctx: GameContext, action: str) -> None:
         _apply_field_item_choice(ctx, _armory_items(ctx), index, ground_equipment.ARMORY_STORAGE)
     else:
         _apply_field_item_choice(ctx, _expedition_items(ctx), index, ground_equipment.EXPEDITION_INVENTORY)
-
 
 def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selected: int) -> bool:
     """Apply one armory action and keep the modal open."""
@@ -972,7 +924,6 @@ def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int, selec
         _manage_loadout(ctx, action)
         return True
     raise ValueError(f"Unknown armory action: {action!r}")
-
 
 def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     """Show the Phase 2 ground-equipment armory modal."""

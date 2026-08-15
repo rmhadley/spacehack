@@ -122,7 +122,10 @@ def _expedition_capacity(ctx: GameContext) -> int:
     """Return the current Expedition Pack capacity."""
     from . import ground_equipment
 
+    from .xp import pack_mule_capacity_bonus
+
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
+    strength += pack_mule_capacity_bonus(ctx) * 10
     return ground_equipment.expedition_capacity(strength)
 
 

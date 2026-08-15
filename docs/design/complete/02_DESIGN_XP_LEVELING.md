@@ -22,7 +22,7 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 | 20 | **Trait choice** — pick one from the shared pool |
 | 30 | **Trait choice** — pick another from the SAME pool (cannot repeat) |
 
-**Initial trait set** (minimal — just enough to test the counter system; full trait design pass later):
+**Shared trait pool** (available at both level 20 and 30):
 
 | Trait | Milestone | Requires | Effect |
 |-------|-----------|----------|--------|
@@ -31,8 +31,16 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 | Ace Pilot | 20/30 | 40+ piloting | +1 AP per turn |
 | Juggernaut | 20/30 | 30+ total kills | Take 1 less damage from each ground attack |
 | Charger | 20/30 | 40+ melee kills | Melee weapons reach current AP; charges gain +5 hit and +1 damage per tile |
+| Evasive | 20/30 | 40+ reflexes | +5% baseline ground evade |
+| Pack Mule | 20/30 | 40+ strength | +2 Expedition Pack slots |
+| Ironclad | 20/30 | 40+ stamina | +6 maximum ground HP |
+| Systems Expert | 20/30 | 40+ engineering | +10 maximum ship power |
+| Demolitionist | 20/30 | 15 explosive hits | +25% explosive splash damage |
+| Laser Specialist | 20/30 | 100 laser shots | +10% laser hit chance |
+| Missileer | 20/30 | 15 missile shots | +10% missile hit chance |
+| Plasma Savant | 20/30 | 100 plasma shots | Plasma weapons cost 1 less AP |
 
-These 5 traits test skill-value, delivery-count, piloting, kill-count, and melee-play requirements.
+The pool rewards focused ship skills, ground stats, equipment usage, and combat style. A player can choose only one trait at each milestone, so specialization remains a meaningful tradeoff.
 
 ## Philosophy alignment
 
@@ -118,6 +126,7 @@ class PlayerCounters:
     deliveries_completed: int = 0
     total_damage_taken: int = 0
     melee_kills: int = 0
+    explosive_hits: int = 0
 ```
 
 Incremented via: `ctx.player_counters.total_kills += 1`. One field on ctx. Extensible — add a counter to the dataclass, update the trait catalog, done.
@@ -255,8 +264,7 @@ class Trait:
     # Optional: (faction, attitude) — faction rep gate.
     rep_required: tuple[str, str] | None = None
 
-# Registry — add new traits here. Shared pool for both level 20 and 30.
-# Full trait design pass will come later; initial set is minimal.
+# Registry — shared pool for both level 20 and 30.
 
 SHARPSHOOTER = Trait(
     id="sharpshooter",
@@ -293,8 +301,19 @@ CHARGER = Trait(
     counters=(("melee_kills", 40),),
 )
 
+EVASIVE = Trait("evasive", "Evasive", "+5% baseline ground evade", (("reflexes", 40),))
+PACK_MULE = Trait("pack_mule", "Pack Mule", "+2 Expedition Pack slots", (("strength", 40),))
+IRONCLAD = Trait("ironclad", "Ironclad", "+6 maximum ground HP", (("stamina", 40),))
+SYSTEMS_EXPERT = Trait("systems_expert", "Systems Expert", "+10 maximum ship power", (("engineering", 40),))
+DEMOLITIONIST = Trait("demolitionist", "Demolitionist", "+25% explosive splash damage", (("explosive_hits", 15),))
+LASER_SPECIALIST = Trait("laser_specialist", "Laser Specialist", "+10% laser hit chance", (("laser_shots", 100),))
+MISSILEER = Trait("missileer", "Missileer", "+10% missile hit chance", (("missile_shots", 15),))
+PLASMA_SAVANT = Trait("plasma_savant", "Plasma Savant", "Plasma weapons cost 1 less AP", (("plasma_shots", 100),))
+
 ALL_TRAITS: tuple[Trait, ...] = (
     SHARPSHOOTER, TRADE_ROUTE, ACE_PILOT, JUGGERNAUT, CHARGER,
+    EVASIVE, PACK_MULE, IRONCLAD, SYSTEMS_EXPERT, DEMOLITIONIST,
+    LASER_SPECIALIST, MISSILEER, PLASMA_SAVANT,
 )
 ```
 
@@ -444,7 +463,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - `xp.py` — `add_xp()` already fires on level-up; add trait-check trigger when level == 20 or 30
 - `data/traits/core.py` — new: frozen `Trait` dataclass + `ALL_TRAITS` registry
 - `mission.py` — `deliveries_completed` / `bounties_completed` incremented in `complete_mission()` via `ctx.player_counters`
-- `combat/_weapons.py` — per-shot counters (laser/missile/plasma) incremented via `ctx.player_counters` in fire path
+- `combat/_rules_space.py` and `combat/_loop.py` — per-shot counters (laser/missile/plasma) and explosive-hit counters incremented at the accepted fire boundary
 - `combat/_encounter.py` — per-kill counters (`total_kills`, `merchant_kills`) incremented via `ctx.player_counters` in VICTORY path
 - `combat/_loop.py` — `total_damage_taken` incremented on damage
 - `faction.py` — reputation-gated traits (future) check `ctx.faction_reputation`

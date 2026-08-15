@@ -289,6 +289,14 @@ def _process_explosive_kills(
         rules.on_kill(game_map, _enemy, ctx)
 
 
+def _record_explosive_hit(ctx, hit: bool) -> None:
+    """Count one successful explosive primary hit for Demolitionist."""
+    if hit and hasattr(ctx, "player_counters"):
+        ctx.player_counters.explosive_hits = (
+            getattr(ctx.player_counters, "explosive_hits", 0) + 1
+        )
+
+
 def _fire_explosive_weapon(
     console, ctx, game_map, rules, slot: int, target, player_pos,
 ) -> tuple[bool, int]:
@@ -302,6 +310,7 @@ def _fire_explosive_weapon(
     if _reason:
         ctx.log.add(_reason)
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
+    _record_explosive_hit(ctx, _hit)
     _enemy_hits, _player_damage = rules.explosive_blast(
         _wid, target, ctx, primary_hit=_hit,
     )
