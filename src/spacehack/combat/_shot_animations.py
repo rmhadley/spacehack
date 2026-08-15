@@ -710,13 +710,12 @@ def _animate_weapon_shot(
     active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
-    flee_chance: int | None = None,
 ) -> None:
     """Animate one ship-combat shot with a weapon-appropriate effect."""
     driver = _space_frame_driver(
         console, context, game_map, cam_x, cam_y, view_w, view_h,
         player_state, enemies, target_idx, log, weapon_list,
-        active_weapons, evade_bonus, hit_chances, flee_chance,
+        active_weapons, evade_bonus, hit_chances,
     )
     _run_family_animation(
         console, driver, shooter_pos, target_pos, weapon_id,
@@ -742,7 +741,6 @@ def _space_frame_driver(
     active_weapons: list[bool] | None,
     evade_bonus: int | None,
     hit_chances: dict[str, int] | None,
-    flee_chance: int | None,
 ) -> _FrameDriver:
     """Build the ship-combat animation frame driver."""
     def _base() -> None:
@@ -754,7 +752,6 @@ def _space_frame_driver(
             active_weapons=active_weapons,
             evade_bonus=evade_bonus,
             hit_chances=hit_chances,
-            flee_chance=flee_chance,
         )
 
     return _FrameDriver(

@@ -19,7 +19,6 @@ from ..data.weapons import find_weapon
 from ._messages import enemy_attack_line as _enemy_attack_line
 from ._stats import (
     calc_hit_chance,
-    calc_flee_chance,
     _calc_dodge_bonus,
     _distance,
 )
@@ -51,7 +50,6 @@ def _run_enemy_turn(
     *,
     hit_chances: dict,
     evade_bonus: int,
-    flee_attempts: int,
     calc_cam,
     ctx=None,
 ) -> str | None:
@@ -83,13 +81,6 @@ def _run_enemy_turn(
         _closest_enemy = min(
             _alive,
             key=lambda _e: _distance(state.player_state["pos"], _e.pos),
-        )
-        _flee_chance = calc_flee_chance(
-            state.player_state["piloting"],
-            _closest_enemy.pilot_piloting,
-            state.player_state["hull"] / max(state.player_state["max_hull"], 1),
-            _distance(state.player_state["pos"], _closest_enemy.pos),
-            flee_attempts,
         )
 
         _cached_path: list[tuple[int, int]] | None = None
@@ -142,7 +133,6 @@ def _run_enemy_turn(
                         active_weapons=state.active_weapons,
                         evade_bonus=evade_bonus,
                         hit_chances=hit_chances,
-                        flee_chance=_flee_chance,
                         player_mode="WAIT",
                     )
                     _responsive_sleep(animation_timing.GROUND_STEP)
@@ -198,7 +188,6 @@ def _run_enemy_turn(
                         weapon_list=tuple(state.weapons_list),
                         active_weapons=state.active_weapons,
                         evade_bonus=evade_bonus,
-                        flee_chance=_flee_chance,
                     )
                     if _e_hit:
                         state.player_state["shields"] = max(
@@ -233,7 +222,6 @@ def _run_enemy_turn(
                                 active_weapons=state.active_weapons,
                                 evade_bonus=evade_bonus,
                                 hit_chances=hit_chances,
-                                flee_chance=_flee_chance,
                             )
                             return "DEFEAT"
                     else:

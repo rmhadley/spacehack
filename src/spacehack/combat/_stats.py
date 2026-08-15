@@ -151,22 +151,6 @@ def calc_hit_chance(
     return max(5, min(95, chance))
 
 
-def calc_flee_chance(
-    player_piloting: int,
-    enemy_piloting: int,
-    hull_pct: float,
-    distance_to_enemy: float,
-    attempts: int,
-) -> int:
-    """Return 0-100 flee success chance."""
-    base = 30
-    base += (player_piloting - enemy_piloting) * 2
-    base += int(max(0, (1.0 - hull_pct) * 20))
-    base -= max(0, 5 - int(distance_to_enemy)) * 5
-    base += attempts * 10  # stacking bonus per attempt
-    return max(5, min(95, base))
-
-
 def _player_skill_bonuses(owned_ship: OwnedShip, skills: PilotSkills) -> tuple[int, int, int]:
     """Sum module skill bonuses onto the pilot's base skill values."""
     gunnery = skills.gunnery

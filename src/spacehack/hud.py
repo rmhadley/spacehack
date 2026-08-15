@@ -897,7 +897,6 @@ def render_combat_hud(
     player_mode: str = "DEFAULT",       # "DEFAULT", "MOVING", "FIRING"
     active_weapons: list[bool] | None = None,
     weapon_list: tuple[str, ...] = (),
-    flee_chance: int | None = None,
     hit_chances: dict[str, int] | None = None,  # per-weapon hit % vs current target
     evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
     range_weapon_id: str | None = None,  # weapon id for coloring distance by range

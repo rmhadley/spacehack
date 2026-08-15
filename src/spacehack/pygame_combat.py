@@ -129,8 +129,7 @@ def _action_for_key(pygame: Any, event: Any) -> str:
         return "QUIT"
     if event.type != pygame.KEYDOWN:
         return ""
-    if event.key == pygame.K_ESCAPE:
-        return "FLEE"
+    # ESC is intentionally unbound in combat — fleeing is not a mechanic.
     if event.key == pygame.K_TAB:
         return "TARGET"
     directional_keys = {

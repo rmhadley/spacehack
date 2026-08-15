@@ -20,7 +20,7 @@ from . import _rules_space
 def _resolve_combat_inputs(ctx, encounter):
     """Validate encounter data + player readiness; returns ``(outcome, inputs)``.
 
-    ``outcome`` is ``"DEFEAT"`` (player already dead) or ``"FLEE"``
+    ``outcome`` is ``"DEFEAT"`` (player already dead) or ``"ABORTED"``
     (combat cannot start) — each failure path logs why. Otherwise
     ``inputs`` is ``(specs, positions, ship_cat, pilot_skills)``.
     Pilot skills come from ``ctx.stats``, the source of truth that
@@ -31,15 +31,15 @@ def _resolve_combat_inputs(ctx, encounter):
         return "DEFEAT", None
     if not encounter:
         ctx.log.add("Encounter data missing.")
-        return "FLEE", None
+        return "ABORTED", None
     try:
         _specs, _positions = encounter
     except (ValueError, TypeError):
         ctx.log.add("Corrupted encounter data.")
-        return "FLEE", None
+        return "ABORTED", None
     if ctx.player_owned_ship is None:
         ctx.log.add("No ship - cannot start combat.")
-        return "FLEE", None
+        return "ABORTED", None
     from ..data.pilot_skills import PilotSkills
     _pilot_skills = PilotSkills(
         gunnery=ctx.stats.gunnery,
@@ -51,7 +51,7 @@ def _resolve_combat_inputs(ctx, encounter):
         _ship_cat = _find_ship_catalog(ctx.player_owned_ship.ship_id)
     except (KeyError, AttributeError):
         ctx.log.add("Ship catalog mismatch - cannot start combat.")
-        return "FLEE", None
+        return "ABORTED", None
     return None, (_specs, _positions, _ship_cat, _pilot_skills)
 
 
@@ -204,7 +204,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
 
     The encounter param is normally ``(specs, positions)`` from
     ``navigation._detect_combat_encounter``. Returns ``"VICTORY"``,
-    ``"DEFEAT"``, or ``"FLEE"``.
+    ``"DEFEAT"``, or ``"ABORTED"`` when no combat occurred.
     """
     _blocked, _inputs = _resolve_combat_inputs(ctx, encounter)
     if _blocked is not None:
@@ -226,10 +226,6 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
         _render_death_screen(ctx)
-    elif _cr.outcome == "FLEE":
-        from ..faction import modify_rep, _COMBAT_FLEE_DELTAS
-        for _fac, _delta in _COMBAT_FLEE_DELTAS.items():
-            modify_rep(ctx, _fac, _delta)
 
     return _cr.outcome
 

@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack.combat._stats import (
     calc_hit_chance,
-    calc_flee_chance,
     _calc_dodge_bonus,
     _calc_ap,
     _calc_hull,
@@ -100,51 +99,6 @@ class TestCalcHitChance:
         # ceil(5.1)=6, penalty=(6-5)*10=10
         # 72 + 10 - 10 = 72
         assert chance == 72
-
-
-# ---------------------------------------------------------------------------
-# calc_flee_chance
-# ---------------------------------------------------------------------------
-
-class TestCalcFleeChance:
-    """Flee: base 30 + piloting delta*2 + hull desperation + distance penalty
-    + stacking attempts, clamped 5-95."""
-
-    def test_equal_piloting_full_hull_far(self):
-        """Player 20, enemy 20, hull 100%, distance 8, 0 attempts."""
-        chance = calc_flee_chance(20, 20, 1.0, 8.0, 0)
-        # 30 + (20-20)*2 + 0 - 0 + 0 = 30
-        assert chance == 30
-
-    def test_player_piloting_advantage(self):
-        """Player 40 vs enemy 20 → +40."""
-        chance = calc_flee_chance(40, 20, 1.0, 8.0, 0)
-        # 30 + 20*2 = 70
-        assert chance == 70
-
-    def test_hull_desperation(self):
-        """25% hull → (1-0.25)*20 = 15% desperation bonus."""
-        chance = calc_flee_chance(20, 20, 0.25, 8.0, 0)
-        # 30 + 0 + 15 = 45
-        assert chance == 45
-
-    def test_close_enemy_penalty(self):
-        """Distance 2 → max(0, 5-2)*5 = 15 penalty."""
-        chance = calc_flee_chance(20, 20, 1.0, 2.0, 0)
-        # 30 + 0 - 15 = 15
-        assert chance == 15
-
-    def test_stacking_attempts(self):
-        """3 attempts → +30."""
-        chance = calc_flee_chance(20, 20, 1.0, 8.0, 3)
-        # 30 + 0 + 30 = 60
-        assert chance == 60
-
-    def test_clamped(self):
-        chance_low = calc_flee_chance(0, 100, 1.0, 0.0, 0)
-        assert chance_low == 5
-        chance_high = calc_flee_chance(100, 0, 0.01, 10.0, 10)
-        assert chance_high == 95
 
 
 # ---------------------------------------------------------------------------

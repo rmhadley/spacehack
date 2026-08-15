@@ -451,11 +451,13 @@ def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
 def _handle_meta_action(action: str, ctx, presenter):
     """Handle non-combat actions. Returns ``(action, presenter, result, redo)``.
 
-    ``result`` is ``"FLEE"`` when the fight must end, else ``None``.
-    ``redo`` is ``True`` when the loop should re-iterate without dispatching.
+    ``result`` is the outcome when the fight must end, else ``None``;
+    ``redo`` is ``True`` when the loop should re-iterate without
+    dispatching. Closing the game window quits the run — combat state
+    is never saved mid-fight, and fleeing is not a mechanic.
     """
-    if action in {"QUIT", "FLEE"}:
-        return action, presenter, "FLEE", False
+    if action == "QUIT":
+        raise SystemExit
     if action == "UNAVAILABLE":
         if presenter is not None:
             presenter.close()
@@ -467,10 +469,11 @@ def _handle_meta_action(action: str, ctx, presenter):
         _run_help_guide(ctx)
         return action, presenter, None, True
     if action == "HISTORY":
-        # Window-close inside the console log counts as FLEE, matching ESC.
         from ..console_log import open_console_log as _open_console_log
         _quit = _open_console_log(ctx) == "QUIT"
-        return action, presenter, "FLEE" if _quit else None, not _quit
+        if _quit:
+            raise SystemExit
+        return action, presenter, None, True
     return action, presenter, None, False
 
 

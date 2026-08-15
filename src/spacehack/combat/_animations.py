@@ -523,7 +523,6 @@ def _paint_combat_hud(
     weapon_list: tuple = (),
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
-    flee_chance: int | None = None,
 ) -> None:
     """Paint the combat HUD panel via the shared renderer."""
     from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
@@ -540,7 +539,6 @@ def _paint_combat_hud(
         weapon_list=weapon_list,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
-        flee_chance=flee_chance,
     )
 
 
@@ -561,7 +559,6 @@ def _render_anim_frame(
     active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
-    flee_chance: int | None = None,
     player_mode: str = "FIRING",
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
@@ -578,7 +575,7 @@ def _render_anim_frame(
         _paint_target_highlight(console, cam_x, cam_y, view_w, view_h, 0, 0, _tgt)
     _paint_combat_hud(
         console, player_state, enemies, target_idx, player_mode,
-        active_weapons=active_weapons, weapon_list=weapon_list, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance,
+        active_weapons=active_weapons, weapon_list=weapon_list, evade_bonus=evade_bonus, hit_chances=hit_chances,
     )
     _ml.render_message_log(console, log, screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
     _present(context, console)
@@ -606,7 +603,6 @@ def _explosion_frame(
     active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
-    flee_chance: int | None = None,
 ) -> None:
     """Render one explosion frame (base view + HUD + log)."""
     _render_anim_frame(
@@ -617,7 +613,6 @@ def _explosion_frame(
         active_weapons=active_weapons,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
-        flee_chance=flee_chance,
     )
 
 
@@ -639,23 +634,22 @@ def _animate_explosion(
     active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
-    flee_chance: int | None = None,
 ) -> None:
     """Animate an expanding explosion at ``center_pos`` (5 rings)."""
     for rings in range(len(_COMBAT_EXPLOSION_RINGS)):
-        _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance)
+        _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
         _draw_explosion_rings(
             console, (center_pos.x, center_pos.y), rings + 1,
             cam_x=cam_x, cam_y=cam_y, view_w=view_w, view_h=view_h,
         )
         _present(context, console)
         _responsive_sleep(animation_timing.EXPLOSION_RING)
-    _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance)
+    _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
     _draw_flash(
         console, (center_pos.x, center_pos.y),
         cam_x=cam_x, cam_y=cam_y, view_w=view_w, view_h=view_h,
     )
     _present(context, console)
     _responsive_sleep(animation_timing.EXPLOSION_FLASH)
-    _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances, flee_chance=flee_chance)
+    _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
     _responsive_sleep(animation_timing.EXPLOSION_SETTLE)

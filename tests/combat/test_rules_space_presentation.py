@@ -115,7 +115,7 @@ def test_check_reinforcements_locks_combat_entities_before_tick(monkeypatch):
 
 
 def test_sync_state_releases_combat_locks(monkeypatch):
-    """When combat ends (victory/flee), the survivors resume patrolling."""
+    """When combat ends (victory/defeat), the survivors resume patrolling."""
     ctx, state = _state()
     ctx.player_owned_ship = None  # read by sync_state before the patched helpers
     state.enemy_ents[0].combat_locked = True

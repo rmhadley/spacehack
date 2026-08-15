@@ -373,7 +373,7 @@ def test_combat_key_mapping_returns_opaque_actions():
     key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value, unicode="")
 
     assert pygame_combat._action_for_key(fake, SimpleNamespace(type=fake.QUIT)) == "QUIT"
-    assert pygame_combat._action_for_key(fake, key(fake.K_ESCAPE)) == "FLEE"
+    assert pygame_combat._action_for_key(fake, key(fake.K_ESCAPE)) == ""  # ESC is unbound in combat
     assert pygame_combat._action_for_key(fake, key(fake.K_TAB)) == "TARGET"
     assert pygame_combat._action_for_key(fake, key(fake.K_UP)) == "MOVE:up"
     assert pygame_combat._action_for_key(fake, key(20)) == "FIRE"
@@ -484,7 +484,7 @@ def _combat_history_rules() -> SimpleNamespace:
 
 
 def test_combat_history_opens_console_log_and_resumes(monkeypatch):
-    """\\ in combat opens the full console log; ESC returns to the fight."""
+    """\\ in combat opens the full console log; the fight then resumes."""
     from src.spacehack.combat import _loop
 
     opened = []
@@ -493,7 +493,7 @@ def test_combat_history_opens_console_log_and_resumes(monkeypatch):
         lambda ctx: opened.append(ctx) or "BACK",
     )
     monkeypatch.setattr(_loop, "_present", lambda ctx, console: None)
-    actions = iter(("HISTORY", "FLEE"))
+    actions = iter(("HISTORY", "QUIT"))  # QUIT ends the loop under test
     monkeypatch.setattr(
         _loop,
         "_combat_action",
@@ -504,22 +504,19 @@ def test_combat_history_opens_console_log_and_resumes(monkeypatch):
         log=SimpleNamespace(add_colored=lambda *_args: None),
         _pygame_combat_presenter=None,
     )
-    result = _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
+    import pytest
+    with pytest.raises(SystemExit):
+        _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
 
     assert opened == [ctx]  # the log opened once, then the fight resumed
-    assert result.outcome == "FLEE"
 
 
-def test_combat_history_window_close_counts_as_flee(monkeypatch):
-    """Closing the log window quits the fight the same way ESC does."""
+def test_combat_window_close_quits_game(monkeypatch):
+    """Closing the game window during combat exits the run."""
     from src.spacehack.combat import _loop
 
-    monkeypatch.setattr(
-        "src.spacehack.console_log.open_console_log",
-        lambda ctx: "QUIT",
-    )
     monkeypatch.setattr(_loop, "_present", lambda ctx, console: None)
-    actions = iter(("HISTORY",))
+    actions = iter(("QUIT",))
     monkeypatch.setattr(
         _loop,
         "_combat_action",
@@ -530,9 +527,9 @@ def test_combat_history_window_close_counts_as_flee(monkeypatch):
         log=SimpleNamespace(add_colored=lambda *_args: None),
         _pygame_combat_presenter=None,
     )
-    result = _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
-
-    assert result.outcome == "FLEE"
+    import pytest
+    with pytest.raises(SystemExit):
+        _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
 
 
 def test_combat_action_ignores_triggering_key_release_before_next_action(monkeypatch):

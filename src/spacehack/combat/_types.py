@@ -17,7 +17,6 @@ class CombatPhase(Enum):
     ENEMY_TURN = auto()
     VICTORY = auto()
     DEFEAT = auto()
-    FLEE = auto()
 
 
 class CombatMode(Enum):
@@ -60,7 +59,7 @@ class CombatResult:
     """Bundles the outcome and defeated-entity tracking from a combat
     encounter. Returned by :func:`run_combat` so callers access named
     fields instead of unpacking a naked tuple."""
-    outcome: str = "FLEE"  # "VICTORY", "DEFEAT", or "FLEE"
+    outcome: str = "VICTORY"  # "VICTORY", "DEFEAT", or "DISENGAGED" (ground)
     defeated_names: list[str] = field(default_factory=list)
     defeated_bounty_ids: list[str] = field(default_factory=list)
     defeated_heist_ids: list[str] = field(default_factory=list)

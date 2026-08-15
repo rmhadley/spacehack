@@ -4,7 +4,7 @@ Refactored from a single ``combat.py`` (1951 lines) into a package
 with one sub-module per domain:
 
 * ``_types.py`` — data types (CombatPhase, CombatMode, EnemyInstance)
-* ``_stats.py`` — pure stat calculations (hull, hit/flee chance, init)
+* ``_stats.py`` — pure stat calculations (hull, hit chance, init)
 * ``_actions.py`` — action resolution (damage, turns, movement)
 * ``_animations.py`` — shared visual effects (floating damage text, explosions, highlights)
 * ``_shot_animations.py`` — per-weapon-family shot animators (beam, bolt, missile, tracer, grenade, melee)
@@ -21,7 +21,7 @@ from ._stats import (
     _calc_hull, _calc_max_hull, _calc_hull_for_enemy,
     _calc_power_gen, _calc_max_shields,
     _calc_ap, _calc_dodge_bonus, _distance,
-    calc_hit_chance, calc_flee_chance,
+    calc_hit_chance,
     init_combat_state,
 )
 from ._actions import (

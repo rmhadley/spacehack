@@ -632,7 +632,6 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         player_mode="DEFAULT",
         active_weapons=_state.active_weapons,
         weapon_list=tuple(_state.weapons_list),
-        flee_chance=None,
         hit_chances=_hit_chances,
         evade_bonus=_evade,
         range_weapon_id=_range_wid,
@@ -674,7 +673,6 @@ def animate_fire(
         active_weapons=_state.active_weapons,
         evade_bonus=_evade,
         hit_chances=_hit_chances,
-        flee_chance=None,
     )
 
 # ---------------------------------------------------------------------------
@@ -714,7 +712,6 @@ def _animate_kill_explosion(ctx, game_map: world.GameMap, enemy: EnemyInstance) 
         active_weapons=_state.active_weapons,
         evade_bonus=_evade,
         hit_chances=_hit_chances,
-        flee_chance=None,
     )
 
 def _spawn_heist_loot(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent: Any) -> None:
@@ -846,7 +843,6 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
         _state,
         hit_chances=_hit_chances,
         evade_bonus=_evade,
-        flee_attempts=0,
         calc_cam=_calc_camera,
         ctx=ctx,
     )

@@ -463,8 +463,8 @@ def _buy_good(ctx, planet_id, good_id, qty):
 
 **What this project already does right:**
 - ``combat/_stats.py`` — every function is pure (``calc_hit_chance``,
-  ``calc_flee_chance``, ``_calc_hull``, etc.). Module docstring explicitly
-  states "deterministic … suitable for testing in isolation."
+  ``_calc_hull``, etc.). Module docstring explicitly states
+  "deterministic … suitable for testing in isolation."
 - ``faction.py`` — ``get_attitude``, ``starting_reputation`` are pure.
 - ``ship.py`` — ``total_ammo_cargo``, ``effective_speed``, ``_sell_price``
   are pure.

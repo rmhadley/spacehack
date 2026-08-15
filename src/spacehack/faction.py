@@ -228,13 +228,6 @@ _COMBAT_KILL_DELTAS: dict[str, dict[str, int]] = {
     },
 }
 
-# Flee rep penalty — applied once when the player flees combat.
-_COMBAT_FLEE_DELTAS: dict[str, int] = {
-    "merchant": -1,
-    "civilian": -1,
-    "militia": -2,
-}
-
 # Unprovoked attack rep penalty — applied when the player initiates combat
 # via comms ("Attack" option) rather than being auto-hailed or bumping into
 # an enemy.
