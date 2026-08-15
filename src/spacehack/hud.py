@@ -385,7 +385,7 @@ def _render_ground_armor_row(console, hud_x, y, armor: int | None) -> int:
         return y
     console.print(
         x=hud_x, y=y,
-        string=f"{'ARM':<8}{armor}",
+        string=f"{'Armor':<8}{armor}",
         fg=COLOR_VALUE_WHITE,
     )
     return y + 1

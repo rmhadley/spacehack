@@ -132,7 +132,7 @@ def test_dungeon_stat_rows_show_current_ground_armor():
     )
 
     row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
-    assert row == "ARM     3"
+    assert row == "Armor   3"
 
 
 def test_city_hud_shows_current_ground_armor():
@@ -162,7 +162,7 @@ def test_city_hud_shows_current_ground_armor():
         "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
         for y in range(54)
     ]
-    assert "ARM     2" in rows
+    assert "Armor   2" in rows
 
 
 def test_city_stat_values_line_up_in_one_column():

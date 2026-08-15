@@ -194,7 +194,7 @@ def _render_player_panel(console, ctx) -> int:
     y += 1
     console.print(
         x=hud_x, y=y,
-        string=f"ARM: {_state.armor_defense}",
+        string=f"Armor: {_state.armor_defense}",
         fg=_COLOR_GROUND_ACTION,
     )
     y += 1

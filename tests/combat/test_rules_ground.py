@@ -146,13 +146,13 @@ class TestEnemyDetailLines:
 
     def test_unarmored_enemy_reports_arm_0(self):
         assert _ground_presentation.enemy_detail_lines(self._enemy(armor=0)) == (
-            "ARM 0", "Unarmed", "",
+            "Armor 0", "Unarmed", "",
         )
 
     def test_armored_enemy_reports_armor_value(self):
         assert _ground_presentation.enemy_detail_lines(
             self._enemy(armor=3, weapon_id="drone_laser"),
-        )[0] == "ARM 3"
+        )[0] == "Armor 3"
 
     def test_weapon_lines_split_name_from_dmg_range(self):
         _armor, _name, _stats = _ground_presentation.enemy_detail_lines(
@@ -689,7 +689,7 @@ def test_ground_player_panel_shows_current_armor():
         _frame.cell(x, 4).char
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
-    assert _row == "ARM: 3"
+    assert _row == "Armor: 3"
 
 
 class TestRangeLineHidden:
@@ -866,7 +866,7 @@ class TestBuildTargetCard:
         assert card.avoid_cells == ((2, 2), (5, 3))
         _segs = [seg for row in card.rows for seg in row]
         assert [t for t, _c in _segs] == [
-            "Assault Drone", "HP 12/30", "  HIT 62%", "ARM 3  AP 4",
+            "Assault Drone", "HP 12/30", "  HIT 62%", "Armor 3  AP 4",
             "Drone Laser", "DMG 4  RNG 1-6", "[V] hide",
         ]
         assert _segs[0][1] == pygame_target_card.TARGET_CARD_TITLE
@@ -889,7 +889,7 @@ class TestBuildTargetCard:
         assert card.avoid_cells == ()
         _segs = [seg for row in card.rows for seg in row]
         assert [t for t, _c in _segs] == [
-            "Assault Drone", "HP 12/30", "  HIT --", "ARM 3  AP 4",
+            "Assault Drone", "HP 12/30", "  HIT --", "Armor 3  AP 4",
             "Unarmed", "[V] hide",
         ]
 
