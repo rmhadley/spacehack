@@ -119,6 +119,22 @@ def test_city_hp_row_uses_the_bar_layout():
     assert row == "HP      ########## 10/10"
 
 
+def test_dungeon_stat_rows_show_current_ground_armor():
+    """Dungeon HUD stat rows expose the combined armor defense."""
+    console = FrameBuffer(40, 4)
+    ctx = SimpleNamespace(ground_hp=10, ground_max_hp=10)
+    stats = SimpleNamespace(credits=100, gunnery=4, piloting=3, engineering=2)
+
+    hud._render_city_stat_rows(
+        console, 0, 0,
+        ctx=ctx, stats=stats, owned_ship=None, ship_catalog=None,
+        ground_stats=None, ground_armor=3,
+    )
+
+    row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
+    assert row == "ARM     3"
+
+
 def test_city_stat_values_line_up_in_one_column():
     """HP / Cargo / Credits values all start at the same column."""
     console = FrameBuffer(40, 3)

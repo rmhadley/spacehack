@@ -20,10 +20,10 @@ from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.npc_chars import find_npc_char as _find_nc
-from ..data.ground_armor import find_ground_armor as _find_ga
 from ..data.ground_items import list_ground_consumables as _list_gc
 from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
+    sum_armor_defense as _sum_armor_defense,
     tier_filtered_equipment as _tier_loot,
 )
 from ..ground_consumables import ActiveConsumableEffect, effect_from_spec
@@ -203,14 +203,7 @@ def _player_hp_state(ctx) -> tuple[int, int]:
 
 def _armor_defense_total(ctx) -> int:
     """Sum flat defense across equipped armor pieces."""
-    total = 0
-    for armor_id in ctx.equipped_ground_armor.values():
-        if armor_id:
-            try:
-                total += _find_ga(armor_id).defense
-            except KeyError:
-                pass
-    return total
+    return _sum_armor_defense(ctx.equipped_ground_armor.values())
 
 
 def _starting_ap_total(ctx) -> int:
@@ -324,15 +317,7 @@ def refresh_equipment_state(ctx) -> None:
         if index < len(_state.active_weapon_list) else True
         for index in range(len(_weapons))
     ]
-    _armor_defense = 0
-    for armor_id in ctx.equipped_ground_armor.values():
-        if not armor_id:
-            continue
-        try:
-            _armor_defense += _find_ga(armor_id).defense
-        except KeyError:
-            continue
-    _state.armor_defense = _armor_defense
+    _state.armor_defense = _sum_armor_defense(ctx.equipped_ground_armor.values())
 
 
 # ---------------------------------------------------------------------------

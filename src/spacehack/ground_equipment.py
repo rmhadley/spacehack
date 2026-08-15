@@ -45,6 +45,19 @@ def sum_armor_bonus(armor_ids: Iterable[str], attr: str) -> int:
     return total
 
 
+def sum_armor_defense(armor_ids: Iterable[str]) -> int:
+    """Sum flat damage reduction across equipped armor ids."""
+    total = 0
+    for armor_id in armor_ids:
+        if not armor_id:
+            continue
+        try:
+            total += find_ground_armor(armor_id).defense
+        except KeyError:
+            continue
+    return total
+
+
 def tier_filtered_equipment(
     pool: Iterable[tuple[str, str]], tier: int,
 ) -> tuple[tuple[str, str], ...]:

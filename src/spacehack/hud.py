@@ -379,7 +379,22 @@ def _render_city_identity(console, hud_x, y, *, species_name, class_name, locati
     return y + 1
 
 
-def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_catalog, ground_stats) -> int:
+def _render_ground_armor_row(console, hud_x, y, armor: int | None) -> int:
+    """Paint the dungeon HUD armor row when ground armor is available."""
+    if armor is None:
+        return y
+    console.print(
+        x=hud_x, y=y,
+        string=f"{'ARM':<8}{armor}",
+        fg=COLOR_VALUE_WHITE,
+    )
+    return y + 1
+
+
+def _render_city_stat_rows(
+    console, hud_x, y, *, ctx, stats, owned_ship, ship_catalog, ground_stats,
+    ground_armor: int | None = None,
+) -> int:
     """Paint HP / cargo / credits / skill rows; return the next row.
 
     All three stat rows share one label column and one value column so
@@ -395,6 +410,7 @@ def _render_city_stat_rows(console, hud_x, y, *, ctx, stats, owned_ship, ship_ca
         fg=_hp_fg,
     )
     y += 1
+    y = _render_ground_armor_row(console, hud_x, y, ground_armor)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
     console.print(
         x=hud_x, y=y,
@@ -451,11 +467,18 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
     )
     _render_divider(console, hud_x, y)
     y += 2
+    from .ground_equipment import sum_armor_defense as _sum_armor_defense
     y = _render_city_stat_rows(
         console, hud_x, y,
         ctx=ctx, stats=ctx.stats,
         owned_ship=ctx.player_owned_ship, ship_catalog=ship_catalog,
         ground_stats=ctx.ground_stats,
+        ground_armor=(
+            _sum_armor_defense(
+                getattr(ctx, "equipped_ground_armor", {}).values(),
+            )
+            if mode == "dungeon" else None
+        ),
     )
     y += 1
     _render_divider(console, hud_x, y)

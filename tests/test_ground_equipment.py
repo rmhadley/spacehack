@@ -20,6 +20,7 @@ from src.spacehack.ground_equipment import (
     install_weapon,
     sell_stored,
     sum_armor_bonus,
+    sum_armor_defense,
     store_armor,
     store_weapon,
     swap_armor_from_expedition,
@@ -52,6 +53,11 @@ def test_sum_armor_bonus_totals_a_single_field_across_armor():
     assert sum_armor_bonus(["cybernetic_legs", "cybernetic_eyes"], "ap_bonus") == 1
     assert sum_armor_bonus(["cybernetic_eyes"], "hit_bonus") == 8
     assert sum_armor_bonus(["cybernetic_torso"], "hp_bonus") == 3
+
+
+def test_sum_armor_defense_totals_equipped_pieces():
+    assert sum_armor_defense(["light_helmet", "light_vest", "missing_id"]) == 3
+    assert sum_armor_defense([None]) == 0
 
 
 def test_sum_armor_bonus_skips_empty_and_unknown_ids():
