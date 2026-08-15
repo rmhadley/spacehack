@@ -140,6 +140,7 @@ class TestTraitQualification:
                 missile_shots=0,
                 plasma_shots=0,
                 railgun_kills=0,
+                focused_shots=0,
             ),
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             player_traits=[],
@@ -189,6 +190,19 @@ class TestTraitQualification:
 
         assert "deadshot" not in {trait.id for trait in _traits}
 
+    def test_focus_requires_15_focused_shots(self):
+        _ctx = self._ctx()
+        _ctx.player_counters.focused_shots = 15
+
+        _traits = _qualifying_traits(_ctx)
+
+        assert "focus" in {trait.id for trait in _traits}
+
+    def test_focus_does_not_use_total_kills(self):
+        _traits = _qualifying_traits(self._ctx(total_kills=15))
+
+        assert "focus" not in {trait.id for trait in _traits}
+
     def test_juggernaut_reduces_each_ground_hit(self):
         assert ground_damage_reduction(
             SimpleNamespace(player_traits=["juggernaut"]),
@@ -224,12 +238,14 @@ class TestTraitQualification:
         _ctx.player_counters.laser_shots = 100
         _ctx.player_counters.missile_shots = 15
         _ctx.player_counters.plasma_shots = 100
+        _ctx.player_counters.focused_shots = 15
 
         _ids = {trait.id for trait in _qualifying_traits(_ctx)}
 
         assert {
             "evasive", "pack_mule", "ironclad", "systems_expert",
             "demolitionist", "laser_specialist", "missileer", "plasma_savant",
+            "focus",
         } <= _ids
 
     def test_specialization_effect_helpers(self):

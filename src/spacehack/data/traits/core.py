@@ -151,6 +151,13 @@ PLASMA_SAVANT = Trait(
     counters=(("plasma_shots", 100),),
 )
 
+FOCUS = Trait(
+    id="focus",
+    name="Focus",
+    description="With exactly one weapon enabled, its AP, power, and range double, and it deals double damage beyond half that range",
+    counters=(("focused_shots", 15),),
+)
+
 ALL_TRAITS: tuple[Trait, ...] = (
     SHARPSHOOTER,
     HAULER,
@@ -168,6 +175,7 @@ ALL_TRAITS: tuple[Trait, ...] = (
     LASER_SPECIALIST,
     MISSILEER,
     PLASMA_SAVANT,
+    FOCUS,
 )
 
 

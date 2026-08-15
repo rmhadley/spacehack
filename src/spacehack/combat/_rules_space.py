@@ -50,6 +50,7 @@ from ._animations import (
 )
 from ._shot_animations import _animate_weapon_shot
 from ._space_presentation import build_target_card as _build_target_card
+from . import _space_focus
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -332,6 +333,8 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
     return _space_hit_chance(
         weapon_id, _state.player_state["gunnery"], _dist, _dodge,
         hit_bonus=_hit_bonus,
+        max_range=_space_focus.max_range(weapon_id, ctx),
+        min_range=_space_focus.min_range(weapon_id, ctx),
     )
 
 def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
@@ -339,11 +342,14 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
 
     The glance flag rides the return so the caller can label the
     floating damage number (``GLANCE -X``) the same way the log line
-    does. Hull damage is the number the popup reports.
+    does. Hull damage is the number the popup reports. A focused shot
+    doubles damage beyond half its (doubled) range via the Focus trait.
     """
+    _dist = _distance(_state.player_state["pos"], enemy.pos)
     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
         weapon_id, enemy.hull, enemy.shields,
         target_pilot_piloting=enemy.pilot_piloting,
+        damage_taken_mult=_space_focus.damage_mult(weapon_id, ctx, _dist),
     )
     enemy.shields = max(0, enemy.shields - _sdmg)
     _prev_hull = enemy.hull
@@ -357,7 +363,10 @@ def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
 # ---------------------------------------------------------------------------
 
 def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
-    _ok, _reason = _space_can_afford(_state.player_state, slot_idx)
+    _mult = 2 if _space_focus.is_focus_active(ctx) else 1
+    _ok, _reason = _space_can_afford(
+        _state.player_state, slot_idx, ap_mult=_mult, power_mult=_mult,
+    )
     if not _ok:
         return _ok, _reason
     _target = _alive_target()
@@ -371,10 +380,8 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
     return True, ""
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
-    from ..data.weapons import find_weapon as _fw
-    _spec = _fw(weapon_id)
-    _discount = _plasma_ap_discount(ctx) if _spec.slot_type == "plasma" else 0
-    return max(1, _spec.ap_cost - _discount)
+    """AP cost to fire ``weapon_id``: doubled for the focused weapon."""
+    return _space_focus.ap_cost(weapon_id, ctx)
 
 def weapon_name(weapon_id: str, ctx) -> str:
     from ..data.weapons import find_weapon as _fw
@@ -393,8 +400,12 @@ def consume_shot(slot_idx: int, ctx) -> None:
             ctx.player_counters.missile_shots += 1
         elif _ws.slot_type == "plasma":
             ctx.player_counters.plasma_shots += 1
+        if _space_focus.is_focus_active(ctx):
+            ctx.player_counters.focused_shots += 1
     if _ws.slot_type in ("energy", "plasma"):
-        _state.player_state["power_pool"] -= _ws.power_cost
+        _state.player_state["power_pool"] -= _space_focus.power_cost(
+            _weapons[slot_idx], ctx,
+        )
     elif _ws.slot_type == "missile":
         old = _state.player_state["weapon_ammo"].get(slot_idx, 0)
         _state.player_state["weapon_ammo"][slot_idx] = max(0, old - _ws.ammo_per_shot)
@@ -443,6 +454,8 @@ def _build_hit_chances(target) -> dict[str, int]:
             _result[_wid] = _space_hit_chance(
                 _wid, _state.player_state["gunnery"], _dist, _target_dodge,
                 hit_bonus=_weapon_bonus,
+                max_range=_space_focus.max_range(_wid, _state.ctx),
+                min_range=_space_focus.min_range(_wid, _state.ctx),
             )
         except KeyError:
             pass
@@ -592,6 +605,8 @@ def _render_combat_range_line(
         cam_x, cam_y, _state.view_w, _state.view_h, 0, 0,
         color_override=None if _los_ok else (255, 60, 60),
         game_map=game_map,
+        max_range=_space_focus.max_range(_range_wid, _state.ctx),
+        min_range=_space_focus.min_range(_range_wid, _state.ctx),
     )
     return _range_wid
 
@@ -635,6 +650,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         hit_chances=_hit_chances,
         evade_bonus=_evade,
         range_weapon_id=_range_wid,
+        focus_active=_space_focus.is_focus_active(_state.ctx),
     )
     _ml.render_message_log(
         console, _state.log,

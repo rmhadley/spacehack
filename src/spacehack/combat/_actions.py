@@ -194,14 +194,14 @@ def _spawn_loot_drops(
 
 
 def can_afford_action(
-    player_state: dict,
-    slot_idx: int,
+    player_state: dict, slot_idx: int, *, ap_mult: int = 1,
+    power_mult: int = 1,
 ) -> tuple[bool, str]:
     """Check if the player can fire the weapon in ``slot_idx``.
 
-    Ammo is keyed by weapon SLOT index (not weapon id) so two
-    launchers of the same type keep independent magazines. Returns
-    ``(ok, reason)``.
+    Ammo is keyed by weapon SLOT index. ``ap_mult``/``power_mult``
+    scale the AP and power costs (the Focus trait doubles them for
+    the single enabled weapon). Returns ``(ok, reason)``.
     """
     _weapons = player_state.get("weapons", ())
     if not (0 <= slot_idx < len(_weapons)):
@@ -216,13 +216,14 @@ def can_afford_action(
         player_state.get("plasma_ap_discount", 0)
         if ws.slot_type == "plasma" else 0
     )
-    _effective_ap = max(1, ws.ap_cost - _ap_discount)
+    _effective_ap = max(1, ws.ap_cost - _ap_discount) * ap_mult
     if player_state["ap_remaining"] < _effective_ap:
         return False, f"Need {_effective_ap} AP (have {player_state['ap_remaining']})"
 
     if ws.slot_type in ("energy", "plasma"):
-        if player_state["power_pool"] < ws.power_cost:
-            return False, f"Need {ws.power_cost} power (have {player_state['power_pool']})"
+        _power_needed = ws.power_cost * power_mult
+        if player_state["power_pool"] < _power_needed:
+            return False, f"Need {_power_needed} power (have {player_state['power_pool']})"
     elif ws.slot_type == "missile":
         ammo = player_state["weapon_ammo"].get(slot_idx, 0)
         if ammo <= 0:

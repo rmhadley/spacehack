@@ -89,6 +89,7 @@ only the *fraction* carries, never banked whole AP.
 | Laser Specialist | 40/50 | 100 laser shots | +10% laser hit chance |
 | Missileer | 40/50 | 15 missile shots | +10% missile hit chance |
 | Plasma Savant | 40/50 | 100 plasma shots | Plasma weapons cost 1 less AP |
+| Focus | 40/50 | 15 focused shots | With exactly one weapon enabled, its AP, power, and range double; double damage beyond half that range |
 
 The unlock requirements are intentionally **easy to meet by level 40** —
 the point is not to grind gates but to prove a build: a laser user has
@@ -190,6 +191,7 @@ class PlayerCounters:
     melee_kills: int = 0
     explosive_hits: int = 0
     railgun_kills: int = 0
+    focused_shots: int = 0
 ```
 
 Incremented via: `ctx.player_counters.total_kills += 1`. One field on ctx. Extensible — add a counter to the dataclass, update the trait catalog, done.

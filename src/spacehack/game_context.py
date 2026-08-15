@@ -108,6 +108,7 @@ class PlayerCounters:
     melee_kills: int = 0
     explosive_hits: int = 0
     railgun_kills: int = 0
+    focused_shots: int = 0  # space shots fired with exactly one weapon enabled
 
 
 @dataclasses.dataclass(frozen=True)

@@ -410,10 +410,14 @@ def _paint_range_line(
     *,
     color_override: tuple[int, int, int] | None = None,
     game_map: world.GameMap | None = None,
+    max_range: int | None = None,
+    min_range: int | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by the
     weapon's range bands (green/yellow/orange/red by distance). Shared
-    by ship and ground combat; ``color_override`` forces one color."""
+    by ship and ground combat; ``color_override`` forces one color.
+    ``max_range``/``min_range`` override the catalog values so the
+    Focus trait's doubled range bands paint correctly."""
     try:
         ws = find_weapon(weapon_id)
     except KeyError:
@@ -422,7 +426,8 @@ def _paint_range_line(
     _draw_range_colored_line(
         console,
         player_pos, target_pos,
-        ws.max_range, ws.min_range,
+        max_range if max_range is not None else ws.max_range,
+        min_range if min_range is not None else ws.min_range,
         cam_x, cam_y, view_w, view_h,
         region_x, region_y,
         color_override=color_override,

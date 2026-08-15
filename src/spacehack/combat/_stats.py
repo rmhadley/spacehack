@@ -138,11 +138,9 @@ def _distance(a: world.Position, b: world.Position) -> float:
 
 
 def calc_hit_chance(
-    weapon_id: str,
-    gunnery: int,
-    distance: float,
-    target_dodge_bonus: int,
-    hit_bonus: int = 0,
+    weapon_id: str, gunnery: int, distance: float,
+    target_dodge_bonus: int, hit_bonus: int = 0, *,
+    max_range: int | None = None, min_range: int | None = None,
 ) -> int:
     """Return 0-100 hit probability.
 
@@ -161,19 +159,19 @@ def calc_hit_chance(
     minimum range (e.g. point-blank with rocket pods) now
     loses accuracy as expected.    The result is clamped to 5-95
     so combat still feels lethal but never deterministic.
+
+    ``max_range``/``min_range`` override the catalog range profile
+    (the Focus trait doubles it).
     """
     ws = find_weapon(weapon_id)
-    dist_penalty = max(0, math.ceil(distance) - ws.max_range) * 10
-    min_penalty = max(0, ws.min_range - math.ceil(distance)) * 5
-    close_bonus = 5 if distance <= ws.max_range // 2 else 0
+    _max = max_range if max_range is not None else ws.max_range
+    _min = min_range if min_range is not None else ws.min_range
+    dist_penalty = max(0, math.ceil(distance) - _max) * 10
+    min_penalty = max(0, _min - math.ceil(distance)) * 5
+    close_bonus = 5 if distance <= _max // 2 else 0
     chance = (
-        ws.accuracy
-        + int(gunnery * 0.5)
-        + close_bonus
-        - dist_penalty
-        - min_penalty
-        - target_dodge_bonus
-        + hit_bonus
+        ws.accuracy + int(gunnery * 0.5) + close_bonus - dist_penalty
+        - min_penalty - target_dodge_bonus + hit_bonus
     )
     return max(5, min(95, chance))
 
