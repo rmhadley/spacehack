@@ -597,6 +597,7 @@ def transfer_item(
     *,
     destination_container: str,
     strength: int,
+    destination_items=None,
 ) -> StoredGroundEquipment:
     """Move one stored item between containers without partial mutation."""
     _require_container(destination_container)
@@ -606,7 +607,10 @@ def transfer_item(
     _validate_entry(entry)
     proposed = [*destination, entry]
     if destination_container == EXPEDITION_INVENTORY:
-        _require_expedition_capacity(proposed, strength)
+        if destination_items is None:
+            _require_expedition_capacity(proposed, strength)
+        elif len(proposed) + len(destination_items) > expedition_capacity(strength):
+            raise ValueError("Expedition inventory is full")
     source.pop(index)
     destination.append(entry)
     return entry

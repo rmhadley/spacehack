@@ -713,6 +713,44 @@ def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
     )
 
 
+def test_field_ammo_over_capacity_prompts_until_two_items_are_dropped(monkeypatch):
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+        },
+    })()
+    ctx = _field_loot_context(
+        pack=[
+            StoredGroundEquipment("armor", "light_helmet"),
+            StoredGroundEquipment("armor", "light_vest"),
+            StoredGroundEquipment("armor", "combat_boots"),
+            StoredGroundEquipment("weapon", "combat_knife"),
+        ],
+        items=[GroundItemStack("consumable", "med_pack", 1)],
+    )
+    ctx.game_map.entities.append(entity)
+    choices = iter(("DROP_PACK:3", "DROP_PACK:2"))
+    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: next(choices))
+
+    assert loot._apply_field_item_loot_pickup(ctx, entity)
+
+    assert ctx.ground_expedition_items == [
+        GroundItemStack("consumable", "med_pack", 1),
+        GroundItemStack("ammo", "pistol_rounds", 5),
+    ]
+    assert len(ctx.ground_expedition_inventory) == 2
+    assert entity not in ctx.game_map.entities
+    assert sum(
+        dropped.loot_data == {"item_type": "armor", "item_id": "combat_boots"}
+        for dropped in ctx.game_map.entities
+    ) == 1
+    assert sum(
+        dropped.loot_data == {"item_type": "armor", "item_id": "light_vest"}
+        for dropped in ctx.game_map.entities
+    ) == 0
+
+
 def test_scout_derelict_pirates_have_consumable_loot_pools():
     from src.spacehack.data.npc_chars import find_npc_char
 

@@ -211,6 +211,11 @@ def _pack_loot(ctx: GameContext, entry) -> bool:
     from . import ground_equipment
 
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
+    if ground_equipment.expedition_slot_count(
+        ctx.ground_expedition_inventory,
+        getattr(ctx, "ground_expedition_items", []),
+    ) >= ground_equipment.expedition_capacity(strength):
+        return False
     try:
         ground_equipment.add_stored(
             ctx.ground_expedition_inventory,
@@ -254,6 +259,32 @@ def _drop_selected_pack_item(ctx: GameContext, loot_entity, chosen):
     return entity, rollback
 
 
+def _rollback_pack_drops(ctx, dropped_items) -> None:
+    """Restore carried items when a replacement pickup is canceled."""
+    for dropped_entity, rollback in reversed(dropped_items):
+        if dropped_entity in ctx.game_map.entities:
+            ctx.game_map.entities.remove(dropped_entity)
+        rollback()
+
+
+def _pack_equipment_after_drops(ctx, loot_entity, entry, name: str) -> bool:
+    """Drop as many carried items as needed to fit equipment loot."""
+    dropped_items = []
+    while not _pack_loot(ctx, entry):
+        chosen = _choose_pack_drop(ctx, loot_entity)
+        if chosen is None:
+            _rollback_pack_drops(ctx, dropped_items)
+            ctx.log.add(f"Expedition Pack full - left the {name} behind.")
+            return False
+        dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
+        if dropped is None:
+            _rollback_pack_drops(ctx, dropped_items)
+            return False
+        dropped_items.append(dropped)
+    _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
+    return True
+
+
 def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     """Move one ground-equipment drop into the carried Expedition Pack."""
     entry = _ground_equipment_loot_entry(loot_entity)
@@ -265,21 +296,7 @@ def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     if _pack_loot(ctx, entry):
         _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
         return True
-    chosen = _choose_pack_drop(ctx, loot_entity)
-    if chosen is None:
-        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
-        return False
-    dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
-    if dropped is None:
-        return False
-    dropped_entity, rollback = dropped
-    if not _pack_loot(ctx, entry):
-        ctx.game_map.entities.remove(dropped_entity)
-        rollback()
-        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
-        return False
-    _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
-    return True
+    return _pack_equipment_after_drops(ctx, loot_entity, entry, name)
 
 
 def _pack_field_item(ctx: GameContext, stack) -> object | None:
@@ -304,6 +321,33 @@ def _leave_field_item_remainder(loot_entity, remainder) -> None:
     }
 
 
+def _pack_field_item_after_drops(ctx, loot_entity, stack, name: str) -> bool:
+    """Drop as many carried items as needed to fit a field-item stack."""
+    dropped_items = []
+    while True:
+        remainder = _pack_field_item(ctx, stack)
+        if remainder is None:
+            _finish_loot_pickup(ctx, loot_entity, f"Packed {name} x{stack.quantity}.")
+            return True
+        if remainder.quantity < stack.quantity:
+            _leave_field_item_remainder(loot_entity, remainder)
+            accepted = stack.quantity - remainder.quantity
+            ctx.log.add(
+                f"Packed {name} x{accepted}; left {remainder.quantity} on the floor."
+            )
+            return True
+        chosen = _choose_pack_drop(ctx, loot_entity)
+        if chosen is None:
+            _rollback_pack_drops(ctx, dropped_items)
+            ctx.log.add(f"Expedition Pack full - left the {name} behind.")
+            return False
+        dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
+        if dropped is None:
+            _rollback_pack_drops(ctx, dropped_items)
+            return False
+        dropped_items.append(dropped)
+
+
 def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     """Pack typed ammo/consumable loot without silently losing overflow."""
     stack = _field_item_loot_stack(loot_entity)
@@ -324,21 +368,7 @@ def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
         accepted = stack.quantity - remainder.quantity
         ctx.log.add(f"Packed {name} x{accepted}; left {remainder.quantity} on the floor.")
         return True
-    chosen = _choose_pack_drop(ctx, loot_entity)
-    if chosen is None:
-        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
-        return False
-    dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
-    if dropped is None:
-        return False
-    dropped_entity, rollback = dropped
-    if _pack_field_item(ctx, stack) is not None:
-        ctx.game_map.entities.remove(dropped_entity)
-        rollback()
-        ctx.log.add(f"Expedition Pack full - left the {name} behind.")
-        return False
-    _finish_loot_pickup(ctx, loot_entity, f"Packed {name} x{stack.quantity}.")
-    return True
+    return _pack_field_item_after_drops(ctx, loot_entity, stack, name)
 
 
 def _apply_loot_pickup(

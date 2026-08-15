@@ -2474,6 +2474,43 @@ def test_armory_container_transfer_uses_domain_helper(monkeypatch):
     ]
 
 
+def test_armory_equipment_transfer_counts_field_item_slots(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.ground_equipment import GroundItemStack
+
+    pack = [
+        _armory.ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
+        _armory.ground_equipment.StoredGroundEquipment("armor", "light_vest"),
+        _armory.ground_equipment.StoredGroundEquipment("armor", "combat_boots"),
+    ]
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
+        ],
+        ground_expedition_inventory=pack,
+        ground_expedition_items=[GroundItemStack("consumable", "med_pack", 1)],
+        stats=SimpleNamespace(credits=1000),
+        ground_stats=SimpleNamespace(strength=10),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        lambda *_args, **_kwargs: "MOVE_TO_EXPEDITION:0",
+    )
+
+    assert _armory._apply_pygame_armory_action(
+        ctx, "MANAGE_ARMORY:0", 0, 0,
+    ) is True
+    assert len(ctx.ground_armory_storage) == 1
+    assert len(ctx.ground_expedition_inventory) == 3
+    assert ctx.ground_expedition_items == [
+        GroundItemStack("consumable", "med_pack", 1),
+    ]
+
+
 def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
     from src.spacehack import pygame_story
 
@@ -2518,6 +2555,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
             _armory.ground_equipment.StoredGroundEquipment("armor", "light_vest"),
             _armory.ground_equipment.StoredGroundEquipment("armor", "combat_boots"),
         ],
+        ground_expedition_items=[GroundItemStack("consumable", "med_pack", 1)],
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message: None),
     )

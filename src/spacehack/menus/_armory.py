@@ -222,7 +222,6 @@ def _storage_rows(
 ):
     """Build rows for one owned equipment container."""
     from .. import pygame_split, pygame_ui
-
     rows = [pygame_split.section_header(section_label)]
     for index, entry in enumerate(entries):
         try:
@@ -558,7 +557,7 @@ def _displacement_container(ctx, entry, container: str) -> str:
             bool(ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot))
         )
     return ground_equipment.preferred_displacement_container(
-        len(_expedition_storage(ctx)),
+        len(_expedition_storage(ctx)) + len(_expedition_items(ctx)),
         ground_equipment.expedition_capacity(_strength(ctx)),
         displaced_count,
         container,
@@ -620,6 +619,7 @@ def _transfer_container_item(ctx, entries, index: int, source: str) -> None:
             entries, destination_entries, index,
             destination_container=destination,
             strength=_strength(ctx),
+            destination_items=_expedition_items(ctx),
         )
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
@@ -823,6 +823,7 @@ def _apply_purchase(ctx, action: str) -> None:
                 [entry], _expedition_storage(ctx), 0,
                 destination_container=ground_equipment.EXPEDITION_INVENTORY,
                 strength=_strength(ctx),
+                destination_items=_expedition_items(ctx),
             )
         else:
             raise ValueError(f"Unknown purchase destination: {_destination!r}")
@@ -836,7 +837,6 @@ def _apply_purchase(ctx, action: str) -> None:
         "BUY_EXPEDITION": "expedition pack",
     }[_destination]
     ctx.log.add(f"Bought {spec.name} into {destination_label}.")
-
 
 
 def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
