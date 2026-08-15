@@ -49,6 +49,16 @@ combat HUD shows the real pool as the denominator: `AP: 3/4.5` means
 with its flat gain (`4 + Ace Pilot + armor` bonuses); today those
 bonuses are integers so ground rounds stay whole.
 
+**Ground AP deliberately has no stat driver.** A stat feeding ground
+AP was considered and rejected: ground combat has no power economy,
+so AP is the only action currency — a stat-gated AP would make that
+stat mandatory and repeat Piloting's dominance in space, unchecked by
+any power tax. Action speed on foot comes from gear instead
+(cybernetic legs `ap_bonus`, combat stims as a temporary +1). The
+carry mechanism still supports fractional gear bonuses (e.g. a +0.5
+implant alternating 4/5 AP rounds) if the gear ladder ever wants
+them.
+
 Unspent AP is still forfeited at round end (waiting ends the turn);
 only the *fraction* carries, never banked whole AP.
 
