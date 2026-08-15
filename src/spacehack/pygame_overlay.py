@@ -143,6 +143,19 @@ def _segments(commands: Any, *, x_min: int, x_max: int, y_min: int, y_max: int) 
     return tuple(segments)
 
 
+def _captured_message_segments(
+    commands: Any, screen_width: int, screen_height: int,
+) -> tuple[OverlaySegment, ...]:
+    """Derive the bottom log band from captured console cells."""
+    return _segments(
+        commands,
+        x_min=0,
+        x_max=screen_width,
+        y_min=screen_height - MSG_LOG_HEIGHT,
+        y_max=screen_height,
+    )
+
+
 def _frame_from_commands(
     commands: Any,
     *,
@@ -150,6 +163,7 @@ def _frame_from_commands(
     screen_height: int,
     hud_view_height: int,
     hud_x_max: int | None = None,
+    messages: tuple[OverlaySegment, ...] | None = None,
     shields: tuple[ShieldBubble, ...] = (),
     floaters: tuple[FloatingText, ...] = (),
     target: TargetCard | None = None,
@@ -166,12 +180,10 @@ def _frame_from_commands(
             y_min=0,
             y_max=hud_view_height,
         ),
-        messages=_segments(
-            commands,
-            x_min=0,
-            x_max=screen_width,
-            y_min=screen_height - MSG_LOG_HEIGHT,
-            y_max=screen_height,
+        messages=(
+            messages
+            if messages is not None
+            else _captured_message_segments(commands, screen_width, screen_height)
         ),
         hud_x=hud_x,
         hud_top=0,
@@ -341,6 +353,34 @@ def _render_hud_capture(
     )
 
 
+def _message_segments(
+    ctx: GameContext,
+    screen_width: int,
+    screen_height: int,
+) -> tuple[OverlaySegment, ...]:
+    """Build the bottom log band from the raw log, without cell truncation.
+
+    ``render_message_log`` hard-cuts each line at ``screen_width`` cells,
+    but the native Pygame font is narrower than the 16px cells, so the
+    message band can fit nearly twice as many characters. Building the
+    segments from the full text lets :func:`_paint_segment` fit them to
+    the real pixel width (with an ellipsis) — matching the menu log
+    band (:func:`pygame_ui.draw_message_band`) exactly.
+    """
+    n = min(ctx.log.capacity, MSG_LOG_HEIGHT)
+    msg_y_top = screen_height - n
+    entries = ctx.log.recent(n)
+    padded: list[Any | None] = [None] * (n - len(entries)) + entries
+    segments: list[OverlaySegment] = []
+    for i, entry in enumerate(padded):
+        if entry is None or not entry.text:
+            continue
+        segments.append(
+            OverlaySegment(0, msg_y_top + i, "> " + entry.text, tuple(entry.fg)),
+        )
+    return tuple(segments)
+
+
 def capture(
     ctx: GameContext,
     *,
@@ -355,7 +395,6 @@ def capture(
     shields: tuple[ShieldBubble, ...] = (),
 ) -> OverlayFrame:
     """Capture the authoritative HUD and message log into overlay segments."""
-    from . import message_log
     from .pygame_world import CaptureConsole
 
     # The HUD console is one HUD-width wider than the window (like the
@@ -369,15 +408,12 @@ def capture(
         has_trade_terminal=has_trade_terminal, has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
     )
-    message_log.render_message_log(
-        capture_console, ctx.log,
-        screen_width=screen_width, screen_height=screen_height,
-    )
     return _frame_from_commands(
         tuple(capture_console.commands),
         screen_width=screen_width, screen_height=screen_height,
         hud_view_height=hud_view_height,
         hud_x_max=screen_width + HUD_WIDTH,
+        messages=_message_segments(ctx, screen_width, screen_height),
         shields=shields,
     )
 

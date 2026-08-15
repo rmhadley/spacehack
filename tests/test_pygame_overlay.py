@@ -84,15 +84,14 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
         console.print(x=80, y=2, string="HUD", fg=(10, 20, 30))
         console.print(x=1, y=2, string="not hud", fg=(99, 99, 99))
 
-    def fake_log(console, _log, **_kwargs):
-        console.print(x=0, y=54, string="old", fg=(40, 50, 60))
-        console.print(x=0, y=55, string="> event", fg=(70, 80, 90))
-
     monkeypatch.setattr(hud, "render_hud", fake_hud)
-    monkeypatch.setattr(message_log, "render_message_log", fake_log)
+
+    log = message_log.MessageLog(capacity=6)
+    log.add("old")
+    log.add_colored("event", (70, 80, 90))
 
     frame = pygame_overlay.capture(
-        SimpleNamespace(log=object()),
+        SimpleNamespace(log=log),
         mode="city",
         location="Earth",
         screen_width=100,
@@ -103,13 +102,43 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     assert frame.hud == (
         pygame_overlay.OverlaySegment(80, 2, "HUD", (10, 20, 30)),
     )
+    # The log band is built from the raw log (bottom-aligned rows 58-59)
+    # with the "> " prefix — no cell-width truncation.
     assert frame.messages == (
-        pygame_overlay.OverlaySegment(0, 54, "old", (40, 50, 60)),
-        pygame_overlay.OverlaySegment(0, 55, "> event", (70, 80, 90)),
+        pygame_overlay.OverlaySegment(0, 58, "> old", (255, 255, 250)),
+        pygame_overlay.OverlaySegment(0, 59, "> event", (70, 80, 90)),
     )
     assert frame.hud_x == 80
     assert frame.message_top == 54
     assert frame.message_height == 6
+
+
+def test_overlay_capture_log_band_keeps_full_text(monkeypatch):
+    """Long log lines are not pre-cut at screen_width cells.
+
+    Regression: the log band was captured through the cell console,
+    hard-cutting lines at 100 characters even though the native Pygame
+    font fits nearly twice that in the message panel. The band must
+    carry the full text; the painter fits it to real pixels.
+    """
+    from src.spacehack import hud, message_log
+
+    monkeypatch.setattr(hud, "render_hud", lambda *_a, **_k: None)
+
+    long_line = "X" * 150
+    log = message_log.MessageLog(capacity=6)
+    log.add(long_line)
+
+    frame = pygame_overlay.capture(
+        SimpleNamespace(log=log),
+        mode="city",
+        location="Earth",
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+    )
+
+    assert frame.messages[-1].text == "> " + long_line
 
 
 def test_capture_keeps_world_hud_text_past_window_width(monkeypatch):
@@ -127,10 +156,9 @@ def test_capture_keeps_world_hud_text_past_window_width(monkeypatch):
         console.print(x=80, y=2, string=line, fg=(10, 20, 30))
 
     monkeypatch.setattr(hud, "render_hud", fake_hud)
-    monkeypatch.setattr(message_log, "render_message_log", lambda *_a, **_k: None)
 
     frame = pygame_overlay.capture(
-        SimpleNamespace(log=object()),
+        SimpleNamespace(log=message_log.MessageLog(capacity=6)),
         mode="city",
         location="Earth",
         screen_width=100,

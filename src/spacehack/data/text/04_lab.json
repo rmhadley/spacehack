@@ -4,7 +4,7 @@
   "step.lab_q1_sample.description": "The reasearch team needs more data. Return to the alien console on Mars and attach the data extractor. Once it completes its diagnostics, return the device back to the labs.",
   "step.lab_q1_sample.ready_message": "The lab has a working hypothesis: the sample may correspond to older reference data preserved at Procyon C. Report to the Research Officer on Mercury; she will explain what the sample still cannot tell us.",
   "step.lab_q1_sample.title": "The Sample",
-  "step.lab_q2_delivery.completion_flavor": "The sample is unlike anything in the human catalogue, but the resonance is not random. The Research Officer begins the analysis and warns the lab not to publish a conclusion before it has earned one.",
+  "step.lab_q2_delivery.completion_flavor": "Data extraction was extremely successful. The researches have terrabytes of data to process. This may take some time.",
   "step.lab_q2_delivery.description": "The data is extracted and in your hold. Deliver it to the researchers on Mercury.",
   "step.lab_q2_delivery.dialogue.research_officer.active": "The data is in your mission hold. Hand it over and let the researchers begin deciphering it.",
   "step.lab_q2_delivery.dialogue.research_officer.intro": "You took the fragment without disturbing the seal. Good. Hand it over. If its signature matches the transmission, we may be able to ask the door to open without pretending we understand it.",
