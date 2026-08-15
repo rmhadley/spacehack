@@ -413,8 +413,11 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "follows Strength, Ironclad follows Stamina, and Systems Expert follows "
             "Engineering. Charger rewards melee kills; Demolitionist rewards "
             "explosive hits; Laser Specialist, Missileer, and Plasma Savant reward "
-            "repeated use of their weapon families. The Character screen lists the "
-            "traits you have earned and their effects."
+            "repeated use of their weapon families. Hauler, Fixer, and Hunter "
+            "reward completing 20 missions for the Merchants, Bar, or Bounty "
+            "Guild; that faction's boards then shift one tier higher, removing "
+            "T1 work where higher tiers are available. The Character screen lists "
+            "the traits you have earned and their effects."
         ),
     ),
     GuideSection(

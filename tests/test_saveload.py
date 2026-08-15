@@ -71,6 +71,9 @@ def _build_test_ctx() -> GameContext:
     ctx.ground_max_hp = 30
     ctx.player_counters.total_kills = 12
     ctx.player_counters.bounties_completed = 3
+    ctx.player_counters.merchant_missions_completed = 11
+    ctx.player_counters.bar_missions_completed = 12
+    ctx.player_counters.bounty_missions_completed = 13
     ctx.player_counters.melee_kills = 7
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
@@ -187,6 +190,9 @@ class TestSaveLoadRoundTrip:
         # Player counters
         assert loaded.player_counters.total_kills == original.player_counters.total_kills
         assert loaded.player_counters.bounties_completed == original.player_counters.bounties_completed
+        assert loaded.player_counters.merchant_missions_completed == original.player_counters.merchant_missions_completed
+        assert loaded.player_counters.bar_missions_completed == original.player_counters.bar_missions_completed
+        assert loaded.player_counters.bounty_missions_completed == original.player_counters.bounty_missions_completed
         assert loaded.player_counters.melee_kills == original.player_counters.melee_kills
 
         # Game time

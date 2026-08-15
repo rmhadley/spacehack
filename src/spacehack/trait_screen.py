@@ -35,6 +35,14 @@ def _apply_ironclad_hp(ctx: GameContext, trait_id: str) -> None:
         _state.player_max_hp = _new_max_hp
 
 
+def _refresh_faction_boards(ctx: GameContext, trait_id: str) -> None:
+    """Refill the matching faction boards when a career trait is earned."""
+    if trait_id not in {"hauler", "fixer", "hunter"}:
+        return
+    from .mission import refresh_all_boards
+    refresh_all_boards(ctx, force=True)
+
+
 def _pick_trait(ctx: GameContext, candidates: list, action: str) -> bool | None:
     """Apply a valid trait action and log the new specialization."""
     trait_id = action.split(":", 1)[1]
@@ -43,6 +51,7 @@ def _pick_trait(ctx: GameContext, candidates: list, action: str) -> bool | None:
         return None
     ctx.player_traits.append(picked.id)
     _apply_ironclad_hp(ctx, picked.id)
+    _refresh_faction_boards(ctx, picked.id)
     ctx.log.add_colored(
         f"Trait gained: {picked.name} - {picked.description}",
         message_log.COLOR_COMBAT_EVENT,

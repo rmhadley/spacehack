@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import random
 
 from src.spacehack import mission
 from src.spacehack.mission import _helpers, _models
@@ -45,6 +46,69 @@ _PUBLIC_SURFACE = (
     "_planet_npc_ids",
     "_planet_to_system",
 )
+
+
+def test_faction_trait_shifts_mission_tier_band_and_caps_at_t4():
+    """Career traits raise only their own faction's board tier band."""
+    from src.spacehack.mission import _board
+
+    assert _board._faction_tier_band(
+        SimpleNamespace(player_traits=["hauler"]), "merchants", 1,
+    ) == (2, 2)
+    assert _board._faction_tier_band(
+        SimpleNamespace(player_traits=["hauler"]), "merchants", 3,
+    ) == (2, 4)
+    assert _board._faction_tier_band(
+        SimpleNamespace(player_traits=["hauler"]), "merchants", 4,
+    ) == (2, 4)
+    assert _board._faction_tier_band(
+        SimpleNamespace(player_traits=["hauler"]), "bar", 1,
+    ) == (1, 1)
+
+
+def test_faction_trait_replaces_existing_t1_board_missions(monkeypatch):
+    """An earned career trait removes stale T1 slots and generates T2 work."""
+    from src.spacehack.mission import _board
+
+    generated = {}
+    board = mission.MissionBoard(
+        npc_id="guild_master",
+        slots=["old_t1", None],
+        max_slots=2,
+        planet_id="earth",
+    )
+    generated["old_t1"] = mission.MissionSpec(
+        id="old_t1", title="Old", description="", giver_npc_id="guild_master", tier=1,
+    )
+    seen = {}
+
+    def _generator(**kwargs):
+        seen.update(kwargs)
+        return mission.MissionSpec(
+            id=f"new_t2_{kwargs['counter']}", title="New", description="",
+            giver_npc_id="guild_master", faction="merchants", tier=2,
+        )
+
+    ctx = SimpleNamespace(
+        player_traits=["hauler"],
+        faction_reputation={},
+        generated_missions=generated,
+    )
+    monkeypatch.setattr(_board, "_board_guild", lambda _npc_id: "merchants")
+    monkeypatch.setattr(_board, "_tutorial_live", lambda _ctx: False)
+    monkeypatch.setattr(_board, "missions_offered_by", lambda *_args, **_kwargs: ())
+    monkeypatch.setattr(
+        _board, "_procedural_generators", lambda: {"merchants": _generator},
+    )
+
+    _board.fill_empty_slots(
+        board, planet_tier=1, completed_ids=frozenset(),
+        active_ids=frozenset(), planet_id="earth", generated=generated,
+        rng=random.Random(1), ctx=ctx,
+    )
+
+    assert board.slots == ["new_t2_0", "new_t2_1"]
+    assert seen["max_tier"] == 2
 
 
 def test_mission_package_preserves_compatibility_surface():
@@ -179,6 +243,39 @@ def test_release_and_abort_include_secured_intercept_cargo():
         f"Cargo released from abandoned 'Test intercept' "
         f"({owned.cargo_used}/{capacity}).",
     ]
+
+
+def test_complete_mission_records_faction_career_counter_before_xp(
+    monkeypatch,
+):
+    """Bar, merchant, and bounty progress use explicit mission factions."""
+    from src.spacehack import game_context
+    from src.spacehack.mission import _lifecycle
+
+    active = mission.ActiveMission(
+        mission_id="proc_bar_test", is_procedural=True, title="Bar job",
+    )
+    spec = mission.MissionSpec(
+        id="proc_bar_test", title="Bar job", description="", giver_npc_id="bar_owner",
+        faction="bar", mission_type="salvage", tier=2,
+    )
+    messages = []
+    ctx = SimpleNamespace(
+        generated_missions={spec.id: spec},
+        player_counters=game_context.PlayerCounters(),
+        log=SimpleNamespace(add=messages.append),
+        faction_reputation={},
+    )
+    monkeypatch.setattr(_lifecycle, "_apply_mission_rep", lambda *args, **kwargs: None)
+
+    mission.complete_mission(
+        active, None, SimpleNamespace(credits=0),
+        SimpleNamespace(add=messages.append), ctx=ctx,
+    )
+
+    assert ctx.player_counters.bar_missions_completed == 1
+    assert ctx.player_counters.merchant_missions_completed == 0
+    assert ctx.player_counters.bounty_missions_completed == 0
 
 
 def test_complete_mission_applies_early_bonus_and_releases_cargo():

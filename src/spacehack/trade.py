@@ -50,16 +50,6 @@ def trade_price(base_price: int, current_stock: int, target_stock: int) -> int:
         # Surplus zone: 1.0\u00d7 linearly down to 0.6\u00d7 at 100%.
         return max(1, int(base_price * (1.0 - (ratio - 0.5) * 0.8)))
 
-def _trait_buy_mult(ctx: GameContext) -> float:
-    """Trade Route trait: -5% buy prices."""
-    from .xp import has_trait
-    return 0.95 if has_trait(ctx, "trade_route") else 1.0
-
-def _trait_sell_mult(ctx: GameContext) -> float:
-    """Trade Route trait: +5% sell prices."""
-    from .xp import has_trait
-    return 1.05 if has_trait(ctx, "trade_route") else 1.0
-
 # ---------------------------------------------------------------------------
 # Economy seeding
 # ---------------------------------------------------------------------------
@@ -232,18 +222,18 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     current = stocks.get(good_id, 0)
     target = _target_stock_for(planet_id, good_id)
     price = trade_price(good.base_price, current, target)
-    # Apply faction rep discount + Trade Route trait discount.
+    # Apply the merchant faction reputation discount.
     from .faction import get_attitude, buy_price_modifier
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
-    _mod = buy_price_modifier(_attitude) * _trait_buy_mult(ctx)
+    _mod = buy_price_modifier(_attitude)
     return max(1, int(price * _mod))
 
 def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     """Terminal sell price for one unit of ``good_id`` on ``planet_id``.
 
     75% of the buy price, adjusted by merchant faction reputation and
-    the Trade Route trait's +5% sell bonus. Shared by the actual sale
+    the merchant faction's reputation bonus. Shared by the actual sale
     and the trade-modal display so the price shown always equals the
     credits received.
     """
@@ -252,7 +242,7 @@ def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     _merchant_rep = ctx.faction_reputation.get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
     _sell_mod = sell_price_modifier(_attitude)
-    return max(1, int(buy_price * 3 // 4 * _sell_mod * _trait_sell_mult(ctx)))
+    return max(1, int(buy_price * 3 // 4 * _sell_mod))
 
 def _free_cargo(owned) -> int:
     """Remaining cargo capacity on ``owned`` (effective max - used).
@@ -480,10 +470,10 @@ def _npc_stock_pool(npc_spec, count: int) -> dict[str, int]:
 
 
 def _npc_price_multipliers(ctx: GameContext, attitude: str) -> tuple[float, float]:
-    """Buy/sell price multipliers for an NPC trade session (rep + trait)."""
+    """Buy/sell price multipliers for an NPC trade session (reputation)."""
     from .faction import buy_price_modifier, sell_price_modifier
-    _buy = 1.2 * buy_price_modifier(attitude) * _trait_buy_mult(ctx)
-    _sell = 0.5 * sell_price_modifier(attitude) * _trait_sell_mult(ctx)
+    _buy = 1.2 * buy_price_modifier(attitude)
+    _sell = 0.5 * sell_price_modifier(attitude)
     return _buy, _sell
 
 

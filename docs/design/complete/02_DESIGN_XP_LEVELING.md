@@ -27,7 +27,9 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 | Trait | Milestone | Requires | Effect |
 |-------|-----------|----------|--------|
 | Sharpshooter | 20/30 | 40+ gunnery | +10% hit chance |
-| Trade Route | 20/30 | 10+ deliveries | -5% buy / +5% sell prices |
+| Hauler | 20/30 | 20+ merchant missions | Merchant mission tier band shifts up one (T1→T2, capped at T4) |
+| Fixer | 20/30 | 20+ Bar missions | Bar mission tier band shifts up one (T1→T2, capped at T4) |
+| Hunter | 20/30 | 20+ bounty missions | Bounty mission tier band shifts up one (T1→T2, capped at T4) |
 | Ace Pilot | 20/30 | 40+ piloting | +1 AP per turn |
 | Juggernaut | 20/30 | 30+ total kills | Take 1 less damage from each ground attack |
 | Charger | 20/30 | 40+ melee kills | Melee weapons reach current AP; charges gain +5 hit and +1 damage per tile |
@@ -102,7 +104,7 @@ This rebalance was applied alongside the XP tracking update so the new starting 
 - **`player_piloting_bonus: int = 0`** — bonus added to piloting from skill points
 - **`player_engineering_bonus: int = 0`** — bonus added to engineering from skill points
 - **`player_traits: list[str] = field(default_factory=list)`** — chosen trait IDs
-- **`player_counters: PlayerCounters = field(default_factory=PlayerCounters)`** — playstyle tracking (see below)
+- **`player_counters: PlayerCounters = field(default_factory=PlayerCounters)`** — playstyle and faction-career tracking (see below)
 
 ### PlayerCounters dataclass
 
@@ -123,7 +125,10 @@ class PlayerCounters:
     merchant_kills: int = 0
     total_kills: int = 0
     bounties_completed: int = 0
-    deliveries_completed: int = 0
+    deliveries_completed: int = 0  # legacy merchant-delivery counter
+    merchant_missions_completed: int = 0
+    bar_missions_completed: int = 0
+    bounty_missions_completed: int = 0
     total_damage_taken: int = 0
     melee_kills: int = 0
     explosive_hits: int = 0
@@ -273,12 +278,9 @@ SHARPSHOOTER = Trait(
     counters=(("gunnery", 40),),
 )
 
-TRADE_ROUTE = Trait(
-    id="trade_route",
-    name="Trade Route",
-    description="-5% buy / +5% sell prices",
-    counters=(("deliveries_completed", 10),),
-)
+HAULER = Trait("hauler", "Hauler", "Merchant boards shift one mission tier higher", (("merchant_missions_completed", 20),))
+FIXER = Trait("fixer", "Fixer", "Bar boards shift one mission tier higher", (("bar_missions_completed", 20),))
+HUNTER = Trait("hunter", "Hunter", "Bounty boards shift one mission tier higher", (("bounty_missions_completed", 20),))
 
 ACE_PILOT = Trait(
     id="ace_pilot",
@@ -311,7 +313,7 @@ MISSILEER = Trait("missileer", "Missileer", "+10% missile hit chance", (("missil
 PLASMA_SAVANT = Trait("plasma_savant", "Plasma Savant", "Plasma weapons cost 1 less AP", (("plasma_shots", 100),))
 
 ALL_TRAITS: tuple[Trait, ...] = (
-    SHARPSHOOTER, TRADE_ROUTE, ACE_PILOT, JUGGERNAUT, CHARGER,
+    SHARPSHOOTER, HAULER, FIXER, HUNTER, ACE_PILOT, JUGGERNAUT, CHARGER,
     EVASIVE, PACK_MULE, IRONCLAD, SYSTEMS_EXPERT, DEMOLITIONIST,
     LASER_SPECIALIST, MISSILEER, PLASMA_SAVANT,
 )

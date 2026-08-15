@@ -21,6 +21,33 @@ def _procedural_generators():
     }
 
 
+_GUILD_TRAITS: dict[str, str] = {
+    "merchants": "hauler",
+    "bar": "fixer",
+    "bhguild": "hunter",
+}
+
+
+def _board_guild(npc_id: str) -> str:
+    """Resolve the faction guild for a mission board NPC."""
+    try:
+        from ..data.npcs import find_npc
+        return find_npc(npc_id).guild
+    except KeyError:
+        return ""
+
+
+def _faction_tier_band(ctx, guild: str, planet_tier: int) -> tuple[int, int]:
+    """Return the mission tier band available to one faction board."""
+    _base_max = max(1, min(4, planet_tier))
+    _trait_id = _GUILD_TRAITS.get(guild)
+    if _trait_id:
+        from ..xp import has_trait
+        if has_trait(ctx, _trait_id):
+            return 2, min(4, _base_max + 1)
+    return 1, _base_max
+
+
 def ensure_board(
     ctx, npc_id: str, max_slots: int = 5, planet_id: str = "",
 ) -> MissionBoard:
@@ -80,6 +107,126 @@ def _tutorial_live(ctx) -> bool:
     return bool(ctx is not None and _tutorial_active(ctx))
 
 
+def _evict_unavailable_slots(
+    board: MissionBoard,
+    completed_ids: frozenset[str],
+    active_ids: frozenset[str],
+    generated: dict[str, MissionSpec],
+    min_tier: int,
+    max_tier: int,
+) -> None:
+    """Remove completed, active, or out-of-band missions from a board."""
+    for i, _sid in enumerate(board.slots):
+        if _sid is None:
+            continue
+        if _sid in completed_ids or _sid in active_ids:
+            board.slots[i] = None
+            continue
+        try:
+            _spec = find_mission(_sid)
+        except KeyError:
+            _spec = generated.get(_sid)
+        if _spec is not None and not min_tier <= _spec.tier <= max_tier:
+            board.slots[i] = None
+
+
+def _fill_static_slots(board: MissionBoard, available_ids: list[str]) -> None:
+    """Place shuffled static mission IDs into empty board slots."""
+    _existing = {slot for slot in board.slots if slot is not None}
+    for i, slot in enumerate(board.slots):
+        if slot is not None:
+            continue
+        for _mid in available_ids:
+            if _mid not in _existing:
+                board.slots[i] = _mid
+                _existing.add(_mid)
+                break
+
+
+def _available_static_ids(
+    board: MissionBoard,
+    max_tier: int,
+    min_tier: int,
+    completed_ids: frozenset[str],
+    active_ids: frozenset[str],
+    planet_id: str,
+    ctx,
+) -> list[str]:
+    """Return static mission IDs allowed by the active tier band."""
+    available = missions_offered_by(
+        board.npc_id, planet_tier=max_tier, min_tier=min_tier,
+        completed_ids=completed_ids, active_ids=active_ids, planet_id=planet_id,
+    )
+    if _tutorial_live(ctx):
+        from ..tutorial import TUTORIAL_MISSION_IDS as _tutorial_ids
+        available = [mission for mission in available if mission.id in _tutorial_ids]
+    return [mission.id for mission in available]
+
+
+def _generate_eligible_procedural(
+    generator,
+    planet_id: str,
+    max_tier: int,
+    min_tier: int,
+    rng: random.Random,
+    counter: int,
+    giver_npc_id: str,
+) -> MissionSpec | None:
+    """Generate a procedural mission inside the shifted tier band."""
+    for _attempt in range(32):
+        _proc = generator(
+            origin_planet_id=planet_id,
+            max_tier=max_tier,
+            rng=rng,
+            counter=counter,
+            giver_npc_id=giver_npc_id,
+        )
+        if _proc is None or _proc.tier >= min_tier:
+            return _proc
+    return None
+
+
+def _faction_pay_pct(ctx, guild: str) -> int:
+    """Return the current reputation reward adjustment for a guild."""
+    if ctx is None:
+        return 0
+    from ..faction import guild_to_faction, adjust_reward_pct, get_attitude
+    _faction = guild_to_faction(guild)
+    _rep = ctx.faction_reputation.get(_faction, 0)
+    return adjust_reward_pct(get_attitude(_rep))
+
+
+def _fill_procedural_slots(
+    board: MissionBoard,
+    generator,
+    planet_id: str,
+    min_tier: int,
+    max_tier: int,
+    rng: random.Random,
+    generated: dict[str, MissionSpec],
+    pay_pct: int,
+) -> None:
+    """Fill remaining slots with eligible procedural missions."""
+    _counter = 0
+    for i, slot in enumerate(board.slots):
+        if slot is not None:
+            continue
+        _proc = _generate_eligible_procedural(
+            generator, planet_id, max_tier, min_tier, rng, _counter,
+            board.npc_id,
+        )
+        if _proc is None:
+            continue
+        if pay_pct:
+            _proc = dataclasses.replace(
+                _proc,
+                reward_credits=max(1, _proc.reward_credits * (100 + pay_pct) // 100),
+            )
+        generated[_proc.id] = _proc
+        board.slots[i] = _proc.id
+        _counter += 1
+
+
 def fill_empty_slots(
     board: MissionBoard,
     planet_tier: int,
@@ -91,110 +238,31 @@ def fill_empty_slots(
     rng: random.Random | None = None,
     ctx = None,
 ) -> None:
-    """Fill empty (None) slots on ``board`` with available missions.
-
-    First evicts any slot whose ID is in ``completed_ids`` or
-    ``active_ids`` (stale slots from completed/accepted missions).
-    Then fills the resulting empties with static missions first,
-    using :func:`missions_offered_by` for the pool. Remaining empty
-    slots are filled with procedurally-generated delivery missions.
-
-    Generated missions are stored in ``generated`` (typically
-    ``ctx.generated_missions``) so :func:`board_offerings` can
-    resolve them later.
-    """
+    """Fill empty slots with static and faction-appropriate work."""
     if generated is None:
         generated = {}
     if rng is None:
         from ..engine import RNG
         rng = RNG
-
-    # Evict completed/active missions from board slots.
-    for i in range(len(board.slots)):
-        _sid = board.slots[i]
-        if _sid is not None and (_sid in completed_ids or _sid in active_ids):
-            board.slots[i] = None
-
-    available = missions_offered_by(
-        board.npc_id,
-        planet_tier=planet_tier,
-        completed_ids=completed_ids,
-        active_ids=active_ids,
-        planet_id=planet_id,
+    _guild = _board_guild(board.npc_id)
+    _min_tier, _max_tier = _faction_tier_band(ctx, _guild, planet_tier)
+    _evict_unavailable_slots(
+        board, completed_ids, active_ids, generated, _min_tier, _max_tier,
     )
-    # Tutorial mode (design doc 14): while the scripted tutorial flow is
-    # live only the tutorial's single contract is offered, and procedural
-    # generation is suppressed below so the guided first run isn't
-    # flooded with extra work.
-    if _tutorial_live(ctx):
-        from ..tutorial import TUTORIAL_MISSION_IDS as _tutorial_ids
-        available = [_m for _m in available if _m.id in _tutorial_ids]
-    available_ids = [m.id for m in available]
-    rng.shuffle(available_ids)
-    # Track which IDs are already on the board to avoid duplicates.
-    existing = set(s for s in board.slots if s is not None)
-    for i in range(len(board.slots)):
-        if board.slots[i] is None and available_ids:
-            for mid in available_ids:
-                if mid not in existing:
-                    board.slots[i] = mid
-                    existing.add(mid)
-                    break
-
-    # Tutorial mode: never generate procedural missions (the guided run
-    # teaches one contract at a time). Static whitelist fill above is all
-    # the tutorial board shows.
+    _available_ids = _available_static_ids(
+        board, _max_tier, _min_tier, completed_ids, active_ids, planet_id, ctx,
+    )
+    rng.shuffle(_available_ids)
+    _fill_static_slots(board, _available_ids)
     if _tutorial_live(ctx):
         return
-
-    # Resolve guild for procedural generation dispatch.
-    _guild = ""
-    try:
-        from ..data.npcs import find_npc as _fnpc
-        _guild = _fnpc(board.npc_id).guild
-    except KeyError:
-        pass
-
-    # Table-driven dispatch: guild → procedural generator function.
-    _generator_fn = _procedural_generators().get(_guild)
-    if _generator_fn is None:
-        return  # no procedural missions for this guild
-
-    # --- Faction reputation: pay scaling only (never gates access) ---
-    # Every guild offers missions at any reputation; standing only
-    # adjusts pay (disliked -15%, liked +10%, allied +20%). The hard
-    # gates (enemy refusal, tier cuts) were removed by design.
-    _pay_pct = 0
-    if ctx is not None:
-        from ..faction import guild_to_faction, adjust_reward_pct, get_attitude
-        _board_faction = guild_to_faction(_guild)
-        _board_rep = ctx.faction_reputation.get(_board_faction, 0)
-        _board_attitude = get_attitude(_board_rep)
-        _pay_pct = adjust_reward_pct(_board_attitude)
-
-    # Fill remaining empty slots with procedural missions.
-    _proc_counter = 0
-    for i in range(len(board.slots)):
-        if board.slots[i] is not None:
-            continue
-        _proc = _generator_fn(
-            origin_planet_id=planet_id,
-            max_tier=planet_tier,
-            rng=rng,
-            counter=_proc_counter,
-            giver_npc_id=board.npc_id,
-        )
-        if _proc is not None:
-            # Apply faction attitude pay scaling (never blocks the mission).
-            if _pay_pct != 0:
-                _proc = dataclasses.replace(
-                    _proc,
-                    reward_credits=max(1, _proc.reward_credits * (100 + _pay_pct) // 100),
-                )
-            generated[_proc.id] = _proc
-            board.slots[i] = _proc.id
-            existing.add(_proc.id)
-            _proc_counter += 1
+    _generator = _procedural_generators().get(_guild)
+    if _generator is None:
+        return
+    _fill_procedural_slots(
+        board, _generator, planet_id, _min_tier, _max_tier, rng, generated,
+        _faction_pay_pct(ctx, _guild),
+    )
 
 
 def board_remove(board: MissionBoard, mission_id: str) -> None:
@@ -221,7 +289,7 @@ def board_return_static(board: MissionBoard, mission_id: str) -> None:
     board.slots[-1] = mission_id
 
 
-def refresh_all_boards(ctx) -> None:
+def refresh_all_boards(ctx, *, force: bool = False) -> None:
     """Called on month rollover. Fills empty slots on all boards.
 
     Uses each board's stored ``planet_id`` to compute tier filtering.
@@ -233,9 +301,8 @@ def refresh_all_boards(ctx) -> None:
     completed_ids = frozenset(ctx.completed_mission_ids)
 
     for board in ctx.mission_boards.values():
-        if board.last_refresh_month == ctx.time_month:
+        if not force and board.last_refresh_month == ctx.time_month:
             continue
-        # Resolve planet tier from stored planet_id.
         _tier = 1
         if board.planet_id:
             try:

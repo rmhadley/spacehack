@@ -95,6 +95,9 @@ class TestTraitQualification:
             ),
             player_counters=SimpleNamespace(
                 deliveries_completed=0,
+                merchant_missions_completed=0,
+                bar_missions_completed=0,
+                bounty_missions_completed=0,
                 total_kills=total_kills,
                 melee_kills=0,
                 explosive_hits=0,
@@ -144,6 +147,25 @@ class TestTraitQualification:
         assert ground_damage_reduction(
             SimpleNamespace(player_traits=[]),
         ) == 0
+
+    def test_faction_career_traits_require_20_missions_for_their_faction(self):
+        _ctx = self._ctx()
+        _ctx.player_counters.merchant_missions_completed = 20
+        _ctx.player_counters.bar_missions_completed = 20
+        _ctx.player_counters.bounty_missions_completed = 20
+
+        _ids = {trait.id for trait in _qualifying_traits(_ctx)}
+
+        assert {"hauler", "fixer", "hunter"} <= _ids
+
+    def test_faction_career_traits_do_not_use_legacy_counters(self):
+        _ctx = self._ctx()
+        _ctx.player_counters.deliveries_completed = 20
+        _ctx.player_counters.bounties_completed = 20
+
+        _ids = {trait.id for trait in _qualifying_traits(_ctx)}
+
+        assert not {"hauler", "fixer", "hunter"} & _ids
 
     def test_specialization_requirements_use_their_focus_counters(self):
         _ctx = self._ctx()

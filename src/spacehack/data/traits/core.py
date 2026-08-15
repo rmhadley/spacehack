@@ -45,11 +45,25 @@ SHARPSHOOTER = Trait(
     counters=(("gunnery", 40),),
 )
 
-TRADE_ROUTE = Trait(
-    id="trade_route",
-    name="Trade Route",
-    description="-5% buy / +5% sell prices",
-    counters=(("deliveries_completed", 10),),
+HAULER = Trait(
+    id="hauler",
+    name="Hauler",
+    description="Merchant boards shift one mission tier higher (T1 missions are removed)",
+    counters=(("merchant_missions_completed", 20),),
+)
+
+FIXER = Trait(
+    id="fixer",
+    name="Fixer",
+    description="Bar boards shift one mission tier higher (T1 missions are removed)",
+    counters=(("bar_missions_completed", 20),),
+)
+
+HUNTER = Trait(
+    id="hunter",
+    name="Hunter",
+    description="Bounty boards shift one mission tier higher (T1 missions are removed)",
+    counters=(("bounty_missions_completed", 20),),
 )
 
 ACE_PILOT = Trait(
@@ -131,7 +145,9 @@ PLASMA_SAVANT = Trait(
 
 ALL_TRAITS: tuple[Trait, ...] = (
     SHARPSHOOTER,
-    TRADE_ROUTE,
+    HAULER,
+    FIXER,
+    HUNTER,
     ACE_PILOT,
     JUGGERNAUT,
     CHARGER,

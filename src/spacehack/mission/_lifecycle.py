@@ -6,49 +6,40 @@ from ..data.missions import MissionSpec, find_mission
 from ._models import ActiveMission, MAX_ACTIVE_MISSIONS
 
 
+def _cargo_accept_error(mission: MissionSpec, owned_ship: object, log: object) -> bool:
+    """Return whether cargo prevents accepting ``mission``."""
+    if mission.required_cargo_size <= 0:
+        return False
+    if owned_ship is None:
+        log.add("You don't have a ship to carry cargo yet.")
+        return True
+    ship_obj = ship.find_ship(owned_ship.ship_id)
+    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
+    new_used = owned_ship.cargo_used + mission.required_cargo_size
+    if new_used <= _eff_cap:
+        return False
+    short = new_used - _eff_cap
+    log.add(
+        f"Your {ship_obj.name} can't carry '{mission.title}' - "
+        f"{short} cargo unit(s) over capacity ({owned_ship.cargo_used}/{_eff_cap})."
+    )
+    return True
+
+
 def try_accept_mission(
     mission: MissionSpec,
     owned_ship: object,
     log: object,
     active_count: int = 0,
 ) -> bool:
-    """Accept ``mission`` if the player has room and cargo capacity.
-
-    Checks:
-      1. ``active_count < MAX_ACTIVE_MISSIONS`` (slots check).
-      2. If the mission has cargo, the owned ship must exist and have
-         enough free capacity.
-
-    Returns ``True`` if the mission can be accepted. Does NOT mutate
-    state — the caller is responsible for creating the
-    :class:`ActiveMission` and adding it to the list.
-    """
+    """Accept ``mission`` if the player has room and cargo capacity."""
     if active_count >= MAX_ACTIVE_MISSIONS:
         log.add(
             f"Your mission log is full ({MAX_ACTIVE_MISSIONS}/{MAX_ACTIVE_MISSIONS}). "
             "Abandon one first (Q)."
         )
         return False
-
-    if mission.required_cargo_size <= 0:
-        return True
-
-    if owned_ship is None:
-        log.add("You don't have a ship to carry cargo yet.")
-        return False
-
-    ship_obj = ship.find_ship(owned_ship.ship_id)
-    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
-    new_used = owned_ship.cargo_used + mission.required_cargo_size
-    if new_used > _eff_cap:
-        short = new_used - _eff_cap
-        log.add(
-            f"Your {ship_obj.name} can't carry '{mission.title}' - "
-            f"{short} cargo unit(s) over capacity ({owned_ship.cargo_used}"
-            f"/{_eff_cap})."
-        )
-        return False
-    return True
+    return not _cargo_accept_error(mission, owned_ship, log)
 
 
 def commit_accept_mission(
@@ -136,6 +127,76 @@ def abort_mission(
     )
 
 
+def _mission_spec_for(active: ActiveMission, ctx):
+    """Resolve a completed mission to its static or generated spec."""
+    try:
+        if active.is_procedural:
+            return ctx.generated_missions.get(active.mission_id)
+        return find_mission(active.mission_id)
+    except (KeyError, AttributeError):
+        return None
+
+
+def _record_faction_mission(ctx, active: ActiveMission) -> None:
+    """Increment explicit faction-career counters before awarding XP."""
+    if not hasattr(ctx, "player_counters"):
+        return
+    _spec = _mission_spec_for(active, ctx)
+    if _spec is None:
+        return
+    _faction = getattr(_spec, "faction", "")
+    _counter = ctx.player_counters
+    if _faction == "merchants":
+        _counter.merchant_missions_completed += 1
+        # Preserve the legacy delivery counter for existing saves/UI.
+        if getattr(_spec, "mission_type", "") == "delivery":
+            _counter.deliveries_completed += 1
+    elif _faction == "bar":
+        _counter.bar_missions_completed += 1
+    elif _faction in {"bhguild", "bounty"}:
+        _counter.bounty_missions_completed += 1
+        # Preserve the legacy bounty counter for existing saves/UI.
+        _counter.bounties_completed += 1
+
+
+def _payout(active: ActiveMission, current_day: int) -> tuple[int, int, str]:
+    """Return adjusted ``(credits, xp, bonus_message)`` for a completion."""
+    credits = active.reward_credits
+    xp = active.reward_xp
+    if active.deadline_days <= 0 or active.accept_day <= 0 or current_day <= 0:
+        return credits, xp, ""
+    elapsed = current_day - active.accept_day
+    if elapsed < active.deadline_days // 2 and active.early_bonus_pct > 0:
+        bonus = credits * active.early_bonus_pct // 100
+        return credits + bonus, xp, f" Early delivery bonus: +{bonus}$."
+    if elapsed > active.deadline_days:
+        return credits // 2, 0, " Late delivery - half pay."
+    return credits, xp, ""
+
+
+def _log_payout(active, owned_ship, stats, log, credits, xp, bonus_msg) -> None:
+    """Apply credits and log the completion summary."""
+    if hasattr(stats, "credits"):
+        stats.credits += credits
+    ship_obj = ship.find_ship(owned_ship.ship_id) if owned_ship is not None else None
+    cargo_after = (
+        f"{owned_ship.cargo_used}/{ship.effective_max_cargo(ship_obj, owned_ship)}"
+        if ship_obj is not None else "no ship"
+    )
+    log.add(
+        f"Delivered: {active.title}. +{credits}$ +{xp}xp. "
+        f"({cargo_after} cargo.){bonus_msg}"
+    )
+
+
+def _is_early_completion(active: ActiveMission, current_day: int) -> bool:
+    """Return whether a mission qualifies for its early-completion bonus."""
+    return (
+        active.deadline_days > 0 and active.accept_day > 0 and current_day > 0
+        and current_day - active.accept_day < active.deadline_days // 2
+    )
+
+
 def complete_mission(
     active: ActiveMission,
     owned_ship: object,
@@ -144,75 +205,38 @@ def complete_mission(
     current_day: int = 0,
     ctx = None,
 ) -> None:
-    """Complete ``active``: drop cargo, grant reward (with early/late
-    modifiers), apply faction rep changes, and log the payout.
-
-    Does NOT remove ``active`` from the mission list or add to
-    ``completed_mission_ids`` — the caller owns that bookkeeping.
-
-    ``ctx`` is optional for backward compatibility — rep changes
-    are skipped when ctx is None (legacy callers, tests).
-    """
-    # Drop cargo (delivery reservation + secured intercept cargo).
+    """Complete ``active`` and apply its reward, progress, and reputation."""
     release_mission_cargo(active, owned_ship)
-
-    # Compute reward with early/late modifiers.
-    credits = active.reward_credits
-    xp = active.reward_xp
-    bonus_msg = ""
-
-    if active.deadline_days > 0 and active.accept_day > 0 and current_day > 0:
-        elapsed = current_day - active.accept_day
-        half_deadline = active.deadline_days // 2
-        if elapsed < half_deadline:
-            # Early bonus: +early_bonus_pct% credits.
-            if active.early_bonus_pct > 0:
-                bonus = credits * active.early_bonus_pct // 100
-                credits += bonus
-                bonus_msg = f" Early delivery bonus: +{bonus}$."
-        elif elapsed > active.deadline_days:
-            # Late penalty: half credits, no XP.
-            credits = credits // 2
-            xp = 0
-            bonus_msg = " Late delivery - half pay."
-
-    if hasattr(stats, "credits"):
-        stats.credits = stats.credits + credits
-
-    ship_obj = (
-        ship.find_ship(owned_ship.ship_id)
-        if owned_ship is not None
-        else None
-    )
-    cargo_after = (
-        f"{owned_ship.cargo_used}/{ship.effective_max_cargo(ship_obj, owned_ship)}"
-        if ship_obj is not None
-        else "no ship"
-    )
-    log.add(
-        f"Delivered: {active.title}. +{credits}$ "
-        f"+{xp}xp. ({cargo_after} cargo.){bonus_msg}"
-    )
-
-    # --- XP gain ---
-    if ctx is not None and xp > 0:
-        from ..xp import add_xp
-        add_xp(ctx, xp)
-        # Increment delivery/bounty counters.
-        if hasattr(ctx, 'player_counters'):
-            _mtype = getattr(active, 'mission_id', '')
-            if 'delivery' in _mtype.lower() or 'proc_delivery' in _mtype.lower():
-                ctx.player_counters.deliveries_completed += 1
-            elif 'bounty' in _mtype.lower() or 'proc_bounty' in _mtype.lower():
-                ctx.player_counters.bounties_completed += 1
-
-    # --- Faction reputation changes ---
+    credits, xp, bonus_msg = _payout(active, current_day)
+    _log_payout(active, owned_ship, stats, log, credits, xp, bonus_msg)
     if ctx is not None:
-        _apply_mission_rep(active, ctx, is_early=bool(
-            active.deadline_days > 0 and active.accept_day > 0
-            and current_day > 0
-            and (current_day - active.accept_day) < active.deadline_days // 2
-        ))
+        _record_faction_mission(ctx, active)
+        if xp > 0:
+            from ..xp import add_xp
+            add_xp(ctx, xp)
+        _apply_mission_rep(
+            active, ctx, is_early=_is_early_completion(active, current_day),
+        )
+
+
+def _mission_type_for(active: ActiveMission, ctx) -> str | None:
+    """Resolve the static or generated mission type for reputation."""
+    try:
+        _spec = (
+            ctx.generated_missions.get(active.mission_id)
+            if active.is_procedural else find_mission(active.mission_id)
+        )
+        return getattr(_spec, "mission_type", None)
+    except (KeyError, AttributeError):
+        return None
+
+
+def _apply_rep_delta(ctx, faction: str, delta: int, is_early: bool) -> None:
+    """Apply one mission reputation delta, including the early bonus."""
+    from ..faction import modify_rep
+    if is_early and delta > 0:
+        delta += (delta + 1) // 2
+    modify_rep(ctx, faction, delta)
 
 
 def _apply_mission_rep(
@@ -221,39 +245,14 @@ def _apply_mission_rep(
     *,
     is_early: bool = False,
 ) -> None:
-    """Apply faction reputation changes for completing ``active``.
-
-    Looks up the mission type from the static catalog or generated
-    missions, then applies the per-faction deltas from
-    :data:`faction._MISSION_REP_DELTAS`.  If ``is_early`` is True,
-    positive deltas get a +50% bonus (rounded up). Negative deltas
-    are never boosted.
-    """
-    from ..faction import modify_rep, _MISSION_REP_DELTAS
-
-    # Resolve mission type from spec.
-    mission_type: str | None = None
-    try:
-        if active.is_procedural:
-            gen = ctx.generated_missions.get(active.mission_id)
-            if gen is not None:
-                mission_type = gen.mission_type
-        else:
-            spec = find_mission(active.mission_id)
-            mission_type = spec.mission_type
-    except (KeyError, AttributeError):
-        pass
-
+    """Apply the mission type's faction reputation changes."""
+    from ..faction import _MISSION_REP_DELTAS
+    mission_type = _mission_type_for(active, ctx)
     if mission_type is None:
         return
-
     deltas = _MISSION_REP_DELTAS.get(mission_type)
     if deltas is None:
         return
-
     for faction, delta in deltas.items():
-        if is_early and delta > 0:
-            bonus = (delta + 1) // 2   # ceil division = 50% rounded up
-            delta = delta + bonus
-        modify_rep(ctx, faction, delta)
+        _apply_rep_delta(ctx, faction, delta, is_early)
 

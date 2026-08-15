@@ -100,6 +100,10 @@ class PlayerCounters:
     total_kills: int = 0
     bounties_completed: int = 0
     deliveries_completed: int = 0
+    # Faction-career counters used by Hauler, Fixer, and Hunter.
+    merchant_missions_completed: int = 0
+    bar_missions_completed: int = 0
+    bounty_missions_completed: int = 0
     total_damage_taken: int = 0
     melee_kills: int = 0
     explosive_hits: int = 0
