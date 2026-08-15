@@ -1,8 +1,8 @@
 {
   "runtime.chain_lockin_log": "You've agreed to work with the {faction} - the plan is in motion.",
   "runtime.chip_fragment_log": "You chip a fragment of the alien material off the door's surface. The seal holds.",
-  "runtime.door_ambush_body": "Raiders pour out of the shadows around the sealed door - they were watching the dig site, waiting for someone to come back for the sample. They want it.",
-  "runtime.door_ambush_faction": "Pirate Raiders",
+  "runtime.door_ambush_body": "Raiders pour out of the shadows around the sealed door. They must have followed you here the first time.\n\nThey see the data extractor in your hand. They want it.",
+  "runtime.door_ambush_faction": "Pirates",
   "runtime.door_ambush_title": "AMBUSH!",
   "runtime.door_discover_body": "The martian rock merges with high tech metal machinery.\nYou see a wall that undulates before you as you examine it.\nAn alien console stands before it, still with power.\nBut a mystery you can't solve alone.",
   "runtime.door_discover_highlight": "The console just hums and ignores your input.",
