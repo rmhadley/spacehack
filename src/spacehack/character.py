@@ -27,8 +27,8 @@ from .data.pilot_skills import GroundStats as _GroundStats
 # tunable defaults live close to the formula.
 #
 # A fresh character starts as a "nobody" on the 0-100 scale: the
-# level cap (30) x 9 skill points per level = 261 points, which lets
-# a dedicated L30 specialist max out 3 of the 6 stats. Starting at
+# level cap (60) x 5 skill points per level = 295 points, which lets
+# a dedicated L60 specialist max out 3 of the 6 stats. Starting at
 # base 10 keeps the growth arc long and makes species/class bonuses
 # (flagship +12) land as 2.5-3x the base.
 PILOT_SKILL_BASE = 10

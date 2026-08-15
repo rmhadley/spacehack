@@ -1,7 +1,8 @@
 """Trait catalog — frozen dataclass + registry.
 
-Each trait is earned at level 20 or 30 (shared pool) if the player's
-counters and/or skill values meet its requirements.
+Each trait is earned at level 40 or 50 (shared pool) if the player's
+counters and/or skill values meet its requirements. Level 60 is
+reserved for a future capstone specialization.
 
 Design doc: ``docs/design/in_progress/02_DESIGN_XP_LEVELING.md``
 """
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Trait:
-    """One player trait — earned at level 20 or 30 if requirements met.
+    """One player trait — earned at level 40 or 50 if requirements met.
 
     ``counters`` is a tuple of ``(field_name, min_value)`` pairs.
     For ship skill fields (gunnery/piloting/engineering) the check reads
@@ -34,7 +35,7 @@ class Trait:
 
 
 # ---------------------------------------------------------------------------
-# Registry — shared pool for both level 20 and 30 milestones.
+# Registry — shared pool for both level 40 and 50 milestones.
 # Traits reward both focused skill investment and repeated playstyle choices.
 
 

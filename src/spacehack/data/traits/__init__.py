@@ -1,4 +1,4 @@
-"""Trait catalog — player traits earned at level 20 and 30."""
+"""Trait catalog — player traits earned at level 40 and 50."""
 
 from .core import Trait, ALL_TRAITS, find_trait
 

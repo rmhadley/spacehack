@@ -609,7 +609,7 @@ def _xp_hud_line(
     _base = f"LV {player_level:>2} ["
     if points > 0:
         # Shrink the bar so the full "+N PTS" suffix always fits within
-        # HUD_TEXT_MAX, even for 2-3 digit point counts (9/level adds up).
+        # HUD_TEXT_MAX, even for 2-3 digit point counts (5/level adds up).
         _suffix = f" +{points} PTS"
         _bar_width = max(1, HUD_TEXT_MAX - len(_base) - len("]") - len(_suffix))
         _bar = _render_xp_bar(xp_into, xp_needed, width=_bar_width)

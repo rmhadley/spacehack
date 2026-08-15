@@ -410,12 +410,12 @@ skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
 - [x] Skill points shared between ship skills and ground stats — one pool, player chooses
 - [x] HUD shows REF/STR/STA on a second line below GUN/PIL/ENG in both city and space mode
 - [x] All 4 render_hud call sites pass `ctx` (refactored to prevent future missed-site bugs)
-- [x] Max player level enforced at 30 (`MAX_PLAYER_LEVEL = 30` in `xp.py`)
+- [x] Max player level enforced at 60 (`MAX_PLAYER_LEVEL = 60` in `xp.py`)
 - [x] Dev mode Shift+X hotkey awards 200 XP (gated behind `SPACEHACK_DEV` env var)
 
 #### Step 4e: Game guide
 
-- [x] `_GUIDE_CHARACTER` section updated to mention all six skills and max level 30
+- [x] `_GUIDE_CHARACTER` section updated to mention all six skills and max level 60
 - [x] `_GUIDE_GROUND_GEAR` section in `help.py` — armory terminal, weapons, armor, buy/sell
 
 #### Bugfixes discovered during playtest
@@ -438,7 +438,7 @@ skills, dev mode XP hotkey (Shift+X), and max level enforcement at 30.
 - [x] HUD shows `REF:11 STR:13 STA:10` below `GUN:30 PIL:30 ENG:30` in both city and space
 - [x] Shift+X in dev mode awards 200 XP
 - [x] Save/continue → ground stats preserved
-- [x] Guide section explains all six skills + max level 30
+- [x] Guide section explains all six skills + max level 60
 
 ---
 

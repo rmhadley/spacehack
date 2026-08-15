@@ -1,8 +1,9 @@
-"""Trait selection modal — shown at level 20 and 30 milestones.
+"""Trait selection modal — shown at level 40 and 50 milestones.
 
 Opened by :func:`spacehack.xp.add_xp` when the player reaches a
 milestone.  Presents all qualifying traits (filtered by counters
 and not-already-chosen) and lets the player pick one with ENTER.
+Level 60 is reserved for a future capstone specialization.
 
 Design doc: ``docs/design/in_progress/02_DESIGN_XP_LEVELING.md``
 """

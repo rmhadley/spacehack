@@ -1,7 +1,7 @@
 """Tests for xp.py — XP curve formulas.
 
-xp_for_level and _xp_to_next produce 30 threshold values. A single
-off-by-one in the loop body shifts every level from 2–30, which is
+xp_for_level and _xp_to_next produce 60 threshold values. A single
+off-by-one in the loop body shifts every level from 2–60, which is
 completely invisible to manual playtesting.
 """
 
@@ -14,8 +14,11 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.xp import (
+    MAX_PLAYER_LEVEL,
+    SKILL_POINTS_PER_LEVEL,
     _qualifying_traits,
     _xp_to_next,
+    add_xp,
     demolitionist_splash_bonus,
     ground_damage_reduction,
     ground_evade_bonus,
@@ -30,38 +33,70 @@ from src.spacehack.xp import (
 
 
 # Design doc table (docs/design/complete/02_DESIGN_XP_LEVELING.md).
-# Cumulative XP to reach each level.
+# Cumulative XP to reach each level. Curve: level k costs 40 + 25*k
+# (level 2 = 90, unchanged from the old curve so the tutorial top-up
+# to level 2 still lands the same).
 _CUMULATIVE_XP: dict[int, int] = {
     1: 0,
     2: 90,
-    3: 200,
-    4: 330,
-    5: 480,
-    6: 650,
-    7: 840,
-    8: 1050,
-    9: 1280,
-    10: 1530,
-    11: 1800,
-    12: 2090,
-    13: 2400,
-    14: 2730,
-    15: 3080,
-    16: 3450,
-    17: 3840,
-    18: 4250,
-    19: 4680,
-    20: 5130,
-    21: 5600,
-    22: 6090,
-    23: 6600,
-    24: 7130,
-    25: 7680,
-    26: 8250,
-    27: 8840,
-    28: 9450,
-    29: 10080,
-    30: 10730,
+    3: 205,
+    4: 345,
+    5: 510,
+    6: 700,
+    7: 915,
+    8: 1155,
+    9: 1420,
+    10: 1710,
+    11: 2025,
+    12: 2365,
+    13: 2730,
+    14: 3120,
+    15: 3535,
+    16: 3975,
+    17: 4440,
+    18: 4930,
+    19: 5445,
+    20: 5985,
+    21: 6550,
+    22: 7140,
+    23: 7755,
+    24: 8395,
+    25: 9060,
+    26: 9750,
+    27: 10465,
+    28: 11205,
+    29: 11970,
+    30: 12760,
+    31: 13575,
+    32: 14415,
+    33: 15280,
+    34: 16170,
+    35: 17085,
+    36: 18025,
+    37: 18990,
+    38: 19980,
+    39: 20995,
+    40: 22035,
+    41: 23100,
+    42: 24190,
+    43: 25305,
+    44: 26445,
+    45: 27610,
+    46: 28800,
+    47: 30015,
+    48: 31255,
+    49: 32520,
+    50: 33810,
+    51: 35125,
+    52: 36465,
+    53: 37830,
+    54: 39220,
+    55: 40635,
+    56: 42075,
+    57: 43540,
+    58: 45030,
+    59: 46545,
+    60: 48085,
 }
 
 
@@ -81,7 +116,7 @@ class TestXpForLevel:
     def test_monotonic(self):
         """Each level costs more than the last."""
         prev = 0
-        for level in range(2, 31):
+        for level in range(2, 61):
             cur = xp_for_level(level)
             assert cur > prev, f"Level {level}: {cur} <= {prev}"
             prev = cur
@@ -202,29 +237,86 @@ class TestTraitQualification:
 
 
 class TestXpToNext:
-    """Per-level cost: 50 + (level + 1) * 20."""
+    """Per-level cost: 40 + (level + 1) * 25."""
 
     def test_level_1_to_2(self):
-        """50 + (1+1)*20 = 90."""
+        """40 + 2*25 = 90 (unchanged from the old curve — tutorial top-up safe)."""
         assert _xp_to_next(1) == 90
 
     def test_level_5_to_6(self):
-        """50 + (5+1)*20 = 170."""
-        assert _xp_to_next(5) == 170
+        """40 + 6*25 = 190."""
+        assert _xp_to_next(5) == 190
 
     def test_level_20_to_21(self):
-        """50 + (20+1)*20 = 470."""
-        assert _xp_to_next(20) == 470
+        """40 + 21*25 = 565."""
+        assert _xp_to_next(20) == 565
 
     def test_level_29_to_30(self):
-        """50 + (29+1)*20 = 650."""
-        assert _xp_to_next(29) == 650
+        """40 + 30*25 = 790."""
+        assert _xp_to_next(29) == 790
+
+    def test_level_59_to_60(self):
+        """40 + 60*25 = 1540 — the final rung to cap."""
+        assert _xp_to_next(59) == 1540
 
     def test_sum_matches_cumulative(self):
         """Sum of _xp_to_next(1) through _xp_to_next(n-1) equals xp_for_level(n)."""
-        for level in range(2, 31):
+        for level in range(2, 61):
             total = sum(_xp_to_next(l) for l in range(1, level))
             assert total == xp_for_level(level), (
                 f"Level {level}: sum of costs = {total}, "
                 f"xp_for_level = {xp_for_level(level)}"
             )
+
+
+class TestAddXp:
+    """Level-up grants and trait milestone triggers."""
+
+    def _ctx(self):
+        return SimpleNamespace(
+            player_xp=0,
+            player_level=1,
+            player_skill_points=0,
+            log=SimpleNamespace(add_colored=lambda *_a, **_k: None),
+        )
+
+    def test_level_cap_and_sp_per_level(self):
+        """Cap is 60 and every level grants 5 skill points."""
+        assert MAX_PLAYER_LEVEL == 60
+        assert SKILL_POINTS_PER_LEVEL == 5
+        assert SKILL_POINTS_PER_LEVEL * (MAX_PLAYER_LEVEL - 1) == 295
+
+    def test_grants_5_sp_per_level(self, monkeypatch):
+        import src.spacehack.trait_screen as _ts
+        monkeypatch.setattr(_ts, "open_trait_selection", lambda ctx: None)
+
+        ctx = self._ctx()
+        # 300 XP clears level 3 (cumulative 205) with a little spill.
+        add_xp(ctx, 300)
+        assert ctx.player_level == 3
+        assert ctx.player_skill_points == 10
+
+    def test_trait_milestones_at_40_and_50(self, monkeypatch):
+        import src.spacehack.trait_screen as _ts
+        calls: list[int] = []
+        monkeypatch.setattr(
+            _ts, "open_trait_selection", lambda ctx: calls.append(ctx.player_level),
+        )
+
+        ctx = self._ctx()
+        add_xp(ctx, xp_for_level(51))
+        assert ctx.player_level == 51
+        assert calls == [40, 50]
+        assert ctx.player_skill_points == 5 * 50
+
+    def test_no_milestone_below_40(self, monkeypatch):
+        import src.spacehack.trait_screen as _ts
+        calls: list[int] = []
+        monkeypatch.setattr(
+            _ts, "open_trait_selection", lambda ctx: calls.append(ctx.player_level),
+        )
+
+        ctx = self._ctx()
+        add_xp(ctx, xp_for_level(39))
+        assert ctx.player_level == 39
+        assert calls == []

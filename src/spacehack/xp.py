@@ -19,29 +19,29 @@ from . import message_log as _ml
 # Level thresholds
 # ---------------------------------------------------------------------------
 
-# Hard level cap — the game guide states max level is 30.  Once the
+# Hard level cap — the game guide states max level is 60.  Once the
 # player hits this, XP still accumulates (for display) but no further
 # level-ups or skill points are awarded.
-MAX_PLAYER_LEVEL: int = 30
+MAX_PLAYER_LEVEL: int = 60
 
 # Skill points granted per level-up. Sized for six stats on the 0-100
-# scale: 9 points x 29 levels = 261 total, enough for a dedicated
-# L30 specialist to max out 3 of the 6 stats from a base-10 start
-# (3 stats x ~85 points each).
-SKILL_POINTS_PER_LEVEL: int = 9
+# scale: 5 points x 59 levels = 295 total, enough for a dedicated
+# L60 specialist to max out 3 of the 6 stats from a base-10 start
+# (3 stats x ~85 points each) with ~25 points left over.
+SKILL_POINTS_PER_LEVEL: int = 5
 
 
 def xp_for_level(level: int) -> int:
     """Return the XP required to reach *level* (cumulative)."""
     _total = 0
     for n in range(2, level + 1):
-        _total += 50 + n * 20
+        _total += 40 + n * 25
     return _total
 
 
 def _xp_to_next(level: int) -> int:
     """XP needed to reach the next level from the current one."""
-    return 50 + (level + 1) * 20
+    return 40 + (level + 1) * 25
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +53,8 @@ def add_xp(ctx: GameContext, amount: int) -> None:
 
     Called from mission completion, combat kills, and future XP sources.
     Logs the gain, checks for level-ups, and triggers trait selection at
-    milestones 20 and 30.
+    milestones 40 and 50. Level 60 is reserved for a future capstone
+    trait (specialization based on the two traits locked in at 40/50).
     """
     if amount <= 0:
         return
@@ -70,12 +71,13 @@ def add_xp(ctx: GameContext, amount: int) -> None:
         ctx.player_skill_points += SKILL_POINTS_PER_LEVEL
 
         _msg = f"Level {ctx.player_level}! {SKILL_POINTS_PER_LEVEL} skill points earned."
-        if ctx.player_level in (20, 30):
+        if ctx.player_level in (40, 50):
             _msg += " Choose a trait (C key)."
         ctx.log.add_colored(_msg, _ml.COLOR_COMBAT_EVENT)
 
-        # Trait selection at milestones.
-        if ctx.player_level in (20, 30):
+        # Trait selection at milestones (level 60 reserved for a future
+        # capstone specialization built on the two traits chosen here).
+        if ctx.player_level in (40, 50):
             from .trait_screen import open_trait_selection
             open_trait_selection(ctx)
 

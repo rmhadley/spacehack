@@ -6,9 +6,11 @@ Add a leveling system that gives meaning to the XP already being awarded by miss
 
 ### What levels unlock
 
-Leveling grants **9 skill points per level** (each point adds +1 to any of the six skills — ship or ground). Skills are viewed and points spent via the **Character screen** (`C` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 20 and 30 — both draw from the **same shared pool**. No hull/fuel/cargo/shield/slot bonuses — progression is purely about stat growth.
+Leveling grants **5 skill points per level** (each point adds +1 to any of the six skills — ship or ground). Skills are viewed and points spent via the **Character screen** (`C` hotkey, accessible from city or space). The only other unlock milestones are trait choices at 40 and 50 — both draw from the **same shared pool** — with level 60 reserved for a future capstone specialization built on the two traits locked in. No hull/fuel/cargo/shield/slot bonuses — progression is purely about stat growth.
 
-> **Update (base-10 rebalance):** The original design shipped with base 30 stats and 2 skill points per level (sized for the then-3-stat pilot-skill system). With six stats sharing the budget, the start was lowered to **base 10** (fresh nobody) and the grant raised to **9 SP/level** (29 levels × 9 = 261 total), so a dedicated L30 specialist can **max out 3 of the 6 stats** at the 100 cap.
+> **Update (base-10 rebalance):** The original design shipped with base 30 stats and 2 skill points per level (sized for the then-3-stat pilot-skill system). With six stats sharing the budget, the start was lowered to **base 10** (fresh nobody) and the grant raised to **9 SP/level**.
+
+> **Update (60-level expansion):** Max level raised to **60** and the grant cut to **5 SP/level** (59 levels × 5 = 295 total) — the same total budget as before, but stretched across the full main-story length instead of the first quarter of it. Each level is exactly **one 5-point step**, matching the per-5 stat granularity. A dedicated L60 specialist still **maxes out 3 of the 6 stats** at the 100 cap.
 
 **Keybinding:** `C` opens the Character screen. Cargo was moved to `I` (Inventory) to free up `C`. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
@@ -28,29 +30,39 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 
 | Level | Unlock |
 |-------|--------|
-| Every level | +9 skill points (+9 to distribute across the six skills at +1 each) |
-| 20 | **Trait choice** — pick one from the shared pool |
-| 30 | **Trait choice** — pick another from the SAME pool (cannot repeat) |
+| Every level | +5 skill points (+5 to distribute across the six skills at +1 each) |
+| 40 | **Trait choice** — pick one from the shared pool |
+| 50 | **Trait choice** — pick another from the SAME pool (cannot repeat) |
+| 60 | **Capstone (future)** — specialization based on the two traits locked in at 40/50; design pending |
 
-**Shared trait pool** (available at both level 20 and 30):
+**Shared trait pool** (available at both level 40 and 50):
 
 | Trait | Milestone | Requires | Effect |
 |-------|-----------|----------|--------|
-| Sharpshooter | 20/30 | 40+ gunnery | +10% hit chance |
-| Hauler | 20/30 | 20+ merchant missions | Merchant mission tier band shifts up one (T1→T2, capped at T4) |
-| Fixer | 20/30 | 20+ Bar missions | Bar mission tier band shifts up one (T1→T2, capped at T4) |
-| Hunter | 20/30 | 20+ bounty missions | Bounty mission tier band shifts up one (T1→T2, capped at T4) |
-| Ace Pilot | 20/30 | 40+ piloting | +1 AP per turn |
-| Juggernaut | 20/30 | 30+ total kills | Take 1 less damage from each ground attack |
-| Charger | 20/30 | 40+ melee kills | Melee weapons reach current AP; charges gain +5 hit and +1 damage per tile |
-| Evasive | 20/30 | 40+ reflexes | +5% baseline ground evade |
-| Pack Mule | 20/30 | 40+ strength | +2 Expedition Pack slots |
-| Ironclad | 20/30 | 40+ stamina | +6 maximum ground HP |
-| Systems Expert | 20/30 | 40+ engineering | +10 maximum ship power |
-| Demolitionist | 20/30 | 15 explosive hits | +25% explosive splash damage |
-| Laser Specialist | 20/30 | 100 laser shots | +10% laser hit chance |
-| Missileer | 20/30 | 15 missile shots | +10% missile hit chance |
-| Plasma Savant | 20/30 | 100 plasma shots | Plasma weapons cost 1 less AP |
+| Sharpshooter | 40/50 | 40+ gunnery | +10% hit chance |
+| Hauler | 40/50 | 20+ merchant missions | Merchant mission tier band shifts up one (T1→T2, capped at T4) |
+| Fixer | 40/50 | 20+ Bar missions | Bar mission tier band shifts up one (T1→T2, capped at T4) |
+| Hunter | 40/50 | 20+ bounty missions | Bounty mission tier band shifts up one (T1→T2, capped at T4) |
+| Ace Pilot | 40/50 | 40+ piloting | +1 AP per turn |
+| Juggernaut | 40/50 | 30+ total kills | Take 1 less damage from each ground attack |
+| Charger | 40/50 | 40+ melee kills | Melee weapons reach current AP; charges gain +5 hit and +1 damage per tile |
+| Evasive | 40/50 | 40+ reflexes | +5% baseline ground evade |
+| Pack Mule | 40/50 | 40+ strength | +2 Expedition Pack slots |
+| Ironclad | 40/50 | 40+ stamina | +6 maximum ground HP |
+| Systems Expert | 40/50 | 40+ engineering | +10 maximum ship power |
+| Demolitionist | 40/50 | 15 explosive hits | +25% explosive splash damage |
+| Laser Specialist | 40/50 | 100 laser shots | +10% laser hit chance |
+| Missileer | 40/50 | 15 missile shots | +10% missile hit chance |
+| Plasma Savant | 40/50 | 100 plasma shots | Plasma weapons cost 1 less AP |
+
+The unlock requirements are intentionally **easy to meet by level 40** —
+the point is not to grind gates but to prove a build: a laser user has
+fired 100 laser shots, a melee specialist has 40 melee kills, and a
+focused pilot has hit 40 piloting. The gates stop gating; they
+*suggest* the playstyle that earned them. The skill-40 requirements
+(Sharpshooter, Ace Pilot, Evasive, Pack Mule, Ironclad, Systems
+Expert) are the ones that keep forcing real decisions, since they
+require deliberately concentrated stat investment.
 
 The pool rewards focused ship skills, ground stats, equipment usage, and combat style. A player can choose only one trait at each milestone, so specialization remains a meaningful tradeoff.
 
@@ -61,15 +73,15 @@ The pool rewards focused ship skills, ground stats, equipment usage, and combat 
 | **ctx-first** | XP total and level tracked on `GameContext` as `player_xp: int` and `player_level: int` |
 | **Data-first** | Level thresholds live in a simple table, not scattered logic |
 | **Live-by-side-effect** | XP earned via `add_xp(ctx, amount)` that levels up and applies bonuses immediately |
-| **Simple > clever** | Max level 30, 9 skill points per level, playstyle-gated traits at 20 and 30 |
+| **Simple > clever** | Max level 60, 5 skill points per level, playstyle-gated traits at 40 and 50, capstone slot reserved at 60 |
 
 ## Starting skill rebalance (base 10)
 
-Starting stats sit low (a fresh nobody) so the growth arc is long and species/class bonuses land with real weight — a flagship +12 is 2.5-3x the base 10. With 261 skill points over a full run, a dedicated specialist can **max 3 of the 6 stats**; the rest stay partial.
+Starting stats sit low (a fresh nobody) so the growth arc is long and species/class bonuses land with real weight — a flagship +12 is 2.5-3x the base 10. With 295 skill points over a full run, a dedicated specialist can **max 3 of the 6 stats**; the rest stay partial.
 
 ### Design target
 
-Level 1 stats sit in the 10-26 range. At level 30 with focused investment, a specialist maxes out 3 stats at the 100 cap. Class identity is unmistakable at creation — a Pirate's Gunnery is ~2.4x a Merchant's — and the gap narrows with leveling as the player chooses where to invest.
+Level 1 stats sit in the 10-26 range. At level 60 with focused investment, a specialist maxes out 3 stats at the 100 cap. Class identity is unmistakable at creation — a Pirate's Gunnery is ~2.4x a Merchant's — and the gap narrows with leveling as the player chooses where to invest.
 
 ### Rebalance (applied with the base-10 change)
 
@@ -99,7 +111,7 @@ Level 1 stats sit in the 10-26 range. At level 30 with focused investment, a spe
 | Martian Merchant | 10 | 14 | 22 | 14 | 10 | 22 |
 | Martian BH | 14 | **18** | 14 | **18** | 14 | 14 |
 
-At level 30: a Human Pirate dumping all 261 points maxes 3 stats (e.g. Gunnery 100, Strength 100, Engineering 100: 76 + 78 + 88 = 242 ≤ 261). A balanced BH reaches ~85-90 in three stats. The remaining three stats stay at base 10 — every point spent is a real tradeoff.
+At level 60: a Human Pirate dumping all 295 points maxes 3 stats (e.g. Gunnery 100, Strength 100, Engineering 100: 76 + 78 + 88 = 242 ≤ 295). A balanced BH reaches ~85-90 in three stats. The remaining three stats stay at base 10 — every point spent is a real tradeoff.
 
 This rebalance was applied alongside the XP tracking update so the new starting values went live with the leveling system.
 
@@ -153,10 +165,10 @@ The current skill formula is: `PILOT_SKILL_BASE (10) + species_bonus + class_bon
 With leveling it becomes: `PILOT_SKILL_BASE (10) + species_bonus + class_bonus + module_bonuses + level_bonus + skill_point_bonus`
 
 Where:
-- `level_bonus` = `(player_level - 1) * 9` (9 skill points per level)
+- `level_bonus` = `(player_level - 1) * 5` (5 skill points per level)
 - `skill_point_bonus` = manually assigned bonus from `player_*_bonus` fields
 
-Note: `level_bonus` is auto-assigned — each level gives 9 skill points, spent via the UI. The formula above shows total growth from leveling.
+Note: `level_bonus` is auto-assigned — each level gives 5 skill points, spent via the UI. The formula above shows total growth from leveling.
 
 ### XP rewards
 
@@ -165,38 +177,46 @@ Note: `level_bonus` is auto-assigned — each level gives 9 skill points, spent 
 | Mission completion | Based on tier + distance (already computed as `reward_xp`) | Already exists, just needs to feed into `add_xp()` |
 | Combat kill | `enemy_base_hull * 2` | New — adds XP for non-mission kills too |
 
-### Level thresholds (max level 30)
+### Level thresholds (max level 60)
 
-Each level costs `50 + level * 20` XP:
+Each level costs `40 + level * 25` XP:
 
-| Level | XP to reach | Cumulative XP | Skill points (9/level) | Trait choice |
+| Level | XP to reach | Cumulative XP | Skill points (5/level) | Trait choice |
 |-------|------------|---------------|------------------------|--------------|
 | 1 | 0 | 0 | 0 | |
-| 2 | 90 | 90 | 9 | |
-| 3 | 110 | 200 | 18 | |
-| 4 | 130 | 330 | 27 | |
-| 5 | 150 | 480 | 36 | |
-| 6 | 170 | 650 | 45 | |
-| 7 | 190 | 840 | 54 | |
-| 8 | 210 | 1,050 | 63 | |
-| 9 | 230 | 1,280 | 72 | |
-| 10 | 250 | 1,530 | 81 | |
-| 11-19 | 270-430 | 1,800-4,680 | 90-162 | |
-| 20 | 450 | 5,130 | 171 | **Major trait** |
-| 21-29 | 470-630 | 5,600-10,080 | 180-252 | |
-| 30 | 650 | 10,730 | 261 | **Capstone trait** |
+| 2 | 90 | 90 | 5 | |
+| 3 | 115 | 205 | 10 | |
+| 4 | 140 | 345 | 15 | |
+| 5 | 165 | 510 | 20 | |
+| 6 | 190 | 700 | 25 | |
+| 7 | 215 | 915 | 30 | |
+| 8 | 240 | 1,155 | 35 | |
+| 9 | 265 | 1,420 | 40 | |
+| 10 | 290 | 1,710 | 45 | |
+| 11-19 | 315-515 | 2,025-5,445 | 50-90 | |
+| 20 | 540 | 5,985 | 95 | |
+| 21-29 | 565-765 | 6,550-11,970 | 100-140 | |
+| 30 | 790 | 12,760 | 145 | |
+| 31-39 | 815-1,015 | 13,575-20,995 | 150-190 | |
+| 40 | 1,040 | 22,035 | 195 | **Trait choice** |
+| 41-49 | 1,065-1,265 | 23,100-32,520 | 200-240 | |
+| 50 | 1,290 | 33,810 | 245 | **Trait choice** |
+| 51-59 | 1,315-1,515 | 35,125-46,545 | 250-290 | |
+| 60 | 1,540 | 48,085 | 295 | **Capstone (future)** |
 
-Formula: `xp_for_level(n) = 50 + n * 20` for n > 1.
+Formula: `xp_for_level(n) = 40 + n * 25` for n > 1. Level 2 costs 90 XP —
+identical to the old curve, so the tutorial top-up to level 2 lands exactly
+where it did before.
 
 **Why this curve:**
-- Early levels (2-5) cost ~90-150 XP — a mission or two, or 3-5 combat kills
-- Mid levels (10-15) cost ~250-350 XP — a T2/T3 mission worth of effort
-- Late levels (20-30) cost ~450-650 XP — significant but achievable with T3/T4 missions
-- Cumulative XP to reach cap is ~10,730 — achievable in a long successful run
+- Early levels (2-5) cost ~90-165 XP — a mission or two, or 3-5 combat kills (nearly unchanged from the old curve)
+- Mid levels (10-20) cost ~290-540 XP — steeper than before, so levels stop "rolling in" around level 10
+- Late levels (30-60) cost ~790-1,540 XP — the back half is genuinely expensive
+- Cumulative XP to reach cap is ~48,085 — about 4.5x the old 10,730, roughly matching the main story's full length (the old cap landed at ~25% of the game)
 
 A T1 mission gives ~20 XP. A T4 mission gives ~300 XP. A combat kill gives ~30-200 XP.
 
-At level 20, the player has earned **171 skill points** and must choose their major trait. A Human Pirate who funnels them into gunnery and strength would cap both (24 + 76 → 100, 22 + 78 → 100) with a little left over — a real tradeoff, since 171 points can't stretch across all six stats.
+At level 40, the player has earned **195 skill points** and must choose their first trait. A Human Pirate who funnels them into gunnery and strength would cap both (24 + 76 → 100, 22 + 78 → 100) with a little left over — a real tradeoff, since 195 points can't stretch across all six stats.
 
 ### Character screen (C hotkey)
 
@@ -217,7 +237,7 @@ The screen is NOT in the ship menu — it's a global hotkey like `F` for Faction
 
   XP: 320 / 480  [████████░░░░]  Next: 160 XP
 
-  Skill Points Available: 9
+  Skill Points Available: 5
 
   > Gunnery:     24  [+]
     Piloting:    10  [+]
@@ -226,7 +246,7 @@ The screen is NOT in the ship menu — it's a global hotkey like `F` for Faction
     Strength:    22  [+]
     Stamina:     12  [+]
 
-  Traits: (none yet — unlock at level 20)
+  Traits: (none yet — unlock at level 40)
 
 ══════════════════════════════════════════════
   ENTER spend  TAB cycle  ESC back
@@ -269,7 +289,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Trait:
-    """One player trait — earned at level 20 or 30 if counters qualify."""
+    """One player trait — earned at level 40 or 50 if counters qualify."""
     id: str
     name: str
     description: str
@@ -279,7 +299,7 @@ class Trait:
     # Optional: (faction, attitude) — faction rep gate.
     rep_required: tuple[str, str] | None = None
 
-# Registry — shared pool for both level 20 and 30.
+# Registry — shared pool for both level 40 and 50.
 
 SHARPSHOOTER = Trait(
     id="sharpshooter",
@@ -335,7 +355,7 @@ ALL_TRAITS: tuple[Trait, ...] = (
 
 ### XP gain notification
 
-When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level 4! 9 skill points earned."` At level 20/30: `"Level 20! Choose a major trait."`
+When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level 4! 5 skill points earned."` At level 40/50: `"Level 40! Choose a trait (C key)."`
 
 ### Phase 1: XP tracking + skill rebalance
 
@@ -380,7 +400,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - [ ] Start new game → verify starting skills match rebalance table (e.g. Human Pirate: 24/10/12)
 - [ ] Complete a delivery mission → XP gain logged, level-up if threshold crossed
 - [ ] Kill an enemy in combat → XP gain logged
-- [ ] Level up → "Level N! 9 skill points earned." message
+- [ ] Level up → "Level N! 5 skill points earned." message
 - [ ] Press C → Character screen opens (shows level/XP, skills section with available points)
 - [ ] Character screen accessible from both city and space modes
 
@@ -451,7 +471,7 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 - [x] Add compact XP bar to city HUD: `"LV 4 [#####-----]"` between key hints and footer
 - [x] Add compact XP bar to space HUD: same format, same position
 - [x] Extract `_render_xp_bar(value, max_val, width)` helper in `hud.py`
-- [x] `add_xp()` logs `"+N XP"` on gain, `"Level N! 9 skill points earned."` on level-up
+- [x] `add_xp()` logs `"+N XP"` on gain, `"Level N! 5 skill points earned."` on level-up
 - [x] Character screen shows detailed XP progress bar using same helper
 - [x] Add `C` to HUD key hints in both city and space modes
 - [x] Verify XP bar renders with CP437-safe `#`/`-` chars on the tilesheet
@@ -467,12 +487,12 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 
 ---
 
-### Phase 4: Traits at 20/30
+### Phase 4: Traits at 40/50
 
 #### Pre-implementation audit
 
 **Existing modules to extend/reuse:**
-- `xp.py` — `add_xp()` already fires on level-up; add trait-check trigger when level == 20 or 30
+- `xp.py` — `add_xp()` already fires on level-up; add trait-check trigger when level == 40 or 50
 - `data/traits/core.py` — new: frozen `Trait` dataclass + `ALL_TRAITS` registry
 - `mission.py` — `deliveries_completed` / `bounties_completed` incremented in `complete_mission()` via `ctx.player_counters`
 - `combat/_rules_space.py` and `combat/_loop.py` — per-shot counters (laser/missile/plasma) and explosive-hit counters incremented at the accepted fire boundary
@@ -514,8 +534,8 @@ When the player gains XP, the message log adds: `"+40 XP"`. On level-up: `"Level
 
 ## Open questions
 
-1. **Max level is 30.** (Answered) Tiers 20 and 30 have major trait choices.
+1. **Max level is 60.** (Answered) Tiers 40 and 50 have trait choices; 60 is reserved for the capstone specialization.
 2. **Should skill point allocation be respec-able?** For v1, no. Make each point count.
-3. **Do enemies scale with player level?** Not directly — tier-based missions already provide the right difficulty curve. A level 30 player fighting a T1 pirate_scout should feel like a god.
+3. **Do enemies scale with player level?** Not directly — tier-based missions already provide the right difficulty curve. A level 60 player fighting a T1 pirate_scout should feel like a god.
 4. **Should there be class-specific bonuses on level-up?** Not in v1 — keep it simple. Class identity comes from starting skill bonuses.
 5. **Should XP be lost on death?** No — roguelike death means the run is over anyway. The player starts fresh at level 1.
