@@ -1,0 +1,181 @@
+# =============================================================================
+# ACT 0 - END (the door opens, the descent, and the first reading)
+# =============================================================================
+# EDITABLE STORY TEXT - extracted from the live game data by
+# tools/extract_act0_text.py. Re-running that script regenerates this file.
+#
+# FORMAT: blocks start with "### <key> — <label>"; see 01_beginning.txt
+# for the full spec. Edit text freely; keep the "###" keys intact.
+#
+# FLOW: prologue_open -> act1_prison -> [orbit disclosure] -> research_alpha -> research_alpha_report
+# =============================================================================
+
+# --- The door opens (all routes converge here) ---
+
+### step.prologue_open.title — TITLE
+The Door Opens
+
+### step.prologue_open.description — DESCRIPTION
+Return to Mars with the method your allies assembled. The door is not the end of the signal; it is the first threshold. Beyond it, the coordinates may finally explain what called you there.
+
+### runtime.door_open_title — RUNTIME — THE SEAL GIVES WAY overlay title (main_quest/_act0.py)
+THE SEAL GIVES WAY
+
+### runtime.door_open_meta — RUNTIME — THE SEAL GIVES WAY overlay meta line (main_quest/_act0.py)
+SEAL: BROKEN CHAMBER: EMPTY ACCESS: GRANTED
+
+### runtime.door_open_body — RUNTIME — THE SEAL GIVES WAY overlay body (main_quest/_act0.py)
+The seal gives way - cleanly, as if it were waiting. Inside: an empty cell built for something enormous - and a dark terminal interface waiting for input.
+
+### runtime.door_open_highlight — RUNTIME — THE SEAL GIVES WAY overlay highlight (main_quest/_act0.py)
+The entrance is open. The way forward leads deeper into the facility.
+
+### runtime.door_open_instruction — RUNTIME — THE SEAL GIVES WAY overlay instruction (main_quest/_act0.py)
+Press ENTER to continue
+
+### runtime.door_open_log_1 — RUNTIME — log line when the door opens (main_quest/_act0.py)
+The seal gives way. Inside: an empty cell built for something enormous - and a dark terminal interface waiting to be accessed.
+
+### runtime.door_open_log_2 — RUNTIME — log line after the door opens (main_quest/_act0.py)
+The entrance is open. Beyond it, the facility descends into darkness.
+
+### runtime.door_already_open_log — RUNTIME — log line when bumping the already-open door (main_quest/_act0.py)
+The opened entrance gapes dark and empty.
+
+### runtime.door_locked_log — RUNTIME — log line when bumping the door without a tool (main_quest/_act0.py)
+The sealed door holds fast. It needs a tool you don't have.
+
+# --- The lab route's moment at the door (sample chip + ambush) ---
+
+### runtime.bump_chip_log — RUNTIME — log line when chipping the lab sample from the door (main_quest/_core.py)
+You chip a fragment of the alien material off the door's surface. The seal holds.
+
+### runtime.ambush_title — RUNTIME — AMBUSH! popup title (lab route, door room) (main_quest/_act0.py)
+AMBUSH!
+
+### runtime.ambush_body — RUNTIME — ambush popup body (lab route, door room) (main_quest/_act0.py)
+Raiders pour out of the shadows around the sealed door - they were watching the dig site, waiting for someone to come back for the sample. They want it.
+
+# --- The descent (Act 1 begins on the other side of the door) ---
+
+### runtime.act1_start_log — RUNTIME — log line when the prison descent starts (main_quest/_act0.py)
+[MAIN QUEST] Act 1: The Prison Below - descend the facility.
+
+### step.act1_prison.title — TITLE
+The Prison Below
+
+### step.act1_prison.description — DESCRIPTION
+The door has opened onto a facility built beneath Mars. Descend through the silent prison, restore the systems that still answer, and reach the deep cell at the bottom. The cell is empty, but one terminal is alive. Extract its data; it may tell you whether the prisoner left by choice, by force, or long before anyone on Mars knew this place existed.
+
+### step.act1_prison.completion_flavor — COMPLETION FLAVOR (what happens when this step is done)
+The data stream ends before it becomes a translation. No language, no mathematics, and no human model can hold the whole of it. But the archive is not random: routes, containment records, warnings, and fragments of an identity are buried together in the noise. The cell was built for something. It is empty now. And the terminal has sent the first answer back into the dark.
+
+### step.act1_prison.ready_message — READY MESSAGE (the summons that begins this step)
+The archive handoff is ready. Take the recovered archive to the Research Officer at Alpha Centauri's Science Port for an independent reading. The work will wait for you; the signal will not become clearer on its own.
+
+# --- After the descent: the orbit disclosure (how much you share) ---
+
+### disclosure.diagnostic_fragment.label — ORBIT CHOICE - menu row
+Transmit a diagnostic fragment
+
+### disclosure.diagnostic_fragment.menu_description — ORBIT CHOICE - help text
+Give the faction a small raw sample. They can start reading, but they will know how valuable the archive is.
+
+### disclosure.diagnostic_fragment.log_message — ORBIT CHOICE - log line
+A diagnostic fragment leaves the ship. The remote analysis will take time, and the result will determine what the lab can safely ask of the full archive.
+
+### disclosure.diagnostic_fragment.followup_message — ORBIT CHOICE - follow-up line
+The handoff requires time. Until the response arrives, the route beyond Luyten remains only a hypothesis.
+
+### disclosure.diagnostic_fragment.waiting_title — ORBIT CHOICE - waiting title
+Awaiting fragment analysis...
+
+### disclosure.diagnostic_fragment.waiting_description — ORBIT CHOICE - waiting description
+A diagnostic fragment is being analyzed remotely. When the review is complete, take the recovered archive to the Research Officer at Alpha Centauri's Science Port for an independent reading.
+
+### disclosure.diagnostic_fragment.ready_message — ORBIT CHOICE - ready message
+The diagnostic fragment has been analyzed. Take the recovered archive to the Research Officer at Alpha Centauri's Science Port for an independent reading. The work will wait for you; the signal will not become clearer on its own.
+
+### disclosure.archive_sealed.label — ORBIT CHOICE - menu row
+Keep the archive sealed
+
+### disclosure.archive_sealed.menu_description — ORBIT CHOICE - help text
+Share nothing yet. Bring the untouched record to a research contact and keep control of the evidence.
+
+### disclosure.archive_sealed.log_message — ORBIT CHOICE - log line
+The archive remains sealed and under your control. Take the intact record to the Research Officer at Alpha Centauri's Science Port now; the lab is the next step.
+
+### disclosure.archive_sealed.followup_message — ORBIT CHOICE - follow-up line
+The archive is ready for delivery. Reach Alpha Centauri's Science Port and begin the independent reading.
+
+### disclosure.safe_destination.label — ORBIT CHOICE - menu row
+Ask for a safe destination
+
+### disclosure.safe_destination.menu_description — ORBIT CHOICE - help text
+Reveal no data. Ask the faction to arrange a secure handoff; they will tell you where to take the archive after their preliminary review.
+
+### disclosure.safe_destination.log_message — ORBIT CHOICE - log line
+You transmit a request for a safe handoff, not the archive. The contact network will arrange a route that does not broadcast the archive's value.
+
+### disclosure.safe_destination.followup_message — ORBIT CHOICE - follow-up line
+The handoff requires time. Until the response arrives, the route beyond Luyten remains only a hypothesis.
+
+### disclosure.safe_destination.waiting_title — ORBIT CHOICE - waiting title
+Awaiting a secure handoff...
+
+### disclosure.safe_destination.waiting_description — ORBIT CHOICE - waiting description
+A secure route for the sealed archive is being arranged. When the handoff is ready, take it to the Research Officer at Alpha Centauri's Science Port for an independent reading.
+
+### disclosure.safe_destination.ready_message — ORBIT CHOICE - ready message
+A secure handoff route has been arranged. Take the sealed archive to the Research Officer at Alpha Centauri's Science Port for an independent reading. The work will wait for you; the signal will not become clearer on its own.
+
+# --- The first reading (Alpha Centauri) ---
+
+### step.research_alpha.title — TITLE
+The First Reading
+
+### step.research_alpha.description — DESCRIPTION
+Take the recovered archive to the Research Officer at Alpha Centauri's Science Port. The archive contains a coordinate sequence, but the first reading is only a hypothesis: the route appears to continue past the Luyten blockade. Compare the raw record with an independent scientific analysis before deciding what the data is asking you to do.
+
+### step.research_alpha.dialogue.research_officer.intro — DIALOGUE (Research Officer) intro (before the step is accepted)
+You brought the recovered Mars data. Good. Do not call it a map yet. The terminal did not give us a picture; it gave us a layered signal with several systems speaking over one another. I can see repeated structures - coordinate patterns, machine-state records, and warning markers - but I cannot tell which layer belongs to the prison, which describes a route, or which is a response to something else. We will preserve the raw transfer, clean the signal, and translate the simplest recurring symbols first. Only then can we ask where any of it leads.
+
+### step.research_alpha.dialogue.research_officer.active — DIALOGUE (Research Officer) active (while the step is in progress)
+The first processing pass is underway. We are not translating sentences yet; we are separating recurring symbols from the archive's other layers and checking that the patterns survive without the prison terminal's distortion. So far the coordinate sequence remains intact. It reaches beyond the Luyten blockade, but we do not know whether it marks a destination, a transit route, or a warning about what lies along it.
+
+### step.research_alpha.dialogue.research_officer.complete — DIALOGUE (Research Officer) complete (after the step is done)
+The archive is in the processing cluster. We have not translated it yet; we are separating the raw layers and checking that the alien symbols remain stable outside the prison terminal. The first report will come when the cluster has enough evidence to say what the coordinate pattern actually means.
+
+### step.research_alpha.dialogue.research_officer.option_label — DIALOGUE (Research Officer) menu option row
+Begin the first interpretation
+
+### step.research_alpha.completion_flavor — COMPLETION FLAVOR (what happens when this step is done)
+The Research Officer seals the raw archive inside the Alpha Centauri processing cluster. The first pass will segment the alien signal, separate coordinate patterns from containment records and warnings, and test whether the recurring symbols survive translation. It will take time. Until the cluster finishes, nobody can honestly say whether the pattern is a route, a warning, or both.
+
+### step.research_alpha.ready_message — READY MESSAGE (the summons that begins this step)
+The Alpha Centauri processing cluster has completed its first pass. Return to the Research Officer at the Science Port to review the initial translation.
+
+### step.research_alpha_report.title — TITLE
+The First Translation
+
+### step.research_alpha_report.description — DESCRIPTION
+Return to the Research Officer at Alpha Centauri's Science Port after the processing cluster completes its first pass. Review what the coordinate layer means and what remains untranslated.
+
+### step.research_alpha_report.dialogue.research_officer.intro — DIALOGUE (Research Officer) intro (before the step is accepted)
+The processing cluster has finished its first pass. We can now read a recurring coordinate grammar, but only in fragments. It points beyond the Luyten blockade into unmapped systems. The containment records and warnings are still tangled through it, so this is a route hypothesis - not a destination, and not an answer about what escaped the prison.
+
+### step.research_alpha_report.dialogue.research_officer.active — DIALOGUE (Research Officer) active (while the step is in progress)
+The first translation report is ready for review. We isolated the coordinate layer, but the warning symbols resist a stable translation. We need to decide what the route is worth before we expose more of the archive.
+
+### step.research_alpha_report.dialogue.research_officer.complete — DIALOGUE (Research Officer) complete (after the step is done)
+Now we know the route is real. Beyond Luyten lies a linked chain of dead systems, not a single destination. The archive still withholds the identity of the prisoner and the meaning of its warnings. That is the next question - and the answer may be watching for the signal we just sent.
+
+### step.research_alpha_report.dialogue.research_officer.option_label — DIALOGUE (Research Officer) menu option row
+Review the first translation
+
+### step.research_alpha_report.completion_flavor — COMPLETION FLAVOR (what happens when this step is done)
+The first translation pass is complete. The lab isolates a recurring coordinate grammar from the containment records and warning markers. The pattern continues beyond the Luyten blockade into systems no human survey has mapped. It proves a route exists, but not who built it, who used it, or what waits at its far end. The warning layer remains only partially translated.
+
+### step.research_alpha_report.ready_message — READY MESSAGE (the summons that begins this step)
+The Alpha Centauri processing cluster has completed its first pass. Return to the Research Officer at the Science Port to review the initial translation.
+

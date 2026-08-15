@@ -79,7 +79,7 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
         message_log.COLOR_IMPORTANT_EVENT,
     )
     ctx.log.add(
-        "A burst of coordinates cuts through the static, followed by a second pattern folded inside the first. They resolve to somewhere on Mars."
+        "Your ship crunches the data and outputs coordinates on mars."
     )
     complete_step(ctx, "prologue_signal")
     return True
@@ -195,6 +195,30 @@ def _signal_door_screen_pos(
         region_y + position.y - camera_y,
     )
 
+def _draw_door_frame_glyph(
+    console,
+    game_map: world.GameMap,
+    position: world.Position,
+    glyph: str,
+    camera_x: int,
+    camera_y: int,
+    region_x: int,
+    region_y: int,
+    map_w: int,
+    map_h: int,
+) -> None:
+    """Print one animation glyph over its tile if it is on screen."""
+    _screen_x, _screen_y = _signal_door_screen_pos(
+        position, camera_x, camera_y, region_x, region_y,
+    )
+    if 0 <= _screen_x < map_w and 0 <= _screen_y < map_h:
+        _tile = game_map.tiles[position.y][position.x]
+        console.print(
+            x=_screen_x, y=_screen_y, string=glyph,
+            fg=_tile.fg, bg=_tile.bg,
+        )
+
+
 def _render_signal_door_frame(
     ctx,
     console,
@@ -224,18 +248,11 @@ def _render_signal_door_frame(
         camera_y=_camera_y,
     )
     for _position, _glyph in zip(barrier, frame):
-        _screen_x, _screen_y = _signal_door_screen_pos(
-            _position, _camera_x, _camera_y, _region_x, _region_y,
+        _draw_door_frame_glyph(
+            console, game_map, _position, _glyph,
+            _camera_x, _camera_y, _region_x, _region_y,
+            _map_w, _map_h,
         )
-        if 0 <= _screen_x < _map_w and 0 <= _screen_y < _map_h:
-            _tile = game_map.tiles[_position.y][_position.x]
-            console.print(
-                x=_screen_x,
-                y=_screen_y,
-                string=_glyph,
-                fg=_tile.fg,
-                bg=_tile.bg,
-            )
     ctx.context.present(console)
 
 def _landmark_floor_near_barrier(
@@ -434,26 +451,27 @@ def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
         enemy_id="pirate_raider", count=count, label="door_ambush",
     ) > 0
 
+def _chip_bump_objective(ctx, bumped_step: str) -> None:
+    """Show the quest readout modal for a chipped bump objective."""
+    from ._objectives import show_step_readout as _ssr
+    _ssr(ctx, find_main_quest_step(bumped_step))
+    # The lab sample draws attention: pirates watching the dig
+    # spring an ambush in the door's room the moment it's chipped.
+    if bumped_step == "lab_q1_sample" and _spawn_door_ambush(ctx):
+        show_gate_popup(
+            ctx, "Pirate Raiders",
+            "Raiders pour out of the shadows around the sealed "
+            "door - they were watching the dig site, waiting for "
+            "someone to come back for the sample. They want it.",
+            title="AMBUSH!",
+        )
+
+
 def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars."""
     _bumped_step = _complete_bump_objective(ctx)
     if _bumped_step:
-        # A quest bump objective was chipped (e.g. lab_q1_sample):
-        # show the quest readout modal (completion flavor + next step)
-        # instead of a bare console-log line.
-        from ._objectives import show_step_readout as _ssr
-        _step = find_main_quest_step(_bumped_step)
-        _ssr(ctx, _step)
-        # The lab sample draws attention: pirates watching the dig
-        # spring an ambush in the door's room the moment it's chipped.
-        if _bumped_step == "lab_q1_sample" and _spawn_door_ambush(ctx):
-            show_gate_popup(
-                ctx, "Pirate Raiders",
-                "Raiders pour out of the shadows around the sealed "
-                "door - they were watching the dig site, waiting for "
-                "someone to come back for the sample. They want it.",
-                title="AMBUSH!",
-            )
+        _chip_bump_objective(ctx, _bumped_step)
         return
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -473,8 +491,7 @@ def bump_mars_door(ctx) -> None:
     if _entrance_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
         complete_step(ctx, "prologue_mars_entrance")
         ctx.log.add_colored(
-            "A door of alien make, set into the red dust. No visible "
-            "mechanism - older than the colony. It will not open.",
+            "An undulating wall of alien make, set into the red dust.",
             message_log.COLOR_IMPORTANT_EVENT,
         )
         show_sealed_door_overlay(ctx, "discover")
@@ -560,6 +577,30 @@ def _wall_adjacent_tile(
                         return world.Position(_x, _y)
     return near
 
+def _quest_npc_for_planet(ctx, planet_id: str) -> str | None:
+    """Return the quest NPC id that should appear on this planet, if any."""
+    if planet_id == "barnards_b" and ctx.main_quest_chain == "bar":
+        # The old smuggler is on the map from the proof run (q2)
+        # through the power-cell handover (q4) — he draws the cave
+        # and re-issues a lost cell — and leaves once the cell is on
+        # its way to Wolf 359 (q4 complete).
+        _needs_smuggler = (
+            step_status(ctx, "bar_q2_proof") != ""
+            and step_status(ctx, "bar_q4_blackmarket") != STATUS_COMPLETED
+        )
+        return "old_smuggler" if _needs_smuggler else None
+    if planet_id == "tc_b" and ctx.main_quest_chain == "merchants":
+        _mid_transport = (
+            step_status(ctx, "mer_q3_transport") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        )
+        _awaiting_calibrate = (
+            step_status(ctx, "mer_q3_transport") == STATUS_COMPLETED
+            and step_status(ctx, "mer_q4_calibrate") in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        )
+        return "salvage_specialist" if (_mid_transport or _awaiting_calibrate) else None
+    return None
+
+
 def spawn_quest_npcs(
     ctx,
     game_map: world.GameMap,
@@ -568,28 +609,7 @@ def spawn_quest_npcs(
     spawn_pos: world.Position | None = None,
 ) -> None:
     """Add quest-conditional NPCs to game_map after loading a city or dungeon."""
-    _need_npc: str | None = None
-    if planet_id == "barnards_b" and ctx.main_quest_chain == "bar":
-        # The old smuggler is on the map from the proof run (q2)
-        # through the power-cell handover (q4) — he draws the cave
-        # and re-issues a lost cell — and leaves once the cell is on
-        # its way to Wolf 359 (q4 complete).
-        _need = (
-            step_status(ctx, "bar_q2_proof") != ""
-            and step_status(ctx, "bar_q4_blackmarket") != STATUS_COMPLETED
-        )
-        if _need:
-            _need_npc = "old_smuggler"
-    elif planet_id == "tc_b" and ctx.main_quest_chain == "merchants":
-        _need = (
-            step_status(ctx, "mer_q3_transport") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            or (
-                step_status(ctx, "mer_q3_transport") == STATUS_COMPLETED
-                and step_status(ctx, "mer_q4_calibrate") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            )
-        )
-        if _need:
-            _need_npc = "salvage_specialist"
+    _need_npc = _quest_npc_for_planet(ctx, planet_id)
     if _need_npc is None:
         return
     if any(getattr(_e, 'npc_id', '') == _need_npc for _e in game_map.entities):
@@ -644,7 +664,12 @@ def show_prologue_transmission(ctx) -> None:
     _show_pygame_dismiss(
         ctx,
         title="INCOMING TRANSMISSION",
-        body="A burst of coordinates cuts through the static - then silence.\n\nThey resolve to somewhere on Mars.",
+        body=(
+            "Comms lights up with a strange signal. It's mostly noise and "
+            "static. But through the incomprehensible chatter the systems "
+            "detect a pattern. Coordinates that appear to pointing to a "
+            "remote part of Mars in Sol."
+        ),
         caption="spacehack - incoming transmission",
         art=_SIGNAL_ART,
         art_color=_SIGNAL_TRACE_FG,
@@ -753,10 +778,12 @@ _DOOR_OVERLAYS: dict[str, dict[str, object]] = {
         "meta": "MAKE: ALIEN    MECHANISM: NONE VISIBLE    AGE: UNKNOWN",
         "art": _DOOR_ART_SEALED,
         "body": (
-            "A door of alien make, set into the red dust.",
-            "No visible mechanism - older than the colony.",
+            "The martian rock merges with high tech metal machinery.",
+            "You see a wall that undulates before you as you examine it.",
+            "An alien console stands before it, still with power.",
+            "But a mystery you can't solve alone.",
         ),
-        "highlight": "It will not open with any human tool.",
+        "highlight": "The console just hums and ignores your input.",
         "instruction": "Press ENTER to acknowledge",
     },
     "open": {

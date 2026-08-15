@@ -14,10 +14,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_signal",
         title="The Signal",
         description=(
-            "A transmission breaks through the static in a pattern no human "
-            "receiver should be able to recognize: coordinates, a pause, "
-            "then a second set of coordinates folded over the first. They "
-            "resolve to somewhere on Mars."
+            "Comms lights up with a strange signal. It's mostly noise and "
+            "static. But through the incomprehensible chatter the systems "
+            "detect a pattern. Coordinates that appear to pointing to a "
+            "remote part of Mars in Sol."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
@@ -26,9 +26,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_mars_unlocked",
         title="Mars",
         description=(
-            "The coordinates point to a dead stretch of Mars beyond the settled "
-            "routes. The signal has stopped, but whatever sent it left a "
-            "mark precise enough to follow. Find out what is waiting there."
+            "The coordinates point to a remote stretch of Mars beyond the "
+            "settlements. Something could be there. Worth taking a look at "
+            "least."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
@@ -38,10 +38,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         id="prologue_mars_entrance",
         title="The Door",
         description=(
-            "The red dust gives way to a structure that predates every human "
-            "survey. A seamless alien door is set into the rock without "
-            "hinges, controls, or any sign that it was meant for human "
-            "hands. It is not damaged. It is waiting."
+            "The martian rock merges with high tech metal machinery. You see "
+            "a wall that undulates before you as you examine it. An alien "
+            "console stands before it, still with power. But a mystery you "
+            "can't solve alone."
         ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
