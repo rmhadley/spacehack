@@ -31,7 +31,7 @@ def _ctx(parent_map: world.GameMap, parent_player: world.Entity):
         player_counters=SimpleNamespace(
             laser_shots=0, missile_shots=0, plasma_shots=0,
             merchant_kills=0, total_kills=0, bounties_completed=0,
-            deliveries_completed=0, total_damage_taken=0,
+            deliveries_completed=0, total_damage_taken=0, melee_kills=0,
         ),
         faction_reputation={},
         main_quest_gate={},

@@ -582,6 +582,7 @@ def _parse_counters(data: dict):
         bounties_completed=pc.get("bounties_completed", 0),
         deliveries_completed=pc.get("deliveries_completed", 0),
         total_damage_taken=pc.get("total_damage_taken", 0),
+        melee_kills=pc.get("melee_kills", 0),
     )
 
 

@@ -167,10 +167,39 @@ def _resolve_shot_damage(rules, ctx, wid, target, hit: bool):
     return _dmg, _stripped, _is_strip, _is_glancing, _popup
 
 
+def _rules_hook(rules, name: str):
+    """Resolve an optional ground-only combat hook without widening the rules API."""
+    _hook = getattr(rules, name, None)
+    if _hook is not None or rules is not _rules_ground:
+        return _hook
+    from . import _ground_charger
+    return getattr(_ground_charger, name, None)
+
+
+def _prepare_player_attack(rules, ctx, game_map, target, wid) -> None:
+    """Run a ground-only lunge hook before resolving the hit."""
+    _prepare = _rules_hook(rules, "prepare_attack")
+    if _prepare is not None:
+        _prepare(ctx, game_map, target, wid)
+
+
+def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[bool, int]:
+    """Record a kill, clear transient modifiers, consume ammo, and return AP."""
+    if hit and not rules.enemy_alive(target):
+        _record = _rules_hook(rules, "record_player_kill")
+        if _record is not None:
+            _record(ctx, wid)
+    _ap_cost = rules.weapon_ap_cost(wid, ctx)
+    _clear = _rules_hook(rules, "clear_attack_modifier")
+    if _clear is not None:
+        _clear(ctx)
+    rules.consume_shot(slot, ctx)
+    return hit, _ap_cost
+
+
 def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -> tuple[bool, int]:
     """Fire one weapon slot; return ``(hit, ap_cost)`` — 0 if it could not fire."""
     from .. import message_log as _ml
-
     _wid = rules.player_weapons(ctx)[slot]
     _ok, _reason = rules.can_fire(slot, ctx)
     try:
@@ -182,12 +211,13 @@ def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -
         return False, 0
     if _reason:
         ctx.log.add(_reason)
+    _prepare_player_attack(rules, ctx, game_map, target, _wid)
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
     _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
         rules, ctx, _wid, target, _hit,
     )
     rules.animate_fire(
-        console, ctx, game_map, player_pos, rules.enemy_pos(target),
+        console, ctx, game_map, ctx.player.pos, rules.enemy_pos(target),
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
     if _hit:
@@ -204,8 +234,9 @@ def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -
             _player_attack_line(_wid, _wname, rules.enemy_name(target), hit=False),
             _ml.COLOR_PLAYER_ACTION,
         )
-    rules.consume_shot(slot, ctx)
-    return _hit, rules.weapon_ap_cost(_wid, ctx)
+    return _finish_player_weapon(
+        rules, ctx, _wid, slot, target, _hit,
+    )
 
 
 def _log_explosive_result(
@@ -239,7 +270,9 @@ def _log_explosive_result(
         )
 
 
-def _process_explosive_kills(ctx, game_map, rules, enemy_hits: tuple) -> None:
+def _process_explosive_kills(
+    ctx, game_map, rules, weapon_id: str, enemy_hits: tuple,
+) -> None:
     """Run normal loot/XP handling for every enemy killed by a blast."""
     from .. import message_log as _ml
 
@@ -250,6 +283,9 @@ def _process_explosive_kills(ctx, game_map, rules, enemy_hits: tuple) -> None:
             f"{rules.enemy_name(_enemy)} destroyed!",
             _ml.COLOR_COMBAT_EVENT,
         )
+        _record = _rules_hook(rules, "record_player_kill")
+        if _record is not None:
+            _record(ctx, weapon_id)
         rules.on_kill(game_map, _enemy, ctx)
 
 
@@ -283,7 +319,7 @@ def _fire_explosive_weapon(
             ctx, rules, _wid, _wname, target, _enemy_hits, _player_damage,
             primary_hit=_hit,
         )
-        _process_explosive_kills(ctx, game_map, rules, _enemy_hits)
+        _process_explosive_kills(ctx, game_map, rules, _wid, _enemy_hits)
     else:
         from .. import message_log as _ml
         ctx.log.add_colored(

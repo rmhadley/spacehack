@@ -30,8 +30,9 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 | Trade Route | 20/30 | 10+ deliveries | -5% buy / +5% sell prices |
 | Ace Pilot | 20/30 | 40+ piloting | +1 AP per turn |
 | Juggernaut | 20/30 | 30+ total kills | Take 1 less damage from each ground attack |
+| Charger | 20/30 | 40+ melee kills | Melee weapons reach current AP; charges gain +5 hit and +1 damage per tile |
 
-These 4 traits test skill-value, delivery-count, piloting, and kill-count requirements.
+These 5 traits test skill-value, delivery-count, piloting, kill-count, and melee-play requirements.
 
 ## Philosophy alignment
 
@@ -116,6 +117,7 @@ class PlayerCounters:
     bounties_completed: int = 0
     deliveries_completed: int = 0
     total_damage_taken: int = 0
+    melee_kills: int = 0
 ```
 
 Incremented via: `ctx.player_counters.total_kills += 1`. One field on ctx. Extensible — add a counter to the dataclass, update the trait catalog, done.
@@ -284,8 +286,15 @@ JUGGERNAUT = Trait(
     counters=(("total_kills", 30),),
 )
 
+CHARGER = Trait(
+    id="charger",
+    name="Charger",
+    description="Melee weapons reach current AP; charging grants +5 hit and +1 damage per tile",
+    counters=(("melee_kills", 40),),
+)
+
 ALL_TRAITS: tuple[Trait, ...] = (
-    SHARPSHOOTER, TRADE_ROUTE, ACE_PILOT, JUGGERNAUT,
+    SHARPSHOOTER, TRADE_ROUTE, ACE_PILOT, JUGGERNAUT, CHARGER,
 )
 ```
 

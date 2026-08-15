@@ -66,11 +66,19 @@ JUGGERNAUT = Trait(
     counters=(("total_kills", 30),),
 )
 
+CHARGER = Trait(
+    id="charger",
+    name="Charger",
+    description="Melee weapons reach current AP; charging grants +5 hit and +1 damage per tile",
+    counters=(("melee_kills", 40),),
+)
+
 ALL_TRAITS: tuple[Trait, ...] = (
     SHARPSHOOTER,
     TRADE_ROUTE,
     ACE_PILOT,
     JUGGERNAUT,
+    CHARGER,
 )
 
 

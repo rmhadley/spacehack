@@ -88,6 +88,7 @@ class TestTraitQualification:
             player_counters=SimpleNamespace(
                 deliveries_completed=0,
                 total_kills=total_kills,
+                melee_kills=0,
             ),
             player_traits=[],
             faction_reputation={},
@@ -109,6 +110,19 @@ class TestTraitQualification:
         _traits = _qualifying_traits(self._ctx(total_kills=30))
 
         assert "juggernaut" in {trait.id for trait in _traits}
+
+    def test_charger_requires_40_melee_kills(self):
+        _ctx = self._ctx(total_kills=40)
+        _ctx.player_counters.melee_kills = 40
+
+        _traits = _qualifying_traits(_ctx)
+
+        assert "charger" in {trait.id for trait in _traits}
+
+    def test_charger_does_not_use_total_kills(self):
+        _traits = _qualifying_traits(self._ctx(total_kills=40))
+
+        assert "charger" not in {trait.id for trait in _traits}
 
     def test_juggernaut_reduces_each_ground_hit(self):
         assert ground_damage_reduction(

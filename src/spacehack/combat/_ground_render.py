@@ -70,9 +70,12 @@ def _ground_range_line(
     except KeyError:
         return
     _rules_mod = _rules()
+    _min_range, _max_range = _rules_mod.weapon_range(
+        weapon_id, _rules_mod._state.ctx, _rules_mod._state.player_ap,
+    )
     _draw_range_colored_line(
         console, player_pos, target_pos,
-        _ws.max_range, _ws.min_range,
+        _max_range, _min_range,
         cam_x, cam_y, _rules_mod._RENDER_WIDTH, _rules_mod._RENDER_HEIGHT,
         region_x=region_x, region_y=region_y,
         color_override=color_override,
@@ -235,7 +238,8 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
         hc = _rules().hit_chance(wid, alive[_state.target_idx], ctx) if _state.target_idx < len(alive) else 0
         console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
         y += 1
-        console.print(x=hud_x, y=y, string=f"     RNG {ws.min_range}-{ws.max_range} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
+        _min_range, _max_range = _rules().weapon_range(wid, ctx, _state.player_ap)
+        console.print(x=hud_x, y=y, string=f"     RNG {_min_range}-{_max_range} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
         y += 1
         _inst = (
             ctx.equipped_ground_weapons[i]

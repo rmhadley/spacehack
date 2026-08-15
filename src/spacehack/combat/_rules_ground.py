@@ -35,6 +35,18 @@ from ..xp import (
 
 from ._types import CombatResult
 from ._stats import _distance
+from ._ground_math import (
+    calc_ground_move_dodge as _calc_ground_move_dodge,
+    ground_point_blank_penalty as _ground_point_blank_penalty,
+)
+from ._ground_charger import (
+    attack_ap_cost as _charge_attack_ap_cost,
+    charge_bonuses as _charge_bonuses,
+    charge_path as _charge_path,
+    charge_tiles as _charge_tiles,
+    is_charger_melee as _is_charger_melee,
+    weapon_range,
+)
 from ._actions import (
     move_entity,
     _spawn_loot_at_position as _shared_loot,
@@ -271,7 +283,6 @@ def _announce_joins(ctx, joined: list[GroundEnemyInstance]) -> None:
             ctx.log.add(f"{_inst.spec.name} joins the fight!")
     _log_ambush_reveals(ctx, joined)
 
-
 # ---------------------------------------------------------------------------
 # State accessors
 # ---------------------------------------------------------------------------
@@ -401,26 +412,6 @@ def _ground_damage_raw(
     return max(1, _ws.damage + _str_bonus + _melee - armor_defense)
 
 
-def _ground_point_blank_penalty(weapon_id: str, distance: int) -> int:
-    """Return the emergency accuracy penalty for firing inside minimum range.
-
-    Minimum range remains meaningful during normal play, but a pinned player
-    must retain an actionable response. Each cell inside the minimum range
-    costs 35 accuracy points; ordinary in-range and melee shots have no
-    penalty.
-    """
-    _ws = _find_gw(weapon_id)
-    return max(0, _ws.min_range - distance) * 35
-
-
-def _calc_ground_move_dodge(cells_moved: int) -> int:
-    """Movement evade: +5% per cell moved, capped at 30.
-
-    Reflexes are already handled by the ``target_reflexes // 2`` term
-    in :func:`_ground_hit_chance_raw` — this helper is movement-only."""
-    return min(cells_moved * 5, 30)
-
-
 def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _er = enemy.spec.reflexes if enemy.spec else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
@@ -432,6 +423,8 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _hit_bonus = _sharpshooter_bonus(ctx) + _sum_armor_bonus(
         ctx.equipped_ground_armor.values(), "hit_bonus",
     )
+    if _is_charger_melee(ctx, weapon_id):
+        _hit_bonus += _charge_bonuses(_charge_tiles(ctx))[0]
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
         target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
@@ -450,6 +443,8 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
     """
     _armor = enemy.spec.armor if enemy.spec else 0
     _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
+    if _is_charger_melee(ctx, weapon_id):
+        _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
     _dmg = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
     )
@@ -532,21 +527,27 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
     _weapons = player_weapons(ctx)
     if not (0 <= slot_idx < len(_weapons)):
         return False, "Unknown weapon"
-    _ws = _find_gw(_weapons[slot_idx])
+    _wid = _weapons[slot_idx]
+    _ws = _find_gw(_wid)
     _alive = get_enemies(ctx)
     if _state.target_idx >= len(_alive):
         return False, "No valid target"
     _target = _alive[_state.target_idx]
     _dist = int(_distance(ctx.player.pos, _target.pos))
-    if _dist > _ws.max_range:
-        return False, f"Out of range ({_dist}u, need {_ws.min_range}-{_ws.max_range})"
+    _min_range, _max_range = weapon_range(_wid, ctx, _state.player_ap)
+    _is_charge = _is_charger_melee(ctx, _wid) and _dist > _ws.max_range
+    if _dist > _max_range:
+        return False, f"Out of range ({_dist}u, need {_min_range}-{_max_range})"
     _reason = ""
-    if _dist < _ws.min_range:
-        _penalty = _ground_point_blank_penalty(_weapons[slot_idx], _dist)
+    if _is_charge and _charge_path(ctx, _target, _state.game_map, _state.player_ap) is None:
+        return False, "No clear path to charge"
+    if _is_charge: _reason = f"Charge {_dist}u into melee."
+    elif _dist < _ws.min_range:
+        _penalty = _ground_point_blank_penalty(_wid, _dist)
         _reason = f"Emergency point-blank shot: {_penalty}% accuracy penalty."
-    if _state.player_ap < _ws.ap_cost:
-        return False, f"Need {_ws.ap_cost} AP (have {_state.player_ap})"
-    if not _has_los(
+    if (_state.player_ap <= 0 if _is_charge else _state.player_ap < _ws.ap_cost):
+        return False, "Need AP to charge" if _is_charge else f"Need {_ws.ap_cost} AP (have {_state.player_ap})"
+    if not _is_charge and not _has_los(
         _state.game_map,
         ctx.player.pos.x, ctx.player.pos.y,
         _target.pos.x, _target.pos.y,
@@ -565,7 +566,7 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
 
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
-    return _find_gw(weapon_id).ap_cost
+    return _charge_attack_ap_cost(ctx, weapon_id, _state.player_ap)
 
 
 def weapon_name(weapon_id: str, ctx) -> str:

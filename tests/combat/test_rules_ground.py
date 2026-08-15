@@ -21,6 +21,7 @@ from src.spacehack.engine import HUD_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH
 from src.spacehack.framebuffer import FrameBuffer
 from src.spacehack.combat import _ground_render
 from src.spacehack.combat import _ground_presentation
+from src.spacehack.combat import _ground_charger
 from src.spacehack.combat._rules_ground import (
     _ground_hit_chance_raw,
     _ground_damage_raw,
@@ -207,6 +208,66 @@ def test_ground_damage_taken_applies_juggernaut_after_armor():
 
     assert _rules_ground.ground_damage_taken(_ctx, 6) == 5
     assert _rules_ground.ground_damage_taken(_ctx, 1) == 1
+
+
+def test_charger_extends_melee_range_and_spends_full_ap(monkeypatch):
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _enemy.npc_char_id = "rock_scavenger"
+    _enemy.pos = world.Position(3, 6)
+    _ctx.player_traits = ["charger"]
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+
+    assert _rules_ground.weapon_range("fists", _ctx, 4) == (1, 4)
+    _ok, _reason = _rules_ground.can_fire(0, _ctx)
+    assert _ok
+    assert "Charge" in _reason
+
+    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
+    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+
+    assert _ctx.player.pos in {
+        world.Position(2, 5), world.Position(3, 5), world.Position(4, 5),
+    }
+    assert _rules_ground.player_ap(_ctx) == 0
+    assert _rules_ground._state.enemies[0].hp == 13
+
+
+def test_charger_uses_shortest_walkable_path_and_scales_bonuses():
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(9)] for _ in range(9)]
+    _tiles[4][3] = world.DUNGEON_WALL
+    _game_map = world.GameMap(9, 9, _tiles, [])
+    _player = world.Entity("@", (255, 255, 255), world.Position(3, 3), "Player")
+    _target = world.Entity("r", (255, 100, 100), world.Position(3, 6), "Target")
+    _game_map.entities.extend((_player, _target))
+    _ctx = SimpleNamespace(player=_player, player_traits=["charger"])
+
+    _path = _ground_charger.charge_path(
+        _ctx, SimpleNamespace(pos=_target.pos), _game_map, 4,
+    )
+
+    assert _path is not None
+    assert len(_path) <= 4
+    assert _path[-1] in {(2, 5), (3, 5), (4, 5), (2, 6), (4, 6), (2, 7), (3, 7), (4, 7)}
+    assert _ground_charger.charge_bonuses(2) == (10, 2)
+
+
+def test_melee_kill_increments_charger_counter(monkeypatch):
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
+    _primary.npc_char_id = "rock_scavenger"
+    _ctx.player_traits = ["charger"]
+    _ctx.equipped_ground_weapons = [GroundWeaponInstance("fists", None)]
+    _ctx.ground_expedition_items = []
+    _ctx.player_counters = SimpleNamespace(total_kills=0, melee_kills=0)
+    _rules_ground.init(_ctx, [_primary, _neighbor], _game_map)
+    _rules_ground._state.enemies[0].hp = 1
+    _primary.hp = 1
+    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
+
+    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+
+    assert _ctx.player_counters.melee_kills == 1
 
 
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
