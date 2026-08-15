@@ -502,6 +502,7 @@ def _apply_movement_interaction(state, code, blocker, dx, dy):
     _result = resolve_blocker(_state, code, blocker, dx, dy)
     state.game_map, state.player = _state.game_map, _state.player
     state.current_mode, state.current_city_id = _state.current_mode, _state.current_city_id
+    state.ctx.current_city_id = state.current_city_id
     state.city_game_map, state.city_player = _state.city_game_map, _state.city_player
     state.space_game_map, state.space_player = _state.space_game_map, _state.space_player
     state.player_owned_ship = _state.player_owned_ship
