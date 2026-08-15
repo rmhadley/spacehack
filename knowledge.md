@@ -19,6 +19,11 @@ launcher), `run_spacehack.bat` (Windows).
 
 **Commit after every logical change.** Do not batch changes. Do not wait until the end of a session. The working tree, not the chat log, is the source of truth.
 
+**Never end a turn with uncommitted work.** If you made changes and the
+pre-commit gate passes, commit them before replying. Do not ask the
+user "want me to commit?" — committing locally is the default, not an
+option. (Only pushes to origin wait for explicit instruction.)
+
 ### Commit discipline
 - **One commit = one self-contained change** (one refactor step, one feature, or one bug fix).
 - **Descriptive messages.** Start with a prefix tag: `feat:`, `fix:`, `refactor:`, `docs:`, `tools:`, `content:`. Example: `feat: add laser damage falloff at range`.
@@ -42,6 +47,13 @@ launcher), `run_spacehack.bat` (Windows).
 7. **Never commit without the full pre-commit gate.** Run
    ``make check``. This runs smoke, the architecture ratchet, Ruff, and the
    full pytest suite in one local gate.
+
+8. **Task complete = commit trigger — never ask permission.** When a
+   task is done and the gate passes, commit immediately, in the same
+   turn, without asking. Asking "want me to commit?" is a violation
+   of this policy: the user has delegated local-commit decisions to
+   the agent. Pause only for a push to origin or a destructive git
+   operation, which require explicit instruction.
 
 **Violation example from a real session:** After a session with 11 files changed, the agent made 2 commits instead of ~6. The second commit bundled 5+ unrelated changes (a feature, a refactor, a content restructure, a HUD addition, and a one-line fix). Each should have been separate.
 
