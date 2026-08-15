@@ -133,7 +133,7 @@ gate popup. Text is short — one idea per popup.
 | 7 | `loot_dropped` | space combat done, loot entity present | Crimson Jack dropped loot (`%`); press `P` to pick up (works in space + ground, incl. diagonals). |
 | 8 | `picked_up_loot` | `notify_pickup` — nearby loot cleared | How to jump: fly to a jump gate (`J`); each jump costs 10 fuel (watch the HUD gauge). Jumping out of Sol triggers the main quest. |
 | 9 | `signal_triggered` | `prologue_signal` step becomes completed | The signal resolves to **Mars** — that's your main quest. Jump back to Sol, land on Earth, gear up at the Armory before heading out. |
-| 10 | `earth_armory` | land on Earth while signal completed | Visit the Armory terminal (`A`) and buy a Kinetic Rifle for ground combat. |
+| 10 | `earth_armory` | land on Earth while signal completed | Visit the Armory terminal (`A`) and buy two Kinetic Pistols + a Pistol Rounds stack for ground combat. One-handed, so both fit and volley for 12 damage at 1 AP; pistol rounds cost 1$ each; reload with `R`. |
 | 11 | `armed_ground` | a ground weapon is equipped | Launch and press `G` to auto-nav to Mars; explore the signal source. |
 | 12 | `mars_ground_combat_intro` | first ground combat, before the combat UI | Ground combat 101: AP, LOS-based aggro, range, cover, weapons/armor, loot. |
 | 13 | `level_up` | first ground combat ends | Guarantees the player reaches level 2 (topped-up XP if needed), then teaches `C` = character screen and spending skill points (+1/point, cap 100). |
@@ -271,19 +271,19 @@ ends only after the points are actually spent. Verify on the final
 playtest: LEVEL UP popup → `C` → spend all 9 points → YOU'RE READY →
 tutorial complete. 272 total tests pass.
 
-**PLAYTEST (final, passed):** Land on Earth → armory popup → buy kinetic
-rifle → popup → launch → `G` to Mars → explore signal source → first
-ground combat opens with intro popup → win → LEVEL UP popup → `C` →
-spend all skill points → YOU'RE READY finale → no further popups; run
-continues as normal sandbox (main quest door chain intact).
-Save/Continue through the whole arc.
+**PLAYTEST (final, passed):** Land on Earth → armory popup → buy two
+kinetic pistols + pistol rounds → popup → launch → `G` to Mars →
+explore signal source → first ground combat opens with intro popup →
+win → LEVEL UP popup → `C` → spend all skill points → YOU'RE READY
+finale → no further popups; run continues as normal sandbox (main quest
+door chain intact). Save/Continue through the whole arc.
 
 ## Acceptance criteria
 
 - [x] Tutorial accessible from the title menu, below Continue.
 - [x] Forces Human Merchant; skips species/class/confirm screens.
-- [x] Only Crimson Jack is offered on Earth; credits suffice for laser +
-      shield + rifle.
+- [x] Only Crimson Jack is offered on Earth; credits suffice for the ship
+      loadout (2nd laser + shield) and the armory pistols + ammo.
 - [x] All user beats fire exactly once, in order, at the right moment.
 - [x] Combat intros appear before the combat UI, not during/after.
 - [x] Tutorial autosaves + Continue resumes mid-script.

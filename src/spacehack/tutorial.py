@@ -11,7 +11,7 @@ State lives on :class:`GameContext` (``tutorial_mode`` /
 ``tutorial_steps`` / ``tutorial_complete``) and survives save/continue
 like everything else, so Continue resumes a tutorial run mid-script.
 
-Design doc: ``docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md``
+Design doc: ``docs/design/complete/14_DESIGN_TUTORIAL_MODE.md``
 """
 
 from __future__ import annotations
@@ -24,9 +24,10 @@ from typing import Any, Callable
 # in mission.fill_empty_slots).
 TUTORIAL_MISSION_IDS = frozenset({"bhguild_sol_scout"})
 
-# Extra credits granted at tutorial start. Merchant starts with 75$;
-# the scripted shopping list (2nd light laser 30$ + Shield Mk.1 60$ +
-# kinetic rifle 80$ = 170$) needs a comfortable margin on top.
+# Extra credits granted at tutorial start. Merchant starts with 75$.
+# The scripted ship loadout (2nd light laser 30$ + Shield Mk.1 60$ =
+# 90$) leaves ~235$ for the armory beat: two kinetic pistols (70$) +
+# a 40-round Pistol Rounds stack (40$) with margin for armor/med packs.
 TUTORIAL_CREDIT_BONUS = 250
 
 
@@ -153,9 +154,12 @@ _STEP_BODIES: dict[str, str] = {
     "earth_armory": (
         "Mars has hostile wildlife and raiders - bring a weapon. Visit "
         "the Armory terminal (the 'A' icon, left of the mechanic "
-        "terminal outside the space port) and buy a Shotgun.\n\n"
-        "It's two-handed, so it fills both weapon slots. Equip it from "
-        "your ground loadout."
+        "terminal outside the space port) and buy two Kinetic Pistols.\n\n"
+        "They're one-handed, so you can equip both and fire them "
+        "together: a 12-damage volley for just 1 AP. Kinetic guns need "
+        "ammo - buy a stack of Pistol Rounds too, and press 'R' to "
+        "reload when a magazine runs dry. Equip both from your ground "
+        "loadout."
     ),
     "armed_ground": (
         "Armed and ready. Launch your ship and press 'G' to "
