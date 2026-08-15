@@ -270,6 +270,45 @@ def test_melee_kill_increments_charger_counter(monkeypatch):
     assert _ctx.player_counters.melee_kills == 1
 
 
+def test_stun_baton_hit_reduces_enemy_ap_by_one():
+    _enemy = _rules_ground.GroundEnemyInstance(
+        entity=SimpleNamespace(),
+        spec=SimpleNamespace(armor=0),
+        hp=30,
+        ap=4,
+        ap_total=4,
+    )
+    _ctx = SimpleNamespace(
+        ground_stats=SimpleNamespace(strength=10),
+        equipped_ground_armor={},
+        player_traits=[],
+    )
+
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
+
+    assert _enemy.ap == 3
+
+
+def test_stun_baton_cannot_reduce_enemy_ap_below_zero():
+    _enemy = _rules_ground.GroundEnemyInstance(
+        entity=SimpleNamespace(),
+        spec=SimpleNamespace(armor=0),
+        hp=30,
+        ap=1,
+        ap_total=4,
+    )
+    _ctx = SimpleNamespace(
+        ground_stats=SimpleNamespace(strength=10),
+        equipped_ground_armor={},
+        player_traits=[],
+    )
+
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
+    _rules_ground.damage("stun_baton", _enemy, _ctx)
+
+    assert _enemy.ap == 0
+
+
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     """Player melee vs an armored enemy: armor reduces, cyber arms add."""
     _enemy = _rules_ground.GroundEnemyInstance(

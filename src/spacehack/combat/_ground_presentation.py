@@ -58,7 +58,7 @@ def _ground_card_rows(
     rows = [
         title_row(enemy.name),
         hp_row,
-        text_row(f"ARM {_armor}  AP {getattr(enemy, 'ap_total', 0)}"),
+        text_row(f"ARM {_armor}  AP {getattr(enemy, 'ap', getattr(enemy, 'ap_total', 0))}"),
     ]
     if weapon:
         rows.append(dim_row(weapon.name))

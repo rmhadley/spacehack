@@ -366,7 +366,6 @@ def enemy_max_hp(enemy: GroundEnemyInstance) -> int:
 def enemy_alive(enemy: GroundEnemyInstance) -> bool:
     return enemy.alive
 
-
 # ---------------------------------------------------------------------------
 # Combat math
 # ---------------------------------------------------------------------------
@@ -449,6 +448,7 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
         weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
     )
     enemy.hp -= _dmg
+    enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
     # Wound persistence: sync to the map entity so a fight that ends
     # with survivors (LOS aggro) keeps their wounds on re-engagement.
     if enemy.entity is not None:
