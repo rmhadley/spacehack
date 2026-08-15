@@ -230,7 +230,8 @@ def test_charger_extends_melee_range_and_spends_full_ap(monkeypatch):
         world.Position(2, 5), world.Position(3, 5), world.Position(4, 5),
     }
     assert _rules_ground.player_ap(_ctx) == 0
-    assert _rules_ground._state.enemies[0].hp == 13
+    # fists 1 + strength 10//5 (2) + charge bonus (2) = 5; 17 - 5 = 12.
+    assert _rules_ground._state.enemies[0].hp == 12
 
 
 def test_charger_uses_shortest_walkable_path_and_scales_bonuses():
@@ -340,7 +341,10 @@ def test_stun_baton_cannot_reduce_enemy_ap_below_zero():
 
 
 def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
-    """Player melee vs an armored enemy: armor reduces, cyber arms add."""
+    """Player melee vs an armored enemy: armor reduces, cyber arms add.
+
+    Player strength steps every 5 points: 20 // 5 = +4 melee.
+    """
     _enemy = _rules_ground.GroundEnemyInstance(
         entity=SimpleNamespace(),
         spec=SimpleNamespace(armor=3),
@@ -351,9 +355,9 @@ def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
         equipped_ground_armor={"hands": "cybernetic_arms"},
     )
     _dmg, _glance = _rules_ground.damage("fists", _enemy, _ctx)
-    assert _dmg == 2  # 1 + 2 (str) + 2 (cyber arms) - 3 (armor)
+    assert _dmg == 4  # 1 + 4 (str) + 2 (cyber arms) - 3 (armor)
     assert _glance is False
-    assert _enemy.hp == 28
+    assert _enemy.hp == 26
 
 
 # ---------------------------------------------------------------------------

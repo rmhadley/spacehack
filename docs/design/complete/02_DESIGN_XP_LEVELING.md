@@ -13,8 +13,18 @@ Leveling grants **9 skill points per level** (each point adds +1 to any of the s
 **Keybinding:** `C` opens the Character screen. Cargo was moved to `I` (Inventory) to free up `C`. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
 - **Gunnery** → weapon accuracy (`gunnery * 0.5` added to hit chance)
-- **Piloting** → AP per turn (`3 + piloting // 20`), dodge bonus (`piloting * 0.5`)
+- **Piloting** → AP per turn (`3 + piloting // 10`), dodge bonus (`piloting * 0.5`)
 - **Engineering** → max power pool (`power_gen * 2 + engineering // 5`)
+
+> **Update (per-5 stat steps):** every stat effect steps at 5-point
+> granularity so a 5-point investment is always visible. Piloting's AP
+> formula was `3 + piloting // 20` (dead zones of 19 points); it now
+> steps every 10 (`3 + piloting // 10`), and piloting's dodge still
+> moves every 2 points. Player Strength now adds +1 melee damage per 5
+> points (was per 10) and +1 Expedition Pack slot per 5 points above 10
+> (was per 10); monsters keep the legacy 10-point divisor so their
+> tuned damage is unchanged. Gunnery/Reflexes (per 2), Engineering
+> power (per 5), and Stamina HP (per 3) already satisfied the rule.
 
 | Level | Unlock |
 |-------|--------|

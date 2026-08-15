@@ -42,11 +42,12 @@ from src.spacehack.ground_equipment import (
 
 
 def test_expedition_capacity_uses_strength_bonus():
+    """Every 5 Strength above 10 adds one reserve slot."""
     assert expedition_capacity(9) == 4
     assert expedition_capacity(10) == 4
-    assert expedition_capacity(19) == 4
-    assert expedition_capacity(20) == 5
-    assert expedition_capacity(40) == 7
+    assert expedition_capacity(19) == 5
+    assert expedition_capacity(20) == 6
+    assert expedition_capacity(40) == 10
 
 
 def test_sum_armor_bonus_totals_a_single_field_across_armor():

@@ -359,17 +359,26 @@ def _ground_hit_chance_raw(
         - target_dodge_bonus + hit_bonus - range_penalty,
     ))
 
+# Player stat progression steps every 5 points: every 5 Strength adds
+# +1 melee damage. Monsters keep the legacy 10-point divisor so their
+# tuned damage values are unchanged.
+_PLAYER_STRENGTH_STEP: int = 5
+
+
 def _ground_damage_raw(
-    weapon_id: str, strength: int, armor_defense: int, melee_bonus: int = 0,
+    weapon_id: str, strength: int, armor_defense: int,
+    melee_bonus: int = 0, strength_step: int = 10,
 ) -> int:
     """Raw hit damage: base + melee bonuses - armor, minimum 1.
 
     ``armor_bypass`` weapons ignore armor entirely; plasma halves
     ``armor_defense``; ``melee_bonus`` (cybernetic arms) applies only
-    to melee weapons.
+    to melee weapons. ``strength_step`` is the divisor for the melee
+    strength bonus — the player passes ``_PLAYER_STRENGTH_STEP`` (5)
+    so every 5 points of Strength adds +1 melee damage.
     """
     _ws = _find_gw(weapon_id)
-    _str_bonus = strength // 10 if _ws.damage_type == 'melee' else 0
+    _str_bonus = (strength // strength_step) if _ws.damage_type == 'melee' else 0
     _melee = melee_bonus if _ws.damage_type == 'melee' else 0
     if _ws.armor_bypass:
         armor_defense = 0
@@ -411,6 +420,7 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
         _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
     _dmg = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
+        strength_step=_PLAYER_STRENGTH_STEP,
     )
     enemy.hp -= _dmg
     enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
@@ -442,6 +452,7 @@ def _apply_explosive_enemy_hit(
     _armor = enemy.spec.armor if enemy.spec else 0
     _full_damage = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
+        strength_step=_PLAYER_STRENGTH_STEP,
     )
     _is_primary = enemy is primary and primary_hit
     if _is_primary:

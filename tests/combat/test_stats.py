@@ -136,16 +136,16 @@ class TestCalcAp:
         assert _calc_ap(0) == 3
 
     def test_piloting_breakpoint(self):
-        """piloting=20 → 3 + 1 = 4 AP."""
-        assert _calc_ap(20) == 4
+        """piloting=20 → 3 + 2 = 5 AP (per-10 steps)."""
+        assert _calc_ap(20) == 5
 
     def test_piloting_breakpoint_40(self):
-        """piloting=40 → 3 + 2 = 5 AP."""
-        assert _calc_ap(40) == 5
+        """piloting=40 → 3 + 4 = 7 AP."""
+        assert _calc_ap(40) == 7
 
     def test_ap_bonus(self):
         """Ace Pilot trait: +1."""
-        assert _calc_ap(20, ap_bonus=1) == 5
+        assert _calc_ap(20, ap_bonus=1) == 6
 
     def test_min_1(self):
         """Negative piloting still gives at least 1 AP."""

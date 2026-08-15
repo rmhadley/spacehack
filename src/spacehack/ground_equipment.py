@@ -117,8 +117,11 @@ class GroundWeaponInstance:
 
 
 def expedition_capacity(strength: int) -> int:
-    """Return reserve-item capacity for a character's Strength."""
-    return BASE_EXPEDITION_SLOTS + max(0, (strength - 10) // 10)
+    """Return reserve-item capacity for a character's Strength.
+
+    Every 5 Strength above 10 adds one reserve slot (per-5 stat step).
+    """
+    return BASE_EXPEDITION_SLOTS + max(0, (strength - 10) // 5)
 
 
 def weapon_hands(weapon_id: str) -> int:

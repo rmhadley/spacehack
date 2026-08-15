@@ -80,12 +80,14 @@ def _calc_max_shields(ship_catalog: Ship | NpcShipSpec, owned_ship: OwnedShip | 
 
 
 def _calc_ap(piloting: int, ap_bonus: int = 0) -> int:
-    """Action points per turn: ``3 + Piloting//20`` plus a flat bonus.
+    """Action points per turn: ``3 + Piloting//10`` plus a flat bonus.
 
-    ``ap_bonus`` carries permanent bonuses (e.g. the Ace Pilot trait's
-    +1 AP) into the pure formula so callers don't mutate the result.
+    Steps every 10 piloting (was 20) so AP investment lands sooner;
+    dodge still moves every 2 points. ``ap_bonus`` carries permanent
+    bonuses (e.g. the Ace Pilot trait's +1 AP) into the pure formula
+    so callers don't mutate the result.
     """
-    return max(1, 3 + (piloting // 20)) + ap_bonus
+    return max(1, 3 + (piloting // 10)) + ap_bonus
 
 
 def _calc_dodge_bonus(cells_moved: int, piloting_bonus: int = 0) -> int:
