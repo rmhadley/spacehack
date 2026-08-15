@@ -665,10 +665,11 @@ def show_prologue_transmission(ctx) -> None:
         ctx,
         title="INCOMING TRANSMISSION",
         body=(
-            "Comms lights up with a strange signal. It's mostly noise and "
+            "Comms lights up with a strange signal.It's mostly noise and "
             "static. But through the incomprehensible chatter the systems "
-            "detect a pattern. Coordinates that appear to pointing to a "
-            "remote part of Mars in Sol."
+            "detect a pattern.\n\n"
+            "Coordinates that appear to be pointing to a remote part of "
+            "Mars in Sol."
         ),
         caption="spacehack - incoming transmission",
         art=_SIGNAL_ART,

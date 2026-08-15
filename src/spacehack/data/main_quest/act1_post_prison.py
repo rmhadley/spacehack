@@ -163,22 +163,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "translate the simplest recurring symbols first. Only then can we "
                     "ask where any of it leads."
                 ),
-                active=(
-                    "The first processing pass is underway. We are not translating "
-                    "sentences yet; we are separating recurring symbols from the "
-                    "archive's other layers and checking that the patterns survive "
-                    "without the prison terminal's distortion. So far the coordinate "
-                    "sequence remains intact. It reaches beyond the Luyten blockade, "
-                    "but we do not know whether it marks a destination, a transit route, "
-                    "or a warning about what lies along it."
-                ),
-                complete=(
-                    "The archive is in the processing cluster. We have not translated "
-                    "it yet; we are separating the raw layers and checking that the "
-                    "alien symbols remain stable outside the prison terminal. The "
-                    "first report will come when the cluster has enough evidence to "
-                    "say what the coordinate pattern actually means."
-                ),
                 option_label="Begin the first interpretation",
                 dialogue_planet_id="ac_station",
             ),
@@ -224,19 +208,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "containment records and warnings are still tangled through it, "
                     "so this is a route hypothesis - not a destination, and not an "
                     "answer about what escaped the prison."
-                ),
-                active=(
-                    "The first translation report is ready for review. We isolated "
-                    "the coordinate layer, but the warning symbols resist a stable "
-                    "translation. We need to decide what the route is worth before "
-                    "we expose more of the archive."
-                ),
-                complete=(
-                    "Now we know the route is real. Beyond Luyten lies a linked chain "
-                    "of dead systems, not a single destination. The archive still "
-                    "withholds the identity of the prisoner and the meaning of its "
-                    "warnings. That is the next question - and the answer may be "
-                    "watching for the signal we just sent."
                 ),
                 option_label="Review the first translation",
                 dialogue_planet_id="ac_station",

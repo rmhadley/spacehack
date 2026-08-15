@@ -13,7 +13,7 @@ override map first, then through this global catalog.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -43,9 +43,14 @@ class NPC:
 
 def _build_registry() -> dict[str, "NPC"]:
     from . import guilds as guilds_module
+    from ...text import overlay as _text_overlay
+    _text = _text_overlay()
     combined: dict[str, NPC] = {}
     for n in guilds_module.NPCS:
-        combined[n.id] = n
+        _key = f"npc.{n.id}.flavor_text"
+        combined[n.id] = (
+            replace(n, flavor_text=_text[_key]) if _key in _text else n
+        )
     return combined
 
 
@@ -76,4 +81,12 @@ def list_npcs() -> tuple[NPC, ...]:
     return tuple(_registry().values())
 
 
-__all__ = ["NPC", "find_npc", "list_npcs"]
+def reload_text_overlay() -> None:
+    """Re-parse the text overlay and rebuild the catalog (dev F5)."""
+    global _BY_ID
+    from ...text import reload as _reload_text
+    _reload_text()
+    _BY_ID = None
+
+
+__all__ = ["NPC", "find_npc", "list_npcs", "reload_text_overlay"]

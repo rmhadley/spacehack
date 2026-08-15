@@ -19,7 +19,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .time import tick_move
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f5_press, _try_open_guide
 from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
 from .pygame_runtime import PygameContext
@@ -111,10 +111,25 @@ def _handle_dev_quest_event(state, event):
     return 'HANDLED'
 
 
+def _reload_text_overlay_dev(state) -> None:
+    """Dev-only: re-parse the story-text JSON overlay (F5)."""
+    import os as _os
+    if not _os.environ.get('SPACEHACK_DEV'):
+        return
+    from .data.main_quest import reload_text_overlay as _mq_text
+    from .data.npcs import reload_text_overlay as _npc_text
+    _mq_text()
+    _npc_text()
+    state.log.add('Dev: story text overlay reloaded (F5).')
+
+
 def _handle_dev_event(state, event):
     """Handle developer-only input."""
     ctx = state.ctx
     log = state.log
+    if _is_f5_press(event):
+        _reload_text_overlay_dev(state)
+        return 'HANDLED'
     if _is_shift_x_press(event):
         import os as _os
         if _os.environ.get('SPACEHACK_DEV'):

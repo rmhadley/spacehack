@@ -360,6 +360,15 @@ def _is_shift_o_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'O')
 
+def _is_f5_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the F5 key.
+
+    Dev-mode only (``SPACEHACK_DEV``): re-parses the story-text JSON
+    overlay (src/spacehack/data/text/) so dialogue edits are visible
+    without restarting the game.
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'f5'
+
 def _try_open_guide(event: pygame_engine.PygameInputEvent, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.
 

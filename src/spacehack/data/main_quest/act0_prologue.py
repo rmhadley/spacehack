@@ -13,12 +13,11 @@ STEPS: tuple[MainQuestStep, ...] = (
     MainQuestStep(
         id="prologue_signal",
         title="The Signal",
-        description=(
-            "Comms lights up with a strange signal. It's mostly noise and "
-            "static. But through the incomprehensible chatter the systems "
-            "detect a pattern. Coordinates that appear to pointing to a "
-            "remote part of Mars in Sol."
-        ),
+        # Auto-completes in the same instant it triggers (first jump out
+        # of Sol), so the quest-log breadcrumb never renders it — the
+        # beat is carried by the transmission overlay + log lines, and
+        # the quest-log description is intentionally empty.
+        description="",
         trigger_planet_id="mars",
         trigger_system_id="sol",
     ),
@@ -72,12 +71,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "since pretending he never did. I can put you in the "
                     "same room with him."
                 ),
-                active=(
-                    "Still standing outside the door? The rig is ready when you are. "
-                    "No promises about what it will let through. Bring the "
-                    "bar the truth of what you find, not a polished version "
-                    "someone can sell."
-                ),
                 complete=(
                     "Then we have an understanding. I will send you to the old hand. "
                     "Do not ask him what was behind the door until he decides "
@@ -103,12 +96,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "that can read the door's material stress. First rights "
                     "to whatever is recovered. We can decide what it is worth "
                     "after we know how much of the future it contains."
-                ),
-                active=(
-                    "The cutter is waiting. Sign the addendum and the Guild gets first "
-                    "access to the recovery. That is not ownership of the "
-                    "truth, of course. It is only the usual arrangement for "
-                    "being the first person to put a price on it."
                 ),
                 complete=(
                     "The contract is filed. Build the cutter, open the door, and bring us "
@@ -136,12 +123,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "give me one thing in return: silence until we know what "
                     "we are dealing with."
                 ),
-                active=(
-                    "The schematics are ready. The operation remains deniable, which is "
-                    "not the same as harmless. Open the door, record what you "
-                    "can, and bring back proof before anyone decides the "
-                    "answer is to seal Mars around it."
-                ),
                 complete=(
                     "The paperwork is moving. When the package is ready, you will hear "
                     "from me through a channel that officially does not exist. "
@@ -164,11 +145,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "the transmission. If the two are related, the key will not "
                     "force the lock; it will demonstrate that the lock has "
                     "already recognized us."
-                ),
-                active=(
-                    "The sample may give us a response, not merely a reading. Bring it back "
-                    "and we can test that hypothesis. If you cross that threshold, "
-                    "do not assume an empty room means the danger is gone."
                 ),
                 complete=(
                     "Then the work begins. Take a controlled sample from Mars and bring it "
@@ -196,11 +172,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "of the same impossible material. Bring me a sample. We "
                     "may be able to make the lock answer without teaching "
                     "ourselves what it was built to contain."
-                ),
-                active=(
-                    "The sample may give us a response, not merely a reading. Bring it back "
-                    "and we can test that hypothesis. If you cross that threshold, "
-                    "do not assume an empty room means the danger is gone."
                 ),
                 complete=(
                     "Then the work begins. Take a controlled sample from Mars and bring it "

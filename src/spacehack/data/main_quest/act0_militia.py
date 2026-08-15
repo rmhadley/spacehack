@@ -56,18 +56,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "remains of the response. Bring me proof it survived, and "
                     "I will show you how we planned to open the door."
                 ),
-                active=(
-                    "Clearance takes time because the records are sealed, duplicated, and "
-                    "missing in exactly the wrong places. When it clears, go to "
-                    "Mercury. The caves beneath the old station hold a cache "
-                    "the official archive claims was destroyed years ago."
-                ),
-                complete=(
-                    "The cache is intact. That is the first clean result this operation has "
-                    "produced. Move the components to the Luyten's Star blockade. "
-                    "The inspection will tell us whether the package is safe to "
-                    "bring near the alien material."
-                ),
                 option_label="Report to the Captain",
                 backing_faction="militia",
                 dialogue_planet_id="earth",
@@ -108,17 +96,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "show. Ship components, fuel cells, enough to "
                     "build a breach charge that'll crack anything. "
                     "Secure it and bring it back."
-                ),
-                active=(
-                    "The cache is in the Mercury caves - beneath "
-                    "the old mining station. Don't draw attention. "
-                    "The requisition was scrubbed for a reason."
-                ),
-                complete=(
-                    "The cache is intact. Carry those components to the Luyten's Star "
-                    "blockade. The inspector at the northern checkpoint is "
-                    "expecting you. Five jumps through frontier space; keep the "
-                    "package and your transponder clean."
                 ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
@@ -175,13 +152,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The blockade inspector is waiting at Luyten's Star's northern checkpoint. "
                     "Hand over the components. He will log them as routine supply "
                     "and keep the package buried under ordinary paperwork."
-                ),
-                complete=(
-                    "The package passed inspection. That means the hardware is sound, not "
-                    "that the plan is. Wait for the demolitions expert's "
-                    "clearance. If he agrees to help, we may have one chance "
-                    "to open the Mars door without turning the whole site into "
-                    "a crater."
                 ),
                 option_label="Take on the delivery",
                 backing_faction="militia",
@@ -253,13 +223,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "successful breach tells you nothing about what is waiting "
                     "on the other side."
                 ),
-                active=(
-                    "Alien alloy does not fail in familiar ways. The charge needs weeks of "
-                    "calibration, and every test risks teaching the material "
-                    "something about us. The Captain will call when I have a "
-                    "package that might open the door without waking the "
-                    "building behind it."
-                ),
                 complete=(
                     "The charge is ready for a live-fire test. The Captain has chosen a "
                     "target at Cygni b: pirate captains, hard enough to stress "
@@ -312,19 +275,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "the result, and do not mistake a successful detonation "
                     "for a successful containment plan."
                 ),
-                active=(
-                    "Five captains at Cygni b. The prototype is live. Use it once, watch "
-                    "what the material does under stress, and bring me the "
-                    "data. The Militia has spent years preparing for the "
-                    "possibility that the Mars site is not empty."
-
-                ),
-                complete=(
-                    "Five targets, one surviving prototype, and a result I would rather "
-                    "not have seen: the charge made the alien material answer "
-                    "back. The final package is ready. Whether that is good "
-                    "news depends on what is behind the door."
-                ),
                 backing_faction="militia",
                 dialogue_planet_id="earth",
             ),
@@ -357,16 +307,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "inside, we preserve what can be learned, and we tell no "
                     "one until we know which of those tasks is still possible. "
                     "That is the order. The door is not."
-                ),
-                active=(
-                    "The package is here. After the door opens, report what you find before you "
-                    "touch anything else. If the site is occupied, do not improvise "
-                    "a rescue, a raid, or a heroic death. Get out and call me."
-                ),
-                complete=(
-                    "Take the package to Mars. Once you open that door, you are the first "
-                    "line between an old disaster and a new one. Hold the "
-                    "line if you can. Report if you cannot."
                 ),
                 option_label="Collect the charge",
                 backing_faction="militia",

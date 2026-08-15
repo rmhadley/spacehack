@@ -47,15 +47,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "Incident, the Militia has treated old routes like crime "
                     "scenes."
                 ),
-                active=(
-                    "The word is ahead. Go to Barnard's Star b and let the old man decide "
-                    "whether your curiosity is worth the risk. Watch the patrols "
-                    "on the way."
-                ),
-                complete=(
-                    "The old man will see you. That is not the same as saying he will trust "
-                    "you."
-                ),
                 option_label="Ask about the old smuggler",
                 backing_faction="bar",
                 dialogue_planet_id="earth",
@@ -104,15 +95,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                 active=(
                     "The crate's in your hold. Get it to the old man "
                     "on Barnard's Star b before a patrol sniffs it."
-                ),
-                complete=(
-                    "He took the crate. Now he has to draw the cave. If you come back with the "
-                    "power cell, I will buy the first round and listen to the "
-                    "second story."
-                ),
-                locked=(
-                    "Already running that crate, are you? The old man "
-                    "is a patient sort. So's the militia."
                 ),
                 option_label="You asked to see me?",
                 backing_faction="bar",
@@ -172,17 +154,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The cave's up the ridge, past the old dig markers. "
                     "The cell is down in the dark - watch your step, "
                     "and watch the sky. The militia's been circling."
-                ),
-                active=(
-                    "The cave's up the ridge. The power cell is down "
-                    "in the dark - and the militia knows you're "
-                    "looking for it."
-                ),
-                complete=(
-                    "You brought it out. That cell is older than both of us, and it needs a "
-            "recharge before it will power the rig. Take it to the black-"
-            "market station at Wolf 359. Pirate country means no Militia "
-                    "questions, not no consequences."
                 ),
                 backing_faction="bar",
             ),
@@ -294,10 +265,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The cell is in your hold. Run it to Earth before the Militia decides the "
                     "old signature is evidence enough to take you apart."
                 ),
-                complete=(
-                    "The cell made it. The Earth Barkeep has the rig ready, and he has been "
-                    "trying not to look at the door since you left."
-                ),
                 option_label="Take the charged cell",
                 backing_faction="bar",
             ),
@@ -312,10 +279,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                 active=(
                     "The cell is here. Hand it over and let us see whether the old rig still "
                     "knows what it was built to do."
-                ),
-                complete=(
-                    "Cell is seated. The rig is awake. One more step and the door will have to "
-                    "decide whether it remembers us."
                 ),
                 option_label="Hand over the charged cell",
                 backing_faction="bar",
@@ -348,15 +311,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "open. It does not crack the seal so much as convince the power "
                     "feed to stop pretending it is dead. The Militia will watch you "
                     "from here on. Welcome to the family, friend."
-                ),
-                active=(
-                    "The rig is here when you are ready. After the door opens, come back with "
-                    "the part of the story that makes you hesitate."
-                ),
-                complete=(
-                    "Take the rig to Mars. Open the door, then come back if you can. The bar "
-                    "will listen to the story, and the Militia will listen for "
-                    "the parts you leave out."
                 ),
                 option_label="Collect the rig",
                 backing_faction="bar",

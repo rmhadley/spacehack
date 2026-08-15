@@ -13,7 +13,7 @@ stays focused on static data. Design doc:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 
 @dataclass(frozen=True)
@@ -179,6 +179,35 @@ class MainQuestStep:
                               # the next step's system + planet
 
 
+def _apply_text_overlay(_step: MainQuestStep) -> MainQuestStep:
+    """Overlay JSON story text over one step's authored strings.
+
+    Looks up ``step.<id>.title`` / ``.description`` and
+    ``step.<id>.dialogue.<npc>.<variant>`` in the runtime text
+    overlay (:mod:`spacehack.text`), returning a new step with the
+    overrides applied. Missing keys fall back to the Python default,
+    so the JSON files are optional overrides, not a second catalog.
+    """
+    from ...text import overlay as _text_overlay
+    _text = _text_overlay()
+    _changes: dict[str, object] = {}
+    for _field in ("title", "description"):
+        _key = f"step.{_step.id}.{_field}"
+        if _key in _text:
+            _changes[_field] = _text[_key]
+    _dialogues: dict[str, QuestDialogue] = {}
+    for _npc_id, _dialogue in _step.dialogues.items():
+        _replace: dict[str, str] = {}
+        for _variant in ("intro", "active", "complete", "locked", "option_label"):
+            _key = f"step.{_step.id}.dialogue.{_npc_id}.{_variant}"
+            if _key in _text:
+                _replace[_variant] = _text[_key]
+        _dialogues[_npc_id] = replace(_dialogue, **_replace) if _replace else _dialogue
+    if _dialogues:
+        _changes["dialogues"] = _dialogues
+    return replace(_step, **_changes) if _changes else _step
+
+
 def _build_registry() -> dict[str, MainQuestStep]:
     """Auto-discover every step catalog under this package.
 
@@ -187,7 +216,8 @@ def _build_registry() -> dict[str, MainQuestStep]:
     it's picked up without touching any registry code. Each step's
     ``dialogues`` field is authored as a dict keyed by ``npc_id``
     (see :class:`QuestDialogue`), so the runtime looks up by
-    ``npc_id`` directly.
+    ``npc_id`` directly. The JSON text overlay is applied here, so
+    every lookup sees the overlaid strings.
     """
     import importlib
     import pkgutil
@@ -200,7 +230,7 @@ def _build_registry() -> dict[str, MainQuestStep]:
         if not hasattr(mod, "STEPS"):
             continue
         for _raw in mod.STEPS:
-            combined[_raw.id] = _raw
+            combined[_raw.id] = _apply_text_overlay(_raw)
     return combined
 
 
@@ -227,6 +257,14 @@ def list_main_quest_steps() -> tuple[MainQuestStep, ...]:
     return tuple(_registry().values())
 
 
+def reload_text_overlay() -> None:
+    """Re-parse the text overlay and rebuild the registry (dev F5)."""
+    global _BY_ID
+    from ...text import reload as _reload_text
+    _reload_text()
+    _BY_ID = None
+
+
 def main_quest_step_after(step_id: str, *, chain: str = "") -> MainQuestStep | None:
     """Return the next step that requires ``step_id`` (for auto-advance).
 
@@ -249,4 +287,5 @@ __all__ = [
     "find_main_quest_step",
     "list_main_quest_steps",
     "main_quest_step_after",
+    "reload_text_overlay",
 ]

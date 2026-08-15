@@ -52,17 +52,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "signature. Sign, and we begin with the Wolf 359 escrow ore "
                     "that will pay for the work."
                 ),
-                active=(
-                    "The contract is filed. Give the Guild time to move the deed through "
-                    "three offices that all claim not to know us. Once it clears, "
-                    "go to Wolf 359 b. The caves beneath the listening post hold "
-                    "ore the Guild has been defending on paper for years."
-                ),
-                complete=(
-                    "The deed is yours to enforce. Recover the ore from the Wolf 359 b "
-                    "caves before the consortium turns our legal victory into a "
-                    "physical one."
-                ),
                 option_label="Sign the contract",
                 backing_faction="merchants",
                 dialogue_planet_id="earth",
@@ -100,16 +89,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "it. The ore should still be in the deep cache, unless the "
                     "consortium has decided a neglected deed is an invitation. "
                     "Get down there and secure it before they do."
-                ),
-                active=(
-                    "The claim is at Wolf 359 b. The listening post staff will not ask questions "
-                    "because questions are bad for business. The consortium's "
-                    "prospectors will ask them anyway."
-                ),
-                complete=(
-                    "You got the ore out. It is raw, but the assay is already making people "
-                    "nervous. Take it to the specialist at Tau Ceti b; he can smelt "
-                    "it without asking the material to become ordinary."
                 ),
                 backing_faction="merchants",
             ),
@@ -216,18 +195,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "Vega; the consortium has put raiders on the wreck to keep us "
                     "from learning what we made."
                 ),
-                active=(
-                    "The alloy is in your hold. The wreck is near Vega's observation deck. "
-                    "Fight through the consortium raiders, board the derelict, and "
-                    "recover the calibration data. Without it, the Guild cannot tell "
-                    "whether the cutter is opening a door or answering a call."
-                ),
-                complete=(
-                    "You fought through the raiders and brought back the data. It confirms the "
-                    "cutter will not be forcing the door; it will be completing a "
-                    "pattern. Take the alloy to Earth. The Guild Master is waiting "
-                    "to turn that distinction into a contract clause."
-                ),
                 option_label="Take the smelted alloy",
                 backing_faction="merchants",
             ),
@@ -260,16 +227,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "cutting a door - we are asking a much older system to "
                     "notice us. Sign the final addendum and the instrument is "
                     "yours."
-                ),
-                active=(
-                    "The cutter is here. After the door opens, the Guild gets first access under "
-                    "the contract. If the first thing you find is a warning, send it "
-                    "before you send anything else."
-                ),
-                complete=(
-                    "Take the cutter to Mars. Open the door, document what you find, and "
-                    "remember that a thing can be priceless without being safe to "
-                    "own. Fair trading, pilot."
                 ),
                 option_label="Collect the cutter",
                 backing_faction="merchants",

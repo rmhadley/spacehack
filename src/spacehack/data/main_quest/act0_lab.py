@@ -52,17 +52,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "the pattern is stable, we can build a key that asks the door "
                     "to recognize the signal."
                 ),
-                active=(
-                    "The sample is still on Mars. Take a controlled fragment and bring it to "
-                    "the Mercury lab. Do not widen the breach; we are measuring a "
-                    "boundary, not testing how much of it we can destroy."
-                ),
-                complete=(
-                    "Sample received. The instruments are not finding a language, but they are "
-                    "finding structure - the same structure hidden in the original "
-                    "transmission. Give us time to determine whether the signal is "
-                    "an invitation, a route, or a warning."
-                ),
                 option_label="Accept the assignment",
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
@@ -111,11 +100,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "tell us whether the pattern is stable. First readings should "
                     "arrive before the station decides what story to attach to them."
                 ),
-                complete=(
-                    "The fragment is in the chamber. The pattern repeats whenever the original "
-                    "signal is replayed, as if the material remembers being called. "
-                    "Give us time; the next result may tell us where to look."
-                ),
                 option_label="Hand over the sample",
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
@@ -155,19 +139,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "learn whether that frequency belongs to the door, the signal, "
                     "or something farther along the route. Recover the dataset "
                     "intact."
-                ),
-                active=(
-                    "The cache is deep in the Procyon C ice caves beneath the research outpost. "
-                    "It is sealed, decades old, and full of measurements no one "
-                    "thought worth preserving at the time. Bring it back before "
-                    "the ice or the archive's automated safeguards decide to keep "
-                    "it forever."
-                ),
-                complete=(
-                    "The dataset is intact. It contains a second resonance family, older and "
-                    "broader than the signal that brought you to Mars. The "
-                    "xenolinguist at Alpha Centauri's Science Port needs to "
-                    "compare them before we decide whether they share a source."
                 ),
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
@@ -222,12 +193,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "The cross-reference gives us a route, not a meaning. One more dataset may "
                     "show where the route terminates. The Research Officer is "
                     "triangulating a derelict near Sirius."
-                ),
-                complete=(
-                    "The frequency map is complete enough to be dangerous. One more recorder "
-                    "from the Sirius derelict may tell us whether the Mars door is "
-                    "a lock, a relay, or the mouth of a route that was never meant "
-                    "to reopen. The Research Officer has the coordinates."
                 ),
                 option_label="Hand over the dataset",
                 backing_faction="lab",
@@ -297,13 +262,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "the wreck, and recover the frequency recorder before its final "
                     "signal disappears."
                 ),
-                complete=(
-                    "The recorder survived. It completes the route map and confirms that the "
-                    "Mars signal is part of something older and farther away. "
-                    "Take it to Mercury. The Research Officer will calibrate the "
-                    "resonance key, though none of us should confuse a key with a "
-                    "reason to use it."
-                ),
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
             ),
@@ -353,10 +311,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "complete. The key can be forged, though the lab still does not "
                     "know what it will wake."
                 ),
-                complete=(
-                    "The key is forged. Take it to Mars and open the door - then let the evidence "
-                    "decide whether we have found a discovery, a warning, or both."
-                ),
                 option_label="Hand over the recorder",
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
@@ -390,17 +344,6 @@ STEPS: tuple[MainQuestStep, ...] = (
                     "contact with this region. Take it to Mars. The door should "
                     "open. What comes after may be a discovery, a warning, or a "
                     "question that has been waiting longer than we have."
-                ),
-                active=(
-                    "The key is here when you are ready. After the door opens, preserve the "
-                    "first evidence before the factions turn it into a claim. "
-                    "If the chamber is empty, document the absence as carefully as "
-                    "the object you hoped to find."
-                ),
-                complete=(
-                    "Take the key to Mars. Open the door, record what you see, and bring back "
-                    "the truth even if it refuses to be simple. That is the only "
-                    "part of this discovery we can still control."
                 ),
                 option_label="Collect the key",
                 backing_faction="lab",

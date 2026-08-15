@@ -47,11 +47,10 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     assert "Do not call it a map yet" in _dialogue.intro
     assert "layered signal" in _dialogue.intro
     assert "translate the simplest recurring symbols" in _dialogue.intro
-    assert "coordinate sequence remains intact" in _dialogue.active
-    assert "processing cluster" in _dialogue.complete
-    assert "not translated it yet" in _dialogue.complete
-    assert "first report" in _dialogue.complete
     assert "Before we call it a map" not in _dialogue.intro
+    # active/complete variants were removed as dead: research_alpha is
+    # auto_advance + trigger_on_talk, so the talk modal always shows
+    # the NPC flavor while this step is live (see tools/audit_story_text.py)
     assert step.auto_advance
     assert step.wait_days == 14
     _report = find_main_quest_step("research_alpha_report")
