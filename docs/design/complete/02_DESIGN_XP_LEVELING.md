@@ -67,7 +67,7 @@ only the *fraction* carries, never banked whole AP.
 | Every level | +5 skill points (+5 to distribute across the six skills at +1 each) |
 | 40 | **Trait choice** — pick one from the shared pool |
 | 50 | **Trait choice** — pick another from the SAME pool (cannot repeat) |
-| 60 | **Capstone (future)** — specialization based on the two traits locked in at 40/50; design pending |
+| 60 | **Capstone (future)** — specialization based on the two traits locked in at 40/50; candidate: Charger "chained charges" (lunges chain to the nearest target on a kill, mirroring Deadshot) |
 
 **Shared trait pool** (available at both level 40 and 50):
 
@@ -80,6 +80,7 @@ only the *fraction* carries, never banked whole AP.
 | Ace Pilot | 40/50 | 40+ piloting | +1 AP per turn |
 | Juggernaut | 40/50 | 30+ total kills | Take 1 less damage from each ground attack |
 | Charger | 40/50 | 40+ melee kills | Melee weapons reach current AP; charges gain +5 hit and +1 damage per tile |
+| Deadshot | 40/50 | 25 railgun kills | Railgun shots spend all remaining AP (+5 hit, +4 damage per AP beyond 2); a kill chains to the nearest target |
 | Evasive | 40/50 | 40+ reflexes | +5% baseline ground evade |
 | Pack Mule | 40/50 | 40+ strength | +2 Expedition Pack slots |
 | Ironclad | 40/50 | 40+ stamina | +6 maximum ground HP |
@@ -188,6 +189,7 @@ class PlayerCounters:
     total_damage_taken: int = 0
     melee_kills: int = 0
     explosive_hits: int = 0
+    railgun_kills: int = 0
 ```
 
 Incremented via: `ctx.player_counters.total_kills += 1`. One field on ctx. Extensible — add a counter to the dataclass, update the trait catalog, done.

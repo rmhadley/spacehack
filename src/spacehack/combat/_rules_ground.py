@@ -51,6 +51,7 @@ from ._ground_charger import (
     is_charger_melee as _is_charger_melee,
     weapon_range,
 )
+from . import _ground_deadshot
 from ._actions import (
     move_entity,
     _spawn_loot_at_position as _shared_loot,
@@ -213,12 +214,6 @@ def _armor_defense_total(ctx) -> int:
     """Sum flat defense across equipped armor pieces."""
     return _sum_armor_defense(ctx.equipped_ground_armor.values())
 
-def _starting_ap_total(ctx) -> int:
-    """Per-turn AP pool: 4 + Ace Pilot trait + cybernetic legs."""
-    return 4 + _ace_pilot_bonus(ctx) + _sum_armor_bonus(
-        ctx.equipped_ground_armor.values(), "ap_bonus",
-    )
-
 def _starting_ap_gain_tenths(ctx) -> int:
     """Per-round AP gain in tenths: 4 + Ace Pilot trait + cybernetic legs."""
     return 40 + 10 * (_ace_pilot_bonus(ctx) + _sum_armor_bonus(
@@ -233,8 +228,8 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     _player_hp, _player_max_hp = _player_hp_state(ctx)
     _armor_defense = _armor_defense_total(ctx)
     _weapons = player_weapons(ctx)
-    _player_ap_total = _starting_ap_total(ctx)
     _player_ap_gain = _starting_ap_gain_tenths(ctx)
+    _player_ap_total = _player_ap_gain // 10
 
     # Clear combat locks from an abnormally-ended previous fight (e.g.
     # an exception that skipped sync_state) so those NPCs patrol again.
@@ -414,6 +409,8 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     )
     if _is_charger_melee(ctx, weapon_id):
         _hit_bonus += _charge_bonuses(_charge_tiles(ctx))[0]
+    if _ground_deadshot.is_deadshot(ctx, weapon_id):
+        _hit_bonus += _ground_deadshot.ap_power_hit_bonus(ctx, weapon_id)
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
         target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
@@ -437,6 +434,8 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
         weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
         strength_step=_PLAYER_STRENGTH_STEP,
     )
+    if _ground_deadshot.is_deadshot(ctx, weapon_id):
+        _dmg += _ground_deadshot.ap_power_damage_bonus(ctx, weapon_id)
     enemy.hp -= _dmg
     enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
     # Wound persistence: sync to the map entity so a fight that ends

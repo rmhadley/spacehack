@@ -107,6 +107,7 @@ class PlayerCounters:
     total_damage_taken: int = 0
     melee_kills: int = 0
     explosive_hits: int = 0
+    railgun_kills: int = 0
 
 
 @dataclasses.dataclass(frozen=True)

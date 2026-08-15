@@ -139,6 +139,7 @@ class TestTraitQualification:
                 laser_shots=0,
                 missile_shots=0,
                 plasma_shots=0,
+                railgun_kills=0,
             ),
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
             player_traits=[],
@@ -174,6 +175,19 @@ class TestTraitQualification:
         _traits = _qualifying_traits(self._ctx(total_kills=40))
 
         assert "charger" not in {trait.id for trait in _traits}
+
+    def test_deadshot_requires_25_railgun_kills(self):
+        _ctx = self._ctx()
+        _ctx.player_counters.railgun_kills = 25
+
+        _traits = _qualifying_traits(_ctx)
+
+        assert "deadshot" in {trait.id for trait in _traits}
+
+    def test_deadshot_does_not_use_total_kills(self):
+        _traits = _qualifying_traits(self._ctx(total_kills=25))
+
+        assert "deadshot" not in {trait.id for trait in _traits}
 
     def test_juggernaut_reduces_each_ground_hit(self):
         assert ground_damage_reduction(

@@ -88,6 +88,13 @@ CHARGER = Trait(
     counters=(("melee_kills", 40),),
 )
 
+DEADSHOT = Trait(
+    id="deadshot",
+    name="Deadshot",
+    description="Railgun shots spend all remaining AP: +5 hit and +4 damage per AP beyond 2; a kill chains to the nearest target",
+    counters=(("railgun_kills", 25),),
+)
+
 EVASIVE = Trait(
     id="evasive",
     name="Evasive",
@@ -152,6 +159,7 @@ ALL_TRAITS: tuple[Trait, ...] = (
     ACE_PILOT,
     JUGGERNAUT,
     CHARGER,
+    DEADSHOT,
     EVASIVE,
     PACK_MULE,
     IRONCLAD,

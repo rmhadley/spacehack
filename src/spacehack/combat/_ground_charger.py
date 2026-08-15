@@ -90,14 +90,21 @@ def clear_attack_modifier(ctx) -> None:
 
 
 def attack_ap_cost(ctx, weapon_id: str, current_ap: int) -> int:
-    """Return the AP cost, with a Charger lunge consuming the full pool."""
-    return current_ap if charge_tiles(ctx) > 0 else _find_gw(weapon_id).ap_cost
+    """Return the AP cost: a Charger lunge or Deadshot rail spends the full pool."""
+    if charge_tiles(ctx) > 0:
+        return current_ap
+    from ._ground_deadshot import is_deadshot as _is_deadshot
+    if _is_deadshot(ctx, weapon_id):
+        return max(1, current_ap)
+    return _find_gw(weapon_id).ap_cost
 
 
 def record_player_kill(ctx, weapon_id: str) -> None:
     """Track kills made with melee weapons for the Charger requirement."""
     if _find_gw(weapon_id).damage_type == "melee" and hasattr(ctx, "player_counters"):
         ctx.player_counters.melee_kills += 1
+    from ._ground_deadshot import record_player_kill as _deadshot_kill
+    _deadshot_kill(ctx, weapon_id)
 
 
 def charge_bonuses(tiles_moved: int) -> tuple[int, int]:
