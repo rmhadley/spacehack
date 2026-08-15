@@ -360,10 +360,12 @@ def main() -> int:
         for _field in _DISCLOSURE_FIELDS
     }
     # completion_flavor renders in the completion log line, the
-    # wait-days gate popup, and the waiting breadcrumb; ready_message
-    # renders as the gate-elapse summon (INCOMING MESSAGE). Both fire
-    # outside the modal-state simulation below, so credit them by
-    # construction too.
+    # wait-days gate popup, and the waiting breadcrumb — every step
+    # that completes does so through complete_step, which logs it, so
+    # credit it by construction. ready_message renders ONLY as the
+    # gate-elapse summon (INCOMING MESSAGE), so it is live only when
+    # the step sets a gate (wait_days > 0) and has a next step to
+    # unlock; anything else is dead text.
     _displayed |= {
         f"step.{_step.id}.completion_flavor"
         for _step in list_main_quest_steps()
@@ -373,6 +375,8 @@ def main() -> int:
         f"step.{_step.id}.ready_message"
         for _step in list_main_quest_steps()
         if _step.ready_message
+        and _step.wait_days > 0
+        and main_quest_step_after(_step.id, chain=_step.chain) is not None
     }
     for _chain, _steps in _CHAINS.items():
         _displayed |= _q1_offer_keys(_chain)

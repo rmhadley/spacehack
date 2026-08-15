@@ -36,11 +36,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "Deliver it to the Research Officer on Mercury before the pattern "
             "changes again."
         ),
-        ready_message=(
-            "The lab has a working hypothesis: the sample may correspond to older "
-            "reference data preserved at Procyon C. Report to the Research Officer "
-            "on Mercury; she will explain what the sample still cannot tell us."
-        ),
         rewards_xp=50,
     ),
     MainQuestStep(
@@ -225,10 +220,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "The recorder is intact. Its last transmission contains a frequency that "
             "answers the Mars sample, then points away from human space. Bring it "
             "to the Research Officer on Mercury before anyone edits the record."
-        ),
-        ready_message=(
-            "The recorder is recovered. It is the final piece of the route map, not a "
-            "translation. Return it to the Research Officer on Mercury."
         ),
         dialogues={
             "research_officer": QuestDialogue(

@@ -192,11 +192,6 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="research_officer",
         auto_advance=False,
         wait_days=0,
-        ready_message=(
-            "The Alpha Centauri processing cluster has completed its first pass. "
-            "Return to the Research Officer at the Science Port to review the "
-            "initial translation."
-        ),
         completion_flavor=(
             "The first translation pass is complete. The lab isolates a recurring "
             "coordinate grammar from the containment records and warning markers. "

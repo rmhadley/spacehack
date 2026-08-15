@@ -20,6 +20,7 @@ from src.spacehack import text as text_module
 from src.spacehack.data.main_quest import (
     find_main_quest_step,
     list_main_quest_steps,
+    main_quest_step_after,
     reload_text_overlay as reload_mq_text,
 )
 from src.spacehack.data.npcs import (
@@ -155,6 +156,26 @@ def test_extractor_merge_preserves_writer_edits(tmp_path, monkeypatch):
         else:
             os.environ["SPACEHACK_TEXT_DIR"] = _old_env
         text_module.reload()
+
+
+def test_ready_message_only_authored_on_gated_steps():
+    """A ready_message summons the player only when a wait gate elapses,
+
+    so it may only be authored on a step that sets a gate (wait_days > 0)
+    and has a following step to unlock. A ready_message anywhere else
+    can never render — the gate never exists to fire it.
+    """
+    for _step in list_main_quest_steps():
+        _next = main_quest_step_after(_step.id, chain=_step.chain)
+        if not _step.ready_message:
+            continue
+        assert _step.wait_days > 0, (
+            f"{_step.id}.ready_message is dead: wait_days == 0, so no gate "
+            "ever elapses to summon the player"
+        )
+        assert _next is not None, (
+            f"{_step.id}.ready_message is dead: it has no next step to unlock"
+        )
 
 
 def test_shipped_overlay_keys_resolve():

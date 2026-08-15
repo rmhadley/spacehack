@@ -53,11 +53,14 @@ def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
     # the NPC flavor while this step is live (see tools/audit_story_text.py)
     assert step.auto_advance
     assert step.wait_days == 14
+    # The summon text belongs to the GATING step (research_alpha, whose
+    # 14-day wait unlocks the report); the report itself has no gate.
+    assert "processing cluster" in step.ready_message
     _report = find_main_quest_step("research_alpha_report")
     assert _report.requires_step == "research_alpha"
     assert _report.objective_type == "visit"
     assert _report.wait_days == 0
-    assert "processing cluster" in _report.ready_message
+    assert _report.ready_message == ""
 
     prison = find_main_quest_step("act1_prison")
     assert not prison.auto_advance

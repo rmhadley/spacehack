@@ -30,6 +30,5 @@
   "step.research_alpha_report.description": "Return to the Research Officer at Alpha Centauri's Science Port after the processing cluster completes its first pass. Review what the coordinate layer means and what remains untranslated.",
   "step.research_alpha_report.dialogue.research_officer.intro": "The processing cluster has finished its first pass. We can now read a recurring coordinate grammar, but only in fragments. It points beyond the Luyten blockade into unmapped systems. The containment records and warnings are still tangled through it, so this is a route hypothesis - not a destination, and not an answer about what escaped the prison.",
   "step.research_alpha_report.dialogue.research_officer.option_label": "Review the first translation",
-  "step.research_alpha_report.ready_message": "The Alpha Centauri processing cluster has completed its first pass. Return to the Research Officer at the Science Port to review the initial translation.",
   "step.research_alpha_report.title": "The First Translation"
 }
