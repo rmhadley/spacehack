@@ -484,9 +484,7 @@ def _apply_explosive_enemy_hit(
     _full_damage = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
     )
-    _is_primary = enemy is primary
-    if _is_primary and not primary_hit:
-        return None
+    _is_primary = enemy is primary and primary_hit
     _damage = _full_damage if _is_primary else max(1, _full_damage // 2)
     enemy.hp -= _damage
     if enemy.entity is not None:
@@ -503,8 +501,8 @@ def explosive_blast(
 ) -> tuple[tuple[tuple[GroundEnemyInstance, int, bool], ...], int]:
     """Resolve an explosive impact around ``primary`` with friendly fire.
 
-    A direct hit damages primary fully; a miss leaves it unharmed but applies
-    half damage to neighboring cells. The player also takes half damage nearby.
+    A direct hit damages primary fully; a miss catches it for half damage
+    alongside neighboring cells. The player also takes half damage nearby.
     """
     _enemy_hits = tuple(
         _hit for _enemy in _state.enemies

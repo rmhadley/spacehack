@@ -906,7 +906,7 @@ def test_explosive_blast_has_friendly_fire_and_armor_mitigation():
     assert _rules_ground.player_hp(_ctx) == 8
 
 
-def test_explosive_miss_splashes_neighbors_without_hitting_primary():
+def test_explosive_miss_splashes_primary_and_neighbors_for_half_damage():
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
 
     _primary_instance = _rules_ground._state.enemies[0]
@@ -916,9 +916,10 @@ def test_explosive_miss_splashes_neighbors_without_hitting_primary():
 
     assert [(enemy.name, damage, primary) for enemy, damage, primary in _hits] == [
         ("Assault Drone", 13, False),
+        ("Assault Drone", 13, False),
     ]
     assert _player_damage == 0
-    assert _primary.hp == 39
+    assert _primary.hp == 26
     assert _neighbor.hp == 26
 
 
@@ -932,10 +933,13 @@ def test_explosive_miss_can_still_damage_player_with_friendly_fire():
         "rocket_launcher", _primary_instance, _ctx, primary_hit=False,
     )
 
-    assert _hits == ((_rules_ground._state.enemies[1], 13, False),)
+    assert _hits == (
+        (_rules_ground._state.enemies[0], 13, False),
+        (_rules_ground._state.enemies[1], 13, False),
+    )
     assert _player_damage == 15
     assert _rules_ground.player_hp(_ctx) == 8
-    assert _primary.hp == 39
+    assert _primary.hp == 26
 
 
 def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatch):
@@ -964,7 +968,7 @@ def test_explosive_miss_consumes_round_and_resolves_neighbor_splash(monkeypatch)
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
     assert _primary in _game_map.entities
     assert _neighbor in _game_map.entities
-    assert _primary.hp == 39
+    assert _primary.hp == 26
     assert _neighbor.hp == 26
     assert _rules_ground.player_ap(_ctx) == 1
 
