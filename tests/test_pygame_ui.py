@@ -995,7 +995,8 @@ def test_npc_trade_frame_uses_shared_content_policy():
 
     assert frame.title == "TRADE - TRADER"
     assert frame.footer_left == "Credits: 100$"
-    assert frame.footer_right == "Cargo: 2/20"
+    # Skiff hold tuned to 50 (5x T1 delivery order) — see ships/core.py.
+    assert frame.footer_right == "Cargo: 2/50"
     assert frame.hint == pygame_split.SPLIT_SHOP_HINT
     assert frame.left_rows[0].value == "24$ (3)"
     assert frame.right_rows[0].value == "(sell 10$) x2"
@@ -1005,7 +1006,8 @@ def test_hold_cargo_label_formats_used_and_capacity():
     from src.spacehack import trade
 
     owned = SimpleNamespace(ship_id="starter", cargo_used=2)
-    assert trade._hold_cargo_label(owned) == "Cargo: 2/20"
+    # Skiff hold tuned to 50 (5 × T1 delivery max) — see ships/core.py.
+    assert trade._hold_cargo_label(owned) == "Cargo: 2/50"
     assert trade._hold_cargo_label(None) == "Cargo: 0/0"
 
 
@@ -1026,7 +1028,8 @@ def test_station_trade_frame_uses_shared_content_policy(monkeypatch):
 
     assert frame.title == "TRADE - EARTH"
     assert frame.footer_left == "Credits: 1000$"
-    assert frame.footer_right == "Cargo: 2/20"
+    # Skiff hold tuned to 50 (5x T1 delivery order) — see ships/core.py.
+    assert frame.footer_right == "Cargo: 2/50"
     assert frame.hint == pygame_split.SPLIT_SHOP_HINT
     assert frame.left_rows[0].value == "30$ (0)"
     assert frame.right_rows[0].value == "(sell 15$) x2"
@@ -3098,7 +3101,8 @@ def test_hangar_cargo_tab_reuses_cargo_rows_without_launch():
     assert frame.title.startswith("YOUR ")
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 1
-    assert any("Cargo: 2 / 20" in line for line in frame.body)
+    # Skiff hold tuned to 50 (5x T1 delivery order) — see ships/core.py.
+    assert any("Cargo: 2 / 50" in line for line in frame.body)
     assert frame.rows[0].action == "JETTISON:food_rations"
     assert all(row.action != "LAUNCH" for row in frame.rows)
     assert any("TAB loadout" in hint for hint in frame.footer)

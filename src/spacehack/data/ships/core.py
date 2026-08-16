@@ -15,6 +15,13 @@ Extracted from ``ship.py`` during the data-first migration.
 Rebalanced to give the player a free starter ship and a clear
 progression path to earn better ships.
 
+**Hold sizing rule (balance pass):** each non-merchant hull can pack
+FIVE deliveries of its tier's max crate size — Skiff 5×T1 (50),
+Scout 5×T2 (100), Cruiser 5×T3 (200), Frigate 5×T4 (300) — so
+the mission loop (load a board of orders, fly a cluster, drop them
+all off) works in every ship. Hauler and Freighter keep the
+merchant identity with massive holds on top.
+
 ``STARTER_NAMES`` lives here (data-first) so the pool is content,
 not code. The rolled name is stored on ``OwnedShip.display_name``
 and survives save/load; ``Ship.name`` is only the fallback.
@@ -40,7 +47,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=10,
         weapon_slots=2,
         module_slots=1,
-        max_cargo=20,
+        max_cargo=50,   # 5 × T1 delivery max (10)
         max_fuel=80,
         base_power_gen=2,
         base_shield_max=0,
@@ -64,7 +71,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=14,
         weapon_slots=4,
         module_slots=2,
-        max_cargo=30,
+        max_cargo=100,  # 5 × T2 delivery max (20)
         max_fuel=100,
         base_power_gen=3,
         base_shield_max=5,
@@ -89,7 +96,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=7,
         weapon_slots=2,
         module_slots=2,
-        max_cargo=120,
+        max_cargo=400,  # merchant workhorse — massive hold
         max_fuel=80,
         base_power_gen=4,
         base_shield_max=10,
@@ -114,7 +121,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=9,
         weapon_slots=6,
         module_slots=4,
-        max_cargo=50,
+        max_cargo=200,  # 5 × T3 delivery max (40)
         max_fuel=80,
         base_power_gen=5,
         base_shield_max=25,
@@ -139,7 +146,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=8,
         weapon_slots=8,
         module_slots=6,
-        max_cargo=80,
+        max_cargo=300,  # 5 × T4 delivery max (60)
         max_fuel=100,
         base_power_gen=6,
         base_shield_max=40,
@@ -164,7 +171,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=6,
         weapon_slots=3,
         module_slots=4,
-        max_cargo=250,
+        max_cargo=700,  # endgame merchant — massive hold
         max_fuel=70,
         base_power_gen=4,
         base_shield_max=15,
