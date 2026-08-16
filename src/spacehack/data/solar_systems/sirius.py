@@ -7,16 +7,17 @@ feels 'I went somewhere far' when they arrive. A faint white
 dwarf companion (Sirius B) sits close to A so the binary
 relationship reads at a glance.
 
-The only Jump Point is on the WEST, leading back to Vega. A
-future iteration may add a gate to a deep-space exploration
-sector (or sneak-peak a hub system), but for v1 Sirius is a
-dead-end reachable only through Vega.
+Two Jump Points frame the system: the WEST gate back to Vega,
+and an EAST gate past the binary pair that leads to Ross 154 —
+a flare star three light-years on. The eastern road is the deep
+end: no militia, no beacons, and the flare storms scramble every
+chart past the gate.
 
 A Binary Research Station (:class:`spacehack.data.planets.sirius_station`)
-orbits between the two stars, giving the system a single landable port.
-Map dims
-deliberately MATCH the other 200x140 systems so the navigation
-UX stays consistent across the universe.
+orbits between the two planets, giving Sirius a single landable port.
+
+Map dims deliberately MATCH the other 200x140 systems so the
+game map navigation UX stays consistent across the universe.
 """
 from __future__ import annotations
 
@@ -48,8 +49,9 @@ _planets: tuple[solar_module.Planet, ...] = (
 )
 
 
-# Single Jump Point on the west edge leading back to Vega.
-# '>' chevron reads as "out toward Vega" (the only outgoing path).
+# Two Jump Points — west back to Vega, east past the binary to
+# Ross 154 (the deep end). '>' chevrons read as "out toward" each
+# neighbour system.
 _jump_points: tuple[JumpPoint, ...] = (
     JumpPoint(
         id="jump_vega",
@@ -60,6 +62,18 @@ _jump_points: tuple[JumpPoint, ...] = (
         width=2, height=2,
         connects_to=(("vega", "jump_sirius"),),
         description="A humming FTL gate facing Vega.",
+    ),
+    # EAST gate -> Ross 154. Flare-orange palette matches Ross 154's
+    # red-dwarf glow so the gate reads as 'leads to the flare star'.
+    JumpPoint(
+        id="jump_ross_154",
+        name="Ross 154 Gate",
+        char="<",
+        fg=(255, 120, 70),                         # flare orange (Ross 154 palette)
+        pos=world.Position(193, 70),
+        width=2, height=2,
+        connects_to=(("ross_154", "jump_sirius"),),
+        description="A humming FTL gate facing Ross 154 - it flickers, as if something waits beyond.",
     ),
 )
 

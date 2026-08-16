@@ -7,8 +7,11 @@ prospectors work the ore fields and the local bar doubles as a
 bounty office. Pirates run loose this far out; militia patrols
 don't come here.
 
-A single Jump Point leads back to Epsilon Indi. Dead end by
-design, mirroring Luyten's Star at the end of the deep corridor.
+Two Jump Points: the WEST leads back to Epsilon Indi, and an EAST
+gate stands where no chart listed one — a cold, humming gate to
+Lalande 21185, the uncharted star beyond the arm. The deep-fleet
+pilots call it the dead road; it only ever goes one way for
+people who fly it unprepared.
 
 Map dims match the other 200x140 systems.
 """
@@ -40,7 +43,8 @@ _planets: tuple[solar_module.Planet, ...] = (
 )
 
 
-# Single Jump Point — back to Epsilon Indi. Dead end.
+# Two Jump Points — west back to Epsilon Indi (charted road), east
+# to the uncharted Lalande 21185 gate (the dead road).
 _jump_points: tuple[JumpPoint, ...] = (
     JumpPoint(
         id="jump_epsilon_indii",
@@ -51,6 +55,18 @@ _jump_points: tuple[JumpPoint, ...] = (
         width=2, height=2,
         connects_to=(("epsilon_indii", "jump_groombridge"),),
         description="A humming FTL gate facing Epsilon Indi - the road back to charted space.",
+    ),
+    # EAST gate -> Lalande 21185. Cold violet — reads as 'unmapped'
+    # against the warm red of the rest of the arm.
+    JumpPoint(
+        id="jump_lalande_21185",
+        name="Lalande 21185 Gate",
+        char="<",
+        fg=(200, 160, 255),                          # pale violet (uncharted palette)
+        pos=world.Position(193, 70),
+        width=2, height=2,
+        connects_to=(("lalande_21185", "jump_groombridge"),),
+        description="A humming FTL gate facing nothing on any chart - it shivers in a minor key.",
     ),
 )
 
