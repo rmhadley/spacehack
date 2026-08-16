@@ -112,7 +112,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         required_cargo_size=15,
         delivery_target_npc_id="research_officer",
         delivery_target_planet_id="sirius_station",
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T2+ merchant board
         recommended_class_id="merchant",
         recommended_ship_min_cargo=15,
     ),

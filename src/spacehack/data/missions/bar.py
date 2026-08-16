@@ -169,7 +169,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         required_cargo_size=15,
         delivery_target_npc_id="research_officer",  # Binary Observer
         delivery_target_planet_id="sirius_station",
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T2+ bar
         is_smuggle=True,
         smuggle_good_id="electronics",
     ),
@@ -195,7 +195,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         required_cargo_size=30,
         delivery_target_npc_id="barkeep",       # Cloud Host override
         delivery_target_planet_id="vega_b",
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T3+ bar
         is_smuggle=True,
         smuggle_good_id="luxury_goods",
     ),
@@ -224,7 +224,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         required_cargo_size=55,
         delivery_target_npc_id="bounty_master",   # Bounty Master on Blockade
         delivery_target_planet_id="blockade",
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T4 bar
         is_smuggle=True,
         smuggle_good_id="fuel_cells",
     ),
@@ -346,5 +346,127 @@ MISSIONS: tuple[MissionSpec, ...] = (
         heist_target_good_id="luxury_goods",
         salvage_wreck_enemy_id="derelict_freighter",
         salvage_layout_id="freightliner_a",
+    ),
+    # ------------------------------------------------------------------
+    # Tier 4 — beyond the arms: Ross 154 + Lalande 21185
+    # ------------------------------------------------------------------
+    # Ross 154, 3 hops — the deep-end flagship: a merchant caravan
+    # running flare-forged rare earths past the Flare Crown. 3 hops
+    # ~100d RT; deadline ~2.2x RT so the early bonus (< 110d) is
+    # achievable at starter speed.
+    MissionSpec(
+        id="bar_intercept_ross_flare",
+        title="The Flare Run",
+        description=(
+            "Past Sirius there's a flare star where the charts go dark - "
+            "Ross 154. A caravan is hauling rare earths forged in the "
+            "flares, and nobody on the arm will miss them. The run is "
+            "deep: hounds, marauders, and maybe the Warlord himself "
+            "patrol that road. Bring the rare earths back here."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="intercept",
+        tier=4,
+        reward_credits=2400,
+        reward_xp=400,
+        # Round trip to Ross 154 is 6 jumps (~100d at starter speed).
+        # Deadline ~2.2x RT so the early bonus (< 110d) is achievable.
+        deadline_days=220,
+        early_bonus_pct=30,
+        target_enemy_id="merchant_caravan",
+        target_system_id="ross_154",
+        bounty_target_squad_size=4,
+        bounty_target_loadout_pct=90,
+        heist_target_good_id="rare_earth_metals",
+    ),
+    # Ross 154 — salvage: the Flare Crown guards a gutted freighter.
+    # Warlord patrol + hound escort, freightliner interior.
+    MissionSpec(
+        id="bar_salvage_ross_crown",
+        title="The Flare Crown Wreck",
+        description=(
+            "A big freighter is dead in the dark of Ross 154, and the "
+            "Warlord's crew has claimed it - clear the guard, cut in, "
+            "and strip the engine room before the hounds come back. "
+            "Ship components are stow, and so are you the moment you "
+            "power down by that hull."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="salvage",
+        tier=4,
+        reward_credits=2600,
+        reward_xp=420,
+        # Round trip to Ross 154 (3 hops) ~100d at starter speed + a
+        # boarding buffer; deadline ~2.2x RT.
+        deadline_days=230,
+        early_bonus_pct=30,
+        target_enemy_id="pirate_warlord",
+        target_system_id="ross_154",
+        bounty_target_squad_size=2,
+        bounty_wingmate_enemy_id="pirate_hound",
+        bounty_target_loadout_pct=100,
+        heist_target_good_id="ship_components",
+        salvage_wreck_enemy_id="derelict_freighter",
+        salvage_layout_id="freightliner_a",
+    ),
+    # Lalande 21185 — 4 hops. Intercept a caravan carrying stolen
+    # research data deeper than anyone is supposed to go.
+    MissionSpec(
+        id="bar_intercept_lalande_record",
+        title="The Dead Road Run",
+        description=(
+            "A caravan runs research records past the charts to "
+            "Lalande 21185 - the star that isn't on any map. Whatever "
+            "that data is, the Vault wants it back quietly. The road "
+            "there is dead: Tollkeeper garrison, casket raiders, and "
+            "a gate that hums in a minor key. Bring the records home."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="intercept",
+        tier=4,
+        reward_credits=2800,
+        reward_xp=450,
+        # Round trip to Lalande 21185 is 4 hops (~135d at starter
+        # speed); deadline ~2.1x RT.
+        deadline_days=290,
+        early_bonus_pct=30,
+        target_enemy_id="merchant_caravan",
+        target_system_id="lalande_21185",
+        bounty_target_squad_size=5,
+        bounty_target_loadout_pct=95,
+        heist_target_good_id="research_data",
+    ),
+    # Lalande 21185 — smuggle pharmaceuticals to the Veiled Registrar
+    # on Whisper. There's no militia this deep, but the road crosses
+    # every patrolled arm to get there. 65 units needs a mk4 hold (75).
+    MissionSpec(
+        id="bar_smuggle_lalande_vault",
+        title="Whisper's Pharm Run",
+        description=(
+            "The Vault on Whisper never signs for anything - the Veiled "
+            "Registrar pays cash for pharmaceuticals that vanished from "
+            "inspection ledgers. Haul them across every scan gate between "
+            "here and the dead road, and keep quiet. There is no law on "
+            "Whisper, only prices."
+        ),
+        giver_npc_id="barkeep",
+        faction="bar",
+        mission_type="smuggling",
+        tier=4,
+        reward_credits=2200,
+        reward_xp=380,
+        # One-way run to Lalande 21185 is 4 hops (~67d at starter
+        # speed) plus wide berths around patrols; deadline ~2.4x OTY.
+        deadline_days=200,
+        early_bonus_pct=30,
+        required_cargo_size=65,
+        delivery_target_npc_id="barkeep",       # Veiled Registrar override
+        delivery_target_planet_id="lal_c",
+        origin_planet_id=None,   # floats to any T4 bar
+        is_smuggle=True,
+        smuggle_good_id="pharmaceuticals",
     ),
 )

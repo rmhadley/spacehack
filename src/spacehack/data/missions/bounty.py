@@ -56,13 +56,13 @@ MISSIONS: tuple[MissionSpec, ...] = (
         reward_xp=60,
         deadline_days=60,
         early_bonus_pct=30,
-        target_enemy_id="pirate_raider",
-        target_system_id="alpha_centauri",
+        target_enemy_id="pirate_raider",        target_system_id="alpha_centauri",
         bounty_target_name="The Smuggler",
         bounty_target_squad_size=1,
         bounty_target_loadout_pct=40,
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T2+ bounty board
     ),
+
     MissionSpec(
         id="bhguild_sirius_fugitive",
         title="Fugitive Hauler",
@@ -84,7 +84,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         bounty_target_name="Fugitive Hauler",
         bounty_target_squad_size=1,
         bounty_target_loadout_pct=30,
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T2+ bounty board
     ),
     # ------------------------------------------------------------------
     # Tier 3 — Named threats, small squads
@@ -110,7 +110,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         bounty_target_name="Karrik the Red",
         bounty_target_squad_size=1,
         bounty_target_loadout_pct=60,
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T3+ bounty board
     ),
     MissionSpec(
         id="bhguild_luyten_raider",
@@ -133,7 +133,7 @@ MISSIONS: tuple[MissionSpec, ...] = (
         bounty_target_name="The Luyten Raider",
         bounty_target_squad_size=2,
         bounty_target_loadout_pct=70,
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T3+ bounty board
     ),
     # ------------------------------------------------------------------
     # Tier 4 — Boss-level, full squad
@@ -159,6 +159,59 @@ MISSIONS: tuple[MissionSpec, ...] = (
         bounty_target_name="Dread Captain Vol",
         bounty_target_squad_size=3,
         bounty_target_loadout_pct=100,
-        origin_planet_id="earth",
+        origin_planet_id=None,   # floats to any T4 bounty board
+    ),
+    # ------------------------------------------------------------------
+    # Tier 4 — beyond the arms: warlords of the deep ends
+    # ------------------------------------------------------------------
+    MissionSpec(
+        id="bhguild_ross_warlord",
+        title="Wanted: Zenn the Emberglass",
+        description=(
+            "Zenn the Emberglass rules the Flare Crown garrison in Ross "
+            "154 - the kingdom past Sirius. Every bounty hunter who "
+            "crossed the star field to collect has fed the flares. "
+            "Danger: Extreme. Warlord frigate, full escort."
+        ),
+        giver_npc_id="bounty_master",
+        faction="bhguild",
+        mission_type="bounty",
+        tier=4,
+        reward_credits=2800,
+        reward_xp=450,
+        deadline_days=200,
+        early_bonus_pct=35,
+        target_enemy_id="pirate_warlord",
+        target_system_id="ross_154",
+        bounty_target_name="Zenn the Emberglass",
+        bounty_target_squad_size=4,
+        bounty_wingmate_enemy_id="pirate_marauder",
+        bounty_target_loadout_pct=100,
+        origin_planet_id=None,   # floats to any T4 bounty board
+    ),
+    MissionSpec(
+        id="bhguild_lalande_tollkeeper",
+        title="The Tollkeeper of Lalande",
+        description=(
+            "The Tollkeeper holds the only gate into Lalande 21185 and "
+            "charges every soul that passes - cargo, hull, or blood. The "
+            "Guild has lost three collectives trying to crack the garrison. "
+            "Danger: Extreme. Full marauder squad at his back."
+        ),
+        giver_npc_id="bounty_master",
+        faction="bhguild",
+        mission_type="bounty",
+        tier=4,
+        reward_credits=3000,
+        reward_xp=480,
+        deadline_days=280,
+        early_bonus_pct=35,
+        target_enemy_id="pirate_warlord",
+        target_system_id="lalande_21185",
+        bounty_target_name="The Tollkeeper",
+        bounty_target_squad_size=3,
+        bounty_wingmate_enemy_id="pirate_marauder",
+        bounty_target_loadout_pct=100,
+        origin_planet_id=None,   # floats to any T4 bounty board
     ),
 )
