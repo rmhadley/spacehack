@@ -69,9 +69,10 @@ SPEC = PlanetSpec(
     armory_weapons=("laser_pistol", "kinetic_pistol", "shotgun", "combat_knife"),
     armory_armor=("light_helmet", "light_vest", "tactical_gloves", "armour_pads", "combat_boots"),
     tech_level=1,
-    # mission_tier=4: Earth is the home bar — hand-crafted bar missions
-    # (intercept + smuggling) are Earth-origin content and all tiers are
-    # offered at Earth's bar for playtesting (the design doc's tier
-    # progression table covers 1-4 from the Earth barkeep).
-    mission_tier=4,
+    # mission_tier=1: Sol is the starter system. Earth's boards only
+    # offer tier-1 work; higher-tier jobs come from leaving Sol (T2
+    # colonials, T3 hubs, T4 blockade/deep-space ports). Static
+    # missions that out-tier Earth no longer pin to it — they float
+    # to any matching-tier planet instead.
+    mission_tier=1,
 )
