@@ -148,7 +148,8 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
     )
     ctx.player_active_missions.append(_am)
     start_step(ctx, _step.id)
-    _good = _step.smuggle_good_id.replace('_', ' ')
+    from ..data.trade_goods import display_name as _good_name
+    _good = _good_name(_step.smuggle_good_id)
     ctx.log.add_colored(
         t_get("runtime.smuggle_loaded_log").format(good=_good),
         message_log.COLOR_IMPORTANT_EVENT,

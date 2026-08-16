@@ -165,7 +165,8 @@ def fail_smuggle_step(ctx, active) -> bool:
     if step_status(ctx, _step_id) != STATUS_ACTIVE:
         return False
     _step = find_main_quest_step(_step_id)
-    _good = _step.smuggle_good_id.replace('_', ' ')
+    from ..data.trade_goods import display_name as _good_name
+    _good = _good_name(_step.smuggle_good_id)
     ctx.main_quest_progress[_step_id] = STATUS_AVAILABLE
     if _step.smuggle_hot:
         # Contraband (bar chain): the giver NPC re-offers the crate
