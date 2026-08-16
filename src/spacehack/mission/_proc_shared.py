@@ -42,18 +42,74 @@ def _roll_tier(max_tier: int, rng: random.Random) -> int:
 
 
 def _planet_npc_ids(planet_id: str) -> list[str]:
-    """Return the NPC IDs present on ``planet_id`` (non-empty npc_ids
-    from the planet's building specs).
+    """Return the real NPC spec IDs present on ``planet_id``.
 
-    Used to pick a delivery target NPC for procedural missions.
+    Building ``npc_id`` slots are resolved through the planet's
+    ``npc_overrides`` and the global catalog (mirroring
+    ``_resolve_npc_entity``), so the returned ids are always ids a
+    live NPC entity carries — a slot key like
+    ``"archive_research_officer"`` maps to the actual spec id
+    ``"research_officer"``. Used to pick delivery/smuggle target
+    NPCs for procedural missions; unresolvable slots are skipped.
     Returns empty list if the planet is unknown or has no NPC buildings.
     """
     try:
-        from ..data.planets import find_planet_spec as _fps
+        from ..data.planets import (
+            find_planet_spec as _fps,
+            _resolve_npc_entity as _rne,
+        )
         spec = _fps(planet_id)
     except KeyError:
         return []
-    return [b.npc_id for b in spec.buildings if b.npc_id]
+    _ids: list[str] = []
+    for _b in spec.buildings:
+        if not _b.npc_id:
+            continue
+        _ent = _rne(_b.npc_id, spec)
+        if _ent is not None and _ent.npc_id not in _ids:
+            _ids.append(_ent.npc_id)
+    return _ids
+
+
+def _planet_dest_candidates(
+    _sys, origin_planet_id: str, hops: int, _seen: set[str],
+) -> list[tuple[str, str, int]]:
+    """Planet bodies in ``_sys`` usable as delivery destinations."""
+    from ..data.planets import has_landable_port
+
+    result: list[tuple[str, str, int]] = []
+    for _p in _sys.planets:
+        if getattr(_p, 'sun', False) or _p.id == origin_planet_id:
+            continue
+        if not has_landable_port(_p.id) or not _planet_npc_ids(_p.id):
+            continue
+        _seen.add(_p.id)
+        result.append((_p.id, _sys.id, hops))
+    return result
+
+
+def _station_dest_candidates(
+    _sys, origin_planet_id: str, hops: int, _seen: set[int],
+) -> list[tuple[str, str, int]]:
+    """Station city_planet_ids in ``_sys`` usable as destinations.
+
+    ``_seen`` holds planet ids already collected, so a station whose
+    city_planet_id is ALSO a planet body (or is shared by multiple
+    stations, e.g. the two Luyten blockade stations) is only counted
+    once in the rng.choice pool.
+    """
+    from ..data.planets import has_landable_port
+
+    result: list[tuple[str, str, int]] = []
+    for _st in getattr(_sys, 'stations', ()) or ():
+        _cid = _st.city_planet_id
+        if not _cid or _cid == origin_planet_id or _cid in _seen:
+            continue
+        if not has_landable_port(_cid) or not _planet_npc_ids(_cid):
+            continue
+        _seen.add(_cid)
+        result.append((_cid, _sys.id, hops))
+    return result
 
 
 def _dest_candidates_in_system(
@@ -68,46 +124,15 @@ def _dest_candidates_in_system(
     Handles both same-system and remote-system destination lookup
     with a single code path.
     """
-    from ..data.planets import has_landable_port
     from ..data import solar_systems as _sys_mod
 
     try:
         _sys = _sys_mod.find_solar_system(system_id)
     except KeyError:
         return []
-
-    result: list[tuple[str, str, int]] = []
-    # Track planet ids already added so a station's city_planet_id that
-    # is ALSO listed as a planet body (or shared by multiple stations,
-    # e.g. the two Luyten blockade stations) is only counted once.
-    # Without this, such landmarks get double weight in the rng.choice
-    # pool and show up ~2x more often than any other destination.
-    _seen: set[str] = set()
-    # Planets.
-    for _p in _sys.planets:
-        if getattr(_p, 'sun', False):
-            continue
-        if _p.id == origin_planet_id:
-            continue
-        if not has_landable_port(_p.id):
-            continue
-        if not _planet_npc_ids(_p.id):
-            continue
-        _seen.add(_p.id)
-        result.append((_p.id, system_id, hops))
-    # Stations (city_planet_id points to the planet spec).
-    for _st in getattr(_sys, 'stations', ()) or ():
-        if _st.city_planet_id == origin_planet_id:
-            continue
-        if not _st.city_planet_id:
-            continue
-        if _st.city_planet_id in _seen:
-            continue
-        if not has_landable_port(_st.city_planet_id):
-            continue
-        if not _planet_npc_ids(_st.city_planet_id):
-            continue
-        _seen.add(_st.city_planet_id)
-        result.append((_st.city_planet_id, system_id, hops))
-    return result
+    _seen: set[int] = set()
+    return (
+        _planet_dest_candidates(_sys, origin_planet_id, hops, _seen)
+        + _station_dest_candidates(_sys, origin_planet_id, hops, _seen)
+    )
 

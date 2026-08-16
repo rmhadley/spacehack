@@ -397,3 +397,71 @@ def test_mission_models_round_trip_through_save_load(monkeypatch, tmp_path):
     assert type(restored_board) is mission.MissionBoard
     assert restored_board == board
     delete_save()
+
+
+def test_proc_delivery_target_npcs_resolve_through_planet_overrides():
+    """Building slot keys must never leak into delivery targets.
+
+    Regression: ``ac_station``'s archive building carries the slot id
+    ``archive_research_officer``, which resolves through
+    ``npc_overrides`` to the real spec id ``research_officer``. The
+    old ``_planet_npc_ids`` returned the raw slot id, so a procedural
+    delivery could target an NPC that never exists on the map — cargo
+    reserved forever, mission uncompletable.
+    """
+    from src.spacehack.data.npcs import find_npc
+    from src.spacehack.mission import _planet_npc_ids
+
+    ids = _planet_npc_ids("ac_station")
+    assert "archive_research_officer" not in ids
+    assert "research_officer" in ids
+    assert "xenolinguist" in ids
+    # Every returned id is a real catalog NPC id.
+    for _nid in ids:
+        assert find_npc(_nid).id == _nid
+
+    # Any proc delivery generated from Earth must carry a resolvable
+    # target NPC regardless of which planet/seed the RNG picks.
+    for _seed in range(40):
+        _m = mission.generate_delivery_mission(
+            "earth", max_tier=4, rng=random.Random(_seed),
+        )
+        assert _m is not None
+        assert find_npc(_m.delivery_target_npc_id).id == _m.delivery_target_npc_id
+
+
+def test_stale_slot_id_delivery_target_still_completes():
+    """Missions accepted before the resolver fix keep working.
+
+    The live save regression: ``proc_delivery_earth_ac_station_1_1``
+    stores ``delivery_target_npc_id="archive_research_officer"`` on
+    planet ``ac_station``. It must complete at the Research Officer
+    (spec id ``research_officer``), and only there.
+    """
+    stale = mission.ActiveMission(
+        mission_id="proc_delivery_earth_ac_station_1_1",
+        is_procedural=True,
+        title="Deliver to Science Port",
+        required_cargo_size=5,
+        delivery_target_npc_id="archive_research_officer",
+        delivery_target_planet_id="ac_station",
+    )
+    assert mission.active_is_deliverable_at(
+        stale, "research_officer", "ac_station",
+    )
+    # Still requires the right planet + the resolved NPC.
+    assert not mission.active_is_deliverable_at(
+        stale, "research_officer", "earth",
+    )
+    assert not mission.active_is_deliverable_at(
+        stale, "xenolinguist", "ac_station",
+    )
+
+    # The same tolerance holds on MissionSpec-level predicates.
+    spec = mission.MissionSpec(
+        id="stale_spec", title="Stale", description="", giver_npc_id="barkeep",
+        delivery_target_npc_id="archive_research_officer",
+        delivery_target_planet_id="ac_station",
+        required_cargo_size=5,
+    )
+    assert mission.is_deliverable_at(spec, "research_officer", "ac_station")

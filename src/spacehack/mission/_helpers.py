@@ -13,6 +13,36 @@ from ._proc_shared import _planet_to_system
 
 
 
+def _delivery_target_matches(
+    target_npc: str | None,
+    target_planet: str | None,
+    npc_id: str,
+) -> bool:
+    """True iff a mission's stored delivery target names NPC ``npc_id``.
+
+    Exact id match first; then, for stale procedural missions that
+    stored a building *slot* id (e.g. ``"archive_research_officer"``)
+    instead of the resolved NPC spec id, the slot is resolved through
+    the destination planet's ``npc_overrides`` — so missions accepted
+    before the resolver fix still complete at the right NPC.
+    """
+    if not target_npc:
+        return False
+    if target_npc == npc_id:
+        return True
+    if not target_planet:
+        return False
+    try:
+        from ..data.planets import find_planet_spec as _fps_m
+        _spec = _fps_m(target_planet)
+        for _oid, _npc in getattr(_spec, "npc_overrides", ()) or ():
+            if _oid == target_npc:
+                return _npc.id == npc_id
+    except (KeyError, ImportError):
+        return False
+    return False
+
+
 def is_deliverable_at(
     mission: MissionSpec,
     npc_id: str,
@@ -31,7 +61,9 @@ def is_deliverable_at(
     if mission.delivery_target_planet_id is None:
         return False
     return (
-        mission.delivery_target_npc_id == npc_id
+        _delivery_target_matches(
+            mission.delivery_target_npc_id, mission.delivery_target_planet_id, npc_id,
+        )
         and mission.delivery_target_planet_id == planet_id
     )
 
@@ -52,33 +84,55 @@ def active_is_deliverable_at(
     Intercept missions (``heist_target_good_id`` set) are deliverable
     when the NPC/planet match AND the player has the looted good in
     their ship inventory.
+
+    Target NPC ids are matched through the destination planet's
+    ``npc_overrides`` (see :func:`_delivery_target_matches`), so
+    missions that stored a building slot id still complete.
     """
-    _heist_good = getattr(active, 'heist_target_good_id', None)
-
-    # Intercept path: requires the mission's loot to be SECURED.
-    # The flag is set only by securing the mission-specific loot
-    # entity — buying the same good at a trade terminal does NOT
-    # count (design doc open question #6).
-    if _heist_good is not None:
-        target_npc = active.delivery_target_npc_id
-        target_planet = active.delivery_target_planet_id
-        if target_npc != npc_id or target_planet != planet_id:
-            return False
-        return getattr(active, 'heist_good_secured', False)
-
+    if getattr(active, 'heist_target_good_id', None) is not None:
+        return _intercept_deliverable_at(active, npc_id, planet_id)
     # Main-quest smuggle crates are handled through the quest
     # dialogue overlay ("Hand over the crate"), not the standard
     # Deliver flow — showing both is confusing.
     if getattr(active, 'main_quest_step_id', ''):
         return False
-    # Standard delivery path: must have reserved cargo.
+    return _standard_deliverable_at(active, npc_id, planet_id)
+
+
+def _intercept_deliverable_at(
+    active: ActiveMission,
+    npc_id: str,
+    planet_id: str,
+) -> bool:
+    """Intercept path: NPC/planet match AND the loot is SECURED.
+
+    The flag is set only by securing the mission-specific loot entity
+    — buying the same good at a trade terminal does NOT count
+    (design doc open question #6).
+    """
+    target_npc = active.delivery_target_npc_id
+    target_planet = active.delivery_target_planet_id
+    if target_npc != npc_id or target_planet != planet_id:
+        return False
+    return getattr(active, 'heist_good_secured', False)
+
+
+def _standard_deliverable_at(
+    active: ActiveMission,
+    npc_id: str,
+    planet_id: str,
+) -> bool:
+    """Standard delivery path: reserved cargo + NPC/planet match."""
     if active.required_cargo_size <= 0:
         return False
     target_npc = active.delivery_target_npc_id
     target_planet = active.delivery_target_planet_id
     if target_npc is None or target_planet is None:
         return False
-    return target_npc == npc_id and target_planet == planet_id
+    return (
+        _delivery_target_matches(target_npc, target_planet, npc_id)
+        and target_planet == planet_id
+    )
 
 
 def find_deliverable(

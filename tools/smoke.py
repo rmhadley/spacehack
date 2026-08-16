@@ -361,7 +361,7 @@ def smoke_test() -> int:
                 return 1
 
     # Mission-integrity (phase 1d): every static mission's giver and
-    # delivery-target NPC ids must resolve in the catalog. Slot
+    # delivery-target NPC ids must resolve to the catalog. Slot
     # replacements (expert NPCs) change board keys — a stale
     # giver/delivery id silently orphans the mission or makes it
     # uncompletable, so resolve them all here.
@@ -376,6 +376,29 @@ def smoke_test() -> int:
                 print(
                     f"FAIL: mission {_m.id!r} {_role} npc {_nid!r} "
                     "missing from catalog.",
+                    file=sys.stderr,
+                )
+                return 1
+
+    # Procedural target-integrity: procedural delivery/smuggle target
+    # NPCs are picked from planet building npc_id slots. Every slot
+    # must resolve either through the planet's npc_overrides or the
+    # global catalog, or generated missions point at NPCs that can
+    # never be talked to (soft-lock: cargo reserved forever).
+    from src.spacehack.data.planets import list_planet_specs as _list_pspecs
+    for _pspec in _list_pspecs():
+        _override_ids = [o for o, _n in getattr(_pspec, "npc_overrides", ()) or ()]
+        for _b in _pspec.buildings:
+            if not _b.npc_id:
+                continue
+            if _b.npc_id in _override_ids:
+                continue  # resolves through a planet-local override
+            try:
+                find_npc(_b.npc_id)
+            except KeyError:
+                print(
+                    f"FAIL: planet {_pspec.id!r} building slot {_b.npc_id!r} "
+                    "resolves to no NPC (no override, not in catalog).",
                     file=sys.stderr,
                 )
                 return 1

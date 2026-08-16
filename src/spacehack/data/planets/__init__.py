@@ -159,6 +159,15 @@ def find_planet_spec(planet_id: str) -> PlanetSpec:
         raise KeyError(f"unknown planet id: {planet_id!r}") from None
 
 
+def list_planet_specs() -> list[PlanetSpec]:
+    """Return every registered :class:`PlanetSpec` (registry order).
+
+    Mirrors ``list_solar_systems`` / ``list_missions`` so integrity
+    tooling can iterate the whole catalog.
+    """
+    return list(_registry().values())
+
+
 def _filter_by_tech_level(items, level: int) -> list:
     """Return the items whose ``tech_level`` is at most ``level``."""
     return [item for item in items if item.tech_level <= level]
@@ -444,4 +453,4 @@ def _resolve_ship(ship_id: str):
     return ship_module.find_ship(ship_id)
 
 
-__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "hangar_anchor", "has_explorable_sites", "has_landable_port", "has_militia_presence"]
+__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "list_planet_specs", "hangar_anchor", "has_explorable_sites", "has_landable_port", "has_militia_presence"]
