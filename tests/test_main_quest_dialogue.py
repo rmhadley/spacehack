@@ -79,6 +79,26 @@ def test_talk_q1_still_fires_accept_offer(monkeypatch):
     assert _offers == [("militia_captain", "mil_q1_report")]
 
 
+def test_story_crate_loads_even_when_mission_log_full():
+    """Main-quest crates bypass MAX_ACTIVE_MISSIONS (6/5 is allowed)."""
+    _step = find_main_quest_step("lab_q2_delivery")
+    _ship = SimpleNamespace(mission_reserved=0)
+    _ctx = SimpleNamespace(
+        main_quest_progress={"lab_q2_delivery": "available"},
+        player_owned_ship=_ship,
+        player_active_missions=[
+            ActiveMission(mission_id=f"dummy:{_i}") for _i in range(5)
+        ],
+        log=SimpleNamespace(add_colored=lambda *_args, **_kwargs: None),
+    )
+
+    assert _core._trigger_smuggle_crate(_ctx, _step)
+
+    assert len(_ctx.player_active_missions) == 6
+    assert _ctx.main_quest_progress["lab_q2_delivery"] == "active"
+    assert _ship.mission_reserved == 1
+
+
 def test_smuggle_handover_consumes_cargo_inventory(monkeypatch):
     """Handing over a recorder removes it from ordinary ship cargo."""
     _step = find_main_quest_step("lab_q6_return")

@@ -20,7 +20,6 @@
   "runtime.gate_popup_default_title": "THE WORK BEGINS",
   "runtime.goods_handed_over_log": "The required goods are handed over.",
   "runtime.missing_goods_log": "You don't have the required goods for this task.",
-  "runtime.mission_log_full": "Your mission log is full ({max}/{max}). Abandon one first (Q).",
   "runtime.no_ship_log": "You don't have a ship to carry the crate.",
   "runtime.orbit_body_intro": "The recovered archive has begun interacting with your communications array.",
   "runtime.orbit_body_route": "One layer may be a route beyond the Luyten blockade. The others remain unread.",

@@ -116,17 +116,13 @@ def _smuggle_crate_held(ctx, step_id: str) -> bool:
 
 
 def _trigger_smuggle_crate(ctx, _step) -> bool:
-    """Load the hot crate into the mission hold and start the smuggle step."""
+    """Load a story crate, ignoring MAX_ACTIVE_MISSIONS (the log may show 6/5)."""
     if step_status(ctx, _step.id) != STATUS_AVAILABLE:
         return False
     from .. import mission as _mission
     _owned = ctx.player_owned_ship
     if _owned is None:
         ctx.log.add(t_get("runtime.no_ship_log"))
-        return False
-    if len(ctx.player_active_missions) >= _mission.MAX_ACTIVE_MISSIONS:
-        ctx.log.add(t_get("runtime.mission_log_full").format(
-            max=_mission.MAX_ACTIVE_MISSIONS))
         return False
     _size = _step.smuggle_cargo_size
     if _size > 0:

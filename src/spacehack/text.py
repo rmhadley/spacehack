@@ -120,9 +120,6 @@ RUNTIME: dict[str, str] = {
         "The {good} is re-secured in your mission hold."
     ),
     "runtime.no_ship_log": "You don't have a ship to carry the crate.",
-    "runtime.mission_log_full": (
-        "Your mission log is full ({max}/{max}). Abandon one first (Q)."
-    ),
     "runtime.goods_handed_over_log": "The required goods are handed over.",
     "runtime.missing_goods_log": (
         "You don't have the required goods for this task."
