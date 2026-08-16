@@ -11,10 +11,10 @@ from .pygame_runtime import PygameContext
 _TITLE_ART: tuple[str, ...] = tuple(getattr(ui, "_TITLE_ART", ()))
 _SHIP_ART: tuple[str, ...] = tuple(getattr(ui, "_SHIP_ART", ()))
 _SPLASH_BODY: tuple[str, ...] = (
-    "The year is 2200. Humankind has spread across a dozen star systems,",
-    "linked by jump gates of unknown origin. You are a freelance pilot",
-    "making a living on the frontier - trading, bounty hunting, and",
-    "surviving where the law is what you make of it.",
+    "The year is 2200. Humankind has spread across many star systems,",
+    "linked by jump gates. You are a freelance pilot",
+    "making a living on the frontier: trading, bounty hunting, and",
+    "surviving.",
 )
 _PLANET_ART: tuple[str, ...] = (
     "  ┌────┐",
