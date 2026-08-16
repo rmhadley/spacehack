@@ -142,18 +142,11 @@ STEPS: tuple[MainQuestStep, ...] = (
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
                 trigger_on_talk=True,
-                intro=(
-                    "The cache survived. Now make the package survive the trip. The "
-                    "inspector at Luyten's Star is waiting at the northern "
-                    "checkpoint. Five jumps through frontier space, and no "
-                    "one outside this chain needs to know what you are carrying."
-                ),
                 active=(
                     "The blockade inspector is waiting at Luyten's Star's northern checkpoint. "
                     "Hand over the components. He will log them as routine supply "
                     "and keep the package buried under ordinary paperwork."
                 ),
-                option_label="Take on the delivery",
                 backing_faction="militia",
                 dialogue_planet_id="earth",
             ),

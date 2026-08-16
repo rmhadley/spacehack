@@ -18,8 +18,6 @@
   "step.mil_q3_inspection.dialogue.blockade_officer.intro": "The Captain sent word. Scratched requisition, scrubbed serials - I know the drill. Hand over the components. I'll log them as routine supply transfer, and no one asks questions. The Captain will call when the inspection clears.",
   "step.mil_q3_inspection.dialogue.blockade_officer.option_label": "Hand over the requisition",
   "step.mil_q3_inspection.dialogue.militia_captain.active": "The blockade inspector is waiting at Luyten's Star's northern checkpoint. Hand over the components. He will log them as routine supply and keep the package buried under ordinary paperwork.",
-  "step.mil_q3_inspection.dialogue.militia_captain.intro": "The cache survived. Now make the package survive the trip. The inspector at Luyten's Star is waiting at the northern checkpoint. Five jumps through frontier space, and no one outside this chain needs to know what you are carrying.",
-  "step.mil_q3_inspection.dialogue.militia_captain.option_label": "Take on the delivery",
   "step.mil_q3_inspection.ready_message": "The blockade has verified the package without learning what it is. Recruit the demolitions expert at Epsilon Eridani b. Use my name, not the requisition number. He is the last person in the Militia who still knows how to work on doors that were never designed to be breached.",
   "step.mil_q3_inspection.title": "The Inspection",
   "step.mil_q4_demolitions.completion_flavor": "The demolitions expert signs on. Tuning the charge to alien alloy will take time, and the test will need a target that can survive the first failure. The Captain will call when the prototype is ready.",

@@ -16,8 +16,6 @@
   "step.lab_q3_reference.title": "The Connection",
   "step.lab_q4_xenolinguist.completion_flavor": "The xenolinguist begins excitedly pulling up screens and attaching diodes to the alien device. She's focused and making progress. She'll contact you when she needs you again.",
   "step.lab_q4_xenolinguist.description": "The ancient alien device is in your mission hold. Take it to the xenolinguist at Alpha Centauri's Science Port. She will examine the device against the extracted data and determine the connection between them.",
-  "step.lab_q4_xenolinguist.dialogue.research_officer.intro": "If that dataset copy goes missing, the lab keeps a backup of the Procyon reference files - I can issue another. Get it straight to the Science Port.",
-  "step.lab_q4_xenolinguist.dialogue.research_officer.option_label": "Request another copy of the dataset",
   "step.lab_q4_xenolinguist.dialogue.xenolinguist.active": "Excellent. Hand me the ancient device and with it I can cross reference the data you extracted. We're getting close to cracking this ancient puzzle open!",
   "step.lab_q4_xenolinguist.dialogue.xenolinguist.option_label": "Hand over the ancient alien device.",
   "step.lab_q4_xenolinguist.ready_message": "Great progress has been made. But...",
