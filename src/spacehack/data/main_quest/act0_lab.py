@@ -116,19 +116,11 @@ STEPS: tuple[MainQuestStep, ...] = (
             "the xenolinguist at Alpha Centauri's Science Port. She may be able "
             "to tell whether the signal is speaking to us or passing through us."
         ),
+        # Portrait-only entry: the completion readout renders with the
+        # Research Officer's portrait. The 50-day gate summon is the
+        # briefing, so there is no talk intro/active text.
         dialogues={
-            "research_officer": QuestDialogue(
-                npc_id="research_officer",
-                intro=(
-                    "The material is answering at a frequency no human instrument should "
-                    "survive recording. We need the Procyon C reference cache to "
-                    "learn whether that frequency belongs to the door, the signal, "
-                    "or something farther along the route. Recover the dataset "
-                    "intact."
-                ),
-                backing_faction="lab",
-                dialogue_planet_id="mercury",
-            ),
+            "research_officer": QuestDialogue(npc_id="research_officer"),
         },
         rewards_credits=100,
         rewards_xp=80,
@@ -205,25 +197,10 @@ STEPS: tuple[MainQuestStep, ...] = (
             "answers the Mars sample, then points away from human space. Bring it "
             "to the Research Officer on Mercury before anyone edits the record."
         ),
+        # Portrait-only entry (see lab_q3_reference): the 95-day gate
+        # summon briefs this salvage, so there is no talk intro/active.
         dialogues={
-            "research_officer": QuestDialogue(
-                npc_id="research_officer",
-                intro=(
-                    "The xenolinguist's route map is nearly complete. A derelict scout vessel "
-                    "near Sirius carried a reference-frequency recorder, and a "
-                    "pirate captain with raiders is already picking it over. "
-                    "Recover the recorder before the last quiet evidence is "
-                    "scattered across the system."
-                ),
-                active=(
-                    "The derelict is near Sirius, a scout vessel lost decades ago. A pirate "
-                    "captain and his raiders are stripping it now. Clear them, board "
-                    "the wreck, and recover the frequency recorder before its final "
-                    "signal disappears."
-                ),
-                backing_faction="lab",
-                dialogue_planet_id="mercury",
-            ),
+            "research_officer": QuestDialogue(npc_id="research_officer"),
         },
         rewards_credits=150,
         rewards_xp=120,
