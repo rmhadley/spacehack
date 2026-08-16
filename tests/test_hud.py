@@ -198,19 +198,19 @@ def test_city_stat_values_line_up_in_one_column():
 
 
 def test_space_fuel_hull_rows_use_bars():
-    """Space Fuel/Hull rows use 10-cell bars instead of bare text."""
+    """Space Fuel/Hull rows use 10-cell bars and cur/max values."""
     console = FrameBuffer(40, 2)
     stats = SimpleNamespace(gunnery=1, piloting=1, engineering=1)
     hud._render_ship_stat_rows(
         console, 0, 0,
-        fuel=90, max_fuel=100, hull_pct=67, cargo_used=0, max_cargo=10,
+        fuel=90, max_fuel=100, hull=67, max_hull=100, cargo_used=0, max_cargo=10,
         weapons_n=0, weapon_slots=2, modules_n=0, module_slots=1, eff_spd=5,
         stats=stats, ground_stats=None,
     )
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
     assert row0.startswith("Fuel    ####") and row0.endswith("90/100")
-    assert row1.startswith("Hull    #####") and row1.endswith("67%")
+    assert row1.startswith("Hull    #####") and row1.endswith("67/100")
 
 
 def test_skill_lines_pair_two_per_row():

@@ -21,9 +21,9 @@ Space mode (when ``owned_ship`` is provided):
     +-----------------+----------+
     |                 | Spacehack|
     |                 | SCOUT    |    |       MAP     |          |
-    |     REGION     | Fuel 90  |
-    |                 | Hull 100%|
-    |                 | Cargo 0  |
+    |     REGION     | Fuel 90/100|
+    |                 | Hull 100/100|
+    |                 | Cargo 0/10 |
     |                 | Wpn 0/2  |
     |                 | Mod 0/1  |
     |                 | -------- |
@@ -315,11 +315,12 @@ def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -
     return y + 1
 
 
-def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo_used, max_cargo, weapons_n, weapon_slots, modules_n, module_slots, eff_spd, stats, ground_stats) -> int:
-    """Paint the space-mode stat rows (fuel…speed + skills); return next row.
+def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull, cargo_used, max_cargo, weapons_n, weapon_slots, modules_n, module_slots, eff_spd, stats, ground_stats) -> int:
+    """Paint the space-mode stat rows (fuel…speed + cargo); return next row.
 
     Fuel / Hull / Cargo share one label column and one value column
-    (10-cell bars); the equipment counts collapse onto a single row.
+    (10-cell bars) and all read cur/max; the equipment counts collapse
+    onto a single row.
     """
     _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
     console.print(
@@ -328,10 +329,10 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull_pct, cargo
         fg=_fuel_fg,
     )
     y += 1
-    _hull_fg = COLOR_HP_GOOD if hull_pct >= 50 else COLOR_HP_LOW
+    _hull_fg = COLOR_HP_GOOD if hull * 2 >= max_hull else COLOR_HP_LOW
     console.print(
         x=hud_x, y=y,
-        string=f"{'Hull':<8}{_bar_str(hull_pct, 100):<11}{hull_pct}%"[:HUD_TEXT_MAX],
+        string=f"{'Hull':<8}{_bar_str(hull, max_hull):<11}{hull}/{max_hull}"[:HUD_TEXT_MAX],
         fg=_hull_fg,
     )
     y += 1
@@ -362,7 +363,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     stats = ctx.stats
     ground_stats = ctx.ground_stats
     ship_name = _ship_mod.ship_display_name(owned_ship)
-    hull_pct = _ship_mod.hull_integrity_pct(owned_ship)
+    hull_cur, hull_max = _ship_mod.hull_cur_max(owned_ship, ship_catalog)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
     eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
     weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
@@ -372,7 +373,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
         console, hud_x, y,
         fuel=getattr(owned_ship, 'fuel', 0),
         max_fuel=getattr(ship_catalog, 'max_fuel', 1),
-        hull_pct=hull_pct,
+        hull=hull_cur, max_hull=hull_max,
         cargo_used=cargo_used, max_cargo=max_cargo,
         weapons_n=weapons_n, weapon_slots=getattr(ship_catalog, 'weapon_slots', 0),
         modules_n=modules_n, module_slots=getattr(ship_catalog, 'module_slots', 0),
@@ -707,7 +708,11 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
         for _i in range(min(_rate, len(_bar))):
             console.print(x=hud_x + 5 + _i, y=y, string=_bar[_i], fg=COLOR_SHIELD_BAR, bg=(255, 255, 255))
         y += 1
-    console.print(x=hud_x, y=y, string=f"Hull {_bar_str(phull, pmax_hull)} {int(hull_pct * 100)}%", fg=hull_color)
+    console.print(
+        x=hud_x, y=y,
+        string=f"Hull {_bar_str(phull, pmax_hull)} {phull}/{pmax_hull}",
+        fg=hull_color,
+    )
     return y + 1
 
 
@@ -771,14 +776,13 @@ def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id
             console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(_dist), fg=COLOR_VALUE_DIM)
     y += 1
     if enemy.max_shields > 0:
-        _e_shd_pct = enemy.shields / max(enemy.max_shields, 1)
         _shd_bar = _bar_str(enemy.shields, enemy.max_shields, width=5)
-        _shd_line = f"  Shd {_shd_bar} {int(_e_shd_pct * 100)}%"
+        _shd_line = f"  Shd {_shd_bar} {enemy.shields}/{enemy.max_shields}"
         console.print(x=hud_x, y=y, string=_shd_line[:HUD_TEXT_MAX], fg=COLOR_SHIELD_BAR)
         y += 1
     _e_hull_pct = enemy.hull / max(enemy.max_hull, 1)
     _bar = _bar_str(enemy.hull, enemy.max_hull, width=5)
-    _hull_line = f"  Hul {_bar} {int(_e_hull_pct * 100)}%"
+    _hull_line = f"  Hul {_bar} {enemy.hull}/{enemy.max_hull}"
     console.print(x=hud_x, y=y, string=_hull_line[:HUD_TEXT_MAX], fg=_hull_bar_color(_e_hull_pct))
     return y + 1
 

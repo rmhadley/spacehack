@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.spacehack.ship import (
     total_ammo_cargo,
     hull_integrity_pct,
+    hull_cur_max,
     effective_speed,
     effective_max_cargo,
     smuggler_hold_capacity,
@@ -181,6 +182,58 @@ class TestHullIntegrityPct:
 
     def test_damage_over_100_clamped_to_zero(self):
         assert hull_integrity_pct(SimpleNamespace(hull_damage_pct=150)) == 0
+
+
+# ---------------------------------------------------------------------------
+# hull_cur_max
+# ---------------------------------------------------------------------------
+
+class TestHullCurMax:
+    """Status displays show hull as cur/max points, matching combat math."""
+
+    def test_pristine_returns_full_max(self):
+        assert hull_cur_max(
+            SimpleNamespace(ship_id="scout", modules=(), hull_damage_pct=0),
+            SimpleNamespace(base_hull=25),
+        ) == (25, 25)
+
+    def test_damage_reduces_current_floor_at_one(self):
+        assert hull_cur_max(
+            SimpleNamespace(ship_id="scout", modules=(), hull_damage_pct=25),
+            SimpleNamespace(base_hull=25),
+        ) == (18, 25)
+        assert hull_cur_max(
+            SimpleNamespace(ship_id="scout", modules=(), hull_damage_pct=100),
+            SimpleNamespace(base_hull=25),
+        ) == (1, 25)  # combat floors current at 1
+
+    def test_module_max_hull_bonus_raises_max(self, monkeypatch):
+        from src.spacehack.data import modules as _mods
+
+        monkeypatch.setattr(
+            _mods, "find_module",
+            lambda _mid: SimpleNamespace(max_hull_bonus=10, power_gen_bonus=0),
+        )
+        owned = SimpleNamespace(
+            ship_id="scout", modules=("some_armor",), hull_damage_pct=0,
+        )
+        assert hull_cur_max(owned, SimpleNamespace(base_hull=25)) == (35, 35)
+
+    def test_unknown_module_ids_are_skipped(self):
+        from src.spacehack.data.modules import find_module
+
+        try:
+            find_module("no_such_module")
+        except KeyError:
+            pass
+        else:
+            raise AssertionError("expected KeyError from find_module")
+        assert hull_cur_max(
+            SimpleNamespace(
+                ship_id="scout", modules=("no_such_module",), hull_damage_pct=0,
+            ),
+            SimpleNamespace(base_hull=30),
+        ) == (30, 30)
 
 
 # ---------------------------------------------------------------------------

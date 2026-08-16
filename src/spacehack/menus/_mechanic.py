@@ -117,9 +117,10 @@ def _repairs_section(ctx, owned, ship_rec, next_hint, _missile_slots):
             "REPAIR",
         ),
     )
+    _hull_cur, _hull_max = ship_module.hull_cur_max(owned, ship_rec)
     body = (
         f"Ship: {ship_rec.name}",
-        f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {ship_module.hull_integrity_pct(owned)}%",
+        f"Fuel: {owned.fuel} / {ship_rec.max_fuel}    Hull: {_hull_cur} / {_hull_max}",
         pygame_ui.credits_label(ctx.stats.credits),
         "Select Refuel or Repair to review the exact total before committing.",
     )

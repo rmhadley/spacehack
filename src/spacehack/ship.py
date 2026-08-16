@@ -192,11 +192,34 @@ def hull_integrity_pct(owned: OwnedShip) -> int:
     """Return hull integrity as a percentage: 100% pristine, 0% destroyed.
 
     The inverse of :attr:`OwnedShip.hull_damage_pct` — combat and the
-    mechanic write damage; every status display (HUD, hangar, mechanic,
-    cargo) should read integrity so a fresh ship reads ``Hull 100%``
-    instead of ``Hull 0% damage``.
+    mechanic write damage; repair pricing reads integrity.
+    Status displays should show :func:`hull_cur_max` (cur/max points)
+    instead of a percentage.
     """
     return max(0, min(100, 100 - getattr(owned, 'hull_damage_pct', 0)))
+
+
+def hull_cur_max(owned: OwnedShip, ship_spec: Ship) -> tuple[int, int]:
+    """Return ``(current, max)`` hull for ``owned`` in hull points.
+
+    Mirrors the combat hull model exactly — ``base_hull`` plus the sum
+    of ``max_hull_bonus`` from equipped modules, damage applied as a
+    percentage of that max — so every status display (HUD, hangar,
+    mechanic, cargo) reads the same numbers combat does. Pure.
+    """
+    from .data.modules import find_module as _fms
+
+    _max = getattr(ship_spec, 'base_hull', 100)
+    for _mod_id in getattr(owned, 'modules', ()) or ():
+        if not _mod_id:
+            continue
+        try:
+            _max += _fms(_mod_id).max_hull_bonus
+        except KeyError:
+            pass
+    _dmg = getattr(owned, 'hull_damage_pct', 0)
+    _cur = max(1, _max * (100 - _dmg) // 100)
+    return _cur, _max
 
 
 def effective_speed(ship_spec: Ship, owned: OwnedShip) -> int:

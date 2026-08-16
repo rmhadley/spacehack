@@ -707,7 +707,10 @@ def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
     from . import pygame_screen, pygame_ui
     from . import ship as ship_module
 
-    body = (*_cargo_body(owned, max_cargo), f"Hull: {ship_module.hull_integrity_pct(owned)}%")
+    _hull_cur, _hull_max = ship_module.hull_cur_max(
+        owned, ship_module.find_ship(owned.ship_id),
+    )
+    body = (*_cargo_body(owned, max_cargo), f"Hull: {_hull_cur}/{_hull_max}")
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER jettison selected", "ESC close",
         pygame_ui.GUIDE_HINT,

@@ -154,11 +154,12 @@ def _ship_section(ctx, owned, ship):
     from .. import pygame_ui
 
     max_cargo = ship_module.effective_max_cargo(ship, owned)
+    _hull_cur, _hull_max = ship_module.hull_cur_max(owned, ship)
     body = (
         ship.description,
         "",
         f"Fuel: {owned.fuel} / {ship.max_fuel}",
-        f"Hull: {ship_module.hull_integrity_pct(owned)}%",
+        f"Hull: {_hull_cur} / {_hull_max}",
         f"Speed: {ship_module.effective_speed(ship, owned)}",
         f"Shields: {_effective_shields(ship, owned)}",
         f"Power: {_effective_power_gen(ship, owned)}",

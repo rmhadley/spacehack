@@ -3057,7 +3057,8 @@ def test_hangar_ship_tab_shows_at_a_glance_stats_and_launch():
     assert frame.active_tab == 0
     body_text = "\n".join(frame.body)
     assert "Fuel: 12 / 80" in body_text
-    assert "Hull: 95%" in body_text
+    # Starter skiff: base_hull 15, 5% damage -> 14/15 HP.
+    assert "Hull: 14 / 15" in body_text
     assert "Shields:" in body_text
     assert "Power:" in body_text
     assert "Cargo:" in body_text
