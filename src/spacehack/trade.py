@@ -526,13 +526,14 @@ def _station_goods_for(spec) -> list[str]:
 
 
 def _terminal_trade_gate(ctx: GameContext) -> bool:
-    """Return False (logging why) when the terminal can't open trade."""
-    from .faction import get_attitude
-    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
-    _attitude = get_attitude(_merchant_rep)
-    if _attitude in ("enemy", "disliked"):
-        ctx.log.add("The merchants refuse to trade with you.")
-        return False
+    """Return False (logging why) when the terminal can't open trade.
+
+    Deliberately NOT faction-gated: merchant reputation only nudges
+    prices via :func:`_unit_price` / :func:`_sell_price` (discounts
+    for good standing), and can never lock the player out of the
+    terminal. Bar / intercept work tanking merchant rep must not
+    soft-lock trading.
+    """
     if ctx.player_owned_ship is None:
         ctx.log.add("You need a ship with cargo space to use this terminal.")
         return False
