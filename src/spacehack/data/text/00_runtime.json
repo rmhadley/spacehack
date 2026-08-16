@@ -1,6 +1,6 @@
 {
   "runtime.chain_lockin_log": "You've agreed to work with the {faction} - the plan is in motion.",
-  "runtime.chip_fragment_log": "You chip a fragment of the alien material off the door's surface. The seal holds.",
+  "runtime.chip_fragment_log": "You attach the data extractor to the console. It hums and collects data. With a final beep, you pick it back up.",
   "runtime.door_ambush_body": "Raiders pour out of the shadows around the sealed door. They must have followed you here the first time.\n\nThey see the data extractor in your hand. They want it.",
   "runtime.door_ambush_faction": "Pirates",
   "runtime.door_ambush_title": "AMBUSH!",
