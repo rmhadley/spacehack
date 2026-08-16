@@ -132,10 +132,22 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
     ),
     TradeGood(
         id="reference_recorder",
-        name="Reference Frequency Recorder",
+        name="Data Recorder",
         description=(
-            "A sealed recorder from a derelict scout - decades of "
-            "resonance frequency readings from the Sirius patrol."
+            "A data recorder recovered from a derelict scout near Sirius - "
+            "the missing dataset the lab needs to finish the console work."
+        ),
+        base_price=200,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
+        id="alien_device",
+        name="Ancient Alien Device",
+        description=(
+            "An alien device recovered from a sealed Procyon C cache. Its "
+            "surface carries the same undulation as the Mars console."
         ),
         base_price=200,
         category="tech",
