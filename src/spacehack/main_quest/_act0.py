@@ -703,8 +703,12 @@ def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
     _step = find_main_quest_step(step_id)
     if step_id == "prologue_seek_help" and ctx.main_quest_chain:
         _q1 = main_quest_step_after("prologue_seek_help", chain=ctx.main_quest_chain)
+        # Only talk-commitment q1 steps get the accept offer. Bump q1
+        # (the lab chain) completes by chipping the door, so an offer
+        # whose "Accept" advances nothing would be a dead prompt.
         if _q1 is not None \
                 and step_status(ctx, _q1.id) == STATUS_AVAILABLE \
+                and _q1.objective_type == "talk" \
                 and npc_id in _q1.dialogues:
             _offer = show_help_offer(ctx, npc_id, _q1.id)
             if _offer is OfferOutcome.QUIT:
