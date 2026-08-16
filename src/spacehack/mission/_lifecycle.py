@@ -231,11 +231,30 @@ def _mission_type_for(active: ActiveMission, ctx) -> str | None:
         return None
 
 
+# Tier multipliers applied to mission rep deltas. Higher-tier work is
+# worth more reputation, but the bases were halved so every tier is
+# slower than the pre-pass numbers: T1 ≈ half of the old value, and
+# even T4 work (x1.75) sits below the old flat deltas.
+_TIER_REP_MULT: dict[int, tuple[int, int]] = {
+    1: (1, 1),
+    2: (5, 4),
+    3: (3, 2),
+    4: (7, 4),
+}
+
+
+def _tier_scaled_delta(delta: int, tier: int) -> int:
+    """Scale a rep delta by mission tier, rounding half away from zero."""
+    _num, _den = _TIER_REP_MULT.get(max(1, min(4, tier)), (1, 1))
+    _sign = 1 if delta >= 0 else -1
+    return _sign * ((abs(delta) * _num + _den // 2) // _den)
+
+
 def _apply_rep_delta(ctx, faction: str, delta: int, is_early: bool) -> None:
     """Apply one mission reputation delta, including the early bonus."""
     from ..faction import modify_rep
     if is_early and delta > 0:
-        delta += (delta + 1) // 2
+        delta = (delta * 5 + 2) // 4  # +25% early-completion bonus
     modify_rep(ctx, faction, delta)
 
 
@@ -245,7 +264,13 @@ def _apply_mission_rep(
     *,
     is_early: bool = False,
 ) -> None:
-    """Apply the mission type's faction reputation changes."""
+    """Apply the mission type's faction reputation changes.
+
+    The base deltas from ``_MISSION_REP_DELTAS`` (tier 1 values) are
+    scaled by the mission's tier, then the early bonus (+25%) is
+    applied to positive gains; the +50 soft cap is enforced inside
+    ``modify_rep``.
+    """
     from ..faction import _MISSION_REP_DELTAS
     mission_type = _mission_type_for(active, ctx)
     if mission_type is None:
@@ -254,5 +279,5 @@ def _apply_mission_rep(
     if deltas is None:
         return
     for faction, delta in deltas.items():
-        _apply_rep_delta(ctx, faction, delta, is_early)
+        _apply_rep_delta(ctx, faction, _tier_scaled_delta(delta, active.tier), is_early)
 

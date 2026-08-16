@@ -90,27 +90,33 @@ Reputation starts at a baseline determined by **species + class**:
 
 | Mission type | Pirate | Merchant | Civilian | Militia | Notes |
 |-------------|--------|----------|----------|---------|-------|
-| Delivery (merchant) | 0 | +5 | +2 | +1 | Successful trade route |
-| Bounty (pirate target) | -2 | +3 | +3 | +5 | Removing a pirate threat |
-| Intercept (bar) | +5 | -10 | -2 | -5 | Attacking merchants |
-| Smuggling (bar) | +2 | -5 | -5 | -8 | Running contraband — hurts civilian trust + militia |
-| Extortion (bar) | +5 | -5 | -3 | -3 | Shaking down neutral ships |
-| Salvage rights (bar) | +3 | -3 | 0 | -2 | Claiming wreck — no civilian impact |
+| Delivery (merchant) | 0 | +2 | 0 | 0 | Successful trade route |
+| Bounty (pirate target) | -1 | +1 | +1 | +2 | Removing a pirate threat |
+| Intercept (bar) | +2 | -5 | -1 | -2 | Attacking merchants |
+| Smuggling (bar) | +1 | -2 | -2 | -4 | Running contraband — hurts civilian trust + militia |
+| Extortion (bar) | +2 | -2 | -1 | -1 | Shaking down neutral ships |
+| Salvage rights (bar) | +1 | -1 | 0 | -1 | Claiming wreck — no civilian impact |
 
-**Early bonus:** Completing a mission early (within < 50% of deadline) adds **+50% rep gain** (rounded up).
+These are **tier-1 base values** (halved in the 2026-08 reputation balance
+pass). The caller scales them by mission tier (×1 / ×1.25 / ×1.5 / ×1.75)
+and adds the early-completion bonus.
+
+**Early bonus:** Completing a mission early (within < 50% of deadline) adds **+25% rep gain** (positive deltas only).
 
 ### 2. Space combat
 
 | Action | Pirate | Merchant | Civilian | Militia |
 |--------|--------|----------|----------|---------|
-| Kill a pirate ship | -3 | +2 | +2 | +3 |
-| Kill a merchant ship | +5 | -8 | -3 | -5 |
-| Kill a militia ship | +8 | -5 | -5 | -12 |
-| Kill a civilian ship | +5 | -5 | -8 | -5 |
+| Kill a pirate ship | -1 | +1 | +1 | +1 |
+| Kill a merchant ship | +2 | -4 | -1 | -2 |
+| Kill a militia ship | +4 | -2 | -2 | -6 |
+| Kill a civilian ship | +2 | -2 | -4 | -2 |
 | Flee from combat | 0 | -1 | -1 | -2 | Cowardice — all lawful factions look down on it |
 | Initiate unprovoked attack (comms) | +2 pirate¹ | −2 merchant | −2 civilian | −3 militia | ¹ Only if target is NOT pirate-aligned |
 
 **Squad bonus:** Killing all members of a squad adds +1 bonus rep to the relevant faction (e.g. clearing a pirate squad gives +1 extra pirate rep hit, +1 extra merchant/militia gain).
+
+**Soft cap:** Positive gains are applied at **half strength once the score is above +50** — the liked → allied stretch is deliberately slow.
 
 ### 3. Monthly decay
 
@@ -364,7 +370,7 @@ When reputation changes significantly (crosses a zone boundary), a colored messa
 **Kills:**
 - [ ] Kill a **pirate** ship → log shows `-3 pirate, +2 merchant, +2 civilian, +3 militia`
 - [ ] Kill a **merchant** ship → log shows `+5 pirate, -8 merchant, -3 civilian, -5 militia`
-- [ ] Kill a **militia** ship → log shows `+8 pirate, -5 merchant, -5 civilian, -12 militia`
+- [ ] Kill a **militia** ship → log shows `+4 pirate, -2 merchant, -2 civilian, -6 militia`
 - [ ] Kill a **civilian** ship → log shows `+5 pirate, -5 merchant, -8 civilian, -5 militia`
 
 **Other combat actions:**

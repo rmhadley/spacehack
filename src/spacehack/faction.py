@@ -156,41 +156,44 @@ def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 # Mission completion rep deltas, keyed by mission type (from MissionSpec.mission_type).
-# Each entry maps faction -> delta. These are the BASE values; early bonus
-# (+50%) is applied by the caller on top.
+# Each entry maps faction -> delta. These are the BASE values at tier 1;
+# the caller multiplies by a tier factor (x1 / x1.25 / x1.5 / x1.75 for
+# tiers 1-4) and adds the early-completion bonus (+25%) on top. Values
+# were halved in the reputation balance pass so rep accrues slowly;
+# the +50 soft cap in modify_rep halves gains in the liked -> allied range.
 _MISSION_REP_DELTAS: dict[str, dict[str, int]] = {
     "delivery": {
-        "merchant": +5,
+        "merchant": +2,
     },
     "bounty": {
-        "pirate": -2,
-        "merchant": +3,
-        "civilian": +3,
-        "militia": +5,
+        "pirate": -1,
+        "merchant": +1,
+        "civilian": +1,
+        "militia": +2,
     },
     "intercept": {
-        "pirate": +5,
-        "merchant": -10,
-        "civilian": -2,
-        "militia": -5,
-    },
-    "smuggling": {
         "pirate": +2,
         "merchant": -5,
-        "civilian": -5,
-        "militia": -8,
+        "civilian": -1,
+        "militia": -2,
+    },
+    "smuggling": {
+        "pirate": +1,
+        "merchant": -2,
+        "civilian": -2,
+        "militia": -4,
     },
     "extortion": {
-        "pirate": +5,
-        "merchant": -5,
-        "civilian": -3,
-        "militia": -3,
+        "pirate": +2,
+        "merchant": -2,
+        "civilian": -1,
+        "militia": -1,
     },
     "salvage": {
-        "pirate": +3,
-        "merchant": -3,
+        "pirate": +1,
+        "merchant": -1,
         "civilian": 0,
-        "militia": -2,
+        "militia": -1,
     },
 }
 
@@ -201,30 +204,34 @@ _REP_LOSS_COLOR: tuple[int, int, int] = (255, 95, 95)      # red
 
 # Combat rep deltas — keyed by the defeated enemy's faction (pirate, merchant,
 # civilian, militia). Applied per-kill when an enemy ship is destroyed.
+# Halved in the reputation-balance pass: pirate-killing used to be a
+# universal faucet feeding militia/merchant/civilian bars at once, and
+# killing lawmen needs to stay punitive but no longer grants huge pirate
+# swings per kill. The +50 soft cap applies on top (see modify_rep).
 _COMBAT_KILL_DELTAS: dict[str, dict[str, int]] = {
     "pirate": {
-        "pirate": -3,
-        "merchant": +2,
-        "civilian": +2,
-        "militia": +3,
+        "pirate": -1,
+        "merchant": +1,
+        "civilian": +1,
+        "militia": +1,
     },
     "merchant": {
-        "pirate": +5,
-        "merchant": -8,
-        "civilian": -3,
-        "militia": -5,
+        "pirate": +2,
+        "merchant": -4,
+        "civilian": -1,
+        "militia": -2,
     },
     "civilian": {
-        "pirate": +5,
-        "merchant": -5,
-        "civilian": -8,
-        "militia": -5,
+        "pirate": +2,
+        "merchant": -2,
+        "civilian": -4,
+        "militia": -2,
     },
     "militia": {
-        "pirate": +8,
-        "merchant": -5,
-        "civilian": -5,
-        "militia": -12,
+        "pirate": +4,
+        "merchant": -2,
+        "civilian": -2,
+        "militia": -6,
     },
 }
 
@@ -365,13 +372,42 @@ def sell_price_modifier(attitude: str) -> float:
 # modify_rep — central rep mutation helper
 # ---------------------------------------------------------------------------
 
+# Soft cap for positive reputation. Gains that would push the score
+# above +50 are applied at half strength, so the upper half of each
+# bar (liked → allied) is a deliberate, slow grind rather than a
+# sprint. Negative reputation has no cap — villainy still moves fast.
+_SOFT_CAP: int = 50
+
+
+def _soft_cap_delta(current: int, delta: int) -> int:
+    """Return ``delta`` with the portion landing above the +50 cap halved.
+
+    Pure helper — no I/O. Gains fully below the cap pass through
+    unchanged; gains straddling the cap are split (full below, half
+    above, rounding the half portion up); gains entirely above the
+    cap are halved.
+    """
+    if delta <= 0:
+        return delta
+    if current >= _SOFT_CAP:
+        return (delta + 1) // 2
+    _room = _SOFT_CAP - current
+    if delta <= _room:
+        return delta
+    return _room + (delta - _room + 1) // 2
+
+
 def modify_rep(ctx, faction: str, delta: int) -> None:
-    """Apply a reputation delta to ``faction``, handling clamping,
-    logging, and zone-boundary crossing announcements.
+    """Apply a reputation delta to ``faction``, handling the +50 soft
+    cap, clamping, logging, and zone-boundary crossing announcements.
 
     Mutates ``ctx.faction_reputation[faction]`` and appends to
     ``ctx.log``. A no-op if ``delta`` is zero or ``faction`` is
     not one of the four tracked factions.
+
+    Positive gains are halved once they push the score above +50
+    (see :func:`_soft_cap_delta`); losses and negative-direction
+    movement are unchanged.
 
     Log format:
       Within same zone:  ``+5 rep with Merchant faction (now +23)``
@@ -384,6 +420,9 @@ def modify_rep(ctx, faction: str, delta: int) -> None:
 
     old_val: int = ctx.faction_reputation.get(faction, 0)
     old_attitude: str = get_attitude(old_val)
+
+    if delta > 0:
+        delta = _soft_cap_delta(old_val, delta)
 
     new_val: int = max(-100, min(100, old_val + delta))
     ctx.faction_reputation[faction] = new_val
