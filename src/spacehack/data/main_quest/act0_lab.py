@@ -36,6 +36,18 @@ STEPS: tuple[MainQuestStep, ...] = (
             "Deliver it to the Research Officer on Mercury before the pattern "
             "changes again."
         ),
+        dialogues={
+            "research_officer": QuestDialogue(
+                npc_id="research_officer",
+                intro=(
+                    "Attach the data extractor to the alien console on Mars and "
+                    "let it run its diagnostics. Bring the device back to me "
+                    "when it's done - a clean reading matters more than a fast one."
+                ),
+                backing_faction="lab",
+                dialogue_planet_id="mercury",
+            ),
+        },
         rewards_xp=50,
     ),
     MainQuestStep(
@@ -69,11 +81,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
                 trigger_on_talk=True,
-                intro=(
-                    "You took the fragment without disturbing the seal. Good. Hand it over. "
-                    "If its signature matches the transmission, we may be able to "
-                    "ask the door to open without pretending we understand it."
-                ),
                 active=(
                     "The fragment is in your mission hold. Hand it over and let the instruments "
                     "tell us whether the pattern is stable. First readings should "
@@ -162,12 +169,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "xenolinguist": QuestDialogue(
                 npc_id="xenolinguist",
                 trigger_on_talk=True,
-                intro=(
-                    "You brought the reference dataset. It does not translate the signal; it "
-                    "shows us where the signal stops behaving like a message. Hand "
-                    "it over. I can map the shared frequency, but I will not call "
-                    "that map a key until we know what it opens."
-                ),
                 active=(
                     "The cross-reference gives us a route, not a meaning. One more dataset may "
                     "show where the route terminates. The Research Officer is "
@@ -276,11 +277,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
                 trigger_on_talk=True,
-                intro=(
-                    "The recorder survived. It completes the route map, not the meaning behind "
-                    "it. Hand it over and we will build the resonance key without "
-                    "pretending that a key tells us why a door exists."
-                ),
                 active=(
                     "The recorder is in your mission hold. Hand it over and the route map is "
                     "complete. The key can be forged, though the lab still does not "
