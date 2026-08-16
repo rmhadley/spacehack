@@ -28,6 +28,10 @@ from src.spacehack.data.npcs import (
     list_npcs,
     reload_text_overlay as reload_npc_text,
 )
+from src.spacehack.data.trade_goods import (
+    find_trade_good,
+    reload_text_overlay as reload_goods_text,
+)
 
 
 @pytest.fixture
@@ -41,6 +45,7 @@ def overlay_dir(tmp_path, monkeypatch):
                     "Overridden intro."
                 ),
                 "npc.barkeep.flavor_text": "Overridden flavor.",
+                "good.reference_recorder.name": "Overridden Recorder",
                 "runtime.transmission_title": "STATIC BURST",
                 "disclosure.diagnostic_fragment.label": "Override label",
                 "step.lab_q2_delivery.completion_flavor": "Overridden flavor line.",
@@ -53,11 +58,13 @@ def overlay_dir(tmp_path, monkeypatch):
     text_module.reload()
     reload_mq_text()
     reload_npc_text()
+    reload_goods_text()
     yield tmp_path
     monkeypatch.delenv("SPACEHACK_TEXT_DIR", raising=False)
     text_module.reload()
     reload_mq_text()
     reload_npc_text()
+    reload_goods_text()
 
 
 def test_overlay_overrides_step_text(overlay_dir):
@@ -71,6 +78,10 @@ def test_overlay_overrides_dialogue(overlay_dir):
 
 def test_overlay_overrides_npc_flavor(overlay_dir):
     assert find_npc("barkeep").flavor_text == "Overridden flavor."
+
+
+def test_overlay_overrides_good_name(overlay_dir):
+    assert find_trade_good("reference_recorder").name == "Overridden Recorder"
 
 
 def test_missing_key_falls_back_to_default(overlay_dir):
@@ -194,6 +205,10 @@ def test_shipped_overlay_keys_resolve():
                 _known.add(f"step.{_step.id}.dialogue.{_npc_id}.{_variant}")
     for _npc in list_npcs():
         _known.add(f"npc.{_npc.id}.flavor_text")
+    from src.spacehack.data.trade_goods.core import TRADE_GOODS
+    for _g in TRADE_GOODS:
+        _known.add(f"good.{_g.id}.name")
+        _known.add(f"good.{_g.id}.description")
     from src.spacehack.data.main_quest.act1_post_prison import ARCHIVE_DISCLOSURES
 
     for _spec in ARCHIVE_DISCLOSURES:

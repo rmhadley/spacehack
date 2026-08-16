@@ -15,6 +15,7 @@ Keys are stable paths into the game data:
     step.<id>.ready_message
     step.<id>.dialogue.<npc>.intro|active|complete|locked|option_label
     npc.<id>.flavor_text
+    good.<id>.name|description
 
 Run this when new story content lands in the code or dead keys are
 removed from it. It MERGES with the existing files — the JSON is the
@@ -47,6 +48,7 @@ os.environ["SPACEHACK_TEXT_DIR"] = tempfile.mkdtemp()
 
 from src.spacehack.data.main_quest import find_main_quest_step  # noqa: E402
 from src.spacehack.data.npcs import find_npc  # noqa: E402
+from src.spacehack.data.trade_goods.core import TRADE_GOODS  # noqa: E402
 from src.spacehack.text import RUNTIME  # noqa: E402
 from src.spacehack.data.main_quest.act1_post_prison import (  # noqa: E402
     ARCHIVE_DISCLOSURES,
@@ -101,7 +103,9 @@ def _build_beginning() -> dict[str, str]:
     for _sid in ("prologue_signal", "prologue_mars_unlocked", "prologue_mars_entrance"):
         _keys.update(_step_keys(_sid))
     _keys.update(_step_keys("prologue_seek_help"))
-    for _npc in ("barkeep", "guild_master", "militia_captain", "research_officer", "xenolinguist"):
+    # xenolinguist is emitted by the lab chain (04_lab.json) — kept
+    # out of here so her flavor_text key isn't written twice.
+    for _npc in ("barkeep", "guild_master", "militia_captain", "research_officer"):
         _keys.update(_npc_flavor_keys(_npc))
     return _keys
 
@@ -132,6 +136,15 @@ def _build_end() -> dict[str, str]:
 def _build_runtime() -> dict[str, str]:
     """File 00: runtime overlay text (transmissions, log lines, popups)."""
     return dict(RUNTIME)
+
+
+def _build_goods() -> dict[str, str]:
+    """File 07: trade-good display names + tooltip descriptions."""
+    _keys: dict[str, str] = {}
+    for _g in TRADE_GOODS:
+        _keys[f"good.{_g.id}.name"] = _g.name
+        _keys[f"good.{_g.id}.description"] = _g.description
+    return _keys
 
 
 def _merge_payload(path: Path, fresh: dict[str, str]) -> dict[str, str]:
@@ -186,6 +199,7 @@ def main() -> int:
             ("blockade_officer", "demolitions_expert"),
         ),
         "06_end.json": _build_end(),
+        "07_goods.json": _build_goods(),
     }
     _count = 0
     for _name, _keys in _sections.items():

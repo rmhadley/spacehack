@@ -118,8 +118,10 @@ def _reload_text_overlay_dev(state) -> None:
         return
     from .data.main_quest import reload_text_overlay as _mq_text
     from .data.npcs import reload_text_overlay as _npc_text
+    from .data.trade_goods import reload_text_overlay as _goods_text
     _mq_text()
     _npc_text()
+    _goods_text()
     state.log.add('Dev: story text overlay reloaded (F5).')
 
 

@@ -39,6 +39,7 @@ from src.spacehack.data.main_quest.act1_post_prison import (  # noqa: E402
     ARCHIVE_DISCLOSURES,
 )
 from src.spacehack.data.npcs import list_npcs  # noqa: E402
+from src.spacehack.data.trade_goods.core import TRADE_GOODS  # noqa: E402
 from src.spacehack.text import RUNTIME  # noqa: E402
 
 STATUS_ACTIVE = "active"
@@ -77,7 +78,7 @@ _DISCLOSURE_FIELDS = (
 
 
 def _all_overlay_keys() -> set[str]:
-    """Every step.* / npc.* / runtime.* / disclosure.* key the extractor emits."""
+    """Every step.* / npc.* / good.* / runtime.* / disclosure.* key the extractor emits."""
     _keys: set[str] = set(RUNTIME)
     for _spec in ARCHIVE_DISCLOSURES:
         for _field in _DISCLOSURE_FIELDS:
@@ -98,6 +99,9 @@ def _all_overlay_keys() -> set[str]:
     for _npc in list_npcs():
         if _npc.flavor_text:
             _keys.add(f"npc.{_npc.id}.flavor_text")
+    for _g in TRADE_GOODS:
+        _keys.add(f"good.{_g.id}.name")
+        _keys.add(f"good.{_g.id}.description")
     return _keys
 
 
@@ -358,6 +362,14 @@ def main() -> int:
         f"disclosure.{_spec.key}.{_field}"
         for _spec in ARCHIVE_DISCLOSURES
         for _field in _DISCLOSURE_FIELDS
+    }
+    # Trade-good names + descriptions render in inventory, trade, loot,
+    # and quest-log cargo UI regardless of quest state — displayed by
+    # construction.
+    _displayed |= {
+        f"good.{_g.id}.{_field}"
+        for _g in TRADE_GOODS
+        for _field in ("name", "description")
     }
     # completion_flavor renders in the completion log line, the
     # wait-days gate popup, and the waiting breadcrumb — every step

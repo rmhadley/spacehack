@@ -22,6 +22,8 @@ No code edits, no sync step.
 | `npc.<id>.flavor_text` | NPC idle chatter when no quest is live |
 | `runtime.<name>` | Overlay text: transmissions, log lines, popups (file `00_runtime.json`) |
 | `disclosure.<key>.<field>` | Orbit archive-disclosure choices (file `06_end.json`) |
+| `good.<id>.name` | Trade-good display name (inventory, trade, loot, quest log) |
+| `good.<id>.description` | Trade-good tooltip blurb (file `07_goods.json`) |
 
 ## Rules
 
