@@ -124,8 +124,13 @@ def generate_bounty_mission(
       4. Pick enemy from tier-appropriate pool.
       5. Roll loadout_pct and squad_size within tier ranges.
       6. Generate name via tier-gated prefix/title pools.
-      7. Compute reward: base = hull_strength × tier × 40, adjusted
-         by squad size.
+      7. Compute reward: a flat per-tier base × squad multiplier ×
+         loadout modifier + a small per-hop bonus. Deliberately NOT
+         hull-strength-scaled: the old ``hull × tier × 40`` formula
+         grew quadratically (scout 25 → frigate 100 hull) and paid
+         14k-32k at tier 4, making bounties the only board worth
+         playing. Bands now sit alongside bar missions and slightly
+         below named static bounties.
       8. Compute deadline: max(20, hops × 35 + randint(10, 25)) — accounts for
          200×140 system size (~18 days per crossing at speed 10).
       9. Build MissionSpec with mission_type="bounty", faction="bhguild".
@@ -133,8 +138,6 @@ def generate_bounty_mission(
     Returns ``None`` if no suitable target system can be found.
     """
     from ..data.solar_systems import reachable_system_ids
-    from ..data.npc_ships import find_npc_ship
-    from ..data.ships import find_ship as _find_ship_cat
 
     # 1. Tier roll (shared two-roll pattern for rarity curve).
     tier = _roll_tier(max_tier, rng)
@@ -171,12 +174,6 @@ def generate_bounty_mission(
     # 4. Pick enemy from tier-appropriate pool.
     _pool = _bounty_enemy_pool(tier)
     enemy_id = rng.choice(_pool)
-    try:
-        _espec = find_npc_ship(enemy_id)
-        _ship_cat = _find_ship_cat(_espec.ship_id)
-        _hull_strength = _ship_cat.base_hull
-    except (KeyError, ImportError):
-        _hull_strength = 50
 
     # 5. Roll loadout and squad.
     _lo_lo, _lo_hi = _bounty_loadout_range(tier)
@@ -187,10 +184,18 @@ def generate_bounty_mission(
     # 6. Generate name.
     target_name = _generate_bounty_name(rng)
 
-    # 7. Reward: base = hull_strength × tier × 40, × squad multiplier.
-    _sq_mult = {1: 1.0, 2: 1.5, 3: 2.0}.get(squad_size, 1.0)
-    credits = int(_hull_strength * tier * 40 * _sq_mult)
-    xp = int(_hull_strength * tier * 2 * _sq_mult)
+    # 7. Reward: flat tier base, scaled modestly by squad size and
+    #    loadout, plus a small per-hop travel bonus.
+    #    Banded against the other boards (bar missions, deliveries);
+    #    hand-crafted static bounties stay slightly above the generated
+    #    ones at each tier so named bounties remain the premium work.
+    _SQ_MULT = {1: 1.0, 2: 1.3, 3: 1.6}
+    _sq_mult = _SQ_MULT.get(squad_size, 1.0)
+    _loadout_mult = 1.0 + loadout_pct / 400.0      # 0%→1.0, 100%→1.25
+    _base_credits = {1: 220, 2: 350, 3: 600, 4: 950}.get(tier, 220)
+    _base_xp = {1: 30, 2: 55, 3: 100, 4: 160}.get(tier, 30)
+    credits = int(_base_credits * _sq_mult * _loadout_mult) + hops * 10
+    xp = int(_base_xp * _sq_mult) + hops * 4
 
     # 8. Deadline: ~35 days per hop so travel + hunting fits comfortably.
     #    All solar systems are 200x140 cells. Crossing one from gate to gate

@@ -100,9 +100,12 @@ def _generate_bar_intercept(
     # Round-trip deadline (travel both ways).
     deadline = max(30, hops * 60 + rng.randint(10, 30))
 
-    # Reward.
-    credits = tier * 200 + hops * 50
-    xp = tier * 40 + hops * 10
+    # Reward: intercepts are round trips with a fight and a cargo
+    # return, so they carry a premium over one-way deliveries
+    # (~1.5x the old band). They still sit a notch below T4 named
+    # bounties at the top end.
+    credits = tier * 300 + hops * 60
+    xp = tier * 50 + hops * 10
 
     try:
         from ..data.npc_ships import find_npc_ship
@@ -181,8 +184,12 @@ def _generate_bar_smuggling(
     cargo_lo, cargo_hi = _cargo_ranges.get(tier, (5, 10))
     cargo = rng.randint(cargo_lo, cargo_hi)
 
-    credits = cargo * 4 * (tier + 1)
-    xp = cargo * tier
+    # Reward: smuggling is the same shape as a delivery but carries
+    # scan/confiscation risk (or a smuggler-hold module tax), so it
+    # pays ~20-30% above deliveries at every tier plus a per-hop
+    # bonus. XP stays at delivery parity — the premium is credits.
+    credits = cargo * 6 * (tier + 1) + hops * 15
+    xp = cargo * 2 * tier + hops * 4
     deadline = max(20, hops * 30 + rng.randint(10, 20))
 
     smuggle_good = rng.choice(_HEIST_GOODS)

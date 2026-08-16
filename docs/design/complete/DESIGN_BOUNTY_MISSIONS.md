@@ -143,7 +143,12 @@ Quest log shows: "Target: Vex Korr + 2 wingmates (Danger: High)"
     4. Roll `bounty_target_loadout_pct` within tier range
     5. Roll `bounty_target_squad_size` within tier range
     6. Generate name via `_generate_bounty_name`
-    7. Generate reward: base = enemy_hull_strength * tier * 40, adjusted by squad size
+    7. Generate reward: flat per-tier base (220/350/600/950) * squad
+       multiplier (1.0/1.3/1.6) * loadout modifier (~1.0-1.25) + hops*10.
+       (Rebalanced 2026-08: the old hull * tier * 40 formula grew
+       quadratically with hull and paid 14k-32k at T4 — 5-12x every
+       other board. Bands now sit alongside bar missions and slightly
+       below named static bounties.)
     8. Generate deadline: hop_count * 6 + randint(3, 8)
     9. Build MissionSpec with `mission_type="bounty"`, `faction="bhguild"`
   - [ ] Generated ID: `proc_bounty_{origin}_{system}_{enemy_id}_{counter}_{tier}`
