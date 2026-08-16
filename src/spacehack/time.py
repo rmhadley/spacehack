@@ -50,7 +50,7 @@ def _on_month_change(ctx: GameContext) -> None:
     clock (see :func:`resolve_mech_inventory` / :func:`resolve_armory_inventory`),
     so it rolls over here rather than advancing with each terminal visit.
 
-    Module-level (not an inner function) per reviewer checklist —
+    Module-level (not an inner function) per the self-audit checklist —
     it has no meaningful closure over ``advance_time``'s scope.
     """
     from . import message_log as _mlog

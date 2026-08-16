@@ -6,7 +6,7 @@ material that changes rarely: the directory layout, creating a new doc, and
 lifecycle moves.
 
 The **mandatory process rules** — pre-implementation audit, iterating,
-self-audit pass, and the code-reviewer checklist — live in `knowledge.md`
+and the self-audit pass — live in `knowledge.md`
 (the session knowledge contract) because they fire on almost every session.
 
 ## Directory structure

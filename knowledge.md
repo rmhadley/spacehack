@@ -830,48 +830,34 @@ During implementation, the design doc is a **living document**:
 - **After each playtest**, the agent should ask "what's next per the design doc?" to steer conversation
 - If the user says to change direction, **update the doc first** to reflect the new plan, then implement
 
-### Self-audit pass (MANDATORY before every code review)
+### Self-audit pass (MANDATORY before every commit)
 
-**After implementing changes but before spawning the code reviewer**, you MUST do a self-audit pass over every file you touched. This prevents the codebase from accumulating cruft between reviews.
+After implementing each change, run a self-audit pass over every file you touched before running the pre-commit gate. There is no separate code-reviewer step — this pass IS the review; it prevents the codebase from accumulating cruft.
 
 Checklist:
 
-1. **Repetition (DRY)** — Scan the changed file(s) for duplicated patterns. Are there loops, formulas, imports, or entity-construction blocks that appear more than once? Do NOT accept ``it was already duplicated`` as an excuse — flag it even if it is pre-existing. Extract shared helpers before moving on.
-
-2. **ctx-first** — Is new cross-cutting state going through `GameContext` or being passed around as bare parameters?
-
-3. **Data-first** — Does new content belong in a `data/` catalog + frozen dataclass?
-
-4. **Live-by-side-effect** — Are domain functions mutating state directly or returning values for the caller to apply?
-
-5. **Unused code** — Did this change leave behind dead imports, functions, fields, or constants? Remove them.
-
-6. **File size** — Check if any touched domain module exceeds ~1000 lines. If so, plan an extraction before moving to the code reviewer.
-
-Once the self-audit is done and any issues are fixed, spawn the code reviewer with the full reviewer checklist (next section).
-
-### Code reviewer — what to look for
-
-The ``code-reviewer-deepseek-flash`` agent is spawned after every significant change. **You MUST include the checklist below verbatim in the prompt you send to the reviewer** — the reviewer does not read knowledge.md, so it can only check what you ask it to check.
-
-Reviewer checklist to paste into every reviewer prompt:
-
-1. **DRY violations** — Scan the changed file(s) for duplicated patterns. Are there loops, formulas, or entity-construction blocks that appear more than once? Do NOT accept ``it was already duplicated`` as an excuse — flag it even if it is pre-existing. Examples of recent misses:
+1. **Repetition (DRY)** — Scan the changed file(s) for duplicated patterns. Are there loops, formulas, imports, or entity-construction blocks that appear more than once? Do NOT accept ``it was already duplicated`` as enough — flag it even if it is pre-existing. Extract shared helpers before moving on. Examples of recent misses:
    - Three inner functions doing the identical planet/gate/station iteration (``_goal_for``, ``_tick_goal``, ``_body_goal``)
    - ``world.Entity(...)`` with the same field set constructed inline in two spawn paths
    - Path-computation + target-storage block copy-pasted between initial and per-tick spawn
 
 2. **Inner functions that should be module-level** — If an inner function has no meaningful closure over the parent scope, it should be a module-level helper. Inner functions that duplicate another inner function's logic are always wrong.
 
-3. **Dead code** — Did the change leave behind unused imports, functions, or variables? Check for functions that were only called from the now-replaced code.
+3. **Dead code —** Did this change leave unused imports, functions, variables, fields, or constants? Check for functions that were only called from now-replaced code. Remove them.
 
 4. **Signature mismatches** — Verify that all call sites match updated function signatures (new params, removed params, renamed fields).
 
-5. **Edge cases** — What happens when inputs are empty/None? Does a loop that used to have a fallback still have one? (E.g. the old pirate random-scatter was a fallback when body goals were missing — if that path was removed, is the new guard equivalent?)
+5. **Edge cases —** What happens when inputs are empty/None? Does a loop that used to have a fallback still have one? (E.g. the old pirate random-scatter was a fallback when body goals were missing — if that path was removed, is the new guard equivalent?)
 
 6. **Behavior preservation** — If a refactor claims to be purely structural (no behavior change), verify that claim. If behavior DID change (e.g. pirate spawn location standardisation), confirm that was intentional.
 
-If any of these are found, the reviewer MUST flag them as blocking before commit, even if the change ``works.``
+7. **ctx-first** — Is new cross-cutting state going through `GameContext` or being passed around as bare parameters?
 
-Document findings in the design doc's current phase section. Resolve before moving to the next phase.
+8. **Data-first** — Does new content belong in a `data/` catalog + frozen dataclass?
+
+9. **Live-by-side-effect** — Are domain functions mutating state directly or returning values for the caller to apply?
+
+10. **File size** — Check if any touched module exceeds the architecture limits (~1000 lines per module, 40 per function). If so, plan the extraction before committing — the architecture ratchet in ``make check`` enforces these, so do the extraction yourself rather than fighting the gate at commit time.
+
+Any issue found is blocking: fix it before commit, even if the change ``works.``
 
