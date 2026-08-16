@@ -1,9 +1,7 @@
-"""Act 0 lab chain: "The Resonance" — resonance key (lab_q1 → lab_q7).
+"""Act 0 lab chain (lab_q1 → lab_q7).
 
-Physical through-line: door sample → reference dataset → xenolinguist →
-derelict frequency → recorder return → resonance key.  One scientific
-process, escalating understanding, moving through frontier research
-stations.
+Structure only — titles, descriptions, and dialogue text live in
+``src/spacehack/data/text/`` (see ``_apply_text_overlay``).
 
 Design doc: docs/design/in_progress/07_DESIGN_MAIN_QUEST.md
 """
@@ -17,33 +15,15 @@ _LAB_KEY = "lab_resonance_key"
 STEPS: tuple[MainQuestStep, ...] = (
     MainQuestStep(
         id="lab_q1_sample",
-        title="The Sample",
-        description=(
-            "The Research Officer wants a controlled fragment of the door's material. "
-            "Return to Mars and take only what the analysis requires. The seal "
-            "must remain intact; a sample is evidence, not permission. Bring it "
-            "back for resonance analysis."
-        ),
         trigger_planet_id="mars",
         trigger_system_id="sol",
         requires_step="prologue_seek_help",
         chain="lab",
         objective_type="bump",
         wait_days=0,
-        completion_flavor=(
-            "The fragment is secured. Its surface carries a repeating pattern that "
-            "looks less like a manufacture mark than a remembered response. "
-            "Deliver it to the Research Officer on Mercury before the pattern "
-            "changes again."
-        ),
         dialogues={
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
-                intro=(
-                    "Attach the data extractor to the alien console on Mars and "
-                    "let it run its diagnostics. Bring the device back to me "
-                    "when it's done - a clean reading matters more than a fast one."
-                ),
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
             ),
@@ -52,11 +32,6 @@ STEPS: tuple[MainQuestStep, ...] = (
     ),
     MainQuestStep(
         id="lab_q2_delivery",
-        title="The Delivery",
-        description=(
-            "The door fragment is in your mission hold. Deliver it to the Research "
-            "Officer on Mercury before the material's response decays."
-        ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
         requires_step="lab_q1_sample",
@@ -65,28 +40,12 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="research_officer",
         smuggle_good_id="door_data",
         smuggle_cargo_size=1,
-        smuggle_hot=False,  # a scientific sample — never confiscatable
+        smuggle_hot=False,  # scientific data — never confiscatable
         wait_days=50,
-        completion_flavor=(
-            "The sample is unlike anything in the human catalogue, but the resonance is "
-            "not random. The Research Officer begins the analysis and warns the "
-            "lab not to publish a conclusion before it has earned one."
-        ),
-        ready_message=(
-            "The lab has a working hypothesis: the sample may correspond to older "
-            "reference data preserved at Procyon C. Report to the Research Officer "
-            "on Mercury; she will explain what the sample still cannot tell us."
-        ),
         dialogues={
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
                 trigger_on_talk=True,
-                active=(
-                    "The fragment is in your mission hold. Hand it over and let the instruments "
-                    "tell us whether the pattern is stable. First readings should "
-                    "arrive before the station decides what story to attach to them."
-                ),
-                option_label="Hand over the sample",
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
             ),
@@ -95,14 +54,6 @@ STEPS: tuple[MainQuestStep, ...] = (
     ),
     MainQuestStep(
         id="lab_q3_reference",
-        title="The Reference",
-        description=(
-            "The analysis points to Procyon C. A sealed cache beneath the outpost holds "
-            "reference data from an earlier survey - old enough to predate the "
-            "current signal, if the archive is telling the truth. Recover it "
-            "from the ice caves so the lab can separate coincidence from a "
-            "repeatable route."
-        ),
         trigger_planet_id="proc_planet_2",
         trigger_system_id="procyon",
         requires_step="lab_q2_delivery",
@@ -110,15 +61,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="delve",
         delve_good_ids=(("alien_device", 1),),
         wait_days=0,
-        completion_flavor=(
-            "The cache contains decades of resonance readings, including a pattern that "
-            "predates every human survey in the region. Deliver the dataset to "
-            "the xenolinguist at Alpha Centauri's Science Port. She may be able "
-            "to tell whether the signal is speaking to us or passing through us."
-        ),
         # Portrait-only entry: the completion readout renders with the
-        # Research Officer's portrait. The 50-day gate summon is the
-        # briefing, so there is no talk intro/active text.
+        # Research Officer's portrait. The gate summon is the briefing,
+        # so there is no talk intro/active text.
         dialogues={
             "research_officer": QuestDialogue(npc_id="research_officer"),
         },
@@ -127,13 +72,6 @@ STEPS: tuple[MainQuestStep, ...] = (
     ),
     MainQuestStep(
         id="lab_q4_xenolinguist",
-        title="The Xenolinguist",
-        description=(
-            "The reference dataset is in your mission hold. Take it to the xenolinguist "
-            "at Alpha Centauri's Science Port. She will compare its older "
-            "resonance family with the Mars signal and map the relationship "
-            "between them."
-        ),
         trigger_planet_id="ac_station",
         trigger_system_id="alpha_centauri",
         requires_step="lab_q3_reference",
@@ -144,29 +82,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_cargo_size=1,
         smuggle_hot=False,  # research data — never confiscatable
         wait_days=95,
-        completion_flavor=(
-            "The xenolinguist finds a match, but not a translation. The two patterns "
-            "share a route through the same dead frequencies. One more dataset "
-            "may complete the map: a derelict near Sirius carried a reference "
-            "recorder. The Research Officer will call when the coordinates are "
-            "triangulated."
-        ),
-        ready_message=(
-            "The coordinates are triangulated: a scout vessel lost near Sirius, its "
-            "reference recorder still broadcasting a narrow pulse. Recover the "
-            "recorder and bring it to the Research Officer on Mercury. The wreck "
-            "has been quiet for decades; quiet does not mean unguarded."
-        ),
         dialogues={
             "xenolinguist": QuestDialogue(
                 npc_id="xenolinguist",
                 trigger_on_talk=True,
-                active=(
-                    "The cross-reference gives us a route, not a meaning. One more dataset may "
-                    "show where the route terminates. The Research Officer is "
-                    "triangulating a derelict near Sirius."
-                ),
-                option_label="Hand over the dataset",
                 backing_faction="lab",
             ),
         },
@@ -174,13 +93,6 @@ STEPS: tuple[MainQuestStep, ...] = (
     ),
     MainQuestStep(
         id="lab_q5_frequency",
-        title="The Frequency",
-        description=(
-            "A derelict scout vessel near Sirius carries the final reference recorder. "
-            "Recover it from the wreck and bring back the evidence intact. The "
-            "pirates guarding it may think they are protecting salvage; they may "
-            "be protecting the last quiet warning in human space."
-        ),
         trigger_system_id="sirius",
         requires_step="lab_q4_xenolinguist",
         chain="lab",
@@ -192,13 +104,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         salvage_layout_id="scout_a",
         delve_good_ids=(("reference_recorder", 1),),
         wait_days=0,
-        completion_flavor=(
-            "The recorder is intact. Its last transmission contains a frequency that "
-            "answers the Mars sample, then points away from human space. Bring it "
-            "to the Research Officer on Mercury before anyone edits the record."
-        ),
-        # Portrait-only entry (see lab_q3_reference): the 95-day gate
-        # summon briefs this salvage, so there is no talk intro/active.
+        # Portrait-only entry (see lab_q3_reference): the gate summon
+        # briefs this salvage, so there is no talk intro/active.
         dialogues={
             "research_officer": QuestDialogue(npc_id="research_officer"),
         },
@@ -207,12 +114,6 @@ STEPS: tuple[MainQuestStep, ...] = (
     ),
     MainQuestStep(
         id="lab_q6_return",
-        title="The Return",
-        description=(
-            "The reference recorder is in your mission hold. Return to Mercury and "
-            "deliver it to the Research Officer. It completes the route map "
-            "leading away from Mars."
-        ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
         requires_step="lab_q5_frequency",
@@ -223,26 +124,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_cargo_size=1,
         smuggle_hot=False,  # a scientific instrument — never confiscatable
         wait_days=80,
-        completion_flavor=(
-            "The recorder is handed over intact. The route is complete; the meaning is "
-            "not. The lab will forge a resonance key and contact you when it is "
-            "ready."
-        ),
-        ready_message=(
-            "The resonance key is forged. It matches the door's material so precisely "
-            "that the instruments register a reply before anyone activates it. "
-            "Report to the Research Officer on Mercury. The key is waiting."
-        ),
         dialogues={
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
                 trigger_on_talk=True,
-                active=(
-                    "The recorder is in your mission hold. Hand it over and the route map is "
-                    "complete. The key can be forged, though the lab still does not "
-                    "know what it will wake."
-                ),
-                option_label="Hand over the recorder",
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
             ),
@@ -252,12 +137,6 @@ STEPS: tuple[MainQuestStep, ...] = (
     ),
     MainQuestStep(
         id="lab_q7_key",
-        title="The Key",
-        description=(
-            "Return to the Research Officer on Mercury. The resonance key is forged from "
-            "the door's material signature. Take it to Mars and ask the door what "
-            "it has been waiting for."
-        ),
         trigger_planet_id="mercury",
         trigger_system_id="sol",
         requires_step="lab_q6_return",
@@ -269,14 +148,6 @@ STEPS: tuple[MainQuestStep, ...] = (
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
                 trigger_on_talk=True,
-                intro=(
-                    "There it is - the resonance key. Forged from the door's own material "
-                    "signature and calibrated against data older than human "
-                    "contact with this region. Take it to Mars. The door should "
-                    "open. What comes after may be a discovery, a warning, or a "
-                    "question that has been waiting longer than we have."
-                ),
-                option_label="Collect the key",
                 backing_faction="lab",
                 dialogue_planet_id="mercury",
             ),

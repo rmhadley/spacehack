@@ -34,10 +34,27 @@ from src.spacehack.data.trade_goods import (
 )
 
 
+def _reload_all():
+    """Rebuild the text + catalog caches after pointing the overlay."""
+    text_module.reload()
+    reload_mq_text()
+    reload_npc_text()
+    reload_goods_text()
+
+
+def _copy_shipped_text(dest: Path) -> None:
+    """Copy the shipped overlay so the JSON-authoritative build has every
+    required key before test overrides are layered on top."""
+    for _file in Path(text_module._DEFAULT_DIR).glob("*.json"):
+        (dest / _file.name).write_bytes(_file.read_bytes())
+
+
 @pytest.fixture
 def overlay_dir(tmp_path, monkeypatch):
-    """Point the overlay at a temp dir and restore the real one after."""
-    (tmp_path / "sample.json").write_text(
+    """Temp copy of the shipped text plus a layer of test overrides."""
+    _copy_shipped_text(tmp_path)
+    # "zz_" sorts after the numbered shipped files, so its keys win.
+    (tmp_path / "zz_overrides.json").write_text(
         json.dumps(
             {
                 "step.prologue_signal.title": "Overridden Signal",
@@ -55,16 +72,10 @@ def overlay_dir(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setenv("SPACEHACK_TEXT_DIR", str(tmp_path))
-    text_module.reload()
-    reload_mq_text()
-    reload_npc_text()
-    reload_goods_text()
+    _reload_all()
     yield tmp_path
     monkeypatch.delenv("SPACEHACK_TEXT_DIR", raising=False)
-    text_module.reload()
-    reload_mq_text()
-    reload_npc_text()
-    reload_goods_text()
+    _reload_all()
 
 
 def test_overlay_overrides_step_text(overlay_dir):
@@ -84,8 +95,26 @@ def test_overlay_overrides_good_name(overlay_dir):
     assert find_trade_good("reference_recorder").name == "Overridden Recorder"
 
 
-def test_missing_key_falls_back_to_default(overlay_dir):
-    assert find_main_quest_step("prologue_mars_unlocked").title == "Mars"
+def test_missing_title_raises(tmp_path):
+    """A step whose title key is absent fails the build loudly instead of
+    silently rendering blank text (no more Python prose fallback)."""
+    _copy_shipped_text(tmp_path)
+    _path = tmp_path / "01_beginning.json"
+    _data = json.loads(_path.read_text(encoding="utf-8"))
+    del _data["step.prologue_mars_unlocked.title"]
+    _path.write_text(json.dumps(_data), encoding="utf-8")
+    _old_env = os.environ.get("SPACEHACK_TEXT_DIR")
+    os.environ["SPACEHACK_TEXT_DIR"] = str(tmp_path)
+    try:
+        _reload_all()
+        with pytest.raises(ValueError, match="prologue_mars_unlocked"):
+            list_main_quest_steps()
+    finally:
+        if _old_env is None:
+            os.environ.pop("SPACEHACK_TEXT_DIR", None)
+        else:
+            os.environ["SPACEHACK_TEXT_DIR"] = _old_env
+        _reload_all()
 
 
 def test_runtime_get_overrides(overlay_dir):

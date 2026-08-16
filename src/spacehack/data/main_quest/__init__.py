@@ -82,7 +82,12 @@ class MainQuestStep:
     Attributes:
         id: registry key, e.g. ``"prologue_signal"``.
         title: display title shown in the quest log + log lines.
+            Authored in the story-text JSON (``step.<id>.title``).
         description: 1-3 sentence objective shown in the quest log.
+            Authored in the story-text JSON (``step.<id>.description``).
+        description_required: True = the build fails if ``description``
+            is empty after the overlay (steps like ``prologue_signal``
+            that never render a breadcrumb set this False).
         trigger_npc_id: which NPC gives this step (None = auto /
             exploration trigger).
         trigger_planet_id / trigger_system_id: location context for
@@ -108,8 +113,12 @@ class MainQuestStep:
     """
 
     id: str
-    title: str
-    description: str
+    # Prose is NOT authored here — the story-text JSON overlay is the
+    # single source of truth (see _apply_text_overlay). Empty after the
+    # overlay means a missing key, which _validate_step_prose rejects.
+    title: str = ""
+    description: str = ""
+    description_required: bool = True
     trigger_npc_id: str | None = None
     trigger_planet_id: str | None = None
     trigger_system_id: str | None = None
@@ -180,14 +189,14 @@ class MainQuestStep:
 
 
 def _apply_text_overlay(_step: MainQuestStep) -> MainQuestStep:
-    """Overlay JSON story text over one step's authored strings.
+    """Resolve one step's prose from the story-text JSON overlay.
 
-    Looks up ``step.<id>.title`` / ``.description`` /
-    ``.completion_flavor`` / ``.ready_message`` and
-    ``step.<id>.dialogue.<npc>.<variant>`` in the runtime text
-    overlay (:mod:`spacehack.text`), returning a new step with the
-    overrides applied. Missing keys fall back to the Python default,
-    so the JSON files are optional overrides, not a second catalog.
+    Step data in this package is structural only — titles,
+    descriptions, completion flavor, and dialogue text live in the
+    JSON files under ``src/spacehack/data/text/``. Each lookup is a
+    ``step.<id>.<field>`` / ``step.<id>.dialogue.<npc>.<variant>``
+    key; a missing key leaves the field empty, which the build-time
+    validation in :func:`_build_registry` rejects.
     """
     from ...text import overlay as _text_overlay
     _text = _text_overlay()
@@ -209,29 +218,64 @@ def _apply_text_overlay(_step: MainQuestStep) -> MainQuestStep:
     return replace(_step, **_changes) if _changes else _step
 
 
-def _build_registry() -> dict[str, MainQuestStep]:
-    """Auto-discover every step catalog under this package.
-
-    Every module exporting a ``STEPS`` tuple is automatically
-    registered — just drop a new ``.py`` in ``data/main_quest/`` and
-    it's picked up without touching any registry code. Each step's
-    ``dialogues`` field is authored as a dict keyed by ``npc_id``
-    (see :class:`QuestDialogue`), so the runtime looks up by
-    ``npc_id`` directly. The JSON text overlay is applied here, so
-    every lookup sees the overlaid strings.
-    """
+def _iter_raw_steps():
+    """Yield every step catalog module's raw (pre-overlay) steps."""
     import importlib
     import pkgutil
 
-    combined: dict[str, MainQuestStep] = {}
     for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
         if name.startswith("_"):
             continue
         mod = importlib.import_module(f"{__name__}.{name}")
         if not hasattr(mod, "STEPS"):
             continue
-        for _raw in mod.STEPS:
-            combined[_raw.id] = _apply_text_overlay(_raw)
+        yield from mod.STEPS
+
+
+def list_raw_main_quest_steps() -> tuple[MainQuestStep, ...]:
+    """All registered steps WITHOUT the text overlay applied.
+
+    Structural only (ids, triggers, rewards, dialogue NPC keys) — prose
+    fields are empty. Used by the extractor/validator, which must not
+    trigger the overlay build.
+    """
+    return tuple(_iter_raw_steps())
+
+
+def _validate_step_prose(_step: MainQuestStep) -> None:
+    """Fail loudly when a step is missing required story text.
+
+    Prose lives only in the JSON overlay, so an empty title (or an
+    empty description on a step that requires one) means a key is
+    missing from ``src/spacehack/data/text/``. Raise instead of
+    silently rendering blank text.
+    """
+    if not _step.title:
+        raise ValueError(
+            f"main quest step {_step.id!r} is missing its title; add "
+            f"step.{_step.id}.title to the story-text JSON."
+        )
+    if _step.description_required and not _step.description:
+        raise ValueError(
+            f"main quest step {_step.id!r} is missing its description; add "
+            f"step.{_step.id}.description to the story-text JSON."
+        )
+
+
+def _build_registry() -> dict[str, MainQuestStep]:
+    """Resolve every step's prose from the overlay and validate it.
+
+    Every module exporting a ``STEPS`` tuple is auto-discovered — drop
+    a new ``.py`` in ``data/main_quest/`` and it's picked up without
+    touching any registry code. The JSON overlay is applied here, so
+    every lookup sees the overlaid strings, then each step is checked
+    for missing required text.
+    """
+    combined: dict[str, MainQuestStep] = {}
+    for _raw in _iter_raw_steps():
+        _step = _apply_text_overlay(_raw)
+        _validate_step_prose(_step)
+        combined[_step.id] = _step
     return combined
 
 
@@ -287,6 +331,7 @@ __all__ = [
     "MainQuestStep",
     "find_main_quest_step",
     "list_main_quest_steps",
+    "list_raw_main_quest_steps",
     "main_quest_step_after",
     "reload_text_overlay",
 ]

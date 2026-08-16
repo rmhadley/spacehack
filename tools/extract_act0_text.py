@@ -1,28 +1,18 @@
 #!/usr/bin/env python3
-"""Export the main quest's story text to editable JSON overlay files.
+"""Sync the story-text JSON files against the main-quest structure.
 
-Reads the live data catalogs (main quest steps + dialogue, NPC flavor)
-and writes per-section JSON files under ``src/spacehack/data/text/``.
-The game loads these files at startup as a runtime text overlay
-(:mod:`spacehack.text`): edit a JSON value, relaunch — or press F5 in
-dev mode — and the change is in-game without touching any Python.
+Story text lives ONLY in the JSON files under ``src/spacehack/data/text/``
+— titles, descriptions, completion flavor, and dialogue are the single
+source of truth there. The code catalogs are structural (ids, triggers,
+rewards, dialogue NPC keys). This tool:
 
-Keys are stable paths into the game data:
+  * keeps every JSON value (writer edits always win),
+  * prunes keys whose step / dialogue NPC / NPC / good / runtime key no
+    longer exists in the code,
+  * scaffolds empty ``step.<id>.title`` / ``step.<id>.description`` keys
+    for new steps so the runtime's missing-text check points at them.
 
-    step.<id>.title
-    step.<id>.description
-    step.<id>.completion_flavor
-    step.<id>.ready_message
-    step.<id>.dialogue.<npc>.intro|active|complete|locked|option_label
-    npc.<id>.flavor_text
-    good.<id>.name|description
-
-Run this when new story content lands in the code or dead keys are
-removed from it. It MERGES with the existing files — the JSON is the
-source of truth for VALUES (writer edits always win) and the code is
-the source of truth for the KEY SET (new keys are added, keys that
-no longer exist in the code are pruned). It never overwrites a
-writer's edit.
+It never overwrites a writer's edit.
 
 Usage: ``python3 tools/extract_act0_text.py``
 """
@@ -36,17 +26,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# Read the RAW code data, bypassing the runtime text overlay: the
-# JSON baseline must mirror the Python authoring, not whatever is
-# currently in the JSON (the overlay would otherwise re-inject keys
-# that were deleted from the code). Point the overlay at an empty
-# dir so lookups fall back to the shipped defaults.
+# Point the overlay at an empty dir so the non-step catalogs (NPC flavor,
+# goods, runtime, disclosure) resolve to their shipped Python defaults
+# rather than whatever is currently in the JSON files.
 import os  # noqa: E402
 import tempfile  # noqa: E402
 
 os.environ["SPACEHACK_TEXT_DIR"] = tempfile.mkdtemp()
 
-from src.spacehack.data.main_quest import find_main_quest_step  # noqa: E402
+from src.spacehack.data.main_quest import list_raw_main_quest_steps  # noqa: E402
 from src.spacehack.data.npcs import find_npc  # noqa: E402
 from src.spacehack.data.trade_goods.core import TRADE_GOODS  # noqa: E402
 from src.spacehack.text import RUNTIME  # noqa: E402
@@ -68,63 +56,38 @@ _DISCLOSURE_FIELDS = (
 )
 
 
-def _step_keys(step_id: str) -> dict[str, str]:
-    """Return the non-empty overlay keys for one step."""
-    _step = find_main_quest_step(step_id)
-    _keys: dict[str, str] = {f"step.{step_id}.title": _step.title}
-    if _step.description:
-        _keys[f"step.{step_id}.description"] = _step.description
-    if _step.completion_flavor:
-        _keys[f"step.{step_id}.completion_flavor"] = _step.completion_flavor
-    if _step.ready_message:
-        _keys[f"step.{step_id}.ready_message"] = _step.ready_message
-    for _npc_id, _dialogue in _step.dialogues.items():
+def _step_namespace(step) -> tuple[set[str], set[str]]:
+    """Return (valid_keys, required_keys) for one structural step."""
+    _valid = {
+        f"step.{step.id}.title",
+        f"step.{step.id}.description",
+        f"step.{step.id}.completion_flavor",
+        f"step.{step.id}.ready_message",
+    }
+    _required = {f"step.{step.id}.title"}
+    if step.description_required:
+        _required.add(f"step.{step.id}.description")
+    for _npc_id in step.dialogues:
         for _variant in _DIALOGUE_VARIANTS:
-            _text = getattr(_dialogue, _variant, "")
-            if _text:
-                _keys[f"step.{step_id}.dialogue.{_npc_id}.{_variant}"] = _text
+            _valid.add(f"step.{step.id}.dialogue.{_npc_id}.{_variant}")
+    return _valid, _required
+
+
+def _npc_fresh(*npc_ids: str) -> dict[str, str]:
+    """Flavor-text overlay keys for the given NPCs, from Python defaults."""
+    _keys: dict[str, str] = {}
+    for _npc_id in npc_ids:
+        try:
+            _npc = find_npc(_npc_id)
+        except KeyError:
+            continue
+        if _npc.flavor_text:
+            _keys[f"npc.{_npc_id}.flavor_text"] = _npc.flavor_text
     return _keys
 
 
-def _npc_flavor_keys(npc_id: str) -> dict[str, str]:
-    """Return the flavor-text overlay key for an NPC, if any."""
-    try:
-        _npc = find_npc(npc_id)
-    except KeyError:
-        return {}
-    if not _npc.flavor_text:
-        return {}
-    return {f"npc.{npc_id}.flavor_text": _npc.flavor_text}
-
-
-def _build_beginning() -> dict[str, str]:
-    """File 01: signal, Mars door, and the seek-help fork."""
+def _disclosure_fresh() -> dict[str, str]:
     _keys: dict[str, str] = {}
-    for _sid in ("prologue_signal", "prologue_mars_unlocked", "prologue_mars_entrance"):
-        _keys.update(_step_keys(_sid))
-    _keys.update(_step_keys("prologue_seek_help"))
-    # xenolinguist is emitted by the lab chain (04_lab.json) — kept
-    # out of here so her flavor_text key isn't written twice.
-    for _npc in ("barkeep", "guild_master", "militia_captain", "research_officer"):
-        _keys.update(_npc_flavor_keys(_npc))
-    return _keys
-
-
-def _build_chain(step_ids: tuple[str, ...], flavor_npcs: tuple[str, ...]) -> dict[str, str]:
-    """One faction chain's steps plus its flavor NPCs."""
-    _keys: dict[str, str] = {}
-    for _sid in step_ids:
-        _keys.update(_step_keys(_sid))
-    for _npc in flavor_npcs:
-        _keys.update(_npc_flavor_keys(_npc))
-    return _keys
-
-
-def _build_end() -> dict[str, str]:
-    """File 06: the door opens, the descent, and the first reading."""
-    _keys: dict[str, str] = {}
-    for _sid in ("prologue_open", "act1_prison", "research_alpha", "research_alpha_report"):
-        _keys.update(_step_keys(_sid))
     for _spec in ARCHIVE_DISCLOSURES:
         for _field in _DISCLOSURE_FIELDS:
             _value = getattr(_spec, _field, "")
@@ -133,13 +96,7 @@ def _build_end() -> dict[str, str]:
     return _keys
 
 
-def _build_runtime() -> dict[str, str]:
-    """File 00: runtime overlay text (transmissions, log lines, popups)."""
-    return dict(RUNTIME)
-
-
-def _build_goods() -> dict[str, str]:
-    """File 07: trade-good display names + tooltip descriptions."""
+def _goods_fresh() -> dict[str, str]:
     _keys: dict[str, str] = {}
     for _g in TRADE_GOODS:
         _keys[f"good.{_g.id}.name"] = _g.name
@@ -147,63 +104,119 @@ def _build_goods() -> dict[str, str]:
     return _keys
 
 
-def _merge_payload(path: Path, fresh: dict[str, str]) -> dict[str, str]:
-    """Merge code keys onto the existing overlay file.
+def _load_existing(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    try:
+        _data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return _data if isinstance(_data, dict) else {}
 
-    The JSON is the source of truth for values (writer edits win);
-    the code is the source of truth for the key set. So:
 
-    * key in both -> keep the existing JSON value
-    * key only in code -> add it (new content landed in the code)
-    * key only in JSON -> drop it (dead key pruned from the code)
+def _merge(path: Path, *, step_ids: tuple[str, ...], fresh: dict[str, str]) -> dict[str, str]:
+    """Merge code structure onto an overlay file.
 
-    Re-running this tool is therefore safe: it can add new keys and
-    prune deleted ones, but can never change an existing value.
+    Step keys are kept when their step (and dialogue NPC) still exists,
+    then required ``title``/``description`` keys are scaffolded empty.
+    Non-step keys (NPC flavor / goods / runtime / disclosure) follow the
+    fresh-from-Python rule: keep writer values, add new keys, prune keys
+    removed from the code.
     """
-    _existing: dict[str, str] = {}
-    if path.is_file():
-        try:
-            _existing = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            pass  # corrupt file — rebuild from the code defaults
-    _payload = {
-        _key: _existing.get(_key, _value) for _key, _value in fresh.items()
-    }
+    _existing = _load_existing(path)
+    _valid: set[str] = set()
+    _required: set[str] = set()
+    _by_id = {_s.id: _s for _s in list_raw_main_quest_steps()}
+    for _sid in step_ids:
+        _step = _by_id[_sid]
+        _v, _r = _step_namespace(_step)
+        _valid |= _v
+        _required |= _r
+
+    _payload: dict[str, str] = {}
+    for _key, _value in _existing.items():
+        if _key in _valid or _key in fresh:
+            _payload[_key] = _value
+    for _key, _value in fresh.items():
+        _payload.setdefault(_key, _value)
+    for _key in sorted(_required):
+        _payload.setdefault(_key, "")
     return dict(sorted(_payload.items()))
 
 
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    _sections = {
-        "00_runtime.json": _build_runtime(),
-        "01_beginning.json": _build_beginning(),
-        "02_merchants.json": _build_chain(
-            ("mer_q1_contract", "mer_q2_strike", "mer_q3_transport",
-             "mer_q4_calibrate", "mer_q5_cutter"),
-            ("salvage_specialist",),
+    _sections: dict[str, tuple[tuple[str, ...], dict[str, str]]] = {
+        "00_runtime.json": ((), dict(RUNTIME)),
+        "01_beginning.json": (
+            (
+                "prologue_signal",
+                "prologue_mars_unlocked",
+                "prologue_mars_entrance",
+                "prologue_seek_help",
+            ),
+            # xenolinguist is emitted by the lab chain (04_lab.json) —
+            # kept out of here so her flavor_text key isn't written twice.
+            _npc_fresh("barkeep", "guild_master", "militia_captain", "research_officer"),
         ),
-        "03_bar.json": _build_chain(
-            ("bar_q1_oldhand", "bar_q2_proof", "bar_q3_rigparts",
-             "bar_q4_blackmarket", "bar_q5_charged", "bar_q6_rig"),
-            ("old_smuggler", "wolf_barkeep"),
+        "02_merchants.json": (
+            (
+                "mer_q1_contract",
+                "mer_q2_strike",
+                "mer_q3_transport",
+                "mer_q4_calibrate",
+                "mer_q5_cutter",
+            ),
+            _npc_fresh("salvage_specialist"),
         ),
-        "04_lab.json": _build_chain(
-            ("lab_q1_sample", "lab_q2_delivery", "lab_q3_reference",
-             "lab_q4_xenolinguist", "lab_q5_frequency", "lab_q6_return",
-             "lab_q7_key"),
-            ("xenolinguist",),
+        "03_bar.json": (
+            (
+                "bar_q1_oldhand",
+                "bar_q2_proof",
+                "bar_q3_rigparts",
+                "bar_q4_blackmarket",
+                "bar_q5_charged",
+                "bar_q6_rig",
+            ),
+            _npc_fresh("old_smuggler", "wolf_barkeep"),
         ),
-        "05_militia.json": _build_chain(
-            ("mil_q1_report", "mil_q2_cache", "mil_q3_inspection",
-             "mil_q4_demolitions", "mil_q5_livefire", "mil_q6_charge"),
-            ("blockade_officer", "demolitions_expert"),
+        "04_lab.json": (
+            (
+                "lab_q1_sample",
+                "lab_q2_delivery",
+                "lab_q3_reference",
+                "lab_q4_xenolinguist",
+                "lab_q5_frequency",
+                "lab_q6_return",
+                "lab_q7_key",
+            ),
+            _npc_fresh("xenolinguist"),
         ),
-        "06_end.json": _build_end(),
-        "07_goods.json": _build_goods(),
+        "05_militia.json": (
+            (
+                "mil_q1_report",
+                "mil_q2_cache",
+                "mil_q3_inspection",
+                "mil_q4_demolitions",
+                "mil_q5_livefire",
+                "mil_q6_charge",
+            ),
+            _npc_fresh("blockade_officer", "demolitions_expert"),
+        ),
+        "06_end.json": (
+            (
+                "prologue_open",
+                "act1_prison",
+                "research_alpha",
+                "research_alpha_report",
+            ),
+            _disclosure_fresh(),
+        ),
+        "07_goods.json": ((), _goods_fresh()),
     }
     _count = 0
-    for _name, _keys in _sections.items():
-        _payload = _merge_payload(OUT_DIR / _name, _keys)
+    for _name, (_step_ids, _fresh) in _sections.items():
+        _payload = _merge(OUT_DIR / _name, step_ids=_step_ids, fresh=_fresh)
         (OUT_DIR / _name).write_text(
             json.dumps(_payload, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",

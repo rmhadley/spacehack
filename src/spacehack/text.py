@@ -1,9 +1,11 @@
 """Runtime story-text overlay.
 
-The game's authored story text (main quest steps + dialogue, NPC
-flavor) ships as Python defaults, but writer-facing JSON files under
-``src/spacehack/data/text/`` override those strings at catalog-build
-time. Editing a JSON file and relaunching — or pressing F5 in dev
+Main-quest step prose (titles, descriptions, dialogue) lives ONLY in the
+writer-facing JSON files under ``src/spacehack/data/text/`` — the step
+catalogs are structural, and a missing required key fails the build
+loudly. The other catalogs (NPC flavor, trade-good names, runtime
+strings, disclosure choices) ship Python defaults that these JSON files
+override. Editing a JSON file and relaunching — or pressing F5 in dev
 mode — is all that's needed to see new story text in-game. No code
 edits.
 
@@ -16,10 +18,11 @@ Keys are stable paths into the game data:
     runtime.<name>            (overlay text: transmissions, log lines, popups)
     disclosure.<key>.<field>  (orbit archive-disclosure choices)
 
-Regenerate the baseline from code with
-``python3 tools/extract_act0_text.py`` (overwrites the JSON files).
-The ``SPACEHACK_TEXT_DIR`` env var overrides the overlay directory
-(used by tests and for pointing at an absolute path).
+Sync the JSON key set against the code with
+``python3 tools/extract_act0_text.py`` (keeps writer edits, prunes dead
+keys, scaffolds new step titles/descriptions). The
+``SPACEHACK_TEXT_DIR`` env var overrides the overlay directory (used by
+tests and for pointing at an absolute path).
 """
 
 from __future__ import annotations
