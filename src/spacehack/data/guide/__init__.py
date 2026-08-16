@@ -461,6 +461,9 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "change equipment when needed, and return to the city when you need "
             "to prepare."
             "\n\n"
+            "Your character turns amber below half health and red below a quarter "
+            "- a glance at the map tells you when to use a Med Pack."
+            "\n\n"
             "Loot found on foot is handled separately from ship cargo. Check your "
             "pack before entering a dangerous area so you know what you can carry."
         ),

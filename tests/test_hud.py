@@ -19,6 +19,23 @@ def _shield_row(player_state: dict) -> tuple[str, list[int]]:
     return row, white
 
 
+def test_ground_player_fg_health_zones():
+    """The '@' glyph color tracks ground HP thresholds."""
+    from src.spacehack.hud import (
+        ground_player_fg,
+        COLOR_PLAYER_HEALTHY,
+        COLOR_PLAYER_WOUNDED,
+        COLOR_PLAYER_CRITICAL,
+    )
+    assert ground_player_fg(20, 20) == COLOR_PLAYER_HEALTHY   # full
+    assert ground_player_fg(10, 20) == COLOR_PLAYER_HEALTHY   # exactly half
+    assert ground_player_fg(9, 20) == COLOR_PLAYER_WOUNDED    # just under half
+    assert ground_player_fg(5, 20) == COLOR_PLAYER_WOUNDED    # exactly a quarter
+    assert ground_player_fg(4, 20) == COLOR_PLAYER_CRITICAL   # below a quarter
+    assert ground_player_fg(1, 23) == COLOR_PLAYER_CRITICAL
+    assert ground_player_fg(0, 0) == COLOR_PLAYER_HEALTHY     # degenerate max
+
+
 def test_shield_bar_matches_hull_bar_width():
     """Shield row uses the same 10-cell bar as Hull, with total regen +N."""
     row, white = _shield_row({

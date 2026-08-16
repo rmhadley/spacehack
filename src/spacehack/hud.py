@@ -65,7 +65,16 @@ COLOR_HUD_TITLE: tuple[int, int, int] = (255, 205, 95)             # vivid gold
 COLOR_LABEL: tuple[int, int, int] = (245, 245, 235)                # near-white label
 COLOR_HP_GOOD: tuple[int, int, int] = (110, 245, 125)               # bright green
 COLOR_HP_LOW: tuple[int, int, int] = (255, 110, 110)                # bright red
-COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green positive-buff accent
+COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green, positive-buff accent
+
+# Player glyph ('@') health zones — the on-map character mirrors the
+# ground HP bar: white while healthy, amber below half, red below a
+# quarter, so a wounded run signals "heal now" without checking the
+# HUD panel. Shared by the frame presenter (game_loop) and the ground
+# combat renderer so every on-foot view stays in sync.
+COLOR_PLAYER_HEALTHY: tuple[int, int, int] = (255, 255, 255)        # full health
+COLOR_PLAYER_WOUNDED: tuple[int, int, int] = (255, 200, 80)         # < half — amber
+COLOR_PLAYER_CRITICAL: tuple[int, int, int] = (255, 80, 80)          # < quarter — red
 
 # Space-mode HUD palette — cyan is reserved for the ship identity.
 COLOR_SHIP_NAME: tuple[int, int, int] = (150, 235, 255)             # bright cyan
@@ -84,6 +93,23 @@ COLOR_RANGE_GREEN: tuple[int, int, int] = (100, 235, 115)     # close-bonus zone
 COLOR_RANGE_YELLOW: tuple[int, int, int] = (255, 220, 80)     # within max range
 COLOR_RANGE_ORANGE: tuple[int, int, int] = (255, 160, 60)     # inside min range (too close)
 COLOR_RANGE_RED: tuple[int, int, int] = (255, 80, 80)         # beyond max range
+
+
+def ground_player_fg(hp: int, max_hp: int) -> tuple[int, int, int]:
+    """Return the fg color for the player's '@' glyph from ground HP.
+
+    White while at half health and above, amber while at half down to
+    a quarter, red below a quarter — the same half-health cue the HUD
+    bar uses, with one extra warning stage below it. Pure: callers
+    assign the result to the player entity's ``fg`` before rendering.
+    """
+    if max_hp <= 0:
+        return COLOR_PLAYER_HEALTHY
+    if hp * 4 < max_hp:
+        return COLOR_PLAYER_CRITICAL
+    if hp * 2 < max_hp:
+        return COLOR_PLAYER_WOUNDED
+    return COLOR_PLAYER_HEALTHY
 
 
 def range_band_color(

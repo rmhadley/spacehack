@@ -17,6 +17,7 @@ from .data.species import find_species
 from .game_context import GameContext
 from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make_console
 from .time import tick_move
+from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
 from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
@@ -54,6 +55,19 @@ def _present_overlay(state, ctx, console, map_h, location, space_view=None):
     ctx.context.present(console, overlay=_overlay)
 
 
+def _tint_player_glyph(state) -> None:
+    """Tint the on-map '@' to mirror ground health each frame.
+
+    A wounded character signals "heal now" at a glance. Space mode
+    shows the ship hull instead; its own HUD carries the readout.
+    """
+    if state.current_mode == 'space':
+        return
+    state.player.fg = _ground_player_fg(
+        state.ctx.ground_hp, state.ctx.ground_max_hp,
+    )
+
+
 def _present_frame(state):
     """Present one gameplay frame."""
     ctx = state.ctx
@@ -70,6 +84,7 @@ def _present_frame(state):
         ctx.main_quest_pending_message = ''
         ctx.main_quest_pending_objective = ''
     console.clear()
+    _tint_player_glyph(state)
     if state.current_mode == 'space':
         view_w = solar_system_module.SOL_VIEW_W
         view_h = solar_system_module.SOL_VIEW_H

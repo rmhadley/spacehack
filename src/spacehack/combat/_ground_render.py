@@ -26,6 +26,7 @@ from ..hud import (
     COLOR_HP_GOOD,
     COLOR_HP_LOW,
     HUD_TEXT_MAX,
+    ground_player_fg,
     volley_costs,
 )
 from ._animations import (
@@ -85,6 +86,13 @@ def _ground_range_line(
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
+    # Keep the '@' health tint current with the combat session state
+    # (HP lives in the rules session during a fight, synced back to
+    # ctx.ground_hp at combat end).
+    _rules_mod = _rules()
+    ctx.player.fg = ground_player_fg(
+        _rules_mod.player_hp(ctx), _rules_mod.player_max_hp(ctx),
+    )
     cam = _render_ground_world(console, ctx, game_map)
     alive = _rules().get_enemies(ctx)
     weapons = _rules().player_weapons(ctx)
