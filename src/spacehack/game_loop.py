@@ -24,7 +24,7 @@ from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
 from .pygame_runtime import PygameContext
 from .game_interactions import GameLoopState, resolve_blocker
-from .game_flow import _run_combat_loop, _save_and_exit, _open_character_for_mode, _pickup_loot_near, _run_pygame_exit_confirm, _dungeon_post_move_tick, _adopt_dungeon_transition, _handle_dungeon_exit_tile, _maybe_show_post_prison_orbit_in_space
+from .game_flow import _run_combat_loop, _save_and_exit, _open_character_for_mode, _pickup_loot_near, _run_pygame_exit_confirm, _dungeon_post_move_tick, _adopt_dungeon_transition, _handle_dungeon_exit_tile, _maybe_show_post_prison_orbit_in_space, _is_salvage_secured
 
 def _present_overlay(state, ctx, console, map_h, location, space_view=None):
     """Capture and present the Pygame HUD overlay."""
@@ -464,6 +464,25 @@ def _handle_dungeon_stairs(state, tile):
     return None
 
 
+def _remove_secured_salvage_entities(space_game_map, wreck_spawn_id):
+    """Remove a secured wreck and its completed guard squad from space."""
+    if space_game_map is None or not wreck_spawn_id:
+        return
+    _group_id = (
+        wreck_spawn_id[:-6]
+        if wreck_spawn_id.endswith("_wreck")
+        else wreck_spawn_id
+    )
+    space_game_map.entities[:] = [
+        _entity for _entity in space_game_map.entities
+        if not (
+            getattr(_entity, "salvage_wreck_spawn_id", None) == wreck_spawn_id
+            or getattr(_entity, "bounty_spawn_id", None) == _group_id
+            or getattr(_entity, "bounty_squad_id", None) == _group_id
+        )
+    ]
+
+
 def _handle_dungeon_move(state, console, code):
     """Handle dungeon post-move transitions."""
     if code != 'moved' or state.current_mode != 'dungeon':
@@ -477,6 +496,13 @@ def _handle_dungeon_move(state, console, code):
         return _stairs_result
     if _tile.kind != 'exit':
         return None
+    _wreck_spawn_id = getattr(state.game_map, "wreck_spawn_id", None)
+    _wreck_secured = (
+        _wreck_spawn_id is not None
+        and _is_salvage_secured(
+            state.ctx, _wreck_spawn_id, state.player_active_missions,
+        )
+    )
     _exit_transition = _handle_dungeon_exit_tile(
         state.ctx, _tile.kind, state.game_map, state.space_game_map,
         state.space_player, state.player_owned_ship,
@@ -486,6 +512,10 @@ def _handle_dungeon_move(state, console, code):
         return 'HANDLED'
     state.game_map, state.player, state.current_mode = _exit_transition
     state.space_game_map, state.space_player = state.game_map, state.player
+    if _wreck_secured:
+        _remove_secured_salvage_entities(
+            state.game_map, _wreck_spawn_id,
+        )
     return 'HANDLED'
 
 def _apply_movement_interaction(state, code, blocker, dx, dy):
