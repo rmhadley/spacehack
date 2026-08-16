@@ -38,7 +38,7 @@ def _space_card_rows(
     rows = [title_row(enemy.name), hull_row]
     if enemy.max_shields > 0:
         rows.append(text_row(f"SHD {enemy.shields}/{enemy.max_shields}"))
-    rows.append(text_row(f"AP {ap_pool_str(enemy.ap_total, enemy.ap_carry_tenths)}"))
+    rows.append(text_row(f"AP {ap_pool_str(enemy.ap_total, enemy.ap_carry_twentieths)}"))
     for _wid in enemy.weapons:
         try:
             _ws = _find_w(_wid)

@@ -204,7 +204,7 @@ def _render_player_panel(console, ctx) -> int:
         fg=_COLOR_GROUND_ACTION,
     )
     y += 1
-    _ap_text = f"AP: {_state.player_ap}/{ap_pool_str(_state.player_ap_total, _state.player_ap_carry_tenths)}"
+    _ap_text = f"AP: {_state.player_ap}/{ap_pool_str(_state.player_ap_total, _state.player_ap_carry_twentieths)}"
     console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
     _ap_bonus = _active_ap_bonus()
     if _ap_bonus > 0:

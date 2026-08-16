@@ -578,18 +578,23 @@ def _bar_str(value: int, max_value: int, width: int = 10) -> str:
     return _BAR_CHAR_FULL * full + _BAR_CHAR_EMPTY * (width - full)
 
 
-def ap_pool_str(available: int, carry_tenths: int = 0) -> str:
-    """Format a combat AP pool that may carry a fractional tenths credit.
+def ap_pool_str(available: int, carry_twentieths: int = 0) -> str:
+    """Format a combat AP pool that may carry a fractional twentieths credit.
 
     ``available`` is the spendable integer AP this round and
-    ``carry_tenths`` (0-9) is the banked fraction of the pool that
-    rolls into the next round. Returns ``"4"`` or ``"4.5"`` so the
-    HUD reads ``AP: 3/4.5`` — the fraction is the small indicator
-    that the pilot's real speed exceeds the spendable integer.
+    ``carry_twentieths`` (0-19) is the banked fraction of the pool
+    that rolls into the next round. Returns ``"4"``, ``"4.25"`` or
+    ``"4.5"`` so the HUD reads ``AP: 3/4.5`` — the fraction is the
+    small indicator that the pilot's real speed exceeds the spendable
+    integer.
     """
-    if not carry_tenths:
+    if not carry_twentieths:
         return str(available)
-    return f"{available}.{carry_tenths}"
+    # carry/20 expressed in hundredths (carry * 5), trailing zero
+    # trimmed so 5 -> .25, 10 -> .5, 15 -> .75, 1 -> .05.
+    hundredths = carry_twentieths * 5
+    frac = f"{hundredths:02d}".rstrip("0") or "0"
+    return f"{available}.{frac}"
 
 
 def _render_xp_bar(current: int, needed: int, width: int = 10) -> str:
@@ -684,7 +689,7 @@ def _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus) -> i
     """Paint the player's AP / evade / power rows; return the next row."""
     pap = player_state.get("ap_remaining", 0)
     pap_total = player_state.get("ap_total", 3)
-    pap_carry = player_state.get("ap_carry_tenths", 0)
+    pap_carry = player_state.get("ap_carry_twentieths", 0)
     console.print(
         x=hud_x, y=y,
         string=f"AP: {pap}/{ap_pool_str(pap_total, pap_carry)}",

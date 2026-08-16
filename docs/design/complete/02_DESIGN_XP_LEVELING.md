@@ -15,7 +15,7 @@ Leveling grants **5 skill points per level** (each point adds +1 to any of the s
 **Keybinding:** `C` opens the Character screen. Cargo was moved to `I` (Inventory) to free up `C`. The Character screen is NOT in the ship hangar menu — it's a global hotkey like `F` for Factions.
 
 - **Gunnery** → weapon accuracy (`gunnery * 0.5` added to hit chance)
-- **Piloting** → AP per round (`3 + piloting / 10`, fractional with carry), dodge bonus (`piloting * 0.5`)
+- **Piloting** → AP per round (`3 + piloting / 20`, fractional with carry), dodge bonus (`piloting * 0.5`)
 - **Engineering** → max power pool (`power_gen * 2 + engineering // 5`)
 
 > **Update (per-5 stat steps):** every stat effect steps at 5-point
@@ -30,24 +30,29 @@ Leveling grants **5 skill points per level** (each point adds +1 to any of the s
 > Gunnery/Reflexes (per 2), Engineering power (per 5), and Stamina HP
 > (per 3) already satisfied the rule.
 
+> **Update (AP divisor):** the fractional AP divisor was slowed from
+> `piloting / 10` to `piloting / 20`, so 100 Piloting yields 8 AP per
+> round (was 13) — AP growth had outrun the action economy.
+
 ### Fractional AP (speed with carry)
 
 AP regenerates **fractionally with carry** — a TE4/DCSS-style speed
 system that keeps the current round structure. Each round an actor
-banks a gain of `3 + piloting / 10` AP (in tenths, so the math is
-exact), spends the integer part, and the leftover tenths roll into the
-next round's pool:
+banks a gain of `3 + piloting / 20` AP (in twentieths, so the math is
+exact), spends the integer part, and the leftover twentieths roll into
+the next round's pool:
 
-- Piloting 15 → gain 4.5 AP/round → rounds of **4, 5, 4, 5, …** (avg 4.5)
-- Piloting 10 → gain 4.0 AP/round → a flat **4** every round
-- Piloting 5 → gain 3.5 AP/round → rounds of **3, 4, 3, 4, …** (avg 3.5)
+- Piloting 100 → gain 8.0 AP/round → a flat **8** every round
+- Piloting 20 → gain 4.0 AP/round → a flat **4** every round
+- Piloting 15 → gain 3.75 AP/round → rounds of **3, 4, 4, 4, …** (avg 3.75)
+- Piloting 10 → gain 3.5 AP/round → rounds of **3, 4, 3, 4, …** (avg 3.5)
 
-Every 5 piloting points is worth an extra action every two rounds, and
-every single point shifts the long-run average — no dead zones. The
-combat HUD shows the real pool as the denominator: `AP: 3/4.5` means
-3 spendable AP plus 0.5 banked. Ground combat uses the same mechanism
-with its flat gain (`4 + Ace Pilot + armor` bonuses); today those
-bonuses are integers so ground rounds stay whole.
+Every 20 piloting points is worth a full extra action, and every single
+point shifts the long-run average — no dead zones. The combat HUD shows
+the real pool as the denominator: `AP: 3/4.5` means 3 spendable AP plus
+0.5 banked. Ground combat uses the same mechanism with its flat gain
+(`4 + Ace Pilot + armor` bonuses); today those bonuses are integers so
+ground rounds stay whole.
 
 **Ground AP deliberately has no stat driver.** A stat feeding ground
 AP was considered and rejected: ground combat has no power economy,

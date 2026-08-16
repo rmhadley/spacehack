@@ -276,15 +276,15 @@ def resolve_damage(
 def _reset_ap_carry(player_state: dict) -> None:
     """Roll the next round's fractional AP pool (gain + carry).
 
-    TE4-style speed: the banked tenths plus this round's gain form the
-    pool; the integer part is spendable and the remainder rolls
+    TE4-style speed: the banked twentieths plus this round's gain form
+    the pool; the integer part is spendable and the remainder rolls
     forward, so every point of Piloting shifts the average AP.
     """
     _avail, _carry = _roll_ap(
-        player_state.get("ap_carry_tenths", 0),
-        player_state.get("ap_gain_tenths", 30 + player_state.get("piloting", 10)),
+        player_state.get("ap_carry_twentieths", 0),
+        player_state.get("ap_gain_twentieths", 60 + player_state.get("piloting", 10)),
     )
-    player_state["ap_carry_tenths"] = _carry
+    player_state["ap_carry_twentieths"] = _carry
     player_state["ap_total"] = _avail
     player_state["ap_remaining"] = _avail
 
@@ -360,8 +360,8 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
         # Tier 2: free regen from module bonus.
         if _module_recharge > 0 and room > 0:
             enemy.shields += min(_module_recharge, room)
-    _avail, _carry = _roll_ap(enemy.ap_carry_tenths, enemy.ap_gain_tenths)
-    enemy.ap_carry_tenths = _carry
+    _avail, _carry = _roll_ap(enemy.ap_carry_twentieths, enemy.ap_gain_twentieths)
+    enemy.ap_carry_twentieths = _carry
     enemy.ap_total = _avail
     enemy.ap_remaining = _avail
     enemy.cells_moved_this_turn = 0

@@ -388,8 +388,8 @@ def calc_power_gen(ship: Ship, owned: OwnedShip) -> int:
         total += spec.power_gen_bonus
     return max(0, total)
 
-def calc_ap_per_turn(piloting: int) -> int:
-    return 3 + (piloting // 20)
+def calc_ap_per_turn(piloting: int) -> float:
+    return 3 + (piloting / 20)  # fractional: integer part spendable, rest carries
 ```
 
 ---

@@ -310,18 +310,20 @@ def test_shield_row_survives_the_wider_combat_console():
 
 
 def test_ap_pool_str_shows_fractional_carry():
-    """AP pool renders the banked tenths as a fraction: 4/4.5, 5/5."""
+    """AP pool renders the banked twentieths as a fraction: 4/4.5, 5/5."""
     assert hud.ap_pool_str(4, 0) == "4"
-    assert hud.ap_pool_str(4, 5) == "4.5"
+    assert hud.ap_pool_str(4, 10) == "4.5"
+    assert hud.ap_pool_str(4, 5) == "4.25"
+    assert hud.ap_pool_str(4, 1) == "4.05"
     assert hud.ap_pool_str(5, 0) == "5"
-    assert hud.ap_pool_str(2, 7) == "2.7"
+    assert hud.ap_pool_str(2, 15) == "2.75"
 
 
 def test_ap_row_shows_pool_with_carry():
     """The AP row uses the fractional pool as its denominator."""
     console = FrameBuffer(40, 3)
     player_state = {
-        "ap_remaining": 3, "ap_total": 4, "ap_carry_tenths": 5,
+        "ap_remaining": 3, "ap_total": 4, "ap_carry_twentieths": 10,
         "power_pool": 10, "max_power": 10, "power_gen": 1,
     }
     hud._render_ap_evade_pow_rows(console, 0, 0, player_state, None)

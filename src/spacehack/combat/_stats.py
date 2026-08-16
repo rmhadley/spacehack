@@ -79,40 +79,39 @@ def _calc_max_shields(ship_catalog: Ship | NpcShipSpec, owned_ship: OwnedShip | 
     return max(0, base)
 
 
-def _calc_ap_tenths(piloting: int, ap_bonus: int = 0) -> int:
-    """AP gained per round, in tenths: ``(3 + piloting/10 + ap_bonus) * 10``.
+def _calc_ap_twentieths(piloting: int, ap_bonus: int = 0) -> int:
+    """AP gained per round, in twentieths: ``(3 + piloting/20 + ap_bonus) * 20``.
 
-    Every piloting point shifts the gain by one tenth, so a 5-point
-    investment averages +0.5 AP per round — a visible extra action
-    every couple of rounds. ``ap_bonus`` carries permanent bonuses
-    (e.g. the Ace Pilot trait's +1 AP) into the pure formula so
-    callers don't mutate the result.
+    Every piloting point shifts the gain by one twentieth (0.05 AP), so
+    a 20-point investment averages +1 AP per round. ``ap_bonus`` carries
+    permanent bonuses (e.g. the Ace Pilot trait's +1 AP) into the pure
+    formula so callers don't mutate the result.
     """
-    return max(10, 30 + piloting) + 10 * ap_bonus
+    return max(20, 60 + piloting) + 20 * ap_bonus
 
 
 def _calc_ap(piloting: int, ap_bonus: int = 0) -> int:
     """Spendable AP in the first round: the integer part of the gain.
 
     The fractional remainder banks and rolls into later rounds via
-    :func:`_roll_ap`, so a pilot at 15 Piloting sees 4 AP one round
-    and 5 the next instead of a flat 4 forever.
+    :func:`_roll_ap`, so a pilot at 15 Piloting sees 3 AP three rounds
+    out of four instead of a flat 3 forever.
     """
-    return _calc_ap_tenths(piloting, ap_bonus) // 10
+    return _calc_ap_twentieths(piloting, ap_bonus) // 20
 
 
-def _roll_ap(pool_tenths: int, gain_tenths: int) -> tuple[int, int]:
-    """Roll AP for one round: return ``(available, carry_tenths)``.
+def _roll_ap(pool_twentieths: int, gain_twentieths: int) -> tuple[int, int]:
+    """Roll AP for one round: return ``(available, carry_twentieths)``.
 
     TE4-style fractional regeneration with carry: the banked fraction
     plus this round's gain forms the pool; the integer part is
     spendable and the remainder carries into the next round. Stored
-    in tenths so the math is exact (no float drift): a gain of 45
-    tenths (4.5 AP) rolls 4 available with 5 tenths carried, then the
-    next round rolls 5 available with 0 carried.
+    in twentieths so the math is exact (no float drift): a gain of 75
+    twentieths (3.75 AP) rolls 3 available with 15 twentieths carried,
+    then the next round rolls 4 available with 10 carried.
     """
-    _pool = pool_tenths + gain_tenths
-    return _pool // 10, _pool % 10
+    _pool = pool_twentieths + gain_twentieths
+    return _pool // 20, _pool % 20
 
 
 def _calc_dodge_bonus(cells_moved: int, piloting_bonus: int = 0) -> int:
@@ -229,7 +228,7 @@ def _player_weapon_ammo(owned_ship: OwnedShip) -> dict[int, int]:
 def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyInstance:
     """Construct the EnemyInstance from an NPC ship template."""
     e_ap = _calc_ap(enemy_spec.pilot_piloting)
-    e_gain = _calc_ap_tenths(enemy_spec.pilot_piloting)
+    e_gain = _calc_ap_twentieths(enemy_spec.pilot_piloting)
     e_ammo: dict[str, int] = {}
     for wid in enemy_spec.weapons:
         try:
@@ -252,8 +251,8 @@ def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyIns
         power_pool=enemy_spec.min_power_gen,
         ap_remaining=e_ap,
         ap_total=e_ap,
-        ap_gain_tenths=e_gain,
-        ap_carry_tenths=0,
+        ap_gain_twentieths=e_gain,
+        ap_carry_twentieths=0,
         pos=enemy_pos,
         weapons=enemy_spec.weapons,
         modules=enemy_spec.modules,
@@ -279,7 +278,7 @@ def _player_combat_values(
     return (
         gunnery, piloting, engineering,
         _calc_ap(piloting, ap_bonus),
-        _calc_ap_tenths(piloting, ap_bonus),
+        _calc_ap_twentieths(piloting, ap_bonus),
         pwr_gen,
         _calc_max_shields(player_ship_catalog, player_owned_ship),
         _calc_hull(player_ship_catalog, player_owned_ship),
@@ -311,8 +310,8 @@ def init_combat_state(
         "max_power": _power_max,
         "ap_remaining": _ap,
         "ap_total": _ap,
-        "ap_gain_tenths": _ap_gain,
-        "ap_carry_tenths": 0,
+        "ap_gain_twentieths": _ap_gain,
+        "ap_carry_twentieths": 0,
         "pos": player_pos,
         "gunnery": _g,
         "piloting": _p,

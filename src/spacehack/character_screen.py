@@ -19,7 +19,7 @@ _SKILLS: tuple[str, ...] = (
 # Stats tab. Kept in sync with the guide's Character & Skills section.
 _SKILL_DESCRIPTIONS: dict[str, str] = {
     "gunnery": "+0.5% hit chance per point in space combat",
-    "piloting": "AP per round (3 + Piloting/10, fractional with carry) and +0.5% dodge/pt",
+    "piloting": "AP per round (3 + Piloting/20, fractional with carry) and +0.5% dodge/pt",
     "engineering": "+1 max power per 5 pts; paid shield regen -1 power per 20 pts",
     "reflexes": "+0.5% accuracy and +0.5% dodge per point on foot",
     "strength": "+1 melee damage per 5 pts; +1 pack slot per 5 pts above 10",
