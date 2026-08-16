@@ -163,6 +163,13 @@ def _complete_smuggle_handover(ctx, _step) -> bool:
         _owned.mission_reserved = max(
             0, (_owned.mission_reserved or 0) - _step.smuggle_cargo_size,
         )
+        _good_id = _step.smuggle_good_id
+        if _good_id:
+            _remaining = _owned.inventory.get(_good_id, 0) - _step.smuggle_cargo_size
+            if _remaining > 0:
+                _owned.inventory[_good_id] = _remaining
+            else:
+                _owned.inventory.pop(_good_id, None)
     _am = None
     for _m in ctx.player_active_missions:
         if getattr(_m, "main_quest_step_id", "") == _step.id:
