@@ -14,7 +14,16 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.trade import _seed_economy, _target_stock_for, tick_economy, NEUTRAL_TARGET
+from src.spacehack.trade import (
+    _seed_economy,
+    _target_stock_for,
+    tick_economy,
+    _good_headroom,
+    _market_intel_enabled,
+    _best_sell_planet,
+    good_market_role,
+    NEUTRAL_TARGET,
+)
 
 
 def _mock_ctx(economy_state=None):
@@ -22,6 +31,122 @@ def _mock_ctx(economy_state=None):
     ctx.economy_state = economy_state or {}
     ctx.player_owned_ship = None
     return ctx
+
+
+# ---------------------------------------------------------------------------
+# good_market_role (demand / surplus / neutral classification)
+# ---------------------------------------------------------------------------
+
+class TestGoodMarketRole:
+    def test_demand(self):
+        spec = SimpleNamespace(demands=[("ore", 5)], produces=[])
+        assert good_market_role(spec, "ore") == "demand"
+
+    def test_surplus(self):
+        spec = SimpleNamespace(demands=[], produces=[("food", 10)])
+        assert good_market_role(spec, "food") == "surplus"
+
+    def test_neutral(self):
+        spec = SimpleNamespace(demands=[], produces=[])
+        assert good_market_role(spec, "textiles") == "neutral"
+
+    def test_dual_good_counts_as_demand(self):
+        """A good in both lists is 'wanted' — the stronger selling cue."""
+        spec = SimpleNamespace(demands=[("dual", 5)], produces=[("dual", 10)])
+        assert good_market_role(spec, "dual") == "demand"
+
+
+# ---------------------------------------------------------------------------
+# _market_intel_enabled (merchant-rep gate on price cues)
+# ---------------------------------------------------------------------------
+
+class TestMarketIntelGate:
+    def _ctx(self, rep):
+        ctx = MagicMock()
+        ctx.faction_reputation = {"merchant": rep}
+        return ctx
+
+    def test_negative_rep_withholds(self):
+        assert _market_intel_enabled(self._ctx(-80)) is False
+        assert _market_intel_enabled(self._ctx(-30)) is False
+
+    def test_neutral_and_above_share(self):
+        assert _market_intel_enabled(self._ctx(0)) is True
+        assert _market_intel_enabled(self._ctx(40)) is True
+        assert _market_intel_enabled(self._ctx(90)) is True
+
+    def test_missing_reputation_defaults_to_neutral(self):
+        ctx = SimpleNamespace(economy_state={})
+        assert _market_intel_enabled(ctx) is True
+
+
+# ---------------------------------------------------------------------------
+# _good_headroom (liked-tier market detail)
+# ---------------------------------------------------------------------------
+
+class TestGoodHeadroom:
+    def test_demand_room(self):
+        ctx = _mock_ctx({"test_planet": {"ore": 5}})
+        spec = SimpleNamespace(demands=[("ore", 25)], produces=[])
+        with mock.patch("src.spacehack.trade.find_planet_spec", return_value=spec):
+            assert _good_headroom(ctx, "test_planet", "ore") == \
+                "Can absorb ~20 more units before prices cool."
+
+    def test_demand_met(self):
+        ctx = _mock_ctx({"test_planet": {"ore": 25}})
+        spec = SimpleNamespace(demands=[("ore", 25)], produces=[])
+        with mock.patch("src.spacehack.trade.find_planet_spec", return_value=spec):
+            assert "cooling" in _good_headroom(ctx, "test_planet", "ore")
+
+    def test_surplus_stock(self):
+        ctx = _mock_ctx({"test_planet": {"food": 8}})
+        spec = SimpleNamespace(demands=[], produces=[("food", 10)])
+        with mock.patch("src.spacehack.trade.find_planet_spec", return_value=spec):
+            assert _good_headroom(ctx, "test_planet", "food") == \
+                "8 units in stock; prices stay low."
+
+    def test_surplus_sold_out(self):
+        ctx = _mock_ctx({"test_planet": {"food": 0}})
+        spec = SimpleNamespace(demands=[], produces=[("food", 10)])
+        with mock.patch("src.spacehack.trade.find_planet_spec", return_value=spec):
+            assert "restocking" in _good_headroom(ctx, "test_planet", "food")
+
+    def test_neutral_stable(self):
+        ctx = _mock_ctx({"test_planet": {}})
+        spec = SimpleNamespace(demands=[], produces=[])
+        with mock.patch("src.spacehack.trade.find_planet_spec", return_value=spec):
+            assert _good_headroom(ctx, "test_planet", "textiles") == "Stable market."
+
+
+# ---------------------------------------------------------------------------
+# _best_sell_planet (allied-tier guild-network routing)
+# ---------------------------------------------------------------------------
+
+class TestBestSellPlanet:
+    def test_picks_highest_multiplier(self):
+        ctx = _mock_ctx({})
+        with mock.patch("src.spacehack.trade._can_sell_here", return_value=True), \
+             mock.patch(
+                 "src.spacehack.trade._price_multiplier",
+                 side_effect=lambda _c, pid, _g: {"a": 1.2, "b": 1.8, "c": 1.0}[pid],
+             ):
+            assert _best_sell_planet(ctx, "earth", "ore", ["a", "b", "c"]) == "b"
+
+    def test_skips_unsellable_contraband(self):
+        ctx = _mock_ctx({})
+        with mock.patch(
+                "src.spacehack.trade._can_sell_here",
+                side_effect=lambda pid, _g: pid != "b"), \
+             mock.patch(
+                 "src.spacehack.trade._price_multiplier",
+                 side_effect=lambda _c, pid, _g: {"a": 1.2, "b": 1.8}[pid],
+             ):
+            assert _best_sell_planet(ctx, "earth", "weapons", ["a", "b"]) == "a"
+
+    def test_none_when_nothing_sellable(self):
+        ctx = _mock_ctx({})
+        with mock.patch("src.spacehack.trade._can_sell_here", return_value=False):
+            assert _best_sell_planet(ctx, "earth", "weapons", ["a", "b"]) is None
 
 
 # ---------------------------------------------------------------------------

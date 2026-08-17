@@ -472,8 +472,14 @@ def draw_menu_row(
     selected: bool,
     palette: Palette = DEFAULT_PALETTE,
     antialias: bool = True,
+    color: Color | None = None,
 ) -> int:
-    """Render one selectable row and return its recommended next y."""
+    """Render one selectable row and return its recommended next y.
+
+    ``color`` overrides the default text colour (used by terminals that
+    colour-code rows, e.g. trade demand/surplus cues). The colour is
+    kept even when selected so the cue survives navigation.
+    """
     row_height = font.get_linesize() + 14
     if selected:
         row = pygame.Rect(x, y - 5, width, row_height)
@@ -486,7 +492,7 @@ def draw_menu_row(
     draw_text(
         pygame, screen, font, marker + fitted_label,
         x + 12, y + 2,
-        color=palette.text if not selected else palette.title,
+        color=color if color is not None else (palette.text if not selected else palette.title),
         antialias=antialias,
     )
     return y + row_height

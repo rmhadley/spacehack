@@ -1030,9 +1030,104 @@ def test_station_trade_frame_uses_shared_content_policy(monkeypatch):
     assert frame.footer_left == "Credits: 1000$"
     # Skiff hold tuned to 50 (5x T1 delivery order) — see ships/core.py.
     assert frame.footer_right == "Cargo: 2/50"
-    assert frame.hint == pygame_split.SPLIT_SHOP_HINT
+    assert frame.hint == trade._trade_hint("TRADE")
+    assert frame.left_tabs == ("[T]rade", "[M]arket")
+    assert frame.left_tab_modes == ("TRADE", "MARKET")
     assert frame.left_rows[0].value == "30$ (0)"
     assert frame.right_rows[0].value == "(sell 15$) x2"
+
+
+def test_station_trade_frame_colors_by_merchant_rep(monkeypatch):
+    """Trade rows are colour-coded by demand/surplus, hidden at negative rep."""
+    from src.spacehack import trade
+
+    def build(rep):
+        ctx = SimpleNamespace(
+            player_owned_ship=SimpleNamespace(
+                ship_id="starter", inventory={"food_rations": 2}, cargo_used=2,
+            ),
+            stats=SimpleNamespace(credits=1000),
+            economy_state={},
+            faction_reputation={"merchant": rep},
+        )
+        return trade._pygame_trade_frame(
+            ctx, "earth", ("food_rations", "ore_processed"),
+        )
+
+    monkeypatch.setattr(trade, "_unit_price", lambda _ctx, _planet, _gid: 30)
+    monkeypatch.setattr(trade, "_sell_price", lambda _ctx, _planet, _gid: 15)
+
+    neutral = build(0)
+    # food_rations is produced (surplus -> cyan), ore_processed demanded (amber).
+    assert neutral.left_rows[0].fg == (120, 220, 230)
+    assert neutral.left_rows[1].fg == (255, 190, 80)
+    assert neutral.right_rows[0].fg == (120, 220, 230)
+
+    disliked = build(-30)
+    assert all(row.fg is None for row in disliked.left_rows)
+    assert all(row.fg is None for row in disliked.right_rows)
+
+
+def test_trade_market_tab_ramps_with_merchant_rep(monkeypatch):
+    """Market-tab detail grows with merchant standing (flat/grouped/headroom/network)."""
+    from src.spacehack import trade
+
+    def build(rep, inventory=None):
+        ctx = SimpleNamespace(
+            player_owned_ship=SimpleNamespace(
+                ship_id="starter", inventory=inventory or {}, cargo_used=0,
+            ),
+            stats=SimpleNamespace(credits=1000),
+            economy_state={
+                "earth": {"ore_processed": 5, "food_rations": 20},
+                "barnards_c": {"ore_processed": 1, "food_rations": 30},
+            },
+            faction_reputation={"merchant": rep},
+        )
+        return trade._pygame_trade_frame(
+            ctx, "earth", ("food_rations", "ore_processed"), mode="MARKET",
+        )
+
+    monkeypatch.setattr(trade, "_unit_price", lambda _ctx, _planet, _gid: 30)
+    monkeypatch.setattr(trade, "_sell_price", lambda _ctx, _planet, _gid: 15)
+
+    # Negative: flat catalog, no grouping headers, no colours.
+    enemy = build(-80)
+    labels = [row.label for row in enemy.left_rows]
+    assert "The guild shares no market data with you." in labels
+    assert not any("STATION WANTS" in row.label for row in enemy.left_rows)
+    assert all(row.fg is None for row in enemy.left_rows)
+
+    # Neutral: grouped and coloured.
+    neutral = build(0)
+    headers = [row.label for row in neutral.left_rows]
+    assert "--- STATION WANTS ---" in headers
+    assert "--- SELLS CHEAP ---" in headers
+    demand = [row for row in neutral.left_rows if row.value == "paying well"]
+    assert demand and all(row.fg == (255, 190, 80) for row in demand)
+
+    # Liked: headroom detail lines.
+    liked = build(40)
+    details = [row.detail for row in liked.left_rows if row.action == "MARKET:INFO"]
+    assert any("Can absorb" in detail for detail in details)
+    assert any("units in stock" in detail for detail in details)
+
+    # Allied: guild network routes held cargo to the best visited planet.
+    monkeypatch.setattr(trade, "_can_sell_here", lambda _pid, _gid: True)
+    monkeypatch.setattr(
+        trade, "_price_multiplier",
+        lambda _ctx, pid, _gid: {"barnards_c": 1.8, "earth": 1.0}.get(pid, 1.0),
+    )
+    allied = build(90, inventory={"food_rations": 5})
+    labels = [row.label for row in allied.left_rows]
+    assert "--- GUILD NETWORK (VISITED) ---" in labels
+    network_rows = allied.left_rows[labels.index("--- GUILD NETWORK (VISITED) ---") + 1:]
+    food_row = next(
+        row for row in network_rows
+        if row.label == "Food Rations" and row.action == "MARKET:INFO"
+    )
+    assert food_row.value == "Barnard c"
+    assert food_row.fg == (255, 190, 80)  # best planet pays well here
 
 
 def test_loot_parent_apply_removes_entity_and_grants_inventory():

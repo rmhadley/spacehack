@@ -21,8 +21,49 @@ from .game_context import GameContext
 from .data.planets import find_planet_spec
 from .data.trade_goods import find_trade_good, neutral_goods
 from .loot import open_loot_pickup  # noqa: F401  (re-exported for callers)
+# Market-intel presentation (colour cues + Market tab) — see trade_market.
+from .trade_market import _ROLE_FG, _market_rows, _trade_hint
 
 NEUTRAL_TARGET: int = 8
+
+# ---------------------------------------------------------------------------
+# Market-intel helpers (merchant-guild price context)
+# ---------------------------------------------------------------------------
+# Terminal rows are colour-coded by a good's role at the current station so
+# the player can read at a glance what to buy/sell — no multipliers shown.
+# The cues are withheld while merchant reputation is negative (the guild
+# won't share market data with enemies). Colour values and the Market-tab
+# presentation live in :mod:`spacehack.trade_market`.
+
+def good_market_role(spec, good_id: str) -> str:
+    """Return ``"demand"``, ``"surplus"``, or ``"neutral"`` for a good
+    on a planet's market.
+
+    A good in the planet's ``demands`` is wanted (station pays high);
+    a good in its ``produces`` is plentiful (station sells cheap);
+    anything else is neutral. A good in both lists counts as demand —
+    the "wanted" signal is the stronger cue for selling.
+    """
+    for gid, _target in spec.demands:
+        if gid == good_id:
+            return "demand"
+    for gid, _target in spec.produces:
+        if gid == good_id:
+            return "surplus"
+    return "neutral"
+
+
+def _merchant_attitude(ctx) -> str:
+    """Return the player's merchant-faction attitude zone."""
+    from .faction import get_attitude
+    rep = getattr(ctx, "faction_reputation", None) or {}
+    return get_attitude(rep.get("merchant", 0))
+
+
+def _market_intel_enabled(ctx) -> bool:
+    """True when the guild shares price cues (merchant rep not negative)."""
+    return _merchant_attitude(ctx) not in ("enemy", "disliked")
+
 
 # ---------------------------------------------------------------------------
 # Pricing (pure function, shared by station + NPC trade)
@@ -560,41 +601,120 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
     if result is None:
         raise RuntimeError("Trade terminal returned no outcome")
 
-def _pygame_trade_frame(ctx: GameContext, planet_id: str, station_goods: list[str]):
-    """Build a presentation-only station trade frame."""
+def _good_headroom(ctx: GameContext, planet_id: str, good_id: str) -> str:
+    """Qualitative market-headroom note for a good (liked-tier intel)."""
+    spec = find_planet_spec(planet_id)
+    role = good_market_role(spec, good_id)
+    stocks = ctx.economy_state.get(planet_id, {})
+    current = stocks.get(good_id, 0)
+    target = _target_stock_for(planet_id, good_id)
+    if role == "demand":
+        room = max(0, target - current)
+        if room <= 0:
+            return "Demand met \u2014 prices cooling."
+        return f"Can absorb ~{room} more units before prices cool."
+    if role == "surplus":
+        if current <= 0:
+            return "Sold out \u2014 restocking."
+        return f"{current} units in stock; prices stay low."
+    return "Stable market."
+
+
+def _price_multiplier(ctx: GameContext, planet_id: str, good_id: str) -> float:
+    """Current buy-price multiplier for a good at a planet (ranking only)."""
+    good = find_trade_good(good_id)
+    stocks = ctx.economy_state.get(planet_id, {})
+    current = stocks.get(good_id, 0)
+    target = _target_stock_for(planet_id, good_id)
+    return trade_price(good.base_price, current, target) / good.base_price
+
+
+def _best_sell_planet(ctx: GameContext, planet_id: str, good_id: str, visited) -> str | None:
+    """Return the visited planet (excluding current) that pays best for a good."""
+    best_pid = None
+    best_mult = -1.0
+    for pid in visited:
+        if not _can_sell_here(pid, good_id):
+            continue
+        mult = _price_multiplier(ctx, pid, good_id)
+        if mult > best_mult:
+            best_mult = mult
+            best_pid = pid
+    return best_pid
+
+
+def _station_left_rows(ctx: GameContext, spec, station_goods, intel: bool) -> list:
+    """Buy-side rows for the station panel, colour-coded when intel is on."""
     from . import pygame_split
     from . import pygame_ui
-    spec = find_planet_spec(planet_id)
-    owned = ctx.player_owned_ship
-    _stocks = ctx.economy_state.get(planet_id, {})
-    left = []
+
+    stocks = ctx.economy_state.get(spec.id, {})
+    rows = []
     for gid in station_goods:
         good = find_trade_good(gid)
-        left.append(pygame_split.SplitRow(
+        role = good_market_role(spec, gid) if intel else "neutral"
+        rows.append(pygame_split.SplitRow(
             good.name,
-            pygame_ui.price_cell(_unit_price(ctx, planet_id, gid), _stocks.get(gid, 0)),
+            pygame_ui.price_cell(_unit_price(ctx, spec.id, gid), stocks.get(gid, 0)),
             good.description,
             f"BUY:{gid}",
+            fg=_ROLE_FG.get(role),
         ))
-    right = []
+    return rows
+
+
+def _hold_right_rows(ctx: GameContext, spec, owned, intel: bool) -> list:
+    """Sell-side hold rows, colour-coded when intel is on."""
+    from . import pygame_split
+    from . import pygame_ui
+
+    rows = []
     for gid, qty in (owned.inventory.items() if owned is not None else ()):
         good = find_trade_good(gid)
-        right.append(pygame_split.SplitRow(
+        role = good_market_role(spec, gid) if intel else "neutral"
+        rows.append(pygame_split.SplitRow(
             good.name,
-            pygame_ui.sell_cell(_sell_price(ctx, planet_id, gid), qty),
+            pygame_ui.sell_cell(_sell_price(ctx, spec.id, gid), qty),
             good.description,
             f"SELL:{gid}",
+            fg=_ROLE_FG.get(role),
         ))
+    return rows
+
+
+def _pygame_trade_frame(
+    ctx: GameContext, planet_id: str, station_goods: list[str], mode: str = "TRADE",
+):
+    """Build a presentation-only station trade frame for ``mode``."""
+    from . import pygame_split
+    from . import pygame_ui
+
+    spec = find_planet_spec(planet_id)
+    owned = ctx.player_owned_ship
+    intel = _market_intel_enabled(ctx)
+    if mode == "MARKET":
+        left = _market_rows(ctx, planet_id)
+        left_label = "Market Intel"
+    else:
+        left = _station_left_rows(ctx, spec, station_goods, intel)
+        left_label = "Station Inventory"
+    right = _hold_right_rows(ctx, spec, owned, intel)
     return pygame_split.SplitFrame(
-        pygame_ui.terminal_title("TRADE", spec.name), "Station Inventory", "Your Hold",
+        pygame_ui.terminal_title("TRADE", spec.name), left_label, "Your Hold",
         tuple(left), tuple(right),
         pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned),
-        pygame_split.SPLIT_SHOP_HINT,
+        _trade_hint(mode),
+        left_tabs=("[T]rade", "[M]arket"),
+        active_left_tab=0 if mode == "TRADE" else 1,
+        left_tab_modes=("TRADE", "MARKET"),
     )
 
 def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) -> bool:
     """Apply one Pygame trade action through the existing transaction helpers."""
     if not action:
+        return True
+    if action.startswith("MARKET:"):
+        # Market-intel rows are informational; selection just inspects detail.
         return True
     if ":" not in action:
         raise ValueError(f"Malformed trade action: {action!r}")
@@ -623,10 +743,22 @@ def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) ->
 def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]) -> bool | None:
     """Run the station trade loop in the shared Pygame window."""
     from . import pygame_split
+    mode = "TRADE"
+
+    def build_frame():
+        return _pygame_trade_frame(ctx, planet_id, station_goods, mode)
+
+    def apply_action(action, _focus, _selected):
+        nonlocal mode
+        if action.startswith("MODE:"):
+            requested = action.split(":", 1)[1]
+            if requested in ("TRADE", "MARKET"):
+                mode = requested
+            return True
+        return _apply_pygame_trade_action(ctx, planet_id, action)
+
     result = pygame_split.run_interactive(
-        ctx,
-        lambda: _pygame_trade_frame(ctx, planet_id, station_goods),
-        lambda action, _focus, _selected: _apply_pygame_trade_action(ctx, planet_id, action),
+        ctx, build_frame, apply_action,
         caption="spacehack - trade terminal",
     )
     return result is not None if result is not None else None

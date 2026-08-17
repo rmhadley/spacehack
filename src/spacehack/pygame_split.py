@@ -33,6 +33,7 @@ class SplitRow:
     action: str
     divider: bool = False
     selectable: bool = True
+    fg: tuple[int, int, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -245,7 +246,7 @@ def _draw_panel_row(
         return pygame_ui.draw_informational_row(
             pygame, screen, font, row.label,
             content_x, y, content_width,
-            color=palette.description,
+            color=row.fg or palette.description,
         )
     selected_row = focused and index == selected
     return pygame_ui.draw_menu_row(
@@ -254,6 +255,7 @@ def _draw_panel_row(
         content_x, y, content_width,
         selected=selected_row,
         palette=palette,
+        color=row.fg,
     )
 
 
