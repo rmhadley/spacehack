@@ -956,8 +956,8 @@ class TestTargetCardToggle:
         old_state = _rules_ground._state
         _rules_ground.init(_ctx, [_enemy], _game_map)
         _rules_ground._state.player_ap = 4
-        _rules_ground._state.enemies[0].hp = 4
-        _rules_ground._state.enemies[0].max_hp = 25
+        _rules_ground._state.player_hp = 8
+        _rules_ground._state.player_max_hp = 26
         try:
             card = _rules_ground.presentation_target_card(ctx=_ctx)
         finally:
@@ -965,7 +965,7 @@ class TestTargetCardToggle:
 
         assert card is not None
         assert card.quick_rows == (
-            (("4 AP -1 AP -4/25 HP", pygame_target_card.TARGET_CARD_TEXT),),
+            (("4 AP -1 AP -8 HP", pygame_target_card.TARGET_CARD_TEXT),),
         )
 
     def test_card_shown_by_default_and_toggle_hides(self):

@@ -181,24 +181,13 @@ def test_space_target_card_quick_row_shows_selected_resource_costs():
             "ap_total": 4,
             "power_pool": 26,
             "gunnery": 20,
-            "hull": 8,
-            "max_hull": 26,
+            "hull": 25,
+            "max_hull": 25,
         },
-        enemy_insts=[
-            EnemyInstance(
-                spec_id="pirate_scout",
-                name="Pirate Scout",
-                char="P",
-                fg=(255, 100, 100),
-                hull=4,
-                max_hull=25,
-                pos=world.Position(5, 3),
-                weapons=("light_laser",),
-            ),
-        ],
+        enemy_insts=[_card_enemy()],
         target_idx=0,
-        weapons_list=["light_laser"],
-        active_weapons=[True],
+        weapons_list=["medium_laser"] * 4,
+        active_weapons=[True] * 4,
     )
     old_state = _rules_space._state
     _rules_space._state = state

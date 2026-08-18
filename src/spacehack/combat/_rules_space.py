@@ -568,9 +568,12 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         default=0,
     )
     _power_available = _state.player_state.get("power_pool", 0)
+    _power_cost = sum(
+        _space_focus.power_cost(weapon_id, ctx) for weapon_id in _active_ids
+    )
     _quick = quick_row(
         f"{player_ap(ctx)} AP -{_ap_needed}/{_power_available} POW "
-        f"-{_target.hull}/{_target.max_hull} HP"
+        f"-{_power_cost}/{player_hp(ctx)} HP"
     )
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))

@@ -143,7 +143,7 @@ def _active_weapon_ids(ctx, weapons: list[str]) -> list[str]:
     ]
 
 
-def _quick_resource_row(ctx, active_weapons: list[str], target):
+def _quick_resource_row(ctx, active_weapons: list[str]):
     """Format the compact ground-combat resource strip."""
     _rules_mod = _rules()
     _ap_needed = max(
@@ -152,7 +152,7 @@ def _quick_resource_row(ctx, active_weapons: list[str], target):
     )
     return quick_row(
         f"{_rules_mod.player_ap(ctx)} AP -{_ap_needed} AP "
-        f"-{target.hp}/{target.max_hp} HP"
+        f"-{_rules_mod.player_hp(ctx)} HP"
     )
 
 
@@ -327,7 +327,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         hit_chance=_hit,
         hit_weapon_id=_active_wid,
         avoid_positions=_avoid,
-        quick_rows=(_quick_resource_row(ctx, _active, _target),),
+        quick_rows=(_quick_resource_row(ctx, _active),),
     )
 
 
