@@ -1,39 +1,59 @@
-"""Main quest faction heat hooks: bar militia heat, consortium heat."""
+"""Main quest faction heat hooks: bar militia heat, consortium heat.
+
+Heat is declared on the step data (``MainQuestStep.heat``) as behavior tags;
+these functions turn live steps into world behaviour. Tag semantics:
+
+    ``militia_scan``  — militia scan-chance floor while the step is live
+                        (bar chain: the proof run + power-cell legs)
+    ``militia_aggro`` — militia auto-aggro in Sol while the step's crate is
+                        held (bar chain: the charged power cell)
+    ``consortium``    — consortium pirate heat while the step is live
+                        (merchant chain: the ore transport + calibration)
+
+Expiry is implicit: the final chain step carries no heat tag, so once it is
+the only live step the filters naturally return False.
+"""
 
 from __future__ import annotations
 
 from ._core import (
     STATUS_ACTIVE,
     STATUS_AVAILABLE,
-    STATUS_COMPLETED,
-    step_status,
+    _iter_known_steps,
     _smuggle_crate_held,
 )
+
+
+def _live_heat_steps(ctx, tag: str):
+    """Yield available/active steps carrying ``tag``."""
+    for _step_id, _st, _step in _iter_known_steps(ctx):
+        if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+            continue
+        if tag in _step.heat:
+            yield _step
+
+
+def _heat_crate_held(ctx, tag: str) -> bool:
+    """True while any step carrying ``tag`` has its crate in the mission hold."""
+    return any(
+        _smuggle_crate_held(ctx, _step.id)
+        for _step_id, _st, _step in _iter_known_steps(ctx)
+        if tag in _step.heat
+    )
+
+
+def bar_heat_active(ctx) -> bool:
+    """True while the bar chain's militia scan heat is live."""
+    if ctx.main_quest_chain != "bar":
+        return False
+    return any(_live_heat_steps(ctx, "militia_scan"))
 
 
 def charged_cell_in_sol(ctx, system_id: str) -> bool:
     """True while the player is carrying the power cell — militia auto-aggro."""
     if ctx.main_quest_chain != "bar":
         return False
-    return (
-        _smuggle_crate_held(ctx, "bar_q4_blackmarket")
-        or _smuggle_crate_held(ctx, "bar_q5_charged")
-    )
-
-
-def bar_heat_active(ctx) -> bool:
-    """True while the bar chain's hot cargo is in the player's hold."""
-    if ctx.main_quest_chain != "bar":
-        return False
-    if step_status(ctx, "bar_q6_rig") == STATUS_COMPLETED:
-        return False
-    for _am in ctx.player_active_missions:
-        if getattr(_am, "main_quest_step_id", "") == "bar_q2_proof":
-            return True
-    return (
-        step_status(ctx, "bar_q4_blackmarket") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-        or step_status(ctx, "bar_q5_charged") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-    )
+    return _heat_crate_held(ctx, "militia_aggro")
 
 
 def consortium_heat_active(ctx) -> bool:
@@ -50,9 +70,4 @@ def consortium_heat_active(ctx) -> bool:
     """
     if ctx.main_quest_chain != "merchants":
         return False
-    if step_status(ctx, "mer_q5_cutter") == STATUS_COMPLETED:
-        return False
-    return (
-        step_status(ctx, "mer_q3_transport") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-        or step_status(ctx, "mer_q4_calibrate") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-    )
+    return any(_live_heat_steps(ctx, "consortium"))

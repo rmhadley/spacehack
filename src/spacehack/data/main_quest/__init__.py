@@ -180,6 +180,11 @@ class MainQuestStep:
                               # is suppressed while the crate isn't held
                               # and a confiscated crate had no re-issue
                               # path.
+    # Faction-heat behavior tags consumed by the generic heat handler
+    # (main_quest/_heat.py). Empty = no heat. Expiry is implicit: the
+    # final chain step carries no tag, so once it is the only live step
+    # the heat filters naturally return False.
+    heat: tuple[str, ...] = ()  # e.g. ("militia_scan", "militia_aggro") / ("consortium",)
     # --- Time-gating fields (minimum waits, never deadlines) ---
     wait_days: int = 0  # world-clock days the faction "works" after this step
                         # completes before the NEXT step unlocks (0 = no gate)

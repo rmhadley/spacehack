@@ -41,6 +41,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="old_smuggler",
         smuggle_good_id="weapons_blackmarket",
         smuggle_cargo_size=8,
+        heat=("militia_scan",),  # militia scan floor while the proof run is live
         wait_days=85,
         dialogues={
             "barkeep": QuestDialogue(
@@ -86,6 +87,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="wolf_barkeep",
         smuggle_good_id="power_cell",
         smuggle_cargo_size=5,
+        # Scan floor while the cell is en route + auto-aggro in Sol
+        # while the crate is actually held (the charged-cell signature).
+        heat=("militia_scan", "militia_aggro"),
         wait_days=90,
         dialogues={
             "wolf_barkeep": QuestDialogue(
@@ -117,6 +121,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="barkeep",
         smuggle_good_id="power_cell_charged",
         smuggle_cargo_size=5,
+        # Scan floor + auto-aggro while the charged cell is in the hold.
+        heat=("militia_scan", "militia_aggro"),
         wait_days=0,
         dialogues={
             "wolf_barkeep": QuestDialogue(

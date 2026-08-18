@@ -260,15 +260,15 @@ No visible behavior change expected — this phase is structural.
 
 ### Phase 2: Data-ify faction heat (tuple of tags)
 
-- [ ] Add `heat: tuple[str, ...]` to `MainQuestStep`
-- [ ] Rewrite `_heat.py` as a data-driven filter over `_iter_known_steps`
+- [x] Add `heat: tuple[str, ...]` to `MainQuestStep`
+- [x] Rewrite `_heat.py` as a data-driven filter over `_iter_known_steps`
       (tag → behavior: `militia_scan` = scan floor, `militia_aggro` = auto-aggro
       while crate held, `consortium` = pirate heat)
-- [ ] Tag the bar steps (`bar_q2_proof` scan, `bar_q4`/`bar_q5` scan + aggro) and
+- [x] Tag the bar steps (`bar_q2_proof` scan, `bar_q4`/`bar_q5` scan + aggro) and
       merchant steps (`mer_q3`/`mer_q4`) in their data files
-- [ ] Delete the hard-coded step ids from `_heat.py`
-- [ ] Heat-filter helpers are pure → new pytest in the same commit
-- [ ] `make check` green
+- [x] Delete the hard-coded step ids from `_heat.py`
+- [x] Heat-filter helpers are pure → new pytest in the same commit
+- [x] `make check` green
 
 **PLAYTEST (2):** bar chain — while carrying the power cell, militia auto-aggro
 in Sol fires (q5) and the scan floor holds (q2–q5); both expire at `bar_q6_rig`.
