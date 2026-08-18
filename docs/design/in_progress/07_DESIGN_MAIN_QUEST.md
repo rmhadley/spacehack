@@ -4,6 +4,13 @@
 
 A **non-linear main quest** the player follows alongside sandbox play. It begins with the Mars prison, follows the recovered data beyond the Luyten's Star blockade, crosses a dead alien multi-system network, and ends with a space battle against the ancient prisoner that now rests near a black hole.
 
+**Implementation cross-reference:** `24_DESIGN_REUSABLE_QUEST_SYSTEM.md` is the
+current implementation contract for the reusable quest system. It owns the
+`MainQuestStep` data catalogs, objective-handler registry, faction-heat tags,
+scene identifiers, additive quest-NPC presence, JSON text overlay, minimal
+validator, and authoring guide. This document remains the narrative and
+future-content roadmap; do not create a parallel runtime contract here.
+
 **The premise is a blend of alien mystery, faction politics, and consequence.** The four human factions offer competing interpretations and tools, but none possesses the whole truth. The player keeps making reasonable choices in pursuit of knowledge, survival, wealth, or security — and those choices gradually restore the path that wakes the prisoner. The final encounter is morally ambiguous without softening the creature's monstrous power or the devastation it caused.
 
 ## Design decisions (locked with the user)
@@ -200,6 +207,13 @@ non-empty — selecting it triggers the step advancement
 
 ## Data model
 
+The snippets below describe the narrative-facing fields used by this design.
+For the complete current structural contract—including overlay-backed prose,
+objective fields, heat tags, scenes, auto-loading, NPC presence, and time
+gates—use `src/spacehack/data/main_quest/__init__.py` and the authoring guide at
+`src/spacehack/data/main_quest/README.md`. The reusable-system design owns
+runtime changes to that contract.
+
 ### New dataclass: `MainQuestStep`
 
 ```python
@@ -378,7 +392,7 @@ q5: talk      ░░░░  Resolution
 
 **Gating (implemented):** q1→q2 0d (bump auto-loads the delivery) · q2→q3 50d (analysis) · q3→q4 0d (auto-advance) · q4→q5 95d (frequency map) · q5→q6 0d (auto-advance) · q6→q7 80d (key forgery). Summons: Mercury (q3), Alpha Centauri Science Port (q4), Mercury (q7).
 
-**Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is a new entry in the global `data/npcs` catalog placed via `PlanetSpec.npc_overrides` on a planet that already has the matching guild building (`militia_captain` / `guild_master` / `barkeep` / `research_officer` slot) — the override's `id` differs from the replaced slot so quest dialogue keys off the expert id. Verify the target planet has the required guild building (add a `CityBuilding` to the spec if not).
+**Expert NPCs (new catalog entries):** `demolitions_expert` (militia, Epsilon Eridani b), `salvage_specialist` (merchants, Tau Ceti b), `old_smuggler` (bar, Barnard's Star b), `xenolinguist` (lab, ac_station). Each is an additive entry in the global `data/npcs` catalog, placed through the planet's `quest_npc_spots` and activated by the live step's `npc_presence` tag. They stand in the matching guild building without replacing its regular occupant (`militia_captain` / `guild_master` / `barkeep` / `research_officer`). The reusable-system Phase 3a design and playtest define the presence window and save/load behavior.
 
 **Bar-chain lessons applied to the merchant chain:**
 
@@ -394,7 +408,7 @@ q5: talk      ░░░░  Resolution
 | **Time gates need in-universe reasons.** "The guild files paperwork" (60d), "The specialist smelts the ore" (130d). | Every gate has a world-clock reason the player can read in the completion flavor. |
 | **6 steps, not a strict 5.** The bar chain grew organically to 6 steps to support the through-line. | The merchant chain stays at 5 because the smelt happens during a time gate (q3→q4) rather than as a separate step — but if playtesting shows the flow needs a dedicated pickup step, a 6th step can be added (same as the bar chain grew). |
 
-**New objective types** complete steps outside the dialogue path: `delve` (descend into the target planet's **procedural surface cave** and secure the quest-tagged cache — the item is *found*, not bought), `smuggle` (deliver hot cargo to a target NPC — loaded into the mission hold like a `is_smuggle` mission; militia scans can confiscate it and fail the step), `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample). See the data-model section below.
+**Objective types** complete steps outside the dialogue path: `delve` (descend into the target planet's **procedural surface cave** and secure the quest-tagged cache — the item is *found*, not bought), `smuggle` (deliver hot cargo to a target NPC — loaded into the mission hold like a `is_smuggle` mission; militia scans can confiscate it and fail the step), `goods` (cargo check + consume on trigger), `visit` (talk to the expert NPC at a target planet → step completes), `bounty` (quest-tagged `BountySpawn` defeated → step completes), `salvage` (quest-tagged loot secured in a derelict interior → step completes), `bump` (door bump variant, e.g. lab sample), and `prison` (complete the Mars prison objective on the themed interaction path). The live handler table and the authoring workflow are defined in `24_DESIGN_REUSABLE_QUEST_SYSTEM.md` and `src/spacehack/data/main_quest/README.md`; this document describes their story use.
 
 **Delve sites (reuse the Mars surface dungeon):** each chain's materials step sends the player into a **procedural surface cave** — the same BSP generator that builds the Mars surface (`dungeon.generate_dungeon` + `PlanetSpec.dungeon_params` with a planet-themed tile set, exactly like `data/planets/mars.py`). The four delve planets (Mercury, Wolf 359, Barnard's Star b, Procyon C) currently lack `dungeon_params` — adding it is **pure data** (the generator, `has_explorable_sites`, and planet-menu "Explore" option already exist). The site persists in `ctx.interiors` keyed `surface:<planet_id>` (same anti-farm rule as the Mars surface + salvage wrecks; `saveload` already serializes the whole cache generically). The quest cache is placed by a generic `prepare_delve_site` pass after generation — **extract `prepare_mars_surface`'s placement logic into a shared helper** (no copy-paste). The planet menu shows "Explore <site>" only while the chain's delve step is active (chain-aware gate, same pattern as the Mars signal gate in `menus/_planet.py`).
 
@@ -587,7 +601,7 @@ The final choice should be explicit. The ending should reflect accumulated disco
 - [x] Chain completion: final step's trigger grants the faction tool, records the faction relationship/support history, and makes `prologue_open` available
 - [x] **Time-gate infra:** add `wait_days` / `completion_flavor` / `ready_message` to `MainQuestStep`; add `main_quest_gate` + `main_quest_pending_message` to `GameContext` + serialize/deserialize in `saveload`; implement `main_quest.check_quest_gates(ctx)` per-frame hook (fires when `ctx.time_*` passes a gate date → next step `"available"` + queue the one-way summon; deliver via the prologue-transmission overlay pattern). Dev skip-days helper: Shift+D (SPACEHACK_DEV) advances 30 days so gates can be playtested. Quest log shows "Awaiting word from the <faction>..." while a gate is pending.
 - [x] **Act 0 dev shortcut:** Shift+O (SPACEHACK_DEV) opens a four-choice faction picker, then skips directly to the Mars door-opening interaction for animation playtesting; it records the selected `main_quest_chain` + backing faction but does not grant faction-chain rewards.
-- [x] Add the 4 expert NPCs (`demolitions_expert` / `salvage_specialist` / `old_smuggler` / `xenolinguist`) to `data/npcs` + `PlanetSpec.npc_overrides`; verify target planets have the guild building
+- [x] Add the 4 expert NPCs (`demolitions_expert` / `salvage_specialist` / `old_smuggler` / `xenolinguist`) to `data/npcs` with additive `quest_npc_spots` + `npc_presence`; verify target planets have the guild building (completed in reusable-system Phase 3a)
 - [x] Smoke test + commit
 
 **PLAYTEST (1d):** fresh save → discover the door → talk to each faction NPC (all four offers still open, no lock-in yet) → Accept militia help → the other three NPCs now show a locked/"you already have a way in" variant (no quest row) → confirm `main_quest_chain` survives save/quit/continue → start a NEW game and Accept merchants instead (different chain). In a `SPACEHACK_DEV=1` run, press Shift+O → choose each faction in separate runs → verify the selected chain appears in post-prison faction dialogue and a repeated Shift+O cannot replace it; ESC cancels without changing state. Test the `delve` objective end-to-end: while `mil_q2_cache` is active the Mercury planet menu shows "Explore <site>" → descend into the procedurally generated Mercury cave (planet-themed tiles, fog works) → find the quest-tagged cache in a deep room → secure it (cargo gained, step completes) → the cave persists in `ctx.interiors` across save/quit/continue (anti-farm). Test the gate: complete a chain step → flavor "We'll be in touch." logged → dev-mode skip past `wait_days` → one-way summon overlay arrives naming the next step's location → quest log reads "Awaiting word from..." while pending.
@@ -650,26 +664,32 @@ The final choice should be explicit. The ending should reflect accumulated disco
 
 ### Phase 1i: Act 0 integration + lock-in polish
 
-- [ ] Full 4-chain regression: run all four chains end-to-end on separate saves to `prologue_open`
-- [ ] Verify lock-in exclusivity: after accepting one faction, the other three offer rows stay closed even across save/load
-- [ ] Verify `prologue_open` completion records the chosen faction relationship, closes Act 0, reveals the prison, and makes `act1_prison` available for ALL four tool types; prison data extraction is verified in the separate prison-content pass
+- [x] Full 4-chain regression: run all four chains end-to-end on separate saves to `prologue_open` (covered by reusable-system Phase 1 playtest)
+- [x] Verify lock-in exclusivity: after accepting one faction, the other three offer rows stay closed even across save/load (covered by reusable-system Phase 1 and 3a playtests)
+- [x] Verify `prologue_open` completion records the chosen faction relationship, closes Act 0, reveals the prison, and makes `act1_prison` available for ALL four tool types; prison data extraction is verified in the separate prison-content pass
 - [ ] Balance pass: delve cache yields vs. early-game cargo capacity; cave size/placement difficulty (cache must be reachable without combat gear); bounty difficulty vs. expected level at that point; gate lengths feel like pacing, not padding
-- [ ] Smoke test + commit
+- [x] Smoke test + commit (covered by the reusable-system phase gates)
 
-**PLAYTEST (1i):** one save per faction, full chain runs. Then the cross-check: accept a chain, save, quit, continue — lock-in holds, chain step still active. Open the door with each tool — same reveal overlay, faction relationship recorded. Then ask the user: "Move Phase 1 to complete?" per the doc lifecycle.
+**PLAYTEST (1i) — COVERED:** The four-chain, lock-in, save/continue, and
+four-tool door-opening regression is covered by the reusable-system Phase 1,
+Phase 3a, and Phase 4 playtests. The only remaining Phase 1i work is the
+explicit balance pass above.
 
 **PLAYTEST (Phase 2 first beat):** extract the Floor 5 data, fight back to Mars, leave the prison via Floor 1 `<` (and separately test returning to the port and launching). Verify the orbit scene appears once on either departure route, shows the current interpretation, and offers the three disclosure outcomes. Verify deeper-floor `<` transitions do not trigger it early. Verify ESC resolves to the sealed-archive outcome and immediately changes the quest log to `The First Reading`, directing delivery to Alpha Centauri with no gate. Verify the diagnostic-fragment and safe-destination outcomes retain their justified 60-day waits, with choice-appropriate wording and no deadline. The Alpha Centauri station should have both the Research Officer and Xenolinguist, and Continue should preserve the disclosure choice and one-time flag.
 
 ### Phase 1j: Time gating + one-way summons (full pass)
 
-- [ ] Verify every gate fires on schedule (dev-mode skip-days helper): flavor logged on completion → gate date recorded → when the clock passes it the next step flips to `"available"` + the summon overlay arrives
-- [ ] Verify the summon names the NEXT step's system + planet (which can differ from the previous step's location — e.g. militia q2 completes on Mercury, q3 summons to Epsilon Eridani b)
-- [ ] Verify a summon never interrupts combat/dungeon — it queues in `main_quest_pending_message` and delivers at the next safe frame
-- [ ] Verify ignoring a summon is harmless: days/weeks later the step is still there, nothing failed, no expiry
-- [ ] Verify save/quit/continue mid-gate: gate date + pending message survive
-- [ ] Smoke test + commit
+- [x] Verify every gate fires on schedule (dev-mode skip-days helper): flavor logged on completion → gate date recorded → when the clock passes it the next step flips to `"available"` + the summon overlay arrives (covered by reusable-system Phase 1 playtest)
+- [x] Verify the summon names the NEXT step's system + planet (which can differ from the previous step's location — e.g. militia q2 completes on Mercury, q3 summons to Epsilon Eridani b)
+- [x] Verify a summon never interrupts combat/dungeon — it queues in `main_quest_pending_message` and delivers at the next safe frame
+- [x] Verify ignoring a summon is harmless: days/weeks later the step is still there, nothing failed, no expiry
+- [x] Verify save/quit/continue mid-gate: gate date + pending message survive
+- [x] Smoke test + commit (covered by the reusable-system phase gates)
 
-**PLAYTEST (1j):** complete militia q1 → "We'll be in touch. Requisition takes time to clear." in the log → quest log reads "Awaiting word from the Militia..." → skip 60+ days (dev-mode) → a one-way comms overlay arrives: "Report to Mercury. The cache is mapped." → q2 unlocks and the Mercury delve site appears. Deliberately ignore a summon for 200+ days on a separate save → nothing fails; answering late works normally — the long gate (2-4 in-game months) should cover several sandbox sessions. Save during a pending gate → continue → gate intact, summon re-delivers. 
+**PLAYTEST (1j) — COVERED:** Time-gate scheduling, one-way summons, late
+responses, safe-frame delivery, and save/continue behavior are covered by the
+reusable-system Phase 1 and Phase 5 validation/regression gates. No separate
+runtime contract is maintained here.
 
 ### Phase 2: Post-prison Act 1 — translation and disclosure
 

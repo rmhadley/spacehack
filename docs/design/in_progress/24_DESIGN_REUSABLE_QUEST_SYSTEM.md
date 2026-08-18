@@ -465,14 +465,24 @@ passes, and the throwaway chain was removed.
 
 ### Phase 6: Guide, docs, acceptance — NEXT
 
-- [ ] Update `_GUIDE_MAIN_QUEST` if any player-facing wording changed (Phases
-      1–4 are behavior-preserving, so this should be a no-op review)
-- [ ] Update `docs/design/` reference if the module map in `main_quest/__init__.py`
-      changes (new `handlers.py` / `_scenes.py` + handler modules)
+- [x] Review `_GUIDE_MAIN_QUEST` / the current guide catalog for wording drift;
+      no player-facing wording changed in Phases 1–5, so no guide edit was
+      needed.
+- [x] Audit `docs/design/in_progress/07_DESIGN_MAIN_QUEST.md` and update it to
+      reference this reusable system as the implementation contract. Its old
+      NPC-placement, objective-type, chain lock-in, and time-gating references
+      now point to the reusable catalogs/handlers; the genuinely open balance
+      pass remains there as future tuning work.
+- [x] Update the design reference/module map for the current
+      `main_quest/handlers.py`, `_scenes.py`, and focused helper modules.
 - [ ] Full regression: all four Act-0 chains + post-prison research beat + prison
       descent, across save/load
-- [ ] `make check` green
+- [x] `make check` green
 - [ ] Ask the user: "Move this to complete?" per the doc lifecycle
+
+**Phase 6 progress:** guide review and the `07_DESIGN_MAIN_QUEST.md`
+cross-reference audit are complete. The final end-to-end regression and the
+lifecycle decision remain open.
 
 ## Acceptance criteria
 
