@@ -179,12 +179,23 @@ def test_space_target_card_quick_row_shows_selected_resource_costs():
             "pos": world.Position(0, 0),
             "ap_remaining": 4,
             "ap_total": 4,
-            "power_pool": 10,
+            "power_pool": 26,
             "gunnery": 20,
             "hull": 8,
             "max_hull": 26,
         },
-        enemy_insts=[_card_enemy()],
+        enemy_insts=[
+            EnemyInstance(
+                spec_id="pirate_scout",
+                name="Pirate Scout",
+                char="P",
+                fg=(255, 100, 100),
+                hull=4,
+                max_hull=25,
+                pos=world.Position(5, 3),
+                weapons=("light_laser",),
+            ),
+        ],
         target_idx=0,
         weapons_list=["light_laser"],
         active_weapons=[True],
@@ -198,7 +209,7 @@ def test_space_target_card_quick_row_shows_selected_resource_costs():
 
     assert card is not None
     assert card.quick_rows == (
-        (("4 AP -1/1 POW -8/26 HP", pygame_target_card.TARGET_CARD_TEXT),),
+        (("4 AP -1/26 POW -4/25 HP", pygame_target_card.TARGET_CARD_TEXT),),
     )
 
 
