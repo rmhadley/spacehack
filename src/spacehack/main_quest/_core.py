@@ -80,10 +80,16 @@ def complete_step(ctx, step_id: str) -> bool:
         return False
     _step = find_main_quest_step(step_id)
     ctx.main_quest_progress[step_id] = STATUS_COMPLETED
-    ctx.log.add(f"[MAIN QUEST] {_step.title} - complete.")
+    ctx.log.add(
+        t_get("runtime.quest_complete_log").format(title=_step.title),
+    )
     if _step.rewards_credits:
         ctx.stats.credits += _step.rewards_credits
-        ctx.log.add(f"+{_step.rewards_credits}$ reward.")
+        ctx.log.add(
+            t_get("runtime.quest_reward_log").format(
+                credits=_step.rewards_credits,
+            ),
+        )
     if _step.rewards_xp:
         from ..xp import add_xp as _add_xp
         _add_xp(ctx, _step.rewards_xp)

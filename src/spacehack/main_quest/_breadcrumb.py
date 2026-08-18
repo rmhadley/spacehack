@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 from ..data.main_quest import find_main_quest_step
+from ..text import get as t_get
 from ..data.main_quest.act1_post_prison import find_archive_disclosure
 from ._core import STATUS_ACTIVE, STATUS_AVAILABLE, _iter_known_steps, step_status
 from ._gates import _gating_step_for
 
 
-_FALLBACK_HANDOFF_OBJECTIVE = (
-    "Awaiting archive handoff...",
-    "The archive handoff is being prepared. Take the recovered archive to "
-    "the Research Officer at Alpha Centauri's Science Port for an "
-    "independent reading when the summons arrives.",
-)
+def _fallback_handoff_objective() -> tuple[str, str]:
+    """Return the overlay-backed fallback archive handoff breadcrumb."""
+    return (
+        t_get("runtime.quest_fallback_handoff_title"),
+        t_get("runtime.quest_fallback_handoff_body"),
+    )
 
 
 def _sealed_archive_objective(ctx) -> tuple[str, str] | None:
@@ -23,9 +24,8 @@ def _sealed_archive_objective(ctx) -> tuple[str, str] | None:
         and step_status(ctx, "research_alpha") in (STATUS_AVAILABLE, STATUS_ACTIVE)
     ):
         return (
-            "Deliver the sealed archive",
-            "Take the intact recovered archive to the Research Officer at Alpha "
-            "Centauri's Science Port for its first independent reading.",
+            t_get("runtime.quest_sealed_archive_title"),
+            t_get("runtime.quest_sealed_archive_body"),
         )
     return None
 
@@ -41,10 +41,8 @@ def _active_step_objective(ctx) -> tuple[str, str] | None:
 def _research_report_objective() -> tuple[str, str]:
     """Return the breadcrumb shown while the first translation is processing."""
     return (
-        "Awaiting the first translation...",
-        "The Alpha Centauri processing cluster is separating and translating "
-        "the alien archive's layers. Return to the Research Officer when the "
-        "first report is ready; the work has no deadline.",
+        t_get("runtime.quest_first_translation_title"),
+        t_get("runtime.quest_first_translation_body"),
     )
 
 
@@ -53,9 +51,9 @@ def _research_handoff_objective(ctx) -> tuple[str, str]:
     try:
         _disclosure = find_archive_disclosure(ctx.main_quest_disclosure)
     except KeyError:
-        return _FALLBACK_HANDOFF_OBJECTIVE
+        return _fallback_handoff_objective()
     if not _disclosure.waiting_title or not _disclosure.waiting_description:
-        return _FALLBACK_HANDOFF_OBJECTIVE
+        return _fallback_handoff_objective()
     return (_disclosure.waiting_title, _disclosure.waiting_description)
 
 
@@ -77,9 +75,12 @@ def _gated_objective(ctx) -> tuple[str, str] | None:
     _description = (
         _gating.completion_flavor
         if _gating is not None and _gating.completion_flavor
-        else "The faction will contact you when they're ready."
+        else t_get("runtime.quest_gated_fallback")
     )
-    return (f"Awaiting word from the {_fac.capitalize()}...", _description)
+    return (
+        t_get("runtime.quest_gated_title").format(faction=_fac.capitalize()),
+        _description,
+    )
 
 
 def _departure_objective(ctx) -> tuple[str, str] | None:
@@ -90,9 +91,8 @@ def _departure_objective(ctx) -> tuple[str, str] | None:
         and not getattr(ctx, "main_quest_complete", False)
     ):
         return (
-            "Leave Mars",
-            "Return to your ship and launch from Mars. The recovered archive "
-            "is waiting for its first reading.",
+            t_get("runtime.quest_departure_title"),
+            t_get("runtime.quest_departure_body"),
         )
     return None
 

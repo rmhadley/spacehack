@@ -418,7 +418,7 @@ def start_prison_objective(ctx) -> None:
     if step_status(ctx, "act1_prison") == STATUS_AVAILABLE:
         start_step(ctx, "act1_prison")
         ctx.log.add_colored(
-            "[MAIN QUEST] Act 1: The Prison Below - descend the facility.",
+            t_get("runtime.quest_prison_start_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
 

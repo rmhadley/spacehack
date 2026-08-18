@@ -12,6 +12,7 @@ from . import ship as ship_module
 from . import solar_system as solar_system_module
 from . import tutorial as tutorial_module
 from . import world
+from .text import get as t_get
 from .city import _build_space_return, _launch_to_space
 from .combat import _rules_ground
 from .combat._loop import run_combat as _run_combat_unified
@@ -584,7 +585,7 @@ def _dungeon_exit_log(ctx, exited_map, log) -> None:
     if _is_wreck_interior(exited_map):
         log.add("You exit through the hull breach and return to your ship.")
     elif _is_mars_facility_map(ctx, exited_map):
-        log.add("You leave the prison complex and return to Mars orbit.")
+        log.add(t_get("runtime.prison.leave_orbit_log"))
     else:
         log.add("You return to your ship.")
 

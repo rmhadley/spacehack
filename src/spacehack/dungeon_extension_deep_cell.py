@@ -2,17 +2,38 @@
 
 from __future__ import annotations
 
-
 from . import landmark, world
+from .text import get as _t_get
 
 
-_INACTIVE_TERMINAL_FLAVORS: tuple[str, ...] = (
-    "The terminal is dark. Its screen shows nothing.",
-    "The terminal is cold to the touch. Long dead.",
-    "The terminal's surface is cracked, its power long gone.",
-    "The terminal flickers once, then goes dark.",
-    "A dead terminal. Whatever powered these, it has been silent for ages.",
+_INACTIVE_TERMINAL_FLAVOR_KEYS: tuple[str, ...] = tuple(
+    f"runtime.prison.dead_terminal_flavor_{_index}"
+    for _index in range(1, 6)
 )
+
+
+def _terminal_entity(position: world.Position, flavor_index: int) -> world.Entity:
+    """Build one dead terminal with overlay-backed flavor."""
+    _flavor_key = _INACTIVE_TERMINAL_FLAVOR_KEYS[
+        flavor_index % len(_INACTIVE_TERMINAL_FLAVOR_KEYS)
+    ]
+    return world.Entity(
+        char="=",
+        fg=(90, 110, 135),
+        pos=position,
+        name=_t_get("runtime.prison.dead_terminal_name"),
+        interaction_flavor=_t_get(_flavor_key),
+    )
+
+
+def _terminal_cell_ok(game_map, x: int, y: int, occupied, stair_cells) -> bool:
+    """Return whether a cell can receive a dead terminal."""
+    return (
+        (x, y) not in occupied
+        and (x, y) not in stair_cells
+        and game_map.is_walkable(x, y)
+        and game_map.tiles[y][x].kind not in {"claw_scar", "landmark_entrance"}
+    )
 
 
 def stamp_dead_terminals(
@@ -23,12 +44,12 @@ def stamp_dead_terminals(
 ) -> None:
     """Scatter static, unpowered terminals across a cell's walkable floor."""
     _stair_cells = {
-        (_position.x, _position.y)
-        for _position in (
+        (position.x, position.y)
+        for position in (
             getattr(game_map, "up_stair_pos", None),
             getattr(game_map, "down_stair_pos", None),
         )
-        if _position is not None
+        if position is not None
     }
     _occupied = {(entity.pos.x, entity.pos.y) for entity in game_map.entities}
     _flavor_index = len(game_map.entities)
@@ -36,70 +57,36 @@ def stamp_dead_terminals(
     for _x, _y in cells:
         if _placed >= count:
             break
-        if (_x, _y) in _occupied or (_x, _y) in _stair_cells:
+        if not _terminal_cell_ok(game_map, _x, _y, _occupied, _stair_cells):
             continue
-        if (
-            not game_map.is_walkable(_x, _y)
-            or game_map.tiles[_y][_x].kind in {"claw_scar", "landmark_entrance"}
-        ):
-            continue
+        _position = world.Position(_x, _y)
         _occupied.add((_x, _y))
-        game_map.entities.append(world.Entity(
-            char="=",
-            fg=(90, 110, 135),
-            pos=world.Position(_x, _y),
-            name="Dead Terminal",
-            interaction_flavor=_INACTIVE_TERMINAL_FLAVORS[
-                _flavor_index % len(_INACTIVE_TERMINAL_FLAVORS)
-            ],
-        ))
+        game_map.entities.append(_terminal_entity(_position, _flavor_index))
         _flavor_index += 1
         _placed += 1
 
 
-def stamp_deep_cell(
-    game_map: world.GameMap,
-    origin: world.Position,
-    *,
-    landmark_variants,
-) -> None:
-    """Dress a deep cell: torn doors, dead terminals, and alien flooring.
-
-    The live data terminal is stamped separately through the interaction
-    anchor pass; this helper supplies only the atmosphere — torn-out door
-    frames along the walls and scattered unpowered terminals as static
-    flavor entities.
-
-    Landmark selection is supplied by the floor data so this module stays a
-    thin, reusable content helper.
-    """
-    from .engine import RNG
-
-    _layout_id = landmark.choose_weighted_variant(
-        landmark_variants,
-        RNG.random(),
-    )
-    _asset = landmark.load_landmark(_layout_id)
-    # The procedural spawn is only a temporary placement anchor. The
-    # authored arrival marker becomes the real elevator landing, so remove
-    # the temporary stair before stamping to avoid duplicate up-connections.
+def _prepare_landmark(game_map, origin, asset):
+    """Stamp the authored landmark and preserve its arrival metadata."""
     if game_map.in_bounds(origin.x, origin.y):
         game_map.tiles[origin.y][origin.x] = world.DUNGEON_FLOOR
-    _stamp = landmark.stamp_landmark(game_map, _asset, origin)
+    _stamp = landmark.stamp_landmark(game_map, asset, origin)
     game_map.landmark_footprint = set(_stamp.footprint)
-    # The authored landmark owns the elevator arrival. Reassert the
-    # connection after stamping so a bridge footprint can never hide it.
     if _stamp.arrival is not None:
         game_map.tiles[_stamp.arrival.y][_stamp.arrival.x] = world.STAIRS_UP
-    game_map.landmark_variant_id = _layout_id
     game_map.landmark_interaction_cells = [
-        _entity.pos for _entity in game_map.entities
-        if _entity.name == "Landmark Terminal"
+        entity.pos for entity in game_map.entities
+        if entity.name == "Landmark Terminal"
     ]
     if _stamp.arrival is not None:
         game_map.entry_spawn = _stamp.arrival
         game_map.up_stair_pos = _stamp.arrival
-    for _x, _y in _stamp.footprint:
+    return _stamp
+
+
+def _paint_deep_cell_floor(game_map, footprint) -> None:
+    """Convert ordinary footprint floor tiles to deep-cell flooring."""
+    for _x, _y in footprint:
         _tile = game_map.tiles[_y][_x]
         if _tile.kind == "dungeon_floor":
             game_map.tiles[_y][_x] = world.Tile(
@@ -111,6 +98,22 @@ def stamp_deep_cell(
                 bg_override=_tile.bg_override,
                 blocked_message=_tile.blocked_message,
             )
+
+
+def stamp_deep_cell(
+    game_map: world.GameMap,
+    origin: world.Position,
+    *,
+    landmark_variants,
+) -> None:
+    """Dress a deep cell with an authored landmark and static terminals."""
+    from .engine import RNG
+
+    _layout_id = landmark.choose_weighted_variant(landmark_variants, RNG.random())
+    _asset = landmark.load_landmark(_layout_id)
+    _stamp = _prepare_landmark(game_map, origin, _asset)
+    game_map.landmark_variant_id = _layout_id
+    _paint_deep_cell_floor(game_map, _stamp.footprint)
     stamp_dead_terminals(
         game_map,
         sorted(_stamp.footprint, key=lambda _cell: (_cell[1], _cell[0])),

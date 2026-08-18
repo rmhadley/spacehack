@@ -106,6 +106,175 @@ RUNTIME: dict[str, str] = {
         "door - they were watching the dig site, waiting for "
         "someone to come back for the sample. They want it."
     ),
+    # --- Quest breadcrumbs + lifecycle logs ---
+    "runtime.quest_gated_title": "Awaiting word from the {faction}...",
+    "runtime.quest_gated_fallback": (
+        "The faction will contact you when they're ready."
+    ),
+    "runtime.quest_departure_title": "Leave Mars",
+    "runtime.quest_departure_body": (
+        "Return to your ship and launch from Mars. The recovered archive "
+        "is waiting for its first reading."
+    ),
+    "runtime.quest_sealed_archive_title": "Deliver the sealed archive",
+    "runtime.quest_sealed_archive_body": (
+        "Take the intact recovered archive to the Research Officer at Alpha "
+        "Centauri's Science Port for its first independent reading."
+    ),
+    "runtime.quest_first_translation_title": "Awaiting the first translation...",
+    "runtime.quest_first_translation_body": (
+        "The Alpha Centauri processing cluster is separating and translating "
+        "the alien archive's layers. Return to the Research Officer when the "
+        "first report is ready; the work has no deadline."
+    ),
+    "runtime.quest_fallback_handoff_title": "Awaiting archive handoff...",
+    "runtime.quest_fallback_handoff_body": (
+        "The archive handoff is being prepared. Take the recovered archive to "
+        "the Research Officer at Alpha Centauri's Science Port for an "
+        "independent reading when the summons arrives."
+    ),
+    "runtime.quest_complete_log": "[MAIN QUEST] {title} - complete.",
+    "runtime.quest_reward_log": "+{credits}$ reward.",
+    "runtime.quest_prison_start_log": (
+        "[MAIN QUEST] Act 1: The Prison Below - descend the facility."
+    ),
+    # --- Mars prison arc ---
+    "runtime.prison.facility_faction": "ALIEN FACILITY",
+    "runtime.prison.security_faction": "ALIEN SECURITY",
+    "runtime.prison.floor1_name": "Alien Prison F1",
+    "runtime.prison.floor2_name": "Alien Prison F2",
+    "runtime.prison.floor3_name": "Alien Prison F3",
+    "runtime.prison.floor4_name": "Alien Prison F4",
+    "runtime.prison.floor5_name": "Alien Prison F5",
+    "runtime.prison.entry_f1_title": "THE PRISON BELOW",
+    "runtime.prison.entry_f1_message": (
+        "The stairs descend into a facility built beneath Mars. "
+        "The walls are seamless, the air is still, and every "
+        "surface suggests a technology humanity never reached. "
+        "There are no voices. No prisoners. Only dormant systems "
+        "waiting in the dark."
+    ),
+    "runtime.prison.entry_f5_title": "THE DEEP CELL",
+    "runtime.prison.entry_f5_message": (
+        "The elevator opens onto a chamber so vast it swallows "
+        "the light. A prison cell built for something enormous - "
+        "and the doors that once held it have been torn from "
+        "their frames. Terminals dot the floor, dark and silent. "
+        "Somewhere in the dark, one of them still answers."
+    ),
+    "runtime.prison.event.prison_ascent_f1_sentries.title": "SURFACE SECURITY AWAKENS",
+    "runtime.prison.event.prison_ascent_f1_sentries.message": (
+        "The upper staging floor is no longer dormant. Sentry drones "
+        "drop from ceiling rails and cut off the last quiet route "
+        "to the Mars surface."
+    ),
+    "runtime.prison.event.prison_ascent_f1_final_lockdown.title": "TOTAL FACILITY LOCKDOWN",
+    "runtime.prison.event.prison_ascent_f1_final_lockdown.message": (
+        "Warning glyphs ignite across the walls. Three assault frames "
+        "advance through the intake halls - the prison's final "
+        "response before it lets you see the sky again."
+    ),
+    "runtime.prison.event.prison_floor1_security_alpha.title": "SECURITY POWER RISING",
+    "runtime.prison.event.prison_floor1_security_alpha.message": (
+        "A buried current ripples through the facility. Panels brighten "
+        "in the distance, then a dormant security frame unfolds with a "
+        "sound like breaking ice. Something is bringing this place back online."
+    ),
+    "runtime.prison.event.prison_floor1_security_beta.title": "DEEPER SYSTEMS AWAKEN",
+    "runtime.prison.event.prison_floor1_security_beta.message": (
+        "The prison's deeper security lattice answers the first signal. "
+        "Heavy footsteps echo through the corridors. Whatever is waking "
+        "below is more prepared than the surface systems."
+    ),
+    "runtime.prison.event.prison_ascent_f2_assault.title": "QUARTERS LOCKDOWN",
+    "runtime.prison.event.prison_ascent_f2_assault.message": (
+        "The prisoner quarters seal in sequence. Two heavy frames force "
+        "their way through the cell blocks as the dormant security grid "
+        "learns your route."
+    ),
+    "runtime.prison.event.prison_ascent_f2_sentries.title": "CELL BLOCK PURSUIT",
+    "runtime.prison.event.prison_ascent_f2_sentries.message": (
+        "The cell doors flash awake behind you. Sentry drones pour from "
+        "the observation posts, driving you toward the upper stairs."
+    ),
+    "runtime.prison.event.prison_ascent_f3_sentries.title": "DEFENSIVE LATTICE ONLINE",
+    "runtime.prison.event.prison_ascent_f3_sentries.message": (
+        "The defensive layer wakes in sections. Two sentry drones slide "
+        "from the walls and triangulate your position. Every corridor is "
+        "becoming a firing lane."
+    ),
+    "runtime.prison.event.prison_ascent_f3_heavy.title": "DEFENSES ESCALATE",
+    "runtime.prison.event.prison_ascent_f3_heavy.message": (
+        "The sentries' signal summons something heavier. An assault drone "
+        "unfolds in the corridor ahead, sealing the climb with bronze armor "
+        "and cutting limbs."
+    ),
+    "runtime.prison.event.prison_ascent_f4_lockdown.title": "HIGH-RISK LOCKDOWN",
+    "runtime.prison.event.prison_ascent_f4_lockdown.message": (
+        "The high-risk cells unlock behind you. A heavy security frame tears "
+        "itself from a charging cradle and blocks the route upward. The prison "
+        "is hunting you now."
+    ),
+    "runtime.prison.engineering_name": "Engineering Console",
+    "runtime.prison.engineering_popup_title": "ENGINEERING POWER RESTORED",
+    "runtime.prison.engineering_popup_message": (
+        "A buried engineering lattice surges awake. Power flows through the "
+        "high-risk quarters, and the deep elevator unlocks below."
+    ),
+    "runtime.prison.elevator_name": "Deep Elevator",
+    "runtime.prison.data_terminal_name": "Data Terminal",
+    "runtime.prison.data_popup_title": "DATA STREAM",
+    "runtime.prison.data_popup_message": (
+        "The terminal floods the cell with light. A torrent of data pours out "
+        "- coordinates, schematics, structures built for something far larger "
+        "than a human frame. None of it decodes. The data is alien beyond any "
+        "human language or logic, but the sheer volume is proof enough: something "
+        "was here, and it escaped. Then the dark panels flare white. Emergency "
+        "power surges through the facility. The prison is fully awake. The route "
+        "back to Mars will not be quiet."
+    ),
+    "runtime.prison.security_spawned_log": (
+        "Security systems online: {count} hostile unit(s) activated."
+    ),
+    "runtime.prison.security_no_deploy_log": (
+        "Security systems online; no deployable unit detected."
+    ),
+    "runtime.prison.interface_unresponsive": (
+        "The alien interface is unresponsive."
+    ),
+    "runtime.prison.interaction_already_active": "{name} is already active.",
+    "runtime.prison.interaction_offline": (
+        "{name} is inert. Required systems are offline."
+    ),
+    "runtime.prison.elevator_refuses": "The elevator refuses to move.",
+    "runtime.prison.elevator_descends": (
+        "{name} descends into the next secured floor."
+    ),
+    "runtime.prison.interaction_activated": (
+        "{name} activated. The gated system is online."
+    ),
+    "runtime.prison.data_extracted": (
+        "{name}: data extracted. Incomprehensible."
+    ),
+    "runtime.prison.dead_terminal_name": "Dead Terminal",
+    "runtime.prison.dead_terminal_flavor_1": (
+        "The terminal is dark. Its screen shows nothing."
+    ),
+    "runtime.prison.dead_terminal_flavor_2": (
+        "The terminal is cold to the touch. Long dead."
+    ),
+    "runtime.prison.dead_terminal_flavor_3": (
+        "The terminal's surface is cracked, its power long gone."
+    ),
+    "runtime.prison.dead_terminal_flavor_4": (
+        "The terminal flickers once, then goes dark."
+    ),
+    "runtime.prison.dead_terminal_flavor_5": (
+        "A dead terminal. Whatever powered these, it has been silent for ages."
+    ),
+    "runtime.prison.leave_orbit_log": (
+        "You leave the prison complex and return to Mars orbit."
+    ),
     # --- Summon + gate popup chrome ---
     "runtime.summon_title": "INCOMING MESSAGE",
     "runtime.gate_popup_default_title": "THE WORK BEGINS",

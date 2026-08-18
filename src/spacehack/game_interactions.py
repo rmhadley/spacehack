@@ -16,6 +16,7 @@ from .menus import ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome, MissionOut
 from .navigation import JumpMenuOutcome, _pick_bounty_spawn_pos, _run_cargo_scan, _run_jump_menu, _animate_jump, _jump_to_system
 from .city import _animate_ship_to_y
 from .time import add_days_to_date
+from .text import get as t_get
 from .npc import TalkOutcome, _run_npc_talk
 from .game_flow import _adopt_dungeon_transition, _apply_ship_buy_result, _first_walkable, _launch_owned_ship, _prep_cached_dungeon, _run_pygame_dungeon_confirm
 
@@ -287,39 +288,81 @@ def _resolve_terminal_blocker(state, blocker):
         return _resolve_computer_terminal(state, blocker)
     return None
 
+def _log_extension_activation(state, interaction) -> None:
+    """Present and log an activated dungeon interaction."""
+    from .main_quest import show_gate_popup
+
+    show_gate_popup(
+        state.ctx,
+        interaction.faction_label,
+        interaction.popup_message,
+        title=interaction.popup_title,
+    )
+    _key = (
+        "runtime.prison.data_extracted"
+        if interaction.objective_type
+        else "runtime.prison.interaction_activated"
+    )
+    state.log.add_colored(
+        t_get(_key).format(name=interaction.name),
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+
+
+def _resolve_extension_activation(state, blocker, interaction) -> None:
+    """Handle activation-state interaction feedback."""
+    from .dungeon_extensions import activate_interaction_state
+
+    if activate_interaction_state(state.ctx, blocker.dungeon_interaction):
+        _log_extension_activation(state, interaction)
+    else:
+        state.log.add(
+            t_get("runtime.prison.interaction_already_active").format(
+                name=interaction.name,
+            ),
+        )
+
+
+def _resolve_extension_transition(state, blocker, interaction) -> None:
+    """Handle a gated floor transition and its feedback."""
+    from .dungeon_extensions import interaction_is_available, transition_floor
+
+    if not interaction_is_available(state.ctx, blocker.dungeon_interaction):
+        state.log.add(
+            t_get("runtime.prison.interaction_offline").format(
+                name=interaction.name,
+            ),
+        )
+        return
+    try:
+        _next_map, _next_player = transition_floor(
+            state.ctx,
+            interaction.destination_floor - state.ctx.dungeon_extension.current_floor,
+        )
+    except ValueError:
+        state.log.add(t_get("runtime.prison.elevator_refuses"))
+        return
+    state.game_map = _next_map
+    state.player = _next_player
+    _adopt_dungeon_transition(state.ctx, state.game_map, state.player)
+    state.current_mode = 'dungeon'
+    state.log.add(
+        t_get("runtime.prison.elevator_descends").format(name=interaction.name),
+    )
+
+
 def _resolve_dungeon_interaction(state, blocker):
     """Resolve a dungeon extension interaction."""
-    ctx = state.ctx
-    log = state.log
-    from .dungeon_extensions import activate_interaction_state, interaction_is_available, interaction_spec_at, transition_floor
-    _interaction = interaction_spec_at(ctx, blocker.dungeon_interaction)
+    from .dungeon_extensions import interaction_spec_at
+
+    _interaction = interaction_spec_at(state.ctx, blocker.dungeon_interaction)
     if _interaction is None:
-        log.add('The alien interface is unresponsive.')
+        state.log.add(t_get("runtime.prison.interface_unresponsive"))
         return 'CONTINUE'
     if _interaction.action == 'activate_state':
-        if activate_interaction_state(ctx, blocker.dungeon_interaction):
-            from .main_quest import show_gate_popup
-            show_gate_popup(ctx, _interaction.faction_label, _interaction.popup_message, title=_interaction.popup_title)
-            if _interaction.objective_type:
-                log.add_colored(f'{_interaction.name}: data extracted. Incomprehensible.', message_log.COLOR_IMPORTANT_EVENT)
-            else:
-                log.add_colored(f'{_interaction.name} activated. The gated system is online.', message_log.COLOR_IMPORTANT_EVENT)
-        else:
-            log.add(f'{_interaction.name} is already active.')
+        _resolve_extension_activation(state, blocker, _interaction)
     elif _interaction.action == 'transition_floor':
-        if not interaction_is_available(ctx, blocker.dungeon_interaction):
-            log.add(f'{_interaction.name} is inert. Required systems are offline.')
-        else:
-            try:
-                _next_map, _next_player = transition_floor(ctx, _interaction.destination_floor - ctx.dungeon_extension.current_floor)
-            except ValueError:
-                log.add('The elevator refuses to move.')
-            else:
-                state.game_map = _next_map
-                state.player = _next_player
-                _adopt_dungeon_transition(ctx, state.game_map, state.player)
-                state.current_mode = 'dungeon'
-                log.add(f'{_interaction.name} descends into the next secured floor.')
+        _resolve_extension_transition(state, blocker, _interaction)
     return 'CONTINUE'
 
 def _resolve_computer_terminal(state, blocker):

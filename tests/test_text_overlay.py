@@ -64,6 +64,8 @@ def overlay_dir(tmp_path, monkeypatch):
                 "npc.barkeep.flavor_text": "Overridden flavor.",
                 "good.reference_recorder.name": "Overridden Recorder",
                 "runtime.transmission_title": "STATIC BURST",
+                "runtime.prison.entry_f1_title": "OVERRIDDEN PRISON ENTRY",
+                "runtime.prison.floor1_name": "Overridden Prison Floor",
                 "disclosure.diagnostic_fragment.label": "Override label",
                 "step.lab_q2_delivery.completion_flavor": "Overridden flavor line.",
                 "step.lab_q2_delivery.ready_message": "Overridden summon.",
@@ -127,6 +129,21 @@ def test_runtime_get_falls_back_to_shipped_default(overlay_dir):
 
 def test_runtime_get_falls_back_to_literal_default(overlay_dir):
     assert text_module.get("runtime.no_such_key", "fallback") == "fallback"
+
+
+def test_prison_data_resolves_overlay_text(overlay_dir):
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    _floor = find_extension("mars_alien_prison").floor(1)
+    assert _floor.location_name == "Overridden Prison Floor"
+    assert _floor.entry_flavor.title == "OVERRIDDEN PRISON ENTRY"
+    assert _floor.entry_flavor.message
+    _event = _floor.activation_events[0]
+    assert _event.faction_label == "ALIEN SECURITY"
+    assert _event.title
+    _engineering = find_extension("mars_alien_prison").floor(4).interactions[0]
+    assert _engineering.name == "Engineering Console"
+    assert _engineering.popup_title == "ENGINEERING POWER RESTORED"
 
 
 def test_overlay_overrides_completion_flavor_and_ready_message(overlay_dir):

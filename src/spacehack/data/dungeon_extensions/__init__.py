@@ -10,20 +10,33 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ... import dungeon
+from ...text import get as _t_get
 
 
 @dataclass(frozen=True)
 class EntryFlavor:
-    """One-time narrative popup shown on first entry to a floor."""
+    """One-time narrative popup whose prose is authored in the overlay."""
 
-    faction_label: str
-    title: str
-    message: str
+    faction_label_key: str
+    title_key: str
+    message_key: str
+
+    @property
+    def faction_label(self) -> str:
+        return _t_get(self.faction_label_key)
+
+    @property
+    def title(self) -> str:
+        return _t_get(self.title_key)
+
+    @property
+    def message(self) -> str:
+        return _t_get(self.message_key)
 
 
 @dataclass(frozen=True)
 class ActivationEvent:
-    """One exploration-triggered dormant encounter."""
+    """One exploration-triggered encounter with overlay-backed prose."""
 
     id: str
     distance_fraction: float
@@ -31,9 +44,9 @@ class ActivationEvent:
     enemy_id: str
     count: int
     max_count: int
-    faction_label: str
-    title: str
-    message: str
+    faction_label_key: str
+    title_key: str
+    message_key: str
     # Optional state gate for late-phase events (for example, the escape
     # response after the Floor 5 data extraction).
     required_state: str = ""
@@ -42,6 +55,26 @@ class ActivationEvent:
     route_direction: str = "down"
     # Optional state that suppresses an event after a phase change.
     blocked_state: str = ""
+
+    @property
+    def faction_label(self) -> str:
+        return _t_get(self.faction_label_key)
+
+    @property
+    def title(self) -> str:
+        return _t_get(self.title_key)
+
+    @property
+    def message(self) -> str:
+        return _t_get(self.message_key)
+
+    @property
+    def spawned_log(self) -> str:
+        return _t_get("runtime.prison.security_spawned_log")
+
+    @property
+    def no_deploy_log(self) -> str:
+        return _t_get("runtime.prison.security_no_deploy_log")
 
 
 @dataclass(frozen=True)
@@ -54,19 +87,35 @@ class LandmarkVariant:
 
 @dataclass(frozen=True)
 class DungeonInteractionSpec:
-    """A data-defined interaction stamped into an extension floor."""
+    """A data-defined interaction with overlay-backed player-facing text."""
 
     id: str
     char: str
-    name: str
+    name_key: str
     action: str = "activate_state"
     state_key: str = ""
     required_state: str = ""
     destination_floor: int = 0
-    faction_label: str = "ALIEN FACILITY"
-    popup_title: str = "SYSTEM UPDATE"
-    popup_message: str = "A dormant system responds."
+    faction_label_key: str = "runtime.prison.facility_faction"
+    popup_title_key: str = "runtime.gate_popup_default_title"
+    popup_message_key: str = "runtime.prison.interaction_activated"
     feature_theme: str = ""
+
+    @property
+    def name(self) -> str:
+        return _t_get(self.name_key)
+
+    @property
+    def faction_label(self) -> str:
+        return _t_get(self.faction_label_key)
+
+    @property
+    def popup_title(self) -> str:
+        return _t_get(self.popup_title_key)
+
+    @property
+    def popup_message(self) -> str:
+        return _t_get(self.popup_message_key).format(name=self.name)
     # When set, activating this interaction also completes the live
     # main-quest step with this objective type (generic — the runtime
     # never hardcodes a step id).
@@ -78,7 +127,7 @@ class ExtensionFloorSpec:
     """Procedural generation and activation data for one extension floor."""
 
     floor: int
-    location_name: str
+    location_name_key: str
     params: dungeon.DungeonParams
     has_down_stairs: bool = False
     feature_theme: str = ""
@@ -86,6 +135,10 @@ class ExtensionFloorSpec:
     entry_flavor: EntryFlavor | None = None
     activation_events: tuple[ActivationEvent, ...] = ()
     interactions: tuple[DungeonInteractionSpec, ...] = ()
+
+    @property
+    def location_name(self) -> str:
+        return _t_get(self.location_name_key)
 
 
 @dataclass(frozen=True)
@@ -108,18 +161,12 @@ _ALIEN_PRISON = DungeonExtensionSpec(
     floors=(
         ExtensionFloorSpec(
             floor=1,
-            location_name="Alien Prison F1",
+            location_name_key="runtime.prison.floor1_name",
             # The entry narration is data-driven and shown once per run.
             entry_flavor=EntryFlavor(
-                faction_label="ALIEN FACILITY",
-                title="THE PRISON BELOW",
-                message=(
-                    "The stairs descend into a facility built beneath Mars. "
-                    "The walls are seamless, the air is still, and every "
-                    "surface suggests a technology humanity never reached. "
-                    "There are no voices. No prisoners. Only dormant systems "
-                    "waiting in the dark."
-                ),
+                faction_label_key="runtime.prison.facility_faction",
+                title_key="runtime.prison.entry_f1_title",
+                message_key="runtime.prison.entry_f1_message",
             ),
             has_down_stairs=True,
             params=dungeon.DungeonParams(
@@ -138,13 +185,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="sentry_drone",
                     count=2,
                     max_count=2,
-                    faction_label="ALIEN SECURITY",
-                    title="SURFACE SECURITY AWAKENS",
-                    message=(
-                        "The upper staging floor is no longer dormant. Sentry drones "
-                        "drop from ceiling rails and cut off the last quiet route "
-                        "to the Mars surface."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f1_sentries.title",
+                    message_key="runtime.prison.event.prison_ascent_f1_sentries.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -155,13 +198,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="assault_drone",
                     count=3,
                     max_count=3,
-                    faction_label="ALIEN SECURITY",
-                    title="TOTAL FACILITY LOCKDOWN",
-                    message=(
-                        "Warning glyphs ignite across the walls. Three assault frames "
-                        "advance through the intake halls - the prison's final "
-                        "response before it lets you see the sky again."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f1_final_lockdown.title",
+                    message_key="runtime.prison.event.prison_ascent_f1_final_lockdown.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -172,14 +211,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="sentry_drone",
                     count=1,
                     max_count=1,
-                    faction_label="ALIEN SECURITY",
-                    title="SECURITY POWER RISING",
-                    message=(
-                        "A buried current ripples through the facility. "
-                        "Panels brighten in the distance, then a dormant "
-                        "security frame unfolds with a sound like breaking ice. "
-                        "Something is bringing this place back online."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_floor1_security_alpha.title",
+                    message_key="runtime.prison.event.prison_floor1_security_alpha.message",
                     blocked_state="prison_data_extracted",
                 ),
                 ActivationEvent(
@@ -189,21 +223,16 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="assault_drone",
                     count=1,
                     max_count=1,
-                    faction_label="ALIEN SECURITY",
-                    title="DEEPER SYSTEMS AWAKEN",
-                    message=(
-                        "The prison's deeper security lattice answers the first "
-                        "signal. Heavy footsteps echo through the corridors. "
-                        "Whatever is waking below is more prepared than the "
-                        "surface systems."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_floor1_security_beta.title",
+                    message_key="runtime.prison.event.prison_floor1_security_beta.message",
                     blocked_state="prison_data_extracted",
                 ),
             ),
         ),
         ExtensionFloorSpec(
             floor=2,
-            location_name="Alien Prison F2",
+            location_name_key="runtime.prison.floor2_name",
             has_down_stairs=True,
             feature_theme="prisoner_quarters",
             activation_events=(
@@ -214,13 +243,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="assault_drone",
                     count=2,
                     max_count=2,
-                    faction_label="ALIEN SECURITY",
-                    title="QUARTERS LOCKDOWN",
-                    message=(
-                        "The prisoner quarters seal in sequence. Two heavy frames "
-                        "force their way through the cell blocks as the dormant "
-                        "security grid learns your route."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f2_assault.title",
+                    message_key="runtime.prison.event.prison_ascent_f2_assault.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -231,13 +256,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="sentry_drone",
                     count=2,
                     max_count=2,
-                    faction_label="ALIEN SECURITY",
-                    title="CELL BLOCK PURSUIT",
-                    message=(
-                        "The cell doors flash awake behind you. Sentry drones pour "
-                        "from the observation posts, driving you toward the upper "
-                        "stairs."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f2_sentries.title",
+                    message_key="runtime.prison.event.prison_ascent_f2_sentries.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -255,7 +276,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ),
         ExtensionFloorSpec(
             floor=3,
-            location_name="Alien Prison F3",
+            location_name_key="runtime.prison.floor3_name",
             has_down_stairs=True,
             feature_theme="defensive_layer",
             activation_events=(
@@ -266,13 +287,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="sentry_drone",
                     count=2,
                     max_count=2,
-                    faction_label="ALIEN SECURITY",
-                    title="DEFENSIVE LATTICE ONLINE",
-                    message=(
-                        "The defensive layer wakes in sections. Two sentry drones "
-                        "slide from the walls and triangulate your position. "
-                        "Every corridor is becoming a firing lane."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f3_sentries.title",
+                    message_key="runtime.prison.event.prison_ascent_f3_sentries.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -283,13 +300,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="assault_drone",
                     count=1,
                     max_count=1,
-                    faction_label="ALIEN SECURITY",
-                    title="DEFENSES ESCALATE",
-                    message=(
-                        "The sentries' signal summons something heavier. An assault "
-                        "drone unfolds in the corridor ahead, sealing the climb "
-                        "with bronze armor and cutting limbs."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f3_heavy.title",
+                    message_key="runtime.prison.event.prison_ascent_f3_heavy.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -307,7 +320,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ),
         ExtensionFloorSpec(
             floor=4,
-            location_name="Alien Prison F4",
+            location_name_key="runtime.prison.floor4_name",
             has_down_stairs=True,
             feature_theme="high_risk_quarters",
             activation_events=(
@@ -318,13 +331,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     enemy_id="assault_drone",
                     count=1,
                     max_count=1,
-                    faction_label="ALIEN SECURITY",
-                    title="HIGH-RISK LOCKDOWN",
-                    message=(
-                        "The high-risk cells unlock behind you. A heavy security "
-                        "frame tears itself from a charging cradle and blocks "
-                        "the route upward. The prison is hunting you now."
-                    ),
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f4_lockdown.title",
+                    message_key="runtime.prison.event.prison_ascent_f4_lockdown.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
                 ),
@@ -333,21 +342,17 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 DungeonInteractionSpec(
                     id="engineering_console",
                     char="C",
-                    name="Engineering Console",
+                    name_key="runtime.prison.engineering_name",
                     action="activate_state",
                     state_key="engineering_power",
-                    popup_title="ENGINEERING POWER RESTORED",
-                    popup_message=(
-                        "A buried engineering lattice surges awake. Power flows "
-                        "through the high-risk quarters, and the deep elevator "
-                        "unlocks below."
-                    ),
+                    popup_title_key="runtime.prison.engineering_popup_title",
+                    popup_message_key="runtime.prison.engineering_popup_message",
                     feature_theme="engineering_room",
                 ),
                 DungeonInteractionSpec(
                     id="deep_elevator",
                     char="E",
-                    name="Deep Elevator",
+                    name_key="runtime.prison.elevator_name",
                     action="transition_floor",
                     required_state="engineering_power",
                     destination_floor=5,
@@ -366,43 +371,27 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ),
         ExtensionFloorSpec(
             floor=5,
-            location_name="Alien Prison F5",
+            location_name_key="runtime.prison.floor5_name",
             feature_theme="deep_cell",
             landmark_variants=(
                 LandmarkVariant("alien_prison_deep_cell", 100.0),
             ),
             entry_flavor=EntryFlavor(
-                faction_label="ALIEN FACILITY",
-                title="THE DEEP CELL",
-                message=(
-                    "The elevator opens onto a chamber so vast it swallows "
-                    "the light. A prison cell built for something enormous - "
-                    "and the doors that once held it have been torn from "
-                    "their frames. Terminals dot the floor, dark and silent. "
-                    "Somewhere in the dark, one of them still answers."
-                ),
+                faction_label_key="runtime.prison.facility_faction",
+                title_key="runtime.prison.entry_f5_title",
+                message_key="runtime.prison.entry_f5_message",
             ),
             interactions=(
                 DungeonInteractionSpec(
                     id="deep_cell_data_terminal",
                     char="T",
-                    name="Data Terminal",
+                    name_key="runtime.prison.data_terminal_name",
                     action="activate_state",
                     state_key="prison_data_extracted",
                     objective_type="prison",
-                    faction_label="ALIEN FACILITY",
-                    popup_title="DATA STREAM",
-                    popup_message=(
-                        "The terminal floods the cell with light. A torrent of "
-                        "data pours out - coordinates, schematics, structures "
-                        "built for something far larger than a human frame. "
-                        "None of it decodes. The data is alien beyond any "
-                        "human language or logic, but the sheer volume is "
-                        "proof enough: something was here, and it escaped. "
-                        "Then the dark panels flare white. Emergency power "
-                        "surges through the facility. The prison is fully awake. "
-                        "The route back to Mars will not be quiet."
-                    ),
+                    faction_label_key="runtime.prison.facility_faction",
+                    popup_title_key="runtime.prison.data_popup_title",
+                    popup_message_key="runtime.prison.data_popup_message",
                 ),
             ),
             params=dungeon.DungeonParams(

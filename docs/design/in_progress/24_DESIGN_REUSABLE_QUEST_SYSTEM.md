@@ -48,7 +48,7 @@ After this lands, the authoring loop for a new chain is: write a step tuple in
       scene-triggering playtest complete.
 - [x] Phase 3a — quest-NPC presence data-ified; open NPC-presence playtest
       complete.
-- [ ] Phase 4 — complete quest and Mars-prison text migration to the JSON overlay.
+- [ ] Phase 4 — implementation complete; full Mars-prison text playtest remains.
 - [ ] Phase 5 — minimal validator and authoring guide.
 - [ ] Phase 6 — guide/docs review and final acceptance.
 
@@ -387,13 +387,13 @@ prison arc, not only the quest-log breadcrumbs and completion logs. It covers
 the full path from opening the Mars prison door, through the five-floor descent
 and Floor 5 extraction, through the ascent and final departure from Mars.
 
-- [ ] Add `runtime.*` keys to `text.py` for the remaining quest breadcrumbs:
+- [x] Add `runtime.*` keys to `text.py` for the remaining quest breadcrumbs:
       gated-title ("Awaiting word from the {faction}..."), gated-fallback
       ("The faction will contact you when they're ready."), departure title/body
       ("Leave Mars" / "Return to your ship and launch from Mars..."),
       sealed-archive title/body, first-translation title/body, and fallback-handoff
       title/body.
-- [ ] Add `runtime.*` keys for the complete prison text inventory:
+- [x] Add `runtime.*` keys for the complete prison text inventory:
       - **Opening:** sealed-door discovery/open/blocked/chip/ambush overlays and
         logs, including the transition from the opened door to the prison stairs.
       - **Descent:** Floor 1 and Floor 5 entry flavor; all Floor 1–4 security
@@ -405,17 +405,17 @@ and Floor 5 extraction, through the ascent and final departure from Mars.
       - **Ascent and departure:** post-extraction security responses on Floors
         4–1, prison exit/return-to-orbit logs, the `Leave Mars` breadcrumb, and
         the first-reading/orbit disclosure and handoff text.
-- [ ] Update every relevant call site to resolve through `t_get(...)` rather
+- [x] Update every relevant call site to resolve through `t_get(...)` rather
       than embedding player-facing prose: `_breadcrumb.py`, `_core.py`,
       `_act0.py`, `_act1.py`, `dungeon_extensions.py`, its prison data catalog,
       and `game_flow.py`. Existing step titles/descriptions/dialogue already in
       the `step.*` JSON overlay remain covered by the same regression pass.
-- [ ] Run `tools/extract_act0_text.py` so the complete key set lands in
+- [x] Run `tools/extract_act0_text.py` so the complete key set lands in
       `00_runtime.json` and writer edits remain the source of truth.
-- [ ] Confirm the text inventory has no missed hard-coded prison prose; only
+- [x] Confirm the text inventory has no missed hard-coded prison prose; only
       non-player-facing diagnostics, layout/art strings, and intentional Python
       defaults may remain outside the overlay.
-- [ ] `make check` green; the extractor's key-set sync still passes.
+- [x] `make check` green; the extractor's key-set sync still passes.
 
 **PLAYTEST (4):** run the complete prison text path, not just the quest log:
 
