@@ -1,121 +1,153 @@
-# DESIGN: Game Config & Polish — Keybindings, Modes, Display
+# DESIGN: Fullscreen & Window Options
 
-> **Priority: LOW** — deferred from 03_DESIGN_GAME_INFRASTRUCTURE.
-> Only the menu screen + save/load were kept in 03; everything else
-> moved here for a future polish pass.
+> **Priority: LOW** — deferred from `03_DESIGN_GAME_INFRASTRUCTURE`.
+> Game modes and the pause/save menu are tracked separately in
+> `100_DESIGN_GAME_MODES_SAVE_MENU.md`. Keybinding profiles and per-key
+> remapping are intentionally not planned.
 
 ## Overview
 
-Configurable keybindings, display resolution, game modes (Roguelike / Adventurer / RPG), and in-game pause menu. Builds on top of the save/load system implemented in 03.
+Add a small display-options flow at game start so the player can choose
+fullscreen or windowed presentation without changing the game's fixed logical
+canvas. The current Pygame renderer already supports a resizable physical
+window and aspect-ratio-preserving letterboxing; this design adds persistence
+and a discoverable title-screen Options menu rather than a second renderer.
 
-## Game modes
+## Scope
 
-Three modes selected at character creation:
+This design owns:
 
-| Mode | Death = | Checkpoints | Target audience |
-|------|---------|-------------|----------------|
-| **Roguelike** | Full wipe — character, ship, rep, XP all gone. | None | Core roguelike experience |
-| **Adventurer** | Respawn at last-docked planet. Keep faction rep, XP, level. | Each planet landing | Want stakes but less punishing |
-| **RPG** | Death is nearly impossible (drastic combat reduction). Save scum-friendly. | Any landing; manual save | Want story and exploration |
+- Fullscreen/windowed preference
+- Remembered window preference across launches
+- A startup **Options** menu
+- Display-related guide text and playtest coverage
 
-### Adventurer mode — death behavior
+This design does **not** own:
 
-- Ship destroyed → cargo lost, active missions failed
-- Respawn at last-docked planet checkpoint
-- Keep: faction rep, XP, level, credits (minus medbay fee: 20%, min 100, max 5000)
-- Lose: cargo, active missions, ship (get free starter ship)
-- Log: "Your ship was destroyed. You wake up in a medbay on {planet_name}."
+- Game modes or death rules
+- Pause/save behavior
+- Keybinding profiles or per-key remapping
+- Runtime changes to the logical 100×60 game grid
 
-### RPG mode — death behavior
+## Display contract
 
-- Combat damage reduced to 10% normal (player takes 10%, deals 200%)
-- Enemy AI flees at 50% hull instead of 15%
-- Ship can't be destroyed (hull floors at 1 HP)
-- If HP hits 0: same medbay respawn as Adventurer
+The logical canvas remains fixed at the current `100 × 60` character cells.
+Changing that grid would affect map layouts, HUD sizing, modal geometry, title
+art, and renderer tests, so it is deliberately out of scope.
 
-## Config file
+The physical window may be:
 
-### Location
+- **Windowed:** use the remembered or default window size and remain resizable.
+- **Fullscreen:** use the desktop display while fitting the same logical canvas
+  with the existing letterbox behavior.
 
-`~/.spacehack/config.toml` — created with defaults on first run. Falls back to defaults if missing/corrupted.
+The engine seam is already present in `PygameEngineConfig` and
+`PygameRuntime`. The implementation should configure that seam rather than
+introduce display globals throughout gameplay modules.
 
-### Keybindings
+## Configuration
 
-```toml
-[keys]
-key_profile = "vim"   # vim | wasd
-```
+A user-level config file may store display preferences:
 
-Two built-in profiles:
+`~/.spacehack/config.toml`
 
-| Profile | Movement | Interact | Cycle | Fire |
-|---------|----------|----------|-------|------|
-| `vim` | hjkl | various | Tab | f |
-| `wasd` | wasd | E | Q | F |
-
-**Implementation:** `KeyBindings` dataclass on `GameContext`. All key checks reference `ctx.keybindings.move_up` etc. Per-key remapping (v2), in-game editor (v3).
-
-### Display options
+Only display settings belong in this document:
 
 ```toml
 [display]
-screen_width = 100    # min 80, max 200
-screen_height = 60    # min 40, max 100
 fullscreen = false
+window_width = 1600
+window_height = 960
 ```
 
-Read from config at startup. Runtime resize deferred.
+Defaults must be used when the file is missing or malformed. The parser must
+remain compatible with the project's supported Python versions; configuration
+loading must not make a new game fail to start.
 
-## In-game pause menu
+The config file is user preference, not save-game state. New Game and Continue
+must use the same display preference without changing gameplay serialization.
 
-ESC key opens:
+## Startup Options menu
 
+Add an **OPTIONS** item to the title screen alongside Start New Game,
+Continue, Tutorial, and Exit. The menu opens before character creation and
+contains display-only settings:
+
+```text
+OPTIONS
+
+> Fullscreen: Off
+  Window size: 1600 × 960
+  Apply
+  Back
 ```
-══════════════
-   PAUSED
-══════════════
 
-> Resume
-  Save (manual)
-  Quit to Menu
-```
+Requirements:
 
-Pauses game loop (no NPC movement, no time advance).
+- Fullscreen toggles between On and Off.
+- Window size offers only supported window presets, or preserves the current
+  resizable window size if preset selection is not needed for the first pass.
+- Apply updates the active Pygame engine without changing the logical canvas.
+- Back discards un-applied changes.
+- The selected preference is written to the user config after Apply.
+- If the platform cannot apply a setting, show a clear message and retain the
+  last working configuration.
+- Options must be available whether or not a save exists.
+
+The first implementation may apply the display setting by reopening or
+reconfiguring the shared Pygame window, provided the logical framebuffer and
+active title/game flow remain intact.
 
 ## Implementation phases
 
-### Phase 1: Game modes
-- [ ] Add `GameMode` enum to `game_context.py`
-- [ ] Mode picker before species/class
-- [ ] Wire roguelike (existing behavior)
-- [ ] Wire Adventurer checkpoint + partial wipe
-- [ ] Wire RPG damage reduction + medbay
+### Phase 1: Display preference model
 
-### Phase 2: Config file
-- [ ] `load_config()` in `engine.py` — TOML → Config dataclass
-- [ ] `KeyBindings` dataclass with vim/wasd profiles
-- [ ] Migrate all hardcoded key checks to `ctx.keybindings`
-- [ ] Wire display options at startup
+- [ ] Add a small display-config dataclass with fullscreen and window-size
+      fields, using safe defaults.
+- [ ] Load missing/malformed config as defaults.
+- [ ] Save only display preferences; never mix them into save-game JSON.
 
-### Phase 3: Pause menu + title polish
-- [ ] ESC pause menu with Resume/Save/Quit to Menu
-- [ ] Title screen: add Options (keybinding reference, read-only for v1)
-- [ ] Confirmation dialogs for quit/exit/delete
+### Phase 2: Engine integration
+
+- [ ] Pass the display config into `PygameEngineConfig` at startup.
+- [ ] Implement fullscreen/windowed application while preserving the fixed
+      logical canvas and letterboxing.
+- [ ] Preserve the existing resizable-window behavior in windowed mode.
+- [ ] Handle unsupported display operations without crashing the game.
+
+### Phase 3: Title Options menu
+
+- [ ] Add `OPTIONS` to the title menu.
+- [ ] Add fullscreen and window-size controls with Apply and Back behavior.
+- [ ] Ensure Options works with and without an available Continue save.
+- [ ] Add confirmation or rollback behavior if applying a mode fails.
 
 ### Phase 4: Guide + playtest
-- [ ] Update guide with game modes, config, keybinding reference
-- [ ] Full playtest: all three modes across sessions
+
+- [ ] Add the Options menu and fullscreen/windowed behavior to the player guide.
+- [ ] Add tests for config defaults, malformed files, and option transitions.
+- [ ] Playtest windowed startup, fullscreen startup, toggling, Apply/Back,
+      resizing, and a Continue session after changing display settings.
+- [ ] Run `make check`.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** New GameContext fields (GameMode, KeyBindings, PauseMode) → added to both `_ctx_to_dict()` AND `load_game()`
-- [ ] **Game guide:** New keybindings/config → updated `_GUIDE_CONTROLS`, new modes → new guide section
-- [ ] **Module-level state:** Config loaded at startup — ensure reset on New Game if per-run mutable
+- [ ] **Save/load:** display preferences remain outside save-game JSON and do
+      not alter the existing save schema.
+- [ ] **Game guide:** the Options menu and display preferences are documented.
+- [ ] **Pure functions:** config parsing/defaulting and option transitions
+      receive explicit inputs and ship focused tests.
+- [ ] **Module-level state:** no mutable display preference may be introduced
+      as an unowned module global; the active engine/config owns it.
+- [ ] **Architecture ratchet:** keep config parsing, title Options, and engine
+      display application in focused modules rather than expanding the game
+      loop.
 
 ## Open questions
 
-1. Should save files be JSON or binary? JSON for v1.
-2. Per-key remapping or profiles only? v1 = profiles. v2 = per-key.
-3. Medbay fee on Adventurer death? 20% of credits (min 100, max 5000).
-4. RPG mode disable achievements? Yes — separate tracking.
-5. Runtime resize? Deferred — would require re-laying-out every modal + HUD.
+1. Which window-size presets, if any, should the first version expose beyond
+   the current resizable window?
+2. Should fullscreen apply immediately on toggle, or only after selecting
+   Apply?
+3. Should the title Options menu eventually include non-display preferences,
+   or remain display-only?

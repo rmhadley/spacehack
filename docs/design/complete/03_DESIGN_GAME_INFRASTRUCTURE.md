@@ -4,7 +4,11 @@
 
 A title menu that replaces the current splash screen (New Game / Continue / Exit) and a JSON save/load system so players can continue runs across sessions.
 
-**Scope note:** Config file, game modes, keybinding remapping, and pause menu were deferred to `99_DESIGN_CONFIG_POLISH.md`. This doc covers only the menu + save/load.
+**Scope note:** Fullscreen/window preferences were deferred to
+`docs/design/in_progress/99_DESIGN_CONFIG_POLISH.md`; game modes and the
+pause/save menu were deferred to
+`docs/design/in_progress/100_DESIGN_GAME_MODES_SAVE_MENU.md`. Keybinding
+remapping is not planned. This doc covers only the menu + save/load.
 
 ## Philosophy alignment
 
