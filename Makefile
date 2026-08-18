@@ -124,6 +124,7 @@ test:
 # ──────────────────────────────────────────────
 check:
 	$(PYTHON) tools/smoke.py
+	$(PYTHON) tools/check_main_quest.py
 	$(MAKE) architecture
 	$(MAKE) lint
 	$(MAKE) test

@@ -24,6 +24,14 @@ from ._core import (
 )
 
 
+_HEAT_TAGS = frozenset({"militia_scan", "militia_aggro", "consortium"})
+
+
+def registered_heat_tags() -> tuple[str, ...]:
+    """Return heat tags supported by the data-driven heat table."""
+    return tuple(sorted(_HEAT_TAGS))
+
+
 def _live_heat_steps(ctx, tag: str):
     """Yield available/active steps carrying ``tag``."""
     for _step_id, _st, _step in _iter_known_steps(ctx):

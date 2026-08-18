@@ -441,15 +441,23 @@ or new edge cases were reported.
 
 ### Phase 5: Minimal validator + authoring guide + acceptance
 
-- [ ] Add `tools/check_main_quest.py` (or extend the smoke gate) that fails only
+- [x] Add `tools/check_main_quest.py` (or extend the smoke gate) that fails only
       on: unknown `objective_type` (no handler), unresolved `requires_step`,
       dangling `unlocks_step`, unknown `heat` tags, missing story text, and a
       `scene` id with no registered implementation. No chain-termination or
       balance strictness (deferred until the quests are fleshed out)
-- [ ] Wire it into `make check`
-- [ ] Write the authoring guide (dev-facing): how to add a chain, an objective
-      type, a scene, an NPC — with the worked example above
-- [ ] `make check` green
+- [x] Wire it into `make check`
+- [x] Write the authoring guide at
+      `src/spacehack/data/main_quest/README.md` (dev-facing): how to add a
+      chain, an objective type, a scene, an NPC — with the worked example above
+- [x] Add pure validator regression tests covering each deliberate invalid-data
+      class and the valid production catalog
+- [x] `make check` green
+
+**Phase 5 implementation status:** complete. The validator is pure and
+unit-testable, the production catalog passes it, and `make check` runs it
+before the architecture/lint/test stages. Only the user-facing PLAYTEST (5)
+remains open.
 
 **PLAYTEST (5):** introduce a deliberate bad data edit (unknown
 `objective_type`, dangling `requires_step`, unregistered `scene` id) → the gate
