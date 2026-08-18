@@ -225,6 +225,45 @@ def test_shared_runtime_context_is_renderer_compatible():
     assert context.present(marker) is None
 
 
+def test_pygame_runtime_inherits_tile_background_for_entity_glyphs():
+    from src.spacehack import world
+
+    blits = []
+
+    class FakeSurface:
+        def fill(self, _color):
+            pass
+
+    class FakeGlyphs:
+        tile_width = 16
+        tile_height = 16
+
+        def blit(self, *_args, **kwargs):
+            blits.append(kwargs)
+
+    fake_engine = SimpleNamespace(
+        logical_surface=FakeSurface(),
+        glyphs=FakeGlyphs(),
+        pygame=SimpleNamespace(),
+        config=pygame_engine.PygameEngineConfig(),
+        clear=lambda _color: None,
+        present=lambda: None,
+    )
+    runtime = pygame_runtime.PygameRuntime(object())
+    runtime.engine = fake_engine
+    frame = SimpleNamespace(
+        default_background=lambda: None,
+        to_commands=lambda: (
+            world.WorldDrawCommand(1, 1, ".", (200, 210, 220), (10, 20, 30)),
+            world.WorldDrawCommand(1, 1, "@", (255, 255, 255), None),
+        ),
+    )
+
+    runtime.present(frame)
+
+    assert [blit["bg"] for blit in blits] == [(10, 20, 30), (10, 20, 30)]
+
+
 def test_pygame_runtime_present_uses_framebuffer_default_background():
     from src.spacehack.framebuffer import FrameBuffer
 

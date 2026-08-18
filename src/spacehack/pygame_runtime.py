@@ -29,6 +29,15 @@ def is_shared_context(context: PygameContext) -> bool:
     return getattr(runtime, "engine", None) is not None
 
 
+def _inherited_backgrounds(commands: tuple[Any, ...]) -> dict[tuple[int, int], Any]:
+    """Return explicit cell backgrounds available to later glyph commands."""
+    return {
+        (int(command.x), int(command.y)): command.bg
+        for command in commands
+        if command.bg is not None
+    }
+
+
 class PygameContext:
     """Project-owned presentation context backed by the shared Pygame runtime."""
 
@@ -174,14 +183,19 @@ class PygameRuntime:
         if self.engine is None or self.engine.logical_surface is None or self.engine.glyphs is None:
             raise RuntimeError("Pygame runtime is not open")
         self.engine.clear(console.default_background() or (0, 0, 0))
-        for command in console.to_commands():
+        commands = console.to_commands()
+        inherited_backgrounds = _inherited_backgrounds(commands)
+        for command in commands:
+            _background = command.bg
+            if _background is None:
+                _background = inherited_backgrounds.get((command.x, command.y))
             self.engine.glyphs.blit(
                 self.engine.logical_surface,
                 command.char,
                 int(command.x) * self.engine.glyphs.tile_width,
                 int(command.y) * self.engine.glyphs.tile_height,
                 fg=tuple(command.fg),
-                bg=None if command.bg is None else tuple(command.bg),
+                bg=None if _background is None else tuple(_background),
             )
         if overlay is None:
             self.engine.present()
