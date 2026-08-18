@@ -7,6 +7,7 @@ coordinates. The presentation engine owns the input event shape and pump.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -428,8 +429,12 @@ class PygameEngine:
             raise RuntimeError("PygameEngine.open() must be called first")
         self.logical_surface.fill((*color, 255))
 
-    def present(self) -> Viewport:
-        """Scale the logical frame into the window and flip once."""
+    def present(
+        self,
+        *,
+        physical_overlay: Callable[[Any, Any, Viewport], None] | None = None,
+    ) -> Viewport:
+        """Scale the logical frame, optionally paint a physical overlay, and flip."""
         if self.window is None or self.logical_surface is None:
             raise RuntimeError("PygameEngine.open() must be called first")
         self.viewport = fit_cell_viewport(
@@ -443,6 +448,8 @@ class PygameEngine:
             (self.viewport.width, self.viewport.height),
         )
         self.window.blit(scaled, (self.viewport.x, self.viewport.y))
+        if physical_overlay is not None:
+            physical_overlay(self.pygame, self.window, self.viewport)
         self.pygame.display.flip()
         return self.viewport
 

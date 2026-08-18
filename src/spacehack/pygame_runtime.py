@@ -63,6 +63,36 @@ class PygameContext:
         """Persist the active display preferences outside save-game state."""
         self._runtime.save_display_config()
 
+def _physical_overlay_callback(
+    engine: pygame_engine.PygameEngine,
+    overlay: Any,
+):
+    """Build a callback that paints HUD/log text after logical scaling."""
+    columns = engine.config.logical_width // TILE_WIDTH
+    rows = engine.config.logical_height // TILE_HEIGHT
+
+    def _draw(
+        pygame: Any,
+        window: Any,
+        viewport: pygame_engine.Viewport,
+    ) -> None:
+        """Paint the overlay using the viewport's physical cell dimensions."""
+        cell_width = max(1, viewport.width // columns)
+        cell_height = max(1, viewport.height // rows)
+        from . import pygame_overlay
+        pygame_overlay.draw_panels(
+            pygame,
+            window,
+            overlay,
+            logical_width=viewport.width,
+            logical_height=viewport.height,
+            tile_width=cell_width,
+            tile_height=cell_height,
+        )
+
+    return _draw
+
+
 class PygameRuntime:
     """Own one Pygame engine and its explicit input queue."""
 
@@ -153,16 +183,21 @@ class PygameRuntime:
                 fg=tuple(command.fg),
                 bg=None if command.bg is None else tuple(command.bg),
             )
-        if overlay is not None:
-            from . import pygame_overlay
-            pygame_overlay.draw(
-                self.engine.pygame,
-                self.engine.logical_surface,
-                overlay,
-                logical_width=self.engine.config.logical_width,
-                logical_height=self.engine.config.logical_height,
-            )
-        self.engine.present()
+        if overlay is None:
+            self.engine.present()
+            return
+
+        from . import pygame_overlay
+        pygame_overlay.draw_map_effects(
+            self.engine.pygame,
+            self.engine.logical_surface,
+            overlay,
+            logical_width=self.engine.config.logical_width,
+            logical_height=self.engine.config.logical_height,
+        )
+        self.engine.present(
+            physical_overlay=_physical_overlay_callback(self.engine, overlay),
+        )
 
     def close(self) -> None:
         """Release Pygame resources idempotently."""

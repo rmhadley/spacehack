@@ -632,6 +632,51 @@ def test_draw_segments_offsets_text_inside_panel_padding(monkeypatch):
     assert drawn == [("HUD", 1292, 36)]
 
 
+def test_draw_segments_supports_physical_cell_dimensions(monkeypatch):
+    drawn = []
+
+    class FakeScreen:
+        def set_clip(self, _clip):
+            pass
+
+    class FakePygame:
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+    class FakeFont:
+        def size(self, text):
+            return (len(text) * 12, 20)
+
+        def get_linesize(self):
+            return 20
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_text",
+        lambda _pygame, _screen, _font, text, x, y, **_kwargs: drawn.append((text, x, y)),
+    )
+
+    pygame_overlay._draw_segments(
+        FakePygame,
+        FakeScreen(),
+        FakeFont(),
+        (pygame_overlay.OverlaySegment(80, 2, "HUD", (1, 2, 3)),),
+        origin_x=2000,
+        origin_y=0,
+        width=500,
+        height=1500,
+        origin_cell_x=80,
+        origin_cell_y=0,
+        padding_x=19,
+        padding_y=6,
+        tile_width=25,
+        tile_height=25,
+    )
+
+    assert drawn == [("HUD", 2019, 56)]
+
+
 def test_draw_segments_paints_background_highlight_before_text(monkeypatch):
     drawn = []
     filled = []

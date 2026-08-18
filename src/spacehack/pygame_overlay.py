@@ -522,6 +522,8 @@ def _segment_position(
     origin_cell_y: int,
     padding_x: int,
     padding_y: int,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
 ) -> tuple[int, int]:
     """Compute one segment's pixel ``(x, y)`` from the previous run.
 
@@ -540,8 +542,8 @@ def _segment_position(
     ):
         x = prev_end_x
     else:
-        x = origin_x + padding_x + (segment.x - origin_cell_x) * TILE_WIDTH
-    y = origin_y + padding_y + (segment.y - origin_cell_y) * TILE_HEIGHT
+        x = origin_x + padding_x + (segment.x - origin_cell_x) * tile_width
+    y = origin_y + padding_y + (segment.y - origin_cell_y) * tile_height
     return x, y
 
 
@@ -557,6 +559,7 @@ def _paint_segment(
     width: int,
     origin_x: int,
     padding_x: int,
+    tile_height: int = TILE_HEIGHT,
 ) -> tuple[int, int, int]:
     """Paint one segment (fit + optional bg) and return its chain state.
 
@@ -569,9 +572,48 @@ def _paint_segment(
     )
     text_width = measure(text)
     if segment.bg is not None and text:
-        pygame.draw.rect(screen, segment.bg, pygame.Rect(x, y, text_width, TILE_HEIGHT))
+        pygame.draw.rect(screen, segment.bg, pygame.Rect(x, y, text_width, tile_height))
     pygame_ui.draw_text(pygame, screen, font, text, x, y, color=segment.color)
     return x + text_width, segment.x + len(segment.text), segment.y
+
+
+def _draw_segment_rows(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    segments: tuple[OverlaySegment, ...],
+    *,
+    origin_x: int,
+    origin_y: int,
+    width: int,
+    origin_cell_x: int,
+    origin_cell_y: int,
+    padding_x: int,
+    padding_y: int,
+    tile_width: int,
+    tile_height: int,
+) -> None:
+    """Paint text runs after the caller has installed its clipping region."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    prev: tuple[int | None, int | None, int | None] = (None, None, None)
+    for segment in segments:
+        x, y = _segment_position(
+            segment,
+            prev,
+            origin_x=origin_x,
+            origin_y=origin_y,
+            origin_cell_x=origin_cell_x,
+            origin_cell_y=origin_cell_y,
+            padding_x=padding_x,
+            padding_y=padding_y,
+            tile_width=tile_width,
+            tile_height=tile_height,
+        )
+        prev = _paint_segment(
+            pygame, screen, font, segment, measure,
+            x=x, y=y, width=width, origin_x=origin_x, padding_x=padding_x,
+            tile_height=tile_height,
+        )
 
 
 def _draw_segments(
@@ -588,28 +630,20 @@ def _draw_segments(
     origin_cell_y: int,
     padding_x: int = 12,
     padding_y: int = 4,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
 ) -> None:
     """Paint captured text at logical-cell-relative positions with clipping."""
     clip = pygame.Rect(origin_x, origin_y, width, height)
     screen.set_clip(clip)
     try:
-        measure = lambda text: pygame_ui.measure_font(font, text)
-        prev: tuple[int | None, int | None, int | None] = (None, None, None)
-        for segment in segments:
-            x, y = _segment_position(
-                segment,
-                prev,
-                origin_x=origin_x,
-                origin_y=origin_y,
-                origin_cell_x=origin_cell_x,
-                origin_cell_y=origin_cell_y,
-                padding_x=padding_x,
-                padding_y=padding_y,
-            )
-            prev = _paint_segment(
-                pygame, screen, font, segment, measure,
-                x=x, y=y, width=width, origin_x=origin_x, padding_x=padding_x,
-            )
+        _draw_segment_rows(
+            pygame, screen, font, segments,
+            origin_x=origin_x, origin_y=origin_y, width=width,
+            origin_cell_x=origin_cell_x, origin_cell_y=origin_cell_y,
+            padding_x=padding_x, padding_y=padding_y,
+            tile_width=tile_width, tile_height=tile_height,
+        )
     finally:
         screen.set_clip(None)
 
@@ -711,21 +745,23 @@ def _draw_hud_panel(
     palette: Any,
     logical_width: int,
     logical_height: int,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
 ) -> None:
     """Paint the right-hand HUD column's panel and captured text."""
-    screen_width = logical_width // TILE_WIDTH
-    hud_height = min(frame.hud_height, logical_height // TILE_HEIGHT - frame.hud_top)
+    screen_width = logical_width // tile_width
+    hud_height = min(frame.hud_height, logical_height // tile_height - frame.hud_top)
     hud_rect = pygame_ui.Rect(
-        frame.hud_x * TILE_WIDTH,
-        frame.hud_top * TILE_HEIGHT,
-        (screen_width - frame.hud_x) * TILE_WIDTH,
-        max(0, hud_height) * TILE_HEIGHT,
+        frame.hud_x * tile_width,
+        frame.hud_top * tile_height,
+        (screen_width - frame.hud_x) * tile_width,
+        max(0, hud_height) * tile_height,
     )
     pygame_ui.draw_panel(pygame, screen, hud_rect, palette=palette)
     _draw_segments(
         pygame,
         screen,
-        pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT),
+        pygame_ui.cell_font(pygame, line_height=tile_height),
         frame.hud,
         origin_x=hud_rect.x,
         origin_y=hud_rect.y,
@@ -733,6 +769,10 @@ def _draw_hud_panel(
         height=hud_rect.height,
         origin_cell_x=frame.hud_x,
         origin_cell_y=frame.hud_top,
+        padding_x=max(1, round(12 * tile_width / TILE_WIDTH)),
+        padding_y=max(0, round(4 * tile_height / TILE_HEIGHT)),
+        tile_width=tile_width,
+        tile_height=tile_height,
     )
 
 
@@ -743,23 +783,25 @@ def _draw_message_panel(
     palette: Any,
     logical_width: int,
     logical_height: int,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
 ) -> None:
     """Paint the bottom message-log band's panel and captured text."""
     message_height = min(
         frame.message_height,
-        max(0, logical_height // TILE_HEIGHT - frame.message_top),
+        max(0, logical_height // tile_height - frame.message_top),
     )
     message_rect = pygame_ui.Rect(
         0,
-        frame.message_top * TILE_HEIGHT,
+        frame.message_top * tile_height,
         logical_width,
-        message_height * TILE_HEIGHT,
+        message_height * tile_height,
     )
     pygame_ui.draw_panel(pygame, screen, message_rect, palette=palette)
     _draw_segments(
         pygame,
         screen,
-        pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT),
+        pygame_ui.cell_font(pygame, line_height=tile_height),
         frame.messages,
         origin_x=message_rect.x,
         origin_y=message_rect.y,
@@ -767,11 +809,14 @@ def _draw_message_panel(
         height=message_rect.height,
         origin_cell_x=0,
         origin_cell_y=frame.message_top,
+        padding_x=max(1, round(12 * tile_width / TILE_WIDTH)),
         padding_y=0,
+        tile_width=tile_width,
+        tile_height=tile_height,
     )
 
 
-def draw(
+def draw_map_effects(
     pygame: Any,
     screen: Any,
     frame: OverlayFrame,
@@ -779,7 +824,7 @@ def draw(
     logical_width: int,
     logical_height: int,
 ) -> None:
-    """Paint native map effects, framed HUD, and message-log regions."""
+    """Paint map effects that belong on the logical surface before scaling."""
     map_width = (logical_width // TILE_WIDTH) - HUD_WIDTH
     map_height = (logical_height // TILE_HEIGHT) - MSG_LOG_HEIGHT
     _draw_shield_bubbles(
@@ -804,6 +849,50 @@ def draw(
             map_width=map_width,
             map_height=map_height,
         )
+
+
+def draw_panels(
+    pygame: Any,
+    screen: Any,
+    frame: OverlayFrame,
+    *,
+    logical_width: int,
+    logical_height: int,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
+) -> None:
+    """Paint HUD and message panels at the target surface's native scale."""
     palette = pygame_ui.DEFAULT_PALETTE
-    _draw_hud_panel(pygame, screen, frame, palette, logical_width, logical_height)
-    _draw_message_panel(pygame, screen, frame, palette, logical_width, logical_height)
+    _draw_hud_panel(
+        pygame, screen, frame, palette, logical_width, logical_height,
+        tile_width=tile_width, tile_height=tile_height,
+    )
+    _draw_message_panel(
+        pygame, screen, frame, palette, logical_width, logical_height,
+        tile_width=tile_width, tile_height=tile_height,
+    )
+
+
+def draw(
+    pygame: Any,
+    screen: Any,
+    frame: OverlayFrame,
+    *,
+    logical_width: int,
+    logical_height: int,
+) -> None:
+    """Paint native map effects, framed HUD, and message-log regions."""
+    draw_map_effects(
+        pygame,
+        screen,
+        frame,
+        logical_width=logical_width,
+        logical_height=logical_height,
+    )
+    draw_panels(
+        pygame,
+        screen,
+        frame,
+        logical_width=logical_width,
+        logical_height=logical_height,
+    )

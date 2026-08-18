@@ -112,6 +112,40 @@ def test_translate_event_defaults_repeat_to_false():
     assert pygame_engine.translate_event(FakePygame, event).repeat is False
 
 
+def test_physical_overlay_callback_uses_viewport_cell_dimensions(monkeypatch):
+    from src.spacehack import pygame_overlay
+
+    calls = []
+    monkeypatch.setattr(
+        pygame_overlay,
+        "draw_panels",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    engine = SimpleNamespace(
+        config=SimpleNamespace(logical_width=1600, logical_height=960),
+    )
+    overlay = object()
+    callback = pygame_runtime._physical_overlay_callback(engine, overlay)
+
+    callback(
+        "pygame",
+        "window",
+        pygame_engine.Viewport(30, 50, 2500, 1500),
+    )
+
+    assert calls == [
+        (
+            ("pygame", "window", overlay),
+            {
+                "logical_width": 2500,
+                "logical_height": 1500,
+                "tile_width": 25,
+                "tile_height": 25,
+            },
+        ),
+    ]
+
+
 def test_shared_runtime_exposes_explicit_project_event_polling(monkeypatch):
     events = (
         pygame_engine.PygameInputEvent(kind="keydown", key_name="j"),
