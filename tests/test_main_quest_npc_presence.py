@@ -31,12 +31,13 @@ def _ctx(chain: str, progress: dict):
     )
 
 
-def _building_center(planet_id: str, label: str) -> world.Position:
+def _building_spot(planet_id: str, label: str) -> world.Position:
+    """Where a quest NPC stands: one tile east of the interior center."""
     _spec = find_planet_spec(planet_id)
     for _b in _spec.buildings:
         if _b.label == label:
             return world.Position(
-                (_b.x_lo + _b.x_hi) // 2,
+                (_b.x_lo + _b.x_hi) // 2 + 1,
                 (_b.y_lo + _b.y_hi) // 2,
             )
     raise AssertionError(f"no {label!r} building on {planet_id}")
@@ -184,7 +185,7 @@ def test_spawn_places_old_smuggler_at_the_bar_interior_center():
     )
     _smugglers = [_e for _e in _gm.entities if _e.npc_id == "old_smuggler"]
     assert len(_smugglers) == 1
-    assert _smugglers[0].pos == _building_center("barnards_b", "bar")
+    assert _smugglers[0].pos == _building_spot("barnards_b", "bar")
 
 
 def test_spawn_is_idempotent():
@@ -211,7 +212,33 @@ def test_spawn_places_each_expert_in_their_guild_building():
         )
         _found = [_e for _e in _gm.entities if _e.npc_id == _npc_id]
         assert len(_found) == 1, _npc_id
-        assert _found[0].pos == _building_center(_planet, _label), _npc_id
+        assert _found[0].pos == _building_spot(_planet, _label), _npc_id
+
+
+def test_quest_npc_never_shares_a_tile_with_the_building_occupant():
+    """Regression: the additive NPC must not be buried under the
+    building's regular occupant (both used to stand at the interior
+    center, making the quest NPC untalkable)."""
+    _cases = (
+        ("old_smuggler", "barnards_b", "bar", "bar", "bar_q2_proof"),
+        ("salvage_specialist", "tc_b", "merchants", "merchants", "mer_q3_transport"),
+        ("demolitions_expert", "eri_b", "militia", "militia", "mil_q4_demolitions"),
+        ("xenolinguist", "ac_station", "lab", "lab", "lab_q4_xenolinguist"),
+    )
+    for _npc_id, _planet, _label, _chain, _step_id in _cases:
+        _gm = load_planet(_planet)
+        _act0.spawn_quest_npcs(
+            _ctx(_chain, {_step_id: "active"}), _gm, _planet,
+        )
+        _quest = next(_e for _e in _gm.entities if _e.npc_id == _npc_id)
+        _neighbors = [
+            _e for _e in _gm.entities
+            if _e is not _quest and _e.pos == _quest.pos
+        ]
+        assert not _neighbors, (
+            f"{_npc_id} on {_planet} shares tile {_quest.pos} with "
+            f"{[_n.name for _n in _neighbors]}"
+        )
 
 
 def test_spawn_does_not_add_npcs_on_planets_without_spots():

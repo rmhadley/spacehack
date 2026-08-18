@@ -585,9 +585,11 @@ def _quest_npc_spot_position(
     """Return where ``npc_id`` should stand on ``planet_id``.
 
     Reads the planet's ``quest_npc_spots`` (npc_id -> building label)
-    and returns the named building's interior center — the same spot
-    a building occupant uses. None when the planet has no spot for
-    this NPC (the smoke validator flags that as bad data).
+    and returns the building's interior center shifted ONE TILE EAST —
+    the regular occupant stands at the center, so an additive quest
+    NPC placed there would be buried under them and untalkable. None
+    when the planet has no spot for this NPC (the smoke validator
+    flags that as bad data).
     """
     from ..data.planets import find_planet_spec as _find_planet_spec
     try:
@@ -600,7 +602,7 @@ def _quest_npc_spot_position(
         for _building in _spec.buildings:
             if _building.label == _label:
                 return world.Position(
-                    (_building.x_lo + _building.x_hi) // 2,
+                    (_building.x_lo + _building.x_hi) // 2 + 1,
                     (_building.y_lo + _building.y_hi) // 2,
                 )
     return None

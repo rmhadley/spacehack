@@ -53,10 +53,12 @@ class PlanetSpec:
       quest_npc_spots:   ``(npc_id, building_label)`` pairs naming
                           where a quest-conditional NPC stands while
                           its step is live (added dynamically by
-                          ``spawn_quest_npcs`` at the named building's
-                          interior center). Unlike ``npc_overrides``
-                          these are ADDITIVE — they never replace the
-                          building's regular occupant.
+                          ``spawn_quest_npcs`` one tile EAST of the
+                          named building's interior center — clear of
+                          the regular occupant, who stands at the
+                          center). Unlike ``npc_overrides`` these are
+                          ADDITIVE — they never replace the building's
+                          regular occupant.
     """
     id: str
     name: str

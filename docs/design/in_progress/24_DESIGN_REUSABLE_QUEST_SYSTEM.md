@@ -313,10 +313,11 @@ and a loose presence window. Decision: all four experts are additive city NPCs
 standing in their guild building only while their step is live.
 
 - [x] Add `npc_presence: tuple[str, ...]` to `MainQuestStep` (which NPCs the
-      step needs present while it is live)
-- [x] Add `quest_npc_spots: tuple[(npc_id, building_label), ...]` to
-      `PlanetSpec` (where each additive NPC stands — the building's interior
-      center, same spot a building occupant uses)
+      step needs present while it is live)- [x] Add `quest_npc_spots: tuple[(npc_id, building_label), ...]` to
+      `PlanetSpec` (where each additive NPC stands — one tile EAST of
+      the building's interior center, clear of the regular occupant
+      who stands at the center; the old dynamic spawn's magic
+      `(38, 10)` was secretly center+1, which is why it worked)
 - [x] Rewrite `_act0.py` spawning as a data filter over `_iter_known_steps`:
       live step + locked chain ⇒ NPC present on every planet with its spot;
       delete `_quest_npc_for_planet`, `_wall_adjacent_tile`, and the
