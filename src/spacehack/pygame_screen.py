@@ -468,6 +468,7 @@ def _draw_frame(
     frame: ScreenFrame,
     *,
     context: PygameContext | None = None,
+    draw_log: bool = True,
 ) -> None:
     """Paint the current text screen."""
     palette = pygame_ui.DEFAULT_PALETTE
@@ -484,19 +485,53 @@ def _draw_frame(
         pygame, screen, font, frame, width, y, layout,
         measure_detail_height, palette,
     )
-    if context is not None:
+    if context is not None and draw_log:
         pygame_ui.draw_context_log(pygame, screen, context, palette=palette)
 
 
 def _draw_shared_frame(
-    pygame: Any, screen: Any, font: Any, frame: ScreenFrame, context: PygameContext,
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    frame: ScreenFrame,
+    context: PygameContext,
+    *,
+    draw_log: bool = True,
 ) -> None:
     """Draw a shared frame while preserving legacy renderer test doubles."""
-    if "context" in inspect.signature(_draw_frame).parameters:
-        _draw_frame(pygame, screen, font, frame, context=context)
-        return
-    _draw_frame(pygame, screen, font, frame)
-    pygame_ui.draw_context_log(pygame, screen, context)
+    parameters = inspect.signature(_draw_frame).parameters
+    kwargs: dict[str, Any] = {}
+    if "context" in parameters:
+        kwargs["context"] = context
+    if "draw_log" in parameters:
+        kwargs["draw_log"] = draw_log
+    _draw_frame(pygame, screen, font, frame, **kwargs)
+    if "context" not in parameters and draw_log:
+        pygame_ui.draw_context_log(pygame, screen, context)
+
+
+def _physical_log_callback(engine: Any, context: PygameContext):
+    """Build a callback that paints a modal's log at physical scale."""
+    columns = engine.config.logical_width // pygame_ui.TILE_WIDTH
+    rows = engine.config.logical_height // pygame_ui.TILE_HEIGHT
+
+    def _draw(pygame: Any, window: Any, viewport: Any) -> None:
+        """Paint the reserved modal log band on the physical window."""
+        tile_width = max(1, viewport.width // columns)
+        tile_height = max(1, viewport.height // rows)
+        pygame_ui.draw_context_log(
+            pygame,
+            window,
+            context,
+            origin_x=viewport.x,
+            origin_y=viewport.y,
+            width=viewport.width,
+            height=viewport.height,
+            tile_width=tile_width,
+            tile_height=tile_height,
+        )
+
+    return _draw
 
 
 def run_shared(
@@ -520,8 +555,12 @@ def run_shared(
     )
     while True:
         current = replace(frame, selected=_clamp(frame))
-        _draw_shared_frame(pygame, screen, font, current, context)
-        engine.present()
+        _draw_shared_frame(
+            pygame, screen, font, current, context, draw_log=False,
+        )
+        engine.present(
+            physical_overlay=_physical_log_callback(engine, context),
+        )
         event = pygame.event.wait()
         outcome, selected = _handle_key(pygame, event, current)
         if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:

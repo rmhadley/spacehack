@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT
+from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 from .game_context import GameContext
 from .pygame_runtime import PygameContext
 
@@ -244,43 +244,69 @@ def log_band_rows(log: Any) -> tuple[tuple[str, tuple[int, int, int]], ...]:
     return tuple(rows)
 
 
+def _draw_message_rows(
+    pygame: Any,
+    screen: Any,
+    log: Any,
+    font: Any,
+    panel: Rect,
+    *,
+    padding_x: int,
+    tile_height: int,
+) -> None:
+    """Paint bottom-aligned message rows inside an installed clip."""
+    rows = log_band_rows(log)
+    measure = lambda text: measure_font(font, text)
+    content_x = panel.x + padding_x
+    content_width = max(1, panel.width - 2 * padding_x)
+    top = panel.y + (MSG_LOG_HEIGHT - len(rows)) * tile_height
+    for index, (line_text, color) in enumerate(rows):
+        line = fit_text(line_text, content_width, measure)
+        draw_text(
+            pygame, screen, font, line,
+            content_x, top + index * tile_height,
+            color=color,
+        )
+
+
 def draw_message_band(
     pygame: Any,
     screen: Any,
     log: Any,
     *,
     palette: Palette = DEFAULT_PALETTE,
+    origin_x: int = 0,
+    origin_y: int = 0,
+    width: int | None = None,
+    height: int | None = None,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
 ) -> None:
-    """Paint the bottom console-log band exactly like the world overlay.
+    """Paint the console band at native scale, optionally using a physical viewport.
 
-    Full-width panel, ``MSG_LOG_HEIGHT`` rows at ``TILE_HEIGHT`` each,
-    messages bottom-aligned on cell rows with the shared cell font and
-    12px side padding — the same geometry the world renderer produces,
-    so log text never jumps when a modal opens. Content comes from
-    :func:`log_band_rows`, the same builder the world overlay uses.
+    The default geometry is the 1600×960 logical canvas; scaled callers provide
+    viewport geometry so text is rasterized directly at its final size.
     """
-    width, height = screen.get_size()
-    band_height = MSG_LOG_HEIGHT * TILE_HEIGHT
-    panel = Rect(0, max(0, height - band_height), width, band_height)
+    surface_width, surface_height = screen.get_size()
+    width = surface_width if width is None else width
+    height = surface_height if height is None else height
+    band_height = MSG_LOG_HEIGHT * tile_height
+    panel = Rect(
+        origin_x,
+        origin_y + max(0, height - band_height),
+        width,
+        band_height,
+    )
     draw_panel(pygame, screen, panel, palette=palette)
-    font = cell_font(pygame, line_height=TILE_HEIGHT)
-    rows = log_band_rows(log)
-    measure = lambda text: measure_font(font, text)
-    content_x = panel.x + 12
-    content_width = max(1, panel.width - 24)
-    # Bottom-aligned like the world capture: the newest entry sits on the
-    # last band row, so a short log stays put when more entries arrive.
-    top = panel.y + (MSG_LOG_HEIGHT - len(rows)) * TILE_HEIGHT
+    font = cell_font(pygame, line_height=tile_height)
+    padding_x = max(1, round(12 * tile_width / TILE_WIDTH))
     clip = pygame.Rect(panel.x, panel.y, panel.width, panel.height)
     screen.set_clip(clip)
     try:
-        for index, (line_text, color) in enumerate(rows):
-            line = fit_text(line_text, content_width, measure)
-            draw_text(
-                pygame, screen, font, line,
-                content_x, top + index * TILE_HEIGHT,
-                color=color,
-            )
+        _draw_message_rows(
+            pygame, screen, log, font, panel,
+            padding_x=padding_x, tile_height=tile_height,
+        )
     finally:
         screen.set_clip(None)
 
@@ -291,6 +317,12 @@ def draw_context_log(
     context: PygameContext,
     *,
     palette: Palette = DEFAULT_PALETTE,
+    origin_x: int = 0,
+    origin_y: int = 0,
+    width: int | None = None,
+    height: int | None = None,
+    tile_width: int = TILE_WIDTH,
+    tile_height: int = TILE_HEIGHT,
 ) -> None:
     """Paint the live console log in the reserved bottom band.
 
@@ -301,7 +333,18 @@ def draw_context_log(
     log = getattr(game_context, "log", None)
     if log is None:
         return
-    draw_message_band(pygame, screen, log, palette=palette)
+    draw_message_band(
+        pygame,
+        screen,
+        log,
+        palette=palette,
+        origin_x=origin_x,
+        origin_y=origin_y,
+        width=width,
+        height=height,
+        tile_width=tile_width,
+        tile_height=tile_height,
+    )
 
 
 def measure_font(font: Any, text: str) -> int:

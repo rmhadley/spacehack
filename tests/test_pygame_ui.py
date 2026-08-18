@@ -3781,6 +3781,80 @@ def test_draw_context_log_delegates_to_message_band(monkeypatch):
     assert seen == [log]
 
 
+def test_draw_context_log_forwards_physical_viewport_geometry(monkeypatch):
+    log = object()
+    ctx = SimpleNamespace(
+        _runtime=SimpleNamespace(game_context=SimpleNamespace(log=log)),
+    )
+    seen = []
+    monkeypatch.setattr(
+        pygame_ui,
+        "draw_message_band",
+        lambda *args, **kwargs: seen.append((args, kwargs)),
+    )
+
+    pygame_ui.draw_context_log(
+        "pygame",
+        "window",
+        ctx,
+        origin_x=30,
+        origin_y=50,
+        width=2500,
+        height=1500,
+        tile_width=25,
+        tile_height=25,
+    )
+
+    assert seen == [
+        (
+            ("pygame", "window", log),
+            {
+                "palette": pygame_ui.DEFAULT_PALETTE,
+                "origin_x": 30,
+                "origin_y": 50,
+                "width": 2500,
+                "height": 1500,
+                "tile_width": 25,
+                "tile_height": 25,
+            },
+        ),
+    ]
+
+
+def test_modal_physical_log_callback_uses_viewport_cell_dimensions(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        pygame_ui,
+        "draw_context_log",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    engine = SimpleNamespace(
+        config=SimpleNamespace(logical_width=1600, logical_height=960),
+    )
+    context = object()
+    callback = pygame_screen._physical_log_callback(engine, context)
+
+    callback(
+        "pygame",
+        "window",
+        pygame_engine.Viewport(30, 50, 2500, 1500),
+    )
+
+    assert calls == [
+        (
+            ("pygame", "window", context),
+            {
+                "origin_x": 30,
+                "origin_y": 50,
+                "width": 2500,
+                "height": 1500,
+                "tile_width": 25,
+                "tile_height": 25,
+            },
+        ),
+    ]
+
+
 def test_scrollable_frame_can_start_at_end_without_changing_default():
     font = _FakeFont()
     body = tuple(f"line {index}" for index in range(100))
