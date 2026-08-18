@@ -67,8 +67,40 @@ def test_registered_city_themes_lift_near_black_surface_backgrounds():
             tile = getattr(theme, field)
             assert min(tile.bg) >= _CITY_BG_MIN_CHANNEL
             assert _city_bg_luma(tile.bg) >= _CITY_BG_MIN_LUMA
-            if field == "landing_pad":
+            if field in {"floor", "landing_pad"}:
                 assert tile.char == "."
+
+
+def test_compact_city_floor_is_sparse_and_entities_inherit_its_background():
+    from src.spacehack.data.planets import list_planet_specs, load_planet
+
+    for spec in list_planet_specs():
+        if spec.width >= 60:
+            continue
+        game_map = load_planet(spec.id)
+        floor_tiles = [
+            tile
+            for row in game_map.tiles
+            for tile in row
+            if tile.kind == "floor"
+        ]
+        assert floor_tiles
+        assert all(tile.char == "." for tile in floor_tiles)
+
+        for entity in game_map.entities:
+            tile = game_map.tiles[entity.pos.y][entity.pos.x]
+            if tile.kind != "floor":
+                continue
+            console = FrameBuffer(game_map.width, game_map.height)
+            world.render_world(
+                console,
+                game_map,
+                region_x=0,
+                region_y=0,
+                region_w=game_map.width,
+                region_h=game_map.height,
+            )
+            assert console.cell(entity.pos.x, entity.pos.y).bg == tile.bg
 
 
 def test_all_landable_city_pads_use_readable_entity_backgrounds():

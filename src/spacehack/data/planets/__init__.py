@@ -346,12 +346,12 @@ def _readable_city_bg(color: tuple[int, int, int]) -> tuple[int, int, int]:
 
 
 def _readable_city_theme(theme: world.PlanetTheme) -> world.PlanetTheme:
-    """Return ``theme`` with entity-friendly city surface backgrounds."""
+    """Return ``theme`` with readable backgrounds and sparse base surfaces."""
     changes = {}
     for field in _CITY_THEME_FIELDS:
         tile = getattr(theme, field)
         bg = _readable_city_bg(tile.bg)
-        char = "." if field == "landing_pad" else tile.char
+        char = "." if field in {"floor", "landing_pad"} else tile.char
         if bg != tile.bg or char != tile.char:
             changes[field] = replace(tile, bg=bg, char=char)
     return replace(theme, **changes) if changes else theme
