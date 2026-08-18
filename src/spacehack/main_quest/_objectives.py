@@ -13,6 +13,7 @@ from ._core import (
     _active_objective_step,
     _maybe_auto_trigger_next_smuggle,
 )
+from .handlers import handler_for
 from .. import message_log
 from ..text import get as t_get
 
@@ -90,26 +91,36 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     if step_status(ctx, _step_id) not in (STATUS_AVAILABLE, STATUS_ACTIVE):
         return False
     _step = find_main_quest_step(_step_id)
-    if _step.objective_type not in ("delve", "salvage"):
+    _handler = handler_for(_step.objective_type)
+    if _handler is None or not _handler.secures_quest_loot:
         return False
     _owned = ctx.player_owned_ship
     if _owned is not None:
         for _gid, _qty in goods:
             _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
     _result = complete_step(ctx, _step_id)
-    # Salvage wrecks: remove the derelict BountySpawn so it doesn't
-    # respawn on re-entry.  The exit handler (__main__.py) removes
-    # the wreck entity from space_map; this removes the spawn record
-    # plus the leader + escort spawns that were guarding it.
-    if _result and _step.objective_type == "salvage" and _step.requires_spawn_id:
-        if _step.trigger_system_id:
-            from ..navigation import _remove_bounty_spawn as _rbs
-            _rbs(ctx, f"{_step.requires_spawn_id}_wreck", _step.trigger_system_id)
-            _remove_quest_spawn_group(ctx, _step)
     if _result:
+        # Salvage wrecks: the handler removes the derelict BountySpawn so it
+        # doesn't respawn on re-entry (see _cleanup_salvage_wreck).
+        if _handler.on_complete is not None:
+            _handler.on_complete(ctx, _step)
         _maybe_auto_trigger_next_smuggle(ctx, _step_id)
         show_step_readout(ctx, _step)
     return _result
+
+
+def _cleanup_salvage_wreck(ctx, step) -> None:
+    """Remove the derelict wreck + guard spawns for a completed salvage step.
+
+    The exit handler (__main__.py) removes the wreck entity from space_map;
+    this removes the spawn record plus the leader + escort spawns that were
+    guarding it.
+    """
+    if not step.requires_spawn_id or not step.trigger_system_id:
+        return
+    from ..navigation import _remove_bounty_spawn as _rbs
+    _rbs(ctx, f"{step.requires_spawn_id}_wreck", step.trigger_system_id)
+    _remove_quest_spawn_group(ctx, step)
 
 
 def complete_step_by_type(ctx, objective_type: str) -> bool:

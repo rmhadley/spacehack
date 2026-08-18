@@ -1,6 +1,7 @@
 """Main quest runtime: step lifecycle, NPC dialogue, objectives, overlays.
 
 Package split (per knowledge.md ~1,000-line guardrail):
+  handlers.py    — objective-type handler registry (dispatch table)
   _core.py       — step lifecycle + smuggle crate mechanics (~250 lines)
   _dialogue.py   — NPC talk integration + quest option resolution (~180 lines)
   _objectives.py — delve / visit / bounty / salvage delivery hooks (~200 lines)

@@ -15,12 +15,10 @@ from ._core import (
     start_step,
     complete_step,
     _iter_known_steps,
-    _smuggle_crate_held,
-    _trigger_smuggle_crate,
-    _complete_smuggle_handover,
     _hold_has_goods,
     _consume_goods,
 )
+from .handlers import handler_for
 from .. import message_log
 from ..text import get as t_get
 
@@ -75,19 +73,17 @@ def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
         if _dialogue_is_locked(ctx, _dialogue):
             _locked = _dialogue.locked or _find_npc(npc_id).flavor_text
             return (_locked, None)
+        _handler = handler_for(_step.objective_type)
+        _gating_ok = (
+            _handler is None
+            or _handler.option_gating is None
+            or _handler.option_gating(ctx, _step, npc_id)
+        )
         _trigger = (
             _step.id
             if _dialogue.trigger_on_talk
             and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            and not (
-                _step.objective_type == "smuggle"
-                and (
-                    (_held := _smuggle_crate_held(ctx, _step.id))
-                    and _step.requires_npc_id != npc_id
-                    or (not _held
-                        and _step.requires_npc_id == npc_id)
-                )
-            )
+            and _gating_ok
             else None
         )
         if _trigger is not None:
@@ -113,11 +109,11 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
         return None
     if step_status(ctx, _step.id) == STATUS_COMPLETED:
         return None
-    if _step.objective_type == "smuggle":
-        _held = _smuggle_crate_held(ctx, _step.id)
-        _is_receiver = _step.requires_npc_id == npc_id
-        if (_held and not _is_receiver) or (not _held and _is_receiver):
-            return None
+    _handler = handler_for(_step.objective_type)
+    if (_handler is not None
+            and _handler.option_gating is not None
+            and not _handler.option_gating(ctx, _step, npc_id)):
+        return None
     return (_dialogue.option_label, _step.id)
 
 
@@ -170,19 +166,13 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     _dialogue = _step.dialogues.get(npc_id)
     if _dialogue is None:
         return False
+    # Goods steps check + consume cargo BEFORE the faction lock-in so a
+    # missing-cargo abort never plants the chain flag (order preserved).
     if _step.objective_type == "goods" and _step.requires_goods:
         if not _goods_ok(ctx, _step):
             return False
     _lock_in_chain(ctx, _dialogue)
-    if _step.objective_type == "smuggle":
-        if step_status(ctx, step_id) == STATUS_ACTIVE:
-            return _complete_smuggle_handover(ctx, _step)
-        return _trigger_smuggle_crate(ctx, _step)
-    if _step.objective_type == "salvage":
-        return _start_salvage_step(ctx, _step)
-    if _step.objective_type == "visit":
-        from ._objectives import maybe_complete_visit as _maybe_visit
-        return _maybe_visit(ctx, _step.requires_npc_id)
-    if _step.objective_type == "bump":
-        return True
-    return complete_step(ctx, step_id)
+    _handler = handler_for(_step.objective_type)
+    if _handler is None or _handler.on_trigger is None:
+        return complete_step(ctx, step_id)
+    return _handler.on_trigger(ctx, _step)

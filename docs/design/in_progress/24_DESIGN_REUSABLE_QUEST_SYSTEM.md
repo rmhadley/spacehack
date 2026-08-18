@@ -237,19 +237,19 @@ STEPS: tuple[MainQuestStep, ...] = (
 
 ### Phase 1: Objective handler registry (dispatch only — no behavior change)
 
-- [ ] Add `main_quest/handlers.py` with `ObjectiveHandler` + `handler_for()` table
-- [ ] Move `trigger_dialogue`'s if/elif into handler `on_trigger` hooks
+- [x] Add `main_quest/handlers.py` with `ObjectiveHandler` + `handler_for()` table
+- [x] Move `trigger_dialogue`'s if/elif into handler `on_trigger` hooks
       (talk default, goods, smuggle, salvage, visit, bump)
-- [ ] Move `secure_quest_loot`'s delve/salvage special-casing into `on_complete`
+- [x] Move `secure_quest_loot`'s delve/salvage special-casing into `on_complete`
       hooks (incl. salvage spawn cleanup + `_maybe_auto_trigger_next_smuggle`)
-- [ ] Move `ensure_quest_spawns`' bounty/salvage special-casing into
+- [x] Move `ensure_quest_spawns`' bounty/salvage special-casing into
       `ensure_spawns` hooks
-- [ ] Move `quest_option_for` / `resolve_npc_dialogue` smuggle gating into the
+- [x] Move `quest_option_for` / `resolve_npc_dialogue` smuggle gating into the
       smuggle handler's `option_gating` hook
-- [ ] Dispatch sites become table lookups; delete the old if/elif chains
-- [ ] Registry lookup is a pure function → new pytest in the same commit
+- [x] Dispatch sites become table lookups; delete the old if/elif chains
+- [x] Registry lookup is a pure function → new pytest in the same commit
       (unknown type → `None`; every cataloged `objective_type` resolves)
-- [ ] `make check` green; all existing quest tests pass unchanged
+- [x] `make check` green; all existing quest tests pass unchanged
 
 **PLAYTEST (1):** full regression — one save per faction chain to `prologue_open`
 (Act 0), plus the post-prison research beat. Verify every objective type
