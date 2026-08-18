@@ -50,12 +50,14 @@ After this lands, the authoring loop for a new chain is: write a step tuple in
       complete.
 - [x] Phase 4 — quest and Mars-prison text migration plus full playtest complete.
 - [x] Phase 5 — minimal validator, authoring guide, and validator playtest complete.
-- [ ] Phase 6 — guide/docs review and final acceptance.
+- [x] Phase 6 — guide/docs review and final acceptance complete within the
+      user's current two-chain scope.
 
-The open playtests for the completed phases (1, 2, 3, 3a, 4, and 5) are now
-complete, user-confirmed. No failures or new edge cases were reported in this
-update. The design remains in `in_progress/` because Phase 6 and the final
-acceptance criteria are still outstanding.
+The open playtests for the completed phases (1, 2, 3, 3a, 4, and 5) are
+complete, user-confirmed. The user also worked through the two Act-0 chains
+currently in scope and chose to accept the reusable system now; the remaining
+Act-0 chains and balance tuning will be handled through ad-hoc cleanup and bug
+fixes. This design is complete for its current scope.
 
 ## Current state (the motivation)
 
@@ -463,7 +465,7 @@ and the temporary data-only chain exercise passed. Unknown objective types,
 dangling prerequisites, and unregistered scenes fail clearly; corrected data
 passes, and the throwaway chain was removed.
 
-### Phase 6: Guide, docs, acceptance — NEXT
+### Phase 6: Guide, docs, acceptance — COMPLETE
 
 - [x] Review `_GUIDE_MAIN_QUEST` / the current guide catalog for wording drift;
       no player-facing wording changed in Phases 1–5, so no guide edit was
@@ -471,40 +473,41 @@ passes, and the throwaway chain was removed.
 - [x] Audit `docs/design/in_progress/07_DESIGN_MAIN_QUEST.md` and update it to
       reference this reusable system as the implementation contract. Its old
       NPC-placement, objective-type, chain lock-in, and time-gating references
-      now point to the reusable catalogs/handlers; the genuinely open balance
-      pass remains there as future tuning work.
+      now point to the reusable catalogs/handlers.
 - [x] Update the design reference/module map for the current
       `main_quest/handlers.py`, `_scenes.py`, and focused helper modules.
-- [ ] Full regression: all four Act-0 chains + post-prison research beat + prison
-      descent, across save/load
+- [x] Final regression within the accepted scope: the user worked through the
+      two Act-0 chains currently cared about, including their quest flows;
+      remaining chains are intentionally deferred to ad-hoc cleanup.
 - [x] `make check` green
-- [ ] Ask the user: "Move this to complete?" per the doc lifecycle
+- [x] User chose to move this design to `complete/`; future bugs are handled
+      as independent fixes rather than reopening this design phase.
 
-**Phase 6 progress:** guide review and the `07_DESIGN_MAIN_QUEST.md`
-cross-reference audit are complete. The final end-to-end regression and the
-lifecycle decision remain open.
+**Phase 6 result:** Complete for the user's current scope. Two Act-0 chains
+were exercised; the remaining chains and balance tuning remain follow-up work
+in `07_DESIGN_MAIN_QUEST.md`, not blockers for this reusable-system design.
 
 ## Acceptance criteria
 
-- [ ] Adding a new chain = a `data/main_quest/` file + JSON overlay + (only if
+- [x] Adding a new chain = a `data/main_quest/` file + JSON overlay + (only if
       new NPCs) `data/npcs/` + a planet `quest_npc_spots` row + `npc_presence`
       tags on the steps. Zero runtime edits.
-- [ ] Adding a new objective type = one handler module + one registry row.
+- [x] Adding a new objective type = one handler module + one registry row.
       No edits to `_dialogue.py` / `_objectives.py` / `_spawns.py` / `_act0.py`.
-- [ ] Adding a new scene = one scene in `main_quest/_scenes.py` + a `scene` id
+- [x] Adding a new scene = one scene in `main_quest/_scenes.py` + a `scene` id
       on the step. Triggering is data; presentation is code.
-- [ ] No hard-coded step ids remain in `main_quest/` runtime modules, except
+- [x] No hard-coded step ids remain in `main_quest/` runtime modules, except
       the explicitly-allowed save migrations in `_gates.py` (documented).
-- [ ] No hard-coded player-facing quest or prison text remains in Python:
+- [x] No hard-coded player-facing quest or prison text remains in Python:
       breadcrumbs, completion logs, door scenes, prison entry/security/
       interaction/extraction/ascent text, and Mars-departure/orbit text all
       resolve through `t_get()` / the JSON overlay.
-- [ ] Dispatch is table-driven everywhere (guardrail: state tables over
+- [x] Dispatch is table-driven everywhere (guardrail: state tables over
       conditional logic — no 3+ branch if/elif for objective routing).
-- [ ] All existing quest tests pass unchanged; new registry/heat/scene/validator
+- [x] All existing quest tests pass unchanged; new registry/heat/scene/validator
       tests ship in their commits.
-- [ ] Save/load shape unchanged; an old save loads identically.
-- [ ] `make check` green at every commit.
+- [x] Save/load shape unchanged; an old save loads identically.
+- [x] `make check` green at every commit.
 
 ## Pre-implementation audit
 
@@ -565,39 +568,33 @@ lifecycle decision remain open.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** no new `GameContext` fields; `main_quest_progress`,
-      `main_quest_gate`, `main_quest_pending_message`, `main_quest_pending_objective`,
-      `main_quest_chain`, `main_quest_backing`, `main_quest_disclosure`,
-      `post_prison_orbit_seen`, `main_quest_complete` keep their exact serialized
-      shapes. New fields are static step data (not serialized). Sniff test after
-      each phase: reach new state → save → quit → Continue → verify identical.
-- [ ] **Game guide:** Phases 1–4 are behavior-preserving; review `_GUIDE_MAIN_QUEST`
-      for wording drift and update if any changed. No new player-facing mechanic
-      is introduced by this design.
-- [ ] **Pure function test contract:** registry lookup, heat filtering, scene-id
-      resolution, and the validator are pure → each ships pytest in its commit.
-- [ ] **Module-level state:** none added; the existing `current_solar_system_id`
-      / `RNG` globals are untouched.
-- [ ] **Architecture ratchet:** `handlers.py`, `_scenes.py`, and each handler
+- [x] **Save/load:** no Phase 6 shape changes; the existing
+      `main_quest_progress`, `main_quest_gate`, `main_quest_pending_message`,
+      `main_quest_pending_objective`, `main_quest_chain`, `main_quest_backing`,
+      `main_quest_disclosure`, `post_prison_orbit_seen`, and
+      `main_quest_complete` serialized forms remain stable. New reusable-system
+      fields are static step data or were covered by their phase playtests.
+- [x] **Game guide:** the current guide catalog was reviewed; no player-facing
+      wording changed, so no guide edit was needed.
+- [x] **Pure function test contract:** registry lookup, heat filtering, scene-id
+      resolution, and the validator are pure and ship pytest coverage.
+- [x] **Module-level state:** none added; the existing
+      `current_solar_system_id` / `RNG` globals are untouched.
+- [x] **Architecture ratchet:** `handlers.py`, `_scenes.py`, and each handler
       module stay under 1000 lines; every function under 40 lines. The refactor
-      should *reduce* sprawl in `_dialogue.py` / `_objectives.py` / `_act0.py`.
+      reduced sprawl in `_dialogue.py` / `_objectives.py` / `_act0.py`.
 
-## Open questions
+## Resolved implementation questions
 
-1. **Scene event model:** one `scene` id played at "the step's primary beat" is
-   the simplest contract. If a step ever needs scenes at *different* events
-   (e.g. an intro cutscene on trigger AND a completion cutscene), do we add a
-   `scenes: dict[event, id]` mapping, or keep one id per step and let the scene
-   implementation branch internally?
-2. **Breadcrumb key namespacing:** `runtime.*` keys (flat, matches the existing
-   overlay) vs per-step fields (e.g. `step.<id>.waiting_title`)? `runtime.*`
-   is the repo-consistent choice and the extractor already syncs it.
-3. **`objective_type` as string vs Enum:** string is friendlier for data authoring
-   (the repo already uses strings for `main_quest_path`); an Enum is safer. Keep
-   string + validator, or introduce an Enum?
-4. **Registry extensibility:** static table (matches the repo's `find_*`/`_BY_ID`
-   catalogs) vs runtime registration (future mod support)? Static is the
-   repo-consistent choice.
-5. **Validator strictness (deferred):** when the quests are fleshed out, should
-   every chain be required to terminate in the ending, or allow intentionally
-   dead-end dig content? Not enforced now per the locked decision.
+1. **Scene event model:** use one `scene` id at the step's primary beat. Add a
+   richer event mapping only if a future quest actually needs multiple scene
+   events.
+2. **Breadcrumb key namespacing:** use flat `runtime.*` keys, matching the
+   existing overlay and extractor conventions.
+3. **`objective_type` representation:** keep author-friendly strings and reject
+   unknown values with the minimal validator.
+4. **Registry extensibility:** use a static handler/scene table consistent with
+   the repository's data catalogs; runtime mod registration is out of scope.
+5. **Validator strictness:** intentionally defer chain termination and reward
+   balance checks until the quests are more fully fleshed out. Those are future
+   tuning decisions, not blockers for this reusable-system design.
