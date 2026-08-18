@@ -126,21 +126,17 @@ active title/game flow remain intact.
 
 - [x] Add the Options menu and fullscreen/windowed behavior to the player guide.
 - [x] Add tests for config defaults, malformed files, and option transitions.
-- [ ] Playtest windowed startup, fullscreen startup, toggling, Apply/Back,
+- [x] Playtest windowed startup, fullscreen startup, toggling, Apply/Back,
       resizing, and a Continue session after changing display settings.
 - [x] Run `make check`.
 
-**Implementation status:** complete. The manual display playtest remains open
-for the user; the design stays in `in_progress/` until that playtest passes.
+**Implementation status:** complete. The manual display playtest passed.
+The design is accepted and ready to move to `complete/`.
 
-**PLAYTEST (1):** start the game windowed and open title-screen Options with
-and without a Continue save. Toggle fullscreen and cycle window sizes, verify
-Back leaves the current display unchanged, then Apply and verify the logical
-100×60 canvas remains intact. Resize the windowed mode, switch fullscreen and
-back, quit and relaunch, and confirm the applied preference persists. Continue
-an existing save after changing display settings and verify gameplay/save state
-is unchanged. On a platform where a display operation fails, verify the game
-shows an error and retains the last working mode.
+**PLAYTEST (1): PASSED** — the user verified windowed startup, fullscreen
+startup, toggling, Apply/Back, resizing, persistence across relaunch, and
+continuing a save after changing display settings. The logical 100×60 canvas
+and gameplay/save state remained intact.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
