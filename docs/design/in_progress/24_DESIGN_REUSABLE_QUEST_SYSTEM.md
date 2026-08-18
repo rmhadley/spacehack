@@ -48,7 +48,7 @@ After this lands, the authoring loop for a new chain is: write a step tuple in
       scene-triggering playtest complete.
 - [x] Phase 3a — quest-NPC presence data-ified; open NPC-presence playtest
       complete.
-- [ ] Phase 4 — quest text migration to the JSON overlay.
+- [ ] Phase 4 — complete quest and Mars-prison text migration to the JSON overlay.
 - [ ] Phase 5 — minimal validator and authoring guide.
 - [ ] Phase 6 — guide/docs review and final acceptance.
 
@@ -380,30 +380,59 @@ absent before/after; the guild faces they used to replace are present as usual;
 no expert copy inside surface dungeons; save/quit/continue mid-window keeps
 them placed.
 
-### Phase 4: Migrate quest text to the JSON overlay
+### Phase 4: Migrate quest and Mars-prison text to the JSON overlay
 
-- [ ] Add `runtime.*` keys to `text.py` for the hard-coded breadcrumb strings:
+**Expanded scope:** this is the complete player-facing text pass for the Mars
+prison arc, not only the quest-log breadcrumbs and completion logs. It covers
+the full path from opening the Mars prison door, through the five-floor descent
+and Floor 5 extraction, through the ascent and final departure from Mars.
+
+- [ ] Add `runtime.*` keys to `text.py` for the remaining quest breadcrumbs:
       gated-title ("Awaiting word from the {faction}..."), gated-fallback
       ("The faction will contact you when they're ready."), departure title/body
       ("Leave Mars" / "Return to your ship and launch from Mars..."),
-      sealed-archive title/body, first-translation title/body, fallback-handoff
-      title/body
-- [ ] Add `runtime.*` keys for the completion log lines:
-      `runtime.quest_complete_log` ("[MAIN QUEST] {title} - complete."),
-      `runtime.quest_reward_log` ("+{credits}$ reward."), and the prison-start
-      log ("[MAIN QUEST] Act 1: The Prison Below - descend the facility.")
-- [ ] Update `_breadcrumb.py`, `_core.py`, `_act0.py` to call `t_get(...)` with
-      those keys instead of literals
-- [ ] Run `tools/extract_act0_text.py` so the new keys land in `00_runtime.json`
-      and writer edits stay the source of truth
-- [ ] `make check` green; the extractor's key-set sync still passes
+      sealed-archive title/body, first-translation title/body, and fallback-handoff
+      title/body.
+- [ ] Add `runtime.*` keys for the complete prison text inventory:
+      - **Opening:** sealed-door discovery/open/blocked/chip/ambush overlays and
+        logs, including the transition from the opened door to the prison stairs.
+      - **Descent:** Floor 1 and Floor 5 entry flavor; all Floor 1–4 security
+        activation and lockdown popup text; engineering-console power-restored
+        text; and the blocked/available deep-elevator messages.
+      - **Bottom and extraction:** deep-cell terminal text, alien-data extraction
+        result, emergency-power state, `act1_prison` start/completion logs, and
+        any extraction-related quest readout text.
+      - **Ascent and departure:** post-extraction security responses on Floors
+        4–1, prison exit/return-to-orbit logs, the `Leave Mars` breadcrumb, and
+        the first-reading/orbit disclosure and handoff text.
+- [ ] Update every relevant call site to resolve through `t_get(...)` rather
+      than embedding player-facing prose: `_breadcrumb.py`, `_core.py`,
+      `_act0.py`, `_act1.py`, `dungeon_extensions.py`, its prison data catalog,
+      and `game_flow.py`. Existing step titles/descriptions/dialogue already in
+      the `step.*` JSON overlay remain covered by the same regression pass.
+- [ ] Run `tools/extract_act0_text.py` so the complete key set lands in
+      `00_runtime.json` and writer edits remain the source of truth.
+- [ ] Confirm the text inventory has no missed hard-coded prison prose; only
+      non-player-facing diagnostics, layout/art strings, and intentional Python
+      defaults may remain outside the overlay.
+- [ ] `make check` green; the extractor's key-set sync still passes.
 
-**PLAYTEST (4):** quest log (Q) shows the same breadcrumbs as before — "Awaiting
-word from the Militia...", "Leave Mars", "Awaiting the first translation...",
-"Deliver the sealed archive". Completing a step logs the same "[MAIN QUEST] ... -
-complete." / "+N$ reward." lines. Edit a breadcrumb string in `00_runtime.json`,
-relaunch (or F5) — the quest log reflects the new wording with no code change.
-Save/quit/continue unaffected.
+**PLAYTEST (4):** run the complete prison text path, not just the quest log:
+
+1. Open the Mars prison door and verify the discovery, opening, blocked/chip,
+   and ambush text at their applicable beats; descend through the revealed
+   stairs.
+2. Traverse Floors 1–4 and verify each floor-entry/security popup, lockdown
+   response, engineering-console message, and elevator blocked/unblocked
+   message. Reach Floor 5 and verify the deep-cell entry and data-terminal
+   extraction text.
+3. Save/Continue during the descent and after extraction. Climb back through
+   the staged security responses, leave the prison, launch from Mars, and verify
+   the departure and first-reading/orbit handoff text.
+4. Edit representative opening, descent, extraction, and departure keys in
+   `00_runtime.json`, relaunch or press F5, and confirm the changed wording
+   appears without a code edit. Confirm no prison text disappears, falls back
+   unexpectedly, or changes save/load behavior.
 
 ### Phase 5: Minimal validator + authoring guide + acceptance
 
@@ -443,10 +472,11 @@ end-to-end via data only, then delete it.
 - [ ] Adding a new scene = one scene in `main_quest/_scenes.py` + a `scene` id
       on the step. Triggering is data; presentation is code.
 - [ ] No hard-coded step ids remain in `main_quest/` runtime modules, except
-      the explicitly-allowed save migrations in `_gates.py` and the bespoke
-      Act-1 breadcrumbs in `_breadcrumb.py` (both documented).
-- [ ] No hard-coded player-facing quest text remains in Python: breadcrumbs and
-      completion log lines resolve through `t_get()` / the JSON overlay.
+      the explicitly-allowed save migrations in `_gates.py` (documented).
+- [ ] No hard-coded player-facing quest or prison text remains in Python:
+      breadcrumbs, completion logs, door scenes, prison entry/security/
+      interaction/extraction/ascent text, and Mars-departure/orbit text all
+      resolve through `t_get()` / the JSON overlay.
 - [ ] Dispatch is table-driven everywhere (guardrail: state tables over
       conditional logic — no 3+ branch if/elif for objective routing).
 - [ ] All existing quest tests pass unchanged; new registry/heat/scene/validator
@@ -471,6 +501,13 @@ end-to-end via data only, then delete it.
   `ensure_spawns` hook.
 - `main_quest/_act0.py` / `_act1.py` — the sealed-door, help-offer, transmission,
   and orbit-disclosure presentations become `_scenes.py` implementations.
+- `data/dungeon_extensions/__init__.py` — `EntryFlavor`, `ActivationEvent`, and
+  `DungeonInteractionSpec` currently hold the prison's entry, security,
+  engineering, elevator, deep-cell, and extraction prose; keep the structural
+  definitions but move their player-facing values behind overlay keys.
+- `dungeon_extensions.py` / `game_flow.py` — `_show_first_entry_flavor`,
+  `tick_activation`, interaction feedback, prison exit, and Mars-orbit handoff
+  are the runtime seams that must resolve the prison text catalog.
 - `mission/_models.py` + `mission/_helpers.py` — the standardized mission hold
   (`ActiveMission`, delivery matching) the smuggle handler reuses, unchanged.
 - `text.py` + `tools/extract_act0_text.py` — the overlay + extractor already
@@ -497,10 +534,12 @@ end-to-end via data only, then delete it.
    heat/breadcrumb/gate lookups become data-field filters over it, not new loops.
 3. **Hard-coded step ids + hard-coded text.** `_heat.py` (7 ids), `_gates.py`
    (2 ids + migrations), `_breadcrumb.py` (4 ids + 6 hard-coded strings),
-   `_act0.py` (3 ids + 1 log string), `_core.py` (2 log strings). **DRY:**
-   move ids onto step data (`heat`, `scene`, `auto_load_next_smuggle`) and text
-   into `runtime.*` overlay keys; allow only the documented save-migration and
-   Act-1-narrative exceptions.
+   `_act0.py` (3 ids + 1 log string), `_core.py` (2 log strings), and the
+   prison extension catalog's entry/activation/interaction prose. **DRY:**
+   move ids onto step data (`heat`, `scene`, `auto_load_next_smuggle`) and all
+   player-facing prose into namespaced `runtime.*` overlay keys (including
+   `runtime.prison.*`); allow only structural data, diagnostics, layout/art
+   strings, and documented save migrations outside the overlay.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
