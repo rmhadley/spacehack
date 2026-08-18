@@ -177,6 +177,17 @@ are printed as an explicit backlog so they remain visible without blocking
 unrelated documentation, data, or test changes. Do not add broad or anonymous
 size exemptions.
 
+The ratchet is a **forcing function, not a hurdle to route around**. When a
+change genuinely belongs in an oversized module, the correct response is to do
+the refactor the gate is asking for — split the module into cohesive sibling
+modules, or split the oversized function — as part of the same commit. The gate
+is deliberately structured so that touching an oversized module makes its
+pre-existing debt blocking: that is the signal to pay the debt, not to avoid
+it. Never work around it by (a) keeping the module untouched and moving code
+somewhere it doesn't belong, (b) deferring legitimate work to dodge the gate,
+or (c) burying oversized logic in a way that merely dodges the line count. If
+the code belongs in the module, the module gets refactored.
+
 The smoke test reuses `.venv/bin/python3` when available and otherwise runs
 with the current interpreter. It verifies that the Pygame runtime imports
 cleanly with the retired backend actively blocked, along with major modules
@@ -251,6 +262,15 @@ same logical change must include the extraction needed to bring the touched
 module within the 1000-line limit and all touched functions within 40 lines.
 Prefer extracting one cohesive responsibility per atomic refactor commit; do
 not solve the rule by deleting behavior or hiding code in an exception.
+
+Model behavior: when the quest-system scene wiring needed to live in
+`navigation.py` (the prologue transmission fires from `_jump_to_system`), the
+oversized module was split into a re-export hub over five cohesive sibling
+modules (`navigation_render` / `_spawns` / `_combat` / `_scan` / `_travel`),
+preserving the full public surface, and `game_flow.py`'s oversized functions
+were split in the same commit. The debt was paid because the code belonged
+there — that is the expected response, not a sign the ratchet is being
+obstructive.
 
 ### Refactor philosophy
 - **Data-first.** New content is a file in `data/` backed by a frozen dataclass. No content lives in `__main__.py` or runtime modules.

@@ -5,6 +5,14 @@ Existing oversized modules are reported but grandfathered until touched. A
 changed source module with added code must be at most 1000 lines and contain no
 function over 40 lines. Deletion-only cleanups do not add architecture debt and
 remain grandfathered. This is intentionally a local gate; CI is not required.
+
+The gate is a forcing function, not a hurdle to route around: touching an
+oversized module makes its pre-existing debt blocking on purpose, so that
+change must include the refactor that brings the module back under the limit
+(split the module into cohesive siblings, split oversized functions). It is
+never a workaround target — do not keep a module untouched to dodge the gate,
+move code somewhere it doesn't belong, or bury oversized logic to hide the
+line count.
 """
 from __future__ import annotations
 
