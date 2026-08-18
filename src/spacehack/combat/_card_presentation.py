@@ -68,6 +68,7 @@ def build_card(
     region_w: int,
     region_h: int,
     avoid_positions: tuple[world.Position, ...] = (),
+    quick_rows=(),
 ) -> TargetCard | None:
     """Anchor pre-formatted ``rows`` near ``enemy_pos``, or None when off-view."""
     cam_x, cam_y, rx, ry = world.camera_for_view(
@@ -87,4 +88,5 @@ def build_card(
         ),
         # Player is always in view; its cell drives away-from-player placement.
         player_cell=(rx + player_pos.x - cam_x, ry + player_pos.y - cam_y),
+        quick_rows=tuple(quick_rows),
     )

@@ -306,6 +306,9 @@ def test_overlay_payload_round_trips_target_card():
             (("DMG 3  RNG 1-1", pygame_target_card.TARGET_CARD_TEXT),),
             (("[V] hide", pygame_target_card.TARGET_CARD_DIM),),
         ),
+        quick_rows=(
+            (("4 AP -2/10 POW -8/26 HP", pygame_target_card.TARGET_CARD_TEXT),),
+        ),
         x=14, y=9, avoid_cells=((14, 9), (10, 11)),
     )
     frame = pygame_overlay.OverlayFrame(
@@ -326,6 +329,9 @@ def test_overlay_payload_round_trips_target_card():
     assert payload["target"]["avoid_cells"] == ((14, 9), (10, 11))
     assert payload["target"]["player_cell"] is None
     assert payload["target"]["rows"][0] == (("Assault Drone", (255, 220, 100)),)
+    assert payload["target"]["quick_rows"] == (
+        (("4 AP -2/10 POW -8/26 HP", (232, 236, 246)),),
+    )
     assert pygame_overlay.frame_from_payload(payload) == frame
 
 

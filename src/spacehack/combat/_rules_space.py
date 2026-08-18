@@ -19,6 +19,7 @@ from .. import hud as _hud
 from .. import message_log as _ml
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 from ..data.weapons import find_weapon as _find_weapon
+from ..pygame_target_card import quick_row
 
 if TYPE_CHECKING:
     from ..pygame_overlay import ShieldBubble
@@ -562,6 +563,17 @@ def presentation_target_card(*, ctx: GameContext | None = None):
     ]
     _active_wid = _active_ids[0] if _active_ids else None
     _hit = hit_chance(_active_wid, _target, ctx) if _active_wid else None
+    _ap_needed = max(
+        (_space_focus.ap_cost(weapon_id, ctx) for weapon_id in _active_ids),
+        default=0,
+    )
+    _power_needed = sum(
+        _space_focus.power_cost(weapon_id, ctx) for weapon_id in _active_ids
+    )
+    _quick = quick_row(
+        f"{player_ap(ctx)} AP -{_ap_needed}/{_power_needed} POW "
+        f"-{player_hp(ctx)}/{player_max_hp(ctx)} HP"
+    )
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))
     return _build_target_card(
@@ -573,6 +585,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         hit_chance=_hit,
         hit_weapon_id=_active_wid,
         avoid_positions=_avoid,
+        quick_rows=(_quick,),
     )
 
 def _render_combat_range_line(

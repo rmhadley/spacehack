@@ -168,6 +168,40 @@ def test_space_card_rows_show_hull_shield_ap_and_weapons():
     ]
 
 
+def test_space_target_card_quick_row_shows_selected_resource_costs():
+    ctx = SimpleNamespace(player_traits=())
+    state = _rules_space.SpaceCombatState(
+        ctx=ctx,
+        console=None,
+        game_map=_card_map(),
+        log=None,
+        player_state={
+            "pos": world.Position(0, 0),
+            "ap_remaining": 4,
+            "ap_total": 4,
+            "power_pool": 10,
+            "gunnery": 20,
+            "hull": 8,
+            "max_hull": 26,
+        },
+        enemy_insts=[_card_enemy()],
+        target_idx=0,
+        weapons_list=["light_laser"],
+        active_weapons=[True],
+    )
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        card = _rules_space.presentation_target_card(ctx=ctx)
+    finally:
+        _rules_space._state = old_state
+
+    assert card is not None
+    assert card.quick_rows == (
+        (("4 AP -1/1 POW -8/26 HP", pygame_target_card.TARGET_CARD_TEXT),),
+    )
+
+
 def test_space_card_rows_omit_shield_when_unshielded():
     enemy = _card_enemy()
     enemy.shields = 0

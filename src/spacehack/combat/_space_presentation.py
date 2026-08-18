@@ -62,6 +62,7 @@ def build_target_card(
     hit_chance: int | None = None,
     hit_weapon_id: str | None = None,
     avoid_positions: tuple[world.Position, ...] = (),
+    quick_rows=(),
 ) -> TargetCard | None:
     """Build the floating info card for ``enemy``, or None when off-view."""
     rows = _space_card_rows(
@@ -76,4 +77,5 @@ def build_target_card(
         region_w=region_w,
         region_h=region_h,
         avoid_positions=avoid_positions,
+        quick_rows=quick_rows,
     )

@@ -40,6 +40,7 @@ from ._ground_presentation import (
     enemy_detail_lines,
     enemy_threat_color,
 )
+from ..pygame_target_card import quick_row
 
 
 def _rules() -> Any:
@@ -140,6 +141,19 @@ def _active_weapon_ids(ctx, weapons: list[str]) -> list[str]:
         weapons[i] for i in range(len(weapons))
         if i < len(_state.active_weapon_list) and _state.active_weapon_list[i]
     ]
+
+
+def _quick_resource_row(ctx, active_weapons: list[str]):
+    """Format the compact ground-combat resource strip."""
+    _rules_mod = _rules()
+    _ap_needed = max(
+        (_rules_mod.weapon_ap_cost(weapon_id, ctx) for weapon_id in active_weapons),
+        default=0,
+    )
+    return quick_row(
+        f"{_rules_mod.player_ap(ctx)} AP -{_ap_needed} AP "
+        f"-{_rules_mod.player_hp(ctx)}/{_rules_mod.player_max_hp(ctx)} HP"
+    )
 
 
 def _render_range_line(
@@ -313,6 +327,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         hit_chance=_hit,
         hit_weapon_id=_active_wid,
         avoid_positions=_avoid,
+        quick_rows=(_quick_resource_row(ctx, _active),),
     )
 
 

@@ -33,6 +33,7 @@ class TargetCard:
     y: int
     avoid_cells: tuple[tuple[int, int], ...] = ()
     player_cell: tuple[int, int] | None = None
+    quick_rows: tuple[tuple[tuple[str, Color], ...], ...] = ()
 
 
 # Standard palette shared by every domain's row builders so the card
@@ -42,6 +43,8 @@ TARGET_CARD_TEXT: Color = (232, 236, 246)
 TARGET_CARD_DIM: Color = (170, 170, 185)
 _TARGET_CARD_PAD_X: int = 12
 _TARGET_CARD_PAD_Y: int = 8
+_QUICK_CARD_PAD_X: int = 6
+_QUICK_CARD_PAD_Y: int = 3
 
 
 def title_row(text: str) -> tuple[tuple[str, Color], ...]:
@@ -62,6 +65,11 @@ def dim_row(text: str) -> tuple[tuple[str, Color], ...]:
 def hint_row() -> tuple[tuple[str, Color], ...]:
     """The final ``[V] hide`` toggle hint row."""
     return (("[V] hide", TARGET_CARD_DIM),)
+
+
+def quick_row(text: str) -> tuple[tuple[str, Color], ...]:
+    """One compact resource row attached above the target card."""
+    return ((text, TARGET_CARD_TEXT),)
 
 
 def _card_cells(panel_w: int, panel_h: int) -> tuple[int, int]:
@@ -221,19 +229,73 @@ def _paint_target_card_rows(
     measure: Any,
     rect: pygame_ui.Rect,
     line_height: int,
+    *,
+    pad_x: int = _TARGET_CARD_PAD_X,
+    pad_y: int = _TARGET_CARD_PAD_Y,
 ) -> None:
     """Paint the card's segment rows inside its panel rect."""
     pygame_ui.draw_panel(pygame, screen, rect)
-    x = rect.x + _TARGET_CARD_PAD_X
-    y = rect.y + _TARGET_CARD_PAD_Y
+    x = rect.x + pad_x
+    y = rect.y + pad_y
     for row in rows:
         for text, color in row:
             pygame_ui.draw_text(
                 pygame, screen, font, text, x, y, color=color,
             )
             x += measure(text)
-        x = rect.x + _TARGET_CARD_PAD_X
+        x = rect.x + pad_x
         y += line_height
+
+
+def _quick_card_panel(card: TargetCard, font: Any) -> tuple[int, int]:
+    """Return the compact resource panel's pixel dimensions."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    quick_w = max(
+        sum(measure(text) for text, _color in row)
+        for row in card.quick_rows
+    ) + 2 * _QUICK_CARD_PAD_X
+    quick_h = len(card.quick_rows) * font.get_linesize() + 2 * _QUICK_CARD_PAD_Y
+    return quick_w, quick_h
+
+
+def _target_card_layout(
+    card: TargetCard,
+    font: Any,
+    *,
+    map_width: int,
+    map_height: int,
+) -> tuple[pygame_ui.Rect, pygame_ui.Rect | None, tuple[tuple[tuple[str, Color], ...], ...], int, int]:
+    """Return the body/quick rects and dimensions for one target card group."""
+    rows, body_w, body_h, line_height = _target_card_panel(card, font)
+    if not card.quick_rows:
+        return _target_card_rect(
+            card, panel_w=body_w, panel_h=body_h,
+            map_width=map_width, map_height=map_height,
+        ), None, rows, body_w, body_h
+
+    quick_w, quick_h = _quick_card_panel(card, font)
+    group_w = max(body_w, quick_w)
+    group_h = body_h + quick_h
+    group_rect = _target_card_rect(
+        card,
+        panel_w=group_w,
+        panel_h=group_h,
+        map_width=map_width,
+        map_height=map_height,
+    )
+    body_rect = pygame_ui.Rect(
+        group_rect.x + (group_w - body_w) // 2,
+        group_rect.y + quick_h,
+        body_w,
+        body_h,
+    )
+    quick_rect = pygame_ui.Rect(
+        group_rect.x + (group_w - quick_w) // 2,
+        group_rect.y,
+        quick_w,
+        quick_h,
+    )
+    return body_rect, quick_rect, rows, body_w, body_h
 
 
 def _draw_target_card(
@@ -244,27 +306,30 @@ def _draw_target_card(
     map_width: int,
     map_height: int,
 ) -> None:
-    """Paint the targeted combatant's info card as a native floating panel.
+    """Paint the target card and its compact player-resource card.
 
-    Drawn over the map region (clipped to it) near the target cell, dodging
-    the player and other visible hostiles, so the full stat block has room
-    the 20-char HUD column never had.
+    The resource card is physically smaller, centered over the target
+    card, and touches its top edge. The combined group still uses the
+    existing collision-avoidance placement, so adding the extra row does
+    not cover the target, player, or visible hostiles.
     """
     font = pygame_ui.cell_font(pygame, line_height=TILE_HEIGHT)
-    rows, panel_w, panel_h, line_height = _target_card_panel(card, font)
-    rect = _target_card_rect(
-        card,
-        panel_w=panel_w,
-        panel_h=panel_h,
-        map_width=map_width,
-        map_height=map_height,
+    body_rect, quick_rect, rows, _body_w, _body_h = _target_card_layout(
+        card, font, map_width=map_width, map_height=map_height,
     )
     clip = pygame.Rect(0, 0, map_width * TILE_WIDTH, map_height * TILE_HEIGHT)
     screen.set_clip(clip)
     try:
         measure = lambda text: pygame_ui.measure_font(font, text)
+        if quick_rect is not None:
+            _paint_target_card_rows(
+                pygame, screen, font, card.quick_rows, measure, quick_rect,
+                font.get_linesize(),
+                pad_x=_QUICK_CARD_PAD_X,
+                pad_y=_QUICK_CARD_PAD_Y,
+            )
         _paint_target_card_rows(
-            pygame, screen, font, rows, measure, rect, line_height,
+            pygame, screen, font, rows, measure, body_rect, font.get_linesize(),
         )
     finally:
         screen.set_clip(None)
@@ -294,5 +359,9 @@ def target_card_from_payload(data: dict[str, Any]) -> TargetCard | None:
             (int(target_data["player_cell"][0]), int(target_data["player_cell"][1]))
             if target_data.get("player_cell") is not None
             else None
+        ),
+        quick_rows=tuple(
+            tuple((str(_seg[0]), _rgb(_seg[1])) for _seg in row)
+            for row in target_data.get("quick_rows", ())
         ),
     )
