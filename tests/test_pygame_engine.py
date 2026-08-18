@@ -225,6 +225,29 @@ def test_shared_runtime_context_is_renderer_compatible():
     assert context.present(marker) is None
 
 
+def test_glyph_atlas_keeps_landing_pad_background_around_entity_ink():
+    pygame = pytest.importorskip("pygame")
+    from src.spacehack.engine import load_tileset
+
+    pygame.init()
+    try:
+        atlas = pygame_engine.GlyphAtlas.from_processed_tileset(
+            pygame, load_tileset(),
+        )
+        background = (45, 75, 100)
+        surface = pygame.Surface((16, 16), pygame.SRCALPHA)
+        atlas.blit(surface, "t", 0, 0, fg=(180, 200, 220), bg=background)
+
+        assert surface.get_at((0, 0))[:3] == background
+        assert all(
+            surface.get_at((x, y))[:3] != (0, 0, 0)
+            for x in range(16)
+            for y in range(16)
+        )
+    finally:
+        pygame.quit()
+
+
 def test_pygame_runtime_inherits_tile_background_for_entity_glyphs():
     from src.spacehack import world
 

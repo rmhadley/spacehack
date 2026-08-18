@@ -127,6 +127,31 @@ def test_render_world_preserves_tile_background_behind_entity_glyphs():
     assert console.cell(1, 1).bg == (10, 20, 30)
 
 
+def test_earth_hangar_entity_preserves_landing_pad_background():
+    from src.spacehack.data.planets import load_planet
+
+    game_map = load_planet("earth")
+    hangar_ship = world.Entity(
+        "t", (180, 200, 220), world.HANGAR_ANCHOR, owned=True,
+    )
+    game_map.entities.append(hangar_ship)
+    tile = game_map.tiles[hangar_ship.pos.y][hangar_ship.pos.x]
+    console = FrameBuffer(game_map.width, game_map.height)
+
+    world.render_world(
+        console,
+        game_map,
+        region_x=0,
+        region_y=0,
+        region_w=game_map.width,
+        region_h=game_map.height,
+    )
+
+    assert tile.kind == "landing_pad"
+    assert tile.bg == (45, 75, 100)
+    assert console.cell(hangar_ship.pos.x, hangar_ship.pos.y).bg == tile.bg
+
+
 def test_world_commands_skip_unseen_cells_and_dim_remembered_cells():
     seen = [[False, True, False, False] for _ in range(3)]
     visible = [[False, False, False, False] for _ in range(3)]
