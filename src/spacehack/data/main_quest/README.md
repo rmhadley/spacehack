@@ -9,12 +9,14 @@ new chain should normally be a new `STEPS` tuple here plus story text in
 1. Create `act<N>_<name>.py` in this directory.
 2. Import `MainQuestStep` and `QuestDialogue` from `.`.
 3. Export a `STEPS` tuple.
-4. Give each step a unique `id` and link it with `requires_step`.
-5. Set `chain`, `objective_type`, locations, rewards, gates, and any objective
+4. Add `__all__ = ["STEPS"]` at the end of the module, matching the existing
+   quest catalogs.
+5. Give each step a unique `id` and link it with `requires_step`.
+6. Set `chain`, `objective_type`, locations, rewards, gates, and any objective
    fields needed by the handler.
-6. Add the matching `step.<id>.*` text keys to the appropriate JSON file in
+7. Add the matching `step.<id>.*` text keys to the appropriate JSON file in
    `src/spacehack/data/text/`.
-7. Run `make check`.
+8. Run `make check`.
 
 Step prose does not belong in the Python catalog. Titles and required
 objective descriptions must exist in JSON; optional dialogue, completion
@@ -52,9 +54,12 @@ STEPS = (
         delve_good_ids=(("cult_reliquary", 1),),
     ),
 )
+
+__all__ = ["STEPS"]
 ```
 
-The catalog is auto-discovered. Do not add a central registry entry.
+The catalog is auto-discovered. Do not add a central registry entry. Keep the
+`__all__` export so the module follows the existing quest-catalog convention.
 
 ## Objective types
 
