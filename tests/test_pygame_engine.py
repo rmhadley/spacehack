@@ -236,7 +236,10 @@ def test_glyph_atlas_keeps_landing_pad_background_around_entity_ink():
         atlas = pygame_engine.GlyphAtlas.from_processed_tileset(
             pygame, load_tileset(),
         )
-        background = (45, 75, 100)
+        from src.spacehack.data.planets import _readable_city_bg
+        from src.spacehack.world import LANDING_PAD
+
+        background = _readable_city_bg(LANDING_PAD.bg)
         surface = pygame.Surface((16, 16), pygame.SRCALPHA)
         atlas.blit(surface, "t", 0, 0, fg=(180, 200, 220), bg=background)
 

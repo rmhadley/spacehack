@@ -16,7 +16,7 @@ Extending to a new planet is a single new module + one entry in
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ... import world
 from ...data import npcs as npc_module
@@ -318,6 +318,44 @@ def hangar_anchor(planet_id: str) -> world.Position:
     return find_planet_spec(planet_id).hangar_anchor
 
 
+_CITY_THEME_FIELDS = (
+    "floor", "grass", "grass_accent", "plaza", "sidewalk",
+    "road_surface", "road_ns", "road_ew", "landing_pad", "neon",
+    "tree", "decor",
+)
+_CITY_BG_MIN_LUMA = 60.0
+_CITY_BG_MIN_CHANNEL = 28
+
+
+def _city_bg_luma(color: tuple[int, int, int]) -> float:
+    """Return perceptual brightness for one city tile background."""
+    return 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2]
+
+
+def _readable_city_bg(color: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Lift only near-black city backgrounds while preserving their hue."""
+    lifted = tuple(max(_CITY_BG_MIN_CHANNEL, channel) for channel in color)
+    luma = _city_bg_luma(lifted)
+    if luma < _CITY_BG_MIN_LUMA:
+        scale = _CITY_BG_MIN_LUMA / max(1.0, luma)
+        lifted = tuple(
+            min(255, max(_CITY_BG_MIN_CHANNEL, round(channel * scale) + 1))
+            for channel in lifted
+        )
+    return lifted
+
+
+def _readable_city_theme(theme: world.PlanetTheme) -> world.PlanetTheme:
+    """Return ``theme`` with entity-friendly city surface backgrounds."""
+    changes = {}
+    for field in _CITY_THEME_FIELDS:
+        tile = getattr(theme, field)
+        bg = _readable_city_bg(tile.bg)
+        if bg != tile.bg:
+            changes[field] = replace(tile, bg=bg)
+    return replace(theme, **changes) if changes else theme
+
+
 def load_planet(planet_id: str) -> world.GameMap:
     """Build the :class:`world.GameMap` for the named planet's city.
 
@@ -327,7 +365,7 @@ def load_planet(planet_id: str) -> world.GameMap:
     """
     spec = find_planet_spec(planet_id)
     width, height = spec.width, spec.height
-    theme = spec.theme or world.EARTH_THEME
+    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
     tiles = _city_tiles(width, height, theme)
     entities: list[world.Entity] = []
     _place_buildings(spec, tiles, entities)

@@ -51,6 +51,50 @@ def test_all_named_planet_themes_keep_grass_accents_on_field_background():
     assert all(theme.grass_accent.bg == theme.grass.bg for theme in named_themes)
 
 
+def test_registered_city_themes_lift_near_black_surface_backgrounds():
+    from src.spacehack.data.planets import (
+        _CITY_THEME_FIELDS,
+        _CITY_BG_MIN_CHANNEL,
+        _CITY_BG_MIN_LUMA,
+        _city_bg_luma,
+        _readable_city_theme,
+        list_planet_specs,
+    )
+
+    for spec in list_planet_specs():
+        theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
+        for field in _CITY_THEME_FIELDS:
+            tile = getattr(theme, field)
+            assert min(tile.bg) >= _CITY_BG_MIN_CHANNEL
+            assert _city_bg_luma(tile.bg) >= _CITY_BG_MIN_LUMA
+
+
+def test_all_landable_city_pads_use_readable_entity_backgrounds():
+    from src.spacehack.data.planets import (
+        _CITY_BG_MIN_CHANNEL,
+        _CITY_BG_MIN_LUMA,
+        _city_bg_luma,
+        list_planet_specs,
+        load_planet,
+    )
+
+    for spec in list_planet_specs():
+        game_map = load_planet(spec.id)
+        pad_tiles = [
+            tile
+            for row in game_map.tiles
+            for tile in row
+            if tile.kind == "landing_pad"
+        ]
+        if pad_tiles:
+            assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL
+            assert _city_bg_luma(pad_tiles[0].bg) >= _CITY_BG_MIN_LUMA
+        for entity in game_map.entities:
+            tile = game_map.tiles[entity.pos.y][entity.pos.x]
+            assert min(tile.bg) >= _CITY_BG_MIN_CHANNEL
+            assert _city_bg_luma(tile.bg) >= _CITY_BG_MIN_LUMA
+
+
 def test_capture_console_clips_text_and_preserves_colors_and_backgrounds():
     capture = pygame_world.CaptureConsole(4, 2)
 
@@ -148,7 +192,9 @@ def test_earth_hangar_entity_preserves_landing_pad_background():
     )
 
     assert tile.kind == "landing_pad"
-    assert tile.bg == (45, 75, 100)
+    from src.spacehack.data.planets import _readable_city_bg
+
+    assert tile.bg == _readable_city_bg(world.LANDING_PAD.bg)
     assert console.cell(hangar_ship.pos.x, hangar_ship.pos.y).bg == tile.bg
 
 

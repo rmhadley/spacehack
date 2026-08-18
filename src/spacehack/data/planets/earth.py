@@ -12,20 +12,11 @@ from __future__ import annotations
 
 from ... import world
 from . import PlanetSpec
-from .themes import EARTH, T, override_theme
-
-
-# The old dark navy pad field read as black behind entities on fullscreen
-# displays. Keep the same cyan pad glyph while making its terrain field
-# visibly blue.
-EARTH_DISPLAY = override_theme(
-    EARTH,
-    landing_pad=T("landing_pad", "▓", (100, 210, 255), (45, 75, 100)),
-)
+from .themes import EARTH
 
 
 SPEC = PlanetSpec(
-    theme=EARTH_DISPLAY,
+    theme=EARTH,
     id="earth",
     name="Earth",
     char="o",
