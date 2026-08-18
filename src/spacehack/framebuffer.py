@@ -18,6 +18,26 @@ Color = tuple[int, int, int]
 DEFAULT_FOREGROUND: Color = (255, 255, 255)
 DEFAULT_BACKGROUND: Color | None = None
 
+_SHADE_COVERAGE: dict[str, float] = {
+    "█": 1.0,
+    "▓": 0.75,
+    "▒": 0.5,
+    "░": 0.25,
+}
+
+
+def _underlay_background(cell: "FrameCell") -> Color | None:
+    """Return the color visibly occupying a cell beneath a later glyph."""
+    if cell.bg is None:
+        return None
+    coverage = _SHADE_COVERAGE.get(cell.char, 0.0)
+    if coverage <= 0:
+        return cell.bg
+    return tuple(
+        round(cell.bg[index] * (1 - coverage) + cell.fg[index] * coverage)
+        for index in range(3)
+    )
+
 
 @dataclass(frozen=True)
 class FrameCell:
@@ -40,8 +60,9 @@ class FrameBuffer:
       frame are clipped without raising.
     * Later writes overwrite earlier writes one cell at a time. A blank
       character is still a real write. A write with no explicit background
-      inherits the cell's existing background, allowing entity glyphs to
-      sit on the terrain beneath them.
+      inherits the visible underlay of the existing cell, allowing entity
+      glyphs to sit on the terrain beneath them instead of its raw dark
+      texture background.
     * ``commands`` returns one command per non-default cell, plus explicit
       writes that happen to equal the default, in row-major order.
       Completely untouched cells are omitted because the Pygame presentation
@@ -84,10 +105,10 @@ class FrameBuffer:
         return self._cells[y][x]
 
     def _write_background(self, x: int, y: int, bg: Color | None) -> Color | None:
-        """Resolve an omitted background against the existing cell."""
+        """Resolve an omitted background against the visible cell underlay."""
         if bg is not None or not (0 <= x < self.width and 0 <= y < self.height):
             return bg
-        return self._cells[y][x].bg
+        return _underlay_background(self._cells[y][x])
 
     def _write_cell(self, x: int, y: int, cell: FrameCell) -> None:
         if 0 <= x < self.width and 0 <= y < self.height:

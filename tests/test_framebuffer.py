@@ -64,6 +64,14 @@ def test_later_glyph_without_background_inherits_the_existing_tile_background():
     assert frame.cell(0, 0) == FrameCell("@", (255, 255, 255), (10, 20, 30))
 
 
+def test_later_glyph_inherits_the_visible_underlay_of_dense_tile_glyphs():
+    frame = FrameBuffer(1, 1)
+    frame.write_cell(0, 0, "▓", fg=(220, 240, 255), bg=(50, 70, 95))
+    frame.write_cell(0, 0, "t", fg=(180, 200, 220))
+
+    assert frame.cell(0, 0).bg == (178, 198, 215)
+
+
 def test_clear_resets_cells_and_changes_default_background():
     frame = FrameBuffer(2, 1, background=(9, 9, 9))
     frame.print(string="A")

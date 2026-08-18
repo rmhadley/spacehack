@@ -351,9 +351,8 @@ def _readable_city_theme(theme: world.PlanetTheme) -> world.PlanetTheme:
     for field in _CITY_THEME_FIELDS:
         tile = getattr(theme, field)
         bg = _readable_city_bg(tile.bg)
-        char = "░" if field == "landing_pad" else tile.char
-        if bg != tile.bg or char != tile.char:
-            changes[field] = replace(tile, bg=bg, char=char)
+        if bg != tile.bg:
+            changes[field] = replace(tile, bg=bg)
     return replace(theme, **changes) if changes else theme
 
 

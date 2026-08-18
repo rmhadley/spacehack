@@ -68,7 +68,7 @@ def test_registered_city_themes_lift_near_black_surface_backgrounds():
             assert min(tile.bg) >= _CITY_BG_MIN_CHANNEL
             assert _city_bg_luma(tile.bg) >= _CITY_BG_MIN_LUMA
             if field == "landing_pad":
-                assert tile.char == "░"
+                assert tile.char == "▓"
 
 
 def test_all_landable_city_pads_use_readable_entity_backgrounds():
@@ -89,7 +89,7 @@ def test_all_landable_city_pads_use_readable_entity_backgrounds():
             if tile.kind == "landing_pad"
         ]
         if pad_tiles:
-            assert pad_tiles[0].char == "░"
+            assert pad_tiles[0].char == "▓"
             assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL
             assert _city_bg_luma(pad_tiles[0].bg) >= _CITY_BG_MIN_LUMA
         for entity in game_map.entities:
@@ -195,8 +195,10 @@ def test_ac_ii_hangar_entity_preserves_ice_landing_pad_background():
     )
 
     assert tile.kind == "landing_pad"
-    assert tile.char == "░"
-    assert console.cell(20 + hangar_ship.pos.x, 15 + hangar_ship.pos.y).bg == tile.bg
+    assert tile.char == "▓"
+    assert console.cell(20 + hangar_ship.pos.x, 15 + hangar_ship.pos.y).bg == (
+        178, 198, 215,
+    )
 
 
 def test_earth_hangar_entity_preserves_landing_pad_background():
@@ -223,7 +225,9 @@ def test_earth_hangar_entity_preserves_landing_pad_background():
     from src.spacehack.data.planets import _readable_city_bg
 
     assert tile.bg == _readable_city_bg(world.LANDING_PAD.bg)
-    assert console.cell(hangar_ship.pos.x, hangar_ship.pos.y).bg == tile.bg
+    assert console.cell(hangar_ship.pos.x, hangar_ship.pos.y).bg == (
+        85, 174, 216,
+    )
 
 
 def test_world_commands_skip_unseen_cells_and_dim_remembered_cells():
