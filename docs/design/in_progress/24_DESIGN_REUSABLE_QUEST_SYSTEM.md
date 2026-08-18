@@ -48,7 +48,7 @@ After this lands, the authoring loop for a new chain is: write a step tuple in
       scene-triggering playtest complete.
 - [x] Phase 3a — quest-NPC presence data-ified; open NPC-presence playtest
       complete.
-- [ ] Phase 4 — implementation complete; full Mars-prison text playtest remains.
+- [x] Phase 4 — quest and Mars-prison text migration plus full playtest complete.
 - [ ] Phase 5 — minimal validator and authoring guide.
 - [ ] Phase 6 — guide/docs review and final acceptance.
 
@@ -416,8 +416,9 @@ and Floor 5 extraction, through the ascent and final departure from Mars.
       non-player-facing diagnostics, layout/art strings, and intentional Python
       defaults may remain outside the overlay.
 - [x] `make check` green; the extractor's key-set sync still passes.
+- [x] Full prison text playtest complete (user-confirmed).
 
-**PLAYTEST (4):** run the complete prison text path, not just the quest log:
+**PLAYTEST (4) — COMPLETE:** run the complete prison text path, not just the quest log:
 
 1. Open the Mars prison door and verify the discovery, opening, blocked/chip,
    and ambush text at their applicable beats; descend through the revealed
@@ -433,6 +434,10 @@ and Floor 5 extraction, through the ascent and final departure from Mars.
    `00_runtime.json`, relaunch or press F5, and confirm the changed wording
    appears without a code edit. Confirm no prison text disappears, falls back
    unexpectedly, or changes save/load behavior.
+
+**Playtest result:** User confirmed the complete prison text path passed,
+including door opening, descent, extraction, ascent, and departure. No failures
+or new edge cases were reported.
 
 ### Phase 5: Minimal validator + authoring guide + acceptance
 
