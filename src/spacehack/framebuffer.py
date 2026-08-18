@@ -39,8 +39,9 @@ class FrameBuffer:
       return to the original x column and advance one row. Writes outside the
       frame are clipped without raising.
     * Later writes overwrite earlier writes one cell at a time. A blank
-      character is still a real write and therefore preserves its supplied
-      foreground/background.
+      character is still a real write. A write with no explicit background
+      inherits the cell's existing background, allowing entity glyphs to
+      sit on the terrain beneath them.
     * ``commands`` returns one command per non-default cell, plus explicit
       writes that happen to equal the default, in row-major order.
       Completely untouched cells are omitted because the Pygame presentation
@@ -82,6 +83,12 @@ class FrameBuffer:
         """Return one cell, raising ``IndexError`` when outside the frame."""
         return self._cells[y][x]
 
+    def _write_background(self, x: int, y: int, bg: Color | None) -> Color | None:
+        """Resolve an omitted background against the existing cell."""
+        if bg is not None or not (0 <= x < self.width and 0 <= y < self.height):
+            return bg
+        return self._cells[y][x].bg
+
     def _write_cell(self, x: int, y: int, cell: FrameCell) -> None:
         if 0 <= x < self.width and 0 <= y < self.height:
             self._cells[y][x] = cell
@@ -107,7 +114,11 @@ class FrameBuffer:
             self._write_cell(
                 cell_x,
                 cell_y,
-                FrameCell(char=character, fg=tuple(fg), bg=bg),
+                FrameCell(
+                    char=character,
+                    fg=tuple(fg),
+                    bg=self._write_background(cell_x, cell_y, bg),
+                ),
             )
             cell_x += 1
 
@@ -127,7 +138,15 @@ class FrameBuffer:
         bg: Color | None = DEFAULT_BACKGROUND,
     ) -> None:
         """Write one already-positioned cell with normal clipping."""
-        self._write_cell(x, y, FrameCell(char=char, fg=tuple(fg), bg=bg))
+        self._write_cell(
+            x,
+            y,
+            FrameCell(
+                char=char,
+                fg=tuple(fg),
+                bg=self._write_background(x, y, bg),
+            ),
+        )
 
     @property
     def commands(self) -> list["WorldDrawCommand"]:

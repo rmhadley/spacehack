@@ -56,6 +56,14 @@ def test_later_writes_overwrite_earlier_cells_in_place():
     )
 
 
+def test_later_glyph_without_background_inherits_the_existing_tile_background():
+    frame = FrameBuffer(1, 1)
+    frame.write_cell(0, 0, ".", fg=(200, 210, 220), bg=(10, 20, 30))
+    frame.write_cell(0, 0, "@", fg=(255, 255, 255))
+
+    assert frame.cell(0, 0) == FrameCell("@", (255, 255, 255), (10, 20, 30))
+
+
 def test_clear_resets_cells_and_changes_default_background():
     frame = FrameBuffer(2, 1, background=(9, 9, 9))
     frame.print(string="A")

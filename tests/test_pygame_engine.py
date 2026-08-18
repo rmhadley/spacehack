@@ -298,7 +298,7 @@ def test_pygame_runtime_present_uses_framebuffer_default_background():
     runtime.present(frame)
 
     assert fills == [(7, 8, 9, 255)]
-    assert blits[0]["bg"] is None
+    assert blits[0]["bg"] == (7, 8, 9)
     assert presents == [True]
 
 

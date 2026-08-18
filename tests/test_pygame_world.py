@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.spacehack import pygame_world, world
+from src.spacehack.framebuffer import FrameBuffer
 
 
 def _map(*, seen=None, visible=None, entities=None) -> world.GameMap:
@@ -107,6 +108,23 @@ def test_world_commands_center_small_map_and_preserve_tile_backgrounds():
     assert commands[-1] == world.WorldDrawCommand(
         5, 5, "@", (255, 255, 255), None,
     )
+
+
+def test_render_world_preserves_tile_background_behind_entity_glyphs():
+    player = world.Entity("@", (255, 255, 255), world.Position(1, 1))
+    game_map = _map(entities=[player])
+    console = FrameBuffer(4, 3)
+
+    world.render_world(
+        console,
+        game_map,
+        region_x=0,
+        region_y=0,
+        region_w=4,
+        region_h=3,
+    )
+
+    assert console.cell(1, 1).bg == (10, 20, 30)
 
 
 def test_world_commands_skip_unseen_cells_and_dim_remembered_cells():
