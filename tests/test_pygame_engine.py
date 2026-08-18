@@ -32,6 +32,12 @@ def test_fit_viewport_handles_invalid_dimensions_without_division_errors():
     )
 
 
+def test_fit_cell_viewport_keeps_fullscreen_cell_boundaries_integer_aligned():
+    assert pygame_engine.fit_cell_viewport(2560, 1600, 100, 60) == pygame_engine.Viewport(
+        30, 50, 2500, 1500,
+    )
+
+
 def test_logical_position_rejects_letterbox_and_maps_inside_viewport():
     viewport = pygame_engine.Viewport(60, 0, 1800, 1080)
 
@@ -289,6 +295,25 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
 
     engine.close()
     assert repeat_calls[-1] == (0,)
+
+
+def test_full_block_glyph_is_rendered_as_an_opaque_solid_fill():
+    pygame = pytest.importorskip("pygame")
+    atlas = pygame_engine.GlyphAtlas(
+        pygame,
+        pygame.Surface((16, 16), pygame.SRCALPHA),
+        16,
+        16,
+    )
+    target = pygame.Surface((16, 16), pygame.SRCALPHA)
+
+    atlas.blit(target, "█", 0, 0, fg=(180, 80, 50), bg=(10, 10, 10))
+
+    assert {
+        target.get_at((x, y))[:3]
+        for x in range(16)
+        for y in range(16)
+    } == {(180, 80, 50)}
 
 
 def test_engine_applies_fullscreen_without_rebuilding_logical_surface(monkeypatch):

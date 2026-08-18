@@ -160,6 +160,34 @@ def fit_viewport(
     )
 
 
+def fit_cell_viewport(
+    window_width: int,
+    window_height: int,
+    columns: int,
+    rows: int,
+) -> Viewport:
+    """Fit a character grid using an integer physical size per cell.
+
+    Keeping every cell the same whole-pixel size avoids fractional cell
+    boundaries when a fullscreen display is not an exact multiple of the
+    logical grid. The unused pixels become letterbox space instead of being
+    distributed across glyphs and colored tile edges.
+    """
+    if min(window_width, window_height, columns, rows) <= 0:
+        return Viewport(0, 0, 1, 1)
+    cell_size = min(window_width // columns, window_height // rows)
+    if cell_size <= 0:
+        return fit_viewport(window_width, window_height, columns, rows)
+    width = columns * cell_size
+    height = rows * cell_size
+    return Viewport(
+        (window_width - width) // 2,
+        (window_height - height) // 2,
+        width,
+        height,
+    )
+
+
 def logical_position(
     position: tuple[int, int],
     viewport: Viewport,
@@ -290,6 +318,9 @@ class GlyphAtlas:
         )
         if bg is not None:
             target.fill((*bg, 255), rect)
+        if character == "█":
+            target.fill((*fg, 255), rect)
+            return
         source_rect = self._source_rect(character)
         if source_rect is None or character == " ":
             return
@@ -401,9 +432,10 @@ class PygameEngine:
         """Scale the logical frame into the window and flip once."""
         if self.window is None or self.logical_surface is None:
             raise RuntimeError("PygameEngine.open() must be called first")
-        self.viewport = fit_viewport(
+        self.viewport = fit_cell_viewport(
             *self.window.get_size(),
-            *logical_size(self.config),
+            self.config.logical_width // TILE_WIDTH,
+            self.config.logical_height // TILE_HEIGHT,
         )
         self.window.fill((0, 0, 0))
         scaled = self.pygame.transform.scale(
