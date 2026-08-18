@@ -24,6 +24,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         auto_advance=False,
         wait_days=60,
         rewards_xp=120,
+        # The first-reading disclosure plays once, on the confirmed
+        # departure after the prison completes (see _act1.py).
+        scene="orbit_disclosure",
     ),
 )
 

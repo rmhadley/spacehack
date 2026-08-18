@@ -21,6 +21,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         description_required=False,
         trigger_planet_id="mars",
         trigger_system_id="sol",
+        scene="prologue_transmission",  # incoming-comms overlay on the first jump out
     ),
     MainQuestStep(
         id="prologue_mars_unlocked",
@@ -33,6 +34,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         trigger_planet_id="mars",
         trigger_system_id="sol",
         requires_step="prologue_mars_unlocked",
+        scene="sealed_door_discover",  # the sealed-door discover overlay on bump
     ),
     MainQuestStep(
         id="prologue_seek_help",
@@ -73,6 +75,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         trigger_planet_id="mars",
         trigger_system_id="sol",
         rewards_xp=30,
+        scene="sealed_door_open",  # door-opening animation + overlay on bump
         # Act 0 ends with the door; Act 1 begins with the descent.
         unlocks_step="act1_prison",
     ),

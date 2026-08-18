@@ -942,7 +942,7 @@ def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
 
 
 def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
-    from src.spacehack import pygame_menu
+    from src.spacehack import navigation_travel, pygame_menu
 
     jump = SimpleNamespace(name="Gate", description="A stable gate.")
     monkeypatch.setattr(
@@ -951,7 +951,7 @@ def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
         lambda _context, frames, **kwargs: ("SELECT", "JUMP", 0),
     )
     monkeypatch.setattr(
-        navigation.solar_systems_module,
+        navigation_travel.solar_systems_module,
         "find_solar_system",
         lambda _system_id: SimpleNamespace(name="Sirius"),
     )

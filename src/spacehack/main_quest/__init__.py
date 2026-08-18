@@ -2,6 +2,7 @@
 
 Package split (per knowledge.md ~1,000-line guardrail):
   handlers.py    — objective-type handler registry (dispatch table)
+  _scenes.py     — scene registry (step.scene id → cutscene implementation)
   _core.py       — step lifecycle + smuggle crate mechanics (~250 lines)
   _dialogue.py   — NPC talk integration + quest option resolution (~180 lines)
   _objectives.py — delve / visit / bounty / salvage delivery hooks (~200 lines)
@@ -50,6 +51,10 @@ from ._spawns import (
 )
 from ._breadcrumb import (
     current_main_quest_objective,
+)
+from ._scenes import (
+    play_scene,
+    registered_scene_ids,
 )
 from ._act0 import (
     OfferOutcome,

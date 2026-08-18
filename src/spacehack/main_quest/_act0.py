@@ -20,6 +20,7 @@ from ..engine import (
 )
 from ..text import get as t_get
 from ..data.main_quest import find_main_quest_step, main_quest_step_after
+from ._scenes import play_scene
 from ._core import (
     STATUS_ACTIVE,
     STATUS_AVAILABLE,
@@ -465,6 +466,12 @@ def _chip_bump_objective(ctx, bumped_step: str) -> None:
         )
 
 
+def _play_sealed_door_open(ctx) -> None:
+    """Play the door-opening scene: animate the doors, then the overlay."""
+    animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
+    show_sealed_door_overlay(ctx, "open")
+
+
 def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars."""
     _bumped_step = _complete_bump_objective(ctx)
@@ -479,8 +486,7 @@ def bump_mars_door(ctx) -> None:
             message_log.COLOR_IMPORTANT_EVENT,
         )
         ctx.log.add(t_get("runtime.door_open_log2"))
-        animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
-        show_sealed_door_overlay(ctx, "open")
+        play_scene(ctx, "prologue_open")
         return
     _entrance_status = step_status(ctx, "prologue_mars_entrance")
     if _entrance_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -489,7 +495,7 @@ def bump_mars_door(ctx) -> None:
             t_get("runtime.door_discover_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
-        show_sealed_door_overlay(ctx, "discover")
+        play_scene(ctx, "prologue_mars_entrance")
         return
     if step_status(ctx, "prologue_open") == STATUS_COMPLETED:
         ctx.log.add(t_get("runtime.door_gapes_log"))

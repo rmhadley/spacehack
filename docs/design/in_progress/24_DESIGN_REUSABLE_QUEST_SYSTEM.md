@@ -280,20 +280,33 @@ Save/quit/continue mid-heat preserves the behavior.
 
 ### Phase 3: Scene triggering via data + remaining step flags
 
-- [ ] Add `scene: str` to `MainQuestStep`; add `main_quest/_scenes.py` with a
-      `_SCENES` id → implementation registry
-- [ ] Move the sealed-door beats (discover/open), help offer, prologue
+- [x] Add `scene: str` to `MainQuestStep`; add `main_quest/_scenes.py` with a
+      `_SCENES` id → implementation registry (lazy imports, like `handlers.py`)
+- [x] Move the sealed-door beats (discover/open), help offer, prologue
       transmission, and orbit disclosure *wiring* behind `scene` ids on their
       steps; keep the presentation code in `_act0.py` / `_act1.py`
-- [ ] Add `auto_load_next_smuggle` to `MainQuestStep`; `_core._maybe_auto_trigger_next_smuggle`
+- [x] Add `auto_load_next_smuggle` to `MainQuestStep`; `_core._maybe_auto_trigger_next_smuggle`
       reads it instead of always-on
-- [ ] `_breadcrumb.py`: keep the bespoke post-prison breadcrumbs (translation
+- [x] `_breadcrumb.py`: keep the bespoke post-prison breadcrumbs (translation
       wait, departure objective) as documented special cases for now — text
       migration happens in Phase 4, and they are Act-1 narrative, not chain-generic
-- [ ] `_gates.py`: keep the `_repair_*` save migrations untouched (they are
+- [x] `_gates.py`: keep the `_repair_*` save migrations untouched (they are
       save-compat, explicitly allowed to name step ids)
-- [ ] New pure helpers ship pytest in the same commit
-- [ ] `make check` green
+- [x] New pure helpers ship pytest in the same commit
+- [x] `make check` green
+
+**Architecture debt paid (this phase):** the scene wiring touched
+`navigation.py` (prologue transmission fires from `_jump_to_system`) and
+`game_flow.py` (orbit disclosure fires from the launch/exit paths), which the
+ratchet flagged for their pre-existing over-limit debt. `navigation.py` was
+split into a re-export hub over five focused sibling modules —
+`navigation_render` (overlay + AOI), `navigation_spawns` (bounty/intercept
+placement), `navigation_combat` (encounter detection + auto-comms),
+`navigation_scan` (militia cargo scan), and `navigation_travel` (GO TO, jump
+gate, jump animation, system transition) — with every function ≤40 lines and
+the full `from .navigation import ...` surface preserved. `game_flow.py`'s
+three oversized functions (`_run_ground_combat_tick`, `_complete_ship_purchase`,
+`_leave_dungeon_to_space`) were split into focused helpers.
 
 **PLAYTEST (3):** lab chain — bump sample still auto-loads the Mercury delivery;
 a step with `auto_load_next_smuggle=False` (add a temporary test step) does not.

@@ -262,13 +262,17 @@ def _maybe_auto_trigger_next_smuggle(ctx, step_id: str) -> None:
     """Auto-load the next step's crate when it is a smuggle delivery.
 
     Called right after a step completes (delve / bump / salvage): if
-    the next step is an immediately-available ``smuggle`` and its
-    crate isn't already held, load it so the player can deliver it
-    straight away (bar_q3 → bar_q4, lab_q5 → lab_q6_return, ...).
+    the next step is an immediately-available ``smuggle`` that opts
+    in via ``auto_load_next_smuggle`` (the default) and its crate
+    isn't already held, load it so the player can deliver it straight
+    away (bar_q3 → bar_q4, lab_q5 → lab_q6_return, ...). A step can
+    set ``auto_load_next_smuggle=False`` to require the player to
+    initiate the load instead.
     """
     _next = main_quest_step_after(step_id, chain=ctx.main_quest_chain)
     if (_next is not None
             and _next.objective_type == "smuggle"
+            and _next.auto_load_next_smuggle
             and step_status(ctx, _next.id) == STATUS_AVAILABLE
             and not _smuggle_crate_held(ctx, _next.id)):
         _trigger_smuggle_crate(ctx, _next)

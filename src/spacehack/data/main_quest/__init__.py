@@ -193,6 +193,19 @@ class MainQuestStep:
     # Chain-gated by the runtime: only applies when
     # ``ctx.main_quest_chain`` matches this step's ``chain``.
     npc_presence: tuple[str, ...] = ()  # e.g. ("old_smuggler",)
+    # Scene identifier (Phase 3): names the cutscene that plays at
+    # this step's beat, resolved through main_quest/_scenes.py. The
+    # presentation is always written in code FIRST; the step data
+    # only declares WHICH scene triggers. Empty = no cutscene at this
+    # beat (generic log/readout flows only). An id with no registered
+    # implementation fails loudly in smoke, never silently in-game.
+    scene: str = ""  # e.g. "prologue_transmission" / "sealed_door_open"
+    # Whether this step's crate auto-loads into the mission hold the
+    # moment the step becomes available right after a completion
+    # (delve/bump/salvage → next smuggle). Default True keeps the
+    # existing chains' flow (bar_q3 → bar_q4, lab_q5 → lab_q6_return,
+    # ...); set False when the load must be player-initiated.
+    auto_load_next_smuggle: bool = True
     # --- Time-gating fields (minimum waits, never deadlines) ---
     wait_days: int = 0  # world-clock days the faction "works" after this step
                         # completes before the NEXT step unlocks (0 = no gate)

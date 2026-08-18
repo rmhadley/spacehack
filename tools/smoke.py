@@ -141,6 +141,8 @@ def smoke_test() -> int:
         (main_quest, "show_gate_popup"),
         (main_quest, "maybe_continue_chain"),
         (main_quest, "spawn_quest_npcs"),
+        (main_quest, "play_scene"),
+        (main_quest, "registered_scene_ids"),
     ]
     for mod, attr in _mq_checks:
         if not hasattr(mod, attr):
@@ -320,6 +322,20 @@ def smoke_test() -> int:
                     file=sys.stderr,
                 )
                 return 1
+
+    # Scene ids (Phase 3): every step's ``scene`` must resolve in the
+    # scene registry — an unregistered id would raise in-game instead
+    # of silently skipping a narrative beat.
+    from src.spacehack.main_quest import _scenes as _mq_scenes
+    _scene_ids = _mq_scenes.registered_scene_ids()
+    for _s in _mq_steps:
+        if _s.scene and _s.scene not in _scene_ids:
+            print(
+                f"FAIL: step {_s.id!r} references unregistered scene "
+                f"{_s.scene!r}.",
+                file=sys.stderr,
+            )
+            return 1
 
     # Time-gate data (phase 1d): every step with a minimum-wait gate
     # must carry the completion flavor + the one-way summon message

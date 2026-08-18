@@ -169,6 +169,33 @@ def _run_pygame_exit_confirm(ctx) -> bool:
     return result == "CONFIRM"
 
 
+def _ground_combat_hostiles(ctx, game_map) -> list:
+    """Move ground NPCs, refresh the LOS frame, and return hostiles now visible."""
+    from .ground_npcs import move_ground_npcs as _move_ground_npcs
+    _move_ground_npcs(ctx, game_map)
+    from .dungeon import reveal_around as _reveal_around
+    _reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
+    from .combat._encounter import detect_ground_combat as _dgc
+    return _dgc(ctx, game_map, ctx.player.pos)
+
+
+def _show_ground_defeat(ctx, ground_result) -> None:
+    """Show the full-screen death frame when a ground fight ends in defeat."""
+    if ground_result is None or ground_result.outcome != "DEFEAT":
+        return
+    # Ground death shows the same full-screen death frame as space
+    # defeat: no HUD, no console log, any key returns to the main
+    # menu immediately, and no save is written.
+    from .combat._encounter import _render_death_screen as _show_death
+    _show_death(
+        ctx,
+        lines=(
+            "YOU DIED",
+            "You collapse from your wounds.",
+        ),
+    )
+
+
 def _run_ground_combat_tick(
     ctx,
     console,
@@ -191,12 +218,7 @@ def _run_ground_combat_tick(
     Returns the :class:`CombatResult` when combat ran, else ``None``.
     Callers check ``outcome == "DEFEAT"`` to exit the game loop.
     """
-    from .ground_npcs import move_ground_npcs as _move_ground_npcs
-    _move_ground_npcs(ctx, game_map)
-    from .dungeon import reveal_around as _reveal_around
-    _reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
-    from .combat._encounter import detect_ground_combat as _dgc
-    _hostiles = _dgc(ctx, game_map, ctx.player.pos)
+    _hostiles = _ground_combat_hostiles(ctx, game_map)
     if ground_init is None:
         ground_init = _ground_init
     if apply_rep is None:
@@ -212,18 +234,7 @@ def _run_ground_combat_tick(
     _ground_result = run_combat(console, ctx, game_map, _rules_ground)
     apply_rep(ctx, _ground_result)
     tutorial_module.notify_ground_combat_ended(ctx)
-    if _ground_result is not None and _ground_result.outcome == "DEFEAT":
-        # Ground death shows the same full-screen death frame as space
-        # defeat: no HUD, no console log, any key returns to the main
-        # menu immediately, and no save is written.
-        from .combat._encounter import _render_death_screen as _show_death
-        _show_death(
-            ctx,
-            lines=(
-                "YOU DIED",
-                "You collapse from your wounds.",
-            ),
-        )
+    _show_ground_defeat(ctx, _ground_result)
     return _ground_result
 
 
@@ -295,16 +306,15 @@ def _maybe_show_post_prison_orbit(
     """Show the one-time Mars departure scene from a confirmed path."""
     if from_mars_prison or getattr(ctx, "post_prison_orbit_pending", False):
         ctx.post_prison_orbit_pending = True
-        _shown = main_quest_module.maybe_show_post_prison_orbit(
-            ctx,
-            from_mars_prison=True,
+        _shown = main_quest_module.play_scene(
+            ctx, "act1_prison", from_mars_prison=True,
         )
         if _shown:
             ctx.post_prison_orbit_pending = False
         return _shown
     if current_city_id != "mars":
         return False
-    return main_quest_module.maybe_show_post_prison_orbit(ctx)
+    return main_quest_module.play_scene(ctx, "act1_prison")
 
 
 def _maybe_show_post_prison_orbit_in_space(ctx, current_mode: str) -> bool:
@@ -444,6 +454,76 @@ def _apply_ship_buy_result(
     return None
 
 
+def _relocate_old_ship(ctx, city_game_map, player_owned_ship) -> bool:
+    """Move the trade-in's equipment to storage and remove its hangar entity.
+
+    Returns False (and logs) when the equipment cannot transfer safely;
+    the purchase is aborted so no credits are spent.
+    """
+    if player_owned_ship is None:
+        return True
+    try:
+        ship_module.move_installed_equipment_to_storage(
+            player_owned_ship,
+            ctx.ship_storage,
+        )
+    except ValueError:
+        ctx.log.add("The trade-in could not safely transfer its equipment.")
+        return False
+    _old_entity = next(
+        (
+            entity for entity in city_game_map.entities
+            if entity.owned and entity.ship_id == player_owned_ship.ship_id
+        ),
+        None,
+    )
+    if _old_entity is not None:
+        city_game_map.entities.remove(_old_entity)
+    return True
+
+
+def _build_owned_ship(blocker, ship, old_reserved: int):
+    """Park the purchased ship in the hangar and build its OwnedShip record."""
+    blocker.pos = world.HANGAR_ANCHOR
+    blocker.owned = True
+    blocker.name = f"Your Ship: {ship.name}"
+    return ship_module.OwnedShip(
+        ship_id=ship.id,
+        weapons=ship.start_weapons,
+        modules=ship.start_modules,
+        fuel=ship.max_fuel,
+        mission_reserved=old_reserved,
+    )
+
+
+def _log_ship_purchase(
+    ctx,
+    ship,
+    effective_price: int,
+    trade_in_value: int,
+    old_reserved: int,
+    storage_before: int,
+) -> None:
+    """Log the purchase outcome (reserved warning, storage, trade-in)."""
+    _new_cap = ship_module.effective_max_cargo(ship, ctx.player_owned_ship)
+    if old_reserved > _new_cap:
+        ctx.log.add(
+            f"WARNING: {ship.name} cannot hold your mission cargo "
+            f"({old_reserved}/{_new_cap}). Some missions may be undeliverable."
+        )
+    if len(ctx.ship_storage) > storage_before:
+        ctx.log.add("Your old ship's equipment was moved to Storage.")
+    if trade_in_value > 0:
+        ctx.log.add(
+            f"Traded in for the {ship.name} - paid "
+            f"{effective_price}$ (trade-in {trade_in_value}$)."
+        )
+    else:
+        ctx.log.add(
+            f"You bought the {ship.name} for {ship.price}$ and parked it in your hangar."
+        )
+
+
 def _complete_ship_purchase(
     ctx,
     city_game_map,
@@ -458,55 +538,55 @@ def _complete_ship_purchase(
         return None
     _old_reserved = player_owned_ship.mission_reserved if player_owned_ship else 0
     _storage_before = len(ctx.ship_storage)
-    if player_owned_ship is not None:
-        try:
-            ship_module.move_installed_equipment_to_storage(
-                player_owned_ship,
-                ctx.ship_storage,
-            )
-        except ValueError:
-            ctx.log.add("The trade-in could not safely transfer its equipment.")
-            return None
+    if not _relocate_old_ship(ctx, city_game_map, player_owned_ship):
+        return None
     ctx.stats.credits -= effective_price
-    if player_owned_ship is not None:
-        _old_entity = next(
-            (
-                entity for entity in city_game_map.entities
-                if entity.owned and entity.ship_id == player_owned_ship.ship_id
-            ),
-            None,
-        )
-        if _old_entity is not None:
-            city_game_map.entities.remove(_old_entity)
-    blocker.pos = world.HANGAR_ANCHOR
-    blocker.owned = True
-    blocker.name = f"Your Ship: {ship.name}"
-    _new_owned = ship_module.OwnedShip(
-        ship_id=ship.id,
-        weapons=ship.start_weapons,
-        modules=ship.start_modules,
-        fuel=ship.max_fuel,
-        mission_reserved=_old_reserved,
-    )
-    _new_cap = ship_module.effective_max_cargo(ship, _new_owned)
-    if _old_reserved > _new_cap:
-        ctx.log.add(
-            f"WARNING: {ship.name} cannot hold your mission cargo "
-            f"({_old_reserved}/{_new_cap}). Some missions may be undeliverable."
-        )
+    _new_owned = _build_owned_ship(blocker, ship, _old_reserved)
     ctx.player_owned_ship = _new_owned
-    if len(ctx.ship_storage) > _storage_before:
-        ctx.log.add("Your old ship's equipment was moved to Storage.")
-    if trade_in_value > 0:
-        ctx.log.add(
-            f"Traded in for the {ship.name} - paid "
-            f"{effective_price}$ (trade-in {trade_in_value}$)."
-        )
-    else:
-        ctx.log.add(
-            f"You bought the {ship.name} for {ship.price}$ and parked it in your hangar."
-        )
+    _log_ship_purchase(
+        ctx, ship, effective_price, trade_in_value,
+        _old_reserved, _storage_before,
+    )
     return _new_owned
+
+
+def _dungeon_exit_space_map(
+    ctx,
+    game_map,
+    space_game_map,
+    space_player,
+    player_owned_ship,
+    player_active_missions,
+    log,
+    build_space_return,
+):
+    """Resolve the space map to return to (rebuild Mars or clean up a wreck)."""
+    if space_game_map is not None and space_player is not None:
+        _wsid = getattr(game_map, "wreck_spawn_id", None)
+        if _wsid is not None:
+            _secured = _is_salvage_secured(
+                ctx, _wsid, player_active_missions,
+            )
+            if _secured:
+                _remove_salvage_wreck(
+                    ctx, _wsid, space_game_map,
+                )
+        return space_game_map, space_player
+    if not _is_mars_facility_map(ctx, game_map) or player_owned_ship is None:
+        log.add("You have no ship waiting outside.")
+        return None
+    _return_ship = ship_module.find_ship(player_owned_ship.ship_id)
+    return build_space_return(ctx, "mars", _return_ship)
+
+
+def _dungeon_exit_log(ctx, exited_map, log) -> None:
+    """Log the appropriate return line for the exited map type."""
+    if _is_wreck_interior(exited_map):
+        log.add("You exit through the hull breach and return to your ship.")
+    elif _is_mars_facility_map(ctx, exited_map):
+        log.add("You leave the prison complex and return to Mars orbit.")
+    else:
+        log.add("You return to your ship.")
 
 
 def _leave_dungeon_to_space(
@@ -527,30 +607,20 @@ def _leave_dungeon_to_space(
     if show_orbit is None:
         show_orbit = _notify_surface_exit
     _exited_map = game_map
-    if space_game_map is None or space_player is None:
-        if not _is_mars_facility_map(ctx, _exited_map) or player_owned_ship is None:
-            log.add("You have no ship waiting outside.")
-            return None
-        _return_ship = ship_module.find_ship(player_owned_ship.ship_id)
-        space_game_map, space_player = build_space_return(
-            ctx, "mars", _return_ship,
-        )
-    else:
-        _wsid = getattr(game_map, "wreck_spawn_id", None)
-        if _wsid is not None:
-            _secured = _is_salvage_secured(
-                ctx, _wsid, player_active_missions,
-            )
-            if _secured:
-                _remove_salvage_wreck(
-                    ctx, _wsid, space_game_map,
-                )
-    if _is_wreck_interior(_exited_map):
-        log.add("You exit through the hull breach and return to your ship.")
-    elif _is_mars_facility_map(ctx, _exited_map):
-        log.add("You leave the prison complex and return to Mars orbit.")
-    else:
-        log.add("You return to your ship.")
+    _space_transition = _dungeon_exit_space_map(
+        ctx,
+        game_map,
+        space_game_map,
+        space_player,
+        player_owned_ship,
+        player_active_missions,
+        log,
+        build_space_return,
+    )
+    if _space_transition is None:
+        return None
+    space_game_map, space_player = _space_transition
+    _dungeon_exit_log(ctx, _exited_map, log)
     show_orbit(ctx, _exited_map)
     return space_game_map, space_player
 

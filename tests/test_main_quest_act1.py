@@ -148,8 +148,8 @@ def test_mars_departure_helper_triggers_from_mars_launch(monkeypatch):
 
     monkeypatch.setattr(
         game_main.main_quest_module,
-        "maybe_show_post_prison_orbit",
-        lambda _ctx: _calls.append(_ctx) or True,
+        "play_scene",
+        lambda _ctx, _step_id, **_kwargs: _calls.append(_ctx) or True,
     )
 
     assert game_main._maybe_show_post_prison_orbit(ctx, "mars")
@@ -309,8 +309,8 @@ def test_space_mode_boundary_delivers_post_prison_scene(monkeypatch):
     _calls = []
     monkeypatch.setattr(
         game_main.main_quest_module,
-        "maybe_show_post_prison_orbit",
-        lambda _ctx: _calls.append(_ctx) or True,
+        "play_scene",
+        lambda _ctx, _step_id, **_kwargs: _calls.append(_ctx) or True,
     )
 
     assert game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
@@ -500,13 +500,13 @@ def test_interrupted_prison_exit_retries_from_space_without_city_context(monkeyp
     ctx.interiors = {"surface:mars": _mars_surface}
     _calls = []
 
-    def _resolve(_ctx, *, from_mars_prison=False):
+    def _resolve(_ctx, _step_id, *, from_mars_prison=False):
         _calls.append(from_mars_prison)
         return len(_calls) == 2
 
     monkeypatch.setattr(
         game_main.main_quest_module,
-        "maybe_show_post_prison_orbit",
+        "play_scene",
         _resolve,
     )
 
