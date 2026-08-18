@@ -319,9 +319,6 @@ class GlyphAtlas:
         )
         if bg is not None:
             target.fill((*bg, 255), rect)
-        if character == "█":
-            target.fill((*fg, 255), rect)
-            return
         source_rect = self._source_rect(character)
         if source_rect is None or character == " ":
             return
