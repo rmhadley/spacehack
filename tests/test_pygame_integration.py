@@ -80,8 +80,8 @@ def test_ac_ii_landing_pad_reaches_real_logical_surface(_pygame_headless):
         surface = runtime.engine.logical_surface
 
         assert pad.kind == "landing_pad"
-        assert pad.char == "▓"
-        assert surface.get_at((screen_x, screen_y))[:3] == (178, 198, 215)
+        assert pad.char == "."
+        assert surface.get_at((screen_x, screen_y))[:3] == pad.bg
         assert all(
             surface.get_at((screen_x + x, screen_y + y))[:3] != (0, 0, 0)
             for x in range(16)
