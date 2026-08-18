@@ -53,6 +53,26 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
         ),
     ),
     GuideSection(
+        title="Options & Display",
+        body=(
+            "Open OPTIONS from the title screen before starting a run or "
+            "continuing a save. These settings affect presentation only; they "
+            "never change your pilot, world, or save data."
+            "\n\n"
+            "- Fullscreen switches between fullscreen and windowed presentation."
+            "\n"
+            "- Window Size cycles through supported window sizes when you want "
+            "a larger or smaller window."
+            "\n"
+            "- Choose Apply to keep the changes, or Back to discard changes made "
+            "in the current Options screen."
+            "\n\n"
+            "The game keeps its fixed map and menu layout while fitting the "
+            "display to the window. Windowed mode remains resizable. If a display "
+            "setting cannot be applied, the game keeps the last working setting."
+        ),
+    ),
+    GuideSection(
         title="Controls & Keybindings",
         body=(
             "Movement: use the arrow keys, h/j/k/l, or the numpad. y/u/b/n "

@@ -7,9 +7,15 @@ patching a foreign event queue.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from . import pygame_engine
+from .display_config import (
+    DisplayConfig,
+    load_display_config,
+    save_display_config,
+)
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH, TILE_HEIGHT, TILE_WIDTH
 from .framebuffer import FrameBuffer
 
@@ -44,14 +50,52 @@ class PygameContext:
         """Block until the next relevant input event is available."""
         return self._runtime.wait_events()
 
+    @property
+    def display_config(self) -> DisplayConfig:
+        """Return the active user-facing display preferences."""
+        return self._runtime.display_config
+
+    def apply_display_config(self, config: DisplayConfig) -> None:
+        """Apply display preferences through the active engine."""
+        self._runtime.apply_display_config(config)
+
+    def save_display_config(self) -> None:
+        """Persist the active display preferences outside save-game state."""
+        self._runtime.save_display_config()
+
 class PygameRuntime:
     """Own one Pygame engine and its explicit input queue."""
 
-    def __init__(self, tileset: Any):
+    def __init__(
+        self,
+        tileset: Any,
+        display_config: DisplayConfig | None = None,
+        config_path: Path | None = None,
+    ):
         self.tileset = tileset
+        self._display_config = display_config or DisplayConfig()
+        self.config_path = config_path
         self.engine: pygame_engine.PygameEngine | None = None
         self.game_context: "GameContext | None" = None
         self.context = PygameContext(self)
+
+    @property
+    def display_config(self) -> DisplayConfig:
+        """Return the engine's current display preferences."""
+        if self.engine is not None:
+            return self.engine.display_config
+        return self._display_config
+
+    def apply_display_config(self, config: DisplayConfig) -> None:
+        """Apply display preferences, retaining the logical framebuffer."""
+        if self.engine is None:
+            raise RuntimeError("PygameRuntime must be open before applying display config")
+        self.engine.apply_display_config(config)
+        self._display_config = self.engine.display_config
+
+    def save_display_config(self) -> None:
+        """Persist the current display preference to the user config."""
+        save_display_config(self.display_config, self.config_path)
 
     def __enter__(self) -> PygameContext:
         """Open the shared window without modifying global event functions."""
@@ -62,8 +106,9 @@ class PygameRuntime:
                 pygame_engine.PygameEngineConfig(
                     logical_width=SCREEN_WIDTH * TILE_WIDTH,
                     logical_height=SCREEN_HEIGHT * TILE_HEIGHT,
-                    window_width=SCREEN_WIDTH * TILE_WIDTH,
-                    window_height=SCREEN_HEIGHT * TILE_HEIGHT,
+                    window_width=self._display_config.window_width,
+                    window_height=self._display_config.window_height,
+                    fullscreen=self._display_config.fullscreen,
                 ),
                 tileset=self.tileset,
             )
@@ -129,13 +174,25 @@ class PygameRuntime:
 class GameRuntime:
     """Own the mandatory shared Pygame runtime for the complete game."""
 
-    def __init__(self, tileset: Any):
+    def __init__(
+        self,
+        tileset: Any,
+        display_config: DisplayConfig | None = None,
+        config_path: Path | None = None,
+    ):
         self.tileset = tileset
+        self.display_config = display_config
+        self.config_path = config_path
         self._pygame: PygameRuntime | None = None
 
     def __enter__(self) -> PygameContext:
         """Open the mandatory Pygame runtime."""
-        self._pygame = PygameRuntime(self.tileset)
+        _kwargs: dict[str, Any] = {}
+        if self.display_config is not None:
+            _kwargs["display_config"] = self.display_config
+        if self.config_path is not None:
+            _kwargs["config_path"] = self.config_path
+        self._pygame = PygameRuntime(self.tileset, **_kwargs)
         return self._pygame.__enter__()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
@@ -145,6 +202,15 @@ class GameRuntime:
             self._pygame = None
 
 
-def open_runtime(tileset: Any) -> GameRuntime:
+def open_runtime(
+    tileset: Any,
+    *,
+    display_config: DisplayConfig | None = None,
+    config_path: Path | None = None,
+) -> GameRuntime:
     """Return the mandatory full-game Pygame runtime."""
-    return GameRuntime(tileset)
+    return GameRuntime(
+        tileset,
+        display_config=display_config or load_display_config(config_path),
+        config_path=config_path,
+    )

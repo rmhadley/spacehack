@@ -11,12 +11,21 @@ def test_title_frames_include_start_continue_only_when_save_exists():
     no_save = pygame_title.frames(False)
     with_save = pygame_title.frames(True)
 
-    assert [item.action for item in no_save[0].items] == ["NEW_GAME", "TUTORIAL", "EXIT"]
-    assert [item.action for item in with_save[0].items] == ["NEW_GAME", "CONTINUE", "TUTORIAL", "EXIT"]
+    assert [item.action for item in no_save[0].items] == [
+        "NEW_GAME", "OPTIONS", "TUTORIAL", "EXIT",
+    ]
+    assert [item.action for item in with_save[0].items] == [
+        "NEW_GAME", "CONTINUE", "OPTIONS", "TUTORIAL", "EXIT",
+    ]
     assert no_save[0].art
     assert no_save[0].items == no_save[1].items
     assert no_save[0].initial_selected == 0
     assert with_save[0].initial_selected == 1
+    assert [item.action for item in pygame_title.options_frames(
+        pygame_title.DisplayConfig(),
+    )[0].items] == [
+        "TOGGLE_FULLSCREEN", "CYCLE_WINDOW_SIZE", "APPLY_OPTIONS", "BACK_OPTIONS",
+    ]
     assert pygame_menu._initial_selected(no_save) == 0
     assert pygame_menu._initial_selected(with_save) == 1
     oversized = (
@@ -92,6 +101,47 @@ def test_title_splash_uses_shared_runtime_and_dismisses_on_key(monkeypatch):
     pygame_title.run_splash_for_context(context)
 
     assert calls == ["draw", "present"]
+
+
+def test_options_cycle_and_apply_uses_context_display_contract(monkeypatch):
+    calls = []
+    configs = iter((
+        pygame_title.DisplayConfig(fullscreen=False, window_width=1600, window_height=960),
+        pygame_title.DisplayConfig(fullscreen=True, window_width=1600, window_height=960),
+        pygame_title.DisplayConfig(fullscreen=True, window_width=1920, window_height=1152),
+    ))
+    outcomes = iter((
+        ("SELECT", "TOGGLE_FULLSCREEN", 0),
+        ("SELECT", "CYCLE_WINDOW_SIZE", 1),
+        ("SELECT", "APPLY_OPTIONS", 2),
+    ))
+    context = SimpleNamespace(
+        display_config=next(configs),
+        apply_display_config=lambda config: calls.append(("apply", config)),
+        save_display_config=lambda: calls.append(("save",)),
+    )
+    monkeypatch.setattr(pygame_title.pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+
+    assert pygame_title.run_options_for_context(context) is True
+    assert calls == [
+        ("apply", pygame_title.DisplayConfig(fullscreen=True, window_width=1920, window_height=1152)),
+        ("save",),
+    ]
+
+
+def test_options_back_discards_pending_changes(monkeypatch):
+    context = SimpleNamespace(
+        display_config=pygame_title.DisplayConfig(),
+        apply_display_config=lambda _config: (_ for _ in ()).throw(AssertionError("must not apply")),
+        save_display_config=lambda: (_ for _ in ()).throw(AssertionError("must not save")),
+    )
+    monkeypatch.setattr(
+        pygame_title.pygame_menu,
+        "run_for_context",
+        lambda *args, **kwargs: ("BACK", "", 0),
+    )
+
+    assert pygame_title.run_options_for_context(context) is False
 
 
 def test_title_runner_maps_pygame_actions_to_legacy_outcomes(monkeypatch):

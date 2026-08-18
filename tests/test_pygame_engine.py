@@ -291,6 +291,76 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
     assert repeat_calls[-1] == (0,)
 
 
+def test_engine_applies_fullscreen_without_rebuilding_logical_surface(monkeypatch):
+    calls = []
+
+    class FakeSurface:
+        def __init__(self, *_args):
+            pass
+
+        def fill(self, *_args):
+            pass
+
+    class FakeFont:
+        def init(self):
+            pass
+
+    class FakeDisplay:
+        def set_mode(self, size, flags, **_kwargs):
+            calls.append((size, flags))
+            return SimpleNamespace(get_size=lambda: size)
+
+        def set_caption(self, *_args):
+            pass
+
+        def quit(self):
+            pass
+
+    class FakeKey:
+        @staticmethod
+        def set_repeat(*_args):
+            pass
+
+    class FakePygame:
+        RESIZABLE = 1
+        FULLSCREEN = 2
+        SRCALPHA = 4
+        font = FakeFont()
+        key = FakeKey()
+        display = FakeDisplay()
+        Surface = FakeSurface
+
+        @staticmethod
+        def init():
+            pass
+
+        @staticmethod
+        def quit():
+            pass
+
+    class FakeAtlas:
+        @classmethod
+        def from_processed_tileset(cls, _pygame, _tileset):
+            return object()
+
+    monkeypatch.setattr(pygame_engine, "GlyphAtlas", FakeAtlas)
+    engine = pygame_engine.PygameEngine(
+        FakePygame,
+        pygame_engine.PygameEngineConfig(vsync=False),
+        tileset=object(),
+    )
+    engine.open()
+    logical_surface = engine.logical_surface
+
+    engine.apply_display_config(
+        pygame_engine.DisplayConfig(fullscreen=True, window_width=1280, window_height=768),
+    )
+
+    assert calls == [((1600, 960), 1), ((0, 0), 2)]
+    assert engine.config.fullscreen is True
+    assert engine.logical_surface is logical_surface
+
+
 def test_game_runtime_always_uses_shared_pygame(monkeypatch):
     class FakePygameRuntime:
         def __init__(self, tileset):

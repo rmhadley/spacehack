@@ -102,52 +102,62 @@ active title/game flow remain intact.
 
 ### Phase 1: Display preference model
 
-- [ ] Add a small display-config dataclass with fullscreen and window-size
+- [x] Add a small display-config dataclass with fullscreen and window-size
       fields, using safe defaults.
-- [ ] Load missing/malformed config as defaults.
-- [ ] Save only display preferences; never mix them into save-game JSON.
+- [x] Load missing/malformed config as defaults.
+- [x] Save only display preferences; never mix them into save-game JSON.
 
 ### Phase 2: Engine integration
 
-- [ ] Pass the display config into `PygameEngineConfig` at startup.
-- [ ] Implement fullscreen/windowed application while preserving the fixed
+- [x] Pass the display config into `PygameEngineConfig` at startup.
+- [x] Implement fullscreen/windowed application while preserving the fixed
       logical canvas and letterboxing.
-- [ ] Preserve the existing resizable-window behavior in windowed mode.
-- [ ] Handle unsupported display operations without crashing the game.
+- [x] Preserve the existing resizable-window behavior in windowed mode.
+- [x] Handle unsupported display operations without crashing the game.
 
 ### Phase 3: Title Options menu
 
-- [ ] Add `OPTIONS` to the title menu.
-- [ ] Add fullscreen and window-size controls with Apply and Back behavior.
-- [ ] Ensure Options works with and without an available Continue save.
-- [ ] Add confirmation or rollback behavior if applying a mode fails.
+- [x] Add `OPTIONS` to the title menu.
+- [x] Add fullscreen and window-size controls with Apply and Back behavior.
+- [x] Ensure Options works with and without an available Continue save.
+- [x] Add rollback/error handling when applying a display mode fails.
 
 ### Phase 4: Guide + playtest
 
-- [ ] Add the Options menu and fullscreen/windowed behavior to the player guide.
-- [ ] Add tests for config defaults, malformed files, and option transitions.
+- [x] Add the Options menu and fullscreen/windowed behavior to the player guide.
+- [x] Add tests for config defaults, malformed files, and option transitions.
 - [ ] Playtest windowed startup, fullscreen startup, toggling, Apply/Back,
       resizing, and a Continue session after changing display settings.
-- [ ] Run `make check`.
+- [x] Run `make check`.
+
+**Implementation status:** complete. The manual display playtest remains open
+for the user; the design stays in `in_progress/` until that playtest passes.
+
+**PLAYTEST (1):** start the game windowed and open title-screen Options with
+and without a Continue save. Toggle fullscreen and cycle window sizes, verify
+Back leaves the current display unchanged, then Apply and verify the logical
+100×60 canvas remains intact. Resize the windowed mode, switch fullscreen and
+back, quit and relaunch, and confirm the applied preference persists. Continue
+an existing save after changing display settings and verify gameplay/save state
+is unchanged. On a platform where a display operation fails, verify the game
+shows an error and retains the last working mode.
 
 ## Contracts compliance (MANDATORY — see knowledge.md)
 
-- [ ] **Save/load:** display preferences remain outside save-game JSON and do
+- [x] **Save/load:** display preferences remain outside save-game JSON and do
       not alter the existing save schema.
-- [ ] **Game guide:** the Options menu and display preferences are documented.
-- [ ] **Pure functions:** config parsing/defaulting and option transitions
+- [x] **Game guide:** the Options menu and display preferences are documented.
+- [x] **Pure functions:** config parsing/defaulting and option transitions
       receive explicit inputs and ship focused tests.
-- [ ] **Module-level state:** no mutable display preference may be introduced
-      as an unowned module global; the active engine/config owns it.
-- [ ] **Architecture ratchet:** keep config parsing, title Options, and engine
-      display application in focused modules rather than expanding the game
-      loop.
+- [x] **Module-level state:** no mutable display preference was introduced as
+      an unowned module global; the active engine/config owns it.
+- [x] **Architecture ratchet:** config parsing, title Options, and engine
+      display application live in focused modules rather than the game loop.
 
-## Open questions
+## Resolved implementation decisions
 
-1. Which window-size presets, if any, should the first version expose beyond
-   the current resizable window?
-2. Should fullscreen apply immediately on toggle, or only after selecting
-   Apply?
-3. Should the title Options menu eventually include non-display preferences,
-   or remain display-only?
+1. The first version cycles three supported window presets: 1280×768,
+   1600×960, and 1920×1152. Windowed mode remains freely resizable afterward.
+2. Fullscreen and window-size changes apply only after selecting `Apply`;
+   `Back` discards pending changes.
+3. The title Options menu is display-only. Other preferences are out of scope.

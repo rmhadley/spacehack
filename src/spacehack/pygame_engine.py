@@ -7,9 +7,10 @@ coordinates. The presentation engine owns the input event shape and pump.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
+from .display_config import DisplayConfig
 from .engine import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -41,6 +42,7 @@ class PygameEngineConfig:
     title: str = WINDOW_TITLE
     resizable: bool = True
     vsync: bool = True
+    fullscreen: bool = False
 
 
 @dataclass(frozen=True)
@@ -314,19 +316,35 @@ class PygameEngine:
         self.viewport = Viewport(0, 0, self.config.window_width, self.config.window_height)
         self.glyphs: GlyphAtlas | None = None
 
+    def _display_flags(self, config: PygameEngineConfig) -> int:
+        """Return Pygame flags for the requested window mode."""
+        if config.fullscreen:
+            return getattr(self.pygame, "FULLSCREEN", 0)
+        return getattr(self.pygame, "RESIZABLE", 0) if config.resizable else 0
+
+    def _display_size(self, config: PygameEngineConfig) -> tuple[int, int]:
+        """Return the physical size requested by the display mode."""
+        return (0, 0) if config.fullscreen else (
+            config.window_width,
+            config.window_height,
+        )
+
+    def _set_display_mode(self, config: PygameEngineConfig) -> Any:
+        """Create the physical window for ``config`` without touching the canvas."""
+        return self.pygame.display.set_mode(
+            self._display_size(config),
+            self._display_flags(config),
+            vsync=int(config.vsync),
+        )
+
     def open(self) -> "PygameEngine":
         """Create the Pygame window and fixed logical canvas."""
-        flags = self.pygame.RESIZABLE if self.config.resizable else 0
         self.pygame.init()
         key_module = getattr(self.pygame, "key", None)
         if key_module is not None and hasattr(key_module, "set_repeat"):
             key_module.set_repeat(KEY_REPEAT_DELAY_MS, KEY_REPEAT_INTERVAL_MS)
         self.pygame.font.init()
-        self.window = self.pygame.display.set_mode(
-            (self.config.window_width, self.config.window_height),
-            flags,
-            vsync=int(self.config.vsync),
-        )
+        self.window = self._set_display_mode(self.config)
         self.pygame.display.set_caption(self.config.title)
         self.logical_surface = self.pygame.Surface(
             logical_size(self.config), self.pygame.SRCALPHA,
@@ -338,6 +356,33 @@ class PygameEngine:
             self.tileset if self.tileset is not None else load_tileset(),
         )
         return self
+
+    @property
+    def display_config(self) -> DisplayConfig:
+        """Return the current user-facing display preferences."""
+        if self.window is not None and not self.config.fullscreen:
+            width, height = self.window.get_size()
+        else:
+            width, height = self.config.window_width, self.config.window_height
+        return DisplayConfig(
+            fullscreen=self.config.fullscreen,
+            window_width=width,
+            window_height=height,
+        ).normalized()
+
+    def apply_display_config(self, display_config: DisplayConfig) -> None:
+        """Apply a display preference while preserving the logical surface."""
+        if self.window is None:
+            raise RuntimeError("PygameEngine.open() must be called first")
+        _display = display_config.normalized()
+        _new_config = replace(
+            self.config,
+            window_width=_display.window_width,
+            window_height=_display.window_height,
+            fullscreen=_display.fullscreen,
+        )
+        self.window = self._set_display_mode(_new_config)
+        self.config = _new_config
 
     def events(self) -> tuple[PygameInputEvent, ...]:
         """Poll Pygame once and return renderer-neutral input events."""

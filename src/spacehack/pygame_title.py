@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 from typing import Any
 
-from . import pygame_menu, pygame_ui, ui
+from . import pygame_menu, pygame_story, pygame_ui, ui
+from .display_config import DisplayConfig
 from .pygame_runtime import PygameContext
 
 
@@ -68,6 +70,11 @@ def _items(save_available: bool) -> tuple[pygame_menu.MenuItem, ...]:
                 "CONTINUE", "Resume the autosaved run from its exact last state.", "CONTINUE",
             )
         )
+    items.append(
+        pygame_menu.MenuItem(
+            "OPTIONS", "Change fullscreen and window preferences.", "OPTIONS",
+        )
+    )
     items.extend((
         pygame_menu.MenuItem(
             "TUTORIAL", "Learn the frontier systems in a guided run.", "TUTORIAL",
@@ -77,6 +84,106 @@ def _items(save_available: bool) -> tuple[pygame_menu.MenuItem, ...]:
         ),
     ))
     return tuple(items)
+
+
+_WINDOW_PRESETS: tuple[tuple[int, int], ...] = (
+    (1280, 768),
+    (1600, 960),
+    (1920, 1152),
+)
+
+
+def _options_items(config: DisplayConfig) -> tuple[pygame_menu.MenuItem, ...]:
+    """Build display preference rows for the title Options menu."""
+    mode = "On" if config.fullscreen else "Off"
+    return (
+        pygame_menu.MenuItem(
+            f"FULLSCREEN: {mode}",
+            "Toggle fullscreen presentation.",
+            "TOGGLE_FULLSCREEN",
+        ),
+        pygame_menu.MenuItem(
+            f"WINDOW SIZE: {config.window_width} x {config.window_height}",
+            "Cycle the supported window sizes.",
+            "CYCLE_WINDOW_SIZE",
+        ),
+        pygame_menu.MenuItem(
+            "APPLY",
+            "Apply and save these display preferences.",
+            "APPLY_OPTIONS",
+        ),
+        pygame_menu.MenuItem(
+            "BACK",
+            "Discard changes and return to the title menu.",
+            "BACK_OPTIONS",
+        ),
+    )
+
+
+def options_frames(
+    config: DisplayConfig,
+    selected: int = 0,
+) -> tuple[pygame_menu.MenuFrame, ...]:
+    """Build the title Options menu for a pending display configuration."""
+    items = _options_items(config)
+    return tuple(
+        pygame_menu.MenuFrame(
+            title="OPTIONS",
+            body="Display preferences are saved separately from game saves.",
+            items=items,
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC back",
+            ),),
+            selected=index,
+            initial_selected=selected,
+            draw_log=False,
+        )
+        for index in range(len(items))
+    )
+
+
+def _next_window_size(config: DisplayConfig) -> tuple[int, int]:
+    """Return the next supported window preset after the current size."""
+    try:
+        index = _WINDOW_PRESETS.index((config.window_width, config.window_height))
+    except ValueError:
+        index = -1
+    return _WINDOW_PRESETS[(index + 1) % len(_WINDOW_PRESETS)]
+
+
+def run_options_for_context(context: PygameContext) -> bool:
+    """Run title display options; return True only after a successful Apply."""
+    pending = context.display_config
+    selected = 0
+    while True:
+        outcome, action, selected = pygame_menu.run_for_context(
+            context,
+            options_frames(pending, selected),
+            caption="spacehack - options",
+        )
+        if outcome in {"QUIT", "BACK"} or action == "BACK_OPTIONS":
+            return False
+        if outcome != "SELECT":
+            raise RuntimeError("Pygame Options menu returned no outcome")
+        if action == "TOGGLE_FULLSCREEN":
+            pending = replace(pending, fullscreen=not pending.fullscreen)
+        elif action == "CYCLE_WINDOW_SIZE":
+            width, height = _next_window_size(pending)
+            pending = replace(pending, window_width=width, window_height=height)
+        elif action == "APPLY_OPTIONS":
+            try:
+                context.apply_display_config(pending)
+                context.save_display_config()
+            except (OSError, RuntimeError, ValueError) as exc:
+                pygame_story.dismiss(
+                    context,
+                    title="DISPLAY ERROR",
+                    body=f"Could not apply display preferences: {exc}",
+                    caption="spacehack - display error",
+                )
+                pending = context.display_config
+            else:
+                return True
 
 
 def frames(save_available: bool) -> tuple[pygame_menu.MenuFrame, ...]:
@@ -101,61 +208,67 @@ def frames(save_available: bool) -> tuple[pygame_menu.MenuFrame, ...]:
     )
 
 
-def _splash_layout(font: Any, width: int, height: int) -> dict[str, int]:
-    """Return pixel positions for a splash whose artwork cannot overlap."""
-    line_height = font.get_linesize()
+def _splash_widths(font: Any) -> dict[str, int]:
+    """Measure the fixed-width art groups used by the splash."""
+    measure = lambda line: pygame_ui.measure_font(font, line)
+    return {
+        "ship_width": max((measure(line) for line in _SHIP_ART), default=0),
+        "planet_width": max((measure(line) for line in _PLANET_ART), default=0),
+        "title_width": max((measure(line) for line in _TITLE_ART), default=0),
+        "body_width": max((measure(line) for line in _SPLASH_BODY), default=0),
+    }
+
+
+def _splash_layout_positions(
+    line_height: int, width: int, height: int, widths: dict[str, int],
+) -> dict[str, int]:
+    """Calculate splash art and prompt positions."""
     title_y = max(55, int(height * 0.12))
     prompt_y = height - 78
     flavor_y = title_y + len(_TITLE_ART) * line_height + 34
     ship_y = flavor_y + len(_SPLASH_BODY) * line_height + 14
-    ship_width = max(
-        (pygame_ui.measure_font(font, line) for line in _SHIP_ART),
-        default=0,
-    )
-    ship_x = max(24, width - ship_width - 34)
-    ship_bottom = ship_y + len(_SHIP_ART) * line_height
+    ship_x = max(24, width - widths["ship_width"] - 34)
     planet_y = min(
         height - 188,
         prompt_y - len(_PLANET_ART) * line_height - line_height - 10,
     )
-    planet_x = 52
-    planet_width = max(
-        (pygame_ui.measure_font(font, line) for line in _PLANET_ART),
-        default=0,
-    )
-    planet_bottom = planet_y + len(_PLANET_ART) * line_height
-    title_width = max(
-        (pygame_ui.measure_font(font, line) for line in _TITLE_ART),
-        default=0,
-    )
-    body_width = max(
-        (pygame_ui.measure_font(font, line) for line in _SPLASH_BODY),
-        default=0,
-    )
-    if (
-        title_width > width - 100
-        or body_width > width - 100
-        or ship_x + ship_width > width - 24
-        or ship_bottom > prompt_y - line_height - 24
-        or planet_x + planet_width > width - 24
-        or planet_bottom > prompt_y - line_height - 10
-        or planet_y < 24
-    ):
-        raise ValueError("title splash artwork does not fit the shared surface")
     return {
-        "line_height": line_height,
         "title_y": title_y,
         "flavor_y": flavor_y,
         "ship_x": ship_x,
         "ship_y": ship_y,
-        "ship_width": ship_width,
-        "ship_bottom": ship_bottom,
-        "planet_x": planet_x,
+        "ship_bottom": ship_y + len(_SHIP_ART) * line_height,
+        "planet_x": 52,
         "planet_y": planet_y,
-        "planet_width": planet_width,
-        "planet_bottom": planet_bottom,
+        "planet_bottom": planet_y + len(_PLANET_ART) * line_height,
         "prompt_y": prompt_y,
     }
+
+
+def _validate_splash_layout(
+    width: int, height: int, line_height: int,
+    widths: dict[str, int], positions: dict[str, int],
+) -> None:
+    """Reject a splash surface where its art would overlap or overflow."""
+    if (
+        widths["title_width"] > width - 100
+        or widths["body_width"] > width - 100
+        or positions["ship_x"] + widths["ship_width"] > width - 24
+        or positions["ship_bottom"] > positions["prompt_y"] - line_height - 24
+        or positions["planet_x"] + widths["planet_width"] > width - 24
+        or positions["planet_bottom"] > positions["prompt_y"] - line_height - 10
+        or positions["planet_y"] < 24
+    ):
+        raise ValueError("title splash artwork does not fit the shared surface")
+
+
+def _splash_layout(font: Any, width: int, height: int) -> dict[str, int]:
+    """Return pixel positions for a splash whose artwork cannot overlap."""
+    line_height = font.get_linesize()
+    widths = _splash_widths(font)
+    positions = _splash_layout_positions(line_height, width, height, widths)
+    _validate_splash_layout(width, height, line_height, widths, positions)
+    return {"line_height": line_height, **widths, **positions}
 
 
 def _splash_font(pygame: Any, width: int, height: int) -> Any:
@@ -228,27 +341,18 @@ def _draw_splash_stars(
         )
 
 
-def _draw_splash(
-    pygame: Any,
-    screen: Any,
-    font: Any,
+def _draw_splash_title(
+    pygame: Any, screen: Any, font: Any, content: pygame_ui.Rect,
+    layout: dict[str, int],
 ) -> None:
-    """Paint the complete illustrated splash frame."""
-    width, height = screen.get_size()
-    screen.fill(pygame_ui.DEFAULT_PALETTE.background)
-    _draw_splash_border(pygame, screen, width, height)
-    _draw_splash_stars(pygame, screen, font, width, height)
-
-    layout = _splash_layout(font, width, height)
+    """Paint the title and flavor text on the splash."""
     line_height = layout["line_height"]
-    content = pygame_ui.Rect(0, 0, width, height)
     for index, line in enumerate(_TITLE_ART):
         pygame_ui.draw_centered_text(
             pygame, screen, font, line, content,
             layout["title_y"] + index * line_height,
             color=ui.COLOR_SPLASH_ART,
         )
-
     for index, line in enumerate(_SPLASH_BODY):
         pygame_ui.draw_centered_text(
             pygame, screen, font, line, content,
@@ -256,34 +360,60 @@ def _draw_splash(
             color=ui.COLOR_SPLASH_FLAVOR,
         )
 
+
+def _draw_splash_ship_and_planet(
+    pygame: Any, screen: Any, font: Any, layout: dict[str, int],
+) -> None:
+    """Paint the ship and planet illustrations."""
+    line_height = layout["line_height"]
     for index, line in enumerate(_SHIP_ART):
         pygame_ui.draw_text(
             pygame, screen, font, line,
             layout["ship_x"], layout["ship_y"] + index * line_height,
             color=_SHIP_COLORS[index % len(_SHIP_COLORS)],
         )
-
-    for index, line in enumerate(_PLANET_ART):
+    for line_index, line in enumerate(_PLANET_ART):
         pygame_ui.draw_text(
             pygame, screen, font, line, layout["planet_x"],
-            layout["planet_y"] + index * line_height,
+            layout["planet_y"] + line_index * line_height,
             color=ui.COLOR_SPLASH_BORDER,
         )
     pygame_ui.draw_text(
-        pygame, screen, font, "◄", layout["planet_x"] + font.get_linesize(),
+        pygame, screen, font, "◄", layout["planet_x"] + line_height,
         layout["planet_y"] + 2 * line_height,
         color=ui.COLOR_SPLASH_ART,
     )
 
+
+def _draw_splash_prompt(
+    pygame: Any, screen: Any, font: Any,
+    content: pygame_ui.Rect, prompt_y: int,
+) -> None:
+    """Paint the splash separator and input prompt."""
+    line_height = font.get_linesize()
     pygame_ui.draw_centered_text(
         pygame, screen, font, "-------", content,
-        layout["prompt_y"] - line_height,
-        color=ui.COLOR_SPLASH_BORDER,
+        prompt_y - line_height, color=ui.COLOR_SPLASH_BORDER,
     )
     pygame_ui.draw_centered_text(
         pygame, screen, font, "Press any key to begin", content,
-        layout["prompt_y"], color=ui.COLOR_SPLASH_PROMPT,
+        prompt_y, color=ui.COLOR_SPLASH_PROMPT,
     )
+
+
+def _draw_splash(
+    pygame: Any, screen: Any, font: Any,
+) -> None:
+    """Paint the complete illustrated splash frame."""
+    width, height = screen.get_size()
+    screen.fill(pygame_ui.DEFAULT_PALETTE.background)
+    _draw_splash_border(pygame, screen, width, height)
+    _draw_splash_stars(pygame, screen, font, width, height)
+    layout = _splash_layout(font, width, height)
+    content = pygame_ui.Rect(0, 0, width, height)
+    _draw_splash_title(pygame, screen, font, content, layout)
+    _draw_splash_ship_and_planet(pygame, screen, font, layout)
+    _draw_splash_prompt(pygame, screen, font, content, layout["prompt_y"])
 
 
 def run_splash_for_context(context: PygameContext) -> None:
@@ -321,6 +451,9 @@ def run_for_context(context: PygameContext, save_available: bool) -> tuple[ui.Ti
         return ui.TitleMenuOutcome.IGNORE, selected
     if outcome != "SELECT":
         raise RuntimeError("Pygame title menu returned no outcome")
+    if action == "OPTIONS":
+        run_options_for_context(context)
+        return ui.TitleMenuOutcome.IGNORE, selected
     title_outcome = _TITLE_ACTIONS.get(action)
     if title_outcome is None:
         raise RuntimeError("Pygame title menu returned an unknown action")
