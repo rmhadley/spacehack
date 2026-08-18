@@ -39,6 +39,24 @@ This design completes the data-first story:
 After this lands, the authoring loop for a new chain is: write a step tuple in
 `data/main_quest/`, add story text to the JSON overlay, run `make check` — done.
 
+## Status snapshot (2026-08-18)
+
+- [x] Phase 1 — objective handler registry implemented and open regression
+      playtest complete.
+- [x] Phase 2 — faction heat data-ified and open heat playtest complete.
+- [x] Phase 3 — scene triggering and remaining step flags data-ified; open
+      scene-triggering playtest complete.
+- [x] Phase 3a — quest-NPC presence data-ified; open NPC-presence playtest
+      complete.
+- [ ] Phase 4 — quest text migration to the JSON overlay.
+- [ ] Phase 5 — minimal validator and authoring guide.
+- [ ] Phase 6 — guide/docs review and final acceptance.
+
+The open playtests for the completed phases (1, 2, 3, and 3a) are now
+complete, user-confirmed. No failures or new edge cases were reported in this
+update. The design remains in `in_progress/` because Phases 4–6 and the final
+acceptance criteria are still outstanding.
+
 ## Current state (the motivation)
 
 ### Already data-driven (keep as-is)
@@ -253,8 +271,9 @@ STEPS: tuple[MainQuestStep, ...] = (
 - [x] Registry lookup is a pure function → new pytest in the same commit
       (unknown type → `None`; every cataloged `objective_type` resolves)
 - [x] `make check` green; all existing quest tests pass unchanged
+- [x] Open playtest complete (user-confirmed)
 
-**PLAYTEST (1):** full regression — one save per faction chain to `prologue_open`
+**PLAYTEST (1) — COMPLETE:** full regression — one save per faction chain to `prologue_open`
 (Act 0), plus the post-prison research beat. Verify every objective type
 (talk/delve/smuggle/visit/bounty/salvage/bump/prison) still completes through
 its normal route: dialogue option, cache secure, crate handover, bounty defeat,
@@ -272,8 +291,9 @@ No visible behavior change expected — this phase is structural.
 - [x] Delete the hard-coded step ids from `_heat.py`
 - [x] Heat-filter helpers are pure → new pytest in the same commit
 - [x] `make check` green
+- [x] Open playtest complete (user-confirmed)
 
-**PLAYTEST (2):** bar chain — while carrying the power cell, militia auto-aggro
+**PLAYTEST (2) — COMPLETE:** bar chain — while carrying the power cell, militia auto-aggro
 in Sol fires (q5) and the scan floor holds (q2–q5); both expire at `bar_q6_rig`.
 Merchant chain — consortium squads spawn during q3/q4 and stop at `mer_q5_cutter`.
 Save/quit/continue mid-heat preserves the behavior.
@@ -294,6 +314,7 @@ Save/quit/continue mid-heat preserves the behavior.
       save-compat, explicitly allowed to name step ids)
 - [x] New pure helpers ship pytest in the same commit
 - [x] `make check` green
+- [x] Open playtest complete (user-confirmed)
 
 **Architecture debt paid (this phase):** the scene wiring touched
 `navigation.py` (prologue transmission fires from `_jump_to_system`) and
@@ -308,7 +329,7 @@ the full `from .navigation import ...` surface preserved. `game_flow.py`'s
 three oversized functions (`_run_ground_combat_tick`, `_complete_ship_purchase`,
 `_leave_dungeon_to_space`) were split into focused helpers.
 
-**PLAYTEST (3):** lab chain — bump sample still auto-loads the Mercury delivery;
+**PLAYTEST (3) — COMPLETE:** lab chain — bump sample still auto-loads the Mercury delivery;
 a step with `auto_load_next_smuggle=False` (add a temporary test step) does not.
 Sealed-door discover/open overlays, the help-offer modal, and the orbit
 disclosure all still fire at exactly their current triggers — now driven by the
@@ -350,8 +371,9 @@ standing in their guild building only while their step is live.
       and every spot names an existing guild building
 - [x] New pytest (`test_main_quest_npc_presence.py`) in the same commit;
       `make check` green
+- [x] Open playtest complete (user-confirmed)
 
-**PLAYTEST (3a):** the four experts appear ONLY in their windows — old smuggler
+**PLAYTEST (3a) — COMPLETE:** the four experts appear ONLY in their windows — old smuggler
 at Barnard b (bar q2–q4), specialist at Tau Ceti b (q3–q4), demolitions expert
 at Epsilon Eri b (mil_q4), xenolinguist at Alpha Centauri (lab_q4) — and are
 absent before/after; the guild faces they used to replace are present as usual;
