@@ -113,6 +113,54 @@ def test_overlay_capture_keeps_hud_and_log_regions_separate(monkeypatch):
     assert frame.message_height == 6
 
 
+def test_physical_message_panel_respects_letterbox_origin(monkeypatch):
+    rects = []
+    origins = []
+    frame = pygame_overlay.OverlayFrame(
+        hud=(),
+        messages=(),
+        hud_x=80,
+        hud_top=0,
+        hud_height=54,
+        message_top=54,
+        message_height=6,
+    )
+
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "draw_panel",
+        lambda _pygame, _screen, rect, **_kwargs: rects.append(rect),
+    )
+    monkeypatch.setattr(
+        pygame_overlay.pygame_ui,
+        "cell_font",
+        lambda _pygame, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        pygame_overlay,
+        "_draw_segments",
+        lambda *_args, **kwargs: origins.append(
+            (kwargs["origin_x"], kwargs["origin_y"])
+        ),
+    )
+
+    pygame_overlay._draw_message_panel(
+        "pygame",
+        "window",
+        frame,
+        pygame_overlay.pygame_ui.DEFAULT_PALETTE,
+        2500,
+        1500,
+        tile_width=25,
+        tile_height=25,
+        origin_x=30,
+        origin_y=50,
+    )
+
+    assert rects == [pygame_overlay.pygame_ui.Rect(30, 1400, 2500, 150)]
+    assert origins == [(30, 1400)]
+
+
 def test_overlay_capture_log_band_keeps_full_text(monkeypatch):
     """Long log lines are not pre-cut at screen_width cells.
 

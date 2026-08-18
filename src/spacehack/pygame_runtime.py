@@ -97,6 +97,8 @@ def _physical_overlay_callback(
             logical_height=viewport.height,
             tile_width=cell_width,
             tile_height=cell_height,
+            origin_x=viewport.x,
+            origin_y=viewport.y,
         )
 
     return _draw

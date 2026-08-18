@@ -141,6 +141,8 @@ def test_physical_overlay_callback_uses_viewport_cell_dimensions(monkeypatch):
                 "logical_height": 1500,
                 "tile_width": 25,
                 "tile_height": 25,
+                "origin_x": 30,
+                "origin_y": 50,
             },
         ),
     ]

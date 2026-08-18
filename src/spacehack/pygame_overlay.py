@@ -747,13 +747,15 @@ def _draw_hud_panel(
     logical_height: int,
     tile_width: int = TILE_WIDTH,
     tile_height: int = TILE_HEIGHT,
+    origin_x: int = 0,
+    origin_y: int = 0,
 ) -> None:
     """Paint the right-hand HUD column's panel and captured text."""
     screen_width = logical_width // tile_width
     hud_height = min(frame.hud_height, logical_height // tile_height - frame.hud_top)
     hud_rect = pygame_ui.Rect(
-        frame.hud_x * tile_width,
-        frame.hud_top * tile_height,
+        origin_x + frame.hud_x * tile_width,
+        origin_y + frame.hud_top * tile_height,
         (screen_width - frame.hud_x) * tile_width,
         max(0, hud_height) * tile_height,
     )
@@ -785,6 +787,8 @@ def _draw_message_panel(
     logical_height: int,
     tile_width: int = TILE_WIDTH,
     tile_height: int = TILE_HEIGHT,
+    origin_x: int = 0,
+    origin_y: int = 0,
 ) -> None:
     """Paint the bottom message-log band's panel and captured text."""
     message_height = min(
@@ -792,8 +796,8 @@ def _draw_message_panel(
         max(0, logical_height // tile_height - frame.message_top),
     )
     message_rect = pygame_ui.Rect(
-        0,
-        frame.message_top * tile_height,
+        origin_x,
+        origin_y + frame.message_top * tile_height,
         logical_width,
         message_height * tile_height,
     )
@@ -860,16 +864,20 @@ def draw_panels(
     logical_height: int,
     tile_width: int = TILE_WIDTH,
     tile_height: int = TILE_HEIGHT,
+    origin_x: int = 0,
+    origin_y: int = 0,
 ) -> None:
     """Paint HUD and message panels at the target surface's native scale."""
     palette = pygame_ui.DEFAULT_PALETTE
     _draw_hud_panel(
         pygame, screen, frame, palette, logical_width, logical_height,
         tile_width=tile_width, tile_height=tile_height,
+        origin_x=origin_x, origin_y=origin_y,
     )
     _draw_message_panel(
         pygame, screen, frame, palette, logical_width, logical_height,
         tile_width=tile_width, tile_height=tile_height,
+        origin_x=origin_x, origin_y=origin_y,
     )
 
 
