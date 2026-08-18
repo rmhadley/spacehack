@@ -192,8 +192,10 @@ After this lands, adding a new faction chain (or an Act-2 research chain) is:
 2. **Story text** in the JSON overlay (`data/text/`): titles, descriptions,
    dialogue variants, completion flavor, ready messages.
 3. **NPC placement** (only if the chain introduces a new NPC): one entry in
-   `data/npcs/` + a `PlanetSpec.npc_overrides` row — pure data, same as the
-   four expert NPCs.
+   `data/npcs/`, a `PlanetSpec.quest_npc_spots` row naming its guild building,
+   and `npc_presence=("<npc_id>",)` tags on the steps that need the NPC
+   present — pure data, same as the four expert NPCs. The NPC appears
+   additively only while those steps are live and vanishes after.
 4. **A scene** (only if the chain needs a new cutscene): write the scene in
    `main_quest/_scenes.py` first, then reference it by id.
 
@@ -221,6 +223,7 @@ STEPS: tuple[MainQuestStep, ...] = (
                   chain="cult", objective_type="smuggle",
                   requires_npc_id="cult_priest", smuggle_good_id="cult_reliquary",
                   smuggle_cargo_size=2, smuggle_hot=False,
+                  npc_presence=("cult_priest",),
                   trigger_planet_id="tc_c", trigger_system_id="tau_ceti", ...),
     MainQuestStep(id="cul_q4_gauntlet", requires_step="cul_q3_haul",
                   chain="cult", objective_type="bounty",
@@ -299,6 +302,48 @@ disclosure all still fire at exactly their current triggers — now driven by th
 step's `scene` id. A `scene` id with no registered implementation fails loudly
 in smoke, not silently in-game.
 
+### Phase 3a: Data-ify quest-NPC presence (additive experts)
+
+Audit finding (pre-Phase-3): the four faction experts were a mix of static
+`npc_overrides` that REPLACED guild faces (demolitions expert on Epsilon Eri b,
+salvage specialist on Tau Ceti b, xenolinguist on Alpha Centauri — always
+present, even before their quests start) and one dynamic spawn (old smuggler)
+with a hard-coded `(38, 10)` position, a second copy inside surface dungeons,
+and a loose presence window. Decision: all four experts are additive city NPCs
+standing in their guild building only while their step is live.
+
+- [x] Add `npc_presence: tuple[str, ...]` to `MainQuestStep` (which NPCs the
+      step needs present while it is live)
+- [x] Add `quest_npc_spots: tuple[(npc_id, building_label), ...]` to
+      `PlanetSpec` (where each additive NPC stands — the building's interior
+      center, same spot a building occupant uses)
+- [x] Rewrite `_act0.py` spawning as a data filter over `_iter_known_steps`:
+      live step + locked chain ⇒ NPC present on every planet with its spot;
+      delete `_quest_npc_for_planet`, `_wall_adjacent_tile`, and the
+      `spawn_pos` parameter (no more dungeon copies, no magic coordinates)
+- [x] Tag presence: `bar_q2`/`q3`/`q4` → old smuggler, `mer_q3`/`q4` → salvage
+      specialist, `mil_q4` → demolitions expert, `lab_q4` → xenolinguist
+- [x] Remove the three replacing `npc_overrides` from `eri_b` / `tc_b` /
+      `ac_station`; add their `quest_npc_spots`; the guild faces return (the
+      seek-help fork again surfaces at any guild captain/master/officer)
+- [x] Drop the dead `prologue_seek_help` xenolinguist dialogue entry + its
+      JSON keys (the lab seek-help lead keys off the regular research officer)
+- [x] Retarget static missions off the quest NPCs: Earth→AC delivery to
+      `research_officer`; the two Tau Ceti deliveries offered by the specialist
+      move to the always-present `guild_master`
+- [x] City-only spawning: remove the dungeon call site in `game_interactions.py`
+- [x] Smoke validator checks every `npc_presence` tag resolves + has a spot,
+      and every spot names an existing guild building
+- [x] New pytest (`test_main_quest_npc_presence.py`) in the same commit;
+      `make check` green
+
+**PLAYTEST (3a):** the four experts appear ONLY in their windows — old smuggler
+at Barnard b (bar q2–q4), specialist at Tau Ceti b (q3–q4), demolitions expert
+at Epsilon Eri b (mil_q4), xenolinguist at Alpha Centauri (lab_q4) — and are
+absent before/after; the guild faces they used to replace are present as usual;
+no expert copy inside surface dungeons; save/quit/continue mid-window keeps
+them placed.
+
 ### Phase 4: Migrate quest text to the JSON overlay
 
 - [ ] Add `runtime.*` keys to `text.py` for the hard-coded breadcrumb strings:
@@ -355,7 +400,8 @@ end-to-end via data only, then delete it.
 ## Acceptance criteria
 
 - [ ] Adding a new chain = a `data/main_quest/` file + JSON overlay + (only if
-      new NPCs) `data/npcs/` + planet override. Zero runtime edits.
+      new NPCs) `data/npcs/` + a planet `quest_npc_spots` row + `npc_presence`
+      tags on the steps. Zero runtime edits.
 - [ ] Adding a new objective type = one handler module + one registry row.
       No edits to `_dialogue.py` / `_objectives.py` / `_spawns.py` / `_act0.py`.
 - [ ] Adding a new scene = one scene in `main_quest/_scenes.py` + a `scene` id

@@ -42,6 +42,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_good_id="weapons_blackmarket",
         smuggle_cargo_size=8,
         heat=("militia_scan",),  # militia scan floor while the proof run is live
+        npc_presence=("old_smuggler",),  # the receiver of the proof crate
         wait_days=85,
         dialogues={
             "barkeep": QuestDialogue(
@@ -68,6 +69,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="bar",
         objective_type="delve",
         delve_good_ids=(("machine_parts", 1), ("electronics", 1)),
+        npc_presence=("old_smuggler",),  # he draws the cave for the rig parts
         wait_days=0,
         dialogues={
             "old_smuggler": QuestDialogue(
@@ -90,6 +92,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         # Scan floor while the cell is en route + auto-aggro in Sol
         # while the crate is actually held (the charged-cell signature).
         heat=("militia_scan", "militia_aggro"),
+        npc_presence=("old_smuggler",),  # re-issues a lost power cell
         wait_days=90,
         dialogues={
             "wolf_barkeep": QuestDialogue(

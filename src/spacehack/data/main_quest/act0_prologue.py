@@ -56,17 +56,11 @@ STEPS: tuple[MainQuestStep, ...] = (
                 backing_faction="militia",
                 locks_chain=True,
             ),
+            # The lab seek-help lead keys off the regular research
+            # officer — the xenolinguist (lab-chain expert) only
+            # appears once her chain step is live.
             "research_officer": QuestDialogue(
                 npc_id="research_officer",
-                trigger_on_talk=True,
-                backing_faction="lab",
-                locks_chain=True,
-            ),
-            # The Science Port lab slot hosts the xenolinguist (Act 0
-            # lab-chain expert) — the lab seek-help lead keys off the
-            # expert id so it still surfaces at Alpha Centauri.
-            "xenolinguist": QuestDialogue(
-                npc_id="xenolinguist",
                 trigger_on_talk=True,
                 backing_faction="lab",
                 locks_chain=True,

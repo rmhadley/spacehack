@@ -24,10 +24,6 @@
   "step.prologue_seek_help.dialogue.research_officer.intro": "A structure this old should not be receiving transmissions. We need more data. Attach this device to the console. It'll record what it can find. Bring it back here and we'll figure this puzzle out.",
   "step.prologue_seek_help.dialogue.research_officer.locked": "You found another method. If you recover evidence, send it to the station. We will study it before we decide whether it is a warning, a weapon, or something that has no human category.",
   "step.prologue_seek_help.dialogue.research_officer.option_label": "Ask about the Mars door",
-  "step.prologue_seek_help.dialogue.xenolinguist.complete": "Then the work begins. Take a controlled sample from Mars and bring it back. We will publish the evidence when we know what it means, not before. The difference may keep people alive.",
-  "step.prologue_seek_help.dialogue.xenolinguist.intro": "The signal is not a message in any human sense. It is a pattern with coordinates embedded inside it, and the door may be made of the same impossible material. Bring me a sample. We may be able to make the lock answer without teaching ourselves what it was built to contain.",
-  "step.prologue_seek_help.dialogue.xenolinguist.locked": "You found another method. If you recover evidence, send it to the station. We will study it before we decide whether it is a warning, a weapon, or something that has no human category.",
-  "step.prologue_seek_help.dialogue.xenolinguist.option_label": "Ask about the Mars door",
   "step.prologue_seek_help.title": "Seek Help",
   "step.prologue_signal.title": "The Signal"
 }

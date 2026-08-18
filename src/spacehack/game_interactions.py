@@ -154,7 +154,8 @@ def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     ctx = state.ctx
     log = state.log
     from .dungeon import init_fog as _init_fog, reveal_around as _reveal_around
-    main_quest_module.spawn_quest_npcs(ctx, dungeon_map, pid, spawn_pos=spawn)
+    # Quest NPCs are city-only: the experts stand in their guild
+    # buildings, never inside surface dungeons (no duplicate copies).
     if dungeon_map.seen is None:
         _init_fog(dungeon_map)
     _reveal_around(dungeon_map, spawn)

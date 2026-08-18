@@ -50,6 +50,13 @@ class PlanetSpec:
                           global NPC entry on this planet only.
                           Missing ids fall through to the global
                           :data:`spacehack.data.npcs.NPCS` catalog.
+      quest_npc_spots:   ``(npc_id, building_label)`` pairs naming
+                          where a quest-conditional NPC stands while
+                          its step is live (added dynamically by
+                          ``spawn_quest_npcs`` at the named building's
+                          interior center). Unlike ``npc_overrides``
+                          these are ADDITIVE — they never replace the
+                          building's regular occupant.
     """
     id: str
     name: str
@@ -63,6 +70,8 @@ class PlanetSpec:
     showroom_ships: tuple[tuple[str, int, int], ...]
     theme: world.PlanetTheme | None = None
     npc_overrides: tuple[tuple[str, npc_module.NPC], ...] = ()
+    # (npc_id, building_label) — where quest-conditional NPCs stand.
+    quest_npc_spots: tuple[tuple[str, str], ...] = ()
     produces: tuple[tuple[str, int], ...] = ()
     demands: tuple[tuple[str, int], ...] = ()
     # Mechanic terminal inventory — weapon/module IDs sold at this planet's

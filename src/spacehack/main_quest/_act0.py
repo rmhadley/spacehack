@@ -27,6 +27,7 @@ from ._core import (
     step_status,
     start_step,
     complete_step,
+    _iter_known_steps,
     _active_objective_step,
     _complete_bump_objective,
 )
@@ -548,50 +549,60 @@ def surface_exploration_unlocked(ctx, planet_id: str) -> bool:
 # Quest NPC spawning
 # ---------------------------------------------------------------------------
 
-def _wall_adjacent_tile(
-    game_map: world.GameMap,
-    near: world.Position,
-) -> world.Position:
-    """Return a non-walkable tile adjacent to a walkable tile near near."""
-    for _r in range(1, 10):
-        for _dy in range(-_r, _r + 1):
-            for _dx in range(-_r, _r + 1):
-                if max(abs(_dx), abs(_dy)) != _r:
-                    continue
-                _x, _y = near.x + _dx, near.y + _dy
-                if not (0 <= _x < game_map.width and 0 <= _y < game_map.height):
-                    continue
-                if game_map.tiles[_y][_x].walkable:
-                    continue
-                for _nx, _ny in ((_x + 1, _y), (_x - 1, _y),
-                                 (_x, _y + 1), (_x, _y - 1)):
-                    if (0 <= _nx < game_map.width
-                            and 0 <= _ny < game_map.height
-                            and game_map.tiles[_ny][_nx].walkable):
-                        return world.Position(_x, _y)
-    return near
+def _quest_npcs_for_planet(ctx, planet_id: str) -> tuple[str, ...]:
+    """Quest NPC ids that should appear on ``planet_id`` right now.
 
-def _quest_npc_for_planet(ctx, planet_id: str) -> str | None:
-    """Return the quest NPC id that should appear on this planet, if any."""
-    if planet_id == "barnards_b" and ctx.main_quest_chain == "bar":
-        # The old smuggler is on the map from the proof run (q2)
-        # through the power-cell handover (q4) — he draws the cave
-        # and re-issues a lost cell — and leaves once the cell is on
-        # its way to Wolf 359 (q4 complete).
-        _needs_smuggler = (
-            step_status(ctx, "bar_q2_proof") != ""
-            and step_status(ctx, "bar_q4_blackmarket") != STATUS_COMPLETED
-        )
-        return "old_smuggler" if _needs_smuggler else None
-    if planet_id == "tc_b" and ctx.main_quest_chain == "merchants":
-        _mid_transport = (
-            step_status(ctx, "mer_q3_transport") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-        )
-        _awaiting_calibrate = (
-            step_status(ctx, "mer_q3_transport") == STATUS_COMPLETED
-            and step_status(ctx, "mer_q4_calibrate") in (STATUS_AVAILABLE, STATUS_ACTIVE)
-        )
-        return "salvage_specialist" if (_mid_transport or _awaiting_calibrate) else None
+    Data-driven over each step's ``npc_presence`` tags: an NPC
+    appears while ANY live step (status available/active) of the
+    locked chain tags it, and vanishes once its steps complete. The
+    standing spot comes from the planet's own ``quest_npc_spots`` —
+    the step's objective location (e.g. a space salvage) and the
+    NPC's guild building may differ. No per-step hard-coded ids.
+    """
+    from ..data.planets import find_planet_spec as _find_planet_spec
+    try:
+        _spotted = {
+            _nid for _nid, _label in _find_planet_spec(planet_id).quest_npc_spots
+        }
+    except KeyError:
+        return ()
+    if not _spotted:
+        return ()
+    _needed: set[str] = set()
+    for _step_id, _status, _step in _iter_known_steps(ctx):
+        if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+            continue
+        if _step.chain and _step.chain != ctx.main_quest_chain:
+            continue
+        _needed.update(_nid for _nid in _step.npc_presence if _nid in _spotted)
+    return tuple(sorted(_needed))
+
+
+def _quest_npc_spot_position(
+    planet_id: str,
+    npc_id: str,
+) -> world.Position | None:
+    """Return where ``npc_id`` should stand on ``planet_id``.
+
+    Reads the planet's ``quest_npc_spots`` (npc_id -> building label)
+    and returns the named building's interior center — the same spot
+    a building occupant uses. None when the planet has no spot for
+    this NPC (the smoke validator flags that as bad data).
+    """
+    from ..data.planets import find_planet_spec as _find_planet_spec
+    try:
+        _spec = _find_planet_spec(planet_id)
+    except KeyError:
+        return None
+    for _npc_id, _label in _spec.quest_npc_spots:
+        if _npc_id != npc_id:
+            continue
+        for _building in _spec.buildings:
+            if _building.label == _label:
+                return world.Position(
+                    (_building.x_lo + _building.x_hi) // 2,
+                    (_building.y_lo + _building.y_hi) // 2,
+                )
     return None
 
 
@@ -599,29 +610,32 @@ def spawn_quest_npcs(
     ctx,
     game_map: world.GameMap,
     planet_id: str,
-    *,
-    spawn_pos: world.Position | None = None,
 ) -> None:
-    """Add quest-conditional NPCs to game_map after loading a city or dungeon."""
-    _need_npc = _quest_npc_for_planet(ctx, planet_id)
-    if _need_npc is None:
-        return
-    if any(getattr(_e, 'npc_id', '') == _need_npc for _e in game_map.entities):
-        return
+    """Add quest-conditional NPCs to a freshly loaded city map.
+
+    Only city maps (never surface dungeons) host quest NPCs — the
+    experts live in their guild buildings while their step is live.
+    Idempotent: an NPC already on the map is not re-added.
+    """
     from ..data.npcs import find_npc as _find_npc
-    _npc = _find_npc(_need_npc)
-    if spawn_pos is not None:
-        _pos = _wall_adjacent_tile(game_map, spawn_pos)
-    else:
-        _pos = world.Position(x=38, y=10)
-    game_map.entities.append(world.Entity(
-        char=_npc.char,
-        fg=_npc.fg,
-        pos=_pos,
-        name=_npc.name,
-        npc_id=_npc.id,
-        width=1, height=1,
-    ))
+    for _npc_id in _quest_npcs_for_planet(ctx, planet_id):
+        if any(getattr(_e, 'npc_id', '') == _npc_id for _e in game_map.entities):
+            continue
+        _pos = _quest_npc_spot_position(planet_id, _npc_id)
+        if _pos is None:
+            ctx.log.add(
+                f"[MAIN QUEST] {_npc_id} has no spawn spot on {planet_id}."
+            )
+            continue
+        _npc = _find_npc(_npc_id)
+        game_map.entities.append(world.Entity(
+            char=_npc.char,
+            fg=_npc.fg,
+            pos=_pos,
+            name=_npc.name,
+            npc_id=_npc.id,
+            width=1, height=1,
+        ))
 
 # ---------------------------------------------------------------------------
 # Full-screen overlay plumbing

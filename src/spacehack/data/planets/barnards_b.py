@@ -10,9 +10,11 @@ Layout (60x40, same as Earth/Mars):
   * bar (cantina) building, NE corner — "The Ember" cantina.
   * salvage depot building, southern row — buys salvaged ship parts.
 
-Three NPC overrides: bar and salvage keep their own flavour. The
-salvage depot reuses the "depot" guild tag so a future mission tagged
-for that id can offer salvage runs here.
+Building NPCs: the bar keeps its barkeep and the salvage depot its
+attendant (both resolve through the global catalog). The Act 0
+``old_smuggler`` stands in the bar ADDITIVELY (``quest_npc_spots``)
+while the bar chain needs him — the proof run through the power-cell
+handover — then leaves.
 """
 from __future__ import annotations
 
@@ -52,6 +54,12 @@ SPEC = PlanetSpec(
         ("frigate", 15, 2),
     ),
     npc_overrides=(),
+    # The Act 0 old_smuggler stands in the bar (additively) only while
+    # bar_q2_proof / bar_q3_rigparts / bar_q4_blackmarket are live —
+    # see spawn_quest_npcs.
+    quest_npc_spots=(
+        ("old_smuggler", "bar"),
+    ),
     produces=(
         ("ore_processed", 35),
     ),

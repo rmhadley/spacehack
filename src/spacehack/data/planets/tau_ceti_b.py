@@ -12,6 +12,9 @@ Layout (60x40):
   * merchants guild, S — active trade hub for this sector.
 
 NPC overrides: barkeep + guild master get frontier-colony flavour.
+The Act 0 ``salvage_specialist`` stands in the merchants hall
+ADDITIVELY (``quest_npc_spots``) while the merchant chain needs her
+(the ore delivery + the alloy handover), then leaves.
 """
 from __future__ import annotations
 
@@ -65,21 +68,11 @@ SPEC = PlanetSpec(
                 ),
             ),
         ),
-        (
-            "guild_master",
-            npc_module.NPC(
-                id="salvage_specialist",
-                name="Salvage Specialist",
-                guild="merchants",
-                char="G",
-                fg=(200, 230, 130),
-                flavor_text=(
-                    "I've stripped more claims than the guild keeps "
-                    "records of. Word of the abandoned claim reached "
-                    "me - if the escrow ore's still there, I want my cut."
-                ),
-            ),
-        ),
+    ),
+    # The Act 0 salvage_specialist stands here (additively) only while
+    # mer_q3_transport / mer_q4_calibrate are live — see spawn_quest_npcs.
+    quest_npc_spots=(
+        ("salvage_specialist", "merchants"),
     ),
     produces=(
         ("food_rations", 25),

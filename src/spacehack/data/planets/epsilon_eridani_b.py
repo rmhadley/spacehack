@@ -12,12 +12,11 @@ Layout (60x40):
   * militia, S row — frontier law enforcement.
 
 NPC overrides: barkeep + guild master get frontier-pioneer
-flavour; the militia building hosts the Act 0 ``demolitions_expert``
-(its id differs from the replaced ``militia_captain`` slot so quest
-dialogue + the visit objective key off the expert id). With the
-slot occupied by the expert, the militia seek-help lead surfaces
-only on Earth/Mars militia captains (intended — the design doc lists
-Earth/Mars id-sharing variants for the seek-help fork).
+flavour; the militia building keeps its regular captain. The Act 0
+``demolitions_expert`` stands in the militia hall ADDITIVELY
+(``quest_npc_spots``) while the militia chain's recruit step is
+live, then leaves — the seek-help lead surfaces at any militia
+captain, and the expert is present only when the chain needs him.
 """
 from __future__ import annotations
 
@@ -92,21 +91,11 @@ SPEC = PlanetSpec(
                 ),
             ),
         ),
-        (
-            "militia_captain",
-            npc_module.NPC(
-                id="demolitions_expert",
-                name="Demolitions Expert",
-                guild="militia",
-                char="K",
-                fg=(255, 170, 80),
-                flavor_text=(
-                    "Breach charges, cutting torches, doors that "
-                    "don't want to open. If the patrol captain "
-                    "vouched for you, the work is off the books."
-                ),
-            ),
-        ),  # militia seek-help lead stays Earth/Mars-only (expert id differs)
+    ),
+    # The Act 0 demolitions_expert stands here (additively) only while
+    # mil_q4_demolitions is live — see spawn_quest_npcs.
+    quest_npc_spots=(
+        ("demolitions_expert", "militia"),
     ),
     produces=(
         ("ore_processed", 30),

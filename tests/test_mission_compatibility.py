@@ -415,7 +415,9 @@ def test_proc_delivery_target_npcs_resolve_through_planet_overrides():
     ids = _planet_npc_ids("ac_station")
     assert "archive_research_officer" not in ids
     assert "research_officer" in ids
-    assert "xenolinguist" in ids
+    # The xenolinguist is a quest-conditional NPC (Phase 3) — she is
+    # not a static delivery target for procedural missions.
+    assert "xenolinguist" not in ids
     # Every returned id is a real catalog NPC id.
     for _nid in ids:
         assert find_npc(_nid).id == _nid

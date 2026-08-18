@@ -185,6 +185,14 @@ class MainQuestStep:
     # final chain step carries no tag, so once it is the only live step
     # the heat filters naturally return False.
     heat: tuple[str, ...] = ()  # e.g. ("militia_scan", "militia_aggro") / ("consortium",)
+    # Quest-NPC presence (Phase 3): quest NPC ids that appear on the
+    # step's ``trigger_planet_id`` while this step is live (status
+    # available/active) — then vanish once it completes. The NPC is
+    # placed additively at the planet's matching ``quest_npc_spot``
+    # (see PlanetSpec), never replacing the building's regular NPC.
+    # Chain-gated by the runtime: only applies when
+    # ``ctx.main_quest_chain`` matches this step's ``chain``.
+    npc_presence: tuple[str, ...] = ()  # e.g. ("old_smuggler",)
     # --- Time-gating fields (minimum waits, never deadlines) ---
     wait_days: int = 0  # world-clock days the faction "works" after this step
                         # completes before the NEXT step unlocks (0 = no gate)

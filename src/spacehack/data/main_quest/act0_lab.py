@@ -78,6 +78,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="lab",
         objective_type="smuggle",
         requires_npc_id="xenolinguist",
+        npc_presence=("xenolinguist",),  # the dataset receiver
         smuggle_good_id="alien_device",
         smuggle_cargo_size=1,
         smuggle_hot=False,  # research data — never confiscatable

@@ -61,6 +61,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_cargo_size=3,
         smuggle_hot=False,  # ore — never confiscatable (consortium heat is pirates, not scans)
         heat=("consortium",),  # consortium pirates hunt the ore en route
+        npc_presence=("salvage_specialist",),  # the receiver of the ore
         wait_days=130,
         dialogues={
             "salvage_specialist": QuestDialogue(
@@ -87,6 +88,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_good_id="rare_earth_metals",
         smuggle_cargo_size=3,
         heat=("consortium",),  # consortium blockade guards the wreck
+        npc_presence=("salvage_specialist",),  # hands over the smelted alloy
         wait_days=0,
         dialogues={
             "salvage_specialist": QuestDialogue(

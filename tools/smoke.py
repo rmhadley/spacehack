@@ -282,64 +282,44 @@ def smoke_test() -> int:
             )
             return 1
 
-    # Expert NPCs (phase 1d): the four faction-chain experts must
-    # resolve in the global NPC catalog AND be placed via
-    # PlanetSpec.npc_overrides on a planet that already has the
-    # matching guild building (the override's id differs from the
-    # replaced slot so quest dialogue + the visit objective key off
-    # the expert id).
-    _expert_placements = (
-        ("eri_b", "militia_captain", "demolitions_expert"),
-        ("tc_b", "guild_master", "salvage_specialist"),
-        ("barnards_b", "barkeep", "old_smuggler"),  # dynamic via spawn_quest_npcs, not npc_override
-        ("ac_station", "research_officer", "xenolinguist"),
-    )
-    for _epid, _slot_id, _expert_id in _expert_placements:
-        try:
-            _ep_npc = find_npc(_expert_id)
-        except KeyError:
-            print(
-                f"FAIL: expert npc {_expert_id!r} missing from catalog.",
-                file=sys.stderr,
-            )
-            return 1
-        try:
-            _epspec = _fps(_epid)
-        except KeyError:
-            print(
-                f"FAIL: expert planet {_epid!r} missing from registry.",
-                file=sys.stderr,
-            )
-            return 1
-        if not any(b.npc_id == _slot_id for b in _epspec.buildings):
-            print(
-                f"FAIL: expert planet {_epid!r} lacks the {_slot_id!r} "
-                "guild building for its expert override.",
-                file=sys.stderr,
-            )
-            return 1
-        # old_smuggler is placed dynamically via spawn_quest_npcs
-        # (not npc_override), so skip the override check for barnards_b.
-        # Its guild is empty (quest-conditional NPC, no board/work).
-        if _epid == "barnards_b":
-            continue
-        if not any(
-            oid == _slot_id and npc_obj.id == _expert_id
-            for oid, npc_obj in _epspec.npc_overrides
-        ):
-            print(
-                f"FAIL: expert {_expert_id!r} not placed on {_epid!r} "
-                f"via the {_slot_id!r} slot override.",
-                file=sys.stderr,
-            )
-            return 1
-        if _ep_npc.guild not in ("militia", "merchants", "bar", "lab"):
-            print(
-                f"FAIL: expert {_expert_id!r} has unexpected guild "
-                f"{_ep_npc.guild!r}.",
-                file=sys.stderr,
-            )
-            return 1
+    # Quest-NPC presence (Phase 3): the faction experts are ADDITIVE
+    # city NPCs — every ``npc_presence`` tag must resolve to a catalog
+    # NPC AND have a ``quest_npc_spot`` on some planet, and every
+    # spot must name an existing guild building. Otherwise a quest
+    # NPC never appears (soft-lock: the step's delivery/visit target
+    # is unreachable) or spawns nowhere.
+    from src.spacehack.data.planets import list_planet_specs as _list_pspecs
+    _spotted_npcs: set[str] = set()
+    for _pspec in _list_pspecs():
+        for _nid, _label in getattr(_pspec, "quest_npc_spots", ()) or ():
+            _spotted_npcs.add(_nid)
+            if not any(
+                b.label == _label and b.npc_id for b in _pspec.buildings
+            ):
+                print(
+                    f"FAIL: planet {_pspec.id!r} quest spot {_nid!r} "
+                    f"names {_label!r}, which is not a guild building.",
+                    file=sys.stderr,
+                )
+                return 1
+    for _s in _mq_steps:
+        for _nid in _s.npc_presence:
+            try:
+                find_npc(_nid)
+            except KeyError:
+                print(
+                    f"FAIL: quest npc {_nid!r} (presence on {_s.id!r}) "
+                    "missing from catalog.",
+                    file=sys.stderr,
+                )
+                return 1
+            if _nid not in _spotted_npcs:
+                print(
+                    f"FAIL: quest npc {_nid!r} (presence on {_s.id!r}) "
+                    "has no quest_npc_spot on any planet.",
+                    file=sys.stderr,
+                )
+                return 1
 
     # Time-gate data (phase 1d): every step with a minimum-wait gate
     # must carry the completion flavor + the one-way summon message

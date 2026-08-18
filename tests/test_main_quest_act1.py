@@ -91,12 +91,16 @@ def test_archive_disclosure_catalog_is_frozen_and_keyed():
         raise AssertionError("archive disclosure data must be frozen")
 
 
-def test_alpha_centauri_station_keeps_both_research_contacts():
+def test_alpha_centauri_station_research_contacts():
     _building_npcs = {building.npc_id for building in AC_STATION.buildings}
 
     assert {"archive_research_officer", "research_officer"} <= _building_npcs
-    assert dict(AC_STATION.npc_overrides)["research_officer"].id == "xenolinguist"
+    # The archive override supplies the post-prison officer; the lab
+    # slot resolves through the global catalog (no xenolinguist
+    # override — she is now a dynamic quest NPC via quest_npc_spots).
     assert dict(AC_STATION.npc_overrides)["archive_research_officer"].id == "research_officer"
+    assert "research_officer" not in dict(AC_STATION.npc_overrides)
+    assert ("xenolinguist", "lab") in AC_STATION.quest_npc_spots
 
 
 def test_mars_surface_detection_supports_current_and_legacy_maps():

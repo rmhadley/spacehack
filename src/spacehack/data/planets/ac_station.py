@@ -1,8 +1,10 @@
 """Science Port - Alpha Centauri's research station interior.
 
 The station uses the normal PlanetSpec city loader. It has a landing bay, an
-archive lab for the post-prison Research Officer, and the established lab
-slot whose research_officer override supplies the Act 0 Xenolinguist.
+archive lab for the post-prison Research Officer, and a lab building whose
+regular research officer resolves through the global catalog. The Act 0
+Xenolinguist stands in the lab ADDITIVELY (``quest_npc_spots``) while the lab
+chain needs her (the dataset delivery), then leaves.
 """
 from __future__ import annotations
 
@@ -23,18 +25,6 @@ _RESEARCH_OFFICER = npc_module.NPC(
         "asks us a question - that is when the pay gets interesting."
     ),
 )
-_XENOLINGUIST = npc_module.NPC(
-    id="xenolinguist",
-    name="Xenolinguist",
-    guild="lab",
-    char="S",
-    fg=(190, 170, 230),
-    flavor_text=(
-        "The station says the signal isn't human. If there's a reference "
-        "dataset out there, it could crack the whole thing open. Bring it to me."
-    ),
-)
-
 
 SPEC = PlanetSpec(
     theme=STATION,
@@ -70,12 +60,16 @@ SPEC = PlanetSpec(
         ("scout", 3, 2),
         ("hauler", 7, 4),
     ),
-    # Preserve the Act 0 contract: the original research_officer slot
-    # resolves to the Xenolinguist. The archive gets the actual officer
-    # needed by the post-prison research step through a second override.
+    # The archive gets the officer needed by the post-prison research
+    # step; the lab building's research_officer slot resolves through
+    # the global catalog.
     npc_overrides=(
-        ("research_officer", _XENOLINGUIST),
         ("archive_research_officer", _RESEARCH_OFFICER),
+    ),
+    # The Act 0 xenolinguist stands in the lab (additively) only while
+    # lab_q4_xenolinguist is live — see spawn_quest_npcs.
+    quest_npc_spots=(
+        ("xenolinguist", "lab"),
     ),
     produces=(
         ("research_data", 20),

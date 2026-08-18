@@ -85,6 +85,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="militia",
         objective_type="visit",
         requires_npc_id="demolitions_expert",
+        npc_presence=("demolitions_expert",),  # the recruit (visit) target
         wait_days=120,
         dialogues={
             "demolitions_expert": QuestDialogue(
