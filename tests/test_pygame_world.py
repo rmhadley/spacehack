@@ -67,6 +67,8 @@ def test_registered_city_themes_lift_near_black_surface_backgrounds():
             tile = getattr(theme, field)
             assert min(tile.bg) >= _CITY_BG_MIN_CHANNEL
             assert _city_bg_luma(tile.bg) >= _CITY_BG_MIN_LUMA
+            if field == "landing_pad":
+                assert tile.char == "░"
 
 
 def test_all_landable_city_pads_use_readable_entity_backgrounds():
@@ -87,6 +89,7 @@ def test_all_landable_city_pads_use_readable_entity_backgrounds():
             if tile.kind == "landing_pad"
         ]
         if pad_tiles:
+            assert pad_tiles[0].char == "░"
             assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL
             assert _city_bg_luma(pad_tiles[0].bg) >= _CITY_BG_MIN_LUMA
         for entity in game_map.entities:
@@ -169,6 +172,31 @@ def test_render_world_preserves_tile_background_behind_entity_glyphs():
     )
 
     assert console.cell(1, 1).bg == (10, 20, 30)
+
+
+def test_ac_ii_hangar_entity_preserves_ice_landing_pad_background():
+    from src.spacehack.data.planets import load_planet
+
+    game_map = load_planet("ac_planet_2")
+    hangar_ship = world.Entity(
+        "t", (180, 200, 220), world.Position(7, 14), owned=True,
+    )
+    game_map.entities.append(hangar_ship)
+    tile = game_map.tiles[hangar_ship.pos.y][hangar_ship.pos.x]
+    console = FrameBuffer(80, 54)
+
+    world.render_world(
+        console,
+        game_map,
+        region_x=0,
+        region_y=0,
+        region_w=80,
+        region_h=54,
+    )
+
+    assert tile.kind == "landing_pad"
+    assert tile.char == "░"
+    assert console.cell(20 + hangar_ship.pos.x, 15 + hangar_ship.pos.y).bg == tile.bg
 
 
 def test_earth_hangar_entity_preserves_landing_pad_background():
