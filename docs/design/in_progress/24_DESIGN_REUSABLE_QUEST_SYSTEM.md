@@ -49,12 +49,12 @@ After this lands, the authoring loop for a new chain is: write a step tuple in
 - [x] Phase 3a — quest-NPC presence data-ified; open NPC-presence playtest
       complete.
 - [x] Phase 4 — quest and Mars-prison text migration plus full playtest complete.
-- [ ] Phase 5 — minimal validator and authoring guide.
+- [x] Phase 5 — minimal validator, authoring guide, and validator playtest complete.
 - [ ] Phase 6 — guide/docs review and final acceptance.
 
-The open playtests for the completed phases (1, 2, 3, and 3a) are now
+The open playtests for the completed phases (1, 2, 3, 3a, 4, and 5) are now
 complete, user-confirmed. No failures or new edge cases were reported in this
-update. The design remains in `in_progress/` because Phases 4–6 and the final
+update. The design remains in `in_progress/` because Phase 6 and the final
 acceptance criteria are still outstanding.
 
 ## Current state (the motivation)
@@ -456,15 +456,14 @@ or new edge cases were reported.
 
 **Phase 5 implementation status:** complete. The validator is pure and
 unit-testable, the production catalog passes it, and `make check` runs it
-before the architecture/lint/test stages. Only the user-facing PLAYTEST (5)
-remains open.
+before the architecture/lint/test stages.
 
-**PLAYTEST (5):** introduce a deliberate bad data edit (unknown
-`objective_type`, dangling `requires_step`, unregistered `scene` id) → the gate
-fails with a clear message. Fix it → gate passes. Author a throwaway test chain
-end-to-end via data only, then delete it.
+**PLAYTEST (5) — COMPLETE:** User confirmed the deliberate invalid-data checks
+and the temporary data-only chain exercise passed. Unknown objective types,
+dangling prerequisites, and unregistered scenes fail clearly; corrected data
+passes, and the throwaway chain was removed.
 
-### Phase 6: Guide, docs, acceptance
+### Phase 6: Guide, docs, acceptance — NEXT
 
 - [ ] Update `_GUIDE_MAIN_QUEST` if any player-facing wording changed (Phases
       1–4 are behavior-preserving, so this should be a no-op review)
