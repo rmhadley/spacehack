@@ -233,11 +233,11 @@ parser tests cover whitespace, colors, loot, enemies, hull groups, and errors.
 
 ### Phase 2 — Document model, format writer, and validator
 
-- [ ] Add editor document/directive dataclasses.
-- [ ] Parse the shared representation into the document model.
-- [ ] Write a deterministic canonical `.layout` representation.
-- [ ] Implement structural validation and mode-specific marker checks.
-- [ ] Add tests for round-tripping both existing ship and landmark assets,
+- [x] Add editor document/directive dataclasses.
+- [x] Parse the shared representation into the document model.
+- [x] Write a deterministic canonical `.layout` representation.
+- [x] Implement structural validation and mode-specific marker checks.
+- [x] Add tests for round-tripping both existing ship and landmark assets,
       preserving spaces, colors, loot, enemies, and special markers.
 
 **PLAYTEST**
@@ -249,6 +249,10 @@ parser tests cover whitespace, colors, loot, enemies, hull groups, and errors.
    parsed dimensions, tiles, entities, and marker directives.
 5. Confirm invalid maps produce actionable issues instead of exceptions that
    lose the document.
+
+**Result:** Passed. Existing ship and landmark assets round-trip through the
+canonical writer, repository-only save paths are enforced, and validation
+reports malformed references, glyphs, markers, and unreachable destinations.
 
 ### Phase 3 — Canvas, palette, and preview application
 

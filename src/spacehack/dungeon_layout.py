@@ -23,6 +23,7 @@ _LOOT_POOLS: dict[str, list[tuple[str, int, int]]] = {
     "personal_storage": [("luxury_goods", 1, 1), ("electronics", 1, 2), ("research_data", 1, 1)],
     "cargo_bay": [("ore_processed", 2, 5), ("machine_parts", 1, 3), ("textiles", 1, 3)],
 }
+LOOT_ROOM_TYPES = frozenset(_LOOT_POOLS)
 
 
 @dataclass

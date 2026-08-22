@@ -50,6 +50,24 @@ _TILE_BY_NAME: dict[str, world.Tile] = {
 }
 
 
+def tile_names() -> tuple[str, ...]:
+    """Return available world tile constant names in stable order."""
+    return tuple(sorted(_TILE_BY_NAME))
+
+
+def tile_for_name(name: str) -> world.Tile:
+    """Return the authoritative tile for a constant name."""
+    return _TILE_BY_NAME[name]
+
+
+def tile_name_for(tile: world.Tile) -> str:
+    """Return the first constant name that refers to ``tile``."""
+    for name in tile_names():
+        if _TILE_BY_NAME[name] is tile:
+            return name
+    raise KeyError(f"Unknown world tile: {tile!r}")
+
+
 def _split_directive(rest: str) -> tuple[str, str] | None:
     """Split a ``glyph = value`` directive, including ``=`` as a glyph."""
     if " = " in rest:
