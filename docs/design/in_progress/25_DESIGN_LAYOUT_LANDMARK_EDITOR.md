@@ -211,12 +211,12 @@ not overwrite a file until the user explicitly saves.
 
 ### Phase 1 — Extract shared layout syntax
 
-- [ ] Extract pure MAP/directive parsing into `src/spacehack/layout_format.py`.
-- [ ] Keep `dungeon.load_layout()` behavior unchanged while consuming the
+- [x] Extract pure MAP/directive parsing into `src/spacehack/layout_format.py`.
+- [x] Keep `dungeon.load_layout()` behavior unchanged while consuming the
       shared parsed representation.
-- [ ] Add parser tests for whitespace, comments, colors, loot, enemies, hull
+- [x] Add parser tests for whitespace, comments, colors, loot, enemies, hull
       groups, and malformed directives.
-- [ ] Reduce `dungeon.py` below the architecture ratchet limits for touched
+- [x] Reduce `dungeon.py` below the architecture ratchet limits for touched
       modules/functions.
 
 **PLAYTEST**
@@ -226,6 +226,10 @@ not overwrite a file until the user explicitly saves.
 3. Compare representative maps before and after the extraction, including
    entity markers, themed colors, hull groups, and landmark markers.
 4. Confirm malformed input still reports a useful `ValueError`.
+
+**Result:** Passed. The focused dungeon/landmark suite and the full gate
+confirmed that the extracted loader preserves shipped map behavior; the new
+parser tests cover whitespace, colors, loot, enemies, hull groups, and errors.
 
 ### Phase 2 — Document model, format writer, and validator
 
