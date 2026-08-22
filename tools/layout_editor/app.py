@@ -219,7 +219,8 @@ class EditorApp:
         elif key == "s":
             self._save()
         elif key == "tab":
-            self._select_palette((self.palette_index + 1) % len(self.palette))
+            direction = -1 if event.shift else 1
+            self._select_palette((self.palette_index + direction) % len(self.palette))
         elif key == "[":
             self._select_palette(self.palette_index - PALETTE_PAGE_SIZE)
         elif key == "]":

@@ -35,6 +35,16 @@ def test_editor_right_sample_selection_uses_raw_grid_glyph():
     assert app._selected_entry().glyph == " "
 
 
+def test_editor_shift_tab_selects_previous_palette_entry():
+    document = new_document(AssetMode.SHIP)
+    app = EditorApp(SimpleNamespace(), document)
+    app._select_palette(2)
+
+    assert not app._handle_key(SimpleNamespace(kind="keydown", key_name="tab", shift=True))
+
+    assert app.palette_index == 1
+
+
 def test_editor_keyboard_resize_marks_document_dirty():
     document = new_document(AssetMode.SHIP)
     app = EditorApp(SimpleNamespace(), document)
