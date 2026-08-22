@@ -282,13 +282,13 @@ also imports successfully with SDL's dummy driver.
 
 ### Phase 4 — Workflow polish and asset safety
 
-- [ ] Add keyboard shortcuts and concise in-app help.
-- [ ] Add safe-save behavior that writes through a temporary file and keeps
+- [x] Add keyboard shortcuts and concise in-app help.
+- [x] Add safe-save behavior that writes through a temporary file and keeps
    the original until the write succeeds.
-- [ ] Add a command-line validation mode for CI/developer workflows.
-- [ ] Add regression tests for malformed directives, unknown glyphs, invalid
+- [x] Add a command-line validation mode for CI/developer workflows.
+- [x] Add regression tests for malformed directives, unknown glyphs, invalid
    references, resize behavior, and landmark reachability.
-- [ ] Document the editor command and authoring workflow in `README.md` or a
+- [x] Document the editor command and authoring workflow in `README.md` or a
    concise tool guide.
 
 **PLAYTEST**
@@ -301,6 +301,10 @@ also imports successfully with SDL's dummy driver.
    if supported, and confirm the original remains intact.
 4. Open the saved copy in the game or the relevant layout-loading test and
    verify it remains playable/reachable.
+
+**Result:** Passed. Atomic saves, headless validation of all four shipped
+assets, CLI error reporting, regression tests, and README usage instructions
+are complete.
 
 ## Acceptance criteria
 

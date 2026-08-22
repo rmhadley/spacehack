@@ -137,6 +137,32 @@ run_spacehack.bat
 
 Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
 
+## Layout and landmark editor
+
+The repository includes a standalone Pygame utility for creating and editing
+hand-authored ship interiors and dungeon landmarks. It uses the same layout
+syntax, tile data, and renderer as the game:
+
+```bash
+# Open an existing ship or landmark asset
+python -m tools.layout_editor src/spacehack/data/layouts/scout_a.layout
+python -m tools.layout_editor src/spacehack/data/landmarks/mars_signal_door.layout
+
+# Create a new asset (saving is restricted to the matching data directory)
+python -m tools.layout_editor --mode ship --output src/spacehack/data/layouts/my_ship.layout
+python -m tools.layout_editor --mode landmark --output src/spacehack/data/landmarks/my_landmark.layout
+
+# Validate all shipped assets without opening Pygame
+python -m tools.layout_editor --validate
+```
+
+In the editor, left-click paints the selected palette entry, right-click samples
+an existing glyph, `V` or `F5` toggles the production-loader preview, `S` saves,
+arrow keys or `HJKL` move the selected cell, `Enter`/`Space` paints, `Tab`
+selects the next palette entry, and `[`/`]` changes palette pages. `+` and `-`
+resize the layout width. The status panel reports invalid markers, references,
+and reachability issues before saving.
+
 ## How to play
 
 ### The basics

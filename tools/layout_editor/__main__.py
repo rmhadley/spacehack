@@ -11,6 +11,7 @@ from src.spacehack.pygame_runtime import open_runtime
 from .app import run_editor
 from .format import asset_directories
 from .model import AssetMode, infer_mode, load_document, new_document
+from .validation import validate_document
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -29,6 +30,11 @@ def _parser() -> argparse.ArgumentParser:
         "--output",
         help="repository data path to use when saving a new document",
     )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="validate one path or every shipped layout without opening Pygame",
+    )
     return parser
 
 
@@ -42,9 +48,43 @@ def _document(args: argparse.Namespace):
     return new_document(mode, output)
 
 
+def _validation_paths(args: argparse.Namespace) -> list[Path]:
+    """Resolve one requested asset or all repository-authored assets."""
+    if args.path:
+        return [Path(args.path)]
+    directories = asset_directories()
+    return sorted(
+        path
+        for directory in directories.values()
+        for path in directory.glob("*.layout")
+    )
+
+
+def _validate_paths(paths: list[Path]) -> int:
+    """Print validation results and return a process status."""
+    failed = False
+    for path in paths:
+        try:
+            issues = validate_document(load_document(path))
+        except (OSError, ValueError, KeyError) as error:
+            print(f"ERROR {path}: {error}")
+            failed = True
+            continue
+        errors = [issue for issue in issues if issue.severity == "error"]
+        if errors:
+            failed = True
+            for issue in errors:
+                print(f"ERROR {path}: {issue.message}")
+        else:
+            print(f"OK {path}")
+    return 1 if failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Open the standalone Pygame editor."""
+    """Open the standalone Pygame editor or run headless validation."""
     args = _parser().parse_args(argv)
+    if args.validate:
+        return _validate_paths(_validation_paths(args))
     document = _document(args)
     tileset = load_tileset()
     with open_runtime(tileset) as context:

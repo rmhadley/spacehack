@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import tempfile
 
 from .model import AssetMode, EditorDocument
 
@@ -95,6 +97,21 @@ def document_to_text(document: EditorDocument) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _atomic_write(path: Path, text: str) -> None:
+    """Replace a destination only after its complete text is written."""
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(text)
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 def save_document(
     document: EditorDocument,
     path: str | Path | None = None,
@@ -109,7 +126,7 @@ def save_document(
     previous_path = document.path
     document.path = destination
     try:
-        destination.write_text(document_to_text(document), encoding="utf-8")
+        _atomic_write(destination, document_to_text(document))
     except OSError:
         document.path = previous_path
         raise
