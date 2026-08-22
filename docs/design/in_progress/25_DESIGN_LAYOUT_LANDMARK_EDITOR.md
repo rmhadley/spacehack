@@ -302,15 +302,39 @@ also imports successfully with SDL's dummy driver.
 4. Open the saved copy in the game or the relevant layout-loading test and
    verify it remains playable/reachable.
 
-**Result:** Passed. Atomic saves, headless validation of all four shipped
+**Result:** Passed. Atomic saves, headless validation of all shipped
 assets, CLI error reporting, regression tests, and README usage instructions
 are complete.
+
+### Phase 5 — Directive inspector
+
+- [ ] Show details for the selected tile, marker, loot, or enemy entry.
+- [ ] Allow foreground RGB channel editing for authored color directives.
+- [ ] Allow background override toggling and RGB channel editing.
+- [ ] Allow enemy spawn chance and squad minimum/maximum editing.
+- [ ] Add discoverable in-app controls and regression tests for each mutation.
+
+**PLAYTEST**
+
+1. Open a layout containing an enemy marker and select it in the palette.
+2. Cycle the inspector field, adjust chance and squad bounds, save, and
+   reopen the layout to confirm the values persist.
+3. Select a colored tile, adjust foreground channels, toggle its background
+   override, and confirm the preview changes.
+4. Run the headless validator and the full test suite.
+
+**Implementation choice:** the inspector remains keyboard-driven to match the
+editor's existing grid workflow. `I` cycles fields, `,`/`.` decrease or
+increase the selected numeric field, and `B` toggles a color background
+override. This keeps the MVP free of a second widget/input system.
 
 ## Acceptance criteria
 
 - Existing shipped layouts and landmarks can be opened without semantic loss.
 - A user can create and save a valid small asset without manually editing
   directive syntax.
+- A user can adjust authored colors and enemy spawn chance/squad bounds from
+  the inspector without editing directive syntax.
 - The preview uses the same tile semantics and rendering path as the game.
 - Invalid ship and landmark assets are identified before save, with actionable
   messages and cell/line context where possible.
@@ -335,5 +359,6 @@ are complete.
    is canonical generated output acceptable?~~ **Resolved:** canonical output
    is acceptable; preserving existing comments is unnecessary.
 
-No open design questions remain for the MVP.
+No open design questions remain for the MVP; the inspector interaction is
+resolved as keyboard-driven per Phase 5.
 
