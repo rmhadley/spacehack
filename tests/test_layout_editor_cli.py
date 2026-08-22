@@ -33,5 +33,9 @@ def test_validate_command_checks_all_shipped_assets(capsys):
     result = main(["--validate"])
 
     output = capsys.readouterr().out
+    expected = sum(
+        len(tuple(directory.glob("*.layout")))
+        for directory in (_DATA / "layouts", _DATA / "landmarks")
+    )
     assert result == 0
-    assert output.count("OK ") == 4
+    assert output.count("OK ") == expected
