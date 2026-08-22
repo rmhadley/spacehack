@@ -133,9 +133,59 @@ with focused modules:
 - `__main__.py` — command-line launch and optional file argument.
 
 The editor must not modify `dungeon.py` or `landmark.py` merely to duplicate
-their parsing logic. If a reusable loader or validator needs extraction from
-an oversized gameplay module, that extraction is a separate refactor phase
-and must satisfy the architecture ratchet.
+their parsing logic. The shared syntax extraction identified in the audit
+below is a separate refactor phase and must satisfy the architecture ratchet.
+
+### Pre-implementation audit
+
+#### Existing code to reuse or extend
+
+- `world.Tile`, `_TILE_BY_NAME`, and the tile constants in `world.py` provide
+  the authoritative tile palette and tile semantics.
+- `world.Entity` and `world.GameMap` are the existing runtime representations
+  used by preview validation; no editor-specific runtime map type is needed.
+- `dungeon.load_layout()` in `dungeon.py` is the current production loader for
+  `MAP`, `TILE`, `COLOUR`, `LOOT`, and `ENEMY` syntax, including hull-group
+  handling and entity marker behavior.
+- `landmark.load_landmark()`, `_landmark_markers()`, and
+  `stamp_landmark()` in `landmark.py` define the landmark entrance and
+  connection contracts and should remain the semantic authority for them.
+- `engine.load_tileset()`, `CP437_CHARMAP`, and the screen/tile constants in
+  `engine.py` define the supported glyph set and native cell dimensions.
+- `FrameBuffer`, `PygameEngine`, `PygameRuntime`, and `PygameInputEvent` in
+  `framebuffer.py`, `pygame_engine.py`, and `pygame_runtime.py` provide the
+  project-owned rendering and input seams to reuse.
+- `world.render_world()` provides the existing map preview path.
+- `tests/test_landmark.py`, `tests/test_dungeon.py`, and the Pygame tests in
+  `tests/test_pygame_integration.py` and `tests/test_pygame_engine.py` provide
+  established semantic and headless-rendering test patterns.
+- `tools/__init__.py` already makes `python -m tools.layout_editor` a viable
+  developer launch path.
+
+#### Duplication hotspots and DRY strategy
+
+1. **Layout syntax parsing:** an editor-only parser would duplicate the
+   production parser's directive and MAP-section rules. Extract the pure
+   source-text parsing portion into a shared `src/spacehack/layout_format.py`
+   module, have `dungeon.load_layout()` consume it, and have the editor use
+   the same result. This also pays down the existing oversized `dungeon.py`
+   module rather than adding another parser.
+2. **Tile/marker palette construction:** independently listing tile constants
+   or entity markers in the editor would drift from `world.py` and
+   `dungeon.py`. Build the palette from the authoritative tile registry and
+   one shared marker metadata table; use table-driven groups rather than
+   repeated state conditionals, following the state-table guardrail.
+3. **Preview rendering and validation:** a second renderer or a second
+   landmark stamping implementation could show an asset differently from the
+   game. Parse previews through `dungeon.load_layout()` and validate landmark
+   contracts through `landmark._landmark_markers()`/`stamp_landmark()`;
+   isolate only editor-document diagnostics in pure helpers. Reuse the
+   existing `FrameBuffer`/Pygame presentation path instead of painting a
+   bespoke tile interpretation.
+
+The audit changes the implementation order: shared syntax extraction becomes
+Phase 1, before the editor document model, so all later editor behavior has a
+single parser authority.
 
 ### Runtime integration
 
@@ -159,10 +209,28 @@ not overwrite a file until the user explicitly saves.
 
 ## Phased implementation plan
 
-### Phase 1 — Document model, format writer, and validator
+### Phase 1 — Extract shared layout syntax
+
+- [ ] Extract pure MAP/directive parsing into `src/spacehack/layout_format.py`.
+- [ ] Keep `dungeon.load_layout()` behavior unchanged while consuming the
+      shared parsed representation.
+- [ ] Add parser tests for whitespace, comments, colors, loot, enemies, hull
+      groups, and malformed directives.
+- [ ] Reduce `dungeon.py` below the architecture ratchet limits for touched
+      modules/functions.
+
+**PLAYTEST**
+
+1. Run the layout parser and existing dungeon/landmark tests.
+2. Load every shipped `.layout` file through the production loader.
+3. Compare representative maps before and after the extraction, including
+   entity markers, themed colors, hull groups, and landmark markers.
+4. Confirm malformed input still reports a useful `ValueError`.
+
+### Phase 2 — Document model, format writer, and validator
 
 - [ ] Add editor document/directive dataclasses.
-- [ ] Parse the existing `.layout` syntax into the document model.
+- [ ] Parse the shared representation into the document model.
 - [ ] Write a deterministic canonical `.layout` representation.
 - [ ] Implement structural validation and mode-specific marker checks.
 - [ ] Add tests for round-tripping both existing ship and landmark assets,
@@ -178,7 +246,7 @@ not overwrite a file until the user explicitly saves.
 5. Confirm invalid maps produce actionable issues instead of exceptions that
    lose the document.
 
-### Phase 2 — Canvas, palette, and preview application
+### Phase 3 — Canvas, palette, and preview application
 
 - [ ] Add a Pygame editor window using the existing runtime conventions.
 - [ ] Render an editable grid at an integer scale with pan/scroll support for
@@ -200,16 +268,16 @@ not overwrite a file until the user explicitly saves.
 5. Delete the required landmark entrance and confirm the status panel reports
    the missing marker without crashing.
 
-### Phase 3 — Workflow polish and asset safety
+### Phase 4 — Workflow polish and asset safety
 
 - [ ] Add keyboard shortcuts and concise in-app help.
 - [ ] Add safe-save behavior that writes through a temporary file and keeps
-      the original until the write succeeds.
+   the original until the write succeeds.
 - [ ] Add a command-line validation mode for CI/developer workflows.
 - [ ] Add regression tests for malformed directives, unknown glyphs, invalid
-      references, resize behavior, and landmark reachability.
+   references, resize behavior, and landmark reachability.
 - [ ] Document the editor command and authoring workflow in `README.md` or a
-      concise tool guide.
+   concise tool guide.
 
 **PLAYTEST**
 
@@ -237,11 +305,19 @@ not overwrite a file until the user explicitly saves.
 
 ## Open questions
 
-1. Should the first release include an explicit undo/redo stack, or should it
-   remain a follow-up after the basic authoring workflow is proven?
-2. Should saving be restricted to the repository's data directories, or may
-   the tool write arbitrary user-selected `.layout` paths?
-3. Should the first release include a packaged standalone binary, or is the
-   Python module launch sufficient for the initial workflow?
-4. Should authored comments/descriptions be editable in the first release, or
-   is canonical generated output acceptable?
+1. ~~Should the first release include an explicit undo/redo stack, or should it
+   remain a follow-up after the basic authoring workflow is proven?~~ **Resolved:**
+   No undo/redo in the first release.
+2. ~~Should saving be restricted to the repository's data directories, or may
+   the tool write arbitrary user-selected `.layout` paths?~~ **Resolved:** restrict
+   saving to the existing `src/spacehack/data/layouts/` and
+   `src/spacehack/data/landmarks/` directories.
+3. ~~Should the first release include a packaged standalone binary, or is the
+   Python module launch sufficient for the initial workflow?~~ **Resolved:**
+   `python -m tools.layout_editor` is sufficient.
+4. ~~Should authored comments/descriptions be editable in the first release, or
+   is canonical generated output acceptable?~~ **Resolved:** canonical output
+   is acceptable; preserving existing comments is unnecessary.
+
+No open design questions remain for the MVP.
+
