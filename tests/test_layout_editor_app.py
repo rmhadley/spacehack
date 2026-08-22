@@ -55,6 +55,39 @@ def test_editor_keyboard_resize_marks_document_dirty():
     assert document.dirty
 
 
+def test_editor_inspector_adjusts_enemy_chance_and_squad_bounds():
+    document = new_document(AssetMode.SHIP)
+    app = EditorApp(SimpleNamespace(), document)
+    enemy = next(entry for entry in app.palette if entry.enemy_id == "pirate_raider")
+    app._select_palette(app.palette.index(enemy))
+
+    app._adjust_detail(1)
+    app._cycle_detail()
+    app._adjust_detail(1)
+    app._cycle_detail()
+    app._adjust_detail(1)
+
+    directive = document.enemy_directives[enemy.glyph]
+    assert directive.chance == 1.0
+    assert directive.squad_min == 1
+    assert directive.squad_max == 2
+    assert document.dirty
+
+
+def test_editor_inspector_adjusts_colors_and_toggles_background():
+    document = new_document(AssetMode.SHIP)
+    app = EditorApp(SimpleNamespace(), document)
+    tile = next(entry for entry in app.palette if entry.glyph == "#")
+    app._select_palette(app.palette.index(tile))
+
+    app._adjust_detail(1)
+    app._toggle_detail_background()
+
+    colour = document.colour_directives["#"]
+    assert colour.fg == (125, 130, 150)
+    assert colour.bg == (30, 35, 45)
+
+
 def test_editor_keyboard_resize_changes_height_with_page_keys():
     document = new_document(AssetMode.SHIP)
     app = EditorApp(SimpleNamespace(), document)

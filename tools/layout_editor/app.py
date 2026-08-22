@@ -11,6 +11,7 @@ from src.spacehack.engine import TILE_HEIGHT, TILE_WIDTH
 from src.spacehack.framebuffer import FrameBuffer
 from src.spacehack.pygame_engine import logical_position
 
+from . import inspector
 from .format import document_to_text, save_document
 from .model import AssetMode, EditorDocument
 from .palette import PaletteEntry, apply_palette_entry, build_palette
@@ -38,6 +39,7 @@ class EditorApp:
         self.palette = build_palette(document)
         self.palette_index = 0
         self.palette_page = 0
+        self.detail_index = 0
         self.selected = self._initial_selection()
         self.view_x = 0
         self.view_y = 0
@@ -71,11 +73,12 @@ class EditorApp:
         return self.palette[self.palette_index]
 
     def _select_palette(self, index: int) -> None:
-        """Select one absolute palette index."""
+        """Select one absolute palette index and reset its detail field."""
         if not self.palette:
             return
         self.palette_index = max(0, min(index, len(self.palette) - 1))
         self.palette_page = self.palette_index // PALETTE_PAGE_SIZE
+        self.detail_index = 0
 
     def _paint(self, x: int, y: int) -> None:
         """Paint one grid cell with the selected palette semantics."""
@@ -137,6 +140,44 @@ class EditorApp:
         except (OSError, ValueError, KeyError) as error:
             self.preview_map = None
             self.status = f"Preview error: {error}"
+
+    def _detail_fields(self) -> tuple[str, ...]:
+        """Return editable fields for the currently selected palette entry."""
+        return inspector.detail_fields(self.document, self._selected_entry())
+
+    def _cycle_detail(self) -> None:
+        """Select the next editable inspector field."""
+        fields = self._detail_fields()
+        if fields:
+            self.detail_index = (self.detail_index + 1) % len(fields)
+            self.status = f"Editing {fields[self.detail_index]}."
+        else:
+            self.status = "The selected entry has no editable details."
+
+    def _adjust_detail(self, direction: int) -> None:
+        """Adjust the selected inspector field by one keyboard step."""
+        fields = self._detail_fields()
+        if not fields:
+            self.status = "The selected entry has no editable details."
+            return
+        field = fields[self.detail_index % len(fields)]
+        inspector.adjust_field(
+            self.document,
+            self._selected_entry(),
+            field,
+            direction,
+        )
+        value = inspector.field_value(self.document, self._selected_entry(), field)
+        self.status = f"{field} = {value}."
+
+    def _toggle_detail_background(self) -> None:
+        """Toggle an explicit background override for the selected glyph."""
+        entry = self._selected_entry()
+        if entry.tile_name is None and entry.glyph not in self.document.colour_directives:
+            self.status = "Select a tile to edit its background."
+            return
+        enabled = inspector.toggle_background(self.document, entry)
+        self.status = "Background override on." if enabled else "Background override off."
 
     def _toggle_preview(self) -> None:
         """Switch between raw editing and parsed runtime preview."""
@@ -218,6 +259,14 @@ class EditorApp:
             self._toggle_preview()
         elif key == "s":
             self._save()
+        elif key == "i" and not self.preview:
+            self._cycle_detail()
+        elif key == "," and not self.preview:
+            self._adjust_detail(-1)
+        elif key == "." and not self.preview:
+            self._adjust_detail(1)
+        elif key == "b" and not self.preview:
+            self._toggle_detail_background()
         elif key == "tab":
             direction = -1 if event.shift else 1
             self._select_palette((self.palette_index + direction) % len(self.palette))
@@ -320,6 +369,27 @@ class EditorApp:
             fg = (255, 220, 100) if index == self.palette_index else (190, 200, 215)
             console.print(x=PALETTE_X, y=PALETTE_Y + row, string=text[:23], fg=fg)
 
+    def _render_inspector(self, console: FrameBuffer) -> None:
+        """Render editable details for the selected palette entry."""
+        entry = self._selected_entry()
+        fields = self._detail_fields()
+        console.print(x=PALETTE_X, y=36, string="DETAILS", fg=(255, 210, 100))
+        console.print(x=PALETTE_X, y=37, string=entry.label[:23], fg=(190, 200, 215))
+        if not fields:
+            console.print(x=PALETTE_X, y=38, string="No editable details", fg=(140, 155, 170))
+            return
+        for index, field in enumerate(fields[:5]):
+            marker = ">" if index == self.detail_index % len(fields) else " "
+            value = inspector.field_value(self.document, entry, field)
+            console.print(
+                x=PALETTE_X,
+                y=38 + index,
+                string=f"{marker}{field}: {value}"[:23],
+                fg=(255, 220, 100) if marker == ">" else (180, 195, 210),
+            )
+        console.print(x=PALETTE_X, y=44, string="I field  ,/. adjust"[:23], fg=(150, 165, 180))
+        console.print(x=PALETTE_X, y=45, string="B background on/off"[:23], fg=(150, 165, 180))
+
     def _render_preview(self, console: FrameBuffer) -> None:
         """Render the parsed production map in the canvas panel."""
         if self.preview_map is None:
@@ -346,11 +416,13 @@ class EditorApp:
             self._render_grid(console)
         console.print(x=PALETTE_X, y=0, string="PALETTE", fg=(255, 210, 100))
         self._render_palette(console)
+        self._render_inspector(console)
         issues = validate_document(self.document)
         console.print(x=1, y=39, string=self.status[:75], fg=(255, 180, 110) if issues else (170, 220, 170))
         console.print(x=1, y=40, string=self._issue_text(issues)[:75], fg=(255, 140, 120) if issues else (150, 210, 170))
         console.print(x=1, y=42, string="Mouse: left paint  right sample | V/F5 preview | S save | Esc quit", fg=(150, 165, 180))
-        console.print(x=1, y=43, string="Arrows/HJKL move  Enter/Space paint  +/- width  PgUp/PgDn height  Tab/[ ] palette", fg=(150, 165, 180))
+        console.print(x=1, y=43, string="Arrows/HJKL move  Enter/Space paint  +/- width  PgUp/PgDn height", fg=(150, 165, 180))
+        console.print(x=1, y=44, string="I detail field  ,/. adjust  B background  Tab/[ ] palette", fg=(150, 165, 180))
         return console
 
     def run(self) -> None:

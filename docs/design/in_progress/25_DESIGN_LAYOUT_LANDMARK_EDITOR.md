@@ -308,11 +308,11 @@ are complete.
 
 ### Phase 5 — Directive inspector
 
-- [ ] Show details for the selected tile, marker, loot, or enemy entry.
-- [ ] Allow foreground RGB channel editing for authored color directives.
-- [ ] Allow background override toggling and RGB channel editing.
-- [ ] Allow enemy spawn chance and squad minimum/maximum editing.
-- [ ] Add discoverable in-app controls and regression tests for each mutation.
+- [x] Show details for the selected tile, marker, loot, or enemy entry.
+- [x] Allow foreground RGB channel editing for authored color directives.
+- [x] Allow background override toggling and RGB channel editing.
+- [x] Allow enemy spawn chance and squad minimum/maximum editing.
+- [x] Add discoverable in-app controls and regression tests for each mutation.
 
 **PLAYTEST**
 
@@ -322,6 +322,10 @@ are complete.
 3. Select a colored tile, adjust foreground channels, toggle its background
    override, and confirm the preview changes.
 4. Run the headless validator and the full test suite.
+
+**Result:** Passed. Inspector mutations are covered by focused tests and the
+full project gate; edited values serialize through the existing canonical
+writer and are accepted by the headless validator.
 
 **Implementation choice:** the inspector remains keyboard-driven to match the
 editor's existing grid workflow. `I` cycles fields, `,`/`.` decrease or
