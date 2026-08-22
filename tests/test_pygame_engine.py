@@ -78,6 +78,30 @@ def test_pygame_event_translation_is_renderer_neutral():
     assert not hasattr(translated, "raw")
 
 
+def test_translate_event_preserves_mouse_button_for_editors():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        KEYUP = 3
+        MOUSEMOTION = 4
+        MOUSEBUTTONDOWN = 5
+        MOUSEBUTTONUP = 6
+        KMOD_SHIFT = 3
+        key = SimpleNamespace(name=lambda _key: "unknown")
+
+    event = SimpleNamespace(
+        type=FakePygame.MOUSEBUTTONDOWN,
+        pos=(40, 50),
+        button=3,
+    )
+
+    translated = pygame_engine.translate_event(FakePygame, event)
+
+    assert translated.kind == "mousebuttondown"
+    assert translated.position == (40, 50)
+    assert translated.button == 3
+
+
 def test_project_input_predicates_cover_quit_escape_shift_and_guide():
     keydown = pygame_engine.PygameInputEvent(
         kind="keydown", key_name="slash", modifiers=3, shift=True, text="?",

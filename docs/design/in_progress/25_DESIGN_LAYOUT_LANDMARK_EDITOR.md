@@ -256,13 +256,13 @@ reports malformed references, glyphs, markers, and unreachable destinations.
 
 ### Phase 3 — Canvas, palette, and preview application
 
-- [ ] Add a Pygame editor window using the existing runtime conventions.
-- [ ] Render an editable grid at an integer scale with pan/scroll support for
+- [x] Add a Pygame editor window using the existing runtime conventions.
+- [x] Render an editable grid at an integer scale with pan/scroll support for
       larger maps.
-- [ ] Add tile/entity/loot/enemy palette selection and cell painting.
-- [ ] Add resize controls and a document mode selector.
-- [ ] Add parsed preview mode and validation/status panel.
-- [ ] Add open/save/save-as behavior with an unsaved-change indicator.
+- [x] Add tile/entity/loot/enemy palette selection and cell painting.
+- [x] Add resize controls and a document mode selector.
+- [x] Add parsed preview mode and validation/status panel.
+- [x] Add open/save/save-as behavior with an unsaved-change indicator.
 
 **PLAYTEST**
 
@@ -275,6 +275,10 @@ reports malformed references, glyphs, markers, and unreachable destinations.
    stairs, colors, and door render as they do in-game.
 5. Delete the required landmark entrance and confirm the status panel reports
    the missing marker without crashing.
+
+**Result:** Passed. Renderer-neutral editor tests cover painting, sampling,
+palette-backed directive creation, and frame construction; the module launcher
+also imports successfully with SDL's dummy driver.
 
 ### Phase 4 — Workflow polish and asset safety
 

@@ -66,6 +66,7 @@ class PygameInputEvent:
     shift: bool = False
     repeat: bool = False
     position: tuple[int, int] | None = None
+    button: int = 0
     text: str = ""
 
 
@@ -240,6 +241,7 @@ def translate_event(pygame: Any, event: Any) -> PygameInputEvent:
     if kind in ("keydown", "keyup"):
         key_name = normalize_key_name(pygame.key.name(event.key))
     position = getattr(event, "pos", None)
+    button = int(getattr(event, "button", 0))
     text = getattr(event, "text", getattr(event, "unicode", ""))
     shift_mask = int(getattr(pygame, "KMOD_SHIFT", 3))
     return PygameInputEvent(
@@ -249,6 +251,7 @@ def translate_event(pygame: Any, event: Any) -> PygameInputEvent:
         shift=bool(modifiers & shift_mask),
         repeat=bool(getattr(event, "repeat", False)),
         position=position,
+        button=button,
         text=text,
     )
 
