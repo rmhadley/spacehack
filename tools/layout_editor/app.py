@@ -247,6 +247,18 @@ class EditorApp:
             )
             self.document.dirty = True
             self.status = "Reduced the layout width."
+        elif key in {"page up", "pageup"} and not self.preview:
+            self.document.grid.resize(self.document.grid.width, self.document.grid.height + 1)
+            self.document.dirty = True
+            self.status = "Expanded the layout height."
+        elif key in {"page down", "pagedown"} and not self.preview and self.document.grid.height > 1:
+            self.document.grid.resize(self.document.grid.width, self.document.grid.height - 1)
+            self.selected = (
+                self.selected[0],
+                min(self.selected[1], self.document.grid.height - 1),
+            )
+            self.document.dirty = True
+            self.status = "Reduced the layout height."
         elif key.isdigit() and key != "0":
             self._select_palette(self.palette_page * PALETTE_PAGE_SIZE + int(key) - 1)
         return False
@@ -338,7 +350,7 @@ class EditorApp:
         console.print(x=1, y=39, string=self.status[:75], fg=(255, 180, 110) if issues else (170, 220, 170))
         console.print(x=1, y=40, string=self._issue_text(issues)[:75], fg=(255, 140, 120) if issues else (150, 210, 170))
         console.print(x=1, y=42, string="Mouse: left paint  right sample | V/F5 preview | S save | Esc quit", fg=(150, 165, 180))
-        console.print(x=1, y=43, string="Arrows/HJKL move  Enter/Space paint  +/- resize width  Tab next  [ ] page", fg=(150, 165, 180))
+        console.print(x=1, y=43, string="Arrows/HJKL move  Enter/Space paint  +/- width  PgUp/PgDn height  Tab/[ ] palette", fg=(150, 165, 180))
         return console
 
     def run(self) -> None:

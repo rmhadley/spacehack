@@ -160,8 +160,8 @@ In the editor, left-click paints the selected palette entry, right-click samples
 an existing glyph, `V` or `F5` toggles the production-loader preview, `S` saves,
 arrow keys or `HJKL` move the selected cell, `Enter`/`Space` paints, `Tab`
 selects the next palette entry, and `[`/`]` changes palette pages. `+` and `-`
-resize the layout width. The status panel reports invalid markers, references,
-and reachability issues before saving.
+resize the layout width; `PageUp`/`PageDown` resize its height. The status
+panel reports invalid markers, references, and reachability issues before saving.
 
 ## How to play
 

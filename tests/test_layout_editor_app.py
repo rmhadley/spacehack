@@ -55,6 +55,20 @@ def test_editor_keyboard_resize_marks_document_dirty():
     assert document.dirty
 
 
+def test_editor_keyboard_resize_changes_height_with_page_keys():
+    document = new_document(AssetMode.SHIP)
+    app = EditorApp(SimpleNamespace(), document)
+
+    assert not app._handle_key(SimpleNamespace(kind="keydown", key_name="page up"))
+    assert document.grid.height == 4
+    assert document.dirty
+
+    app.selected = (0, 3)
+    app._handle_key(SimpleNamespace(kind="keydown", key_name="page down"))
+    assert document.grid.height == 3
+    assert app.selected == (0, 2)
+
+
 def test_editor_frame_contains_controls_and_validation_state():
     document = new_document(AssetMode.SHIP)
     app = EditorApp(SimpleNamespace(), document)
