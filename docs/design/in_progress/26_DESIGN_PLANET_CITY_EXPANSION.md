@@ -694,11 +694,12 @@ network, authored interiors, and a living population.
    every NPC spawn on a walkable cell, every interior loads with spawn + exit.
 6. Run the full gate and commit.
 
-**Cities** (26 total, 2 done):
+**Cities** (26 total, 3 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
-- [ ] Mars — red planet, militia presence, surface dungeon tie-in
+- [x] Mars — authored colony layout (Phase 6): 160x100, 5 buildings,
+      6 transit stops, 10 NPCs, geometric skyline, market square plaza
 - [ ] Epsilon Eridani b (`eri_b`) — 4 buildings (spaceport, bar, merchants, militia)
 - [ ] Wolf 359 b (`wolf_b`) — 3 buildings (spaceport, bar, depot), delve site
 - [ ] Cygni b (`cygni_b`) — 4 buildings (spaceport, bar, merchants, militia)
