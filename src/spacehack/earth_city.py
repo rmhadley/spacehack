@@ -66,13 +66,16 @@ def _base_tiles() -> list[list[world.Tile]]:
 
 def _paint_water_and_shore(tiles: list[list[world.Tile]]) -> None:
     """Paint the river, shoreline, and a small northwest wetland."""
-    for x, y in RIVER_CELLS | COAST_CELLS:
-        if (x, y) in COAST_CELLS:
-            tiles[y][x] = city_tiles.CITY_WATER
-        elif x in {18, 19, 20}:
-            tiles[y][x] = city_tiles.CITY_SHORE
-        else:
-            tiles[y][x] = city_tiles.CITY_WATER
+    water_cells = RIVER_CELLS | COAST_CELLS
+    for x, y in water_cells:
+        tiles[y][x] = city_tiles.CITY_WATER
+    for x, y in water_cells:
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            shore_x, shore_y = x + dx, y + dy
+            if not (0 <= shore_x < EARTH_CITY_WIDTH and 0 <= shore_y < EARTH_CITY_HEIGHT):
+                continue
+            if tiles[shore_y][shore_x].kind == "floor":
+                tiles[shore_y][shore_x] = city_tiles.CITY_SHORE
     for x in range(8, 25):
         for y in range(30, 39):
             if (x + y) % 3:
@@ -107,7 +110,7 @@ def _paint_road_cell(
     tiles: list[list[world.Tile]], x: int, y: int, tile: world.Tile,
 ) -> None:
     """Paint a road only on dry land; bridges own river crossings."""
-    if tiles[y][x].kind != "city_water":
+    if tiles[y][x].kind not in {"city_water", "city_shore"}:
         tiles[y][x] = tile
 
 

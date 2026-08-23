@@ -108,6 +108,20 @@ def test_earth_city_roads_do_not_replace_river_cells():
     )
 
 
+def test_earth_city_roads_stop_at_shore_before_the_river():
+    game_map = load_planet("earth")
+
+    assert not any(
+        tile.kind == "road"
+        and any(
+            (x + dx, y + dy) in earth_city.RIVER_CELLS
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+        )
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+    )
+
+
 def test_earth_city_building_approaches_reach_public_routes():
     game_map = load_planet("earth")
     public_kinds = {"road", "city_bridge", "landing_pad"}
