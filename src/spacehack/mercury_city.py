@@ -5,8 +5,8 @@ Phase 5: Mercury is a second *layout* in the generic city pipeline
 "mercury_station"``). It reads as a scorched research base — the same
 machinery Earth uses (authored exterior stamps, roof labels, skyline,
 sidewalks) but themed for a desert station: a bare heat-shield deck,
-two service-road strips, a commons plaza, and scorched scrub instead
-of parks and a river.
+a 3-wide road grid, a commons plaza, and scorched scrub instead of
+parks and a river.
 
 The shared authored-layout machinery lives in
 :mod:`spacehack.city_layout`; the shared city tail (transit stations +
@@ -41,21 +41,40 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
     "mercury_supply": world.Position(65, 50),
 }
 
-# The deck's service-road strip: two east-west service roads. The north
-# road sits below the pad and lab; the south road connects the bar and
-# supply depot doors. Every building door opens onto a road or the pad,
-# so doors never need sidewalk bridges. The open deck between the roads
-# stays bare plating for the skyline domes to fill.
-_ROAD_A_Y = 19
-_ROAD_B_Y = 58
+# Three east-west boulevards, each 3 tiles wide with a centre lane
+# marker (road_ew).  Buildings sit above or below the boulevards and
+# doors open onto a short sidewalk or feeder that reaches the nearest
+# boulevard — exactly like Earth's road/district layout.
+_NORTH_BOULEVARD_Y = (16, 17, 18)
+_CENTRAL_BOULEVARD_Y = (34, 35, 36)
+_SOUTH_BOULEVARD_Y = (58, 59, 60)
 
-# Small commons plaza under the transit hub (a 7x5 patch of deck).
-_PLAZA_X_LO, _PLAZA_X_HI = 47, 53
-_PLAZA_Y_LO, _PLAZA_Y_HI = 33, 37
+# Three north-south avenues, each 3 tiles wide with a centre lane
+# marker (road_ns).
+_WEST_AVENUE_X = (25, 26, 27)
+_CENTRAL_AVENUE_X = (48, 49, 50)
+_EAST_AVENUE_X = (84, 85, 86)
+
+# Short east-west feeder roads (1-wide, road_surface) that connect each
+# building's door level to the nearest avenue so the player never has
+# to detour to a boulevard to cross the map.
+_FEEDERS: tuple[tuple[int, int, int], ...] = (
+    # (x_lo, x_hi, y) — horizontal segments
+    (13, 24, 15),   # pad area east → west avenue  (1 cell below pad)
+    (78, 83, 15),   # lab area east → east avenue
+    (16, 24, 57),   # bar area east → west avenue   (1 cell below bar)
+    (77, 83, 57),   # supply area east → east avenue
+)
+
+# Small commons plaza below the central boulevard, centred between the
+# central avenues.
+_PLAZA_X_LO, _PLAZA_X_HI = 42, 56
+_PLAZA_Y_LO, _PLAZA_Y_HI = 39, 43
 
 # Deck lamps near the service roads (fixed, walkable floor spots).
 _LAMPS: tuple[tuple[int, int], ...] = (
-    (30, 18), (70, 18), (30, 57), (70, 57),
+    (20, 15), (30, 15), (70, 15), (90, 15),
+    (20, 57), (30, 57), (70, 57), (90, 57),
 )
 
 # Procedural skyline: small utility domes and sheds fill the open deck.
@@ -91,18 +110,60 @@ def _base_tiles() -> tuple[list[list[world.Tile]], object]:
     return tiles, theme
 
 
-def _paint_deck_roads(tiles, theme) -> None:
-    """Paint the two east-west service roads across the deck."""
-    for x in range(3, MERCURY_CITY_WIDTH - 2):
-        tiles[_ROAD_A_Y][x] = theme.road_ew
-        tiles[_ROAD_B_Y][x] = theme.road_ew
+def _paint_road_cell(tiles, x, y, tile) -> None:
+    """Paint one road cell — only on floor or grass (never overwrite walls)."""
+    kind = tiles[y][x].kind
+    if kind in {"floor", "grass"}:
+        tiles[y][x] = tile
+
+
+def _paint_road_corridor(tiles, theme, *, horizontal=False,
+                         span_start=3, span_end=None) -> None:
+    """Paint the full 3-wide road grid: three boulevards + three avenues.
+
+    Each corridor is 3 tiles wide.  The centre tile carries the lane
+    marker (road_ew for horizontal, road_ns for vertical) while the
+    outer tiles are plain road_surface — matching Earth's road style.
+    """
+    road = theme.road_surface
+    lane_h = theme.road_ew
+    lane_v = theme.road_ns
+    w = MERCURY_CITY_WIDTH
+    h = MERCURY_CITY_HEIGHT
+    end_h = span_end if span_end is not None else w - 2
+    end_v = span_end if span_end is not None else h - 2
+
+    # East-west boulevards (horizontal)
+    for y_lo, y_mid, y_hi in (
+        _NORTH_BOULEVARD_Y, _CENTRAL_BOULEVARD_Y, _SOUTH_BOULEVARD_Y,
+    ):
+        for x in range(span_start, end_h):
+            _paint_road_cell(tiles, x, y_lo, road)
+            _paint_road_cell(tiles, x, y_mid, lane_h)
+            _paint_road_cell(tiles, x, y_hi, road)
+
+    # North-south avenues (vertical)
+    for x_lo, x_mid, x_hi in (
+        _WEST_AVENUE_X, _CENTRAL_AVENUE_X, _EAST_AVENUE_X,
+    ):
+        for y in range(span_start, end_v):
+            _paint_road_cell(tiles, x_lo, y, road)
+            _paint_road_cell(tiles, x_mid, y, lane_v)
+            _paint_road_cell(tiles, x_hi, y, road)
+
+    # Short east-west feeder roads connecting buildings to avenues.
+    road_sf = theme.road_surface
+    for x_lo, x_hi, y in _FEEDERS:
+        for x in range(x_lo, x_hi + 1):
+            _paint_road_cell(tiles, x, y, road_sf)
 
 
 def _paint_deck_plaza(tiles, theme) -> None:
-    """Paint the small commons plaza under the transit hub."""
+    """Paint the commons plaza below the central boulevard."""
     for y in range(_PLAZA_Y_LO, _PLAZA_Y_HI + 1):
         for x in range(_PLAZA_X_LO, _PLAZA_X_HI + 1):
-            tiles[y][x] = theme.plaza
+            if tiles[y][x].kind == "floor":
+                tiles[y][x] = theme.plaza
 
 
 def _paint_deck_pad(tiles, theme, spec) -> None:
@@ -138,7 +199,7 @@ def _paint_deck_scrub(tiles, theme) -> None:
 def _new_mercury_map(spec) -> world.GameMap:
     """Create and decorate the station-deck terrain."""
     tiles, theme = _base_tiles()
-    _paint_deck_roads(tiles, theme)
+    _paint_road_corridor(tiles, theme)
     _paint_deck_plaza(tiles, theme)
     _paint_deck_pad(tiles, theme, spec)
     _paint_deck_scrub(tiles, theme)

@@ -82,7 +82,7 @@ MERCURY_POPULATION: tuple[CityNpc, ...] = (
     # The 100x70 map lets roamers traverse the full base.
     CityNpc("mercury_tech_a", "civillian_bystander", (40, 19), wander_radius=50, move_chance=0.9),
     CityNpc("mercury_tech_b", "civillian_bystander", (50, 21), wander_radius=50, move_chance=0.9),
-    CityNpc("mercury_lab_hand", "civillian_bystander", (80, 30), wander_radius=50, move_chance=0.85),
+    CityNpc("mercury_lab_hand", "civillian_bystander", (80, 20), wander_radius=50, move_chance=0.85),
     # Station security — one trooper on the pad apron.
     CityNpc("mercury_pad_guard", "militia_trooper", (3, 12), wander_radius=50, move_chance=0.9),
 )

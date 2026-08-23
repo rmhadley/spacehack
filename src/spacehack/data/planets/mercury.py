@@ -37,7 +37,7 @@ SPEC = PlanetSpec(
     description="A scorched rocky world - closest to Sol, home to a solar research station.",
     width=100,
     height=70,
-    hangar_anchor=world.Position(9, 17),
+    hangar_anchor=world.Position(9, 14),
     buildings=(
         # Building rectangles mirror the authored exterior footprints in
         # mercury_city.LANDMARK_ORIGINS; doors open onto the deck's
@@ -68,31 +68,31 @@ SPEC = PlanetSpec(
     transit_stations=(
         # One stop beside each building's door (never on the door, the
         # road, or the apron in front of it) plus a commons hub on the
-        # plaza. The network is fully connected so the player can ride
-        # directly between districts.
+        # plaza. Each station sits 1-2 cells off the nearest boulevard,
+        # on walkable floor or plaza — matching Earth's convention.
         world.TransitStation(
             id="port", name="Spaceport", district="spaceport",
-            pos=world.Position(18, 12),
+            pos=world.Position(14, 14),
             destinations=("hub", "lab", "bar", "supply"),
         ),
         world.TransitStation(
             id="hub", name="Commons Hub", district="civic",
-            pos=world.Position(50, 35),
+            pos=world.Position(51, 37),
             destinations=("port", "lab", "bar", "supply"),
         ),
         world.TransitStation(
             id="lab", name="Solar Lab", district="lab",
-            pos=world.Position(69, 19),
+            pos=world.Position(71, 15),
             destinations=("port", "hub", "bar", "supply"),
         ),
         world.TransitStation(
             id="bar", name="Cantina", district="bar",
-            pos=world.Position(18, 57),
+            pos=world.Position(11, 57),
             destinations=("port", "hub", "lab", "supply"),
         ),
         world.TransitStation(
             id="supply", name="Supply Depot", district="supply",
-            pos=world.Position(82, 57),
+            pos=world.Position(71, 57),
             destinations=("port", "hub", "lab", "bar"),
         ),
     ),
