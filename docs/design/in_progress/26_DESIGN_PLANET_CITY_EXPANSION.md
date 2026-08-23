@@ -694,7 +694,7 @@ network, authored interiors, and a living population.
    every NPC spawn on a walkable cell, every interior loads with spawn + exit.
 6. Run the full gate and commit.
 
-**Cities** (26 total, 3 done):
+**Cities** (26 total, 4 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
