@@ -38,6 +38,68 @@ def render_city_view(
     return camera_x, camera_y, region_x, region_y
 
 
+def _debug_overlay_lines(
+    game_map: world.GameMap, player_pos: world.Position,
+    camera_x: int, camera_y: int,
+) -> list[str]:
+    """Build the text lines for the debug overlay."""
+    transit = [
+        e for e in game_map.entities
+        if getattr(e, 'transit_station_id', None)
+    ]
+    npcs = [e for e in game_map.entities if getattr(e, 'city_npc_id', '')]
+    buildings = getattr(game_map, 'city_buildings', {})
+    tile = game_map.tiles[player_pos.y][player_pos.x]
+    district = _district_at(game_map, player_pos.x, player_pos.y)
+    return [
+        f"cam {camera_x},{camera_y}  @ {player_pos.x},{player_pos.y}",
+        f"district: {district}",
+        f"tile: {tile.kind} '{tile.char}'",
+        f"transit stops: {len(transit)}",
+        f"buildings: {len(buildings)}",
+        f"NPCs: {len(npcs)}",
+    ]
+
+
+def render_city_debug_overlay(
+    console: FrameBuffer,
+    game_map: world.GameMap,
+    player_pos: world.Position,
+    camera_x: int, camera_y: int,
+    region_x: int, region_y: int,
+) -> None:
+    """Paint a compact debug HUD over the bottom-left of the city view.
+
+    Shows camera coords, player tile, current district, transit
+    stations, building count, and NPC count.  Gated behind
+    ``SPACEHACK_DEV`` at the call site.
+    """
+    map_w, map_h = city_view_region()
+    lines = _debug_overlay_lines(game_map, player_pos, camera_x, camera_y)
+    _DBG_FG = (180, 240, 180)
+    _DBG_BG = (15, 15, 25)
+    start_y = region_y + map_h - len(lines) - 1
+    for i, line in enumerate(lines):
+        y = start_y + i
+        if not (region_y <= y < region_y + map_h):
+            continue
+        for j, ch in enumerate(line):
+            x = region_x + j
+            if region_x <= x < region_x + map_w:
+                console.write_cell(x, y, ch, fg=_DBG_FG, bg=_DBG_BG)
+
+
+def _district_at(
+    game_map: world.GameMap, x: int, y: int,
+) -> str:
+    """Return the district name at (x, y) or 'outskirts'."""
+    districts = getattr(game_map, 'city_districts', {})
+    for name, (x1, y1, x2, y2) in districts.items():
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            return name
+    return "outskirts"
+
+
 def present_city_transition_frame(
     ctx,
     console: FrameBuffer,

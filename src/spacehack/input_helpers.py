@@ -360,6 +360,15 @@ def _is_shift_o_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'O')
 
+def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the F3 key.
+
+    Dev-mode only (``SPACEHACK_DEV``): toggles the city debug overlay
+    showing camera coords, player tile, district, transit stations,
+    buildings, and NPC count.
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'f3'
+
 def _is_f5_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F5 key.
 

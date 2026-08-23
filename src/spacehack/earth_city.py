@@ -16,6 +16,7 @@ The shared city tail (transit stations + ambient NPCs) runs in
 from __future__ import annotations
 
 from . import city_tiles, world
+from .city_tiles import CITY_ORNAMENT
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -161,21 +162,72 @@ def _paint_roads_and_districts(tiles: list[list[world.Tile]]) -> None:
             _paint_road_cell(tiles, x, y, lane_ew if y == 65 else road)
 
 
+def _stamp_decor(tiles, coords, tile):
+    """Place ``tile`` at every walkable, non-water cell in ``coords``."""
+    h, w = len(tiles), len(tiles[0])
+    for x, y in coords:
+        if 0 <= y < h and 0 <= x < w:
+            t = tiles[y][x]
+            if t.walkable and t.kind != "city_water":
+                tiles[y][x] = tile
+
+
 def _paint_parks_and_details(tiles: list[list[world.Tile]]) -> None:
-    """Add deterministic parks, trees, lamps, and district texture."""
+    """Add deterministic parks, trees, lamps, ornaments, and district texture."""
     for x in range(4, 157):
         for y in range(3, 97):
             if tiles[y][x] is world.EARTH_THEME.floor:
                 tiles[y][x] = world.GRASS_ACCENT if (x * 7 + y * 11) % 13 == 0 else world.GRASS
-    for x, y in (
-        (8, 8), (32, 16), (66, 20), (104, 18), (145, 12),
-        (8, 55), (34, 88), (66, 87), (118, 88), (136, 70),
-    ):
-        if tiles[y][x].walkable:
-            tiles[y][x] = world.TREE
-    for x, y in ((56, 43), (64, 57), (116, 43), (134, 55), (74, 84)):
-        if tiles[y][x].walkable:
-            tiles[y][x] = world.NEON
+    _stamp_decor(tiles, _TREE_COORDS, world.TREE)
+    _stamp_decor(tiles, _NEON_COORDS, world.NEON)
+    _stamp_decor(tiles, _ORNAMENT_COORDS, CITY_ORNAMENT)
+    _paint_public_landmark(tiles)
+
+
+_TREE_COORDS = (
+    (8, 8), (32, 16), (66, 20), (104, 18), (145, 12),
+    (8, 55), (34, 88), (66, 87), (118, 88), (136, 70),
+    (6, 18), (10, 10), (40, 6), (44, 14), (36, 10),
+    (116, 30), (124, 46), (138, 36), (148, 24),
+    (114, 64), (124, 76), (140, 58), (150, 42),
+    (118, 82), (132, 90), (146, 76),
+    (62, 90), (72, 94), (82, 92), (92, 90),
+    (66, 86), (76, 88), (86, 84),
+    (8, 64), (20, 72), (38, 68), (46, 76),
+    (14, 76), (28, 72), (42, 92),
+)
+
+_NEON_COORDS = (
+    (56, 43), (64, 57), (116, 43), (134, 55), (74, 84),
+    (10, 30), (16, 30), (24, 30),
+    (10, 56), (22, 56), (36, 56), (46, 56),
+    (16, 72), (32, 72), (46, 72),
+    (114, 48), (130, 48), (146, 48),
+    (62, 74), (78, 74), (94, 74),
+)
+
+_ORNAMENT_COORDS = (
+    (60, 38), (92, 38), (60, 58), (92, 58),
+    (14, 30), (26, 30), (114, 16), (126, 16),
+    (14, 72), (26, 72), (56, 76), (68, 76),
+    (114, 62), (126, 62),
+)
+
+
+def _paint_public_landmark(tiles: list[list[world.Tile]]) -> None:
+    """Paint a public monument south of the central plaza fountain.
+
+    The monument is a 3×3 walkable structure: a central pedestal
+    (``♦``) flanked by ornament posts (``o``), sitting on plaza
+    tile so it reads as a deliberate civic feature.
+    """
+    # Center of the monument — just south of the east-west road (y=64-66).
+    cx, cy = 84, 68
+    tiles[cy][cx] = world.MONUMENT
+    tiles[cy - 1][cx] = CITY_ORNAMENT
+    tiles[cy + 1][cx] = CITY_ORNAMENT
+    tiles[cy][cx - 1] = CITY_ORNAMENT
+    tiles[cy][cx + 1] = CITY_ORNAMENT
 
 
 def _paint_landing_pad(tiles: list[list[world.Tile]]) -> None:

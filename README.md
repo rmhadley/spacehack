@@ -63,8 +63,10 @@ Then you can just call `freejail` to launch the editor.
   its own planets, stations, economy, and dangers
 - **Choose your legend** — pick a species (Human, Martian) and class
   (Pirate, Merchant, Bounty Hunter) that shape your starting skills and credits
-- **Walk the cities** — Earth now has a large scrolling river-to-coast city
-  with a central plaza, bridges, guild halls, bars, spaceports, and terminals;
+- **Walk the cities** — Earth has a large scrolling river-to-coast city
+  with a central plaza, public monument, bridges, guild halls, bars,
+  spaceports, transit stations, and ambient NPCs walking the streets;
+  Mercury is a sprawling desert research station with the same systems;
   talk to NPCs, take missions, refuel, repair, and rearm
 - **Space combat** — turn-based dogfights with lasers, plasma cannons, and
   missiles (ammo is scarce and persistent — buy more at the mechanic)

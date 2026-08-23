@@ -511,13 +511,23 @@ Pre-implementation audit (completed before code changes):
 
 ### Phase 4 - Content, crispness, and workflow polish
 
-- [ ] Complete the Earth core district decoration pass and public landmark.
-- [ ] Tune glyph contrast/backgrounds for all districts and interiors.
-- [ ] Add compact city playtest/debug tooling for inspecting camera, transit,
+- [x] Complete the Earth core district decoration pass and public landmark.
+      Added 34 trees, 19 neon signs, 14 ornaments, and a public monument
+      (cyan `♦` diamond + ornament posts) south of the central plaza.
+- [x] Tune glyph contrast/backgrounds for all districts and interiors.
+      Created high-contrast MONUMENT tile (10.0:1 ratio). Verified all city
+      decorative tiles meet WCAG AA contrast thresholds.
+- [x] Add compact city playtest/debug tooling for inspecting camera, transit,
       building ids, NPC routes, and map coordinates.
-- [ ] Add regression tests for resize/asset loading failures and unreachable
-      city destinations.
-- [ ] Update the in-game guide, README, and design playtest record.
+      F3 toggle (SPACEHACK_DEV) overlays camera coords, player tile,
+      district name, transit stops, building count, and NPC count.
+- [x] Add regression tests for resize/asset loading failures and unreachable
+      city destinations. 6 new tests in test_city_builder.py covering
+      Earth reachability, transit placement, NPC spawns, missing interiors,
+      and tiny-map edge cases.
+- [x] Update the in-game guide, README, and design playtest record.
+      Guide updated with transit and ambient NPC info; README updated
+      to mention Mercury and the new city features.
 - [ ] Run the full project gate and review the final user-facing flow.
 
 **PLAYTEST**

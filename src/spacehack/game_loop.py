@@ -20,8 +20,8 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
-from .city_render import render_city_view
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
@@ -119,6 +119,13 @@ def _present_frame(state):
         location = getattr(state.game_map, 'location_name', 'Derelict Ship')
     else:
         location = state.current_city_id.replace('_', ' ').title()
+    # Dev debug overlay (F3 toggle).
+    if getattr(state, 'city_debug', False) and state.current_mode == 'city':
+        cam_x, cam_y, reg_x, reg_y = camera
+        render_city_debug_overlay(
+            state.console, state.game_map, state.player.pos,
+            cam_x, cam_y, reg_x, reg_y,
+        )
     _present_overlay(
         state, ctx, state.console, state.map_h, location, space_view,
     )
@@ -223,10 +230,34 @@ def _dev_quickload(state) -> None:
     state.log.add('[DEV MODE] Quicksave loaded (F9).')
 
 
+def _is_dev():
+    """Return True when the SPACEHACK_DEV env var is set."""
+    import os as _os
+    return bool(_os.environ.get('SPACEHACK_DEV'))
+
+
+def _reveal_all_fog(game_map, log):
+    """Reveal every cell in the fog-of-war arrays."""
+    if game_map.seen is not None:
+        for row in game_map.seen:
+            for i in range(len(row)):
+                row[i] = True
+    if game_map.visible is not None:
+        for row in game_map.visible:
+            for i in range(len(row)):
+                row[i] = True
+    log.add('Dev: fog of war fully revealed.')
+
+
 def _handle_dev_event(state, event):
     """Handle developer-only input."""
     ctx = state.ctx
     log = state.log
+    if _is_f3_press(event):
+        if _is_dev():
+            state.city_debug = not state.city_debug
+            log.add(f'Debug overlay: {"ON" if state.city_debug else "OFF"}.')
+        return 'HANDLED'
     if _is_f5_press(event):
         _reload_text_overlay_dev(state)
         return 'HANDLED'
@@ -237,26 +268,15 @@ def _handle_dev_event(state, event):
         _dev_quickload(state)
         return 'HANDLED'
     if _is_shift_x_press(event):
-        import os as _os
-        if _os.environ.get('SPACEHACK_DEV'):
+        if _is_dev():
             _add_xp(ctx, 200)
         return 'HANDLED'
     if _is_shift_r_press(event):
-        import os as _os
-        if _os.environ.get('SPACEHACK_DEV') and state.current_mode == 'dungeon':
-            if state.game_map.seen is not None:
-                for _row in state.game_map.seen:
-                    for _i in range(len(_row)):
-                        _row[_i] = True
-                if state.game_map.visible is not None:
-                    for _row in state.game_map.visible:
-                        for _i in range(len(_row)):
-                            _row[_i] = True
-                log.add('Dev: fog of war fully revealed.')
+        if _is_dev() and state.current_mode == 'dungeon':
+            _reveal_all_fog(state.game_map, log)
         return 'HANDLED'
     if _is_shift_d_press(event):
-        import os as _os
-        if _os.environ.get('SPACEHACK_DEV'):
+        if _is_dev():
             from .time import advance_time as _adv_time
             _adv_time(ctx, 30)
             log.add('Dev: skipped 30 days.')

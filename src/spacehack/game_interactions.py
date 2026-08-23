@@ -38,6 +38,7 @@ class GameLoopState:
     space_player: Any = None
     player_owned_ship: Any = None
     player_active_missions: Any = None
+    city_debug: bool = False
 
 def resolve_blocker(state, code, blocker, dx, dy):
     """Resolve one movement blocker."""

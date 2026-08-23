@@ -31,6 +31,7 @@ _SKYLINE_SEED: int = 1
 _SKYLINE_AVOID_KINDS: frozenset[str] = frozenset({
     "road", "city_water", "city_shore", "city_bridge", "landing_pad",
     "sidewalk", "city_plaza", "city_fountain", "city_ornament",
+    "monument",
 })
 # Roof-label characters: bright, crisp, readable on every roof band.
 _ROOF_LABEL_FG: tuple[int, int, int] = (244, 246, 240)

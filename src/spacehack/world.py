@@ -95,6 +95,11 @@ TREE = Tile(kind="tree", char="♣", walkable=True, fg=(90, 180, 85), bg=(30, 65
 # Decorative plaza feature — diamond reads as a jewel / fountain.
 DECOR = Tile(kind="plaza", char="♦", walkable=True, fg=(255, 160, 120), bg=(190, 180, 165))
 
+# Public landmark monument — bright beacon on dark stone base.
+# High-contrast cyan diamond so the monument is immediately visible
+# from across the city.
+MONUMENT = Tile(kind="monument", char="♦", walkable=True, fg=(100, 240, 255), bg=(28, 48, 60))
+
 # Interior building floor — warmer, brighter variant so it reads as a
 # clean indoor surface distinct from the outdoor GRASS tiles.
 #
