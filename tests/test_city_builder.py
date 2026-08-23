@@ -53,6 +53,65 @@ def test_earth_keeps_river_coast_mercury_uses_station_layout():
     assert mercury.width == 100 and mercury.height == 70
 
 
+def test_ac_station_is_a_hollow_ring_with_connected_spokes():
+    """Alpha Centauri reads as a pressurized rotating ring, not a rectangle."""
+    game_map = load_planet("ac_station")
+    assert game_map.city_layout_id == "ac_ring_station"
+    assert (game_map.width, game_map.height) == (120, 80)
+    geometry = game_map.ring_geometry
+    center_x, center_y = geometry["center"]
+    assert game_map.tiles[center_y][center_x].kind == "city_plaza"
+    assert game_map.tiles[center_y - 12][center_x - 12].kind == "ring_void"
+    assert game_map.tiles[center_y + 12][center_x + 12].kind == "ring_void"
+    for point in ((60, 9), (60, 71), (10, 40), (110, 40)):
+        x, y = point
+        assert game_map.in_bounds(x, y)
+        assert game_map.tiles[y][x].kind in {"ring_hull", "road", "sidewalk"}
+    assert len(game_map.ring_void_cells) > 1_000
+
+
+def test_ac_station_buildings_and_transit_are_reachable():
+    """Every ring sector has a walkable door and a connected transit stop."""
+    game_map = load_planet("ac_station")
+    spec = find_planet_spec("ac_station")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    assert len(game_map.city_buildings) == 5
+    assert len(game_map.city_transit) == 6
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        x, y = entrance
+        assert game_map.tiles[y][x].walkable, label
+        assert (x, y) in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+        assert (x, y) not in game_map.ring_void_cells, station_id
+
+
+def test_ac_station_interiors_and_population_are_complete():
+    """The ring's five sectors load authored rooms and living station crew."""
+    game_map = load_planet("ac_station")
+    assert len([
+        entity for entity in game_map.entities
+        if getattr(entity, "city_npc_id", "")
+    ]) == 6
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert asset.spawn is not None, label
+        assert any(
+            tile.kind == "exit" for row in asset.game_map.tiles for tile in row
+        ), label
+    for entity in game_map.entities:
+        if not getattr(entity, "city_npc_id", ""):
+            continue
+        assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+        assert game_map.blocking_entity_at(
+            entity.pos.x, entity.pos.y, exclude=entity,
+        ) is None
+
+
 def test_mercury_uses_authored_exteriors_like_earth():
     """Mercury's buildings are stamped authored roofs, not legacy boxes:
     every enterable building has a landmark stamp, a roof label, and no

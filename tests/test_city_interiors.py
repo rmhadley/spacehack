@@ -48,6 +48,26 @@ def test_every_earth_functional_building_enters_a_distinct_authored_room():
         assert state.current_mode == "city"
 
 
+def test_ac_ring_archive_and_lab_preserve_research_officers():
+    """The ring's archive override and lab catalog NPC remain interactable."""
+    game_map = load_planet("ac_station")
+    ctx = SimpleNamespace(
+        interiors={}, game_map=game_map, player=None,
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    for label, expected_npc in (("archive", "research_officer"), ("lab", "research_officer")):
+        record = game_map.city_buildings[label]
+        player = world.Entity(
+            "@", (255, 255, 255), world.Position(*record["entrance"]), name="Player",
+        )
+        game_map.entities.append(player)
+        ctx.player = player
+        state = _state(game_map, player, ctx)
+        assert city_interiors.enter_city_interior(state) == "ENTERED"
+        assert any(entity.npc_id == expected_npc for entity in state.game_map.entities)
+        assert city_interiors.exit_city_interior(state) == "HANDLED"
+
+
 def test_city_interior_is_cached_and_reuses_the_same_room_map():
     game_map = load_planet("earth")
     record = game_map.city_buildings["bar"]

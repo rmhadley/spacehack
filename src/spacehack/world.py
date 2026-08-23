@@ -353,6 +353,12 @@ class GameMap:
     # by the city builder; used by tests to assert density/variety. City map
     # only — absent (None) elsewhere.
     skyline_placements: list | None = None
+    # Authored city landmark metadata. City layouts populate these fields;
+    # non-city maps leave them at their empty defaults.
+    landmark_stamps: dict | None = None
+    # Optional rotating-ring station geometry for non-rectangular city layouts.
+    ring_geometry: dict | None = None
+    ring_void_cells: set[tuple[int, int]] | None = None
 
 
     def in_bounds(self, x: int, y: int) -> bool:
