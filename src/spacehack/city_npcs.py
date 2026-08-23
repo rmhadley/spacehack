@@ -234,8 +234,13 @@ def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
     _ensure_destination(entity, game_map)
     if entity.city_dest is None:
         return
+    _dest = entity.city_dest
     _step_along_path(entity, game_map)
-    if (entity.pos.x, entity.pos.y) == (entity.city_dest[0], entity.city_dest[1]):
+    # ``_step_along_path`` may clear the destination (unreachable path /
+    # permanent blocker); only the arrival check indexes it.
+    if entity.city_dest is None:
+        return
+    if (entity.pos.x, entity.pos.y) == (_dest[0], _dest[1]):
         entity.city_dest = None
         entity.city_path = None
 

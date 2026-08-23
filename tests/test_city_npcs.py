@@ -118,6 +118,23 @@ def test_move_city_npcs_skips_combat_locked(monkeypatch):
     assert max(abs(moving.pos.x - 2), abs(moving.pos.y - 2)) == 1
 
 
+def test_unreachable_destination_repicks_without_crashing():
+    """A destination A* can't reach is dropped and repicked, never indexed
+    as None (regression: ``_step_along_path`` clears city_dest then the
+    arrival check subscripted it)."""
+    game_map = load_planet("earth")
+    npc = next(
+        e for e in game_map.entities if e.city_npc_id == "earth_hub_guard"
+    )
+    # Point at water/wall tiles A* can never reach.
+    npc.city_dest = (0, 0)
+    npc.city_path = None
+    ctx = SimpleNamespace(player=None, faction_reputation={})
+    for _ in range(50):
+        city_npcs.move_city_npcs(ctx, game_map)
+    assert game_map.tiles[npc.pos.y][npc.pos.x].walkable
+
+
 def test_place_city_npcs_skips_unknown_char(monkeypatch):
     """A template whose npc_char_id doesn't resolve is skipped, not crashed."""
     tmpl = CityNpc("ghost_npc", "does_not_exist_spec", (3, 3))
