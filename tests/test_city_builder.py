@@ -284,6 +284,12 @@ def test_mars_transit_and_npcs_are_separate_from_building_doors():
             for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
             if game_map.in_bounds(x + dx, y + dy)
         )
+    door_approaches = {
+        (x, y + 1)
+        for x, y in doors
+        if game_map.in_bounds(x, y + 1)
+    }
+    assert stations.isdisjoint(door_approaches)
     for entity in game_map.entities:
         if getattr(entity, "city_npc_id", ""):
             assert (entity.pos.x, entity.pos.y) not in doors
@@ -312,17 +318,17 @@ def test_mars_facades_are_rectangular_and_doors_are_on_outer_edges():
         )
 
 
-def test_mars_buildings_do_not_overwrite_major_road_corridors():
-    """The planned city keeps building footprints off its public roads."""
+def test_mars_buildings_do_not_overwrite_public_corridors():
+    """The planned city keeps building footprints off roads and sidewalks."""
     game_map = load_planet("mars")
-    road_cells = {
+    public_cells = {
         (x, y)
-        for y in range(game_map.height)
-        for x in range(game_map.width)
-        if game_map.tiles[y][x].kind == "road"
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind in {"road", "sidewalk"}
     }
     for stamp in game_map.landmark_stamps.values():
-        assert not road_cells.intersection(stamp["footprint"])
+        assert not public_cells.intersection(stamp["footprint"])
 
 
 # --- Regression: unreachable destinations, asset failures, resize ---

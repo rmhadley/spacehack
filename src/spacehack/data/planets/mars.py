@@ -41,8 +41,8 @@ SPEC = PlanetSpec(
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=10, x_hi=34, y_lo=78, y_hi=85,
-            door_x=21, npc_id="",
+            x_lo=10, x_hi=34, y_lo=79, y_hi=86,
+            door_x=22, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
@@ -56,7 +56,7 @@ SPEC = PlanetSpec(
         ),
         world.CityBuilding(
             label="militia",
-            x_lo=124, x_hi=157, y_lo=64, y_hi=70,
+            x_lo=125, x_hi=158, y_lo=64, y_hi=70,
             door_x=140, npc_id="militia_captain",
         ),
         world.CityBuilding(
@@ -80,7 +80,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="Entertainment District", district="entertainment",
-            pos=world.Position(109, 22),
+            pos=world.Position(111, 22),
             destinations=("port", "hub", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(

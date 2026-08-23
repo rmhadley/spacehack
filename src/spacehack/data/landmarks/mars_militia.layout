@@ -1,12 +1,12 @@
 # mars_militia.layout - Mars colony security headquarters
 MAP
 ##################################
-#SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS#
+#SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS#
 #S..............................S#
 #S..............................S#
-#SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS#
+#SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS#
 #S..............................S#
-################d#################
+###############d##################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL

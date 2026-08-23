@@ -27,10 +27,10 @@ MARS_CITY_HEIGHT = 100
 # A southern logistics port keeps heavy traffic at the edge of the civic
 # fabric.  The other buildings sit in distinct, serviced urban blocks.
 LANDMARK_ORIGINS: dict[str, world.Position] = {
-    "mars_spaceport": world.Position(10, 78),
+    "mars_spaceport": world.Position(10, 79),
     "mars_bar": world.Position(101, 14),
     "mars_merchants": world.Position(18, 31),
-    "mars_militia": world.Position(124, 64),
+    "mars_militia": world.Position(125, 64),
     "mars_bounties": world.Position(87, 31),
 }
 
@@ -59,14 +59,14 @@ _PLAZA_Y_LO, _PLAZA_Y_HI = 31, 45
 _STATION_PADS: tuple[tuple[int, int], ...] = (
     (35, 87),   # spaceport pad, beside the logistics boulevard
     (76, 46),   # civic square, beside the central boulevard
-    (109, 22),  # north entertainment district
+    (111, 22),  # north entertainment district
     (43, 31),   # west merchant district
     (125, 72),  # east security district
     (83, 39),   # civic services / bounty hall
 )
 
 _NEON_POSITIONS: tuple[tuple[int, int], ...] = (
-    (35, 87), (76, 46), (109, 22), (43, 31), (125, 72), (83, 39),
+    (35, 87), (76, 46), (111, 22), (43, 31), (125, 72), (83, 39),
     (52, 24), (67, 24), (94, 24), (138, 24),
     (52, 48), (95, 48), (112, 48), (138, 48),
     (52, 75), (94, 75), (112, 75), (138, 75),
