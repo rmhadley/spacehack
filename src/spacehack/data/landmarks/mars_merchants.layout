@@ -1,18 +1,25 @@
 # mars_merchants.layout - Mars colony merchants exterior
+# Door opens north (door_north=True) so entrance is on the top edge.
 MAP
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
+#WWWWWWWWdWWWWWWWW#
+#WnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWW#
+#WWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWW#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
+TILE: W = CITY_BUILDING_WALL
+TILE: n = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (170, 120, 90) / (52, 36, 24)
+COLOUR: W = (185, 135, 100) / (58, 40, 28)
+COLOUR: n = (200, 150, 110) / (65, 45, 32)
+COLOUR: d = (100, 240, 255) / (22, 68, 84)

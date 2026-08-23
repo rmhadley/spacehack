@@ -2,11 +2,10 @@
 
 Phase 6: Mars is a third *layout* in the generic city pipeline
 (:mod:`spacehack.city_builder` dispatches on ``city_layout_id ==
-"mars_colony"``).  It reads as a sleek, modern terraformed city —
-same machinery Earth and Mercury use (authored exterior stamps,
-roof labels, skyline, roads) but themed for a red/rust palette:
-clean grid roads, a central market-square plaza, and geometric
-skyline buildings instead of organic shapes.
+"mars_colony"``).  It reads as a sleek, modern terraformed city
+with the spaceport at the heart, buildings radiating outward, and
+hub-and-spoke roads connecting everything.  Red/rust palette with
+orange neon accents and geometric skyline buildings.
 
 The shared authored-layout machinery lives in
 :mod:`spacehack.city_layout`; the shared city tail (transit
@@ -32,67 +31,95 @@ MARS_CITY_WIDTH = 160
 MARS_CITY_HEIGHT = 100
 
 # Fixed authored origins — one per spec building.
+# Layout: spaceport central-left, bar upper-right, merchants lower-left,
+# militia lower-right, bounties center-right.  Buildings radiate outward
+# from the spaceport hub.
 LANDMARK_ORIGINS: dict[str, world.Position] = {
-    "mars_spaceport":  world.Position(4, 3),
-    "mars_bar":        world.Position(120, 8),
-    "mars_merchants":  world.Position(4, 70),
-    "mars_militia":    world.Position(120, 70),
-    "mars_bounties":   world.Position(60, 45),
+    "mars_spaceport":  world.Position(50, 28),
+    "mars_bar":        world.Position(110, 12),
+    "mars_merchants":  world.Position(12, 58),
+    "mars_militia":    world.Position(120, 58),
+    "mars_bounties":   world.Position(95, 40),
 }
 
-# Three east-west boulevards, each 3 tiles wide.
-_NORTH_BOULEVARD_Y = (16, 17, 18)
-_CENTRAL_BOULEVARD_Y = (48, 49, 50)
-_SOUTH_BOULEVARD_Y = (83, 84, 85)
+# Hub-and-spoke road network radiating from the spaceport pad area.
+# Central hub (around the pad)
+_HUB_ROAD_Y = (40, 41, 42)   # E-W through the pad
+_HUB_ROAD_X = (62, 63, 64)   # N-S through the pad
 
-# Three north-south avenues, each 3 tiles wide.
-_WEST_AVENUE_X = (30, 31, 32)
-_CENTRAL_AVENUE_X = (79, 80, 81)
-_EAST_AVENUE_X = (108, 109, 110)
-
-# Short feeder roads connecting building doors to the nearest avenue.
-_FEEDERS: tuple[tuple[int, int, int], ...] = (
-    # (x_lo, x_hi, y) — horizontal segments
-    (24, 29, 12),   # spaceport door → west avenue
-    (110, 119, 12), # bar door → east avenue
-    (24, 29, 70),   # merchants door → west avenue
-    (110, 119, 70), # militia door → east avenue
-    (33, 59, 57),   # bounties door → central avenue (west leg)
-    (78, 59, 57),   # bounties door → central avenue (east leg — redundant, kept for symmetry)
+# Spoke roads connecting the hub to each building district
+_SPOKES: tuple[tuple[int, int, int, int], ...] = (
+    # (x1, y1, x2, y2) — each spoke is a 3-wide corridor
+    # NW spoke → bar district
+    (63, 40, 115, 12),
+    # SW spoke → merchants district
+    (62, 41, 12, 65),
+    # SE spoke → militia district
+    (64, 42, 145, 65),
+    # E spoke → bounties
+    (64, 41, 110, 45),
 )
 
-# Market square plaza — a wide central feature below the bounties building.
-_PLAZA_X_LO, _PLAZA_X_HI = 70, 90
-_PLAZA_Y_LO, _PLAZA_Y_HI = 59, 67
+# Feeder roads from building doors to the nearest spoke
+_FEEDERS: tuple[tuple[int, int, int, int], ...] = (
+    # (x_lo, x_hi, y) horizontal or (x, y_lo, y_hi) vertical
+    # Spaceport pad area (below the building)
+    (50, 70, 44),
+    # Bar door → spoke
+    (108, 118, 20),
+    # Merchants door → spoke
+    (14, 20, 65),
+    # Militia door → spoke
+    (118, 140, 65),
+    # Bounties door → spoke
+    (95, 108, 48),
+)
 
-# Neon accent positions — near building entrances and plaza edges.
+# Market-square plaza — between the spaceport and the bounties district,
+# the social heart of the colony.
+_PLAZA_X_LO, _PLAZA_X_HI = 78, 96
+_PLAZA_Y_LO, _PLAZA_Y_HI = 35, 48
+
+# Neon accent positions — near building entrances, plaza edges, spoke
+# intersections.  These read as modern lighting on a terraformed city.
 _NEON_POSITIONS: tuple[tuple[int, int], ...] = (
-    (10, 30), (18, 30),       # spaceport entrance row
-    (124, 17), (132, 17),     # bar entrance row
-    (10, 70), (18, 70),       # merchants entrance
-    (124, 70), (140, 70),     # militia entrance
-    (64, 57), (72, 57),       # bounties entrance
+    # Spaceport entrance area
+    (55, 28), (65, 28),
+    # Bar entrance
+    (112, 12), (120, 12),
+    # Merchants entrance
+    (14, 58), (22, 58),
+    # Militia entrance
+    (122, 58), (140, 58),
+    # Bounties entrance
+    (97, 40), (105, 40),
     # Plaza edge accents
-    (70, 59), (90, 59), (70, 67), (90, 67),
-    # Street lamps along boulevards
-    (40, 17), (60, 17), (100, 17), (140, 17),
-    (40, 49), (60, 49), (100, 49), (140, 49),
-    (40, 84), (60, 84), (100, 84), (140, 84),
+    (78, 35), (96, 35), (78, 48), (96, 48),
+    # Hub spoke intersections
+    (63, 30), (63, 50),
+    (40, 41), (85, 41),
+    # Along main boulevard
+    (30, 41), (100, 41), (130, 41),
 )
 
-# Ornament positions — near building doors and plaza perimeter.
+# Ornament positions — near doors and key landmarks.
 _ORNAMENT_POSITIONS: tuple[tuple[int, int], ...] = (
-    (6, 15), (22, 15),       # spaceport door markers
-    (122, 15), (136, 15),    # bar door markers
-    (6, 68), (22, 68),       # merchants door markers
-    (122, 68), (154, 68),    # militia door markers
-    (62, 57), (76, 57),      # bounties door markers
+    # Spaceport flanks
+    (48, 28), (72, 28),
+    # Bar flanks
+    (108, 12), (124, 12),
+    # Merchants flanks
+    (12, 58), (26, 58),
+    # Militia flanks
+    (120, 58), (150, 58),
+    # Bounties flanks
+    (93, 40), (108, 40),
     # Plaza perimeter
-    (70, 58), (90, 58), (70, 68), (90, 68),
+    (78, 34), (96, 34), (78, 49), (96, 49),
 )
 
-# Procedural skyline: clean geometric buildings fill city blocks.
-# Mars buildings are modern — sharp angles, no organic shapes.
+# Procedural skyline: clean geometric buildings fill city blocks
+# between the spokes.  Modern angles, no organic shapes.
 _SKYLINE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
     ((180, 90, 60), (55, 28, 15), (200, 110, 75), (62, 32, 18)),   # rust
     ((160, 100, 80), (48, 30, 20), (185, 120, 95), (55, 35, 22)),  # sandstone
@@ -115,32 +142,50 @@ def _paint_road_cell(tiles, x, y, tile) -> None:
         tiles[y][x] = tile
 
 
-def _paint_roads(tiles, theme) -> None:
-    """Paint the 3-wide road grid: three boulevards + three avenues + feeders."""
+def _paint_hub(tiles, theme) -> None:
+    """Paint the central hub roads through the pad area."""
     road = theme.road_surface
     lane_h = theme.road_ew
     lane_v = theme.road_ns
     w, h = MARS_CITY_WIDTH, MARS_CITY_HEIGHT
-
-    # East-west boulevards
-    for y_lo, y_mid, y_hi in (
-        _NORTH_BOULEVARD_Y, _CENTRAL_BOULEVARD_Y, _SOUTH_BOULEVARD_Y,
-    ):
+    # E-W hub road
+    for y_lo, y_mid, y_hi in ((_HUB_ROAD_Y[0], _HUB_ROAD_Y[1], _HUB_ROAD_Y[2]),):
         for x in range(3, w - 2):
             _paint_road_cell(tiles, x, y_lo, road)
             _paint_road_cell(tiles, x, y_mid, lane_h)
             _paint_road_cell(tiles, x, y_hi, road)
-
-    # North-south avenues
-    for x_lo, x_mid, x_hi in (
-        _WEST_AVENUE_X, _CENTRAL_AVENUE_X, _EAST_AVENUE_X,
-    ):
+    # N-S hub road
+    for x_lo, x_mid, x_hi in ((_HUB_ROAD_X[0], _HUB_ROAD_X[1], _HUB_ROAD_X[2]),):
         for y in range(3, h - 2):
             _paint_road_cell(tiles, x_lo, y, road)
             _paint_road_cell(tiles, x_mid, y, lane_v)
             _paint_road_cell(tiles, x_hi, y, road)
 
-    # Feeder roads connecting building doors to avenues.
+
+def _paint_spoke(tiles, theme, x1, y1, x2, y2) -> None:
+    """Paint a diagonal spoke road from (x1,y1) to (x2,y2)."""
+    road = theme.road_surface
+    steps = max(abs(x2 - x1), abs(y2 - y1))
+    if steps == 0:
+        return
+    for i in range(steps + 1):
+        t = i / steps
+        x = int(x1 + (x2 - x1) * t)
+        y = int(y1 + (y2 - y1) * t)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                nx, ny = x + dx, y + dy
+                if 0 <= ny < MARS_CITY_HEIGHT and 0 <= nx < MARS_CITY_WIDTH:
+                    _paint_road_cell(tiles, nx, ny, road)
+
+
+def _paint_roads(tiles, theme) -> None:
+    """Paint the hub-and-spoke road network."""
+    _paint_hub(tiles, theme)
+    for x1, y1, x2, y2 in _SPOKES:
+        _paint_spoke(tiles, theme, x1, y1, x2, y2)
+    # Feeder roads
+    road = theme.road_surface
     for x_lo, x_hi, y in _FEEDERS:
         for x in range(x_lo, x_hi + 1):
             _paint_road_cell(tiles, x, y, road)
@@ -155,13 +200,14 @@ def _paint_market_square(tiles, theme) -> None:
 
 
 def _paint_landing_pad(tiles, theme, spec) -> None:
-    """Paint the landing apron below the spaceport."""
+    """Paint the landing apron around the spaceport."""
+    # Central pad area — the spaceport is the heart of the city
     anchor = spec.hangar_anchor
     port = spec.buildings[0]
-    x_lo = max(1, anchor.x - 3)
-    x_hi = min(MARS_CITY_WIDTH - 2, anchor.x + 3)
+    x_lo = max(1, anchor.x - 5)
+    x_hi = min(MARS_CITY_WIDTH - 2, anchor.x + 5)
     y_lo = port.y_hi + 1
-    y_hi = min(MARS_CITY_HEIGHT - 2, anchor.y + 1)
+    y_hi = min(MARS_CITY_HEIGHT - 2, anchor.y + 2)
     for py in range(y_lo, y_hi + 1):
         for px in range(x_lo, x_hi + 1):
             tiles[py][px] = theme.landing_pad
@@ -227,7 +273,7 @@ def _set_mars_metadata(game_map, spec, stamps) -> None:
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
     """Add showroom ships on the apron + terminals below the port door."""
     anchor = spec.hangar_anchor
-    pad_x_lo = max(1, anchor.x - 3)
+    pad_x_lo = max(1, anchor.x - 5)
     pad_y_lo = spec.buildings[0].y_hi + 1
     for ship_id, off_x, off_y in spec.showroom_ships:
         ship_obj = resolve_ship(ship_id)
@@ -238,9 +284,9 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
             width=ship_obj.width, height=ship_obj.height,
         ))
     terminal_data = (
-        ("=", "Trade Terminal", (10, 13), "trade_terminal", (100, 220, 255)),
-        ("%", "Mechanic Terminal", (6, 13), "mech_terminal", (200, 220, 100)),
-        ("A", "Armory Terminal", (3, 13), "armory_terminal", (255, 160, 80)),
+        ("=", "Trade Terminal", (56, 46), "trade_terminal", (100, 220, 255)),
+        ("%", "Mechanic Terminal", (52, 46), "mech_terminal", (200, 220, 100)),
+        ("A", "Armory Terminal", (48, 46), "armory_terminal", (255, 160, 80)),
     )
     for char, name, position, flag, fg in terminal_data:
         game_map.entities.append(world.Entity(
@@ -263,7 +309,6 @@ def build_mars_layout(spec, resolve_ship) -> world.GameMap:
         game_map,
         seed_key=("mars", "skyline"),
         schemes=_SKYLINE_SCHEMES,
-        # Modern geometric buildings on the red terrain.
         site_kinds=frozenset({"floor", "grass"}),
         roof_char="#",
         width_range=(5, 8),

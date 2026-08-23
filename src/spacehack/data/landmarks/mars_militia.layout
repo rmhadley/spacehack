@@ -1,18 +1,19 @@
 # mars_militia.layout - Mars colony militia exterior
 MAP
 ################################
-################################
-################################
-################################
-################################
-################################
-################################
-################################
-################################
-################################
-################################
-################################
+#WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#
+#WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWdWWWWWWWWWWWWWWW#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
+TILE: W = CITY_BUILDING_WALL
+TILE: n = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (130, 75, 50) / (38, 20, 10)
+COLOUR: W = (145, 88, 60) / (44, 24, 13)
+COLOUR: n = (160, 100, 70) / (50, 28, 15)
+COLOUR: d = (100, 240, 255) / (22, 68, 84)

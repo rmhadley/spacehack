@@ -1,13 +1,19 @@
 # mars_bar.layout - Mars colony bar exterior
 MAP
-########
-########
-########
-########
-########
-########
-########
+##################
+#WWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWW#
+#WWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnW#
+#WWWWWWWWdWWWWWW#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
+TILE: W = CITY_BUILDING_WALL
+TILE: n = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (160, 100, 80) / (48, 30, 20)
+COLOUR: W = (175, 115, 90) / (55, 35, 24)
+COLOUR: n = (190, 130, 100) / (62, 40, 28)
+COLOUR: d = (100, 240, 255) / (22, 68, 84)

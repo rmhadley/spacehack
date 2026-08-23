@@ -2,18 +2,20 @@
 
 Mars is a 160x100 scrolling city (same size as Earth) with a red/rust
 palette but a clean, high-tech feel — colonized with advanced terraforming
-tech, no old history. The layout features:
+tech, no old history.  The spaceport sits at the heart of the city;
+buildings radiate outward along hub-and-spoke roads.
 
-  * spaceport — NW, port apron + showroom ships.
-  * bar — NE, colony cantina with the Mars Barkeep.
-  * merchants — SW, Trade Marshal's commerce hub.
-  * militia — SE, Mars Patrol HQ.
-  * bounties — center, bounty board for a colony outpost.
+  * spaceport — central-left, the colony's landing hub.
+  * bar — upper-right, entertainment district.
+  * merchants — lower-left, market district.
+  * militia — lower-right, military district.
+  * bounties — center-right, civic center.
 
-Transit network (5 stops): port hub, bar district, merchants row,
-militia HQ, bounty board.
+Transit network (6 stops): port hub, market square, bar district,
+merchants row, militia HQ, bounty board.
 
-Central feature: a wide market square plaza with neon-lit stalls.
+Central feature: a wide market-square plaza between the port and
+the bounties district.
 
 Everything is data on the spec; no builder code is Mars-specific.
 """
@@ -36,67 +38,66 @@ SPEC = PlanetSpec(
     description="A sleek, modern terraformed colony -- humanity's first off-world city.",
     width=160,
     height=100,
-    hangar_anchor=world.Position(15, 17),
+    hangar_anchor=world.Position(60, 46),
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            x_lo=50, x_hi=72, y_lo=28, y_hi=40,
+            door_x=60, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=120, x_hi=137, y_lo=8,  y_hi=15,
-            door_x=128, npc_id="barkeep",
+            x_lo=110, x_hi=128, y_lo=12, y_hi=20,
+            door_x=118, npc_id="barkeep",
         ),
         world.CityBuilding(
             label="merchants",
-            x_lo=4,  x_hi=24, y_lo=70, y_hi=82,
-            door_x=14, npc_id="guild_master",
+            x_lo=12, x_hi=30, y_lo=58, y_hi=72,
+            door_x=20, npc_id="guild_master",
             door_north=True,
         ),
         world.CityBuilding(
             label="militia",
-            x_lo=120, x_hi=155, y_lo=70, y_hi=82,
+            x_lo=120, x_hi=155, y_lo=58, y_hi=64,
             door_x=137, npc_id="militia_captain",
-            door_north=True,
         ),
         world.CityBuilding(
             label="bounties",
-            x_lo=60, x_hi=77, y_lo=45, y_hi=57,
-            door_x=68, npc_id="bounty_master",
+            x_lo=95, x_hi=112, y_lo=40, y_hi=52,
+            door_x=103, npc_id="bounty_master",
         ),
     ),
     city_layout_id="mars_colony",
     city_npc_population=MARS_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="port", name="Spaceport", district="spaceport",
-            pos=world.Position(14, 14),
+            id="port", name="Spaceport Hub", district="spaceport",
+            pos=world.Position(60, 48),
             destinations=("hub", "bar", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
             id="hub", name="Market Square", district="plaza",
-            pos=world.Position(85, 37),
+            pos=world.Position(87, 36),
             destinations=("port", "bar", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
             id="bar", name="Bar District", district="bar",
-            pos=world.Position(118, 17),
+            pos=world.Position(108, 22),
             destinations=("port", "hub", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
             id="merchants", name="Merchants Row", district="market",
-            pos=world.Position(26, 69),
+            pos=world.Position(32, 56),
             destinations=("port", "hub", "bar", "militia", "bounties"),
         ),
         world.TransitStation(
             id="militia", name="Militia HQ", district="military",
-            pos=world.Position(118, 69),
+            pos=world.Position(118, 56),
             destinations=("port", "hub", "bar", "merchants", "bounties"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Board", district="civic",
-            pos=world.Position(78, 43),
+            pos=world.Position(93, 54),
             destinations=("port", "hub", "bar", "merchants", "militia"),
         ),
     ),

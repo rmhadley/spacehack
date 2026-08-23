@@ -1,17 +1,21 @@
 # mars_spaceport.layout - Mars colony spaceport exterior
-# Solid roof block in rust palette. No visible interior from the street.
+# Solid hangar roof with entrance door on the south edge.
 MAP
-################
-################
-################
-################
-################
-################
-################
-################
-################
-################
+#########################
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WWWWWWWWdWWWWWWWWWWWWWW#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
+TILE: W = CITY_BUILDING_WALL
+TILE: n = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (180, 90, 60) / (55, 28, 15)
+COLOUR: W = (195, 105, 70) / (62, 32, 18)
+COLOUR: n = (210, 120, 80) / (68, 36, 20)
+COLOUR: d = (100, 240, 255) / (22, 68, 84)
