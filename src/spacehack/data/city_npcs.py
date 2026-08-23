@@ -14,11 +14,11 @@ interact with the NPCs on the rebuilt city map. Hostility flows through
 NPC's flavor text, and direct-contact combat through the existing ground
 combat entry point.
 
-``wander_radius`` caps how far a citizen roams from its anchor: large
-radii (city-spanning) make pedestrians traverse between districts like
-ships crossing a system; small radii keep guards on a district beat.
-``move_chance`` is the probability of stepping on a given city tick —
-space traffic uses ~0.8, so busy pedestrians sit high.
+``wander_radius`` caps how far a citizen roams from its anchor — the
+Earth population uses a city-spanning radius so everyone walks the whole
+city like ships cross a system. ``move_chance`` is the probability of
+stepping on a given city tick — space traffic uses ~0.8, so busy
+pedestrians sit high.
 """
 
 from __future__ import annotations
@@ -55,13 +55,13 @@ class CityNpc:
 # by inspecting the rebuilt Earth map and verifying each cell is walkable,
 # clear of doors, and within peopled districts.
 #
-# Roamers (radius ~80 = city-spanning) pick landmarks across the whole
-# city and walk between districts like ships traverse a system; guards
-# (radius ~8-14) patrol a district beat. Anchors double as save/load
-# identity and the spawn point, but do NOT confine movement to a block.
+# Every citizen roams the whole city (radius 80 = city-spanning): they
+# pick landmarks across the entire map and walk between districts like
+# ships traverse a system. Anchors double as save/load identity and the
+# spawn point, but do NOT confine movement to a district.
 EARTH_POPULATION: tuple[CityNpc, ...] = (
-    # Civic plaza / central hub — a security guard patrols the plaza.
-    CityNpc("earth_hub_guard", "militia_trooper", (72, 55), wander_radius=10, move_chance=0.9),
+    # Civic plaza / central hub — a security guard on the beat.
+    CityNpc("earth_hub_guard", "militia_trooper", (72, 55), wander_radius=80, move_chance=0.9),
     # Market district — pedestrians crossing the market street.
     CityNpc("earth_market_walker_a", "civillian_bystander", (20, 76), wander_radius=80, move_chance=0.9),
     CityNpc("earth_market_walker_b", "civillian_bystander", (26, 77), wander_radius=80, move_chance=0.9),
@@ -72,9 +72,9 @@ EARTH_POPULATION: tuple[CityNpc, ...] = (
     # Spaceport apron — dock workers crossing the apron.
     CityNpc("earth_pad_worker", "civillian_bystander", (31, 25), wander_radius=80, move_chance=0.8),
     CityNpc("earth_pad_worker_b", "civillian_bystander", (27, 23), wander_radius=80, move_chance=0.8),
-    # Militia district — troopers on a patrol beat.
-    CityNpc("earth_militia_patrol", "militia_trooper", (65, 77), wander_radius=14, move_chance=0.9),
-    CityNpc("earth_militia_patrol_b", "militia_trooper", (60, 77), wander_radius=14, move_chance=0.9),
+    # Militia district — troopers walking the beat.
+    CityNpc("earth_militia_patrol", "militia_trooper", (65, 77), wander_radius=80, move_chance=0.9),
+    CityNpc("earth_militia_patrol_b", "militia_trooper", (60, 77), wander_radius=80, move_chance=0.9),
 )
 
 

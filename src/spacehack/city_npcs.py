@@ -2,8 +2,8 @@
 
 Ambient NPCs are the streets' pedestrian layer (Phase 3 of the planet-city
 expansion). Movement mirrors space NPC traffic: each citizen picks a walkable
-pavement destination within its district radius, computes an A* path, and
-walks it one cell per city tick — crossing blocks like ships crossing a
+street destination anywhere in the city, computes an A* path, and walks it
+one cell per city tick — crossing the whole city like ships crossing a
 system, instead of pacing a tiny box around its anchor.
 
 Design principles (matching the rest of the project):
@@ -46,8 +46,9 @@ def place_city_npcs(game_map: world.GameMap, population) -> None:
     """Place one ambient NPC entity per catalog entry at its anchor.
 
     Each NPC carries its ``city_npc_id`` and anchor metadata so the
-    movement pass keeps it near its district and save/load can identify
-    it across rebuilds.
+    movement pass can spawn it and save/load can identify it across
+    rebuilds. The anchor is a spawn point and save identity only — it
+    does not confine where the citizen may walk.
     """
     for template in population:
         try:
@@ -169,8 +170,9 @@ def _pick_destination(
     Mirrors space NPCs picking a body goal: draw from the whole-city
     landmark set (``_city_landmarks``) and prefer a landmark well away
     from the current cell so the walk visibly crosses the city.
-    ``wander_radius`` caps how far roamers may go from their anchor
-    (small radii = district patrol; large radii = city-spanning roam).
+    ``wander_radius`` caps how far the citizen may go from its anchor;
+    the Earth population uses a city-spanning radius so everyone walks
+    the whole city.
     """
     cells = _city_landmarks(game_map)
     if not cells:
