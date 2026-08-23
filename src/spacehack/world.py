@@ -1,25 +1,16 @@
-"""Game world: tile-based map + entities + a small procedural city.
+"""Core game-world module: tiles, entities, maps, and movement.
 
-For now the world is a single rectangular "city" room (walls around
-the perimeter, floor inside, doors for exits) plus:
-
-  * a wandering Merchant NPC near the city center,
-  * the space-port building in the upper-left quadrant with one door
-    in its south wall + three starships inside (sold via the
-    ship-buy modal),
-  * four guild buildings (Bar, Merchant Guild, Militia Center,
-    Bounty Hunter Guild), each with a labeled top wall, a south
-    door, and a guild NPC standing inside.
-
-Scrolling / multiple rooms / outdoor terrain come later.
+This module owns the shared tile catalog, the :class:`Entity` /
+:class:`GameMap` runtime model, the movement helpers, and transit-stop data
+(:class:`TransitStation`). Cohesive siblings hold the city building/layout
+pass (:mod:`spacehack.world_layout`), the renderer-neutral draw commands
+(:mod:`spacehack.world_render`), and A* pathfinding (:mod:`spacehack.world_path`);
+this module re-exports their public helpers so existing ``world.<name>``
+call sites keep working unchanged.
 """
 from __future__ import annotations
 
-import random
-
 from dataclasses import dataclass
-
-from .framebuffer import FrameBuffer
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +282,7 @@ class Entity:
     hp: int = 0  # ground-combat wound persistence: 0 = unengaged (full HP at first fight)
     main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
     main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
+    transit_station_id: str = ""  # city transit stop — bump opens the station menu
     dungeon_interaction: str = ""  # reusable themed-extension interaction id
     interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)
     last_seen_pos: Position | None = None  # ground hunter's remembered player cell
@@ -330,6 +322,16 @@ class GameMap:
     seen: list[list[bool]] | None = None
     visible: list[list[bool]] | None = None
     sight_radius: int = 8  # dungeon fog sight radius; increased by power restore (20)
+    # City public-transit topology: {station_id: {"name", "district",
+    # "pos", "destinations"}}. Built by ``city_transit.place_transit_stations``
+    # on city maps; consumed by the station bump flow. Not serialized —
+    # city maps rebuild deterministically on load.
+    city_transit: dict | None = None  # filled only on city maps (see city_transit.py)
+    # Decorative-skyline building footprints ``[(x, y, w, h), ...]`` placed
+    # by the city builder; used by tests to assert density/variety. City map
+    # only — absent (None) elsewhere.
+    skyline_placements: list | None = None
+
 
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
@@ -419,953 +421,25 @@ class GameMap:
         return self.is_revealed(x, y)
 
 
-# ---------------------------------------------------------------------------
-# Labeled buildings (one factory, used by space port AND guild halls)
-# ---------------------------------------------------------------------------
 
 
-# ``spaceport`` is the default building label; guild halls pass their
-# own label string (``bar``, ``merchants``, ``militia``, ``bounties``).
-SPACEPORT_LABEL: str = "spaceport"
-SPACEPORT_LABEL_FG: tuple[int, int, int] = (220, 220, 220)
-
-# Per-building label colors so each guild reads as distinct at a
-# glance. Looked up by :func:`make_building`; unknown labels fall
-# back to ``SPACEPORT_LABEL_FG``.
-BUILDING_LABEL_COLORS: dict[str, tuple[int, int, int]] = {
-    "spaceport": (100, 220, 255),       # bright cyan - space commerce
-    "bar":       (255, 200, 80),         # warm gold - tavern / nightlife
-    "bounties":  (255, 130, 200),        # vivid magenta - danger / reward
-    "merchants": (140, 240, 140),        # soft green - wealth / trade
-    "militia":   (130, 230, 220),        # teal - order / defence
-    "depot":     (200, 200, 160),        # warm grey - utility / refueling
-    "lab":       (150, 220, 200),        # teal-cyan - research / science
-}
-
-
-def make_building(
-    label: str,
-    x_lo: int, x_hi: int, y_lo: int, y_hi: int,
-    *,
-    door_x: int | None = None,
-    occupant: Entity | None = None,
-    door_north: bool = False,
-) -> tuple[list[tuple[Position, Tile]], list[Entity]]:
-    """Build a labeled rectangular building with one door and
-    (optionally) a single NPC standing inside.
-
-    By default the door is on the south wall (``y_hi``) and the
-    label text is carved into the north wall (``y_lo``). Pass
-    ``door_north=True`` to flip: the door moves to the north wall
-    and the label moves to the south wall.
-
-    This is a pure factory - it returns the tile-overwrites and the
-    occupant entities (possibly empty) for the caller to splice into
-    a :class:`GameMap`.
-
-    Args:
-      label:      text carved into the top wall (or south wall if
-                  ``door_north=True``).
-      x_lo, x_hi: inclusive tile x-range of the outer walls.
-      y_lo, y_hi: inclusive tile y-range of the outer walls.
-      door_x:     x-coordinate of the door tile. Defaults to the
-                  midpoint. If ``door_north`` is False this is on
-                  the south wall; if True, on the north wall.
-      occupant:   optional :class:`Entity` to stand inside the
-                  building. If provided, its ``pos`` is REASSIGNED
-                  to the interior center.
-      door_north: if True, the door is placed on the north wall
-                  (``y_lo``) and the label is carved into the
-                  south wall (``y_hi``). Default False matches
-                  the original behaviour.
-
-    Returns:
-      ``(tile_changes, entities)``:
-        * ``tile_changes`` is a list of ``(Position, Tile)`` pairs.
-        * ``entities`` is the list of occupants.
-
-    Raises:
-      ValueError: if the rectangle is too small or ``label`` is
-        wider than the wall.
-    """
-    if x_hi - x_lo < 4 or y_hi - y_lo < 4:
-        raise ValueError("building must be at least 5x5 to fit walls + interior")
-    if len(label) > x_hi - x_lo + 1:
-        raise ValueError(
-            f"building label {label!r} ({len(label)} chars) "
-            f"is wider than the wall ({x_hi - x_lo + 1} cells)"
-        )
-    if door_x is None:
-        door_x = (x_lo + x_hi) // 2
-
-    # Centre the label horizontally on whichever wall it's on.
-    label_pad = (x_hi - x_lo + 1 - len(label)) // 2
-    label_x_start = x_lo + label_pad
-
-    label_fg: tuple[int, int, int] = BUILDING_LABEL_COLORS.get(
-        label, SPACEPORT_LABEL_FG,
-    )
-
-    tile_changes: list[tuple[Position, Tile]] = []
-
-    # --- Corners (always painted, never replaced by labels or doors) ---
-    tile_changes.append((Position(x_lo, y_lo), WALL_TL))
-    tile_changes.append((Position(x_hi, y_lo), WALL_TR))
-    tile_changes.append((Position(x_lo, y_hi), WALL_BL))
-    tile_changes.append((Position(x_hi, y_hi), WALL_BR))
-
-    # --- Horizontal walls (skip corners, skip label area / door) ---
-    if door_north:
-        # North wall (y_lo): door at door_x, WALL_H elsewhere.
-        for x in range(x_lo + 1, x_hi):
-            tile_changes.append((Position(x, y_lo), DOOR if x == door_x else WALL_H))
-        # South wall (y_hi): label carved in, WALL_H elsewhere.
-        for x in range(x_lo + 1, x_hi):
-            if not (label_x_start <= x < label_x_start + len(label)):
-                tile_changes.append((Position(x, y_hi), WALL_H))
-        for i, ch in enumerate(label):
-            tile_changes.append((
-                Position(label_x_start + i, y_hi),
-                Tile(kind="label", char=ch, walkable=False, fg=label_fg, bg=WALL_H.bg),
-            ))
-    else:
-        # North wall (y_lo): label carved in, WALL_H elsewhere.
-        for x in range(x_lo + 1, x_hi):
-            if not (label_x_start <= x < label_x_start + len(label)):
-                tile_changes.append((Position(x, y_lo), WALL_H))
-        for i, ch in enumerate(label):
-            tile_changes.append((
-                Position(label_x_start + i, y_lo),
-                Tile(kind="label", char=ch, walkable=False, fg=label_fg, bg=WALL_H.bg),
-            ))
-        # South wall (y_hi): door at door_x, WALL_H elsewhere.
-        for x in range(x_lo + 1, x_hi):
-            tile_changes.append((Position(x, y_hi), DOOR if x == door_x else WALL_H))
-
-    # --- Vertical walls (between corners) ---
-    for y in range(y_lo + 1, y_hi):
-        tile_changes.append((Position(x_lo, y), WALL_V))
-        tile_changes.append((Position(x_hi, y), WALL_V))
-
-    entities: list[Entity] = []
-    if occupant is not None:
-        occupant.pos = Position(
-            (x_lo + x_hi) // 2,
-            (y_lo + y_hi) // 2,
-        )
-        entities.append(occupant)
-
-    return tile_changes, entities
-
-
-def make_space_port(
-    x_lo: int, x_hi: int, y_lo: int, y_hi: int,
-    *,
-    door_x: int | None = None,
-    label: str = SPACEPORT_LABEL,
-) -> tuple[list[tuple[Position, Tile]], list[Entity]]:
-    """Build the space-port building: a labeled rectangular building
-    (no NPC) plus the three ships on display inside.
-
-    This is a thin composition over :func:`make_building` plus the
-    fixed ship placements. Kept as a separate function so other
-    callers can keep using the existing ``(tile_changes, ships)``
-    return shape.
-    """
-    tile_changes, _npcs = make_building(
-        label, x_lo, x_hi, y_lo, y_hi, door_x=door_x,
-    )
-
-    ships: list[Entity] = [
-        Entity(
-            char="s",
-            fg=(130, 220, 255),                                      # bright sky-blue (greyscale-brightest of the 3)
-            pos=Position(x=x_lo + 3, y=y_lo + 2),
-            name="Ship: Scout",
-            ship_id="scout",
-            width=1, height=1,
-        ),
-        Entity(
-            char="H",
-            fg=(140, 210, 140),                                      # medium saturated green
-            pos=Position(x=x_lo + 7, y=y_lo + 2),
-            name="Ship: Hauler",
-            ship_id="hauler",
-            width=2, height=1,
-        ),
-        Entity(
-            char="C",
-            fg=(235, 130, 130),                                      # saturated red - mean-luma ~165, matches hauler for colorblind contrast
-            pos=Position(x=x_lo + 11, y=y_lo + 4),
-            name="Ship: Cruiser",
-            ship_id="cruiser",
-            width=2, height=2,
-        ),
-    ]
-
-
-
-    return tile_changes, ships
-
-# ---------------------------------------------------------------------------
-# Building-interior decoration
-# ---------------------------------------------------------------------------
-
-
-def _decorate_interiors(
-    tiles: list[list[Tile]],
-    buildings: tuple[CityBuilding, ...],
-) -> None:
-    """Paint furniture + detail tiles into building interiors after
-    step 7 has filled them with :data:`INTERIOR`.
-
-    Each building label gets its own layout — a cosy bar counter,
-    spaceport display pylons, guild-hall furnishings, etc. The NPC
-    position (interior centre) is left alone so the occupant stays
-    visible.
-    """
-    _decorate_bar(tiles, buildings)
-
-
-def _decorate_bar(
-    tiles: list[list[Tile]],
-    buildings: tuple[CityBuilding, ...],
-) -> None:
-    """Paint a bar counter with stools and a drinks table.
-
-    Bar is 8\u00d76 (x=34..41, y=8..13), interior is 6\u00d74
-    (x=35..40, y=9..12). The barkeep NPC sits at the centre
-    (x=37, y=10).
-
-    Layout (key):
-
-        y=9:  \u2591 \u2591 \u2591 \u2591 \u2591 \u2591   counter top
-        y=10: \u2592 \u2592 b \u2592 \u2592 \u2592   counter body, barkeep at x=37
-        y=11: \u2665 \u00d6 \u2665 \u00d6 \u00b7 \u00b7   drinks + table (right half = blank INTERIOR)
-        y=12: (blank INTERIOR x6)   open walk to door
-    """
-    bar = next((b for b in buildings if b.label == "bar"), None)
-    if bar is None:
-        return
-
-    npc_x = (bar.x_lo + bar.x_hi) // 2  # = 37
-    npc_y = (bar.y_lo + bar.y_hi) // 2  # = 10
-
-    # Row y=9: full-width counter top.
-    for ix in range(bar.x_lo + 1, bar.x_hi):
-        tiles[bar.y_lo + 1][ix] = BAR_COUNTER
-
-    # Row y=10: counter body, except the NPC tile.
-    for ix in range(bar.x_lo + 1, bar.x_hi):
-        if ix != npc_x:
-            tiles[npc_y][ix] = BAR_BODY
-
-    # Row y=11: drinks + table pattern (left half of the interior).
-    row_11_y = bar.y_lo + 3  # = 11
-    drink_positions: list[tuple[int, Tile]] = [
-        (bar.x_lo + 1, DRINK),   # x=35
-        (bar.x_lo + 2, TABLE),   # x=36
-        (bar.x_lo + 3, DRINK),   # x=37
-        (bar.x_lo + 4, TABLE),   # x=38
-        (bar.x_lo + 5, INTERIOR), # x=39
-    ]
-    for ix, tile in drink_positions:
-        tiles[row_11_y][ix] = tile
-
-    # Row y=12 stays as INTERIOR (set by step 7) — open walkway to door.
-
-
-# Buildings the city spawns at make_city time. Coords are picked so
-# that no two building rectangles overlap, the player can walk
-# between them on the new roads, and the south-door of every
-# building faces open city floor (no overlap with perimeter walls,
-# perimeter city-exit doors, the wandering merchant NPC, or any
-# other building).
+# A city transit stop. Pure data so a planet can author its own network.
 @dataclass(frozen=True)
-class CityBuilding:
-    label: str
-    x_lo: int
-    x_hi: int
-    y_lo: int
-    y_hi: int
-    door_x: int
-    npc_id: str
-    door_north: bool = False  # True: door on north wall, label on south wall
+class TransitStation:
+    """One public transit stop in a planetary city.
 
-
-CITY_BUILDINGS: tuple[CityBuilding, ...] = (
-    # Space port (commerce-heavy, NW): 20x10, door at midpoint.
-    CityBuilding(label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12, door_x=13, npc_id=""),
-    # Bar (small tavern, NE): 8x6, north of the BH guild.
-    CityBuilding(label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13, door_x=37, npc_id="barkeep"),
-    # Bounty hunter guild (medium, NE under the bar): 15x11.
-    CityBuilding(label="bounties",  x_lo=43, x_hi=57, y_lo=5,  y_hi=15, door_x=50, npc_id="bounty_master"),
-    # Merchant guild (big emporium, SW): 21x12.
-    CityBuilding(label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36, door_x=14, npc_id="guild_master"),
-    # Militia center (medium barracks, SE): 16x10.
-    CityBuilding(label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35, door_x=47, npc_id="militia_captain"),
-)
-
-
-def _layout_outside(
-    tiles: list[list[Tile]],
-    width: int,
-    height: int,
-    buildings: tuple[CityBuilding, ...],
-    theme: PlanetTheme = EARTH_THEME,
-) -> None:
-    """Carve roads + plaza + purposeful green spaces into the city.
-
-    The function is sized for the canonical 60x40 planetary city
-    template. Smaller planets (e.g. ac_station 40x24) early-return
-    so they stay as a bare interior.
-
-    ``theme`` provides per-planet tile colours (grass, roads, plaza,
-    landing pad, neon, etc.). Earth uses :data:`EARTH_THEME`; Mars
-    passes its own red-dust theme from the planet's data module.
-
-    Overhauls the original full-width-sidewalk + corner-grass-patch
-    approach into a more deliberate city layout:
-
-      * 3-tile-wide roads with centre-lane markings (unchanged)
-      * 9\u00d79 central plaza with jewel-like fountain diamonds \u2666
-      * Narrow (3-tile) walkways from each building door to the road
-        instead of blocky full-width sidewalk slabs.
-      * Landing pad directly south of the spaceport (unchanged).
-      * Two park belts between the E/W road and the bottom-row
-        buildings (merchant guild, militia center).
-      * Every bare FLOOR cell is converted to GRASS so the city
-        doesn't have the "brown with no purpose" look.
-      * Tree (\u2663) accents along the N/S road edge, inside parks,
-        and at key building gaps.
-      * Neon signs still flank the spaceport door and mark plaza
-        cardinal points (painted last so they survive overwrites).
+    ``id`` is a stable catalog key; ``pos`` is the map cell the station
+    occupies (walkable, bump to travel); ``destinations`` lists the
+    station ids reachable from here.
     """
-    if width != 60 or height != 40:
-        return
 
-    # Deterministic seeding so the same planet always looks the same.
-
-    # Unpack the per-planet theme into local aliases used below.
-    _grass = theme.grass
-    _grass_accent = theme.grass_accent
-    _plaza = theme.plaza
-    _sidewalk = theme.sidewalk
-    _road_surface = theme.road_surface
-    _road_ns = theme.road_ns
-    _road_ew = theme.road_ew
-    _landing_pad = theme.landing_pad
-    _neon = theme.neon
-    _tree = theme.tree
-    _decor = theme.decor
-
-    spaceport = next((b for b in buildings if b.label == "spaceport"), None)
-
-    # ------------------------------------------------------------------
-    # 1. 3-tile-wide main roads with centre-lane markings
-    # ------------------------------------------------------------------
-    # N/S corridor: x = 29, 30, 31  (centre lane at x=30).
-    for y in range(1, 17):
-        tiles[y][29] = _road_surface
-        tiles[y][30] = _road_ns
-        tiles[y][31] = _road_surface
-    for y in range(24, height - 1):
-        tiles[y][29] = _road_surface
-        tiles[y][30] = _road_ns
-        tiles[y][31] = _road_surface
-
-    # E/W corridor: y = 19, 20, 21  (centre lane at y=20).
-    for x in range(1, 27):
-        tiles[19][x] = _road_surface
-        tiles[20][x] = _road_ew
-        tiles[21][x] = _road_surface
-    for x in range(34, width - 1):
-        tiles[19][x] = _road_surface
-        tiles[20][x] = _road_ew
-        tiles[21][x] = _road_surface
-
-    # ------------------------------------------------------------------
-    # 2. Central plaza (9\u00d79, bridges the 3-wide road gap)
-    # ------------------------------------------------------------------
-    for y in range(16, 25):
-        for x in range(26, 35):
-            tiles[y][x] = _plaza
-
-    # ---- 2b. Plaza jewel decorations (diamond \u2666 fountain accents) ----
-    # Four tiles at the inner corners of the plaza read as fountain
-    # features radiating from the plaza / road crossing.
-    for dx, dy in [(28, 18), (32, 18), (28, 22), (32, 22)]:
-        if 0 <= dx < width and 0 <= dy < height:
-            tiles[dy][dx] = _decor
-
-    # ------------------------------------------------------------------
-    # 3. Narrow walkways from each building door to the nearest road
-    # ------------------------------------------------------------------
-    # Instead of painting _sidewalk across the building's full width,
-    # we paint a focused 3-tile-wide path centred on the door. The
-    # path extends south until it hits the perimeter wall or a tile
-    # that isn't walkable-exterior (e.g. a road tile, which stops
-    # the walk so the path doesn't paint over the road itself).
-    for spec in buildings:
-        door_x = spec.door_x
-        path_x_lo = max(door_x - 1, spec.x_lo)
-        path_x_hi = min(door_x + 1, spec.x_hi)
-
-        if spec.door_north:
-            # Walk NORTH from the north wall towards the road.
-            sy = spec.y_lo - 1
-            while sy > 0:
-                if any(
-                    tiles[sy][sx].kind == "road"
-                    for sx in range(path_x_lo, path_x_hi + 1)
-                ):
-                    break
-                blocked = any(
-                    tiles[sy][sx].kind not in ("floor", "sidewalk", "plaza")
-                    for sx in range(path_x_lo, path_x_hi + 1)
-                )
-                if blocked:
-                    break
-                for sx in range(path_x_lo, path_x_hi + 1):
-                    tiles[sy][sx] = _sidewalk
-                sy -= 1
-        else:
-            # Walk SOUTH from the south wall towards the road (original behaviour).
-            sy = spec.y_hi + 1
-            while sy < height - 1:
-                if any(
-                    tiles[sy][sx].kind == "road"
-                    for sx in range(path_x_lo, path_x_hi + 1)
-                ):
-                    break
-                blocked = any(
-                    tiles[sy][sx].kind not in ("floor", "sidewalk", "plaza")
-                    for sx in range(path_x_lo, path_x_hi + 1)
-                )
-                if blocked:
-                    break
-                for sx in range(path_x_lo, path_x_hi + 1):
-                    tiles[sy][sx] = _sidewalk
-                sy += 1
-
-    # ------------------------------------------------------------------
-    # 4. Landing pad (south of spaceport) — painted AFTER walkways so
-    #    the pad overwrites any _sidewalk the spaceport's path placed
-    #    in the tarmac zone.
-    # ------------------------------------------------------------------
-    if spaceport is not None:
-        pad_centre = (spaceport.x_lo + spaceport.x_hi) // 2  # = 14
-        pad_x_lo = pad_centre - 5
-        pad_x_hi = pad_centre + 5
-        for py in range(spaceport.y_hi + 1, 18):
-            for px in range(pad_x_lo, pad_x_hi + 1):
-                if 0 <= px < width and 0 <= py < height:
-                    tiles[py][px] = _landing_pad
-
-    # ------------------------------------------------------------------
-    # 5. Neon glowing signs (painted LAST so they survive overwrites)
-    # ------------------------------------------------------------------
-    # Flanking the spaceport door – one tile each side.
-    if spaceport is not None:
-        door_col = spaceport.door_x
-        neon_y = spaceport.y_hi + 1
-        if 0 <= door_col - 1 < width:
-            tiles[neon_y][door_col - 1] = _neon
-        if 0 <= door_col + 1 < width:
-            tiles[neon_y][door_col + 1] = _neon
-
-    # Plaza cardinal-edge neon markers.
-    plaza_cx, plaza_cy = 30, 20
-    for n_x, n_y in [
-        (plaza_cx,    16),   # north edge
-        (plaza_cx,    24),   # south edge
-        (26, plaza_cy),       # west edge
-        (34, plaza_cy),       # east edge
-    ]:
-        if 0 <= n_x < width and 0 <= n_y < height:
-            tiles[n_y][n_x] = _neon
-
-    # ------------------------------------------------------------------
-    # 6. Convert ALL remaining bare FLOOR tiles to GRASS
-    # ------------------------------------------------------------------
-    # This replaces every "brown with no purpose" cell with green
-    # space, giving the city a much more intentional look. Everything
-    # that came before (roads, plaza, walkways, landing pad, neon) is
-    # already carved out, so only truly empty floor is caught here.
-    for fy in range(1, height - 1):
-        for fx in range(1, width - 1):
-            if tiles[fy][fx].kind == "floor":
-                # ~15% comma accent, rest solid block.
-                tiles[fy][fx] = _grass_accent if random.random() < 0.15 else _grass
-
-    # ------------------------------------------------------------------
-    # 7. Repaint building interiors from GRASS back to INTERIOR floor
-    # ------------------------------------------------------------------
-    # Step 6 converted every FLOOR cell to GRASS, including the inside
-    # of every building.  This step restores building interiors to a
-    # warm, clean floor tile so the player sees a clear visual contrast
-    # when stepping through a door from the grassy outside into a
-    # building interior.
-    for spec in buildings:
-        for iy in range(spec.y_lo + 1, spec.y_hi):
-            for ix in range(spec.x_lo + 1, spec.x_hi):
-                tiles[iy][ix] = INTERIOR
-
-    # ------------------------------------------------------------------
-    # 8. Decorate building interiors with furniture and detail tiles
-    # ------------------------------------------------------------------
-    _decorate_interiors(tiles, buildings)
-
-    # ------------------------------------------------------------------
-    # 9. Tree (\u2663) accents at deliberate fixed positions
-    # ------------------------------------------------------------------
-    # West edge of the N/S road corridor (x=28).
-    for ry in range(1, height - 1):
-        if tiles[ry][28].kind in ("grass", "road", "sidewalk"):
-            if ry % 4 == 0:
-                tiles[ry][28] = _tree
-
-    # East edge (x=32).
-    for ry in range(1, height - 1):
-        if tiles[ry][32].kind in ("grass", "road", "sidewalk"):
-            if ry % 4 == 2:
-                tiles[ry][32] = _tree
-
-    # Park south of the E/W road, north of the merchant guild.
-    # (14, 24) is omitted because it sits on the merchant's north-facing path.)
-    for tx, ty in [(6, 22), (10, 23), (18, 23), (22, 22)]:
-        if tiles[ty][tx].kind == "grass":
-            tiles[ty][tx] = _tree
-
-    # Park south of the E/W road, north of the militia center.
-    # (48, 22) is omitted because it sits on the militia's north-facing path.)
-    for tx, ty in [(42, 23), (45, 25), (52, 24)]:
-        if tiles[ty][tx].kind == "grass":
-            tiles[ty][tx] = _tree
-
-
-def make_city(width: int = 60, height: int = 40) -> GameMap:
-    """Back-compat shim: build the Earth on-surface city from
-    :func:`spacehack.data.planets.load_planet`.
-
-    The full city layout (perimeter walls + doors + 5 buildings +
-    showroom ships + wandering merchant + roads + plaza + sidewalks
-    + grass patch) is now expressed as a :class:`PlanetSpec` literal
-    in :mod:`spacehack.data.planets.earth`. This shim keeps every
-    pre-refactor call site (``world.make_city()`` from the dispatcher
-    and smoke tests) working without a code change.
-
-    ``width``/``height`` are accepted for back-compat but ignored —
-    the Earth's spec defines its own grid size (60x40 today).
-    """
-    from .data.planets import load_planet
-    del width, height  # explicit: spec owns the dimensions
-    return load_planet("earth")
-
-
-# ---------------------------------------------------------------------------
-# Rendering
-# ---------------------------------------------------------------------------
-
-
-# Remembered-tile dimming factor: previously-seen cells that are no
-# longer in line of sight render at this fraction of their normal
-# colour — dark enough to read as "remembered", bright enough to
-# navigate by (design doc 04: "explored-out-of-sight = dim").
-_DIM_FACTOR: float = 0.35
-
-
-@dataclass(frozen=True)
-class WorldDrawCommand:
-    """One renderer-neutral cell draw operation in screen-cell space."""
-
-    x: int
-    y: int
-    char: str
-    fg: tuple[int, int, int]
-    bg: tuple[int, int, int] | None = None
-
-
-def _dim_color(color: tuple[int, int, int]) -> tuple[int, int, int]:
-    """Scale an (r, g, b) colour down to remembered-sight brightness."""
-    return tuple(
-        max(0, min(255, int(c * _DIM_FACTOR))) for c in color
-    )
-
-
-def _is_static_entity(e: Entity) -> bool:
-    """Whether ``e`` never moves — safe to remember on explored tiles.
-
-    Mobs (``npc_char_id``), NPCs (``npc_id``), ships (``npc_ship_id``),
-    and anything squad-linked can move, so they render only while in
-    the current line of sight. Static furniture — loot containers,
-    terminals, the sealed alien door — is remembered and renders
-    dimmed on explored-but-out-of-LOS cells.
-    """
-    return not (
-        e.npc_char_id or e.npc_id or e.npc_ship_id
-        or e.procedural_squad_id or e.squad_id
-    )
-
-
-def _tile_render_colors(
-    game_map: GameMap,
-    x: int,
-    y: int,
-    tile: Tile,
-) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
-    """Return ``(fg, bg)`` for a revealed tile.
-
-    Full brightness when in the current line of sight; dimmed when
-    the tile is only remembered (previously seen).
-    """
-    if game_map.is_visible(x, y):
-        return tile.fg, tile.bg
-    return _dim_color(tile.fg), _dim_color(tile.bg)
-
-
-def _entity_render_fg(game_map: GameMap, e: Entity) -> tuple[int, int, int] | None:
-    """Return the fg to draw ``e`` with, or ``None`` to skip it.
-
-    Moving entities render only while in the current line of sight —
-    out of LOS they vanish (no stale ghosts). Static furniture (loot,
-    terminals) is remembered and renders dimmed on explored cells.
-
-    The entity's ANCHOR cell (``e.pos``) is authoritative for both
-    checks — every dungeon entity is 1x1, so the footprint never
-    straddles a visibility boundary.
-    """
-    if game_map.is_visible(e.pos.x, e.pos.y):
-        return e.fg
-    if game_map.is_revealed(e.pos.x, e.pos.y) and _is_static_entity(e):
-        return _dim_color(e.fg)
-    return None
-
-
-# ---------------------------------------------------------------------------
-# A* pathfinding
-# ---------------------------------------------------------------------------
-
-
-def find_path(
-    start: tuple[int, int],
-    end_candidates: set[tuple[int, int]],
-    game_map: GameMap,
-    *,
-    exclude_entity: Entity | None = None,
-    max_steps: int = 50000,
-) -> list[tuple[int, int]] | None:
-    """A* shortest path from ``start`` to any cell in ``end_candidates``.
-
-    Performs 8-directional Chebyshev-weighted A* exploration up to
-    ``max_steps`` total visited cells. Returns the path as a list of
-    ``(x, y)`` tuples (INCLUDING the start, EXCLUDING the end cell)
-    so the caller can pop steps one at a time, or ``None`` if no path
-    exists.
-
-    ``exclude_entity`` is excluded from collision checks (e.g. the
-    entity doing the pathfinding), so the path won't be blocked by
-    itself. Other entities still block.
-
-    The returned path is start-to-next-step so the caller can take
-    ``path[0]`` as the immediate next cell to move into, and
-    ``path[-1]`` is always an end candidate (the goal).
-
-    ``end_candidates`` cells are always considered passable
-    regardless of walkability or entity occupancy (the goal is to
-    reach that cell).
-    """
-    import heapq
-    dirs_8 = [(0, -1), (-1, 0), (1, 0), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
-
-    def _heuristic(a, b):
-        return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
-
-    # Pick the closest end candidate as A* target for heuristic guidance.
-    best_target = min(end_candidates, key=lambda tc: _heuristic(start, tc))
-
-    counter = 0
-    open_set = [(0, counter, start)]
-    came_from: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
-    g_score: dict[tuple[int, int], float] = {start: 0}
-    visited: set[tuple[int, int]] = set()
-    found = False
-    target_reached = None
-
-    while open_set and not found:
-        _, _, curr = heapq.heappop(open_set)
-        if curr in visited:
-            continue
-        visited.add(curr)
-        if len(visited) > max_steps:
-            break
-        if curr in end_candidates:
-            found = True
-            target_reached = curr
-            break
-        cx, cy = curr
-        for dx, dy in dirs_8:
-            nx, ny = (cx + dx, cy + dy)
-            npos = (nx, ny)
-            if not game_map.in_bounds(nx, ny):
-                continue
-            if npos not in end_candidates:
-                if not game_map.is_walkable(nx, ny):
-                    continue
-                blocker = game_map.blocking_entity_at(nx, ny, exclude=exclude_entity)
-                if blocker is not None:
-                    continue
-            tentative_g = g_score.get(curr, 0) + 1
-            if tentative_g < g_score.get(npos, 999999):
-                came_from[npos] = curr
-                g_score[npos] = tentative_g
-                f = tentative_g + _heuristic(npos, best_target)
-                counter += 1
-                heapq.heappush(open_set, (f, counter, npos))
-
-    if not found:
-        return None
-
-    path: list[tuple[int, int]] = []
-    cur = target_reached
-    while cur is not None:
-        path.append(cur)
-        cur = came_from.get(cur)
-    path.reverse()
-    # Exclude the start cell from the path (the caller is already there).
-    return path[1:]
-
-
-def _append_tile_commands(
-    commands: list[WorldDrawCommand],
-    game_map: GameMap,
-    *,
-    region_x: int,
-    region_y: int,
-    region_w: int,
-    region_h: int,
-    camera_x: int,
-    camera_y: int,
-) -> None:
-    """Append visible tile commands for a camera viewport."""
-    for ty in range(region_h):
-        for tx in range(region_w):
-            map_x = camera_x + tx
-            map_y = camera_y + ty
-            if not (0 <= map_x < game_map.width and 0 <= map_y < game_map.height):
-                continue
-            if not game_map.is_revealed(map_x, map_y):
-                continue
-            tile = game_map.tiles[map_y][map_x]
-            fg, bg = _tile_render_colors(game_map, map_x, map_y, tile)
-            commands.append(WorldDrawCommand(
-                region_x + tx,
-                region_y + ty,
-                tile.char,
-                fg,
-                bg,
-            ))
-
-
-def _entity_draw_order(
-    entities: list[Entity],
-    sort_entities: bool,
-) -> list[Entity]:
-    """Return visible entities in the requested renderer draw order."""
-    if not sort_entities:
-        return entities
-    return sorted(entities, key=lambda item: item.loot_data is None)
-
-
-def _append_entity_commands(
-    commands: list[WorldDrawCommand],
-    game_map: GameMap,
-    *,
-    region_x: int,
-    region_y: int,
-    region_w: int,
-    region_h: int,
-    camera_x: int,
-    camera_y: int,
-    sort_entities: bool = False,
-) -> None:
-    """Append visible entity footprint commands in draw order."""
-    visible = [
-        entity for entity in game_map.entities
-        if (
-            entity.pos.x < camera_x + region_w
-            and entity.pos.x + entity.width > camera_x
-            and entity.pos.y < camera_y + region_h
-            and entity.pos.y + entity.height > camera_y
-        )
-    ]
-    draw_order = _entity_draw_order(visible, sort_entities)
-    for entity in draw_order:
-        fg = _entity_render_fg(game_map, entity)
-        if fg is None:
-            continue
-        for dx in range(entity.width):
-            for dy in range(entity.height):
-                map_x = entity.pos.x + dx
-                map_y = entity.pos.y + dy
-                if not (
-                    camera_x <= map_x < camera_x + region_w
-                    and camera_y <= map_y < camera_y + region_h
-                ):
-                    continue
-                commands.append(WorldDrawCommand(
-                    region_x + map_x - camera_x,
-                    region_y + map_y - camera_y,
-                    entity.char,
-                    fg,
-                ))
-
-
-def world_draw_commands(
-    game_map: GameMap,
-    *,
-    region_x: int,
-    region_y: int,
-    region_w: int,
-    region_h: int,
-    camera_x: int = 0,
-    camera_y: int = 0,
-    centered: bool = False,
-    sort_entities: bool = False,
-) -> tuple[WorldDrawCommand, ...]:
-    """Return the shared tile/entity draw stream used by every renderer."""
-    if centered and (game_map.width > region_w or game_map.height > region_h):
-        raise ValueError(
-            f"city {game_map.width}x{game_map.height} is larger than "
-            f"viewport region {region_w}x{region_h}"
-        )
-    if centered:
-        camera_x = 0
-        camera_y = 0
-        region_x += (region_w - game_map.width) // 2
-        region_y += (region_h - game_map.height) // 2
-        region_w = game_map.width
-        region_h = game_map.height
-    else:
-        camera_x = max(0, min(camera_x, max(0, game_map.width - region_w)))
-        camera_y = max(0, min(camera_y, max(0, game_map.height - region_h)))
-
-    commands: list[WorldDrawCommand] = []
-    _append_tile_commands(
-        commands,
-        game_map,
-        region_x=region_x,
-        region_y=region_y,
-        region_w=region_w,
-        region_h=region_h,
-        camera_x=camera_x,
-        camera_y=camera_y,
-    )
-    _append_entity_commands(
-        commands,
-        game_map,
-        region_x=region_x,
-        region_y=region_y,
-        region_w=region_w,
-        region_h=region_h,
-        camera_x=camera_x,
-        camera_y=camera_y,
-        sort_entities=sort_entities,
-    )
-    return tuple(commands)
-
-
-def _render_commands(
-    console: FrameBuffer,
-    commands: tuple[WorldDrawCommand, ...],
-) -> None:
-    """Paint a renderer-neutral command stream onto a project framebuffer."""
-    for command in commands:
-        kwargs = {"x": command.x, "y": command.y, "string": command.char, "fg": command.fg}
-        if command.bg is not None:
-            kwargs["bg"] = command.bg
-        console.print(**kwargs)
-
-
-def render_world(
-    console: FrameBuffer,
-    game_map: GameMap,
-    *,
-    region_x: int,
-    region_y: int,
-    region_w: int,
-    region_h: int,
-) -> None:
-    """Paint a centered world through the shared draw-command stream."""
-    _render_commands(
-        console,
-        world_draw_commands(
-            game_map,
-            region_x=region_x,
-            region_y=region_y,
-            region_w=region_w,
-            region_h=region_h,
-            centered=True,
-        ),
-    )
-
-
-def camera_for_view(
-    game_map: GameMap,
-    player_pos: Position,
-    *,
-    region_w: int,
-    region_h: int,
-) -> tuple[int, int, int, int]:
-    """Return ``(camera_x, camera_y, region_x, region_y)`` for a viewport.
-
-    Maps that fit inside ``region_w`` x ``region_h`` are centred in the
-    viewport via a region offset (camera stays at ``(0, 0)``) — the
-    same layout :func:`render_world` produces.  Maps larger than the
-    viewport scroll with a player-centred camera across the full
-    region, mirroring space combat.  Shared by ground combat and
-    out-of-combat dungeon exploration so both frame the map identically.
-    """
-    if game_map.width <= region_w and game_map.height <= region_h:
-        return (
-            0, 0,
-            (region_w - game_map.width) // 2,
-            (region_h - game_map.height) // 2,
-        )
-    _cw = max(0, game_map.width - region_w)
-    _ch = max(0, game_map.height - region_h)
-    _cx = max(0, min(player_pos.x - region_w // 2, _cw))
-    _cy = max(0, min(player_pos.y - region_h // 2, _ch))
-    return (_cx, _cy, 0, 0)
-
-
-def render_world_view(
-    console: FrameBuffer,
-    game_map: GameMap,
-    *,
-    region_x: int,
-    region_y: int,
-    region_w: int,
-    region_h: int,
-    camera_x: int = 0,
-    camera_y: int = 0,
-) -> None:
-    """Paint a scrollable world through the shared draw-command stream."""
-    cam_x = max(0, min(camera_x, max(0, game_map.width - region_w)))
-    cam_y = max(0, min(camera_y, max(0, game_map.height - region_h)))
-    _render_commands(
-        console,
-        world_draw_commands(
-            game_map,
-            region_x=region_x,
-            region_y=region_y,
-            region_w=region_w,
-            region_h=region_h,
-            camera_x=cam_x,
-            camera_y=cam_y,
-            sort_entities=True,
-        ),
-    )
+    id: str
+    name: str
+    district: str
+    pos: Position
+    destinations: tuple[str, ...] = ()
+    glyph: str = "\u25c9"                      # high-visibility transit-stop marker
+    fg: tuple[int, int, int] = (255, 215, 100)  # warm gold - distinct from terminals
 
 
 # ---------------------------------------------------------------------------
@@ -1374,9 +448,7 @@ def render_world_view(
 
 
 # Vim-style movement: lowercase letter -> (dx, dy) in city-space, where
-# y increases downward. The standard roguelike layout is h/j/k/l for
-# cardinals and y/u/b/n for diagonals. Pygame key names are normalized to
-# lowercase for lookup by ``spacehack.input_helpers._movement_action``.
+# y increases downward.
 VIM_DELTAS: dict[str, tuple[int, int]] = {
     "h": (-1,  0),  # west
     "j": ( 0,  1),  # south
@@ -1388,8 +460,6 @@ VIM_DELTAS: dict[str, tuple[int, int]] = {
     "n": ( 1,  1),  # south-east
 }
 
-# Arrow-key movement: same lowercase KeySym-name convention
-# ("up" / "down" / "left" / "right").
 ARROW_DELTAS: dict[str, tuple[int, int]] = {
     "up":    ( 0, -1),  # north
     "down":  ( 0,  1),  # south
@@ -1397,9 +467,6 @@ ARROW_DELTAS: dict[str, tuple[int, int]] = {
     "right": ( 1,  0),  # east
 }
 
-# Numpad movement: KP_1..KP_9 lowercased to "kp_1".."kp_9". Gives
-# non-vim players full 8-direction movement. KP_5 (centre) is
-# deliberately excluded — "." is the wait key.
 NUMPAD_DELTAS: dict[str, tuple[int, int]] = {
     "kp_7": (-1, -1),  # north-west
     "kp_8": ( 0, -1),  # north
@@ -1411,9 +478,6 @@ NUMPAD_DELTAS: dict[str, tuple[int, int]] = {
     "kp_3": ( 1,  1),  # south-east
 }
 
-# Everything that moves the player, merged into one lookup table so
-# every movement path (exploration, combat, auto-nav abort) accepts
-# the same three key families.
 MOVE_KEYS: dict[str, tuple[int, int]] = {
     **VIM_DELTAS,
     **ARROW_DELTAS,
@@ -1425,12 +489,7 @@ def find_loot_near(
     game_map: GameMap,
     position: Position,
 ) -> Entity | None:
-    """Find loot on the current cell or any adjacent cell.
-
-    The current cell and cardinal neighbors are checked first, followed
-    by diagonals, so the original pickup preference remains stable while
-    diagonal loot is also reachable.
-    """
+    """Find loot on the current cell or any adjacent cell (cardinals first)."""
     _positions = (
         position,
         Position(position.x, position.y - 1),
@@ -1457,21 +516,10 @@ def try_move(
 ) -> tuple[str, Tile | Entity | None]:
     """Attempt to move ``entity`` by ``(dx, dy)`` on ``game_map``.
 
-    Returns a ``(code, blocker)`` pair:
-
-      * ``code == "moved"``: success; ``entity.pos`` was updated and
-        ``blocker`` is ``None``.
-      * ``code == "wall"``: target tile was out-of-bounds or
-        unwalkable; ``blocker`` is the target :class:`Tile` when the
-        target is in bounds, otherwise ``None``.
-      * ``code == "occupied"``: target tile was walkable but inside
-        some other entity's footprint (so multi-cell ships block on
-        every covered cell); ``blocker`` is that entity.
-
-    Every in-bounds blocker is returned to the caller so its own
-    ``blocked_message`` can drive generic movement feedback. Special
-    interactions may inspect the same blocker before that fallback
-    message is logged.
+    Returns a ``(code, blocker)`` pair: ``"moved"`` on success (blocker
+    ``None``), ``"wall"`` on an out-of-bounds/unwalkable target (blocker the
+    :class:`Tile` when in bounds), or ``"occupied"`` when another entity's
+    footprint blocks the target (blocker that entity).
     """
     target_x = entity.pos.x + dx
     target_y = entity.pos.y + dy
@@ -1501,16 +549,32 @@ def try_vim_move(
     game_map: GameMap,
     letter: str,
 ) -> tuple[str, Tile | Entity | None] | None:
-    """If ``letter`` is a known vim movement key, dispatch to
-    :func:`try_move` using that key's delta.
-
-    Returns the same ``(code, blocker)`` shape as :func:`try_move`,
-    or ``None`` if ``letter`` isn't a movement key.
-    """
+    """Dispatch ``letter`` through :func:`try_move`, or ``None`` if not a vim key."""
     delta = VIM_DELTAS.get(letter)
     if delta is None:
         return None
     return try_move(entity, game_map, delta[0], delta[1])
+
+
+def _step_cell(entity: Entity, game_map: GameMap, mx: int, my: int) -> bool:
+    """Move ``entity`` onto ``(mx, my)`` if walkable and unoccupied."""
+    x, y = entity.pos.x + mx, entity.pos.y + my
+    if (game_map.is_walkable(x, y)
+            and game_map.blocking_entity_at(x, y, exclude=entity) is None):
+        entity.pos = Position(x, y)
+        return True
+    return False
+
+
+def _perp_slips(dx: int, dy: int) -> tuple[tuple[int, int], ...]:
+    """Return the perpendicular slip offsets for a blocked ``(dx, dy)`` step."""
+    if dx != 0 and dy != 0:
+        return ((dx, 0), (0, dy))
+    if dx != 0:
+        return ((dx, 1), (dx, -1), (0, 1), (0, -1))
+    if dy != 0:
+        return ((1, dy), (-1, dy), (1, 0), (-1, 0))
+    return ()
 
 
 def try_step_with_slip(
@@ -1519,41 +583,49 @@ def try_step_with_slip(
     dx: int,
     dy: int,
 ) -> bool:
-    """Step ``entity`` one cell by ``(dx, dy)``; on a blocked cell,
-    fall back to one perpendicular slip cell.
+    """Step one cell; on a blocked cell fall back to one perpendicular slip.
 
-    Slip candidates match the NPC patrol passes: a diagonal step
-    splits into its axes; a cardinal step tries +/-1 on the other
-    axis AND the two pure-perpendicular cells (so a member wedged
-    against a body that spans both diagonal cells — e.g. a planet —
-    can still walk around it). Never moves more than one cell per
-    call.
-
-    Returns ``True`` only when the DIRECT ``(dx, dy)`` step
-    succeeded — a successful slip returns ``False`` so path-following
-    callers (which advance their path only on a direct move) keep
-    their next cell and retry it next tick. Callers that don't care
-    about the direct/slip distinction can ignore the return value.
+    Returns ``True`` only when the DIRECT step succeeded — a successful slip
+    returns ``False`` so path-following callers keep their next cell.
     """
-    _nx = entity.pos.x + dx
-    _ny = entity.pos.y + dy
-    if (game_map.is_walkable(_nx, _ny)
-            and game_map.blocking_entity_at(_nx, _ny, exclude=entity) is None):
-        entity.pos = Position(_nx, _ny)
+    if _step_cell(entity, game_map, dx, dy):
         return True
-    if dx != 0 and dy != 0:
-        _slips = ((dx, 0), (0, dy))
-    elif dx != 0:
-        _slips = ((dx, 1), (dx, -1), (0, 1), (0, -1))
-    elif dy != 0:
-        _slips = ((1, dy), (-1, dy), (1, 0), (-1, 0))
-    else:
-        return False
-    for _sx, _sy in _slips:
-        _sxp = entity.pos.x + _sx
-        _syp = entity.pos.y + _sy
-        if (game_map.is_walkable(_sxp, _syp)
-                and game_map.blocking_entity_at(_sxp, _syp, exclude=entity) is None):
-            entity.pos = Position(_sxp, _syp)
+    for slip in _perp_slips(dx, dy):
+        if _step_cell(entity, game_map, slip[0], slip[1]):
             return False
     return False
+
+
+# ---------------------------------------------------------------------------
+# Back-compat re-exports (cohesive siblings hold the implementations)
+# ---------------------------------------------------------------------------
+from .world_layout import (  # noqa: E402  (imported after definitions)
+    SPACEPORT_LABEL, SPACEPORT_LABEL_FG, BUILDING_LABEL_COLORS,
+    CityBuilding, CITY_BUILDINGS,
+    make_building, make_space_port, _decorate_interiors, _decorate_bar,
+    _layout_outside, make_city,
+)
+from .world_path import find_path  # noqa: E402
+from .world_render import (  # noqa: E402
+    WorldDrawCommand, world_draw_commands,
+    render_world, render_world_view, camera_for_view,
+    _dim_color, _is_static_entity, _tile_render_colors, _entity_render_fg,
+    _append_tile_commands, _append_entity_commands,
+)
+
+# Public API of this module (including the re-exported sibling helpers).
+__all__ = [
+    "Tile", "Position", "Entity", "GameMap", "TransitStation",
+    "CityBuilding", "CITY_BUILDINGS",
+    "SPACEPORT_LABEL", "SPACEPORT_LABEL_FG", "BUILDING_LABEL_COLORS",
+    "make_building", "make_space_port", "_decorate_interiors",
+    "_decorate_bar", "_layout_outside", "make_city",
+    "find_path",
+    "WorldDrawCommand", "world_draw_commands", "render_world",
+    "render_world_view", "camera_for_view",
+    "_dim_color", "_is_static_entity", "_tile_render_colors",
+    "_entity_render_fg", "_append_tile_commands", "_append_entity_commands",
+    "VIM_DELTAS", "ARROW_DELTAS", "NUMPAD_DELTAS", "MOVE_KEYS",
+    "find_loot_near", "try_move", "blocked_message_for",
+    "try_vim_move", "try_step_with_slip",
+]
