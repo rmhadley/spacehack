@@ -80,8 +80,9 @@ _FEEDERS: tuple[tuple[int, int, int, int], ...] = (
 _PLAZA_X_LO, _PLAZA_X_HI = 78, 96
 _PLAZA_Y_LO, _PLAZA_Y_HI = 35, 48
 
-# Neon accent positions — near building entrances, plaza edges, spoke
-# intersections.  These read as modern lighting on a terraformed city.
+# Neon accent positions — near building entrances, plaza edges,
+# spoke intersections, and along roads.  These read as modern
+# lighting on a high-tech terraformed city.
 _NEON_POSITIONS: tuple[tuple[int, int], ...] = (
     # Spaceport entrance area
     (55, 28), (65, 28),
@@ -100,6 +101,9 @@ _NEON_POSITIONS: tuple[tuple[int, int], ...] = (
     (40, 41), (85, 41),
     # Along main boulevard
     (30, 41), (100, 41), (130, 41),
+    # Along spoke roads — neon strips like runway lights
+    (80, 28), (95, 20), (45, 52), (35, 60),
+    (100, 55), (130, 55), (85, 50),
 )
 
 # Ornament positions — near doors and key landmarks.
@@ -118,15 +122,16 @@ _ORNAMENT_POSITIONS: tuple[tuple[int, int], ...] = (
     (78, 34), (96, 34), (78, 49), (96, 49),
 )
 
-# Procedural skyline: clean geometric buildings fill city blocks
-# between the spokes.  Modern angles, no organic shapes.
+# Procedural skyline: high-tech modern buildings fill city blocks
+# between the spokes.  Chrome, glass, and neon — sleek and clean
+# against the red terrain, not dusty outpost shacks.
 _SKYLINE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
-    ((180, 90, 60), (55, 28, 15), (200, 110, 75), (62, 32, 18)),   # rust
-    ((160, 100, 80), (48, 30, 20), (185, 120, 95), (55, 35, 22)),  # sandstone
-    ((140, 80, 55), (42, 22, 12), (165, 100, 70), (50, 28, 15)),   # dark rust
-    ((170, 120, 90), (52, 36, 24), (195, 140, 105), (58, 40, 28)), # terracotta
-    ((130, 75, 50), (38, 20, 10), (155, 95, 65), (45, 25, 13)),    # deep ochre
-    ((155, 110, 85), (48, 34, 22), (180, 130, 100), (55, 38, 26)), # warm stone
+    ((200, 210, 225), (65, 72, 82), (220, 230, 240), (72, 80, 90)),   # chrome
+    ((160, 180, 210), (50, 58, 72), (180, 200, 225), (58, 66, 80)),   # glass blue
+    ((180, 190, 200), (58, 62, 68), (200, 210, 220), (65, 70, 76)),   # steel
+    ((140, 160, 190), (44, 52, 65), (160, 180, 210), (52, 60, 72)),   # deep blue
+    ((190, 200, 215), (62, 68, 78), (210, 220, 230), (68, 75, 85)),   # white steel
+    ((170, 185, 205), (55, 62, 75), (190, 205, 220), (62, 70, 82)),   # pale chrome
 )
 
 
