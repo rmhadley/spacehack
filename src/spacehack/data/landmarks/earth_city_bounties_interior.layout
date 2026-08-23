@@ -1,14 +1,17 @@
 # earth_city_bounties_interior.layout
+# The exit sits directly below the spawn point, so stepping back
+# through the door is one move from where you entered.
 MAP
 ##################
 #................#
 #..bbbb....bbbb..#
-#..b............>#
-#..b....*.......#
+#..b..........b..#
+#..b....*....b...#
 #..bbbb....bbbb..#
 #................#
 #....*...........#
 #........P.......#
+#........>.......#
 ##################
 ENDMAP
 

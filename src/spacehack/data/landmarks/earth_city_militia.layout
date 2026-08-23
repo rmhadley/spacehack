@@ -1,16 +1,21 @@
+# earth_city_militia.layout - Earth militia center exterior
+# A sturdy civic block: solid roof panels, entrance on the south
+# edge. No interior is visible from the street.
 MAP
-###################
-#RRRRRRRRRRRRRRRRR#
-#R...............R#
-#RRRRRRRRdRRRRRRRR#
-###################
+#####################
+#QQQQQQQQQQQQQQQQQQQ#
+#QqqqqqqqqqqqqqqqqqQ#
+#QQQQQQQQQQQQQQQQQQQ#
+#QqqqqqqqqqqqqqqqqqQ#
+#QQQQQQQQQQQQQQQQQQQ#
+#QQQQQQQQQQdQQQQQQQQ#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: R = CITY_BUILDING_WALL
-TILE: . = CITY_BUILDING_FLOOR
+TILE: Q = CITY_BUILDING_WALL
+TILE: q = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (105, 215, 205) / (24, 62, 64)
-COLOUR: R = (105, 215, 205) / (24, 62, 64)
-COLOUR: . = (175, 220, 205) / (48, 78, 72)
+COLOUR: Q = (125, 225, 215) / (34, 76, 78)
+COLOUR: q = (150, 235, 225) / (46, 92, 94)
 COLOUR: d = (120, 255, 235) / (26, 92, 88)

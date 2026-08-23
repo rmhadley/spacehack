@@ -1,22 +1,22 @@
 # earth_city_spaceport.layout - Earth spaceport exterior
+# A wide, solid hangar: roof panels only, with the entrance on the
+# south edge. The interior is not visible from the street.
 MAP
 #########################
-#SSSSSSSSSSSSSSSSSSSSSSS#
-#S.....................S#
-#S..s.....H......c.....S#
-#S.....................S#
-#S.....................S#
-#SSSSSSSSSSSSdSSSSSSSSSS#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WnnnnnnnnnnnnnnnnnnnnnW#
+#WWWWWWWWWWWWWWWWWWWWWWW#
+#WWWWWWWWWWWWWWWWWWdWWWW#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: S = CITY_BUILDING_WALL
-TILE: . = CITY_BUILDING_FLOOR
+TILE: W = CITY_BUILDING_WALL
+TILE: n = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
-TILE: s = CITY_BUILDING_FLOOR
-TILE: H = CITY_BUILDING_FLOOR
-TILE: c = CITY_BUILDING_FLOOR
 COLOUR: # = (110, 190, 230) / (28, 48, 68)
-COLOUR: S = (110, 190, 230) / (28, 48, 68)
-COLOUR: . = (210, 225, 205) / (70, 82, 70)
+COLOUR: W = (125, 200, 235) / (36, 60, 82)
+COLOUR: n = (175, 230, 250) / (52, 84, 108)
 COLOUR: d = (100, 240, 255) / (22, 68, 84)

@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from collections import deque
 
-from . import city_landmarks, city_tiles, world
+from . import city_landmarks, city_tiles, city_transit, world
+from .engine import seeded_rng
 
 
 EARTH_CITY_WIDTH = 160
 EARTH_CITY_HEIGHT = 100
 
-# Water runs diagonally from the northwest floodplain to the eastern coast.
+# Water runs diagonally from the west map edge to the eastern coast.
 # Bridges are deliberately wide enough to remain readable and easy to find.
 RIVER_CELLS: frozenset[tuple[int, int]] = frozenset(
     (x, y)
-    for x in range(18, 143)
+    for x in range(1, 143)
     for y in range(max(1, 42 - x // 8), min(98, 47 - x // 8) + 1)
 )
 COAST_CELLS: frozenset[tuple[int, int]] = frozenset(
@@ -29,24 +30,37 @@ BRIDGE_CROSSINGS: tuple[tuple[int, int, int], ...] = (
 )
 
 # Fixed authored origins. The assets remain easy to replace without moving
-# the surrounding city data or interaction logic.
+# the surrounding city data or interaction logic. Origins are chosen so no
+# building footprint overlaps the road grid or the river bank.
 LANDMARK_ORIGINS: dict[str, world.Position] = {
     "earth_city_spaceport": world.Position(12, 12),
     "earth_city_bar": world.Position(112, 10),
     "earth_city_bounties": world.Position(120, 58),
     "earth_city_merchants": world.Position(12, 62),
-    "earth_city_militia": world.Position(92, 72),
-    "earth_city_plaza": world.Position(70, 42),
+    "earth_city_militia": world.Position(54, 70),
+    "earth_city_plaza": world.Position(70, 52),
 }
 
-# Each service NPC remains anchored to an interior-center-like outdoor cell
-# for Phase 1. Phase 2 will make these entrances and interiors explicit.
-NPC_POSITIONS: dict[str, world.Position] = {
-    "barkeep": world.Position(119, 12),
-    "bounty_master": world.Position(128, 60),
-    "guild_master": world.Position(22, 64),
-    "militia_captain": world.Position(101, 74),
-}
+# Procedural skyline: decorative (non-enterable) buildings fill the city
+# blocks between the road grid and the river. A fixed seed keeps the same
+# city every run, matching the deterministic terrain generation.
+_SKYLINE_SEED: int = 1
+# Each scheme is ``(wall_fg, wall_bg, roof_fg, roof_bg)`` for one building.
+# Muted hues with low wall/roof contrast keep the skyline colorful but calm.
+_SKYLINE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
+    ((168, 196, 222), (58, 70, 86), (186, 208, 228), (66, 80, 96)),   # steel blue
+    ((152, 200, 192), (54, 70, 68), (172, 212, 206), (62, 80, 78)),   # teal
+    ((188, 176, 214), (66, 60, 80), (204, 194, 224), (74, 68, 88)),   # violet
+    ((218, 190, 152), (74, 62, 46), (232, 208, 176), (82, 70, 54)),   # amber
+    ((164, 200, 164), (56, 70, 56), (184, 214, 184), (64, 78, 64)),   # green
+    ((196, 196, 208), (64, 64, 72), (212, 212, 220), (72, 72, 80)),   # slate
+)
+
+# Kinds the procedural skyline must never paint over or touch.
+_SKYLINE_AVOID_KINDS: frozenset[str] = frozenset({
+    "road", "city_water", "city_shore", "city_bridge", "landing_pad",
+    "sidewalk", "city_plaza", "city_fountain", "city_ornament",
+})
 
 
 def _base_tiles() -> list[list[world.Tile]]:
@@ -125,13 +139,13 @@ def _paint_roads_and_districts(tiles: list[list[world.Tile]]) -> None:
     for x in range(3, 143):
         for y in (49, 50, 51, 78, 79, 80):
             _paint_road_cell(tiles, x, y, lane_ew if y in {50, 79} else road)
-    # Short feeder roads toward the five core districts.
+    # Short feeder roads toward the five core districts. Roads never run
+    # east of the x=108 bridge road at these latitudes: the river's diagonal
+    # bank would slice through the pavement, so the bridge road owns access
+    # to the waterfront district.
     for x in range(24, 49):
         for y in (26, 27, 28):
             _paint_road_cell(tiles, x, y, lane_ew if y == 27 else road)
-    for x in range(110, 143):
-        for y in (25, 26, 27):
-            _paint_road_cell(tiles, x, y, lane_ew if y == 26 else road)
     for x in range(50, 93):
         for y in (64, 65, 66):
             _paint_road_cell(tiles, x, y, lane_ew if y == 65 else road)
@@ -218,15 +232,6 @@ def _stamp_assets(game_map: world.GameMap) -> dict[str, city_landmarks.CityLandm
     return stamps
 
 
-def _place_service_entities(game_map: world.GameMap) -> None:
-    """Add named NPCs and spaceport fixtures while preserving interactions."""
-    for npc_id, position in NPC_POSITIONS.items():
-        # NPC identity is resolved by the planet loader before this helper;
-        # this placeholder is replaced by the loader's catalog entity.
-        del npc_id, position
-        break
-
-
 def _new_earth_map() -> world.GameMap:
     """Create and decorate the expanded outdoor terrain."""
     tiles = _base_tiles()
@@ -239,6 +244,141 @@ def _new_earth_map() -> world.GameMap:
         width=EARTH_CITY_WIDTH, height=EARTH_CITY_HEIGHT,
         tiles=tiles, entities=[],
     )
+
+
+def _building_site_free(
+    tiles: list[list[world.Tile]],
+    x: int, y: int, w: int, h: int,
+) -> bool:
+    """Whether a ``w x h`` footprint at ``(x, y)`` is a clear grass site.
+
+    The whole footprint must be bare grass and must not sit orthogonally
+    against a road, water, bridge, pad, sidewalk, or plaza tile. This
+    keeps alleys between buildings and leaves the circulation network
+    untouched.
+    """
+    for by in range(y, y + h):
+        for bx in range(x, x + w):
+            if tiles[by][bx].kind != "grass":
+                return False
+    for by in range(y, y + h):
+        for bx in range(x, x + w):
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                if tiles[by + dy][bx + dx].kind in _SKYLINE_AVOID_KINDS:
+                    return False
+    return True
+
+
+def _skyline_tile(
+    char: str,
+    fg: tuple[int, int, int],
+    bg: tuple[int, int, int],
+) -> world.Tile:
+    """Build one non-walkable skyline roof/wall tile."""
+    return world.Tile(
+        kind="city_building_wall", char=char, walkable=False,
+        fg=fg, bg=bg,
+        blocked_message="The building wall blocks your path.",
+    )
+
+
+def _paint_one_skyline_building(
+    tiles: list[list[world.Tile]],
+    x: int, y: int, w: int, h: int,
+    rng,
+) -> None:
+    """Paint one solid decorative building: a calm roof block."""
+    wall_fg, wall_bg, roof_fg, roof_bg = rng.choice(_SKYLINE_SCHEMES)
+    wall = _skyline_tile("#", wall_fg, wall_bg)
+    roof = _skyline_tile(".", roof_fg, roof_bg)
+    for by in range(y, y + h):
+        for bx in range(x, x + w):
+            if by in (y, y + h - 1) or bx in (x, x + w - 1):
+                tiles[by][bx] = wall
+            else:
+                tiles[by][bx] = roof
+
+
+def _fit_skyline_building(
+    tiles: list[list[world.Tile]],
+    x: int, y: int, bw: int, bh: int,
+) -> tuple[int, int] | None:
+    """Return a slightly smaller size that fits, or ``None``."""
+    for nbw, nbh in (
+        (bw - 1, bh), (bw, bh - 1),
+        (bw - 1, bh - 1), (bw - 2, bh - 1),
+    ):
+        if nbw >= 5 and nbh >= 4 and _building_site_free(
+            tiles, x, y, nbw, nbh,
+        ):
+            return nbw, nbh
+    return None
+
+
+def _paint_skyline(game_map: world.GameMap) -> None:
+    """Fill every free city block with varied decorative buildings.
+
+    Buildings are solid, non-walkable roof blocks in a range of sizes
+    and muted colour schemes. They never touch roads, water, the landing
+    pad, sidewalks, or plazas, so the road network and every service
+    interaction stay reachable. The fixed seed keeps the skyline
+    identical across runs and save/load rebuilds.
+    """
+    rng = seeded_rng(_SKYLINE_SEED, "earth", "skyline")
+    tiles = game_map.tiles
+    placements: list[tuple[int, int, int, int]] = []
+    y = 2
+    while y < game_map.height - 2:
+        x = 2
+        while x < game_map.width - 2:
+            if tiles[y][x].kind != "grass":
+                x += 1
+                continue
+            bw = min(rng.randint(6, 12), game_map.width - 2 - x)
+            bh = min(rng.randint(5, 9), game_map.height - 2 - y)
+            if bw < 5 or bh < 4:
+                x += 1
+                continue
+            if not _building_site_free(tiles, x, y, bw, bh):
+                fitted = _fit_skyline_building(tiles, x, y, bw, bh)
+                if fitted is None:
+                    x += 1
+                    continue
+                bw, bh = fitted
+            _paint_one_skyline_building(tiles, x, y, bw, bh, rng)
+            placements.append((x, y, bw, bh))
+            x += bw + 2
+        y += 1
+    game_map.skyline_placements = placements
+
+
+def _paint_roof_labels(game_map: world.GameMap, stamps) -> None:
+    """Carve each enterable building's name into its roof as readable text.
+
+    Bright letters replace the roof cells on a single centered band, so
+    the building reads as a rooftop sign while staying fully non-walkable.
+    """
+    label_fg = (244, 246, 240)
+    for layout_id, stamp in stamps.items():
+        label = layout_id.removeprefix("earth_city_").upper()
+        if label == "PLAZA":
+            continue
+        xs = [x for x, _ in stamp.footprint]
+        ys = [y for _, y in stamp.footprint]
+        x_lo, x_hi = min(xs), max(xs)
+        y_lo, y_hi = min(ys), max(ys)
+        row = (y_lo + y_hi) // 2
+        start = (x_lo + x_hi) // 2 - len(label) // 2
+        for index, ch in enumerate(label):
+            x = start + index
+            if not (x_lo < x < x_hi):
+                continue
+            bg = game_map.tiles[row][x].bg
+            game_map.tiles[row][x] = world.Tile(
+                kind="city_building_wall", char=ch, walkable=False,
+                fg=label_fg, bg=bg,
+                blocked_message="The building wall blocks your path.",
+            )
 
 
 def _city_building_records(spec, stamps) -> dict:
@@ -258,10 +398,6 @@ def _city_building_records(spec, stamps) -> dict:
                 (stamp.entrance.x, stamp.entrance.y)
                 if (stamp := layout_by_label[building.label]).entrance is not None
                 else None
-            ),
-            "npc_position": (
-                (NPC_POSITIONS[building.npc_id].x, NPC_POSITIONS[building.npc_id].y)
-                if building.npc_id in NPC_POSITIONS else None
             ),
             "cache_key": f"city:{spec.id}:{building.label}",
         }
@@ -298,21 +434,19 @@ def _set_city_metadata(game_map, spec, stamps) -> None:
 
 
 def _add_service_entities(game_map, spec, resolve_npc, resolve_ship) -> None:
-    """Add service NPCs, showroom ships, and spaceport terminals."""
-    for building in spec.buildings:
-        npc = resolve_npc(building.npc_id)
-        if npc is not None:
-            npc.pos = NPC_POSITIONS.get(
-                building.npc_id,
-                world.Position(building.x_lo + 2, building.y_lo + 2),
-            )
-            game_map.entities.append(npc)
-    port = next(building for building in spec.buildings if building.label == "spaceport")
+    """Add showroom ships and spaceport terminals to the street.
+
+    Service NPCs live inside their authored interiors (seated when the
+    room is first loaded), so nothing stands on the pavement outside.
+    """
+    # Showroom ships sit on the landing pad south of the solid hangar roof
+    # (offsets are relative to the pad's top-left corner, x=18 / y=20).
+    _pad_x, _pad_y = 18, 20
     for ship_id, off_x, off_y in spec.showroom_ships:
         ship_obj = resolve_ship(ship_id)
         game_map.entities.append(world.Entity(
             char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(port.x_lo + off_x, port.y_lo + off_y),
+            pos=world.Position(_pad_x + off_x, _pad_y + off_y),
             name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
             width=ship_obj.width, height=ship_obj.height,
         ))
@@ -331,6 +465,9 @@ def build_earth_city(spec, resolve_npc, resolve_ship) -> world.GameMap:
     """Build Earth's 160x100 outdoor city from data and authored assets."""
     game_map = _new_earth_map()
     stamps = _stamp_assets(game_map)
+    _paint_roof_labels(game_map, stamps)
+    _paint_skyline(game_map)
     _set_city_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_npc, resolve_ship)
+    city_transit.place_transit_stations(game_map, spec)
     return game_map

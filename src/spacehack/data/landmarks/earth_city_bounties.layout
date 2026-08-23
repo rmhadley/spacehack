@@ -1,17 +1,22 @@
 # earth_city_bounties.layout - Earth bounty guild exterior
+# A wide fortified guild block: solid roof panels, entrance on the
+# south edge. No interior is visible from the street.
 MAP
-#################
-#BBBBBBBBBBBBBBB#
-#B.............B#
-#BBBBBBBdBBBBBBB#
-#################
+###################
+#BBBBBBBBBBBBBBBBB#
+#BoooooooooooooooB#
+#BBBBBBBBBBBBBBBBB#
+#BoooooooooooooooB#
+#BBBBBBBBBBBBBBBBB#
+#BBBBBBBBBBBBBBBBB#
+#BBBBBBBdBBBBBBBBB#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
 TILE: B = CITY_BUILDING_WALL
-TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (235, 110, 190) / (58, 28, 54)
-COLOUR: B = (235, 110, 190) / (58, 28, 54)
-COLOUR: . = (205, 155, 190) / (74, 54, 72)
+COLOUR: B = (245, 135, 200) / (74, 40, 70)
+COLOUR: o = (255, 165, 215) / (92, 54, 88)
 COLOUR: d = (255, 150, 215) / (100, 52, 92)

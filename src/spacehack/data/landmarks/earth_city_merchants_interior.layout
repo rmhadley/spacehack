@@ -1,14 +1,17 @@
 # earth_city_merchants_interior.layout
+# The exit sits directly below the spawn point, so stepping back
+# through the door is one move from where you entered.
 MAP
 ##################
 #................#
 #..tttt....tttt..#
-#..t............>#
-#..t....*.......#
+#..t..........t..#
+#..t....*....t...#
 #..tttt....tttt..#
 #................#
 #....*...........#
 #........P.......#
+#........>.......#
 ##################
 ENDMAP
 

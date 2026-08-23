@@ -27,27 +27,62 @@ SPEC = PlanetSpec(
     hangar_anchor=world.Position(25, 27),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=12, x_hi=36, y_lo=12, y_hi=18,
+            label="spaceport", x_lo=12, x_hi=36, y_lo=12, y_hi=19,
             door_x=25, npc_id="",
         ),
         world.CityBuilding(
-            label="bar", x_lo=112, x_hi=124, y_lo=10, y_hi=14,
+            label="bar", x_lo=112, x_hi=126, y_lo=10, y_hi=16,
             door_x=119, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="bounties", x_lo=120, x_hi=136, y_lo=58, y_hi=62,
-            door_x=128, npc_id="bounty_master",
+            label="bounties", x_lo=120, x_hi=138, y_lo=58, y_hi=65,
+            door_x=129, npc_id="bounty_master",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=12, x_hi=34, y_lo=62, y_hi=66,
+            label="merchants", x_lo=12, x_hi=34, y_lo=62, y_hi=69,
             door_x=23, npc_id="guild_master",
         ),
         world.CityBuilding(
-            label="militia", x_lo=92, x_hi=110, y_lo=72, y_hi=76,
-            door_x=101, npc_id="militia_captain",
+            label="militia", x_lo=54, x_hi=74, y_lo=70, y_hi=76,
+            door_x=64, npc_id="militia_captain",
         ),
     ),
     city_layout_id="earth_river_coast",
+    transit_stations=(
+        # Central hub on the civic plaza, plus a stop beside each core
+        # building. The network is fully connected so the player can ride
+        # directly between districts; every stop sits on walkable ground.
+        world.TransitStation(
+            id="port", name="Spaceport", district="spaceport",
+            pos=world.Position(30, 28),
+            destinations=("hub", "bar", "bounties", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="hub", name="Central Hub", district="civic",
+            pos=world.Position(70, 52),
+            destinations=("port", "bar", "bounties", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="bar", name="Bar District", district="waterfront",
+            pos=world.Position(119, 17),
+            destinations=("port", "hub", "bounties", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="bounties", name="Bounty Guild", district="waterfront",
+            pos=world.Position(129, 66),
+            destinations=("port", "hub", "bar", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="merchants", name="Merchant Hall", district="market",
+            pos=world.Position(23, 70),
+            destinations=("port", "hub", "bar", "bounties", "militia"),
+        ),
+        world.TransitStation(
+            id="militia", name="Militia Center", district="civic",
+            pos=world.Position(65, 77),
+            destinations=("port", "hub", "bar", "bounties", "merchants"),
+        ),
+    ),
     interior_layouts=(
         ("spaceport", "earth_city_spaceport_interior"),
         ("bar", "earth_city_bar_interior"),

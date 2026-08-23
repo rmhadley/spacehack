@@ -1,17 +1,22 @@
 # earth_city_merchants.layout - Earth merchant guild exterior
+# A broad emporium block: solid roof panels, entrance on the south
+# edge. No interior is visible from the street.
 MAP
 #######################
 #MMMMMMMMMMMMMMMMMMMMM#
-#M...................M#
+#MmmmmmmmmmmmmmmmmmmmM#
+#MMMMMMMMMMMMMMMMMMMMM#
+#MmmmmmmmmmmmmmmmmmmmM#
+#MMMMMMMMMMMMMMMMMMMMM#
+#MMMMMMMMMMMMMMMMMMMMM#
 #MMMMMMMMMMdMMMMMMMMMM#
-#######################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
 TILE: M = CITY_BUILDING_WALL
-TILE: . = CITY_BUILDING_FLOOR
+TILE: m = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (120, 220, 135) / (28, 64, 42)
-COLOUR: M = (120, 220, 135) / (28, 64, 42)
-COLOUR: . = (185, 220, 175) / (58, 78, 52)
+COLOUR: M = (140, 230, 150) / (40, 80, 52)
+COLOUR: m = (165, 240, 170) / (54, 96, 64)
 COLOUR: d = (160, 255, 160) / (30, 88, 48)

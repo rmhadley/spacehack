@@ -1,4 +1,6 @@
 # earth_city_spaceport_interior.layout
+# The exit sits directly below the spawn point, so stepping back
+# through the door is one move from where you entered.
 MAP
 ##################
 #................#
@@ -7,8 +9,9 @@ MAP
 #....*.....*.....#
 #................#
 #..s....h....c...#
-#...............>.#
+#................#
 #........P.......#
+#........>.......#
 ##################
 ENDMAP
 

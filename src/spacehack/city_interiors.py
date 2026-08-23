@@ -13,8 +13,8 @@ def _building_record(game_map: world.GameMap, position: world.Position) -> dict 
     return None
 
 
-def _first_interior_npc(game_map: world.GameMap, spawn: world.Position) -> world.Entity | None:
-    """Choose a clear walkable interior cell for the transferred NPC."""
+def _first_interior_npc(game_map: world.GameMap, spawn: world.Position) -> world.Position | None:
+    """Choose a clear walkable interior cell for the resident NPC."""
     occupied = {(entity.pos.x, entity.pos.y) for entity in game_map.entities}
     candidates = [
         world.Position(x, y)
@@ -32,6 +32,23 @@ def _first_interior_npc(game_map: world.GameMap, spawn: world.Position) -> world
         key=lambda point: abs(point.x - game_map.width // 2)
         + abs(point.y - game_map.height // 2),
     )
+
+
+def _seat_building_npc(game_map: world.GameMap, record: dict) -> None:
+    """Place the building's service NPC inside its authored interior."""
+    npc_id = record.get("npc_id", "")
+    if not npc_id:
+        return
+    from .data.npcs import find_npc
+    spawn = getattr(game_map, "entry_spawn", None)
+    position = _first_interior_npc(game_map, spawn) if spawn is not None else None
+    if position is None:
+        return
+    npc = find_npc(npc_id)
+    game_map.entities.append(world.Entity(
+        char=npc.char, fg=npc.fg, pos=position,
+        name=npc.name, npc_id=npc.id, width=1, height=1,
+    ))
 
 
 def _remove_player(game_map: world.GameMap) -> None:
@@ -52,6 +69,7 @@ def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Positi
         game_map.city_parent_door = record["entrance"]
         game_map.location_name = record["display_name"]
         ctx.interiors[cache_key] = game_map
+        _seat_building_npc(game_map, record)
     spawn = getattr(game_map, "entry_spawn", None)
     if spawn is None:
         raise ValueError(f"City interior {cache_key!r} has no entry spawn")
@@ -59,24 +77,7 @@ def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Positi
     return game_map, spawn
 
 
-def _move_building_npc(parent_map, interior, record, spawn):
-    """Move the service NPC from the exterior into the room."""
-    npc_id = record.get("npc_id", "")
-    if not npc_id:
-        return None
-    npc = next(
-        (entity for entity in parent_map.entities if entity.npc_id == npc_id),
-        None,
-    )
-    if npc is None:
-        return None
-    parent_map.entities.remove(npc)
-    npc.pos = _first_interior_npc(interior, spawn) or spawn
-    interior.entities.append(npc)
-    return npc
-
-
-def _install_interior_state(state, parent_map, interior, spawn, record, parent_npc):
+def _install_interior_state(state, parent_map, interior, spawn, record):
     """Install the player and parent-map links for an active room."""
     parent_player = state.player
     if parent_player in parent_map.entities:
@@ -85,8 +86,6 @@ def _install_interior_state(state, parent_map, interior, spawn, record, parent_n
     interior.entities.append(interior_player)
     interior.city_parent_map = parent_map
     interior.city_parent_player = parent_player
-    interior.city_parent_npc = parent_npc
-    interior.city_parent_npc_position = record.get("npc_position")
     state.city_game_map = parent_map
     state.city_player = parent_player
     state.game_map = interior
@@ -107,8 +106,7 @@ def enter_city_interior(state) -> str:
     except (FileNotFoundError, ValueError):
         state.log.add("The building's interior is not available.")
         return "CONTINUE"
-    parent_npc = _move_building_npc(parent_map, interior, record, spawn)
-    _install_interior_state(state, parent_map, interior, spawn, record, parent_npc)
+    _install_interior_state(state, parent_map, interior, spawn, record)
     state.log.add(f"You enter the {record['display_name']}.")
     return "ENTERED"
 
@@ -138,15 +136,8 @@ def restore_city_interior_parent(ctx, rebuilt) -> None:
             name=f"Your Ship: {ship_module.ship_display_name(ctx.player_owned_ship)}",
             ship_id=ship_spec.id, owned=True,
         ))
-    npc_id = record.get("npc_id", "")
-    parent_npc = next((entity for entity in parent.entities if entity.npc_id == npc_id), None) if npc_id else None
-    active_npc = next((entity for entity in interior.entities if entity.npc_id == npc_id), None) if npc_id else None
-    if parent_npc is not None:
-        parent.entities.remove(parent_npc)
-    interior.city_parent_npc = active_npc
     interior.city_parent_map = parent
     interior.city_parent_player = parent_player
-    interior.city_parent_npc_position = record.get("npc_position")
 
 
 def exit_city_interior(state) -> str:
@@ -161,12 +152,6 @@ def exit_city_interior(state) -> str:
         getattr(interior, "city_building_label", ""),
     )
     _remove_player(interior)
-    npc = getattr(interior, "city_parent_npc", None)
-    if npc is not None and npc in interior.entities:
-        interior.entities.remove(npc)
-        if record is not None and record.get("npc_position") is not None:
-            npc.pos = world.Position(*record["npc_position"])
-        parent_map.entities.append(npc)
 
     parent_position = getattr(interior, "city_parent_door", None)
     if parent_position is None and record is not None:
