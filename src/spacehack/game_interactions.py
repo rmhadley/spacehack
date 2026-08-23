@@ -216,6 +216,8 @@ def _resolve_occupied(state, blocker):
     log = state.log
     if blocker.ship_id:
         return _resolve_ship_blocker(state, blocker)
+    if blocker.transit_station_id:
+        return _resolve_transit_station(state, blocker)
     if blocker.trade_terminal or blocker.mech_terminal or blocker.armory_terminal or blocker.main_quest_console or blocker.main_quest_door or blocker.interaction_flavor or blocker.dungeon_interaction or blocker.computer_terminal:
         return _resolve_terminal_blocker(state, blocker)
     if blocker.npc_ship_id:
@@ -287,6 +289,13 @@ def _resolve_terminal_blocker(state, blocker):
     elif blocker.computer_terminal:
         return _resolve_computer_terminal(state, blocker)
     return None
+
+
+def _resolve_transit_station(state, blocker):
+    """Resolve bumping a city transit stop."""
+    from .city_transit import resolve_transit_station as _ride
+    return _ride(state, blocker)
+
 
 def _log_extension_activation(state, interaction) -> None:
     """Present and log an activated dungeon interaction."""

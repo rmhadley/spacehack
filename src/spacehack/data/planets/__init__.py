@@ -72,6 +72,7 @@ class PlanetSpec:
     showroom_ships: tuple[tuple[str, int, int], ...]
     city_layout_id: str = ""
     interior_layouts: tuple[tuple[str, str], ...] = ()
+    transit_stations: tuple[world.TransitStation, ...] = ()
     theme: world.PlanetTheme | None = None
     npc_overrides: tuple[tuple[str, npc_module.NPC], ...] = ()
     # (npc_id, building_label) — where quest-conditional NPCs stand.
