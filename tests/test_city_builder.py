@@ -266,6 +266,19 @@ def test_mars_has_planned_boulevard_grid_and_distinct_high_tech_palette():
     )
 
 
+def test_authored_city_sidewalks_use_one_consistent_palette():
+    """Door approaches and main sidewalks share each city's theme colors."""
+    for planet_id in ("earth", "mercury", "mars"):
+        game_map = load_planet(planet_id)
+        palettes = {
+            (tile.fg, tile.bg)
+            for row in game_map.tiles
+            for tile in row
+            if tile.kind == "sidewalk"
+        }
+        assert len(palettes) == 1, f"{planet_id} has mixed sidewalk colors"
+
+
 def test_mars_transit_and_npcs_are_separate_from_building_doors():
     """Public stops and ambient citizens do not occupy entrances or roofs."""
     game_map = load_planet("mars")

@@ -37,13 +37,19 @@ _SKYLINE_AVOID_KINDS: frozenset[str] = frozenset({
 _ROOF_LABEL_FG: tuple[int, int, int] = (244, 246, 240)
 
 
-def stamp_city_assets(game_map: world.GameMap, origins) -> dict[str, city_landmarks.CityLandmarkStamp]:
-    """Stamp all authored exteriors and return their placement data.
+def stamp_city_assets(
+    game_map: world.GameMap,
+    origins,
+    sidewalk: world.Tile | None = None,
+) -> dict[str, city_landmarks.CityLandmarkStamp]:
+    """Stamp exteriors and route doors using the active sidewalk palette.
 
     ``origins`` maps each ``layout_id`` to its fixed ``Position``.
-    After stamping, every door gets a sidewalk route to the nearest
-    public route (road / bridge / landing pad).
+    ``sidewalk`` keeps door approaches visually consistent with the
+    layout's themed boulevard sidewalks; Earth defaults to the shared
+    palette for backwards compatibility.
     """
+    sidewalk_tile = sidewalk or world.SIDEWALK
     stamps = {
         layout_id: city_landmarks.stamp_city_landmark(
             game_map, layout_id, origin,
@@ -59,7 +65,7 @@ def stamp_city_assets(game_map: world.GameMap, origins) -> dict[str, city_landma
         for x, y in route:
             if game_map.tiles[y][x].kind in {"road", "city_bridge", "landing_pad"}:
                 continue
-            game_map.tiles[y][x] = world.SIDEWALK
+            game_map.tiles[y][x] = sidewalk_tile
     return stamps
 
 

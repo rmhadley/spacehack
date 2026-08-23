@@ -277,7 +277,9 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
 def build_mars_layout(spec, resolve_ship) -> world.GameMap:
     """Build Mars's 160x100 planned colony from data and authored assets."""
     game_map = _new_mars_map(spec)
-    stamps = stamp_city_assets(game_map, LANDMARK_ORIGINS)
+    stamps = stamp_city_assets(
+        game_map, LANDMARK_ORIGINS, sidewalk=_colony_theme().sidewalk,
+    )
     _restore_station_pads(game_map, _colony_theme())
     paint_roof_labels(game_map, stamps, "mars_")
     paint_skyline(

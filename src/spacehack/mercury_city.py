@@ -249,7 +249,9 @@ def build_mercury_layout(spec, resolve_ship) -> world.GameMap:
     every planet, so Earth and Mercury run the identical city pipeline.
     """
     game_map = _new_mercury_map(spec)
-    stamps = stamp_city_assets(game_map, LANDMARK_ORIGINS)
+    stamps = stamp_city_assets(
+        game_map, LANDMARK_ORIGINS, sidewalk=_deck_theme().sidewalk,
+    )
     paint_roof_labels(game_map, stamps, "mercury_")
     paint_skyline(
         game_map,
