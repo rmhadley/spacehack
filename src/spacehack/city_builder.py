@@ -50,6 +50,10 @@ def build_city(spec: PlanetSpec, resolve_npc, resolve_ship) -> world.GameMap:
         from .mercury_city import build_mercury_layout
 
         game_map = build_mercury_layout(spec, resolve_ship)
+    elif spec.city_layout_id == "mars_colony":
+        from .mars_city import build_mars_layout
+
+        game_map = build_mars_layout(spec, resolve_ship)
     else:
         game_map = _build_grid_city(spec, resolve_npc, resolve_ship)
     _finalize_city(game_map, spec)

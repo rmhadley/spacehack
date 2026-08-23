@@ -159,6 +159,86 @@ def test_earth_lanes_still_span_natively():
     assert max(ys) - min(ys) > earth.height // 2
 
 
+# --- Mars colony layout ---
+
+
+def test_mars_builds_with_all_systems():
+    """Mars produces a 160x100 city with buildings, transit, and NPCs."""
+    game_map = load_planet("mars")
+    assert game_map.width == 160
+    assert game_map.height == 100
+    assert len(game_map.city_buildings) == 5
+    assert len(game_map.city_transit) == 6
+    assert any(
+        getattr(e, "city_npc_id", "")
+        for e in game_map.entities
+    )
+
+
+def test_mars_building_doors_walkable_and_reachable():
+    """Every Mars building entrance is walkable and reachable from the pad."""
+    game_map = load_planet("mars")
+    reachable = _reachable(
+        game_map, find_planet_spec("mars").hangar_anchor,
+    )
+    for label, record in game_map.city_buildings.items():
+        entrance = record.get("entrance")
+        if entrance is None:
+            continue  # stamped asset did not record an entrance
+        x, y = entrance
+        assert game_map.tiles[y][x].walkable, f"{label} door not walkable"
+        assert (x, y) in reachable, f"{label} door unreachable from pad"
+
+
+def test_mars_transit_stations_walkable_and_reachable():
+    """Mars transit stops are on walkable, reachable cells."""
+    game_map = load_planet("mars")
+    reachable = _reachable(
+        game_map, find_planet_spec("mars").hangar_anchor,
+    )
+    for station_id, meta in game_map.city_transit.items():
+        x, y = meta["pos"]
+        tile = game_map.tiles[y][x]
+        assert tile.walkable, f"station {station_id} on non-walkable tile"
+        assert (x, y) in reachable, f"station {station_id} unreachable"
+
+
+def test_mars_npc_spawns_walkable_and_unblocked():
+    """Every Mars ambient citizen anchors on a walkable, unblocked cell."""
+    game_map = load_planet("mars")
+    positions = set()
+    for entity in game_map.entities:
+        if not getattr(entity, "city_npc_id", ""):
+            continue
+        tile = game_map.tiles[entity.pos.y][entity.pos.x]
+        assert tile.walkable, f"{entity.city_npc_id} on a blocked tile"
+        pos = (entity.pos.x, entity.pos.y)
+        assert pos not in positions, f"{entity.city_npc_id} overlaps another NPC"
+        positions.add(pos)
+        assert game_map.blocking_entity_at(
+            entity.pos.x, entity.pos.y, exclude=entity,
+        ) is None
+
+
+def test_mars_interiors_load_with_spawn_and_exit():
+    """Every Mars building has an authored interior with P + exit."""
+    game_map = load_planet("mars")
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert asset.spawn is not None, f"{label} interior has no spawn"
+        assert any(
+            tile.kind == "exit" for row in asset.game_map.tiles for tile in row
+        ), f"{label} interior has no exit"
+
+
+def test_mars_uses_authored_layout_not_generic_grid():
+    """Mars routes through the authored mars_colony layout, not the grid."""
+    game_map = load_planet("mars")
+    assert getattr(game_map, "city_layout_id", None) == "mars_colony"
+    assert len(getattr(game_map, "landmark_stamps", {})) == 5
+    assert len(getattr(game_map, "skyline_placements", ())) > 100
+
+
 # --- Regression: unreachable destinations, asset failures, resize ---
 
 

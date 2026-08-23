@@ -87,5 +87,23 @@ MERCURY_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("mercury_pad_guard", "militia_trooper", (3, 12), wander_radius=50, move_chance=0.9),
 )
 
+MARS_POPULATION: tuple[CityNpc, ...] = (
+    # Market square — colonists crossing the plaza.
+    CityNpc("mars_colonist_a", "civillian_bystander", (80, 35), wander_radius=80, move_chance=0.9),
+    CityNpc("mars_colonist_b", "civillian_bystander", (88, 39), wander_radius=80, move_chance=0.9),
+    CityNpc("mars_colonist_c", "civillian_bystander", (82, 41), wander_radius=80, move_chance=0.85),
+    # Bar district — patrons near the cantina.
+    CityNpc("mars_bar_patron", "civillian_bystander", (116, 17), wander_radius=80, move_chance=0.85),
+    CityNpc("mars_bar_patron_b", "civillian_bystander", (122, 19), wander_radius=80, move_chance=0.85),
+    # Spaceport apron — dock workers.
+    CityNpc("mars_pad_worker", "civillian_bystander", (28, 24), wander_radius=80, move_chance=0.8),
+    CityNpc("mars_pad_worker_b", "civillian_bystander", (32, 26), wander_radius=80, move_chance=0.8),
+    # Militia patrol — troopers walking the beat.
+    CityNpc("mars_militia_patrol", "militia_trooper", (65, 82), wander_radius=80, move_chance=0.9),
+    CityNpc("mars_militia_patrol_b", "militia_trooper", (130, 82), wander_radius=80, move_chance=0.9),
+    # Bounty board — a hunter checking the board.
+    CityNpc("mars_bounty_hunter", "civillian_bystander", (70, 58), wander_radius=80, move_chance=0.85),
+)
+
 
 __all__ = ["CityNpc", "EARTH_POPULATION"]

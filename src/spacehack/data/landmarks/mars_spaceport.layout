@@ -1,0 +1,17 @@
+# mars_spaceport.layout - Mars colony spaceport exterior
+# Solid roof block in rust palette. No visible interior from the street.
+MAP
+################
+################
+################
+################
+################
+################
+################
+################
+################
+################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+COLOUR: # = (180, 90, 60) / (55, 28, 15)

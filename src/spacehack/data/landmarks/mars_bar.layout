@@ -1,0 +1,13 @@
+# mars_bar.layout - Mars colony bar exterior
+MAP
+########
+########
+########
+########
+########
+########
+########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+COLOUR: # = (160, 100, 80) / (48, 30, 20)
