@@ -37,6 +37,9 @@ SPEC = PlanetSpec(
     height=30,
     hangar_anchor=world.Position(7, 14),
     buildings=(
+        # Building rectangles mirror the authored exterior footprints in
+        # mercury_city.LANDMARK_ORIGINS; doors open onto the deck's
+        # service roads or the landing apron.
         world.CityBuilding(
             label="spaceport",
             x_lo=2,  x_hi=15, y_lo=2,  y_hi=10,
@@ -49,7 +52,7 @@ SPEC = PlanetSpec(
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=4,  x_hi=14, y_lo=19, y_hi=25,
+            x_lo=4,  x_hi=14, y_lo=20, y_hi=26,
             door_x=9, npc_id="barkeep",
         ),
         world.CityBuilding(
@@ -58,30 +61,37 @@ SPEC = PlanetSpec(
             door_x=26, npc_id="depot_attendant",
         ),
     ),
+    city_layout_id="mercury_station",
     city_npc_population=MERCURY_POPULATION,
     transit_stations=(
-        # One stop beside each building's door — never on the door or the
-        # pad apron in front of it. The network is fully connected so the
-        # player can ride directly between districts.
+        # One stop beside each building's door (never on the door, the
+        # road, or the apron in front of it) plus a commons hub on the
+        # plaza. The network is fully connected so the player can ride
+        # directly between districts.
         world.TransitStation(
             id="port", name="Spaceport", district="spaceport",
             pos=world.Position(12, 11),
-            destinations=("lab", "bar", "supply"),
+            destinations=("hub", "lab", "bar", "supply"),
+        ),
+        world.TransitStation(
+            id="hub", name="Commons Hub", district="bar",
+            pos=world.Position(18, 21),
+            destinations=("port", "lab", "bar", "supply"),
         ),
         world.TransitStation(
             id="lab", name="Solar Lab", district="lab",
-            pos=world.Position(33, 19),
-            destinations=("port", "bar", "supply"),
+            pos=world.Position(34, 20),
+            destinations=("port", "hub", "bar", "supply"),
         ),
         world.TransitStation(
             id="bar", name="Cantina", district="bar",
-            pos=world.Position(16, 25),
-            destinations=("port", "lab", "supply"),
+            pos=world.Position(15, 26),
+            destinations=("port", "hub", "lab", "supply"),
         ),
         world.TransitStation(
             id="supply", name="Supply Depot", district="supply",
-            pos=world.Position(33, 26),
-            destinations=("port", "lab", "bar"),
+            pos=world.Position(33, 28),
+            destinations=("port", "hub", "lab", "bar"),
         ),
     ),
     interior_layouts=(

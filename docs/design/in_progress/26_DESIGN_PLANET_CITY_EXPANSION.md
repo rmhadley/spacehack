@@ -599,20 +599,30 @@ Pre-implementation audit (completed before code changes):
   and ambient NPCs — all from spec data. Earth's transit/NPC placement
   now runs through that same shared tail.
 - Mercury is the proof city: port + lab + new bar + new supply depot,
-  a fully-connected 4-stop transit network, four authored interiors
-  (`mercury_*_interior`), and a station-crew ambient population — all
-  data-only.
+  a fully-connected 5-stop transit network (port, commons hub, lab,
+  cantina, supply), four authored interiors (`mercury_*_interior`), and
+  a station-crew ambient population — all data-only.
+- Mercury now uses the **authored layout treatment** like Earth instead
+  of the legacy building boxes: four stamped exterior roof assets
+  (`mercury_*.layout`) with roof labels, a service-road strip, a
+  commons plaza, a landing apron, sparse scorched scrub, deck beacons,
+  and a small procedural skyline of utility domes — all through the
+  shared `city_layout` machinery (stamping, roof labels, skyline,
+  records), so Earth and Mercury run the identical authored pipeline.
 - Movement generalization: cities whose traffic lanes don't span the
   map (compact stations with just a pad) fall back to the whole
   walkable floor as their landmark pool, so citizens cross the base
   instead of pacing the pad. Mercury's landmark pool spans the map.
+- The authored-layout machinery was extracted from `earth_city.py` into
+  `city_layout.py` (shared by Earth + Mercury); Earth's build output is
+  byte-identical after the extraction (same seeds, same RNG order).
 - Layout-editor asset mode is now content-driven (`CITY_*` tiles =>
   city asset) instead of the `earth_city_` name prefix, so Mercury's
   interiors validate the same way Earth's do.
 - Focused tests (`tests/test_city_builder.py`) cover the shared
   pipeline, Mercury reachability, station/door placement, interiors,
   and the floor-as-lanes fallback.
-- Full suite (1376 tests), lint, architecture, smoke, and main-quest
+- Full suite (1378 tests), lint, architecture, smoke, and main-quest
   gates pass; Earth's city is byte-identical in layout to before.
 
 ## Acceptance criteria

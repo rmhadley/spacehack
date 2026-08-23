@@ -45,12 +45,44 @@ def test_earth_and_mercury_share_one_builder_path():
         )
 
 
-def test_earth_keeps_river_coast_mercury_uses_grid():
+def test_earth_keeps_river_coast_mercury_uses_station_layout():
     """Layouts dispatch on city_layout_id, not on a per-planet fork."""
     assert load_planet("earth").city_layout_id == "earth_river_coast"
     mercury = load_planet("mercury")
-    assert mercury.city_layout_id == "grid"
+    assert mercury.city_layout_id == "mercury_station"
     assert mercury.width == 40 and mercury.height == 30
+
+
+def test_mercury_uses_authored_exteriors_like_earth():
+    """Mercury's buildings are stamped authored roofs, not legacy boxes:
+    every enterable building has a landmark stamp, a roof label, and no
+    make_building-style wall/label tiles."""
+    mercury = load_planet("mercury")
+    assert set(mercury.landmark_stamps) == {
+        "mercury_spaceport", "mercury_lab", "mercury_bar", "mercury_supply",
+    }
+    label_chars = {
+        tile.char
+        for row in mercury.tiles for tile in row
+        if tile.kind == "city_building_wall" and tile.char.isalpha()
+    }
+    assert set("SPACEPORTBARSUPPLYLAB") <= label_chars
+    assert not any(
+        tile.kind == "label" for row in mercury.tiles for tile in row
+    )
+
+
+def test_mercury_deck_has_roads_plaza_and_skyline():
+    """The authored deck reads as a base: service roads, a commons plaza,
+    the landing apron, and a few decorative domes."""
+    mercury = load_planet("mercury")
+    kinds = {
+        tile.kind for row in mercury.tiles for tile in row
+    }
+    assert "road" in kinds
+    assert "plaza" in kinds
+    assert "landing_pad" in kinds
+    assert mercury.skyline_placements
 
 
 def test_mercury_transit_stations_walkable_and_off_doors():

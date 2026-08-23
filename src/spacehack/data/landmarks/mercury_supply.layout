@@ -1,0 +1,21 @@
+# mercury_supply.layout - Mercury supply depot exterior
+# A muted steel block with crate-marking bands. Solid roof, entrance
+# on the south edge; nothing inside is visible from the deck.
+MAP
+############
+#SSSSSSSSSS#
+#SccccccccS#
+#SSSSSSSSSS#
+#SccccccccS#
+#SSSSSSSSSS#
+#SSSSdSSSSS#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: S = CITY_BUILDING_WALL
+TILE: c = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (110, 110, 118) / (34, 34, 38)
+COLOUR: S = (150, 150, 158) / (50, 50, 56)
+COLOUR: c = (205, 150, 80) / (66, 46, 24)
+COLOUR: d = (255, 170, 70) / (70, 46, 20)

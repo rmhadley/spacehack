@@ -1,0 +1,23 @@
+# mercury_spaceport.layout - Mercury spaceport exterior
+# A solid scorched-metal hangar: roof panels only, with the entrance
+# on the south edge. The interior is not visible from the deck.
+MAP
+##############
+#WWWWWWWWWWWW#
+#WnnnnnnnnnnW#
+#WWWWWWWWWWWW#
+#WnnnnnnnnnnW#
+#WWWWWWWWWWWW#
+#WnnnnnnnnnnW#
+#WWWWWWWWWWWW#
+#WWWWWdWWWWWW#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: W = CITY_BUILDING_WALL
+TILE: n = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (140, 80, 55) / (42, 24, 14)
+COLOUR: W = (160, 105, 70) / (52, 32, 18)
+COLOUR: n = (205, 155, 110) / (68, 46, 26)
+COLOUR: d = (255, 190, 90) / (70, 44, 20)

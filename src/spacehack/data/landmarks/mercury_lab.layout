@@ -1,0 +1,25 @@
+# mercury_lab.layout - Mercury solar observatory exterior
+# A wide burnished block: copper roof bands over pale heat-shield
+# panels, with the entrance on the south edge. No interior visible.
+MAP
+################
+#LLLLLLLLLLLLLL#
+#LllllllllllllL#
+#LLLLLLLLLLLLLL#
+#LllllllllllllL#
+#LLLLLLLLLLLLLL#
+#LllllllllllllL#
+#LLLLLLLLLLLLLL#
+#LllllllllllllL#
+#LLLLLLLLLLLLLL#
+#LLLLLLdLLLLLLL#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: L = CITY_BUILDING_WALL
+TILE: l = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (120, 70, 45) / (36, 22, 12)
+COLOUR: L = (180, 110, 65) / (56, 34, 18)
+COLOUR: l = (215, 175, 130) / (72, 52, 32)
+COLOUR: d = (120, 235, 255) / (30, 74, 88)

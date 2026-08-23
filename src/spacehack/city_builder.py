@@ -33,17 +33,23 @@ from .data.planets import PlanetSpec
 def build_city(spec: PlanetSpec, resolve_npc, resolve_ship) -> world.GameMap:
     """Build the outdoor city for ``spec`` from data + authored assets.
 
-    Dispatches terrain generation by ``spec.city_layout_id``:
-    ``\"earth_river_coast\"`` uses Earth's authored river/coast generator
-    (``earth_city.build_earth_layout``); any other id (or empty) uses
-    the generic grid layout. Every layout then runs the same shared
-    tail — transit stations and ambient NPCs — so all landable cities
-    operate identically.
+    Dispatches terrain generation by ``spec.city_layout_id`` through a
+    small layout registry: ``\"earth_river_coast\"`` uses Earth's
+    authored river/coast generator (``earth_city.build_earth_layout``)
+    and ``\"mercury_station\"`` Mercury's authored station deck
+    (``mercury_city.build_mercury_layout``); any other id (or empty)
+    uses the generic grid layout. Every layout then runs the same
+    shared tail — transit stations and ambient NPCs — so all landable
+    cities operate identically.
     """
     if spec.city_layout_id == "earth_river_coast":
         from .earth_city import build_earth_layout
 
         game_map = build_earth_layout(spec, resolve_ship)
+    elif spec.city_layout_id == "mercury_station":
+        from .mercury_city import build_mercury_layout
+
+        game_map = build_mercury_layout(spec, resolve_ship)
     else:
         game_map = _build_grid_city(spec, resolve_npc, resolve_ship)
     _finalize_city(game_map, spec)

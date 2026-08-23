@@ -1,0 +1,23 @@
+# mercury_bar.layout - Mercury cantina exterior
+# A warm brass block with a bright sign band — the most important
+# building on any base. Solid roof, entrance on the south edge.
+MAP
+###########
+#bbbbbbbbb#
+#bgggggggb#
+#bbbbbbbbb#
+#bgggggggb#
+#bbbbbbbbb#
+#BBBBdBBBB#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: b = CITY_BUILDING_WALL
+TILE: g = CITY_BUILDING_WALL
+TILE: B = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (130, 78, 48) / (40, 24, 14)
+COLOUR: b = (185, 125, 72) / (58, 38, 20)
+COLOUR: g = (245, 205, 130) / (88, 64, 40)
+COLOUR: B = (210, 150, 90) / (66, 44, 24)
+COLOUR: d = (255, 220, 90) / (72, 48, 20)
