@@ -23,6 +23,7 @@ from .city_tiles import CITY_ORNAMENT
 
 MARS_CITY_WIDTH = 160
 MARS_CITY_HEIGHT = 100
+_PORT_ROAD_START_X = 35
 
 # A southern logistics port keeps heavy traffic at the edge of the civic
 # fabric.  The other buildings sit in distinct, serviced urban blocks.
@@ -105,7 +106,8 @@ def _paint_cell(tiles, x: int, y: int, tile: world.Tile) -> None:
 def _paint_road_corridors(tiles, theme) -> None:
     """Paint Mars's four boulevards and three connecting avenues."""
     for y_lo, y_mid, y_hi in _BOULEVARDS_Y:
-        for x in range(2, MARS_CITY_WIDTH - 2):
+        start_x = _PORT_ROAD_START_X if y_mid == 90 else 2
+        for x in range(start_x, MARS_CITY_WIDTH - 2):
             _paint_cell(tiles, x, y_lo, theme.road_surface)
             _paint_cell(tiles, x, y_mid, theme.road_ew)
             _paint_cell(tiles, x, y_hi, theme.road_surface)
@@ -118,8 +120,9 @@ def _paint_road_corridors(tiles, theme) -> None:
 
 def _paint_sidewalks(tiles, theme) -> None:
     """Add one-cell pedestrian bands beside each major road."""
-    for y_lo, _y_mid, y_hi in _BOULEVARDS_Y:
-        for x in range(2, MARS_CITY_WIDTH - 2):
+    for y_lo, y_mid, y_hi in _BOULEVARDS_Y:
+        start_x = _PORT_ROAD_START_X if y_mid == 90 else 2
+        for x in range(start_x, MARS_CITY_WIDTH - 2):
             for y in (y_lo - 1, y_hi + 1):
                 if 0 <= y < MARS_CITY_HEIGHT:
                     _paint_cell(tiles, x, y, theme.sidewalk)
@@ -167,11 +170,11 @@ def _paint_red_terrain(tiles, theme) -> None:
 
 
 def _paint_port_apron(tiles, theme, spec) -> None:
-    """Paint a compact landing apron immediately below the port."""
+    """Replace the west port road with a broad landing apron."""
     port = spec.buildings[0]
-    for y in range(port.y_hi + 1, port.y_hi + 4):
-        for x in range(port.x_lo + 5, port.x_hi - 4):
-            _paint_cell(tiles, x, y, theme.landing_pad)
+    for y in range(port.y_hi + 1, 94):
+        for x in range(3, port.x_hi + 1):
+            tiles[y][x] = theme.landing_pad
 
 
 def _paint_decorations(tiles, theme) -> None:

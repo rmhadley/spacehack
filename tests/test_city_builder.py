@@ -331,6 +331,27 @@ def test_mars_buildings_do_not_overwrite_public_corridors():
         assert not public_cells.intersection(stamp["footprint"])
 
 
+def test_mars_spaceport_apron_replaces_west_port_road():
+    """The port's west side is landing space; the city road starts east."""
+    game_map = load_planet("mars")
+    for y in range(87, 94):
+        assert all(
+            game_map.tiles[y][x].kind == "landing_pad"
+            for x in range(3, 35)
+        )
+    for y in (89, 90, 91):
+        assert game_map.tiles[y][34].kind == "landing_pad"
+        assert game_map.tiles[y][35].kind == "road"
+    port_entities = [
+        entity for entity in game_map.entities
+        if entity.pos.x < 35 and 87 <= entity.pos.y < 94
+    ]
+    assert any(entity.ship_id for entity in port_entities)
+    assert sum(entity.trade_terminal for entity in port_entities) == 1
+    assert sum(entity.mech_terminal for entity in port_entities) == 1
+    assert sum(entity.armory_terminal for entity in port_entities) == 1
+
+
 # --- Regression: unreachable destinations, asset failures, resize ---
 
 
