@@ -64,22 +64,22 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="Bar District", district="waterfront",
-            pos=world.Position(111, 17),
+            pos=world.Position(119, 18),
             destinations=("port", "hub", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Guild", district="waterfront",
-            pos=world.Position(128, 77),
+            pos=world.Position(129, 67),
             destinations=("port", "hub", "bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Merchant Hall", district="market",
-            pos=world.Position(23, 77),
+            pos=world.Position(22, 71),
             destinations=("port", "hub", "bar", "bounties", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Militia Center", district="civic",
-            pos=world.Position(65, 77),
+            pos=world.Position(66, 77),
             destinations=("port", "hub", "bar", "bounties", "merchants"),
         ),
     ),
