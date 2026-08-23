@@ -278,11 +278,38 @@ def test_mars_transit_and_npcs_are_separate_from_building_doors():
     assert doors.isdisjoint(stations)
     for position in stations:
         x, y = position
-        assert game_map.tiles[y][x].kind in {"sidewalk", "plaza", "landing_pad", "neon"}
+        assert game_map.tiles[y][x].kind != "sidewalk"
+        assert any(
+            game_map.tiles[y + dy][x + dx].kind == "sidewalk"
+            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+            if game_map.in_bounds(x + dx, y + dy)
+        )
     for entity in game_map.entities:
         if getattr(entity, "city_npc_id", ""):
             assert (entity.pos.x, entity.pos.y) not in doors
             assert (entity.pos.x, entity.pos.y) not in stations
+
+
+def test_mars_facades_are_rectangular_and_doors_are_on_outer_edges():
+    """Each authored facade is complete and exposes a real outside door."""
+    game_map = load_planet("mars")
+    for label, record in game_map.city_buildings.items():
+        layout_id = f"mars_{label}"
+        asset = city_landmarks.load_city_landmark(layout_id)
+        assert {len(row) for row in asset.tiles} == {asset.width}
+        doors = [
+            (x, y)
+            for y, row in enumerate(asset.tiles)
+            for x, tile in enumerate(row)
+            if tile.kind == "city_building_door"
+        ]
+        assert len(doors) == 1
+        door_x, door_y = doors[0]
+        assert door_y == asset.height - 1
+        assert record["entrance"] == (
+            asset_origin_x := game_map.landmark_stamps[layout_id]["origin"][0] + door_x,
+            game_map.landmark_stamps[layout_id]["origin"][1] + door_y,
+        )
 
 
 def test_mars_buildings_do_not_overwrite_major_road_corridors():

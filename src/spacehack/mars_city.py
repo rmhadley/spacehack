@@ -57,16 +57,16 @@ _PLAZA_Y_LO, _PLAZA_Y_HI = 31, 45
 # Transit platforms and civic fixtures are authored onto sidewalk/plaza cells
 # before the skyline pass, which reserves those cells from procedural roofs.
 _STATION_PADS: tuple[tuple[int, int], ...] = (
-    (35, 88),   # port interchange, beside the logistics boulevard
-    (76, 47),   # civic square, beside the central boulevard
-    (110, 23),  # north entertainment district
-    (42, 32),   # west merchant district
-    (125, 73),  # east security district
-    (82, 40),   # civic services / bounty hall
+    (35, 87),   # spaceport pad, beside the logistics boulevard
+    (76, 46),   # civic square, beside the central boulevard
+    (109, 22),  # north entertainment district
+    (43, 31),   # west merchant district
+    (125, 72),  # east security district
+    (83, 39),   # civic services / bounty hall
 )
 
 _NEON_POSITIONS: tuple[tuple[int, int], ...] = (
-    (35, 88), (76, 47), (110, 23), (42, 32), (124, 73), (82, 40),
+    (35, 87), (76, 46), (109, 22), (43, 31), (125, 72), (83, 39),
     (52, 24), (67, 24), (94, 24), (138, 24),
     (52, 48), (95, 48), (112, 48), (138, 48),
     (52, 75), (94, 75), (112, 75), (138, 75),
@@ -142,10 +142,17 @@ def _paint_plaza(tiles, theme) -> None:
 
 
 def _paint_station_pads(tiles, theme) -> None:
-    """Reserve clean sidewalk landing cells for the transit network."""
+    """Reserve one-cell pads beside sidewalks without consuming them."""
     for x, y in _STATION_PADS:
-        if tiles[y][x].kind in {"floor", "grass", "sidewalk"}:
-            tiles[y][x] = theme.sidewalk
+        if tiles[y][x].walkable and tiles[y][x].kind not in {"road", "landing_pad"}:
+            tiles[y][x] = theme.plaza
+
+
+def _restore_station_pads(game_map, theme) -> None:
+    """Restore transit pads after door routes have painted sidewalks."""
+    for x, y in _STATION_PADS:
+        if game_map.tiles[y][x].walkable:
+            game_map.tiles[y][x] = theme.plaza
 
 
 def _paint_red_terrain(tiles, theme) -> None:
@@ -169,7 +176,10 @@ def _paint_port_apron(tiles, theme, spec) -> None:
 
 def _paint_decorations(tiles, theme) -> None:
     """Place restrained signal lights around public spaces and roads."""
+    station_pads = set(_STATION_PADS)
     for x, y in _NEON_POSITIONS:
+        if (x, y) in station_pads:
+            continue
         if tiles[y][x].kind in {"sidewalk", "plaza", "landing_pad"}:
             tiles[y][x] = theme.neon
     for x, y in _ORNAMENT_POSITIONS:
@@ -253,6 +263,7 @@ def build_mars_layout(spec, resolve_ship) -> world.GameMap:
     """Build Mars's 160x100 planned colony from data and authored assets."""
     game_map = _new_mars_map(spec)
     stamps = stamp_city_assets(game_map, LANDMARK_ORIGINS)
+    _restore_station_pads(game_map, _colony_theme())
     paint_roof_labels(game_map, stamps, "mars_")
     paint_skyline(
         game_map,

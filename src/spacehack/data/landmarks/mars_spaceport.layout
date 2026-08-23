@@ -1,22 +1,20 @@
 # mars_spaceport.layout - Mars colony logistics terminal
 MAP
 #########################
-#CCCCCcccccCCCCCcccccCC#
-#CgggggggggggggggggggggC#
-#CgggggggggggggggggggggC#
-#CCCCCcccccCCCCCcccccCC#
-#CgggggggggggggggggggggC#
-#CCCCCCCCdCCCCCCCCCCCCCC#
-#########################
+#AAAAAAAAAAAAAAAAAAAAAAA#
+#A.....................A#
+#A.....................A#
+#AAAAAAAAAAAAAAAAAAAAAAA#
+#A.....................A#
+#AAAAAAAAAAAAAAAAAAAAAAA#
+###################d#####
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: C = CITY_BUILDING_WALL
-TILE: c = CITY_BUILDING_WALL
-TILE: g = CITY_BUILDING_WALL
+TILE: A = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (220, 232, 238) / (38, 50, 62)
-COLOUR: C = (174, 222, 232) / (30, 68, 82)
-COLOUR: c = (90, 238, 250) / (24, 56, 70)
-COLOUR: g = (205, 218, 224) / (44, 54, 62)
+COLOUR: A = (174, 222, 232) / (30, 68, 82)
+COLOUR: . = (205, 218, 224) / (44, 54, 62)
 COLOUR: d = (100, 245, 255) / (20, 70, 82)

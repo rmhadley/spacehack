@@ -93,8 +93,8 @@ MARS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("mars_colonist_b", "civillian_bystander", (71, 42), wander_radius=80, move_chance=0.9),
     CityNpc("mars_colonist_c", "civillian_bystander", (74, 46), wander_radius=80, move_chance=0.85),
     # Entertainment district — patrons move along the north boulevard.
-    CityNpc("mars_bar_patron", "civillian_bystander", (116, 23), wander_radius=80, move_chance=0.85),
-    CityNpc("mars_bar_patron_b", "civillian_bystander", (114, 22), wander_radius=80, move_chance=0.85),
+    CityNpc("mars_bar_patron", "civillian_bystander", (116, 22), wander_radius=80, move_chance=0.85),
+    CityNpc("mars_bar_patron_b", "civillian_bystander", (115, 21), wander_radius=80, move_chance=0.85),
     # Spaceport apron — dock workers on the logistics boulevard.
     CityNpc("mars_pad_worker", "civillian_bystander", (30, 88), wander_radius=80, move_chance=0.8),
     CityNpc("mars_pad_worker_b", "civillian_bystander", (25, 91), wander_radius=80, move_chance=0.8),
@@ -102,7 +102,7 @@ MARS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("mars_militia_patrol", "militia_trooper", (124, 73), wander_radius=80, move_chance=0.9),
     CityNpc("mars_militia_patrol_b", "militia_trooper", (128, 73), wander_radius=80, move_chance=0.9),
     # Civic services — a hunter checking the board.
-    CityNpc("mars_bounty_hunter", "civillian_bystander", (83, 40), wander_radius=80, move_chance=0.85),
+    CityNpc("mars_bounty_hunter", "civillian_bystander", (83, 38), wander_radius=80, move_chance=0.85),
 )
 
 
