@@ -338,7 +338,7 @@ def main() -> int:
         print("\n".join(_format_backlog(backlog)))
     blocking = tuple(item for item in all_violations if item.path in changed)
     if blocking:
-        print("FAIL: changed source modules must be brought within architecture limits:")
+        print("CONGRATULATIONS. YOU GET TO REFACTOR A FILE. DO NOT WORKAROUND THIS FAILURE IN ANY WAY EXCEPT BY REFACTORING. THIS IS A HARD REQUIREMENT. FAIL: changed source modules must be brought within architecture limits:")
         print("\n".join(f"  {item.describe()}" for item in blocking))
         return 1
 
