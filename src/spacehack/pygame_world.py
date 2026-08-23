@@ -26,6 +26,10 @@ def _command_from_data(data: Any) -> world.WorldDrawCommand:
             char=str(data["char"]),
             fg=tuple(data["fg"]),
             bg=None if data.get("bg") is None else tuple(data["bg"]),
+            preserve_underlay=bool(data.get("preserve_underlay", False)),
+            underlay_char=data.get("underlay_char"),
+            underlay_fg=None if data.get("underlay_fg") is None else tuple(data["underlay_fg"]),
+            underlay_bg=None if data.get("underlay_bg") is None else tuple(data["underlay_bg"]),
         )
     return world.WorldDrawCommand(
         x=int(data.x),
@@ -33,4 +37,8 @@ def _command_from_data(data: Any) -> world.WorldDrawCommand:
         char=str(data.char),
         fg=tuple(int(value) for value in data.fg),
         bg=None if data.bg is None else tuple(int(value) for value in data.bg),
+        preserve_underlay=bool(getattr(data, "preserve_underlay", False)),
+        underlay_char=getattr(data, "underlay_char", None),
+        underlay_fg=getattr(data, "underlay_fg", None),
+        underlay_bg=getattr(data, "underlay_bg", None),
     )

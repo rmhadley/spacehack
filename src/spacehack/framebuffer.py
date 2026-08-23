@@ -26,6 +26,10 @@ class FrameCell:
     char: str = " "
     fg: Color = DEFAULT_FOREGROUND
     bg: Color | None = DEFAULT_BACKGROUND
+    preserve_underlay: bool = False
+    underlay_char: str | None = None
+    underlay_fg: Color | None = None
+    underlay_bg: Color | None = None
 
 
 class FrameBuffer:
@@ -111,6 +115,10 @@ class FrameBuffer:
         string: str = "",
         fg: Color = DEFAULT_FOREGROUND,
         bg: Color | None = DEFAULT_BACKGROUND,
+        preserve_underlay: bool = False,
+        underlay_char: str | None = None,
+        underlay_fg: Color | None = None,
+        underlay_bg: Color | None = None,
         **_kwargs: object,
     ) -> None:
         """Write clipped text using the legacy renderer call shape."""
@@ -127,6 +135,10 @@ class FrameBuffer:
                     char=character,
                     fg=tuple(fg),
                     bg=self._write_background(cell_x, cell_y, bg, character),
+                    preserve_underlay=preserve_underlay,
+                    underlay_char=underlay_char,
+                    underlay_fg=underlay_fg,
+                    underlay_bg=underlay_bg,
                 ),
             )
             cell_x += 1
@@ -145,6 +157,10 @@ class FrameBuffer:
         *,
         fg: Color = DEFAULT_FOREGROUND,
         bg: Color | None = DEFAULT_BACKGROUND,
+        preserve_underlay: bool = False,
+        underlay_char: str | None = None,
+        underlay_fg: Color | None = None,
+        underlay_bg: Color | None = None,
     ) -> None:
         """Write one already-positioned cell with normal clipping."""
         self._write_cell(
@@ -154,6 +170,10 @@ class FrameBuffer:
                 char=char,
                 fg=tuple(fg),
                 bg=self._write_background(x, y, bg, char),
+                preserve_underlay=preserve_underlay,
+                underlay_char=underlay_char,
+                underlay_fg=underlay_fg,
+                underlay_bg=underlay_bg,
             ),
         )
 
@@ -163,7 +183,10 @@ class FrameBuffer:
         from .world import WorldDrawCommand
 
         return [
-            WorldDrawCommand(x, y, cell.char, cell.fg, cell.bg)
+            WorldDrawCommand(
+                x, y, cell.char, cell.fg, cell.bg, cell.preserve_underlay,
+                cell.underlay_char, cell.underlay_fg, cell.underlay_bg,
+            )
             for x, y, cell in self.iter_cells()
             if cell != self._default or (x, y) in self._written
         ]

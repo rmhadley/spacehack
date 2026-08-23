@@ -186,7 +186,8 @@ def test_world_commands_center_small_map_and_preserve_tile_backgrounds():
         4, 4, ".", (200, 210, 220), (10, 20, 30),
     )
     assert commands[-1] == world.WorldDrawCommand(
-        5, 5, "@", (255, 255, 255), None,
+        5, 5, "@", (255, 255, 255), None, True,
+        ".", (200, 210, 220), (10, 20, 30),
     )
 
 
@@ -205,6 +206,7 @@ def test_render_world_preserves_tile_background_behind_entity_glyphs():
     )
 
     assert console.cell(1, 1).bg == (10, 20, 30)
+    assert console.cell(1, 1).preserve_underlay is True
 
 
 def test_ac_ii_hangar_entity_preserves_ice_landing_pad_background():

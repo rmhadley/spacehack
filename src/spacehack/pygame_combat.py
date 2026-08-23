@@ -153,6 +153,10 @@ def _map_console(console: FrameBuffer, all_commands: tuple) -> pygame_world.Capt
                 command.char,
                 fg=command.fg,
                 bg=command.bg,
+                preserve_underlay=command.preserve_underlay,
+                underlay_char=command.underlay_char,
+                underlay_fg=command.underlay_fg,
+                underlay_bg=command.underlay_bg,
             )
     return map_console
 

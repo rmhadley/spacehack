@@ -277,6 +277,31 @@ def test_glyph_atlas_keeps_landing_pad_background_around_entity_ink():
         pygame.quit()
 
 
+def test_entity_glyph_preserves_sidewalk_texture_underlay():
+    pygame = pytest.importorskip("pygame")
+    from src.spacehack.engine import load_tileset
+
+    pygame.init()
+    try:
+        atlas = pygame_engine.GlyphAtlas.from_processed_tileset(
+            pygame, load_tileset(),
+        )
+        background = (72, 86, 92)
+        sidewalk_fg = (190, 205, 208)
+        surface = pygame.Surface((16, 16), pygame.SRCALPHA)
+        atlas.blit(surface, "▒", 0, 0, fg=sidewalk_fg, bg=background)
+        atlas.blit(surface, "@", 0, 0, fg=(255, 255, 255), bg=None)
+
+        sidewalk_pixels = 0
+        for x in range(16):
+            for y in range(16):
+                if surface.get_at((x, y))[:3] == sidewalk_fg:
+                    sidewalk_pixels += 1
+        assert sidewalk_pixels > 0
+    finally:
+        pygame.quit()
+
+
 def test_pygame_runtime_inherits_tile_background_for_entity_glyphs():
     from src.spacehack import world
 
@@ -314,6 +339,45 @@ def test_pygame_runtime_inherits_tile_background_for_entity_glyphs():
     runtime.present(frame)
 
     assert [blit["bg"] for blit in blits] == [(10, 20, 30), (10, 20, 30)]
+
+
+def test_pygame_runtime_skips_flat_fill_for_underlay_entity():
+    from src.spacehack import world
+
+    blits = []
+
+    class FakeSurface:
+        def fill(self, _color):
+            pass
+
+    class FakeGlyphs:
+        tile_width = 16
+        tile_height = 16
+
+        def blit(self, *_args, **kwargs):
+            blits.append(kwargs)
+
+    fake_engine = SimpleNamespace(
+        logical_surface=FakeSurface(),
+        glyphs=FakeGlyphs(),
+        pygame=SimpleNamespace(),
+        config=pygame_engine.PygameEngineConfig(),
+        clear=lambda _color: None,
+        present=lambda: None,
+    )
+    runtime = pygame_runtime.PygameRuntime(object())
+    runtime.engine = fake_engine
+    frame = SimpleNamespace(
+        default_background=lambda: None,
+        to_commands=lambda: (
+            world.WorldDrawCommand(1, 1, ".", (190, 205, 208), (72, 86, 92)),
+            world.WorldDrawCommand(1, 1, "@", (255, 255, 255), (72, 86, 92), True),
+        ),
+    )
+
+    runtime.present(frame)
+
+    assert [blit["bg"] for blit in blits] == [(72, 86, 92), None]
 
 
 def test_pygame_runtime_present_uses_framebuffer_default_background():

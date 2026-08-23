@@ -32,6 +32,10 @@ class WorldDrawCommand:
     char: str
     fg: tuple[int, int, int]
     bg: tuple[int, int, int] | None = None
+    preserve_underlay: bool = False
+    underlay_char: str | None = None
+    underlay_fg: tuple[int, int, int] | None = None
+    underlay_bg: tuple[int, int, int] | None = None
 
 
 def _dim_color(color: tuple[int, int, int]) -> tuple[int, int, int]:
@@ -135,11 +139,19 @@ def _append_one_entity(
                 and camera_y <= map_y < camera_y + region_h
             ):
                 continue
+            underlay_tile = game_map.tiles[map_y][map_x]
+            underlay_fg, underlay_bg = _tile_render_colors(
+                game_map, map_x, map_y, underlay_tile,
+            )
             commands.append(WorldDrawCommand(
                 region_x + map_x - camera_x,
                 region_y + map_y - camera_y,
                 entity.char,
                 fg,
+                preserve_underlay=True,
+                underlay_char=underlay_tile.char,
+                underlay_fg=underlay_fg,
+                underlay_bg=underlay_bg,
             ))
 
 
@@ -235,7 +247,14 @@ def _render_commands(
 ) -> None:
     """Paint a renderer-neutral command stream onto a project framebuffer."""
     for command in commands:
-        kwargs = {"x": command.x, "y": command.y, "string": command.char, "fg": command.fg}
+        kwargs = {
+            "x": command.x, "y": command.y, "string": command.char,
+            "fg": command.fg,
+            "preserve_underlay": command.preserve_underlay,
+            "underlay_char": command.underlay_char,
+            "underlay_fg": command.underlay_fg,
+            "underlay_bg": command.underlay_bg,
+        }
         if command.bg is not None:
             kwargs["bg"] = command.bg
         console.print(**kwargs)
