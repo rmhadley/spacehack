@@ -673,3 +673,68 @@ All product questions discussed so far are resolved:
 
 Implementation-specific choices will be settled in the pre-implementation audit
 and recorded before code changes begin.
+
+### Phase 6 — Author every landable city
+
+Every landable planet currently runs through the generic grid builder with
+no transit, no interiors, and no ambient NPCs. Phase 6 gives each city the
+same full treatment Earth and Mercury already have: themed layout, transit
+network, authored interiors, and a living population.
+
+**Per-city checklist** (repeat for each planet):
+
+1. Choose a layout id and size appropriate to the planet's theme and role.
+2. Write a `*_city.py` layout module (or extend the generic builder) with
+   terrain painting, road grid, skyline, and decoration.
+3. Expand the `PlanetSpec`: buildings, transit stations, interior layouts,
+   and NPC population — all data.
+4. Author exterior landmark assets (`*_spaceport.layout`, `*_bar.layout`, etc.)
+   and interior assets (`*_interior.layout`) for every enterable building.
+5. Verify: every door reachable from the pad, every transit stop off-road,
+   every NPC spawn on a walkable cell, every interior loads with spawn + exit.
+6. Run the full gate and commit.
+
+**Cities** (26 total, 2 done):
+
+- [x] Earth — authored river-coast layout (Phase 1–5)
+- [x] Mercury — authored desert-station layout (Phase 5)
+- [ ] Mars — red planet, militia presence, surface dungeon tie-in
+- [ ] Epsilon Eridani b (`eri_b`) — 4 buildings (spaceport, bar, merchants, militia)
+- [ ] Wolf 359 b (`wolf_b`) — 3 buildings (spaceport, bar, depot), delve site
+- [ ] Cygni b (`cygni_b`) — 4 buildings (spaceport, bar, merchants, militia)
+- [ ] Barnard's Star b (`barnards_b`) — 3 buildings (spaceport, bar, depot)
+- [ ] Barnard's Star c (`barnards_c`) — 2 buildings (spaceport, bar)
+- [ ] Ross b (`ross_b`) — 4 buildings (spaceport, bar, bounties, depot)
+- [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
+- [ ] Tau Ceti b (`tc_b`) — 3 buildings (spaceport, bar, merchants)
+- [ ] Vega b (`vega_b`) — 3 buildings (spaceport, bar, merchants)
+- [ ] Lalande b (`lal_b`) — 4 buildings (spaceport, bar, bounties, depot)
+- [ ] Lalande c (`lal_c`) — 4 buildings (spaceport, bar, merchants, bounties)
+- [ ] Groombridge b (`groom_b`) — 4 buildings (spaceport, bar, bounties, depot)
+- [ ] Indi b (`indi_b`) — 4 buildings (spaceport, bar, merchants, militia)
+- [ ] Procyon planet 1 (`proc_planet_1`) — 2 buildings (spaceport, bar)
+- [ ] Procyon planet 2 (`proc_planet_2`) — 2 buildings (spaceport, lab)
+- [ ] AC planet 1 (`ac_planet_1`) — 2 buildings (spaceport, bar)
+- [ ] AC planet 2 (`ac_planet_2`) — 2 buildings (spaceport, lab)
+- [ ] AC planet 3 (`ac_planet_3`) — 2 buildings (spaceport, bar)
+- [ ] AC station (`ac_station`) — 3 buildings (spaceport, archive, lab)
+- [ ] Sirius Station (`sirius_station`) — 2 buildings (spaceport, lab)
+- [ ] Venus (`venus`) — 2 buildings (spaceport, bar)
+- [ ] Depot (`depot`) — 2 buildings (spaceport, depot)
+- [ ] Blockade (`blockade`) — 3 buildings (spaceport, militia, bounties)
+
+**Prioritization** (recommended order):
+
+1. **Mars** — main-quest critical, surface dungeon tie-in, highest player traffic
+2. **erib, wolf_b, cygni_b, lal_b** — main-quest delve/bounty/smuggle targets
+3. **Full-service hubs** (eri_b, indi_b, ross_b, groom_b, lal_c, tc_b, vega_b)
+4. **Stations** (sirius_station, ac_station) — compact, thematic
+5. **Outposts** (barnards_b/c, ross_c, proc_planet_1/2, ac_planet_1/2/3, venus, depot, blockade)
+
+**PLAYTEST** (after each city):
+
+1. Land, walk to every building, enter and exit each interior.
+2. Ride transit between all stops.
+3. Talk to ambient NPCs.
+4. Verify the city reads as thematically distinct from Earth and Mercury.
+5. Run `make check`.
