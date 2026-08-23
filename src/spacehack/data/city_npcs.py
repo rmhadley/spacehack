@@ -96,8 +96,8 @@ MARS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("mars_bar_patron", "civillian_bystander", (116, 22), wander_radius=80, move_chance=0.85),
     CityNpc("mars_bar_patron_b", "civillian_bystander", (115, 21), wander_radius=80, move_chance=0.85),
     # Spaceport apron — dock workers on the logistics boulevard.
-    CityNpc("mars_pad_worker", "civillian_bystander", (30, 88), wander_radius=80, move_chance=0.8),
-    CityNpc("mars_pad_worker_b", "civillian_bystander", (25, 91), wander_radius=80, move_chance=0.8),
+    CityNpc("mars_pad_worker", "civillian_bystander", (14, 89), wander_radius=80, move_chance=0.8),
+    CityNpc("mars_pad_worker_b", "civillian_bystander", (21, 93), wander_radius=80, move_chance=0.8),
     # Security district — troopers walking the east avenue.
     CityNpc("mars_militia_patrol", "militia_trooper", (127, 73), wander_radius=80, move_chance=0.9),
     CityNpc("mars_militia_patrol_b", "militia_trooper", (130, 73), wander_radius=80, move_chance=0.9),

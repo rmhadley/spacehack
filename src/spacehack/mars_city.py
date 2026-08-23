@@ -251,9 +251,9 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
             width=ship_obj.width, height=ship_obj.height,
         ))
     terminal_data = (
-        ("=", "Trade Terminal", (17, 88), "trade_terminal", (100, 230, 255)),
-        ("%", "Mechanic Terminal", (22, 88), "mech_terminal", (190, 240, 150)),
-        ("A", "Armory Terminal", (27, 88), "armory_terminal", (255, 170, 90)),
+        ("=", "Trade Terminal", (8, 92), "trade_terminal", (100, 230, 255)),
+        ("%", "Mechanic Terminal", (18, 92), "mech_terminal", (190, 240, 150)),
+        ("A", "Armory Terminal", (28, 92), "armory_terminal", (255, 170, 90)),
     )
     for char, name, position, flag, fg in terminal_data:
         game_map.entities.append(world.Entity(

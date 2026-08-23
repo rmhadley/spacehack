@@ -350,6 +350,20 @@ def test_mars_spaceport_apron_replaces_west_port_road():
     assert sum(entity.trade_terminal for entity in port_entities) == 1
     assert sum(entity.mech_terminal for entity in port_entities) == 1
     assert sum(entity.armory_terminal for entity in port_entities) == 1
+    fixtures = [
+        entity for entity in port_entities
+        if entity.ship_id or entity.trade_terminal
+        or entity.mech_terminal or entity.armory_terminal
+    ]
+    fixture_cells = {
+        (x, y)
+        for entity in fixtures
+        for y in range(entity.pos.y, entity.pos.y + entity.height)
+        for x in range(entity.pos.x, entity.pos.x + entity.width)
+    }
+    assert len(fixture_cells) == sum(entity.width * entity.height for entity in fixtures)
+    assert max(x for x, _ in fixture_cells) - min(x for x, _ in fixture_cells) >= 15
+    assert max(y for _, y in fixture_cells) - min(y for _, y in fixture_cells) >= 3
 
 
 # --- Regression: unreachable destinations, asset failures, resize ---
