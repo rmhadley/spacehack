@@ -1,18 +1,17 @@
-# mars_bar_interior.layout - Mars colony cantina
-# Bar counter with stools and drink displays. Exit below spawn.
+# mars_bar_interior.layout - Mars entertainment pavilion interior
 MAP
-####################
-#..................#
-#..bbbbbbbb........#
-#..b........b......#
-#..b..t..t..b......#
-#..b..g..g..b......#
-#..bbbbbbbb........#
-#..................#
-#..................#
-#........P.........#
-#........>.........#
-####################
+######################
+#....................#
+#..bbbbbbbbbb........#
+#..b........b.......#
+#..b..t..t..b..*....#
+#..b..g..g..b.......#
+#..bbbbbbbbbb.......#
+#......==...........#
+#..t..t.............#
+#.........P.........#
+#.........>.........#
+######################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
@@ -20,9 +19,13 @@ TILE: . = INTERIOR
 TILE: b = BAR_BODY
 TILE: t = TABLE
 TILE: g = DRINK
+TILE: * = MARS_HOLO
+TILE: = = MARS_PARTITION
 TILE: > = EXIT
-COLOUR: # = (160, 100, 80) / (48, 30, 20)
-COLOUR: . = (225, 205, 155) / (100, 86, 58)
-COLOUR: b = (180, 100, 60) / (90, 75, 50)
-COLOUR: t = (255, 200, 80) / (130, 108, 70)
-COLOUR: g = (255, 80, 40) / (130, 108, 70)
+COLOUR: # = (225, 230, 232) / (42, 48, 58)
+COLOUR: . = (190, 205, 208) / (72, 86, 92)
+COLOUR: b = (175, 125, 70) / (78, 54, 34)
+COLOUR: t = (230, 178, 92) / (72, 52, 36)
+COLOUR: g = (255, 76, 68) / (72, 52, 36)
+COLOUR: * = (150, 245, 255) / (28, 68, 82)
+COLOUR: = = (195, 220, 225) / (48, 68, 76)

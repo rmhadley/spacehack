@@ -1,21 +1,22 @@
-# mars_spaceport.layout - Mars colony spaceport exterior
-# Solid hangar roof with entrance door on the south edge.
+# mars_spaceport.layout - Mars colony logistics terminal
 MAP
 #########################
-#WWWWWWWWWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnnnnnnnnnW#
-#WWWWWWWWWWWWWWWWWWWWWWW#
-#WWWWWWWWWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnnnnnnnnnW#
-#WWWWWWWWWWWWWWWWWWWWWWW#
-#WWWWWWWWdWWWWWWWWWWWWWW#
+#CCCCCcccccCCCCCcccccCC#
+#CgggggggggggggggggggggC#
+#CgggggggggggggggggggggC#
+#CCCCCcccccCCCCCcccccCC#
+#CgggggggggggggggggggggC#
+#CCCCCCCCdCCCCCCCCCCCCCC#
+#########################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: W = CITY_BUILDING_WALL
-TILE: n = CITY_BUILDING_WALL
+TILE: C = CITY_BUILDING_WALL
+TILE: c = CITY_BUILDING_WALL
+TILE: g = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
-COLOUR: # = (180, 90, 60) / (55, 28, 15)
-COLOUR: W = (195, 105, 70) / (62, 32, 18)
-COLOUR: n = (210, 120, 80) / (68, 36, 20)
-COLOUR: d = (100, 240, 255) / (22, 68, 84)
+COLOUR: # = (220, 232, 238) / (38, 50, 62)
+COLOUR: C = (174, 222, 232) / (30, 68, 82)
+COLOUR: c = (90, 238, 250) / (24, 56, 70)
+COLOUR: g = (205, 218, 224) / (44, 54, 62)
+COLOUR: d = (100, 245, 255) / (20, 70, 82)

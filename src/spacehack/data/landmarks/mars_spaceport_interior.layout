@@ -1,30 +1,29 @@
-# mars_spaceport_interior.layout - Mars colony spaceport interior
-# Landing bay with service terminals. Exit below spawn.
+# mars_spaceport_interior.layout - Mars logistics terminal interior
 MAP
-######################
-#....................#
-#..s......h......c...#
-#....................#
-#....*...........*...#
-#....................#
-#..s......h......c...#
-#....................#
-#....................#
-#........P...........#
-#........>...........#
-######################
+########################
+#..c...==....==...c....#
+#......................#
+#..====....*....====...#
+#..c................c..#
+#......==....==........#
+#......................#
+#..c....!....!....c....#
+#......................#
+#..........P...........#
+#..........>...........#
+########################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
 TILE: . = INTERIOR
-TILE: s = CITY_ORNAMENT
-TILE: h = CITY_FOUNTAIN
-TILE: c = CITY_BRIDGE
-TILE: * = CITY_ORNAMENT
+TILE: c = MARS_CONSOLE
+TILE: = = MARS_PARTITION
+TILE: * = MARS_HOLO
+TILE: ! = MARS_SIGNAL
 TILE: > = EXIT
-COLOUR: # = (180, 90, 60) / (55, 28, 15)
-COLOUR: . = (225, 205, 155) / (100, 86, 58)
-COLOUR: s = (120, 220, 255) / (42, 72, 92)
-COLOUR: h = (255, 180, 60) / (88, 64, 34)
-COLOUR: c = (180, 220, 235) / (55, 72, 88)
-COLOUR: * = (120, 220, 255) / (42, 72, 92)
+COLOUR: # = (220, 232, 238) / (38, 50, 62)
+COLOUR: . = (190, 205, 208) / (72, 86, 92)
+COLOUR: c = (95, 245, 255) / (24, 62, 76)
+COLOUR: = = (195, 220, 225) / (48, 68, 76)
+COLOUR: * = (150, 245, 255) / (28, 68, 82)
+COLOUR: ! = (255, 170, 72) / (76, 44, 26)

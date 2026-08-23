@@ -1,19 +1,21 @@
-# mars_bounties.layout - Mars colony bounty board exterior
+# mars_bounties.layout - Mars colony civic services hall
 MAP
 ###################
-#WWWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnW#
-#WWWWWWWWWWWWWWWWW#
-#WWWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnW#
-#WWWWWWWWdWWWWWW#
+#CCCCccCCCCccCCCCC#
+#CgggggggggggggggC#
+#CgggggggggggggggC#
+#CCCCccCCCCccCCCCC#
+#CgggggggggggggggC#
+#########d#########
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: W = CITY_BUILDING_WALL
-TILE: n = CITY_BUILDING_WALL
+TILE: C = CITY_BUILDING_WALL
+TILE: c = CITY_BUILDING_WALL
+TILE: g = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
-COLOUR: # = (155, 110, 85) / (48, 34, 22)
-COLOUR: W = (170, 125, 95) / (54, 38, 26)
-COLOUR: n = (185, 140, 105) / (60, 42, 30)
-COLOUR: d = (100, 240, 255) / (22, 68, 84)
+COLOUR: # = (224, 232, 236) / (40, 50, 60)
+COLOUR: C = (178, 222, 232) / (28, 66, 80)
+COLOUR: c = (255, 170, 82) / (72, 42, 26)
+COLOUR: g = (206, 216, 222) / (44, 52, 60)
+COLOUR: d = (100, 245, 255) / (20, 70, 82)

@@ -239,6 +239,65 @@ def test_mars_uses_authored_layout_not_generic_grid():
     assert len(getattr(game_map, "skyline_placements", ())) > 100
 
 
+def test_mars_has_planned_boulevard_grid_and_distinct_high_tech_palette():
+    """Mars uses rectilinear avenues and a high-tech public realm."""
+    game_map = load_planet("mars")
+    road_cells = {
+        (x, y): tile
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "road"
+    }
+    horizontal = sum(
+        all((x, y) in road_cells for x in range(2, game_map.width - 2))
+        for y in range(game_map.height)
+    )
+    vertical = sum(
+        all((x, y) in road_cells for y in range(2, game_map.height - 2))
+        for x in range(game_map.width)
+    )
+    assert horizontal >= 4
+    assert vertical >= 3
+    assert any(tile.kind == "sidewalk" for row in game_map.tiles for tile in row)
+    assert any(tile.kind == "monument" for row in game_map.tiles for tile in row)
+    assert any(
+        tile.kind == "city_building_wall" and tile.bg[2] > tile.bg[0]
+        for row in game_map.tiles for tile in row
+    )
+
+
+def test_mars_transit_and_npcs_are_separate_from_building_doors():
+    """Public stops and ambient citizens do not occupy entrances or roofs."""
+    game_map = load_planet("mars")
+    doors = {
+        record["entrance"] for record in game_map.city_buildings.values()
+    }
+    stations = {
+        metadata["pos"] for metadata in game_map.city_transit.values()
+    }
+    assert doors.isdisjoint(stations)
+    for position in stations:
+        x, y = position
+        assert game_map.tiles[y][x].kind in {"sidewalk", "plaza", "landing_pad", "neon"}
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", ""):
+            assert (entity.pos.x, entity.pos.y) not in doors
+            assert (entity.pos.x, entity.pos.y) not in stations
+
+
+def test_mars_buildings_do_not_overwrite_major_road_corridors():
+    """The planned city keeps building footprints off its public roads."""
+    game_map = load_planet("mars")
+    road_cells = {
+        (x, y)
+        for y in range(game_map.height)
+        for x in range(game_map.width)
+        if game_map.tiles[y][x].kind == "road"
+    }
+    for stamp in game_map.landmark_stamps.values():
+        assert not road_cells.intersection(stamp["footprint"])
+
+
 # --- Regression: unreachable destinations, asset failures, resize ---
 
 

@@ -1,21 +1,20 @@
 """Mars: humanity's first off-world colony — a sleek, modern terraformed city.
 
-Mars is a 160x100 scrolling city (same size as Earth) with a red/rust
-palette but a clean, high-tech feel — colonized with advanced terraforming
-tech, no old history.  The spaceport sits at the heart of the city;
-buildings radiate outward along hub-and-spoke roads.
+Mars is a 160x100 scrolling city (same size as Earth) with open red dust
+between districts and a deliberately engineered high-tech public realm.
+The spaceport occupies the southern logistics edge; the civic square and
+transit spine organize the dense city north of it.
 
-  * spaceport — central-left, the colony's landing hub.
-  * bar — upper-right, entertainment district.
-  * merchants — lower-left, market district.
-  * militia — lower-right, military district.
-  * bounties — center-right, civic center.
+  * spaceport — southern logistics district.
+  * bar — north entertainment district.
+  * merchants — west market district.
+  * militia — east security district.
+  * bounties — civic-services block beside the central square.
 
-Transit network (6 stops): port hub, market square, bar district,
-merchants row, militia HQ, bounty board.
+Transit network (6 stops): port interchange, civic square, entertainment,
+merchant district, security district, and civic services.
 
-Central feature: a wide market-square plaza between the port and
-the bounties district.
+Central feature: a formal civic square with a terraforming beacon.
 
 Everything is data on the spec; no builder code is Mars-specific.
 """
@@ -25,12 +24,12 @@ from ... import world
 from ...data import npcs as npc_module
 from ...dungeon import DungeonParams
 from . import PlanetSpec
-from .themes import MARS
+from .themes import MARS_CITY
 from ..city_npcs import MARS_POPULATION
 
 
 SPEC = PlanetSpec(
-    theme=MARS,
+    theme=MARS_CITY,
     id="mars",
     name="Mars",
     char="M",
@@ -38,66 +37,66 @@ SPEC = PlanetSpec(
     description="A sleek, modern terraformed colony -- humanity's first off-world city.",
     width=160,
     height=100,
-    hangar_anchor=world.Position(60, 46),
+    hangar_anchor=world.Position(22, 87),
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=50, x_hi=72, y_lo=28, y_hi=40,
-            door_x=60, npc_id="",
+            x_lo=10, x_hi=34, y_lo=78, y_hi=85,
+            door_x=19, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=110, x_hi=128, y_lo=12, y_hi=20,
-            door_x=118, npc_id="barkeep",
+            x_lo=101, x_hi=118, y_lo=14, y_hi=20,
+            door_x=110, npc_id="barkeep",
         ),
         world.CityBuilding(
             label="merchants",
-            x_lo=12, x_hi=30, y_lo=58, y_hi=72,
-            door_x=20, npc_id="guild_master",
+            x_lo=18, x_hi=37, y_lo=31, y_hi=42,
+            door_x=27, npc_id="guild_master",
             door_north=True,
         ),
         world.CityBuilding(
             label="militia",
-            x_lo=120, x_hi=155, y_lo=58, y_hi=64,
-            door_x=137, npc_id="militia_captain",
+            x_lo=126, x_hi=157, y_lo=64, y_hi=70,
+            door_x=142, npc_id="militia_captain",
         ),
         world.CityBuilding(
             label="bounties",
-            x_lo=95, x_hi=112, y_lo=40, y_hi=52,
-            door_x=103, npc_id="bounty_master",
+            x_lo=87, x_hi=105, y_lo=31, y_hi=37,
+            door_x=96, npc_id="bounty_master",
         ),
     ),
     city_layout_id="mars_colony",
     city_npc_population=MARS_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="port", name="Spaceport Hub", district="spaceport",
-            pos=world.Position(60, 48),
+            id="port", name="Port Interchange", district="spaceport",
+            pos=world.Position(35, 88),
             destinations=("hub", "bar", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
-            id="hub", name="Market Square", district="plaza",
-            pos=world.Position(87, 36),
+            id="hub", name="Civic Square", district="civic",
+            pos=world.Position(76, 47),
             destinations=("port", "bar", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
-            id="bar", name="Bar District", district="bar",
-            pos=world.Position(108, 22),
+            id="bar", name="Entertainment District", district="entertainment",
+            pos=world.Position(110, 23),
             destinations=("port", "hub", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
-            id="merchants", name="Merchants Row", district="market",
-            pos=world.Position(32, 56),
+            id="merchants", name="Merchant District", district="market",
+            pos=world.Position(42, 32),
             destinations=("port", "hub", "bar", "militia", "bounties"),
         ),
         world.TransitStation(
-            id="militia", name="Militia HQ", district="military",
-            pos=world.Position(118, 56),
+            id="militia", name="Security District", district="security",
+            pos=world.Position(125, 73),
             destinations=("port", "hub", "bar", "merchants", "bounties"),
         ),
         world.TransitStation(
-            id="bounties", name="Bounty Board", district="civic",
-            pos=world.Position(93, 54),
+            id="bounties", name="Civic Services", district="civic",
+            pos=world.Position(82, 40),
             destinations=("port", "hub", "bar", "merchants", "militia"),
         ),
     ),
@@ -109,8 +108,8 @@ SPEC = PlanetSpec(
         ("bounties", "mars_bounties_interior"),
     ),
     showroom_ships=(
-        ("scout",   3, 2),
-        ("cruiser", 11, 4),
+        ("scout",   3, 0),
+        ("cruiser", 11, 1),
     ),
     # Planet-local NPC overrides: Mars-flavoured characters.
     npc_overrides=(

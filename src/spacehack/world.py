@@ -195,6 +195,15 @@ TABLE = Tile(kind="floor", char="~", walkable=True, fg=(255, 200, 80), bg=(130, 
 # Drink glass (♥ bright red for contrast against warm floor).
 DRINK = Tile(kind="floor", char="♥", walkable=True, fg=(255, 60, 60), bg=(130, 108, 70))
 
+# Mars colony interior fixtures. These are deliberately generic floor markers
+# rather than blocking walls: room circulation stays clear while each room
+# reads as engineered infrastructure instead of a recolored Earth interior.
+MARS_CONSOLE = Tile(kind="floor", char="c", walkable=True, fg=(95, 245, 255), bg=(24, 62, 76))
+MARS_HOLO = Tile(kind="floor", char="*", walkable=True, fg=(150, 245, 255), bg=(28, 68, 82))
+MARS_PARTITION = Tile(kind="floor", char="=", walkable=True, fg=(195, 220, 225), bg=(48, 68, 76))
+MARS_BENCH = Tile(kind="floor", char="_", walkable=True, fg=(230, 178, 92), bg=(72, 52, 36))
+MARS_SIGNAL = Tile(kind="floor", char="!", walkable=True, fg=(255, 170, 72), bg=(76, 44, 26))
+
 
 # ---------------------------------------------------------------------------
 # Planet theme — per-planet colour / tile palette

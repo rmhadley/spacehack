@@ -698,8 +698,10 @@ network, authored interiors, and a living population.
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
-- [x] Mars — authored colony layout (Phase 6): 160x100, 5 buildings,
-      6 transit stops, 10 NPCs, geometric skyline, market square plaza
+- [x] Mars — authored high-tech colony layout (Phase 6): 160x100,
+      southern logistics port, civic boulevard/avenue plan, 5 buildings,
+      6 transit stops, 10 NPCs, red-dust terrain, ceramic/glass skyline,
+      civic beacon plaza, and authored high-tech interiors
 - [ ] Epsilon Eridani b (`eri_b`) — 4 buildings (spaceport, bar, merchants, militia)
 - [ ] Wolf 359 b (`wolf_b`) — 3 buildings (spaceport, bar, depot), delve site
 - [ ] Cygni b (`cygni_b`) — 4 buildings (spaceport, bar, merchants, militia)
@@ -731,6 +733,21 @@ network, authored interiors, and a living population.
 3. **Full-service hubs** (eri_b, indi_b, ross_b, groom_b, lal_c, tc_b, vega_b)
 4. **Stations** (sirius_station, ac_station) — compact, thematic
 5. **Outposts** (barnards_b/c, ross_c, proc_planet_1/2, ac_planet_1/2/3, venus, depot, blockade)
+
+**Mars redesign record**
+
+- Replaced the hub-and-spoke outpost geometry with a rectilinear planned-city
+  network: four 3-wide boulevards, three connecting avenues, sidewalks, a
+  central civic square, and a southern logistics/spaceport district.
+- Replaced the generic rust facade language with Mars colony architecture:
+  ceramic frames, cyan glass bands, graphite circulation surfaces, and
+  restrained orange signal lighting against red dust.
+- Re-authored all five Mars exteriors and interiors. Interiors now use
+  balanced rooms with direct entry exits, consoles, partitions, holo-displays,
+  market/bar fixtures, and security/civic furnishings.
+- Added Mars-specific regression coverage for public-grid structure, high-tech
+  palette, road/building separation, station surfaces, and NPC separation.
+- Verification: 1392 tests pass, smoke and architecture gates pass.
 
 **PLAYTEST** (after each city):
 

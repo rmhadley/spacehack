@@ -1,19 +1,21 @@
-# mars_bar.layout - Mars colony bar exterior
+# mars_bar.layout - Mars colony entertainment pavilion
 MAP
 ##################
-#WWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnW#
-#WWWWWWWWWWWWWWWW#
-#WWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnW#
-#WWWWWWWWdWWWWWW#
+#OOOOooOOOOooOOO#
+#OggggggggggggggO#
+#OggggggggggggggO#
+#OOOOooOOOOooOOO#
+#OggggggggggggggO#
+#########d########
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: W = CITY_BUILDING_WALL
-TILE: n = CITY_BUILDING_WALL
+TILE: O = CITY_BUILDING_WALL
+TILE: o = CITY_BUILDING_WALL
+TILE: g = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
-COLOUR: # = (160, 100, 80) / (48, 30, 20)
-COLOUR: W = (175, 115, 90) / (55, 35, 24)
-COLOUR: n = (190, 130, 100) / (62, 40, 28)
-COLOUR: d = (100, 240, 255) / (22, 68, 84)
+COLOUR: # = (225, 230, 232) / (42, 48, 58)
+COLOUR: O = (190, 222, 230) / (32, 66, 78)
+COLOUR: o = (255, 166, 82) / (74, 44, 28)
+COLOUR: g = (205, 215, 220) / (48, 54, 60)
+COLOUR: d = (100, 245, 255) / (20, 70, 82)

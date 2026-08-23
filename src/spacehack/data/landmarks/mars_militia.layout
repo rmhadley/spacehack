@@ -1,19 +1,21 @@
-# mars_militia.layout - Mars colony militia exterior
+# mars_militia.layout - Mars colony security headquarters
 MAP
-################################
-#WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnnnnnnnnnnnnnnnnnW#
-#WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#
-#WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW#
-#WnnnnnnnnnnnnnnnnnnnnnnnnnnnnnW#
-#WWWWWWWWWWWWWWdWWWWWWWWWWWWWWW#
+##################################
+#SSSSSSSSssSSSSSSSSssSSSSSSSSSSS#
+#SgggggggggggggggggggggggggggggS#
+#SgggggggggggggggggggggggggggggS#
+#SSSSSSSSssSSSSSSSSssSSSSSSSSSSS#
+#SgggggggggggggggggggggggggggggS#
+################d#################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: W = CITY_BUILDING_WALL
-TILE: n = CITY_BUILDING_WALL
+TILE: S = CITY_BUILDING_WALL
+TILE: s = CITY_BUILDING_WALL
+TILE: g = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
-COLOUR: # = (130, 75, 50) / (38, 20, 10)
-COLOUR: W = (145, 88, 60) / (44, 24, 13)
-COLOUR: n = (160, 100, 70) / (50, 28, 15)
-COLOUR: d = (100, 240, 255) / (22, 68, 84)
+COLOUR: # = (218, 228, 235) / (34, 44, 56)
+COLOUR: S = (174, 214, 228) / (26, 62, 78)
+COLOUR: s = (255, 168, 80) / (70, 42, 26)
+COLOUR: g = (198, 210, 216) / (42, 50, 58)
+COLOUR: d = (100, 245, 255) / (20, 70, 82)

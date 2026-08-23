@@ -57,6 +57,34 @@ def override_theme(base: PlanetTheme, **overrides) -> PlanetTheme:
 # derive_theme — build a complete theme from 3 colour anchors
 # ---------------------------------------------------------------------------
 
+def _derived_theme(
+    floor: tuple[int, int, int],
+    grass: tuple[int, int, int],
+    accent: tuple[int, int, int],
+) -> PlanetTheme:
+    """Build the derived tile set from three color anchors."""
+    grass_bg = _darken(grass, 0.38)
+    road_fg = _darken(grass, 0.52)
+    road_bg = _darken(grass, 0.25)
+    plaza_bg = _darken(_blend(grass, (255, 245, 230), 0.5), 0.6)
+    road_ns = T("road", ":", _darken(road_fg, 0.82), _darken(road_bg, 0.85))
+    road_ew = T("road", "-", _darken(road_fg, 0.82), _darken(road_bg, 0.85))
+    return PlanetTheme(
+        floor=T("floor", "░", floor, _darken(floor, 0.42)),
+        grass=T("grass", "█", grass, grass_bg),
+        grass_accent=T("grass", ",", _darken(grass, 0.5), grass_bg),
+        plaza=T("plaza", "░", _blend(grass, (255, 245, 220), 0.55), plaza_bg),
+        sidewalk=T("sidewalk", "▒", _darken(_blend(grass, (190, 195, 210), 0.5), 0.55), _darken(_blend(grass, (190, 195, 210), 0.5), 0.32)),
+        road_surface=T("road", ".", road_fg, road_bg),
+        road_ns=road_ns,
+        road_ew=road_ew,
+        landing_pad=T("landing_pad", "▓", _blend(grass, (150, 220, 255), 0.6), _darken(grass, 0.22)),
+        neon=T("neon", "*", accent, _darken(accent, 0.15)),
+        tree=T("tree", "♣", _darken(grass, 0.78), _darken(grass, 0.32)),
+        decor=T("plaza", "♦", accent, plaza_bg),
+    )
+
+
 def derive_theme(
     *,
     floor: tuple[int, int, int] = (200, 180, 140),
@@ -64,46 +92,9 @@ def derive_theme(
     accent: tuple[int, int, int] = (255, 180, 80),
     **overrides,
 ) -> PlanetTheme:
-    """Build a complete :class:`PlanetTheme` from 3 key colour anchors.
-
-    The ``floor``, ``grass``, and ``accent`` colours control the visual
-    direction (warm browns, cool blues, dusty reds, etc.). All other tiles
-    are derived from these anchors with sensible brightness / blend curves
-    so the result looks coherent without hand-tuning every tile.
-
-    Pass ``**overrides`` to replace any specific tile after derivation::
-
-        theme = derive_theme(
-            floor=(180, 210, 240), grass=(200, 220, 245), accent=(150, 230, 255),
-            # Override the road tiles with a darker custom palette
-            road_surface=T("road", ".", (90, 120, 155), (35, 50, 70)),
-            road_ns=T("road", ":", (75, 100, 135), (28, 42, 60)),
-        )
-    """
-    _gbg = _darken(grass, 0.38)
-    _road_fg = _darken(grass, 0.52)
-    _road_bg = _darken(grass, 0.25)
-    _plaza_bg = _darken(_blend(grass, (255, 245, 230), 0.5), 0.6)
-
-    base = PlanetTheme(
-        floor=T("floor", "░", floor, _darken(floor, 0.42)),
-        grass=T("grass", "█", grass, _gbg),
-        # Keep accent cells on the same dark field background as GRASS;
-        # the comma itself carries the unique darker-green accent.
-        grass_accent=T("grass", ",", _darken(grass, 0.5), _gbg),
-        plaza=T("plaza", "░", _blend(grass, (255, 245, 220), 0.55), _plaza_bg),
-        sidewalk=T("sidewalk", "▒", _darken(_blend(grass, (190, 195, 210), 0.5), 0.55), _darken(_blend(grass, (190, 195, 210), 0.5), 0.32)),
-        road_surface=T("road", ".", _road_fg, _road_bg),
-        road_ns=T("road", ":", _darken(_road_fg, 0.82), _darken(_road_bg, 0.85)),
-        road_ew=T("road", "-", _darken(_road_fg, 0.82), _darken(_road_bg, 0.85)),
-        landing_pad=T("landing_pad", "▓", _blend(grass, (150, 220, 255), 0.6), _darken(grass, 0.22)),
-        neon=T("neon", "*", accent, _darken(accent, 0.15)),
-        tree=T("tree", "♣", _darken(grass, 0.78), _darken(grass, 0.32)),
-        decor=T("plaza", "♦", accent, _plaza_bg),
-    )
-    if overrides:
-        return _replace(base, **overrides)
-    return base
+    """Build a complete theme from color anchors and optional tile overrides."""
+    base = _derived_theme(floor, grass, accent)
+    return _replace(base, **overrides) if overrides else base
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +120,23 @@ MARS = PlanetTheme(
     neon=T("neon", "*", (255, 180, 60), (50, 25, 10)),
     tree=T("tree", "♣", (160, 100, 50), (50, 30, 15)),
     decor=T("plaza", "♦", (255, 120, 60), (140, 100, 65)),
+)
+
+# Mars colony — red dust outside, graphite infrastructure, ceramic sidewalks,
+# cyan glass and restrained orange guidance lights inside the public realm.
+MARS_CITY = PlanetTheme(
+    floor=T("floor", ".", (150, 70, 48), (58, 32, 25)),
+    grass=T("grass", "█", (174, 72, 48), (62, 30, 22)),
+    grass_accent=T("grass", ",", (98, 40, 30), (62, 30, 22)),
+    plaza=T("plaza", "░", (185, 220, 224), (66, 104, 110)),
+    sidewalk=T("sidewalk", "▒", (190, 205, 208), (72, 86, 92)),
+    road_surface=T("road", ".", (112, 132, 145), (28, 36, 46)),
+    road_ns=T("road", ":", (105, 224, 236), (26, 48, 60)),
+    road_ew=T("road", "-", (105, 224, 236), (26, 48, 60)),
+    landing_pad=T("landing_pad", "▓", (176, 224, 236), (34, 62, 76)),
+    neon=T("neon", "*", (90, 240, 255), (24, 60, 72)),
+    tree=T("tree", "♣", (218, 112, 64), (70, 34, 24)),
+    decor=T("plaza", "♦", (255, 174, 78), (66, 104, 110)),
 )
 
 # Mining outpost — deep reds, dusty oranges, scorched browns.
