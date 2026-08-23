@@ -61,7 +61,7 @@ class CityNpc:
 # identity and the spawn point, but do NOT confine movement to a block.
 EARTH_POPULATION: tuple[CityNpc, ...] = (
     # Civic plaza / central hub — a security guard patrols the plaza.
-    CityNpc("earth_hub_guard", "militia_trooper", (72, 55), wander_radius=10, move_chance=0.7),
+    CityNpc("earth_hub_guard", "militia_trooper", (72, 55), wander_radius=10, move_chance=0.9),
     # Market district — pedestrians crossing the market street.
     CityNpc("earth_market_walker_a", "civillian_bystander", (20, 76), wander_radius=80, move_chance=0.9),
     CityNpc("earth_market_walker_b", "civillian_bystander", (26, 77), wander_radius=80, move_chance=0.9),
@@ -73,8 +73,8 @@ EARTH_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("earth_pad_worker", "civillian_bystander", (31, 25), wander_radius=80, move_chance=0.8),
     CityNpc("earth_pad_worker_b", "civillian_bystander", (27, 23), wander_radius=80, move_chance=0.8),
     # Militia district — troopers on a patrol beat.
-    CityNpc("earth_militia_patrol", "militia_trooper", (65, 77), wander_radius=14, move_chance=0.7),
-    CityNpc("earth_militia_patrol_b", "militia_trooper", (60, 77), wander_radius=14, move_chance=0.7),
+    CityNpc("earth_militia_patrol", "militia_trooper", (65, 77), wander_radius=14, move_chance=0.9),
+    CityNpc("earth_militia_patrol_b", "militia_trooper", (60, 77), wander_radius=14, move_chance=0.9),
 )
 
 

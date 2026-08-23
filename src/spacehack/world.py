@@ -294,6 +294,7 @@ class Entity:
     city_rng: object | None = None  # per-NPC seeded RNG for deterministic wander
     city_dest: tuple | None = None  # current pavement destination (x, y); None = repick
     city_path: list | None = None  # cached A* path to city_dest (persisted across ticks)
+    city_blocked_ticks: int = 0  # consecutive blocked steps; >= 4 drops the destination
     blocked_message: str = "You bump into {name}."
 
 

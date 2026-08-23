@@ -80,21 +80,21 @@ _LANDMARK_KINDS = frozenset({
 def _city_landmarks(
     game_map: world.GameMap,
 ) -> list[tuple[int, int]]:
-    """Walkable landmark cells spread across the whole city.
+    """Walkable, unblocked landmark cells spread across the whole city.
 
     The city analogue of space's body goals: transit stops, building
     doors, plaza/bridge/landing-pad tiles. Citizens pick destinations
     from this whole-city set so they traverse between districts like
     ships traverse between planets, instead of circling one block.
+
+    Transit-station *cells* are deliberately excluded: the station
+    entity blocks its own tile, so a destination on it is never
+    reachable and the citizen would bounce against it forever. The
+    station's surrounding pavement is a landmark already, so dropping
+    the cell costs nothing.
     """
     cells: list[tuple[int, int]] = []
     seen: set[tuple[int, int]] = set()
-    for _e in game_map.entities:
-        if getattr(_e, "transit_station_id", ""):
-            _key = (_e.pos.x, _e.pos.y)
-            if _key not in seen and game_map.tiles[_e.pos.y][_e.pos.x].walkable:
-                seen.add(_key)
-                cells.append(_key)
     for y in range(game_map.height):
         for x in range(game_map.width):
             if game_map.tiles[y][x].kind not in _LANDMARK_KINDS:
@@ -103,9 +103,55 @@ def _city_landmarks(
                 continue
             if (x, y) in seen:
                 continue
+            # A landmark cell that some entity (station, ship, other
+            # citizen) is standing on is not a valid destination — the
+            # A* path could never step onto it.
+            if game_map.blocking_entity_at(x, y) is not None:
+                continue
             seen.add((x, y))
             cells.append((x, y))
     return cells
+
+
+def _in_radius(
+    cells: list[tuple[int, int]],
+    anchor: world.Position,
+    radius: int,
+) -> list[tuple[int, int]]:
+    """Landmarks within ``radius`` of ``anchor``; nearest fallback if none."""
+    _pool = [
+        (x, y) for x, y in cells
+        if abs(x - anchor.x) + abs(y - anchor.y) <= radius
+    ]
+    if not _pool:
+        _pool = [min(cells, key=lambda c: abs(c[0] - anchor.x) + abs(c[1] - anchor.y))]
+    return _pool
+
+
+def _far_choice(
+    pool: list[tuple[int, int]],
+    from_pos: world.Position,
+    rng,
+) -> tuple[int, int]:
+    """Pick a landmark well away from ``from_pos``; else the farthest quarter.
+
+    Prefer a landmark >= 10 cells away so the walk visibly crosses the
+    city — a ship doesn't loop the planet it's parked at. When everything
+    is close, pick from the farthest quarter so the walk keeps real length
+    instead of circling the nearest landmarks.
+    """
+    _far = [
+        (x, y) for x, y in pool
+        if abs(x - from_pos.x) + abs(y - from_pos.y) >= 10
+    ]
+    if _far:
+        return rng.choice(_far)
+    _ordered = sorted(
+        pool, key=lambda c: abs(c[0] - from_pos.x) + abs(c[1] - from_pos.y),
+        reverse=True,
+    )
+    _top = _ordered[: max(1, len(_ordered) // 4)]
+    return rng.choice(_top)
 
 
 def _pick_destination(
@@ -116,8 +162,7 @@ def _pick_destination(
 
     Mirrors space NPCs picking a body goal: draw from the whole-city
     landmark set (``_city_landmarks``) and prefer a landmark well away
-    from the current cell so the walk visibly crosses the city — a ship
-    doesn't loop the planet it's parked at, it heads somewhere else.
+    from the current cell so the walk visibly crosses the city.
     ``wander_radius`` caps how far roamers may go from their anchor
     (small radii = district patrol; large radii = city-spanning roam).
     """
@@ -130,42 +175,25 @@ def _pick_destination(
     _radius = entity.city_wander_radius
     if _radius <= 0:
         return rng.choice(cells)
-    _sx, _sy = entity.city_spawn.x, entity.city_spawn.y
-    _pool = [
-        (x, y) for x, y in cells
-        if abs(x - _sx) + abs(y - _sy) <= _radius
-    ]
-    if not _pool:
-        # No landmark in range: fall back to the nearest one so small-
-        # radius guards stay local instead of roaming the whole city.
-        _pool = [min(cells, key=lambda c: abs(c[0] - _sx) + abs(c[1] - _sy))]
-    _cx, _cy = entity.pos.x, entity.pos.y
-    _far = [
-        (x, y) for x, y in _pool
-        if abs(x - _cx) + abs(y - _cy) >= 10
-    ] or _pool
-    return rng.choice(_far)
+    _pool = _in_radius(cells, entity.city_spawn, _radius)
+    return _far_choice(_pool, entity.pos, rng)
 
 
-def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
-    """Move ``entity`` one cell along its current destination path.
-
-    When the citizen has no destination (or reached it), pick a fresh one
-    and compute an A* path — exactly how space NPCs pick a new body goal
-    on arrival. Walk the cached path one cell; if the next cell is blocked
-    the step is skipped and the path is retried next tick (no recompute),
-    mirroring the space patrol loop.
-    """
-    dest = entity.city_dest
-    if dest is None:
-        dest = _pick_destination(entity, game_map)
-        entity.city_dest = dest
-    if dest is None:
+def _ensure_destination(entity: world.Entity, game_map: world.GameMap) -> None:
+    """Pick a destination + A* path when the citizen has none."""
+    if entity.city_dest is not None:
         return
-    path = entity.city_path
+    entity.city_dest = _pick_destination(entity, game_map)
+    entity.city_path = None
+    entity.city_blocked_ticks = 0
+
+
+def _step_along_path(entity: world.Entity, game_map: world.GameMap) -> None:
+    """Take one direct step on the cached path (no slip, no jitter)."""
+    path = entity.city_path or []
     if not path:
         path = world.find_path(
-            (entity.pos.x, entity.pos.y), {dest}, game_map,
+            (entity.pos.x, entity.pos.y), {entity.city_dest}, game_map,
             exclude_entity=entity,
         ) or []
         entity.city_path = path
@@ -174,13 +202,40 @@ def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
         entity.city_dest = None
         return
     nx, ny = path[0]
-    dx, dy = nx - entity.pos.x, ny - entity.pos.y
-    if abs(dx) > 1 or abs(dy) > 1:
+    if abs(nx - entity.pos.x) > 1 or abs(ny - entity.pos.y) > 1:
         entity.city_path = None
         return
-    if world.try_step_with_slip(entity, game_map, dx, dy):
+    if (nx, ny) == (entity.pos.x, entity.pos.y):
         entity.city_path = path[1:]
-    if (entity.pos.x, entity.pos.y) == (dest[0], dest[1]):
+        return
+    if game_map.blocking_entity_at(nx, ny, exclude=entity) is not None:
+        entity.city_blocked_ticks += 1
+        if entity.city_blocked_ticks >= 4:
+            # Something permanent is in the way (parked ship, crowd):
+            # stop banging against it and pick a new destination.
+            entity.city_dest = None
+            entity.city_path = None
+        return
+    entity.pos = world.Position(nx, ny)
+    entity.city_path = path[1:]
+    entity.city_blocked_ticks = 0
+
+
+def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
+    """Move ``entity`` one cell along its current destination path.
+
+    When the citizen has no destination (or reached it), pick a fresh one
+    and compute an A* path — exactly how space NPCs pick a new body goal
+    on arrival. One direct cell per tick; blocked cells are retried, and
+    a few consecutive blocks drop the destination so the citizen picks a
+    new walk instead of freezing (no perpendicular slip — the slip is
+    what made citizens jitter between two cells).
+    """
+    _ensure_destination(entity, game_map)
+    if entity.city_dest is None:
+        return
+    _step_along_path(entity, game_map)
+    if (entity.pos.x, entity.pos.y) == (entity.city_dest[0], entity.city_dest[1]):
         entity.city_dest = None
         entity.city_path = None
 
