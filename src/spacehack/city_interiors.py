@@ -39,12 +39,16 @@ def _seat_building_npc(game_map: world.GameMap, record: dict) -> None:
     npc_id = record.get("npc_id", "")
     if not npc_id:
         return
-    from .data.npcs import find_npc
+    override = record.get("npc_override")
+    if override is not None:
+        npc = override
+    else:
+        from .data.npcs import find_npc
+        npc = find_npc(npc_id)
     spawn = getattr(game_map, "entry_spawn", None)
     position = _first_interior_npc(game_map, spawn) if spawn is not None else None
     if position is None:
         return
-    npc = find_npc(npc_id)
     game_map.entities.append(world.Entity(
         char=npc.char, fg=npc.fg, pos=position,
         name=npc.name, npc_id=npc.id, width=1, height=1,

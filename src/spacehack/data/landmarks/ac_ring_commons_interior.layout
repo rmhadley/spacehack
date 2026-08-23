@@ -1,0 +1,22 @@
+# ac_ring_commons_interior.layout
+MAP
+################
+#................#
+#..o......o.....#
+#................#
+#....*.....*....#
+#................#
+#..o......o.....#
+#................#
+#.......P.......#
+#.......>.......#
+################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: * = CITY_FOUNTAIN
+TILE: > = EXIT
+COLOUR: o = (255, 205, 105) / (70, 52, 24)
+COLOUR: * = (120, 245, 255) / (30, 80, 92)

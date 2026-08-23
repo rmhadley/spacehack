@@ -87,6 +87,17 @@ MERCURY_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("mercury_pad_guard", "militia_trooper", (3, 12), wander_radius=50, move_chance=0.9),
 )
 
+AC_RING_POPULATION: tuple[CityNpc, ...] = (
+    # Dock crew and researchers circulate between the four ring sectors.
+    CityNpc("ac_dock_crew", "civillian_bystander", (60, 24), wander_radius=55, move_chance=0.9),
+    CityNpc("ac_archive_tech", "civillian_bystander", (84, 23), wander_radius=55, move_chance=0.85),
+    CityNpc("ac_lab_tech", "civillian_bystander", (88, 55), wander_radius=55, move_chance=0.9),
+    CityNpc("ac_commons_visitor", "civillian_bystander", (107, 40), wander_radius=55, move_chance=0.85),
+    CityNpc("ac_observation_guard", "militia_trooper", (13, 40), wander_radius=55, move_chance=0.8),
+    CityNpc("ac_hub_coordinator", "civillian_bystander", (60, 44), wander_radius=55, move_chance=0.9),
+)
+
+
 MARS_POPULATION: tuple[CityNpc, ...] = (
     # Market square — colonists crossing the plaza.
     CityNpc("mars_colonist_a", "civillian_bystander", (64, 35), wander_radius=80, move_chance=0.9),

@@ -694,7 +694,7 @@ network, authored interiors, and a living population.
    every NPC spawn on a walkable cell, every interior loads with spawn + exit.
 6. Run the full gate and commit.
 
-**Cities** (26 total, 4 done):
+**Cities** (26 total, 5 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -720,7 +720,7 @@ network, authored interiors, and a living population.
 - [ ] AC planet 1 (`ac_planet_1`) — 2 buildings (spaceport, bar)
 - [ ] AC planet 2 (`ac_planet_2`) — 2 buildings (spaceport, lab)
 - [ ] AC planet 3 (`ac_planet_3`) — 2 buildings (spaceport, bar)
-- [ ] AC station (`ac_station`) — 3 buildings (spaceport, archive, lab)
+- [x] AC station (`ac_station`) — authored rotating-ring science station: 120x80 annulus, central void, four spokes, 5 sectors, 6 transit stops, 6 station crew, and authored exteriors/interiors
 - [ ] Sirius Station (`sirius_station`) — 2 buildings (spaceport, lab)
 - [ ] Venus (`venus`) — 2 buildings (spaceport, bar)
 - [ ] Depot (`depot`) — 2 buildings (spaceport, depot)

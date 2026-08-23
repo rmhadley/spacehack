@@ -223,3 +223,20 @@ WARM_EARTH = PlanetTheme(
 STATION = PlanetTheme(
     floor=T("floor", "░", (180, 210, 240), (65, 85, 105)),
 )
+
+# Rotating research ring — dark open space, pale pressure-hull decking,
+# cyan guidance systems, and restrained gold public fixtures.
+RING_STATION = PlanetTheme(
+    floor=T("ring_deck", ".", (172, 205, 220), (48, 68, 82)),
+    grass=T("ring_deck", ".", (172, 205, 220), (48, 68, 82)),
+    grass_accent=T("ring_deck", ",", (100, 145, 160), (38, 56, 70)),
+    plaza=T("city_plaza", "░", (220, 235, 225), (76, 105, 112)),
+    sidewalk=T("sidewalk", "▒", (155, 205, 215), (42, 70, 84)),
+    road_surface=T("road", ".", (100, 220, 235), (24, 48, 62)),
+    road_ns=T("road", ":", (120, 235, 245), (20, 42, 56)),
+    road_ew=T("road", "-", (120, 235, 245), (20, 42, 56)),
+    landing_pad=T("landing_pad", "▓", (125, 230, 245), (28, 58, 76)),
+    neon=T("neon", "*", (110, 245, 255), (22, 58, 72)),
+    tree=T("tree", "o", (115, 205, 190), (34, 62, 66)),
+    decor=T("plaza", "♦", (255, 205, 105), (76, 105, 112)),
+)

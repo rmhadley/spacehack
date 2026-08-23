@@ -1,0 +1,19 @@
+# ac_ring_commons.layout - crew commons exterior
+MAP
+############
+#CCCCCCCCCC#
+#CttttttttC#
+#CCCCCCCCCC#
+#CttttttttC#
+#CCCCCCCCCC#
+#CCCdCCCCCC#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: C = CITY_BUILDING_WALL
+TILE: t = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (115, 135, 150) / (26, 36, 46)
+COLOUR: C = (175, 190, 190) / (52, 64, 72)
+COLOUR: t = (220, 205, 150) / (74, 66, 48)
+COLOUR: d = (255, 210, 100) / (72, 52, 24)

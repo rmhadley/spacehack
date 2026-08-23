@@ -1,0 +1,22 @@
+# ac_ring_archive_interior.layout
+MAP
+################
+#................#
+#..b......b.....#
+#................#
+#..*......*.....#
+#................#
+#..b......b.....#
+#................#
+#.......P.......#
+#.......>.......#
+################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = CITY_BUILDING_WALL
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: b = (125, 190, 220) / (32, 54, 70)
+COLOUR: * = (255, 205, 105) / (70, 52, 24)

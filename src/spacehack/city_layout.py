@@ -147,6 +147,7 @@ def building_records(spec, stamps, prefix: str) -> dict:
             "label": building.label,
             "display_name": building.label.replace("_", " "),
             "npc_id": building.npc_id,
+            "npc_override": dict(spec.npc_overrides).get(building.npc_id),
             "interior_layout_id": dict(spec.interior_layouts).get(building.label, ""),
             "entrance": (
                 (stamp.entrance.x, stamp.entrance.y)

@@ -1,0 +1,22 @@
+# ac_ring_spaceport_interior.layout
+MAP
+##################
+#................#
+#..c.......c.....#
+#................#
+#....*.......*...#
+#................#
+#..c.......c.....#
+#................#
+#........P.......#
+#........>.......#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = CITY_BRIDGE
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: c = (130, 220, 235) / (34, 70, 82)
+COLOUR: * = (100, 245, 255) / (24, 64, 76)

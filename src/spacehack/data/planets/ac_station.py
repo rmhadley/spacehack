@@ -11,7 +11,8 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-from .themes import STATION
+from .themes import RING_STATION
+from ..city_npcs import AC_RING_POPULATION
 
 
 _RESEARCH_OFFICER = npc_module.NPC(
@@ -27,7 +28,7 @@ _RESEARCH_OFFICER = npc_module.NPC(
 )
 
 SPEC = PlanetSpec(
-    theme=STATION,
+    theme=RING_STATION,
     id="ac_station",
     name="Science Port",
     char="#",
@@ -36,29 +37,80 @@ SPEC = PlanetSpec(
         "A close-orbit research outpost around Proxima Centauri - "
         "long-baseline stellar studies and a quiet dock for science crews."
     ),
-    width=40,
-    height=24,
-    hangar_anchor=world.Position(7, 14),
+    width=120,
+    height=80,
+    hangar_anchor=world.Position(60, 22),
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=2, x_hi=15, y_lo=2, y_hi=10,
-            door_x=8, npc_id="",
+            x_lo=52, x_hi=67, y_lo=10, y_hi=18,
+            door_x=58, npc_id="",
         ),
         world.CityBuilding(
             label="archive",
-            x_lo=22, x_hi=37, y_lo=2, y_hi=6,
-            door_x=29, npc_id="archive_research_officer",
+            x_lo=73, x_hi=86, y_lo=15, y_hi=21,
+            door_x=79, npc_id="archive_research_officer",
         ),
         world.CityBuilding(
             label="lab",
-            x_lo=22, x_hi=37, y_lo=8, y_hi=18,
-            door_x=29, npc_id="research_officer",
+            x_lo=73, x_hi=86, y_lo=53, y_hi=60,
+            door_x=77, npc_id="research_officer",
+        ),
+        world.CityBuilding(
+            label="commons",
+            x_lo=92, x_hi=103, y_lo=35, y_hi=41,
+            door_x=95, npc_id="",
+        ),
+        world.CityBuilding(
+            label="observation",
+            x_lo=16, x_hi=27, y_lo=35, y_hi=41,
+            door_x=19, npc_id="",
         ),
     ),
+    city_layout_id="ac_ring_station",
+    city_npc_population=AC_RING_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="dock", name="Transfer Dock", district="dock",
+            pos=world.Position(69, 22),
+            destinations=("hub", "archive", "lab", "commons", "observation"),
+        ),
+        world.TransitStation(
+            id="hub", name="Ring Junction", district="central hub",
+            pos=world.Position(60, 36),
+            destinations=("dock", "archive", "lab", "commons", "observation"),
+        ),
+        world.TransitStation(
+            id="archive", name="Archive Vault", district="archive",
+            pos=world.Position(79, 24),
+            destinations=("dock", "hub", "lab", "commons", "observation"),
+        ),
+        world.TransitStation(
+            id="lab", name="Analysis Lab", district="analysis",
+            pos=world.Position(77, 52),
+            destinations=("dock", "hub", "archive", "commons", "observation"),
+        ),
+        world.TransitStation(
+            id="commons", name="Crew Commons", district="commons",
+            pos=world.Position(108, 40),
+            destinations=("dock", "hub", "archive", "lab", "observation"),
+        ),
+        world.TransitStation(
+            id="observation", name="Observation Deck", district="observation",
+            pos=world.Position(12, 40),
+            destinations=("dock", "hub", "archive", "lab", "commons"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "ac_ring_spaceport_interior"),
+        ("archive", "ac_ring_archive_interior"),
+        ("lab", "ac_ring_lab_interior"),
+        ("commons", "ac_ring_commons_interior"),
+        ("observation", "ac_ring_observation_interior"),
+    ),
     showroom_ships=(
-        ("scout", 3, 2),
-        ("hauler", 7, 4),
+        ("scout", 1, 1),
+        ("hauler", 9, 1),
     ),
     # The archive gets the officer needed by the post-prison research
     # step; the lab building's research_officer slot resolves through

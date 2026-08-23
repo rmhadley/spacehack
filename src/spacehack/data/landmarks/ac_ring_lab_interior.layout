@@ -1,0 +1,22 @@
+# ac_ring_lab_interior.layout
+MAP
+################
+#................#
+#..h......h.....#
+#................#
+#..s......s.....#
+#................#
+#..h......h.....#
+#................#
+#.......P.......#
+#.......>.......#
+################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: h = CITY_FOUNTAIN
+TILE: s = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: h = (100, 240, 255) / (28, 76, 90)
+COLOUR: s = (130, 220, 235) / (34, 70, 82)

@@ -1,0 +1,19 @@
+# ac_ring_observation.layout - observation deck exterior
+MAP
+############
+#OOOOOOOOOO#
+#OggggggggO#
+#OOOOOOOOOO#
+#OggggggggO#
+#OOOOOOOOOO#
+#OOOdOOOOOO#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: O = CITY_BUILDING_WALL
+TILE: g = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (70, 110, 145) / (18, 30, 48)
+COLOUR: O = (120, 190, 225) / (30, 58, 78)
+COLOUR: g = (165, 225, 240) / (44, 78, 96)
+COLOUR: d = (120, 250, 255) / (18, 62, 78)

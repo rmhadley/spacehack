@@ -1,0 +1,19 @@
+# ac_ring_archive.layout - archive vault exterior
+MAP
+##############
+#AAAAAAAAAAAA#
+#AvvvvvvvvvvA#
+#AAAAAAAAAAAA#
+#AvvvvvvvvvvA#
+#AAAAAAAAAAAA#
+#AAAAAAdAAAAA#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: A = CITY_BUILDING_WALL
+TILE: v = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (80, 120, 150) / (20, 32, 48)
+COLOUR: A = (120, 185, 215) / (34, 54, 70)
+COLOUR: v = (165, 225, 230) / (48, 72, 86)
+COLOUR: d = (120, 250, 255) / (18, 62, 78)
