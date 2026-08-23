@@ -1,10 +1,18 @@
 from pathlib import Path
 
 from tools import architecture_check
-from tools.architecture_check import violations_for_text
+from tools.architecture_check import (
+    CohesionViolation,
+    cohesion_violations_for_text,
+    violations_for_text,
+)
 
 
 _THIS_FILE = Path(__file__)
+
+
+_MAP_FIELDS = {"GameMap": {"width", "height", "tiles", "entities", "city_transit"}}
+_MAP_OWNING = {"GameMap": "world"}
 
 
 def test_module_limit_violation_is_reported():
@@ -124,3 +132,86 @@ def test_main_blocks_a_changed_oversized_module(monkeypatch, tmp_path, capsys):
     output = capsys.readouterr().out
     assert "changed source modules must be brought within architecture limits" in output
     assert "changed.py" in output
+
+
+# --- Dataclass-field cohesion ratchet ---
+
+
+def test_cohesion_flags_new_undeclared_attr_attach():
+    text = (
+        "from . import world\n"
+        "\n"
+        "def f(game_map: world.GameMap):\n"
+        "    setattr(game_map, 'foo_lookup', {})\n"
+    )
+
+    violations = cohesion_violations_for_text(
+        _THIS_FILE, text, _MAP_FIELDS, _MAP_OWNING, set()
+    )
+
+    assert violations == (
+        CohesionViolation(_THIS_FILE, 4, "foo_lookup", "world"),
+    )
+
+
+def test_cohesion_flags_direct_attribute_attach():
+    text = (
+        "from . import world\n"
+        "\n"
+        "def f(game_map: world.GameMap):\n"
+        "    game_map.destinations = []\n"
+    )
+
+    violations = cohesion_violations_for_text(
+        _THIS_FILE, text, _MAP_FIELDS, _MAP_OWNING, set()
+    )
+
+    assert [(v.attr, v.owning_module) for v in violations] == [
+        ("destinations", "world")
+    ]
+
+
+def test_cohesion_allows_declared_field_and_grandfathered_attr():
+    text = (
+        "from . import world\n"
+        "\n"
+        "def f(game_map: world.GameMap):\n"
+        "    game_map.city_transit = {}\n"
+        "    game_map.legacy_meta = []\n"
+    )
+
+    # city_transit is a declared field; legacy_meta is grandfathered (exists at HEAD).
+    violations = cohesion_violations_for_text(
+        _THIS_FILE, text, _MAP_FIELDS, _MAP_OWNING, {"legacy_meta"}
+    )
+
+    assert violations == ()
+
+
+def test_cohesion_ignores_non_dataclass_receivers():
+    text = (
+        "def f(thing):\n"
+        "    thing.custom = 1\n"
+        "    setattr(thing, 'other', 2)\n"
+    )
+
+    violations = cohesion_violations_for_text(
+        _THIS_FILE, text, _MAP_FIELDS, _MAP_OWNING, set()
+    )
+
+    assert violations == ()
+
+
+def test_cohesion_ignores_dynamic_or_non_literal_setattr_names():
+    text = (
+        "from . import world\n"
+        "\n"
+        "def f(game_map: world.GameMap, name):\n"
+        "    setattr(game_map, name, 1)\n"
+    )
+
+    violations = cohesion_violations_for_text(
+        _THIS_FILE, text, _MAP_FIELDS, _MAP_OWNING, set()
+    )
+
+    assert violations == ()

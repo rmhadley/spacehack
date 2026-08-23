@@ -188,6 +188,20 @@ somewhere it doesn't belong, (b) deferring legitimate work to dodge the gate,
 or (c) burying oversized logic in a way that merely dodges the line count. If
 the code belongs in the module, the module gets refactored.
 
+The generic spirit is **code that belongs in module X goes in module X** — even
+when X is oversized and touching it forces a refactor. Its mechanical,
+enforced incarnation is **dataclass-field cohesion**: new state on a type must
+be declared as a field in that type's own module, never attached at runtime
+(``setattr`` / ``obj.attr = ...``) from a different file while the owning module
+is left "untouched" to dodge the gate. ``tools/architecture_check.py`` scans
+changed modules for undeclared dataclass-attribute writes and FAILS with an
+explicit challenge naming the type's owning module and the required fix in the
+same commit. Pre-existing runtime-attached attributes are grandfathered (like
+the size ratchet): only a *new* undeclared attribute on a changed file is
+blocking. If you find yourself wanting to attach state to an ``Entity``,
+``GameMap``, or ``GameContext`` at runtime from another module, don't — declare
+the field where the type lives.
+
 The smoke test reuses `.venv/bin/python3` when available and otherwise runs
 with the current interpreter. It verifies that the Pygame runtime imports
 cleanly with the retired backend actively blocked, along with major modules
