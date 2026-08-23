@@ -54,32 +54,32 @@ SPEC = PlanetSpec(
         # directly between districts; every stop sits on walkable ground.
         world.TransitStation(
             id="port", name="Spaceport", district="spaceport",
-            pos=world.Position(30, 26),
+            pos=world.Position(37, 26),
             destinations=("hub", "bar", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="hub", name="Central Hub", district="civic",
-            pos=world.Position(70, 52),
+            pos=world.Position(71, 52),
             destinations=("port", "bar", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bar", name="Bar District", district="waterfront",
-            pos=world.Position(117, 17),
+            pos=world.Position(111, 17),
             destinations=("port", "hub", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Guild", district="waterfront",
-            pos=world.Position(130, 66),
+            pos=world.Position(128, 77),
             destinations=("port", "hub", "bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Merchant Hall", district="market",
-            pos=world.Position(24, 70),
+            pos=world.Position(23, 77),
             destinations=("port", "hub", "bar", "bounties", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Militia Center", district="civic",
-            pos=world.Position(66, 77),
+            pos=world.Position(65, 77),
             destinations=("port", "hub", "bar", "bounties", "merchants"),
         ),
     ),
