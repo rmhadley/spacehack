@@ -71,7 +71,7 @@ def test_summary_and_validation_are_mode_aware(monkeypatch, tmp_path):
     assert summary["mode"] == "city"
     assert summary["city"] == "earth"
     assert summary["player"] == {"x": 30, "y": 20}
-    assert summary["map"] == {"width": 60, "height": 40}
+    assert summary["map"] == {"width": 160, "height": 100}
     assert summary["rng_restored"]
 
 

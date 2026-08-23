@@ -19,6 +19,7 @@ def asset_directories(root: Path | None = None) -> dict[AssetMode, Path]:
     return {
         AssetMode.SHIP: data / "layouts",
         AssetMode.LANDMARK: data / "landmarks",
+        AssetMode.CITY: data / "landmarks",
     }
 
 

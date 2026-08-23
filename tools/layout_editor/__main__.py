@@ -54,9 +54,11 @@ def _validation_paths(args: argparse.Namespace) -> list[Path]:
         return [Path(args.path)]
     directories = asset_directories()
     return sorted(
-        path
-        for directory in directories.values()
-        for path in directory.glob("*.layout")
+        {
+            path
+            for directory in {directory.resolve() for directory in directories.values()}
+            for path in directory.glob("*.layout")
+        }
     )
 
 

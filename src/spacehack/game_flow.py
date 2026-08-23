@@ -483,9 +483,13 @@ def _relocate_old_ship(ctx, city_game_map, player_owned_ship) -> bool:
     return True
 
 
-def _build_owned_ship(blocker, ship, old_reserved: int):
-    """Park the purchased ship in the hangar and build its OwnedShip record."""
-    blocker.pos = world.HANGAR_ANCHOR
+def _build_owned_ship(ctx, blocker, ship, old_reserved: int):
+    """Park the purchased ship in the current city's configured hangar."""
+    try:
+        from .data.planets import hangar_anchor
+        blocker.pos = hangar_anchor(getattr(ctx, "current_city_id", "earth"))
+    except (KeyError, ImportError):
+        blocker.pos = world.HANGAR_ANCHOR
     blocker.owned = True
     blocker.name = f"Your Ship: {ship.name}"
     return ship_module.OwnedShip(
@@ -542,7 +546,7 @@ def _complete_ship_purchase(
     if not _relocate_old_ship(ctx, city_game_map, player_owned_ship):
         return None
     ctx.stats.credits -= effective_price
-    _new_owned = _build_owned_ship(blocker, ship, _old_reserved)
+    _new_owned = _build_owned_ship(ctx, blocker, ship, _old_reserved)
     ctx.player_owned_ship = _new_owned
     _log_ship_purchase(
         ctx, ship, effective_price, trade_in_value,

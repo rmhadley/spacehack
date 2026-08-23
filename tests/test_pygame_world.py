@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.spacehack import pygame_world, world
+from src.spacehack.data.planets import hangar_anchor
 from src.spacehack.framebuffer import FrameBuffer
 
 
@@ -236,7 +237,7 @@ def test_earth_hangar_entity_preserves_landing_pad_background():
 
     game_map = load_planet("earth")
     hangar_ship = world.Entity(
-        "t", (180, 200, 220), world.HANGAR_ANCHOR, owned=True,
+        "t", (180, 200, 220), hangar_anchor("earth"), owned=True,
     )
     game_map.entities.append(hangar_ship)
     tile = game_map.tiles[hangar_ship.pos.y][hangar_ship.pos.x]

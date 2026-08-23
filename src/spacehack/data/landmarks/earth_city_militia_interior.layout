@@ -1,0 +1,21 @@
+# earth_city_militia_interior.layout
+MAP
+##################
+#................#
+#..bbbb....bbbb..#
+#..b............>#
+#..b....*.......#
+#..bbbb....bbbb..#
+#................#
+#....*...........#
+#........P.......#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = CITY_BUILDING_WALL
+TILE: * = CITY_FOUNTAIN
+TILE: > = EXIT
+COLOUR: b = (110, 185, 190) / (42, 72, 76)
+COLOUR: * = (120, 240, 255) / (36, 96, 110)

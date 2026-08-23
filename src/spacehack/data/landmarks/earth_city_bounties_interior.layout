@@ -1,0 +1,21 @@
+# earth_city_bounties_interior.layout
+MAP
+##################
+#................#
+#..bbbb....bbbb..#
+#..b............>#
+#..b....*.......#
+#..bbbb....bbbb..#
+#................#
+#....*...........#
+#........P.......#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = CITY_BUILDING_WALL
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: b = (180, 95, 150) / (72, 42, 68)
+COLOUR: * = (255, 180, 90) / (92, 60, 32)

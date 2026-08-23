@@ -48,6 +48,13 @@ _TILE_BY_NAME: dict[str, world.Tile] = {
     for name in dir(world)
     if isinstance(getattr(world, name), world.Tile)
 }
+from . import city_tiles as _city_tiles
+
+_TILE_BY_NAME.update({
+    name: getattr(_city_tiles, name)
+    for name in dir(_city_tiles)
+    if name.startswith("CITY_") and isinstance(getattr(_city_tiles, name), world.Tile)
+})
 
 
 def tile_names() -> tuple[str, ...]:

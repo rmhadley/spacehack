@@ -1,6 +1,6 @@
 """Regression tests for exploration movement feedback."""
 
-from src.spacehack import saveload, world
+from src.spacehack import game_interactions, saveload, world
 
 
 def test_blocked_tiles_own_their_movement_messages():
@@ -53,6 +53,50 @@ def test_out_of_bounds_has_no_blocking_object_and_keeps_wall_fallback():
     assert code == "wall"
     assert blocker is None
     assert world.blocked_message_for(blocker) == "A wall blocks your path."
+
+
+def test_earth_city_obstacles_own_thematic_messages():
+    from src.spacehack.data.planets import load_planet
+
+    game_map = load_planet("earth")
+
+    assert game_map.tiles[12][12].blocked_message == (
+        "The building wall blocks your path."
+    )
+    assert game_map.tiles[50][150].blocked_message == (
+        "The water blocks your path."
+    )
+
+
+def test_wall_resolution_logs_the_tile_owned_message():
+    wall = world.Tile(
+        kind="force_field",
+        char="#",
+        walkable=False,
+        fg=(1, 2, 3),
+        bg=(4, 5, 6),
+        blocked_message="The force field repels you.",
+    )
+    player = world.Entity("@", (255, 255, 255), world.Position(0, 0))
+    game_map = world.GameMap(2, 1, [[world.FLOOR, wall]], [player])
+    messages = []
+    state = game_interactions.GameLoopState(
+        ctx=object(),
+        console=object(),
+        map_w=2,
+        map_h=1,
+        log=type("Log", (), {"add": messages.append})(),
+        stats=object(),
+        game_map=game_map,
+        player=player,
+        current_mode="city",
+        current_city_id="earth",
+    )
+
+    code, blocker = world.try_move(player, game_map, 1, 0)
+    game_interactions.resolve_blocker(state, code, blocker, 1, 0)
+
+    assert messages == ["The force field repels you."]
 
 
 def test_custom_blocked_messages_survive_dungeon_save_round_trip():

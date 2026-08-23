@@ -14,6 +14,7 @@ class AssetMode(str, Enum):
 
     SHIP = "ship"
     LANDMARK = "landmark"
+    CITY = "city"
 
 
 @dataclass(frozen=True)
@@ -153,7 +154,9 @@ class EditorDocument:
 
 def infer_mode(path: Path) -> AssetMode:
     """Infer asset mode from the repository data directory name."""
-    return AssetMode.LANDMARK if path.parent.name == "landmarks" else AssetMode.SHIP
+    if path.parent.name == "landmarks":
+        return AssetMode.CITY if path.stem.startswith("earth_city_") else AssetMode.LANDMARK
+    return AssetMode.SHIP
 
 
 def load_document(path: str | Path, mode: AssetMode | None = None) -> EditorDocument:
@@ -165,7 +168,7 @@ def load_document(path: str | Path, mode: AssetMode | None = None) -> EditorDocu
 
 def new_document(mode: AssetMode, path: Path | None = None) -> EditorDocument:
     """Create a small starter document for the selected asset family."""
-    if mode is AssetMode.LANDMARK:
+    if mode in {AssetMode.LANDMARK, AssetMode.CITY}:
         lines = ["#####", "#...#", "##d##"]
         tiles = {"#": "DUNGEON_WALL", ".": "DUNGEON_FLOOR", "d": "DUNGEON_DOOR"}
     else:

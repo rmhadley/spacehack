@@ -63,8 +63,9 @@ Then you can just call `freejail` to launch the editor.
   its own planets, stations, economy, and dangers
 - **Choose your legend** — pick a species (Human, Martian) and class
   (Pirate, Merchant, Bounty Hunter) that shape your starting skills and credits
-- **Walk the cities** — guild halls, bars, spaceports, and terminals in every
-  port town; talk to NPCs, take missions, refuel, repair, and rearm
+- **Walk the cities** — Earth now has a large scrolling river-to-coast city
+  with a central plaza, bridges, guild halls, bars, spaceports, and terminals;
+  talk to NPCs, take missions, refuel, repair, and rearm
 - **Space combat** — turn-based dogfights with lasers, plasma cannons, and
   missiles (ammo is scarce and persistent — buy more at the mechanic)
 - **Ground combat** — board derelict wrecks and explore planets on foot,
@@ -137,16 +138,26 @@ run_spacehack.bat
 
 Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
 
-## Layout and landmark editor
+## Planetary cities and authored landmarks
+
+Earth's Phase 1 city is a `160x100` scrolling map. A river crosses the city
+and reaches the eastern coast; marked bridges provide the major crossings, and
+the central plaza is an authored landmark. Walk into a functional building's
+entrance to load its distinct authored interior, then use the interior exit to
+return to the same outdoor doorway. City building exteriors, interiors, and
+plaza features are loaded from swappable `.layout` assets, so their ASCII art
+and colors can be changed without changing interaction code.
 
 The repository includes a standalone Pygame utility for creating and editing
-hand-authored ship interiors and dungeon landmarks. It uses the same layout
-syntax, tile data, and renderer as the game:
+hand-authored ship interiors, dungeon landmarks, and city landmarks. It uses
+the same layout syntax, tile data, and renderer as the game:
 
 ```bash
 # Open an existing ship or landmark asset
 python -m tools.layout_editor src/spacehack/data/layouts/scout_a.layout
 python -m tools.layout_editor src/spacehack/data/landmarks/mars_signal_door.layout
+python -m tools.layout_editor src/spacehack/data/landmarks/earth_city_plaza.layout
+python -m tools.layout_editor src/spacehack/data/landmarks/earth_city_bar_interior.layout
 
 # Create a new asset (saving is restricted to the matching data directory)
 python -m tools.layout_editor --mode ship --output src/spacehack/data/layouts/my_ship.layout
@@ -171,7 +182,8 @@ invalid markers, references, and reachability issues before saving.
 
 1. **Create a character** — pick a species, then a class. Your choices set
    your starting skills, reputation, and credits.
-2. **Explore the city** — move with the **arrow keys**, the **vim keys**
+2. **Explore the city** — Earth is larger than the viewport, so keep walking
+   to scroll through its districts. Move with the **arrow keys**, the **vim keys**
    (`h j k l` cardinals, `y u b n` diagonals), or the **numpad**. Walk
    into buildings and NPCs to interact.
 3. **Find work** — the guild halls and the bar have mission boards

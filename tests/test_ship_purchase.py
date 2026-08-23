@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from src.spacehack import __main__ as game_main
 from src.spacehack import message_log, ship as ship_module, world
+from src.spacehack.data.planets import hangar_anchor
 from src.spacehack.hud import HudStats
 
 
@@ -38,6 +39,7 @@ def _purchase_context(old_ship: ship_module.OwnedShip, credits: int = 10_000):
         player_owned_ship=old_ship,
         log=message_log.MessageLog(capacity=20),
         game_map=game_map,
+        current_city_id="earth",
     ), game_map, old_entity, blocker
 
 
@@ -70,7 +72,7 @@ def test_ship_upgrade_moves_old_loadout_to_storage_and_keeps_new_starting_loadou
     assert ctx.stats.credits == 5_250
     assert old_entity not in game_map.entities
     assert blocker.owned is True
-    assert blocker.pos == world.HANGAR_ANCHOR
+    assert blocker.pos == hangar_anchor("earth")
     assert ctx.ship_storage == [
         ship_module.StoredEquipment("weapon", "light_missile", 1),
         ship_module.StoredEquipment("weapon", "light_laser"),

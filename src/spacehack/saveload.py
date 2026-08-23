@@ -1,11 +1,6 @@
-"""Save / load — JSON serialization of GameContext.
+"""Save/load JSON serialization for :class:`GameContext`.
 
-Single autosave file at ``~/.spacehack/saves/autosave.json``.
-Serialization converts GameContext fields to a JSON-safe dict,
-skipping non-serializable runtime context, game_map, and entities.
-On load, game_map is regenerated from saved position + system info.
-
-Design doc: ``docs/design/in_progress/03_DESIGN_GAME_INFRASTRUCTURE.md``
+Runtime maps are rebuilt from the saved mode, location, and position.
 """
 
 from __future__ import annotations
@@ -30,7 +25,7 @@ def _saves_dir() -> Path:
 
 
 def _autosave_path() -> Path:
-    """Full path to the autosave file."""
+    """Return the autosave path."""
     return _saves_dir() / "autosave.json"
 
 
@@ -40,7 +35,7 @@ def save_exists() -> bool:
 
 
 def delete_save() -> None:
-    """Remove the autosave file (roguelike: save-on-quit, delete-on-load)."""
+    """Remove the autosave file."""
     _path = _autosave_path()
     try:
         _path.unlink()
@@ -370,7 +365,7 @@ def save_game(
 
 
 def _load_json(path: Path) -> dict | None:
-    """Read and parse the autosave JSON. Returns None if not found."""
+    """Read and parse the autosave JSON."""
     try:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, FileNotFoundError):
@@ -876,6 +871,8 @@ def _active_interior_key(ctx: GameContext, rebuilt) -> str:
     active_key = getattr(game_map, "interior_cache_key", "")
     if not active_key and getattr(game_map, "wreck_spawn_id", None) is not None:
         active_key = game_map.wreck_spawn_id
+    if not active_key and getattr(game_map, "city_interior_id", ""):
+        active_key = game_map.city_interior_id
     if not active_key and (
         ctx.dungeon_extension is not None and ctx.dungeon_extension.active
     ):
@@ -909,6 +906,9 @@ def _restore_interiors(ctx: GameContext, data: dict, rebuilt) -> None:
     cur_wsid = getattr(rebuilt.game_map, 'wreck_spawn_id', None)
     if cur_wsid is not None:
         ctx.interiors[cur_wsid] = rebuilt.game_map
+    if rebuilt.mode == "dungeon":
+        from .city_interiors import restore_city_interior_parent
+        restore_city_interior_parent(ctx, rebuilt)
     extension_state = ctx.dungeon_extension
     if extension_state is not None and extension_state.active:
         from .dungeon_extensions import (

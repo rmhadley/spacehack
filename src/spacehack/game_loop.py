@@ -21,6 +21,8 @@ from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
 from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .city_render import render_city_view
+from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
 from .pygame_runtime import PygameContext
@@ -68,44 +70,58 @@ def _tint_player_glyph(state) -> None:
     )
 
 
+def _render_active_map(state):
+    """Render the current map and return camera plus space-view metadata."""
+    if state.current_mode == 'space':
+        view_w, view_h = solar_system_module.SOL_VIEW_W, solar_system_module.SOL_VIEW_H
+    else:
+        view_w, view_h = state.map_w, state.map_h
+    if state.current_mode == 'city':
+        camera = render_city_view(state.console, state.game_map, state.player.pos)
+    else:
+        camera = world.camera_for_view(
+            state.game_map, state.player.pos,
+            region_w=view_w, region_h=view_h,
+        )
+        world.render_world_view(
+            state.console, state.game_map,
+            region_x=camera[2], region_y=camera[3],
+            region_w=view_w, region_h=view_h,
+            camera_x=camera[0], camera_y=camera[1],
+        )
+    if state.current_mode == 'space':
+        render_npc_flash_events(
+            state.console, state.ctx, camera[0], camera[1], view_w, view_h,
+        )
+        return camera, (camera + (view_w, view_h))
+    return camera, None
+
+
 def _present_frame(state):
     """Present one gameplay frame."""
     ctx = state.ctx
-    console = state.console
-    map_w = state.map_w
-    map_h = state.map_h
     main_quest_module.check_quest_gates(ctx)
     tutorial_module.tick(ctx, mode=state.current_mode)
     _maybe_show_post_prison_orbit_in_space(ctx, state.current_mode)
     if ctx.main_quest_pending_message:
-        _summon = ctx.main_quest_pending_message
-        _objective = ctx.main_quest_pending_objective
-        main_quest_module.show_quest_summon(ctx, _summon, objective=_objective)
+        main_quest_module.show_quest_summon(
+            ctx, ctx.main_quest_pending_message,
+            objective=ctx.main_quest_pending_objective,
+        )
         ctx.main_quest_pending_message = ''
         ctx.main_quest_pending_objective = ''
-    console.clear()
+    state.console.clear()
     _tint_player_glyph(state)
+    camera, space_view = _render_active_map(state)
     if state.current_mode == 'space':
-        view_w = solar_system_module.SOL_VIEW_W
-        view_h = solar_system_module.SOL_VIEW_H
-        cam_x, cam_y, rx, ry = world.camera_for_view(state.game_map, state.player.pos, region_w=view_w, region_h=view_h)
-        world.render_world_view(console, state.game_map, region_x=rx, region_y=ry, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y)
-        render_npc_flash_events(console, ctx, cam_x, cam_y, view_w, view_h)
+        location = solar_system_module.current_system().name
     elif state.current_mode == 'dungeon':
-        cam_x, cam_y, rx, ry = world.camera_for_view(state.game_map, state.player.pos, region_w=map_w, region_h=map_h)
-        world.render_world_view(console, state.game_map, region_x=rx, region_y=ry, region_w=map_w, region_h=map_h, camera_x=cam_x, camera_y=cam_y)
+        location = getattr(state.game_map, 'location_name', 'Derelict Ship')
     else:
-        world.render_world(console, state.game_map, region_x=0, region_y=0, region_w=map_w, region_h=map_h)
-    if state.current_mode == 'space':
-        _location = solar_system_module.current_system().name
-    elif state.current_mode == 'dungeon':
-        _location = getattr(state.game_map, 'location_name', 'Derelict Ship')
-    else:
-        _location = state.current_city_id.replace('_', ' ').title()
-    _space_view = (
-        cam_x, cam_y, rx, ry, view_w, view_h
-    ) if state.current_mode == 'space' else None
-    _present_overlay(state, ctx, console, map_h, _location, _space_view)
+        location = state.current_city_id.replace('_', ' ').title()
+    _present_overlay(
+        state, ctx, state.console, state.map_h, location, space_view,
+    )
 
 def _handle_dev_quest_event(state, event):
     """Handle developer main-quest selection."""
@@ -508,6 +524,8 @@ def _handle_dungeon_move(state, console, code):
     if _dctrl in {'DEFEAT', 'COMBAT'}:
         return 'QUIT' if _dctrl == 'DEFEAT' else 'HANDLED'
     _tile = state.game_map.tiles[state.player.pos.y][state.player.pos.x]
+    if getattr(state.game_map, "city_interior_id", "") and _tile.kind == "exit":
+        return exit_city_interior(state)
     _stairs_result = _handle_dungeon_stairs(state, _tile)
     if _stairs_result is not None:
         return _stairs_result
@@ -578,6 +596,8 @@ def _handle_movement_event(state, event):
         code, blocker = world.try_move(state.player, state.game_map, dx, dy)
     if code == 'moved' and state.current_mode == 'city':
         tutorial_module.notify_move(ctx)
+        if enter_city_interior(state) == 'ENTERED':
+            return 'HANDLED'
     if code == 'moved' and state.current_mode == 'space' and (state.player_owned_ship is not None):
         _run_combat_loop(ctx, console, state.player, also_move_npcs=True)
         state.player_active_missions = ctx.player_active_missions
@@ -630,6 +650,8 @@ def _loaded_game_state(context, console, map_w, map_h, loaded_ctx):
     if current_mode == 'dungeon':
         space_game_map = getattr(ctx, '_space_game_map', None)
         space_player = getattr(ctx, '_space_player', None)
+        city_game_map = getattr(game_map, 'city_parent_map', None)
+        city_player = getattr(game_map, 'city_parent_player', None)
         from .dungeon import reveal_around as _load_reveal
         if game_map.seen is not None:
             _load_reveal(game_map, player.pos, radius=game_map.sight_radius)
@@ -645,9 +667,14 @@ def _new_character_context(context, species_id, class_id):
     """Create the city, player, starter ship, and fresh game context."""
     species = find_species(species_id)
     klass = find_class(class_id)
-    city_width, city_height = (60, 40)
-    game_map = world.make_city(width=city_width, height=city_height)
-    player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(x=city_width // 2, y=city_height // 2), name='Player')
+    game_map = world.make_city()
+    city_width, city_height = game_map.width, game_map.height
+    player = world.Entity(
+        char='@',
+        fg=(255, 255, 255),
+        pos=world.Position(x=city_width // 2, y=city_height // 2),
+        name='Player',
+    )
     game_map.entities.append(player)
     stats = character.starting_stats(species_id, class_id)
     log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
@@ -657,7 +684,15 @@ def _new_character_context(context, species_id, class_id):
     from .data.ships.core import STARTER_NAMES as _starter_names
     from .engine import RNG as _rng
     ship_name = _rng.choice(_starter_names)
-    starter_entity = world.Entity(char=starter_ship.char, fg=starter_ship.fg, pos=world.HANGAR_ANCHOR, name=f'Your Ship: {ship_name}', ship_id=starter_ship.id, owned=True)
+    from .data.planets import hangar_anchor as _hangar_anchor
+    starter_entity = world.Entity(
+        char=starter_ship.char,
+        fg=starter_ship.fg,
+        pos=_hangar_anchor('earth'),
+        name=f'Your Ship: {ship_name}',
+        ship_id=starter_ship.id,
+        owned=True,
+    )
     game_map.entities.append(starter_entity)
     owned_ship = ship_module.OwnedShip(ship_id=starter_ship.id, display_name=ship_name, weapons=starter_ship.start_weapons, modules=starter_ship.start_modules, fuel=starter_ship.max_fuel)
     log.add(f'Your {ship_name} is docked at the space port.')

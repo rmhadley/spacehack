@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.spacehack import layout_format, world
+from src.spacehack import layout_format
 from src.spacehack.dungeon_layout import LOOT_ROOM_TYPES
 from src.spacehack.data.npc_chars import _registry
 

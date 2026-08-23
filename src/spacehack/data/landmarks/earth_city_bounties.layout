@@ -1,0 +1,17 @@
+# earth_city_bounties.layout - Earth bounty guild exterior
+MAP
+#################
+#BBBBBBBBBBBBBBB#
+#B.............B#
+#BBBBBBBdBBBBBBB#
+#################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: B = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (235, 110, 190) / (58, 28, 54)
+COLOUR: B = (235, 110, 190) / (58, 28, 54)
+COLOUR: . = (205, 155, 190) / (74, 54, 72)
+COLOUR: d = (255, 150, 215) / (100, 52, 92)

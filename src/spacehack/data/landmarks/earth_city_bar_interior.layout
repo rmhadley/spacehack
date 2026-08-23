@@ -1,0 +1,23 @@
+# earth_city_bar_interior.layout
+MAP
+##################
+#................#
+#..bbbbbbbb......#
+#..b........b....#
+#..b..t..t..b....#
+#..b..g..g..b..>.#
+#..bbbbbbbb......#
+#................#
+#........P.......#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: t = TABLE
+TILE: g = DRINK
+TILE: > = EXIT
+COLOUR: b = (160, 120, 70) / (90, 75, 50)
+COLOUR: t = (255, 200, 80) / (130, 108, 70)
+COLOUR: g = (255, 60, 60) / (130, 108, 70)

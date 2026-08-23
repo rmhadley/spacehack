@@ -1,0 +1,17 @@
+# earth_city_bar.layout - Earth bar exterior
+MAP
+#############
+#bbbbbbbbbbb#
+#b.........b#
+#bbbbbbdbbbb#
+#############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: b = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (210, 150, 70) / (62, 38, 28)
+COLOUR: b = (210, 150, 70) / (62, 38, 28)
+COLOUR: . = (225, 190, 125) / (88, 62, 42)
+COLOUR: d = (255, 220, 90) / (80, 52, 24)

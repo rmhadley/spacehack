@@ -1,0 +1,17 @@
+# earth_city_merchants.layout - Earth merchant guild exterior
+MAP
+#######################
+#MMMMMMMMMMMMMMMMMMMMM#
+#M...................M#
+#MMMMMMMMMMdMMMMMMMMMM#
+#######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: M = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (120, 220, 135) / (28, 64, 42)
+COLOUR: M = (120, 220, 135) / (28, 64, 42)
+COLOUR: . = (185, 220, 175) / (58, 78, 52)
+COLOUR: d = (160, 255, 160) / (30, 88, 48)

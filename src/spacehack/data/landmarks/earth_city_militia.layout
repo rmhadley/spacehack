@@ -1,0 +1,16 @@
+MAP
+###################
+#RRRRRRRRRRRRRRRRR#
+#R...............R#
+#RRRRRRRRdRRRRRRRR#
+###################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: R = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (105, 215, 205) / (24, 62, 64)
+COLOUR: R = (105, 215, 205) / (24, 62, 64)
+COLOUR: . = (175, 220, 205) / (48, 78, 72)
+COLOUR: d = (120, 255, 235) / (26, 92, 88)

@@ -139,14 +139,30 @@ def _autoexplore_memory_to_dict(gm) -> list[list[int]]:
     ]
 
 
-def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
-    """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict.
+def _optional_map_fields(gm) -> dict:
+    """Serialize optional dungeon, landmark, and city-interior metadata."""
+    return {
+        "wreck_spawn_id": getattr(gm, 'wreck_spawn_id', None),
+        "extension_id": getattr(gm, 'extension_id', ''),
+        "extension_floor": getattr(gm, 'extension_floor', 0),
+        "feature_theme": getattr(gm, 'feature_theme', ''),
+        "activation_positions": _activation_positions_to_dict(gm),
+        "autoexplore_ignored": _autoexplore_memory_to_dict(gm),
+        "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
+        "interior_cache_key": getattr(gm, 'interior_cache_key', ''),
+        "city_interior_id": getattr(gm, 'city_interior_id', ''),
+        "city_building_label": getattr(gm, 'city_building_label', ''),
+        "city_parent_door": list(getattr(gm, 'city_parent_door', ()) or ()),
+        "landmark_footprint": [
+            [int(x), int(y)] for x, y in getattr(gm, 'landmark_footprint', set())
+        ],
+        "landmark_interaction_cells": _landmark_interaction_cells(gm),
+        "landmark_variant_id": getattr(gm, 'landmark_variant_id', ''),
+    }
 
-    Shared by the active-dungeon save block AND the ``ctx.interiors`` cache
-    (salvage wrecks). ``space_player_pos`` is only meaningful for the active
-    dungeon (the player's ship position in space while boarded); interiors
-    pass ``None``.
-    """
+
+def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
+    """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict."""
     return {
         "width": gm.width,
         "height": gm.height,
@@ -160,24 +176,8 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
         "space_player_x": space_player_pos[0] if space_player_pos else 0,
         "space_player_y": space_player_pos[1] if space_player_pos else 0,
         "location_name": getattr(gm, 'location_name', ''),
-        # Salvage-wreck interior anchors: the wreck's BountySpawn id
-        # (cache key + lifecycle) and the interior's entry spawn, so
-        # re-boarding a restored interior places the player correctly.
-        "wreck_spawn_id": getattr(gm, 'wreck_spawn_id', None),
+        **_optional_map_fields(gm),
         **_anchor_positions(gm),
-        "extension_id": getattr(gm, 'extension_id', ''),
-        "extension_floor": getattr(gm, 'extension_floor', 0),
-        "feature_theme": getattr(gm, 'feature_theme', ''),
-        "activation_positions": _activation_positions_to_dict(gm),
-        "autoexplore_ignored": _autoexplore_memory_to_dict(gm),
-        "extension_entry_id": getattr(gm, 'extension_entry_id', ''),
-        "interior_cache_key": getattr(gm, 'interior_cache_key', ''),
-        "landmark_footprint": [
-            [int(_x), int(_y)]
-            for _x, _y in getattr(gm, 'landmark_footprint', set())
-        ],
-        "landmark_interaction_cells": _landmark_interaction_cells(gm),
-        "landmark_variant_id": getattr(gm, 'landmark_variant_id', ''),
     }
 
 
@@ -290,6 +290,13 @@ def _apply_extension_attributes(dungeon_map: world.GameMap, dd: dict) -> None:
     _interior_cache_key = dd.get("interior_cache_key", "")
     if _interior_cache_key:
         dungeon_map.interior_cache_key = str(_interior_cache_key)
+    _city_interior_id = dd.get("city_interior_id", "")
+    if _city_interior_id:
+        dungeon_map.city_interior_id = str(_city_interior_id)
+        dungeon_map.city_building_label = str(dd.get("city_building_label", ""))
+        _parent_door = dd.get("city_parent_door", [])
+        if isinstance(_parent_door, (list, tuple)) and len(_parent_door) >= 2:
+            dungeon_map.city_parent_door = (int(_parent_door[0]), int(_parent_door[1]))
     _restore_landmark_fields(dungeon_map, dd)
 
 

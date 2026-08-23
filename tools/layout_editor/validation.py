@@ -194,6 +194,9 @@ def _validate_markers(document: EditorDocument) -> list[ValidationIssue]:
         for kind in ("stairs_up", "stairs_down"):
             if len(_tile_kind_positions(document, kind)) > 1:
                 issues.append(_issue(f"Landmarks allow at most one {kind} marker"))
+    if document.mode is AssetMode.CITY:
+        if len(entrances) > 1:
+            issues.append(_issue("City landmarks allow at most one entrance door"))
         console_tiles = [
             position for position in _marker_positions(document, "C")
             if document.tile_directives.get("C", None)

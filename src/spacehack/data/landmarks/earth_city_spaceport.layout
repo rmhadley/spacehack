@@ -1,0 +1,22 @@
+# earth_city_spaceport.layout - Earth spaceport exterior
+MAP
+#########################
+#SSSSSSSSSSSSSSSSSSSSSSS#
+#S.....................S#
+#S..s.....H......c.....S#
+#S.....................S#
+#S.....................S#
+#SSSSSSSSSSSSdSSSSSSSSSS#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: S = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: d = CITY_BUILDING_DOOR
+TILE: s = CITY_BUILDING_FLOOR
+TILE: H = CITY_BUILDING_FLOOR
+TILE: c = CITY_BUILDING_FLOOR
+COLOUR: # = (110, 190, 230) / (28, 48, 68)
+COLOUR: S = (110, 190, 230) / (28, 48, 68)
+COLOUR: . = (210, 225, 205) / (70, 82, 70)
+COLOUR: d = (100, 240, 255) / (22, 68, 84)

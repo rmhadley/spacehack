@@ -70,6 +70,8 @@ class PlanetSpec:
     hangar_anchor: world.Position
     buildings: tuple[world.CityBuilding, ...]
     showroom_ships: tuple[tuple[str, int, int], ...]
+    city_layout_id: str = ""
+    interior_layouts: tuple[tuple[str, str], ...] = ()
     theme: world.PlanetTheme | None = None
     npc_overrides: tuple[tuple[str, npc_module.NPC], ...] = ()
     # (npc_id, building_label) — where quest-conditional NPCs stand.
@@ -358,13 +360,15 @@ def _readable_city_theme(theme: world.PlanetTheme) -> world.PlanetTheme:
 
 
 def load_planet(planet_id: str) -> world.GameMap:
-    """Build the :class:`world.GameMap` for the named planet's city.
-
-    Shared decorative code lives in :func:`world.make_city`; this loader
-    composes the skeleton with the planet-specific building layout,
-    showroom ships, and NPC overrides from the spec.
-    """
+    """Build the :class:`world.GameMap` for the named planet's city."""
     spec = find_planet_spec(planet_id)
+    if spec.city_layout_id == "earth_river_coast":
+        from ...earth_city import build_earth_city
+        return build_earth_city(
+            spec,
+            lambda npc_id: _resolve_npc_entity(npc_id, spec),
+            _resolve_ship,
+        )
     width, height = spec.width, spec.height
     theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
     tiles = _city_tiles(width, height, theme)

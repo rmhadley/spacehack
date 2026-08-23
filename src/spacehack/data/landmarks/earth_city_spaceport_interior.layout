@@ -1,0 +1,24 @@
+# earth_city_spaceport_interior.layout
+MAP
+##################
+#................#
+#..s....h....c...#
+#................#
+#....*.....*.....#
+#................#
+#..s....h....c...#
+#...............>.#
+#........P.......#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: s = CITY_ORNAMENT
+TILE: h = CITY_FOUNTAIN
+TILE: c = CITY_BRIDGE
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: s = (120, 220, 255) / (42, 72, 92)
+COLOUR: h = (255, 190, 90) / (88, 64, 34)
+COLOUR: c = (180, 220, 235) / (55, 72, 88)
