@@ -119,6 +119,61 @@ def test_transit_station_without_routes_logs_and_does_not_move(monkeypatch):
     assert (state.player.pos.x, state.player.pos.y) == (start.x, start.y)
 
 
+def test_no_station_sits_in_front_of_a_building_door():
+    from src.spacehack.data.planets import find_planet_spec
+
+    spec = find_planet_spec("earth")
+    door_cells = {
+        (b.door_x, b.y_hi + 1) for b in spec.buildings
+    }
+    station_cells = {
+        (s.pos.x, s.pos.y) for s in spec.transit_stations
+    }
+    # A station must never occupy the cell directly outside a building door
+    # (that would block the doorway).
+    assert station_cells.isdisjoint(door_cells)
+
+
+def test_all_stations_are_walkable_and_free_of_other_blockers():
+    game_map = load_planet("earth")
+    for entity in _station_entities(game_map):
+        tile = game_map.tiles[entity.pos.y][entity.pos.x]
+        assert tile.walkable
+        # The only blocker on a station cell is the station itself.
+        blocker = game_map.blocking_entity_at(entity.pos.x, entity.pos.y)
+        assert blocker is entity
+
+
+def test_transit_arrival_never_lands_on_terminal_npc_ship_or_door(monkeypatch):
+    from src.spacehack.data.planets import find_planet_spec
+
+    game_map = load_planet("earth")
+    spec = find_planet_spec("earth")
+
+    dest_pos = {dest.id: dest.pos for dest in spec.transit_stations}
+    for source in spec.transit_stations:
+        for dest_id in source.destinations:
+            cell = city_transit._arrival_cell(
+                game_map, dest_pos[dest_id], dest_id,
+            )
+            tile = game_map.tiles[cell.y][cell.x]
+            assert tile.walkable
+            assert tile.kind != "door"
+            blocker = game_map.blocking_entity_at(cell.x, cell.y)
+            # No terminal, NPC, ship, or other station under the arrival cell.
+            assert blocker is None
+
+
+def test_spaceport_arrival_lands_on_open_landing_pad_not_a_terminal():
+    game_map = load_planet("earth")
+    # The reported bug: riding to the spaceport dropped the player on the
+    # Mechanic Terminal. The arrival cell must be clear.
+    port = next(e for e in _station_entities(game_map) if e.transit_station_id == "port")
+    cell = city_transit._arrival_cell(game_map, (port.pos.x, port.pos.y), "port")
+    assert game_map.blocking_entity_at(cell.x, cell.y) is None
+    assert game_map.tiles[cell.y][cell.x].walkable
+
+
 def test_transit_menu_dispatch_returns_destination(monkeypatch):
     from src.spacehack import pygame_menu
 

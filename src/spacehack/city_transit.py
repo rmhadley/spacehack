@@ -82,23 +82,44 @@ def _run_transit_menu(ctx, station_name: str, destinations) -> str | None:
 
 
 def _arrival_cell(game_map, station_pos, station_id) -> world.Position:
-    """Pick a walkable arrival cell beside ``station_pos``.
+    """Pick a clear walkable arrival cell beside ``station_pos``.
 
-    Prefers a cell that isn't another transit/terminal blocker so the player
-    doesn't immediately re-bump a stop. Falls back to the station's own tile.
+    The player must never be dropped onto a blocker (another transit stop,
+    a terminal, an NPC, a ship) or wedged into a building door, so we scan
+    a small ring around the station and take the first cell that is walkable,
+    free of every blocking entity, and not a door tile. Falls back to walking
+    one cell away from the station to avoid landing on the stop itself.
     """
-    x, y = station_pos
-    for offset in ((0, 1), (1, 0), (0, -1), (-1, 0), (0, 0)):
-        nx, ny = x + offset[0], y + offset[1]
-        if not game_map.in_bounds(nx, ny):
-            continue
-        if not game_map.tiles[ny][nx].walkable:
-            continue
-        blocker = game_map.blocking_entity_at(nx, ny)
-        if blocker is not None and blocker.transit_station_id:
-            continue
-        return world.Position(nx, ny)
-    return world.Position(x, y)
+    if hasattr(station_pos, "x"):
+        x, y = station_pos.x, station_pos.y
+    else:
+        x, y = station_pos[0], station_pos[1]
+    for radius in range(1, 3):
+        for dx, dy in (
+            (0, -1), (1, 0), (0, 1), (-1, 0),
+            (1, -1), (1, 1), (-1, 1), (-1, -1),
+        ):  # cardinals first, then diagonals
+            if abs(dx) > radius or abs(dy) > radius:
+                continue
+            nx, ny = x + dx, y + dy
+            if not game_map.in_bounds(nx, ny):
+                continue
+            tile = game_map.tiles[ny][nx]
+            if not tile.walkable or tile.kind == "door":
+                continue
+            if game_map.blocking_entity_at(nx, ny) is not None:
+                continue
+            return world.Position(nx, ny)
+    # No free neighbour — step away from the station, or fail to the station.
+    x2, y2 = x, y
+    for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0)):
+        nx, ny = x + dx, y + dy
+        if game_map.in_bounds(nx, ny) and game_map.tiles[ny][nx].walkable \
+                and game_map.tiles[ny][nx].kind != "door" \
+                and game_map.blocking_entity_at(nx, ny) is None:
+            x2, y2 = nx, ny
+            break
+    return world.Position(x2, y2)
 
 
 def resolve_transit_station(state, blocker) -> str | None:
