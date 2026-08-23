@@ -82,6 +82,13 @@ _LANDMARK_KINDS = frozenset({
     "road", "sidewalk", "city_plaza", "city_bridge", "landing_pad",
     "city_building_door",
 })
+# Cities whose traffic lanes (roads/sidewalks/plazas) don't span the
+# map have no real lane network — a compact station or base with a bare
+# deck and a small pad. Their whole walkable floor IS the traffic lane,
+# so the landmark set falls back to every walkable, unblocked cell.
+# The rule: the lanes' bounding box must cover half the map's extent,
+# otherwise the lane cluster is just a pad, not a network.
+_LANE_SPAN_FRACTION: float = 0.5
 
 
 def _city_landmarks(
@@ -94,30 +101,74 @@ def _city_landmarks(
     from this whole-city set so they traverse between districts like
     ships traverse between planets, instead of circling one block.
 
+    When a city has too few lane cells to traverse (a compact station
+    with no roads), the whole walkable floor becomes the landmark set,
+    so citizens still cross the map instead of pacing a pad.
+
     Transit-station *cells* are deliberately excluded: the station
     entity blocks its own tile, so a destination on it is never
     reachable and the citizen would bounce against it forever. The
     station's surrounding pavement is a landmark already, so dropping
     the cell costs nothing.
     """
+    cells = _lane_cells(game_map)
+    if not _lanes_span_map(game_map, cells):
+        # No real lane network: every walkable, unblocked cell is a lane.
+        cells = _walkable_cells(game_map, cells)
+    return cells
+
+
+def _lane_cells(game_map: world.GameMap) -> list[tuple[int, int]]:
+    """Walkable, unblocked cells whose kind is a city traffic lane."""
     cells: list[tuple[int, int]] = []
-    seen: set[tuple[int, int]] = set()
     for y in range(game_map.height):
         for x in range(game_map.width):
             if game_map.tiles[y][x].kind not in _LANDMARK_KINDS:
                 continue
             if not game_map.tiles[y][x].walkable:
                 continue
-            if (x, y) in seen:
-                continue
-            # A landmark cell that some entity (station, ship, other
-            # citizen) is standing on is not a valid destination — the
-            # A* path could never step onto it.
+            # A cell some entity (station, ship, other citizen) stands on
+            # is not a valid destination — A* could never step onto it.
             if game_map.blocking_entity_at(x, y) is not None:
                 continue
-            seen.add((x, y))
             cells.append((x, y))
     return cells
+
+
+def _walkable_cells(
+    game_map: world.GameMap,
+    already_seen: list[tuple[int, int]],
+) -> list[tuple[int, int]]:
+    """Every walkable, unblocked cell in the map (the floor-as-lanes set)."""
+    seen = set(already_seen)
+    return [
+        (x, y)
+        for y in range(game_map.height)
+        for x in range(game_map.width)
+        if game_map.tiles[y][x].walkable
+        and (x, y) not in seen
+        and game_map.blocking_entity_at(x, y) is None
+    ]
+
+
+def _lanes_span_map(
+    game_map: world.GameMap,
+    cells: list[tuple[int, int]],
+) -> bool:
+    """Whether the lane cells' bounding box covers the map meaningfully.
+
+    A real lane network (roads/sidewalks/plazas) stretches across the
+    city. A compact station's only "lane" might be a small pad cluster
+    next to the port — that is a parking lot, not a traffic network, so
+    citizens would pace it instead of crossing the map.
+    """
+    if not cells:
+        return False
+    xs = [x for x, _ in cells]
+    ys = [y for _, y in cells]
+    lane_extent = (max(xs) - min(xs)) + (max(ys) - min(ys))
+    map_extent = (game_map.width - 1) + (game_map.height - 1)
+    return lane_extent >= _LANE_SPAN_FRACTION * map_extent
 
 
 def _in_radius(

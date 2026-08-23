@@ -1,10 +1,17 @@
-"""Authored outdoor Earth city foundation."""
+"""Earth's authored river-coast city layout generator.
+
+Phase 5: this module is one *layout* in the generic city pipeline
+(:mod:`spacehack.city_builder` dispatches on ``city_layout_id ==
+"earth_river_coast"`). It owns Earth's terrain and authored building
+stamps; the shared spec-driven tail (transit stations + ambient NPCs)
+runs in ``city_builder.build_city`` for every planet, Earth included.
+"""
 
 from __future__ import annotations
 
 from collections import deque
 
-from . import city_landmarks, city_tiles, city_transit, world
+from . import city_landmarks, city_tiles, world
 from .engine import seeded_rng
 
 
@@ -433,7 +440,7 @@ def _set_city_metadata(game_map, spec, stamps) -> None:
     game_map.city_buildings = _city_building_records(spec, stamps)
 
 
-def _add_service_entities(game_map, spec, resolve_npc, resolve_ship) -> None:
+def _add_service_entities(game_map, spec, resolve_ship) -> None:
     """Add showroom ships and spaceport terminals to the street.
 
     Service NPCs live inside their authored interiors (seated when the
@@ -461,15 +468,17 @@ def _add_service_entities(game_map, spec, resolve_npc, resolve_ship) -> None:
         ))
 
 
-def build_earth_city(spec, resolve_npc, resolve_ship) -> world.GameMap:
-    """Build Earth's 160x100 outdoor city from data and authored assets."""
+def build_earth_layout(spec, resolve_ship) -> world.GameMap:
+    """Build Earth's 160x100 river-coast terrain + authored buildings.
+
+    Transit stations and ambient NPCs are NOT placed here — the generic
+    :func:`spacehack.city_builder.build_city` shared tail adds them for
+    every planet, so Earth and Mercury run the identical city pipeline.
+    """
     game_map = _new_earth_map()
     stamps = _stamp_assets(game_map)
     _paint_roof_labels(game_map, stamps)
     _paint_skyline(game_map)
     _set_city_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_npc, resolve_ship)
-    city_transit.place_transit_stations(game_map, spec)
-    from . import city_npcs
-    city_npcs.place_city_npcs(game_map, spec.city_npc_population)
+    _add_service_entities(game_map, spec, resolve_ship)
     return game_map

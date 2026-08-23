@@ -528,6 +528,93 @@ Pre-implementation audit (completed before code changes):
 4. Exercise all five core services after a save/continue cycle.
 5. Run `make check` and the city-specific test suite.
 
+### Phase 5 - Data-driven city pipeline for every landable city
+
+Pre-implementation audit (completed before code changes):
+
+- Every landable planet already authors a `PlanetSpec` with data-driven
+  knobs: `theme` (8 presets + `derive_theme`/`override_theme`), `buildings`,
+  `transit_stations`, `interior_layouts`, `city_npc_population`,
+  `showroom_ships`, `mech/armory` inventories, and `mission_tier`. The
+  Earth-special machinery (transit, interiors, ambient NPCs) is already
+  generic — it reads those spec fields, not Earth constants.
+- The **only** structural special case is the loader fork:
+  ``load_planet`` routes `city_layout_id == "earth_river_coast"` to
+  ``build_earth_city`` (160x100 authored river/coast/road/skyline layout)
+  and every other planet falls through to the legacy compact builder
+  (bare floor grid + building blocks, no roads, no transit, no interiors,
+  no NPCs). Nothing else in the game depends on that fork; Earth's own
+  transit/interiors/NPCs run through generic spec-driven code.
+- Reusability goal: **one city builder for every landable city.** The
+  layout (river/coast vs. grid vs. station) becomes a data-selected
+  generator keyed by `city_layout_id`; all planets flow through the same
+  pipeline. A desolate moon base and a research station then operate
+  identically to Earth while reading as clearly different worlds.
+- Proof city: **Mercury** (Sol-adjacent, already a compact research
+  station with a lab + `research_officer` + `act0_lab` main-quest chain
+  + militia cave delve). Mercury needs more buildings to exercise the
+  pipeline meaningfully: a **bar** (a base with no bar is unthinkable)
+  and a **supply depot**, plus authored interiors, a transit network,
+  and an ambient population.
+
+- [x] Promote `build_earth_city` to a generic `build_city(spec, ...)`
+      where the river/road/plaza geometry is a layout generator selected
+      by `city_layout_id` from data.
+- [x] Delete the `earth_river_coast` special-case fork in `load_planet`
+      so every planet flows through the same builder path.
+- [x] Theme-parameterize the layout painters so non-Earth planets get
+      their theme's roads/plaza/pad instead of Earth's palette (the
+      generic grid builder uses each spec's readability-adjusted theme;
+      compact stations with no roads get the whole walkable floor as
+      their traffic lanes).
+- [x] Expand Mercury: add a bar and a supply depot to its `PlanetSpec`,
+      sized to a compact research station.
+- [x] Author Mercury interiors + transit stations + ambient NPC
+      population (data only).
+- [x] Add tests asserting Earth and Mercury run through the identical
+      builder path and both produce walkable, reachable, serviceable
+      cities.
+- [x] Run the full gate with both cities exercised.
+
+**PLAYTEST**
+
+1. Land on Mercury; verify its layout reads as a compact scorched
+   research station, not a recolored Earth.
+2. Walk between the port, lab, bar, and supply depot; confirm each is
+   reachable and its interior works.
+3. Ride Mercury's transit and bump its ambient NPCs; confirm the same
+   interactions as Earth.
+4. Land on Earth again; confirm nothing about the Earth city changed.
+
+**Phase 5 verification record**
+
+- `city_builder.build_city(spec, ...)` is the single entry point;
+  `load_planet` has no per-planet fork. Earth keeps its authored
+  river-coast layout (`earth_city.build_earth_layout`, selected by
+  `city_layout_id == "earth_river_coast"`); every other planet flows
+  through the generic grid builder (the former legacy path plus the
+  Phase 2/3 systems).
+- The generic grid builder places buildings, showroom ships, terminals,
+  landing pad, per-planet interior building records, transit stations,
+  and ambient NPCs — all from spec data. Earth's transit/NPC placement
+  now runs through that same shared tail.
+- Mercury is the proof city: port + lab + new bar + new supply depot,
+  a fully-connected 4-stop transit network, four authored interiors
+  (`mercury_*_interior`), and a station-crew ambient population — all
+  data-only.
+- Movement generalization: cities whose traffic lanes don't span the
+  map (compact stations with just a pad) fall back to the whole
+  walkable floor as their landmark pool, so citizens cross the base
+  instead of pacing the pad. Mercury's landmark pool spans the map.
+- Layout-editor asset mode is now content-driven (`CITY_*` tiles =>
+  city asset) instead of the `earth_city_` name prefix, so Mercury's
+  interiors validate the same way Earth's do.
+- Focused tests (`tests/test_city_builder.py`) cover the shared
+  pipeline, Mercury reachability, station/door placement, interiors,
+  and the floor-as-lanes fallback.
+- Full suite (1376 tests), lint, architecture, smoke, and main-quest
+  gates pass; Earth's city is byte-identical in layout to before.
+
 ## Acceptance criteria
 
 - Earth is a 160x100 city that scrolls smoothly in the existing cell renderer.

@@ -1,0 +1,27 @@
+# mercury_spaceport_interior.layout
+# Compact desert-port terminal: cargo cranes (CITY_BRIDGE) flanking
+# the deck, loading beacons (CITY_ORNAMENT) on the apron. The exit sits
+# directly below the spawn point, so stepping back through the door is
+# one move from where you entered.
+MAP
+##############
+#............#
+#..c......c..#
+#............#
+#..*......*..#
+#............#
+#..c......c..#
+#............#
+#..*......*..#
+#......P.....#
+#......>.....#
+##############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = CITY_BRIDGE
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: c = (200, 140, 90) / (62, 40, 22)
+COLOUR: * = (255, 170, 70) / (70, 44, 22)

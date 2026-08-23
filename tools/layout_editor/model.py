@@ -153,10 +153,23 @@ class EditorDocument:
 
 
 def infer_mode(path: Path) -> AssetMode:
-    """Infer asset mode from the repository data directory name."""
-    if path.parent.name == "landmarks":
-        return AssetMode.CITY if path.stem.startswith("earth_city_") else AssetMode.LANDMARK
-    return AssetMode.SHIP
+    """Infer asset mode from the data directory + the tiles it declares.
+
+    City assets (exteriors and interiors for any planet) declare
+    ``CITY_*`` tiles; dungeon-style landmarks (e.g. Mars's signal
+    door) don't. Anything outside the landmarks directory is a ship
+    layout. This is data-driven, not planet-name-driven: Mercury's
+    interiors validate the same way Earth's do.
+    """
+    if path.parent.name != "landmarks":
+        return AssetMode.SHIP
+    text = path.read_text(encoding="utf-8")
+    if any(
+        line.strip().startswith("TILE:") and "CITY_" in line
+        for line in text.splitlines()
+    ):
+        return AssetMode.CITY
+    return AssetMode.LANDMARK
 
 
 def load_document(path: str | Path, mode: AssetMode | None = None) -> EditorDocument:

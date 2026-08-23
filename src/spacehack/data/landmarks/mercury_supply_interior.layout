@@ -1,0 +1,25 @@
+# mercury_supply_interior.layout
+# Supply depot: stacked cargo crates (CITY_ORNAMENT) in racks, the
+# attendant near the center. The exit sits directly below the spawn
+# point, so stepping back through the door is one move from where you
+# entered.
+MAP
+##############
+#............#
+#..*..*..*...#
+#............#
+#..*..*..*...#
+#............#
+#..*..*..*...#
+#............#
+#............#
+#......P.....#
+#......>.....#
+##############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: * = (210, 160, 90) / (72, 50, 26)

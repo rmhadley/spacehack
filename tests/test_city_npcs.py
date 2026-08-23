@@ -6,7 +6,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import city_npcs, world
-from src.spacehack.data.city_npcs import CityNpc, EARTH_POPULATION
+from src.spacehack.data.city_npcs import (
+    CityNpc, EARTH_POPULATION, MERCURY_POPULATION,
+)
 from src.spacehack.data.planets import load_planet
 
 
@@ -121,19 +123,24 @@ def test_move_city_npcs_skips_combat_locked(monkeypatch):
 def test_every_population_has_dense_landmark_pool():
     """No citizen's district collapses to a one-landmark pool (regression:
     militia patrols circled a single door because special tiles were the
-    only landmarks; streets are traffic lanes and must count too)."""
-    game_map = load_planet("earth")
-    cells = city_npcs._city_landmarks(game_map)
-    for template in EARTH_POPULATION:
-        spawn = template.spawn
-        pool = [
-            (x, y) for x, y in cells
-            if abs(x - spawn[0]) + abs(y - spawn[1]) <= template.wander_radius
-        ]
-        assert len(pool) >= 8, (
-            f"{template.id} has only {len(pool)} landmarks in radius "
-            f"{template.wander_radius} — it will circle a single cell"
-        )
+    only landmarks; streets are traffic lanes and must count too; and
+    stations without streets fall back to the whole walkable floor)."""
+    for planet_id, population in (
+        ("earth", EARTH_POPULATION),
+        ("mercury", MERCURY_POPULATION),
+    ):
+        game_map = load_planet(planet_id)
+        cells = city_npcs._city_landmarks(game_map)
+        for template in population:
+            spawn = template.spawn
+            pool = [
+                (x, y) for x, y in cells
+                if abs(x - spawn[0]) + abs(y - spawn[1]) <= template.wander_radius
+            ]
+            assert len(pool) >= 8, (
+                f"{template.id} has only {len(pool)} landmarks in radius "
+                f"{template.wander_radius} — it will circle a single cell"
+            )
 
 
 def test_unreachable_destination_repicks_without_crashing():

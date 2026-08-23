@@ -77,5 +77,15 @@ EARTH_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("earth_militia_patrol_b", "militia_trooper", (60, 77), wander_radius=80, move_chance=0.9),
 )
 
+MERCURY_POPULATION: tuple[CityNpc, ...] = (
+    # Station crew — techs crossing between the port and the lab. The
+    # small map (40x30) makes a city-spanning radius the whole base.
+    CityNpc("mercury_tech_a", "civillian_bystander", (17, 12), wander_radius=40, move_chance=0.9),
+    CityNpc("mercury_tech_b", "civillian_bystander", (20, 16), wander_radius=40, move_chance=0.9),
+    CityNpc("mercury_lab_hand", "civillian_bystander", (34, 19), wander_radius=40, move_chance=0.85),
+    # Station security — one trooper on the pad apron.
+    CityNpc("mercury_pad_guard", "militia_trooper", (2, 13), wander_radius=40, move_chance=0.9),
+)
+
 
 __all__ = ["CityNpc", "EARTH_POPULATION"]

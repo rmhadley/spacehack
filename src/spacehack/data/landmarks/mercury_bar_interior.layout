@@ -1,0 +1,29 @@
+# mercury_bar_interior.layout
+# Station cantina: a counter with stools and a drinks table (the most
+# important equipment on any base). The exit sits directly below the
+# spawn point, so stepping back through the door is one move from where
+# you entered.
+MAP
+##############
+#............#
+#..bbbbbb....#
+#..b......b..#
+#..b..t..b...#
+#..b..g..b...#
+#..bbbbbb....#
+#............#
+#............#
+#......P.....#
+#......>.....#
+##############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: t = TABLE
+TILE: g = DRINK
+TILE: > = EXIT
+COLOUR: b = (180, 130, 80) / (90, 62, 38)
+COLOUR: t = (255, 200, 80) / (110, 82, 46)
+COLOUR: g = (255, 90, 60) / (110, 82, 46)

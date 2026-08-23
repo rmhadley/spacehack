@@ -362,112 +362,20 @@ def _readable_city_theme(theme: world.PlanetTheme) -> world.PlanetTheme:
 
 
 def load_planet(planet_id: str) -> world.GameMap:
-    """Build the :class:`world.GameMap` for the named planet's city."""
+    """Build the :class:`world.GameMap` for the named planet's city.
+
+    Single path for every planet: resolve the spec, then delegate to
+    the generic :func:`spacehack.city_builder.build_city`, which
+    dispatches terrain by ``city_layout_id`` and runs the shared city
+    systems (transit, interiors, ambient NPCs) for all of them.
+    """
     spec = find_planet_spec(planet_id)
-    if spec.city_layout_id == "earth_river_coast":
-        from ...earth_city import build_earth_city
-        return build_earth_city(
-            spec,
-            lambda npc_id: _resolve_npc_entity(npc_id, spec),
-            _resolve_ship,
-        )
-    width, height = spec.width, spec.height
-    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
-    tiles = _city_tiles(width, height, theme)
-    entities: list[world.Entity] = []
-    _place_buildings(spec, tiles, entities)
-    _place_port_fixtures(spec, entities)
-    world._layout_outside(tiles, width, height, spec.buildings, theme=theme)
-    _paint_landing_pad(spec, tiles, width, height, theme)
-    return world.GameMap(
-        width=width, height=height,
-        tiles=tiles, entities=entities,
+    from ...city_builder import build_city
+    return build_city(
+        spec,
+        lambda npc_id: _resolve_npc_entity(npc_id, spec),
+        _resolve_ship,
     )
-
-
-def _city_tiles(width: int, height: int, theme) -> list[list[world.Tile]]:
-    """Build the floor grid with perimeter walls for one city map."""
-    tiles: list[list[world.Tile]] = [
-        [theme.floor for _ in range(width)] for _ in range(height)
-    ]
-    for x in range(width):
-        tiles[0][x] = world.WALL
-        tiles[height - 1][x] = world.WALL
-    for y in range(height):
-        tiles[y][0] = world.WALL
-        tiles[y][width - 1] = world.WALL
-    return tiles
-
-
-def _place_buildings(spec: PlanetSpec, tiles, entities) -> None:
-    """Place per-planet buildings and their NPC occupants onto ``tiles``."""
-    for building in spec.buildings:
-        occupant = _resolve_npc_entity(building.npc_id, spec)
-        changes, occupants = world.make_building(
-            building.label,
-            building.x_lo, building.x_hi,
-            building.y_lo, building.y_hi,
-            door_x=building.door_x,
-            occupant=occupant,
-            door_north=building.door_north,
-        )
-        for pos, tile in changes:
-            tiles[pos.y][pos.x] = tile
-        entities.extend(occupants)
-
-
-def _port_entities(spec: PlanetSpec, port) -> list[world.Entity]:
-    """Showroom ships + trade/mech/armory terminals outside the spaceport."""
-    entities: list[world.Entity] = []
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = _resolve_ship(ship_id)
-        entities.append(world.Entity(
-            char=ship_obj.char,
-            fg=ship_obj.fg,
-            pos=world.Position(x=port.x_lo + off_x, y=port.y_lo + off_y),
-            name=f"Ship: {ship_obj.name}",
-            ship_id=ship_obj.id,
-            width=ship_obj.width,
-            height=ship_obj.height,
-        ))
-    _term = world.Position(x=port.door_x + 2, y=port.y_hi + 1)
-    entities.append(world.Entity(
-        char="=", fg=(100, 220, 255), pos=_term,
-        name="Trade Terminal", width=1, height=1, trade_terminal=True,
-    ))
-    _mech = world.Position(x=port.door_x - 2, y=port.y_hi + 1)
-    entities.append(world.Entity(
-        char="%", fg=(200, 220, 100), pos=_mech,
-        name="Mechanic Terminal", width=1, height=1, mech_terminal=True,
-    ))
-    _armory = world.Position(x=port.door_x - 5, y=port.y_hi + 1)
-    entities.append(world.Entity(
-        char="A", fg=(255, 160, 80), pos=_armory,
-        name="Armory Terminal", width=1, height=1, armory_terminal=True,
-    ))
-    return entities
-
-
-def _place_port_fixtures(spec: PlanetSpec, entities) -> None:
-    """Place showroom ships + terminals if the spec has a spaceport."""
-    if spec.buildings:
-        entities.extend(_port_entities(spec, spec.buildings[0]))
-
-
-def _paint_landing_pad(spec: PlanetSpec, tiles, width, height, theme) -> None:
-    """Paint landing-pad tiles south of the spaceport for every planet."""
-    if not spec.buildings or spec.buildings[0].label != world.SPACEPORT_LABEL:
-        return
-    port = spec.buildings[0]
-    anchor = spec.hangar_anchor
-    pad_x_lo = max(1, anchor.x - 3)
-    pad_x_hi = min(width - 2, anchor.x + 3)
-    pad_y_lo = port.y_hi + 1
-    pad_y_hi = min(height - 2, anchor.y + 1)
-    pad_tile = theme.landing_pad if theme else world.LANDING_PAD
-    for py in range(pad_y_lo, pad_y_hi + 1):
-        for px in range(pad_x_lo, pad_x_hi + 1):
-            tiles[py][px] = pad_tile
 
 
 def _resolve_npc_entity(

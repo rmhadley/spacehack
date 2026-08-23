@@ -4,10 +4,18 @@ A small solar research station studies the sun from the best vantage
 point in the system. The station is heavily shielded and cooled —
 without protection, the surface heat would melt a ship in minutes.
 
-Layout (40x24, compact):
+Mercury is the Phase 5 proof city: it exercises the *same* data-driven
+city pipeline as Earth (buildings, transit, authored interiors, ambient
+NPCs) while reading as a clearly different place — a compact desert
+research base instead of a river city. Everything below is data on the
+spec; no builder code is Mercury-specific.
 
-  * spaceport, NW corner.
-  * lab, NE corner — solar observatory.
+Layout (40x30, compact):
+
+  * spaceport, NW corner (port apron + pad south of it).
+  * lab, NE — solar observatory, run by the research officer.
+  * bar, SW — station cantina (every base has a bar).
+  * supply depot, SE — stores rations, electronics, and fuel cells.
 """
 from __future__ import annotations
 
@@ -15,6 +23,7 @@ from ... import world
 from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import DESERT
+from ..city_npcs import MERCURY_POPULATION
 
 
 SPEC = PlanetSpec(
@@ -25,7 +34,7 @@ SPEC = PlanetSpec(
     fg=(180, 175, 165),
     description="A scorched rocky world - closest to Sol, home to a solar research station.",
     width=40,
-    height=24,
+    height=30,
     hangar_anchor=world.Position(7, 14),
     buildings=(
         world.CityBuilding(
@@ -38,6 +47,48 @@ SPEC = PlanetSpec(
             x_lo=22, x_hi=37, y_lo=8,  y_hi=18,
             door_x=29, npc_id="research_officer",
         ),
+        world.CityBuilding(
+            label="bar",
+            x_lo=4,  x_hi=14, y_lo=19, y_hi=25,
+            door_x=9, npc_id="barkeep",
+        ),
+        world.CityBuilding(
+            label="supply",
+            x_lo=21, x_hi=32, y_lo=20, y_hi=26,
+            door_x=26, npc_id="depot_attendant",
+        ),
+    ),
+    city_npc_population=MERCURY_POPULATION,
+    transit_stations=(
+        # One stop beside each building's door — never on the door or the
+        # pad apron in front of it. The network is fully connected so the
+        # player can ride directly between districts.
+        world.TransitStation(
+            id="port", name="Spaceport", district="spaceport",
+            pos=world.Position(12, 11),
+            destinations=("lab", "bar", "supply"),
+        ),
+        world.TransitStation(
+            id="lab", name="Solar Lab", district="lab",
+            pos=world.Position(33, 19),
+            destinations=("port", "bar", "supply"),
+        ),
+        world.TransitStation(
+            id="bar", name="Cantina", district="bar",
+            pos=world.Position(16, 25),
+            destinations=("port", "lab", "supply"),
+        ),
+        world.TransitStation(
+            id="supply", name="Supply Depot", district="supply",
+            pos=world.Position(33, 26),
+            destinations=("port", "lab", "bar"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "mercury_spaceport_interior"),
+        ("lab", "mercury_lab_interior"),
+        ("bar", "mercury_bar_interior"),
+        ("supply", "mercury_supply_interior"),
     ),
     showroom_ships=(
         ("scout", 3, 2),

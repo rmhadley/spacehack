@@ -1,0 +1,27 @@
+# mercury_lab_interior.layout
+# Solar observatory: holographic consoles (CITY_FOUNTAIN) and sample
+# racks (CITY_ORNAMENT) along the walls, the research officer seated
+# near the center. The exit sits directly below the spawn point, so
+# stepping back through the door is one move from where you entered.
+MAP
+##############
+#............#
+#..s....s....#
+#............#
+#..h....h....#
+#............#
+#..s....s....#
+#............#
+#............#
+#......P.....#
+#......>.....#
+##############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: s = CITY_ORNAMENT
+TILE: h = CITY_FOUNTAIN
+TILE: > = EXIT
+COLOUR: s = (150, 220, 200) / (48, 72, 62)
+COLOUR: h = (120, 235, 255) / (36, 84, 96)
