@@ -334,11 +334,18 @@ def test_mars_buildings_do_not_overwrite_public_corridors():
 def test_mars_spaceport_apron_replaces_west_port_road():
     """The port's west side is landing space; the city road starts east."""
     game_map = load_planet("mars")
+    berth = find_planet_spec("mars").hangar_anchor
+    marked_berth = {
+        (berth.x, berth.y),
+        (berth.x - 1, berth.y - 1),
+        (berth.x + 1, berth.y - 1),
+        (berth.x - 1, berth.y + 1),
+        (berth.x + 1, berth.y + 1),
+    }
     for y in range(87, 94):
-        assert all(
-            game_map.tiles[y][x].kind == "landing_pad"
-            for x in range(3, 35)
-        )
+        for x in range(3, 35):
+            if (x, y) not in marked_berth:
+                assert game_map.tiles[y][x].kind == "landing_pad"
     for y in (89, 90, 91):
         assert game_map.tiles[y][34].kind == "landing_pad"
         assert game_map.tiles[y][35].kind == "road"
@@ -364,6 +371,39 @@ def test_mars_spaceport_apron_replaces_west_port_road():
     assert len(fixture_cells) == sum(entity.width * entity.height for entity in fixtures)
     assert max(x for x, _ in fixture_cells) - min(x for x, _ in fixture_cells) >= 15
     assert max(y for _, y in fixture_cells) - min(y for _, y in fixture_cells) >= 3
+
+
+def test_mars_owned_ship_berth_is_marked_and_service_terminals_clustered():
+    """The owned ship has a visible apron berth clear of the spaceport door."""
+    game_map = load_planet("mars")
+    spec = find_planet_spec("mars")
+    berth = (spec.hangar_anchor.x, spec.hangar_anchor.y)
+    port_door = game_map.city_buildings["spaceport"]["entrance"]
+    stations = {
+        metadata["pos"] for metadata in game_map.city_transit.values()
+    }
+    assert game_map.tiles[berth[1]][berth[0]].kind == "plaza"
+    assert berth != port_door
+    assert berth not in stations
+    assert abs(berth[0] - port_door[0]) + abs(berth[1] - port_door[1]) >= 3
+
+    terminals = [
+        entity for entity in game_map.entities
+        if entity.trade_terminal or entity.mech_terminal or entity.armory_terminal
+    ]
+    assert len(terminals) == 3
+    terminal_cells = {(entity.pos.x, entity.pos.y) for entity in terminals}
+    assert terminal_cells == {
+        (berth[0] - 3, berth[1] + 2),
+        (berth[0], berth[1] + 2),
+        (berth[0] + 3, berth[1] + 2),
+    }
+    assert berth not in terminal_cells
+    assert max(x for x, _ in terminal_cells) - min(x for x, _ in terminal_cells) == 6
+    assert all(
+        game_map.tiles[y][x].kind == "landing_pad"
+        for x, y in terminal_cells
+    )
 
 
 # --- Regression: unreachable destinations, asset failures, resize ---

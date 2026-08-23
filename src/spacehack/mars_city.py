@@ -177,6 +177,16 @@ def _paint_port_apron(tiles, theme, spec) -> None:
             tiles[y][x] = theme.landing_pad
 
 
+def _paint_player_berth(tiles, theme, spec) -> None:
+    """Mark the player's reserved berth inside the port landing apron."""
+    berth = spec.hangar_anchor
+    tiles[berth.y][berth.x] = theme.plaza
+    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        x, y = berth.x + dx, berth.y + dy
+        if 0 <= x < MARS_CITY_WIDTH and 0 <= y < MARS_CITY_HEIGHT:
+            tiles[y][x] = theme.neon
+
+
 def _paint_decorations(tiles, theme) -> None:
     """Place restrained signal lights around public spaces and roads."""
     station_pads = set(_STATION_PADS)
@@ -215,6 +225,7 @@ def _new_mars_map(spec) -> world.GameMap:
     _paint_plaza(tiles, theme)
     _paint_station_pads(tiles, theme)
     _paint_port_apron(tiles, theme, spec)
+    _paint_player_berth(tiles, theme, spec)
     _paint_decorations(tiles, theme)
     return world.GameMap(
         width=MARS_CITY_WIDTH, height=MARS_CITY_HEIGHT,
@@ -250,10 +261,11 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
             name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
             width=ship_obj.width, height=ship_obj.height,
         ))
+    berth = spec.hangar_anchor
     terminal_data = (
-        ("=", "Trade Terminal", (8, 92), "trade_terminal", (100, 230, 255)),
-        ("%", "Mechanic Terminal", (18, 92), "mech_terminal", (190, 240, 150)),
-        ("A", "Armory Terminal", (28, 92), "armory_terminal", (255, 170, 90)),
+        ("=", "Trade Terminal", (berth.x - 3, berth.y + 2), "trade_terminal", (100, 230, 255)),
+        ("%", "Mechanic Terminal", (berth.x, berth.y + 2), "mech_terminal", (190, 240, 150)),
+        ("A", "Armory Terminal", (berth.x + 3, berth.y + 2), "armory_terminal", (255, 170, 90)),
     )
     for char, name, position, flag, fg in terminal_data:
         game_map.entities.append(world.Entity(

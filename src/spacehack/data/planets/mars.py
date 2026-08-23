@@ -37,7 +37,8 @@ SPEC = PlanetSpec(
     description="A sleek, modern terraformed colony -- humanity's first off-world city.",
     width=160,
     height=100,
-    hangar_anchor=world.Position(22, 87),
+    # Dedicated berth in the landing apron, clear of the south door approach.
+    hangar_anchor=world.Position(20, 90),
     buildings=(
         world.CityBuilding(
             label="spaceport",
