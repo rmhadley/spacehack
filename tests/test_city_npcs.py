@@ -11,8 +11,10 @@ from src.spacehack.data.planets import load_planet
 
 
 def _walkable_map(*entities: world.Entity, w: int = 16, h: int = 12) -> world.GameMap:
+    # Plaza tiles are walkable and count as city landmarks, so the
+    # destination picker has something to walk toward on the open map.
     tiles = [
-        [world.Tile("grass", ".", True, (0, 120, 0), (0, 0, 0)) for _ in range(w)]
+        [world.Tile("city_plaza", ".", True, (0, 120, 0), (0, 0, 0)) for _ in range(w)]
         for _ in range(h)
     ]
     return world.GameMap(w, h, tiles, list(entities))

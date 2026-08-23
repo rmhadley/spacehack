@@ -72,28 +72,38 @@ def place_city_npcs(game_map: world.GameMap, population) -> None:
         game_map.entities.append(entity)
 
 
-_PREFERRED_KINDS = frozenset({
-    "sidewalk", "city_plaza", "road", "landing_pad", "city_bridge",
+_LANDMARK_KINDS = frozenset({
+    "city_building_door", "city_plaza", "city_bridge", "landing_pad",
 })
 
 
-def _destination_candidates(
-    entity: world.Entity,
+def _city_landmarks(
     game_map: world.GameMap,
 ) -> list[tuple[int, int]]:
-    """Walkable pavement cells within the NPC's district radius."""
-    spawn = entity.city_spawn
-    radius = max(entity.city_wander_radius, 1)
-    x0, x1 = max(0, spawn.x - radius), min(game_map.width, spawn.x + radius + 1)
-    y0, y1 = max(0, spawn.y - radius), min(game_map.height, spawn.y + radius + 1)
+    """Walkable landmark cells spread across the whole city.
+
+    The city analogue of space's body goals: transit stops, building
+    doors, plaza/bridge/landing-pad tiles. Citizens pick destinations
+    from this whole-city set so they traverse between districts like
+    ships traverse between planets, instead of circling one block.
+    """
     cells: list[tuple[int, int]] = []
-    for y in range(y0, y1):
-        for x in range(x0, x1):
-            tile = game_map.tiles[y][x]
-            if not tile.walkable:
+    seen: set[tuple[int, int]] = set()
+    for _e in game_map.entities:
+        if getattr(_e, "transit_station_id", ""):
+            _key = (_e.pos.x, _e.pos.y)
+            if _key not in seen and game_map.tiles[_e.pos.y][_e.pos.x].walkable:
+                seen.add(_key)
+                cells.append(_key)
+    for y in range(game_map.height):
+        for x in range(game_map.width):
+            if game_map.tiles[y][x].kind not in _LANDMARK_KINDS:
                 continue
-            if game_map.blocking_entity_at(x, y, exclude=entity) is not None:
+            if not game_map.tiles[y][x].walkable:
                 continue
+            if (x, y) in seen:
+                continue
+            seen.add((x, y))
             cells.append((x, y))
     return cells
 
@@ -102,26 +112,39 @@ def _pick_destination(
     entity: world.Entity,
     game_map: world.GameMap,
 ) -> tuple[int, int] | None:
-    """Pick a destination to walk toward, preferring pavement/streets.
+    """Pick a landmark destination, preferring one far from the citizen.
 
-    Mirrors space NPCs picking a body goal: of the walkable cells in the
-    district radius, prefer paved/street cells (sidewalk, plaza, road,
-    landing pad, bridge) so citizens walk along the roads like ships
-    traverse a system. Falls back to any walkable cell when no pavement
-    is in range. ``None`` when nothing is reachable this tick.
+    Mirrors space NPCs picking a body goal: draw from the whole-city
+    landmark set (``_city_landmarks``) and prefer a landmark well away
+    from the current cell so the walk visibly crosses the city — a ship
+    doesn't loop the planet it's parked at, it heads somewhere else.
+    ``wander_radius`` caps how far roamers may go from their anchor
+    (small radii = district patrol; large radii = city-spanning roam).
     """
-    cells = _destination_candidates(entity, game_map)
+    cells = _city_landmarks(game_map)
     if not cells:
         return None
-    _preferred = [
-        (x, y) for x, y in cells
-        if game_map.tiles[y][x].kind in _PREFERRED_KINDS
-    ]
-    pool = _preferred or cells
     rng = entity.city_rng
     if rng is None:
-        return pool[0]
-    return rng.choice(pool)
+        return cells[0]
+    _radius = entity.city_wander_radius
+    if _radius <= 0:
+        return rng.choice(cells)
+    _sx, _sy = entity.city_spawn.x, entity.city_spawn.y
+    _pool = [
+        (x, y) for x, y in cells
+        if abs(x - _sx) + abs(y - _sy) <= _radius
+    ]
+    if not _pool:
+        # No landmark in range: fall back to the nearest one so small-
+        # radius guards stay local instead of roaming the whole city.
+        _pool = [min(cells, key=lambda c: abs(c[0] - _sx) + abs(c[1] - _sy))]
+    _cx, _cy = entity.pos.x, entity.pos.y
+    _far = [
+        (x, y) for x, y in _pool
+        if abs(x - _cx) + abs(y - _cy) >= 10
+    ] or _pool
+    return rng.choice(_far)
 
 
 def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
