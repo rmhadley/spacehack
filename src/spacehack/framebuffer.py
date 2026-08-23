@@ -104,11 +104,16 @@ class FrameBuffer:
         """Return one cell, raising ``IndexError`` when outside the frame."""
         return self._cells[y][x]
 
-    def _write_background(self, x: int, y: int, bg: Color | None) -> Color | None:
+    def _write_background(
+        self, x: int, y: int, bg: Color | None, char: str,
+    ) -> Color | None:
         """Resolve an omitted background against the visible cell underlay."""
         if bg is not None or not (0 <= x < self.width and 0 <= y < self.height):
             return bg
-        return _underlay_background(self._cells[y][x])
+        underlay = self._cells[y][x]
+        if char == "@":
+            return underlay.bg
+        return _underlay_background(underlay)
 
     def _write_cell(self, x: int, y: int, cell: FrameCell) -> None:
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -138,7 +143,7 @@ class FrameBuffer:
                 FrameCell(
                     char=character,
                     fg=tuple(fg),
-                    bg=self._write_background(cell_x, cell_y, bg),
+                    bg=self._write_background(cell_x, cell_y, bg, character),
                 ),
             )
             cell_x += 1
@@ -165,7 +170,7 @@ class FrameBuffer:
             FrameCell(
                 char=char,
                 fg=tuple(fg),
-                bg=self._write_background(x, y, bg),
+                bg=self._write_background(x, y, bg, char),
             ),
         )
 

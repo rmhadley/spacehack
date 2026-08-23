@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 from . import city_landmarks, city_tiles, world
 
 
@@ -101,6 +103,14 @@ def _paint_bridges(tiles: list[list[world.Tile]]) -> None:
                 tiles[y][x] = world.ROAD_SURFACE
 
 
+def _paint_road_cell(
+    tiles: list[list[world.Tile]], x: int, y: int, tile: world.Tile,
+) -> None:
+    """Paint a road only on dry land; bridges own river crossings."""
+    if tiles[y][x].kind != "city_water":
+        tiles[y][x] = tile
+
+
 def _paint_roads_and_districts(tiles: list[list[world.Tile]]) -> None:
     """Paint a readable road network around the water and districts."""
     road = world.ROAD_SURFACE
@@ -108,30 +118,20 @@ def _paint_roads_and_districts(tiles: list[list[world.Tile]]) -> None:
     lane_ew = world.ROAD_EW
     for y in range(3, 97):
         for x in (48, 49, 50, 108, 109, 110):
-            tiles[y][x] = lane_ns if x in {49, 109} else road
+            _paint_road_cell(tiles, x, y, lane_ns if x in {49, 109} else road)
     for x in range(3, 143):
         for y in (49, 50, 51, 78, 79, 80):
-            tiles[y][x] = lane_ew if y in {50, 79} else road
+            _paint_road_cell(tiles, x, y, lane_ew if y in {50, 79} else road)
     # Short feeder roads toward the five core districts.
     for x in range(24, 49):
         for y in (26, 27, 28):
-            tiles[y][x] = lane_ew if y == 27 else road
+            _paint_road_cell(tiles, x, y, lane_ew if y == 27 else road)
     for x in range(110, 143):
         for y in (25, 26, 27):
-            tiles[y][x] = lane_ew if y == 26 else road
+            _paint_road_cell(tiles, x, y, lane_ew if y == 26 else road)
     for x in range(50, 93):
         for y in (64, 65, 66):
-            tiles[y][x] = lane_ew if y == 65 else road
-    for x in range(18, 120):
-        for y in (38, 39, 40):
-            if tiles[y][x].kind != "city_water":
-                tiles[y][x] = lane_ew if y == 39 else road
-    # Door approaches are short, direct sidewalks that remain readable
-    # against the larger road grid.
-    for x, y in ((119, 12), (128, 60), (23, 60), (101, 70)):
-        for py in range(y, min(99, y + 12)):
-            if tiles[py][x].kind != "city_water":
-                tiles[py][x] = world.SIDEWALK
+            _paint_road_cell(tiles, x, y, lane_ew if y == 65 else road)
 
 
 def _paint_parks_and_details(tiles: list[list[world.Tile]]) -> None:
@@ -163,6 +163,37 @@ def _paint_landing_pad(tiles: list[list[world.Tile]]) -> None:
                 tiles[y][x] = _pad
 
 
+def _sidewalk_route(
+    game_map: world.GameMap,
+    start: tuple[int, int],
+) -> list[tuple[int, int]]:
+    """Find a walkable route from a door to the nearest public route."""
+    route_kinds = {"road", "city_bridge", "landing_pad"}
+    blocked_kinds = {
+        "city_building_floor", "city_building_door", "city_building_wall",
+    }
+    queue = deque([start])
+    previous: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
+    while queue:
+        point = queue.popleft()
+        if game_map.tiles[point[1]][point[0]].kind in route_kinds:
+            path: list[tuple[int, int]] = []
+            while point is not None:
+                path.append(point)
+                point = previous[point]
+            return list(reversed(path))
+        for dx, dy in ((0, 1), (-1, 0), (1, 0), (0, -1)):
+            next_point = (point[0] + dx, point[1] + dy)
+            if next_point in previous or not game_map.in_bounds(*next_point):
+                continue
+            tile = game_map.tiles[next_point[1]][next_point[0]]
+            if not tile.walkable or tile.kind in blocked_kinds:
+                continue
+            previous[next_point] = point
+            queue.append(next_point)
+    return []
+
+
 def _stamp_assets(game_map: world.GameMap) -> dict[str, city_landmarks.CityLandmarkStamp]:
     """Stamp all authored Earth exteriors and return their placement data."""
     stamps = {
@@ -174,11 +205,13 @@ def _stamp_assets(game_map: world.GameMap) -> dict[str, city_landmarks.CityLandm
     for stamp in stamps.values():
         if stamp.entrance is None:
             continue
-        x, y = stamp.entrance.x, stamp.entrance.y
-        for approach_y in range(y + 1, min(EARTH_CITY_HEIGHT - 1, y + 25)):
-            if game_map.tiles[approach_y][x].kind in {"city_water", "landing_pad"}:
+        route = _sidewalk_route(
+            game_map, (stamp.entrance.x, stamp.entrance.y + 1),
+        )
+        for x, y in route:
+            if game_map.tiles[y][x].kind in {"road", "city_bridge", "landing_pad"}:
                 continue
-            game_map.tiles[approach_y][x] = world.SIDEWALK
+            game_map.tiles[y][x] = world.SIDEWALK
     return stamps
 
 

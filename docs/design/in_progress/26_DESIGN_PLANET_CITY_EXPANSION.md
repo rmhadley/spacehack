@@ -435,6 +435,19 @@ existing camera path, and finally run the full gate before beginning Phase 2.
   have focused regression coverage.
 - Transit remains outstanding and is the next Phase 2 slice.
 
+### Phase 1.5 - Earth circulation and presentation correction
+
+- [x] Stop road paint at the river so bridges remain the only crossings.
+- [x] Route each functional building entrance to a real road, bridge, or landing pad.
+- [x] Preserve exact tile backgrounds behind the player glyph on dense terrain.
+- [x] Add regression coverage for road/water boundaries, entrance routes, and
+      player underlay colors.
+
+This pass keeps the map's existing macro arrangement but repairs the most
+visible foundation defects: roads no longer disappear into water, sidewalks
+terminate at meaningful public routes, and the player glyph no longer inherits
+bright blended color from dense terrain glyphs.
+
 ### Phase 3 - City NPC activity and direct-contact encounters
 
 - [ ] Add data-defined ambient city NPC templates and Earth populations.

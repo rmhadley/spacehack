@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from src.spacehack import world
+from src.spacehack import earth_city, world
 from src.spacehack.data.planets import find_planet_spec, load_planet
 
 
@@ -96,6 +96,44 @@ def test_earth_city_bridges_span_the_river_and_connect_to_roads():
         )
         assert game_map.tiles[min(bridge_rows) - 1][center_x].kind == "road"
         assert game_map.tiles[max(bridge_rows) + 1][center_x].kind == "road"
+
+
+def test_earth_city_roads_do_not_replace_river_cells():
+    game_map = load_planet("earth")
+
+    assert not any(
+        tile.kind == "road" and (x, y) in earth_city.RIVER_CELLS
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+    )
+
+
+def test_earth_city_building_approaches_reach_public_routes():
+    game_map = load_planet("earth")
+    public_kinds = {"road", "city_bridge", "landing_pad"}
+
+    for record in game_map.city_buildings.values():
+        entrance = record["entrance"]
+        assert entrance is not None
+        start = (entrance[0], entrance[1] + 1)
+        seen = {start}
+        queue = deque([start])
+        reached_public = game_map.tiles[start[1]][start[0]].kind in public_kinds
+        while queue and not reached_public:
+            x, y = queue.popleft()
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                point = (x + dx, y + dy)
+                if point in seen or not game_map.in_bounds(*point):
+                    continue
+                point_kind = game_map.tiles[point[1]][point[0]].kind
+                if point_kind in public_kinds:
+                    reached_public = True
+                    break
+                if point_kind != "sidewalk":
+                    continue
+                seen.add(point)
+                queue.append(point)
+        assert reached_public, f"no public route from {record['label']}"
 
 
 def test_earth_city_bridge_cells_are_reachable_from_the_landing_pad():
