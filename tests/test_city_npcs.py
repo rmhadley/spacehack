@@ -118,6 +118,24 @@ def test_move_city_npcs_skips_combat_locked(monkeypatch):
     assert max(abs(moving.pos.x - 2), abs(moving.pos.y - 2)) == 1
 
 
+def test_every_population_has_dense_landmark_pool():
+    """No citizen's district collapses to a one-landmark pool (regression:
+    militia patrols circled a single door because special tiles were the
+    only landmarks; streets are traffic lanes and must count too)."""
+    game_map = load_planet("earth")
+    cells = city_npcs._city_landmarks(game_map)
+    for template in EARTH_POPULATION:
+        spawn = template.spawn
+        pool = [
+            (x, y) for x, y in cells
+            if abs(x - spawn[0]) + abs(y - spawn[1]) <= template.wander_radius
+        ]
+        assert len(pool) >= 8, (
+            f"{template.id} has only {len(pool)} landmarks in radius "
+            f"{template.wander_radius} — it will circle a single cell"
+        )
+
+
 def test_unreachable_destination_repicks_without_crashing():
     """A destination A* can't reach is dropped and repicked, never indexed
     as None (regression: ``_step_along_path`` clears city_dest then the

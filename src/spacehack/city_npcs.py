@@ -73,7 +73,13 @@ def place_city_npcs(game_map: world.GameMap, population) -> None:
 
 
 _LANDMARK_KINDS = frozenset({
-    "city_building_door", "city_plaza", "city_bridge", "landing_pad",
+    # Streets and pavement are the city's traffic lanes — the analogue of
+    # space's bodies. Including them gives every district a dense pool of
+    # destinations; without them, districts with no special tile (e.g. the
+    # militia block) collapse to a one-landmark pool and the citizen walks
+    # the same cell forever.
+    "road", "sidewalk", "city_plaza", "city_bridge", "landing_pad",
+    "city_building_door",
 })
 
 
@@ -82,8 +88,8 @@ def _city_landmarks(
 ) -> list[tuple[int, int]]:
     """Walkable, unblocked landmark cells spread across the whole city.
 
-    The city analogue of space's body goals: transit stops, building
-    doors, plaza/bridge/landing-pad tiles. Citizens pick destinations
+    The city analogue of space's body goals: roads, sidewalks, plazas,
+    bridges, landing pads, and building doors. Citizens pick destinations
     from this whole-city set so they traverse between districts like
     ships traverse between planets, instead of circling one block.
 
