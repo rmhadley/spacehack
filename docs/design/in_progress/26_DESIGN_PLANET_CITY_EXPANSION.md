@@ -407,7 +407,7 @@ existing camera path, and finally run the full gate before beginning Phase 2.
 
 ### Phase 2 - Transit and building interiors
 
-- [ ] Add data-defined Earth transit nodes and a free station-to-station route.
+- [x] Add data-defined Earth transit nodes and a free station-to-station route.
 - [x] Add stable building entrance metadata and interior transition helpers.
 - [x] Resolve interiors through the same landmark asset-id/catalog path used by
       Phase 1 exteriors.
@@ -433,7 +433,15 @@ existing camera path, and finally run the full gate before beginning Phase 2.
 - Five Earth interior assets load through the shared landmark parser/editor.
 - Entry, exact-door exit, cache reuse, service-NPC transfer, and save metadata
   have focused regression coverage.
-- Transit remains outstanding and is the next Phase 2 slice.
+- A data-defined Earth transit network is live: six ``TransitStation`` nodes
+  (Spaceport, Central Hub, Bar District, Bounty Guild, Merchant Hall, Militia
+  Center) placed on walkable cells with a fully connected route table, a
+  bump-to-menu bump interaction that rides to the chosen destination, and
+  a deterministic ``game_map.city_transit`` lookup. Stations are rebuilt with
+  the Earth map on save/load, so no new persistence payload is required.
+- ``tests/test_city_transit.py`` covers placement on walkable cells, route
+  integrity, travel motion, cancel, empty-route fallback, and menu dispatch.
+  Full suite, lint, and architecture gate pass.
 
 ### Phase 1.5 - Earth circulation and presentation correction
 
