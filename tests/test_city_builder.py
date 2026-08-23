@@ -50,7 +50,7 @@ def test_earth_keeps_river_coast_mercury_uses_station_layout():
     assert load_planet("earth").city_layout_id == "earth_river_coast"
     mercury = load_planet("mercury")
     assert mercury.city_layout_id == "mercury_station"
-    assert mercury.width == 40 and mercury.height == 30
+    assert mercury.width == 100 and mercury.height == 70
 
 
 def test_mercury_uses_authored_exteriors_like_earth():
