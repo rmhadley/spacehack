@@ -563,9 +563,10 @@ def _restore_city_npc_positions(game_map, city_npc_positions) -> None:
         _cid = getattr(_e, "city_npc_id", "")
         if not _cid:
             continue
-        _pos = city_npc_positions.get(_cid)
-        if not _pos:
+        _saved = city_npc_positions.get(_cid)
+        if not _saved:
             continue
+        _pos = _saved.get("pos") if isinstance(_saved, dict) else _saved
         _x, _y = _pos[0], _pos[1]
         if not (0 <= _x < game_map.width and 0 <= _y < game_map.height):
             continue
@@ -573,6 +574,12 @@ def _restore_city_npc_positions(game_map, city_npc_positions) -> None:
             continue
         _e.pos = world.Position(_x, _y)
         _e.city_spawn = world.Position(_x, _y)
+        if isinstance(_saved, dict) and _saved.get("dest") is not None:
+            _dest = _saved["dest"]
+            if (0 <= _dest[0] < game_map.width
+                    and 0 <= _dest[1] < game_map.height
+                    and game_map.tiles[_dest[1]][_dest[0]].walkable):
+                _e.city_dest = (_dest[0], _dest[1])
 
 
 def rebuild_game_map(

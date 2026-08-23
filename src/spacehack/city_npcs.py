@@ -1,19 +1,23 @@
 """Ambient city NPCs — placement, deterministic movement, and bump interaction.
 
 Ambient NPCs are the streets' pedestrian layer (Phase 3 of the planet-city
-expansion). They are lightweight: each stays within a small wander radius of
-its authored anchor, takes at most one deterministic step per city tick, and
-either holds still (movement chance = 0) or drifts along the pavement.
+expansion). Movement mirrors space NPC traffic: each citizen picks a walkable
+pavement destination within its district radius, computes an A* path, and
+walks it one cell per city tick — crossing blocks like ships crossing a
+system, instead of pacing a tiny box around its anchor.
 
 Design principles (matching the rest of the project):
 
 * **Data-first** — every ambient NPC is a :class:`~spacehack.data.city_npcs.CityNpc`
   catalog entry; this module only places/moves/interacts with them.
-* **Deterministic** — movement uses ``engine.seeded_rng`` keyed on ``INIT_SEED``
-  + city + npc id, so save/load and re-entry never reshuffle routes.
-* **Reuse** — hostility reuses ``faction.spec_is_hostile`` via the NPC's
-  ``npc_char_id``; direct-contact combat reuses the existing ground combat
-  entry point; talk reuses the guild NPC persona.
+* **Deterministic** — destinations come from ``engine.seeded_rng`` keyed on
+  ``INIT_SEED`` + city + npc id, so save/load and re-entry never reshuffle
+  routes; the current destination persists so a resumed save continues the
+  same walk.
+* **Reuse** — pathing reuses ``world.find_path`` (the same A* the space and
+  ground NPC systems use); hostility reuses ``faction.spec_is_hostile`` via
+  the NPC's ``npc_char_id``; direct-contact combat reuses the existing ground
+  combat entry point.
 * **One step per city tick** — called from the city move/wait handler exactly
   once per accepted action, mirroring ``ground_npcs.move_ground_npcs``.
 """
@@ -68,48 +72,94 @@ def place_city_npcs(game_map: world.GameMap, population) -> None:
         game_map.entities.append(entity)
 
 
-def _adjacent_walkable(
+_PREFERRED_KINDS = frozenset({
+    "sidewalk", "city_plaza", "road", "landing_pad", "city_bridge",
+})
+
+
+def _destination_candidates(
     entity: world.Entity,
     game_map: world.GameMap,
 ) -> list[tuple[int, int]]:
-    """Adjacent walkable, unblocked cells for the next step (no stay)."""
-    out: list[tuple[int, int]] = []
-    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-        nx, ny = entity.pos.x + dx, entity.pos.y + dy
-        if not game_map.in_bounds(nx, ny):
-            continue
-        if not game_map.tiles[ny][nx].walkable:
-            continue
-        if game_map.blocking_entity_at(nx, ny, exclude=entity) is not None:
-            continue
-        out.append((nx, ny))
-    return out
+    """Walkable pavement cells within the NPC's district radius."""
+    spawn = entity.city_spawn
+    radius = max(entity.city_wander_radius, 1)
+    x0, x1 = max(0, spawn.x - radius), min(game_map.width, spawn.x + radius + 1)
+    y0, y1 = max(0, spawn.y - radius), min(game_map.height, spawn.y + radius + 1)
+    cells: list[tuple[int, int]] = []
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            tile = game_map.tiles[y][x]
+            if not tile.walkable:
+                continue
+            if game_map.blocking_entity_at(x, y, exclude=entity) is not None:
+                continue
+            cells.append((x, y))
+    return cells
+
+
+def _pick_destination(
+    entity: world.Entity,
+    game_map: world.GameMap,
+) -> tuple[int, int] | None:
+    """Pick a destination to walk toward, preferring pavement/streets.
+
+    Mirrors space NPCs picking a body goal: of the walkable cells in the
+    district radius, prefer paved/street cells (sidewalk, plaza, road,
+    landing pad, bridge) so citizens walk along the roads like ships
+    traverse a system. Falls back to any walkable cell when no pavement
+    is in range. ``None`` when nothing is reachable this tick.
+    """
+    cells = _destination_candidates(entity, game_map)
+    if not cells:
+        return None
+    _preferred = [
+        (x, y) for x, y in cells
+        if game_map.tiles[y][x].kind in _PREFERRED_KINDS
+    ]
+    pool = _preferred or cells
+    rng = entity.city_rng
+    if rng is None:
+        return pool[0]
+    return rng.choice(pool)
 
 
 def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
-    """Move ``entity`` one cell, biasing toward its wander anchor.
+    """Move ``entity`` one cell along its current destination path.
 
-    Prefer the reachable neighbor nearest the anchor so ambient NPCs drift
-    back toward their district instead of wandering off; only hold still
-    when every neighbor is blocked.
+    When the citizen has no destination (or reached it), pick a fresh one
+    and compute an A* path — exactly how space NPCs pick a new body goal
+    on arrival. Walk the cached path one cell; if the next cell is blocked
+    the step is skipped and the path is retried next tick (no recompute),
+    mirroring the space patrol loop.
     """
-    spawn = entity.city_spawn
-    candidates = _adjacent_walkable(entity, game_map)
-    if not candidates:
+    dest = entity.city_dest
+    if dest is None:
+        dest = _pick_destination(entity, game_map)
+        entity.city_dest = dest
+    if dest is None:
         return
-    if len(candidates) == 1:
-        nx, ny = candidates[0]
-        entity.pos = world.Position(nx, ny)
+    path = entity.city_path
+    if not path:
+        path = world.find_path(
+            (entity.pos.x, entity.pos.y), {dest}, game_map,
+            exclude_entity=entity,
+        ) or []
+        entity.city_path = path
+    if not path:
+        # Unreachable this tick — clear so we repick next tick.
+        entity.city_dest = None
         return
-    candidates.sort(
-        key=lambda c: (c[0] - spawn.x) ** 2 + (c[1] - spawn.y) ** 2,
-    )
-    # Shuffle a small near-anchor pool so routes stay organic yet bounded;
-    # the first element after the shuffle is the chosen step.
-    if entity.city_rng is not None:
-        entity.city_rng.shuffle(candidates[:min(3, len(candidates))])
-    nx, ny = candidates[0]
-    entity.pos = world.Position(nx, ny)
+    nx, ny = path[0]
+    dx, dy = nx - entity.pos.x, ny - entity.pos.y
+    if abs(dx) > 1 or abs(dy) > 1:
+        entity.city_path = None
+        return
+    if world.try_step_with_slip(entity, game_map, dx, dy):
+        entity.city_path = path[1:]
+    if (entity.pos.x, entity.pos.y) == (dest[0], dest[1]):
+        entity.city_dest = None
+        entity.city_path = None
 
 def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> None:
     """Run a direct-contact ground fight vs the engaged hostile citizens.
@@ -136,10 +186,11 @@ def save_city_npc_positions(ctx) -> dict:
     """Serialize current ambient city NPC positions by ``city_npc_id``.
 
     City maps rebuild deterministically on load, so NPC identity and seed
-    persist for free; only their in-progress positions need saving (the
-    Phase 3 persistence contract). Called from ``saveload.save_game``;
-    the reverse (``saveload_maps._restore_city_npc_positions``) reapplies
-    them onto the rebuilt city map.
+    persist for free; only their in-progress positions and destinations
+    need saving (the Phase 3 persistence contract). Called from
+    ``saveload.save_game``; the reverse
+    (``saveload_maps._restore_city_npc_positions``) reapplies them onto
+    the rebuilt city map.
     """
     _positions: dict = {}
     _map = getattr(ctx, "game_map", None)
@@ -148,7 +199,11 @@ def save_city_npc_positions(ctx) -> dict:
     for _e in getattr(_map, "entities", ()):
         _cid = getattr(_e, "city_npc_id", "")
         if _cid:
-            _positions[_cid] = [_e.pos.x, _e.pos.y]
+            _dest = _e.city_dest
+            _positions[_cid] = {
+                "pos": [_e.pos.x, _e.pos.y],
+                "dest": list(_dest) if _dest is not None else None,
+            }
     return _positions
 
 

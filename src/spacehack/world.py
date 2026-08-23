@@ -289,9 +289,11 @@ class Entity:
     last_seen_ticks: int = 0  # remaining dungeon ticks to pursue that cell
     city_npc_id: str = ""  # ambient city citizen — placed/moved by city_npcs
     city_spawn: Position | None = None  # ambient anchor; wander returns here
-    city_wander_radius: int = 0  # ambient wander radius around city_spawn
+    city_wander_radius: int = 0  # district radius around city_spawn for destination picks
     city_move_chance: float = 0.0  # probability of a step per city tick
     city_rng: object | None = None  # per-NPC seeded RNG for deterministic wander
+    city_dest: tuple | None = None  # current pavement destination (x, y); None = repick
+    city_path: list | None = None  # cached A* path to city_dest (persisted across ticks)
     blocked_message: str = "You bump into {name}."
 
 
