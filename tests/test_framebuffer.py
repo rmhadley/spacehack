@@ -64,12 +64,15 @@ def test_later_glyph_without_background_inherits_the_existing_tile_background():
     assert frame.cell(0, 0) == FrameCell("@", (255, 255, 255), (10, 20, 30))
 
 
-def test_later_glyph_inherits_the_visible_underlay_of_dense_tile_glyphs():
+def test_later_glyph_inherits_the_tile_painted_background_even_for_shade_glyphs():
+    # A later entity glyph must sit on the tile's actual painted background so
+    # it matches the surrounding terrain (e.g. a ship gliding over grass),
+    # rather than inheriting a blended colour from the shade glyph.
     frame = FrameBuffer(1, 1)
     frame.write_cell(0, 0, "▓", fg=(220, 240, 255), bg=(50, 70, 95))
     frame.write_cell(0, 0, "t", fg=(180, 200, 220))
 
-    assert frame.cell(0, 0).bg == (178, 198, 215)
+    assert frame.cell(0, 0).bg == (50, 70, 95)
 
 
 def test_clear_resets_cells_and_changes_default_background():
