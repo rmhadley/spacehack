@@ -470,4 +470,6 @@ def build_earth_city(spec, resolve_npc, resolve_ship) -> world.GameMap:
     _set_city_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_npc, resolve_ship)
     city_transit.place_transit_stations(game_map, spec)
+    from . import city_npcs
+    city_npcs.place_city_npcs(game_map, spec.city_npc_population)
     return game_map

@@ -287,6 +287,11 @@ class Entity:
     interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)
     last_seen_pos: Position | None = None  # ground hunter's remembered player cell
     last_seen_ticks: int = 0  # remaining dungeon ticks to pursue that cell
+    city_npc_id: str = ""  # ambient city citizen — placed/moved by city_npcs
+    city_spawn: Position | None = None  # ambient anchor; wander returns here
+    city_wander_radius: int = 0  # ambient wander radius around city_spawn
+    city_move_chance: float = 0.0  # probability of a step per city tick
+    city_rng: object | None = None  # per-NPC seeded RNG for deterministic wander
     blocked_message: str = "You bump into {name}."
 
 

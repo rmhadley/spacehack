@@ -458,15 +458,45 @@ bright blended color from dense terrain glyphs.
 
 ### Phase 3 - City NPC activity and direct-contact encounters
 
-- [ ] Add data-defined ambient city NPC templates and Earth populations.
-- [ ] Implement deterministic route/destination movement, collision avoidance,
+Pre-implementation audit (completed before code changes):
+
+- City mode currently runs **no NPC simulation** — after a city action the
+  loop does not advance ambient entities. Phase 3 adds exactly one
+  ``move_city_npcs`` call per accepted city action (movement and wait),
+  mirroring how ``ground_npcs.move_ground_npcs`` ticks dungeon ground NPCs
+  after the player moves.
+- Movement/combat reuse: ``ground_npcs`` already implements one-cell
+  deterministic steps, faction-aware patrol/wander, ``squad_id`` cohesion,
+  ``combat_locked`` freezing, and ``world.find_path`` A*. Phase 3 reuses
+  these patterns; it does **not** duplicate a movement engine.
+- Hostility already flows through ``faction.spec_is_hostile`` (faction
+  reputation + ``always_hostile``). City ambient NPCs reuse that predicate
+  via an ``npc_char_id`` that resolves to a ground :class:`NpcCharSpec`.
+- Direct-contact combat reuses ``combat._rules_ground.init(...)`` with a
+  list of hostile ``world.Entity`` (the bump target), the same entry the
+  dungeon LOS-aggro path uses. Phase 3 is bump-triggered only per the
+  hostile-on-direct-contact decision.
+- Talk/trade reuse: the occupied-blocker dispatch in
+  ``game_interactions._resolve_occupied`` keys off ``npc_id``. Ambient
+  city NPCs get a new ``city_npc_id`` Entity field routed through that
+  same dispatch to dialog/trade/fight without expanding main-loop checks.
+- Determinism: ambient placement and route choice use
+  ``engine.seeded_rng(INIT_SEED, city_id, npc_id, ...)`` so save/load and
+  re-entry don't reshuffle routes (matches the Earth skyline pattern).
+- Persistence: the city map rebuilds deterministically on load, so ambient
+  NPC *identity and seed* persist for free; their **current positions** must
+  be saved like other dynamic entity state. Store a
+  ``ctx.city_npc_positions`` dict and reapply after rebuild.
+
+- [x] Add data-defined ambient city NPC templates and Earth populations.
+- [x] Implement deterministic route/destination movement, collision avoidance,
       and one-step-per-city-tick updates.
-- [ ] Add NPC talk/trade dispatch using existing catalogs and modals.
-- [ ] Add faction-aware direct-contact hostile encounters using existing ground
+- [x] Add NPC talk/trade dispatch using existing catalogs and modals.
+- [x] Add faction-aware direct-contact hostile encounters using existing ground
       combat and faction attitude rules.
-- [ ] Ensure named service NPCs stay anchored unless explicitly configured to
+- [x] Ensure named service NPCs stay anchored unless explicitly configured to
       move, and prevent combat movement code from running twice.
-- [ ] Persist city NPC positions/routes and add deterministic save/load tests.
+- [x] Persist city NPC positions/routes and add deterministic save/load tests.
 
 **PLAYTEST**
 

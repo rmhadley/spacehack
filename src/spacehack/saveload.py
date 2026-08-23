@@ -11,6 +11,7 @@ from enum import Enum
 from pathlib import Path
 
 from . import world
+from .city_npcs import save_city_npc_positions as _save_city_npc_positions
 from .game_context import GameContext
 from .pygame_runtime import PygameContext
 from .saveload_maps import _dungeon_from_dict, _dungeon_to_dict  # noqa: F401  # re-exported for tests/tools
@@ -307,10 +308,7 @@ def _write_dungeon_and_interiors(ctx, data, mode, space_player_pos) -> None:
     # serialized here so crew stay dead, loot stays taken, and fog stays
     # revealed across save/quit/continue.
     if ctx.interiors:
-        data["interiors"] = {
-            key: _dungeon_to_dict(value, None)
-            for key, value in ctx.interiors.items()
-        }
+        data["interiors"] = {k: _dungeon_to_dict(v, None) for k, v in ctx.interiors.items()}
 
 
 def _write_rng_state(data: dict) -> None:
@@ -351,7 +349,7 @@ def save_game(
     _data["player_pos_x"] = ctx.player.pos.x
     _data["player_pos_y"] = ctx.player.pos.y
     ctx.current_city_id = city_id
-
+    _data["city_npc_positions"] = _save_city_npc_positions(ctx)
     _write_dungeon_and_interiors(ctx, _data, mode, space_player_pos)
     _write_rng_state(_data)
 

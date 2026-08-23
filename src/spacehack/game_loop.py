@@ -370,8 +370,23 @@ def _handle_wait_event(state, event):
             return 'QUIT'
         if _dctrl == 'COMBAT':
             return 'HANDLED'
+    elif state.current_mode == 'city':
+        _advance_city_npcs(state)
     state.ctx.log.add('You wait.')
     return 'HANDLED'
+
+
+def _advance_city_npcs(state):
+    """Advance ambient city NPCs one step (move or wait tick).
+
+    Runs once per accepted city action, mirroring the dungeon post-step
+    tick. Per the Phase 3 design, city NPC movement only drifts
+    pedestrians; hostile encounters are direct-contact only (triggered
+    by bumping into a hostile citizen via the occupied dispatch), never
+    merely by proximity.
+    """
+    from .city_npcs import move_city_npcs as _move_city_npcs
+    _move_city_npcs(state.ctx, state.game_map)
 
 
 def _handle_space_modal_event(state, event):
@@ -598,6 +613,7 @@ def _handle_movement_event(state, event):
         tutorial_module.notify_move(ctx)
         if enter_city_interior(state) == 'ENTERED':
             return 'HANDLED'
+        _advance_city_npcs(state)
     if code == 'moved' and state.current_mode == 'space' and (state.player_owned_ship is not None):
         _run_combat_loop(ctx, console, state.player, also_move_npcs=True)
         state.player_active_missions = ctx.player_active_missions

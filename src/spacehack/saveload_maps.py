@@ -521,7 +521,7 @@ def _rebuild_dungeon(
     )
 
 
-def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id):
+def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id, city_npc_positions):
     """Rebuild the planet city map for the saved city id."""
     from . import solar_system as solar_system_module
     from .data.planets import hangar_anchor as _planet_anchor
@@ -541,12 +541,38 @@ def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id):
     solar_system_module.current_solar_system_id = system_id
 
     game_map = planets_load_planet(city_id)
+    _restore_city_npc_positions(game_map, city_npc_positions)
     player_ent = _make_walker_entity(world.Position(pos_x, pos_y))
     game_map.entities.append(player_ent)
     if owned_ship is not None:
         hangar = _make_ship_entity(owned_ship, _planet_anchor(city_id))
         game_map.entities.append(hangar)
     return _RebuiltMap(game_map, player_ent, "city", city_id, system_id, None, None)
+
+
+def _restore_city_npc_positions(game_map, city_npc_positions) -> None:
+    """Reapply saved ambient city NPC positions onto the rebuilt city map.
+
+    City NPCs rebuild at their authored anchors via the deterministic
+    builder; the persisted per-NPC positions are then layered back on by
+    ``city_npc_id`` so a save/quit/continue resumes where NPCs stood.
+    """
+    if not city_npc_positions:
+        return
+    for _e in game_map.entities:
+        _cid = getattr(_e, "city_npc_id", "")
+        if not _cid:
+            continue
+        _pos = city_npc_positions.get(_cid)
+        if not _pos:
+            continue
+        _x, _y = _pos[0], _pos[1]
+        if not (0 <= _x < game_map.width and 0 <= _y < game_map.height):
+            continue
+        if not game_map.tiles[_y][_x].walkable:
+            continue
+        _e.pos = world.Position(_x, _y)
+        _e.city_spawn = world.Position(_x, _y)
 
 
 def rebuild_game_map(
@@ -568,6 +594,7 @@ def rebuild_game_map(
     Falls back to Earth city when the saved system id or dungeon data is
     unusable (matching the log messages the legacy inline code emitted).
     """
+    _city_npc_positions = data.get("city_npc_positions", {}) or {}
     if mode == "space":
         result = _rebuild_space(
             system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
@@ -584,4 +611,6 @@ def rebuild_game_map(
         if result is not None:
             return result
         city_id = "earth"
-    return _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id)
+    return _rebuild_city(
+        system_id, log, owned_ship, pos_x, pos_y, city_id, _city_npc_positions,
+    )

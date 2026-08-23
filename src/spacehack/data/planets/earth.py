@@ -13,6 +13,7 @@ from __future__ import annotations
 from ... import world
 from . import PlanetSpec
 from .themes import EARTH
+from ..city_npcs import EARTH_POPULATION
 
 
 SPEC = PlanetSpec(
@@ -48,6 +49,7 @@ SPEC = PlanetSpec(
         ),
     ),
     city_layout_id="earth_river_coast",
+    city_npc_population=EARTH_POPULATION,
     transit_stations=(
         # Central hub on the civic plaza, plus a stop beside each core
         # building. The network is fully connected so the player can ride

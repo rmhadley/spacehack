@@ -224,6 +224,8 @@ def _resolve_occupied(state, blocker):
         return _resolve_npc_ship_blocker(state, blocker)
     if blocker.npc_id:
         return _resolve_npc_blocker(state, blocker)
+    if blocker.city_npc_id:
+        return _resolve_city_npc_blocker(state, blocker)
     log.add(world.blocked_message_for(blocker))
     return None
 
@@ -590,6 +592,21 @@ def _resolve_npc_blocker(state, blocker):
         if _work_result is not None:
             return _work_result
     return None
+
+def _resolve_city_npc_blocker(state, blocker):
+    """Resolve bumping into an ambient city citizen.
+
+    Hostile citizens (faction enemy/disliked, or always-hostile mobs)
+    trigger a direct-contact ground fight through the shared combat
+    runtime; friendly citizens just block foot traffic with a bump line.
+    """
+    from . import city_npcs as _cn
+    if _cn.is_hostile(state.ctx, blocker):
+        _cn.run_city_fight(state.ctx, state.console, state.game_map, [blocker])
+        return 'CONTINUE'
+    state.log.add(world.blocked_message_for(blocker))
+    return None
+
 
 def _planet_mission_tier(state):
     """Return the mission tier for the player's current city, defaulting to 1."""

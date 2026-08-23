@@ -1,0 +1,151 @@
+"""Tests for ambient city NPCs: placement, deterministic movement, and
+direct-contact hostile dispatch (Phase 3 of the planet-city expansion)."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from src.spacehack import city_npcs, world
+from src.spacehack.data.city_npcs import CityNpc, EARTH_POPULATION
+from src.spacehack.data.planets import load_planet
+
+
+def _walkable_map(*entities: world.Entity, w: int = 16, h: int = 12) -> world.GameMap:
+    tiles = [
+        [world.Tile("grass", ".", True, (0, 120, 0), (0, 0, 0)) for _ in range(w)]
+        for _ in range(h)
+    ]
+    return world.GameMap(w, h, tiles, list(entities))
+
+
+def test_earth_population_uses_real_char_specs_and_valid_spawns():
+    """Every catalog entry resolves to a real NpcCharSpec and lands on a
+    walkable, unblocked cell on the rebuilt Earth city."""
+    game_map = load_planet("earth")
+    placed = {
+        e.city_npc_id: e
+        for e in game_map.entities
+        if getattr(e, "city_npc_id", "")
+    }
+    assert set(placed) == {t.id for t in EARTH_POPULATION}
+    for template in EARTH_POPULATION:
+        entity = placed[template.id]
+        tile = game_map.tiles[entity.pos.y][entity.pos.x]
+        assert tile.walkable, f"{template.id} spawned on unwalkable cell"
+        assert (
+            game_map.blocking_entity_at(entity.pos.x, entity.pos.y, exclude=entity)
+            is None
+        ), f"{template.id} spawned on a blocked cell"
+
+
+def test_ambient_npcs_anchor_within_wander_radius():
+    """NPCs placed at their authored anchor carry anchor metadata."""
+    game_map = load_planet("earth")
+    for template in EARTH_POPULATION:
+        entity = next(
+            e for e in game_map.entities if e.city_npc_id == template.id
+        )
+        assert (entity.pos.x, entity.pos.y) == template.spawn
+        assert entity.city_wander_radius == template.wander_radius
+
+
+def test_move_city_npcs_keeps_oneshot_and_stays_near_anchor(monkeypatch):
+    """move_city_npcs runs at most one step and biases back toward anchor."""
+    anchor = (4, 4)
+    npc = world.Entity(
+        "p", (255, 100, 100), world.Position(4, 4),
+        city_npc_id="npc", npc_char_id="civillian_bystander",
+    )
+    npc.city_spawn = world.Position(*anchor)
+    npc.city_wander_radius = 2
+    npc.city_move_chance = 0.5
+    # seedy fake rng: always wants to move, and shuffles near-anchor choices
+    import random
+    def _shuffle(seq):
+        random.Random(1).shuffle(seq)
+    class _FakeRng:
+        def random(self):
+            return 0.0  # below 0.5 -> always move
+        def shuffle(self, seq):
+            _shuffle(seq)
+    npc.city_rng = _FakeRng()
+    game_map = _walkable_map(npc)
+
+    before = (npc.pos.x, npc.pos.y)
+    city_npcs.move_city_npcs(SimpleNamespace(), game_map)
+    # One step max (Manhattan distance off anchor <= 1 after one step).
+    assert abs(npc.pos.x - before[0]) + abs(npc.pos.y - before[1]) == 1
+    # Still within radius of anchor.
+    assert (npc.pos.x - anchor[0]) ** 2 + (npc.pos.y - anchor[1]) ** 2 <= 4
+
+
+def test_move_city_npcs_skips_combat_locked(monkeypatch):
+    """Combat-locked citizens are frozen (combat AI owns their position)."""
+    moving = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        city_npc_id="moving", npc_char_id="civillian_bystander",
+    )
+    moving.city_spawn = world.Position(2, 2)
+    moving.city_move_chance = 0.5
+    import random
+    def _shuffle(seq):
+        random.Random(1).shuffle(seq)
+    class _FakeRng:
+        def random(self):
+            return 0.0
+        def shuffle(self, seq):
+            _shuffle(seq)
+    moving.city_rng = _FakeRng()
+
+    locked = world.Entity(
+        "g", (200, 200, 200), world.Position(5, 5),
+        city_npc_id="locked", npc_char_id="civillian_bystander",
+    )
+    locked.combat_locked = True
+    locked.city_spawn = world.Position(5, 5)
+    locked.city_move_chance = 0.5
+    locked.city_rng = _FakeRng()
+
+    game_map = _walkable_map(moving, locked)
+    city_npcs.move_city_npcs(SimpleNamespace(), game_map)
+
+    # Locked citizen is frozen; the moving one may step at most one cell.
+    assert (locked.pos.x, locked.pos.y) == (5, 5)
+    assert abs(moving.pos.x - 2) + abs(moving.pos.y - 2) <= 1
+
+
+def test_place_city_npcs_skips_unknown_char(monkeypatch):
+    """A template whose npc_char_id doesn't resolve is skipped, not crashed."""
+    tmpl = CityNpc("ghost_npc", "does_not_exist_spec", (3, 3))
+    game_map = _walkable_map()
+    city_npcs.place_city_npcs(game_map, [tmpl])
+    assert not any(getattr(e, "city_npc_id", "") for e in game_map.entities)
+
+
+def test_city_npc_positions_round_trip_via_rebuild():
+    """Saved city NPC positions are reapplied onto the rebuilt city map."""
+    from src.spacehack import saveload_maps as _sm
+
+    game_map = load_planet("earth")
+    # Simulate the NPCs having wandered: move each to a nearby walkable cell.
+    saved = {}
+    for e in game_map.entities:
+        if not getattr(e, "city_npc_id", ""):
+            continue
+        # nudge one cell west if walkable, else keep anchor
+        nx = e.pos.x - 1
+        ny = e.pos.y
+        if (nx, ny) != (e.pos.x, e.pos.y) and game_map.tiles[ny][nx].walkable \
+                and game_map.blocking_entity_at(nx, ny, exclude=e) is None:
+            saved[e.city_npc_id] = [nx, ny]
+        else:
+            saved[e.city_npc_id] = [e.pos.x, e.pos.y]
+
+    # Rebuild a fresh Earth map and reapply.
+    fresh = load_planet("earth")
+    _sm._restore_city_npc_positions(fresh, saved)
+
+    for e in fresh.entities:
+        if not getattr(e, "city_npc_id", ""):
+            continue
+        assert (e.pos.x, e.pos.y) == tuple(saved[e.city_npc_id]), e.city_npc_id
