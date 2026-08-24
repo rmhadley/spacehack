@@ -134,11 +134,11 @@ MARS_POPULATION: tuple[CityNpc, ...] = (
 
 
 WOLF_B_POPULATION: tuple[CityNpc, ...] = (
-    # Pad crew — loitering south of the landing pad.
-    CityNpc("wolf_pad_crew", "civillian_bystander", (38, 23), wander_radius=90, move_chance=0.8),
-    CityNpc("wolf_rigger", "civillian_bystander", (44, 8), wander_radius=90, move_chance=0.85),
+    # Pad crew — loitering near the landing pad.
+    CityNpc("wolf_pad_crew", "civillian_bystander", (36, 26), wander_radius=90, move_chance=0.8),
+    CityNpc("wolf_rigger", "civillian_bystander", (46, 26), wander_radius=90, move_chance=0.85),
     # Scavenger traffic between the pad and depot.
-    CityNpc("wolf_scavenger", "civillian_bystander", (50, 8), wander_radius=90, move_chance=0.9),
+    CityNpc("wolf_scavenger", "civillian_bystander", (50, 26), wander_radius=90, move_chance=0.9),
     # Pirates outside the Salty Grave.
     CityNpc("wolf_bar_guard", "pirate_raider", (20, 62), wander_radius=90, move_chance=0.75),
     CityNpc("wolf_bar_regular", "civillian_bystander", (30, 62), wander_radius=90, move_chance=0.8),

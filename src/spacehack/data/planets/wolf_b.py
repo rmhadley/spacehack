@@ -40,7 +40,7 @@ SPEC = PlanetSpec(
     description="A dark, airless rock - a pirate-run listening post on the frontier. No questions asked.",
     width=120,
     height=80,
-    hangar_anchor=world.Position(40, 21),
+    hangar_anchor=world.Position(40, 16),
     buildings=(
         world.CityBuilding(
             label="spaceport",
@@ -63,7 +63,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Landing Pad", district="centre",
-            pos=world.Position(41, 23),
+            pos=world.Position(40, 22),
             destinations=("depot", "bar"),
         ),
         world.TransitStation(
@@ -83,9 +83,9 @@ SPEC = PlanetSpec(
         ("depot", "wolf_depot_interior"),
     ),
     showroom_ships=(
-        ("scout",  3, -13),
-        ("hauler", 6, -11),
-        ("cruiser", 4, -11),
+        ("scout",  3, -8),
+        ("hauler", 6, -6),
+        ("cruiser", 4, -6),
     ),
     npc_overrides=(
         (

@@ -388,7 +388,7 @@ def _add_service_entities(game_map, spec, resolve_ship):
     for char, name, dx, flag, fg in terminal_data:
         game_map.entities.append(world.Entity(
             char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
+            pos=world.Position(berth.x + dx, berth.y + 7),
             name=name, **{flag: True},
         ))
 
