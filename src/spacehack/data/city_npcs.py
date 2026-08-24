@@ -103,7 +103,7 @@ ERI_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("eri_pad_loader", "civillian_bystander", (38, 38), wander_radius=110, move_chance=0.9),
     CityNpc("eri_freight_runner", "civillian_bystander", (83, 62), wander_radius=110, move_chance=0.9),
     # Social traffic at the canyon overlook and beacon spine.
-    CityNpc("eri_bar_regular", "civillian_bystander", (80, 56), wander_radius=110, move_chance=0.85),
+    CityNpc("eri_bar_regular", "civillian_bystander", (80, 76), wander_radius=110, move_chance=0.85),
     CityNpc("eri_beacon_courier", "civillian_bystander", (70, 47), wander_radius=110, move_chance=0.9),
     # Frontier security patrols on the eastern approach.
     CityNpc("eri_gate_patrol", "militia_trooper", (143, 96), wander_radius=110, move_chance=0.9),

@@ -44,7 +44,7 @@ SPEC = PlanetSpec(
             door_x=30, npc_id="",
         ),
         world.CityBuilding(
-            label="bar", x_lo=67, x_hi=84, y_lo=48, y_hi=54,
+            label="bar", x_lo=67, x_hi=84, y_lo=68, y_hi=74,
             door_x=74, npc_id="barkeep",
         ),
         world.CityBuilding(
@@ -71,7 +71,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="Dusty Glass", district="canyon overlook",
-            pos=world.Position(76, 56),
+            pos=world.Position(76, 75),
             destinations=("spaceport", "beacon", "merchants", "militia"),
         ),
         world.TransitStation(

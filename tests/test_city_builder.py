@@ -297,7 +297,7 @@ def test_eri_b_roofs_are_complete_and_quiet():
             for row in asset.tiles for tile in row
         ) == 1, layout_id
         assert all(
-            tile.kind in {"city_building_wall", "city_building_door"}
+            tile.kind in {"city_building_wall", "city_building_roof", "city_building_door"}
             for row in asset.tiles for tile in row
         ), layout_id
         stamp = game_map.landmark_stamps[layout_id]
@@ -312,6 +312,36 @@ def test_eri_b_roofs_are_complete_and_quiet():
         assert any(label in row for row in rows), layout_id
         letters = {char for row in rows for char in row if char.isalpha()}
         assert letters == set(label), layout_id
+
+
+def test_eri_b_dash_runs_are_complete_road_bands():
+    """A road center marker is never left as a detached dash line."""
+    game_map = load_planet("eri_b")
+    for y, row in enumerate(game_map.tiles):
+        for x, tile in enumerate(row):
+            if tile.char != "-":
+                continue
+            assert tile.kind == "road"
+            assert all(
+                game_map.in_bounds(x + dx, y + dy)
+                and game_map.tiles[y + dy][x + dx].kind == "road"
+                for dx, dy in ((0, -1), (0, 1))
+            ), (x, y)
+
+
+def test_eri_b_beacon_spine_is_not_overwritten_by_bar():
+    """The civic plaza remains separate from the bar block."""
+    game_map = load_planet("eri_b")
+    bar = game_map.landmark_stamps["eri_bar"]["footprint"]
+    plaza = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "plaza"
+    }
+    assert not bar.intersection(plaza)
+    assert game_map.tiles[47][78].kind == "monument"
+
 
 
 def test_eri_b_spaceport_apron_is_smooth_and_fixtures_are_clear():
@@ -393,7 +423,7 @@ def test_mercury_uses_authored_exteriors_like_earth():
     label_chars = {
         tile.char
         for row in mercury.tiles for tile in row
-        if tile.kind == "city_building_wall" and tile.char.isalpha()
+        if tile.kind in {"city_building_wall", "city_building_roof"} and tile.char.isalpha()
     }
     assert set("SPACEPORTBARSUPPLYLAB") <= label_chars
     assert not any(

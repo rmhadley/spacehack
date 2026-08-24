@@ -23,7 +23,10 @@ _BRIDGE_ROWS = ((34, 35, 36), (64, 65, 66), (92, 93, 94), (118, 119, 120))
 _TRANSIT_SIDEWALKS = {
     "spaceport": ((34, 27),),
     "beacon": ((86, 47),),
-    "bar": ((75, 56),),
+    "bar": (
+        (76, 76),
+        *((76, y) for y in range(77, 82)),
+    ),
     "merchants": ((128, 81),),
     "militia": ((166, 116),),
 }
@@ -41,7 +44,7 @@ _CANYON_WALL = world.Tile(
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
     "eri_spaceport": world.Position(20, 18),
-    "eri_bar": world.Position(67, 48),
+    "eri_bar": world.Position(67, 68),
     "eri_merchants": world.Position(116, 70),
     "eri_militia": world.Position(151, 105),
 }
@@ -100,9 +103,13 @@ def _paint_roads(tiles, theme):
             for x in range(_CANYON_X_LO - 1, _CANYON_X_HI + 2):
                 tiles[y][x] = world.BRIDGE
         for x in range(3, _CANYON_X_LO):
+            _paint_cell(tiles, x, y_lo, theme.road_surface)
             _paint_cell(tiles, x, y_mid, theme.road_ew)
+            _paint_cell(tiles, x, y_hi, theme.road_surface)
         for x in range(_CANYON_X_HI + 1, CITY_WIDTH - 2):
+            _paint_cell(tiles, x, y_lo, theme.road_surface)
             _paint_cell(tiles, x, y_mid, theme.road_ew)
+            _paint_cell(tiles, x, y_hi, theme.road_surface)
 
 
 def _paint_sidewalks(tiles, theme):
