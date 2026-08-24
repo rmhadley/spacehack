@@ -60,7 +60,7 @@ _PAD_Y_LO, _PAD_Y_HI = 8, 16
 
 # The Requiem's hull — cold metallic wreck plating, black-backed.
 _HULL_WALL = world.Tile(
-    kind="city_building_wall", char="▓", walkable=False,
+    kind="city_building_wall", char="#", walkable=False,
     fg=(100, 145, 170), bg=(24, 38, 52),
     blocked_message="The Requiem's hull plates block your path.",
 )
