@@ -154,4 +154,21 @@ WOLF_B_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION"]
+CYGNI_B_POPULATION: tuple[CityNpc, ...] = (
+    # Port pad crew.
+    CityNpc("cygni_pad_crew", "civillian_bystander", (42, 22), wander_radius=90, move_chance=0.8),
+    # Yard workers moving between forges and the haul road.
+    CityNpc("cygni_forge_a", "civillian_bystander", (60, 12), wander_radius=20, move_chance=0.9),
+    CityNpc("cygni_forge_b", "civillian_bystander", (64, 26), wander_radius=20, move_chance=0.85),
+    CityNpc("cygni_forge_c", "civillian_bystander", (60, 52), wander_radius=20, move_chance=0.9),
+    CityNpc("cygni_forge_d", "civillian_bystander", (64, 62), wander_radius=20, move_chance=0.85),
+    CityNpc("cygni_plater", "civillian_bystander", (58, 24), wander_radius=20, move_chance=0.9),
+    # Dock market customers (static, no pathing).
+    CityNpc("cygni_market_a", "civillian_bystander", (36, 54), wander_radius=0, move_chance=0),
+    CityNpc("cygni_market_b", "civillian_bystander", (48, 54), wander_radius=0, move_chance=0),
+    # Militia trooper outside the station house.
+    CityNpc("cygni_trooper", "militia_trooper", (134, 86), wander_radius=90, move_chance=0.75),
+)
+
+
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION"]
