@@ -63,13 +63,13 @@ SPEC = PlanetSpec(
     city_npc_population=CYGNI_B_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Port Pad", district="west pad",
+            id="spaceport", name="Spaceport", district="west pad",
             pos=world.Position(42, 20),
             destinations=("bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bar", name="The Anvil", district="forge row",
-            pos=world.Position(134, 59),
+            pos=world.Position(126, 59),
             destinations=("spaceport", "merchants", "militia"),
         ),
         world.TransitStation(
