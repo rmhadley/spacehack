@@ -893,6 +893,18 @@ network, authored interiors, and a living population.
 - Added regression coverage for footprint clearance, door approaches, transit
   adjacency, roof completeness, NPC clearance, and landing-apron noise.
 
+**Epsilon Eridani b circulation correction**
+
+- Rebuilt the road plan around four three-cell collectors, four three-cell
+  canyon crossings, and continuous bank-side collector routes instead of
+  isolated one-cell strips.
+- Added multi-cell sidewalk frontage and three-cell door forecourts so each
+  building opens onto a legible pedestrian route.
+- Moved every transit bay off roads, sidewalks, landing pads, and doors, with
+  each bay on the entrance side of its destination and beside a sidewalk.
+- Added a rendered-map connectivity regression covering the landing apron,
+  sidewalks, plazas, roads, and bridges as one public circulation network.
+
 **Mars redesign record**
 
 - Replaced the hub-and-spoke outpost geometry with a rectilinear planned-city

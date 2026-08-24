@@ -213,7 +213,10 @@ def test_eri_b_transit_stops_are_on_their_buildings_entrance_side():
         stop = game_map.city_transit[building.label]["pos"]
         assert stop != entrance, building.label
         assert stop[1] > entrance[1], building.label
-        assert abs(stop[0] - entrance[0]) <= 2, building.label
+        building_bounds = next(
+            item for item in spec.buildings if item.label == building.label
+        )
+        assert building_bounds.x_lo <= stop[0] <= building_bounds.x_hi, building.label
         neighbors = {
             (stop[0] + dx, stop[1] + dy)
             for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
@@ -227,6 +230,37 @@ def test_eri_b_transit_stops_are_on_their_buildings_entrance_side():
         assert game_map.tiles[stop[1]][stop[0]].kind not in {
             "road", "bridge", "landing_pad",
         }, building.label
+        assert all(
+            game_map.tiles[y][x].kind != "sidewalk"
+            for x, y in {(stop[0], stop[1])}
+        ), building.label
+
+
+def test_eri_b_public_routes_form_one_connected_network():
+    """Collectors, sidewalks, plazas, and bridges form one civic network."""
+    from collections import deque
+
+    game_map = load_planet("eri_b")
+    route_kinds = {"road", "sidewalk", "bridge", "plaza", "landing_pad"}
+    route = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind in route_kinds
+    }
+    start = next(iter(route))
+    seen = {start}
+    queue = deque([start])
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+            point = (x + dx, y + dy)
+            if point in seen or point not in route:
+                continue
+            seen.add(point)
+            queue.append(point)
+    assert seen == route
+    assert sum(tile.kind == "bridge" for row in game_map.tiles for tile in row) >= 4 * 18
 
 
 def test_eri_b_buildings_clear_public_circulation():

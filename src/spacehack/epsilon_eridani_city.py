@@ -1,10 +1,4 @@
-"""Epsilon Eridani b's authored terraced canyon settlement.
-
-The first deep-space settlement is organized around a dry north-south rift.
-Four bridge crossings span the canyon, while the Beacon Spine, landing plateau,
-freight interchange, and eastern militia gate give the large map a readable
-working-settlement structure.
-"""
+"""Epsilon Eridani b's authored terraced canyon settlement."""
 
 from __future__ import annotations
 
@@ -24,21 +18,14 @@ from .data.planets.themes import CANYON_SETTLEMENT
 CITY_WIDTH = 200
 CITY_HEIGHT = 140
 _CANYON_X_LO, _CANYON_X_HI = 92, 107
-_ROAD_ROWS = ((28, 29, 30), (59, 60, 61), (83, 84, 85), (118, 119, 120))
-_BRIDGE_ROWS = ((34, 35, 36), (78, 79, 80), (91, 92, 93), (118, 119, 120))
-_TRANSIT_BAYS = {
-    "spaceport": (30, 28),
-    "beacon": (85, 47),
-    "bar": (74, 56),
-    "merchants": (128, 80),
-    "militia": (162, 116),
-}
+_ROAD_ROWS = ((28, 29, 30), (58, 59, 60), (82, 83, 84), (118, 119, 120))
+_BRIDGE_ROWS = ((34, 35, 36), (64, 65, 66), (92, 93, 94), (118, 119, 120))
 _TRANSIT_SIDEWALKS = {
-    "spaceport": (30, 27),
-    "beacon": (86, 47),
-    "bar": (74, 57),
-    "merchants": (128, 81),
-    "militia": (162, 117),
+    "spaceport": ((34, 27),),
+    "beacon": ((86, 47),),
+    "bar": ((75, 56),),
+    "merchants": ((128, 81),),
+    "militia": ((166, 116),),
 }
 
 _CANYON_FLOOR = world.Tile(
@@ -55,17 +42,14 @@ _CANYON_WALL = world.Tile(
 LANDMARK_ORIGINS: dict[str, world.Position] = {
     "eri_spaceport": world.Position(20, 18),
     "eri_bar": world.Position(67, 48),
-    "eri_merchants": world.Position(118, 70),
-    "eri_militia": world.Position(149, 105),
+    "eri_merchants": world.Position(116, 70),
+    "eri_militia": world.Position(151, 105),
 }
 
 
 def _base_tiles(theme):
     """Create dusty terrain with a dry canyon and perimeter walls."""
-    tiles = [
-        [theme.floor for _ in range(CITY_WIDTH)]
-        for _ in range(CITY_HEIGHT)
-    ]
+    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
     for x in range(CITY_WIDTH):
         tiles[0][x] = world.WALL
         tiles[-1][x] = world.WALL
@@ -94,22 +78,23 @@ def _paint_cell(tiles, x, y, tile):
         tiles[y][x] = tile
 
 
-def _paint_roads(tiles, theme):
-    """Paint the Beacon Spine, terraces, and bridge approaches."""
-    for y_lo, y_mid, y_hi in _ROAD_ROWS:
-        for x in range(3, CITY_WIDTH - 2):
-            if _CANYON_X_LO <= x <= _CANYON_X_HI and (y_lo, y_mid, y_hi) not in _BRIDGE_ROWS:
-                continue
-            _paint_cell(tiles, x, y_lo, theme.road_surface)
-            _paint_cell(tiles, x, y_mid, theme.road_ew)
-            _paint_cell(tiles, x, y_hi, theme.road_surface)
-    for x in (51, 55):
-        for y in range(3, CITY_HEIGHT - 2):
-            _paint_cell(tiles, x, y, theme.sidewalk)
-    for y in range(3, CITY_HEIGHT - 2):
-        _paint_cell(tiles, 53, y, theme.road_ns)
+def _paint_horizontal_road(tiles, theme, y_lo, y_mid, y_hi):
+    """Paint one three-cell road tier on both canyon banks."""
+    for x in range(3, CITY_WIDTH - 2):
+        if _CANYON_X_LO <= x <= _CANYON_X_HI:
+            continue
+        _paint_cell(tiles, x, y_lo, theme.road_surface)
+        _paint_cell(tiles, x, y_mid, theme.road_ew)
+        _paint_cell(tiles, x, y_hi, theme.road_surface)
 
-    # The four elevated crossings are the only roads through the rift.
+
+def _paint_roads(tiles, theme):
+    """Paint collectors, bank avenues, and the four canyon crossings."""
+    for road in _ROAD_ROWS:
+        _paint_horizontal_road(tiles, theme, *road)
+    for x in (8, 9, 10, 88, 89, 90, 109, 110, 111, 188, 189, 190):
+        for y in range(3, CITY_HEIGHT - 2):
+            _paint_cell(tiles, x, y, theme.road_ns)
     for y_lo, y_mid, y_hi in _BRIDGE_ROWS:
         for y in range(y_lo, y_hi + 1):
             for x in range(_CANYON_X_LO - 1, _CANYON_X_HI + 2):
@@ -121,13 +106,15 @@ def _paint_roads(tiles, theme):
 
 
 def _paint_sidewalks(tiles, theme):
-    """Add pedestrian terraces beside the major roads."""
+    """Paint two-cell sidewalks along collectors and bank avenues."""
     for y_lo, _y_mid, y_hi in _ROAD_ROWS:
         for x in range(3, CITY_WIDTH - 2):
-            for y in (y_lo - 1, y_hi + 1):
+            for y in (y_lo - 2, y_lo - 1, y_hi + 1, y_hi + 2):
                 if not (_CANYON_X_LO <= x <= _CANYON_X_HI):
                     _paint_cell(tiles, x, y, theme.sidewalk)
-    # The central utility avenue has pedestrian strips on both sides.
+    for x in (6, 7, 11, 12, 86, 87, 112, 113, 186, 187, 191, 192):
+        for y in range(3, CITY_HEIGHT - 2):
+            _paint_cell(tiles, x, y, theme.sidewalk)
 
 
 def _paint_plaza(tiles, theme):
@@ -142,23 +129,33 @@ def _paint_plaza(tiles, theme):
 
 
 def _paint_apron(tiles, theme, spec):
-    """Reserve a broad landing plateau west of the spaceport."""
-    berth = spec.hangar_anchor
+    """Reserve a smooth landing plateau west of the spaceport."""
     pad_tile = replace(theme.landing_pad, char=" ")
     for y in range(31, 50):
         for x in range(18, 52):
             tiles[y][x] = pad_tile
+    berth = spec.hangar_anchor
     tiles[berth.y][berth.x] = theme.plaza
     for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
         tiles[berth.y + dy][berth.x + dx] = theme.neon
 
 
-def _paint_transit_bays(tiles, theme):
-    """Reserve a clean floor bay and sidewalk cell for every transit stop."""
-    for station_id, (x, y) in _TRANSIT_BAYS.items():
-        tiles[y][x] = theme.floor
-        side_x, side_y = _TRANSIT_SIDEWALKS[station_id]
-        tiles[side_y][side_x] = theme.sidewalk
+def _paint_building_forecourts(tiles, theme, spec):
+    """Give every south-facing door a three-cell sidewalk forecourt."""
+    for building in spec.buildings:
+        y = building.y_lo - 1 if building.door_north else building.y_hi + 1
+        for x in range(building.door_x - 1, building.door_x + 2):
+            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
+                tiles[y][x] = theme.sidewalk
+
+
+def _paint_transit_bays(tiles, theme, spec):
+    """Paint floor bays beside continuous sidewalks, never over them."""
+    bay_tile = replace(theme.floor, char=" ")
+    for station in spec.transit_stations:
+        tiles[station.pos.y][station.pos.x] = bay_tile
+        for x, y in _TRANSIT_SIDEWALKS.get(station.id, ()):
+            tiles[y][x] = theme.sidewalk
 
 
 def _paint_settlement_details(tiles, theme):
@@ -169,7 +166,7 @@ def _paint_settlement_details(tiles, theme):
         (44, 105), (61, 119), (129, 132), (181, 92),
     )
     for x, y in details:
-        if tiles[y][x].walkable:
+        if tiles[y][x].kind in {"floor", "grass"}:
             tiles[y][x] = theme.neon
 
 
@@ -227,7 +224,8 @@ def build_epsilon_eridani_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
-    _paint_transit_bays(game_map.tiles, theme)
+    _paint_building_forecourts(game_map.tiles, theme, spec)
+    _paint_transit_bays(game_map.tiles, theme, spec)
     paint_roof_labels(game_map, stamps, "eri_")
     _set_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)

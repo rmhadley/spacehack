@@ -48,12 +48,12 @@ SPEC = PlanetSpec(
             door_x=74, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=118, x_hi=144, y_lo=70, y_hi=78,
-            door_x=128, npc_id="guild_master",
+            label="merchants", x_lo=116, x_hi=142, y_lo=70, y_hi=78,
+            door_x=126, npc_id="guild_master",
         ),
         world.CityBuilding(
-            label="militia", x_lo=149, x_hi=177, y_lo=105, y_hi=114,
-            door_x=162, npc_id="militia_captain",
+            label="militia", x_lo=151, x_hi=179, y_lo=105, y_hi=114,
+            door_x=164, npc_id="militia_captain",
         ),
     ),
     city_layout_id="eri_canyon_settlement",
@@ -61,7 +61,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west plateau",
-            pos=world.Position(30, 28),
+            pos=world.Position(34, 26),
             destinations=("beacon", "bar", "merchants", "militia"),
         ),
         world.TransitStation(
@@ -71,7 +71,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="Dusty Glass", district="canyon overlook",
-            pos=world.Position(74, 56),
+            pos=world.Position(76, 56),
             destinations=("spaceport", "beacon", "merchants", "militia"),
         ),
         world.TransitStation(
@@ -81,7 +81,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="militia", name="Eastern Gate", district="frontier gate",
-            pos=world.Position(162, 116),
+            pos=world.Position(166, 115),
             destinations=("spaceport", "beacon", "bar", "merchants"),
         ),
     ),
