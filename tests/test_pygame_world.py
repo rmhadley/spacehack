@@ -122,7 +122,8 @@ def test_all_landable_city_pads_use_readable_entity_backgrounds():
             if tile.kind == "landing_pad"
         ]
         if pad_tiles:
-            assert pad_tiles[0].char == "."
+            expected_char = " " if spec.id == "ac_station" else "."
+            assert pad_tiles[0].char == expected_char
             assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL
             assert _city_bg_luma(pad_tiles[0].bg) >= _CITY_BG_MIN_LUMA
         for entity in game_map.entities:

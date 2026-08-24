@@ -8,6 +8,8 @@ to spin for gravity without requiring an animation system.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from . import world
 from .city_layout import (
     building_records,
@@ -212,6 +214,10 @@ def _set_metadata(game_map, spec, stamps, ring_cells) -> None:
 def build_ac_ring_layout(spec, resolve_ship) -> world.GameMap:
     """Build Alpha Centauri's 120x80 orbital ring station."""
     theme = _readable_city_theme(RING_STATION)
+    theme = replace(
+        theme,
+        landing_pad=replace(theme.landing_pad, char=" "),
+    )
     tiles, ring_cells = _base_tiles(theme)
     _paint_ring_routes(tiles, theme, ring_cells)
     _paint_dock_apron(tiles, theme, spec)

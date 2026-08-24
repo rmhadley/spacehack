@@ -70,6 +70,19 @@ def test_ac_station_is_a_hollow_ring_with_connected_spokes():
     assert len(game_map.ring_void_cells) > 1_000
 
 
+def test_ac_station_landing_apron_is_smooth_under_dock_fixtures():
+    """The ring dock uses a blank landing surface instead of dot texture."""
+    game_map = load_planet("ac_station")
+    apron_tiles = [
+        game_map.tiles[y][x]
+        for y in range(19, 26)
+        for x in range(53, 68)
+        if game_map.tiles[y][x].kind == "landing_pad"
+    ]
+    assert apron_tiles
+    assert {tile.char for tile in apron_tiles} == {" "}
+
+
 def test_ac_station_roof_labels_are_complete_and_facades_use_no_letter_noise():
     """Ring roofs show complete readable labels without decorative letters."""
     game_map = load_planet("ac_station")
