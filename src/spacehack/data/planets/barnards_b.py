@@ -35,18 +35,18 @@ SPEC = PlanetSpec(
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=55, x_hi=57, y_lo=4, y_hi=6,
-            door_x=56, npc_id="",
+            x_lo=42, x_hi=44, y_lo=0, y_hi=2,
+            door_x=43, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=23, x_hi=25, y_lo=23, y_hi=25,
-            door_x=24, npc_id="barkeep",
+            x_lo=20, x_hi=22, y_lo=47, y_hi=49,
+            door_x=21, npc_id="barkeep",
         ),
         world.CityBuilding(
             label="depot",
-            x_lo=87, x_hi=89, y_lo=61, y_hi=63,
-            door_x=88, npc_id="depot_attendant",
+            x_lo=99, x_hi=101, y_lo=47, y_hi=49,
+            door_x=100, npc_id="depot_attendant",
         ),
     ),
     city_layout_id="barnards_mine_colony",
@@ -54,17 +54,17 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="outer ring",
-            pos=world.Position(56, 9),
+            pos=world.Position(43, 7),
             destinations=("bar", "depot"),
         ),
         world.TransitStation(
             id="bar", name="The Ember", district="mid ring",
-            pos=world.Position(24, 29),
+            pos=world.Position(18, 50),
             destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Salvage Depot", district="outer ring",
-            pos=world.Position(88, 67),
+            pos=world.Position(102, 50),
             destinations=("spaceport", "bar"),
         ),
     ),

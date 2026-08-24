@@ -76,9 +76,9 @@ _DRIFT_ANGLES = tuple(math.radians(a) for a in (0, 60, 120, 180, 240, 300))
 # ---------------------------------------------------------------------------
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
-    "barnards_spaceport": world.Position(56, 5),
-    "barnards_bar":       world.Position(24, 24),
-    "barnards_depot":     world.Position(88, 62),
+    "barnards_spaceport": world.Position(42, 0),
+    "barnards_bar":       world.Position(20, 47),
+    "barnards_depot":     world.Position(99, 47),
 }
 
 # ---------------------------------------------------------------------------
