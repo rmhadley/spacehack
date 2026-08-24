@@ -58,10 +58,10 @@ _PAD_Y_LO, _PAD_Y_HI = 8, 16
 # Custom tiles — CP437-safe glyphs
 # ---------------------------------------------------------------------------
 
-# The Requiem's hull — cold metallic wreck plating, iced over.
+# The Requiem's hull — cold metallic wreck plating, black-backed.
 _HULL_WALL = world.Tile(
     kind="city_building_wall", char="▓", walkable=False,
-    fg=(135, 150, 170), bg=(42, 50, 62),
+    fg=(100, 145, 170), bg=(24, 38, 52),
     blocked_message="The Requiem's hull plates block your path.",
 )
 # Hull interior deck — stripped, iced-over.
