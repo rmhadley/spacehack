@@ -59,7 +59,7 @@ _MARKET_Y_LO, _MARKET_Y_HI = 61, 69
 
 # Scrap-barrel fire colours — dim orange/red salvage lighting.
 _SCRAP_FIRE = world.Tile(
-    kind="plaza", char="♦", walkable=True,
+    kind="plaza", char="○", walkable=True,
     fg=(235, 145, 65), bg=(52, 30, 16),
 )
 _WARNING_LIGHT = world.Tile(
@@ -110,12 +110,12 @@ _ANTENNAS: tuple[tuple[int, int, int], ...] = (
 
 # Scrap heaps and barrel fires — (x, y, is_fire).
 _SCRAPS: tuple[tuple[int, int, bool], ...] = (
-    (44, 32, True), (47, 48, False), (56, 52, True),
-    (68, 42, False), (78, 48, True), (88, 60, False),
-    (95, 46, True), (104, 52, False), (14, 44, True),
-    (26, 68, False), (40, 62, True), (60, 64, False),
-    (84, 68, True), (50, 4, False), (64, 16, True),
-    (112, 54, False), (36, 72, True),
+    (44, 32, True), (56, 52, True),
+    (78, 48, True), (95, 46, True), (14, 44, True),
+    (40, 62, True), (84, 68, True), (64, 16, True),
+    (36, 72, True),
+    (100, 64, False), (48, 56, False), (60, 44, False),
+    (70, 54, False), (108, 48, False),
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
@@ -319,8 +319,9 @@ def _paint_market_row(tiles, theme):
     for y in range(_MARKET_Y_LO, _MARKET_Y_HI + 1):
         for x in range(_MARKET_X_LO, _MARKET_X_HI + 1):
             tiles[y][x] = theme.plaza
-    # Stall tile — sits on the plaza floor, not its own background.
-    stall = replace(theme.decor, bg=theme.plaza.bg)
+    # Stall tile — a darker shade block on the plaza floor.
+    # theme.decor char (♦) is NOT in the CP437 tilesheet — use ▒ instead.
+    stall = replace(theme.decor, char="▒", bg=theme.plaza.bg)
     # Top row of stalls (y = _MARKET_Y_LO + 1).
     stall_y_north = _MARKET_Y_LO + 1
     for x in range(_MARKET_X_LO + 2, _MARKET_X_HI - 1, 3):
@@ -333,6 +334,8 @@ def _paint_market_row(tiles, theme):
     centre_x = (_MARKET_X_LO + _MARKET_X_HI) // 2
     centre_y = (_MARKET_Y_LO + _MARKET_Y_HI) // 2
     tiles[centre_y][centre_x] = replace(theme.neon, bg=theme.plaza.bg)
+    tiles[centre_y - 1][centre_x] = replace(theme.neon, bg=theme.plaza.bg)
+    tiles[centre_y + 1][centre_x] = replace(theme.neon, bg=theme.plaza.bg)
     # A barrel fire at the entrance.
     tiles[_MARKET_Y_HI][(_MARKET_X_LO + _MARKET_X_HI) // 2] = _SCRAP_FIRE
 

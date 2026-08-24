@@ -467,7 +467,7 @@ def test_wolf_b_is_a_crater_pirate_outpost():
     assert any(tile.kind == "mine_shaft" for row in game_map.tiles for tile in row)
     # Smuggler's Row — contraband market south of the bar.
     stalls = sum(
-        tile.char == "♦" and tile.kind == "plaza"
+        tile.char == "▒" and tile.kind == "plaza"
         for row in game_map.tiles for tile in row
     )
     assert stalls >= 20
