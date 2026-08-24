@@ -73,7 +73,7 @@ SPEC = PlanetSpec(
             destinations=("spaceport", "merchants", "militia"),
         ),
         world.TransitStation(
-            id="merchants", name="Chandler", district="port south",
+            id="merchants", name="Merchant Guild", district="port south",
             pos=world.Position(16, 60),
             destinations=("spaceport", "bar", "militia"),
         ),
@@ -90,9 +90,9 @@ SPEC = PlanetSpec(
         ("militia", "cygni_militia_interior"),
     ),
     showroom_ships=(
-        ("scout", 3, -2),
-        ("hauler", 6, 0),
-        ("freighter", -3, 2),
+        ("scout", 3, -4),
+        ("hauler", 6, -2),
+        ("freighter", -3, -2),
     ),
     npc_overrides=(
         (
