@@ -1,15 +1,14 @@
 """Barnard b — "The Ember Deep", an underground ring-and-spoke mine colony.
 
 Three concentric tunnel rings carved through solid rock radiate from a
-central landing shaft.  Excavated chambers house the spaceport, cantina,
-and salvage depot.  Ore-vein accents, barrel fires, and work lights
-mark the drift junctions.
+central landing shaft.  Buildings are doors cut into the rock wall with
+inscribed names above them — no rectangle structures.
 
-Layout (120×80, authored mine colony):
+Layout (120×100, authored mine colony):
 
   * Central shaft — landing pad on the elevator deck.
-  * Outer ring — spaceport, miner shacks.
-  * Mid ring — The Ember cantina, salvage depot.
+  * Outer ring — spaceport door in the north wall.
+  * Mid ring — The Ember cantina door, depot door.
   * Inner ring — storage alcoves.
   * 6 radial haulage drifts connecting the three rings.
 """
@@ -31,23 +30,23 @@ SPEC = PlanetSpec(
     fg=(150, 100, 100),
     description="A scorched rocky super-Earth - hard ground, hard people.",
     width=120,
-    height=80,
-    hangar_anchor=world.Position(60, 40),
+    height=100,
+    hangar_anchor=world.Position(60, 50),
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=10, x_hi=24, y_lo=20, y_hi=33,
-            door_x=23, npc_id="",
+            x_lo=55, x_hi=57, y_lo=4, y_hi=6,
+            door_x=56, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=60, x_hi=75, y_lo=6, y_hi=17,
-            door_x=68, npc_id="barkeep",
+            x_lo=23, x_hi=25, y_lo=23, y_hi=25,
+            door_x=24, npc_id="barkeep",
         ),
         world.CityBuilding(
             label="depot",
-            x_lo=96, x_hi=113, y_lo=44, y_hi=57,
-            door_x=104, npc_id="depot_attendant",
+            x_lo=87, x_hi=89, y_lo=61, y_hi=63,
+            door_x=88, npc_id="depot_attendant",
         ),
     ),
     city_layout_id="barnards_mine_colony",
@@ -55,17 +54,17 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="outer ring",
-            pos=world.Position(23, 36),
+            pos=world.Position(56, 9),
             destinations=("bar", "depot"),
         ),
         world.TransitStation(
             id="bar", name="The Ember", district="mid ring",
-            pos=world.Position(68, 20),
+            pos=world.Position(24, 29),
             destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Salvage Depot", district="outer ring",
-            pos=world.Position(104, 60),
+            pos=world.Position(88, 67),
             destinations=("spaceport", "bar"),
         ),
     ),
@@ -75,8 +74,8 @@ SPEC = PlanetSpec(
         ("depot", "barnards_depot_interior"),
     ),
     showroom_ships=(
-        ("cruiser", 2, -4),
-        ("frigate", -6, -4),
+        ("cruiser", 2, -5),
+        ("frigate", -6, -5),
     ),
     npc_overrides=(),
     # The Act 0 old_smuggler stands in the bar (additively) only while

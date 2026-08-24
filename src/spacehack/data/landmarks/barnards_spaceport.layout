@@ -1,23 +1,11 @@
-# barnards_spaceport.layout - excavated shuttle bay
+# barnards_spaceport.layout — door carved into outer-ring rock wall
 MAP
-###############
-#=============#
-#=============#
-#=============#
-#=============#
-#=============#
-#=============#
-#=============#
-#=============#
-#=============#
-#=============#
-#============d#
-###############
+###
+#d#
+###
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: = = CITY_BUILDING_ROOF
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (75, 68, 62) / (22, 20, 18)
-COLOUR: = = (120, 145, 165) / (38, 42, 48)
 COLOUR: d = (180, 210, 255) / (36, 46, 58)

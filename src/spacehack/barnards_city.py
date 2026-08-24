@@ -2,19 +2,18 @@
 
 A ring-and-spoke mining settlement carved into solid rock.  Three
 concentric tunnel rings radiate from a central landing shaft, with
-drifts connecting them like spokes.  Buildings are excavated chambers
-cut directly into the rock face — no surface structures.  Ore-vein
-accents, work lights, and barrel fires mark the junctions.
+haulag drifts connecting them like spokes.  Buildings are doors cut
+directly into the rock face with their names inscribed vertically
+above them — no rectangle buildings, no surface structures.
 
-Layout (120×80):
+Layout (120×100):
   * Central shaft — landing pad on the elevator deck.
-  * Outer ring (r≈45) — spaceport and shuttle bay chambers, miner shacks.
-  * Mid ring (r≈30) — main thoroughfare, The Ember cantina, depot.
-  * Inner ring (r≈15) — tight passage around the shaft, storage alcoves.
+  * Outer ring — spaceport door carved into the north wall.
+  * Mid ring — The Ember bar door, mid-ring left-side alcove.
+  * Inner ring — tight passage around the shaft, storage alcoves.
   * 6 radial haulage drifts connecting the three rings.
-  * Solid rock mass (#) between rings — irregular edges, natural pillars.
-  * Ore vein accents (▒, orange-red) at key junctions.
-  * Work lights (*) and barrel fires (○) throughout.
+  * Solid rock mass (#) between rings.
+  * Ore vein accents (orange ░), barrel fires (○), work lights (*).
 """
 
 from __future__ import annotations
@@ -22,33 +21,25 @@ from __future__ import annotations
 import math
 
 from . import world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
-)
+from .city_layout import building_records, stamp_city_assets, stamp_metadata
 from .data.planets import _readable_city_theme
 from .data.planets.themes import DESERT
 
 
 CITY_WIDTH = 120
-CITY_HEIGHT = 80
+CITY_HEIGHT = 100
 _CENTER_X = 60
-_CENTER_Y = 40
+_CENTER_Y = 50
 
-# Ring radii (in cells, roughly circular with small irregular perturbation).
-_RING_INNER_R = 12
-_RING_MID_R = 26
-_RING_OUTER_R = 42
+_RING_INNER_R = 16
+_RING_MID_R = 32
+_RING_OUTER_R = 48
 
-# Tunnel width.
 _RING_WIDTH = 4
 _DRIFT_WIDTH = 2
 
 # ---------------------------------------------------------------------------
-# Custom tiles — CP437-safe
-# All entity-bearing tiles must have bg luma >= 60 (readability gate).
+# Custom tiles
 # ---------------------------------------------------------------------------
 
 _SOLID_ROCK = world.Tile(
@@ -66,7 +57,7 @@ _ORE_VEIN = world.Tile(
 )
 _BARREL_FIRE = world.Tile(
     kind="neon", char="○", walkable=True,
-    fg=(240, 150, 60), bg=(38, 24, 14),
+    fg=(240, 150, 60), bg=(42, 28, 18),
 )
 _WORK_LIGHT = world.Tile(
     kind="neon", char="*", walkable=True,
@@ -74,20 +65,20 @@ _WORK_LIGHT = world.Tile(
 )
 _LANDING_PAD = world.Tile(
     kind="floor", char=".", walkable=True,
-    fg=(170, 165, 155), bg=(66, 60, 52),
+    fg=(170, 165, 155), bg=(68, 62, 54),
 )
+_ROCK_LABEL_FG = (230, 220, 195)
 
-# Spoke drift angles (radians from centre).  6 spokes at 60-degree intervals.
 _DRIFT_ANGLES = tuple(math.radians(a) for a in (0, 60, 120, 180, 240, 300))
 
 # ---------------------------------------------------------------------------
-# Building origins
+# Building origins — door-niche positions in rock walls
 # ---------------------------------------------------------------------------
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
-    "barnards_spaceport": world.Position(14, 24),
-    "barnards_bar":       world.Position(64, 10),
-    "barnards_depot":     world.Position(100, 48),
+    "barnards_spaceport": world.Position(56, 5),
+    "barnards_bar":       world.Position(24, 24),
+    "barnards_depot":     world.Position(88, 62),
 }
 
 # ---------------------------------------------------------------------------
@@ -103,19 +94,15 @@ def _in_ring(r: float, target_r: float, half_width: float) -> bool:
 
 
 def _on_drift(x: int, y: int, half_width: float) -> bool:
-    """Check if (x,y) lies on any of the 6 radial drifts."""
     if _dist(x, y) > _RING_OUTER_R + 2:
         return False
     angle = math.atan2(y - _CENTER_Y, x - _CENTER_X)
-    # Normalize to [0, 2π).
     if angle < 0:
         angle += 2 * math.pi
-    # Perpendicular distance to each drift line.
     for a in _DRIFT_ANGLES:
         da = abs(angle - a)
         if da > math.pi:
             da = 2 * math.pi - da
-        # At radius r, the chord distance = r * da.
         chord_dist = _dist(x, y) * da
         if chord_dist <= half_width:
             return True
@@ -127,59 +114,57 @@ def _on_drift(x: int, y: int, half_width: float) -> bool:
 # ---------------------------------------------------------------------------
 
 def _base_tiles(theme):
-    """Fill the map with solid rock."""
     tiles = [[_SOLID_ROCK for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
     return tiles
 
 
-_PAD_X_LO, _PAD_X_HI = 52, 68
-_PAD_Y_LO, _PAD_Y_HI = 35, 45
+_PAD_X_LO, _PAD_X_HI = 51, 69
+_PAD_Y_LO, _PAD_Y_HI = 41, 59
 
 
 def _paint_tunnels(tiles, theme):
-    """Carve ring tunnels and radial drifts from solid rock."""
+    """Carve ring tunnels, drifts, and the landing pad from solid rock."""
     for y in range(CITY_HEIGHT):
         for x in range(CITY_WIDTH):
             r = _dist(x, y)
-            # Three ring tunnels.
             if _in_ring(r, _RING_INNER_R, _RING_WIDTH / 2):
                 tiles[y][x] = _ROCK_FLOOR
             elif _in_ring(r, _RING_MID_R, _RING_WIDTH / 2):
                 tiles[y][x] = _ROCK_FLOOR
             elif _in_ring(r, _RING_OUTER_R, _RING_WIDTH / 2):
                 tiles[y][x] = _ROCK_FLOOR
-            # Radial drifts.
             if _on_drift(x, y, _DRIFT_WIDTH / 2):
                 if tiles[y][x].kind == "city_building_wall":
                     tiles[y][x] = _ROCK_FLOOR
 
-    # Carve the landing pad shaft (rectangular void in centre).
+    # Landing pad — the elevator deck at centre.
     for y in range(_PAD_Y_LO, _PAD_Y_HI + 1):
         for x in range(_PAD_X_LO, _PAD_X_HI + 1):
             tiles[y][x] = _LANDING_PAD
 
-    # Carve building chambers — wide excavated cavities in the rock.
-    _carve_chamber(tiles, 10, 20, 14, 14)   # spaceport
-    _carve_chamber(tiles, 60, 6,  16, 12)   # The Ember cantina
-    _carve_chamber(tiles, 96, 44, 18, 14)   # salvage depot
+    # Wide excavated plazas at key ring junctions.
+    _carve_plaza(tiles, 78, 34)   # right-side mid-ring plaza (depot area)
+    _carve_plaza(tiles, 26, 60)   # left-side lower plaza
+    _carve_plaza(tiles, 60, 20)   # top mid-ring plaza (bar area)
 
 
-def _carve_chamber(tiles, x_lo, y_lo, w, h):
-    """Carve a rectangular excavated chamber for a building."""
-    for y in range(y_lo, y_lo + h):
-        for x in range(x_lo, x_lo + w):
+def _carve_plaza(tiles, cx, cy):
+    """Carve a 7×5 open area at a ring junction."""
+    for y in range(cy - 2, cy + 3):
+        for x in range(cx - 3, cx + 4):
             if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-                tiles[y][x] = _ROCK_FLOOR
+                if tiles[y][x].kind == "city_building_wall":
+                    tiles[y][x] = _ROCK_FLOOR
 
 
 def _paint_ore_veins(tiles):
-    """Ore vein patches at key tunnel junctions."""
     _vein_positions = (
-        (20, 22), (20, 58), (98, 22), (98, 58),
-        (40, 6), (40, 74), (80, 6), (80, 74),
-        (38, 16), (38, 64), (82, 16), (82, 64),
-        (60, 14), (60, 66),
-        (50, 30), (50, 50), (70, 30), (70, 50),
+        (20, 28), (20, 72), (98, 28), (98, 72),
+        (40, 8), (40, 92), (80, 8), (80, 92),
+        (38, 20), (38, 80), (82, 20), (82, 80),
+        (60, 18), (60, 82),
+        (50, 36), (50, 64), (70, 36), (70, 64),
+        (34, 44), (86, 44), (34, 56), (86, 56),
     )
     for x, y in _vein_positions:
         for dx in (-1, 0, 1):
@@ -191,14 +176,12 @@ def _paint_ore_veins(tiles):
 
 
 def _paint_barrel_fires(tiles):
-    """Barrel fires at drift-ring junctions."""
     _fire_positions = (
-        (72, 8), (96, 28), (96, 52), (72, 72),
-        (48, 72), (24, 52), (24, 28), (48, 8),
-        (72, 20), (90, 38), (72, 56), (48, 56),
-        (30, 38), (48, 20),
-        (68, 14), (68, 20),
-        (104, 52), (100, 56),
+        (72, 10), (98, 34), (98, 64), (72, 90),
+        (48, 90), (24, 64), (24, 34), (48, 10),
+        (72, 24), (92, 48), (72, 72), (48, 72),
+        (28, 48), (48, 24),
+        (74, 36), (80, 50), (30, 60), (36, 50),
     )
     for x, y in _fire_positions:
         if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
@@ -206,15 +189,12 @@ def _paint_barrel_fires(tiles):
                 tiles[y][x] = _BARREL_FIRE
 
 
-def _paint_accents(tiles, theme):
-    """Ore veins, barrel fires, work lights, and pad marker."""
-    _paint_ore_veins(tiles)
-    _paint_barrel_fires(tiles)
+def _paint_work_lights(tiles, theme):
     _light_positions = (
-        (60, 25), (60, 55), (34, 40), (86, 40),
-        (44, 14), (76, 14), (44, 66), (76, 66),
-        (20, 40), (100, 40), (60, 8), (60, 72),
-        (60, 36), (60, 44),
+        (60, 30), (60, 70), (34, 50), (86, 50),
+        (44, 18), (76, 18), (44, 82), (76, 82),
+        (20, 50), (100, 50), (60, 10), (60, 90),
+        (60, 42), (60, 58),
     )
     for x, y in _light_positions:
         if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
@@ -223,10 +203,16 @@ def _paint_accents(tiles, theme):
     tiles[_CENTER_Y][_CENTER_X] = theme.neon
 
 
+def _paint_accents(tiles, theme):
+    _paint_ore_veins(tiles)
+    _paint_barrel_fires(tiles)
+    _paint_work_lights(tiles, theme)
+
+
 def _paint_building_forecourts(tiles, theme, spec):
-    """Cleared forecourt outside each door."""
+    """Clear 3 cells below each door so players can reach it."""
     for building in spec.buildings:
-        dy = building.y_hi + 1 if not getattr(building, 'door_north', False) else building.y_lo - 1
+        dy = building.y_hi + 1
         for x in range(building.door_x - 1, building.door_x + 2):
             if 0 <= x < CITY_WIDTH and 0 <= dy < CITY_HEIGHT:
                 if tiles[dy][x].kind == "city_building_wall":
@@ -234,10 +220,9 @@ def _paint_building_forecourts(tiles, theme, spec):
 
 
 def _paint_transit_bays(tiles, spec):
-    """Transit landing zones — cleared rock floor."""
     bay_tile = world.Tile(
         kind="floor", char=".", walkable=True,
-        fg=(140, 160, 180), bg=(67, 59, 53),
+        fg=(140, 160, 180), bg=(70, 64, 58),
     )
     for station in spec.transit_stations:
         x, y = station.pos.x, station.pos.y
@@ -246,11 +231,39 @@ def _paint_transit_bays(tiles, spec):
 
 
 # ---------------------------------------------------------------------------
+# Custom rock-wall labels (vertical inscriptions above doors)
+# ---------------------------------------------------------------------------
+
+def _paint_rock_inscriptions(game_map, stamps, prefix):
+    """Carve each building's name vertically into the rock wall above its door.
+
+    Bright letters replace solid rock cells in a single column directly
+    above the entrance, reading bottom-to-top.
+    """
+    for layout_id, stamp in stamps.items():
+        label = layout_id.removeprefix(prefix).upper()
+        if label == "PLAZA" or stamp.entrance is None:
+            continue
+        dx, dy = stamp.entrance.x, stamp.entrance.y
+        # Write each letter upward from the entrance.
+        for i, ch in enumerate(label):
+            x, y = dx, dy - i - 2  # start 2 cells above the door
+            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
+                tile = game_map.tiles[y][x]
+                if tile.char in ("#", "=", "▓"):
+                    game_map.tiles[y][x] = world.Tile(
+                        kind="city_building_wall", char=ch, walkable=False,
+                        fg=_ROCK_LABEL_FG, bg=tile.bg,
+                        blocked_message="Solid rock.",
+                    )
+
+
+# ---------------------------------------------------------------------------
 # Build entry point
 # ---------------------------------------------------------------------------
 
 def build_barnards_layout(spec, resolve_ship):
-    """Build the Ember Deep's 120×80 underground mine colony."""
+    """Build the Ember Deep's 120×100 underground mine colony."""
     theme = _readable_city_theme(DESERT)
     tiles = _base_tiles(theme)
     _paint_tunnels(tiles, theme)
@@ -264,7 +277,7 @@ def build_barnards_layout(spec, resolve_ship):
     )
     _paint_building_forecourts(game_map.tiles, theme, spec)
     _paint_transit_bays(game_map.tiles, spec)
-    paint_roof_labels(game_map, stamps, "barnards_")
+    _paint_rock_inscriptions(game_map, stamps, "barnards_")
     _set_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)
     return game_map

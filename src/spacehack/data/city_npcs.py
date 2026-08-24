@@ -190,12 +190,12 @@ LAL_B_POPULATION: tuple[CityNpc, ...] = (
 
 BARNARDS_POPULATION: tuple[CityNpc, ...] = (
     # Miners trudging along the outer and mid rings.
-    CityNpc("barnards_miner_a", "civillian_bystander", (40, 21), wander_radius=10, move_chance=0.85),
-    CityNpc("barnards_miner_b", "civillian_bystander", (77, 62), wander_radius=10, move_chance=0.85),
-    CityNpc("barnards_miner_c", "civillian_bystander", (23, 56), wander_radius=10, move_chance=0.85),
-    # Cantina loiterers near The Ember.
-    CityNpc("barnards_loiter_a", "civillian_bystander", (70, 24), wander_radius=6, move_chance=0.8),
-    CityNpc("barnards_loiter_b", "civillian_bystander", (62, 17), wander_radius=6, move_chance=0.8),
+    CityNpc("barnards_miner_a", "civillian_bystander", (40, 23), wander_radius=10, move_chance=0.85),
+    CityNpc("barnards_miner_b", "civillian_bystander", (73, 62), wander_radius=10, move_chance=0.85),
+    CityNpc("barnards_miner_c", "civillian_bystander", (23, 58), wander_radius=10, move_chance=0.85),
+    # Cantina loiterers near The Ember (mid ring, bar door at 24,24).
+    CityNpc("barnards_loiter_a", "civillian_bystander", (20, 22), wander_radius=6, move_chance=0.8),
+    CityNpc("barnards_loiter_b", "civillian_bystander", (23, 26), wander_radius=6, move_chance=0.8),
     # Pad crew on the landing deck.
     CityNpc("barnards_pad_crew", "civillian_bystander", (56, 46), wander_radius=8, move_chance=0.8),
 )
