@@ -9,8 +9,9 @@ accumulated, like scab tissue over a wound.
 
 Layout (120×80, authored crater outpost):
 
-  * spaceport on the western landing clearing.
-  * depot built from stacked cargo containers near the pad.
+  * spaceport on the west side, depot on the east.
+  * landing pad scraped flat in the gap between them.
+  * showcase ships parked on the apron above the pad, terminals below.
   * bar — The Salty Grave — dug into the southern rock shelf.
   * antenna masts on the northern ridge (non-enterable).
   * cave entrance (delve site) in the south-eastern wall.
@@ -39,7 +40,7 @@ SPEC = PlanetSpec(
     description="A dark, airless rock - a pirate-run listening post on the frontier. No questions asked.",
     width=120,
     height=80,
-    hangar_anchor=world.Position(20, 24),
+    hangar_anchor=world.Position(40, 21),
     buildings=(
         world.CityBuilding(
             label="spaceport",
@@ -61,8 +62,8 @@ SPEC = PlanetSpec(
     city_npc_population=WOLF_B_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Landing Clearing", district="west pad",
-            pos=world.Position(22, 25),
+            id="spaceport", name="Landing Pad", district="centre",
+            pos=world.Position(41, 23),
             destinations=("depot", "bar"),
         ),
         world.TransitStation(
@@ -82,9 +83,9 @@ SPEC = PlanetSpec(
         ("depot", "wolf_depot_interior"),
     ),
     showroom_ships=(
-        ("scout",  3, 2),
-        ("hauler", 7, 4),
-        ("cruiser", 11, 4),
+        ("scout",  3, -13),
+        ("hauler", 6, -11),
+        ("cruiser", 4, -11),
     ),
     npc_overrides=(
         (

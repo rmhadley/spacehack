@@ -6,8 +6,9 @@ ridge, and scrap-lean-to shacks wherever pirates could squeeze them. No
 roads, no plan, no questions asked.
 
 Layout (120×80):
-  * spaceport on the western landing clearing.
-  * depot built from stacked cargo containers near the pad.
+  * spaceport on the west side, depot on the east.
+  * landing pad scraped flat in the gap between them.
+  * showcase ships parked on the apron above the pad, terminals below.
   * bar — The Salty Grave — dug into the southern rock shelf.
   * antenna forest on the northern ridge (non-enterable).
   * cave entrance (delve site) in the south-eastern wall.
@@ -47,9 +48,9 @@ _ANTENNA_Y_LO, _ANTENNA_Y_HI = 4, 22
 _CAVE_X_LO, _CAVE_X_HI = 62, 79
 _CAVE_Y_LO, _CAVE_Y_HI = 66, 73
 
-# The landing clearing — a flattened apron around the western buildings.
-_LANDING_X_LO, _LANDING_X_HI = 6, 70
-_LANDING_Y_LO, _LANDING_Y_HI = 10, 24
+# The landing pad — scraped-flat clearing in the gap between spaceport and depot.
+_PAD_X_LO, _PAD_X_HI = 34, 47
+_PAD_Y_LO, _PAD_Y_HI = 12, 20
 
 # Scrap-barrel fire colours — dim orange/red salvage lighting.
 _SCRAP_FIRE = world.Tile(
@@ -184,20 +185,26 @@ def _paint_crater_floor(tiles, theme):
 # Painter functions
 # ---------------------------------------------------------------------------
 
-def _paint_landing_clearing(tiles, theme):
-    """Flatten a rough landing apron west of the spaceport."""
+def _paint_landing_pad(tiles, theme):
+    """Scraped-flat landing pad in the gap between spaceport and depot."""
     pad_tile = replace(theme.landing_pad, char=" ")
-    for y in range(_LANDING_Y_LO, _LANDING_Y_HI + 1):
-        for x in range(_LANDING_X_LO, _LANDING_X_HI + 1):
+    for y in range(_PAD_Y_LO, _PAD_Y_HI + 1):
+        for x in range(_PAD_X_LO, _PAD_X_HI + 1):
             tiles[y][x] = pad_tile
+    # Paint two rows of sidewalk north of the pad for the showcase apron.
+    for y in range(_PAD_Y_LO - 2, _PAD_Y_LO):
+        for x in range(_PAD_X_LO, _PAD_X_HI + 1):
+            tiles[y][x] = theme.sidewalk
 
 
 def _paint_paths(tiles, theme):
     """Worn footpaths linking the landing clearing to the bar/depot/cave."""
-    # Landing → bar (south).
-    _paint_path(tiles, theme, 22, 32, 22, 50)
-    # Landing → depot (east).
-    _paint_path(tiles, theme, 42, 20, 48, 20)
+    # Landing pad → bar (south).
+    _paint_path(tiles, theme, 40, _PAD_Y_HI + 1, 34, 50)
+    # Landing pad → depot (east).
+    _paint_path(tiles, theme, _PAD_X_HI, _PAD_Y_LO + 4, _DEPOT_X_LO, _DEPOT_Y_LO + 4)
+    # Landing pad → spaceport (west).
+    _paint_path(tiles, theme, _PAD_X_LO, _PAD_Y_LO + 4, _SPACEPORT_X_HI, _PAD_Y_LO + 4)
     # Depot → antenna ridge (north-east).
     _paint_path(tiles, theme, 56, 23, 72, 16)
     # Bar → cave entrance (south-east).
@@ -327,7 +334,7 @@ def build_wolf_layout(spec, resolve_ship):
     theme = _readable_city_theme(PIRATE_OUTPOST)
     tiles = _base_tiles(theme)
     _paint_crater_floor(tiles, theme)
-    _paint_landing_clearing(tiles, theme)
+    _paint_landing_pad(tiles, theme)
     _paint_paths(tiles, theme)
     _paint_antennas(tiles)
     _paint_cave_entrance(tiles)
