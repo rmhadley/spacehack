@@ -1,27 +1,26 @@
-"""Barnard b — a scorched rocky mining outpost on the edge of charted space.
+"""Barnard b — "The Ember Deep", an underground ring-and-spoke mine colony.
 
-Hot, dusty, and rough-and-tumble. The bar doubles as a cantina for
-off-duty miners; the salvage depot buys scrap from pilots who push
-too deep and come back with more holes than they left with.
+Three concentric tunnel rings carved through solid rock radiate from a
+central landing shaft.  Excavated chambers house the spaceport, cantina,
+and salvage depot.  Ore-vein accents, barrel fires, and work lights
+mark the drift junctions.
 
-Layout (60x40, same as Earth/Mars):
+Layout (120×80, authored mine colony):
 
-  * spaceport building, NW corner (same footprint as Earth).
-  * bar (cantina) building, NE corner — "The Ember" cantina.
-  * salvage depot building, southern row — buys salvaged ship parts.
-
-Building NPCs: the bar keeps its barkeep and the salvage depot its
-attendant (both resolve through the global catalog). The Act 0
-``old_smuggler`` stands in the bar ADDITIVELY (``quest_npc_spots``)
-while the bar chain needs him — the proof run through the power-cell
-handover — then leaves.
+  * Central shaft — landing pad on the elevator deck.
+  * Outer ring — spaceport, miner shacks.
+  * Mid ring — The Ember cantina, salvage depot.
+  * Inner ring — storage alcoves.
+  * 6 radial haulage drifts connecting the three rings.
 """
+
 from __future__ import annotations
 
 from ... import world
 from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import DESERT
+from ..city_npcs import BARNARDS_POPULATION
 
 
 SPEC = PlanetSpec(
@@ -31,27 +30,53 @@ SPEC = PlanetSpec(
     char="p",
     fg=(150, 100, 100),
     description="A scorched rocky super-Earth - hard ground, hard people.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    width=120,
+    height=80,
+    hangar_anchor=world.Position(60, 40),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport",
+            x_lo=10, x_hi=24, y_lo=20, y_hi=33,
+            door_x=23, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar",
+            x_lo=60, x_hi=75, y_lo=6, y_hi=17,
+            door_x=68, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="depot",     x_lo=40, x_hi=55, y_lo=26, y_hi=35,
-            door_x=47, npc_id="depot_attendant",
-            door_north=True,
+            label="depot",
+            x_lo=96, x_hi=113, y_lo=44, y_hi=57,
+            door_x=104, npc_id="depot_attendant",
         ),
     ),
+    city_layout_id="barnards_mine_colony",
+    city_npc_population=BARNARDS_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="outer ring",
+            pos=world.Position(23, 36),
+            destinations=("bar", "depot"),
+        ),
+        world.TransitStation(
+            id="bar", name="The Ember", district="mid ring",
+            pos=world.Position(68, 20),
+            destinations=("spaceport", "depot"),
+        ),
+        world.TransitStation(
+            id="depot", name="Salvage Depot", district="outer ring",
+            pos=world.Position(104, 60),
+            destinations=("spaceport", "bar"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "barnards_spaceport_interior"),
+        ("bar", "barnards_bar_interior"),
+        ("depot", "barnards_depot_interior"),
+    ),
     showroom_ships=(
-        ("cruiser", 11, 4),
-        ("frigate", 15, 2),
+        ("cruiser", 2, -4),
+        ("frigate", -6, -4),
     ),
     npc_overrides=(),
     # The Act 0 old_smuggler stands in the bar (additively) only while

@@ -1,0 +1,23 @@
+# barnards_bar_interior.layout — The Ember cantina
+MAP
+##############
+#............#
+#....o..o....#
+#............#
+#..o.........#
+#............#
+#....o......o#
+#............#
+#.....o......#
+#..........o.#
+#.........P>.#
+##############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: P = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: o = (180, 140, 90) / (42, 26, 14)
+COLOUR: P = (240, 180, 100) / (54, 32, 16)

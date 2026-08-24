@@ -1,0 +1,23 @@
+# barnards_spaceport_interior.layout
+MAP
+###############
+#.............#
+#..c..........#
+#.............#
+#..c..........#
+#.............#
+#..c..........#
+#.............#
+#.............#
+#...........P.#
+#...........>.#
+###############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = CITY_BRIDGE
+TILE: P = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: c = (170, 160, 140) / (50, 46, 40)
+COLOUR: P = (180, 200, 220) / (42, 48, 56)

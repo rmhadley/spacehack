@@ -1,0 +1,22 @@
+# barnards_bar.layout - The Ember cantina, carved into the rock face
+MAP
+################
+#==============#
+#==============#
+#==============#
+#==============#
+#==============#
+#==============#
+#==============#
+#==============#
+#==============#
+#=======d======#
+################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (75, 68, 62) / (22, 20, 18)
+COLOUR: = = (170, 95, 55) / (48, 24, 14)
+COLOUR: d = (255, 200, 90) / (52, 30, 16)
