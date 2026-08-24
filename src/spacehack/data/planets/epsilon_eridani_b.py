@@ -44,7 +44,7 @@ SPEC = PlanetSpec(
             door_x=30, npc_id="",
         ),
         world.CityBuilding(
-            label="bar", x_lo=67, x_hi=83, y_lo=48, y_hi=54,
+            label="bar", x_lo=67, x_hi=84, y_lo=48, y_hi=54,
             door_x=74, npc_id="barkeep",
         ),
         world.CityBuilding(
@@ -61,7 +61,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west plateau",
-            pos=world.Position(30, 29),
+            pos=world.Position(30, 28),
             destinations=("beacon", "bar", "merchants", "militia"),
         ),
         world.TransitStation(
@@ -71,17 +71,17 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="Dusty Glass", district="canyon overlook",
-            pos=world.Position(74, 57),
+            pos=world.Position(74, 56),
             destinations=("spaceport", "beacon", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Freight Interchange", district="trade",
-            pos=world.Position(128, 82),
+            pos=world.Position(128, 80),
             destinations=("spaceport", "beacon", "bar", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Eastern Gate", district="frontier gate",
-            pos=world.Position(162, 118),
+            pos=world.Position(162, 116),
             destinations=("spaceport", "beacon", "bar", "merchants"),
         ),
     ),

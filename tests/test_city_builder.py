@@ -205,13 +205,130 @@ def test_eri_b_buildings_transit_and_population_are_reachable():
 
 
 def test_eri_b_transit_stops_are_on_their_buildings_entrance_side():
-    """Every Epsilon service stop is south of its building's south door."""
+    """Every Epsilon service stop stays beside its destination entrance."""
     game_map = load_planet("eri_b")
     spec = find_planet_spec("eri_b")
     for building in spec.buildings:
+        entrance = game_map.city_buildings[building.label]["entrance"]
         stop = game_map.city_transit[building.label]["pos"]
-        assert stop[1] > building.y_hi, building.label
-        assert building.x_lo - 2 <= stop[0] <= building.x_hi + 2
+        assert stop != entrance, building.label
+        assert stop[1] > entrance[1], building.label
+        assert abs(stop[0] - entrance[0]) <= 2, building.label
+        neighbors = {
+            (stop[0] + dx, stop[1] + dy)
+            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+            if game_map.in_bounds(stop[0] + dx, stop[1] + dy)
+        }
+        assert any(
+            game_map.tiles[y][x].kind == "sidewalk"
+            for x, y in neighbors
+        ), building.label
+        assert game_map.tiles[stop[1]][stop[0]].kind != "sidewalk", building.label
+        assert game_map.tiles[stop[1]][stop[0]].kind not in {
+            "road", "bridge", "landing_pad",
+        }, building.label
+
+
+def test_eri_b_buildings_clear_public_circulation():
+    """Epsilon facades occupy planned blocks, never public corridors."""
+    game_map = load_planet("eri_b")
+    public_kinds = {"road", "sidewalk", "bridge", "landing_pad", "city_plaza"}
+    for label, stamp in game_map.landmark_stamps.items():
+        overlap = {
+            point for point in stamp["footprint"]
+            if game_map.tiles[point[1]][point[0]].kind in public_kinds
+        }
+        assert not overlap, label
+        building_label = label.removeprefix("eri_")
+        entrance = game_map.city_buildings[building_label]["entrance"]
+        approach = (entrance[0], entrance[1] + 1)
+        assert game_map.in_bounds(*approach), label
+        assert game_map.tiles[approach[1]][approach[0]].walkable, label
+
+
+def test_eri_b_roofs_are_complete_and_quiet():
+    """Every Epsilon roof is rectangular, filled, and free of stray letters."""
+    game_map = load_planet("eri_b")
+    expected = {
+        "eri_spaceport": "SPACEPORT",
+        "eri_bar": "BAR",
+        "eri_merchants": "MERCHANTS",
+        "eri_militia": "MILITIA",
+    }
+    for layout_id, label in expected.items():
+        asset = city_landmarks.load_city_landmark(layout_id)
+        assert {len(row) for row in asset.tiles} == {asset.width}, layout_id
+        assert sum(
+            tile.kind == "city_building_door"
+            for row in asset.tiles for tile in row
+        ) == 1, layout_id
+        assert all(
+            tile.kind in {"city_building_wall", "city_building_door"}
+            for row in asset.tiles for tile in row
+        ), layout_id
+        stamp = game_map.landmark_stamps[layout_id]
+        x_lo = min(x for x, _ in stamp["footprint"])
+        x_hi = max(x for x, _ in stamp["footprint"])
+        y_lo = min(y for _, y in stamp["footprint"])
+        y_hi = max(y for _, y in stamp["footprint"])
+        rows = [
+            "".join(game_map.tiles[y][x].char for x in range(x_lo, x_hi + 1))
+            for y in range(y_lo, y_hi + 1)
+        ]
+        assert any(label in row for row in rows), layout_id
+        letters = {char for row in rows for char in row if char.isalpha()}
+        assert letters == set(label), layout_id
+
+
+def test_eri_b_spaceport_apron_is_smooth_and_fixtures_are_clear():
+    """The landing apron is quiet beneath ships and terminals."""
+    game_map = load_planet("eri_b")
+    apron = [
+        game_map.tiles[y][x]
+        for y in range(31, 50)
+        for x in range(18, 52)
+    ]
+    assert {tile.kind for tile in apron} <= {"landing_pad", "plaza", "neon"}
+    assert {
+        tile.char for tile in apron if tile.kind == "landing_pad"
+    } == {" "}
+    fixtures = [
+        entity for entity in game_map.entities
+        if entity.ship_id or entity.trade_terminal
+        or entity.mech_terminal or entity.armory_terminal
+    ]
+    cells = {
+        (x, y)
+        for entity in fixtures
+        for y in range(entity.pos.y, entity.pos.y + entity.height)
+        for x in range(entity.pos.x, entity.pos.x + entity.width)
+    }
+    assert len(cells) == sum(entity.width * entity.height for entity in fixtures)
+    assert all(game_map.tiles[y][x].kind == "landing_pad" for x, y in cells)
+
+
+def test_eri_b_npcs_are_walkable_clear_and_reachable():
+    """Ambient colonists do not spawn inside public fixtures or facades."""
+    game_map = load_planet("eri_b")
+    reachable = _reachable(game_map, find_planet_spec("eri_b").hangar_anchor)
+    building_cells = {
+        point for stamp in game_map.landmark_stamps.values()
+        for point in stamp["footprint"]
+    }
+    station_cells = {
+        metadata["pos"] for metadata in game_map.city_transit.values()
+    }
+    for entity in game_map.entities:
+        if not getattr(entity, "city_npc_id", ""):
+            continue
+        point = (entity.pos.x, entity.pos.y)
+        assert point not in building_cells, entity.city_npc_id
+        assert point not in station_cells, entity.city_npc_id
+        assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+        assert point in reachable
+        assert game_map.blocking_entity_at(
+            entity.pos.x, entity.pos.y, exclude=entity,
+        ) is None
 
 
 def test_eri_b_uses_authored_exteriors_and_interiors():

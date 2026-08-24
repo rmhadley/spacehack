@@ -8,6 +8,8 @@ working-settlement structure.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from . import world
 from .city_layout import (
     building_records,
@@ -22,7 +24,22 @@ from .data.planets.themes import CANYON_SETTLEMENT
 CITY_WIDTH = 200
 CITY_HEIGHT = 140
 _CANYON_X_LO, _CANYON_X_HI = 92, 107
-_BRIDGE_ROWS = ((34, 35, 36), (78, 79, 80), (91, 92, 93), (111, 112, 113))
+_ROAD_ROWS = ((28, 29, 30), (59, 60, 61), (83, 84, 85), (118, 119, 120))
+_BRIDGE_ROWS = ((34, 35, 36), (78, 79, 80), (91, 92, 93), (118, 119, 120))
+_TRANSIT_BAYS = {
+    "spaceport": (30, 28),
+    "beacon": (85, 47),
+    "bar": (74, 56),
+    "merchants": (128, 80),
+    "militia": (162, 116),
+}
+_TRANSIT_SIDEWALKS = {
+    "spaceport": (30, 27),
+    "beacon": (86, 47),
+    "bar": (74, 57),
+    "merchants": (128, 81),
+    "militia": (162, 117),
+}
 
 _CANYON_FLOOR = world.Tile(
     kind="canyon_floor", char=" ", walkable=False,
@@ -79,16 +96,18 @@ def _paint_cell(tiles, x, y, tile):
 
 def _paint_roads(tiles, theme):
     """Paint the Beacon Spine, terraces, and bridge approaches."""
-    for y_lo, y_mid, y_hi in ((24, 25, 26), (58, 59, 60), (91, 92, 93), (111, 112, 113)):
+    for y_lo, y_mid, y_hi in _ROAD_ROWS:
         for x in range(3, CITY_WIDTH - 2):
-            if _CANYON_X_LO <= x <= _CANYON_X_HI and y_mid not in {34, 35, 36, 78, 79, 80, 111, 112, 113}:
+            if _CANYON_X_LO <= x <= _CANYON_X_HI and (y_lo, y_mid, y_hi) not in _BRIDGE_ROWS:
                 continue
             _paint_cell(tiles, x, y_lo, theme.road_surface)
             _paint_cell(tiles, x, y_mid, theme.road_ew)
             _paint_cell(tiles, x, y_hi, theme.road_surface)
-    for x in (76, 77, 78):
+    for x in (51, 55):
         for y in range(3, CITY_HEIGHT - 2):
-            _paint_cell(tiles, x, y, theme.road_ns if x == 77 else theme.road_surface)
+            _paint_cell(tiles, x, y, theme.sidewalk)
+    for y in range(3, CITY_HEIGHT - 2):
+        _paint_cell(tiles, 53, y, theme.road_ns)
 
     # The four elevated crossings are the only roads through the rift.
     for y_lo, y_mid, y_hi in _BRIDGE_ROWS:
@@ -103,14 +122,12 @@ def _paint_roads(tiles, theme):
 
 def _paint_sidewalks(tiles, theme):
     """Add pedestrian terraces beside the major roads."""
-    for y_lo, _y_mid, y_hi in ((24, 25, 26), (58, 59, 60), (91, 92, 93), (111, 112, 113)):
+    for y_lo, _y_mid, y_hi in _ROAD_ROWS:
         for x in range(3, CITY_WIDTH - 2):
             for y in (y_lo - 1, y_hi + 1):
                 if not (_CANYON_X_LO <= x <= _CANYON_X_HI):
                     _paint_cell(tiles, x, y, theme.sidewalk)
-    for y in range(3, CITY_HEIGHT - 2):
-        for x in (75, 79):
-            _paint_cell(tiles, x, y, theme.sidewalk)
+    # The central utility avenue has pedestrian strips on both sides.
 
 
 def _paint_plaza(tiles, theme):
@@ -127,12 +144,21 @@ def _paint_plaza(tiles, theme):
 def _paint_apron(tiles, theme, spec):
     """Reserve a broad landing plateau west of the spaceport."""
     berth = spec.hangar_anchor
+    pad_tile = replace(theme.landing_pad, char=" ")
     for y in range(31, 50):
         for x in range(18, 52):
-            tiles[y][x] = theme.landing_pad
+            tiles[y][x] = pad_tile
     tiles[berth.y][berth.x] = theme.plaza
     for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
         tiles[berth.y + dy][berth.x + dx] = theme.neon
+
+
+def _paint_transit_bays(tiles, theme):
+    """Reserve a clean floor bay and sidewalk cell for every transit stop."""
+    for station_id, (x, y) in _TRANSIT_BAYS.items():
+        tiles[y][x] = theme.floor
+        side_x, side_y = _TRANSIT_SIDEWALKS[station_id]
+        tiles[side_y][side_x] = theme.sidewalk
 
 
 def _paint_settlement_details(tiles, theme):
@@ -201,6 +227,7 @@ def build_epsilon_eridani_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
+    _paint_transit_bays(game_map.tiles, theme)
     paint_roof_labels(game_map, stamps, "eri_")
     _set_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)

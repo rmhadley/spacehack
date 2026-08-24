@@ -846,7 +846,7 @@ network, authored interiors, and a living population.
       southern logistics port, civic boulevard/avenue plan, 5 buildings,
       6 transit stops, 10 NPCs, red-dust terrain, ceramic/glass skyline,
       civic beacon plaza, and authored high-tech interiors
-- [x] Epsilon Eridani b (`eri_b`) — authored 200x140 terraced canyon settlement: four bridge crossings, Beacon Spine, western landing plateau, 4 buildings, 5 transit stops, 8 colonists, and authored exteriors/interiors
+- [x] Epsilon Eridani b (`eri_b`) — authored 200x140 terraced canyon settlement: four bridge crossings, Beacon Spine, western landing plateau, 4 buildings, 5 transit stops, 8 colonists, smooth landing apron, cleared circulation, and authored exteriors/interiors
 - [ ] Wolf 359 b (`wolf_b`) — 3 buildings (spaceport, bar, depot), delve site
 - [ ] Cygni b (`cygni_b`) — 4 buildings (spaceport, bar, merchants, militia)
 - [ ] Barnard's Star b (`barnards_b`) — 3 buildings (spaceport, bar, depot)
@@ -877,6 +877,21 @@ network, authored interiors, and a living population.
 3. **Full-service hubs** (eri_b, indi_b, ross_b, groom_b, lal_c, tc_b, vega_b)
 4. **Stations** (sirius_station, ac_station) — compact, thematic
 5. **Outposts** (barnards_b/c, ross_c, proc_planet_1/2, ac_planet_1/2/3, venus, depot, blockade)
+
+**Epsilon Eridani b correction record**
+
+- Replanned the settlement circulation so four road tiers and four canyon
+  crossings remain continuous without passing through authored building
+  footprints. The Beacon Spine utility avenue now has its own clear corridor.
+- Normalized all four Epsilon exterior assets to rectangular, complete,
+  restrained roofs with one clear entrance and readable labels.
+- Moved transit stops into dedicated floor bays beside sidewalks and on the
+  same entrance side as their buildings, without occupying sidewalks, doors,
+  roads, or landing space.
+- Replaced the repeated `.` landing-pad texture beneath ships and terminals
+  with a smooth themed apron while preserving pad backgrounds and walkability.
+- Added regression coverage for footprint clearance, door approaches, transit
+  adjacency, roof completeness, NPC clearance, and landing-apron noise.
 
 **Mars redesign record**
 
