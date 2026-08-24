@@ -231,31 +231,33 @@ def _paint_transit_bays(tiles, spec):
 
 
 # ---------------------------------------------------------------------------
-# Custom rock-wall labels (vertical inscriptions above doors)
+# Rock-wall labels (horizontal inscriptions in the rock above doors)
 # ---------------------------------------------------------------------------
 
 def _paint_rock_inscriptions(game_map, stamps, prefix):
-    """Carve each building's name vertically into the rock wall above its door.
+    """Carve each building's name horizontally into the rock wall above its door.
 
-    Bright letters replace solid rock cells in a single column directly
-    above the entrance, reading bottom-to-top.
+    Works like paint_roof_labels but inscribes into solid rock (#) instead
+    of roof tiles.  The label sits 2 rows above the door, centred.
     """
     for layout_id, stamp in stamps.items():
         label = layout_id.removeprefix(prefix).upper()
         if label == "PLAZA" or stamp.entrance is None:
             continue
         dx, dy = stamp.entrance.x, stamp.entrance.y
-        # Write each letter upward from the entrance.
+        row = dy - 3  # 2 rows of rock buffer above the door
+        start_x = dx - len(label) // 2
         for i, ch in enumerate(label):
-            x, y = dx, dy - i - 2  # start 2 cells above the door
-            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
-                tile = game_map.tiles[y][x]
-                if tile.char in ("#", "=", "▓"):
-                    game_map.tiles[y][x] = world.Tile(
-                        kind="city_building_wall", char=ch, walkable=False,
-                        fg=_ROCK_LABEL_FG, bg=tile.bg,
-                        blocked_message="Solid rock.",
-                    )
+            x = start_x + i
+            if not (0 <= x < CITY_WIDTH and 0 <= row < CITY_HEIGHT):
+                continue
+            tile = game_map.tiles[row][x]
+            if tile.char == "#" and tile.kind == "city_building_wall":
+                game_map.tiles[row][x] = world.Tile(
+                    kind="city_building_wall", char=ch, walkable=False,
+                    fg=_ROCK_LABEL_FG, bg=tile.bg,
+                    blocked_message="Solid rock.",
+                )
 
 
 # ---------------------------------------------------------------------------
