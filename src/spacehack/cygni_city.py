@@ -97,6 +97,15 @@ _FORGE_ROOF = world.Tile(
     fg=(170, 120, 60), bg=(48, 28, 14),
     blocked_message="The foundry wall blocks your path.",
 )
+_FORGE_YARD = world.Tile(
+    kind="floor", char="░", walkable=True,
+    fg=(130, 85, 50), bg=(38, 24, 14),
+)
+_TOOL_SHED = world.Tile(
+    kind="city_building_wall", char="~", walkable=False,
+    fg=(120, 80, 50), bg=(34, 20, 12),
+    blocked_message="The tool shed wall blocks your path.",
+)
 _CARGO_PALLET = world.Tile(
     kind="plaza", char="○", walkable=True,
     fg=(140, 100, 60), bg=(100, 62, 38),
@@ -265,6 +274,35 @@ def _paint_dock_market(tiles, theme):
     tiles[cy][cx] = _WORK_LIGHT
 
 
+def _paint_forge_yards(tiles):
+    """Paint forge-yard floor in the open ground around the factories."""
+    forge_zones = (
+        (56, _HULL_BAY_Y_LO, 65, _HULL_BAY_Y_HI),     # west of Hull Bay
+        (56, _FRAME_Y_LO, 65, _FRAME_Y_HI),            # west of Frame
+        (156, _PLATE_Y_LO, 159, _PLATE_Y_HI),          # east of Plate
+        (120, _HULL_BAY_Y_LO, 155, _HULL_BAY_Y_HI),    # between Hull/Plate
+        (66, _HULL_BAY_Y_HI + 1, 110, _FRAME_Y_LO - 1),  # between Hull and Frame
+    )
+    for x_lo, y_lo, x_hi, y_hi in forge_zones:
+        for y in range(max(2, y_lo), min(CITY_HEIGHT - 2, y_hi + 1)):
+            for x in range(max(2, x_lo), min(CITY_WIDTH - 2, x_hi + 1)):
+                if tiles[y][x].kind in {"floor", "grass"}:
+                    tiles[y][x] = _FORGE_YARD
+    # Tool sheds next to each forge.
+    tool_sheds = (
+        (57, 8, 3, 3), (57, 28, 3, 3),    # west of Hull Bay
+        (57, 50, 3, 3), (57, 64, 3, 3),    # west of Frame
+        (156, 22, 3, 3),                     # west of Plate
+    )
+    for sx, sy, sw, sh in tool_sheds:
+        for yy in range(sy, sy + sh):
+            for xx in range(sx, sx + sw):
+                if yy in (sy, sy + sh - 1) or xx in (sx, sx + sw - 1):
+                    tiles[yy][xx] = _FORGE_WALL
+                else:
+                    tiles[yy][xx] = _TOOL_SHED
+
+
 def _paint_yard_details(tiles):
     """Scatter cargo pallets, work lights, and barrel fires in the yards."""
     for x, y, kind in _YARD_DETAILS:
@@ -323,13 +361,16 @@ def _paint_building_forecourts(tiles, theme, spec):
 
 
 def _paint_transit_bays(tiles, spec):
-    """Dedicated transit landing zones."""
+    """Dedicated transit landing zones — never overwrite the pad."""
     bay_tile = world.Tile(
         kind="floor", char=" ", walkable=True,
         fg=(155, 120, 80), bg=(90, 55, 30),
     )
     for station in spec.transit_stations:
-        tiles[station.pos.y][station.pos.x] = bay_tile
+        x, y = station.pos.x, station.pos.y
+        if tiles[y][x].kind == "landing_pad":
+            continue
+        tiles[y][x] = bay_tile
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +391,7 @@ def build_cygni_layout(spec, resolve_ship):
     _paint_forge(tiles, _PLATE_X_LO, _PLATE_X_HI,
                 _PLATE_Y_LO, _PLATE_Y_HI, name="PLATE WORKS")
     _paint_dock_market(tiles, theme)
+    _paint_forge_yards(tiles)
     _paint_yard_details(tiles)
     _paint_worker_row(tiles)
     game_map = world.GameMap(

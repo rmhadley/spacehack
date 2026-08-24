@@ -157,16 +157,16 @@ WOLF_B_POPULATION: tuple[CityNpc, ...] = (
 CYGNI_B_POPULATION: tuple[CityNpc, ...] = (
     # Port pad crew.
     CityNpc("cygni_pad_crew", "civillian_bystander", (42, 22), wander_radius=90, move_chance=0.8),
-    # Yard workers between haul road and forge walls.
-    CityNpc("cygni_yard_a", "civillian_bystander", (64, 10), wander_radius=10, move_chance=0.85),
-    CityNpc("cygni_yard_b", "civillian_bystander", (64, 22), wander_radius=10, move_chance=0.9),
-    CityNpc("cygni_yard_c", "civillian_bystander", (64, 34), wander_radius=10, move_chance=0.85),
-    CityNpc("cygni_yard_d", "civillian_bystander", (64, 54), wander_radius=10, move_chance=0.9),
-    CityNpc("cygni_yard_e", "civillian_bystander", (64, 64), wander_radius=10, move_chance=0.85),
-    CityNpc("cygni_yard_f", "civillian_bystander", (158, 26), wander_radius=10, move_chance=0.9),
-    # Dock market shoppers (static, no pathing).
-    CityNpc("cygni_market_a", "civillian_bystander", (36, 54), wander_radius=0, move_chance=0),
-    CityNpc("cygni_market_b", "civillian_bystander", (48, 54), wander_radius=0, move_chance=0),
+    # Yard workers on the forge-yard floor.
+    CityNpc("cygni_yard_a", "civillian_bystander", (58, 12), wander_radius=6, move_chance=0.85),
+    CityNpc("cygni_yard_b", "civillian_bystander", (58, 22), wander_radius=6, move_chance=0.9),
+    CityNpc("cygni_yard_c", "civillian_bystander", (58, 34), wander_radius=6, move_chance=0.85),
+    CityNpc("cygni_yard_d", "civillian_bystander", (58, 54), wander_radius=6, move_chance=0.9),
+    CityNpc("cygni_yard_e", "civillian_bystander", (58, 62), wander_radius=6, move_chance=0.85),
+    CityNpc("cygni_yard_f", "civillian_bystander", (158, 26), wander_radius=6, move_chance=0.9),
+    # Dock market shoppers (browsing between stalls).
+    CityNpc("cygni_market_a", "civillian_bystander", (36, 54), wander_radius=4, move_chance=0.9),
+    CityNpc("cygni_market_b", "civillian_bystander", (48, 54), wander_radius=4, move_chance=0.85),
     # Militia trooper outside the station house.
     CityNpc("cygni_trooper", "militia_trooper", (134, 86), wander_radius=90, move_chance=0.75),
 )

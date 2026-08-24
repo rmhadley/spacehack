@@ -36,7 +36,7 @@ SPEC = PlanetSpec(
     description="A dry temperate world - hulls are forged in its orbital yards.",
     width=160,
     height=100,
-    hangar_anchor=world.Position(40, 16),
+    hangar_anchor=world.Position(40, 14),
     buildings=(
         world.CityBuilding(
             label="spaceport",
@@ -64,7 +64,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west pad",
-            pos=world.Position(42, 20),
+            pos=world.Position(45, 17),
             destinations=("bar", "merchants", "militia"),
         ),
         world.TransitStation(
@@ -90,9 +90,9 @@ SPEC = PlanetSpec(
         ("militia", "cygni_militia_interior"),
     ),
     showroom_ships=(
-        ("scout", 3, -5),
-        ("hauler", 6, -3),
-        ("freighter", 10, -3),
+        ("scout", 3, -2),
+        ("hauler", 6, 0),
+        ("freighter", -3, 2),
     ),
     npc_overrides=(
         (

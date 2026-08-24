@@ -228,8 +228,6 @@ def _walkable_cells_in_radius(
         ):
             if not game_map.tiles[y][x].walkable:
                 continue
-            if game_map.blocking_entity_at(x, y) is not None:
-                continue
             if abs(x - ax) + abs(y - ay) <= radius:
                 pool.append((x, y))
     return pool
