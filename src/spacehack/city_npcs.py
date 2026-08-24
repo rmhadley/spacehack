@@ -281,17 +281,38 @@ def _ensure_destination(entity: world.Entity, game_map: world.GameMap) -> None:
     entity.city_blocked_ticks = 0
 
 
-def _step_along_path(entity: world.Entity, game_map: world.GameMap) -> None:
-    """Take one direct step on the cached path (no slip, no jitter)."""
+def _direct_step(entity, _dest, tiles):
+    """Take one direct step toward _dest for small-radius NPCs."""
+    dx = _dest[0] - entity.pos.x
+    dy = _dest[1] - entity.pos.y
+    if dx == 0 and dy == 0:
+        return  # _take_one_step handles arrival + pause
+    nx = entity.pos.x + (1 if dx > 0 else -1 if dx < 0 else 0)
+    ny = entity.pos.y + (1 if dy > 0 else -1 if dy < 0 else 0)
+    if not tiles[ny][nx].walkable:
+        entity.city_dest = None
+        return
+    entity.pos = world.Position(nx, ny)
+
+
+def _step_along_path(entity, game_map):
+    """Take one step toward city_dest.  Small-radius NPCs skip A*."""
+    _dest = entity.city_dest
+    if _dest is None:
+        return
+    _radius = entity.city_wander_radius
+    if 0 < _radius <= 10:
+        _direct_step(entity, _dest, game_map.tiles)
+        return
+
     path = entity.city_path or []
     if not path:
         path = world.find_path(
-            (entity.pos.x, entity.pos.y), {entity.city_dest}, game_map,
+            (entity.pos.x, entity.pos.y), {_dest}, game_map,
             exclude_entity=entity,
         ) or []
         entity.city_path = path
     if not path:
-        # Unreachable this tick — clear so we repick next tick.
         entity.city_dest = None
         return
     nx, ny = path[0]
@@ -304,8 +325,6 @@ def _step_along_path(entity: world.Entity, game_map: world.GameMap) -> None:
     if game_map.blocking_entity_at(nx, ny, exclude=entity) is not None:
         entity.city_blocked_ticks += 1
         if entity.city_blocked_ticks >= 4:
-            # Something permanent is in the way (parked ship, crowd):
-            # stop banging against it and pick a new destination.
             entity.city_dest = None
             entity.city_path = None
         return
