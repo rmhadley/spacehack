@@ -63,7 +63,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Landing Pad", district="centre",
-            pos=world.Position(40, 22),
+            pos=world.Position(44, 18),
             destinations=("depot", "bar"),
         ),
         world.TransitStation(
@@ -83,9 +83,9 @@ SPEC = PlanetSpec(
         ("depot", "wolf_depot_interior"),
     ),
     showroom_ships=(
-        ("scout",  3, -8),
-        ("hauler", 6, -6),
-        ("cruiser", 4, -6),
+        ("scout",  3, -3),
+        ("hauler", 6, -3),
+        ("cruiser", 4, -2),
     ),
     npc_overrides=(
         (
