@@ -41,6 +41,62 @@ _CANYON_WALL = world.Tile(
     fg=(188, 105, 62), bg=(62, 32, 24),
     blocked_message="The canyon wall blocks your path.",
 )
+_MINE_ROCK = world.Tile(
+    kind="mine_rock", char="#", walkable=False,
+    fg=(150, 112, 82), bg=(46, 32, 24),
+    blocked_message="The terraced rock face blocks your path.",
+)
+_MINE_SHAFT = world.Tile(
+    kind="mine_shaft", char=" ", walkable=False,
+    fg=(64, 46, 38), bg=(18, 14, 12),
+    blocked_message="The mine shaft is sealed - too unstable to enter.",
+)
+_ORE_HEAP = world.Tile(
+    kind="ore_heap", char="♦", walkable=True,
+    fg=(214, 156, 78), bg=(66, 46, 28),
+)
+
+# A market square on the west bank fills the gap between the Beacon Spine
+# plaza and the collectors with stalls; a sealed mine head sits on the
+# north-eastern terrace as the settlement's reason for being.
+_MARKET_X_LO, _MARKET_X_HI = 22, 50
+_MARKET_Y_LO, _MARKET_Y_HI = 63, 79
+_MINE_X_LO, _MINE_X_HI = 162, 183
+_MINE_Y_LO, _MINE_Y_HI = 7, 19
+_MINE_SHAFT_X_LO, _MINE_SHAFT_X_HI = 169, 176
+
+# Frontier architecture: adobe, weathered steel, basalt, and oxidized
+# copper, muted enough to read as sheds against the ochre canyon floor.
+_HOMESTEAD_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
+    ((186, 136, 94), (64, 42, 28), (210, 168, 112), (74, 50, 32)),
+    ((148, 156, 166), (44, 48, 58), (176, 184, 194), (52, 56, 66)),
+    ((158, 124, 96), (56, 40, 30), (138, 178, 158), (40, 56, 46)),
+    ((118, 108, 98), (40, 36, 32), (150, 140, 130), (46, 42, 38)),
+    ((196, 158, 106), (68, 48, 32), (214, 182, 128), (78, 56, 36)),
+)
+
+# Non-enterable homestead sheds, one solar array, and a few ore/water
+# stockpiles.  Each entry is ``(x, y, width, height, scheme_index)``;
+# placement is skipped unless the whole footprint is open dust, so no
+# shed can crowd a road, sidewalk, plaza, facade, or the canyon.
+_HOMESTEADS: tuple[tuple[int, int, int, int, int], ...] = (
+    # North terrace (west bank).
+    (15, 6, 5, 4, 0), (40, 4, 6, 4, 1), (58, 8, 5, 5, 2),
+    # Central terrace, west of the Beacon Spine (clear of the apron).
+    (54, 37, 6, 5, 3), (54, 45, 5, 4, 4), (60, 40, 6, 5, 1),
+    # South-west terraces.
+    (18, 90, 7, 5, 0), (40, 100, 6, 4, 2), (60, 90, 5, 5, 3),
+    (16, 125, 6, 5, 4), (38, 130, 7, 5, 0), (62, 125, 6, 4, 1),
+    # East bank terraces.
+    (118, 4, 5, 4, 2), (144, 6, 6, 5, 3),
+    (118, 37, 6, 5, 4), (150, 44, 7, 5, 0), (170, 36, 5, 4, 1),
+    (120, 88, 6, 5, 2), (146, 95, 5, 4, 3), (180, 94, 5, 4, 4),
+    (120, 125, 6, 5, 0), (150, 130, 7, 5, 1), (180, 126, 5, 4, 2),
+)
+_SOLAR_ARRAY: tuple[int, int, int, int] = (123, 8, 8, 3)
+_STOCKPILES: tuple[tuple[int, int], ...] = (
+    (22, 88), (55, 103), (126, 96), (158, 130),
+)
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
     "eri_spaceport": world.Position(20, 18),
@@ -169,6 +225,91 @@ def _paint_settlement_details(tiles, theme):
             tiles[y][x] = theme.neon
 
 
+def _paint_market_square(tiles, theme):
+    """Paint a west-bank market square between the two collectors."""
+    for y in range(_MARKET_Y_LO, _MARKET_Y_HI + 1):
+        for x in range(_MARKET_X_LO, _MARKET_X_HI + 1):
+            if tiles[y][x].kind in {"floor", "grass"}:
+                tiles[y][x] = theme.plaza
+    # Two stall rows read as awnings without letter noise; a lone beacon
+    # marks the square's center.
+    for y in (66, 69, 72, 75):
+        for x in (26, 32, 38, 44):
+            tiles[y][x] = theme.decor
+    tiles[70][35] = theme.neon
+
+
+def _paint_mine_site(tiles, theme):
+    """Carve a sealed mine head into the north-eastern terrace."""
+    for y in range(_MINE_Y_LO, _MINE_Y_HI + 1):
+        for x in range(_MINE_X_LO, _MINE_X_HI + 1):
+            tiles[y][x] = _MINE_ROCK
+    # The dark, sealed shaft mouth opens onto the settlement's south side.
+    for y in range(_MINE_Y_LO + 3, _MINE_Y_HI + 1):
+        for x in range(_MINE_SHAFT_X_LO, _MINE_SHAFT_X_HI + 1):
+            tiles[y][x] = _MINE_SHAFT
+    # Ore heaps and a work light in the staging yard below the head.
+    for x, y in ((_MINE_X_LO + 9, _MINE_Y_HI + 3), (_MINE_X_LO + 13, _MINE_Y_HI + 3)):
+        tiles[y][x] = _ORE_HEAP
+    tiles[_MINE_Y_HI + 3][_MINE_X_LO + 11] = theme.neon
+
+
+def _paint_shed(tiles, x, y, w, h, scheme_index):
+    """Paint one corrugated-metal shed only on clear settlement dust."""
+    if not all(
+        tiles[by][bx].kind in {"floor", "grass"}
+        for by in range(y, y + h)
+        for bx in range(x, x + w)
+    ):
+        return
+    wall_fg, wall_bg, roof_fg, roof_bg = _HOMESTEAD_SCHEMES[scheme_index]
+    wall = world.Tile(
+        kind="city_building_wall", char="#", walkable=False,
+        fg=wall_fg, bg=wall_bg,
+        blocked_message="The shed wall blocks your path.",
+    )
+    roof = world.Tile(
+        kind="city_building_wall", char="~", walkable=False,
+        fg=roof_fg, bg=roof_bg,
+        blocked_message="The shed wall blocks your path.",
+    )
+    for by in range(y, y + h):
+        for bx in range(x, x + w):
+            if by in (y, y + h - 1) or bx in (x, x + w - 1):
+                tiles[by][bx] = wall
+            else:
+                tiles[by][bx] = roof
+
+
+def _paint_solar_array(tiles, x, y, w, h):
+    """Paint a flat photovoltaic field on open dust."""
+    if not all(
+        tiles[by][bx].kind in {"floor", "grass"}
+        for by in range(y, y + h)
+        for bx in range(x, x + w)
+    ):
+        return
+    panel = world.Tile(
+        kind="city_building_wall", char="▓", walkable=False,
+        fg=(92, 148, 176), bg=(24, 40, 56),
+        blocked_message="The solar array blocks your path.",
+    )
+    for by in range(y, y + h):
+        for bx in range(x, x + w):
+            tiles[by][bx] = panel
+
+
+def _paint_homesteads(tiles, theme):
+    """Scatter non-enterable sheds, a solar array, and ore stockpiles."""
+    for x, y, w, h, scheme_index in _HOMESTEADS:
+        _paint_shed(tiles, x, y, w, h, scheme_index)
+    x, y, w, h = _SOLAR_ARRAY
+    _paint_solar_array(tiles, x, y, w, h)
+    for x, y in _STOCKPILES:
+        if tiles[y][x].kind in {"floor", "grass"}:
+            tiles[y][x] = _ORE_HEAP
+
+
 def _add_service_entities(game_map, spec, resolve_ship):
     """Place showroom ships and service terminals on the landing plateau."""
     for ship_id, off_x, off_y in spec.showroom_ships:
@@ -215,6 +356,8 @@ def build_epsilon_eridani_layout(spec, resolve_ship):
     _paint_sidewalks(tiles, theme)
     _paint_plaza(tiles, theme)
     _paint_apron(tiles, theme, spec)
+    _paint_market_square(tiles, theme)
+    _paint_mine_site(tiles, theme)
     _paint_settlement_details(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -226,6 +369,7 @@ def build_epsilon_eridani_layout(spec, resolve_ship):
     _paint_building_forecourts(game_map.tiles, theme, spec)
     _paint_transit_bays(game_map.tiles, theme, spec)
     paint_roof_labels(game_map, stamps, "eri_")
+    _paint_homesteads(game_map.tiles, theme)
     _set_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)
     return game_map

@@ -412,6 +412,40 @@ def test_eri_b_uses_authored_exteriors_and_interiors():
         ), label
 
 
+def test_eri_b_has_homesteads_market_square_and_mine_head():
+    """The frontier settlement reads as lived-in beyond the four
+    enterable buildings: non-enterable sheds, a west-bank market square,
+    and a sealed mine head with ore heaps on the north-eastern terrace."""
+    game_map = load_planet("eri_b")
+
+    # Non-enterable homestead sheds — city_building_wall tiles that are not
+    # part of any enterable building's landmark stamp.
+    landmark_cells = {
+        point
+        for stamp in game_map.landmark_stamps.values()
+        for point in stamp["footprint"]
+    }
+    shed_walls = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "city_building_wall" and (x, y) not in landmark_cells
+    }
+    assert len(shed_walls) > 100
+
+    # A market square with stalls (♦) sits between the west-bank collectors.
+    market = [
+        game_map.tiles[y][x]
+        for y in range(63, 80) for x in range(22, 51)
+    ]
+    assert any(tile.kind == "plaza" for tile in market)
+    assert any(tile.char == "♦" for tile in market)
+
+    # A sealed mine head carves into the north-eastern terrace.
+    kinds = {tile.kind for row in game_map.tiles for tile in row}
+    assert {"mine_rock", "mine_shaft", "ore_heap"} <= kinds
+
+
 def test_mercury_uses_authored_exteriors_like_earth():
     """Mercury's buildings are stamped authored roofs, not legacy boxes:
     every enterable building has a landmark stamp, a roof label, and no
