@@ -63,7 +63,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Landing Pad", district="centre",
-            pos=world.Position(41, 22),
+            pos=world.Position(41, 21),
             destinations=("depot", "bar"),
         ),
         world.TransitStation(
