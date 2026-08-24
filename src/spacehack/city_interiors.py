@@ -142,6 +142,7 @@ def restore_city_interior_parent(ctx, rebuilt) -> None:
         ))
     interior.city_parent_map = parent
     interior.city_parent_player = parent_player
+    interior.city_parent_door = tuple(door)
 
 
 def exit_city_interior(state) -> str:
@@ -157,9 +158,11 @@ def exit_city_interior(state) -> str:
     )
     _remove_player(interior)
 
-    parent_position = getattr(interior, "city_parent_door", None)
-    if parent_position is None and record is not None:
+    parent_position = None
+    if record is not None:
         parent_position = record.get("entrance")
+    if parent_position is None:
+        parent_position = getattr(interior, "city_parent_door", None)
     if parent_position is None:
         parent_position = (parent_player.pos.x, parent_player.pos.y)
     parent_player.pos = world.Position(*parent_position)
