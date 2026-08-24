@@ -212,26 +212,62 @@ def _far_choice(
     return rng.choice(_top)
 
 
+def _walkable_cells_in_radius(
+    game_map: world.GameMap,
+    anchor: world.Position,
+    radius: int,
+) -> list[tuple[int, int]]:
+    """Every walkable, unblocked cell within ``radius`` of ``anchor``."""
+    ax, ay = anchor.x, anchor.y
+    pool: list[tuple[int, int]] = []
+    for y in range(
+        max(0, ay - radius), min(game_map.height, ay + radius + 1),
+    ):
+        for x in range(
+            max(0, ax - radius), min(game_map.width, ax + radius + 1),
+        ):
+            if not game_map.tiles[y][x].walkable:
+                continue
+            if game_map.blocking_entity_at(x, y) is not None:
+                continue
+            if abs(x - ax) + abs(y - ay) <= radius:
+                pool.append((x, y))
+    return pool
+
+
 def _pick_destination(
     entity: world.Entity,
     game_map: world.GameMap,
 ) -> tuple[int, int] | None:
-    """Pick a landmark destination, preferring one far from the citizen.
+    """Pick a destination for the citizen.
 
     Mirrors space NPCs picking a body goal: draw from the whole-city
-    landmark set (``_city_landmarks``) and prefer a landmark well away
-    from the current cell so the walk visibly crosses the city.
-    ``wander_radius`` caps how far the citizen may go from its anchor;
-    the Earth population uses a city-spanning radius so everyone walks
-    the whole city.
+    landmark set and prefer a landmark well away from the current cell
+    so the walk visibly crosses the city.
+
+    For NPCs with a small wander radius (≤ 20), pick any walkable
+    unblocked cell within the radius instead of only landmark cells —
+    shoppers in a market district shouldn't be pulled toward doors
+    and transit stops.
     """
+    rng = entity.city_rng
+    if rng is None:
+        cells = _city_landmarks(game_map)
+        return cells[0] if cells else None
+    _radius = entity.city_wander_radius
+
+    # Small-radius NPCs: any walkable cell within range.
+    if 0 < _radius <= 20:
+        pool = _walkable_cells_in_radius(
+            game_map, entity.city_spawn, _radius,
+        )
+        if pool:
+            return _far_choice(pool, entity.pos, rng)
+
+    # City-spanning NPCs: traverse the landmark network.
     cells = _city_landmarks(game_map)
     if not cells:
         return None
-    rng = entity.city_rng
-    if rng is None:
-        return cells[0]
-    _radius = entity.city_wander_radius
     if _radius <= 0:
         return rng.choice(cells)
     _pool = _in_radius(cells, entity.city_spawn, _radius)
@@ -302,6 +338,11 @@ def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
     if (entity.pos.x, entity.pos.y) == (_dest[0], _dest[1]):
         entity.city_dest = None
         entity.city_path = None
+        entity.city_blocked_ticks = 0
+        # Shoppers pause after reaching a stall / waypoint.
+        rng = entity.city_rng
+        if rng is not None:
+            entity.city_pause_ticks = rng.randint(3, 8)
 
 def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> None:
     """Run a direct-contact ground fight vs the engaged hostile citizens.
@@ -366,6 +407,9 @@ def move_city_npcs(ctx, game_map: world.GameMap) -> None:
             continue
         rng = entity.city_rng
         if rng.random() >= entity.city_move_chance:
+            continue
+        if getattr(entity, "city_pause_ticks", 0) > 0:
+            entity.city_pause_ticks -= 1
             continue
         _take_one_step(entity, game_map)
 

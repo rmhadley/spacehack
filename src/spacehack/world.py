@@ -309,6 +309,7 @@ class Entity:
     city_dest: tuple | None = None  # current pavement destination (x, y); None = repick
     city_path: list | None = None  # cached A* path to city_dest (persisted across ticks)
     city_blocked_ticks: int = 0  # consecutive blocked steps; >= 4 drops the destination
+    city_pause_ticks: int = 0  # ticks to wait after arriving at a destination
     blocked_message: str = "You bump into {name}."
 
 
