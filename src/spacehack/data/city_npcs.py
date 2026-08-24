@@ -172,4 +172,19 @@ CYGNI_B_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION"]
+
+
+LAL_B_POPULATION: tuple[CityNpc, ...] = (
+    # Salvage crew working the yard.
+    CityNpc("lal_salvager_a", "civillian_bystander", (20, 24), wander_radius=8, move_chance=0.85),
+    CityNpc("lal_salvager_b", "civillian_bystander", (100, 44), wander_radius=8, move_chance=0.9),
+    CityNpc("lal_salvager_c", "civillian_bystander", (78, 48), wander_radius=8, move_chance=0.85),
+    # Bounty hunters near the board.
+    CityNpc("lal_hunter_a", "militia_trooper", (16, 76), wander_radius=6, move_chance=0.8),
+    CityNpc("lal_hunter_b", "civillian_bystander", (20, 70), wander_radius=6, move_chance=0.85),
+    # Pad crew.
+    CityNpc("lal_pad_crew", "civillian_bystander", (42, 22), wander_radius=90, move_chance=0.8),
+    CityNpc("lal_yard_hand", "civillian_bystander", (112, 76), wander_radius=90, move_chance=0.85),
+)
+
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION"]

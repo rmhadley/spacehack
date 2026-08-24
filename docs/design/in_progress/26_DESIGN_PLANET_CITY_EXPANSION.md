@@ -838,7 +838,7 @@ network, authored interiors, and a living population.
 11. Add focused regression coverage for the city's geometry and these
     authoring invariants, run the full gate, and commit.
 
-**Cities** (26 total, 8 done):
+**Cities** (26 total, 9 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -855,7 +855,7 @@ network, authored interiors, and a living population.
 - [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
 - [ ] Tau Ceti b (`tc_b`) — 3 buildings (spaceport, bar, merchants)
 - [ ] Vega b (`vega_b`) — 3 buildings (spaceport, bar, merchants)
-- [ ] Lalande b (`lal_b`) — 4 buildings (spaceport, bar, bounties, depot)
+- [x] Lalande b (`lal_b`) — authored 140×100 wreck colony: the Requiem's diagonal hull, docking ring grave, salvage yard, 4 buildings, 7 NPCs, 4 transit stops
 - [ ] Lalande c (`lal_c`) — 4 buildings (spaceport, bar, merchants, bounties)
 - [ ] Groombridge b (`groom_b`) — 4 buildings (spaceport, bar, bounties, depot)
 - [ ] Indi b (`indi_b`) — 4 buildings (spaceport, bar, merchants, militia)

@@ -1,0 +1,28 @@
+# lal_bounties_interior.layout - weather-sealed bounty board
+MAP
+###############
+#..c..*..=..c.#
+#.............#
+#..=..........#
+#.............#
+#.....==......#
+#.............#
+#..c........c.#
+#.............#
+#......P......#
+#......>......#
+###############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = INTERIOR
+TILE: c = MARS_CONSOLE
+TILE: = = MARS_PARTITION
+TILE: * = MARS_HOLO
+TILE: > = EXIT
+COLOUR: # = (85, 95, 110) / (28, 34, 42)
+COLOUR: . = (180, 190, 200) / (44, 50, 58)
+COLOUR: c = (170, 185, 200) / (42, 48, 56)
+COLOUR: = = (140, 152, 170) / (42, 48, 56)
+COLOUR: * = (200, 220, 245) / (42, 50, 58)
+COLOUR: > = (200, 200, 200) / (44, 50, 58)
