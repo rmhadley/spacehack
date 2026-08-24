@@ -68,6 +68,26 @@ def test_ac_ring_archive_and_lab_preserve_research_officers():
         assert city_interiors.exit_city_interior(state) == "HANDLED"
 
 
+def test_eri_b_service_npcs_survive_authored_interior_entry():
+    """Epsilon's settler and trader overrides remain in their interiors."""
+    game_map = load_planet("eri_b")
+    ctx = SimpleNamespace(
+        interiors={}, game_map=game_map, player=None,
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    for label, expected_name in (("bar", "Settler"), ("merchants", "Settlement Trader")):
+        record = game_map.city_buildings[label]
+        player = world.Entity(
+            "@", (255, 255, 255), world.Position(*record["entrance"]), name="Player",
+        )
+        game_map.entities.append(player)
+        ctx.player = player
+        state = _state(game_map, player, ctx)
+        assert city_interiors.enter_city_interior(state) == "ENTERED"
+        assert any(entity.name == expected_name for entity in state.game_map.entities)
+        assert city_interiors.exit_city_interior(state) == "HANDLED"
+
+
 def test_city_interior_is_cached_and_reuses_the_same_room_map():
     game_map = load_planet("earth")
     record = game_map.city_buildings["bar"]

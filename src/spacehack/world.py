@@ -359,6 +359,8 @@ class GameMap:
     # Optional rotating-ring station geometry for non-rectangular city layouts.
     ring_geometry: dict | None = None
     ring_void_cells: set[tuple[int, int]] | None = None
+    canyon_cells: set[tuple[int, int]] | None = None
+    bridge_crossings: tuple | None = None
 
 
     def in_bounds(self, x: int, y: int) -> bool:

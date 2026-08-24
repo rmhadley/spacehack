@@ -694,7 +694,7 @@ network, authored interiors, and a living population.
    every NPC spawn on a walkable cell, every interior loads with spawn + exit.
 6. Run the full gate and commit.
 
-**Cities** (26 total, 5 done):
+**Cities** (26 total, 6 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -702,7 +702,7 @@ network, authored interiors, and a living population.
       southern logistics port, civic boulevard/avenue plan, 5 buildings,
       6 transit stops, 10 NPCs, red-dust terrain, ceramic/glass skyline,
       civic beacon plaza, and authored high-tech interiors
-- [ ] Epsilon Eridani b (`eri_b`) — 4 buildings (spaceport, bar, merchants, militia)
+- [x] Epsilon Eridani b (`eri_b`) — authored 200x140 terraced canyon settlement: four bridge crossings, Beacon Spine, western landing plateau, 4 buildings, 5 transit stops, 8 colonists, and authored exteriors/interiors
 - [ ] Wolf 359 b (`wolf_b`) — 3 buildings (spaceport, bar, depot), delve site
 - [ ] Cygni b (`cygni_b`) — 4 buildings (spaceport, bar, merchants, militia)
 - [ ] Barnard's Star b (`barnards_b`) — 3 buildings (spaceport, bar, depot)

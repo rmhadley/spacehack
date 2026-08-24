@@ -1,0 +1,210 @@
+"""Epsilon Eridani b's authored terraced canyon settlement.
+
+The first deep-space settlement is organized around a dry north-south rift.
+Four bridge crossings span the canyon, while the Beacon Spine, landing plateau,
+freight interchange, and eastern militia gate give the large map a readable
+working-settlement structure.
+"""
+
+from __future__ import annotations
+
+from . import world
+from .city_layout import (
+    building_records,
+    paint_roof_labels,
+    stamp_city_assets,
+    stamp_metadata,
+)
+from .data.planets import _readable_city_theme
+from .data.planets.themes import CANYON_SETTLEMENT
+
+
+CITY_WIDTH = 200
+CITY_HEIGHT = 140
+_CANYON_X_LO, _CANYON_X_HI = 92, 107
+_BRIDGE_ROWS = ((34, 35, 36), (78, 79, 80), (91, 92, 93), (111, 112, 113))
+
+_CANYON_FLOOR = world.Tile(
+    kind="canyon_floor", char=" ", walkable=False,
+    fg=(112, 58, 42), bg=(42, 24, 22),
+    blocked_message="The dry canyon drops away below the settlement.",
+)
+_CANYON_WALL = world.Tile(
+    kind="canyon_wall", char="#", walkable=False,
+    fg=(188, 105, 62), bg=(62, 32, 24),
+    blocked_message="The canyon wall blocks your path.",
+)
+
+LANDMARK_ORIGINS: dict[str, world.Position] = {
+    "eri_spaceport": world.Position(20, 18),
+    "eri_bar": world.Position(67, 48),
+    "eri_merchants": world.Position(118, 70),
+    "eri_militia": world.Position(149, 105),
+}
+
+
+def _base_tiles(theme):
+    """Create dusty terrain with a dry canyon and perimeter walls."""
+    tiles = [
+        [theme.floor for _ in range(CITY_WIDTH)]
+        for _ in range(CITY_HEIGHT)
+    ]
+    for x in range(CITY_WIDTH):
+        tiles[0][x] = world.WALL
+        tiles[-1][x] = world.WALL
+    for y in range(CITY_HEIGHT):
+        tiles[y][0] = world.WALL
+        tiles[y][-1] = world.WALL
+    for y in range(2, CITY_HEIGHT - 2):
+        for x in range(_CANYON_X_LO, _CANYON_X_HI + 1):
+            tiles[y][x] = _CANYON_FLOOR
+        tiles[y][_CANYON_X_LO - 1] = _CANYON_WALL
+        tiles[y][_CANYON_X_HI + 1] = _CANYON_WALL
+    return tiles
+
+
+def _paint_dust(tiles, theme):
+    """Add sparse dry-ground texture without filling the city with noise."""
+    for y in range(2, CITY_HEIGHT - 2):
+        for x in range(2, CITY_WIDTH - 2):
+            if tiles[y][x].kind == "floor" and (x * 11 + y * 7) % 17 == 0:
+                tiles[y][x] = theme.grass_accent
+
+
+def _paint_cell(tiles, x, y, tile):
+    """Paint public infrastructure only on open settlement ground."""
+    if tiles[y][x].kind in {"floor", "grass"}:
+        tiles[y][x] = tile
+
+
+def _paint_roads(tiles, theme):
+    """Paint the Beacon Spine, terraces, and bridge approaches."""
+    for y_lo, y_mid, y_hi in ((24, 25, 26), (58, 59, 60), (91, 92, 93), (111, 112, 113)):
+        for x in range(3, CITY_WIDTH - 2):
+            if _CANYON_X_LO <= x <= _CANYON_X_HI and y_mid not in {34, 35, 36, 78, 79, 80, 111, 112, 113}:
+                continue
+            _paint_cell(tiles, x, y_lo, theme.road_surface)
+            _paint_cell(tiles, x, y_mid, theme.road_ew)
+            _paint_cell(tiles, x, y_hi, theme.road_surface)
+    for x in (76, 77, 78):
+        for y in range(3, CITY_HEIGHT - 2):
+            _paint_cell(tiles, x, y, theme.road_ns if x == 77 else theme.road_surface)
+
+    # The four elevated crossings are the only roads through the rift.
+    for y_lo, y_mid, y_hi in _BRIDGE_ROWS:
+        for y in range(y_lo, y_hi + 1):
+            for x in range(_CANYON_X_LO - 1, _CANYON_X_HI + 2):
+                tiles[y][x] = world.BRIDGE
+        for x in range(3, _CANYON_X_LO):
+            _paint_cell(tiles, x, y_mid, theme.road_ew)
+        for x in range(_CANYON_X_HI + 1, CITY_WIDTH - 2):
+            _paint_cell(tiles, x, y_mid, theme.road_ew)
+
+
+def _paint_sidewalks(tiles, theme):
+    """Add pedestrian terraces beside the major roads."""
+    for y_lo, _y_mid, y_hi in ((24, 25, 26), (58, 59, 60), (91, 92, 93), (111, 112, 113)):
+        for x in range(3, CITY_WIDTH - 2):
+            for y in (y_lo - 1, y_hi + 1):
+                if not (_CANYON_X_LO <= x <= _CANYON_X_HI):
+                    _paint_cell(tiles, x, y, theme.sidewalk)
+    for y in range(3, CITY_HEIGHT - 2):
+        for x in (75, 79):
+            _paint_cell(tiles, x, y, theme.sidewalk)
+
+
+def _paint_plaza(tiles, theme):
+    """Build the civic Beacon Spine and its public terraces."""
+    for y in range(40, 55):
+        for x in range(70, 88):
+            if tiles[y][x].kind in {"floor", "grass", "sidewalk"}:
+                tiles[y][x] = theme.plaza
+    for x, y in ((78, 43), (78, 51), (73, 47), (83, 47)):
+        tiles[y][x] = theme.neon
+    tiles[47][78] = world.MONUMENT
+
+
+def _paint_apron(tiles, theme, spec):
+    """Reserve a broad landing plateau west of the spaceport."""
+    berth = spec.hangar_anchor
+    for y in range(31, 50):
+        for x in range(18, 52):
+            tiles[y][x] = theme.landing_pad
+    tiles[berth.y][berth.x] = theme.plaza
+    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        tiles[berth.y + dy][berth.x + dx] = theme.neon
+
+
+def _paint_settlement_details(tiles, theme):
+    """Place sparse beacon lights and edge infrastructure."""
+    details = (
+        (12, 20), (58, 25), (68, 35), (86, 61), (116, 59),
+        (116, 94), (137, 94), (145, 124), (183, 124),
+        (44, 105), (61, 119), (129, 132), (181, 92),
+    )
+    for x, y in details:
+        if tiles[y][x].walkable:
+            tiles[y][x] = theme.neon
+
+
+def _add_service_entities(game_map, spec, resolve_ship):
+    """Place showroom ships and service terminals on the landing plateau."""
+    for ship_id, off_x, off_y in spec.showroom_ships:
+        ship_obj = resolve_ship(ship_id)
+        game_map.entities.append(world.Entity(
+            char=ship_obj.char, fg=ship_obj.fg,
+            pos=world.Position(24 + off_x, 32 + off_y),
+            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
+            width=ship_obj.width, height=ship_obj.height,
+        ))
+    berth = spec.hangar_anchor
+    terminal_data = (
+        ("=", "Trade Terminal", -6, "trade_terminal", (100, 220, 255)),
+        ("%", "Mechanic Terminal", -2, "mech_terminal", (210, 220, 110)),
+        ("A", "Armory Terminal", 2, "armory_terminal", (255, 165, 85)),
+    )
+    for char, name, dx, flag, fg in terminal_data:
+        game_map.entities.append(world.Entity(
+            char=char, fg=fg,
+            pos=world.Position(berth.x + dx, berth.y + 3),
+            name=name, **{flag: True},
+        ))
+
+
+def _set_metadata(game_map, spec, stamps):
+    """Attach authored landmark and canyon metadata."""
+    game_map.city_layout_id = spec.city_layout_id or "eri_canyon_settlement"
+    game_map.landmark_stamps = stamp_metadata(stamps)
+    game_map.canyon_cells = {
+        (x, y)
+        for y in range(2, CITY_HEIGHT - 2)
+        for x in range(_CANYON_X_LO, _CANYON_X_HI + 1)
+    }
+    game_map.bridge_crossings = _BRIDGE_ROWS
+    game_map.city_buildings = building_records(spec, stamps, "eri_")
+
+
+def build_epsilon_eridani_layout(spec, resolve_ship):
+    """Build Epsilon Eridani b's 200x140 terraced canyon settlement."""
+    theme = _readable_city_theme(CANYON_SETTLEMENT)
+    tiles = _base_tiles(theme)
+    _paint_dust(tiles, theme)
+    _paint_roads(tiles, theme)
+    _paint_sidewalks(tiles, theme)
+    _paint_plaza(tiles, theme)
+    _paint_apron(tiles, theme, spec)
+    _paint_settlement_details(tiles, theme)
+    game_map = world.GameMap(
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        tiles=tiles, entities=[],
+    )
+    stamps = stamp_city_assets(
+        game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
+    )
+    paint_roof_labels(game_map, stamps, "eri_")
+    _set_metadata(game_map, spec, stamps)
+    _add_service_entities(game_map, spec, resolve_ship)
+    return game_map
+
+
+__all__ = ["build_epsilon_eridani_layout", "LANDMARK_ORIGINS"]

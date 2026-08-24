@@ -98,6 +98,22 @@ AC_RING_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
+ERI_B_POPULATION: tuple[CityNpc, ...] = (
+    # Cargo movement on the west plateau and freight crossing.
+    CityNpc("eri_pad_loader", "civillian_bystander", (38, 38), wander_radius=110, move_chance=0.9),
+    CityNpc("eri_freight_runner", "civillian_bystander", (83, 62), wander_radius=110, move_chance=0.9),
+    # Social traffic at the canyon overlook and beacon spine.
+    CityNpc("eri_bar_regular", "civillian_bystander", (75, 56), wander_radius=110, move_chance=0.85),
+    CityNpc("eri_beacon_courier", "civillian_bystander", (70, 47), wander_radius=110, move_chance=0.9),
+    # Frontier security patrols on the eastern approach.
+    CityNpc("eri_gate_patrol", "militia_trooper", (143, 96), wander_radius=110, move_chance=0.9),
+    CityNpc("eri_bridge_guard", "militia_trooper", (110, 79), wander_radius=110, move_chance=0.85),
+    # Surveyors working the southern terraces.
+    CityNpc("eri_surveyor_a", "civillian_bystander", (58, 119), wander_radius=110, move_chance=0.8),
+    CityNpc("eri_surveyor_b", "civillian_bystander", (128, 125), wander_radius=110, move_chance=0.8),
+)
+
+
 MARS_POPULATION: tuple[CityNpc, ...] = (
     # Market square — colonists crossing the plaza.
     CityNpc("mars_colonist_a", "civillian_bystander", (64, 35), wander_radius=80, move_chance=0.9),

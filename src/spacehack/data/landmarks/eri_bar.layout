@@ -1,0 +1,19 @@
+# eri_bar.layout - The Dusty Glass overlook
+MAP
+#################
+#================#
+#=--------------=#
+#================#
+#=--------------=#
+#================#
+#======d=========#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_WALL
+TILE: - = CITY_BUILDING_WALL
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (116, 72, 48) / (44, 26, 18)
+COLOUR: = = (208, 154, 84) / (76, 48, 28)
+COLOUR: - = (238, 194, 120) / (92, 62, 34)
+COLOUR: d = (255, 220, 120) / (82, 50, 24)

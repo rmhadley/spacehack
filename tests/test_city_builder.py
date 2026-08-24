@@ -166,6 +166,71 @@ def test_ac_station_interiors_and_population_are_complete():
         ) is None
 
 
+def test_eri_b_is_a_large_canyon_settlement():
+    """Epsilon Eridani b uses the super-Earth-scale canyon layout."""
+    game_map = load_planet("eri_b")
+    assert game_map.city_layout_id == "eri_canyon_settlement"
+    assert (game_map.width, game_map.height) == (200, 140)
+    assert len(game_map.canyon_cells) > 1_500
+    assert len(game_map.bridge_crossings) == 4
+    assert any(tile.kind == "canyon_floor" for row in game_map.tiles for tile in row)
+    assert any(tile.kind == "bridge" for row in game_map.tiles for tile in row)
+    assert game_map.tiles[47][78].kind == "monument"
+
+
+def test_eri_b_buildings_transit_and_population_are_reachable():
+    """The large settlement keeps every service connected across the canyon."""
+    game_map = load_planet("eri_b")
+    spec = find_planet_spec("eri_b")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    assert len(game_map.city_buildings) == 4
+    assert len(game_map.city_transit) == 5
+    assert sum(bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities) == 8
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        x, y = entrance
+        assert game_map.tiles[y][x].walkable, label
+        assert (x, y) in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", ""):
+            assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+            assert game_map.blocking_entity_at(
+                entity.pos.x, entity.pos.y, exclude=entity,
+            ) is None
+
+
+def test_eri_b_transit_stops_are_on_their_buildings_entrance_side():
+    """Every Epsilon service stop is south of its building's south door."""
+    game_map = load_planet("eri_b")
+    spec = find_planet_spec("eri_b")
+    for building in spec.buildings:
+        stop = game_map.city_transit[building.label]["pos"]
+        assert stop[1] > building.y_hi, building.label
+        assert building.x_lo - 2 <= stop[0] <= building.x_hi + 2
+
+
+def test_eri_b_uses_authored_exteriors_and_interiors():
+    """All four Epsilon facilities use complete authored rooms and facades."""
+    game_map = load_planet("eri_b")
+    for label, record in game_map.city_buildings.items():
+        exterior = city_landmarks.load_city_landmark(f"eri_{label}")
+        assert {len(row) for row in exterior.tiles} == {exterior.width}, label
+        assert sum(
+            tile.kind == "city_building_door"
+            for row in exterior.tiles for tile in row
+        ) == 1
+        interior = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert interior.spawn is not None, label
+        assert any(
+            tile.kind == "exit" for row in interior.game_map.tiles for tile in row
+        ), label
+
+
 def test_mercury_uses_authored_exteriors_like_earth():
     """Mercury's buildings are stamped authored roofs, not legacy boxes:
     every enterable building has a landmark stamp, a roof label, and no

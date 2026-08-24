@@ -226,6 +226,23 @@ STATION = PlanetTheme(
 
 # Rotating research ring — dark open space, pale pressure-hull decking,
 # cyan guidance systems, and restrained gold public fixtures.
+# Epsilon Eridani b — dry super-Earth canyon settlement: ochre stone,
+# pale terraced infrastructure, amber beacons, and sparse cyan utilities.
+CANYON_SETTLEMENT = PlanetTheme(
+    floor=T("floor", ".", (178, 136, 92), (68, 48, 34)),
+    grass=T("grass", "█", (156, 105, 65), (58, 36, 26)),
+    grass_accent=T("grass", ",", (94, 60, 42), (58, 36, 26)),
+    plaza=T("plaza", "░", (224, 198, 148), (112, 82, 54)),
+    sidewalk=T("sidewalk", "▒", (194, 170, 128), (82, 62, 44)),
+    road_surface=T("road", ".", (128, 100, 78), (48, 38, 32)),
+    road_ns=T("road", ":", (112, 210, 220), (34, 58, 62)),
+    road_ew=T("road", "-", (112, 210, 220), (34, 58, 62)),
+    landing_pad=T("landing_pad", "▓", (205, 177, 104), (54, 42, 28)),
+    neon=T("neon", "*", (255, 190, 72), (62, 38, 18)),
+    tree=T("tree", "♣", (126, 104, 54), (50, 36, 24)),
+    decor=T("plaza", "♦", (255, 174, 70), (112, 82, 54)),
+)
+
 RING_STATION = PlanetTheme(
     floor=T("ring_deck", ".", (172, 205, 220), (48, 68, 82)),
     grass=T("ring_deck", ".", (172, 205, 220), (48, 68, 82)),

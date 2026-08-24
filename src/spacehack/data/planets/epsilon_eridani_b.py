@@ -4,12 +4,13 @@ A rugged, self-reliant colony carved into dry canyons and dust plains.
 Tough pioneers, solar-panel fields, and a no-nonsense militia that keeps
 the peace this far from Sol.
 
-Layout (60x40):
+Layout (200x140):
 
-  * spaceport, NW corner.
-  * bar, NE corner — "The Dusty Glass" saloon.
-  * merchants, SW corner — the colony's trade hall.
-  * militia, S row — frontier law enforcement.
+  * spaceport on the western landing plateau.
+  * bar at the central canyon overlook — "The Dusty Glass" saloon.
+  * merchants at the eastern freight interchange.
+  * militia at the southern frontier gate.
+  * four elevated crossings connect the terraced settlement.
 
 NPC overrides: barkeep + guild master get frontier-pioneer
 flavour; the militia building keeps its regular captain. The Act 0
@@ -23,38 +24,72 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-from .themes import WARM_EARTH
+from .themes import CANYON_SETTLEMENT
+from ..city_npcs import ERI_B_POPULATION
 
 
 SPEC = PlanetSpec(
-    theme=WARM_EARTH,
+    theme=CANYON_SETTLEMENT,
     id="eri_b",
     name="Epsilon Eri b",
     char="p",
     fg=(190, 130, 90),
     description="A warm, rocky super-Earth - the first deep-space settlement.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    width=200,
+    height=140,
+    hangar_anchor=world.Position(34, 43),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport", x_lo=20, x_hi=45, y_lo=18, y_hi=25,
+            door_x=30, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar", x_lo=67, x_hi=83, y_lo=48, y_hi=54,
+            door_x=74, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
-            door_x=14, npc_id="guild_master",
-            door_north=True,
+            label="merchants", x_lo=118, x_hi=144, y_lo=70, y_hi=78,
+            door_x=128, npc_id="guild_master",
         ),
         world.CityBuilding(
-            label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35,
-            door_x=47, npc_id="militia_captain",
-            door_north=True,
+            label="militia", x_lo=149, x_hi=177, y_lo=105, y_hi=114,
+            door_x=162, npc_id="militia_captain",
         ),
+    ),
+    city_layout_id="eri_canyon_settlement",
+    city_npc_population=ERI_B_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="west plateau",
+            pos=world.Position(30, 29),
+            destinations=("beacon", "bar", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="beacon", name="Beacon Spine", district="civic",
+            pos=world.Position(85, 47),
+            destinations=("spaceport", "bar", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="bar", name="Dusty Glass", district="canyon overlook",
+            pos=world.Position(74, 57),
+            destinations=("spaceport", "beacon", "merchants", "militia"),
+        ),
+        world.TransitStation(
+            id="merchants", name="Freight Interchange", district="trade",
+            pos=world.Position(128, 82),
+            destinations=("spaceport", "beacon", "bar", "militia"),
+        ),
+        world.TransitStation(
+            id="militia", name="Eastern Gate", district="frontier gate",
+            pos=world.Position(162, 118),
+            destinations=("spaceport", "beacon", "bar", "merchants"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "eri_spaceport_interior"),
+        ("bar", "eri_bar_interior"),
+        ("merchants", "eri_merchants_interior"),
+        ("militia", "eri_militia_interior"),
     ),
     showroom_ships=(
         ("hauler",   7, 2),

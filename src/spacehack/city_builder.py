@@ -58,6 +58,10 @@ def build_city(spec: PlanetSpec, resolve_npc, resolve_ship) -> world.GameMap:
         from .ac_station_city import build_ac_ring_layout
 
         game_map = build_ac_ring_layout(spec, resolve_ship)
+    elif spec.city_layout_id == "eri_canyon_settlement":
+        from .epsilon_eridani_city import build_epsilon_eridani_layout
+
+        game_map = build_epsilon_eridani_layout(spec, resolve_ship)
     else:
         game_map = _build_grid_city(spec, resolve_npc, resolve_ship)
     _finalize_city(game_map, spec)

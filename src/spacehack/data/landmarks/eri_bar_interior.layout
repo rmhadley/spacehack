@@ -1,0 +1,22 @@
+# eri_bar_interior.layout
+MAP
+################
+#................#
+#..b..b..b......#
+#................#
+#......t.........#
+#................#
+#..b..b..b......#
+#................#
+#.......P........#
+#.......>........#
+################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = CITY_BUILDING_WALL
+TILE: t = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: b = (184, 126, 72) / (62, 38, 22)
+COLOUR: t = (255, 190, 82) / (84, 50, 20)
