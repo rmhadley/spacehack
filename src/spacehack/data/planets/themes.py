@@ -203,6 +203,22 @@ ICE = PlanetTheme(
     decor=T("plaza", "♦", (200, 240, 255), (150, 175, 205)),
 )
 
+# Pirate outpost — cold dark rock, salvaged steel, dim red warning lights.
+PIRATE_OUTPOST = PlanetTheme(
+    floor=T("floor", ".", (115, 128, 148), (42, 48, 58)),
+    grass=T("grass", "█", (72, 82, 96), (28, 34, 42)),
+    grass_accent=T("grass", ",", (54, 62, 74), (28, 34, 42)),
+    plaza=T("plaza", "░", (160, 175, 195), (78, 88, 102)),
+    sidewalk=T("sidewalk", "▒", (95, 108, 126), (52, 58, 70)),
+    road_surface=T("road", ".", (78, 90, 108), (34, 40, 50)),
+    road_ns=T("road", ":", (64, 76, 92), (28, 34, 44)),
+    road_ew=T("road", "-", (64, 76, 92), (28, 34, 44)),
+    landing_pad=T("landing_pad", "▓", (185, 195, 210), (55, 62, 74)),
+    neon=T("neon", "*", (230, 100, 60), (28, 12, 8)),
+    tree=T("tree", "♣", (100, 112, 128), (38, 44, 52)),
+    decor=T("plaza", "♦", (235, 155, 75), (52, 32, 18)),
+)
+
 # Rugged settlement — warm earth tones, dry browns, pioneer amber.
 WARM_EARTH = PlanetTheme(
     floor=T("floor", "░", (170, 140, 100), (65, 50, 35)),

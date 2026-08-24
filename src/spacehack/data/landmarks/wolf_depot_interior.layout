@@ -1,0 +1,22 @@
+# wolf_depot_interior.layout
+MAP
+##################
+#................#
+#..s.......s.....#
+#................#
+#....*......*....#
+#................#
+#..s.......s.....#
+#................#
+#......P.........#
+#......>.........#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: s = CITY_ORNAMENT
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: s = (168, 155, 135) / (56, 48, 40)
+COLOUR: * = (230, 150, 65) / (54, 34, 18)

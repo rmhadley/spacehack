@@ -1,51 +1,85 @@
 """Wolf 359 b — a dark, airless rock on the frontier of charted space.
 
-A small listening post — a landing bay, a supply depot, and a
-black-market bar that serves as the last rest stop before the
-Luyten's Star blockade. Quiet, cold, and utterly dark outside the
-station walls.
+The Scab — a pirate-run listening post carved into a cold crater
+settlement. The landing clearing was scraped flat by the first
+salvage crews; the Salty Grave bar was dug into the southern rock
+shelf; cargo containers were stacked into a depot; and antenna masts
+were raised on the northern ridge. Nothing was planned — it just
+accumulated, like scab tissue over a wound.
 
-Layout (40x24, compact):
+Layout (120×80, authored crater outpost):
 
-  * spaceport, NW corner.
-  * bar, SW corner — black-market refuge, no questions asked.
-  * depot, NE corner — supplies and emergency shelter.
+  * spaceport on the western landing clearing.
+  * depot built from stacked cargo containers near the pad.
+  * bar — The Salty Grave — dug into the southern rock shelf.
+  * antenna masts on the northern ridge (non-enterable).
+  * cave entrance (delve site) in the south-eastern wall.
+  * scattered shacks, barrel fires, and scrap heaps throughout.
+
+NPC overrides: the Black-Market Operator (bar) and Frontier Operator
+(depot) retain their existing flavour. A small crew of pirates and
+scavengers loiter between the pad, the depot, and the bar.
 """
 from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
 from ...dungeon import DungeonParams
+from ..city_npcs import WOLF_B_POPULATION
 from . import PlanetSpec
-from .themes import ICE
+from .themes import PIRATE_OUTPOST
 
 
 SPEC = PlanetSpec(
-    theme=ICE,
+    theme=PIRATE_OUTPOST,
     id="wolf_b",
     name="Wolf 359 b",
     char="p",
     fg=(80, 60, 50),
     description="A dark, airless rock - a pirate-run listening post on the frontier. No questions asked.",
-    width=40,
-    height=24,
-    hangar_anchor=world.Position(7, 14),
+    width=120,
+    height=80,
+    hangar_anchor=world.Position(20, 24),
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=2,  x_hi=15, y_lo=2,  y_hi=10,
-            door_x=8, npc_id="",
+            x_lo=10, x_hi=33, y_lo=12, y_hi=22,
+            door_x=20, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=2,  x_hi=17, y_lo=13, y_hi=22,
-            door_x=9, npc_id="wolf_barkeep",
+            x_lo=14, x_hi=34, y_lo=50, y_hi=58,
+            door_x=23, npc_id="wolf_barkeep",
         ),
         world.CityBuilding(
             label="depot",
-            x_lo=22, x_hi=37, y_lo=8,  y_hi=18,
-            door_x=29, npc_id="depot_attendant",
+            x_lo=48, x_hi=67, y_lo=14, y_hi=22,
+            door_x=57, npc_id="depot_attendant",
         ),
+    ),
+    city_layout_id="wolf_crater_settlement",
+    city_npc_population=WOLF_B_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Landing Clearing", district="west pad",
+            pos=world.Position(22, 25),
+            destinations=("depot", "bar"),
+        ),
+        world.TransitStation(
+            id="depot", name="The Stack", district="east yard",
+            pos=world.Position(58, 24),
+            destinations=("spaceport", "bar"),
+        ),
+        world.TransitStation(
+            id="bar", name="Salty Grave", district="south shelf",
+            pos=world.Position(26, 60),
+            destinations=("spaceport", "depot"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "wolf_spaceport_interior"),
+        ("bar", "wolf_bar_interior"),
+        ("depot", "wolf_depot_interior"),
     ),
     showroom_ships=(
         ("scout",  3, 2),
@@ -85,11 +119,14 @@ SPEC = PlanetSpec(
             ),
         ),
     ),
-    produces=(),
+    produces=(
+        ("weapons_blackmarket", 15),
+    ),
     demands=(
         ("food_rations", 12),
         ("fuel_cells", 10),
         ("medical_supplies", 8),
+        ("weapons_blackmarket", 10),
     ),
     # Pirate-run frontier post: the cluster is overrun with pirates
     # (90% pirate_scout / 70% pirate_raider spawn), so the mechanic
@@ -105,8 +142,7 @@ SPEC = PlanetSpec(
     mission_tier=3,
     # Merchant chain delve site (mer_q2_strike): the Guild's abandoned
     # prospecting claim sits in the dark caves beneath the listening
-    # post — quest-tagged rare_earth_metals deep inside. Planet-themed
-    # tiles (cold dark rock, faint mineral glint on the floor).
+    # post — quest-tagged rare_earth_metals deep inside.
     explorable_site_name="caves",
     dungeon_params=DungeonParams(
         width=80,
@@ -122,8 +158,6 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(170, 185, 200), bg=(45, 52, 62),
         ),
-        # Cold claim caves (merchant chain delve): tier 3 — ice worms +
-        # frost spitters, the heaviest dungeon in act 0.
         monster_pool=("ice_worm", "frost_spitter"),
         monster_density=1.5,
         cache_guardian_pool=("assault_drone", "sentry_drone"),

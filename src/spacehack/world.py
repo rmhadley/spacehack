@@ -360,6 +360,7 @@ class GameMap:
     ring_geometry: dict | None = None
     ring_void_cells: set[tuple[int, int]] | None = None
     canyon_cells: set[tuple[int, int]] | None = None
+    cave_cells: set[tuple[int, int]] | None = None
     bridge_crossings: tuple | None = None
 
 

@@ -1,0 +1,22 @@
+# wolf_bar_interior.layout
+MAP
+#################
+#...............#
+#.t...t...t.....#
+#...............#
+#......b........#
+#...............#
+#.t...t...t.....#
+#...............#
+#......P........#
+#......>........#
+#################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: t = CITY_BUILDING_WALL
+TILE: b = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: t = (148, 128, 96) / (48, 38, 28)
+COLOUR: b = (240, 130, 50) / (56, 26, 14)

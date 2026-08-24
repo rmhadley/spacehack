@@ -446,6 +446,50 @@ def test_eri_b_has_homesteads_market_square_and_mine_head():
     assert {"mine_rock", "mine_shaft", "ore_heap"} <= kinds
 
 
+def test_wolf_b_is_a_crater_pirate_outpost():
+    """Wolf 359 b uses the authored crater outpost layout."""
+    game_map = load_planet("wolf_b")
+    assert game_map.city_layout_id == "wolf_crater_settlement"
+    assert (game_map.width, game_map.height) == (120, 80)
+    assert len(game_map.city_buildings) == 3
+    assert len(game_map.city_transit) == 3
+    assert sum(
+        bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
+    ) == 5
+    # The crater settlement has non-enterable shacks and antenna masts.
+    shed_walls = sum(
+        tile.kind == "city_building_wall"
+        for row in game_map.tiles for tile in row
+    )
+    # Three enterable buildings + many non-enterable shacks/antennas.
+    assert shed_walls > 100
+    # A cave entrance marks the delve site.
+    assert any(tile.kind == "mine_shaft" for row in game_map.tiles for tile in row)
+
+
+def test_wolf_b_buildings_transit_and_population_are_reachable():
+    """The pirate outpost keeps every service connected across the crater."""
+    game_map = load_planet("wolf_b")
+    spec = find_planet_spec("wolf_b")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        assert game_map.tiles[entrance[1]][entrance[0]].walkable, label
+        assert entrance in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", ""):
+            assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+            assert (entity.pos.x, entity.pos.y) in reachable
+            assert game_map.blocking_entity_at(
+                entity.pos.x, entity.pos.y, exclude=entity,
+            ) is None
+
+
 def test_mercury_uses_authored_exteriors_like_earth():
     """Mercury's buildings are stamped authored roofs, not legacy boxes:
     every enterable building has a landmark stamp, a roof label, and no
