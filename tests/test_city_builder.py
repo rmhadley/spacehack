@@ -70,6 +70,47 @@ def test_ac_station_is_a_hollow_ring_with_connected_spokes():
     assert len(game_map.ring_void_cells) > 1_000
 
 
+def test_ac_station_roof_labels_are_complete_and_facades_use_no_letter_noise():
+    """Ring roofs show complete readable labels without decorative letters."""
+    game_map = load_planet("ac_station")
+    expected = {
+        "ac_ring_spaceport": "SPACEPORT",
+        "ac_ring_archive": "ARCHIVE",
+        "ac_ring_lab": "LAB",
+        "ac_ring_commons": "COMMONS",
+        "ac_ring_observation": "OBSERVATION",
+    }
+    for layout_id, label in expected.items():
+        stamp = game_map.landmark_stamps[layout_id]
+        x_lo = min(x for x, _ in stamp["footprint"])
+        x_hi = max(x for x, _ in stamp["footprint"])
+        y_lo = min(y for _, y in stamp["footprint"])
+        y_hi = max(y for _, y in stamp["footprint"])
+        roof_rows = [
+            "".join(game_map.tiles[y][x].char for x in range(x_lo, x_hi + 1))
+            for y in range(y_lo, y_hi + 1)
+        ]
+        assert any(label in row for row in roof_rows), layout_id
+        letters = {
+            char for row in roof_rows for char in row if char.isalpha()
+        }
+        assert set(label) == letters, layout_id
+
+
+def test_ac_station_transit_stops_match_building_entrance_side():
+    """Every sector stop stays on the same south side as its door."""
+    game_map = load_planet("ac_station")
+    assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
+    for label in game_map.city_buildings:
+        station = game_map.city_transit[label]
+        stop_x, stop_y = station["pos"]
+        building = find_planet_spec("ac_station").buildings
+        spec_building = next(item for item in building if item.label == label)
+        assert stop_y > spec_building.y_hi, label
+        assert stop_x >= spec_building.x_lo - 2
+        assert stop_x <= spec_building.x_hi + 2
+
+
 def test_ac_station_buildings_and_transit_are_reachable():
     """Every ring sector has a walkable door and a connected transit stop."""
     game_map = load_planet("ac_station")

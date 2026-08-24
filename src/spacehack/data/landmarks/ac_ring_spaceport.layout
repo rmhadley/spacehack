@@ -1,20 +1,20 @@
 # ac_ring_spaceport.layout - transfer dock exterior
 MAP
 ################
-#DDDDDDDDDDDDDD#
-#DssssssssssssD#
-#DDDDDDDDDDDDDD#
-#DssssssssssssD#
-#DDDDDDDDDDDDDD#
-#DssssssssssssD#
-#DDDDDDdDDDDDDD#
+#==============#
+#=------------=#
+#==============#
+#=------------=#
+#==============#
+#=------------=#
+#=====d========#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: D = CITY_BUILDING_WALL
-TILE: s = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_WALL
+TILE: - = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (100, 145, 170) / (24, 38, 52)
-COLOUR: D = (145, 205, 220) / (40, 64, 78)
-COLOUR: s = (190, 235, 235) / (54, 78, 92)
+COLOUR: = = (145, 205, 220) / (40, 64, 78)
+COLOUR: - = (190, 235, 235) / (54, 78, 92)
 COLOUR: d = (100, 240, 255) / (22, 68, 82)

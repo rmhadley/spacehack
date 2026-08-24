@@ -110,7 +110,7 @@ def paint_roof_labels(game_map: world.GameMap, stamps, prefix: str) -> None:
     """
     for layout_id, stamp in stamps.items():
         label = layout_id.removeprefix(prefix).upper()
-        if label in {"PLAZA", "COMMONS"}:
+        if label == "PLAZA":
             continue
         xs = [x for x, _ in stamp.footprint]
         ys = [y for _, y in stamp.footprint]

@@ -1,20 +1,20 @@
 # ac_ring_lab.layout - analysis lab exterior
 MAP
 ##############
-#LLLLLLLLLLLL#
-#LhhhhhhhhhhL#
-#LLLLLLLLLLLL#
-#LhhhhhhhhhhL#
-#LLLLLLLLLLLL#
-#LhhhhhhhhhhL#
-#LLLLdLLLLLLL#
+#============#
+#=----------=#
+#============#
+#=----------=#
+#============#
+#=----------=#
+#====d=======#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: L = CITY_BUILDING_WALL
-TILE: h = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_WALL
+TILE: - = CITY_BUILDING_WALL
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (80, 120, 150) / (20, 32, 48)
-COLOUR: L = (125, 190, 220) / (34, 56, 72)
-COLOUR: h = (180, 235, 235) / (48, 76, 90)
+COLOUR: = = (125, 190, 220) / (34, 56, 72)
+COLOUR: - = (180, 235, 235) / (48, 76, 90)
 COLOUR: d = (120, 250, 255) / (18, 62, 78)
