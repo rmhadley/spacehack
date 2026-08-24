@@ -504,7 +504,7 @@ def test_mars_facades_are_rectangular_and_doors_are_on_outer_edges():
         door_x, door_y = doors[0]
         assert door_y == asset.height - 1
         assert record["entrance"] == (
-            asset_origin_x := game_map.landmark_stamps[layout_id]["origin"][0] + door_x,
+            game_map.landmark_stamps[layout_id]["origin"][0] + door_x,
             game_map.landmark_stamps[layout_id]["origin"][1] + door_y,
         )
 
