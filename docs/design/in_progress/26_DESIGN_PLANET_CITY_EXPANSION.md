@@ -838,7 +838,7 @@ network, authored interiors, and a living population.
 11. Add focused regression coverage for the city's geometry and these
     authoring invariants, run the full gate, and commit.
 
-**Cities** (26 total, 6 done):
+**Cities** (26 total, 7 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -847,7 +847,7 @@ network, authored interiors, and a living population.
       6 transit stops, 10 NPCs, red-dust terrain, ceramic/glass skyline,
       civic beacon plaza, and authored high-tech interiors
 - [x] Epsilon Eridani b (`eri_b`) — authored 200x140 terraced canyon settlement: four bridge crossings, Beacon Spine, western landing plateau, 4 buildings, 5 transit stops, 8 colonists, smooth landing apron, cleared circulation, and authored exteriors/interiors
-- [ ] Wolf 359 b (`wolf_b`) — 3 buildings (spaceport, bar, depot), delve site
+- [x] Wolf 359 b (`wolf_b`) — authored crater pirate outpost: 120×80, 3 buildings, landing pad, antenna forest, cave entrance, Smuggler's Row market with vendors and shoppers, 12 NPCs, 3 transit stops, contraband trade, and authored exteriors/interiors
 - [ ] Cygni b (`cygni_b`) — 4 buildings (spaceport, bar, merchants, militia)
 - [ ] Barnard's Star b (`barnards_b`) — 3 buildings (spaceport, bar, depot)
 - [ ] Barnard's Star c (`barnards_c`) — 2 buildings (spaceport, bar)
