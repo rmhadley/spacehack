@@ -89,9 +89,9 @@ SPEC = PlanetSpec(
         ("depot", "lal_depot_interior"),
     ),
     showroom_ships=(
-        ("hauler", 4, -5),
-        ("cruiser", 8, -3),
-        ("frigate", 12, -3),
+        ("hauler", 2, -4),
+        ("cruiser", -2, -6),
+        ("frigate", -6, -6),
     ),
     npc_overrides=(
         (

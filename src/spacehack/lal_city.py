@@ -58,10 +58,10 @@ _PAD_Y_LO, _PAD_Y_HI = 8, 16
 # Custom tiles — CP437-safe glyphs
 # ---------------------------------------------------------------------------
 
-# The Requiem's hull — dark rusted plating.
+# The Requiem's hull — cold metallic wreck plating, iced over.
 _HULL_WALL = world.Tile(
     kind="city_building_wall", char="▓", walkable=False,
-    fg=(140, 110, 90), bg=(38, 26, 20),
+    fg=(135, 150, 170), bg=(42, 50, 62),
     blocked_message="The Requiem's hull plates block your path.",
 )
 # Hull interior deck — stripped, iced-over.
@@ -397,7 +397,7 @@ def _add_service_entities(game_map, spec, resolve_ship):
     for char, name, dx, flag, fg in terminal_data:
         game_map.entities.append(world.Entity(
             char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
+            pos=world.Position(berth.x + dx, berth.y + 2),
             name=name, **{flag: True},
         ))
 
