@@ -1,15 +1,14 @@
 """Barnard b — "The Ember Deep", an underground ring-and-spoke mine colony.
 
 Three concentric tunnel rings carved through solid rock radiate from a
-central landing shaft.  Buildings are doors cut into the rock wall with
-inscribed names above them — no rectangle structures.
+central landing shaft.  Buildings are doors carved into the rock face
+with inscribed names above them.
 
 Layout (120×100, authored mine colony):
 
   * Central shaft — landing pad on the elevator deck.
   * Outer ring — spaceport door in the north wall.
-  * Mid ring — The Ember cantina door, depot door.
-  * Inner ring — storage alcoves.
+  * Mid ring — The Ember cantina and salvage depot doors.
   * 6 radial haulage drifts connecting the three rings.
 """
 
@@ -35,17 +34,17 @@ SPEC = PlanetSpec(
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=42, x_hi=44, y_lo=0, y_hi=2,
-            door_x=43, npc_id="",
+            x_lo=73, x_hi=81, y_lo=0, y_hi=2,
+            door_x=77, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=20, x_hi=22, y_lo=47, y_hi=49,
+            x_lo=20, x_hi=22, y_lo=45, y_hi=47,
             door_x=21, npc_id="barkeep",
         ),
         world.CityBuilding(
             label="depot",
-            x_lo=99, x_hi=101, y_lo=47, y_hi=49,
+            x_lo=97, x_hi=103, y_lo=45, y_hi=47,
             door_x=100, npc_id="depot_attendant",
         ),
     ),
@@ -54,17 +53,17 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="outer ring",
-            pos=world.Position(43, 7),
+            pos=world.Position(77, 7),
             destinations=("bar", "depot"),
         ),
         world.TransitStation(
             id="bar", name="The Ember", district="mid ring",
-            pos=world.Position(18, 50),
+            pos=world.Position(21, 50),
             destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Salvage Depot", district="outer ring",
-            pos=world.Position(102, 50),
+            pos=world.Position(100, 50),
             destinations=("spaceport", "bar"),
         ),
     ),
@@ -78,9 +77,6 @@ SPEC = PlanetSpec(
         ("frigate", -6, -5),
     ),
     npc_overrides=(),
-    # The Act 0 old_smuggler stands in the bar (additively) only while
-    # bar_q2_proof / bar_q3_rigparts / bar_q4_blackmarket are live —
-    # see spawn_quest_npcs.
     quest_npc_spots=(
         ("old_smuggler", "bar"),
     ),
@@ -95,10 +91,6 @@ SPEC = PlanetSpec(
     ),
     tech_level=3,
     mission_tier=2,
-    # Bar chain delve site (bar_q3_rigparts): the old smuggler's lost
-    # job went wrong in the cave network under the mining outpost —
-    # the rig's power cell is still there. Planet-themed tiles
-    # (burnt dust rock + ember-charred floor).
     explorable_site_name="caves",
     dungeon_params=DungeonParams(
         width=80,
@@ -114,8 +106,6 @@ SPEC = PlanetSpec(
             kind="dungeon_floor", char=".", walkable=True,
             fg=(210, 150, 95), bg=(65, 38, 20),
         ),
-        # Hot rocky caves beneath the mining outpost (bar chain delve):
-        # tier 2 — scavengers + prowlers, denser than the tier 1 sites.
         monster_pool=("rock_scavenger", "dust_prowler"),
         monster_density=1.5,
         cache_guardian_pool=("assault_drone",),

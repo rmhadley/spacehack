@@ -1,18 +1,15 @@
 """Barnard's Star b — "The Ember Deep", an underground mine colony.
 
 A ring-and-spoke mining settlement carved into solid rock.  Three
-concentric tunnel rings radiate from a central landing shaft, with
-haulag drifts connecting them like spokes.  Buildings are doors cut
-directly into the rock face with their names inscribed vertically
-above them — no rectangle buildings, no surface structures.
+concentric tunnel rings radiate from a central landing shaft.
+Buildings are doors carved directly into the rock face with their
+names inscribed horizontally above — no rectangle stamps.
 
 Layout (120×100):
-  * Central shaft — landing pad on the elevator deck.
-  * Outer ring — spaceport door carved into the north wall.
-  * Mid ring — The Ember bar door, mid-ring left-side alcove.
-  * Inner ring — tight passage around the shaft, storage alcoves.
+  * Central shaft — landing pad on the elevator deck (elevator).
+  * Outer ring — spaceport door in the north wall.
+  * Mid ring — The Ember cantina door, salvage depot door.
   * 6 radial haulage drifts connecting the three rings.
-  * Solid rock mass (#) between rings.
   * Ore vein accents (orange ░), barrel fires (○), work lights (*).
 """
 
@@ -21,7 +18,8 @@ from __future__ import annotations
 import math
 
 from . import world
-from .city_layout import building_records, stamp_city_assets, stamp_metadata
+from .city_layout import building_records, stamp_metadata
+from .city_landmarks import CityLandmarkStamp
 from .data.planets import _readable_city_theme
 from .data.planets.themes import DESERT
 
@@ -67,19 +65,24 @@ _LANDING_PAD = world.Tile(
     kind="floor", char=".", walkable=True,
     fg=(170, 165, 155), bg=(68, 62, 54),
 )
-_ROCK_LABEL_FG = (230, 220, 195)
+_ROCK_LABEL_FG = (235, 225, 200)
+_ROCK_DOOR_FG = (180, 210, 255)
 
 _DRIFT_ANGLES = tuple(math.radians(a) for a in (0, 60, 120, 180, 240, 300))
 
 # ---------------------------------------------------------------------------
-# Building origins — door-niche positions in rock walls
+# Building door positions — carved directly into rock
 # ---------------------------------------------------------------------------
 
-LANDMARK_ORIGINS: dict[str, world.Position] = {
-    "barnards_spaceport": world.Position(42, 0),
-    "barnards_bar":       world.Position(20, 47),
-    "barnards_depot":     world.Position(99, 47),
-}
+# Each: (label_start_x, label_row_y, door_x, door_y, label_str)
+_BUILDING_DEFS = (
+    # Spaceport — top outer ring, south-facing door.
+    (73, 0, 77, 2, "SPACEPORT"),
+    # The Ember cantina — mid ring left, south-facing.
+    (20, 45, 21, 47, "BAR"),
+    # Salvage depot — outer ring right, south-facing.
+    (98, 45, 100, 47, "DEPOT"),
+)
 
 # ---------------------------------------------------------------------------
 # Geometry helpers
@@ -157,6 +160,38 @@ def _carve_plaza(tiles, cx, cy):
                     tiles[y][x] = _ROCK_FLOOR
 
 
+def _paint_doors_in_rock(tiles):
+    """Carve building doors directly into the rock wall and clear forecourts."""
+    for start_x, label_y, door_x, door_y, _label_str in _BUILDING_DEFS:
+        # Door tile — walkable, carved into rock wall.
+        tiles[door_y][door_x] = world.Tile(
+            kind="city_building_door", char="+", walkable=True,
+            fg=_ROCK_DOOR_FG, bg=_SOLID_ROCK.bg,
+        )
+        # Clear 3 forecourt cells below the door.
+        for fx in (door_x - 1, door_x, door_x + 1):
+            fy = door_y + 1
+            if 0 <= fy < CITY_HEIGHT and 0 <= fx < CITY_WIDTH:
+                if tiles[fy][fx].kind == "city_building_wall":
+                    tiles[fy][fx] = _ROCK_FLOOR
+
+
+def _paint_rock_inscriptions(tiles):
+    """Carve each building's name horizontally into the rock above its door."""
+    for start_x, label_y, door_x, door_y, label_str in _BUILDING_DEFS:
+        for i, ch in enumerate(label_str):
+            x = start_x + i
+            if not (0 <= x < CITY_WIDTH and 0 <= label_y < CITY_HEIGHT):
+                continue
+            tile = tiles[label_y][x]
+            if tile.kind == "city_building_wall":
+                tiles[label_y][x] = world.Tile(
+                    kind="city_building_wall", char=ch, walkable=False,
+                    fg=_ROCK_LABEL_FG, bg=tile.bg,
+                    blocked_message="Solid rock.",
+                )
+
+
 def _paint_ore_veins(tiles):
     _vein_positions = (
         (20, 28), (20, 72), (98, 28), (98, 72),
@@ -203,20 +238,10 @@ def _paint_work_lights(tiles, theme):
     tiles[_CENTER_Y][_CENTER_X] = theme.neon
 
 
-def _paint_accents(tiles, theme):
+def _paint_acents(tiles, theme):
     _paint_ore_veins(tiles)
     _paint_barrel_fires(tiles)
     _paint_work_lights(tiles, theme)
-
-
-def _paint_building_forecourts(tiles, theme, spec):
-    """Clear 3 cells below each door so players can reach it."""
-    for building in spec.buildings:
-        dy = building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if 0 <= x < CITY_WIDTH and 0 <= dy < CITY_HEIGHT:
-                if tiles[dy][x].kind == "city_building_wall":
-                    tiles[dy][x] = _ROCK_FLOOR
 
 
 def _paint_transit_bays(tiles, spec):
@@ -231,36 +256,6 @@ def _paint_transit_bays(tiles, spec):
 
 
 # ---------------------------------------------------------------------------
-# Rock-wall labels (horizontal inscriptions in the rock above doors)
-# ---------------------------------------------------------------------------
-
-def _paint_rock_inscriptions(game_map, stamps, prefix):
-    """Carve each building's name horizontally into the rock wall above its door.
-
-    Works like paint_roof_labels but inscribes into solid rock (#) instead
-    of roof tiles.  The label sits 2 rows above the door, centred.
-    """
-    for layout_id, stamp in stamps.items():
-        label = layout_id.removeprefix(prefix).upper()
-        if label == "PLAZA" or stamp.entrance is None:
-            continue
-        dx, dy = stamp.entrance.x, stamp.entrance.y
-        row = dy - 3  # 2 rows of rock buffer above the door
-        start_x = dx - len(label) // 2
-        for i, ch in enumerate(label):
-            x = start_x + i
-            if not (0 <= x < CITY_WIDTH and 0 <= row < CITY_HEIGHT):
-                continue
-            tile = game_map.tiles[row][x]
-            if tile.char == "#" and tile.kind == "city_building_wall":
-                game_map.tiles[row][x] = world.Tile(
-                    kind="city_building_wall", char=ch, walkable=False,
-                    fg=_ROCK_LABEL_FG, bg=tile.bg,
-                    blocked_message="Solid rock.",
-                )
-
-
-# ---------------------------------------------------------------------------
 # Build entry point
 # ---------------------------------------------------------------------------
 
@@ -269,20 +264,36 @@ def build_barnards_layout(spec, resolve_ship):
     theme = _readable_city_theme(DESERT)
     tiles = _base_tiles(theme)
     _paint_tunnels(tiles, theme)
-    _paint_accents(tiles, theme)
+    _paint_acents(tiles, theme)
+    _paint_doors_in_rock(tiles)
+    _paint_rock_inscriptions(tiles)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
     )
-    stamps = stamp_city_assets(
-        game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
-    )
-    _paint_building_forecourts(game_map.tiles, theme, spec)
     _paint_transit_bays(game_map.tiles, spec)
-    _paint_rock_inscriptions(game_map, stamps, "barnards_")
+    # Build fake stamps so building_records can find entrances.
+    stamps = _make_door_stamps()
     _set_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)
     return game_map
+
+
+def _make_door_stamps():
+    """Create CityLandmarkStamp entries for each building, keyed by its
+    stamped-id so building_records() can cross-reference them."""
+    stamps = {}
+    for start_x, label_y, door_x, door_y, label_str in _BUILDING_DEFS:
+        layout_id = "barnards_" + label_str.lower()
+        origin = world.Position(start_x, label_y)
+        stamp = CityLandmarkStamp(
+            layout_id=layout_id,
+            origin=origin,
+            footprint=frozenset({(door_x, door_y)}),
+            entrance=world.Position(door_x, door_y),
+        )
+        stamps[layout_id] = stamp
+    return stamps
 
 
 def _set_metadata(game_map, spec, stamps):
@@ -314,4 +325,4 @@ def _add_service_entities(game_map, spec, resolve_ship):
         ))
 
 
-__all__ = ["build_barnards_layout", "LANDMARK_ORIGINS"]
+__all__ = ["build_barnards_layout"]
