@@ -10,6 +10,7 @@ Layout (120×80):
   * landing pad scraped flat in the gap between them.
   * showcase ships parked on the apron above the pad, terminals below.
   * bar — The Salty Grave — dug into the southern rock shelf.
+  * smuggler's row — a contraband market south of the bar.
   * antenna forest on the northern ridge (non-enterable).
   * cave entrance (delve site) in the south-eastern wall.
   * scattered homestead shacks, barrel fires, and scrap heaps.
@@ -51,6 +52,10 @@ _CAVE_Y_LO, _CAVE_Y_HI = 66, 73
 # The landing pad — scraped-flat clearing in the gap between spaceport and depot.
 _PAD_X_LO, _PAD_X_HI = 34, 47
 _PAD_Y_LO, _PAD_Y_HI = 12, 20
+
+# Smuggler's Row — contraband market south of the bar.
+_MARKET_X_LO, _MARKET_X_HI = 6, 38
+_MARKET_Y_LO, _MARKET_Y_HI = 61, 69
 
 # Scrap-barrel fire colours — dim orange/red salvage lighting.
 _SCRAP_FIRE = world.Tile(
@@ -308,6 +313,29 @@ def _paint_shacks(tiles):
         _paint_shed(tiles, x, y, w, h, scheme_index)
 
 
+def _paint_market_row(tiles, theme):
+    """Smuggler's Row — a contraband market of jury-rigged stalls."""
+    # Paved market ground.
+    for y in range(_MARKET_Y_LO, _MARKET_Y_HI + 1):
+        for x in range(_MARKET_X_LO, _MARKET_X_HI + 1):
+            tiles[y][x] = theme.plaza
+    # Stalls — two rows of awnings with a walking aisle between.
+    # Top row of stalls (y = _MARKET_Y_LO + 1).
+    stall_y_north = _MARKET_Y_LO + 1
+    for x in range(_MARKET_X_LO + 2, _MARKET_X_HI - 1, 3):
+        tiles[stall_y_north][x] = theme.decor
+    # Bottom row of stalls (y = _MARKET_Y_HI - 1).
+    stall_y_south = _MARKET_Y_HI - 1
+    for x in range(_MARKET_X_LO + 2, _MARKET_X_HI - 1, 3):
+        tiles[stall_y_south][x] = theme.decor
+    # Centre beacon.
+    centre_x = (_MARKET_X_LO + _MARKET_X_HI) // 2
+    centre_y = (_MARKET_Y_LO + _MARKET_Y_HI) // 2
+    tiles[centre_y][centre_x] = theme.neon
+    # A barrel fire at the entrance.
+    tiles[_MARKET_Y_HI][(_MARKET_X_LO + _MARKET_X_HI) // 2] = _SCRAP_FIRE
+
+
 def _paint_building_forecourts(tiles, theme, spec):
     """Small cleared forecourt south of each door."""
     for building in spec.buildings:
@@ -340,6 +368,7 @@ def build_wolf_layout(spec, resolve_ship):
     _paint_paths(tiles, theme)
     _paint_antennas(tiles)
     _paint_cave_entrance(tiles)
+    _paint_market_row(tiles, theme)
     _paint_scraps(tiles)
     _paint_shacks(tiles)
     game_map = world.GameMap(

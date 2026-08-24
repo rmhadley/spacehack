@@ -465,6 +465,14 @@ def test_wolf_b_is_a_crater_pirate_outpost():
     assert shed_walls > 100
     # A cave entrance marks the delve site.
     assert any(tile.kind == "mine_shaft" for row in game_map.tiles for tile in row)
+    # Smuggler's Row — contraband market south of the bar.
+    stalls = sum(
+        tile.char == "♦" and tile.kind == "plaza"
+        for row in game_map.tiles for tile in row
+    )
+    assert stalls >= 20
+    # Centre beacon.
+    assert any(tile.kind == "neon" for row in game_map.tiles for tile in row)
 
 
 def test_wolf_b_buildings_transit_and_population_are_reachable():
