@@ -640,7 +640,28 @@ Pre-implementation audit (completed before code changes):
 - Earth is a 160x100 city that scrolls smoothly in the existing cell renderer.
 - The current Earth services and named NPC functionality remain available.
 - Districts and decoration make outdoor navigation readable and planet-themed.
+- Every city layout has a coherent civil-engineering plan: districts have
+  readable purposes, roads and sidewalks form intentional connected routes,
+  crossings are placed where routes need them, and terrain/empty space support
+  the settlement's stated identity rather than looking procedurally scattered.
+- Buildings never overwrite or block roads, sidewalks, bridge approaches,
+  transit approach cells, or building doors.
+- Every enterable building has a real exterior entrance, a valid interior
+  spawn, and an exit that returns to the corresponding exterior door area.
 - Transit is physical, named, free, and usable to move between core districts.
+  Each station is adjacent to, but not on, the sidewalk; does not block the
+  sidewalk or building door; and is on the same building side as the door it
+  serves.
+- Shipyard/spaceport landing aprons use a deliberate, low-noise floor under
+  ships and terminals. Generic `.` texture is omitted where it makes the pad
+  visually cluttered, while pad readability, collision, and landing anchors
+  remain intact.
+- Building roofs are complete, fit their footprints, and use restrained
+  readable labels or decoration. Decorative letters must not create accidental
+  words or visual noise, and no roof label may clip its first or last character.
+- Cities feel believable and remain immersive: infrastructure, buildings,
+  traffic, empty space, and NPC activity reinforce the settlement's theme and
+  scale instead of reading as arbitrary decoration.
 - Five core buildings load distinct cached interior maps with basic themed decoration.
 - Building exteriors and the plaza feature are supplied by swappable landmark
   assets with persisted ids and anchors.
@@ -654,6 +675,113 @@ Pre-implementation audit (completed before code changes):
   and renderer.
 - The in-game guide documents the new city interactions.
 - `make check` passes with focused regression coverage.
+
+## City authoring invariants
+
+These rules apply to every landable city, station, moon base, and other
+walkable planetary settlement. They are design constraints, not optional polish
+and not assumptions to be recovered from a screenshot after implementation.
+
+### 1. Plan the circulation before placing the buildings
+
+Each city must have an intentional human-readable plan before assets are
+stamped:
+
+- Define the city's districts, primary destinations, service routes, public
+  spaces, terrain constraints, and settlement edges.
+- Lay out the primary roads, sidewalks, bridges, ramps, and other circulation
+  routes first. They must connect the landing area, transit network, and every
+  enterable building without arbitrary dead ends or accidental chokepoints.
+- Place buildings inside the planned blocks or terraces afterward. A building
+  footprint must fit its assigned area and may not consume a road, sidewalk,
+  bridge approach, entrance tile, or required pedestrian clearance cell.
+- Leave intentional empty space for yards, plazas, landing safety zones,
+  wilderness, industrial separation, or sight lines. Empty space is part of the
+  plan, not evidence that the map needs more decoration.
+- Use the city's terrain and infrastructure to explain its shape. A canyon,
+  ring, river, crater, station deck, or coast must affect routes and zoning in
+  a way that is legible to a player.
+
+A city is not complete if its buildings are individually attractive but the
+routes between them do not make sense as a connected public layout.
+
+### 2. Building and entrance clearance
+
+For every enterable building:
+
+- The exterior roof/wall footprint must be complete and occupy only its
+  assigned building cells.
+- The building must expose a visible, walkable entrance.
+- The entrance must connect to a sidewalk, road, bridge, plaza, landing apron,
+  or other deliberately planned public route.
+- The building footprint and its entrance clearance must not overwrite or
+  block roads, sidewalks, transit stations, doors, bridge approaches, or the
+  only route to another destination.
+- The interior must place the player at a valid entry point and return the
+  player to the same exterior entrance area, not to an arbitrary offset.
+
+### 3. Transit placement
+
+Transit placement follows a strict relationship to the destination building:
+
+- A station must be on the same side of the building as the destination door.
+  "Near" is insufficient if the station requires the player to walk around the
+  building or approach from the opposite facade.
+- A station must be next to the sidewalk, but never occupy the sidewalk itself.
+- A station must not occupy the building door, its approach cell, or the
+  clearance needed to enter/exit the building.
+- Transit stops must not block roads, bridges, landing pads, or other required
+  circulation routes.
+- The station's name, id, destination, and rendered position must agree. A
+  spaceport stop is named `Spaceport`; city-specific names must be clear to a
+  player and stable in data.
+
+These relationships must be represented in city data and checked by tests;
+they must not depend on a visual convention or an agent remembering a prior
+city's placement.
+
+### 4. Landing-pad and shipyard clarity
+
+Shipyard landing aprons must reserve clear operational space around the
+player-owned ship, terminals, and visiting ships:
+
+- Do not texture the operational floor with repeated `.` glyphs when they
+  compete with ships, terminals, or player navigation.
+- Keep ships and terminals separated enough that the player ship is obvious,
+  the spaceport entrance is not blocked, and landing/launch anchors remain
+  usable.
+- Use themed floor tiles, blank floor, or restrained structural markings
+  instead of visual filler. Any markings must communicate a real function.
+
+### 5. Roof and facade quality
+
+Roofs and facades are authored architecture, not debug output:
+
+- Fill the entire declared footprint; no missing roof/wall tiles.
+- Keep roof labels crisp, centered or intentionally aligned, and fully inside
+  the roof footprint. Never clip the first or last character.
+- Use alphabetic glyphs only for intentional readable labels. Decorative
+  patterns must not form accidental words or repeated letter noise.
+- Keep labels and facade decoration restrained enough that the building reads
+  as a building before it reads as a sign.
+
+### 6. Immersion and plausibility review
+
+Before marking a city complete, review it as a place rather than as a set of
+passing coordinates:
+
+- Does the city communicate what it is, who built it, and why it occupies this
+  terrain?
+- Do building scale, district spacing, road hierarchy, transit placement,
+  landing operations, and NPC routes agree with one another?
+- Are important services easy to find without making every building or route
+  identical?
+- Does the map have enough activity to feel inhabited, with enough quiet space
+  to preserve readability and believable scale?
+- Would a human civil engineer accept the circulation plan and clearances?
+
+A city that passes reachability tests but fails this review is not done. Record
+any playtest correction in the city's Phase 6 entry before moving on.
 
 ## Open questions
 
@@ -684,15 +812,31 @@ network, authored interiors, and a living population.
 **Per-city checklist** (repeat for each planet):
 
 1. Choose a layout id and size appropriate to the planet's theme and role.
-2. Write a `*_city.py` layout module (or extend the generic builder) with
-   terrain painting, road grid, skyline, and decoration.
-3. Expand the `PlanetSpec`: buildings, transit stations, interior layouts,
+2. Write down the civil-engineering plan first: districts, terrain constraints,
+   road hierarchy, sidewalks, crossings, public spaces, building blocks,
+   landing operations, transit relationships, and intentional quiet areas.
+3. Paint the terrain and primary circulation routes before stamping buildings.
+   Roads, sidewalks, bridges, ramps, and plazas must connect the landing area,
+   transit network, and every enterable building without arbitrary chokepoints.
+4. Expand the `PlanetSpec`: buildings, transit stations, interior layouts,
    and NPC population — all data.
-4. Author exterior landmark assets (`*_spaceport.layout`, `*_bar.layout`, etc.)
+5. Author exterior landmark assets (`*_spaceport.layout`, `*_bar.layout`, etc.)
    and interior assets (`*_interior.layout`) for every enterable building.
-5. Verify: every door reachable from the pad, every transit stop off-road,
-   every NPC spawn on a walkable cell, every interior loads with spawn + exit.
-6. Run the full gate and commit.
+6. Verify every building has a complete, non-noisy roof, a visible entrance,
+   a valid interior spawn, and an exit returning to the same exterior door area.
+7. Verify no building footprint or entrance clearance blocks a road, sidewalk,
+   bridge approach, transit station, door, landing anchor, or required route.
+8. Verify every transit station is next to but not on the sidewalk, does not
+   block the sidewalk or door, and is on the same side of its destination
+   building as that building's entrance. Verify names and ids are player-clear.
+9. Verify shipyard/landing aprons keep operational floor space visually clean:
+   omit repeated `.` texture beneath ships and terminals when it adds noise,
+   keep the player ship obvious, and keep the spaceport entrance unblocked.
+10. Verify every NPC spawn is walkable and every required destination is
+    reachable. Then perform an immersion review: the layout must read as a
+    believable city shaped by its terrain, infrastructure, scale, and purpose.
+11. Add focused regression coverage for the city's geometry and these
+    authoring invariants, run the full gate, and commit.
 
 **Cities** (26 total, 6 done):
 
@@ -751,8 +895,21 @@ network, authored interiors, and a living population.
 
 **PLAYTEST** (after each city):
 
-1. Land, walk to every building, enter and exit each interior.
-2. Ride transit between all stops.
-3. Talk to ambient NPCs.
-4. Verify the city reads as thematically distinct from Earth and Mercury.
-5. Run `make check`.
+1. Land and walk the primary routes from the landing area through each district.
+   Confirm the road/sidewalk plan feels intentional and the terrain explains
+   the city's shape.
+2. Walk to every building and inspect each roof, facade, entrance, and door
+   approach. Confirm no route, sidewalk, or building tile is blocked.
+3. Enter and exit every interior; verify the return position is at the same
+   exterior entrance area.
+4. Ride transit between all stops. For each stop, approach the destination
+   building from the station side and confirm the station is beside, not on,
+   the sidewalk and does not block the door or route.
+5. Inspect the shipyard landing apron with ships and terminals present. Confirm
+   the player ship and spaceport entrance are obvious and the floor is not
+   cluttered with repeated `.` glyphs.
+6. Talk to ambient NPCs and observe their routes. Confirm activity feels
+   inhabited without turning the city into visual noise.
+7. Verify the city reads as thematically distinct, spatially plausible, and
+   believable as a place built by people.
+8. Run `make check`.
