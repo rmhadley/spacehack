@@ -187,11 +187,13 @@ def _paint_crater_floor(tiles, theme):
 
 def _paint_landing_pad(tiles, theme):
     """Scraped-flat landing pad in the gap between spaceport and depot."""
-    pad_tile = replace(theme.landing_pad, char=" ")
+    # Use a lighter scraped-rock bg so the pad reads clearly against
+    # the dark crater floor, but keep char=" " for entity readability.
+    pad_tile = replace(theme.landing_pad, char=" ", bg=(70, 78, 90))
     for y in range(_PAD_Y_LO, _PAD_Y_HI + 1):
         for x in range(_PAD_X_LO, _PAD_X_HI + 1):
             tiles[y][x] = pad_tile
-    # Paint two rows of sidewalk north of the pad for the showcase apron.
+    # Two rows of sidewalk north of the pad for the showcase apron.
     for y in range(_PAD_Y_LO - 2, _PAD_Y_LO):
         for x in range(_PAD_X_LO, _PAD_X_HI + 1):
             tiles[y][x] = theme.sidewalk
