@@ -319,19 +319,20 @@ def _paint_market_row(tiles, theme):
     for y in range(_MARKET_Y_LO, _MARKET_Y_HI + 1):
         for x in range(_MARKET_X_LO, _MARKET_X_HI + 1):
             tiles[y][x] = theme.plaza
-    # Stalls — two rows of awnings with a walking aisle between.
+    # Stall tile — sits on the plaza floor, not its own background.
+    stall = replace(theme.decor, bg=theme.plaza.bg)
     # Top row of stalls (y = _MARKET_Y_LO + 1).
     stall_y_north = _MARKET_Y_LO + 1
     for x in range(_MARKET_X_LO + 2, _MARKET_X_HI - 1, 3):
-        tiles[stall_y_north][x] = theme.decor
+        tiles[stall_y_north][x] = stall
     # Bottom row of stalls (y = _MARKET_Y_HI - 1).
     stall_y_south = _MARKET_Y_HI - 1
     for x in range(_MARKET_X_LO + 2, _MARKET_X_HI - 1, 3):
-        tiles[stall_y_south][x] = theme.decor
-    # Centre beacon.
+        tiles[stall_y_south][x] = stall
+    # Centre beacon — same treatment, sit on plaza floor.
     centre_x = (_MARKET_X_LO + _MARKET_X_HI) // 2
     centre_y = (_MARKET_Y_LO + _MARKET_Y_HI) // 2
-    tiles[centre_y][centre_x] = theme.neon
+    tiles[centre_y][centre_x] = replace(theme.neon, bg=theme.plaza.bg)
     # A barrel fire at the entrance.
     tiles[_MARKET_Y_HI][(_MARKET_X_LO + _MARKET_X_HI) // 2] = _SCRAP_FIRE
 
