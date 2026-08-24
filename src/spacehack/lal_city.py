@@ -46,7 +46,7 @@ _DEPOT_X_LO, _DEPOT_X_HI = 90, 109
 _DEPOT_Y_LO, _DEPOT_Y_HI = 10, 18
 
 _BAR_X_LO, _BAR_X_HI = 56, 76
-_BAR_Y_LO, _BAR_Y_HI = 56, 65
+_BAR_Y_LO, _BAR_Y_HI = 64, 73
 
 _BOUNTIES_X_LO, _BOUNTIES_X_HI = 8, 23
 _BOUNTIES_Y_LO, _BOUNTIES_Y_HI = 72, 82
@@ -114,24 +114,60 @@ _TOOL_ROOF = world.Tile(
 # Hull geometry — the Requiem's spine, diagonal across the map
 # ---------------------------------------------------------------------------
 
-# Each segment: (x_lo, x_hi, y_lo, y_hi)
-_HULL_SEGMENTS: tuple[tuple[int, int, int, int], ...] = (
-    # Bow section — crushed, exposed, upper-left.
-    (20, 40, 4, 16),
-    # Upper-fore deck — spaceport sits in/around this.
-    (30, 50, 16, 26),
-    # Mid-fore — stripped, iced-over.
-    (40, 58, 26, 38),
-    # Mid section — the bar is built into this segment.
-    (50, 70, 38, 52),
-    # Mid-aft — deeper in the ice.
-    (55, 75, 52, 64),
-    # Lower-aft — the bar's lower deck.
-    (60, 90, 64, 74),
-    # Aft section — crushed, buried.
-    (80, 110, 74, 84),
+# The Requiem's spine is a narrow, broken corridor of hull floor (▒)
+# ringed by fragmented hull walls (▓) with deliberate breaches.
+# Players walk through the wreck freely — walls are scattered debris,
+# not contiguous barriers.
+#
+# Each entry: (x_start, x_end, y_start, y_end) — a walkable hull-deck patch.
+# Walls are painted *around* some edges, but with gaps.
+_HULL_DECK_PATCHES: tuple[tuple[int, int, int, int], ...] = (
+    # Bow deck — crushed and exposed.
+    (18, 30, 6, 14),
+    # Upper-fore deck.
+    (30, 42, 16, 24),
+    # Mid-fore — stripped interior.
+    (42, 54, 28, 38),
+    # Mid section — bar is alongside this.
+    (54, 66, 42, 52),
+    # Mid-aft.
+    (60, 74, 56, 64),
+    # Lower-aft.
+    (72, 86, 68, 76),
+    # Aft section.
+    (84, 98, 78, 86),
     # Exposed stern plates.
-    (95, 125, 84, 92),
+    (100, 114, 86, 92),
+)
+
+# Hull wall fragments: (x, y, length, orientation).
+# "h" = horizontal span to the right; "v" = vertical span downward.
+# These are the broken ribs of the Requiem — never a solid line.
+_HULL_WALL_FRAGS: tuple[tuple[int, int, int, str], ...] = (
+    # Bow walls —  broken into chunks.
+    (18, 6, 3, "h"), (26, 14, 3, "h"),
+    (18, 6, 4, "v"), (30, 10, 4, "v"),
+    # Upper-fore.
+    (30, 16, 4, "h"), (36, 24, 3, "h"),
+    (30, 16, 4, "v"), (42, 20, 4, "v"),
+    # Mid-fore.
+    (42, 28, 4, "h"), (48, 38, 4, "h"),
+    (42, 28, 4, "v"), (54, 34, 3, "v"),
+    # Mid section.
+    (54, 42, 4, "h"), (60, 52, 3, "h"),
+    (54, 42, 4, "v"), (66, 48, 3, "v"),
+    # Mid-aft.
+    (60, 56, 4, "h"), (68, 64, 3, "h"),
+    (60, 56, 4, "v"), (74, 60, 3, "v"),
+    # Lower-aft.
+    (72, 68, 4, "h"), (80, 76, 4, "h"),
+    (72, 68, 4, "v"), (86, 72, 3, "v"),
+    # Aft.
+    (84, 78, 4, "h"), (92, 86, 3, "h"),
+    (84, 78, 4, "v"), (98, 82, 3, "v"),
+    # Stern.
+    (100, 86, 4, "h"), (108, 92, 4, "h"),
+    (100, 86, 3, "v"), (114, 88, 3, "v"),
 )
 
 # Salvage yard — open ground around the hull.
@@ -204,29 +240,34 @@ def _base_tiles(theme):
 # ---------------------------------------------------------------------------
 
 def _paint_hull(tiles):
-    """Paint the Requiem's diagonal hull segments — walls and interior."""
-    for x_lo, x_hi, y_lo, y_hi in _HULL_SEGMENTS:
-        # Hull walls.
+    """Paint the Requiem's skeletal spine — walkable deck with broken wall ribs."""
+    # 1. Paint walkable hull deck first.
+    for x_lo, x_hi, y_lo, y_hi in _HULL_DECK_PATCHES:
         for y in range(y_lo, y_hi + 1):
-            tiles[y][x_lo] = _HULL_WALL
-            tiles[y][x_hi] = _HULL_WALL
-        for x in range(x_lo + 1, x_hi):
-            tiles[y_lo][x] = _HULL_WALL
-            tiles[y_hi][x] = _HULL_WALL
-        # Interior floor — stripped deck plates.
-        for y in range(y_lo + 1, y_hi):
-            for x in range(x_lo + 1, x_hi):
-                tiles[y][x] = _HULL_FLOOR
-    # Frost crust patches — blown ice over the hull gaps.
+            for x in range(x_lo, x_hi + 1):
+                if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
+                    tiles[y][x] = _HULL_FLOOR
+    # 2. Paint broken wall fragments — never a solid line.
+    for wx, wy, length, orient in _HULL_WALL_FRAGS:
+        for i in range(length):
+            if orient == "h":
+                x, y = wx + i, wy
+            else:
+                x, y = wx, wy + i
+            if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
+                tiles[y][x] = _HULL_WALL
+    # 3. Frost crust on the gaps between deck patches.
     _crusts = (
-        (32, 50, 18, 24), (42, 56, 26, 28),
-        (52, 68, 52, 54), (62, 78, 64, 66),
+        (30, 42, 14, 16), (42, 54, 24, 28),
+        (54, 60, 38, 42), (66, 72, 52, 56),
+        (74, 84, 64, 68), (86, 100, 76, 78),
     )
     for x_lo, x_hi, y_lo, y_hi in _crusts:
         for y in range(y_lo, y_hi + 1):
             for x in range(x_lo, x_hi + 1):
-                if tiles[y][x].kind == "floor":
-                    tiles[y][x] = _FROST_CRUST
+                if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
+                    if tiles[y][x].kind == "floor":
+                        tiles[y][x] = _FROST_CRUST
 
 
 def _paint_docking_ring(tiles):

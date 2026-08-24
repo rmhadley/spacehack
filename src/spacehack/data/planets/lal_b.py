@@ -44,7 +44,7 @@ SPEC = PlanetSpec(
         ),
         world.CityBuilding(
             label="bar",
-            x_lo=56, x_hi=76, y_lo=56, y_hi=65,
+            x_lo=56, x_hi=76, y_lo=64, y_hi=73,
             door_x=66, npc_id="barkeep",
         ),
         world.CityBuilding(
@@ -68,7 +68,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="Deep Freeze", district="lower deck",
-            pos=world.Position(68, 67),
+            pos=world.Position(68, 75),
             destinations=("spaceport", "bounties", "depot"),
         ),
         world.TransitStation(
