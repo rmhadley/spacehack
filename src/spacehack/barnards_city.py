@@ -168,12 +168,23 @@ def _paint_doors_in_rock(tiles):
             kind="city_building_door", char="+", walkable=True,
             fg=_ROCK_DOOR_FG, bg=_SOLID_ROCK.bg,
         )
-        # Clear 3 forecourt cells below the door.
-        for fx in (door_x - 1, door_x, door_x + 1):
-            fy = door_y + 1
-            if 0 <= fy < CITY_HEIGHT and 0 <= fx < CITY_WIDTH:
-                if tiles[fy][fx].kind == "city_building_wall":
-                    tiles[fy][fx] = _ROCK_FLOOR
+        # Clear a 3-wide corridor from the door south until we hit
+        # walkable floor (the ring tunnel).  This connects the forecourt
+        # to the nearest tunnel so the door is reachable.
+        for fy in range(door_y + 1, CITY_HEIGHT):
+            reached_open = False
+            for fx in (door_x - 1, door_x, door_x + 1):
+                if 0 <= fx < CITY_WIDTH:
+                    t = tiles[fy][fx]
+                    if t.walkable or t.kind != "city_building_wall":
+                        reached_open = True
+            for fx in (door_x - 1, door_x, door_x + 1):
+                if 0 <= fx < CITY_WIDTH and 0 <= fy < CITY_HEIGHT:
+                    t = tiles[fy][fx]
+                    if t.kind == "city_building_wall":
+                        tiles[fy][fx] = _ROCK_FLOOR
+            if reached_open:
+                break
 
 
 def _paint_rock_inscriptions(tiles):
@@ -245,6 +256,8 @@ def _paint_acents(tiles, theme):
 
 
 def _paint_transit_bays(tiles, spec):
+    """Place transit bay tiles and carve small alcoves so the station
+    entity does not block the single-width ring tunnel."""
     bay_tile = world.Tile(
         kind="floor", char=".", walkable=True,
         fg=(140, 160, 180), bg=(70, 64, 58),
@@ -253,6 +266,14 @@ def _paint_transit_bays(tiles, spec):
         x, y = station.pos.x, station.pos.y
         if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
             tiles[y][x] = bay_tile
+        # Carve a 3×3 alcove around the station so players can walk
+        # past it even when the tunnel is only 1 cell tall.
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                nx, ny = x + dx, y + dy
+                if 0 <= ny < CITY_HEIGHT and 0 <= nx < CITY_WIDTH:
+                    if tiles[ny][nx].kind == "city_building_wall":
+                        tiles[ny][nx] = _ROCK_FLOOR
 
 
 # ---------------------------------------------------------------------------
