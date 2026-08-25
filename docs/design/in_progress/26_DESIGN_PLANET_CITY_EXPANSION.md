@@ -851,7 +851,7 @@ network, authored interiors, and a living population.
 - [x] Cygni b (`cygni_b`) — authored 160x100 port-and-forge colony: haul road, three forge factories, dock market, 4 buildings, 9 NPCs, 4 transit stops
 - [x] Barnard's Star b (`barnards_b`) — authored 120×100 underground mine colony: ring-and-spoke tunnels, 3 buildings carved into rock walls, metallic blue landing pad, 6 NPCs, 3 transit stops, ore veins and barrel fires
 - [ ] Barnard's Star c (`barnards_c`) — 2 buildings (spaceport, bar)
-- [ ] Ross b (`ross_b`) — 4 buildings (spaceport, bar, bounties, depot)
+- [x] Ross b (`ross_b`) — authored 120×80 volcanic pirate settlement: two lava channels with bridge crossings, obsidian ground, 4 buildings, 11 NPCs, 4 transit stops, Smuggler's Row market, contraband trade, and authored exteriors/interiors
 - [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
 - [ ] Tau Ceti b (`tc_b`) — 3 buildings (spaceport, bar, merchants)
 - [ ] Vega b (`vega_b`) — 3 buildings (spaceport, bar, merchants)
