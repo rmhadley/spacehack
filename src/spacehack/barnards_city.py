@@ -62,7 +62,7 @@ _WORK_LIGHT = world.Tile(
     fg=(200, 220, 255), bg=(30, 36, 46),
 )
 _LANDING_PAD = world.Tile(
-    kind="floor", char=".", walkable=True,
+    kind="floor", char=" ", walkable=True,
     fg=(160, 190, 220), bg=(50, 65, 85),
 )
 _ROCK_LABEL_FG = (235, 225, 200)
