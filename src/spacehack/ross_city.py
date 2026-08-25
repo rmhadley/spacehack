@@ -188,12 +188,10 @@ def _paint_roads(tiles, theme):
     _paint_line(tiles, 79, 62, _BOUNTIES_DOOR[0], 62, theme)
     # Junction: connect y=17 road up to y=14 road.
     _paint_line(tiles, 40, 17, 40, 14, theme)
-    # East junction → NE bridge crossing.
-    _paint_line(tiles, 40, 14, 87, 14, theme)
-    # NE bridge → bar door.
-    _paint_line(tiles, 87, 16, 87, _BAR_DOOR[1] + 1, theme)
-    _paint_line(tiles, 87, _BAR_DOOR[1] + 1, _BAR_DOOR[0], _BAR_DOOR[1] + 1, theme)
-    # East bridge crossing → depot door.
+    # East junction → east across second lava, then south to depot road.
+    _paint_line(tiles, 40, 14, 101, 14, theme)
+    _paint_line(tiles, 101, 14, 101, 28, theme)
+    # Depot road.
     _paint_line(tiles, 101, 28, 101, 52, theme)
     _paint_line(tiles, 101, 52, _DEPOT_DOOR[0], 52, theme)
 
