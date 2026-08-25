@@ -199,7 +199,7 @@ def _paint_roads(tiles, theme):
 
 def _paint_pad(tiles, theme):
     pad_tile = world.Tile(
-        kind="floor", char=".", walkable=True,
+        kind="landing_pad", char=".", walkable=True,
         fg=(60, 80, 120), bg=(50, 62, 85),
     )
     for y in range(_PAD_Y_LO, _PAD_Y_HI + 1):
