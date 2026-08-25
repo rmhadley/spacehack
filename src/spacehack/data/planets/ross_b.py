@@ -22,13 +22,13 @@ from ..city_npcs import ROSS_B_POPULATION
 _SPACEPORT_ORIGIN = (4, 1)
 _BAR_ORIGIN = (90, 1)
 _BOUNTIES_ORIGIN = (8, 56)
-_DEPOT_ORIGIN = (90, 56)
+_DEPOT_ORIGIN = (92, 56)
 
 # Door offsets within each layout (from the .layout file).
 _SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 11, _SPACEPORT_ORIGIN[1] + 8)
 _BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 8)
 _BOUNTIES_DOOR = (_BOUNTIES_ORIGIN[0] + 9, _BOUNTIES_ORIGIN[1] + 7)
-_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)
+_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 10, _DEPOT_ORIGIN[1])
 
 
 SPEC = PlanetSpec(
@@ -93,7 +93,7 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="depot", name="Depot", district="SE shelf",
             # Below the north-facing door (south of building).
-            pos=world.Position(_DEPOT_DOOR[0], _DEPOT_ORIGIN[1] + 10),
+            pos=world.Position(_DEPOT_DOOR[0], _DEPOT_ORIGIN[1] - 1),
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),

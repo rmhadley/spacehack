@@ -39,12 +39,12 @@ def _is_lava(x: int, y: int) -> bool:
 _SPACEPORT_ORIGIN = (4, 1)
 _BAR_ORIGIN = (90, 1)
 _BOUNTIES_ORIGIN = (8, 56)
-_DEPOT_ORIGIN = (90, 56)
+_DEPOT_ORIGIN = (92, 56)
 
 _SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 11, _SPACEPORT_ORIGIN[1] + 8)
 _BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 8)
 _BOUNTIES_DOOR = (_BOUNTIES_ORIGIN[0] + 9, _BOUNTIES_ORIGIN[1] + 7)
-_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)
+_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 10, _DEPOT_ORIGIN[1])
 
 _PAD_X_LO, _PAD_X_HI = 8, 22
 _PAD_Y_LO, _PAD_Y_HI = 14, 22
@@ -194,6 +194,7 @@ def _paint_roads(tiles, theme):
     # Depot road.
     _paint_line(tiles, 101, 28, 101, 52, theme)
     _paint_line(tiles, 101, 52, _DEPOT_DOOR[0], 52, theme)
+    _paint_line(tiles, _DEPOT_DOOR[0], 52, _DEPOT_DOOR[0], _DEPOT_DOOR[1] - 1, theme)
 
 
 
