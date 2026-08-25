@@ -201,21 +201,21 @@ BARNARDS_POPULATION: tuple[CityNpc, ...] = (
 )
 
 ROSS_B_POPULATION: tuple[CityNpc, ...] = (
-    # Pirates lounging near the bar.
-    CityNpc("ross_pirate_a", "civillian_bystander", (96, 22), wander_radius=6, move_chance=0.8),
-    CityNpc("ross_pirate_b", "civillian_bystander", (104, 24), wander_radius=6, move_chance=0.85),
+    # Pirates near the bar (NE zone, y=1..9).
+    CityNpc("ross_pirate_a", "civillian_bystander", (94, 12), wander_radius=6, move_chance=0.8),
+    CityNpc("ross_pirate_b", "civillian_bystander", (106, 14), wander_radius=6, move_chance=0.85),
     CityNpc("ross_pirate_c", "civillian_bystander", (92, 16), wander_radius=6, move_chance=0.8),
-    # Workers crossing the central zone.
-    CityNpc("ross_worker_a", "civillian_bystander", (44, 36), wander_radius=10, move_chance=0.9),
-    CityNpc("ross_worker_b", "civillian_bystander", (50, 46), wander_radius=10, move_chance=0.85),
-    CityNpc("ross_worker_c", "civillian_bystander", (60, 38), wander_radius=10, move_chance=0.85),
-    # Bounty hunters near the office.
-    CityNpc("ross_hunter_a", "militia_trooper", (14, 54), wander_radius=6, move_chance=0.8),
-    CityNpc("ross_hunter_b", "civillian_bystander", (22, 56), wander_radius=6, move_chance=0.85),
+    # Workers in the central zone (between channels).
+    CityNpc("ross_worker_a", "civillian_bystander", (40, 32), wander_radius=10, move_chance=0.9),
+    CityNpc("ross_worker_b", "civillian_bystander", (50, 44), wander_radius=10, move_chance=0.85),
+    CityNpc("ross_worker_c", "civillian_bystander", (60, 36), wander_radius=10, move_chance=0.85),
+    # Bounty hunters near the SW office.
+    CityNpc("ross_hunter_a", "militia_trooper", (14, 52), wander_radius=6, move_chance=0.8),
+    CityNpc("ross_hunter_b", "civillian_bystander", (22, 54), wander_radius=6, move_chance=0.85),
     # Pad crew on the landing platform.
-    CityNpc("ross_pad_crew", "civillian_bystander", (21, 18), wander_radius=90, move_chance=0.8),
-    # Depot operator.
-    CityNpc("ross_depot_hand", "civillian_bystander", (100, 56), wander_radius=6, move_chance=0.8),
+    CityNpc("ross_pad_crew", "civillian_bystander", (15, 18), wander_radius=90, move_chance=0.8),
+    # Depot operator (SE zone).
+    CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
 __all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION"]

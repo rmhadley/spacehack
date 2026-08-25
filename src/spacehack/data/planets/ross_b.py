@@ -1,23 +1,12 @@
 """Ross 154 b -- Ember, the pirate town at the end of the Sirius arm.
 
-Ross 154 is a flare star: violent eruptions that scramble scanners
-and blind patrols.  Nothing official exists this far out, and the
-flares are why -- the federation's eyes glaze over, so the pirates
-who elbowed their way past Sirius built a town here instead of
-getting caught.
-
-Ashfall is the system's lawless heart.  It burns hot, drinks cheap,
-and pays top credit for guns and anything that survived a flare:
-rare earths fused and forged by stellar fire.
-
 Layout (120x80, volcanic):
   * Two lava channels cutting diagonally across obsidian flats.
   * Cooled-crust bridges crossing the channels.
   * Spaceport on the NW basalt shelf.
-  * The Flare Line bar carved into a dormant vent on the NE shelf.
+  * The Flare Line bar on the NE shelf.
   * Bounty office on the SW shelf.
   * Depot on the SE shelf.
-  * Landing pad on a raised basalt platform.
 """
 
 from __future__ import annotations
@@ -29,6 +18,19 @@ from .themes import VOLCANIC
 from ..city_npcs import ROSS_B_POPULATION
 
 
+# Building positions must match ross_city.py exactly.
+_SPACEPORT_ORIGIN = (4, 1)
+_BAR_ORIGIN = (90, 1)
+_BOUNTIES_ORIGIN = (8, 56)
+_DEPOT_ORIGIN = (90, 56)
+
+# Door offsets within each layout (from the .layout file).
+_SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 11, _SPACEPORT_ORIGIN[1] + 8)
+_BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 8)
+_BOUNTIES_DOOR = (_BOUNTIES_ORIGIN[0] + 9, _BOUNTIES_ORIGIN[1] + 7)
+_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)
+
+
 SPEC = PlanetSpec(
     theme=VOLCANIC,
     id="ross_b",
@@ -38,24 +40,32 @@ SPEC = PlanetSpec(
     description="Ashfall - a pirate town on a flare-scorched volcanic world at the end of the arm.",
     width=120,
     height=80,
-    hangar_anchor=world.Position(21, 18),
+    hangar_anchor=world.Position(15, 18),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=8, x_hi=32, y_lo=10, y_hi=22,
-            door_x=20, npc_id="",
+            label="spaceport",
+            x_lo=_SPACEPORT_ORIGIN[0], x_hi=_SPACEPORT_ORIGIN[0] + 23,
+            y_lo=_SPACEPORT_ORIGIN[1], y_hi=_SPACEPORT_ORIGIN[1] + 8,
+            door_x=_SPACEPORT_DOOR[0], npc_id="",
         ),
         world.CityBuilding(
-            label="bar", x_lo=88, x_hi=112, y_lo=8, y_hi=18,
-            door_x=100, npc_id="barkeep",
+            label="bar",
+            x_lo=_BAR_ORIGIN[0], x_hi=_BAR_ORIGIN[0] + 20,
+            y_lo=_BAR_ORIGIN[1], y_hi=_BAR_ORIGIN[1] + 8,
+            door_x=_BAR_DOOR[0], npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="bounties", x_lo=8, x_hi=26, y_lo=55, y_hi=68,
-            door_x=17, npc_id="bounty_master",
+            label="bounties",
+            x_lo=_BOUNTIES_ORIGIN[0], x_hi=_BOUNTIES_ORIGIN[0] + 18,
+            y_lo=_BOUNTIES_ORIGIN[1], y_hi=_BOUNTIES_ORIGIN[1] + 7,
+            door_x=_BOUNTIES_DOOR[0], npc_id="bounty_master",
             door_north=True,
         ),
         world.CityBuilding(
-            label="depot", x_lo=88, x_hi=112, y_lo=55, y_hi=68,
-            door_x=100, npc_id="depot_attendant",
+            label="depot",
+            x_lo=_DEPOT_ORIGIN[0], x_hi=_DEPOT_ORIGIN[0] + 23,
+            y_lo=_DEPOT_ORIGIN[1], y_hi=_DEPOT_ORIGIN[1] + 8,
+            door_x=_DEPOT_DOOR[0], npc_id="depot_attendant",
             door_north=True,
         ),
     ),
@@ -64,22 +74,22 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="NW shelf",
-            pos=world.Position(20, 24),
+            pos=world.Position(_SPACEPORT_DOOR[0], _SPACEPORT_DOOR[1] + 2),
             destinations=("bar", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bar", name="The Flare Line", district="NE vent",
-            pos=world.Position(100, 20),
+            pos=world.Position(_BAR_DOOR[0], _BAR_DOOR[1] + 2),
             destinations=("spaceport", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Office", district="SW shelf",
-            pos=world.Position(17, 53),
+            pos=world.Position(_BOUNTIES_DOOR[0], _BOUNTIES_DOOR[1] - 2),
             destinations=("spaceport", "bar", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Depot", district="SE shelf",
-            pos=world.Position(100, 53),
+            pos=world.Position(_DEPOT_DOOR[0], _DEPOT_DOOR[1] - 2),
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),
