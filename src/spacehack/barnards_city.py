@@ -121,8 +121,8 @@ def _base_tiles(theme):
     return tiles
 
 
-_PAD_X_LO, _PAD_X_HI = 51, 69
-_PAD_Y_LO, _PAD_Y_HI = 41, 59
+_PAD_X_LO, _PAD_X_HI = 52, 68
+_PAD_Y_LO, _PAD_Y_HI = 42, 58
 
 
 def _paint_tunnels(tiles, theme):
