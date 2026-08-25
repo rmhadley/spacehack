@@ -122,7 +122,9 @@ def _base_tiles(theme):
 def _paint_road_cell(tiles, x, y, tile):
     if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
         t = tiles[y][x]
-        if t.kind not in {"city_building_wall", "neon"}:
+        if t.kind not in {"city_building_wall", "neon"} and not (
+            _PAD_X_LO <= x <= _PAD_X_HI and _PAD_Y_LO <= y <= _PAD_Y_HI
+        ):
             tiles[y][x] = tile
 
 
@@ -176,9 +178,7 @@ def _paint_lava(tiles):
 
 def _paint_roads(tiles, theme):
     """Roads go where they need to go. Bridges where they cross lava."""
-    # Pad south edge → NW bridge crossing.
-    _paint_line(tiles, 15, 23, 15, 14, theme)
-    # Pad right edge → south to central area.
+    # Pad right edge → central area.
     _paint_line(tiles, 23, 18, 40, 18, theme)
     _paint_line(tiles, 40, 18, 40, 40, theme)
     # Central area → SE bridge crossing.
