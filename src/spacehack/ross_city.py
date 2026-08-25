@@ -122,7 +122,7 @@ def _base_tiles(theme):
 def _paint_road_cell(tiles, x, y, tile):
     if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
         t = tiles[y][x]
-        if t.kind not in {"city_building_wall", "neon"} and not (
+        if t.kind != "city_building_wall" and not (
             _PAD_X_LO <= x <= _PAD_X_HI and _PAD_Y_LO <= y <= _PAD_Y_HI
         ):
             tiles[y][x] = tile
@@ -193,6 +193,9 @@ def _paint_roads(tiles, theme):
     _paint_line(tiles, 101, 14, 101, 28, theme)
     # Depot road.
     _paint_line(tiles, 101, 28, 101, 52, theme)
+    # West connector to bounties road.
+    _paint_line(tiles, 101, 52, 79, 52, theme)
+    _paint_line(tiles, 79, 52, 79, 61, theme)
     # Sidewalk from road to depot door (horizontal then south).
     for x in range(101, _DEPOT_DOOR[0] + 1):
         t = tiles[52][x]
