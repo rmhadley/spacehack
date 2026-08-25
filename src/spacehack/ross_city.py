@@ -181,16 +181,9 @@ def _paint_roads(tiles, theme):
     # Pad right edge → central area → south to bounties road.
     _paint_line(tiles, 23, 18, 40, 18, theme)
     _paint_line(tiles, 40, 18, 40, 60, theme)
-    # Bounties road east-west.
+    # Bounties road east-west, turns north to cross lava.
     _paint_line(tiles, 40, 62, 80, 62, theme)
-    # Round the T-intersection corners.
-    _paint_road_cell(tiles, 39, 61, theme.road_surface)
-    _paint_road_cell(tiles, 39, 63, theme.road_surface)
-    # Round the depot turn corner (east→north).
-    for x in range(75, 78):
-        _paint_road_cell(tiles, x, 60, theme.road_surface)
-    _paint_road_cell(tiles, 81, 61, theme.road_surface)
-    _paint_road_cell(tiles, 81, 63, theme.road_surface)
+    _paint_line(tiles, 80, 61, 80, 52, theme)
     # Bounties door.
     _paint_line(tiles, 40, 62, _BOUNTIES_DOOR[0], 62, theme)
     # Junction: connect y=17 road up to y=14 road.
@@ -201,8 +194,7 @@ def _paint_roads(tiles, theme):
     # Depot road.
     _paint_line(tiles, 101, 28, 101, 52, theme)
     # West connector to bounties road.
-    _paint_line(tiles, 101, 52, 79, 52, theme)
-    _paint_line(tiles, 79, 52, 79, 61, theme)
+    _paint_line(tiles, 101, 52, 80, 52, theme)
     # Sidewalk from road to depot door (horizontal then south).
     for x in range(101, _DEPOT_DOOR[0] + 1):
         t = tiles[52][x]
