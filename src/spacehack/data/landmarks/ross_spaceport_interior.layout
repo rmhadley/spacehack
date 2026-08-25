@@ -1,0 +1,18 @@
+# ross_spaceport_interior.layout - volcanic landing bay interior
+MAP
+######################
+#....................#
+#....................#
+#..........P.........#
+#....................#
+#....................#
+#....................#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: P = LANDMARK_ENTRANCE
+COLOUR: # = (90, 75, 65) / (35, 28, 22)
+COLOUR: . = (60, 50, 55) / (25, 20, 25)
+COLOUR: P = (255, 120, 40) / (40, 15, 8)

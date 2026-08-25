@@ -259,6 +259,23 @@ CANYON_SETTLEMENT = PlanetTheme(
     decor=T("plaza", "♦", (255, 174, 70), (112, 82, 54)),
 )
 
+# Volcanic world — deep black-purple obsidian, molten orange/red lava,
+# scorched basalt, and heat-glow accents.
+VOLCANIC = PlanetTheme(
+    floor=T("floor", ".", (48, 38, 52), (70, 58, 64)),
+    grass=T("grass", "#", (55, 42, 60), (70, 58, 64)),
+    grass_accent=T("grass", ",", (38, 28, 42), (70, 58, 64)),
+    plaza=T("plaza", "░", (80, 60, 72), (72, 60, 65)),
+    sidewalk=T("sidewalk", "▒", (65, 50, 62), (72, 60, 65)),
+    road_surface=T("road", ".", (58, 45, 55), (70, 58, 64)),
+    road_ns=T("road", ":", (72, 55, 48), (72, 60, 65)),
+    road_ew=T("road", "-", (72, 55, 48), (72, 60, 65)),
+    landing_pad=T("landing_pad", ".", (60, 80, 120), (50, 62, 85)),
+    neon=T("neon", "*", (255, 120, 40), (72, 48, 40)),
+    tree=T("tree", "\u2666", (180, 60, 20), (72, 48, 40)),
+    decor=T("plaza", "\u2666", (255, 100, 30), (72, 60, 65)),
+)
+
 RING_STATION = PlanetTheme(
     floor=T("ring_deck", ".", (172, 205, 220), (48, 68, 82)),
     grass=T("ring_deck", ".", (172, 205, 220), (48, 68, 82)),

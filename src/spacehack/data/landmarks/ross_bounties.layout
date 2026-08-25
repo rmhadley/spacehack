@@ -1,0 +1,18 @@
+# ross_bounties.layout - bounty office shack
+MAP
+###################
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#########+########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (80, 70, 62) / (30, 25, 20)
+COLOUR: = = (110, 95, 80) / (40, 32, 26)
+COLOUR: + = (255, 190, 110) / (45, 28, 14)

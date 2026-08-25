@@ -200,4 +200,22 @@ BARNARDS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("barnards_pad_crew", "civillian_bystander", (56, 46), wander_radius=8, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION"]
+ROSS_B_POPULATION: tuple[CityNpc, ...] = (
+    # Pirates lounging near the bar.
+    CityNpc("ross_pirate_a", "civillian_bystander", (96, 22), wander_radius=6, move_chance=0.8),
+    CityNpc("ross_pirate_b", "civillian_bystander", (104, 24), wander_radius=6, move_chance=0.85),
+    CityNpc("ross_pirate_c", "civillian_bystander", (92, 16), wander_radius=6, move_chance=0.8),
+    # Quarry workers crossing the lava field.
+    CityNpc("ross_worker_a", "civillian_bystander", (44, 40), wander_radius=12, move_chance=0.9),
+    CityNpc("ross_worker_b", "civillian_bystander", (70, 50), wander_radius=12, move_chance=0.85),
+    CityNpc("ross_worker_c", "civillian_bystander", (58, 60), wander_radius=10, move_chance=0.85),
+    # Bounty hunters near the office.
+    CityNpc("ross_hunter_a", "militia_trooper", (14, 52), wander_radius=6, move_chance=0.8),
+    CityNpc("ross_hunter_b", "civillian_bystander", (22, 58), wander_radius=6, move_chance=0.85),
+    # Pad crew on the landing platform.
+    CityNpc("ross_pad_crew", "civillian_bystander", (46, 18), wander_radius=90, move_chance=0.8),
+    # Depot operator.
+    CityNpc("ross_depot_hand", "civillian_bystander", (100, 60), wander_radius=6, move_chance=0.8),
+)
+
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION"]

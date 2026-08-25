@@ -1,22 +1,23 @@
-"""Ross 154 b — Ember, the pirate town at the end of the Sirius arm.
+"""Ross 154 b -- Ember, the pirate town at the end of the Sirius arm.
 
 Ross 154 is a flare star: violent eruptions that scramble scanners
-and blind patrols. Nothing official exists this far out, and the
-flares are why — the federation's eyes glaze over, so the pirates
+and blind patrols.  Nothing official exists this far out, and the
+flares are why -- the federation's eyes glaze over, so the pirates
 who elbowed their way past Sirius built a town here instead of
 getting caught.
 
-Ashfall is the system's lawless heart. It burns hot, drinks cheap,
+Ashfall is the system's lawless heart.  It burns hot, drinks cheap,
 and pays top credit for guns and anything that survived a flare:
 rare earths fused and forged by stellar fire.
 
-Layout (60x40), mirroring the frontier hubs:
-
-  * spaceport, NW corner.
-  * bar, NE corner — "The Flare Line" cantina.
-  * bounty office, SW — the same guild desk as everywhere, at
-    the same end of a lot of barrels.
-  * depot, SE — old miners' tanks, still full.
+Layout (120x80, volcanic):
+  * Two lava channels cutting diagonally across obsidian flats.
+  * Cooled-crust bridges crossing the channels.
+  * Spaceport on the NW basalt shelf.
+  * The Flare Line bar carved into a dormant vent on the NE shelf.
+  * Bounty office on the SW shelf.
+  * Depot on the SE shelf.
+  * Landing pad on a raised basalt platform.
 """
 
 from __future__ import annotations
@@ -24,43 +25,74 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-from .themes import DESERT
+from .themes import VOLCANIC
+from ..city_npcs import ROSS_B_POPULATION
 
 
 SPEC = PlanetSpec(
-    theme=DESERT,
+    theme=VOLCANIC,
     id="ross_b",
     name="Ember",
     char="p",
     fg=(200, 90, 50),
-    description="Ashfall - a pirate town on a flare-scorched world at the end of the arm.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    description="Ashfall - a pirate town on a flare-scorched volcanic world at the end of the arm.",
+    width=120,
+    height=80,
+    hangar_anchor=world.Position(46, 20),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport", x_lo=8, x_hi=32, y_lo=10, y_hi=22,
+            door_x=20, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar", x_lo=88, x_hi=112, y_lo=8, y_hi=18,
+            door_x=100, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="bounties",  x_lo=4,  x_hi=19, y_lo=26, y_hi=35,
-            door_x=11, npc_id="bounty_master",
+            label="bounties", x_lo=8, x_hi=26, y_lo=55, y_hi=68,
+            door_x=17, npc_id="bounty_master",
             door_north=True,
         ),
         world.CityBuilding(
-            label="depot",     x_lo=40, x_hi=55, y_lo=26, y_hi=35,
-            door_x=47, npc_id="depot_attendant",
+            label="depot", x_lo=88, x_hi=112, y_lo=55, y_hi=68,
+            door_x=100, npc_id="depot_attendant",
             door_north=True,
         ),
     ),
+    city_layout_id="ross_volcanic_settlement",
+    city_npc_population=ROSS_B_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="NW shelf",
+            pos=world.Position(20, 24),
+            destinations=("bar", "bounties", "depot"),
+        ),
+        world.TransitStation(
+            id="bar", name="The Flare Line", district="NE vent",
+            pos=world.Position(100, 20),
+            destinations=("spaceport", "bounties", "depot"),
+        ),
+        world.TransitStation(
+            id="bounties", name="Bounty Office", district="SW shelf",
+            pos=world.Position(17, 53),
+            destinations=("spaceport", "bar", "depot"),
+        ),
+        world.TransitStation(
+            id="depot", name="Depot", district="SE shelf",
+            pos=world.Position(100, 53),
+            destinations=("spaceport", "bar", "bounties"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "ross_spaceport_interior"),
+        ("bar", "ross_bar_interior"),
+        ("bounties", "ross_bounties_interior"),
+        ("depot", "ross_depot_interior"),
+    ),
     showroom_ships=(
-        ("hauler",   7, 2),
-        ("cruiser",  11, 4),
-        ("frigate",  15, 2),
+        ("hauler", 7, 2),
+        ("cruiser", 11, 4),
+        ("frigate", 15, 2),
     ),
     npc_overrides=(
         (
@@ -104,4 +136,8 @@ SPEC = PlanetSpec(
     ),
     tech_level=4,
     mission_tier=4,
+    quest_npc_spots=(
+        ("old_smuggler", "bar"),
+    ),
+    explorable_site_name="caves",
 )

@@ -1,0 +1,18 @@
+# ross_bar_interior.layout - The Flare Line interior
+MAP
+#####################
+#...................#
+#...................#
+#.........P.........#
+#...................#
+#...................#
+#...................#
+#####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: P = LANDMARK_ENTRANCE
+COLOUR: # = (100, 65, 45) / (42, 22, 12)
+COLOUR: . = (70, 50, 35) / (30, 18, 10)
+COLOUR: P = (255, 150, 60) / (55, 25, 10)
