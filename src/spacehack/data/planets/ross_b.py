@@ -38,7 +38,7 @@ SPEC = PlanetSpec(
     description="Ashfall - a pirate town on a flare-scorched volcanic world at the end of the arm.",
     width=120,
     height=80,
-    hangar_anchor=world.Position(46, 20),
+    hangar_anchor=world.Position(21, 18),
     buildings=(
         world.CityBuilding(
             label="spaceport", x_lo=8, x_hi=32, y_lo=10, y_hi=22,
@@ -90,9 +90,9 @@ SPEC = PlanetSpec(
         ("depot", "ross_depot_interior"),
     ),
     showroom_ships=(
-        ("hauler", 7, 2),
-        ("cruiser", 11, 4),
-        ("frigate", 15, 2),
+        ("hauler", 5, -2),
+        ("cruiser", -3, -2),
+        ("frigate", 0, -4),
     ),
     npc_overrides=(
         (

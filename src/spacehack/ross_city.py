@@ -1,18 +1,19 @@
 """Ross 154 b -- "Ashfall", a pirate town on a volcanic flare-star world.
 
-The ground glows.  Lava channels carve through obsidian flats, forcing
-navigation around molten rock.  Pirates built their town on whatever
-basalt shelf didn't move, stacking containers and corrugated shelters
-wherever the heat would let them.
+The ground glows.  Two lava channels cut diagonally across obsidian
+flats, forcing navigation around molten rock.  Pirates built their town
+on whatever basalt shelf didn't move, stacking containers and corrugated
+shelters wherever the heat would let them.
 
 Layout (120x80):
-  * Two lava channels running NE to SW, dividing the map into three zones.
-  * Cooled-crust bridges crossing the channels at three points.
-  * Spaceport on the NW basalt shelf.
-  * The Flare Line bar carved into a dormant vent on the NE shelf.
+  * Channel 1 (west): runs NW to SE through the map centre.
+  * Channel 2 (east): runs NE to SE in the upper-east quadrant.
+  * Cooled-crust bridges cross each channel at key crossing points.
+  * Spaceport + landing pad on the NW basalt shelf (safe zone).
+  * The Flare Line bar on the NE shelf, behind channel 2.
   * Bounty office on the SW shelf.
   * Depot on the SE shelf.
-  * Landing pad on a raised basalt platform in the NW zone.
+  * Roads link the bridges to every building.
   * Pirate shacks, barrel fires, and scorch marks throughout.
 """
 
@@ -36,43 +37,49 @@ CITY_HEIGHT = 80
 # Placement constants
 # ---------------------------------------------------------------------------
 
-_SPACEPORT_X_LO, _SPACEPORT_X_HI = 8, 32
+_SPACEPORT_X_LO, _SPACEPORT_X_HI = 8, 34
 _SPACEPORT_Y_LO, _SPACEPORT_Y_HI = 10, 22
-_BAR_X_LO, _BAR_X_HI = 88, 112
+_BAR_X_LO, _BAR_X_HI = 90, 112
 _BAR_Y_LO, _BAR_Y_HI = 8, 18
 _BOUNTIES_X_LO, _BOUNTIES_X_HI = 8, 26
 _BOUNTIES_Y_LO, _BOUNTIES_Y_HI = 55, 68
-_DEPOT_X_LO, _DEPOT_X_HI = 88, 112
+_DEPOT_X_LO, _DEPOT_X_HI = 90, 112
 _DEPOT_Y_LO, _DEPOT_Y_HI = 55, 68
 
-# Landing pad -- raised basalt platform in the NW zone.
-_PAD_X_LO, _PAD_X_HI = 38, 55
-_PAD_Y_LO, _PAD_Y_HI = 14, 26
+# Landing pad -- NW shelf, safely away from both channels.
+_PAD_X_LO, _PAD_X_HI = 14, 28
+_PAD_Y_LO, _PAD_Y_HI = 14, 22
 
 # ---------------------------------------------------------------------------
 # Lava channel geometry
 # ---------------------------------------------------------------------------
-# Channel 1: runs from upper-left to lower-right (NE to SW direction).
-# Channel 2: runs parallel, further east.
-# Both are impassable molten rock.
+# Channel 1: y = 0.75*x - 5  (runs NW to SE across the whole map)
+# Channel 2: y = 0.75*x - 45 (runs NE to SE, only in upper-east)
 
-def _in_lava_channel_1(x: int, y: int) -> bool:
-    """First lava channel: y roughly = 0.75*x - 5, width ~3."""
-    expected_y = 0.75 * x - 5
-    return abs(y - expected_y) <= 1.5
+def _ch1_x(y: int) -> float:
+    """Channel 1 centre x at a given y."""
+    return (y + 5) / 0.75
 
-def _in_lava_channel_2(x: int, y: int) -> bool:
-    """Second lava channel: y roughly = 0.75*x - 45, width ~3."""
-    expected_y = 0.75 * x - 45
-    return abs(y - expected_y) <= 1.5
+def _ch2_x(y: int) -> float:
+    """Channel 2 centre x at a given y."""
+    return (y + 45) / 0.75
 
-# Bridge crossings -- cooled crust over each channel at specific rows.
-# (channel, y_row, x_lo, x_hi)
+def _in_channel(x: int, y: int, ch_x_fn) -> bool:
+    cx = ch_x_fn(y)
+    return abs(x - cx) <= 1.8
+
+# ---------------------------------------------------------------------------
+# Bridge crossings -- cooled crust at points where channels are narrow.
+# (y_row, x_lo, x_hi, channel_fn)
+# ---------------------------------------------------------------------------
 _BRIDGES = (
-    (1, 20, 30, 38),   # Channel 1 bridge near spaceport
-    (1, 52, 68, 76),   # Channel 1 bridge mid-map
-    (2, 30, 62, 70),   # Channel 2 bridge near bar
-    (2, 60, 100, 108), # Channel 2 bridge near depot
+    # Channel 1 -- three crossings along its length.
+    (20, 28, 36, _ch1_x),    # NW bridge near spaceport
+    (40, 54, 64, _ch1_x),    # Central bridge
+    (55, 74, 84, _ch1_x),    # SE bridge near depot approach
+    # Channel 2 -- two crossings in the NE.
+    (18, 80, 90, _ch2_x),    # NE bridge near bar
+    (30, 94, 106, _ch2_x),   # East bridge near depot
 )
 
 # ---------------------------------------------------------------------------
@@ -89,14 +96,6 @@ _LAVA_GLOW = world.Tile(
     fg=(255, 180, 60), bg=(200, 80, 20),
     blocked_message="The lava glows white-hot.",
 )
-_OBSIDIAN = world.Tile(
-    kind="floor", char=".", walkable=True,
-    fg=(48, 38, 52), bg=(70, 58, 64),
-)
-_BASALT = world.Tile(
-    kind="floor", char=".", walkable=True,
-    fg=(60, 50, 55), bg=(70, 58, 64),
-)
 _COOLED_CRUST = world.Tile(
     kind="floor", char="=", walkable=True,
     fg=(85, 60, 50), bg=(72, 55, 50),
@@ -108,10 +107,6 @@ _SCRAP_FIRE = world.Tile(
 _HEAT_MARKER = world.Tile(
     kind="neon", char="*", walkable=True,
     fg=(255, 80, 30), bg=(86, 60, 52),
-)
-_SCORCH = world.Tile(
-    kind="floor", char=".", walkable=True,
-    fg=(55, 42, 50), bg=(70, 58, 64),
 )
 
 # Non-enterable structures
@@ -129,26 +124,26 @@ _SHACK_ROOF = world.Tile(
 # Pirate shack placements: (x, y, width, height)
 _SHACKS: tuple[tuple[int, int, int, int], ...] = (
     # NW zone -- near spaceport.
-    (12, 28, 5, 4), (28, 30, 4, 3), (44, 30, 5, 4),
+    (8, 28, 5, 4), (24, 28, 4, 3),
     # NE zone -- between channels.
-    (50, 8, 4, 3), (66, 12, 5, 4), (80, 6, 4, 3),
+    (50, 8, 4, 3), (66, 10, 5, 4), (74, 6, 4, 3),
     # SW zone -- near bounties.
-    (32, 56, 5, 4), (48, 60, 4, 3), (20, 70, 5, 4),
+    (32, 56, 5, 4), (44, 62, 4, 3), (16, 70, 5, 4),
     # SE zone -- near depot.
-    (72, 58, 5, 4), (88, 72, 4, 3), (104, 52, 5, 4),
+    (72, 58, 5, 4), (88, 68, 4, 3), (104, 52, 5, 4),
     # Along channel edges.
-    (36, 36, 4, 3), (78, 42, 5, 4), (56, 68, 4, 3),
+    (40, 34, 4, 3), (62, 44, 5, 4),
 )
 
-# Barrel fires and scorch marks: (x, y, is_fire)
+# Barrel fires and scrap: (x, y, is_fire)
 _SCRAPS: tuple[tuple[int, int, bool], ...] = (
-    (22, 24, True), (50, 10, True), (74, 16, True),
-    (100, 12, True), (40, 40, True), (80, 50, True),
+    (22, 24, True), (50, 12, True), (74, 16, True),
+    (100, 12, True), (40, 42, True), (80, 50, True),
     (16, 48, True), (60, 36, True), (92, 64, True),
-    (34, 66, True), (110, 44, True), (58, 22, True),
+    (34, 66, True), (110, 44, True), (58, 24, True),
     (26, 14, False), (68, 28, False), (86, 38, False),
     (46, 54, False), (104, 28, False), (18, 40, False),
-    (72, 70, False), (42, 46, False),
+    (72, 70, False),
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
@@ -189,27 +184,28 @@ def _paint_lava_channels(tiles):
     """Carve two diagonal lava channels across the obsidian field."""
     for y in range(CITY_HEIGHT):
         for x in range(CITY_WIDTH):
-            if _in_lava_channel_1(x, y) or _in_lava_channel_2(x, y):
-                # Core of the channel -- bright lava.
-                if abs(y - (0.75 * x - (5 if _in_lava_channel_1(x, y) else 45))) <= 0.8:
+            ch1 = _in_channel(x, y, _ch1_x)
+            ch2 = _in_channel(x, y, _ch2_x)
+            if ch1 or ch2:
+                cx = _ch1_x(y) if ch1 else _ch2_x(y)
+                if abs(x - cx) <= 0.9:
                     tiles[y][x] = _LAVA_GLOW
                 else:
                     tiles[y][x] = _LAVA
 
 
 def _paint_bridges(tiles):
-    """Place cooled-crust bridges over the lava channels."""
-    for ch, y_row, x_lo, x_hi in _BRIDGES:
+    """Place cooled-crust bridges where they actually cross the lava."""
+    for y_row, x_lo, x_hi, ch_x_fn in _BRIDGES:
         for x in range(x_lo, x_hi + 1):
             if 0 <= y_row < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
                 tiles[y_row][x] = _COOLED_CRUST
-                # Widen bridge to 2 cells for walkability.
                 if y_row + 1 < CITY_HEIGHT:
                     tiles[y_row + 1][x] = _COOLED_CRUST
 
 
 def _paint_landing_pad(tiles, theme):
-    """Raised basalt landing platform."""
+    """Raised basalt landing platform on the NW shelf."""
     pad_tile = world.Tile(
         kind="floor", char=".", walkable=True,
         fg=(60, 80, 120), bg=(50, 62, 85),
@@ -226,37 +222,66 @@ def _paint_landing_pad(tiles, theme):
                         tiles[y][x] = theme.sidewalk
 
 
-def _paint_paths(tiles, theme):
-    """Worn footpaths linking the pad to each building zone."""
-    # Pad -> spaceport (west).
-    _paint_worn_path(tiles, theme, _PAD_X_LO, _PAD_Y_LO + 6, _SPACEPORT_X_HI, _SPACEPORT_Y_LO + 6)
-    # Pad -> bar (east across channel 1 bridge).
-    _paint_worn_path(tiles, theme, _PAD_X_HI, _PAD_Y_LO + 4, 62, 22)
-    _paint_worn_path(tiles, theme, 62, 22, _BAR_X_LO, _BAR_Y_HI)
-    # Pad -> bounties (south).
-    _paint_worn_path(tiles, theme, _PAD_X_LO + 4, _PAD_Y_HI, _PAD_X_LO + 4, 42)
-    _paint_worn_path(tiles, theme, _PAD_X_LO + 4, 42, 18, _BOUNTIES_Y_LO)
-    # Pad -> depot (south-east).
-    _paint_worn_path(tiles, theme, _PAD_X_HI, _PAD_Y_HI, 70, 54)
-    _paint_worn_path(tiles, theme, 70, 54, _DEPOT_X_LO, _DEPOT_Y_LO + 6)
+def _h_road(tiles, x0, x1, y, tile):
+    """Horizontal road segment."""
+    for x in range(min(x0, x1), max(x0, x1) + 1):
+        if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
+            _paint_cell(tiles, x, y, tile)
 
 
-def _paint_worn_path(tiles, theme, x0, y0, x1, y1):
-    """Dither a worn trail between two points."""
-    dx = x1 - x0
-    dy = y1 - y0
-    steps = max(abs(dx), abs(dy))
-    if steps == 0:
-        return
-    for i in range(steps + 1):
-        t = i / steps
-        cx = round(x0 + dx * t)
-        cy = round(y0 + dy * t)
-        _paint_cell(tiles, cx, cy, theme.sidewalk)
-        if i % 4 == 1 and abs(dx) > abs(dy):
-            _paint_cell(tiles, cx, cy - 1, theme.sidewalk)
-        if i % 7 == 3 and abs(dy) > abs(dx):
-            _paint_cell(tiles, cx - 1, cy, theme.sidewalk)
+def _v_road(tiles, x, y0, y1, tile):
+    """Vertical road segment."""
+    for y in range(min(y0, y1), max(y0, y1) + 1):
+        if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
+            _paint_cell(tiles, x, y, tile)
+
+
+def _paint_north_roads(tiles, theme):
+    """Roads in the northern half: collectors, bridge approaches, pad."""
+    ew, ns = theme.road_ew, theme.road_ns
+    # Main east-west collector below pad.
+    _h_road(tiles, 8, 54, 28, ew)
+    _h_road(tiles, 64, 112, 28, ew)
+    # Pad to bridge at y=20.
+    _v_road(tiles, 32, 22, 28, ns)
+    _v_road(tiles, 33, 22, 28, ns)
+    _v_road(tiles, 21, 22, 28, ns)
+    _v_road(tiles, 22, 22, 28, ns)
+    # Central bridge approach y=28 to y=40.
+    _v_road(tiles, 58, 28, 40, ns)
+    _v_road(tiles, 59, 28, 40, ns)
+    # NE bridge approach y=18 to y=28.
+    _v_road(tiles, 84, 18, 28, ns)
+    _v_road(tiles, 85, 18, 28, ns)
+    # East bridge approach y=28 to y=34.
+    _v_road(tiles, 100, 28, 34, ns)
+    _v_road(tiles, 101, 28, 34, ns)
+    # NE approach to bar.
+    _v_road(tiles, 100, 18, 28, ns)
+    _v_road(tiles, 101, 18, 28, ns)
+
+
+def _paint_south_roads(tiles, theme):
+    """Roads in the southern half: collectors, bridge approaches."""
+    ew, ns = theme.road_ew, theme.road_ns
+    # South collector below channel 1.
+    _h_road(tiles, 8, 48, 52, ew)
+    _h_road(tiles, 84, 112, 52, ew)
+    # SE bridge approach y=40 to y=55.
+    _v_road(tiles, 78, 40, 55, ns)
+    _v_road(tiles, 79, 40, 55, ns)
+    # SW approach to bounties.
+    _v_road(tiles, 17, 52, 55, ns)
+    _v_road(tiles, 18, 52, 55, ns)
+    # SE approach to depot.
+    _v_road(tiles, 100, 52, 55, ns)
+    _v_road(tiles, 101, 52, 55, ns)
+
+
+def _paint_roads(tiles, theme):
+    """Wide roads connecting buildings to bridges and to each other."""
+    _paint_north_roads(tiles, theme)
+    _paint_south_roads(tiles, theme)
 
 
 def _paint_obsidian_variety(tiles):
@@ -267,9 +292,7 @@ def _paint_obsidian_variety(tiles):
         for x in range(2, CITY_WIDTH - 2):
             if tiles[y][x].kind == "floor" and tiles[y][x].char == ".":
                 if rng.random() < 0.04:
-                    tiles[y][x] = _SCORCH
-                elif rng.random() < 0.03:
-                    tiles[y][x] = _BASALT
+                    tiles[y][x] = _HEAT_MARKER
 
 
 def _paint_shack(tiles, x, y, w, h):
@@ -316,13 +339,12 @@ def _paint_heat_glow(tiles):
     for y in range(2, CITY_HEIGHT - 2):
         for x in range(2, CITY_WIDTH - 2):
             if tiles[y][x].kind in {"floor", "grass"} and tiles[y][x].char == ".":
-                # Check if any neighbor is lava.
                 for dx in (-1, 0, 1):
                     for dy in (-1, 0, 1):
                         nx, ny = x + dx, y + dy
                         if 0 <= ny < CITY_HEIGHT and 0 <= nx < CITY_WIDTH:
                             if tiles[ny][nx].char == "~" and tiles[ny][nx].fg[0] > 200:
-                                if rng.random() < 0.15:
+                                if rng.random() < 0.12:
                                     tiles[y][x] = _HEAT_MARKER
                                 break
 
@@ -347,7 +369,6 @@ def _paint_transit_bays(tiles, spec):
         x, y = station.pos.x, station.pos.y
         if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
             tiles[y][x] = bay_tile
-        # Widen the bay so transit doesn't block the path.
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
                 nx, ny = x + dx, y + dy
@@ -368,7 +389,7 @@ def build_ross_layout(spec, resolve_ship):
     _paint_bridges(tiles)
     _paint_obsidian_variety(tiles)
     _paint_landing_pad(tiles, theme)
-    _paint_paths(tiles, theme)
+    _paint_roads(tiles, theme)
     _paint_shacks(tiles)
     _paint_scraps(tiles)
     _paint_heat_glow(tiles)
