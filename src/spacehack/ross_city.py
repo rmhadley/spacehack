@@ -1,14 +1,14 @@
 """Ross 154 b -- "Ashfall", a pirate town on a volcanic flare-star world.
 
-Two lava channels cut diagonally across obsidian flats.  Roads are
-purpose-driven: each road takes you from one place to another, and
-turns into a bridge when crossing lava.
+Road and bridge system follows the Earth pattern exactly:
+- Full-length road corridors run the entire map
+- Bridges are road columns that cross lava, extending the corridor
+- The road grid is a connected network, not targeted paths
 
 Layout (120x80):
   * Channel 1: y = 0.75*x - 5, NW to SE.
   * Channel 2: y = 0.75*x - 45, NE quadrant.
   * Spaceport NW, bar NE, bounty office SW, depot SE.
-  * Pad below spaceport, roads connect pad-bridges-buildings.
 """
 
 from __future__ import annotations
@@ -52,16 +52,28 @@ _DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)
 
 _PAD_X_LO, _PAD_X_HI = 8, 22
 _PAD_Y_LO, _PAD_Y_HI = 14, 22
-_PAD_CX = (_PAD_X_LO + _PAD_X_HI) // 2
-_PAD_CY = (_PAD_Y_LO + _PAD_Y_HI) // 2
 
-# Bridge positions: (y_row, x_lo, x_hi)
-_BRIDGES = (
-    (14, 20, 28),   # NW bridge over channel 1.
-    (16, 82, 90),   # NE bridge over channel 2.
-    (40, 54, 64),   # Central bridge over channel 1.
-    (55, 74, 84),   # SE bridge over channel 1.
-    (28, 94, 106),  # East bridge over channel 2.
+# Road columns (N-S corridors): x positions for the 3-cell roads.
+# Each entry is (x_lo, x_mid, x_hi) where x_mid gets the lane tile.
+_ROAD_COLS = (
+    (24, 25, 26),    # NW bridge column.
+    (58, 59, 60),    # Central bridge column.
+    (78, 79, 80),    # SE bridge column.
+    (86, 87, 88),    # NE bridge column.
+    (100, 101, 102), # East bridge column.
+)
+# Road rows (E-W corridors): y positions for the 3-cell roads.
+_ROAD_ROWS = (
+    (25, 26, 27),    # Main collector below pad.
+    (53, 54, 55),    # South collector.
+)
+# Bridge crossings: (center_x, y_lo, y_hi) -- where columns cross lava.
+_BRIDGE_CROSSINGS = (
+    (25, 14, 15),    # NW bridge over channel 1.
+    (59, 40, 41),    # Central bridge over channel 1.
+    (79, 55, 56),    # SE bridge over channel 1.
+    (87, 16, 17),    # NE bridge over channel 2.
+    (101, 28, 29),   # East bridge over channel 2.
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
@@ -134,37 +146,20 @@ def _base_tiles(theme):
     return tiles
 
 
-def _paint_cell(tiles, x, y, tile):
-    """Paint only on open ground -- never on lava, walls, or pads."""
+def _paint_road_cell(tiles, x, y, tile):
+    """Paint a road cell only on non-lava ground (like Earth's pattern)."""
     if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
         t = tiles[y][x]
-        if t.kind in {"floor", "grass"} and t.char == ".":
+        if t.kind not in {"city_building_wall", "neon"}:
             tiles[y][x] = tile
 
 
-def _paint_road_h(tiles, x0, x1, y, theme):
-    """Horizontal 3-cell road."""
-    road, lane = theme.road_surface, theme.road_ew
-    for x in range(min(x0, x1), max(x0, x1) + 1):
-        _paint_cell(tiles, x, y - 1, road)
-        _paint_cell(tiles, x, y, lane)
-        _paint_cell(tiles, x, y + 1, road)
-
-
-def _paint_road_v(tiles, x, y0, y1, theme):
-    """Vertical 3-cell road."""
-    road, lane = theme.road_surface, theme.road_ns
-    for y in range(min(y0, y1), max(y0, y1) + 1):
-        _paint_cell(tiles, x - 1, y, road)
-        _paint_cell(tiles, x, y, lane)
-        _paint_cell(tiles, x + 1, y, road)
-
-
 # ---------------------------------------------------------------------------
-# Painters
+# Painters -- following Earth's exact pattern
 # ---------------------------------------------------------------------------
 
 def _paint_lava(tiles):
+    """Paint lava channels (like Earth's water)."""
     for y in range(CITY_HEIGHT):
         for x in range(CITY_WIDTH):
             ch1 = abs(x - _ch1_x(y)) <= 1.8
@@ -175,41 +170,49 @@ def _paint_lava(tiles):
 
 
 def _paint_roads(tiles, theme):
-    """Purpose-driven roads painted BEFORE pad and bridges."""
-    # Pad south edge down to NW bridge.
-    _paint_road_v(tiles, _PAD_CX, _PAD_Y_HI + 1, 14, theme)
-    # Pad right edge south, then east to central bridge.
-    _paint_road_v(tiles, _PAD_X_HI + 1, _PAD_CY, 38, theme)
-    _paint_road_h(tiles, _PAD_X_HI + 1, 59, 38, theme)
-    _paint_road_v(tiles, 59, 38, 40, theme)
-    # Central bridge south to SE bridge.
-    _paint_road_v(tiles, 59, 42, 55, theme)
-    # SE bridge south then west to bounties.
-    _paint_road_v(tiles, 79, 57, 62, theme)
-    _paint_road_h(tiles, 79, _BOUNTIES_DOOR[0], 62, theme)
-    # NW bridge east to NE bridge.
-    _paint_road_h(tiles, 28, 82, 16, theme)
-    # NE bridge south then east to bar door.
-    _paint_road_v(tiles, 86, 18, 11, theme)
-    _paint_road_h(tiles, 86, _BAR_DOOR[0], 11, theme)
-    # East bridge south then east to depot door.
-    _paint_road_v(tiles, 100, 30, 52, theme)
-    _paint_road_h(tiles, 100, _DEPOT_DOOR[0], 52, theme)
-    # Spaceport door south to pad.
-    _paint_road_v(tiles, _SPACEPORT_DOOR[0], _SPACEPORT_DOOR[1] + 1, _PAD_Y_LO - 1, theme)
+    """Full-length road corridors (like Earth's road grid)."""
+    road, lane_ns, lane_ew = theme.road_surface, theme.road_ns, theme.road_ew
+    # N-S corridors (run entire map height).
+    for x_lo, x_mid, x_hi in _ROAD_COLS:
+        for y in range(3, CITY_HEIGHT - 2):
+            _paint_road_cell(tiles, x_lo, y, road)
+            _paint_road_cell(tiles, x_mid, y, lane_ns)
+            _paint_road_cell(tiles, x_hi, y, road)
+    # E-W corridors (run entire map width).
+    for y_lo, y_mid, y_hi in _ROAD_ROWS:
+        for x in range(3, CITY_WIDTH - 2):
+            _paint_road_cell(tiles, x, y_lo, road)
+            _paint_road_cell(tiles, x, y_mid, lane_ew)
+            _paint_road_cell(tiles, x, y_hi, road)
 
 
-def _paint_bridges(tiles):
-    """Bridge crossings over lava (overwrite roads and lava)."""
-    for y_row, x_lo, x_hi in _BRIDGES:
-        for y in range(y_row, y_row + 2):
-            for x in range(x_lo, x_hi + 1):
-                if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-                    tiles[y][x] = city_tiles.CITY_BRIDGE
+def _paint_bridges(tiles, theme):
+    """Bridges cross lava AND extend road columns (like Earth's pattern)."""
+    for center_x, y_lo, y_hi in _BRIDGE_CROSSINGS:
+        bridge_xs = range(center_x - 1, center_x + 2)
+        # Find lava rows in this column.
+        lava_rows = [
+            y for y in range(1, CITY_HEIGHT - 1)
+            if any(tiles[y][x].char == "~" for x in bridge_xs)
+        ]
+        if not lava_rows:
+            continue
+        # Bridge spans the lava plus one cell on each bank.
+        bridge_rows = range(min(lava_rows) - 1, max(lava_rows) + 2)
+        for y in bridge_rows:
+            for x in bridge_xs:
+                tiles[y][x] = city_tiles.CITY_BRIDGE
+        # Extend road along the entire bridge column (like Earth does).
+        for y in range(4, CITY_HEIGHT - 2):
+            for x in bridge_xs:
+                t = tiles[y][x]
+                if t.kind in {"city_building_wall", "neon", "city_bridge"}:
+                    continue
+                tiles[y][x] = theme.road_surface
 
 
 def _paint_pad(tiles, theme):
-    """Landing pad (overwrite roads underneath)."""
+    """Landing pad (like Earth's -- painted last, overwrites roads)."""
     pad_tile = world.Tile(
         kind="floor", char=".", walkable=True,
         fg=(60, 80, 120), bg=(50, 62, 85),
@@ -321,10 +324,8 @@ def build_ross_layout(spec, resolve_ship):
     tiles = _base_tiles(theme)
     _paint_lava(tiles)
     _paint_variety(tiles)
-    # Roads first, then bridges overwrite where they cross lava,
-    # then pad overwrites where it sits.
     _paint_roads(tiles, theme)
-    _paint_bridges(tiles)
+    _paint_bridges(tiles, theme)
     _paint_pad(tiles, theme)
     _paint_shacks(tiles)
     _paint_scraps(tiles)
