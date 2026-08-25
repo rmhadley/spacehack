@@ -181,6 +181,9 @@ def _paint_roads(tiles, theme):
     # Pad right edge → central area → south to bounties road.
     _paint_line(tiles, 23, 18, 40, 18, theme)
     _paint_line(tiles, 40, 18, 40, 61, theme)
+    # Bounties road east-west.
+    _paint_line(tiles, 40, 61, 80, 61, theme)
+    _paint_line(tiles, 40, 62, 80, 62, theme)
     # Bounties door.
     _paint_line(tiles, 40, 62, _BOUNTIES_DOOR[0], 62, theme)
     # Junction: connect y=17 road up to y=14 road.
