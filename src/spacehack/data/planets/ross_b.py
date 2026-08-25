@@ -93,7 +93,7 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="depot", name="Depot", district="SE shelf",
             # Below the north-facing door (south of building).
-            pos=world.Position(_DEPOT_DOOR[0], _DEPOT_ORIGIN[1] - 1),
+            pos=world.Position(_DEPOT_DOOR[0] + 1, _DEPOT_ORIGIN[1] - 1),
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),
