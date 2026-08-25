@@ -1,24 +1,21 @@
 """Ross 154 b -- "Ashfall", a pirate town on a volcanic flare-star world.
 
 Two lava channels cut diagonally across obsidian flats.  Pirates built
-their town on basalt shelves on either side, crossing the channels on
-cooled-crust bridges.
+their town on basalt shelves, crossing the channels on cooled-crust
+bridges.  Roads follow the same 3-cell corridor convention as Earth.
 
 Layout (120x80):
-  * Channel 1 (west): y = 0.75*x - 5, NW to SE across the whole map.
-  * Channel 2 (east): y = 0.75*x - 45, NE quadrant only.
-  * Cooled-crust bridges cross each channel.
-  * Spaceport (24x9) on the NW shelf, above the pad.
-  * Landing pad below the spaceport, clear of lava.
-  * Bar (21x9) on the NE shelf, east of channel 2.
-  * Bounty office (19x8) on the SW shelf.
-  * Depot (24x9) on the SE shelf.
-  * Roads connect bridges to buildings.
+  * Channel 1 (west): y = 0.75*x - 5, NW to SE.
+  * Channel 2 (east): y = 0.75*x - 45, NE quadrant.
+  * Cooled-crust bridges cross each channel at key points.
+  * Spaceport on the NW shelf, landing pad below it.
+  * Bar on the NE shelf, bounty office SW, depot SE.
+  * 3-cell-wide roads with sidewalks connecting everything.
 """
 
 from __future__ import annotations
 
-from . import world
+from . import city_tiles, world
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -48,21 +45,17 @@ def _in_channel(x: int, y: int, ch_x_fn) -> bool:
 # ---------------------------------------------------------------------------
 # Building positions (origin = top-left of the layout stamp)
 # ---------------------------------------------------------------------------
-# Spaceport layout: 24x9, door at (11, 8) relative to origin.
-# Bar layout: 21x9, door at (10, 8).
-# Bounties layout: 19x8, door at (9, 7).
-# Depot layout: 24x9, door at (11, 8).
+# Layout sizes: spaceport 24x9, bar 21x9, bounties 19x8, depot 24x9.
 
-_SPACEPORT_ORIGIN = (4, 1)     # covers x=4..27, y=1..9
-_BAR_ORIGIN = (90, 1)          # covers x=90..110, y=1..9
-_BOUNTIES_ORIGIN = (8, 56)     # covers x=8..26, y=56..63
-_DEPOT_ORIGIN = (90, 56)       # covers x=90..113, y=56..63
+_SPACEPORT_ORIGIN = (4, 1)
+_BAR_ORIGIN = (90, 1)
+_BOUNTIES_ORIGIN = (8, 56)
+_DEPOT_ORIGIN = (90, 56)
 
-# Absolute door positions (origin + layout-relative door).
-_SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 11, _SPACEPORT_ORIGIN[1] + 8)  # (15, 9)
-_BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 8)                    # (100, 9)
-_BOUNTIES_DOOR = (_BOUNTIES_ORIGIN[0] + 9, _BOUNTIES_ORIGIN[1] + 7)     # (17, 63)
-_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)             # (101, 64)
+_SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 11, _SPACEPORT_ORIGIN[1] + 8)
+_BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 8)
+_BOUNTIES_DOOR = (_BOUNTIES_ORIGIN[0] + 9, _BOUNTIES_ORIGIN[1] + 7)
+_DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)
 
 # Landing pad -- below spaceport, above channel 1.
 _PAD_X_LO, _PAD_X_HI = 8, 22
@@ -70,11 +63,11 @@ _PAD_Y_LO, _PAD_Y_HI = 14, 22
 
 # Bridge crossings: (y_row, x_lo, x_hi, channel_fn)
 _BRIDGES = (
-    (14, 20, 28, _ch1_x),    # NW bridge near pad
-    (40, 54, 64, _ch1_x),    # Central bridge
-    (55, 74, 84, _ch1_x),    # SE bridge
-    (16, 82, 90, _ch2_x),    # NE bridge near bar
-    (28, 94, 106, _ch2_x),   # East bridge near depot
+    (14, 20, 28, _ch1_x),
+    (40, 54, 64, _ch1_x),
+    (55, 74, 84, _ch1_x),
+    (16, 82, 90, _ch2_x),
+    (28, 94, 106, _ch2_x),
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
@@ -98,10 +91,6 @@ _LAVA_GLOW = world.Tile(
     fg=(255, 180, 60), bg=(200, 80, 20),
     blocked_message="The lava glows white-hot.",
 )
-_COOLED_CRUST = world.Tile(
-    kind="floor", char="=", walkable=True,
-    fg=(85, 60, 50), bg=(72, 55, 50),
-)
 _SCRAP_FIRE = world.Tile(
     kind="neon", char="○", walkable=True,
     fg=(240, 130, 50), bg=(72, 48, 40),
@@ -110,7 +99,6 @@ _HEAT_MARKER = world.Tile(
     kind="neon", char="*", walkable=True,
     fg=(255, 80, 30), bg=(86, 60, 52),
 )
-
 _SHACK_WALL = world.Tile(
     kind="city_building_wall", char="#", walkable=False,
     fg=(90, 75, 65), bg=(35, 28, 22),
@@ -122,13 +110,11 @@ _SHACK_ROOF = world.Tile(
     blocked_message="The corrugated roof blocks your path.",
 )
 
-# Pirate shacks: (x, y, w, h)
 _SHACKS: tuple[tuple[int, int, int, int], ...] = (
     (30, 30, 5, 4), (44, 34, 4, 3), (56, 44, 5, 4),
     (68, 26, 4, 3), (38, 50, 4, 3), (72, 52, 5, 4),
     (108, 30, 4, 3), (108, 50, 4, 3), (40, 66, 4, 3),
 )
-
 _SCRAPS: tuple[tuple[int, int, bool], ...] = (
     (30, 12, True), (50, 26, True), (70, 18, True),
     (90, 28, True), (42, 42, True), (80, 48, True),
@@ -154,10 +140,11 @@ def _base_tiles(theme):
     return tiles
 
 
-def _safe_paint(tiles, x, y, tile):
-    """Paint only on plain '.' floor -- never overwrite lava, bridges, etc."""
+def _paint_road_cell(tiles, x, y, tile):
+    """Paint a road cell only on non-lava, non-bridge ground."""
     if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-        if tiles[y][x].kind == "floor" and tiles[y][x].char == ".":
+        t = tiles[y][x]
+        if t.kind not in {"city_building_wall", "neon"} and t.char != "~":
             tiles[y][x] = tile
 
 
@@ -176,12 +163,13 @@ def _paint_lava(tiles):
 
 
 def _paint_bridges(tiles):
+    """Cooled-crust bridges crossing the lava channels."""
     for y_row, x_lo, x_hi, _ in _BRIDGES:
         for x in range(x_lo, x_hi + 1):
             if 0 <= y_row < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-                tiles[y_row][x] = _COOLED_CRUST
+                tiles[y_row][x] = city_tiles.CITY_BRIDGE
                 if y_row + 1 < CITY_HEIGHT:
-                    tiles[y_row + 1][x] = _COOLED_CRUST
+                    tiles[y_row + 1][x] = city_tiles.CITY_BRIDGE
 
 
 def _paint_pad(tiles, theme):
@@ -203,44 +191,59 @@ def _paint_pad(tiles, theme):
 
 
 def _paint_roads(tiles, theme):
-    ew, ns = theme.road_ew, theme.road_ns
-    # Spaceport door south to pad.
-    for y in range(_SPACEPORT_DOOR[1] + 1, _PAD_Y_LO):
-        _safe_paint(tiles, _SPACEPORT_DOOR[0], y, ns)
-    # Pad south to bridge approach.
-    for y in range(_PAD_Y_HI + 1, 26):
-        _safe_paint(tiles, _PAD_X_HI, y, ns)
-    # Horizontal collector at y=26.
-    for x in range(8, 50):
-        _safe_paint(tiles, x, 26, ew)
-    # NW bridge approach down to y=26.
-    for y in range(16, 26):
-        _safe_paint(tiles, 24, y, ns)
-    # Central bridge approach y=26 to y=40.
-    for y in range(26, 42):
-        _safe_paint(tiles, 58, y, ns)
-        _safe_paint(tiles, 59, y, ns)
-    # SE bridge approach y=40 to y=55.
-    for y in range(40, 57):
-        _safe_paint(tiles, 78, y, ns)
-        _safe_paint(tiles, 79, y, ns)
-    # NE bridge approach y=16 up to bar.
-    for y in range(11, 18):
-        _safe_paint(tiles, 86, y, ns)
-        _safe_paint(tiles, 87, y, ns)
-    # East bridge approach y=28 down to depot.
-    for y in range(28, 56):
-        _safe_paint(tiles, 100, y, ns)
-        _safe_paint(tiles, 101, y, ns)
-    # South collector at y=54 (west and east segments).
-    for x in range(8, 40):
-        _safe_paint(tiles, x, 54, ew)
-    for x in range(86, 112):
-        _safe_paint(tiles, x, 54, ew)
-    # Building approaches (south collector to doors).
-    for bx, y_hi in (_BOUNTIES_DOOR, _DEPOT_DOOR):
-        for y in range(54, y_hi):
-            _safe_paint(tiles, bx, y, ns)
+    """3-cell-wide road corridors connecting bridges to buildings."""
+    road, lane_ns, lane_ew = theme.road_surface, theme.road_ns, theme.road_ew
+    # Main east-west collector at y=26 (below pad, above channel 1).
+    for y in (25, 26, 27):
+        for x in range(8, 112):
+            _paint_road_cell(tiles, x, y, lane_ew if y == 26 else road)
+    # South collector at y=54.
+    for y in (53, 54, 55):
+        for x in range(8, 112):
+            _paint_road_cell(tiles, x, y, lane_ew if y == 54 else road)
+    # North-south: pad to collector (x=15,16,17).
+    for x in (14, 15, 16):
+        for y in range(_PAD_Y_HI + 1, 25):
+            _paint_road_cell(tiles, x, y, lane_ns if x == 15 else road)
+    # N-S: spaceport door to collector (x=15,16,17).
+    for x in (14, 15, 16):
+        for y in range(_SPACEPORT_DOOR[1] + 1, 25):
+            _paint_road_cell(tiles, x, y, lane_ns if x == 15 else road)
+    # N-S: central bridge approach (x=58,59,60).
+    for x in (58, 59, 60):
+        for y in range(27, 40):
+            _paint_road_cell(tiles, x, y, lane_ns if x == 59 else road)
+    # N-S: SE bridge approach (x=78,79,80).
+    for x in (78, 79, 80):
+        for y in range(40, 53):
+            _paint_road_cell(tiles, x, y, lane_ns if x == 79 else road)
+    # N-S: NE bridge to bar (x=86,87,88).
+    for x in (86, 87, 88):
+        for y in range(11, 25):
+            _paint_road_cell(tiles, x, y, lane_ns if x == 87 else road)
+    # N-S: east bridge to depot (x=100,101,102).
+    for x in (100, 101, 102):
+        for y in range(28, 53):
+            _paint_road_cell(tiles, x, y, lane_ns if x == 101 else road)
+
+
+def _paint_sidewalks(tiles, theme):
+    """2-cell sidewalks alongside every road corridor."""
+    sw = theme.sidewalk
+    # Along E-W collectors.
+    for y in (23, 24, 28, 29, 51, 52, 56, 57):
+        for x in range(8, 112):
+            _paint_road_cell(tiles, x, y, sw)
+    # Along N-S corridors.
+    for x_off in (-2, -1, 2, 3):
+        for corridor_x in (15, 59, 79, 87, 101):
+            x = corridor_x + x_off
+            if x_off < 0:
+                y_range = range(11, 25) if corridor_x in (15, 87) else range(25, 53)
+            else:
+                y_range = range(11, 25) if corridor_x in (15, 87) else range(25, 53)
+            for y in y_range:
+                _paint_road_cell(tiles, x, y, sw)
 
 
 def _paint_variety(tiles):
@@ -335,20 +338,15 @@ def _paint_transit_bays(tiles, spec):
 def build_ross_layout(spec, resolve_ship):
     theme = _readable_city_theme(VOLCANIC)
     tiles = _base_tiles(theme)
-    # 1. Lava and bridges first (impassable terrain).
     _paint_lava(tiles)
     _paint_bridges(tiles)
-    # 2. Variety and heat markers on remaining floor.
     _paint_variety(tiles)
-    # 3. Landing pad (on clear floor, no lava overlap).
     _paint_pad(tiles, theme)
-    # 4. Roads (only on plain floor, never on lava/bridges/pad).
     _paint_roads(tiles, theme)
-    # 5. Shacks and debris (on remaining floor).
+    _paint_sidewalks(tiles, theme)
     _paint_shacks(tiles)
     _paint_scraps(tiles)
     _paint_heat_glow(tiles)
-    # 6. Build map, then stamp buildings (overwrites anything underneath).
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -356,7 +354,6 @@ def build_ross_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
-    # 7. Forecourts and transit bays (on remaining floor near doors).
     _paint_forecourts(game_map.tiles, theme, spec)
     _paint_transit_bays(game_map.tiles, spec)
     paint_roof_labels(game_map, stamps, "ross_")
