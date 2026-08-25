@@ -22,7 +22,7 @@ from ..city_npcs import ROSS_B_POPULATION
 _SPACEPORT_ORIGIN = (4, 1)
 _BAR_ORIGIN = (90, 1)
 _BOUNTIES_ORIGIN = (8, 56)
-_DEPOT_ORIGIN = (92, 56)
+_DEPOT_ORIGIN = (94, 56)
 
 # Door offsets within each layout (from the .layout file).
 _SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 11, _SPACEPORT_ORIGIN[1] + 8)
