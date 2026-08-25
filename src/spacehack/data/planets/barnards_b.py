@@ -34,8 +34,8 @@ SPEC = PlanetSpec(
     buildings=(
         world.CityBuilding(
             label="spaceport",
-            x_lo=73, x_hi=81, y_lo=0, y_hi=2,
-            door_x=77, npc_id="",
+            x_lo=55, x_hi=65, y_lo=38, y_hi=40,
+            door_x=60, npc_id="",
         ),
         world.CityBuilding(
             label="bar",
@@ -53,7 +53,7 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="outer ring",
-            pos=world.Position(77, 7),
+            pos=world.Position(62, 42),
             destinations=("bar", "depot"),
         ),
         world.TransitStation(
