@@ -1,16 +1,14 @@
 """Ross 154 b -- "Ashfall", a pirate town on a volcanic flare-star world.
 
-Two lava channels cut diagonally across obsidian flats.  Pirates built
-their town on basalt shelves, crossing the channels on cooled-crust
-bridges.  Worn footpaths link the pad to each bridge and building.
+Two lava channels cut diagonally across obsidian flats.  Roads follow
+the Epsilon pattern: 3-cell corridors with bridge crossings painted as
+part of the road system.  Buildings stamp on top.
 
 Layout (120x80):
-  * Channel 1 (west): y = 0.75*x - 5, NW to SE.
-  * Channel 2 (east): y = 0.75*x - 45, NE quadrant.
-  * Cooled-crust bridges cross each channel.
-  * Spaceport on the NW shelf, landing pad below it.
-  * Bar on the NE shelf, bounty office SW, depot SE.
-  * Worn footpaths connecting pad to bridges to buildings.
+  * Channel 1: y = 0.75*x - 5, NW to SE.
+  * Channel 2: y = 0.75*x - 45, NE quadrant.
+  * 3-cell road corridors with bridge crossings over lava.
+  * Spaceport NW, bar NE, bounty office SW, depot SE.
 """
 
 from __future__ import annotations
@@ -45,8 +43,6 @@ def _in_channel(x: int, y: int, ch_x_fn) -> bool:
 # ---------------------------------------------------------------------------
 # Building positions
 # ---------------------------------------------------------------------------
-# Layout sizes: spaceport 24x9, bar 21x9, bounties 19x8, depot 24x9.
-
 _SPACEPORT_ORIGIN = (4, 1)
 _BAR_ORIGIN = (90, 1)
 _BOUNTIES_ORIGIN = (8, 56)
@@ -57,19 +53,29 @@ _BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 8)
 _BOUNTIES_DOOR = (_BOUNTIES_ORIGIN[0] + 9, _BOUNTIES_ORIGIN[1] + 7)
 _DEPOT_DOOR = (_DEPOT_ORIGIN[0] + 11, _DEPOT_ORIGIN[1] + 8)
 
-# Landing pad -- below spaceport, above channel 1.
 _PAD_X_LO, _PAD_X_HI = 8, 22
 _PAD_Y_LO, _PAD_Y_HI = 14, 22
-_PAD_CX = (_PAD_X_LO + _PAD_X_HI) // 2
-_PAD_CY = (_PAD_Y_LO + _PAD_Y_HI) // 2
 
-# Bridge crossings: (y_row, x_lo, x_hi, channel_fn)
-_BRIDGES = (
-    (14, 20, 28, _ch1_x),
-    (40, 54, 64, _ch1_x),
-    (55, 74, 84, _ch1_x),
-    (16, 82, 90, _ch2_x),
-    (28, 94, 106, _ch2_x),
+# Road rows: (y_lo, y_mid, y_hi) -- 3-cell corridors.
+_ROAD_ROWS = (
+    (25, 26, 27),   # Main E-W collector below pad.
+    (53, 54, 55),   # South collector.
+)
+# Road columns: (x_lo, x_mid, x_hi) -- 3-cell corridors.
+_ROAD_COLS = (
+    (14, 15, 16),   # Pad/Spaceport N-S.
+    (58, 59, 60),   # Central bridge N-S.
+    (78, 79, 80),   # SE bridge N-S.
+    (86, 87, 88),   # NE bridge N-S.
+    (100, 101, 102), # East bridge N-S.
+)
+# Bridge crossings: (y_row, x_lo, x_hi).
+_BRIDGE_CROSSINGS = (
+    (14, 20, 28),   # NW bridge over channel 1.
+    (40, 54, 64),   # Central bridge over channel 1.
+    (55, 74, 84),   # SE bridge over channel 1.
+    (16, 82, 90),   # NE bridge over channel 2.
+    (28, 94, 106),  # East bridge over channel 2.
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
@@ -143,31 +149,10 @@ def _base_tiles(theme):
 
 
 def _paint_cell(tiles, x, y, tile):
-    """Paint only on plain floor -- never on lava, bridges, buildings."""
+    """Paint only on open settlement ground -- never on lava, walls, etc."""
     if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-        t = tiles[y][x]
-        if t.kind == "floor" and t.char == ".":
+        if tiles[y][x].kind in {"floor", "grass"}:
             tiles[y][x] = tile
-
-
-def _paint_worn_path(tiles, theme, x0, y0, x1, y1):
-    """Dither a 2-cell-wide worn footpath between two points."""
-    dx = x1 - x0
-    dy = y1 - y0
-    steps = max(abs(dx), abs(dy))
-    if steps == 0:
-        return
-    sw = theme.sidewalk
-    for i in range(steps + 1):
-        t = i / steps
-        cx = round(x0 + dx * t)
-        cy = round(y0 + dy * t)
-        _paint_cell(tiles, cx, cy, sw)
-        if i % 4 == 1:
-            if abs(dx) > abs(dy):
-                _paint_cell(tiles, cx, cy - 1, sw)
-            else:
-                _paint_cell(tiles, cx - 1, cy, sw)
 
 
 # ---------------------------------------------------------------------------
@@ -182,15 +167,6 @@ def _paint_lava(tiles):
             if ch1 or ch2:
                 cx = _ch1_x(y) if ch1 else _ch2_x(y)
                 tiles[y][x] = _LAVA_GLOW if abs(x - cx) <= 0.9 else _LAVA
-
-
-def _paint_bridges(tiles):
-    for y_row, x_lo, x_hi, _ in _BRIDGES:
-        for x in range(x_lo, x_hi + 1):
-            if 0 <= y_row < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-                tiles[y_row][x] = city_tiles.CITY_BRIDGE
-                if y_row + 1 < CITY_HEIGHT:
-                    tiles[y_row + 1][x] = city_tiles.CITY_BRIDGE
 
 
 def _paint_pad(tiles, theme):
@@ -211,26 +187,40 @@ def _paint_pad(tiles, theme):
                         tiles[y][x] = theme.sidewalk
 
 
-def _paint_paths(tiles, theme):
-    """Worn footpaths linking the pad to bridges and buildings."""
-    # Pad to NW bridge (y=14, x=24).
-    _paint_worn_path(tiles, theme, _PAD_CX, _PAD_Y_HI + 1, 24, 14)
-    # Pad to central bridge (y=40, x=59).
-    _paint_worn_path(tiles, theme, _PAD_X_HI, _PAD_CY, 50, 30)
-    _paint_worn_path(tiles, theme, 50, 30, 59, 40)
-    # Central bridge to SE bridge (y=55, x=79).
-    _paint_worn_path(tiles, theme, 59, 42, 79, 55)
-    # NW bridge to NE bridge (y=16, x=86).
-    _paint_worn_path(tiles, theme, 28, 16, 86, 16)
-    # NE bridge to bar door.
-    _paint_worn_path(tiles, theme, 86, 18, _BAR_DOOR[0], _BAR_DOOR[1] + 1)
-    # East bridge to depot door.
-    _paint_worn_path(tiles, theme, 100, 30, _DEPOT_DOOR[0], _DEPOT_DOOR[1] - 1)
-    # SE bridge to bounties door.
-    _paint_worn_path(tiles, theme, 79, 57, _BOUNTIES_DOOR[0], _BOUNTIES_DOOR[1] - 1)
-    # Spaceport door to pad.
-    _paint_worn_path(tiles, theme, _SPACEPORT_DOOR[0], _SPACEPORT_DOOR[1] + 1,
-                     _PAD_CX, _PAD_Y_LO - 1)
+def _paint_roads(tiles, theme):
+    """3-cell road corridors with bridge crossings over lava."""
+    road, lane_ns, lane_ew = theme.road_surface, theme.road_ns, theme.road_ew
+    # E-W collectors.
+    for y_lo, y_mid, y_hi in _ROAD_ROWS:
+        for x in range(3, CITY_WIDTH - 2):
+            _paint_cell(tiles, x, y_lo, road)
+            _paint_cell(tiles, x, y_mid, lane_ew)
+            _paint_cell(tiles, x, y_hi, road)
+    # N-S corridors.
+    for x_lo, x_mid, x_hi in _ROAD_COLS:
+        for y in range(3, CITY_HEIGHT - 2):
+            _paint_cell(tiles, x_lo, y, road)
+            _paint_cell(tiles, x_mid, y, lane_ns)
+            _paint_cell(tiles, x_hi, y, road)
+    # Bridge crossings over lava (paint directly on lava tiles).
+    for y_row, x_lo, x_hi in _BRIDGE_CROSSINGS:
+        for y in range(y_row, y_row + 2):
+            for x in range(x_lo, x_hi + 1):
+                if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
+                    tiles[y][x] = city_tiles.CITY_BRIDGE
+
+
+def _paint_sidewalks(tiles, theme):
+    """2-cell sidewalks alongside road corridors."""
+    sw = theme.sidewalk
+    for y_lo, _y_mid, y_hi in _ROAD_ROWS:
+        for x in range(3, CITY_WIDTH - 2):
+            for y in (y_lo - 2, y_lo - 1, y_hi + 1, y_hi + 2):
+                _paint_cell(tiles, x, y, sw)
+    for x_lo, _x_mid, x_hi in _ROAD_COLS:
+        for y in range(3, CITY_HEIGHT - 2):
+            for x in (x_lo - 2, x_lo - 1, x_hi + 1, x_hi + 2):
+                _paint_cell(tiles, x, y, sw)
 
 
 def _paint_variety(tiles):
@@ -246,7 +236,7 @@ def _paint_variety(tiles):
 def _paint_shack(tiles, x, y, w, h):
     if not all(
         0 <= by < CITY_HEIGHT and 0 <= bx < CITY_WIDTH
-        and tiles[by][bx].kind == "floor" and tiles[by][bx].char == "."
+        and tiles[by][bx].kind in {"floor", "grass"}
         for by in range(y, y + h) for bx in range(x, x + w)
     ):
         return
@@ -268,7 +258,7 @@ def _paint_scraps(tiles):
     )
     for x, y, is_fire in _SCRAPS:
         if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-            if tiles[y][x].kind == "floor" and tiles[y][x].char == ".":
+            if tiles[y][x].kind in {"floor", "grass"}:
                 tiles[y][x] = _SCRAP_FIRE if is_fire else heap
 
 
@@ -278,7 +268,7 @@ def _paint_heat_glow(tiles):
     for y in range(2, CITY_HEIGHT - 2):
         for x in range(2, CITY_WIDTH - 2):
             t = tiles[y][x]
-            if t.kind == "floor" and t.char == ".":
+            if t.kind in {"floor", "grass"}:
                 for dx in (-1, 0, 1):
                     for dy in (-1, 0, 1):
                         nx, ny = x + dx, y + dy
@@ -296,7 +286,7 @@ def _paint_forecourts(tiles, theme, spec):
         for x in range(building.door_x - 1, building.door_x + 2):
             if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
                 t = tiles[y][x]
-                if t.kind == "floor" and t.char == ".":
+                if t.kind in {"floor", "grass"}:
                     tiles[y][x] = theme.sidewalk
 
 
@@ -314,7 +304,7 @@ def _paint_transit_bays(tiles, spec):
                 nx, ny = x + dx, y + dy
                 if 0 <= ny < CITY_HEIGHT and 0 <= nx < CITY_WIDTH:
                     t = tiles[ny][nx]
-                    if t.kind == "floor" and t.char == ".":
+                    if t.kind in {"floor", "grass"}:
                         tiles[ny][nx] = bay
 
 
@@ -326,10 +316,10 @@ def build_ross_layout(spec, resolve_ship):
     theme = _readable_city_theme(VOLCANIC)
     tiles = _base_tiles(theme)
     _paint_lava(tiles)
-    _paint_bridges(tiles)
     _paint_variety(tiles)
     _paint_pad(tiles, theme)
-    _paint_paths(tiles, theme)
+    _paint_roads(tiles, theme)
+    _paint_sidewalks(tiles, theme)
     _paint_shacks(tiles)
     _paint_scraps(tiles)
     _paint_heat_glow(tiles)
