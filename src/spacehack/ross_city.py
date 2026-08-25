@@ -69,11 +69,13 @@ _ROAD_ROWS = (
 )
 # Bridge crossings: (center_x, y_lo, y_hi) -- where columns cross lava.
 _BRIDGE_CROSSINGS = (
-    (25, 14, 15),    # NW bridge over channel 1.
-    (59, 40, 41),    # Central bridge over channel 1.
-    (79, 55, 56),    # SE bridge over channel 1.
-    (87, 16, 17),    # NE bridge over channel 2.
-    (101, 28, 29),   # East bridge over channel 2.
+    (25, 14, 15),    # NW bridge over channel 1 (N-S column).
+    (59, 40, 41),    # Central bridge over channel 1 (N-S column).
+    (79, 55, 56),    # SE bridge over channel 1 (N-S column).
+    (87, 16, 17),    # NE bridge over channel 2 (N-S column).
+    (101, 28, 29),   # East bridge over channel 2 (N-S column).
+    (41, 25, 27),    # E-W bridge over channel 1 (y=25-27).
+    (79, 53, 55),    # E-W bridge over channel 1 (y=53-55).
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
