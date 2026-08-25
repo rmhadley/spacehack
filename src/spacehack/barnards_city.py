@@ -77,7 +77,7 @@ _DRIFT_ANGLES = tuple(math.radians(a) for a in (0, 60, 120, 180, 240, 300))
 # Each: (label_start_x, label_row_y, door_x, door_y, label_str)
 _BUILDING_DEFS = (
     # Spaceport — above landing pad, south-facing door.
-    (56, 39, 60, 40, "SPACEPORT"),
+    (56, 38, 60, 40, "SPACEPORT"),
     # The Ember cantina — mid ring left, south-facing.
     (20, 45, 21, 47, "BAR"),
     # Salvage depot — outer ring right, south-facing.
