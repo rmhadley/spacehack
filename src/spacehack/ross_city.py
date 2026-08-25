@@ -194,9 +194,11 @@ def _paint_roads(tiles, theme):
     # East bridge crossing → depot door.
     _paint_line(tiles, 101, 28, 101, 52, theme)
     _paint_line(tiles, 101, 52, _DEPOT_DOOR[0], 52, theme)
-    # Spaceport door → pad.
-    _paint_line(tiles, _SPACEPORT_DOOR[0], _SPACEPORT_DOOR[1] + 1,
-                _SPACEPORT_DOOR[0], _PAD_Y_LO - 1, theme)
+    # Spaceport door → pad (sidewalk).
+    for y in range(_PAD_Y_LO - 1, _SPACEPORT_DOOR[1] + 2):
+        t = tiles[y][_SPACEPORT_DOOR[0]]
+        if t.kind in {"floor", "grass"}:
+            tiles[y][_SPACEPORT_DOOR[0]] = theme.sidewalk
 
 
 def _paint_pad(tiles, theme):
