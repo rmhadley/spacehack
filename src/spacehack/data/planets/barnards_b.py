@@ -58,12 +58,12 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="bar", name="The Ember", district="mid ring",
-            pos=world.Position(21, 50),
+            pos=world.Position(21, 51),
             destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Salvage Depot", district="outer ring",
-            pos=world.Position(100, 50),
+            pos=world.Position(100, 51),
             destinations=("spaceport", "bar"),
         ),
     ),
