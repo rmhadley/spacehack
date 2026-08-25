@@ -186,7 +186,8 @@ def _paint_roads(tiles, theme):
     # Round the T-intersection corners.
     _paint_road_cell(tiles, 39, 61, theme.road_surface)
     _paint_road_cell(tiles, 39, 63, theme.road_surface)
-    # Round the depot turn corner.
+    # Round the depot turn corner (east→north).
+    _paint_road_cell(tiles, 75, 60, theme.road_surface)
     _paint_road_cell(tiles, 81, 61, theme.road_surface)
     _paint_road_cell(tiles, 81, 63, theme.road_surface)
     # Bounties door.
