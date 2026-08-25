@@ -193,8 +193,11 @@ def _paint_roads(tiles, theme):
     _paint_line(tiles, 101, 14, 101, 28, theme)
     # Depot road.
     _paint_line(tiles, 101, 28, 101, 52, theme)
-    _paint_line(tiles, 101, 52, _DEPOT_DOOR[0], 52, theme)
-    # Sidewalk from road to depot door.
+    # Sidewalk from road to depot door (horizontal then south).
+    for x in range(101, _DEPOT_DOOR[0] + 1):
+        t = tiles[52][x]
+        if t.kind in {"floor", "grass"}:
+            tiles[52][x] = theme.sidewalk
     for y in range(52, _DEPOT_DOOR[1]):
         t = tiles[y][_DEPOT_DOOR[0]]
         if t.kind in {"floor", "grass"}:
