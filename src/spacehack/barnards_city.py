@@ -121,8 +121,8 @@ def _base_tiles(theme):
     return tiles
 
 
-_PAD_X_LO, _PAD_X_HI = 51, 69
-_PAD_Y_LO, _PAD_Y_HI = 41, 59
+_PAD_X_LO, _PAD_X_HI = 52, 68
+_PAD_Y_LO, _PAD_Y_HI = 42, 58
 
 
 def _paint_tunnels(tiles, theme):
@@ -139,6 +139,16 @@ def _paint_tunnels(tiles, theme):
             if _on_drift(x, y, _DRIFT_WIDTH / 2):
                 if tiles[y][x].kind == "city_building_wall":
                     tiles[y][x] = _ROCK_FLOOR
+
+    # Carve floor in the gap between the old pad boundary and the
+    # new smaller pad, so rock walls stay put but the exposed cells
+    # become walkable ground instead of solid rock.
+    _old_pad_lo, _old_pad_hi_x = 51, 69
+    _old_pad_lo_y, _old_pad_hi_y = 41, 59
+    for y in range(_old_pad_lo_y, _old_pad_hi_y + 1):
+        for x in range(_old_pad_lo, _old_pad_hi_x + 1):
+            if tiles[y][x].kind == "city_building_wall":
+                tiles[y][x] = _ROCK_FLOOR
 
     # Landing pad — the elevator deck at centre.
     for y in range(_PAD_Y_LO, _PAD_Y_HI + 1):
