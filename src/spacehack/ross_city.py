@@ -178,14 +178,11 @@ def _paint_lava(tiles):
 
 def _paint_roads(tiles, theme):
     """Roads go where they need to go. Bridges where they cross lava."""
-    # Pad right edge → central area.
+    # Pad right edge → central area → south to bounties road.
     _paint_line(tiles, 23, 18, 40, 18, theme)
-    _paint_line(tiles, 40, 18, 40, 40, theme)
-    # Central area → SE bridge crossing.
-    _paint_line(tiles, 40, 40, 79, 55, theme)
-    # SE bridge → bounties door.
-    _paint_line(tiles, 79, 57, 79, 62, theme)
-    _paint_line(tiles, 79, 62, _BOUNTIES_DOOR[0], 62, theme)
+    _paint_line(tiles, 40, 18, 40, 61, theme)
+    # Bounties door.
+    _paint_line(tiles, 40, 62, _BOUNTIES_DOOR[0], 62, theme)
     # Junction: connect y=17 road up to y=14 road.
     _paint_line(tiles, 40, 17, 40, 14, theme)
     # East junction → east across second lava, then south to depot road.
