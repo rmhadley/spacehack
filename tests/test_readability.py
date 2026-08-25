@@ -64,11 +64,22 @@ def test_bitmap_tileset_is_native_and_is_the_only_font_configuration():
 
 
 def test_project_charmap_matches_bundled_sheet_contract():
-    assert len(engine.CP437_CHARMAP) == 160
+    assert len(engine.CP437_CHARMAP) == 166
     assert engine.CP437_CHARMAP[:3] == (32, 33, 34)
     assert engine.CP437_CHARMAP[96:104] == tuple(range(ord("A"), ord("I")))
     assert engine.CP437_CHARMAP[128:134] == tuple(range(ord("a"), ord("g")))
     assert engine.CP437_CHARMAP[90] == 0
+
+
+def test_charmap_texture_codepoints_fit_the_atlas_grid():
+    """Appended texture codepoints stay inside the fixed 32x8 atlas."""
+    nonzero = [cp for cp in engine.CP437_CHARMAP if cp]
+    assert len(engine.CP437_CHARMAP) <= (
+        engine.TILESHEET_COLUMNS * engine.TILESHEET_ROWS
+    )
+    assert len(nonzero) == len(set(nonzero))
+    for codepoint in (0x00B7, 0x2588, 0x2663, 0x2665, 0x2666, 0x25CF):
+        assert codepoint in set(engine.CP437_CHARMAP)
 
 
 def test_direct_bitmap_loader_preserves_native_dimensions_and_representative_glyphs():
@@ -93,9 +104,9 @@ def test_processed_glyph_raster_matches_the_phase_3_baseline_digest():
         digest.update(bytes(tileset[codepoint].get_view("0")))
         count += 1
 
-    assert count == 140
+    assert count == 146
     assert digest.hexdigest() == (
-        "9211a90e2938fe9066050abb97e5e8658f81f346227ff0a79b498dcf0ce14cef"
+        "8e784317f2f0e85a3543ffcd8297f930be0f6d7134b222420498ecab99b1181c"
     )
 
 

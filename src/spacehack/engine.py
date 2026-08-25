@@ -147,6 +147,16 @@ CP437_CHARMAP: tuple[int, ...] = (
     0, 0, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
     110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 0,
     0, 0, 0, 0, 0,
+    # Texture codepoints used by live map content but absent from the
+    # original CP437 sheet order. Each is overwritten by
+    # ``_procedural_texture_glyphs`` after the sheet loads, so the raw
+    # pixels at these atlas slots are never shown.
+    0x00B7,  # · middot — Earth floor dot
+    0x2588,  # █ full block — grass/terrain fills
+    0x2663,  # ♣ club — city trees
+    0x2665,  # ♥ heart — bar drinks
+    0x2666,  # ♦ diamond — plazas / fountains / monuments
+    0x25CF,  # ● filled circle — forge stacks / barrels
 )
 
 
@@ -280,8 +290,9 @@ _MIDDOT_BITMAP: tuple[str, ...] = (
     "................",
 )
 
-# Card suits — symmetric pixel art authored at the 16x16 reference size;
-# _render_bitmap_tile centers them for the active raster dimensions.
+# Card suits and the filled circle — symmetric pixel art authored at the
+# 16x16 reference size; _render_bitmap_tile centers them for the active
+# raster dimensions.
 _SUIT_BITMAPS: dict[int, tuple[str, ...]] = {
     0x2663: (  # ♣ club — city tree
         "................",
@@ -339,19 +350,41 @@ _SUIT_BITMAPS: dict[int, tuple[str, ...]] = {
     ),
 }
 
+_FILLED_CIRCLE_BITMAP: tuple[str, ...] = (
+    "................",
+    "................",
+    "................",
+    ".....######.....",
+    "....########....",
+    "...##########...",
+    "..############..",
+    "..############..",
+    "..############..",
+    "..############..",
+    "...##########...",
+    "....########....",
+    ".....######.....",
+    "................",
+    "................",
+    "................",
+)
+
+
 def _procedural_texture_glyphs(
     tileset: PygameTileset,
 ) -> PygameTileset:
     """Overwrite texture codepoints in ``tileset`` with tilesheet-style pixels.
 
     Returns the (mutated) tileset.  Covers the full block, the three
-    shade patterns, the floor middot, and the card suits the game uses
-    for trees / fountains / drinks.
+    shade patterns, the floor middot, the card suits the game uses
+    for trees / fountains / drinks, and the filled circle used by
+    forge stacks and barrels.
     """
     tw, th = tileset.tile_width, tileset.tile_height
     for cp, kind in _BLOCK_AND_SHADES.items():
         tileset[cp] = _render_shade_tile(tw, th, kind)
     tileset[0x00B7] = _render_bitmap_tile(tw, th, _MIDDOT_BITMAP)
+    tileset[0x25CF] = _render_bitmap_tile(tw, th, _FILLED_CIRCLE_BITMAP)
     for cp, rows in _SUIT_BITMAPS.items():
         tileset[cp] = _render_bitmap_tile(tw, th, rows)
     return tileset
