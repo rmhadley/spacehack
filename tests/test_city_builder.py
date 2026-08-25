@@ -1027,6 +1027,113 @@ def test_groom_b_population_is_deliberately_lawless():
     assert overrides["bounty_master"].guild == "bhguild"
 
 
+# --- Tau Ceti b: canopy clearing ---------------------------------------
+
+
+def test_tc_b_is_a_canopy_clearing():
+    """Tau Cet b reads as a town hacked out of a purple alien rainforest."""
+    game_map = load_planet("tc_b")
+    assert game_map.city_layout_id == "tc_canopy_clearing"
+    assert (game_map.width, game_map.height) == (160, 100)
+    assert len(game_map.city_buildings) == 3
+    assert len(game_map.city_transit) == 3
+    assert sum(
+        bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
+    ) == 9
+    # The canopy wall rings the clearing -- thousands of blocked trees.
+    canopy = sum(
+        tile.char == "♣" and not tile.walkable
+        for row in game_map.tiles for tile in row
+    )
+    assert canopy >= 4000
+    # Walkable saplings push through the meadow floor.
+    saplings = sum(
+        tile.char == "♣" and tile.walkable
+        for row in game_map.tiles for tile in row
+    )
+    assert saplings >= 100
+    # Bioluminescent spore patches glow in the undergrowth.
+    spores = sum(
+        tile.kind == "neon" for row in game_map.tiles for tile in row
+    )
+    assert spores >= 5
+    # No delve site here.
+    assert not any(
+        tile.kind == "mine_shaft" for row in game_map.tiles for tile in row
+    )
+    # The landing apron stays smooth under dock fixtures.
+    apron = [
+        tile for row in game_map.tiles for tile in row
+        if tile.kind == "landing_pad"
+    ]
+    assert apron
+    assert {tile.char for tile in apron} == {" "}
+
+
+def test_tc_b_buildings_transit_and_population_are_reachable():
+    """The clearing keeps every service connected across the groves."""
+    game_map = load_planet("tc_b")
+    spec = find_planet_spec("tc_b")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        assert game_map.tiles[entrance[1]][entrance[0]].walkable, label
+        assert entrance in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", ""):
+            assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+            assert (entity.pos.x, entity.pos.y) in reachable
+            assert game_map.blocking_entity_at(
+                entity.pos.x, entity.pos.y, exclude=entity,
+            ) is None
+
+
+def test_tc_b_interiors_load_with_spawn_and_exit():
+    """All three service buildings have authored, enterable interiors."""
+    game_map = load_planet("tc_b")
+    assert set(game_map.city_buildings) == {"spaceport", "bar", "merchants"}
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert asset.spawn is not None, label
+        assert any(
+            tile.kind == "exit" for row in asset.game_map.tiles for tile in row
+        ), label
+
+
+def test_tc_b_keeps_the_salvage_specialist_quest_hook():
+    """Act 0 still spawns the salvage_specialist in the merchants hall:
+    the quest spot survives the redesign and the interior keeps the
+    centre column plus centre-east cell walkable for her dynamic spawn."""
+    spec = find_planet_spec("tc_b")
+    assert (("salvage_specialist", "merchants")) in spec.quest_npc_spots
+    asset = city_landmarks.load_city_interior(
+        dict(spec.interior_layouts)["merchants"],
+    )
+    interior = asset.game_map
+    cx, cy = interior.width // 2, interior.height // 2
+    assert interior.tiles[cy][cx].walkable
+    assert interior.tiles[cy][cx + 1].walkable
+
+
+def test_tc_b_population_is_a_lawful_frontier():
+    """Colonists and rangers only -- no pirate element on Tau Cet b."""
+    from src.spacehack.data.city_npcs import TC_B_POPULATION
+    ids = {npc.id for npc in TC_B_POPULATION}
+    assert len(ids) == 9
+    assert all(npc_id.startswith("tc_") for npc_id in ids)
+    rangers = {
+        npc.id for npc in TC_B_POPULATION
+        if npc.npc_char_id == "militia_trooper"
+    }
+    assert len(rangers) == 2
+    assert not any("pirate" in npc.npc_char_id for npc in TC_B_POPULATION)
+
+
 def test_very_small_map_builds_without_error():
     """A planet with tiny dimensions still produces a valid city."""
     from src.spacehack.data.planets import PlanetSpec

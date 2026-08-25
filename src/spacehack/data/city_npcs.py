@@ -218,6 +218,22 @@ GROOM_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("groom_depot_hand", "civillian_bystander", (102, 60), wander_radius=6, move_chance=0.8),
 )
 
+TC_B_POPULATION: tuple[CityNpc, ...] = (
+    # Settlers walking the spine avenue end to end.
+    CityNpc("tc_settler_a", "civillian_bystander", (54, 48), wander_radius=60, move_chance=0.9),
+    CityNpc("tc_settler_b", "civillian_bystander", (80, 48), wander_radius=60, move_chance=0.85),
+    CityNpc("tc_settler_c", "civillian_bystander", (127, 62), wander_radius=8, move_chance=0.85),
+    # Dockhands working the west apron.
+    CityNpc("tc_dockhand_a", "civillian_bystander", (17, 47), wander_radius=10, move_chance=0.8),
+    CityNpc("tc_dockhand_b", "civillian_bystander", (33, 55), wander_radius=10, move_chance=0.8),
+    # Botanists tending the losing war against the flowerbeds.
+    CityNpc("tc_botanist_a", "civillian_bystander", (54, 50), wander_radius=12, move_chance=0.85),
+    CityNpc("tc_botanist_b", "civillian_bystander", (100, 77), wander_radius=8, move_chance=0.85),
+    # Colonial rangers patrolling the clearing -- a lawful frontier.
+    CityNpc("tc_ranger_a", "militia_trooper", (22, 44), wander_radius=14, move_chance=0.85),
+    CityNpc("tc_ranger_b", "militia_trooper", (118, 49), wander_radius=14, move_chance=0.85),
+)
+
 ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     # Pirates near the bar (NE zone, y=1..9).
     CityNpc("ross_pirate_a", "civillian_bystander", (94, 12), wander_radius=6, move_chance=0.8),
@@ -236,4 +252,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION"]

@@ -1,0 +1,18 @@
+# tc_bar.layout - The Waypoint, the clearing's north-edge pub
+MAP
+#####################
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#########+###########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (110, 70, 120) / (40, 24, 46)
+COLOUR: = = (150, 90, 160) / (58, 34, 64)
+COLOUR: + = (255, 200, 120) / (62, 38, 20)

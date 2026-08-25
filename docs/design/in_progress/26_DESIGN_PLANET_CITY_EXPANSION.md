@@ -838,7 +838,7 @@ network, authored interiors, and a living population.
 11. Add focused regression coverage for the city's geometry and these
     authoring invariants, run the full gate, and commit.
 
-**Cities** (26 total, 11 done):
+**Cities** (26 total, 12 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -853,7 +853,13 @@ network, authored interiors, and a living population.
 - [ ] Barnard's Star c (`barnards_c`) — 2 buildings (spaceport, bar)
 - [x] Ross b (`ross_b`) — authored 120×80 volcanic pirate settlement: two lava channels with bridge crossings, obsidian ground, 4 buildings, 11 NPCs, 4 transit stops, Smuggler's Row market, contraband trade, and authored exteriors/interiors
 - [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
-- [ ] Tau Ceti b (`tc_b`) — 3 buildings (spaceport, bar, merchants)
+- [x] Tau Ceti b (`tc_b`) — authored 160×100 canopy clearing: full-riot
+      purple/magenta alien rainforest pressing in on every side, west landing
+      apron + spaceport, The Waypoint bar north, merchants hall south-east,
+      spine avenue + perimeter loop, canopy groves and lobes, glowing spore
+      patches and walkable saplings, 9 colonists/rangers, 3 transit stops,
+      Act 0 salvage_specialist quest hook preserved, authored
+      exteriors/interiors
 - [ ] Vega b (`vega_b`) — 3 buildings (spaceport, bar, merchants)
 - [x] Lalande b (`lal_b`) — authored 140×100 wreck colony: the Requiem's diagonal hull, docking ring grave, salvage yard, 4 buildings, 7 NPCs, 4 transit stops
 - [ ] Lalande c (`lal_c`) — 4 buildings (spaceport, bar, merchants, bounties)
@@ -945,6 +951,29 @@ network, authored interiors, and a living population.
   caves/smooth apron), reachability of every door/transit stop/NPC from
   the hangar anchor, interior spawn+exit completeness, and lawless
   population invariants.
+
+**Tau Ceti b build record**
+
+- Clearing-in-the-canopy plan: canopy wall rings the map on all four
+  sides and juts inward as lobes that pinch the spine avenue; every
+  grove rect paints only onto plain floor, so roads, apron, sidewalks,
+  transit bays, footprints, and door approaches can never be buried.
+- Full-riot palette (`TC_CANOPY`, derived from LUSH anchors): teal fern
+  carpet, purple-violet canopy masses, hot magenta trees, cyan
+  bioluminescent spore patches, walkable saplings scattered through the
+  meadow as the jungle's next advance.
+- Route network: spine avenue from the west apron to an east leg, bar
+  spur north, southern perimeter leg serving the merchants hall door,
+  spaceport forecourt connector closing the loop. No dead ends.
+- Population of 9 with colonial rangers (militia) -- a lawful frontier
+  in deliberate contrast to Groombridge's lawlessness.
+- Act 0 hook preserved: `quest_npc_spots` keeps the merchants pairing;
+  the hall interior keeps its centre column and centre-east cell
+  walkable for the dynamic salvage_specialist spawn.
+- Regression coverage: canopy identity (walls/saplings/spores/smooth
+  apron/no caves), full reachability from the hangar anchor, interior
+  spawn+exit completeness, quest-hook survival, lawful population
+  invariants.
 
 **PLAYTEST** (after each city):
 

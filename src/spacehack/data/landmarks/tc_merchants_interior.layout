@@ -1,0 +1,30 @@
+# tc_merchants_interior.layout - guild hall trading floor
+# Centre column and centre-east cell stay clear: the Act 0
+# salvage_specialist spawns one tile east of the map centre while her
+# merchant-chain steps are live.
+MAP
+########################
+#......................#
+#..=.=.=......=.=.=....#
+#......................#
+#..c................c..#
+#......................#
+#..c................c..#
+#......................#
+#..=.=.=......=.=.=....#
+#.........P....>.......#
+########################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: = = CITY_BRIDGE
+TILE: c = TABLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (90, 100, 70) / (32, 38, 24)
+COLOUR: . = (212, 208, 188) / (62, 66, 50)
+COLOUR: = = (220, 190, 115) / (80, 62, 38)
+COLOUR: c = (206, 172, 116) / (68, 50, 34)
+COLOUR: P = (255, 210, 120) / (56, 46, 20)
+COLOUR: > = (255, 210, 120) / (56, 46, 20)

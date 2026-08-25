@@ -1,0 +1,29 @@
+# tc_bar_interior.layout - The Waypoint: local beer, tall stories, vine-draped rafters
+MAP
+#####################
+#...................#
+#..bbbbbbbbbbb......#
+#..b.........b...*..#
+#..b..~..~....b.....#
+#..bbbbbbbbbbb......#
+#.......~...........#
+#...................#
+#.........P.........#
+#.........>.........#
+#####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: ~ = TABLE
+TILE: * = NEON
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (110, 70, 120) / (40, 24, 46)
+COLOUR: . = (210, 190, 220) / (64, 48, 72)
+COLOUR: b = (185, 130, 78) / (76, 52, 32)
+COLOUR: ~ = (206, 172, 116) / (68, 50, 34)
+COLOUR: * = (180, 255, 140) / (40, 70, 34)
+COLOUR: P = (255, 170, 100) / (52, 30, 18)
+COLOUR: > = (255, 170, 100) / (52, 30, 18)
