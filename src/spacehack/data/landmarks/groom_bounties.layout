@@ -1,0 +1,18 @@
+# groom_bounties.layout - wanted-poster bounty office
+MAP
+####################
+#==================#
+#==================#
+#==================#
+#==================#
+#==================#
+#==================#
+##########+#########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (96, 84, 76) / (36, 30, 26)
+COLOUR: = = (118, 104, 94) / (44, 38, 32)
+COLOUR: + = (255, 190, 100) / (46, 30, 16)

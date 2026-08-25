@@ -932,6 +932,101 @@ def test_missing_interior_layout_does_not_crash():
     assert game_map.height == 30
 
 
+# --- Groombridge 34 b: hardpan boomtown --------------------------------
+
+
+def test_groom_b_is_a_hardpan_boomtown():
+    """Groombridge reads as a strung-out mining camp, not a planned city."""
+    game_map = load_planet("groom_b")
+    assert game_map.city_layout_id == "groom_hardpan_boomtown"
+    assert (game_map.width, game_map.height) == (120, 80)
+    assert len(game_map.city_buildings) == 4
+    assert len(game_map.city_transit) == 4
+    assert sum(
+        bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
+    ) == 10
+    # Tailings mounds are the plain's only relief.
+    tailings = sum(
+        tile.char == "▲" and tile.kind == "city_building_wall"
+        for row in game_map.tiles for tile in row
+    )
+    assert tailings >= 15
+    # Shanty shacks ring the town outside the four service buildings.
+    shack_roofs = sum(
+        tile.char == '"' for row in game_map.tiles for tile in row
+    )
+    assert shack_roofs >= 8
+    # Claim stakes mark the outer dig fields.
+    stakes = sum(
+        tile.char == "|" and tile.kind == "floor"
+        for row in game_map.tiles for tile in row
+    )
+    assert stakes >= 15
+    # No delve site here — Groombridge has no explorable caves.
+    assert not any(
+        tile.kind == "mine_shaft" for row in game_map.tiles for tile in row
+    )
+    # The landing apron stays smooth under dock fixtures.
+    apron = [
+        tile for row in game_map.tiles for tile in row
+        if tile.kind == "landing_pad"
+    ]
+    assert apron
+    assert {tile.char for tile in apron} == {" "}
+
+
+def test_groom_b_buildings_transit_and_population_are_reachable():
+    """The boomtown keeps every service connected along the haul road."""
+    game_map = load_planet("groom_b")
+    spec = find_planet_spec("groom_b")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        assert game_map.tiles[entrance[1]][entrance[0]].walkable, label
+        assert entrance in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", ""):
+            assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+            assert (entity.pos.x, entity.pos.y) in reachable
+            assert game_map.blocking_entity_at(
+                entity.pos.x, entity.pos.y, exclude=entity,
+            ) is None
+
+
+def test_groom_b_interiors_load_with_spawn_and_exit():
+    """All four service buildings have authored, enterable interiors."""
+    game_map = load_planet("groom_b")
+    assert set(game_map.city_buildings) == {
+        "spaceport", "bar", "bounties", "depot",
+    }
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert asset.spawn is not None, label
+        assert any(
+            tile.kind == "exit" for row in asset.game_map.tiles for tile in row
+        ), label
+
+
+def test_groom_b_population_is_deliberately_lawless():
+    """No patrol presence: prospectors, crew, hunters, and one shady type."""
+    from src.spacehack.data.city_npcs import GROOM_B_POPULATION
+    ids = {npc.id for npc in GROOM_B_POPULATION}
+    assert len(ids) == 10
+    assert all(npc_id.startswith("groom_") for npc_id in ids)
+    # The Last Gate loiterer includes a hostile pirate raider.
+    assert "groom_gate_shade" in ids
+    # Bounty office staffed by the guild override, not a patrol captain.
+    spec = find_planet_spec("groom_b")
+    overrides = dict(spec.npc_overrides)
+    assert "bounty_master" in overrides
+    assert overrides["bounty_master"].guild == "bhguild"
+
+
 def test_very_small_map_builds_without_error():
     """A planet with tiny dimensions still produces a valid city."""
     from src.spacehack.data.planets import PlanetSpec

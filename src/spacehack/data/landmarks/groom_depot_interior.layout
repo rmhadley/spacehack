@@ -1,0 +1,28 @@
+# groom_depot_interior.layout - fuel and supply depot stockroom
+MAP
+######################
+#....................#
+#..%%...%%...........#
+#..%%...%%...ccc.....#
+#....................#
+#..░░░░░░░...........#
+#....................#
+#.........P..........#
+#.........>..........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: % = DEBRIS
+TILE: ░ = BAR_COUNTER
+TILE: c = MARS_CONSOLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (100, 96, 90) / (36, 34, 30)
+COLOUR: . = (148, 138, 124) / (56, 50, 42)
+COLOUR: % = (176, 152, 112) / (70, 58, 40)
+COLOUR: ░ = (198, 172, 128) / (68, 54, 40)
+COLOUR: c = (140, 230, 255) / (40, 62, 72)
+COLOUR: P = (255, 200, 120) / (46, 34, 18)
+COLOUR: > = (255, 200, 120) / (46, 34, 18)

@@ -838,7 +838,7 @@ network, authored interiors, and a living population.
 11. Add focused regression coverage for the city's geometry and these
     authoring invariants, run the full gate, and commit.
 
-**Cities** (26 total, 9 done):
+**Cities** (26 total, 11 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -857,7 +857,11 @@ network, authored interiors, and a living population.
 - [ ] Vega b (`vega_b`) — 3 buildings (spaceport, bar, merchants)
 - [x] Lalande b (`lal_b`) — authored 140×100 wreck colony: the Requiem's diagonal hull, docking ring grave, salvage yard, 4 buildings, 7 NPCs, 4 transit stops
 - [ ] Lalande c (`lal_c`) — 4 buildings (spaceport, bar, merchants, bounties)
-- [ ] Groombridge b (`groom_b`) — 4 buildings (spaceport, bar, bounties, depot)
+- [x] Groombridge b (`groom_b`) — authored 120×80 hardpan boomtown: cold-dusk
+      red-dwarf palette, one full-width ore-haul road ring, 4 buildings
+      (spaceport + apron west, The Last Gate mid-north, bounty office south,
+      depot east), tailings mounds, shanty shacks, claim stakes, 10 NPCs with
+      zero militia, 4 transit stops, and authored exteriors/interiors
 - [ ] Indi b (`indi_b`) — 4 buildings (spaceport, bar, merchants, militia)
 - [ ] Procyon planet 1 (`proc_planet_1`) — 2 buildings (spaceport, bar)
 - [ ] Procyon planet 2 (`proc_planet_2`) — 2 buildings (spaceport, lab)
@@ -919,6 +923,28 @@ network, authored interiors, and a living population.
 - Added Mars-specific regression coverage for public-grid structure, high-tech
   palette, road/building separation, station surfaces, and NPC separation.
 - Verification: 1392 tests pass, smoke and architecture gates pass.
+
+**Groombridge b build record**
+
+- Linear boomtown plan: one 3-wide ore-haul road ring (two full-width
+  east-west bands joined by connectors), sidewalk frontage on the mid-town
+  band, and short forecourts to each door. No walls or gates — sprawl is
+  the identity.
+- Cold-dusk DESERT variant (`GROOM_DUSK` via `derive_theme`): dim slate
+  hardpan, muted cold-red accents, pale ember neon for The Last Gate.
+- Terrain furniture: tailings mounds (non-walkable relief shaping
+  pedestrian routes), shanty shacks, claim stakes, sparse dry scrub — all
+  hand-placed clear of roads, pads, transit bays, and door approaches.
+- Population of 10 with zero patrol presence: prospectors on the haul
+  road, pad crew, bounty hunters on the office steps, a pirate raider
+  slouching outside The Last Gate. `bounty_master` guild override staffs
+  the office; barkeep override keeps the bar voice.
+- Exterior assets trimmed to documented geometry after the first stamp
+  placed spaceport/depot doors one row low.
+- Regression coverage: boomtown identity (tailings/shacks/stakes/no
+  caves/smooth apron), reachability of every door/transit stop/NPC from
+  the hangar anchor, interior spawn+exit completeness, and lawless
+  population invariants.
 
 **PLAYTEST** (after each city):
 

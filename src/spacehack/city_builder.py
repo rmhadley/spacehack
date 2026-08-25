@@ -30,6 +30,7 @@ _LAYOUTS: dict[str, tuple[str, str]] = {
     "lal_wreck_colony":       ("lal_city",              "build_lal_layout"),
     "barnards_mine_colony":   ("barnards_city",         "build_barnards_layout"),
     "ross_volcanic_settlement": ("ross_city",            "build_ross_layout"),
+    "groom_hardpan_boomtown": ("groom_city",            "build_groom_layout"),
 }
 
 

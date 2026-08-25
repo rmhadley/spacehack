@@ -1,0 +1,27 @@
+# groom_spaceport_interior.layout - port office under red-dwarf dusk
+MAP
+######################
+#....................#
+#..~~~~....ccc.......#
+#............c.......#
+#..░░░░░░............#
+#....................#
+#.........P..........#
+#.........>..........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: ~ = TABLE
+TILE: c = MARS_CONSOLE
+TILE: ░ = BAR_COUNTER
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (105, 92, 82) / (38, 32, 28)
+COLOUR: . = (150, 135, 122) / (58, 50, 44)
+COLOUR: ~ = (196, 168, 120) / (66, 54, 40)
+COLOUR: c = (140, 230, 255) / (40, 62, 72)
+COLOUR: ░ = (200, 170, 130) / (70, 56, 42)
+COLOUR: P = (255, 170, 110) / (46, 28, 18)
+COLOUR: > = (255, 170, 110) / (46, 28, 18)

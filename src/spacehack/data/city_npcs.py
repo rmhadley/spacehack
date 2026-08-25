@@ -200,6 +200,24 @@ BARNARDS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("barnards_pad_crew", "civillian_bystander", (56, 46), wander_radius=8, move_chance=0.8),
 )
 
+GROOM_B_POPULATION: tuple[CityNpc, ...] = (
+    # Prospectors trudging the ore-haul road end to end.
+    CityNpc("groom_prospector_a", "civillian_bystander", (30, 40), wander_radius=90, move_chance=0.9),
+    CityNpc("groom_prospector_b", "civillian_bystander", (76, 40), wander_radius=90, move_chance=0.85),
+    CityNpc("groom_prospector_c", "civillian_bystander", (103, 40), wander_radius=90, move_chance=0.85),
+    # Pad crew on the landing apron.
+    CityNpc("groom_pad_crew_a", "civillian_bystander", (13, 33), wander_radius=8, move_chance=0.8),
+    CityNpc("groom_pad_crew_b", "civillian_bystander", (22, 32), wander_radius=8, move_chance=0.8),
+    # Loiterers outside The Last Gate -- one of them is bad news.
+    CityNpc("groom_bar_regular", "civillian_bystander", (54, 25), wander_radius=5, move_chance=0.8),
+    CityNpc("groom_gate_shade", "pirate_raider", (64, 26), wander_radius=6, move_chance=0.75),
+    # Bounty hunters waiting on the office steps.
+    CityNpc("groom_hunter_a", "militia_trooper", (43, 60), wander_radius=6, move_chance=0.8),
+    CityNpc("groom_hunter_b", "civillian_bystander", (53, 60), wander_radius=6, move_chance=0.8),
+    # Depot hand watching the last fuel stop before the gate.
+    CityNpc("groom_depot_hand", "civillian_bystander", (102, 60), wander_radius=6, move_chance=0.8),
+)
+
 ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     # Pirates near the bar (NE zone, y=1..9).
     CityNpc("ross_pirate_a", "civillian_bystander", (94, 12), wander_radius=6, move_chance=0.8),
@@ -218,4 +236,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION"]
