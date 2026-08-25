@@ -171,8 +171,8 @@ def _base_tiles(theme):
 
 
 def _paint_cell(tiles, x, y, tile):
-    """Paint on open ground only."""
-    if tiles[y][x].kind in {"floor", "grass"}:
+    """Paint on plain floor only -- never overwrite lava, bridges, or special tiles."""
+    if tiles[y][x].kind == "floor" and tiles[y][x].char in {".", "░"}:
         tiles[y][x] = tile
 
 
