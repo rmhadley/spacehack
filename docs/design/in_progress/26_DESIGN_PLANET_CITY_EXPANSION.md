@@ -849,7 +849,7 @@ network, authored interiors, and a living population.
 - [x] Epsilon Eridani b (`eri_b`) — authored 200x140 terraced canyon settlement: four bridge crossings, Beacon Spine, western landing plateau, 4 buildings, 5 transit stops, 8 colonists, smooth landing apron, cleared circulation, and authored exteriors/interiors
 - [x] Wolf 359 b (`wolf_b`) — authored crater pirate outpost: 120×80, 3 buildings, landing pad, antenna forest, cave entrance, Smuggler's Row market with vendors and shoppers, 12 NPCs, 3 transit stops, contraband trade, and authored exteriors/interiors
 - [x] Cygni b (`cygni_b`) — authored 160x100 port-and-forge colony: haul road, three forge factories, dock market, 4 buildings, 9 NPCs, 4 transit stops
-- [ ] Barnard's Star b (`barnards_b`) — 3 buildings (spaceport, bar, depot)
+- [x] Barnard's Star b (`barnards_b`) — authored 120×100 underground mine colony: ring-and-spoke tunnels, 3 buildings carved into rock walls, metallic blue landing pad, 6 NPCs, 3 transit stops, ore veins and barrel fires
 - [ ] Barnard's Star c (`barnards_c`) — 2 buildings (spaceport, bar)
 - [ ] Ross b (`ross_b`) — 4 buildings (spaceport, bar, bounties, depot)
 - [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
