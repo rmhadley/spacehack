@@ -1,10 +1,10 @@
-# ross_depot_interior.layout - miners' depot interior
+# ross_depot_interior.layout
 MAP
 ######################
 #....................#
 #....................#
 #..........P.........#
-#....................#
+#..........>.........#
 #....................#
 #....................#
 ######################
@@ -13,6 +13,8 @@ ENDMAP
 TILE: # = CITY_BUILDING_WALL
 TILE: . = CITY_BUILDING_FLOOR
 TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
 COLOUR: # = (85, 78, 68) / (32, 26, 20)
 COLOUR: . = (58, 50, 44) / (24, 20, 16)
 COLOUR: P = (200, 220, 110) / (48, 55, 25)
+COLOUR: > = (200, 220, 110) / (48, 55, 25)

@@ -1,10 +1,10 @@
-# ross_bounties_interior.layout - bounty guild office
+# ross_bounties_interior.layout
 MAP
 ###################
 #.................#
 #.................#
 #........P........#
-#.................#
+#........>........#
 #.................#
 ###################
 ENDMAP
@@ -12,6 +12,8 @@ ENDMAP
 TILE: # = CITY_BUILDING_WALL
 TILE: . = CITY_BUILDING_FLOOR
 TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
 COLOUR: # = (80, 70, 62) / (30, 25, 20)
 COLOUR: . = (55, 48, 42) / (22, 18, 14)
 COLOUR: P = (255, 190, 110) / (45, 28, 14)
+COLOUR: > = (255, 190, 110) / (45, 28, 14)
