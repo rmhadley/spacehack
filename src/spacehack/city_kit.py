@@ -146,6 +146,21 @@ def paint_transit_bays(
                 tiles[ny][nx] = bay_tile
 
 
+def paint_transit_stops(
+    tiles: list[list[world.Tile]],
+    spec,
+    bay_tile: world.Tile,
+    *,
+    skip_kinds: frozenset[str] = frozenset(),
+) -> None:
+    """Place a single-cell bay on each station cell unconditionally
+    (except cells whose kind is listed in ``skip_kinds``)."""
+    for station in spec.transit_stations:
+        x, y = station.pos.x, station.pos.y
+        if tiles[y][x].kind not in skip_kinds:
+            tiles[y][x] = bay_tile
+
+
 def paint_door_forecourts(
     tiles: list[list[world.Tile]],
     theme,
@@ -183,5 +198,6 @@ __all__ = [
     "in_bounds",
     "paint_door_forecourts",
     "paint_transit_bays",
+    "paint_transit_stops",
     "set_city_metadata",
 ]

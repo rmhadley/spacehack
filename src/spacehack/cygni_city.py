@@ -19,12 +19,15 @@ from __future__ import annotations
 from dataclasses import replace
 
 from . import world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
+from .city_kit import (
+    add_service_terminals,
+    add_showroom_ships,
+    base_tiles,
+    paint_door_forecourts,
+    paint_transit_stops,
+    set_city_metadata,
 )
+from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import DESERT
 
@@ -169,17 +172,6 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
 # ---------------------------------------------------------------------------
 # Tile helpers
 # ---------------------------------------------------------------------------
-
-def _base_tiles(theme):
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
-    for x in range(CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles
-
 
 def _paint_cell(tiles, x, y, tile):
     if tiles[y][x].kind in {"floor", "grass"}:
@@ -351,26 +343,10 @@ def _paint_grass_patches(tiles, theme):
                 tiles[y][x] = theme.grass
 
 
-def _paint_building_forecourts(tiles, theme, spec):
-    """Cleared forecourt south of each door."""
-    for building in spec.buildings:
-        y = building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
-                tiles[y][x] = theme.sidewalk
-
-
-def _paint_transit_bays(tiles, spec):
-    """Dedicated transit landing zones — never overwrite the pad."""
-    bay_tile = world.Tile(
-        kind="floor", char=" ", walkable=True,
-        fg=(155, 120, 80), bg=(90, 55, 30),
-    )
-    for station in spec.transit_stations:
-        x, y = station.pos.x, station.pos.y
-        if tiles[y][x].kind == "landing_pad":
-            continue
-        tiles[y][x] = bay_tile
+_BAY_TILE = world.Tile(
+    kind="floor", char=" ", walkable=True,
+    fg=(155, 120, 80), bg=(90, 55, 30),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +356,7 @@ def _paint_transit_bays(tiles, spec):
 def build_cygni_layout(spec, resolve_ship):
     """Build Cygni b's 160×100 port-and-forge shipyard colony."""
     theme = _readable_city_theme(DESERT)
-    tiles = _base_tiles(theme)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_grass_patches(tiles, theme)
     _paint_haul_road(tiles, theme)
     _paint_landing_pad(tiles, theme)
@@ -401,41 +377,21 @@ def build_cygni_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
-    _paint_building_forecourts(game_map.tiles, theme, spec)
-    _paint_transit_bays(game_map.tiles, spec)
-    paint_roof_labels(game_map, stamps, "cygni_")
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
-    return game_map
-
-
-def _set_metadata(game_map, spec, stamps):
-    game_map.city_layout_id = spec.city_layout_id or "cygni_shipyard_colony"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "cygni_")
-
-
-def _add_service_entities(game_map, spec, resolve_ship):
-    berth = spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    terminal_data = (
-        ("=", "Trade Terminal", -8, "trade_terminal", (100, 220, 255)),
-        ("%", "Mechanic Terminal", -4, "mech_terminal", (210, 220, 110)),
-        ("A", "Armory Terminal", 0, "armory_terminal", (255, 165, 85)),
+    paint_door_forecourts(
+        game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
     )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
-            name=name, **{flag: True},
-        ))
+    paint_transit_stops(
+        game_map.tiles, spec, _BAY_TILE,
+        skip_kinds=frozenset({"landing_pad"}),
+    )
+    paint_roof_labels(game_map, stamps, "cygni_")
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="cygni_", default_layout_id="cygni_shipyard_colony",
+    )
+    add_showroom_ships(game_map, spec, resolve_ship)
+    add_service_terminals(game_map, spec, dxs=(-8, -4, 0))
+    return game_map
 
 
 __all__ = ["build_cygni_layout", "LANDMARK_ORIGINS"]
