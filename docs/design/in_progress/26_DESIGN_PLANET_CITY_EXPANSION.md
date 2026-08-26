@@ -838,7 +838,7 @@ network, authored interiors, and a living population.
 11. Add focused regression coverage for the city's geometry and these
     authoring invariants, run the full gate, and commit.
 
-**Cities** (26 total, 12 done):
+**Cities** (26 total, 13 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -868,7 +868,12 @@ network, authored interiors, and a living population.
       (spaceport + apron west, The Last Gate mid-north, bounty office south,
       depot east), tailings mounds, shanty shacks, claim stakes, 10 NPCs with
       zero militia, 4 transit stops, and authored exteriors/interiors
-- [ ] Indi b (`indi_b`) — 4 buildings (spaceport, bar, merchants, militia)
+- [x] Indi b (`indi_b`) — authored 160×100 patchwork farmland: golden-harvest
+      palette, crop plots in fallow/young/mature rotation with hedgerow
+      windbreaks, grain silos, crossroads market square, harvest-road spine,
+      4 buildings (spaceport + apron west, The Harvest tavern north, guild
+      hall south, militia station east with north door), 10 colonists, 4
+      transit stops -- first kit-native city
 - [ ] Procyon planet 1 (`proc_planet_1`) — 2 buildings (spaceport, bar)
 - [ ] Procyon planet 2 (`proc_planet_2`) — 2 buildings (spaceport, lab)
 - [ ] AC planet 1 (`ac_planet_1`) — 2 buildings (spaceport, bar)
