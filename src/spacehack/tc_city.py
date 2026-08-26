@@ -24,12 +24,17 @@ Layout (160x100):
 from __future__ import annotations
 
 from . import world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
+from .city_kit import (
+    TERMINAL_PALETTE_EMBER,
+    add_service_terminals,
+    add_showroom_ships,
+    base_tiles,
+    in_bounds,
+    paint_door_forecourts,
+    paint_transit_bays,
+    set_city_metadata,
 )
+from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import T, derive_theme
 
@@ -120,17 +125,6 @@ _SPORE_SPOTS: tuple[tuple[int, int], ...] = (
 # Painters
 # ---------------------------------------------------------------------------
 
-def _base_tiles(theme):
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
-    for x in range(CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles
-
-
 def _paint_scrub(tiles, theme) -> None:
     """Fern-carpet texture across open meadow -- sparse enough to read."""
     from .engine import seeded_rng
@@ -180,7 +174,8 @@ def _paint_pad(tiles, theme) -> None:
 
 
 def _in_bounds(x: int, y: int) -> bool:
-    return 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT
+    """Grid bounds for this city's dimensions."""
+    return in_bounds(x, y, CITY_WIDTH, CITY_HEIGHT)
 
 
 def _paint_one_grove(tiles, x, y, w, h) -> None:
@@ -216,63 +211,10 @@ def _paint_saplings(tiles, theme) -> None:
                 tiles[y][x] = theme.tree
 
 
-def _paint_forecourts(tiles, theme, spec) -> None:
-    """Give each door a three-cell sidewalk forecourt on its exit side."""
-    for building in spec.buildings:
-        y = building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if _in_bounds(x, y):
-                t = tiles[y][x]
-                if t.kind == "floor":
-                    tiles[y][x] = theme.sidewalk
-
-
-def _paint_transit_bays(tiles, spec) -> None:
-    """Paint a smooth floor bay under and around each transit stop."""
-    bay = world.Tile(
-        kind="floor", char=" ", walkable=True,
-        fg=(150, 190, 168), bg=(52, 78, 66),
-    )
-    for station in spec.transit_stations:
-        x, y = station.pos.x, station.pos.y
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                nx, ny = x + dx, y + dy
-                if _in_bounds(nx, ny) and tiles[ny][nx].kind in {"floor", "grass_accent"}:
-                    tiles[ny][nx] = bay
-
-
-# ---------------------------------------------------------------------------
-# Metadata + service entities
-# ---------------------------------------------------------------------------
-
-def _set_metadata(game_map, spec, stamps) -> None:
-    game_map.city_layout_id = spec.city_layout_id or "tc_canopy_clearing"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "tc_")
-
-
-def _add_service_entities(game_map, spec, resolve_ship) -> None:
-    berth = spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    terminal_data = (
-        ("=", "Trade Terminal", -6, "trade_terminal", (140, 230, 255)),
-        ("%", "Mechanic Terminal", -2, "mech_terminal", (210, 220, 130)),
-        ("A", "Armory Terminal", 2, "armory_terminal", (255, 175, 105)),
-    )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
-            name=name, **{flag: True},
-        ))
+_BAY_TILE = world.Tile(
+    kind="floor", char=" ", walkable=True,
+    fg=(150, 190, 168), bg=(52, 78, 66),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -281,12 +223,18 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
 
 def build_tc_layout(spec, resolve_ship) -> world.GameMap:
     theme = _readable_city_theme(TC_CANOPY)
-    tiles = _base_tiles(theme)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_scrub(tiles, theme)
     _paint_roads(tiles, theme)
     _paint_pad(tiles, theme)
-    _paint_forecourts(tiles, theme, spec)
-    _paint_transit_bays(tiles, spec)
+    paint_door_forecourts(
+        tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({"floor"}),
+    )
+    paint_transit_bays(
+        tiles, spec, _BAY_TILE, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({"floor", "grass_accent"}),
+    )
     _paint_groves(tiles)
     _paint_spores(tiles, theme)
     _paint_saplings(tiles, theme)
@@ -296,8 +244,12 @@ def build_tc_layout(spec, resolve_ship) -> world.GameMap:
     )
     stamps = stamp_city_assets(game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk)
     paint_roof_labels(game_map, stamps, "tc_")
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="tc_", default_layout_id="tc_canopy_clearing",
+    )
+    add_showroom_ships(game_map, spec, resolve_ship)
+    add_service_terminals(game_map, spec, palette=TERMINAL_PALETTE_EMBER)
     return game_map
 
 

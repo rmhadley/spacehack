@@ -22,12 +22,16 @@ Layout (120x80):
 from __future__ import annotations
 
 from . import world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
+from .city_kit import (
+    TERMINAL_PALETTE_EMBER,
+    add_service_terminals,
+    add_showroom_ships,
+    base_tiles,
+    paint_door_forecourts,
+    paint_transit_bays,
+    set_city_metadata,
 )
+from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import derive_theme
 
@@ -122,17 +126,6 @@ _CLAIM_SPOTS: tuple[tuple[int, int], ...] = (
 # Painters
 # ---------------------------------------------------------------------------
 
-def _base_tiles(theme):
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
-    for x in range(CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles
-
-
 def _paint_scrub(tiles, theme) -> None:
     """Add sparse dry-scrub texture without filling the town with noise."""
     from .engine import seeded_rng
@@ -201,64 +194,10 @@ def _paint_claim_stakes(tiles) -> None:
                 tiles[y][x] = _CLAIM_STAKE
 
 
-def _paint_forecourts(tiles, theme, spec) -> None:
-    """Give each south-facing door a three-cell sidewalk forecourt."""
-    for building in spec.buildings:
-        y = building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
-                t = tiles[y][x]
-                if t.kind == "floor":
-                    tiles[y][x] = theme.sidewalk
-
-
-def _paint_transit_bays(tiles, spec) -> None:
-    """Paint a smooth floor bay under and around each transit stop."""
-    bay = world.Tile(
-        kind="floor", char=" ", walkable=True,
-        fg=(150, 138, 126), bg=(70, 60, 52),
-    )
-    for station in spec.transit_stations:
-        x, y = station.pos.x, station.pos.y
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                nx, ny = x + dx, y + dy
-                if 0 <= ny < CITY_HEIGHT and 0 <= nx < CITY_WIDTH:
-                    if tiles[ny][nx].kind in {"floor", "grass"}:
-                        tiles[ny][nx] = bay
-
-
-# ---------------------------------------------------------------------------
-# Metadata + service entities
-# ---------------------------------------------------------------------------
-
-def _set_metadata(game_map, spec, stamps) -> None:
-    game_map.city_layout_id = spec.city_layout_id or "groom_hardpan_boomtown"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "groom_")
-
-
-def _add_service_entities(game_map, spec, resolve_ship) -> None:
-    berth = spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    terminal_data = (
-        ("=", "Trade Terminal", -6, "trade_terminal", (140, 230, 255)),
-        ("%", "Mechanic Terminal", -2, "mech_terminal", (210, 220, 130)),
-        ("A", "Armory Terminal", 2, "armory_terminal", (255, 175, 105)),
-    )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
-            name=name, **{flag: True},
-        ))
+_BAY_TILE = world.Tile(
+    kind="floor", char=" ", walkable=True,
+    fg=(150, 138, 126), bg=(70, 60, 52),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +206,7 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
 
 def build_groom_layout(spec, resolve_ship) -> world.GameMap:
     theme = _readable_city_theme(GROOM_DUSK)
-    tiles = _base_tiles(theme)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_shacks(tiles)
     _paint_scrub(tiles, theme)
     _paint_pad(tiles, theme)
@@ -279,11 +218,21 @@ def build_groom_layout(spec, resolve_ship) -> world.GameMap:
         tiles=tiles, entities=[],
     )
     stamps = stamp_city_assets(game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk)
-    _paint_forecourts(game_map.tiles, theme, spec)
-    _paint_transit_bays(game_map.tiles, spec)
+    paint_door_forecourts(
+        game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({"floor"}),
+    )
+    paint_transit_bays(
+        game_map.tiles, spec, _BAY_TILE, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({"floor", "grass"}),
+    )
     paint_roof_labels(game_map, stamps, "groom_")
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="groom_", default_layout_id="groom_hardpan_boomtown",
+    )
+    add_showroom_ships(game_map, spec, resolve_ship)
+    add_service_terminals(game_map, spec, palette=TERMINAL_PALETTE_EMBER)
     return game_map
 
 
