@@ -1514,3 +1514,44 @@ def test_lal_c_maze_has_two_crossings_and_three_lane_bands():
     }
     assert {26, 47, 65} <= road_rows
     assert {33, 69} <= road_columns
+
+
+def test_lal_c_has_colorful_storage_containers_in_freight_yards():
+    """Open vault pockets are filled with readable, varied container stacks."""
+    game_map = load_planet("lal_c")
+    containers = [
+        tile for row in game_map.tiles for tile in row
+        if tile.kind == "storage_container"
+    ]
+    assert len(containers) >= 180
+    assert len({tile.fg for tile in containers}) >= 5
+    assert len({tile.bg for tile in containers}) >= 5
+    assert all(not tile.walkable for tile in containers)
+
+
+def test_lal_c_storage_containers_clear_city_anchors():
+    """Freight stacks do not consume routes, facilities, stops, or citizens."""
+    game_map = load_planet("lal_c")
+    public_kinds = {"road", "sidewalk", "landing_pad", "plaza"}
+    assert all(
+        tile.kind not in public_kinds
+        for row in game_map.tiles for tile in row
+        if tile.kind == "storage_container"
+    )
+    building_cells = {
+        point for stamp in game_map.landmark_stamps.values()
+        for point in stamp["footprint"]
+    }
+    station_cells = {
+        metadata["pos"] for metadata in game_map.city_transit.values()
+    }
+    npc_cells = {
+        (entity.pos.x, entity.pos.y)
+        for entity in game_map.entities
+        if getattr(entity, "city_npc_id", "")
+    }
+    blocked = building_cells | station_cells | npc_cells
+    for y, row in enumerate(game_map.tiles):
+        for x, tile in enumerate(row):
+            if tile.kind == "storage_container":
+                assert (x, y) not in blocked

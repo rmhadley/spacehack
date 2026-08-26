@@ -59,6 +59,28 @@ _BAY_TILE = world.Tile(
     fg=(184, 170, 224), bg=(68, 60, 92),
 )
 
+_STORAGE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
+    ((238, 100, 112), (92, 38, 54), (255, 140, 132), (108, 48, 58)),
+    ((92, 190, 238), (32, 62, 104), (126, 220, 255), (42, 76, 118)),
+    ((230, 190, 72), (94, 70, 24), (255, 220, 108), (112, 82, 30)),
+    ((142, 224, 136), (38, 82, 48), (180, 245, 160), (48, 100, 56)),
+    ((202, 126, 236), (72, 38, 96), (232, 166, 255), (84, 46, 112)),
+)
+_STORAGE_SITES: tuple[tuple[int, int, int, int], ...] = (
+    # Upper logistics yard, between the apron and the first container belt.
+    (37, 5, 5, 7), (45, 5, 5, 7), (55, 5, 5, 7), (63, 5, 5, 5),
+    # Middle transfer yard, split by the two crossing lanes.
+    (4, 29, 6, 4), (12, 29, 5, 4), (20, 29, 6, 4),
+    (40, 29, 6, 4), (49, 29, 6, 4), (57, 29, 6, 4),
+    (76, 29, 5, 4), (86, 29, 6, 4), (93, 29, 5, 4),
+    # Lower transfer yard, outside the service buildings and south loop.
+    (28, 51, 6, 4), (38, 51, 6, 4), (48, 51, 6, 4),
+    (58, 51, 6, 4), (66, 51, 5, 4), (91, 51, 5, 4),
+    # South freight lane: intentionally sparse to keep the loop readable.
+    (28, 61, 6, 3), (38, 61, 6, 3), (48, 61, 6, 3),
+    (58, 61, 6, 3), (68, 61, 5, 3), (90, 61, 6, 3),
+)
+
 # Container stacks are intentionally long and close together. Lane paint
 # below cuts the planned public corridors back through the stacks.
 _CONTAINER_BLOCKS: tuple[tuple[int, int, int, int], ...] = (
@@ -146,6 +168,44 @@ def _paint_door_approaches(tiles, theme) -> None:
             tiles[y][x] = theme.sidewalk
 
 
+def _storage_tile(char: str, fg, bg) -> world.Tile:
+    """Build a vivid non-walkable storage-container tile."""
+    return world.Tile(
+        kind="storage_container", char=char, walkable=False,
+        fg=fg, bg=bg,
+        blocked_message="A colorful storage container blocks the lane.",
+    )
+
+
+def _paint_storage_unit(tiles, x, y, width, height, scheme) -> bool:
+    """Paint one colorful storage unit only on an unclaimed floor pocket."""
+    if not all(
+        tiles[yy][xx].kind == "floor"
+        for yy in range(y, y + height)
+        for xx in range(x, x + width)
+    ):
+        return False
+    wall_fg, wall_bg, roof_fg, roof_bg = scheme
+    for yy in range(y, y + height):
+        for xx in range(x, x + width):
+            edge = yy in (y, y + height - 1) or xx in (x, x + width - 1)
+            tiles[yy][xx] = _storage_tile(
+                "#" if edge else "=",
+                wall_fg if edge else roof_fg,
+                wall_bg if edge else roof_bg,
+            )
+    return True
+
+
+def _paint_storage_containers(tiles) -> None:
+    """Fill selected freight-yard pockets with varied container colors."""
+    for index, (x, y, width, height) in enumerate(_STORAGE_SITES):
+        _paint_storage_unit(
+            tiles, x, y, width, height,
+            _STORAGE_SCHEMES[index % len(_STORAGE_SCHEMES)],
+        )
+
+
 def _paint_vault_details(tiles, theme) -> None:
     """Add restrained lights and container-end markers without blocking lanes."""
     light = replace(theme.neon, char="*")
@@ -171,6 +231,7 @@ def build_lalc_layout(spec, resolve_ship) -> world.GameMap:
     _paint_lanes(tiles, theme)
     _paint_landing_apron(tiles, theme)
     _paint_door_approaches(tiles, theme)
+    _paint_storage_containers(tiles)
     _paint_vault_details(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,

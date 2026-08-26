@@ -972,9 +972,14 @@ network, authored interiors, and a living population.
 - Added a data-defined four-stop transit network and eight ambient NPCs,
   including a direct-contact hostile warrant hunter, with positions chosen
   clear of the maze architecture and transit cells.
-- Regression coverage verifies the container density, three lane bands/two
-  crossings, public reachability, entrance clearance, transit placement,
-  authored room completeness, landing-apron clarity, and NPC spawn safety.
+- Filled the previously open freight pockets with colorful storage-container
+  clusters in five contrasting vault colors. Containers use their own blocked
+  tile kind and are placed only on unclaimed floor, preserving lanes, doors,
+  transit bays, NPC anchors, and the quiet landing apron.
+- Regression coverage verifies the container density and palette variety in
+  addition to three lane bands/two crossings, public reachability, entrance
+  clearance, transit placement, authored room completeness, landing-apron
+  clarity, and NPC spawn safety.
 
 **PLAYTEST** (Lalande c)
 
