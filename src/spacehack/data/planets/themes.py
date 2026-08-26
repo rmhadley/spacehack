@@ -71,7 +71,9 @@ def _derived_theme(
     road_ew = T("road", "-", _darken(road_fg, 0.82), _darken(road_bg, 0.85))
     return PlanetTheme(
         floor=T("floor", "░", floor, _darken(floor, 0.42)),
-        grass=T("grass", "█", grass, grass_bg),
+        # █ paints the whole cell with fg, so fg carries the dark ground
+        # tone (the old bright anchor was tuned for bg-only rendering).
+        grass=T("grass", "█", grass_bg, grass_bg),
         grass_accent=T("grass", ",", _darken(grass, 0.5), grass_bg),
         plaza=T("plaza", "░", _blend(grass, (255, 245, 220), 0.55), plaza_bg),
         sidewalk=T("sidewalk", "▒", _darken(_blend(grass, (190, 195, 210), 0.5), 0.55), _darken(_blend(grass, (190, 195, 210), 0.5), 0.32)),
@@ -109,7 +111,7 @@ EARTH = EARTH_THEME_DEFAULT
 
 # Mars — red dust, rusty dirt, warm orange accents.
 MARS = PlanetTheme(
-    grass=T("grass", "█", (180, 80, 50), (60, 30, 20)),
+    grass=T("grass", "█", (60, 30, 20), (60, 30, 20)),
     grass_accent=T("grass", ",", (90, 40, 25), (60, 30, 20)),
     plaza=T("plaza", "░", (200, 150, 100), (140, 100, 65)),
     sidewalk=T("sidewalk", "▒", (120, 70, 50), (55, 35, 22)),
@@ -126,7 +128,7 @@ MARS = PlanetTheme(
 # cyan glass and restrained orange guidance lights inside the public realm.
 MARS_CITY = PlanetTheme(
     floor=T("floor", ".", (150, 70, 48), (58, 32, 25)),
-    grass=T("grass", "█", (174, 72, 48), (62, 30, 22)),
+    grass=T("grass", "█", (62, 30, 22), (62, 30, 22)),
     grass_accent=T("grass", ",", (98, 40, 30), (62, 30, 22)),
     plaza=T("plaza", "░", (185, 220, 224), (66, 104, 110)),
     sidewalk=T("sidewalk", "▒", (190, 205, 208), (72, 86, 92)),
@@ -142,7 +144,7 @@ MARS_CITY = PlanetTheme(
 # Mining outpost — deep reds, dusty oranges, scorched browns.
 DESERT = PlanetTheme(
     floor=T("floor", "░", (150, 80, 50), (55, 35, 20)),
-    grass=T("grass", "█", (140, 60, 40), (50, 25, 15)),
+    grass=T("grass", "█", (50, 25, 15), (50, 25, 15)),
     grass_accent=T("grass", ",", (70, 30, 20), (50, 25, 15)),
     plaza=T("plaza", "░", (170, 110, 70), (120, 75, 50)),
     sidewalk=T("sidewalk", "▒", (110, 60, 40), (30, 18, 10)),
@@ -158,7 +160,7 @@ DESERT = PlanetTheme(
 # Temperate colony — lush greens, warm golds, optimistic brights.
 LUSH = PlanetTheme(
     floor=T("floor", "░", (200, 180, 140), (80, 70, 50)),
-    grass=T("grass", "█", (90, 180, 70), (35, 75, 30)),
+    grass=T("grass", "█", (35, 75, 30), (35, 75, 30)),
     grass_accent=T("grass", ",", (45, 90, 35), (35, 75, 30)),
     plaza=T("plaza", "░", (220, 200, 170), (160, 140, 110)),
     sidewalk=T("sidewalk", "▒", (140, 120, 90), (65, 55, 40)),
@@ -174,7 +176,7 @@ LUSH = PlanetTheme(
 # Cloud city — cool blues, silver, pale whites.
 CLOUD_CITY = PlanetTheme(
     floor=T("floor", "░", (180, 200, 230), (60, 75, 95)),
-    grass=T("grass", "█", (140, 190, 220), (50, 65, 85)),
+    grass=T("grass", "█", (50, 65, 85), (50, 65, 85)),
     grass_accent=T("grass", ",", (70, 95, 110), (50, 65, 85)),
     plaza=T("plaza", "░", (210, 225, 245), (155, 175, 200)),
     sidewalk=T("sidewalk", "▒", (130, 155, 180), (55, 70, 85)),

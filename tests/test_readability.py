@@ -90,6 +90,9 @@ def test_direct_bitmap_loader_preserves_native_dimensions_and_representative_gly
     for codepoint in (ord("A"), ord("a"), ord("."), ord("@"), 0x2591, 0x00B7, 0x2663):
         assert tileset[codepoint].get_size() == (16, 16)
     assert tileset[0x2591].get_at((0, 0))[3] == 255
+    # █ grass block: solid ink — grass themes carry the dark ground tone
+    # in fg because the full block paints the entire cell.
+    assert tileset[0x2588].get_at((0, 0))[3] == 255
     assert tileset[0x00B7].get_bounding_rect().size == (4, 4)
 
 

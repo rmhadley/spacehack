@@ -356,8 +356,12 @@ def _readable_city_theme(theme: world.PlanetTheme) -> world.PlanetTheme:
         tile = getattr(theme, field)
         bg = _readable_city_bg(tile.bg)
         char = "." if field in {"floor", "landing_pad"} else tile.char
-        if bg != tile.bg or char != tile.char:
-            changes[field] = replace(tile, bg=bg, char=char)
+        # A full block paints the whole cell with fg, so its fg IS the
+        # visible field colour — lift it together with the bg so solid
+        # terrain keeps the same readable tone it had as a bg-only tile.
+        fg = bg if tile.char == "█" else tile.fg
+        if bg != tile.bg or char != tile.char or fg != tile.fg:
+            changes[field] = replace(tile, fg=fg, bg=bg, char=char)
     return replace(theme, **changes) if changes else theme
 
 

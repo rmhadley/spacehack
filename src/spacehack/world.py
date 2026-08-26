@@ -70,8 +70,11 @@ PLAZA = Tile(kind="plaza", char="░", walkable=True, fg=(240, 230, 215), bg=(19
 # Sidewalk edge strips (medium shade)
 SIDEWALK = Tile(kind="sidewalk", char="▒", walkable=True, fg=(140, 145, 170), bg=(75, 80, 100))
 
-# Grass / green space — full block reads as solid green fields.
-GRASS = Tile(kind="grass", char="█", walkable=True, fg=(115, 200, 95), bg=(40, 80, 35))
+# Grass / green space — full block reads as solid green fields. The fg
+# IS the field colour: █ paints the whole cell, so fg carries the dark
+# ground tone players expect (fg used to be a bright tint that only
+# worked while █ drew background-only).
+GRASS = Tile(kind="grass", char="█", walkable=True, fg=(40, 80, 35), bg=(40, 80, 35))
 
 # Grass accent — comma adds a little texture without overwhelming.
 # Keep the same dark field background as GRASS; the comma gets its own
