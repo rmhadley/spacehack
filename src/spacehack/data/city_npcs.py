@@ -243,7 +243,7 @@ INDI_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("indi_dockhand_a", "civillian_bystander", (17, 50), wander_radius=10, move_chance=0.8),
     CityNpc("indi_dockhand_b", "civillian_bystander", (33, 57), wander_radius=10, move_chance=0.8),
     # Merchants around the guild hall.
-    CityNpc("indi_merchant_a", "civillian_bystander", (84, 78), wander_radius=6, move_chance=0.8),
+    CityNpc("indi_merchant_a", "civillian_bystander", (84, 62), wander_radius=6, move_chance=0.8),
     CityNpc("indi_merchant_b", "civillian_bystander", (70, 76), wander_radius=6, move_chance=0.85),
     # Militia troopers on patrol from the east station.
     CityNpc("indi_trooper_a", "militia_trooper", (126, 58), wander_radius=12, move_chance=0.85),

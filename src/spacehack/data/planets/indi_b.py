@@ -30,7 +30,7 @@ _MILITIA_ORIGIN = (116, 62)
 
 _SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 12, _SPACEPORT_ORIGIN[1] + 8)
 _BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 7)
-_MERCHANTS_DOOR = (_MERCHANTS_ORIGIN[0] + 12, _MERCHANTS_ORIGIN[1] + 8)
+_MERCHANTS_DOOR = (_MERCHANTS_ORIGIN[0] + 12, _MERCHANTS_ORIGIN[1])
 _MILITIA_DOOR = (_MILITIA_ORIGIN[0] + 10, _MILITIA_ORIGIN[1])
 
 
@@ -61,6 +61,7 @@ SPEC = PlanetSpec(
             x_lo=_MERCHANTS_ORIGIN[0], x_hi=_MERCHANTS_ORIGIN[0] + 23,
             y_lo=_MERCHANTS_ORIGIN[1], y_hi=_MERCHANTS_ORIGIN[1] + 8,
             door_x=_MERCHANTS_DOOR[0], npc_id="guild_master",
+            door_north=True,
         ),
         world.CityBuilding(
             label="militia",
@@ -87,8 +88,8 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="merchants", name="Guild Hall", district="south fields",
-            # East of the hall, off the guild lane.
-            pos=world.Position(93, 72),
+            # Beside the guild lane, just north-east of the door forecourt.
+            pos=world.Position(81, 64),
             destinations=("spaceport", "bar", "militia"),
         ),
         world.TransitStation(

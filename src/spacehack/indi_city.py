@@ -14,7 +14,7 @@ Layout (160x100):
   * Crossroads market -- central square where the lanes meet.
   * The Harvest tavern -- north edge, via a short south lane.
   * Merchants guild -- south edge (silos beside it), door on its
-    south forecourt.
+    NORTH side facing the harvest road.
   * Militia station -- east end, door on its NORTH side facing the
     patrol lane; the arm's quiet lawful presence.
   * Crop plots -- fallow / young / mature patches rotated across the
@@ -61,7 +61,7 @@ _MILITIA_ORIGIN = (116, 62)     # 22x8 -> x 116..137, y 62..69
 
 _SPACEPORT_DOOR = (_SPACEPORT_ORIGIN[0] + 12, _SPACEPORT_ORIGIN[1] + 8)
 _BAR_DOOR = (_BAR_ORIGIN[0] + 10, _BAR_ORIGIN[1] + 7)
-_MERCHANTS_DOOR = (_MERCHANTS_ORIGIN[0] + 12, _MERCHANTS_ORIGIN[1] + 8)
+_MERCHANTS_DOOR = (_MERCHANTS_ORIGIN[0] + 12, _MERCHANTS_ORIGIN[1])  # north side
 _MILITIA_DOOR = (_MILITIA_ORIGIN[0] + 10, _MILITIA_ORIGIN[1])  # north side
 
 _PAD_X_LO, _PAD_X_HI = 12, 38
@@ -71,7 +71,7 @@ _PAD_Y_LO, _PAD_Y_HI = 44, 60
 _SPINE_YBAND = (48, 50)
 _SPINE_XRANGE = (8, 140)
 _BAR_LANE = (79, 81, 24, 47)      # x_lo, x_hi, y_lo, y_hi
-_GUILD_LANE = (77, 79, 51, 75)
+_GUILD_LANE = (77, 79, 51, 64)
 _PATROL_LANE = (125, 127, 51, 60)
 
 _MARKET_X_LO, _MARKET_X_HI = 66, 92
