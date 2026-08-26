@@ -7,12 +7,15 @@ lava, a bridge is placed at that crossing point.
 from __future__ import annotations
 
 from . import city_tiles, world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
+from .city_kit import (
+    add_service_terminals,
+    add_showroom_ships,
+    base_tiles,
+    paint_door_forecourts,
+    paint_transit_bays,
+    set_city_metadata,
 )
+from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import VOLCANIC
 
@@ -107,17 +110,6 @@ _SCRAPS: tuple[tuple[int, int, bool], ...] = (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _base_tiles(theme):
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
-    for x in range(CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles
-
 
 def _paint_road_cell(tiles, x, y, tile):
     if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
@@ -283,32 +275,11 @@ def _paint_heat_glow(tiles):
                                 break
 
 
-def _paint_forecourts(tiles, theme, spec):
-    for building in spec.buildings:
-        y = building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
-                t = tiles[y][x]
-                if t.kind in {"floor", "grass"}:
-                    tiles[y][x] = theme.sidewalk
-
-
-def _paint_transit_bays(tiles, spec):
-    bay = world.Tile(
-        kind="floor", char=" ", walkable=True,
-        fg=(80, 60, 55), bg=(72, 58, 62),
-    )
-    for station in spec.transit_stations:
-        x, y = station.pos.x, station.pos.y
-        if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-            tiles[y][x] = bay
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                nx, ny = x + dx, y + dy
-                if 0 <= ny < CITY_HEIGHT and 0 <= nx < CITY_WIDTH:
-                    t = tiles[ny][nx]
-                    if t.kind in {"floor", "grass"}:
-                        tiles[ny][nx] = bay
+_BAY_TILE = world.Tile(
+    kind="floor", char=" ", walkable=True,
+    fg=(80, 60, 55), bg=(72, 58, 62),
+)
+_BAY_KINDS = frozenset({"floor", "grass"})
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +288,7 @@ def _paint_transit_bays(tiles, spec):
 
 def build_ross_layout(spec, resolve_ship):
     theme = _readable_city_theme(VOLCANIC)
-    tiles = _base_tiles(theme)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_lava(tiles)
     _paint_variety(tiles)
     _paint_pad(tiles, theme)
@@ -332,41 +303,22 @@ def build_ross_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
-    _paint_forecourts(game_map.tiles, theme, spec)
-    _paint_transit_bays(game_map.tiles, spec)
-    paint_roof_labels(game_map, stamps, "ross_")
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
-    return game_map
-
-
-def _set_metadata(game_map, spec, stamps):
-    game_map.city_layout_id = spec.city_layout_id or "ross_volcanic_settlement"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "ross_")
-
-
-def _add_service_entities(game_map, spec, resolve_ship):
-    berth = spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    terminal_data = (
-        ("=", "Trade Terminal", -6, "trade_terminal", (100, 220, 255)),
-        ("%", "Mechanic Terminal", -2, "mech_terminal", (210, 220, 110)),
-        ("A", "Armory Terminal", 2, "armory_terminal", (255, 165, 85)),
+    paint_door_forecourts(
+        game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=_BAY_KINDS,
     )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
-            name=name, **{flag: True},
-        ))
+    paint_transit_bays(
+        game_map.tiles, spec, _BAY_TILE, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=_BAY_KINDS, force_center=True,
+    )
+    paint_roof_labels(game_map, stamps, "ross_")
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="ross_", default_layout_id="ross_volcanic_settlement",
+    )
+    add_showroom_ships(game_map, spec, resolve_ship)
+    add_service_terminals(game_map, spec)
+    return game_map
 
 
 __all__ = ["build_ross_layout", "LANDMARK_ORIGINS"]
