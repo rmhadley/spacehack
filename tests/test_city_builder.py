@@ -12,7 +12,11 @@ from __future__ import annotations
 from collections import deque
 
 from src.spacehack import city_landmarks, city_npcs, world
-from src.spacehack.data.planets import find_planet_spec, load_planet
+from src.spacehack.data.planets import (
+    find_planet_spec,
+    list_planet_specs,
+    load_planet,
+)
 
 
 def _reachable(game_map: world.GameMap, start: world.Position) -> set[tuple[int, int]]:
@@ -1241,6 +1245,103 @@ def test_indi_b_population_is_a_lawful_breadbasket():
     assert len(troopers) == 2
     overrides = dict(find_planet_spec("indi_b").npc_overrides)
     assert {"barkeep", "guild_master"} <= set(overrides)
+
+
+# --- Cross-city circulation invariants ----------------------------------
+#
+# Roads should be purposeful, sidewalks should allow access, and transit
+# stops should drop you near something worth visiting.
+
+# Route surfaces that legitimately front a door. Bare ground (plain
+# floor/grass) does not count -- that is how "the front walk goes
+# nowhere" bugs slip through reachability checks.
+_ROUTE_KINDS = frozenset({"road", "sidewalk", "plaza", "landing_pad"})
+
+# Cave cities have no road vocabulary: doors open onto carved tunnel
+# floor and the tunnels themselves are the routes.
+_NO_ROUTE_VOCABULARY = frozenset({"barnards_mine_colony"})
+
+# Legacy town-center stops from Phases 1-5: intentionally central
+# rather than door-side. Grandfathered like the architecture ratchet --
+# shrink this table as those cities get revisited.
+_STOP_DISTANCE_GRANDFATHER = {
+    ("earth", "hub"): 35,
+    ("mars", "hub"): 32,
+    ("mercury", "hub"): 40,
+}
+
+_STOP_BASE_REACH = 12
+
+
+def _authored_city_ids():
+    from src.spacehack.city_builder import _LAYOUTS
+    return [
+        spec.id for spec in list_planet_specs()
+        if spec.city_layout_id in _LAYOUTS
+    ]
+
+
+def _near_landmark(game_map, x, y, radius=2):
+    """True when plaza/neon landmark tiles sit within ``radius``."""
+    for dy in range(-radius, radius + 1):
+        for dx in range(-radius, radius + 1):
+            nx, ny = x + dx, y + dy
+            if game_map.in_bounds(nx, ny) and game_map.tiles[ny][nx].kind in {
+                "plaza", "neon",
+            }:
+                return True
+    return False
+
+
+def test_authored_city_doors_front_a_route():
+    """Every building entrance opens onto a purposeful route surface --
+    not bare ground. Regression: indi_b's guild hall door sat in a
+    pocket whose 'front walk' connected only through crop tiles."""
+    for planet_id in _authored_city_ids():
+        game_map = load_planet(planet_id)
+        if game_map.city_layout_id in _NO_ROUTE_VOCABULARY:
+            continue
+        for label, record in game_map.city_buildings.items():
+            ex, ey = record["entrance"]
+            fronted = any(
+                game_map.in_bounds(ex + dx, ey + dy)
+                and game_map.tiles[ey + dy][ex + dx].kind in _ROUTE_KINDS
+                for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+            )
+            assert fronted, (
+                f"{planet_id} {label}: entrance {(ex, ey)} fronts bare "
+                "ground -- extend a road/sidewalk/pad to the door"
+            )
+
+
+def test_transit_stops_drop_you_near_something_interesting():
+    """Every stop sits within a short walk of a destination: a building
+    door, a service terminal, the player berth, or a landmark square."""
+    for planet_id in _authored_city_ids():
+        game_map = load_planet(planet_id)
+        spec = find_planet_spec(planet_id)
+        pois = [
+            tuple(record["entrance"])
+            for record in game_map.city_buildings.values()
+            if record.get("entrance")
+        ]
+        pois += [
+            (entity.pos.x, entity.pos.y) for entity in game_map.entities
+            if entity.trade_terminal or entity.mech_terminal
+            or entity.armory_terminal
+        ]
+        pois.append((spec.hangar_anchor.x, spec.hangar_anchor.y))
+        for sid, meta in game_map.city_transit.items():
+            sx, sy = meta["pos"]
+            nearest = min(abs(sx - px) + abs(sy - py) for px, py in pois)
+            limit = _STOP_DISTANCE_GRANDFATHER.get(
+                (planet_id, sid), _STOP_BASE_REACH,
+            )
+            assert nearest <= limit or _near_landmark(game_map, sx, sy), (
+                f"{planet_id} stop {sid!r} at {(sx, sy)} is {nearest} from "
+                "any door/terminal/berth and beside no landmark -- move it "
+                "near something worth visiting"
+            )
 
 
 def test_very_small_map_builds_without_error():
