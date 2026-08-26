@@ -143,6 +143,26 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 5. Add new cross-cutting state as a field on `GameContext`.
 6. **Monitor file size** — If any existing `src/spacehack/*.py` approaches ~1000 lines during development, pause and evaluate whether the new code should live in its own module rather than inflating an existing file.
 
+### City builders (`*_city.py`)
+
+Every authored city module builds on `spacehack.city_kit` — do NOT
+re-implement the shared skeleton (base tiles, showroom ships, service
+terminals, landmark metadata, transit bays/stops, door forecourts).
+Import the kit helpers and pass your city's parameters:
+
+```python
+from .city_kit import (
+    TERMINAL_PALETTE_CLASSIC,
+    add_service_terminals, add_showroom_ships, base_tiles,
+    paint_door_forecourts, paint_transit_bays, set_city_metadata,
+)
+```
+
+A city module should contain only what makes it distinct: terrain
+painters, custom tiles, and landmark placement. Bay/forecourt painters
+take `overwrite_kinds` so they can never bury roads, pads, sidewalks,
+or door approaches; terminals take `dxs`/`dy`/`palette` for dock layout.
+
 ### Pre-commit gate
 ```bash
 make check
