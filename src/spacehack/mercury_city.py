@@ -17,12 +17,15 @@ Mercury included.
 from __future__ import annotations
 
 from . import world
+from .city_kit import (
+    add_showroom_ships,
+    base_tiles,
+    set_city_metadata,
+)
 from .city_layout import (
-    building_records,
     paint_roof_labels,
     paint_skyline,
     stamp_city_assets,
-    stamp_metadata,
 )
 from .data.planets import _readable_city_theme
 from .data.planets.themes import DESERT
@@ -94,20 +97,6 @@ def _deck_theme():
     return _readable_city_theme(DESERT)
 
 
-def _base_tiles() -> tuple[list[list[world.Tile]], object]:
-    """Create the deck base: heat-shield floor with perimeter walls."""
-    theme = _deck_theme()
-    tiles = [
-        [theme.floor for _ in range(MERCURY_CITY_WIDTH)]
-        for _ in range(MERCURY_CITY_HEIGHT)
-    ]
-    for x in range(MERCURY_CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(MERCURY_CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles, theme
 
 
 def _paint_road_cell(tiles, x, y, tile) -> None:
@@ -196,24 +185,23 @@ def _paint_deck_scrub(tiles, theme) -> None:
             tiles[y][x] = theme.neon
 
 
-def _new_mercury_map(spec) -> world.GameMap:
+def _new_mercury_map(spec) -> tuple[world.GameMap, object]:
     """Create and decorate the station-deck terrain."""
-    tiles, theme = _base_tiles()
+    theme = _deck_theme()
+    tiles = base_tiles(
+        MERCURY_CITY_WIDTH, MERCURY_CITY_HEIGHT, theme.floor,
+    )
     _paint_road_corridor(tiles, theme)
     _paint_deck_plaza(tiles, theme)
     _paint_deck_pad(tiles, theme, spec)
     _paint_deck_scrub(tiles, theme)
-    return world.GameMap(
-        width=MERCURY_CITY_WIDTH, height=MERCURY_CITY_HEIGHT,
-        tiles=tiles, entities=[],
+    return (
+        world.GameMap(
+            width=MERCURY_CITY_WIDTH, height=MERCURY_CITY_HEIGHT,
+            tiles=tiles, entities=[],
+        ),
+        theme,
     )
-
-
-def _set_mercury_metadata(game_map, spec, stamps) -> None:
-    """Attach the metadata city systems need for Mercury."""
-    game_map.city_layout_id = spec.city_layout_id or "mercury_station"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "mercury_")
 
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
@@ -221,14 +209,10 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
     anchor = spec.hangar_anchor
     pad_x_lo = max(1, anchor.x - 3)
     pad_y_lo = spec.buildings[0].y_hi + 1
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(pad_x_lo + off_x, pad_y_lo + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
+    add_showroom_ships(
+        game_map, spec, resolve_ship,
+        origin=world.Position(pad_x_lo, pad_y_lo),
+    )
     terminal_data = (
         ("=", "Trade Terminal", (10, 11), "trade_terminal", (100, 220, 255)),
         ("%", "Mechanic Terminal", (6, 11), "mech_terminal", (200, 220, 100)),
@@ -248,9 +232,9 @@ def build_mercury_layout(spec, resolve_ship) -> world.GameMap:
     :func:`spacehack.city_builder.build_city` shared tail adds them for
     every planet, so Earth and Mercury run the identical city pipeline.
     """
-    game_map = _new_mercury_map(spec)
+    game_map, theme = _new_mercury_map(spec)
     stamps = stamp_city_assets(
-        game_map, LANDMARK_ORIGINS, sidewalk=_deck_theme().sidewalk,
+        game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
     paint_roof_labels(game_map, stamps, "mercury_")
     paint_skyline(
@@ -268,6 +252,9 @@ def build_mercury_layout(spec, resolve_ship) -> world.GameMap:
         min_size=(5, 4),
         row_stride=3,
     )
-    _set_mercury_metadata(game_map, spec, stamps)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="mercury_", default_layout_id="mercury_station",
+    )
     _add_service_entities(game_map, spec, resolve_ship)
     return game_map

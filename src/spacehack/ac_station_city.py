@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from . import world
+from .city_kit import add_service_terminals, add_showroom_ships
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -160,36 +161,15 @@ def _paint_station_details(tiles, theme, ring_cells) -> None:
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
     """Place showroom ships and a readable service cluster in the dock."""
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(54 + off_x, 20 + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    berth = spec.hangar_anchor
-    for char, name, dx in (
-        ("=", "Trade Terminal", -4),
-        ("%", "Mechanic Terminal", 0),
-        ("A", "Armory Terminal", 4),
-    ):
-        flags = {
-            "Trade Terminal": {"trade_terminal": True},
-            "Mechanic Terminal": {"mech_terminal": True},
-            "Armory Terminal": {"armory_terminal": True},
-        }
-        game_map.entities.append(world.Entity(
-            char=char,
-            fg={
-                "Trade Terminal": (100, 220, 255),
-                "Mechanic Terminal": (200, 220, 100),
-                "Armory Terminal": (255, 160, 80),
-            }[name],
-            pos=world.Position(berth.x + dx, berth.y + 3),
-            name=name,
-            **flags[name],
-        ))
+    add_showroom_ships(
+        game_map, spec, resolve_ship,
+        origin=world.Position(54, 20),
+    )
+    add_service_terminals(
+        game_map, spec,
+        dy=3, dxs=(-4, 0, 4),
+        palette=((100, 220, 255), (200, 220, 100), (255, 160, 80)),
+    )
 
 
 def _set_metadata(game_map, spec, stamps, ring_cells) -> None:

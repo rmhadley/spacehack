@@ -17,12 +17,11 @@ from __future__ import annotations
 
 from . import city_tiles, world
 from .city_tiles import CITY_ORNAMENT
+from .city_kit import add_showroom_ships, base_tiles, set_city_metadata
 from .city_layout import (
-    building_records,
     paint_roof_labels,
     paint_skyline,
     stamp_city_assets,
-    stamp_metadata,
 )
 
 
@@ -72,21 +71,6 @@ _SKYLINE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
     ((164, 200, 164), (56, 70, 56), (184, 214, 184), (64, 78, 64)),   # green
     ((196, 196, 208), (64, 64, 72), (212, 212, 220), (72, 72, 80)),   # slate
 )
-
-
-def _base_tiles() -> list[list[world.Tile]]:
-    """Create the Earth terrain base with perimeter walls."""
-    tiles = [
-        [world.EARTH_THEME.floor for _ in range(EARTH_CITY_WIDTH)]
-        for _ in range(EARTH_CITY_HEIGHT)
-    ]
-    for x in range(EARTH_CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(EARTH_CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles
 
 
 def _paint_water_and_shore(tiles: list[list[world.Tile]]) -> None:
@@ -244,7 +228,9 @@ def _paint_landing_pad(tiles: list[list[world.Tile]]) -> None:
 
 def _new_earth_map() -> world.GameMap:
     """Create and decorate the expanded outdoor terrain."""
-    tiles = _base_tiles()
+    tiles = base_tiles(
+        EARTH_CITY_WIDTH, EARTH_CITY_HEIGHT, world.EARTH_THEME.floor,
+    )
     _paint_water_and_shore(tiles)
     _paint_roads_and_districts(tiles)
     _paint_bridges(tiles)
@@ -258,8 +244,10 @@ def _new_earth_map() -> world.GameMap:
 
 def _set_city_metadata(game_map, spec, stamps) -> None:
     """Attach persistent city layout metadata to the map."""
-    game_map.city_layout_id = spec.city_layout_id or "earth_river_coast"
-    game_map.landmark_stamps = stamp_metadata(stamps)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="earth_city_", default_layout_id="earth_river_coast",
+    )
     game_map.water_cells = {
         (x, y) for x, y in RIVER_CELLS | COAST_CELLS
         if game_map.tiles[y][x].kind == "city_water"
@@ -270,7 +258,6 @@ def _set_city_metadata(game_map, spec, stamps) -> None:
         "waterfront": (112, 1, 158, 98), "market": (4, 53, 56, 96),
         "civic": (58, 62, 110, 96),
     }
-    game_map.city_buildings = building_records(spec, stamps, "earth_city_")
 
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
@@ -281,15 +268,10 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
     """
     # Showroom ships sit on the landing pad south of the solid hangar roof
     # (offsets are relative to the pad's top-left corner, x=18 / y=20).
-    _pad_x, _pad_y = 18, 20
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(_pad_x + off_x, _pad_y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
+    add_showroom_ships(
+        game_map, spec, resolve_ship,
+        origin=world.Position(18, 20),
+    )
     terminal_data = (
         ("=", "Trade Terminal", world.Position(34, 29), "trade_terminal", (100, 220, 255)),
         ("%", "Mechanic Terminal", world.Position(30, 29), "mech_terminal", (200, 220, 100)),

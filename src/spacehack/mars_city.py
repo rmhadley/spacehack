@@ -9,6 +9,7 @@ The shared city stamping/transit/NPC machinery remains data-driven.
 from __future__ import annotations
 
 from . import world
+from .city_kit import add_service_terminals, add_showroom_ships
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -251,27 +252,15 @@ def _set_mars_metadata(game_map, spec, stamps) -> None:
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
     """Place port ships and service consoles on the southern apron."""
     port = spec.buildings[0]
-    pad_y = port.y_hi + 1
-    pad_x = port.x_lo + 5
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(pad_x + off_x, pad_y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    berth = spec.hangar_anchor
-    terminal_data = (
-        ("=", "Trade Terminal", (berth.x - 3, berth.y + 2), "trade_terminal", (100, 230, 255)),
-        ("%", "Mechanic Terminal", (berth.x, berth.y + 2), "mech_terminal", (190, 240, 150)),
-        ("A", "Armory Terminal", (berth.x + 3, berth.y + 2), "armory_terminal", (255, 170, 90)),
+    add_showroom_ships(
+        game_map, spec, resolve_ship,
+        origin=world.Position(port.x_lo + 5, port.y_hi + 1),
     )
-    for char, name, position, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg, pos=world.Position(*position),
-            name=name, **{flag: True},
-        ))
+    add_service_terminals(
+        game_map, spec,
+        dy=2, dxs=(-3, 0, 3),
+        palette=((100, 230, 255), (190, 240, 150), (255, 170, 90)),
+    )
 
 
 def build_mars_layout(spec, resolve_ship) -> world.GameMap:
