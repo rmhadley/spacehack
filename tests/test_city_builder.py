@@ -1134,6 +1134,115 @@ def test_tc_b_population_is_a_lawful_frontier():
     assert not any("pirate" in npc.npc_char_id for npc in TC_B_POPULATION)
 
 
+# --- Epsilon Indi b: patchwork farmland ---------------------------------
+
+
+def test_indi_b_is_a_patchwork_farm_town():
+    """Indi b reads as farmland: crop plots, hedgerows, silos, lanes."""
+    game_map = load_planet("indi_b")
+    assert game_map.city_layout_id == "indi_farmland_grid"
+    assert (game_map.width, game_map.height) == (160, 100)
+    assert len(game_map.city_buildings) == 4
+    assert len(game_map.city_transit) == 4
+    assert sum(
+        bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
+    ) == 10
+    # Mature crop plots dominate the fields.
+    mature = sum(
+        tile.char == "█" and tile.kind == "grass"
+        for row in game_map.tiles for tile in row
+    )
+    assert mature >= 2000
+    # Hedgerow windbreaks divide the plots.
+    hedges = sum(
+        tile.kind == "tree" for row in game_map.tiles for tile in row
+    )
+    assert hedges >= 400
+    # Grain silos stand near the harvest road and guild hall.
+    silos = sum(
+        tile.char == "O" for row in game_map.tiles for tile in row
+    )
+    assert silos >= 5
+    # The crossroads market is a real plaza.
+    plaza = sum(
+        tile.kind == "plaza" for row in game_map.tiles for tile in row
+    )
+    assert plaza >= 150
+    # No delve site here.
+    assert not any(
+        tile.kind == "mine_shaft" for row in game_map.tiles for tile in row
+    )
+    # The landing apron stays smooth under dock fixtures.
+    apron = [
+        tile for row in game_map.tiles for tile in row
+        if tile.kind == "landing_pad"
+    ]
+    assert apron
+    assert {tile.char for tile in apron} == {" "}
+
+
+def test_indi_b_buildings_transit_and_population_are_reachable():
+    """Every door, transit stop, and citizen connects across the fields."""
+    game_map = load_planet("indi_b")
+    spec = find_planet_spec("indi_b")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        assert game_map.tiles[entrance[1]][entrance[0]].walkable, label
+        assert entrance in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", ""):
+            assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+            assert (entity.pos.x, entity.pos.y) in reachable
+            assert game_map.blocking_entity_at(
+                entity.pos.x, entity.pos.y, exclude=entity,
+            ) is None
+
+
+def test_indi_b_interiors_load_with_spawn_and_exit():
+    """All four service buildings have authored, enterable interiors."""
+    game_map = load_planet("indi_b")
+    assert set(game_map.city_buildings) == {
+        "spaceport", "bar", "merchants", "militia",
+    }
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert asset.spawn is not None, label
+        assert any(
+            tile.kind == "exit" for row in asset.game_map.tiles for tile in row
+        ), label
+
+
+def test_indi_b_militia_door_faces_the_patrol_lane():
+    """The militia station's north-side door opens onto its forecourt."""
+    game_map = load_planet("indi_b")
+    spec = find_planet_spec("indi_b")
+    militia = next(b for b in spec.buildings if b.label == "militia")
+    assert militia.door_north
+    entrance = game_map.city_buildings["militia"]["entrance"]
+    assert entrance[1] == militia.y_lo, entrance  # on the north edge
+
+
+def test_indi_b_population_is_a_lawful_breadbasket():
+    """Farmers and troopers -- the arm's established, orderly world."""
+    from src.spacehack.data.city_npcs import INDI_B_POPULATION
+    ids = {npc.id for npc in INDI_B_POPULATION}
+    assert len(ids) == 10
+    assert all(npc_id.startswith("indi_") for npc_id in ids)
+    troopers = {
+        npc.id for npc in INDI_B_POPULATION
+        if npc.npc_char_id == "militia_trooper"
+    }
+    assert len(troopers) == 2
+    overrides = dict(find_planet_spec("indi_b").npc_overrides)
+    assert {"barkeep", "guild_master"} <= set(overrides)
+
+
 def test_very_small_map_builds_without_error():
     """A planet with tiny dimensions still produces a valid city."""
     from src.spacehack.data.planets import PlanetSpec

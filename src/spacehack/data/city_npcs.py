@@ -234,6 +234,24 @@ TC_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("tc_ranger_b", "militia_trooper", (118, 49), wander_radius=14, move_chance=0.85),
 )
 
+INDI_B_POPULATION: tuple[CityNpc, ...] = (
+    # Farmers walking the field lanes and the harvest road.
+    CityNpc("indi_farmer_a", "civillian_bystander", (60, 49), wander_radius=40, move_chance=0.85),
+    CityNpc("indi_farmer_b", "civillian_bystander", (100, 49), wander_radius=40, move_chance=0.85),
+    CityNpc("indi_farmer_c", "civillian_bystander", (118, 72), wander_radius=10, move_chance=0.8),
+    # Dockhands working the west apron.
+    CityNpc("indi_dockhand_a", "civillian_bystander", (17, 50), wander_radius=10, move_chance=0.8),
+    CityNpc("indi_dockhand_b", "civillian_bystander", (33, 57), wander_radius=10, move_chance=0.8),
+    # Merchants around the guild hall.
+    CityNpc("indi_merchant_a", "civillian_bystander", (84, 78), wander_radius=6, move_chance=0.8),
+    CityNpc("indi_merchant_b", "civillian_bystander", (70, 76), wander_radius=6, move_chance=0.85),
+    # Militia troopers on patrol from the east station.
+    CityNpc("indi_trooper_a", "militia_trooper", (126, 58), wander_radius=12, move_chance=0.85),
+    CityNpc("indi_trooper_b", "militia_trooper", (141, 66), wander_radius=12, move_chance=0.85),
+    # Tavern regular outside The Harvest.
+    CityNpc("indi_regular", "civillian_bystander", (84, 25), wander_radius=5, move_chance=0.8),
+)
+
 ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     # Pirates near the bar (NE zone, y=1..9).
     CityNpc("ross_pirate_a", "civillian_bystander", (94, 12), wander_radius=6, move_chance=0.8),
@@ -252,4 +270,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]

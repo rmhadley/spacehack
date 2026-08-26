@@ -1,0 +1,29 @@
+# indi_bar_interior.layout - The Harvest tavern floor
+MAP
+#####################
+#...................#
+#..bbbbbbbbbbb......#
+#..b.........b...*..#
+#..b..~..~....b.....#
+#..bbbbbbbbbbb......#
+#.......~...........#
+#...................#
+#.........P.........#
+#.........>.........#
+#####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: ~ = TABLE
+TILE: * = NEON
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (134, 88, 52) / (48, 30, 16)
+COLOUR: . = (224, 204, 168) / (70, 56, 34)
+COLOUR: b = (185, 130, 78) / (76, 52, 32)
+COLOUR: ~ = (206, 172, 116) / (68, 50, 34)
+COLOUR: * = (255, 200, 110) / (66, 46, 18)
+COLOUR: P = (255, 190, 100) / (54, 36, 16)
+COLOUR: > = (255, 190, 100) / (54, 36, 16)

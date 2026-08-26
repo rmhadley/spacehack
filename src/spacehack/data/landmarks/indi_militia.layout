@@ -1,0 +1,18 @@
+# indi_militia.layout - militia station house (door on the north side)
+MAP
+##########+##########
+#====================#
+#====================#
+#====================#
+#====================#
+#====================#
+#====================#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (96, 100, 110) / (34, 36, 42)
+COLOUR: = = (136, 142, 156) / (48, 52, 62)
+COLOUR: + = (255, 200, 90) / (56, 44, 16)
