@@ -22,12 +22,15 @@ from __future__ import annotations
 from dataclasses import replace
 
 from . import world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
+from .city_kit import (
+    add_service_terminals,
+    add_showroom_ships,
+    base_tiles,
+    paint_door_forecourts,
+    paint_transit_stops,
+    set_city_metadata,
 )
+from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import ICE
 
@@ -221,21 +224,6 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
 
 
 # ---------------------------------------------------------------------------
-# Tile helpers
-# ---------------------------------------------------------------------------
-
-def _base_tiles(theme):
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
-    for x in range(CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
-    return tiles
-
-
-# ---------------------------------------------------------------------------
 # Painter functions
 # ---------------------------------------------------------------------------
 
@@ -327,23 +315,10 @@ def _paint_landing_pad(tiles, theme):
             tiles[y][x] = pad_tile
 
 
-def _paint_building_forecourts(tiles, theme, spec):
-    """Cleared forecourt at each door."""
-    for building in spec.buildings:
-        y = building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
-                tiles[y][x] = theme.sidewalk
-
-
-def _paint_transit_bays(tiles, spec):
-    """Dedicated transit landing zones."""
-    bay_tile = world.Tile(
-        kind="floor", char=" ", walkable=True,
-        fg=(120, 170, 210), bg=(48, 62, 80),
-    )
-    for station in spec.transit_stations:
-        tiles[station.pos.y][station.pos.x] = bay_tile
+_BAY_TILE = world.Tile(
+    kind="floor", char=" ", walkable=True,
+    fg=(120, 170, 210), bg=(48, 62, 80),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +328,7 @@ def _paint_transit_bays(tiles, spec):
 def build_lal_layout(spec, resolve_ship):
     """Build Deadfall's 140×100 wreck colony."""
     theme = _readable_city_theme(ICE)
-    tiles = _base_tiles(theme)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_hull(tiles)
     _paint_docking_ring(tiles)
     _paint_salvage_yard(tiles)
@@ -365,41 +340,19 @@ def build_lal_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
-    _paint_building_forecourts(game_map.tiles, theme, spec)
-    _paint_transit_bays(game_map.tiles, spec)
+    paint_door_forecourts(
+        game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
+    )
+    paint_transit_stops(game_map.tiles, spec, _BAY_TILE)
     paint_roof_labels(game_map, stamps, "lal_")
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="lal_", default_layout_id="lal_wreck_colony",
+    )
+    add_showroom_ships(game_map, spec, resolve_ship)
+    add_service_terminals(game_map, spec, dy=2)
     return game_map
 
-
-def _set_metadata(game_map, spec, stamps):
-    game_map.city_layout_id = spec.city_layout_id or "lal_wreck_colony"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "lal_")
-
-
-def _add_service_entities(game_map, spec, resolve_ship):
-    berth = spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    terminal_data = (
-        ("=", "Trade Terminal", -6, "trade_terminal", (100, 220, 255)),
-        ("%", "Mechanic Terminal", -2, "mech_terminal", (210, 220, 110)),
-        ("A", "Armory Terminal", 2, "armory_terminal", (255, 165, 85)),
-    )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 2),
-            name=name, **{flag: True},
-        ))
 
 
 __all__ = ["build_lal_layout", "LANDMARK_ORIGINS"]

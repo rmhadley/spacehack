@@ -18,7 +18,11 @@ from __future__ import annotations
 import math
 
 from . import world
-from .city_layout import building_records, stamp_metadata
+from .city_kit import (
+    add_service_terminals,
+    add_showroom_ships,
+    set_city_metadata,
+)
 from .city_landmarks import CityLandmarkStamp
 from .data.planets import _readable_city_theme
 from .data.planets.themes import DESERT
@@ -305,8 +309,12 @@ def build_barnards_layout(spec, resolve_ship):
     _paint_transit_bays(game_map.tiles, spec)
     # Build fake stamps so building_records can find entrances.
     stamps = _make_door_stamps()
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="barnards_", default_layout_id="barnards_mine_colony",
+    )
+    add_showroom_ships(game_map, spec, resolve_ship)
+    add_service_terminals(game_map, spec, dy=2, dxs=(-7, -3, 1))
     return game_map
 
 
@@ -325,35 +333,6 @@ def _make_door_stamps():
         )
         stamps[layout_id] = stamp
     return stamps
-
-
-def _set_metadata(game_map, spec, stamps):
-    game_map.city_layout_id = spec.city_layout_id or "barnards_mine_colony"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.city_buildings = building_records(spec, stamps, "barnards_")
-
-
-def _add_service_entities(game_map, spec, resolve_ship):
-    berth = spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    terminal_data = (
-        ("=", "Trade Terminal", -7, "trade_terminal", (100, 220, 255)),
-        ("%", "Mechanic Terminal", -3, "mech_terminal", (210, 220, 110)),
-        ("A", "Armory Terminal", 1, "armory_terminal", (255, 165, 85)),
-    )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 2),
-            name=name, **{flag: True},
-        ))
 
 
 __all__ = ["build_barnards_layout"]

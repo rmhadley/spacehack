@@ -5,12 +5,14 @@ from __future__ import annotations
 from dataclasses import replace
 
 from . import world
-from .city_layout import (
-    building_records,
-    paint_roof_labels,
-    stamp_city_assets,
-    stamp_metadata,
+from .city_kit import (
+    add_service_terminals,
+    add_showroom_ships,
+    base_tiles,
+    paint_door_forecourts,
+    set_city_metadata,
 )
+from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import CANYON_SETTLEMENT
 
@@ -106,21 +108,13 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
 }
 
 
-def _base_tiles(theme):
-    """Create dusty terrain with a dry canyon and perimeter walls."""
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
-    for x in range(CITY_WIDTH):
-        tiles[0][x] = world.WALL
-        tiles[-1][x] = world.WALL
-    for y in range(CITY_HEIGHT):
-        tiles[y][0] = world.WALL
-        tiles[y][-1] = world.WALL
+def _carve_canyon(tiles) -> None:
+    """Cut the dry canyon between its flanking canyon walls."""
     for y in range(2, CITY_HEIGHT - 2):
         for x in range(_CANYON_X_LO, _CANYON_X_HI + 1):
             tiles[y][x] = _CANYON_FLOOR
         tiles[y][_CANYON_X_LO - 1] = _CANYON_WALL
         tiles[y][_CANYON_X_HI + 1] = _CANYON_WALL
-    return tiles
 
 
 def _paint_dust(tiles, theme):
@@ -193,15 +187,6 @@ def _paint_apron(tiles, theme, spec):
     tiles[berth.y][berth.x] = theme.plaza
     for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
         tiles[berth.y + dy][berth.x + dx] = theme.neon
-
-
-def _paint_building_forecourts(tiles, theme, spec):
-    """Give every south-facing door a three-cell sidewalk forecourt."""
-    for building in spec.buildings:
-        y = building.y_lo - 1 if building.door_north else building.y_hi + 1
-        for x in range(building.door_x - 1, building.door_x + 2):
-            if 0 <= x < CITY_WIDTH and 0 <= y < CITY_HEIGHT:
-                tiles[y][x] = theme.sidewalk
 
 
 def _paint_transit_bays(tiles, theme, spec):
@@ -310,47 +295,14 @@ def _paint_homesteads(tiles, theme):
             tiles[y][x] = _ORE_HEAP
 
 
-def _add_service_entities(game_map, spec, resolve_ship):
-    """Place showroom ships and service terminals on the landing plateau."""
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(24 + off_x, 32 + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
-    berth = spec.hangar_anchor
-    terminal_data = (
-        ("=", "Trade Terminal", -6, "trade_terminal", (100, 220, 255)),
-        ("%", "Mechanic Terminal", -2, "mech_terminal", (210, 220, 110)),
-        ("A", "Armory Terminal", 2, "armory_terminal", (255, 165, 85)),
-    )
-    for char, name, dx, flag, fg in terminal_data:
-        game_map.entities.append(world.Entity(
-            char=char, fg=fg,
-            pos=world.Position(berth.x + dx, berth.y + 3),
-            name=name, **{flag: True},
-        ))
-
-
-def _set_metadata(game_map, spec, stamps):
-    """Attach authored landmark and canyon metadata."""
-    game_map.city_layout_id = spec.city_layout_id or "eri_canyon_settlement"
-    game_map.landmark_stamps = stamp_metadata(stamps)
-    game_map.canyon_cells = {
-        (x, y)
-        for y in range(2, CITY_HEIGHT - 2)
-        for x in range(_CANYON_X_LO, _CANYON_X_HI + 1)
-    }
-    game_map.bridge_crossings = _BRIDGE_ROWS
-    game_map.city_buildings = building_records(spec, stamps, "eri_")
+_SHIPS_ORIGIN = world.Position(24, 32)  # landing plateau dock
 
 
 def build_epsilon_eridani_layout(spec, resolve_ship):
     """Build Epsilon Eridani b's 200x140 terraced canyon settlement."""
     theme = _readable_city_theme(CANYON_SETTLEMENT)
-    tiles = _base_tiles(theme)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+    _carve_canyon(tiles)
     _paint_dust(tiles, theme)
     _paint_roads(tiles, theme)
     _paint_sidewalks(tiles, theme)
@@ -366,12 +318,24 @@ def build_epsilon_eridani_layout(spec, resolve_ship):
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
-    _paint_building_forecourts(game_map.tiles, theme, spec)
+    paint_door_forecourts(
+        game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
+    )
     _paint_transit_bays(game_map.tiles, theme, spec)
     paint_roof_labels(game_map, stamps, "eri_")
     _paint_homesteads(game_map.tiles, theme)
-    _set_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    set_city_metadata(
+        game_map, spec, stamps,
+        prefix="eri_", default_layout_id="eri_canyon_settlement",
+    )
+    game_map.canyon_cells = {
+        (x, y)
+        for y in range(2, CITY_HEIGHT - 2)
+        for x in range(_CANYON_X_LO, _CANYON_X_HI + 1)
+    }
+    game_map.bridge_crossings = _BRIDGE_ROWS
+    add_showroom_ships(game_map, spec, resolve_ship, origin=_SHIPS_ORIGIN)
+    add_service_terminals(game_map, spec)
     return game_map
 
 
