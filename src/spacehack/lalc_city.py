@@ -75,7 +75,7 @@ _STORAGE_SITES: tuple[tuple[int, int, int, int], ...] = (
     (76, 29, 5, 4), (86, 29, 6, 4), (93, 29, 5, 4),
     # Lower transfer yard, outside the service buildings and south loop.
     (28, 51, 6, 4), (38, 51, 6, 4), (48, 51, 6, 4),
-    (58, 51, 6, 4), (66, 51, 5, 4), (91, 51, 5, 4),
+    (58, 51, 6, 4), (66, 51, 5, 4), (91, 42, 5, 3),
     # South freight lane: intentionally sparse to keep the loop readable.
     (28, 61, 6, 3), (38, 61, 6, 3), (48, 61, 6, 3),
     (58, 61, 6, 3), (68, 61, 5, 3), (90, 61, 6, 3),

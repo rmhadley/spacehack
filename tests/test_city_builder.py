@@ -1555,3 +1555,24 @@ def test_lal_c_storage_containers_clear_city_anchors():
         for x, tile in enumerate(row):
             if tile.kind == "storage_container":
                 assert (x, y) not in blocked
+
+
+def test_lal_c_bounty_office_has_clear_container_setback():
+    """The warrant office keeps a visible buffer from freight stacks."""
+    game_map = load_planet("lal_c")
+    footprint = game_map.landmark_stamps["lalc_bounties"]["footprint"]
+    container_cells = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "storage_container"
+    }
+    assert not any(
+        (x + dx, y + dy) in container_cells
+        for x, y in footprint
+        for dx, dy in (
+            (0, 0), (0, -1), (1, -1), (-1, -1),
+            (0, 1), (1, 1), (-1, 1),
+            (1, 0), (-1, 0),
+        )
+    )

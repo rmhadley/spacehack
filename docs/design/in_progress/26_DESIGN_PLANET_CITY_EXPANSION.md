@@ -976,6 +976,9 @@ network, authored interiors, and a living population.
   clusters in five contrasting vault colors. Containers use their own blocked
   tile kind and are placed only on unclaimed floor, preserving lanes, doors,
   transit bays, NPC anchors, and the quiet landing apron.
+- Corrected a visual clipping issue found during review: the lower-right
+  storage unit was moved away from the bounty-office footprint and given a
+  clear setback, with regression coverage protecting that buffer.
 - Regression coverage verifies the container density and palette variety in
   addition to three lane bands/two crossings, public reachability, entrance
   clearance, transit placement, authored room completeness, landing-apron
