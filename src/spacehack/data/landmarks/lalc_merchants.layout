@@ -1,0 +1,18 @@
+# lalc_merchants.layout - the Ledger container hall
+MAP
+#####################
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+##########+##########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (66, 70, 92) / (28, 30, 46)
+COLOUR: = = (104, 112, 146) / (42, 44, 68)
+COLOUR: + = (214, 194, 255) / (44, 34, 70)

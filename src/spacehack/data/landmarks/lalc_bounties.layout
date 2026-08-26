@@ -1,0 +1,18 @@
+# lalc_bounties.layout - warrant clerks and reposted marks
+MAP
+#####################
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#########+###########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (72, 54, 54) / (26, 18, 18)
+COLOUR: = = (110, 80, 80) / (38, 26, 26)
+COLOUR: + = (255, 170, 150) / (58, 30, 26)

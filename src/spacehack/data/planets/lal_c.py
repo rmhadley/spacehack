@@ -1,35 +1,21 @@
 """Lalande 21185 c — Whisper, the vault moon.
 
-The Requiem's manifest listed a sister ship carrying archives and
-military surplus — "Cargo of Record." Nothing was ever found. The
-smugglers who run this moon claim the manifest was the lie: the
-Record vault always belonged to them, and the Requiem just gave
-everyone an excuse to stop looking.
-
-Whatever the truth, Whisper is where the deep arm's secrets surface
-for a price. Weapons that never got registered, research data
-nobody was supposed to see, pharmaceuticals that skipped every
-inspection. People here talk in low voices, keep their hoods up,
-and remember that the Tollkeeper watches the only way out.
-
-Layout (60x40), built dark and tight:
-
-  * spaceport, NW corner.
-  * bar, NE corner — "The Hush" speakeasy.
-  * merchant hall, SW — the Ledger, straight into the dark.
-  * bounties, SE — turned-around marks never go home well.
+Whisper is a smuggler depot assembled from sealed freight containers. New
+stacks were added wherever there was room until the settlement became a
+tight maze: a quiet landing apron feeds a three-lane public grid, with two
+crossings and short spurs to the Hush, the Ledger, and the warrant office.
+The containers are the architecture; the lanes are the city.
 """
 
 from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
+from ..city_npcs import LAL_C_POPULATION
 from . import PlanetSpec
 from .themes import derive_theme
 
 
-# The Vault palette — near-black deck, pale ash surface, cold violet
-# neon so the whole settlement reads 'lit by screens, not by sun'.
 VAULT = derive_theme(
     floor=(120, 120, 140),
     grass=(60, 66, 92),
@@ -44,33 +30,65 @@ SPEC = PlanetSpec(
     char="p",
     fg=(90, 100, 140),
     description="The Vault - a smuggler moon where nothing is asked and everything is priced.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    width=100,
+    height=70,
+    hangar_anchor=world.Position(17, 20),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport",
+            x_lo=5, x_hi=28, y_lo=4, y_hi=12,
+            door_x=17, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar",
+            x_lo=72, x_hi=92, y_lo=5, y_hi=12,
+            door_x=82, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
-            door_x=14, npc_id="guild_master",
-            door_north=True,
+            label="merchants",
+            x_lo=5, x_hi=25, y_lo=53, y_hi=60,
+            door_x=15, npc_id="guild_master",
         ),
         world.CityBuilding(
-            label="bounties",  x_lo=34, x_hi=55, y_lo=26, y_hi=35,
-            door_x=44, npc_id="bounty_master",
-            door_north=True,
+            label="bounties",
+            x_lo=73, x_hi=87, y_lo=52, y_hi=62,
+            door_x=80, npc_id="bounty_master",
         ),
     ),
+    city_layout_id="lalc_container_maze",
+    city_npc_population=LAL_C_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="landing apron",
+            pos=world.Position(20, 24),
+            destinations=("hush", "ledger", "bounties"),
+        ),
+        world.TransitStation(
+            id="hush", name="The Hush", district="upper container row",
+            pos=world.Position(83, 14),
+            destinations=("spaceport", "ledger", "bounties"),
+        ),
+        world.TransitStation(
+            id="ledger", name="The Ledger", district="lower west loop",
+            pos=world.Position(17, 63),
+            destinations=("spaceport", "hush", "bounties"),
+        ),
+        world.TransitStation(
+            id="bounties", name="Warrant Office", district="lower east loop",
+            pos=world.Position(82, 63),
+            destinations=("spaceport", "hush", "ledger"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "lalc_spaceport_interior"),
+        ("bar", "lalc_bar_interior"),
+        ("merchants", "lalc_merchants_interior"),
+        ("bounties", "lalc_bounties_interior"),
+    ),
     showroom_ships=(
-        ("hauler",   7, 2),
-        ("cruiser",  11, 4),
-        ("frigate",  15, 2),
+        ("hauler", -5, -4),
+        ("cruiser", 0, -5),
+        ("frigate", 5, -4),
     ),
     npc_overrides=(
         (

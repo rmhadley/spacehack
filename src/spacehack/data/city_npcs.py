@@ -234,6 +234,21 @@ TC_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("tc_ranger_b", "militia_trooper", (118, 49), wander_radius=14, move_chance=0.85),
 )
 
+LAL_C_POPULATION: tuple[CityNpc, ...] = (
+    # Couriers thread the central container lanes between the four services.
+    CityNpc("lalc_lane_courier_a", "civillian_bystander", (35, 26), wander_radius=55, move_chance=0.9),
+    CityNpc("lalc_lane_courier_b", "civillian_bystander", (68, 26), wander_radius=55, move_chance=0.85),
+    CityNpc("lalc_lane_courier_c", "civillian_bystander", (35, 47), wander_radius=55, move_chance=0.9),
+    # Dock hands stay near the quiet apron and upper crossing.
+    CityNpc("lalc_dock_hand", "civillian_bystander", (27, 20), wander_radius=12, move_chance=0.8),
+    # A market runner and warrant hunter work the lower loop.
+    CityNpc("lalc_market_runner", "civillian_bystander", (60, 65), wander_radius=20, move_chance=0.85),
+    CityNpc("lalc_warrant_hunter", "pirate_raider", (91, 65), wander_radius=18, move_chance=0.75),
+    CityNpc("lalc_lane_watch", "militia_trooper", (68, 47), wander_radius=55, move_chance=0.8),
+    CityNpc("lalc_ledger_runner", "civillian_bystander", (18, 64), wander_radius=18, move_chance=0.85),
+)
+
+
 INDI_B_POPULATION: tuple[CityNpc, ...] = (
     # Farmers walking the field lanes and the harvest road.
     CityNpc("indi_farmer_a", "civillian_bystander", (60, 49), wander_radius=40, move_chance=0.85),
@@ -270,4 +285,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]

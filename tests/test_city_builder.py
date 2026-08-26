@@ -1368,3 +1368,149 @@ def test_very_small_map_builds_without_error():
     assert game_map.width == 30
     assert game_map.height == 20
     assert game_map.tiles[0][0].kind == "wall"
+
+
+# --- Lalande 21185 c: shipping-container maze ---------------------------
+
+
+def test_lal_c_is_a_tight_container_maze():
+    """Whisper uses the authored container-maze layout and full city systems."""
+    game_map = load_planet("lal_c")
+    assert game_map.city_layout_id == "lalc_container_maze"
+    assert (game_map.width, game_map.height) == (100, 70)
+    assert set(game_map.city_buildings) == {
+        "spaceport", "bar", "merchants", "bounties",
+    }
+    assert len(game_map.city_transit) == 4
+    assert sum(
+        bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
+    ) == 8
+    container_walls = sum(
+        tile.kind == "city_building_wall" and tile.char in {"#", "="}
+        for row in game_map.tiles for tile in row
+    )
+    assert container_walls >= 180
+    apron = [
+        tile for row in game_map.tiles for tile in row
+        if tile.kind == "landing_pad"
+    ]
+    assert apron
+    assert {tile.char for tile in apron} == {" "}
+
+
+def test_lal_c_public_lanes_connect_every_service():
+    """The narrow container lanes connect the landing apron to every door and stop."""
+    game_map = load_planet("lal_c")
+    spec = find_planet_spec("lal_c")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        x, y = entrance
+        assert game_map.tiles[y][x].walkable, label
+        assert entrance in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+
+
+def test_lal_c_containers_clear_public_routes_and_doors():
+    """Container stacks never bury lanes, aprons, or building entrances."""
+    game_map = load_planet("lal_c")
+    public_kinds = {"road", "sidewalk", "landing_pad", "plaza"}
+    for label, stamp in game_map.landmark_stamps.items():
+        assert not {
+            point for point in stamp["footprint"]
+            if game_map.tiles[point[1]][point[0]].kind in public_kinds
+        }, label
+    for label, record in game_map.city_buildings.items():
+        x, y = record["entrance"]
+        assert any(
+            game_map.in_bounds(x + dx, y + dy)
+            and game_map.tiles[y + dy][x + dx].kind in public_kinds
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+        ), label
+
+
+def test_lal_c_transit_stops_are_off_lanes_and_on_door_side():
+    """Each stop uses a small bay beside the lane and south of its door."""
+    game_map = load_planet("lal_c")
+    spec = find_planet_spec("lal_c")
+    station_for = {
+        "spaceport": "spaceport", "bar": "hush",
+        "merchants": "ledger", "bounties": "bounties",
+    }
+    for building in spec.buildings:
+        entrance = game_map.city_buildings[building.label]["entrance"]
+        stop = game_map.city_transit[station_for[building.label]]["pos"]
+        assert stop[1] > entrance[1], building.label
+        if building.label != "spaceport":
+            assert game_map.tiles[stop[1]][stop[0]].kind not in {
+                "road", "sidewalk", "landing_pad",
+            }, building.label
+        assert any(
+            game_map.tiles[stop[1] + dy][stop[0] + dx].kind == "sidewalk"
+            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+            if game_map.in_bounds(stop[0] + dx, stop[1] + dy)
+        ), building.label
+        assert abs(stop[0] - entrance[0]) <= 12, building.label
+
+
+def test_lal_c_uses_complete_authored_exteriors_and_interiors():
+    """All four Whisper facilities have one real door and a valid room."""
+    game_map = load_planet("lal_c")
+    for label, record in game_map.city_buildings.items():
+        exterior = city_landmarks.load_city_landmark(f"lalc_{label}")
+        assert {len(row) for row in exterior.tiles} == {exterior.width}, label
+        assert sum(
+            tile.kind == "city_building_door"
+            for row in exterior.tiles for tile in row
+        ) == 1, label
+        interior = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert interior.spawn is not None, label
+        assert any(
+            tile.kind == "exit" for row in interior.game_map.tiles for tile in row
+        ), label
+        assert record["entrance"] == (
+            game_map.landmark_stamps[f"lalc_{label}"]["entrance"]
+        )
+
+
+def test_lal_c_population_stays_clear_of_the_maze_architecture():
+    """Ambient smugglers spawn on walkable lanes, never in stacks or stops."""
+    game_map = load_planet("lal_c")
+    reachable = _reachable(game_map, find_planet_spec("lal_c").hangar_anchor)
+    building_cells = {
+        point for stamp in game_map.landmark_stamps.values()
+        for point in stamp["footprint"]
+    }
+    station_cells = {
+        metadata["pos"] for metadata in game_map.city_transit.values()
+    }
+    for entity in game_map.entities:
+        if not getattr(entity, "city_npc_id", ""):
+            continue
+        point = (entity.pos.x, entity.pos.y)
+        assert point not in building_cells, entity.city_npc_id
+        assert point not in station_cells, entity.city_npc_id
+        assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+        assert point in reachable
+        assert game_map.blocking_entity_at(
+            entity.pos.x, entity.pos.y, exclude=entity,
+        ) is None
+
+
+def test_lal_c_maze_has_two_crossings_and_three_lane_bands():
+    """The authored circulation reads as a maze with repeated container belts."""
+    game_map = load_planet("lal_c")
+    road_rows = {
+        y for y, row in enumerate(game_map.tiles)
+        if sum(tile.kind == "road" for tile in row) >= 60
+    }
+    road_columns = {
+        x for x in range(game_map.width)
+        if sum(game_map.tiles[y][x].kind == "road" for y in range(game_map.height)) >= 35
+    }
+    assert {26, 47, 65} <= road_rows
+    assert {33, 69} <= road_columns

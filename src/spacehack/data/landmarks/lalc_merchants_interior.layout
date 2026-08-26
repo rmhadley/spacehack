@@ -1,0 +1,22 @@
+# lalc_merchants_interior.layout - the Ledger
+MAP
+######################
+#....................#
+#..tttt....tttt......#
+#..t............t....#
+#..t....*.......t....#
+#..tttt....tttt......#
+#....................#
+#....*...............#
+#.........P..........#
+#.........>..........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: t = TABLE
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: t = (175, 165, 220) / (60, 52, 86)
+COLOUR: * = (225, 205, 255) / (54, 44, 78)

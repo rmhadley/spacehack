@@ -1,0 +1,22 @@
+# lalc_bounties_interior.layout - reposted warrants
+MAP
+######################
+#....................#
+#..bbbb....bbbb......#
+#..b............b....#
+#..b....*.......b....#
+#..bbbb....bbbb......#
+#....................#
+#....*...............#
+#.........P..........#
+#.........>..........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = CITY_BUILDING_WALL
+TILE: * = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: b = (170, 138, 194) / (58, 44, 70)
+COLOUR: * = (255, 186, 120) / (60, 42, 44)

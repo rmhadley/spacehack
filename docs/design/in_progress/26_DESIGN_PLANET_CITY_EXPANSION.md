@@ -862,7 +862,7 @@ network, authored interiors, and a living population.
       exteriors/interiors
 - [ ] Vega b (`vega_b`) — 3 buildings (spaceport, bar, merchants)
 - [x] Lalande b (`lal_b`) — authored 140×100 wreck colony: the Requiem's diagonal hull, docking ring grave, salvage yard, 4 buildings, 7 NPCs, 4 transit stops
-- [ ] Lalande c (`lal_c`) — 4 buildings (spaceport, bar, merchants, bounties)
+- [x] Lalande c (`lal_c`) — authored 100×70 shipping-container maze: three stacked container belts, narrow public lane grid with two crossings, quiet landing apron, The Hush, the Ledger, warrant office, 4 transit stops, 8 NPCs, and authored exteriors/interiors
 - [x] Groombridge b (`groom_b`) — authored 120×80 hardpan boomtown: cold-dusk
       red-dwarf palette, one full-width ore-haul road ring, 4 buildings
       (spaceport + apron west, The Last Gate mid-north, bounty office south,
@@ -957,7 +957,40 @@ network, authored interiors, and a living population.
   the hangar anchor, interior spawn+exit completeness, and lawless
   population invariants.
 
-**Tau Ceti b build record**
+**Lalande c build record**
+
+- Replaced the compact placeholder with a 100×70 authored vault depot built
+  from close-set shipping-container stacks. Three horizontal lane bands and
+  two vertical crossings make the circulation intentionally tight while
+  keeping every service reachable from the landing apron.
+- Added a quiet northwest landing apron, themed lane/door approaches, and
+  restrained vault lights. Container stacks never overwrite the public lanes,
+  landing operations, building footprints, or entrances.
+- Added four complete authored exteriors (`lalc_spaceport`, `lalc_bar`,
+  `lalc_merchants`, `lalc_bounties`) and four themed interiors, all routed
+  through the shared city landmark pipeline.
+- Added a data-defined four-stop transit network and eight ambient NPCs,
+  including a direct-contact hostile warrant hunter, with positions chosen
+  clear of the maze architecture and transit cells.
+- Regression coverage verifies the container density, three lane bands/two
+  crossings, public reachability, entrance clearance, transit placement,
+  authored room completeness, landing-apron clarity, and NPC spawn safety.
+
+**PLAYTEST** (Lalande c)
+
+1. Land on Whisper and confirm the landing apron is visually quiet beneath
+   the ships and service terminals.
+2. Walk the three narrow container lanes and cross the two vertical junctions;
+   verify the maze feels dense but never traps the player.
+3. Visit The Hush, the Ledger, and the warrant office from their visible doors.
+4. Ride all four transit stops and confirm each arrival is beside its lane,
+   not on a sidewalk or container wall.
+5. Enter and exit all four interiors; exercise the existing bar, trade, and
+   bounty interactions.
+6. Wait and walk through several city ticks; verify the courier, lane watch,
+   and lower-loop population move without clipping into stacks.
+7. Save and continue from the city and an interior; verify the return state.
+
 
 - Clearing-in-the-canopy plan: canopy wall rings the map on all four
   sides and juts inward as lobes that pinch the spine avenue; every

@@ -1,0 +1,27 @@
+# lalc_bar_interior.layout - The Hush
+MAP
+######################
+#....................#
+#..bbbbbbbbbb........#
+#..b..........b......#
+#..b..t..t.....*.....#
+#..b..g..g.....*.....#
+#..bbbbbbbbbb........#
+#....................#
+#....................#
+#.........P..........#
+#.........>..........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: t = TABLE
+TILE: g = DRINK
+TILE: * = NEON
+TILE: > = EXIT
+COLOUR: b = (160, 124, 206) / (64, 42, 82)
+COLOUR: t = (204, 174, 240) / (64, 48, 86)
+COLOUR: g = (255, 96, 170) / (72, 42, 76)
+COLOUR: * = (210, 190, 255) / (54, 42, 82)
