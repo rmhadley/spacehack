@@ -1576,3 +1576,138 @@ def test_lal_c_bounty_office_has_clear_container_setback():
             (1, 0), (-1, 0),
         )
     )
+
+
+# ---------------------------------------------------------------------
+# Barnard c -- the Skimmer Deck (atmospheric helium-3 platform)
+# ---------------------------------------------------------------------
+
+
+def test_barnards_c_is_a_skimmer_deck():
+    """Whisper-free deck: authored layout, two facilities, two stops."""
+    game_map = load_planet("barnards_c")
+    assert game_map.city_layout_id == "barnards_c_atmo_deck"
+    assert (game_map.width, game_map.height) == (110, 72)
+    assert set(game_map.city_buildings) == {"spaceport", "bar"}
+    assert set(game_map.city_transit) == {"spaceport", "deep_freeze"}
+    assert sum(
+        bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
+    ) == 8
+
+
+def test_barnards_c_two_stops_pair_the_port_and_the_bar():
+    """Each stop sits south of its door, beside a sidewalk, and the two
+    stops list only each other as destinations."""
+    game_map = load_planet("barnards_c")
+    spec = find_planet_spec("barnards_c")
+    station_for = {"spaceport": "spaceport", "deep_freeze": "bar"}
+    other = {"spaceport": "deep_freeze", "deep_freeze": "spaceport"}
+    for sid, label in station_for.items():
+        station = next(s for s in spec.transit_stations if s.id == sid)
+        entrance = game_map.city_buildings[label]["entrance"]
+        x, y = station.pos.x, station.pos.y
+        assert game_map.tiles[y][x].walkable, sid
+        assert station.destinations == (other[sid],), sid
+        assert y > entrance[1], sid
+        assert abs(x - entrance[0]) <= 12, sid
+        assert any(
+            game_map.tiles[y + dy][x + dx].kind == "sidewalk"
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+            if game_map.in_bounds(x + dx, y + dy)
+        ), sid
+
+
+def test_barnards_c_public_lanes_connect_every_service():
+    """The spine and connectors reach both doors and both stops from the berth."""
+    game_map = load_planet("barnards_c")
+    spec = find_planet_spec("barnards_c")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    for label, record in game_map.city_buildings.items():
+        entrance = record["entrance"]
+        assert entrance is not None, label
+        assert game_map.tiles[entrance[1]][entrance[0]].walkable, label
+        assert entrance in reachable, label
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        assert game_map.tiles[y][x].walkable, station_id
+        assert (x, y) in reachable, station_id
+
+
+def test_barnards_c_sheared_corner_reads_as_storm_void():
+    """The southwest corner is cut away in steps: void inside the cut,
+    rim plating on surviving deck, apron smooth up to its rimmed edge."""
+    game_map = load_planet("barnards_c")
+    for x, y in ((10, 60), (20, 66), (35, 63), (45, 68), (2, 68)):
+        tile = game_map.tiles[y][x]
+        assert tile.kind == "storm_void" and not tile.walkable, (x, y)
+    for x, y in ((31, 57), (41, 62), (51, 66), (15, 54)):
+        assert game_map.tiles[y][x].kind == "storm_rim", (x, y)
+    for y in range(41, 54):
+        for x in range(10, 26):
+            tile = game_map.tiles[y][x]
+            assert tile.kind == "landing_pad" and tile.char == " ", (x, y)
+
+
+def test_barnards_c_toe_line_never_bridges_the_void():
+    """The painted hazard line skips void and rim: the inlet mouth and
+    the sheared corner stay impassable all the way to the map edge."""
+    game_map = load_planet("barnards_c")
+    for row in game_map.tiles:
+        for tile in row:
+            if tile.kind == "hazard_toe":
+                assert tile.walkable
+    for x, y in ((70, 69), (10, 69)):
+        assert game_map.tiles[y][x].kind == "storm_void", (x, y)
+    rim = game_map.tiles[60][69]
+    assert rim.kind == "storm_rim" and not rim.walkable
+    assert game_map.tiles[69][95].kind == "hazard_toe"
+
+
+def test_barnards_c_industrial_dressing_is_expressive():
+    """Tank farm, pipeline network, manifolds, and skimmer cradles all
+    present -- the deck reads as a working gas mine, not a town grid."""
+    game_map = load_planet("barnards_c")
+    kinds = [
+        tile.kind for row in game_map.tiles for tile in row
+    ]
+    assert kinds.count("he3_tank") >= 200
+    assert kinds.count("he3_manifold") == 8
+    assert kinds.count("skimmer_cradle") == 12
+    pipes = [
+        tile for row in game_map.tiles for tile in row
+        if tile.kind == "he3_pipe"
+    ]
+    assert len(pipes) >= 60
+    assert all(pipe.walkable for pipe in pipes)
+    # Cradle frames stand at the inlet mouth with deck-side gates open,
+    # and no frame hangs over the sheared void below.
+    assert game_map.tiles[61][47].kind == "gantry_truss"
+    assert game_map.tiles[61][88].kind == "gantry_truss"
+    assert game_map.tiles[62][47].walkable
+    assert game_map.tiles[62][88].walkable
+    assert game_map.tiles[62][48].kind == "skimmer_cradle"
+    assert game_map.tiles[65][48].kind == "storm_rim"
+
+
+def test_barnards_c_interiors_load_with_spawn_and_exit():
+    """Both skimmer-deck facilities have authored interiors with P + exit."""
+    game_map = load_planet("barnards_c")
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        assert asset.spawn is not None, f"{label} interior has no spawn"
+        assert any(
+            tile.kind == "exit" for row in asset.game_map.tiles for tile in row
+        ), f"{label} interior has no exit"
+
+
+def test_barnards_c_population_walks_the_deck():
+    """Every ambient crew member anchors on a walkable, unblocked cell."""
+    game_map = load_planet("barnards_c")
+    for entity in game_map.entities:
+        if not getattr(entity, "city_npc_id", ""):
+            continue
+        tile = game_map.tiles[entity.pos.y][entity.pos.x]
+        assert tile.walkable, f"{entity.city_npc_id} on a blocked tile"
+        assert game_map.blocking_entity_at(
+            entity.pos.x, entity.pos.y, exclude=entity,
+        ) is None

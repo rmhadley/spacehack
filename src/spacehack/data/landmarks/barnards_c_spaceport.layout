@@ -1,0 +1,18 @@
+# barnards_c_spaceport.layout — skimmer-deck spaceport hull
+MAP
+#####################
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#########+###########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (96, 112, 140) / (30, 38, 56)
+COLOUR: = = (150, 170, 200) / (44, 54, 76)
+COLOUR: + = (210, 240, 255) / (34, 48, 70)

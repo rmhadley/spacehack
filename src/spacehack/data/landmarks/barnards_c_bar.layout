@@ -1,0 +1,18 @@
+# barnards_c_bar.layout — The Deep Freeze cantina
+MAP
+###################
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#########+#########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (74, 92, 128) / (28, 36, 56)
+COLOUR: = = (104, 132, 178) / (38, 50, 76)
+COLOUR: + = (185, 225, 255) / (32, 46, 68)

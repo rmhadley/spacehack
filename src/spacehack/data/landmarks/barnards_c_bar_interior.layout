@@ -1,0 +1,24 @@
+# barnards_c_bar_interior.layout — The Deep Freeze cantina
+MAP
+###############
+#.............#
+#.o.........o.#
+#.............#
+#=======......#
+#=======..o...#
+#.............#
+#.o...P.......#
+#....o....>...#
+#.............#
+###############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_FLOOR
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: P = CITY_ORNAMENT
+TILE: > = EXIT
+COLOUR: = = (205, 220, 242) / (42, 54, 76)
+COLOUR: o = (130, 175, 215) / (36, 46, 68)
+COLOUR: P = (230, 238, 255) / (40, 54, 78)

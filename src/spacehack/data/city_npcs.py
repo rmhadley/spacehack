@@ -267,6 +267,24 @@ INDI_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("indi_regular", "civillian_bystander", (84, 25), wander_radius=5, move_chance=0.8),
 )
 
+BARNARDS_C_POPULATION: tuple[CityNpc, ...] = (
+    # Pad hands working the west landing apron.
+    CityNpc("bnc_padhand_a", "civillian_bystander", (10, 44), wander_radius=8, move_chance=0.8),
+    CityNpc("bnc_padhand_b", "civillian_bystander", (23, 52), wander_radius=8, move_chance=0.8),
+    # Deck hands walking the full service spine run.
+    CityNpc("bnc_deckhand_a", "civillian_bystander", (9, 30), wander_radius=90, move_chance=0.9),
+    CityNpc("bnc_deckhand_b", "civillian_bystander", (101, 44), wander_radius=90, move_chance=0.85),
+    # Smelter hand tending the helium-3 tank farm.
+    CityNpc("bnc_smelter_hand", "civillian_bystander", (88, 46), wander_radius=10, move_chance=0.85),
+    # Skimmer pilot waiting by the west inlet cradle.
+    CityNpc("bnc_skimmer_pilot", "civillian_bystander", (53, 63), wander_radius=4, move_chance=0.8),
+    # A regular loitering outside The Deep Freeze.
+    CityNpc("bnc_bar_regular", "civillian_bystander", (99, 24), wander_radius=5, move_chance=0.8),
+    # One company trooper patrolling the pad approach.
+    CityNpc("bnc_company_trooper", "militia_trooper", (26, 45), wander_radius=14, move_chance=0.8),
+)
+
+
 ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     # Pirates near the bar (NE zone, y=1..9).
     CityNpc("ross_pirate_a", "civillian_bystander", (94, 12), wander_radius=6, move_chance=0.8),
@@ -285,4 +303,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]
