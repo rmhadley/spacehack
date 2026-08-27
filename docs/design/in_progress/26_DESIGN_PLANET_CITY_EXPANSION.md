@@ -850,7 +850,8 @@ network, authored interiors, and a living population.
 - [x] Wolf 359 b (`wolf_b`) — authored crater pirate outpost: 120×80, 3 buildings, landing pad, antenna forest, cave entrance, Smuggler's Row market with vendors and shoppers, 12 NPCs, 3 transit stops, contraband trade, and authored exteriors/interiors
 - [x] Cygni b (`cygni_b`) — authored 160x100 port-and-forge colony: haul road, three forge factories, dock market, 4 buildings, 9 NPCs, 4 transit stops
 - [x] Barnard's Star b (`barnards_b`) — authored 120×100 underground mine colony: ring-and-spoke tunnels, 3 buildings carved into rock walls, metallic blue landing pad, 6 NPCs, 3 transit stops, ore veins and barrel fires
-- [ ] Barnard's Star c (`barnards_c`) — 2 buildings (spaceport, bar)
+- [ ] Barnard's Star c (`barnards_c`) — authored atmospheric mining deck
+      (plan below; in progress)
 - [x] Ross b (`ross_b`) — authored 120×80 volcanic pirate settlement: two lava channels with bridge crossings, obsidian ground, 4 buildings, 11 NPCs, 4 transit stops, Smuggler's Row market, contraband trade, and authored exteriors/interiors
 - [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
 - [x] Tau Ceti b (`tc_b`) — authored 160×100 canopy clearing: full-riot
@@ -1026,6 +1027,61 @@ network, authored interiors, and a living population.
   apron/no caves), full reachability from the hangar anchor, interior
   spawn+exit completeness, quest-hook survival, lawful population
   invariants.
+
+**Barnard c skimmer-deck plan**
+
+Concept decision (user-approved): Barnard c stays lore-true — it is a cold
+gas giant with no surface, so its settlement is an **atmospheric helium-3
+mining deck skimming the upper cloud bands**, not an ice shelf or canyon.
+Scope is deliberately minimal: the existing two services (spaceport and The
+Deep Freeze bar) receive the full Phase 6 treatment without adding new
+service buildings.
+
+Civil-engineering plan (110×72):
+
+- **Platform identity.** The deck plate is the whole walkable floor. Every
+  map edge ends in a two-cell storm-void band (non-walkable gas-top abyss)
+  fronted by a one-cell painted hazard toe-line that is walkable — a real
+  platform's yellow edge line you can stand on but not past.
+- **Circulation first.** One full-width east-west service spine (road with
+  sidewalk shoulders) crosses mid-deck; two north-south road connectors tie
+  the west landing apron and the eastern bar frontage to the spine. No dead
+  ends; the spine reaches both ends of the deck.
+- **Landing operations (west/southwest).** A quiet blank-floor apron around
+  the hangar berth with ships and terminals set back from pedestrian edges.
+  The spaceport hull sits north of the apron, door south, forecourt walking
+  straight onto the apron.
+- **Bar district (east).** The Deep Freeze occupies the northeast block,
+  door south onto a sidewalk spur meeting the spine's south shoulder.
+- **Industrial character, no fake townscape.** Instead of skyline filler:
+  a He-3 tank farm of frost-caked cylinder clusters on the southeast deck,
+  siphon gantry trusses braced along the north void edge, and a cloud inlet
+  cut into the southern rim (scenery-only siphon head reaching into the
+  abyss — intentional empty space, not unfinished terrain).
+- **Transit (3 stops).** Spaceport stop beside the apron/forecourt, Deep
+  Freeze stop beside the bar spur, Middeck Commons stop near the tank-farm
+  crossing — each adjacent to sidewalk, never on lanes/pads/doors, on the
+  same side as its destination door.
+- **Population (~7 crew).** Pad crew on the apron, deck hands walking the
+  full spine, a smelter hand among the tanks, a bar regular outside The
+  Deep Freeze, and one company trooper patrolling the apron approach.
+  All lawfully corporate; zero hostiles.
+- **Interiors (2).** Authored frost-paletted spaceport office and Deep
+  Freeze cantina assets through the shared landmark pipeline.
+
+Implementation notes:
+
+- Layout id `barnards_c_atmo_deck`; builder module `barnards_c_city.py`
+  built on `city_kit` + `city_layout` shared machinery (stamp exteriors,
+  paint roof labels, door forecourts, transit bays, metadata records).
+- Asset prefix `barnards_c_`: spaceport/bar exteriors + interiors as
+  swappable landmark assets.
+- Custom tile kinds (`storm_void`, `tank`, gantry accents) are additive and
+  never overwrite public route kinds; reachability, transit-placement,
+  edge-hazard, asset-completeness, population-safety, and determinism get
+  focused regression tests mirroring the Lalande c suite.
+- Persistence needs nothing new: the city rebuilds deterministically from
+  spec data like every other authored city.
 
 **PLAYTEST** (after each city):
 
