@@ -1700,6 +1700,35 @@ def test_barnards_c_interiors_load_with_spawn_and_exit():
         ), f"{label} interior has no exit"
 
 
+def test_barnards_c_interior_spawns_sit_inside_the_door():
+    """Entering a building drops you just inside the entrance, not
+    mid-floor: the P spawn sits directly above the exit marker, and the
+    exit backs onto the door-side (south) wall. Regression: both
+    skimmer-deck interiors spawned the player in the middle of the
+    room, which no doorway works like."""
+    game_map = load_planet("barnards_c")
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        interior = asset.game_map
+        exits = [
+            (x, y)
+            for y, row in enumerate(interior.tiles)
+            for x, tile in enumerate(row)
+            if tile.kind == "exit"
+        ]
+        assert len(exits) == 1, f"{label} interior needs exactly one exit"
+        ex, ey = exits[0]
+        spawn = asset.spawn
+        assert (spawn.x, spawn.y) == (ex, ey - 1), (
+            f"{label}: spawn {(spawn.x, spawn.y)} must sit directly inside "
+            f"the exit at {(ex, ey)}"
+        )
+        bottom_wall = interior.tiles[ey + 1][ex]
+        assert bottom_wall.kind == "city_building_wall", (
+            f"{label}: exit must back onto the door-side wall"
+        )
+
+
 def test_barnards_c_population_walks_the_deck():
     """Every ambient crew member anchors on a walkable, unblocked cell."""
     game_map = load_planet("barnards_c")
