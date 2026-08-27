@@ -15,7 +15,7 @@ from .city_npcs import save_city_npc_positions as _save_city_npc_positions
 from .game_context import GameContext
 from .pygame_runtime import PygameContext
 from .saveload_maps import _dungeon_from_dict, _dungeon_to_dict  # noqa: F401  # re-exported for tests/tools
-from .saveload_maps import rebuild_game_map
+from .saveload_maps import _restore_interiors, rebuild_game_map
 
 
 def _saves_dir() -> Path:
@@ -307,8 +307,18 @@ def _write_dungeon_and_interiors(ctx, data, mode, space_player_pos) -> None:
     # The autosave IS the on-disk cache: every boarded wreck interior is
     # serialized here so crew stay dead, loot stays taken, and fog stays
     # revealed across save/quit/continue.
+    #
+    # City interiors (cache keys "city:...") are deterministic authored
+    # assets with no persistent mutable state, so they are never
+    # serialized: they rebuild from current layout data on next entry.
+    # That keeps layout and spawn fixes in code reaching existing saves
+    # instead of pinning stale rooms forever.
     if ctx.interiors:
-        data["interiors"] = {k: _dungeon_to_dict(v, None) for k, v in ctx.interiors.items()}
+        data["interiors"] = {
+            key: _dungeon_to_dict(value, None)
+            for key, value in ctx.interiors.items()
+            if not str(key).startswith("city:")
+        }
 
 
 def _write_rng_state(data: dict) -> None:
@@ -863,66 +873,6 @@ def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
     _restore_dungeon_extension(ctx, data)
 
 
-def _active_interior_key(ctx: GameContext, rebuilt) -> str:
-    """Resolve the interior cache key for the active dungeon map."""
-    game_map = rebuilt.game_map
-    active_key = getattr(game_map, "interior_cache_key", "")
-    if not active_key and getattr(game_map, "wreck_spawn_id", None) is not None:
-        active_key = game_map.wreck_spawn_id
-    if not active_key and getattr(game_map, "city_interior_id", ""):
-        active_key = game_map.city_interior_id
-    if not active_key and (
-        ctx.dungeon_extension is not None and ctx.dungeon_extension.active
-    ):
-        from .dungeon_extensions import floor_key as _extension_floor_key
-        active_key = _extension_floor_key(
-            ctx.dungeon_extension.extension_id, ctx.dungeon_extension.current_floor,
-        )
-    # Legacy planet-surface saves predate interior_cache_key. Restrict
-    # migration to maps carrying an unambiguous extension marker; a normal
-    # derelict has neither marker and is never rebound to a surface.
-    if not active_key and (
-        getattr(game_map, "extension_entry_id", "")
-        or getattr(game_map, "mars_stairs_pos", None) is not None
-    ):
-        active_key = f"surface:{rebuilt.city_id}"
-    return active_key
-
-
-def _restore_interiors(ctx: GameContext, data: dict, rebuilt) -> None:
-    """Restore persistent wreck interiors and rebind the active cache entry."""
-    for key, idict in (data.get("interiors", {}) or {}).items():
-        imap, _ = _dungeon_from_dict(idict)
-        ctx.interiors[str(key)] = imap
-    # The active dungeon is authoritative when Continue resumes inside a
-    # cached interior. Rebind the corresponding cache key to that exact
-    # object so identity-based transition lookup works after deserialization.
-    if rebuilt.mode == "dungeon":
-        active_key = _active_interior_key(ctx, rebuilt)
-        if active_key:
-            ctx.interiors[active_key] = rebuilt.game_map
-    cur_wsid = getattr(rebuilt.game_map, 'wreck_spawn_id', None)
-    if cur_wsid is not None:
-        ctx.interiors[cur_wsid] = rebuilt.game_map
-    if rebuilt.mode == "dungeon":
-        from .city_interiors import restore_city_interior_parent
-        restore_city_interior_parent(ctx, rebuilt)
-    extension_state = ctx.dungeon_extension
-    if extension_state is not None and extension_state.active:
-        from .dungeon_extensions import (
-            _ensure_floor_connections,
-            floor_key as _extension_floor_key,
-        )
-        _ensure_floor_connections(
-            rebuilt.game_map, extension_state.extension_id, extension_state.current_floor,
-        )
-        if extension_state.power_restored:
-            rebuilt.game_map.power_restored = True
-        ctx.interiors[_extension_floor_key(
-            extension_state.extension_id, extension_state.current_floor,
-        )] = rebuilt.game_map
-
-
 def _restore_quest_npcs(ctx: GameContext, rebuilt) -> None:
     """Spawn quest-conditional NPCs onto the rebuilt map."""
     from . import main_quest as _mq
@@ -962,7 +912,7 @@ def _assemble_context(context, data: dict, parsed: _ParsedSave, rebuilt) -> Game
     if rebuilt.mode == "dungeon":
         ctx._space_game_map = rebuilt.space_map  # type: ignore[attr-defined]
         ctx._space_player = rebuilt.space_player  # type: ignore[attr-defined]
-    _restore_interiors(ctx, data, rebuilt)
+    rebuilt = _restore_interiors(ctx, data, rebuilt)
     _restore_quest_npcs(ctx, rebuilt)
     _restore_rng_and_seed(data)
     return ctx

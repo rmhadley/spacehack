@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from . import city_landmarks, world
+
+if TYPE_CHECKING:
+    from .saveload_maps import _RebuiltMap
 
 
 def _building_record(game_map: world.GameMap, position: world.Position) -> dict | None:
@@ -177,3 +182,34 @@ def exit_city_interior(state) -> str:
     state.ctx.player = parent_player
     state.log.add("You step back outside.")
     return "HANDLED"
+
+
+def is_city_interior_key(key) -> bool:
+    """True when an interior cache key belongs to a deterministic city room."""
+    return str(key).startswith("city:")
+
+
+def rebuild_active_city_interior(ctx, rebuilt) -> "_RebuiltMap":
+    """Swap a serialized city interior for the current authored room.
+
+    City rooms are deterministic assets with no persistent mutable state
+    (the seated service NPC re-seats on cache miss), so resuming indoors
+    must never pin stale tiles or a stale entry spawn from an older
+    save. The player re-enters through the door at the room's current
+    entry spawn; a saved in-room position is ephemeral by design
+    (exiting already repositions the player at the exterior door).
+    """
+    from .data.planets import load_planet
+
+    label = getattr(rebuilt.game_map, "city_building_label", "")
+    parent = load_planet(rebuilt.city_id)
+    record = getattr(parent, "city_buildings", {}).get(label)
+    if record is None or not record.get("interior_layout_id"):
+        return rebuilt
+    interior, spawn = _interior_for_record(ctx, record)
+    player = rebuilt.player_ent
+    player.pos = world.Position(spawn.x, spawn.y)
+    interior.entities.append(player)
+    ctx.game_map = interior
+    ctx.player = player
+    return rebuilt._replace(game_map=interior, player_ent=player)

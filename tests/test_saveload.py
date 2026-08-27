@@ -1179,3 +1179,93 @@ class TestSaveLoadRoundTrip:
         delete_save()
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
+
+
+class TestCityInteriorSaveMigration:
+    """City interiors are deterministic assets and never serialize.
+
+    Regression: city rooms rode along in the wreck-interior autosave
+    cache, so an old save restored stale tiles and a stale mid-floor
+    entry spawn even after the layout data was fixed in code.
+    """
+
+    def _stale_city_interior(self) -> GameMap:
+        """A bar interior as an OLD save would hold it: mid-floor spawn."""
+        from src.spacehack import city_landmarks
+        game_map = city_landmarks.load_city_interior(
+            "barnards_c_bar_interior",
+        ).game_map
+        game_map.city_interior_id = "city:barnards_c:bar"
+        game_map.interior_cache_key = "city:barnards_c:bar"
+        game_map.city_building_label = "bar"
+        game_map.entry_spawn = Position(6, 4)
+        return game_map
+
+    def _wreck_interior(self) -> GameMap:
+        return GameMap(
+            width=4, height=4,
+            tiles=[[world.VOID for _ in range(4)] for _ in range(4)],
+            entities=[],
+        )
+
+    def test_save_skips_city_interiors_but_keeps_wrecks(self):
+        from src.spacehack.saveload import _write_dungeon_and_interiors
+        ctx = SimpleNamespace(
+            interiors={
+                "city:barnards_c:bar": self._stale_city_interior(),
+                "wreck_1": self._wreck_interior(),
+            },
+            game_map=None,
+        )
+        data: dict = {}
+        _write_dungeon_and_interiors(ctx, data, "city", None)
+        assert "city:barnards_c:bar" not in data["interiors"]
+        assert "wreck_1" in data["interiors"]
+
+    def test_legacy_city_cache_entries_are_dropped_on_load(self):
+        from src.spacehack.saveload_maps import _restore_interiors
+        from src.spacehack.saveload_maps import _dungeon_to_dict
+        stale_dict = _dungeon_to_dict(self._stale_city_interior(), None)
+        ctx = SimpleNamespace(
+            interiors={}, dungeon_extension=None, player_owned_ship=None,
+        )
+        rebuilt = SimpleNamespace(
+            mode="city", game_map=self._wreck_interior(),
+            player_ent=None, city_id="barnards_c",
+        )
+        _restore_interiors(
+            ctx, {"interiors": {"city:barnards_c:bar": stale_dict}}, rebuilt,
+        )
+        assert "city:barnards_c:bar" not in ctx.interiors
+
+    def test_resume_inside_city_interior_rebuilds_current_room(self):
+        """Continue indoors swaps the stale room for the authored asset
+        and places the player at the current door-side entry spawn."""
+        from src.spacehack.saveload_maps import _restore_interiors
+        from src.spacehack.saveload_maps import _RebuiltMap
+        stale = self._stale_city_interior()
+        player = Entity("@", (255, 255, 255), Position(6, 4), name="Player")
+        stale.entities.append(player)
+        rebuilt = _RebuiltMap(
+            game_map=stale, player_ent=player, mode="dungeon",
+            city_id="barnards_c", system_id="barnards",
+            space_map=None, space_player=None,
+        )
+        ctx = SimpleNamespace(
+            interiors={}, dungeon_extension=None, player_owned_ship=None,
+        )
+        result = _restore_interiors(ctx, {}, rebuilt)
+        fresh = result.game_map
+        assert fresh is not stale
+        # The current asset's door-side spawn, not the stale mid-floor one.
+        assert (player.pos.x, player.pos.y) == (9, 8)
+        assert ctx.interiors["city:barnards_c:bar"] is fresh
+        assert ctx.game_map is fresh
+        assert ctx.player is player
+        # The seated service NPC re-seats in the rebuilt room.
+        assert any(
+            getattr(entity, "npc_id", "") == "barkeep"
+            for entity in fresh.entities
+        )
+        # The exterior city is attached as the exit parent.
+        assert getattr(fresh, "city_parent_map", None) is not None

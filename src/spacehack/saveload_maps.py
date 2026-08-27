@@ -8,10 +8,13 @@ to keep that module within its architecture budget.
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from . import ship as ship_module
 from . import world
+
+if TYPE_CHECKING:
+    from .game_context import GameContext
 
 # Backward-compat fallback for old saves that stored kind strings.
 _TILE_FROM_KIND: dict[str, world.Tile] = {
@@ -621,3 +624,100 @@ def rebuild_game_map(
     return _rebuild_city(
         system_id, log, owned_ship, pos_x, pos_y, city_id, _city_npc_positions,
     )
+
+
+def _active_interior_key(ctx: "GameContext", rebuilt: _RebuiltMap) -> str:
+    """Resolve the interior cache key for the active dungeon map."""
+    game_map = rebuilt.game_map
+    active_key = getattr(game_map, "interior_cache_key", "")
+    if not active_key and getattr(game_map, "wreck_spawn_id", None) is not None:
+        active_key = game_map.wreck_spawn_id
+    if not active_key and getattr(game_map, "city_interior_id", ""):
+        active_key = game_map.city_interior_id
+    if not active_key and (
+        ctx.dungeon_extension is not None and ctx.dungeon_extension.active
+    ):
+        from .dungeon_extensions import floor_key as _extension_floor_key
+        active_key = _extension_floor_key(
+            ctx.dungeon_extension.extension_id, ctx.dungeon_extension.current_floor,
+        )
+    # Legacy planet-surface saves predate interior_cache_key. Restrict
+    # migration to maps carrying an unambiguous extension marker; a normal
+    # derelict has neither marker and is never rebound to a surface.
+    if not active_key and (
+        getattr(game_map, "extension_entry_id", "")
+        or getattr(game_map, "mars_stairs_pos", None) is not None
+    ):
+        active_key = f"surface:{rebuilt.city_id}"
+    return active_key
+
+
+def _restore_cached_interiors(ctx: "GameContext", data: dict) -> None:
+    """Rehydrate persistent wreck interiors; city rooms rebuild from assets."""
+    from .city_interiors import is_city_interior_key
+
+    for key, idict in (data.get("interiors", {}) or {}).items():
+        if is_city_interior_key(key):
+            # City rooms rebuild from assets; a stale serialized copy
+            # (legacy saves) must never shadow the current layout data.
+            continue
+        imap, _ = _dungeon_from_dict(idict)
+        ctx.interiors[str(key)] = imap
+
+
+def _rebind_active_interior(
+    ctx: "GameContext", rebuilt: _RebuiltMap,
+) -> _RebuiltMap:
+    """Point the interior cache at the exact active map object after load.
+
+    The active dungeon is authoritative when Continue resumes inside a
+    cached interior: rebind its cache key to that exact object so
+    identity-based transition lookup works after deserialization.
+    """
+    from .city_interiors import (
+        is_city_interior_key,
+        rebuild_active_city_interior,
+        restore_city_interior_parent,
+    )
+
+    if rebuilt.mode != "dungeon":
+        return rebuilt
+    active_key = _active_interior_key(ctx, rebuilt)
+    if active_key and is_city_interior_key(active_key):
+        rebuilt = rebuild_active_city_interior(ctx, rebuilt)
+    if active_key:
+        ctx.interiors[active_key] = rebuilt.game_map
+    cur_wsid = getattr(rebuilt.game_map, 'wreck_spawn_id', None)
+    if cur_wsid is not None:
+        ctx.interiors[cur_wsid] = rebuilt.game_map
+    restore_city_interior_parent(ctx, rebuilt)
+    return rebuilt
+
+
+def _rebind_extension_floors(ctx: "GameContext", rebuilt: _RebuiltMap) -> None:
+    """Re-register active dungeon-extension floors in the interior cache."""
+    extension_state = ctx.dungeon_extension
+    if extension_state is None or not extension_state.active:
+        return
+    from .dungeon_extensions import (
+        _ensure_floor_connections,
+        floor_key as _extension_floor_key,
+    )
+    _ensure_floor_connections(
+        rebuilt.game_map, extension_state.extension_id, extension_state.current_floor,
+    )
+    if extension_state.power_restored:
+        rebuilt.game_map.power_restored = True
+    ctx.interiors[_extension_floor_key(
+        extension_state.extension_id, extension_state.current_floor,
+    )] = rebuilt.game_map
+
+
+def _restore_interiors(
+    ctx: "GameContext", data: dict, rebuilt: _RebuiltMap,
+) -> _RebuiltMap:
+    """Restore persistent wreck interiors and rebind the active cache entry."""
+    _restore_cached_interiors(ctx, data)
+    rebuilt = _rebind_active_interior(ctx, rebuilt)
+    _rebind_extension_floors(ctx, rebuilt)
+    return rebuilt
