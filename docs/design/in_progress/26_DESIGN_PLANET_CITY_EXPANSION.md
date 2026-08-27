@@ -1130,6 +1130,11 @@ Implementation notes:
   moved beside the bar spur sidewalk.
 - Added an eight-crew lawfully-corporate population including a skimmer
   pilot by the west cradle, all anchored on walkable unblocked cells.
+- Corrected interior entry placement found during playtest: both skimmer-
+  deck interiors spawned the player mid-floor. Spawns now sit directly
+  inside the entrance doorway (P above the exit on the door-side row,
+  matching the LALC/Mercury convention), with regression coverage
+  pinning spawn-above-exit and exit-backs-the-wall for both rooms.
 - Regression coverage in `test_city_builder.py`: deck identity and stop
   pairing, spine reachability to every door and stop, shear void/rim
   geometry with a smooth apron up to its rimmed edge, toe-line-never-
