@@ -838,7 +838,7 @@ network, authored interiors, and a living population.
 11. Add focused regression coverage for the city's geometry and these
     authoring invariants, run the full gate, and commit.
 
-**Cities** (26 total, 13 done):
+**Cities** (26 total, 14 done):
 
 - [x] Earth — authored river-coast layout (Phase 1–5)
 - [x] Mercury — authored desert-station layout (Phase 5)
@@ -850,8 +850,13 @@ network, authored interiors, and a living population.
 - [x] Wolf 359 b (`wolf_b`) — authored crater pirate outpost: 120×80, 3 buildings, landing pad, antenna forest, cave entrance, Smuggler's Row market with vendors and shoppers, 12 NPCs, 3 transit stops, contraband trade, and authored exteriors/interiors
 - [x] Cygni b (`cygni_b`) — authored 160x100 port-and-forge colony: haul road, three forge factories, dock market, 4 buildings, 9 NPCs, 4 transit stops
 - [x] Barnard's Star b (`barnards_b`) — authored 120×100 underground mine colony: ring-and-spoke tunnels, 3 buildings carved into rock walls, metallic blue landing pad, 6 NPCs, 3 transit stops, ore veins and barrel fires
-- [ ] Barnard's Star c (`barnards_c`) — authored atmospheric mining deck
-      (plan below; in progress)
+- [x] Barnard's Star c (`barnards_c`) — authored 110×72 atmospheric helium-3
+      mining deck: sheared southwest deck edge with rim plating, blank
+      landing apron + Skimmer Port west, The Deep Freeze east, service spine
+      + connectors, eleven-tank He-3 farm with painted pipeline network and
+      valve manifolds, two skimmer cradles flanking the siphon inlet, gantry
+      trusses, cloud-inlet drop, 2 transit stops, 8 crew, and authored
+      exteriors/interiors
 - [x] Ross b (`ross_b`) — authored 120×80 volcanic pirate settlement: two lava channels with bridge crossings, obsidian ground, 4 buildings, 11 NPCs, 4 transit stops, Smuggler's Row market, contraband trade, and authored exteriors/interiors
 - [ ] Ross c (`ross_c`) — 4 buildings (spaceport, bar, merchants, depot)
 - [x] Tau Ceti b (`tc_b`) — authored 160×100 canopy clearing: full-riot
@@ -1042,30 +1047,44 @@ Civil-engineering plan (110×72):
 - **Platform identity.** The deck plate is the whole walkable floor. Every
   map edge ends in a two-cell storm-void band (non-walkable gas-top abyss)
   fronted by a one-cell painted hazard toe-line that is walkable — a real
-  platform's yellow edge line you can stand on but not past.
+  platform's yellow edge line you can stand on but not past. The toe line
+  never bridges the drop: void and rim cells are skipped, so the cloud
+  inlet and shear stay impassable to the map edge.
+- **Sheared silhouette (user-requested iteration).** The deck is not a
+  rectangle: the southwest corner is cut away in three stepped slices
+  (x≤30 at y55–60, x≤40 at y61–65, x≤50 at y66+) down to the storm, rim-
+  plated where surviving deck meets the cut. The west connector dies at
+  the shear rim like a real service stub.
 - **Circulation first.** One full-width east-west service spine (road with
   sidewalk shoulders) crosses mid-deck; two north-south road connectors tie
-  the west landing apron and the eastern bar frontage to the spine. No dead
-  ends; the spine reaches both ends of the deck.
+  the west landing apron and the eastern bar frontage to the spine.
 - **Landing operations (west/southwest).** A quiet blank-floor apron around
   the hangar berth with ships and terminals set back from pedestrian edges.
   The spaceport hull sits north of the apron, door south, forecourt walking
   straight onto the apron.
 - **Bar district (east).** The Deep Freeze occupies the northeast block,
   door south onto a sidewalk spur meeting the spine's south shoulder.
-- **Industrial character, no fake townscape.** Instead of skyline filler:
-  a He-3 tank farm of frost-caked cylinder clusters on the southeast deck,
-  siphon gantry trusses braced along the north void edge, and a cloud inlet
-  cut into the southern rim (scenery-only siphon head reaching into the
-  abyss — intentional empty space, not unfinished terrain).
-- **Transit (3 stops).** Spaceport stop beside the apron/forecourt, Deep
-  Freeze stop beside the bar spur, Middeck Commons stop near the tank-farm
-  crossing — each adjacent to sidewalk, never on lanes/pads/doors, on the
-  same side as its destination door.
-- **Population (~7 crew).** Pad crew on the apron, deck hands walking the
-  full spine, a smelter hand among the tanks, a bar regular outside The
-  Deep Freeze, and one company trooper patrolling the apron approach.
-  All lawfully corporate; zero hostiles.
+- **Industrial character, no fake townscape (deepened per user feedback).**
+  Instead of skyline filler: an eleven-tank He-3 farm of frost-caked
+  cylinder clusters in three staggered rows on the southeast deck, a painted
+  walkable He-3 pipeline (header dropping from the spine to the siphon rim
+  plus a cross-deck run tying the farm to the cradles and the east road)
+  with two 2×2 valve manifolds set between tank clusters, two 5×4 skimmer
+  cradles flanking the siphon inlet mouth (berth beds inside, deck-side
+  gates, one row clear of the shear rim), siphon gantry trusses braced
+  along the north void edge, and a cloud inlet cut into the southern rim
+  (scenery-only siphon head reaching into the abyss — intentional empty
+  space, not unfinished terrain).
+- **Transit (2 stops, user decision).** Middeck Commons was dropped — the
+  deck survives on Skimmer Port beside the apron/forecourt and the Deep
+  Freeze stop beside the bar spur. Each is adjacent to sidewalk, never on
+  lanes/pads/doors, on the door side, and the two stops list only each
+  other as destinations.
+- **Population (8 crew).** Pad crew on the apron, deck hands walking the
+  full spine, a smelter hand among the tanks, a skimmer pilot waiting by
+  the west inlet cradle, a bar regular outside The Deep Freeze, and one
+  company trooper patrolling the apron approach. All lawfully corporate;
+  zero hostiles.
 - **Interiors (2).** Authored frost-paletted spaceport office and Deep
   Freeze cantina assets through the shared landmark pipeline.
 
@@ -1082,6 +1101,55 @@ Implementation notes:
   focused regression tests mirroring the Lalande c suite.
 - Persistence needs nothing new: the city rebuilds deterministically from
   spec data like every other authored city.
+
+**Barnard c build record**
+
+- Replaced the compact 40×24 placeholder with a 110×72 authored skimmer
+  deck. Terrain paints the storm-void ring, blank landing apron, service
+  spine, connectors, and shear before any building stamps, so circulation
+  is planned first and architecture lands second.
+- Sheared the southwest corner away in three stepped slices with rim
+  plating on the new edge, and taught the connector painter to stop at
+  void/rim so the west road ends at the shear instead of painting lane
+  onto the abyss.
+- Fixed a toe-line hazard found during self-audit: the edge-line painter
+  previously stamped its walkable `=` across the cloud inlet's void (and
+  would have across the shear), letting players walk over the drop. It
+  now skips non-walkable cells; regression-tested.
+- Built the industrial dressing: eleven He-3 tanks in three staggered
+  rows, a walkable painted pipeline header plus cross-deck run, two valve
+  manifolds set into tank-row gaps, and two skimmer cradles flanking the
+  inlet mouth (gates facing the deck, frames one row clear of the shear
+  rim so none hang over the void).
+- Authored four landmark assets (`barnards_c_spaceport`, `barnards_c_bar`
+  exteriors + interiors) through the shared city landmark pipeline, with
+  roof labels and door forecourts.
+- Reduced transit to two stops per user decision (Middeck Commons cut —
+  it was also 13 tiles from any POI, outside the cross-city reach guard);
+  stops now pair Skimmer Port ↔ Deep Freeze with the Deep Freeze stop
+  moved beside the bar spur sidewalk.
+- Added an eight-crew lawfully-corporate population including a skimmer
+  pilot by the west cradle, all anchored on walkable unblocked cells.
+- Regression coverage in `test_city_builder.py`: deck identity and stop
+  pairing, spine reachability to every door and stop, shear void/rim
+  geometry with a smooth apron up to its rimmed edge, toe-line-never-
+  bridges-void, industrial dressing counts and cradle framing, interior
+  spawn/exit completeness, and population spawn safety.
+
+**PLAYTEST** (Barnard c)
+
+1. Land on the apron: confirm the deck is quiet under the hauler and
+   terminals, and the sheared corner is visible from the pad.
+2. Walk the spine west-to-east; confirm the west connector dead-ends at
+   the shear rim and the tank farm reads as a working gas mine.
+3. Follow the painted pipeline from the spine down to the siphon rim and
+   out to the cradles; confirm the toe line stops at both void cuts.
+4. Visit Skimmer Port and The Deep Freeze from their doors; confirm each
+   transit stop is beside, not on, the sidewalk.
+5. Ride the transit between the two stops in both directions.
+6. Enter and exit both interiors; exercise the bar and trade services.
+7. Watch the crew wander: confirm nobody clips the shear, tanks, or
+   cradle frames.
 
 **PLAYTEST** (after each city):
 
