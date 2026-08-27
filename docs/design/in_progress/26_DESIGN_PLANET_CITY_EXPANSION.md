@@ -1135,6 +1135,13 @@ Implementation notes:
   inside the entrance doorway (P above the exit on the door-side row,
   matching the LALC/Mercury convention), with regression coverage
   pinning spawn-above-exit and exit-backs-the-wall for both rooms.
+- Fixed the stale-interior save interaction that masked the spawn fix:
+  city interiors (cache keys `city:...`) are deterministic assets, so
+  they are no longer serialized into the autosave's interior cache —
+  wrecks keep full persistence (crew stay dead, loot stays taken, fog
+  stays revealed). Existing saves drop any stale serialized city rooms
+  on load, and resuming indoors rebuilds the current authored room and
+  re-enters through the door. Regression coverage in `test_saveload.py`.
 - Regression coverage in `test_city_builder.py`: deck identity and stop
   pairing, spine reachability to every door and stop, shear void/rim
   geometry with a smooth apron up to its rimmed edge, toe-line-never-
