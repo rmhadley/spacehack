@@ -122,7 +122,7 @@ def test_all_landable_city_pads_use_readable_entity_backgrounds():
             if tile.kind == "landing_pad"
         ]
         if pad_tiles:
-            smooth_apron_cities = {"ac_station", "eri_b", "wolf_b", "cygni_b", "lal_b", "lal_c", "groom_b", "tc_b", "indi_b", "barnards_c", "ross_c"}
+            smooth_apron_cities = {"ac_station", "eri_b", "wolf_b", "cygni_b", "lal_b", "lal_c", "groom_b", "tc_b", "indi_b", "barnards_c", "ross_c", "vega_b"}
             expected_char = " " if spec.id in smooth_apron_cities else "."
             assert pad_tiles[0].char == expected_char
             assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL

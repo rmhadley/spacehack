@@ -4,7 +4,7 @@ Not a planetary surface — the player "lands" on an orbital platform
 suspended in the upper atmosphere. Cool blues, silver trims, and
 wide observation windows looking down into the swirling cloud bands.
 
-Layout (60x40):
+Layout (140x90):
 
   * spaceport (arrival deck), NW corner.
   * bar (observation lounge), NE corner — "The Veil" — floor-to-ceiling
@@ -21,6 +21,7 @@ from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
 from .themes import CLOUD_CITY
+from ..city_npcs import VEGA_B_POPULATION
 
 
 SPEC = PlanetSpec(
@@ -30,27 +31,56 @@ SPEC = PlanetSpec(
     char="P",
     fg=(200, 200, 220),
     description="A massive gas giant - its upper atmosphere hosts a floating observation deck.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    width=140,
+    height=90,
+    hangar_anchor=world.Position(20, 31),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport", x_lo=10, x_hi=29, y_lo=18, y_hi=27,
+            door_x=20, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar", x_lo=94, x_hi=101, y_lo=18, y_hi=23,
+            door_x=97, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
-            door_x=14, npc_id="guild_master",
+            label="merchants", x_lo=94, x_hi=114, y_lo=62, y_hi=71,
+            door_x=104, npc_id="guild_master",
             door_north=True,
         ),
     ),
+    city_layout_id="vega_mirror_fields",
+    city_npc_population=VEGA_B_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="arrival deck",
+            pos=world.Position(31, 31),
+            destinations=("parallax", "exchange", "cooling_works"),
+        ),
+        world.TransitStation(
+            id="parallax", name="The Parallax", district="observation lounge",
+            pos=world.Position(94, 29),
+            destinations=("spaceport", "exchange", "cooling_works"),
+        ),
+        world.TransitStation(
+            id="exchange", name="Merchant Exchange", district="freight field",
+            pos=world.Position(104, 59),
+            destinations=("spaceport", "parallax", "cooling_works"),
+        ),
+        world.TransitStation(
+            id="cooling_works", name="Cooling Works", district="central spine",
+            pos=world.Position(67, 48),
+            destinations=("spaceport", "parallax", "exchange"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "vega_b_spaceport_interior"),
+        ("bar", "vega_b_bar_interior"),
+        ("merchants", "vega_b_merchants_interior"),
+    ),
     showroom_ships=(
-        ("cruiser",   11, 4),
-        ("freighter", 15, 2),
+        ("cruiser", -5, -2),
+        ("freighter", 2, -2),
     ),
     npc_overrides=(
         (

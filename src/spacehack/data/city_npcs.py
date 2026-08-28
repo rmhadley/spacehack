@@ -285,6 +285,16 @@ BARNARDS_C_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
+VEGA_B_POPULATION: tuple[CityNpc, ...] = (
+    CityNpc("vega_reflector_tech_a", "civillian_bystander", (42, 44), wander_radius=80, move_chance=0.9),
+    CityNpc("vega_reflector_tech_b", "civillian_bystander", (78, 44), wander_radius=80, move_chance=0.85),
+    CityNpc("vega_freight_handler", "civillian_bystander", (86, 59), wander_radius=70, move_chance=0.85),
+    CityNpc("vega_cloud_host_regular", "civillian_bystander", (88, 29), wander_radius=60, move_chance=0.8),
+    CityNpc("vega_array_security", "militia_trooper", (52, 45), wander_radius=70, move_chance=0.8),
+    CityNpc("vega_pad_crew", "civillian_bystander", (24, 35), wander_radius=50, move_chance=0.8),
+)
+
+
 ROSS_C_POPULATION: tuple[CityNpc, ...] = (
     # Pad hands working the breach apron.
     CityNpc("rsc_padhand_a", "civillian_bystander", (22, 38), wander_radius=6, move_chance=0.8),
@@ -323,4 +333,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]

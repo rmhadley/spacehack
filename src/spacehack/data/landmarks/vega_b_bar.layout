@@ -1,0 +1,16 @@
+# Vega b bar — The Veil observation lounge
+MAP
+########
+#======#
+#======#
+#======#
+#======#
+###+####
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (76, 100, 126) / (30, 42, 58)
+COLOUR: = = (170, 210, 238) / (46, 68, 86)
+COLOUR: + = (180, 240, 255) / (38, 62, 78)

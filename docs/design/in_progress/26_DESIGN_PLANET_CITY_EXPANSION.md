@@ -147,8 +147,8 @@ for future city migrations and playtests.
 - [x] Earth, Mercury, Mars, Epsilon Eridani b, Wolf 359 b, Cygni b,
   Barnard's Star b/c, Ross b/c, Tau Ceti b, Lalande b/c, Groombridge b,
   Indi b, and AC station are authored and migrated.
-- [ ] Vega b, Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Venus,
-  Depot, and Blockade remain the next migration backlog.
+- [x] Vega b — authored 140x90 Mirror Fields floating station: solar-reflector fields, shaded service spine, Cooling Works plaza, west landing apron, 3 buildings, 4 transit stops, 6 crew, and authored exteriors/interiors.
+- [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Venus, Depot, and Blockade remain the next migration backlog.
 
 ## Acceptance criteria
 
@@ -159,6 +159,20 @@ for future city migrations and playtests.
 - `make check` passes with focused regression coverage.
 - Remaining unchecked Phase 6 cities are explicit backlog rather than silently
   falling through as finished content.
+
+## Vega b build record
+
+- Replaced the 60x40 generic floating deck with a 140x90 authored station whose
+  identity comes from long solar-reflector rows, maintenance pylons, shaded
+  corridors, and a central Cooling Works plaza.
+- Added a broad west landing apron, a connected service spine, four named free
+  transit stops, six station crew NPCs, and three authored exterior/interior
+  landmark pairs while preserving the Cloud Host and Freight Broker overrides.
+- Added focused tests for mirror-field density, circulation reachability,
+  transit placement, NPC safety, smooth landing operations, showroom placement,
+  and interior spawn/exit completeness.
+- Full project verification passes: 1,464 tests, smoke, architecture, Ruff,
+  and main-quest validation.
 
 ## Future work
 
