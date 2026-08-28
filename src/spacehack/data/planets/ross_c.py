@@ -69,24 +69,19 @@ SPEC = PlanetSpec(
     city_npc_population=ROSS_C_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="breach_gate", name="Breach Gate", district="landing field",
+            id="spaceport", name="Spaceport", district="landing field",
             pos=world.Position(34, 38),
-            destinations=("long_burn", "ring_broker", "depot"),
+            destinations=("long_burn", "depot"),
         ),
         world.TransitStation(
             id="long_burn", name="The Long Burn", district="dockhall",
             pos=world.Position(67, 26),
-            destinations=("breach_gate", "ring_broker", "depot"),
-        ),
-        world.TransitStation(
-            id="ring_broker", name="Ring Broker", district="bazaar",
-            pos=world.Position(33, 40),
-            destinations=("breach_gate", "long_burn", "depot"),
+            destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="South Depot", district="depot quarter",
             pos=world.Position(68, 42),
-            destinations=("breach_gate", "long_burn", "ring_broker"),
+            destinations=("spaceport", "long_burn"),
         ),
     ),
     interior_layouts=(
@@ -95,11 +90,11 @@ SPEC = PlanetSpec(
         ("merchants", "ross_c_merchants_interior"),
         ("depot", "ross_c_depot_interior"),
     ),
-    # Showroom craft berthed in the breaker-yard lane between the hulks.
+    # Showroom craft sit on the landing pad just north of the owned ship.
     showroom_ships=(
-        ("hauler",  53, -6),
-        ("cruiser", 56, -6),
-        ("frigate", 59, -6),
+        ("hauler",  -6, -2),
+        ("cruiser", -2, -2),
+        ("frigate",  2, -2),
     ),
     npc_overrides=(
         (

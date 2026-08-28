@@ -502,6 +502,33 @@ def test_wolf_b_buildings_transit_and_population_are_reachable():
             ) is None
 
 
+def test_ross_c_uses_three_transit_stops_and_pad_showroom():
+    """Cinder keeps only the useful Spaceport, bar, and depot stops."""
+    game_map = load_planet("ross_c")
+    assert set(game_map.city_transit) == {"spaceport", "long_burn", "depot"}
+    assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
+    assert all(
+        set(metadata["destinations"]) == set(game_map.city_transit) - {station_id}
+        for station_id, metadata in game_map.city_transit.items()
+    )
+    owned = find_planet_spec("ross_c").hangar_anchor
+    showroom = [entity for entity in game_map.entities if entity.ship_id]
+    assert len(showroom) == 3
+    assert all(entity.pos.y < owned.y for entity in showroom)
+    assert all(
+        game_map.tiles[entity.pos.y][entity.pos.x].kind == "landing_pad"
+        for entity in showroom
+    )
+
+
+def test_ross_c_merchants_and_depot_have_complete_south_walls():
+    """The two south-door buildings retain solid bottom facades."""
+    for layout_id in ("ross_c_merchants", "ross_c_depot"):
+        asset = city_landmarks.load_city_landmark(layout_id)
+        bottom = asset.tiles[-1]
+        assert all(tile.kind == "city_building_wall" for tile in bottom)
+
+
 def test_mercury_uses_authored_exteriors_like_earth():
     """Mercury's buildings are stamped authored roofs, not legacy boxes:
     every enterable building has a landmark stamp, a roof label, and no
