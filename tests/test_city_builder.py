@@ -502,6 +502,16 @@ def test_wolf_b_buildings_transit_and_population_are_reachable():
             ) is None
 
 
+def test_ross_c_npcs_spawn_outside_the_merchants_facade():
+    """Ross c ambient anchors never land inside the brokers hall."""
+    game_map = load_planet("ross_c")
+    merchant_cells = game_map.landmark_stamps["ross_c_merchants"]["footprint"]
+    for entity in game_map.entities:
+        if getattr(entity, "city_npc_id", "").startswith("rsc_"):
+            assert (entity.pos.x, entity.pos.y) not in merchant_cells
+            assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
+
+
 def test_ross_c_uses_three_transit_stops_and_pad_showroom():
     """Cinder keeps only the useful Spaceport, bar, and depot stops."""
     game_map = load_planet("ross_c")
