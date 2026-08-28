@@ -1,0 +1,18 @@
+# ross_c_spaceport.layout — breach-gate spaceport hull
+MAP
+#####################
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#########+###########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (104, 92, 84) / (36, 30, 28)
+COLOUR: = = (150, 138, 126) / (50, 42, 38)
+COLOUR: + = (255, 208, 130) / (48, 36, 22)

@@ -1,0 +1,18 @@
+# ross_c_depot.layout — the south depot warehouse
+MAP
+########+########
+#===============#
+#===============#
+#===============#
+#===============#
+#===============#
+#===============#
+#===============#
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (100, 94, 82) / (34, 30, 26)
+COLOUR: = = (150, 140, 116) / (48, 42, 34)
+COLOUR: + = (255, 220, 120) / (50, 40, 20)

@@ -1,0 +1,30 @@
+# ross_c_bar_interior.layout - The Long Burn dockhall: scoreboards over the graveyard
+MAP
+#################
+#=..........o..#
+#=..o..........#
+#=.......c.....#
+#...c..........#
+#...........c..#
+#......o.......#
+#..c...........#
+#..............#
+#.........P....#
+#.........>....#
+#################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_FLOOR
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (96, 82, 74) / (34, 28, 26)
+COLOUR: = = (196, 168, 140) / (54, 42, 34)
+COLOUR: . = (214, 200, 176) / (52, 46, 40)
+COLOUR: c = (190, 150, 100) / (68, 50, 34)
+COLOUR: o = (255, 176, 64) / (66, 46, 20)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)

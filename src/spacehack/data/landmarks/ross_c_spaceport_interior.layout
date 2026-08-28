@@ -1,0 +1,28 @@
+# ross_c_spaceport_interior.layout - dock master's office and airlock console row
+MAP
+###############
+#====.......o.#
+#====..o......#
+#.....o....o..#
+#..o..........#
+#.............#
+#......o......#
+#..o..........#
+#.............#
+#.........P...#
+#.........>...#
+###############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_FLOOR
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (104, 94, 86) / (36, 32, 30)
+COLOUR: = = (214, 200, 176) / (52, 46, 40)
+COLOUR: . = (214, 200, 176) / (52, 46, 40)
+COLOUR: o = (216, 160, 88) / (66, 50, 32)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)

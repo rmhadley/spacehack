@@ -63,7 +63,9 @@ def stamp_city_assets(
             game_map, (stamp.entrance.x, stamp.entrance.y + 1),
         )
         for x, y in route:
-            if game_map.tiles[y][x].kind in {"road", "city_bridge", "landing_pad"}:
+            if game_map.tiles[y][x].kind in {
+                "road", "city_bridge", "landing_pad", "plaza",
+            }:
                 continue
             game_map.tiles[y][x] = sidewalk_tile
     return stamps
@@ -74,7 +76,7 @@ def _sidewalk_route(
     start: tuple[int, int],
 ) -> list[tuple[int, int]]:
     """Find a walkable route from a door to the nearest public route."""
-    route_kinds = {"road", "city_bridge", "landing_pad"}
+    route_kinds = {"road", "city_bridge", "landing_pad", "plaza"}
     blocked_kinds = {
         "city_building_floor", "city_building_door", "city_building_wall",
     }

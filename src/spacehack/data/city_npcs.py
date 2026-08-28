@@ -285,6 +285,26 @@ BARNARDS_C_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
+ROSS_C_POPULATION: tuple[CityNpc, ...] = (
+    # Pad hands working the breach apron.
+    CityNpc("rsc_padhand_a", "civillian_bystander", (22, 38), wander_radius=6, move_chance=0.8),
+    CityNpc("rsc_padhand_b", "civillian_bystander", (29, 42), wander_radius=6, move_chance=0.8),
+    # A dome tender working the settlement's southern edge.
+    CityNpc("rsc_dome_tender", "civillian_bystander", (33, 44), wander_radius=12, move_chance=0.8),
+    # Bazaar browsers circling the slag mound ring.
+    CityNpc("rsc_browser_a", "civillian_bystander", (62, 48), wander_radius=6, move_chance=0.9),
+    CityNpc("rsc_browser_b", "civillian_bystander", (52, 33), wander_radius=6, move_chance=0.85),
+    CityNpc("rsc_browser_c", "civillian_bystander", (66, 32), wander_radius=6, move_chance=0.85),
+    # Yard cutters working the breaker bay between the hulks.
+    CityNpc("rsc_cutter_a", "civillian_bystander", (79, 33), wander_radius=6, move_chance=0.85),
+    CityNpc("rsc_cutter_b", "civillian_bystander", (87, 33), wander_radius=6, move_chance=0.85),
+    # A regular loitering outside The Long Burn.
+    CityNpc("rsc_bar_regular", "civillian_bystander", (68, 27), wander_radius=4, move_chance=0.8),
+    # One ring marshal walking the dock street.
+    CityNpc("rsc_ring_marshal", "militia_trooper", (48, 36), wander_radius=10, move_chance=0.8),
+)
+
+
 ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     # Pirates near the bar (NE zone, y=1..9).
     CityNpc("ross_pirate_a", "civillian_bystander", (94, 12), wander_radius=6, move_chance=0.8),
@@ -303,4 +323,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]

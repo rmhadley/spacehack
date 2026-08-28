@@ -189,6 +189,23 @@ CLOUD_CITY = PlanetTheme(
     decor=T("plaza", "♦", (200, 240, 255), (155, 175, 200)),
 )
 
+# Scrap ring — shattered-moon salvage bazaar: compacted regolith,
+# blast-slag, gunmetal structures, and sodium-arc work lamps.
+SCRAP_RING = PlanetTheme(
+    floor=T("floor", "░", (150, 134, 120), (54, 47, 42)),
+    grass=T("grass", "█", (96, 84, 76), (38, 33, 30)),
+    grass_accent=T("grass", ",", (118, 102, 90), (38, 33, 30)),
+    plaza=T("plaza", "░", (196, 178, 152), (94, 82, 68)),
+    sidewalk=T("sidewalk", "▒", (168, 152, 132), (72, 63, 54)),
+    road_surface=T("road", ".", (132, 118, 102), (50, 44, 38)),
+    road_ns=T("road", ":", (112, 100, 86), (44, 38, 32)),
+    road_ew=T("road", "-", (112, 100, 86), (44, 38, 32)),
+    landing_pad=T("landing_pad", "▓", (188, 196, 204), (58, 62, 68)),
+    neon=T("neon", "*", (255, 176, 64), (56, 36, 14)),
+    tree=T("tree", "♣", (140, 86, 52), (50, 36, 26)),
+    decor=T("plaza", "♦", (216, 160, 88), (94, 82, 68)),
+)
+
 # Ice station — cold blues, icy whites, frost.
 ICE = PlanetTheme(
     floor=T("floor", "░", (180, 210, 240), (60, 80, 110)),

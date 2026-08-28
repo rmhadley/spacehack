@@ -1,0 +1,26 @@
+# ross_c_depot_interior.layout - the yard factor's cage: fuel desk and patch plate
+MAP
+#############
+#........>..#
+#........P..#
+#...........#
+#..o......o.#
+#...........#
+#......c....#
+#..c........#
+#...........#
+#############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (100, 94, 82) / (34, 30, 26)
+COLOUR: . = (208, 196, 170) / (50, 44, 38)
+COLOUR: c = (146, 104, 60) / (60, 44, 26)
+COLOUR: o = (255, 220, 120) / (60, 48, 22)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)

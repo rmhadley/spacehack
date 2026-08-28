@@ -11,12 +11,19 @@ ship components, electronics pried out of wrecks the flares never
 quite finished, research data off scorched couriers. Everything is
 "recovered," nothing is "stolen" — at least not to your face.
 
-Layout (60x40):
+Layout (100x70), authored as `ross_c_scrap_ring`:
 
-  * spaceport, NW corner.
-  * bar, NE corner — "The Long Burn" dockhall.
-  * merchants guild hall, SW — salvage brokers.
-  * depot, SE — fuel and patch-plate supply for the run back.
+  * the walkable floor is the blast-crater bowl; an irregular rubble
+    rim (the dome's foundation) rings it, badlands beyond.
+  * landing apron at the west rim breach — the airlock gate where
+    the old fortification wall failed.
+  * spaceport hull north of the apron, door south.
+  * The Long Burn dockhall bar north-east, door south to the ring.
+  * salvage brokers hall south-west, door north to the dock street.
+  * depot south-east, door north to the ring.
+  * the bazaar rings the sealed impact-slag mound at the crater's
+    heart; the ship-breaker yard fills the east floor with
+    half-stripped navy hulls.
 """
 
 from __future__ import annotations
@@ -24,43 +31,75 @@ from __future__ import annotations
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
-from .themes import CLOUD_CITY
+from .themes import SCRAP_RING
+from ..city_npcs import ROSS_C_POPULATION
 
 
 SPEC = PlanetSpec(
-    theme=CLOUD_CITY,
+    theme=SCRAP_RING,
     id="ross_c",
     name="Cinder",
     char="p",
     fg=(150, 120, 160),
     description="The Scrap Ring - a salvage bazaar domed over a shattered moon.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    width=100,
+    height=70,
+    hangar_anchor=world.Position(24, 38),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport", x_lo=24, x_hi=44, y_lo=24, y_hi=31,
+            door_x=33, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar", x_lo=56, x_hi=74, y_lo=18, y_hi=25,
+            door_x=65, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=4,  x_hi=24, y_lo=25, y_hi=36,
-            door_x=14, npc_id="guild_master",
+            label="merchants", x_lo=26, x_hi=44, y_lo=42, y_hi=50,
+            door_x=35, npc_id="guild_master",
             door_north=True,
         ),
         world.CityBuilding(
-            label="depot",     x_lo=40, x_hi=55, y_lo=26, y_hi=35,
-            door_x=47, npc_id="depot_attendant",
+            label="depot", x_lo=64, x_hi=80, y_lo=44, y_hi=51,
+            door_x=72, npc_id="depot_attendant",
             door_north=True,
         ),
     ),
+    city_layout_id="ross_c_scrap_ring",
+    city_npc_population=ROSS_C_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="breach_gate", name="Breach Gate", district="landing field",
+            pos=world.Position(34, 38),
+            destinations=("long_burn", "ring_broker", "depot"),
+        ),
+        world.TransitStation(
+            id="long_burn", name="The Long Burn", district="dockhall",
+            pos=world.Position(67, 26),
+            destinations=("breach_gate", "ring_broker", "depot"),
+        ),
+        world.TransitStation(
+            id="ring_broker", name="Ring Broker", district="bazaar",
+            pos=world.Position(33, 40),
+            destinations=("breach_gate", "long_burn", "depot"),
+        ),
+        world.TransitStation(
+            id="depot", name="South Depot", district="depot quarter",
+            pos=world.Position(68, 42),
+            destinations=("breach_gate", "long_burn", "ring_broker"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "ross_c_spaceport_interior"),
+        ("bar", "ross_c_bar_interior"),
+        ("merchants", "ross_c_merchants_interior"),
+        ("depot", "ross_c_depot_interior"),
+    ),
+    # Showroom craft berthed in the breaker-yard lane between the hulks.
     showroom_ships=(
-        ("hauler",   7, 2),
-        ("cruiser",  11, 4),
-        ("frigate",  15, 2),
+        ("hauler",  53, -6),
+        ("cruiser", 56, -6),
+        ("frigate", 59, -6),
     ),
     npc_overrides=(
         (
@@ -88,6 +127,20 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "The Ring trades in whatever the flares forgot to "
                     "destroy. If it still hums, it has a price."
+                ),
+            ),
+        ),
+        (
+            "depot_attendant",
+            npc_module.NPC(
+                id="depot_attendant",
+                name="Yard Factor",
+                guild="depot",
+                char="d",
+                fg=(230, 190, 120),
+                flavor_text=(
+                    "Fuel, patch plate, air bottles. Whatever gets your "
+                    "hull back through the flares - the Yard stocks it."
                 ),
             ),
         ),

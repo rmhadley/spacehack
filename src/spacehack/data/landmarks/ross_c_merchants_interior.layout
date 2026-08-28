@@ -1,0 +1,28 @@
+# ross_c_merchants_interior.layout - the brokers hall: provenance boards and lockboxes
+MAP
+###################
+#.........>.......#
+#.........P.......#
+#.................#
+#..c.......c...o..#
+#.................#
+#.....o...........#
+#..c........c.....#
+#.................#
+#...o........c....#
+#.................#
+###################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (98, 88, 92) / (34, 30, 32)
+COLOUR: . = (210, 198, 182) / (50, 44, 40)
+COLOUR: c = (206, 172, 116) / (68, 50, 34)
+COLOUR: o = (110, 210, 220) / (34, 52, 56)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)
